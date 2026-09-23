@@ -1,0 +1,56 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>First In Response Exteriors | Tulsa Exterior Cleaning</title><meta name="description" content="Firefighter-owned and insured exterior cleaning serving Tulsa and surrounding areas. House washing, roof cleaning, gutters, windows, concrete, fences and more.">
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--text:#f4f6f8;--muted:#aeb7c2;--red:#d62f2f;--line:#2a303a;--green:#39b36f}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
+header{padding:18px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#0f1115ee;backdrop-filter:blur(8px);z-index:2}
+.wrap{max-width:1100px;margin:auto;padding:22px}.hero{padding:58px 0 26px}.eyebrow{color:#ff6b6b;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+h1{font-size:clamp(34px,7vw,72px);line-height:.95;margin:12px 0}h2{margin-top:36px}p{color:var(--muted);line-height:1.6}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
+.btn{display:inline-block;padding:12px 16px;border-radius:12px;border:0;background:var(--red);color:white;text-decoration:none;font-weight:800;cursor:pointer}
+.btn.alt{background:#252b35}.row{display:flex;gap:10px;flex-wrap:wrap}.field{display:grid;gap:6px;margin:10px 0}
+input,select,textarea{width:100%;background:#0d1015;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px}
+table{width:100%;border-collapse:collapse}td,th{padding:10px;border-bottom:1px solid var(--line);text-align:left}
+small,.muted{color:var(--muted)}.price{font-size:26px;font-weight:900}.ok{color:var(--green)}
+nav a{color:#fff;text-decoration:none;margin-right:14px;font-weight:700}
+footer{padding:30px 20px;color:var(--muted);border-top:1px solid var(--line);margin-top:40px}
+</style></head>
+<body><header><div class="wrap" style="padding:0"><strong>🔥 First In Response Exteriors</strong><nav style="float:right"><a href="#services">Services</a><a href="#estimate">Estimate</a><a href="#contact">Contact</a></nav></div></header>
+<main class="wrap">
+<section class="hero"><div class="eyebrow">Firefighter-owned • Insured • Tulsa & surrounding areas</div><h1>Exterior cleaning done with a responder’s attention to detail.</h1>
+<p>House washing, roof soft washing, gutters, exterior windows, concrete, fences, trash bins, dryer vents and more.</p>
+<div class="row"><a class="btn" href="tel:+19189229366">Call 918-922-9366</a><a class="btn alt" href="sms:+19189229366">Text for a free estimate</a></div></section>
+
+<section id="services"><h2>Services</h2><div class="grid">
+<div class="card"><h3>House Washing</h3><p>Soft washing for siding, brick and stucco. Current base rate: $0.25/sq ft.</p></div>
+<div class="card"><h3>Roof Cleaning</h3><p>Soft-wash treatment for organic staining, subject to safe access and property conditions.</p></div>
+<div class="card"><h3>Gutter Cleaning</h3><p>Cleaning and standard downspout flushing: $1.50/linear ft. Gutter guard removal/reinstall: +$0.50/linear ft.</p></div>
+<div class="card"><h3>Gutter Brightening</h3><p>Scrub-and-chemical process for tiger striping: $2.00/linear ft.</p></div>
+<div class="card"><h3>Exterior Windows</h3><p>Standard: $7 first floor / $11 second floor. French pane: $12 / $18. Screens: $3 / $6.</p></div>
+<div class="card"><h3>Concrete & Flatwork</h3><p>Driveways, sidewalks, curbs, patios and other flatwork. Typical driveway starting point: $175.</p></div>
+<div class="card"><h3>Fence Cleaning</h3><p>Standard cleaning: $0.40/sq ft. Premium fence restoration available.</p></div>
+<div class="card"><h3>Other Services</h3><p>Trash bins, dryer vents, underground downspout/French drain flushing, RV/boat/trailer washing, AC condenser cleaning, cobweb removal and more.</p></div>
+</div></section>
+
+<section id="estimate"><h2>Quick estimator</h2><div class="card">
+<div class="field"><label>Service</label><select id="svc">
+<option value="house">House wash — $0.25/sq ft</option>
+<option value="gutter">Gutter cleaning — $1.50/linear ft</option>
+<option value="guards">Gutter guard removal/reinstall — $0.50/linear ft</option>
+<option value="bright">Gutter brightening — $2.00/linear ft</option>
+<option value="fence">Fence cleaning — $0.40/sq ft</option>
+</select></div>
+<div class="field"><label>Quantity</label><input id="qty" type="number" min="0" step="1" placeholder="Enter square feet or linear feet"></div>
+<div class="row"><button class="btn" onclick="calc()">Calculate</button></div>
+<p id="out" class="price"></p><small>Starting estimate only. Minimum job charge may apply. Site conditions, access, height, heavy buildup and specialty work can change pricing. A 50% deposit is required to reserve approved work on the schedule.</small>
+</div></section>
+
+<section id="contact"><h2>Request an estimate</h2><div class="card">
+<p><strong>First In Response Exteriors</strong><br>Tulsa & surrounding areas<br>Call/text: 918-922-9366</p>
+<div class="row"><a class="btn" href="tel:+19189229366">Call now</a><a class="btn alt" href="sms:+19189229366?body=Hi%20First%20In%20Response%20Exteriors%2C%20I'd%20like%20a%20free%20estimate.">Text now</a></div>
+</div></section>
+</main><footer><div class="wrap">First In Response Exteriors • Firefighter-owned and insured</div></footer>
+<script>
+function calc(){const r={house:.25,gutter:1.5,guards:.5,bright:2,fence:.4};let s=document.getElementById('svc').value,q=Number(document.getElementById('qty').value||0);let v=q*r[s];document.getElementById('out').textContent=v?('$'+v.toFixed(2)):'Enter a quantity.';}
+</script></body></html>
