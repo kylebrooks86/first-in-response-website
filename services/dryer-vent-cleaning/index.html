@@ -15,4 +15,9 @@ function initServiceMenu(){
   document.addEventListener('click',function(e){if(m.classList.contains('open')&&!m.contains(e.target)&&!t.contains(e.target))setOpen(false);});
 }
 document.addEventListener('DOMContentLoaded',initServiceMenu);
+function initSmsLinks(){
+ if(!/iPad|iPhone|iPod/.test(navigator.userAgent))return;
+ document.querySelectorAll('a[href^="sms:"][href*="?body="]').forEach(function(a){a.href=a.href.replace('?body=','&body=');});
+}
+document.addEventListener('DOMContentLoaded',initSmsLinks);
 </script></body></html>
