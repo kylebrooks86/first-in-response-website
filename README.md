@@ -48,6 +48,25 @@ Current independent rebuild: **13 public-facing pages represented**.
 
 All current pages use the FIRE branding, mobile call/estimate actions, temporary search-index protection, and shared navigation back into the main site. The nine service pages now also use the shared FIRE header/menu and footer.
 
+## Exact-media reconstruction status
+
+Confirmed exact/current-site media already represented in the rebuild:
+- Driveway before/after
+- Walkway before/after
+- Gutter brightening before/after
+- Exterior window before/after
+- Owner image
+- Current On-the-Job process clips
+
+Intentional new proof additions:
+- House-washing video
+- Gutter-cleaning video
+- Masonry/fireplace before/after
+- Front-patio / house-wash before/after
+- Cobweb-removal before/after
+
+The original **truck + pressure washer + surface-cleaner equipment photo** has now been visually identified from the current-site reference material. It is the next exact-media replacement target; do not substitute a similar truck/equipment image.
+
 ## Before any production cutover
 
 Follow `PRODUCTION_CUTOVER.md`. Do not change DNS first. Verify the temporary GitHub Pages version before moving the domain.
