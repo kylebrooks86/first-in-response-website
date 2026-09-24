@@ -19,7 +19,7 @@ Verify:
 - Current locked rates match `BUSINESS_RULES.md`, including $1.75/lf gutter cleaning and $1.00/lf existing-guard removal/reinstall
 - Estimator-to-text message
 - Personalized estimate form-to-text message
-- Review, Privacy, and Service Terms pages
+- Review, Privacy, and Service Terms pages, including the established `/service-terms` URL
 - All nine dedicated service pages
 - All internal links
 - Phone number: 918-922-9366
@@ -60,7 +60,7 @@ Immediately verify:
 - `https://firstinresponseexteriors.com`
 - `https://www.firstinresponseexteriors.com`
 - HTTPS certificate
-- Homepage, all nine service pages, Review, Privacy, and Service Terms
+- Homepage, all nine service pages, Review, Privacy, and `https://firstinresponseexteriors.com/service-terms`
 - Estimator
 - Call/text/email actions
 - Review page and all three direct review destinations: Google, Facebook, and Yelp

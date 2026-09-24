@@ -7,8 +7,9 @@ This snapshot documents the current disaster-recovery rebuild state. It is not p
 ## Page coverage
 
 - 13 public pages are represented in the sitemap.
-- 13 public pages have matching production-domain canonical URLs.
+- 13 public pages have matching production-domain canonical URLs, including the live `/service-terms` route.
 - 404 page is present separately.
+- Legacy `/terms/` remains a noindex redirect to `/service-terms/` so an old backup link does not break.
 - Every audited HTML page has exactly one H1 and no duplicate element IDs.
 - Public mirror pages remain `noindex,nofollow`.
 - `robots.txt` still blocks crawling of the mirror.

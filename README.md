@@ -21,7 +21,7 @@ The purpose of this repository is to keep the business website usable independen
 - Personalized-estimate-to-SMS handoff
 - Draggable before/after proof
 - Six On-the-Job videos
-- Review, privacy, and service-terms pages
+- Review, privacy, and service-terms pages at the current production routes
 - Direct Google, Facebook, and Yelp review destinations
 - Nine dedicated service pages
 - Exact truck/equipment image section
@@ -40,7 +40,7 @@ Current independent rebuild: **13 public-facing pages represented**.
 - Homepage
 - Review page
 - Privacy notice
-- Service terms
+- Service terms (`/service-terms/`; legacy `/terms/` redirect retained)
 - House washing
 - Roof cleaning
 - Concrete cleaning
