@@ -63,7 +63,7 @@ Immediately verify:
 - Homepage, all nine service pages, Review, Privacy, and Service Terms
 - Estimator
 - Call/text/email actions
-- Review page
+- Review page and all three direct review destinations: Google, Facebook, and Yelp
 - Videos and images
 - Mobile layout
 - Search Console ownership

@@ -126,7 +126,7 @@ function initEstimatorCalculator(){
       if(!cfg.fixed){
         var wrap=document.createElement('div');
         wrap.className='qty-wrap';
-        wrap.innerHTML='<label>'+cfg.placeholder.toUpperCase()+'</label><input type="number" inputmode="decimal" min="0" step="1" placeholder="0">';
+        var inputId='estimate-qty-'+idx;\n        wrap.innerHTML='<label for="'+inputId+'">'+cfg.placeholder.toUpperCase()+'</label><input id="'+inputId+'" type="number" inputmode="decimal" min="0" step="1" placeholder="0">';
         row.appendChild(wrap);
         wrap.querySelector('input').addEventListener('input',update);
       }

@@ -22,6 +22,7 @@ The purpose of this repository is to keep the business website usable independen
 - Draggable before/after proof
 - Six On-the-Job videos
 - Review, privacy, and service-terms pages
+- Direct Google, Facebook, and Yelp review destinations
 - Nine dedicated service pages
 - Exact truck/equipment image section
 - Homepage content flow aligned to the verified current production structure
