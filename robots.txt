@@ -1,3 +1,4 @@
+# Disaster-recovery mirror: keep this GitHub Pages copy out of search results
+# Remove this block only when this repository intentionally becomes the production website.
 User-agent: *
-Allow: /
-Sitemap: https://firstinresponseexteriors.com/sitemap.xml
+Disallow: /
