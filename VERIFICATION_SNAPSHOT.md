@@ -43,6 +43,8 @@ Estimator spot checks:
 - Estimator accordions start closed and enforce one-open-at-a-time behavior.
 - The estimator intentionally displays a protected ±5% preliminary range while calculating from the locked rates in BUSINESS_RULES.md.
 - Rendered estimator checks: 1,700 sq ft house wash displayed $404–$446 around the $425 calculation; 150 lf gutter cleaning plus 150 lf existing-guard removal/reinstall displayed $392–$433 around $412.50; the eligible 5% discount produced a $391.88 calculation and displayed the protected $372–$411 range; a $40 raw fence calculation enforced the $150 minimum and displayed $143–$158.
+- Read-only comparison with the current production homepage was used to align the mirror's section flow; no production files, settings, hosting, or DNS were changed.
+- The production service-area section is represented near the bottom of the mirror with Tulsa and the same nearby communities.
 - Physical iPhone and desktop owner comparison remains a required cutover gate.
 
 ## Media and interaction checks represented in source

@@ -24,6 +24,8 @@ The purpose of this repository is to keep the business website usable independen
 - Review, privacy, and service-terms pages
 - Nine dedicated service pages
 - Exact truck/equipment image section
+- Homepage content flow aligned to the verified current production structure
+- Tulsa-area service coverage section near the bottom of the homepage
 - Keyboard-accessible before/after sliders and estimator accordions
 
 ## Integrity check
