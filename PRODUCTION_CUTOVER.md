@@ -8,7 +8,7 @@ Check the GitHub Pages URL on iPhone and desktop.
 
 Verify:
 - Homepage layout and section order
-- Logo and owner image
+- Logo, owner image, and exact truck/equipment image
 - Every before/after image and draggable reveal
 - All six On-the-Job videos
 - Mobile hamburger menu
@@ -16,10 +16,11 @@ Verify:
 - Instant estimator calculations
 - 5% first responder/military discount
 - $150 minimum job behavior
+- Current locked rates match `BUSINESS_RULES.md`, including $1.50/lf gutter cleaning and $0.50/lf existing-guard removal/reinstall
 - Estimator-to-text message
 - Personalized estimate form-to-text message
-- Review page
-- Gutter, roof, and concrete service pages
+- Review, Privacy, and Service Terms pages
+- All nine dedicated service pages
 - All internal links
 - Phone number: 918-922-9366
 - Email: kyle@firstinresponseexteriors.com
@@ -43,8 +44,9 @@ Only when the mirror is approved:
    Sitemap: https://firstinresponseexteriors.com/sitemap.xml
    ```
 3. Re-check `sitemap.xml` for every production page.
-4. Add the production custom domain only at cutover time.
-5. Verify HTTPS after the domain is connected.
+4. Confirm every public page has the intended `https://firstinresponseexteriors.com/...` canonical URL.
+5. Add the production custom domain only at cutover time.
+6. Verify HTTPS after the domain is connected.
 
 ## 4. DNS cutover
 
@@ -58,7 +60,7 @@ Immediately verify:
 - `https://firstinresponseexteriors.com`
 - `https://www.firstinresponseexteriors.com`
 - HTTPS certificate
-- Homepage and service pages
+- Homepage, all nine service pages, Review, Privacy, and Service Terms
 - Estimator
 - Call/text/email actions
 - Review page
@@ -67,6 +69,9 @@ Immediately verify:
 - Search Console ownership
 - Sitemap accessibility
 - No accidental `noindex` remains
+- Canonical URLs resolve to the production domain
+- Gutter estimator test: 150 lf cleaning = $225 before discounts/minimum adjustments
+- House-wash estimator test: 1,700 sq ft = $425 before discounts
 
 ## 6. Rollback
 
