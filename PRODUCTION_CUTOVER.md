@@ -1,0 +1,80 @@
+# Production Cutover Checklist
+
+Use this only if the independent GitHub rebuild is intentionally replacing the current production website.
+
+## 1. Verify the mirror before touching DNS
+
+Check the GitHub Pages URL on iPhone and desktop.
+
+Verify:
+- Homepage layout and section order
+- Logo and owner image
+- Every before/after image and draggable reveal
+- All six On-the-Job videos
+- Mobile hamburger menu
+- Sticky Call / Text Photos / Estimate actions
+- Instant estimator calculations
+- 5% first responder/military discount
+- $150 minimum job behavior
+- Estimator-to-text message
+- Personalized estimate form-to-text message
+- Review page
+- Gutter, roof, and concrete service pages
+- All internal links
+- Phone number: 918-922-9366
+- Email: kyle@firstinresponseexteriors.com
+
+## 2. Preserve the current production site
+
+Before changing domain records:
+- Keep the current production site online.
+- Save/export any production-only files or settings not already represented here.
+- Record the current DNS records so they can be restored if needed.
+- Do not delete the old hosting account during cutover.
+
+## 3. Prepare this repository for production
+
+Only when the mirror is approved:
+1. Remove `<meta name="robots" content="noindex,nofollow">` from all public HTML pages.
+2. Change `robots.txt` from `Disallow: /` to:
+   ```
+   User-agent: *
+   Allow: /
+   Sitemap: https://firstinresponseexteriors.com/sitemap.xml
+   ```
+3. Re-check `sitemap.xml` for every production page.
+4. Add the production custom domain only at cutover time.
+5. Verify HTTPS after the domain is connected.
+
+## 4. DNS cutover
+
+Change only the records required for the new host. Do not guess DNS values; use the current GitHub Pages custom-domain instructions shown in the repository settings at the time of cutover.
+
+Keep the previous DNS values recorded until the new site is verified.
+
+## 5. Post-cutover verification
+
+Immediately verify:
+- `https://firstinresponseexteriors.com`
+- `https://www.firstinresponseexteriors.com`
+- HTTPS certificate
+- Homepage and service pages
+- Estimator
+- Call/text/email actions
+- Review page
+- Videos and images
+- Mobile layout
+- Search Console ownership
+- Sitemap accessibility
+- No accidental `noindex` remains
+
+## 6. Rollback
+
+If the production cutover fails:
+1. Restore the previous DNS records.
+2. Keep this GitHub repository unchanged as the recovery copy.
+3. Re-test the issue on the GitHub Pages URL before attempting another cutover.
+
+## Important
+
+The current GitHub copy is intentionally blocked from search indexing while it is a mirror. Do not remove that protection early.
