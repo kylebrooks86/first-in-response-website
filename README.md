@@ -73,6 +73,10 @@ The original **truck + pressure washer + surface-cleaner equipment photo** has b
 
 Current customer-facing pricing, deposit/discount rules, service limitations, and the rule for future pricing changes are recorded in `BUSINESS_RULES.md`. This keeps the website's operating assumptions recoverable even if the estimator code has to be rebuilt later.
 
+## Verification record
+
+The latest source-level audit and estimator spot checks are recorded in `VERIFICATION_SNAPSHOT.md`.
+
 ## Before any production cutover
 
 Follow `PRODUCTION_CUTOVER.md`. Do not change DNS first. Verify the temporary GitHub Pages version before moving the domain.
