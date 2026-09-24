@@ -24,6 +24,10 @@ The purpose of this repository is to keep the business website usable independen
 - Review page
 - Gutter, roof, and concrete service pages
 
+## Integrity check
+
+The homepage currently references 22 local media assets. The latest repository audit confirmed all 22 referenced files exist, with no duplicate HTML IDs and no missing in-page anchor targets.
+
 ## Before any production cutover
 
 Follow `PRODUCTION_CUTOVER.md`. Do not change DNS first. Verify the temporary GitHub Pages version before moving the domain.
