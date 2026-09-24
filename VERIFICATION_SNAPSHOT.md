@@ -36,7 +36,7 @@ Estimator spot checks:
 
 ## Final verification pass
 
-- Repository-wide stale-rate scan found no remaining $1.50/lf gutter-cleaning or $0.50/lf existing-guard rates.
+- Repository-wide stale-rate scan found no superseded gutter-cleaning or existing-guard rates.
 - All 13 public pages and the 404 page were rendered from GitHub Pages with one H1, active noindex protection, and no desktop horizontal overflow.
 - Every local page, anchor, image, and video reference resolved to a repository path.
 - Homepage and secondary-page hamburger menus open and close correctly; all now update both aria-expanded and the Open/Close accessible label.
