@@ -26,6 +26,7 @@ All explicitly approved new media must be mirrored to BOTH:
 - ✅ Gutter brightening before/after
 - ✅ Exterior window before/after
 - ✅ Owner image
+- ✅ Original truck / pressure-washer / surface-cleaner equipment image
 
 ## Functional rebuild improvements — COMPLETE IN GITHUB
 - ✅ Estimator categories closed by default
@@ -39,6 +40,11 @@ All explicitly approved new media must be mirrored to BOTH:
 - ✅ Call, text, and email contact actions are clickable
 - ✅ Mobile header menu is functional
 - ✅ Menu links jump to Services, Estimate, Results, On the Job, Reviews, and Personalized Estimate
+- ✅ Nine dedicated service pages share FIRE navigation/footer
+- ✅ Before/after sliders support touch, pointer, and keyboard input
+- ✅ Estimator accordion state is exposed to assistive technology
+- ✅ Personalized estimate selector includes all major service categories
+- ✅ Mirror remains noindex/nofollow until intentional production cutover
 
 ## Original site — MUST ALSO BE MIRRORED
 Confirm the separate original-site work chat includes the same six On-the-Job videos and the same three new proof additions above. Do not treat the GitHub completion as proof that the original production site has been updated.
