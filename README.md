@@ -28,6 +28,26 @@ The purpose of this repository is to keep the business website usable independen
 
 The homepage currently references 22 local media assets. The latest repository audit confirmed all 22 referenced files exist, with no duplicate HTML IDs and no missing in-page anchor targets.
 
+## Rebuild coverage
+
+Current independent rebuild: **13 public-facing pages represented**.
+
+- Homepage
+- Review page
+- Privacy notice
+- Service terms
+- House washing
+- Roof cleaning
+- Concrete cleaning
+- Gutter cleaning
+- Exterior window cleaning
+- Fence & deck cleaning
+- Underground downspout / French drain flushing
+- Dryer vent cleaning
+- Rust stain removal
+
+All current pages use the FIRE branding, mobile call/estimate actions, temporary search-index protection, and shared navigation back into the main site. The nine service pages now also use the shared FIRE header/menu and footer.
+
 ## Before any production cutover
 
 Follow `PRODUCTION_CUTOVER.md`. Do not change DNS first. Verify the temporary GitHub Pages version before moving the domain.
