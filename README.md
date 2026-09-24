@@ -69,6 +69,10 @@ Intentional new proof additions:
 
 The original **truck + pressure washer + surface-cleaner equipment photo** has been visually matched and is now installed as `assets/equipment-truck.jpg`; no similar-image substitution is being used.
 
+## Durable business configuration
+
+Current customer-facing pricing, deposit/discount rules, service limitations, and the rule for future pricing changes are recorded in `BUSINESS_RULES.md`. This keeps the website's operating assumptions recoverable even if the estimator code has to be rebuilt later.
+
 ## Before any production cutover
 
 Follow `PRODUCTION_CUTOVER.md`. Do not change DNS first. Verify the temporary GitHub Pages version before moving the domain.
