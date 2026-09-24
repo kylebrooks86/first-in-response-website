@@ -28,7 +28,8 @@ This file is a disaster-recovery reference for the pricing and customer-facing r
 ## Website-wide rules
 
 - Minimum job charge: **$150**
-- Deposit to reserve approved work: **50%**
+- Deposit required to reserve approved work on the schedule: **50%**
+- Remaining balance due: **Upon completion of the work**
 - First Responder & Military Appreciation Discount: **5%**
 - Existing gutter guards may be removed/reinstalled when required; FIRE does **not** sell or install new gutter guards.
 - Bundle discounts may be offered where appropriate.

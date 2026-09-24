@@ -74,7 +74,7 @@ The original **truck + pressure washer + surface-cleaner equipment photo** has b
 
 ## Durable business configuration
 
-Current customer-facing pricing, deposit/discount rules, service limitations, and the rule for future pricing changes are recorded in `BUSINESS_RULES.md`. This keeps the website's operating assumptions recoverable even if the estimator code has to be rebuilt later.
+Current customer-facing pricing, payment/discount rules, service limitations, and the rule for future pricing changes are recorded in `BUSINESS_RULES.md`. The approved payment rule is a 50% deposit to reserve approved work on the schedule, with the remaining balance due upon completion of the work. This keeps the website's operating assumptions recoverable even if the estimator code has to be rebuilt later.
 
 ## Verification record
 

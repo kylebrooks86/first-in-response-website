@@ -17,6 +17,7 @@ Verify:
 - 5% first responder/military discount
 - $150 minimum job behavior
 - Current locked rates match `BUSINESS_RULES.md`, including $1.75/lf gutter cleaning and $1.00/lf existing-guard removal/reinstall
+- Payment wording states that a 50% deposit reserves approved work on the schedule and the remaining balance is due upon completion
 - Estimator-to-text message
 - Personalized estimate form-to-text message
 - Review, Privacy, and Service Terms pages, including the established `/service-terms` URL

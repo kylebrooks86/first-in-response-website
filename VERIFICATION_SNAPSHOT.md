@@ -27,7 +27,8 @@ This snapshot documents the current disaster-recovery rebuild state. It is not p
 - Basic RV wash: $150
 - Minimum job: $150
 - First Responder & Military discount: 5%
-- Deposit to reserve approved work: 50%
+- Deposit required to reserve approved work on the schedule: 50%
+- Remaining balance due: upon completion of the work
 
 Estimator spot checks:
 - 1,700 sq ft house wash = $425 before discount.
