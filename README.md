@@ -21,12 +21,14 @@ The purpose of this repository is to keep the business website usable independen
 - Personalized-estimate-to-SMS handoff
 - Draggable before/after proof
 - Six On-the-Job videos
-- Review page
-- Gutter, roof, and concrete service pages
+- Review, privacy, and service-terms pages
+- Nine dedicated service pages
+- Exact truck/equipment image section
+- Keyboard-accessible before/after sliders and estimator accordions
 
 ## Integrity check
 
-The homepage currently references 22 local media assets. The latest repository audit confirmed all 22 referenced files exist, with no duplicate HTML IDs and no missing in-page anchor targets.
+The homepage currently references 23 local media assets. The latest repository audit confirmed the rebuild has one proper homepage H1, no duplicate HTML IDs, no missing image alt text, no legacy veteran wording, and temporary noindex protection remains enabled.
 
 ## Rebuild coverage
 
@@ -65,7 +67,7 @@ Intentional new proof additions:
 - Front-patio / house-wash before/after
 - Cobweb-removal before/after
 
-The original **truck + pressure washer + surface-cleaner equipment photo** has now been visually identified from the current-site reference material. It is the next exact-media replacement target; do not substitute a similar truck/equipment image.
+The original **truck + pressure washer + surface-cleaner equipment photo** has been visually matched and is now installed as `assets/equipment-truck.jpg`; no similar-image substitution is being used.
 
 ## Before any production cutover
 
