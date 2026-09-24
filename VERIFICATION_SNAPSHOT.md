@@ -44,6 +44,7 @@ Estimator spot checks:
 - Six real On-the-Job videos
 - Pointer/touch + keyboard before/after controls
 - Mobile sticky Call / Text Photos / Estimate controls
+- iPhone safe-area padding for the sticky header/menu and bottom action bar
 - iPhone-aware SMS body formatting
 - Estimator-to-SMS handoff
 - Personalized-estimate-to-SMS handoff
