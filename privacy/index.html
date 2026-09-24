@@ -8,7 +8,7 @@
 <h2>Questions or corrections</h2><p>For questions about information you have provided to First In Response Exteriors, contact the business using the phone number or email address above.</p></div></main><div class="bottom"><a href="tel:+19189229366">Call</a><a href="sms:+19189229366">Text photos</a><a href="../#estimate">Estimate</a></div><script>
 function initServiceMenu(){
  var t=document.getElementById('menu-toggle'),m=document.getElementById('site-menu');if(!t||!m)return;
- function setOpen(v){m.classList.toggle('open',v);t.setAttribute('aria-expanded',v?'true':'false');t.querySelector('.bars').textContent=v?'×':'☰';}
+ function setOpen(v){m.classList.toggle('open',v);t.setAttribute('aria-expanded',v?'true':'false');t.setAttribute('aria-label',v?'Close navigation menu':'Open navigation menu');t.querySelector('.bars').textContent=v?'×':'☰';}
  function toggle(){setOpen(!m.classList.contains('open'));}
  t.addEventListener('click',toggle);t.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
  m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){setOpen(false);});});

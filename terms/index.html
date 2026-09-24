@@ -9,7 +9,7 @@
 <h2>Questions</h2><p>Questions about a specific estimate or scheduled job should be addressed before work begins by calling or texting (918) 922-9366 or emailing kyle@firstinresponseexteriors.com.</p></div></main><div class="bottom"><a href="tel:+19189229366">Call</a><a href="sms:+19189229366">Text photos</a><a href="../#estimate">Estimate</a></div><script>
 function initServiceMenu(){
  var t=document.getElementById('menu-toggle'),m=document.getElementById('site-menu');if(!t||!m)return;
- function setOpen(v){m.classList.toggle('open',v);t.setAttribute('aria-expanded',v?'true':'false');t.querySelector('.bars').textContent=v?'×':'☰';}
+ function setOpen(v){m.classList.toggle('open',v);t.setAttribute('aria-expanded',v?'true':'false');t.setAttribute('aria-label',v?'Close navigation menu':'Open navigation menu');t.querySelector('.bars').textContent=v?'×':'☰';}
  function toggle(){setOpen(!m.classList.contains('open'));}
  t.addEventListener('click',toggle);t.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
  m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){setOpen(false);});});
