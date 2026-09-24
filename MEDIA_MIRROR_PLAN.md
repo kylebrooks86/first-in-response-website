@@ -27,6 +27,19 @@ All explicitly approved new media must be mirrored to BOTH:
 - ✅ Exterior window before/after
 - ✅ Owner image
 
+## Functional rebuild improvements — COMPLETE IN GITHUB
+- ✅ Estimator categories closed by default
+- ✅ One estimator category opens at a time
+- ✅ Real selectable service controls and quantity inputs
+- ✅ Current locked core rates wired into the estimator
+- ✅ $150 minimum job charge enforced
+- ✅ 5% first responder/military discount option
+- ✅ Smart estimator-to-text handoff with selected services and quantities
+- ✅ Personalized estimate form now builds a complete prefilled text
+- ✅ Call, text, and email contact actions are clickable
+- ✅ Mobile header menu is functional
+- ✅ Menu links jump to Services, Estimate, Results, On the Job, Reviews, and Personalized Estimate
+
 ## Original site — MUST ALSO BE MIRRORED
 Confirm the separate original-site work chat includes the same six On-the-Job videos and the same three new proof additions above. Do not treat the GitHub completion as proof that the original production site has been updated.
 
