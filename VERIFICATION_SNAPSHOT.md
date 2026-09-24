@@ -16,8 +16,8 @@ This snapshot documents the current disaster-recovery rebuild state. It is not p
 ## Core business logic checked
 
 - House wash: $0.25 / sq ft
-- Gutter cleaning + standard downspout flushing: $1.50 / linear ft
-- Existing gutter guard removal + reinstall: $0.50 / linear ft
+- Gutter cleaning + standard downspout flushing: $1.75 / linear ft
+- Existing gutter guard removal + reinstall: $1.00 / linear ft
 - Gutter brightening: $2.00 / linear ft
 - Fence cleaning: $0.40 / sq ft
 - Standard exterior windows: $7 first floor / $11 second floor
@@ -30,9 +30,9 @@ This snapshot documents the current disaster-recovery rebuild state. It is not p
 
 Estimator spot checks:
 - 1,700 sq ft house wash = $425 before discount.
-- 150 lf gutter cleaning = $225 before discount.
-- 150 lf gutter cleaning + 150 lf existing-guard removal/reinstall = $300 before discount.
-- $300 with 5% eligible discount = $285.
+- 150 lf gutter cleaning = $262.50 before discount.
+- 150 lf gutter cleaning + 150 lf existing-guard removal/reinstall = $412.50 before discount.
+- $412.50 with 5% eligible discount = $391.88 after rounding to cents.
 
 ## Media and interaction checks represented in source
 
