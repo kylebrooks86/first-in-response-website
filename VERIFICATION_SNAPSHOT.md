@@ -32,9 +32,9 @@ This snapshot documents the current disaster-recovery rebuild state. It is not p
 
 Estimator spot checks:
 - 1,700 sq ft house wash = $425 before discount.
-- 150 lf gutter cleaning = $262.50 before discount.
-- 150 lf gutter cleaning + 150 lf existing-guard removal/reinstall = $412.50 before discount.
-- $412.50 with 5% eligible discount = $391.88 after rounding to cents.
+- 150 lf gutter cleaning: 150 × $1.75 = $262.50 before discount.
+- 150 lf gutter cleaning + 150 lf existing-guard removal/reinstall: $262.50 + $150 = $412.50 before discount.
+- 5% eligible discount on $412.50: $391.88 after rounding to cents.
 
 ## Final verification pass
 

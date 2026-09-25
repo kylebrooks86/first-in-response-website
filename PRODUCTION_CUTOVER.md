@@ -71,9 +71,9 @@ Immediately verify:
 - Sitemap accessibility
 - No accidental `noindex` remains
 - Canonical URLs resolve to the production domain
-- Gutter estimator test: 150 lf cleaning = $262.50 before discounts/minimum adjustments
-- Combined gutter test: 150 lf cleaning + 150 lf existing-guard removal/reinstall = $412.50 before discount
-- Discount test: $412.50 less the eligible 5% appreciation discount = $391.88 after rounding to cents
+- Gutter estimator test: 150 lf × $1.75 = $262.50 before discounts/minimum adjustments
+- Combined gutter test: $262.50 + $150 = $412.50 before discount
+- Discount test: 5% eligible discount on $412.50 = $391.88 after rounding to cents
 - House-wash estimator test: 1,700 sq ft = $425 before discounts
 
 ## 6. Rollback
