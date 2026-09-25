@@ -16,7 +16,7 @@ Verify:
 - Instant estimator calculations
 - 5% first responder/military discount
 - $150 minimum job behavior
-- Current locked rates match `BUSINESS_RULES.md`, including $1.75/lf gutter cleaning and $1.00/lf existing-guard removal/reinstall
+- Current locked rates match `BUSINESS_RULES.md`, including $1.50/lf gutter cleaning and $0.50/lf existing-guard removal/reinstall
 - Payment wording states that a 50% deposit reserves approved work on the schedule and the remaining balance is due upon completion
 - Estimator-to-text message
 - Personalized estimate form-to-text message
@@ -71,9 +71,9 @@ Immediately verify:
 - Sitemap accessibility
 - No accidental `noindex` remains
 - Canonical URLs resolve to the production domain
-- Gutter estimator test: 150 lf × $1.75 = $262.50 before discounts/minimum adjustments
-- Combined gutter test: $262.50 + $150 = $412.50 before discount
-- Discount test: 5% eligible discount on $412.50 = $391.88 after rounding to cents
+- Gutter estimator test: 150 lf × $1.50 = $225.00 before discounts/minimum adjustments
+- Combined gutter test: $225.00 + $75.00 = $300.00 before discount
+- Discount test: 5% eligible discount on $300.00 = $285.00 after rounding to cents
 - House-wash estimator test: 1,700 sq ft = $425 before discounts
 
 ## 6. Rollback

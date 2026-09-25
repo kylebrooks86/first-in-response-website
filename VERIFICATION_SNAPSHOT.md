@@ -17,8 +17,8 @@ This snapshot documents the current disaster-recovery rebuild state. It is not p
 ## Core business logic checked
 
 - House wash: $0.25 / sq ft
-- Gutter cleaning + standard downspout flushing: $1.75 / linear ft
-- Existing gutter guard removal + reinstall: $1.00 / linear ft
+- Gutter cleaning + standard downspout flushing: $1.50 / linear ft
+- Existing gutter guard removal + reinstall: $0.50 / linear ft
 - Gutter brightening: $2.00 / linear ft
 - Fence cleaning: $0.40 / sq ft
 - Standard exterior windows: $7 first floor / $11 second floor
@@ -32,9 +32,9 @@ This snapshot documents the current disaster-recovery rebuild state. It is not p
 
 Estimator spot checks:
 - 1,700 sq ft house wash = $425 before discount.
-- 150 lf gutter cleaning: 150 × $1.75 = $262.50 before discount.
-- 150 lf gutter cleaning + 150 lf existing-guard removal/reinstall: $262.50 + $150 = $412.50 before discount.
-- 5% eligible discount on $412.50: $391.88 after rounding to cents.
+- 150 lf gutter cleaning: 150 × $1.50 = $225.00 before discount.
+- 150 lf gutter cleaning + 150 lf existing-guard removal/reinstall: $225.00 + $75.00 = $300.00 before discount.
+- 5% eligible discount on $300.00: $285.00 after rounding to cents.
 
 ## Final verification pass
 
@@ -44,7 +44,7 @@ Estimator spot checks:
 - Homepage and secondary-page hamburger menus open and close correctly; all now update both aria-expanded and the Open/Close accessible label.
 - Estimator accordions start closed and enforce one-open-at-a-time behavior.
 - The estimator intentionally displays a protected ±5% preliminary range while calculating from the locked rates in BUSINESS_RULES.md.
-- Rendered estimator checks: 1,700 sq ft house wash displayed $404–$446 around the $425 calculation; 150 lf gutter cleaning plus 150 lf existing-guard removal/reinstall displayed $392–$433 around $412.50; the eligible 5% discount produced a $391.88 calculation and displayed the protected $372–$411 range; a $40 raw fence calculation enforced the $150 minimum and displayed $143–$158.
+- Rendered estimator checks: 1,700 sq ft house wash displayed $404–$446 around the $425 calculation; 150 lf gutter cleaning plus 150 lf existing-guard removal/reinstall displayed $285–$315 around $300.00; the eligible 5% discount produced a $285.00 calculation and displayed the protected $271–$299 range; a $40 raw fence calculation enforced the $150 minimum and displayed $143–$158.
 - Read-only comparison with the current production homepage was used to align the mirror's section flow; no production files, settings, hosting, or DNS were changed.
 - The production service-area section is represented near the bottom of the mirror with Tulsa and the same nearby communities.
 - Estimator quantity labels are programmatically connected to their dynamically created inputs.
