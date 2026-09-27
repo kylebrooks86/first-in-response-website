@@ -38,7 +38,7 @@ Estimator spot checks:
 
 ## Final verification pass
 
-- Standalone `node verify-site.mjs` audit completed successfully with 21 verification groups, including 180 internal links/anchors, 45 local media references, and 14 inline scripts. It requires no external packages or ChatGPT access.
+- Standalone `node verify-site.mjs` audit completed successfully with 23 verification groups, including 180 internal links/anchors, 45 local media references, and 14 inline scripts. It requires no external packages or ChatGPT access.
 - GitHub Actions workflow `.github/workflows/verify-site.yml` runs the same verifier automatically on pushes to `main` and on pull requests using Node.js 20 with read-only repository permissions.
 - Repository-wide stale-rate scan found no superseded gutter-cleaning or existing-guard rates.
 - All 13 public pages and the 404 page were rendered from GitHub Pages with one H1, active noindex protection, and no desktop horizontal overflow.
@@ -47,6 +47,7 @@ Estimator spot checks:
 - Estimator accordions start closed and enforce one-open-at-a-time behavior.
 - The estimator intentionally displays a protected ±5% preliminary range while calculating from the locked rates in BUSINESS_RULES.md.
 - Rendered estimator checks: 1,700 sq ft house wash displayed $404–$446 around the $425 calculation; 150 lf gutter cleaning plus 150 lf existing-guard removal/reinstall displayed $285–$315 around $300.00; the eligible 5% discount produced a $285.00 calculation and displayed the protected $271–$299 range; a $40 raw fence calculation enforced the $150 minimum and displayed $150–$158, preventing the protected range from implying a price below the minimum.
+- The permanent verifier now independently parses all 12 locked estimator rates and recomputes the house-wash, combined-gutter, 5% discount, $150 minimum, protected-range, and fixed RV scenarios on every run.
 - Read-only comparison with the current production homepage was used to align the mirror's section flow; no production files, settings, hosting, or DNS were changed.
 - The production service-area section is represented near the bottom of the mirror with Tulsa and the same nearby communities.
 - Estimator quantity labels are programmatically connected to their dynamically created inputs.

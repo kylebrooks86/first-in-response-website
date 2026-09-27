@@ -18,6 +18,7 @@ Verify:
 - Mobile hamburger menu
 - Sticky Call / Text Photos / Estimate actions
 - Instant estimator calculations
+- Automated verifier passes all 12 locked-rate checks and the house, gutter, discount, minimum, range, and fixed-price calculation scenarios
 - 5% first responder/military discount
 - $150 minimum job behavior, including a protected range that never displays below $150
 - Current locked rates match `BUSINESS_RULES.md`, including $1.50/lf gutter cleaning and $0.50/lf existing-guard removal/reinstall

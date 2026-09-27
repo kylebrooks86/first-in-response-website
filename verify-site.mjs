@@ -157,6 +157,64 @@ const verification = read('VERIFICATION_SNAPSHOT.md');
 const cutover = read('PRODUCTION_CUTOVER.md');
 const recoveryText = [index, rules, gutterPage, verification, cutover].join('\n');
 
+
+const expectedEstimatorRates = {
+  'House wash': 0.25,
+  'Gutter cleaning & downspout flushing': 1.50,
+  'Remove & reinstall existing gutter guards — required when applicable': 0.50,
+  'Gutter brightening': 2.00,
+  'Fence cleaning': 0.40,
+  '1st-floor standard exterior window cleaning': 7,
+  '2nd-floor standard exterior window cleaning': 11,
+  '1st-floor French-pane window cleaning': 12,
+  '2nd-floor French-pane window cleaning': 18,
+  '1st-floor window screen cleaning': 3,
+  '2nd-floor window screen cleaning': 6,
+  'Basic RV wash': 150
+};
+
+const configBlock = index.match(/var configs=\{([\s\S]*?)\n  \};/)?.[1] || '';
+const parsedEstimatorRates = {};
+for (const match of configBlock.matchAll(/'([^']+)'\s*:\s*\{[^}]*rate\s*:\s*([0-9.]+)/g)) {
+  parsedEstimatorRates[match[1]] = Number(match[2]);
+}
+const badRates = Object.entries(expectedEstimatorRates).filter(([name, rate]) => parsedEstimatorRates[name] !== rate);
+if (!badRates.length) pass('All 12 locked estimator rates match BUSINESS_RULES.md.');
+else fail('Estimator rate mismatch: ' + badRates.map(([name, rate]) => name + ' should be ' + rate).join('; ') + '.');
+
+function calculateEstimate(items, eligibleDiscount = false) {
+  let subtotal = 0;
+  for (const [name, quantity] of items) subtotal += parsedEstimatorRates[name] * quantity;
+  if (eligibleDiscount) subtotal *= 0.95;
+  const total = subtotal > 0 ? Math.max(150, subtotal) : 0;
+  return {
+    subtotal,
+    total,
+    low: total ? Math.max(150, Math.round(total * 0.95)) : 0,
+    high: total ? Math.round(total * 1.05) : 0
+  };
+}
+
+const houseTest = calculateEstimate([['House wash', 1700]]);
+const gutterTest = calculateEstimate([
+  ['Gutter cleaning & downspout flushing', 150],
+  ['Remove & reinstall existing gutter guards — required when applicable', 150]
+]);
+const discountTest = calculateEstimate([
+  ['Gutter cleaning & downspout flushing', 150],
+  ['Remove & reinstall existing gutter guards — required when applicable', 150]
+], true);
+const minimumTest = calculateEstimate([['Fence cleaning', 100]]);
+const rvTest = calculateEstimate([['Basic RV wash', 1]]);
+if (
+  houseTest.total === 425 && houseTest.low === 404 && houseTest.high === 446 &&
+  gutterTest.total === 300 && gutterTest.low === 285 && gutterTest.high === 315 &&
+  discountTest.total === 285 && discountTest.low === 271 && discountTest.high === 299 &&
+  minimumTest.subtotal === 40 && minimumTest.total === 150 && minimumTest.low === 150 && minimumTest.high === 158 &&
+  rvTest.total === 150
+) pass('Independent estimator calculations pass house, gutter, discount, minimum, range, and fixed-price tests.');
+else fail('One or more independent estimator calculation scenarios failed.');
+
 if (index.includes("rate:1.50") && index.includes("rate:0.50")) pass('Estimator uses the current gutter rates.');
 else fail('Estimator gutter rates do not match $1.50/$0.50.');
 
