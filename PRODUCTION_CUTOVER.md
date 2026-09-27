@@ -6,6 +6,8 @@ Use this only if the independent GitHub rebuild is intentionally replacing the c
 
 Run `node verify-site.mjs` from the repository root and require a clean result before continuing.
 
+Confirm the latest **Verify FIRE website** GitHub Actions run for `main` also succeeded. The automated run supplements, but does not replace, the manual pre-cutover command and device checks.
+
 Check the GitHub Pages URL on iPhone and desktop.
 
 Verify:
