@@ -153,6 +153,10 @@ if (emailPages === 10) pass('Homepage and all nine service pages contain the app
 const index = read('index.html');
 const rules = read('BUSINESS_RULES.md');
 const gutterPage = read('services/gutter-cleaning/index.html');
+const housePage = read('services/house-washing/index.html');
+const windowPage = read('services/window-cleaning/index.html');
+const fencePage = read('services/fence-deck-cleaning/index.html');
+const concretePage = read('services/concrete-cleaning/index.html');
 const verification = read('VERIFICATION_SNAPSHOT.md');
 const cutover = read('PRODUCTION_CUTOVER.md');
 const recoveryText = [index, rules, gutterPage, verification, cutover].join('\n');
@@ -224,8 +228,26 @@ else fail('BUSINESS_RULES.md gutter rates are incorrect.');
 if (gutterPage.includes('$1.50 per linear ft') && gutterPage.includes('$0.50 per linear ft')) pass('Gutter service page uses the current rates.');
 else fail('Gutter service page rates are incorrect.');
 
-if (/\$1\.75\b|\$1\.00\b|rate:1\.75\b|rate:1\.00\b/.test(recoveryText)) fail('A superseded gutter rate remains in recovery-critical files.');
-else pass('No superseded gutter rates remain in recovery-critical files.');
+const servicePricingChecks = [
+  housePage.includes('$0.25 per sq. ft.'),
+  gutterPage.includes('$1.50 per linear ft') && gutterPage.includes('standard downspout flushing') &&
+    gutterPage.includes('$0.50 per linear ft') && gutterPage.includes('New gutter-guard installation is not offered') &&
+    gutterPage.includes('$2.00 per linear ft') && gutterPage.includes('tiger striping'),
+  windowPage.includes('$7 each') && windowPage.includes('$11 each') &&
+    windowPage.includes('$12 each') && windowPage.includes('$18 each') &&
+    windowPage.includes('$3 each') && windowPage.includes('$6 each'),
+  fencePage.includes('$0.40 per sq. ft.'),
+  concretePage.includes('$175') && concretePage.includes('$75') && concretePage.includes('$25')
+];
+if (servicePricingChecks.every(Boolean)) pass('All dedicated pages with established pricing match BUSINESS_RULES.md.');
+else fail('One or more dedicated service pages disagree with BUSINESS_RULES.md.');
+
+const repositoryText = allFiles
+  .filter((file) => /\.(?:html|md|mjs|txt|xml|yml|yaml)$/i.test(file))
+  .map((file) => read(file))
+  .join('\n');
+if (/\$1\.75\b|\$1\.00\b|rate:1\.75\b|rate:1\.00\b/.test(repositoryText)) fail('A superseded gutter rate remains in repository text files.');
+else pass('No superseded gutter rates remain anywhere in repository text files.');
 
 if (index.includes('Math.max(150,Math.round(customerTotal*.95))')) pass('Displayed estimate ranges cannot fall below the $150 minimum.');
 else fail('Estimator range is not clamped to the $150 minimum.');
