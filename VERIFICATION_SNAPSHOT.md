@@ -44,7 +44,7 @@ Estimator spot checks:
 - Homepage and secondary-page hamburger menus open and close correctly; all now update both aria-expanded and the Open/Close accessible label.
 - Estimator accordions start closed and enforce one-open-at-a-time behavior.
 - The estimator intentionally displays a protected ±5% preliminary range while calculating from the locked rates in BUSINESS_RULES.md.
-- Rendered estimator checks: 1,700 sq ft house wash displayed $404–$446 around the $425 calculation; 150 lf gutter cleaning plus 150 lf existing-guard removal/reinstall displayed $285–$315 around $300.00; the eligible 5% discount produced a $285.00 calculation and displayed the protected $271–$299 range; a $40 raw fence calculation enforced the $150 minimum and displayed $143–$158.
+- Rendered estimator checks: 1,700 sq ft house wash displayed $404–$446 around the $425 calculation; 150 lf gutter cleaning plus 150 lf existing-guard removal/reinstall displayed $285–$315 around $300.00; the eligible 5% discount produced a $285.00 calculation and displayed the protected $271–$299 range; a $40 raw fence calculation enforced the $150 minimum and displayed $150–$158, preventing the protected range from implying a price below the minimum.
 - Read-only comparison with the current production homepage was used to align the mirror's section flow; no production files, settings, hosting, or DNS were changed.
 - The production service-area section is represented near the bottom of the mirror with Tulsa and the same nearby communities.
 - Estimator quantity labels are programmatically connected to their dynamically created inputs.

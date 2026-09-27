@@ -183,7 +183,7 @@ function initEstimatorCalculator(){
 
     if(discountCheck&&discountCheck.checked) subtotal*=.95;
     var customerTotal=subtotal>0?Math.max(150,subtotal):0;
-    var low=customerTotal?Math.round(customerTotal*.95):0;
+    var low=customerTotal?Math.max(150,Math.round(customerTotal*.95)):0;
     var high=customerTotal?Math.round(customerTotal*1.05):0;
     var currency=String.fromCharCode(36); var display=customerTotal?(currency+low.toLocaleString()+'–'+currency+high.toLocaleString()):(currency+'0–'+currency+'0');
     if(live)live.textContent=display;
