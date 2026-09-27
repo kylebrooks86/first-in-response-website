@@ -151,6 +151,44 @@ if (mobileControlPages === 13) pass('All 13 public pages have consistent mobile 
 if (emailPages === 10) pass('Homepage and all nine service pages contain the approved business email action.');
 
 const index = read('index.html');
+
+const expectedHomepageMedia = [
+  'assets/logo.jpg',
+  'assets/driveway-before.jpg',
+  'assets/driveway-after.jpg',
+  'assets/walkway-before.jpg',
+  'assets/walkway-after.jpg',
+  'assets/gutter-brightening-before.jpg',
+  'assets/gutter-brightening-after.jpg',
+  'assets/window-before.jpg',
+  'assets/window-after.jpg',
+  'assets/front-patio-before.jpg',
+  'assets/front-patio-after.jpg',
+  'assets/surface-cleaner-restoration.mp4',
+  'assets/even-surface-cleaning.mp4',
+  'assets/turbo-nozzle.mp4',
+  'assets/concrete-pretreatment.mp4',
+  'assets/house-wash.mp4',
+  'assets/gutter-cleaning.mp4',
+  'assets/masonry-before.jpg',
+  'assets/masonry-after.jpg',
+  'assets/cobweb-before.jpg',
+  'assets/cobweb-after.jpg',
+  'assets/equipment-truck.jpg',
+  'assets/owner.jpg'
+];
+const actualHomepageMedia = new Set(
+  [...index.matchAll(/(?:src|poster)=["'](assets\/[^"']+)["']/g)].map((match) => match[1])
+);
+const missingHomepageMedia = expectedHomepageMedia.filter((file) => !actualHomepageMedia.has(file) || !fileSet.has(file));
+const unexpectedHomepageMedia = [...actualHomepageMedia].filter((file) => !expectedHomepageMedia.includes(file));
+if (actualHomepageMedia.size === 23 && !missingHomepageMedia.length && !unexpectedHomepageMedia.length) {
+  pass('Homepage retains the exact approved 23-file media inventory, including six videos.');
+} else {
+  fail('Homepage media inventory changed. Missing: ' + (missingHomepageMedia.join(', ') || 'none') +
+    '; unexpected: ' + (unexpectedHomepageMedia.join(', ') || 'none') + '.');
+}
+
 const rules = read('BUSINESS_RULES.md');
 const gutterPage = read('services/gutter-cleaning/index.html');
 const housePage = read('services/house-washing/index.html');

@@ -38,7 +38,7 @@ Estimator spot checks:
 
 ## Final verification pass
 
-- Standalone `node verify-site.mjs` audit completed successfully with 25 verification groups, including 180 internal links/anchors, 45 local media references, and 14 inline scripts. It requires no external packages or ChatGPT access.
+- Standalone `node verify-site.mjs` audit completed successfully with 26 verification groups, including 180 internal links/anchors, 45 local media references, and 14 inline scripts. It requires no external packages or ChatGPT access.
 - GitHub Actions workflow `.github/workflows/verify-site.yml` runs the same verifier automatically on pushes to `main` and on pull requests using Node.js 20 with read-only repository permissions.
 - Repository-wide stale-rate scan found no superseded gutter-cleaning or existing-guard rates.
 - Permanent synchronization checks confirm the house, gutter, window, fence, and concrete pages match every established customer-facing price in `BUSINESS_RULES.md`.
@@ -60,6 +60,7 @@ Estimator spot checks:
 - Exact FIRE logo
 - Exact owner image
 - Exact truck/equipment image
+- Permanent exact-media inventory check covering all 23 approved homepage assets and all six videos
 - Five primary before/after result cards
 - Masonry and cobweb proof additions
 - Six real On-the-Job videos

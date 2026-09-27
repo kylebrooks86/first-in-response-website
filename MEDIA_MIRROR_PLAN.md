@@ -45,6 +45,7 @@ All explicitly approved new media must be mirrored to BOTH:
 - ✅ Estimator accordion state is exposed to assistive technology
 - ✅ Personalized estimate selector includes all major service categories
 - ✅ Mirror remains noindex/nofollow until intentional production cutover
+- ✅ Standalone verifier enforces the exact approved 23-file homepage media inventory and all six videos
 
 ## Original site — MUST ALSO BE MIRRORED
 Confirm the separate original-site work chat includes the same six On-the-Job videos and the same three new proof additions above. Do not treat the GitHub completion as proof that the original production site has been updated.

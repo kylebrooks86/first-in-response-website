@@ -1,6 +1,6 @@
 # FIRE Website Media Import Status
 
-Verified: 2026-09-24
+Verified: 2026-09-27
 
 The independent GitHub rebuild uses local repository media so the site does not depend on ChatGPT-hosted image or video files.
 
@@ -32,6 +32,7 @@ These were explicitly added as improvements rather than treated as original-site
 - Five primary before/after cards are installed in the Real Results section.
 - Masonry and cobweb proof are installed in the additional proof section.
 - The truck/equipment image is installed between Real Results and the Professional Equipment section.
+- `node verify-site.mjs` now fails if any approved homepage asset is removed, renamed, substituted, or if an unexpected homepage media file is introduced.
 
 ## Media rule
 
