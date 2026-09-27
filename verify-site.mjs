@@ -248,8 +248,13 @@ const repositoryText = allFiles
   .join('\n');
 if (/\$1\.75\b|\$1\.00\b|rate:1\.75\b|rate:1\.00\b/.test(repositoryText)) fail('A superseded gutter rate remains in repository text files.');
 else pass('No superseded gutter rates remain anywhere in repository text files.');
-if (/\$0\.25\b|rate:\.25\b|rate:0\.25\b/.test(repositoryText)) fail('The superseded $0.25 house-wash rate remains in repository text files.');
-else pass('No superseded $0.25 house-wash rate remains anywhere in repository text files.');
+const supersededHouseTokens = [
+  String.fromCharCode(36) + '0.' + '25',
+  'rate:' + '.' + '25',
+  'rate:' + '0.' + '25'
+];
+if (supersededHouseTokens.some((token) => repositoryText.includes(token))) fail('A superseded house-wash rate remains in repository text files.');
+else pass('No superseded house-wash rate remains anywhere in repository text files.');
 
 if (index.includes('Math.max(150,Math.round(customerTotal*.95))')) pass('Displayed estimate ranges cannot fall below the $150 minimum.');
 else fail('Estimator range is not clamped to the $150 minimum.');
