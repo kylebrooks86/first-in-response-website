@@ -38,6 +38,7 @@ Estimator spot checks:
 
 ## Final verification pass
 
+- Standalone `node verify-site.mjs` audit completed successfully with 15 verification groups, including 180 internal links/anchors, 45 local media references, and 14 inline scripts. It requires no external packages or ChatGPT access.
 - Repository-wide stale-rate scan found no superseded gutter-cleaning or existing-guard rates.
 - All 13 public pages and the 404 page were rendered from GitHub Pages with one H1, active noindex protection, and no desktop horizontal overflow.
 - Every local page, anchor, image, and video reference resolved to a repository path.

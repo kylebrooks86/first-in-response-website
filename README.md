@@ -76,6 +76,16 @@ The original **truck + pressure washer + surface-cleaner equipment photo** has b
 
 Current customer-facing pricing, payment/discount rules, service limitations, and the rule for future pricing changes are recorded in `BUSINESS_RULES.md`. The approved payment rule is a 50% deposit to reserve approved work on the schedule, with the remaining balance due upon completion of the work. This keeps the website's operating assumptions recoverable even if the estimator code has to be rebuilt later.
 
+## Independent verification command
+
+After cloning or downloading this repository, run:
+
+```bash
+node verify-site.mjs
+```
+
+No package installation or ChatGPT access is required. The command exits with an error if it finds broken local links or media references, script syntax problems, incorrect page counts, stale gutter rates, missing search-index protection, a premature `CNAME`, or a regression in the $150 minimum. A clean run prints each passed check and exits successfully.
+
 ## Verification record
 
 The latest source-level audit and estimator spot checks are recorded in `VERIFICATION_SNAPSHOT.md`.

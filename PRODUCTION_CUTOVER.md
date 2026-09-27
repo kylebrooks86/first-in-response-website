@@ -4,6 +4,8 @@ Use this only if the independent GitHub rebuild is intentionally replacing the c
 
 ## 1. Verify the mirror before touching DNS
 
+Run `node verify-site.mjs` from the repository root and require a clean result before continuing.
+
 Check the GitHub Pages URL on iPhone and desktop.
 
 Verify:
