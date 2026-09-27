@@ -163,7 +163,7 @@ const recoveryText = [index, rules, gutterPage, verification, cutover].join('\n'
 
 
 const expectedEstimatorRates = {
-  'House wash': 0.25,
+  'House wash': 0.22,
   'Gutter cleaning & downspout flushing': 1.50,
   'Remove & reinstall existing gutter guards — required when applicable': 0.50,
   'Gutter brightening': 2.00,
@@ -211,7 +211,7 @@ const discountTest = calculateEstimate([
 const minimumTest = calculateEstimate([['Fence cleaning', 100]]);
 const rvTest = calculateEstimate([['Basic RV wash', 1]]);
 if (
-  houseTest.total === 425 && houseTest.low === 404 && houseTest.high === 446 &&
+  houseTest.total === 374 && houseTest.low === 355 && houseTest.high === 393 &&
   gutterTest.total === 300 && gutterTest.low === 285 && gutterTest.high === 315 &&
   discountTest.total === 285 && discountTest.low === 271 && discountTest.high === 299 &&
   minimumTest.subtotal === 40 && minimumTest.total === 150 && minimumTest.low === 150 && minimumTest.high === 158 &&
@@ -229,7 +229,7 @@ if (gutterPage.includes('$1.50 per linear ft') && gutterPage.includes('$0.50 per
 else fail('Gutter service page rates are incorrect.');
 
 const servicePricingChecks = [
-  housePage.includes('$0.25 per sq. ft.'),
+  housePage.includes('$0.22 per sq. ft.'),
   gutterPage.includes('$1.50 per linear ft') && gutterPage.includes('standard downspout flushing') &&
     gutterPage.includes('$0.50 per linear ft') && gutterPage.includes('New gutter-guard installation is not offered') &&
     gutterPage.includes('$2.00 per linear ft') && gutterPage.includes('tiger striping'),
@@ -248,6 +248,8 @@ const repositoryText = allFiles
   .join('\n');
 if (/\$1\.75\b|\$1\.00\b|rate:1\.75\b|rate:1\.00\b/.test(repositoryText)) fail('A superseded gutter rate remains in repository text files.');
 else pass('No superseded gutter rates remain anywhere in repository text files.');
+if (/\$0\.25\b|rate:\.25\b|rate:0\.25\b/.test(repositoryText)) fail('The superseded $0.25 house-wash rate remains in repository text files.');
+else pass('No superseded $0.25 house-wash rate remains anywhere in repository text files.');
 
 if (index.includes('Math.max(150,Math.round(customerTotal*.95))')) pass('Displayed estimate ranges cannot fall below the $150 minimum.');
 else fail('Estimator range is not clamped to the $150 minimum.');

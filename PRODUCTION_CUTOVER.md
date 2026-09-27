@@ -80,7 +80,7 @@ Immediately verify:
 - Gutter estimator test: 150 lf × $1.50 = $225.00 before discounts/minimum adjustments
 - Combined gutter test: $225.00 + $75.00 = $300.00 before discount
 - Discount test: 5% eligible discount on $300.00 = $285.00 after rounding to cents
-- House-wash estimator test: 1,700 sq ft = $425 before discounts
+- House-wash estimator test: 1,700 sq ft × $0.22 = $374 before discounts
 
 ## 6. Rollback
 

@@ -6,7 +6,7 @@ This file is a disaster-recovery reference for the pricing and customer-facing r
 
 | Service | Current website rate |
 | --- | ---: |
-| House wash | $0.25 / sq ft |
+| House wash | $0.22 / sq ft |
 | Gutter cleaning + standard downspout flushing | $1.50 / linear ft |
 | Remove + reinstall existing gutter guards | $0.50 / linear ft |
 | Gutter brightening | $2.00 / linear ft |
