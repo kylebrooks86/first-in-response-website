@@ -84,7 +84,7 @@ After cloning or downloading this repository, run:
 node verify-site.mjs
 ```
 
-No package installation or ChatGPT access is required. The command exits with an error if it finds broken local links or media references, script syntax problems, incorrect page counts, stale gutter rates, missing search-index protection, a premature `CNAME`, or a regression in the $150 minimum. A clean run prints each passed check and exits successfully.
+No package installation or ChatGPT access is required. The command exits with an error if it finds broken local links or media references, script syntax problems, incorrect page counts or canonicals, stale gutter rates, missing contact or mobile conversion controls, broken iPhone SMS handling, missing search-index protection, a premature `CNAME`, or a regression in the $150 minimum. A clean run prints each passed check and exits successfully.
 
 GitHub Actions also runs the same independent verifier automatically on every push to `main` and on every pull request through `.github/workflows/verify-site.yml`. This provides a durable regression check even when ChatGPT is unavailable.
 

@@ -69,6 +69,10 @@ else fail(`Expected 13 sitemap URLs; found ${sitemapCount}.`);
 let internalLinks = 0;
 let mediaReferences = 0;
 let inlineScripts = 0;
+let canonicalPages = 0;
+let contactPages = 0;
+let mobileControlPages = 0;
+let emailPages = 0;
 
 for (const page of htmlFiles) {
   const html = read(page);
@@ -82,6 +86,27 @@ for (const page of htmlFiles) {
   const ids = idsIn(html);
   const duplicateIds = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
   if (duplicateIds.length) fail(`${page}: duplicate IDs: ${duplicateIds.join(', ')}.`);
+
+  if (publicPages.includes(page)) {
+    const canonicalMatches = [...html.matchAll(/<link\s+rel=["']canonical["']\s+href=["']([^"']+)["']/gi)];
+    const route = page === 'index.html' ? '' : page.replace(/index\.html$/, '');
+    const expectedCanonical = `https://firstinresponseexteriors.com/${route}`.replace(/\/$/, '');
+    const actualCanonical = canonicalMatches[0]?.[1]?.replace(/\/$/, '');
+    if (canonicalMatches.length === 1 && actualCanonical === expectedCanonical) canonicalPages += 1;
+    else fail(`${page}: canonical URL is missing, duplicated, or incorrect.`);
+
+    if (html.includes('href="tel:+19189229366"') && html.includes('sms:+19189229366')) contactPages += 1;
+    else fail(`${page}: missing the approved phone or SMS action.`);
+
+    const bottom = html.match(/<div\s+class=["']bottom["'][^>]*>([\s\S]*?)<\/div>/i)?.[1] || '';
+    if (/\bCall\b/i.test(bottom) && /Text\s+photos/i.test(bottom) && /\bEstimate\b/i.test(bottom) &&
+        html.includes('id="menu-toggle"') && html.includes('aria-controls="site-menu"')) {
+      mobileControlPages += 1;
+    } else fail(`${page}: mobile menu or Call / Text photos / Estimate controls are inconsistent.`);
+
+    if ((page === 'index.html' || page.startsWith('services/')) &&
+        html.includes('href="mailto:kyle@firstinresponseexteriors.com"')) emailPages += 1;
+  }
 
   for (const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)) {
     inlineScripts += 1;
@@ -120,6 +145,10 @@ pass(`${htmlFiles.length} HTML files have one-H1, duplicate-ID, noindex, and scr
 pass(`${internalLinks} internal links and anchors were checked.`);
 pass(`${mediaReferences} local image/video references were checked.`);
 pass(`${inlineScripts} inline scripts compiled.`);
+if (canonicalPages === 13) pass('All 13 public pages have the expected production canonical URL.');
+if (contactPages === 13) pass('All 13 public pages contain the approved call and SMS destinations.');
+if (mobileControlPages === 13) pass('All 13 public pages have consistent mobile menu and sticky conversion controls.');
+if (emailPages === 10) pass('Homepage and all nine service pages contain the approved business email action.');
 
 const index = read('index.html');
 const rules = read('BUSINESS_RULES.md');
@@ -142,6 +171,15 @@ else pass('No superseded gutter rates remain in recovery-critical files.');
 
 if (index.includes('Math.max(150,Math.round(customerTotal*.95))')) pass('Displayed estimate ranges cannot fall below the $150 minimum.');
 else fail('Estimator range is not clamped to the $150 minimum.');
+
+const iosSmsBranches = (index.match(/ios\?'&body=':'\?body='/g) || []).length;
+if (iosSmsBranches >= 3) pass('Estimator, personalized form, and text-photo handoffs retain iPhone-aware SMS formatting.');
+else fail(`Expected at least three iPhone-aware SMS handoffs; found ${iosSmsBranches}.`);
+
+const notFound = read('404.html');
+if (notFound.includes('id="home-link"') && notFound.includes('href="tel:+19189229366"') && notFound.includes('href="sms:+19189229366"')) {
+  pass('404 recovery page contains working home, call, and SMS actions.');
+} else fail('404 recovery actions are incomplete.');
 
 if (verification.includes('150 × $1.50 = $225.00') && verification.includes('$225.00 + $75.00 = $300.00') && verification.includes('$285.00 after rounding to cents')) {
   pass('Durable gutter calculation examples match the current rates.');

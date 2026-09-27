@@ -38,7 +38,7 @@ Estimator spot checks:
 
 ## Final verification pass
 
-- Standalone `node verify-site.mjs` audit completed successfully with 15 verification groups, including 180 internal links/anchors, 45 local media references, and 14 inline scripts. It requires no external packages or ChatGPT access.
+- Standalone `node verify-site.mjs` audit completed successfully with 21 verification groups, including 181 internal links/anchors, 45 local media references, and 14 inline scripts. It requires no external packages or ChatGPT access.
 - GitHub Actions workflow `.github/workflows/verify-site.yml` runs the same verifier automatically on pushes to `main` and on pull requests using Node.js 20 with read-only repository permissions.
 - Repository-wide stale-rate scan found no superseded gutter-cleaning or existing-guard rates.
 - All 13 public pages and the 404 page were rendered from GitHub Pages with one H1, active noindex protection, and no desktop horizontal overflow.
@@ -63,6 +63,7 @@ Estimator spot checks:
 - Six real On-the-Job videos
 - Pointer/touch + keyboard before/after controls
 - Mobile sticky Call / Text Photos / Estimate controls
+- Permanent checks for all public-page canonicals, approved call/SMS destinations, business email actions, iPhone-aware SMS handoffs, and 404 recovery actions
 - iPhone safe-area padding for the sticky header/menu and bottom action bar
 - iPhone-aware SMS body formatting
 - Estimator-to-SMS handoff
