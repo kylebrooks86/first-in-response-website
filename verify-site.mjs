@@ -301,6 +301,16 @@ const iosSmsBranches = (index.match(/ios\?'&body=':'\?body='/g) || []).length;
 if (iosSmsBranches >= 3) pass('Estimator, personalized form, and text-photo handoffs retain iPhone-aware SMS formatting.');
 else fail(`Expected at least three iPhone-aware SMS handoffs; found ${iosSmsBranches}.`);
 
+const closedAccordionIcons = (index.match(/<span class="x" aria-hidden="true">\+<\/span>/g) || []).length;
+if (
+  closedAccordionIcons === 6 &&
+  index.includes("icon.textContent=open?'×':'+'") &&
+  index.includes('id="estimate-reset"') &&
+  index.includes("resetButton.addEventListener('click'") &&
+  index.includes('role="status" aria-live="polite" aria-atomic="true"')
+) pass('Estimator accordion indicators, reset control, and live-result announcements are synchronized.');
+else fail('Estimator interaction polish checks failed.');
+
 const notFound = read('404.html');
 if (notFound.includes('id="home-link"') && notFound.includes('href="tel:+19189229366"') && notFound.includes('href="sms:+19189229366"')) {
   pass('404 recovery page contains working home, call, and SMS actions.');
