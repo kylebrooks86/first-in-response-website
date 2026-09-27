@@ -1,6 +1,6 @@
 # FIRE Independent Website — Verification Snapshot
 
-Verified: 2026-09-24
+Verified: 2026-09-27
 
 This snapshot documents the current disaster-recovery rebuild state. It is not permission to change production DNS.
 
