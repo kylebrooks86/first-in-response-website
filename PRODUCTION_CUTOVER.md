@@ -19,7 +19,7 @@ Verify:
 - Mobile hamburger menu
 - Sticky Call / Text Photos / Estimate actions
 - Instant estimator calculations
-- Estimator category +/× indicators, live range announcements, and Clear selections behavior
+- Estimator category +/× indicators, selected-service counter, full-row discount selection, non-negative quantities, live range announcements, and Clear selections behavior
 - On iPhone, View summary lands below both sticky bars and the estimator remains fully inside the viewport
 - Automated verifier passes all 12 locked-rate checks and the house, gutter, discount, minimum, range, and fixed-price calculation scenarios
 - 5% first responder/military discount

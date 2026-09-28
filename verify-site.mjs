@@ -307,8 +307,12 @@ if (
   index.includes("icon.textContent=open?'×':'+'") &&
   index.includes('id="estimate-reset"') &&
   index.includes("resetButton.addEventListener('click'") &&
-  index.includes('role="status" aria-live="polite" aria-atomic="true"')
-) pass('Estimator accordion indicators, reset control, and live-result announcements are synchronized.');
+  index.includes('<strong role="status" aria-live="polite" aria-atomic="true">') &&
+  index.includes('id="estimate-count"') &&
+  index.includes("e.target.closest('input,label')") &&
+  index.includes("Math.max(0,parseFloat(input.value)||0)") &&
+  index.includes("discountBox.addEventListener('click'")
+) pass('Estimator indicators, selected-service counter, safe quantity handling, discount row, reset control, and live announcements are synchronized.');
 else fail('Estimator interaction polish checks failed.');
 
 if (
