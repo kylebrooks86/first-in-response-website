@@ -73,6 +73,7 @@ let canonicalPages = 0;
 let contactPages = 0;
 let mobileControlPages = 0;
 let emailPages = 0;
+let externalRuntimeAssets = 0;
 
 for (const page of htmlFiles) {
   const html = read(page);
@@ -86,6 +87,12 @@ for (const page of htmlFiles) {
   const ids = idsIn(html);
   const duplicateIds = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
   if (duplicateIds.length) fail(`${page}: duplicate IDs: ${duplicateIds.join(', ')}.`);
+  const remoteSources = [...html.matchAll(/\s(?:src|poster)=["'](?:https?:)?\/\//gi)];
+  const remoteStyles = [...html.matchAll(/<link\b[^>]*rel=["']stylesheet["'][^>]*href=["'](?:https?:)?\/\//gi)];
+  const remoteCssUrls = [...html.matchAll(/(?:@import\s+url\(|url\()\s*["']?(?:https?:)?\/\//gi)];
+  const remoteRuntimeCount = remoteSources.length + remoteStyles.length + remoteCssUrls.length;
+  externalRuntimeAssets += remoteRuntimeCount;
+  if (remoteRuntimeCount) fail(`${page}: found ${remoteRuntimeCount} external runtime asset reference(s).`);
 
   if (publicPages.includes(page)) {
     const canonicalMatches = [...html.matchAll(/<link\s+rel=["']canonical["']\s+href=["']([^"']+)["']/gi)];
@@ -145,6 +152,7 @@ pass(`${htmlFiles.length} HTML files have one-H1, duplicate-ID, noindex, and scr
 pass(`${internalLinks} internal links and anchors were checked.`);
 pass(`${mediaReferences} local image/video references were checked.`);
 pass(`${inlineScripts} inline scripts compiled.`);
+if (externalRuntimeAssets === 0) pass('All pages are self-contained with no external script, stylesheet, image, video, or CSS asset dependencies.');
 if (canonicalPages === 13) pass('All 13 public pages have the expected production canonical URL.');
 if (contactPages === 13) pass('All 13 public pages contain the approved call and SMS destinations.');
 if (mobileControlPages === 13) pass('All 13 public pages have consistent mobile menu and sticky conversion controls.');

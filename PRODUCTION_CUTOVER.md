@@ -16,6 +16,7 @@ Verify:
 - Every before/after image and draggable reveal
 - All six On-the-Job videos
 - Exact-media inventory verifier confirms all 23 approved homepage assets with no substitutions or omissions
+- Independent-runtime verifier confirms there are no external script, stylesheet, image, video, or CSS asset dependencies
 - Mobile hamburger menu
 - Sticky Call / Text Photos / Estimate actions
 - Instant estimator calculations

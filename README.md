@@ -90,7 +90,9 @@ No package installation or ChatGPT access is required. The command exits with an
 
 GitHub Actions also runs the same independent verifier automatically on every push to `main` and on every pull request through `.github/workflows/verify-site.yml`. This provides a durable regression check even when ChatGPT is unavailable.
 
-## Verification record
+## Completion and verification records
+
+A plain-English project status and remaining-work checklist is recorded in `COMPLETION_STATUS.md`.
 
 The latest source-level audit and estimator spot checks are recorded in `VERIFICATION_SNAPSHOT.md`.
 
