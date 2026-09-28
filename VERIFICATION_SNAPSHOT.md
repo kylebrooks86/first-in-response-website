@@ -47,7 +47,7 @@ Estimator spot checks:
 - All operating scripts, styles, images, videos, and CSS assets are repository-local; canonical and review destinations are the only intentional external webpage links.
 - Homepage and secondary-page hamburger menus open and close correctly; all now update both aria-expanded and the Open/Close accessible label.
 - Estimator accordions start closed and enforce one-open-at-a-time behavior.
-- Closed categories display `+`, open categories display `×`, the sticky result shows a live selected-service count, calculated ranges announce politely to assistive technology, the full discount row is selectable, and Clear selections resets quantities, services, and discount state.
+- Closed categories display `+`, open categories display `×`, the sticky result shows a live selected-service count, the final card recaps selected services and quantities, calculated ranges announce politely to assistive technology, the full discount row is selectable, and Clear selections resets quantities, services, and discount state.
 - Quantity inputs reject negative values, quantity-label taps no longer deselect their service, and estimate-to-text quantities use readable thousands separators.
 - The sticky live estimate now respects iPhone safe areas; View summary clears both the header and sticky estimate bar; narrow screens use tighter headings, cards, inputs, and responsive range sizing.
 - The estimator intentionally displays a protected ±5% preliminary range while calculating from the locked rates in BUSINESS_RULES.md.

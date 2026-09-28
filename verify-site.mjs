@@ -319,8 +319,10 @@ if (
   index.includes('id="estimate-count"') &&
   index.includes("e.target.closest('input,label')") &&
   index.includes("Math.max(0,parseFloat(input.value)||0)") &&
-  index.includes("discountBox.addEventListener('click'")
-) pass('Estimator indicators, selected-service counter, safe quantity handling, discount row, reset control, and live announcements are synchronized.');
+  index.includes("discountBox.addEventListener('click'") &&
+  index.includes('id="estimate-items"') &&
+  index.includes("item.textContent=name+' — '+detail")
+) pass('Estimator indicators, selection recap, selected-service counter, safe quantity handling, discount row, reset control, and live announcements are synchronized.');
 else fail('Estimator interaction polish checks failed.');
 
 if (
