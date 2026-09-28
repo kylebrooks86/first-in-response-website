@@ -17,6 +17,7 @@ The purpose of this repository is to keep the business website usable independen
 - Call, text, and email actions
 - Instant estimator with closed service accordions
 - Synchronized +/× accordion indicators, polite live-result announcements, and one-tap Clear selections control
+- iPhone-safe sticky estimate positioning, summary navigation offset, and narrow-screen estimator sizing
 - Known-rate calculations, $150 minimum, and 5% first responder/military discount
 - Smart estimator-to-SMS handoff
 - Personalized-estimate-to-SMS handoff

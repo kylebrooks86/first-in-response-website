@@ -38,7 +38,7 @@ Estimator spot checks:
 
 ## Final verification pass
 
-- Standalone `node verify-site.mjs` audit completed successfully with 27 verification groups, including 180 internal links/anchors, 45 local media references, and 14 inline scripts. It requires no external packages or ChatGPT access.
+- Standalone `node verify-site.mjs` audit completed successfully with 28 verification groups, including 180 internal links/anchors, 45 local media references, and 14 inline scripts. It requires no external packages or ChatGPT access.
 - GitHub Actions workflow `.github/workflows/verify-site.yml` runs the same verifier automatically on pushes to `main` and on pull requests using Node.js 20 with read-only repository permissions.
 - Repository-wide stale-rate scan found no superseded gutter-cleaning or existing-guard rates.
 - Permanent synchronization checks confirm the house, gutter, window, fence, and concrete pages match every established customer-facing price in `BUSINESS_RULES.md`.
@@ -47,6 +47,7 @@ Estimator spot checks:
 - Homepage and secondary-page hamburger menus open and close correctly; all now update both aria-expanded and the Open/Close accessible label.
 - Estimator accordions start closed and enforce one-open-at-a-time behavior.
 - Closed categories now display `+`, open categories display `×`, calculated ranges announce politely to assistive technology, and Clear selections resets quantities, services, and discount state.
+- The sticky live estimate now respects iPhone safe areas; View summary clears both the header and sticky estimate bar; narrow screens use tighter headings, cards, inputs, and responsive range sizing.
 - The estimator intentionally displays a protected ±5% preliminary range while calculating from the locked rates in BUSINESS_RULES.md.
 - Rendered estimator checks: 1,700 sq ft house wash displayed $355–$393 around the $374 calculation; 150 lf gutter cleaning plus 150 lf existing-guard removal/reinstall displayed $285–$315 around $300.00; the eligible 5% discount produced a $285.00 calculation and displayed the protected $271–$299 range; a $40 raw fence calculation enforced the $150 minimum and displayed $150–$158, preventing the protected range from implying a price below the minimum.
 - The permanent verifier now independently parses all 12 locked estimator rates and recomputes the house-wash, combined-gutter, 5% discount, $150 minimum, protected-range, and fixed RV scenarios on every run.

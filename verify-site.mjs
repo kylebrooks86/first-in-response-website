@@ -311,6 +311,15 @@ if (
 ) pass('Estimator accordion indicators, reset control, and live-result announcements are synchronized.');
 else fail('Estimator interaction polish checks failed.');
 
+if (
+  index.includes('top:calc(104px + env(safe-area-inset-top))') &&
+  index.includes('#summary{scroll-margin-top:230px}') &&
+  index.includes('@media(max-width:600px)') &&
+  index.includes('.live strong{font-size:clamp(30px,9vw,40px);white-space:nowrap}') &&
+  index.includes('.acc.collapsed .x{transform:none}')
+) pass('Estimator sticky offsets, summary navigation, and narrow-screen sizing are mobile-safe.');
+else fail('Estimator mobile polish checks failed.');
+
 const notFound = read('404.html');
 if (notFound.includes('id="home-link"') && notFound.includes('href="tel:+19189229366"') && notFound.includes('href="sms:+19189229366"')) {
   pass('404 recovery page contains working home, call, and SMS actions.');

@@ -20,6 +20,7 @@ Verify:
 - Sticky Call / Text Photos / Estimate actions
 - Instant estimator calculations
 - Estimator category +/× indicators, live range announcements, and Clear selections behavior
+- On iPhone, View summary lands below both sticky bars and the estimator remains fully inside the viewport
 - Automated verifier passes all 12 locked-rate checks and the house, gutter, discount, minimum, range, and fixed-price calculation scenarios
 - 5% first responder/military discount
 - $150 minimum job behavior, including a protected range that never displays below $150
