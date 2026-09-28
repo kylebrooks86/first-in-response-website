@@ -38,12 +38,13 @@ Estimator spot checks:
 
 ## Final verification pass
 
-- Standalone `node verify-site.mjs` audit completed successfully with 29 verification groups, including 180 internal links/anchors, 45 local media references, and 14 inline scripts. It requires no external packages or ChatGPT access.
+- Standalone `node verify-site.mjs` audit completed successfully with 30 verification groups, including 180 internal links/anchors, 45 local media references, and 14 inline scripts. It requires no external packages or ChatGPT access.
 - GitHub Actions workflow `.github/workflows/verify-site.yml` runs the same verifier automatically on pushes to `main` and on pull requests using Node.js 20 with read-only repository permissions.
 - Repository-wide stale-rate scan found no superseded gutter-cleaning or existing-guard rates.
 - Permanent synchronization checks confirm the house, gutter, window, fence, and concrete pages match every established customer-facing price in `BUSINESS_RULES.md`.
 - All 13 public pages and the 404 page were rendered from GitHub Pages with one H1, active noindex protection, and no desktop horizontal overflow.
 - Every local page, anchor, image, and video reference resolved to a repository path.
+- All 23 approved homepage media files pass minimum-size and binary JPEG/MP4 signature checks; the six published videos also decoded successfully during the rendered browser audit.
 - All operating scripts, styles, images, videos, and CSS assets are repository-local; canonical and review destinations are the only intentional external webpage links.
 - Homepage and secondary-page hamburger menus open and close correctly; all now update both aria-expanded and the Open/Close accessible label.
 - Estimator accordions start closed and enforce one-open-at-a-time behavior.

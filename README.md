@@ -33,7 +33,7 @@ The purpose of this repository is to keep the business website usable independen
 
 ## Integrity check
 
-The homepage currently references 23 approved local media assets, and the independent verifier now enforces that exact inventory—including all six videos, exact owner and equipment images, and every approved before/after pair. The latest repository audit confirmed the rebuild has one proper homepage H1, no duplicate HTML IDs, no missing image alt text, no legacy veteran wording, no broken local page/anchor/media references, and temporary noindex protection remains enabled. All public-page hamburger controls now keep their expanded state and Open/Close accessible label synchronized.
+The homepage currently references 23 approved local media assets, and the independent verifier enforces that exact inventory—including all six videos, exact owner and equipment images, and every approved before/after pair. It also checks minimum file sizes and JPEG/MP4 signatures so renamed, empty, or corrupted media cannot pass silently. The latest repository audit confirmed the rebuild has one proper homepage H1, no duplicate HTML IDs, no missing image alt text, no legacy veteran wording, no broken local page/anchor/media references, and temporary noindex protection remains enabled. All public-page hamburger controls now keep their expanded state and Open/Close accessible label synchronized.
 
 ## Rebuild coverage
 

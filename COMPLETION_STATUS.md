@@ -51,7 +51,7 @@ Clone or download the repository and run:
 node verify-site.mjs
 ```
 
-The verifier uses only Node.js and the repository files. It checks pages, internal links, anchors, local media, scripts, pricing, calculator scenarios, mobile controls, SMS handling, safety protections, exact media inventory, and external runtime dependencies.
+The verifier uses only Node.js and the repository files. It checks pages, internal links, anchors, local media paths and file signatures, scripts, pricing, calculator scenarios, mobile controls, SMS handling, safety protections, exact media inventory, and external runtime dependencies.
 
 The GitHub Pages copy can be viewed at:
 

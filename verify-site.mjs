@@ -197,6 +197,24 @@ if (actualHomepageMedia.size === 23 && !missingHomepageMedia.length && !unexpect
     '; unexpected: ' + (unexpectedHomepageMedia.join(', ') || 'none') + '.');
 }
 
+const mediaIntegrityErrors = [];
+for (const file of expectedHomepageMedia) {
+  const absolute = path.join(root, file);
+  const bytes = fs.readFileSync(absolute);
+  if (bytes.length < 1024) {
+    mediaIntegrityErrors.push(`${file} is unexpectedly small (${bytes.length} bytes)`);
+    continue;
+  }
+  if (file.endsWith('.jpg') && bytes.subarray(0, 3).toString('hex') !== 'ffd8ff') {
+    mediaIntegrityErrors.push(`${file} does not have a valid JPEG signature`);
+  }
+  if (file.endsWith('.mp4') && bytes.subarray(4, 8).toString('ascii') !== 'ftyp') {
+    mediaIntegrityErrors.push(`${file} does not have a valid MP4 signature`);
+  }
+}
+if (!mediaIntegrityErrors.length) pass('All 23 approved homepage media files are non-empty and have valid JPEG or MP4 signatures.');
+else fail('Homepage media integrity failed: ' + mediaIntegrityErrors.join('; ') + '.');
+
 const rules = read('BUSINESS_RULES.md');
 const gutterPage = read('services/gutter-cleaning/index.html');
 const housePage = read('services/house-washing/index.html');
