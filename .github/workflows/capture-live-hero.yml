@@ -1,0 +1,26 @@
+name: Capture live FIRE hero asset
+
+on:
+  push:
+    paths:
+      - '.github/workflows/capture-live-hero.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download exact live hero image
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/firetruck-hero.png' -o firetruck-hero.png
+          file firetruck-hero.png
+          test -s firetruck-hero.png
+      - name: Upload captured hero
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-live-firetruck-hero
+          path: firetruck-hero.png
+          retention-days: 7
