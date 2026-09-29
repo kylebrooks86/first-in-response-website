@@ -106,10 +106,13 @@ for (const page of htmlFiles) {
     else fail(`${page}: missing the approved phone or SMS action.`);
 
     const bottom = html.match(/<div\s+class=["']bottom["'][^>]*>([\s\S]*?)<\/div>/i)?.[1] || '';
-    if (/\bCall\b/i.test(bottom) && /Text\s+photos/i.test(bottom) && /\bEstimate\b/i.test(bottom) &&
+    const hasBottomCall = /href=["']tel:\+19189229366["']/i.test(bottom);
+    const hasBottomText = /href=["']sms:\+19189229366(?:[^"']*)?["']/i.test(bottom);
+    const hasBottomEstimate = /href=["']#(?:estimate|personal)["']/i.test(bottom);
+    if (hasBottomCall && hasBottomText && hasBottomEstimate &&
         html.includes('id="menu-toggle"') && html.includes('aria-controls="site-menu"')) {
       mobileControlPages += 1;
-    } else fail(`${page}: mobile menu or Call / Text photos / Estimate controls are inconsistent.`);
+    } else fail(`${page}: mobile menu or sticky call / text / estimate controls are inconsistent.`);
 
     if ((page === 'index.html' || page.startsWith('services/')) &&
         html.includes('href="mailto:kyle@firstinresponseexteriors.com"')) emailPages += 1;
