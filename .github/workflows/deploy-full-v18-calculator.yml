@@ -1,0 +1,27 @@
+name: Deploy full FIRE calculator v18 parity
+
+on:
+  push:
+    paths:
+      - 'deploy-full-v18.py'
+      - '.github/workflows/deploy-full-v18-calculator.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build full calculator parity layer
+        run: python deploy-full-v18.py
+      - name: Commit calculator parity files
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- calculator/full-v18.js calculator/sw.js; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add calculator/full-v18.js calculator/sw.js
+          git commit -m 'Deploy full FIRE calculator v18 parity layer'
+          git push
