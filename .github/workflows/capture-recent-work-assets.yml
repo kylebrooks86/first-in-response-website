@@ -45,3 +45,5 @@ jobs:
           git add assets/recent-work
           git commit -m 'Add exact live recent-work media'
           git push
+
+# Triggered after workflow installation.
