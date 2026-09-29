@@ -24,23 +24,34 @@
       .fire-floating-estimate{display:grid!important;gap:2px!important;min-width:150px!important;text-align:left!important;padding:11px 15px!important}
       .fire-floating-estimate small{display:block;font-size:9px;letter-spacing:.16em;font-weight:800;opacity:.82}
       .fire-floating-estimate strong{display:block;font-size:13px;letter-spacing:.03em;font-weight:900}
-      @media(min-width:980px){.desktop-nav{gap:24px!important}.desktop-nav a{font-size:14px!important}.header-call{font-size:14px!important;padding:10px 16px!important}}
+      @media(min-width:980px){.desktop-nav{gap:17px!important}.desktop-nav a{font-size:12px!important}.header-call{font-size:12px!important;padding:9px 12px!important}}
       @media(max-width:979px){.fire-footer-contact-grid{grid-template-columns:1fr}.fire-footer-contact-grid a{border-right:0;border-bottom:1px solid #2b3036;padding:16px 18px}.fire-footer-contact-grid a:last-child{border-bottom:0}}
     `;
     document.head.appendChild(style);
   }
 
+  const ownerSection = document.querySelector('.owner-photo')?.closest('section');
+  if (ownerSection && !ownerSection.id) ownerSection.id = 'meet-kyle';
+  const faqSection = document.querySelector('.faq')?.closest('section');
+  if (faqSection && !faqSection.id) faqSection.id = 'faqs';
+
   const desktopNav = document.querySelector('.desktop-nav');
   if (desktopNav) {
-    [...desktopNav.querySelectorAll('a')].forEach((a) => {
-      const href = a.getAttribute('href') || '';
-      if (href === '#personal' || href === 'review/' || href.endsWith('/review/')) a.remove();
-    });
+    desktopNav.innerHTML = `
+      <a href="#services">Services</a>
+      <a href="#estimate">Instant Estimate</a>
+      <a href="#results">Results</a>
+      <a href="#on-the-job">Recent Work</a>
+      <a href="#reviews">Reviews</a>
+      <a href="#meet-kyle">Meet Kyle</a>
+      <a href="#faqs">FAQs</a>
+      <a href="#personal">Personalized Estimate</a>
+    `;
   }
 
   const heroHeading = document.querySelector('.hero .display');
   if (heroHeading) {
-    heroHeading.innerHTML = 'Tulsa exterior<br>cleaning<br><span class="hero-white">with a first-</span><span class="red">responder standard.</span>';
+    heroHeading.innerHTML = 'TULSA EXTERIOR<br>CLEANING WITH A FIRST-<br><span class="red">RESPONDER STANDARD.</span>';
   }
 
   const mobileBar = document.querySelector('.bottom');
@@ -55,49 +66,21 @@
     [call, text, estimate].filter(Boolean).forEach((a) => mobileBar.appendChild(a));
   }
 
-  const combinedSurfaceAcc = [...document.querySelectorAll('#estimate .acc')].find((acc) => {
+  let combinedSurfaceAcc = [...document.querySelectorAll('#estimate .acc')].find((acc) => {
     const h3 = acc.querySelector('.acc-head h3');
-    return h3 && h3.textContent.trim().toUpperCase() === 'CONCRETE, WOOD & OUTDOOR SURFACES';
+    const title = h3?.textContent.trim().toUpperCase() || '';
+    return title === 'CONCRETE, WOOD & OUTDOOR SURFACES' || title === 'CONCRETE';
   });
-  if (combinedSurfaceAcc && !document.querySelector('#estimate .acc[data-live-split="wood"]')) {
+  const woodSurfaceAcc = document.querySelector('#estimate .acc[data-live-split="wood"]');
+  if (combinedSurfaceAcc && woodSurfaceAcc) {
+    [...woodSurfaceAcc.querySelectorAll(':scope > .opt')].forEach((opt) => combinedSurfaceAcc.appendChild(opt));
+    woodSurfaceAcc.remove();
+  }
+  if (combinedSurfaceAcc) {
     const h3 = combinedSurfaceAcc.querySelector('.acc-head h3');
     const desc = combinedSurfaceAcc.querySelector('.acc-head p');
-    if (h3) h3.textContent = 'CONCRETE';
-    if (desc) desc.textContent = 'Enter approximate square feet for the concrete or paver surfaces being cleaned.';
-
-    const options = [...combinedSurfaceAcc.querySelectorAll(':scope > .opt')];
-    const woodOptions = options.slice(2);
-    if (woodOptions.length) {
-      const woodAcc = document.createElement('div');
-      woodAcc.className = 'acc collapsed';
-      woodAcc.dataset.liveSplit = 'wood';
-      woodAcc.innerHTML = '<div class="acc-head"><div><h3>WOOD & OUTDOOR SURFACES</h3><p>Enter square feet for decks and every fence side being cleaned, or choose the quantity that applies to outdoor add-ons.</p></div><span class="x" aria-hidden="true">+</span></div>';
-      woodOptions.forEach((opt) => woodAcc.appendChild(opt));
-      combinedSurfaceAcc.insertAdjacentElement('afterend', woodAcc);
-
-      const head = woodAcc.querySelector('.acc-head');
-      const icon = woodAcc.querySelector('.x');
-      const toggle = () => {
-        const opening = woodAcc.classList.contains('collapsed');
-        woodAcc.classList.toggle('collapsed', !opening);
-        if (icon) icon.textContent = opening ? '×' : '+';
-      };
-      if (head) {
-        head.setAttribute('role', 'button');
-        head.setAttribute('tabindex', '0');
-        head.setAttribute('aria-expanded', 'false');
-        head.addEventListener('click', () => {
-          toggle();
-          head.setAttribute('aria-expanded', String(!woodAcc.classList.contains('collapsed')));
-        });
-        head.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            head.click();
-          }
-        });
-      }
-    }
+    if (h3) h3.textContent = 'CONCRETE, WOOD & OUTDOOR SURFACES';
+    if (desc) desc.textContent = 'Enter square feet for flat surfaces, decks, and every fence side being cleaned.';
   }
 
   document.querySelectorAll('.beforeafter').forEach((wrap) => {
