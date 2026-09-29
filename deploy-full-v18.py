@@ -7,10 +7,65 @@ if script_tag not in text:
     text = text.replace('</body>', script_tag + '</body>')
     index.write_text(text)
 
-Path('calculator/sw.js').write_text(r'''const CACHE='fire-field-calculator-v18-full-3';
+ext = Path('calculator/full-v18.js')
+js = ext.read_text()
+marker = '// LIVE_V18_LAYOUT_PARITY'
+if marker not in js:
+    js += r'''
+
+// LIVE_V18_LAYOUT_PARITY
+(()=>{
+  const cardByHeading=(text)=>[...document.querySelectorAll('.card')].find(c=>[...c.querySelectorAll('h2,h3')].some(h=>h.textContent.trim()===text));
+  const sec=id=>document.getElementById(id);
+  const move=(heading,target,beforeHeading=null)=>{
+    const card=cardByHeading(heading), targetSec=sec(target); if(!card||!targetSec)return;
+    if(beforeHeading){const before=cardByHeading(beforeHeading);if(before&&before.parentElement===targetSec){targetSec.insertBefore(card,before);return;}}
+    targetSec.appendChild(card);
+  };
+  // Equipment order from the real v18.
+  move('Mix the X-Jet pickup bucket for a target strength','equipment','X-Jet bucket draw test');
+  move('Find your real injector ratio','equipment','Three-port proportioner planner');
+  move('Fill-time estimate','equipment');
+
+  // Real Chemical Index is the index; stain/compatibility tools live under Field Tools.
+  move('Stain & Surface Finder','tools','Batch History / Mix Log');
+  move('Chemical Compatibility Checker','tools','Batch History / Mix Log');
+
+  // Real Field Tools ordering.
+  move('Batch History / Mix Log','tools','Chemical Inventory');
+  move('Chemical Inventory','tools','Application Timer');
+  move('Application Timer','tools','Weather Adjustment Guide');
+  move('Weather Adjustment Guide','tools','Custom Chemical Builder');
+  move('Custom Chemical Builder','tools','Version and offline update');
+  move('Version and offline update','tools','Backup or Restore Field Data');
+  move('Backup or Restore Field Data','tools');
+  move('Field Safety Card','tools');
+
+  // Real Job Math: coverage -> area/calibration -> chemical cost -> estimator -> loadout/profitability.
+  const oldEstimate=cardByHeading('Price the whole job');
+  const fullEstimate=cardByHeading('Full FIRE service estimator');
+  if(oldEstimate&&fullEstimate&&oldEstimate!==fullEstimate) oldEstimate.remove();
+  if(fullEstimate){const h=fullEstimate.querySelector('h2');if(h)h.textContent='Price the whole job';}
+  move('Area and real coverage helpers','job','Know your cost per batch');
+  move('Know your cost per batch','job','Price the whole job');
+  move('Price the whole job','job','Job loadout and profitability');
+  move('Job loadout and profitability','job');
+
+  // Add the real stock-strength subsection label within the batch recipe.
+  const recipe=cardByHeading('4-gallon moderate house wash');
+  if(recipe && ![...recipe.querySelectorAll('h2')].some(h=>h.textContent.includes('Stock-strength correction'))){
+    const stockInput=document.getElementById('stockStrength');
+    const grid=stockInput?.closest('.grid');
+    if(grid){const h=document.createElement('h2');h.textContent='🧪 Stock-strength correction';h.style.gridColumn='1/-1';h.style.margin='6px 0 0';grid.parentElement.insertBefore(h,grid);}
+  }
+})();
+'''
+    ext.write_text(js)
+
+Path('calculator/sw.js').write_text(r'''const CACHE='fire-field-calculator-v18-full-4';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./full-v18.js'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('fire-field-calculator-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{if(res&&res.status===200){const copy=res.clone();caches.open(CACHE).then(c=>c.put(e.request,copy))}return res}).catch(()=>e.request.mode==='navigate'?caches.match('./index.html'):undefined)))});
 ''')
-print('Linked full-v18.js directly from calculator/index.html and refreshed offline cache')
+print('Aligned FIRE calculator hierarchy with live v18 and refreshed offline cache')
