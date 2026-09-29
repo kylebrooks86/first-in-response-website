@@ -34,6 +34,18 @@
         #results .beforeafter{height:667px!important}
         #estimate .max{max-width:1100px!important}
         #estimate .acc-head{min-height:104px!important;padding:22px 26px!important;align-items:center!important}
+        #services .services{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:18px!important}
+        #services .service{padding:24px!important;min-height:250px!important;border:1px solid #d9dde2!important;border-radius:4px!important;box-shadow:0 2px 8px rgba(0,0,0,.04)!important;background:#fff!important}
+        #services .service h3{font-size:23px!important;line-height:1.15!important;margin:22px 0 10px!important}
+        #services .service p{font-size:15px!important;line-height:1.55!important}
+        #services .service .learn{font-size:14px!important;margin-top:14px!important}
+        #reviews .reviews{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:28px!important}
+        #reviews .review{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:8px 4px 24px!important;min-width:0!important}
+        #reviews .quote{font-size:54px!important;line-height:.8!important;margin-bottom:10px!important;color:#d93934!important}
+        #reviews .stars{font-size:18px!important;letter-spacing:1px!important;color:#e8a51b!important;margin-bottom:10px!important}
+        #reviews .review p{font-size:16px!important;line-height:1.65!important;color:#34373d!important}
+        #reviews .review b{font-size:15px!important}
+        #reviews .review small{font-size:12px!important;margin-top:8px!important}
         .owner-photo{height:720px!important}
         .faq{gap:24px!important;margin-top:48px!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
         .faq details{padding:28px 40px!important;min-height:79px!important}
@@ -54,6 +66,9 @@
         footer>.copyright{grid-column:1 / -1!important;grid-row:3!important;margin:30px 0 0!important;padding-top:20px!important;border-top:0!important;font-size:12px!important;color:#7f858d!important}
       }
       @media(max-width:979px){
+        #services .services{grid-template-columns:1fr!important}
+        #reviews .reviews{display:block!important}
+        #reviews .review{margin-bottom:28px!important}
         footer{display:block!important}
         footer>.footer-logo{margin-left:auto!important;margin-right:auto!important}
         footer>.footer-center{text-align:center!important}
