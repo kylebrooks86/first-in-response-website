@@ -1,4 +1,7 @@
 (() => {
+  const mobileEstimate = document.querySelector('.bottom-estimate');
+  if (mobileEstimate) mobileEstimate.textContent = 'INSTANT ESTIMATE';
+
   document.querySelectorAll('.job-video').forEach((card) => {
     const video = card.querySelector('video');
     if (!video || card.querySelector('.fire-play')) return;
