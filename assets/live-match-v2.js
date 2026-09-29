@@ -21,7 +21,10 @@
       .fire-footer-contact-grid a:last-child{border-right:0}
       .fire-footer-contact-grid small{display:block;color:#8f969e;font-size:10px;font-weight:800;letter-spacing:.18em;margin-bottom:7px}
       .fire-footer-contact-grid strong{display:block;color:#fff;font-size:15px}
-      @media(min-width:980px){.desktop-nav{gap:15px!important}.desktop-nav a{font-size:12px!important}.header-call{font-size:12px!important;padding:9px 12px!important}}
+      .fire-floating-estimate{display:grid!important;gap:2px!important;min-width:150px!important;text-align:left!important;padding:11px 15px!important}
+      .fire-floating-estimate small{display:block;font-size:9px;letter-spacing:.16em;font-weight:800;opacity:.82}
+      .fire-floating-estimate strong{display:block;font-size:13px;letter-spacing:.03em;font-weight:900}
+      @media(min-width:980px){.desktop-nav{gap:24px!important}.desktop-nav a{font-size:14px!important}.header-call{font-size:14px!important;padding:10px 16px!important}}
       @media(max-width:979px){.fire-footer-contact-grid{grid-template-columns:1fr}.fire-footer-contact-grid a{border-right:0;border-bottom:1px solid #2b3036;padding:16px 18px}.fire-footer-contact-grid a:last-child{border-bottom:0}}
     `;
     document.head.appendChild(style);
@@ -29,19 +32,28 @@
 
   const desktopNav = document.querySelector('.desktop-nav');
   if (desktopNav) {
-    const ensureLink = (label, href) => {
-      if ([...desktopNav.querySelectorAll('a')].some((a) => a.getAttribute('href') === href)) return;
-      const a = document.createElement('a');
-      a.href = href;
-      a.textContent = label;
-      desktopNav.appendChild(a);
-    };
-    ensureLink('Personalized estimate', '#personal');
-    ensureLink('Leave a review', 'review/');
+    [...desktopNav.querySelectorAll('a')].forEach((a) => {
+      const href = a.getAttribute('href') || '';
+      if (href === '#personal' || href === 'review/' || href.endsWith('/review/')) a.remove();
+    });
   }
 
-  const mobileEstimate = document.querySelector('.bottom-estimate');
-  if (mobileEstimate) mobileEstimate.textContent = 'INSTANT ESTIMATE';
+  const heroHeading = document.querySelector('.hero .display');
+  if (heroHeading) {
+    heroHeading.innerHTML = 'Tulsa exterior<br>cleaning<br><span class="hero-white">with a first-</span><span class="red">responder standard.</span>';
+  }
+
+  const mobileBar = document.querySelector('.bottom');
+  if (mobileBar) {
+    const links = [...mobileBar.querySelectorAll('a')];
+    const call = links.find((a) => (a.getAttribute('href') || '').startsWith('tel:'));
+    const text = links.find((a) => (a.getAttribute('href') || '').startsWith('sms:'));
+    const estimate = links.find((a) => (a.getAttribute('href') || '').includes('#estimate'));
+    if (call) call.textContent = 'Call';
+    if (text) text.textContent = 'Text photos';
+    if (estimate) estimate.textContent = 'Estimate';
+    [call, text, estimate].filter(Boolean).forEach((a) => mobileBar.appendChild(a));
+  }
 
   const combinedSurfaceAcc = [...document.querySelectorAll('#estimate .acc')].find((acc) => {
     const h3 = acc.querySelector('.acc-head h3');
@@ -97,14 +109,15 @@
     handle.setAttribute('aria-hidden', 'true');
   });
 
-  if (!document.querySelector('.fire-floating-estimate')) {
-    const floatingEstimate = document.createElement('a');
+  let floatingEstimate = document.querySelector('.fire-floating-estimate');
+  if (!floatingEstimate) {
+    floatingEstimate = document.createElement('a');
     floatingEstimate.className = 'fire-floating-estimate';
     floatingEstimate.href = '#estimate';
-    floatingEstimate.textContent = 'INSTANT ESTIMATE →';
-    floatingEstimate.setAttribute('aria-label', 'Jump to instant estimate');
+    floatingEstimate.setAttribute('aria-label', 'Price it now with the instant estimate');
     document.body.appendChild(floatingEstimate);
   }
+  floatingEstimate.innerHTML = '<small>PRICE IT NOW</small><strong>INSTANT ESTIMATE</strong>';
 
   const footer = document.querySelector('footer');
   if (footer && !footer.querySelector('.fire-footer-contact-grid')) {
