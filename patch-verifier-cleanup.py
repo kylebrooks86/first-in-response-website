@@ -15,6 +15,6 @@ for f in Path('.').rglob('*'):
     if not f.is_file() or '.git' in f.parts or f.suffix.lower() not in exts:
         continue
     text = f.read_text(errors='ignore')
-    updated = text.replace('$0.25', '$0.22').replace('rate:0.25', 'rate:0.22').replace('rate:.25', 'rate:.22')
+    updated = text.replace('$0.22', '$0.22').replace('rate:0.22', 'rate:0.22').replace('rate:.22', 'rate:.22')
     if updated != text:
         f.write_text(updated)

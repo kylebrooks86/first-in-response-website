@@ -190,7 +190,7 @@ const expectedHomepageMedia = [
   'assets/owner.jpg'
 ];
 const actualHomepageMedia = new Set(
-  [...index.matchAll(/(?:src|poster)=["'](assets\/[^"']+)["']/g)].map((match) => match[1])
+  [...index.matchAll(/<(?:img|video|audio|source)\b[^>]*(?:src|poster)=["'](assets\/[^"']+)["']/g)].map((match) => match[1])
 );
 const missingHomepageMedia = expectedHomepageMedia.filter((file) => !actualHomepageMedia.has(file) || !fileSet.has(file));
 const unexpectedHomepageMedia = [...actualHomepageMedia].filter((file) => !expectedHomepageMedia.includes(file));
