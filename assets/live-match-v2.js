@@ -17,7 +17,7 @@
     style.textContent = `
       .dash{display:block!important;background:#2877d4!important;width:28px!important;height:3px!important;flex:0 0 28px!important}
       .fire-footer-contact-grid{max-width:980px;margin:32px auto 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #2b3036;border-bottom:1px solid #2b3036}
-      .fire-footer-contact-grid a{padding:22px 20px;text-decoration:none;border-right:1px solid #2b3036;display:block}
+      .fire-footer-contact-grid a{min-height:79px;padding:20px 22px;text-decoration:none;border-right:1px solid #2b3036;display:flex;flex-direction:column;justify-content:center}
       .fire-footer-contact-grid a:last-child{border-right:0}
       .fire-footer-contact-grid small{display:block;color:#8f969e;font-size:10px;font-weight:800;letter-spacing:.18em;margin-bottom:7px}
       .fire-footer-contact-grid strong{display:block;color:#fff;font-size:15px}
@@ -34,8 +34,21 @@
         .hero .display{max-width:700px!important}
         .hero .lead{max-width:700px!important}
         .hero .hero-buttons{max-width:700px!important}
+        #results .proof-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:30px!important}
+        #results .beforeafter{height:667px!important}
+        #estimate .max{max-width:1100px!important}
+        #estimate .acc-head{min-height:104px!important;padding:22px 26px!important;align-items:center!important}
+        .owner-photo{height:720px!important}
+        .faq{gap:24px!important;margin-top:48px!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+        .faq details{padding:28px 40px!important;min-height:79px!important}
+        .faq summary{font-size:20px!important;line-height:1.3!important}
+        footer{padding-top:70px!important;padding-bottom:110px!important}
       }
-      @media(max-width:979px){.fire-footer-contact-grid{grid-template-columns:1fr}.fire-footer-contact-grid a{border-right:0;border-bottom:1px solid #2b3036;padding:16px 18px}.fire-footer-contact-grid a:last-child{border-bottom:0}}
+      @media(max-width:979px){
+        .fire-footer-contact-grid{grid-template-columns:1fr}
+        .fire-footer-contact-grid a{border-right:0;border-bottom:1px solid #2b3036;padding:16px 18px}
+        .fire-footer-contact-grid a:last-child{border-bottom:0}
+      }
     `;
     document.head.appendChild(style);
   }
@@ -101,6 +114,16 @@
     handle.textContent = '↔';
     handle.setAttribute('aria-hidden', 'true');
   });
+
+  const jobCards = [...document.querySelectorAll('.job-video')];
+  if (jobCards.length > 1) {
+    const parent = jobCards[0].parentElement;
+    if (parent && jobCards.every((card) => card.parentElement === parent)) {
+      parent.style.setProperty('display', 'grid', 'important');
+      parent.style.setProperty('grid-template-columns', 'repeat(2,minmax(0,1fr))', 'important');
+      parent.style.setProperty('gap', '24px', 'important');
+    }
+  }
 
   let floatingEstimate = document.querySelector('.fire-floating-estimate');
   if (!floatingEstimate) {
