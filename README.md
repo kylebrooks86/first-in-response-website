@@ -33,7 +33,7 @@ The purpose of this repository is to keep the business website usable independen
 
 ## Integrity check
 
-The homepage currently references 23 approved local media assets, and the independent verifier enforces that exact inventory—including all six videos, exact owner and equipment images, and every approved before/after pair. It also checks minimum file sizes and JPEG/MP4 signatures so renamed, empty, or corrupted media cannot pass silently. The latest repository audit confirmed the rebuild has one proper homepage H1, no duplicate HTML IDs, no missing image alt text, no legacy veteran wording, no broken local page/anchor/media references, and temporary noindex protection remains enabled. All public-page hamburger controls now keep their expanded state and Open/Close accessible label synchronized.
+The homepage currently references 23 approved local media assets, and the independent verifier enforces that exact inventory—including all six videos, exact owner and equipment images, and every approved before/after pair. It also checks minimum file sizes and media integrity. Two approved masonry proof assets are protected by exact Git blob hashes because their stored bytes do not use a standard JPEG signature; any change to either file causes recovery verification to fail. The latest repository audit confirmed the rebuild has one proper homepage H1, no duplicate HTML IDs, no broken local page/anchor/media references, and temporary noindex protection remains enabled. All public-page hamburger controls keep their expanded state and Open/Close accessible label synchronized.
 
 ## Rebuild coverage
 
@@ -53,7 +53,7 @@ Current independent rebuild: **13 public-facing pages represented**.
 - Dryer vent cleaning
 - Rust stain removal
 
-All current pages use the FIRE branding, mobile call/estimate actions, temporary search-index protection, and shared navigation back into the main site. The nine service pages now also use the shared FIRE header/menu and footer.
+All current pages use the FIRE branding, mobile call/estimate actions, temporary search-index protection, and shared navigation back into the main site. The nine service pages also use the shared FIRE header/menu and footer.
 
 ## Exact-media reconstruction status
 
@@ -72,7 +72,7 @@ Intentional new proof additions:
 - Front-patio / house-wash before/after
 - Cobweb-removal before/after
 
-The original **truck + pressure washer + surface-cleaner equipment photo** has been visually matched and is now installed as `assets/equipment-truck.jpg`; no similar-image substitution is being used.
+The original **truck + pressure washer + surface-cleaner equipment photo** has been visually matched and is installed as `assets/equipment-truck.jpg`; no similar-image substitution is being used.
 
 ## Durable business configuration
 
@@ -88,7 +88,22 @@ node verify-site.mjs
 
 No package installation or ChatGPT access is required. The command exits with an error if it finds broken local links or media references, script syntax problems, incorrect page counts or canonicals, stale gutter rates, missing contact or mobile conversion controls, incorrect estimator or dedicated-service pricing, broken iPhone SMS handling, missing search-index protection, a premature `CNAME`, or a regression in the $150 minimum. A clean run prints each passed check and exits successfully.
 
-GitHub Actions also runs the same independent verifier automatically on every push to `main` and on every pull request through `.github/workflows/verify-site.yml`. This provides a durable regression check even when ChatGPT is unavailable.
+GitHub Actions runs the recovery verifier automatically on every push to `main` and on every pull request through `.github/workflows/verify-site.yml`.
+
+For successful `main` builds, the workflow also creates a complete verified ZIP recovery artifact and retains it in GitHub Actions for 90 days. Backup creation is skipped if verification fails.
+
+A separate copy of the latest verified build is also stored outside GitHub in Google Drive under `FIRE Business Backups`, providing a second recovery location.
+
+## Disaster recovery instructions
+
+`DISASTER_RECOVERY.md` is the standalone restore runbook. It is written so the website can be recovered without ChatGPT and explains:
+
+- where the independent source and off-GitHub backup live,
+- how to validate a recovered copy,
+- how to restore to a temporary host first,
+- which pricing and business rules are locked,
+- what must remain blocked before production cutover,
+- and how to avoid changing live DNS prematurely.
 
 ## Completion and verification records
 
@@ -98,8 +113,8 @@ The latest source-level audit and estimator spot checks are recorded in `VERIFIC
 
 ## Before any production cutover
 
-Follow `PRODUCTION_CUTOVER.md`. Do not change DNS first. Verify the temporary GitHub Pages version before moving the domain.
+Follow `PRODUCTION_CUTOVER.md`. Do not change DNS first. Verify the temporary GitHub Pages version on a physical iPhone and desktop before moving the domain.
 
 ## Recovery principle
 
-The website source, media, pricing logic, and recovery instructions live in this GitHub repository. ChatGPT is not required for the already-published repository to continue existing or serving files from GitHub.
+The website source, media, estimator, pricing logic, verification tools, recovery instructions, and verified backup packages now exist outside ChatGPT. ChatGPT is not required for the published GitHub Pages mirror to remain online or for the website to be restored from the saved recovery files.
