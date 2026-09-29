@@ -55,8 +55,22 @@
 
   const ownerSection = document.querySelector('.owner-photo')?.closest('section');
   if (ownerSection && !ownerSection.id) ownerSection.id = 'meet-kyle';
+  if (ownerSection) {
+    const ownerKicker = ownerSection.querySelector('.kicker');
+    if (ownerKicker && /meet the owner/i.test(ownerKicker.textContent || '')) ownerKicker.remove();
+    const ownerHeading = ownerSection.querySelector('h2');
+    if (ownerHeading) ownerHeading.textContent = 'Meet Kyle Brooks';
+  }
+
   const faqSection = document.querySelector('.faq')?.closest('section');
   if (faqSection && !faqSection.id) faqSection.id = 'faqs';
+  if (faqSection) {
+    [...faqSection.querySelectorAll('summary')].forEach((summary) => {
+      if (/first responder or military discounts/i.test(summary.textContent || '')) {
+        summary.textContent = 'Do you offer first responder or veteran discounts?';
+      }
+    });
+  }
 
   const desktopNav = document.querySelector('.desktop-nav');
   if (desktopNav) {
