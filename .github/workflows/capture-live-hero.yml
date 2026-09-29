@@ -6,21 +6,35 @@ on:
       - '.github/workflows/capture-live-hero.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   capture:
     runs-on: ubuntu-latest
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
       - name: Download exact live hero image
         run: |
           set -euo pipefail
-          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/firetruck-hero.png' -o firetruck-hero.png
-          file firetruck-hero.png
-          test -s firetruck-hero.png
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/firetruck-hero.png' -o assets/firetruck-hero.png
+          file assets/firetruck-hero.png
+          test -s assets/firetruck-hero.png
+      - name: Commit exact hero asset when changed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- assets/firetruck-hero.png && git ls-files --error-unmatch assets/firetruck-hero.png >/dev/null 2>&1; then
+            echo 'Hero asset already matches the live source.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/firetruck-hero.png
+          git commit -m 'Add exact live fire-truck hero asset'
+          git push
       - name: Upload captured hero
         uses: actions/upload-artifact@v4
         with:
           name: FIRE-live-firetruck-hero
-          path: firetruck-hero.png
+          path: assets/firetruck-hero.png
           retention-days: 7
