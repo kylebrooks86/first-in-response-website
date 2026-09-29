@@ -5,6 +5,7 @@ p = Path('index.html')
 html = p.read_text()
 changes = 0
 
+# Triggered after the one-time workflow was installed.
 # Match the live site's full owner heading.
 new_html, n = re.subn(r'<h2>Meet Kyle</h2>', '<h2>Meet Kyle Brooks</h2>', html, count=1)
 html = new_html; changes += n
