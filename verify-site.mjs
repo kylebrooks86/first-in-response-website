@@ -108,7 +108,7 @@ for (const page of htmlFiles) {
     const bottom = html.match(/<div\s+class=["']bottom["'][^>]*>([\s\S]*?)<\/div>/i)?.[1] || '';
     const hasBottomCall = /href=["']tel:\+19189229366["']/i.test(bottom);
     const hasBottomText = /href=["']sms:\+19189229366(?:[^"']*)?["']/i.test(bottom);
-    const hasBottomEstimate = /href=["']#(?:estimate|personal)["']/i.test(bottom);
+    const hasBottomEstimate = /href=["'][^"']*#(?:estimate|personal)["']/i.test(bottom);
     if (hasBottomCall && hasBottomText && hasBottomEstimate &&
         html.includes('id="menu-toggle"') && html.includes('aria-controls="site-menu"')) {
       mobileControlPages += 1;
