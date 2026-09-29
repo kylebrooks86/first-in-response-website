@@ -1,0 +1,1 @@
+FIRE Field Calculator deployment assets are isolated under /calculator/. Root site files are unchanged by this deployment checkpoint.
