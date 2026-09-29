@@ -129,3 +129,22 @@ try{loadFullState();buildPriceEditor();calcReverseX();calcInjectorReal();calcFil
     if(grid){const h=document.createElement('h2');h.textContent='🧪 Stock-strength correction';h.style.gridColumn='1/-1';h.style.margin='6px 0 0';grid.parentElement.insertBefore(h,grid);}
   }
 })();
+
+
+// LIVE_V18_GUIDE_PRESETS
+(()=>{
+  const guide=document.getElementById('guide');
+  if(!guide)return;
+  const findCard=(heading)=>[...guide.querySelectorAll('.card')].find(c=>[...c.querySelectorAll('h2,h3')].some(h=>h.textContent.trim()===heading));
+  let presets=findCard('10% SH service presets');
+  if(!presets){
+    presets=document.createElement('div');
+    presets.className='card';
+    presets.innerHTML=`<div class="kicker">Starting-strength guide</div><h2>10% SH service presets</h2><p class="muted">Starting points for 10% stock SH. Test the actual surface, start weaker when uncertain, and follow the current product label/SDS.</p><table class="rate-table"><thead><tr><th>Surface</th><th>Light</th><th>Moderate</th><th>Heavy</th></tr></thead><tbody><tr><td>House wash</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Asphalt-shingle roof</td><td>2.0%</td><td>3.0%</td><td>4.0%</td></tr><tr><td>Fence / siding organics</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Concrete pre-treatment</td><td>1.5%</td><td>2.0%</td><td>3.0%</td></tr></tbody></table>`;
+  }
+  const noSH=findCard('Services that should not default to SH');
+  const safety=findCard('Quick safety order');
+  if(noSH) guide.insertBefore(presets,noSH); else guide.insertBefore(presets,guide.firstChild);
+  if(noSH && safety) guide.insertBefore(noSH,safety);
+  if(safety) guide.appendChild(safety);
+})();
