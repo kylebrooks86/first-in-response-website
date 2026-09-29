@@ -16,11 +16,7 @@
     style.id = 'fire-parity-runtime-style';
     style.textContent = `
       .dash{display:block!important;background:#2877d4!important;width:28px!important;height:3px!important;flex:0 0 28px!important}
-      .fire-footer-contact-grid{max-width:980px;margin:32px auto 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #2b3036;border-bottom:1px solid #2b3036}
-      .fire-footer-contact-grid a{min-height:79px;padding:20px 22px;text-decoration:none;border-right:1px solid #2b3036;display:flex;flex-direction:column;justify-content:center}
-      .fire-footer-contact-grid a:last-child{border-right:0}
-      .fire-footer-contact-grid small{display:block;color:#8f969e;font-size:10px;font-weight:800;letter-spacing:.18em;margin-bottom:7px}
-      .fire-footer-contact-grid strong{display:block;color:#fff;font-size:15px}
+      .fire-footer-contact-grid{display:none!important}
       .fire-floating-estimate{display:grid!important;gap:2px!important;min-width:150px!important;text-align:left!important;padding:11px 15px!important}
       .fire-floating-estimate small{display:block;font-size:9px;letter-spacing:.16em;font-weight:800;opacity:.82}
       .fire-floating-estimate strong{display:block;font-size:13px;letter-spacing:.03em;font-weight:900}
@@ -42,12 +38,26 @@
         .faq{gap:24px!important;margin-top:48px!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
         .faq details{padding:28px 40px!important;min-height:79px!important}
         .faq summary{font-size:20px!important;line-height:1.3!important}
-        footer{padding-top:70px!important;padding-bottom:110px!important}
+        footer{padding:84px 48px 96px!important;display:grid!important;grid-template-columns:minmax(220px,1fr) minmax(280px,1fr) minmax(280px,1fr)!important;column-gap:56px!important;row-gap:18px!important;align-items:start!important}
+        footer>.footer-logo{grid-column:1!important;grid-row:1!important;width:118px!important;margin:0 0 12px!important;justify-self:start!important}
+        footer>.footer-center{grid-column:1!important;grid-row:2!important;text-align:left!important}
+        footer>.footer-center strong{font-size:20px!important}
+        footer>.footer-center p{font-size:14px!important;margin:8px 0 0!important}
+        footer>.footer-cols{display:contents!important}
+        footer>.footer-cols>.footer-col:first-child{grid-column:2!important;grid-row:1 / span 2!important}
+        footer>.footer-cols>.footer-col:last-child{grid-column:3!important;grid-row:1 / span 2!important}
+        footer>.footer-cols>.footer-col h3{margin-top:0!important;font-size:18px!important;color:#fff!important}
+        footer>.footer-cols>.footer-col p,footer>.footer-cols>.footer-col a{font-size:14px!important;line-height:1.8!important}
+        footer>.footer-cols>.footer-col a{display:block!important;margin:3px 0!important}
+        footer>.footer-cols>.footer-col .footer-social{display:flex!important;gap:18px!important;flex-wrap:wrap!important;margin-top:18px!important}
+        footer>.footer-cols>.footer-col .footer-social a{display:inline-block!important;margin:0!important}
+        footer>.copyright{grid-column:1 / -1!important;grid-row:3!important;margin:30px 0 0!important;padding-top:20px!important;border-top:0!important;font-size:12px!important;color:#7f858d!important}
       }
       @media(max-width:979px){
-        .fire-footer-contact-grid{grid-template-columns:1fr}
-        .fire-footer-contact-grid a{border-right:0;border-bottom:1px solid #2b3036;padding:16px 18px}
-        .fire-footer-contact-grid a:last-child{border-bottom:0}
+        footer{display:block!important}
+        footer>.footer-logo{margin-left:auto!important;margin-right:auto!important}
+        footer>.footer-center{text-align:center!important}
+        footer>.footer-cols{display:block!important}
       }
     `;
     document.head.appendChild(style);
@@ -203,17 +213,9 @@
   floatingEstimate.innerHTML = '<small>PRICE IT NOW</small><strong>INSTANT ESTIMATE</strong>';
 
   const footer = document.querySelector('footer');
-  if (footer && !footer.querySelector('.fire-footer-contact-grid')) {
-    const grid = document.createElement('div');
-    grid.className = 'fire-footer-contact-grid';
-    grid.innerHTML = `
-      <a href="tel:+19189229366"><small>CALL</small><strong>(918) 922-9366</strong></a>
-      <a href="sms:+19189229366"><small>TEXT</small><strong>(918) 922-9366</strong></a>
-      <a href="mailto:kyle@firstinresponseexteriors.com"><small>EMAIL</small><strong>kyle@firstinresponseexteriors.com</strong></a>
-    `;
-    const footerCols = footer.querySelector('.footer-cols');
-    if (footerCols) footer.insertBefore(grid, footerCols);
-    else footer.appendChild(grid);
+  if (footer) {
+    const extraGrid = footer.querySelector('.fire-footer-contact-grid');
+    if (extraGrid) extraGrid.remove();
   }
 
   document.querySelectorAll('.job-video').forEach((card) => {
