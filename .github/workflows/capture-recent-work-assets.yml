@@ -1,0 +1,47 @@
+name: Capture recent-work assets
+
+on:
+  push:
+    paths:
+      - '.github/workflows/capture-recent-work-assets.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact live recent-work media
+        run: |
+          set -euo pipefail
+          mkdir -p assets/recent-work
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/fire-logo-direct.png' -o assets/recent-work/fire-logo-direct.png
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/equipment-jobsite.jpeg' -o assets/recent-work/equipment-jobsite.jpg
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/driveway-before.jpeg' -o assets/recent-work/driveway-before.jpg
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/driveway-after.jpeg' -o assets/recent-work/driveway-after.jpg
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/gutter-packed-debris.jpeg' -o assets/recent-work/gutter-packed-debris.jpg
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/gutter-cleared-channel.jpeg' -o assets/recent-work/gutter-cleared-channel.jpg
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/fence-transformation.jpeg' -o assets/recent-work/fence-transformation.jpg
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/window-before.jpeg' -o assets/recent-work/window-before.jpg
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/window-after.jpeg' -o assets/recent-work/window-after.jpg
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/cobweb-before.jpeg' -o assets/recent-work/cobweb-before.jpg
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/cobweb-removal-process.jpeg' -o assets/recent-work/cobweb-removal-process.jpg
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/cobweb-after.jpeg' -o assets/recent-work/cobweb-after.jpg
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/stone-fireplace-before.jpeg' -o assets/recent-work/stone-fireplace-before.jpg
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/stone-fireplace-after.jpeg' -o assets/recent-work/stone-fireplace-after.jpg
+          curl -L --fail --retry 3 'https://firstinresponseexteriors.com/results/roof-black-streaks.jpeg' -o assets/recent-work/roof-black-streaks.jpg
+          file assets/recent-work/*
+      - name: Commit captured media
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- assets/recent-work && git ls-files --error-unmatch assets/recent-work >/dev/null 2>&1; then
+            echo 'Recent-work assets already current.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/recent-work
+          git commit -m 'Add exact live recent-work media'
+          git push
