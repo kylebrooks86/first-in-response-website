@@ -48,8 +48,9 @@ const autosave=()=>{
 };
 const restore=()=>{try{const d=JSON.parse(localStorage.getItem('fireV18ParityDraft')||'{}');Object.entries(d).forEach(([id,v])=>{const e=$('#'+id);if(e&&!e.value)e.value=v})}catch{}};
 const offlineStatus=async()=>{const e=$('#offlineParityStatus');if(!e)return;let ready=false;try{if('serviceWorker'in navigator){await navigator.serviceWorker.ready;const keys=await caches.keys();ready=keys.some(k=>k.startsWith('fire-field-calculator-v18'))}}catch{}e.textContent=ready?'Offline package ready on this device.':'Open once online to finish caching the offline package.';e.className=ready?'statusgood':'statuswarn'};
+const loadInteractions=()=>{if(document.querySelector('script[data-v18-interactions]'))return;const s=document.createElement('script');s.src='./v18-interactions.js?v=1';s.dataset.v18Interactions='1';document.head.appendChild(s)};
 const bind=()=>{
-  ensureExactCopy();restore();updateSummaries();offlineStatus();
+  ensureExactCopy();restore();updateSummaries();offlineStatus();loadInteractions();
   document.addEventListener('input',e=>{if(e.target.matches('input,select,textarea')){autosave();updateSummaries()}},{passive:true});
   document.addEventListener('change',e=>{if(e.target.matches('input,select,textarea')){autosave();updateSummaries()}},{passive:true});
 };
