@@ -1,4 +1,16 @@
 (() => {
+  const exactLogo = 'assets/recent-work/fire-logo-direct.png';
+  const headerLogo = document.querySelector('.brand img');
+  const footerLogo = document.querySelector('.footer-logo');
+  if (headerLogo) {
+    headerLogo.src = exactLogo;
+    headerLogo.alt = 'First In Response Exteriors logo';
+  }
+  if (footerLogo) {
+    footerLogo.src = exactLogo;
+    footerLogo.alt = 'First In Response Exteriors logo';
+  }
+
   const mobileEstimate = document.querySelector('.bottom-estimate');
   if (mobileEstimate) mobileEstimate.textContent = 'INSTANT ESTIMATE';
 
@@ -6,53 +18,32 @@
     const handle = wrap.querySelector('.slider');
     if (!handle) return;
 
+    const oldVisual = wrap.querySelector('.fire-slider-visual');
+    if (oldVisual) oldVisual.remove();
+
     const force = (prop, value) => handle.style.setProperty(prop, value, 'important');
     force('display', 'block');
-    force('width', '1px');
-    force('height', '1px');
-    force('min-width', '1px');
-    force('min-height', '1px');
-    force('background', 'transparent');
-    force('border', '0');
-    force('box-shadow', 'none');
-    force('font-size', '0');
+    force('position', 'absolute');
+    force('top', '50%');
+    force('left', handle.style.left || '50%');
+    force('transform', 'translate(-50%, -50%)');
+    force('width', '30px');
+    force('height', '30px');
+    force('min-width', '30px');
+    force('min-height', '30px');
+    force('background', 'rgba(255,255,255,.94)');
+    force('border', '2px solid rgba(20,20,20,.58)');
+    force('border-radius', '50%');
+    force('box-shadow', '0 2px 8px rgba(0,0,0,.28)');
+    force('color', '#2b2b2b');
+    force('font-size', '15px');
+    force('font-weight', '700');
+    force('line-height', '26px');
+    force('text-align', 'center');
     force('z-index', '10');
-    handle.textContent = '';
-
-    let visual = wrap.querySelector('.fire-slider-visual');
-    if (!visual) {
-      visual = document.createElement('span');
-      visual.className = 'fire-slider-visual';
-      visual.textContent = '↔';
-      visual.setAttribute('aria-hidden', 'true');
-      Object.assign(visual.style, {
-        position: 'absolute',
-        top: '50%',
-        left: handle.style.left || '50%',
-        transform: 'translate(-50%, -50%)',
-        width: '64px',
-        height: '64px',
-        display: 'grid',
-        placeItems: 'center',
-        background: '#e62e2e',
-        color: '#fff',
-        border: '4px solid #fff',
-        borderRadius: '999px',
-        boxShadow: '0 6px 22px rgba(0,0,0,.48)',
-        fontSize: '25px',
-        fontWeight: '900',
-        lineHeight: '1',
-        zIndex: '12',
-        pointerEvents: 'none'
-      });
-      wrap.appendChild(visual);
-    }
-
-    const sync = () => {
-      visual.style.left = handle.style.left || '50%';
-    };
-    sync();
-    new MutationObserver(sync).observe(handle, { attributes: true, attributeFilter: ['style'] });
+    force('opacity', '1');
+    handle.textContent = '↔';
+    handle.setAttribute('aria-hidden', 'true');
   });
 
   document.querySelectorAll('.job-video').forEach((card) => {
