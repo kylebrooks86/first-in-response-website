@@ -34,7 +34,7 @@
         .hero .display{max-width:700px!important}
         .hero .lead{max-width:700px!important}
         .hero .hero-buttons{max-width:700px!important}
-        #results .proof-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:30px!important}
+        #results .proof-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:24px!important}
         #results .beforeafter{height:667px!important}
         #estimate .max{max-width:1100px!important}
         #estimate .acc-head{min-height:104px!important;padding:22px 26px!important;align-items:center!important}
@@ -120,6 +120,42 @@
     if (desc) desc.textContent = 'Enter square feet for flat surfaces, decks, and every fence side being cleaned.';
   }
 
+  const resultGrid = document.querySelector('#results .proof-grid');
+  if (resultGrid) {
+    const items = [
+      ['House wash','assets/front-patio-before.jpg','assets/front-patio-after.jpg'],
+      ['Full driveway cleaning','assets/driveway-before.jpg','assets/driveway-after.jpg'],
+      ['Gutter channel cleaning','assets/recent-work/gutter-packed-debris.jpg','assets/recent-work/gutter-cleared-channel.jpg'],
+      ['Stone fireplace cleaning','assets/recent-work/stone-fireplace-before.jpg','assets/recent-work/stone-fireplace-after.jpg'],
+      ['Gutter brightening','assets/gutter-brightening-before.jpg','assets/gutter-brightening-after.jpg'],
+      ['Exterior window cleaning','assets/window-before.jpg','assets/window-after.jpg']
+    ];
+    resultGrid.innerHTML = items.map(([title,before,after]) => `
+      <article class="proof-card">
+        <div class="beforeafter" data-pos="50">
+          <img src="${before}" alt="${title} before">
+          <img src="${after}" alt="${title} after">
+          <span class="label before-label">BEFORE</span>
+          <span class="label after-label">AFTER</span>
+          <span class="divider" aria-hidden="true"></span>
+          <span class="slider" aria-hidden="true">↔</span>
+        </div>
+        <div class="proof-caption"><b>${title}</b><small>COMPARE BEFORE AND AFTER</small></div>
+      </article>
+    `).join('');
+  }
+
+  const applySliderPosition = (wrap, pct) => {
+    const value = Math.max(0, Math.min(100, pct));
+    const after = wrap.querySelector('img:nth-child(2)');
+    const divider = wrap.querySelector('.divider');
+    const handle = wrap.querySelector('.slider');
+    if (after) after.style.clipPath = `inset(0 ${100 - value}% 0 0)`;
+    if (divider) divider.style.left = `${value}%`;
+    if (handle) handle.style.left = `${value}%`;
+    wrap.dataset.pos = String(value);
+  };
+
   document.querySelectorAll('.beforeafter').forEach((wrap) => {
     const handle = wrap.querySelector('.slider');
     if (!handle) return;
@@ -127,6 +163,23 @@
     if (oldVisual) oldVisual.remove();
     handle.textContent = '↔';
     handle.setAttribute('aria-hidden', 'true');
+    applySliderPosition(wrap, Number(wrap.dataset.pos || 50));
+    let dragging = false;
+    const update = (event) => {
+      const rect = wrap.getBoundingClientRect();
+      const clientX = event.touches?.[0]?.clientX ?? event.clientX;
+      applySliderPosition(wrap, ((clientX - rect.left) / rect.width) * 100);
+    };
+    wrap.addEventListener('pointerdown', (event) => {
+      dragging = true;
+      wrap.setPointerCapture?.(event.pointerId);
+      update(event);
+    });
+    wrap.addEventListener('pointermove', (event) => {
+      if (dragging) update(event);
+    });
+    wrap.addEventListener('pointerup', () => { dragging = false; });
+    wrap.addEventListener('pointercancel', () => { dragging = false; });
   });
 
   const jobCards = [...document.querySelectorAll('.job-video')];
