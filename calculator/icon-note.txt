@@ -1,0 +1,1 @@
+Binary app icons are deployed separately through Git blob writes.
