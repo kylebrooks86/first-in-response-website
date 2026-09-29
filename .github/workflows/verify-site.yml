@@ -23,3 +23,17 @@ jobs:
           node-version: "20"
       - name: Verify website source
         run: node verify-site.mjs
+      - name: Build verified disaster-recovery archive
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          zip -r FIRE_Website_Verified_Recovery_${GITHUB_SHA::12}.zip . \
+            -x '.git/*' \
+            -x 'FIRE_Website_Verified_Recovery_*.zip'
+      - name: Store verified disaster-recovery archive
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-Website-Verified-Recovery-${{ github.sha }}
+          path: FIRE_Website_Verified_Recovery_*.zip
+          if-no-files-found: error
+          retention-days: 90
