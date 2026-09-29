@@ -82,3 +82,50 @@ if($('#offlineStatus'))$('#offlineStatus').textContent=navigator.onLine?'Online 
 
 try{loadFullState();buildPriceEditor();calcReverseX();calcInjectorReal();calcFill();stainFinder();compat();areaHelpers();calcFullEstimator();chemicalCost();renderHistory();renderCustomChems();inventory()}catch(e){console.error('Full v18 extension',e)}
 })();
+
+// LIVE_V18_LAYOUT_PARITY
+(()=>{
+  const cardByHeading=(text)=>[...document.querySelectorAll('.card')].find(c=>[...c.querySelectorAll('h2,h3')].some(h=>h.textContent.trim()===text));
+  const sec=id=>document.getElementById(id);
+  const move=(heading,target,beforeHeading=null)=>{
+    const card=cardByHeading(heading), targetSec=sec(target); if(!card||!targetSec)return;
+    if(beforeHeading){const before=cardByHeading(beforeHeading);if(before&&before.parentElement===targetSec){targetSec.insertBefore(card,before);return;}}
+    targetSec.appendChild(card);
+  };
+  // Equipment order from the real v18.
+  move('Mix the X-Jet pickup bucket for a target strength','equipment','X-Jet bucket draw test');
+  move('Find your real injector ratio','equipment','Three-port proportioner planner');
+  move('Fill-time estimate','equipment');
+
+  // Real Chemical Index is the index; stain/compatibility tools live under Field Tools.
+  move('Stain & Surface Finder','tools','Batch History / Mix Log');
+  move('Chemical Compatibility Checker','tools','Batch History / Mix Log');
+
+  // Real Field Tools ordering.
+  move('Batch History / Mix Log','tools','Chemical Inventory');
+  move('Chemical Inventory','tools','Application Timer');
+  move('Application Timer','tools','Weather Adjustment Guide');
+  move('Weather Adjustment Guide','tools','Custom Chemical Builder');
+  move('Custom Chemical Builder','tools','Version and offline update');
+  move('Version and offline update','tools','Backup or Restore Field Data');
+  move('Backup or Restore Field Data','tools');
+  move('Field Safety Card','tools');
+
+  // Real Job Math: coverage -> area/calibration -> chemical cost -> estimator -> loadout/profitability.
+  const oldEstimate=cardByHeading('Price the whole job');
+  const fullEstimate=cardByHeading('Full FIRE service estimator');
+  if(oldEstimate&&fullEstimate&&oldEstimate!==fullEstimate) oldEstimate.remove();
+  if(fullEstimate){const h=fullEstimate.querySelector('h2');if(h)h.textContent='Price the whole job';}
+  move('Area and real coverage helpers','job','Know your cost per batch');
+  move('Know your cost per batch','job','Price the whole job');
+  move('Price the whole job','job','Job loadout and profitability');
+  move('Job loadout and profitability','job');
+
+  // Add the real stock-strength subsection label within the batch recipe.
+  const recipe=cardByHeading('4-gallon moderate house wash');
+  if(recipe && ![...recipe.querySelectorAll('h2')].some(h=>h.textContent.includes('Stock-strength correction'))){
+    const stockInput=document.getElementById('stockStrength');
+    const grid=stockInput?.closest('.grid');
+    if(grid){const h=document.createElement('h2');h.textContent='🧪 Stock-strength correction';h.style.gridColumn='1/-1';h.style.margin='6px 0 0';grid.parentElement.insertBefore(h,grid);}
+  }
+})();
