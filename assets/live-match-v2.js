@@ -11,6 +11,22 @@
     footerLogo.alt = 'First In Response Exteriors logo';
   }
 
+  if (!document.getElementById('fire-parity-runtime-style')) {
+    const style = document.createElement('style');
+    style.id = 'fire-parity-runtime-style';
+    style.textContent = `
+      .dash{display:block!important;background:#2877d4!important;width:28px!important;height:3px!important;flex:0 0 28px!important}
+      .fire-footer-contact-grid{max-width:980px;margin:32px auto 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #2b3036;border-bottom:1px solid #2b3036}
+      .fire-footer-contact-grid a{padding:22px 20px;text-decoration:none;border-right:1px solid #2b3036;display:block}
+      .fire-footer-contact-grid a:last-child{border-right:0}
+      .fire-footer-contact-grid small{display:block;color:#8f969e;font-size:10px;font-weight:800;letter-spacing:.18em;margin-bottom:7px}
+      .fire-footer-contact-grid strong{display:block;color:#fff;font-size:15px}
+      @media(min-width:980px){.desktop-nav{gap:15px!important}.desktop-nav a{font-size:12px!important}.header-call{font-size:12px!important;padding:9px 12px!important}}
+      @media(max-width:979px){.fire-footer-contact-grid{grid-template-columns:1fr}.fire-footer-contact-grid a{border-right:0;border-bottom:1px solid #2b3036;padding:16px 18px}.fire-footer-contact-grid a:last-child{border-bottom:0}}
+    `;
+    document.head.appendChild(style);
+  }
+
   const desktopNav = document.querySelector('.desktop-nav');
   if (desktopNav) {
     const ensureLink = (label, href) => {
@@ -88,6 +104,20 @@
     floatingEstimate.textContent = 'INSTANT ESTIMATE →';
     floatingEstimate.setAttribute('aria-label', 'Jump to instant estimate');
     document.body.appendChild(floatingEstimate);
+  }
+
+  const footer = document.querySelector('footer');
+  if (footer && !footer.querySelector('.fire-footer-contact-grid')) {
+    const grid = document.createElement('div');
+    grid.className = 'fire-footer-contact-grid';
+    grid.innerHTML = `
+      <a href="tel:+19189229366"><small>CALL</small><strong>(918) 922-9366</strong></a>
+      <a href="sms:+19189229366"><small>TEXT</small><strong>(918) 922-9366</strong></a>
+      <a href="mailto:kyle@firstinresponseexteriors.com"><small>EMAIL</small><strong>kyle@firstinresponseexteriors.com</strong></a>
+    `;
+    const footerCols = footer.querySelector('.footer-cols');
+    if (footerCols) footer.insertBefore(grid, footerCols);
+    else footer.appendChild(grid);
   }
 
   document.querySelectorAll('.job-video').forEach((card) => {
