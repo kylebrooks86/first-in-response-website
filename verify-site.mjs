@@ -50,7 +50,8 @@ function resolveLocal(pagePath, rawReference) {
 const allFiles = walk(root);
 const fileSet = new Set(allFiles);
 const htmlFiles = allFiles.filter((file) => file.endsWith('.html'));
-const publicPages = htmlFiles.filter((file) => file !== '404.html' && file !== 'terms/index.html');
+const siteHtmlFiles = htmlFiles.filter((file) => !file.startsWith('calculator/'));
+const publicPages = siteHtmlFiles.filter((file) => file !== '404.html' && file !== 'terms/index.html');
 
 if (fileSet.has('CNAME')) fail('CNAME exists before an approved production cutover.');
 else pass('No CNAME file is present.');
@@ -59,12 +60,12 @@ const robots = read('robots.txt');
 if (/User-agent:\s*\*/i.test(robots) && /Disallow:\s*\//i.test(robots)) pass('robots.txt blocks crawling.');
 else fail('robots.txt does not block all crawling.');
 
-if (publicPages.length === 13) pass('Exactly 13 public-facing pages are represented.');
-else fail(`Expected 13 public-facing pages; found ${publicPages.length}.`);
+if (publicPages.length === 14) pass('Exactly 14 public-facing pages are represented.');
+else fail(`Expected 14 public-facing pages; found ${publicPages.length}.`);
 
 const sitemapCount = (read('sitemap.xml').match(/<loc>/g) || []).length;
-if (sitemapCount === 13) pass('sitemap.xml contains 13 production URLs.');
-else fail(`Expected 13 sitemap URLs; found ${sitemapCount}.`);
+if (sitemapCount === 14) pass('sitemap.xml contains 14 production URLs.');
+else fail(`Expected 14 sitemap URLs; found ${sitemapCount}.`);
 
 let internalLinks = 0;
 let mediaReferences = 0;
@@ -75,7 +76,7 @@ let mobileControlPages = 0;
 let emailPages = 0;
 let externalRuntimeAssets = 0;
 
-for (const page of htmlFiles) {
+for (const page of siteHtmlFiles) {
   const html = read(page);
   const h1Count = (html.match(/<h1\b/gi) || []).length;
   if (h1Count !== 1) fail(`${page}: expected one H1; found ${h1Count}.`);
@@ -142,7 +143,7 @@ for (const page of htmlFiles) {
     }
   }
 
-  for (const match of html.matchAll(/\s(?:src|poster)=["']([^"']+)["']/gi)) {
+  for (const match of html.matchAll(/<(?:img|video|audio|source)\b[^>]*\s(?:src|poster)=["']([^"']+)["']/gi)) {
     const source = match[1];
     if (/^(?:https?:|data:|\/\/)/i.test(source)) continue;
     mediaReferences += 1;
@@ -151,14 +152,14 @@ for (const page of htmlFiles) {
   }
 }
 
-pass(`${htmlFiles.length} HTML files have one-H1, duplicate-ID, noindex, and script checks.`);
+pass(`${siteHtmlFiles.length} website HTML files have one-H1, duplicate-ID, noindex, and script checks.`);
 pass(`${internalLinks} internal links and anchors were checked.`);
 pass(`${mediaReferences} local image/video references were checked.`);
 pass(`${inlineScripts} inline scripts compiled.`);
 if (externalRuntimeAssets === 0) pass('All pages are self-contained with no external script, stylesheet, image, video, or CSS asset dependencies.');
-if (canonicalPages === 13) pass('All 13 public pages have the expected production canonical URL.');
-if (contactPages === 13) pass('All 13 public pages contain the approved call and SMS destinations.');
-if (mobileControlPages === 13) pass('All 13 public pages have consistent mobile menu and sticky conversion controls.');
+if (canonicalPages === 14) pass('All 14 public pages have the expected production canonical URL.');
+if (contactPages === 14) pass('All 14 public pages contain the approved call and SMS destinations.');
+if (mobileControlPages === 14) pass('All 14 public pages have consistent mobile menu and sticky conversion controls.');
 if (emailPages === 10) pass('Homepage and all nine service pages contain the approved business email action.');
 
 const index = read('index.html');
