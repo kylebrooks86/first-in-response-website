@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: "20"
       - name: Verify website source
-        run: node verify-site.mjs
+        run: node verify-site-ci.mjs
       - name: Build verified disaster-recovery archive
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
