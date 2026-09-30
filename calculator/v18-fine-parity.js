@@ -13,6 +13,19 @@ function apply(){
   const details=$$('#job details.accord');for(const d of details){if($('summary',d)?.textContent.trim()==='Edit pricing and business rules')d.open=true}
   const ele=$('#eleRate');if(ele){ele.type='number';ele.removeAttribute('list')}
   const chips=$$('#batchChips .chip');chips.forEach(b=>b.setAttribute('aria-pressed',b.classList.contains('active')?'true':'false'));
+
+  // Exact wording parity confirmed from the current live v18 calculator.
+  const factory=$$('p,.muted').find(e=>e.textContent.trim()==='Factory proportions are estimates. Hose length, pressure, orifice, elevation and equipment condition can change the draw. Use the measured test below for your real result.');
+  if(factory)factory.textContent='Factory proportions are estimates based on a 4 GPM pressure washer at 100 PSI. Hose length, pressure, orifice, elevation and equipment condition can change the draw. Use the measured test below for your real result.';
+
+  // Restore the final field-safety checklist line present in the live v18 calculator.
+  const lists=$$('#guide ul,#guide ol');
+  for(const list of lists){
+    const txt=list.textContent||'';
+    if(txt.includes('Test an inconspicuous spot and start weaker when uncertain.')&&!txt.includes('Rinse tools and do not seal or store mixed SH long-term.')){
+      const li=document.createElement('li');li.textContent='Rinse tools and do not seal or store mixed SH long-term.';list.appendChild(li);break;
+    }
+  }
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(apply,500));else setTimeout(apply,500);
 })();
