@@ -1,0 +1,12 @@
+{
+  "product": "FIRE Business Calculator",
+  "shared_core_release": "v18",
+  "production_display_version": "v18",
+  "disaster_recovery_display_version": "v18",
+  "synchronization_status": "NOT_SYNCHRONIZED",
+  "baseline_status": "AUDIT_IN_PROGRESS",
+  "rule": "Matching display versions do not establish parity. A release is synchronized only when the shared-core fingerprint matches and the parity matrix and regression suite pass.",
+  "production_source": "ChatGPT-hosted FIRE Field Calculator",
+  "dr_source": "Independent calculator under /calculator/",
+  "staging_branch": "fire-calculator-exact-live-clone"
+}
