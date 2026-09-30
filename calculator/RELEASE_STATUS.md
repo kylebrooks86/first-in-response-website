@@ -4,7 +4,7 @@
 
 **NOT SYNCHRONIZED**
 
-The production/live calculator and independent disaster-recovery calculator currently both identify as v18, but they do not yet share a proven identical FIRE Calculator Core fingerprint in production. They must not be described as identical, synchronized, complete, or production-ready as a dual-deployment pair.
+The production/live calculator and independent disaster-recovery calculator currently both identify as v18, but they are not yet a certified identical dual-deployment release. Production remains the reference baseline and has not been overwritten.
 
 ## Architecture target
 
@@ -23,31 +23,30 @@ All visible UI, formulas, pricing logic, validation, navigation, state handling,
 
 - Isolated staging branch: `fire-calculator-exact-live-clone`.
 - Production/live calculator has not been overwritten.
-- Current staging shared-core fingerprint: `944aab0b4ac3b256b03f4a725cf76f10813afc09a7f1fe59cf537f772faabd46`.
+- Current staging shared-core fingerprint: `0f41f23ebbcbad92d7456b280b7269c718577f60a827ce815df8b4f2820b543f`.
 - Shared-core fingerprint is generated and tracked in `SHARED_CORE_MANIFEST.json`.
-- Production and DR infrastructure-adapter boundaries are defined.
-- Formula regression suite passes the approved/default pricing and SH Mix reference cases.
-- Direct live-vs-staging Job Math scenarios now verify the current live order/behavior for minimum job, discounts, final-price override, and 50% deposit.
-- Bundle/promotion behavior is directly verified: $220 baseline → +10% bundle = 10% / $198 → +15% promotion = 25% / $165 → Clear = 0% / $220 on both live and staging.
-- Pricing Editor behavior is directly verified against live and the live 30-service structure is mirrored without intentionally changing approved rate values.
-- Estimator edge-state parity is directly verified for blank, zero, negative, decimal, very large, invalid-text, and missing-rate Roof Cleaning cases. Invalid numeric text is sanitized to blank on both deployments.
-- Customer/job field defaults/placeholders and reload persistence have matched live in direct paired testing; the current live customer name is not inserted into the customer quote by default and staging mirrors that behavior.
-- The paired iPhone-size visual parity harness now retries route activation, asserts the intended route, captures launch plus all seven top routes at 390×844, and exports both screenshots and structured DOM audits.
-- SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Tools, and Field Guide all have shared-core parity modules and are substantially aligned functionally. Pixel-level/variant visual certification remains incomplete.
-- DR staging caches the shared calculator assets and does not require ChatGPT/OpenAI calls for normal calculator operation, but full offline takeover/backup-restore acceptance has not yet been performed.
+- Formula regression, live-reference contract, and shared-core fingerprint integrity gates pass.
+- Direct live-vs-staging Job Math scenarios verify minimum-job behavior, discounts, final-price override ordering, and 50% deposit calculations.
+- Bundle/promotion behavior is directly verified: $220 baseline → +10% bundle = $198 → +15% promotion stacks to 25% / $165 → Clear returns to $220.
+- Pricing Editor behavior is directly verified against live and the live 30-service structure is mirrored without changing approved prices.
+- Estimator edge-state parity is directly verified for blank, zero, negative, decimal, very large, invalid-text, and missing-rate Roof Cleaning cases.
+- Customer/job field defaults, placeholders, quote inclusion behavior, and reload persistence match live in direct paired testing.
+- Save/reload/clear now matches live for customer name, House Wash quantity, estimate notes, discount, pricing preservation, and Job Math planning/measurement/calibration fields.
+- Customer quote copy text, share payload, and Print / Save PDF action behavior match live in paired export testing.
+- SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Tools, and Field Guide all have shared-core parity modules and are substantially aligned functionally.
+- The paired 390×844 iPhone harness captures light/dark screenshots, structured DOM audits, and computed-style diagnostics for every top route.
+- The visual audit still reports significant measurable differences, so the staging calculator is not yet visually identical.
+- DR staging caches the shared calculator assets and does not require ChatGPT/OpenAI calls for normal calculator operation.
+- Live-backup → DR-restore takeover verification is actively being hardened; this is not yet promoted to complete until the restored-value assertion passes end-to-end.
 
 ## Remaining major gates
 
-- launch/first-paint visual certification
-- light-mode route-by-route visual certification
-- dark-mode route-by-route parity
-- iPhone safe-area, keyboard and numeric-input interaction behavior
-- reset/clear scope and state restoration
-- save/load state round-trip beyond the already-tested customer field
-- exact copy/share/export outputs and failure fallbacks
-- full backup/export/restore round-trip between deployments
-- remaining Field Tools persistence/alternate-state scenarios
-- final DR offline takeover test with disposable data
+- reduce route-by-route light/dark visual differences to the verified-identical threshold
+- launch/first-paint and iPhone safe-area certification
+- keyboard/numeric-input interaction behavior across all supported numeric fields
+- remaining Field Tools alternate-state/persistence scenarios
+- live-backup → DR restore restored-value assertion
+- final airplane-mode/offline DR takeover acceptance with disposable data
 - production and DR must ultimately deploy the exact same shared-core release/fingerprint
 
 ## Change classification rule
@@ -67,7 +66,7 @@ A candidate release may be called synchronized only after all of these pass:
 - parity matrix contains no NOT YET VERIFIED items for required release scope
 - all formula regression tests pass
 - iPhone/mobile behavior is visually and functionally verified
-- blank, zero, invalid, very large, and normal-value states are verified
+- blank, zero, invalid, very large, and normal-value states are verified for required inputs
 - save/load/export/restore are verified
 - independent deployment works without ChatGPT/OpenAI dependencies
 - recovery handoff is tested with disposable data
