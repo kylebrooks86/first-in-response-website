@@ -18,9 +18,14 @@ async function quoteText(root){
   const q=h.first().locator('xpath=following-sibling::*[contains(concat(" ",normalize-space(@class)," ")," quoteBox ")][1]');
   return await q.count()?(await q.first().innerText()).replace(/\s+/g,' ').trim():'';
 }
+async function stableReload(page,base){
+  for(let i=0;i<3;i++){
+    try{await page.goto(base,{waitUntil:'domcontentloaded',timeout:60000});await page.waitForTimeout(700);return}catch(e){if(i===2)throw e;await page.waitForTimeout(250)}
+  }
+}
 async function inspect(base,browser){
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-  const page=await ctx.newPage();await page.goto(base,{waitUntil:'networkidle',timeout:60000});
+  const page=await ctx.newPage();await page.goto(base,{waitUntil:'domcontentloaded',timeout:60000});await page.waitForTimeout(700);
   let root=await openJob(page);
   let name=await fieldByLabel(root,'Customer / job name');
   const desc=await fieldByLabel(root,'Custom service description');
@@ -33,7 +38,7 @@ async function inspect(base,browser){
   const house=root.locator('#houseWashArea,#svcHouse').first();if(await house.count())await setDomValue(house,'1000');
   await page.waitForTimeout(250);root=await jobRoot(page);
   const quote=await quoteText(root),quoteIncludesName=quote.includes(TEST_NAME);
-  await page.reload({waitUntil:'networkidle',timeout:60000});root=await openJob(page);
+  await stableReload(page,base);root=await openJob(page);
   name=await fieldByLabel(root,'Customer / job name');const persisted=name?await name.inputValue():null;
   await ctx.close();return {initial,quoteIncludesName,persisted};
 }
