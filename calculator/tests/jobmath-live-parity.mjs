@@ -11,7 +11,7 @@ const scenarios=[
   {name:'override after discount',house:1000,discount:10,override:200}
 ];
 
-async function clickText(page,text){const x=page.getByText(text,{exact:true});if(await x.count()){await x.first().click();return true}return false}
+async function clickText(page,text){const x=page.getByText(text,{exact:true});for(let i=0;i<await x.count();i++){const el=x.nth(i);if(await el.isVisible()){await el.click();return true}}return false}
 async function visibleJobRoot(page){for(const s of ['#view-job','#job']){const x=page.locator(s);if(await x.count()&&await x.first().isVisible())return x.first()}return null}
 async function jobRouteText(page){for(const s of ['#view-job','#job']){const x=page.locator(s);if(await x.count()){const raw=(await x.first().innerText()).replace(/,/g,'').replace(/\s+/g,' ');if(raw.includes('Price the whole job')||raw.includes('Subtotal'))return raw}}return null}
 async function openAllJobDetails(page){const root=await visibleJobRoot(page);if(!root)return false;await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(80);return true}
