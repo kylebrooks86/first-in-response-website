@@ -12,23 +12,37 @@ const scenarios=[
 ];
 
 async function clickText(page,text){const x=page.getByText(text,{exact:true});if(await x.count()){await x.first().click();return true}return false}
+async function openCustomWork(page){
+  const summaries=page.locator('summary');
+  for(let i=0;i<await summaries.count();i++){
+    const s=summaries.nth(i),text=(await s.innerText()).trim();
+    if(/Custom work|discounts|notes/i.test(text)){
+      const details=s.locator('xpath=..');
+      if(!await details.evaluate(el=>el.open))await s.click();
+      return true;
+    }
+  }
+  return false;
+}
 async function inputByLabel(page,labels,value){
-  for(const label of labels){const el=page.getByLabel(label,{exact:false});if(await el.count()){await el.first().fill(String(value));await el.first().dispatchEvent('input');await el.first().dispatchEvent('change');return true}}
+  for(const label of labels){const all=page.getByLabel(label,{exact:false});for(let i=0;i<await all.count();i++){const el=all.nth(i);if(await el.isVisible()){await el.fill(String(value));await el.dispatchEvent('input');await el.dispatchEvent('change');return true}}}
   return false;
 }
 async function moneyNear(page,label){
-  const text=page.getByText(label,{exact:true});if(!await text.count())return null;
-  const box=text.first().locator('xpath=..');const raw=(await box.innerText()).replace(/,/g,'');const m=raw.match(/\$\s*([0-9]+(?:\.[0-9]{1,2})?)/);return m?Number(m[1]):null;
+  const all=page.getByText(label,{exact:true});
+  for(let i=0;i<await all.count();i++){const text=all.nth(i);if(!await text.isVisible())continue;const box=text.locator('xpath=..');const raw=(await box.innerText()).replace(/,/g,'');const m=raw.match(/\$\s*([0-9]+(?:\.[0-9]{1,2})?)/);if(m)return Number(m[1])}
+  return null;
 }
 async function runScenario(browser,base,scenario){
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const page=await ctx.newPage();await page.goto(base,{waitUntil:'networkidle',timeout:60000});
   if(!await clickText(page,'Job Math'))throw new Error(`Could not open Job Math at ${base}`);
   await page.waitForTimeout(300);
+  await openCustomWork(page);
   const house=await inputByLabel(page,['House wash area'],scenario.house);
   const discount=await inputByLabel(page,['Stackable discount total','Discount'],scenario.discount);
   const override=await inputByLabel(page,['Final-price override','Final price override'],scenario.override);
-  if(!house||!discount||!override)throw new Error(`${base}: missing Job Math input for ${scenario.name} house=${house} discount=${discount} override=${override}`);
+  if(!house||!discount||!override)throw new Error(`${base}: missing visible Job Math input for ${scenario.name} house=${house} discount=${discount} override=${override}`);
   await page.waitForTimeout(250);
   const subtotal=await moneyNear(page,'Subtotal');
   const total=await moneyNear(page,'Customer total');
