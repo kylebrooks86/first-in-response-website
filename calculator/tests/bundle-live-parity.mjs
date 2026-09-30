@@ -37,18 +37,20 @@ async function setHouse(page,root){const x=root.locator('#houseWashArea,#svcHous
 async function discountValue(root){const x=root.locator('#discountPct,#fullDiscount').first();return await x.count()?Number(await x.inputValue()):null}
 async function customerTotal(root){const raw=(await root.innerText()).replace(/,/g,'').replace(/\s+/g,' ');const m=raw.match(/Customer total\s*\$\s*([0-9]+(?:\.[0-9]{1,2})?)/i);return m?Number(m[1]):null}
 async function clickJobAction(page,root,text){
-  if(await clickVisibleText(root,text))return true;
   root=await reacquire(page);
-  return clickVisibleText(root,text);
+  const clicked=await root.locator('button').evaluateAll((buttons,target)=>{const norm=s=>(s||'').replace(/\s+/g,' ').trim();const b=buttons.find(x=>norm(x.textContent)===target);if(!b)return false;b.click();return true},text);
+  if(clicked)return true;
+  const visible=await clickVisibleText(root,text);if(visible)return true;
+  return false;
 }
 async function run(base,browser){
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const page=await ctx.newPage();await page.goto(base,{waitUntil:'networkidle',timeout:60000});
   let root=await openJob(page);await setHouse(page,root);root=await reacquire(page);
   const initial={discount:await discountValue(root),total:await customerTotal(root)};
-  const hasBundle=await clickJobAction(page,root,'+10% bundle');await page.waitForTimeout(120);root=await reacquire(page);const afterBundle={discount:await discountValue(root),total:await customerTotal(root)};
-  const hasPromo=await clickJobAction(page,root,'+15% promotion');await page.waitForTimeout(120);root=await reacquire(page);const afterPromo={discount:await discountValue(root),total:await customerTotal(root)};
-  const hasClear=await clickJobAction(page,root,'Clear');await page.waitForTimeout(120);root=await reacquire(page);const afterClear={discount:await discountValue(root),total:await customerTotal(root)};
+  const hasBundle=await clickJobAction(page,root,'+10% bundle');await page.waitForTimeout(140);root=await reacquire(page);const afterBundle={discount:await discountValue(root),total:await customerTotal(root)};
+  const hasPromo=await clickJobAction(page,root,'+15% promotion');await page.waitForTimeout(140);root=await reacquire(page);const afterPromo={discount:await discountValue(root),total:await customerTotal(root)};
+  const hasClear=await clickJobAction(page,root,'Clear');await page.waitForTimeout(140);root=await reacquire(page);const afterClear={discount:await discountValue(root),total:await customerTotal(root)};
   await ctx.close();return {hasBundle,hasPromo,hasClear,initial,afterBundle,afterPromo,afterClear};
 }
 const browser=await chromium.launch({headless:true});
