@@ -14,8 +14,11 @@ const scenarios=[
 async function clickText(page,text){const x=page.getByText(text,{exact:true});if(await x.count()){await x.first().click();return true}return false}
 async function visibleJobRoot(page){for(const s of ['#view-job','#job']){const x=page.locator(s);if(await x.count()&&await x.first().isVisible())return x.first()}return null}
 async function openAllJobDetails(page){const root=await visibleJobRoot(page);if(!root)return false;await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(80);return true}
-async function inputByLabel(page,labels,value){
-  for(const label of labels){const all=page.getByLabel(label,{exact:false});for(let i=0;i<await all.count();i++){const el=all.nth(i);if(await el.isVisible()){await el.fill(String(value));await el.dispatchEvent('input');await el.dispatchEvent('change');return true}}}
+async function setByIds(page,ids,value){
+  for(const id of ids){const el=page.locator('#'+id);if(await el.count()){
+    await el.evaluate((node,v)=>{node.value=String(v);node.dispatchEvent(new Event('input',{bubbles:true}));node.dispatchEvent(new Event('change',{bubbles:true}))},value);
+    return true;
+  }}
   return false;
 }
 async function moneyNear(page,label){
@@ -29,10 +32,10 @@ async function runScenario(browser,base,scenario){
   if(!await clickText(page,'Job Math'))throw new Error(`Could not open Job Math at ${base}`);
   await page.waitForTimeout(300);
   if(!await openAllJobDetails(page))throw new Error(`${base}: no visible Job Math route`);
-  const house=await inputByLabel(page,['House wash area'],scenario.house);
-  const discount=await inputByLabel(page,['Stackable discount total','Discount'],scenario.discount);
-  const override=await inputByLabel(page,['Final-price override','Final price override'],scenario.override);
-  if(!house||!discount||!override)throw new Error(`${base}: missing visible Job Math input for ${scenario.name} house=${house} discount=${discount} override=${override}`);
+  const house=await setByIds(page,['houseWashArea','svcHouse'],scenario.house);
+  const discount=await setByIds(page,['discountPct','fullDiscount'],scenario.discount);
+  const override=await setByIds(page,['quotedPrice','fullOverride'],scenario.override);
+  if(!house||!discount||!override)throw new Error(`${base}: missing Job Math input for ${scenario.name} house=${house} discount=${discount} override=${override}`);
   await page.waitForTimeout(250);
   const subtotal=await moneyNear(page,'Subtotal');
   const total=await moneyNear(page,'Customer total');
