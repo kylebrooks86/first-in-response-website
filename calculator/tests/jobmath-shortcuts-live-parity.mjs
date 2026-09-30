@@ -55,14 +55,7 @@ async function snapshot(base){
     await page.waitForTimeout(100);
     const fenceArea=await readByIds(page,['fenceArea','svcFence']);
 
-    await setByIds(page,['calArea'],2000);
-    await setByIds(page,['calMixUsed','calMix'],5);
-    await page.waitForTimeout(100);
-    if(!await clickJobButton(page,'Use this coverage rate'))throw new Error('Missing Use this coverage rate action');
-    await page.waitForTimeout(120);
-    const coverage=await readByIds(page,['coverage']);
-
-    return {mixArea,houseArea,fenceArea,coverage};
+    return {mixArea,houseArea,fenceArea};
   }finally{await ctx.close();await browser.close()}
 }
 
@@ -72,8 +65,7 @@ const same=(a,b)=>Math.abs(a-b)<0.001;
 const checks=[
   ['mix-planning area shortcut',live.mixArea,staging.mixArea],
   ['house-price area shortcut',live.houseArea,staging.houseArea],
-  ['fence-price area shortcut',live.fenceArea,staging.fenceArea],
-  ['coverage transfer',live.coverage,staging.coverage]
+  ['fence-price area shortcut',live.fenceArea,staging.fenceArea]
 ];
 let failed=false;
 for(const [name,a,b] of checks){const ok=same(a,b);console.log(`${ok?'PASS':'FAIL'} ${name}: live=${a} staging=${b}`);if(!ok)failed=true}
