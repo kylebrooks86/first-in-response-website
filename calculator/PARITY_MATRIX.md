@@ -20,9 +20,9 @@ The current production/live calculator and the independent/recovery calculator a
 | Top navigation | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live six-tab model is now mirrored on staging: SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Guide. Field Tools is no longer an extra top tab. Active indicator/scroll/touch visuals still require paired verification. |
 | Job Math quick navigation | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Staging now mirrors live `#topJobNav` / `.top-job-nav` with Mix plan, Measure, Estimate, Loadout and matching target-card IDs. Sticky position, spacing and iPhone behavior still require paired visual verification. |
 | Bottom navigation | NOT YET VERIFIED | Same six controls, icons, order, labels, active states and fixed/safe-area behavior required. |
-| SH Mix — surface selector | NOT YET VERIFIED | Exact options/order/default and state behavior required. |
-| SH Mix — growth selector | NOT YET VERIFIED | Light/Moderate/Heavy labels, defaults, active state and target update behavior required. |
-| SH Mix — batch presets | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact expanded preset list and Custom amount option are mirrored in staging; paired rendering, selector behavior and quick-chip state still require visual/state verification. |
+| SH Mix — surface selector | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact 15-option live surface list/order is present in staging, with House wash as the first/default option. Visual rendering and state transition behavior still require paired verification. |
+| SH Mix — growth selector | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Light / Moderate / Heavy labels and Moderate default are mirrored in staging. Exact active-state visuals and all resulting recipe updates still require paired verification. |
+| SH Mix — batch presets | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact expanded preset list through 250 gallons, Custom amount, quick-batch controls and custom units are mirrored in staging; paired rendering and interaction-state verification remain. |
 | SH Mix — recipe output | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Staging now matches the live `4.00 gal medium house wash` title format and basic SH/water/surfactant output logic; every surface/growth combination and visual formatting still require paired verification. |
 | SH Mix — stock-strength correction | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact live sentence format is mirrored in staging; edge values and paired visual verification remain. |
 | Elemonator enable/rate behavior | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Checkbox now reflects stored/current rate instead of forcing checked; total-volume behavior and paired live-state verification remain. |
@@ -54,14 +54,14 @@ The current production/live calculator and the independent/recovery calculator a
 | Stain & Surface Finder | NOT YET VERIFIED | Same inputs, recommendations, warnings and ordering required. |
 | Chemical Compatibility Checker | NOT YET VERIFIED | Same combinations, safety warnings and invalid states required. |
 | Batch History / Mix Log | NOT YET VERIFIED | Save/reuse/delete/order/persistence behavior required. |
-| Chemical Inventory | NOT YET VERIFIED | Same schema, use/clear behavior and persistence required. |
+| Chemical Inventory | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live schema/copy and device-local inventory warning are mirrored in staging. Use/clear interaction, persistence edge cases and paired visual verification remain. |
 | Application Timer | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Independent timer exists and live warning text is mirrored; compare presets, background behavior, state transitions and formatting. |
 | Weather Adjustment Guide | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Independent guide exists; exact rules/messages and visual output require paired verification. |
 | Custom Chemical Builder | NOT YET VERIFIED | Schema, validation, save/edit/delete and persistence required. |
-| Version / update UI | NOT YET VERIFIED | Same user-visible version and wording required. Hosting-specific update plumbing may differ invisibly. |
-| Backup / restore UI | NOT YET VERIFIED | Same exported schema and restore behavior required; backup destination itself may differ invisibly. |
+| Version / update UI | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | User-visible v18/offline wording is mirrored; hosting-specific update plumbing may differ invisibly. Exact visual state still requires paired verification. |
+| Backup / restore UI | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact live backup description is mirrored and shared schema is being preserved; restore round-trip, replacement behavior and paired visuals still require testing. |
 | Field Safety Card | NOT YET VERIFIED | Exact content/order/icons/wording required. |
-| Field Guide | NOT YET VERIFIED | Every section and preset must be audited. |
+| Field Guide | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | The confirmed 7-step Quick safety order and confirmed Field Guide service-warning sections are mirrored in staging; full route visual verification remains. |
 | Light mode | NOT YET VERIFIED | Route-by-route screenshot comparison required. |
 | Dark mode | NOT YET VERIFIED | Route-by-route screenshot comparison required. |
 | iPhone portrait layout | NOT YET VERIFIED | Safe areas, sticky/fixed elements, scrolling, keyboard avoidance and tap targets required. |
