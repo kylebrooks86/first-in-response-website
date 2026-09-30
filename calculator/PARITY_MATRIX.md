@@ -44,7 +44,7 @@ The current production/live calculator and the independent/recovery calculator a
 | Job Math — discounts | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct live-vs-staging scenarios match 10% discount behavior exactly: $176 → $158.40 and $220 → $198, with matching deposit outputs. |
 | Job Math — bundle behavior | NOT YET VERIFIED | Verify whether and how live calculator represents bundles before implementing tests. |
 | Job Math — final-price override | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct live-vs-staging scenarios prove the override wins after calculated pricing/discount/minimum logic: $100 and $200 overrides produce identical totals and deposits. |
-| Job Math — deposit / remaining balance | NOT YET VERIFIED | 50% deposit calculation is directly verified across all five live-vs-staging scenarios; remaining-balance behavior/output still requires a dedicated paired audit before this combined row can be promoted. |
+| Job Math — deposit | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct live-vs-staging scenarios match the 50% deposit exactly for minimum-floor, discounted, and final-price-override cases. The current live baseline has no separate remaining-balance output, so none is required for baseline parity. |
 | Customer/job information | NOT YET VERIFIED | Exact fields, persistence, blank states and output inclusion required. |
 | Customer quote | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Copy / Share / Print-Save-PDF action set is mirrored; exact output/failure behavior still requires state tests. |
 | Crew/job sheet | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Copy crew job sheet / Share crew sheet / Clear this estimate are mirrored; output-state matrix remains. |
