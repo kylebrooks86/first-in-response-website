@@ -3,11 +3,11 @@
   "release": "v18",
   "status": "STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED",
   "fingerprint_algorithm": "sha256(sorted lines of path:git_blob_sha)",
-  "shared_core_fingerprint": "d640a0ecd3f5ffd8a86e2e64ed5c2b6de0be41b8a1004bc3dfb18ac1b388a08b",
+  "shared_core_fingerprint": "944aab0b4ac3b256b03f4a725cf76f10813afc09a7f1fe59cf537f772faabd46",
   "shared_core_files": {
     "calculator/index.html": "4be24b1101085b4f104a8661fa76e1528df6623b",
     "calculator/manifest.webmanifest": "b0b4896b333d200c8bd4194fcac16c4272c52938",
-    "calculator/full-v18.js": "bb3fa1ee54a9f2f41d3153bbd142be6c2f9142d8",
+    "calculator/full-v18.js": "9ed2dbab5ee51cb1153cc57a4732c6e553b8823f",
     "calculator/full-v18-core.js": "42232e530c81056024f22e7f32c58acd7313085d",
     "calculator/full-v18-parity-core.js": "aa7a97fbb36612f59e190d04efd61b48080a5304",
     "calculator/v18-behavior.js": "1f0ffcce5bbc4fa77c8a5b0339f5f5f7c66dc44a",
@@ -17,7 +17,7 @@
     "calculator/v18-tools-state.js": "9030b966a47d869d32521a67f645e57d037af755",
     "calculator/v18-exact-visual.css": "4359f8e2e76f497db2f96a503e7f70a294f4ecc2",
     "calculator/v18-live-equipment-visual.css": "20791603723fd54f334d037c813d167a1cb30aed",
-    "calculator/v18-live-estimator-parity.js": "0cf30511ebfe18a2c653bd4fd1ab9f4e238c7e46",
+    "calculator/v18-live-estimator-parity.js": "2b81fcc53982e4d486e1f3f089008fb4c35f73ff",
     "calculator/v18-live-first-screen.js": "37dc149819c396e2365ec59fd140e2126f18f848",
     "calculator/v18-live-jobmath-parity.js": "606a79f54ed3b97e3824cbe44aa24c21a0873e4c",
     "calculator/v18-live-chemicals-parity.js": "c650e0ccb3b0366c1858e28830ea4cd0826edcd0",
@@ -33,7 +33,7 @@
     "calculator/v18-live-tools-fine.css": "f26357332dda55b39cd81314aaf38cffc4be961b",
     "calculator/v18-live-pricing-parity.js": "309dcb643bbf25d697cf46987f3f09d7680494a1",
     "calculator/v18-live-pricing-parity.css": "304199972a83502dcd7a258e50f1e5496da4be85",
-    "calculator/v18-live-customer-parity.js": "d13deb8651855622efadf5f754138feb3b14f0e9"
+    "calculator/v18-live-customer-parity.js": "17f1e1d740743f77b08f0574e3843ddb9582b94f"
   },
   "infrastructure_only_files": [
     "calculator/sw.js",
