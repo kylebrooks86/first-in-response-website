@@ -5,6 +5,7 @@
   const style=()=>{
     if($('#v18-live-shell-style'))return;
     const s=document.createElement('style');s.id='v18-live-shell-style';s.textContent=`
+      html,body{background:#fff!important}
       .topbar{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:#fff!important;box-shadow:none!important}
       .version{color:#949698!important;font-weight:400!important}.version b{display:none!important}
       .stock{background:transparent!important;color:#949698!important;font-weight:400!important;padding:0!important;border-radius:0!important}
@@ -13,81 +14,40 @@
       .tab{border-radius:0!important}.tab.active{font-weight:700!important}.bottom{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
       #mix>.card:nth-child(3){background:#fce4ec!important;border-top:3px solid #f03c3c!important}
       .live-v18-guidance{margin:10px 0 0!important}.live-v18-ele{margin-top:12px}.live-v18-ele label{display:flex;align-items:center;gap:8px;font-weight:600;color:#343a40}.live-v18-ele input{width:auto;min-height:auto}
-      body.dark .topbar{background:#121a22!important}.dark .stock,.dark .version{color:#b7c0c7!important}.dark .live-v18-ele label{color:#fff}
+      .job-float-nav{position:sticky;top:calc(61px + env(safe-area-inset-top));z-index:34;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;background:#fff;padding:8px 0 9px;border-bottom:1px solid #eceff1;margin:0 0 12px}
+      .job-float-nav button{min-width:0;min-height:42px;border:1px solid #dee2e6;background:#fff;color:#343a40;border-radius:8px;padding:8px 6px;font-size:12px;font-weight:700;line-height:1.15}
+      .job-float-nav button:active,.job-float-nav button.active{background:#f03c3c;color:#fff;border-color:#f03c3c}
+      body:not(.dark) .topbar::before{content:'';position:absolute;left:0;right:0;bottom:100%;height:env(safe-area-inset-top);background:#fff}
+      body.dark{background:#121a22!important}.dark .topbar{background:#121a22!important}.dark .stock,.dark .version{color:#b7c0c7!important}.dark .live-v18-ele label{color:#fff}.dark .job-float-nav{background:#121a22;border-color:#35414b}.dark .job-float-nav button{background:#18212b;color:#f6f7f8;border-color:#35414b}
+      @media(max-width:420px){.job-float-nav{gap:4px}.job-float-nav button{font-size:11px;padding:8px 3px}}
     `;document.head.appendChild(s)
   };
   const batchGal=()=>{const p=$('#batchPreset');if(!p)return 4;if(p.value==='custom'){const n=+$('#customBatch')?.value||0,u=$('#customUnit')?.value;return u==='floz'?n/128:u==='quart'?n/4:u==='liter'?n/3.78541:n}return +p.value||4};
+  const cardByText=(section,text)=>section?[...$$(':scope > .card',section)].find(c=>c.textContent.includes(text)):null;
+  const ensureJobNav=()=>{
+    const job=$('#job');if(!job||$('#jobFloatNav'))return;
+    const nav=document.createElement('div');nav.id='jobFloatNav';nav.className='job-float-nav';
+    const items=[['Mix Plan','How much mix should I bring?'],['Measure','Area and real coverage helpers'],['Estimate','Price the whole job'],['Loadout','Job loadout and profitability']];
+    items.forEach(([label,target])=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.addEventListener('click',()=>{const card=cardByText(job,target);if(card){card.scrollIntoView({behavior:'smooth',block:'start'});$$('#jobFloatNav button').forEach(x=>x.classList.toggle('active',x===b));setTimeout(()=>b.classList.remove('active'),900)}});nav.appendChild(b)});
+    job.insertBefore(nav,job.firstChild);
+  };
   const apply=()=>{
-    style();
+    style();ensureJobNav();
     const ver=$('.version');if(ver)ver.innerHTML='v18';
     const stock=$('.stock');if(stock)stock.textContent='Stock SH 10%';
-
     const surface=$('#surface');
-    if(surface){
-      const card=surface.closest('.card');
-      if(card&&!card.querySelector('.live-v18-guidance')){
-        const p=document.createElement('p');p.className='muted live-v18-guidance';p.textContent='Start low. Check oxidation, failed paint, outlets, door seals, and delicate fixtures before applying.';card.appendChild(p)
-      }
-    }
-
-    const bp=$('#batchPreset');if(bp){
-      const keep=bp.value;const current=[...bp.options].map(o=>[o.value,o.textContent]);
-      if(current.length!==exactBatch.length||current.some((x,i)=>x[0]!==exactBatch[i]?.[0]||x[1]!==exactBatch[i]?.[1])){
-        bp.innerHTML=exactBatch.map(([v,t])=>`<option value="${v}">${t}</option>`).join('');
-        if([...bp.options].some(o=>o.value===keep))bp.value=keep;
-      }
-    }
-    const chips=$('#batchChips');if(chips&&!chips.querySelector('[data-live-custom]')){
-      const b=document.createElement('button');b.type='button';b.className='chip';b.dataset.liveCustom='1';b.textContent='Custom amount';b.addEventListener('click',()=>{if(bp){bp.value='custom';bp.dispatchEvent(new Event('change',{bubbles:true}))}});chips.appendChild(b)
-    }
-
-    const rt=$('#recipeTitle');if(rt){
-      const raw=rt.textContent.toLowerCase();const surfaceName=$('#surface')?.selectedOptions?.[0]?.textContent?.split(' — ')[0]?.toLowerCase()||'house wash';
-      const growth=(raw.includes('heavy')?'heavy':raw.includes('light')?'light':'medium');
-      rt.textContent=`${batchGal().toFixed(2)} gal ${growth} ${surfaceName}`;
-    }
-
-    const ele=$('#eleRate');if(ele){
-      ele.type='number';
-      const recipe=ele.closest('.card');
-      if(recipe&&!recipe.querySelector('.live-v18-ele')){
-        const wrap=document.createElement('div');wrap.className='live-v18-ele';wrap.innerHTML='<label><input id="liveIncludeEle" type="checkbox"> Include Elemonator</label><p class="muted" style="margin:5px 0 0"><strong>Add Elemonator</strong><br>Adjustable dosage; included within total batch volume.</p>';
-        const host=ele.closest('.field')||ele.parentElement;host.insertAdjacentElement('afterend',wrap);
-        const box=$('#liveIncludeEle');box.checked=(+ele.value||0)>0;box.addEventListener('change',()=>{if(box.checked){ele.value=ele.dataset.lastRate||'1'}else{if(+ele.value>0)ele.dataset.lastRate=ele.value;ele.value='0'}ele.dispatchEvent(new Event('input',{bubbles:true}))})
-      }
-      const recipe=ele.closest('.card');
-      if(recipe&&!recipe.textContent.includes('Add water first, then SH, then bleach-stable surfactant. Pre-wet and post-rinse vegetation.')){
-        const p=document.createElement('p');p.className='muted';p.textContent='Add water first, then SH, then bleach-stable surfactant. Pre-wet and post-rinse vegetation.';recipe.appendChild(p)
-      }
-    }
-
-    const factory=[...$$('#equipment .muted')].find(p=>p.textContent.includes('Factory proportions are estimates'));
-    if(factory)factory.textContent='Factory proportions are estimates based on a 4 GPM pressure washer at 100 PSI. Hose length, pressure, orifice, elevation and equipment condition can change the draw. Use the measured test below for your real result.';
-    const drawCard=[...$$('#equipment .card')].find(c=>c.textContent.includes('X-Jet bucket draw test'));
-    if(drawCard&&!drawCard.textContent.includes('Start with a marked pickup bucket')){
-      const p=document.createElement('p');p.className='muted';p.textContent='Start with a marked pickup bucket, spray for the exact time entered, then measure how many fluid ounces disappeared. Water volume is calculated from your pressure-washer GPM × test time. Repeat once to confirm the result.';drawCard.appendChild(p)
-    }
-
+    if(surface){const card=surface.closest('.card');if(card&&!card.querySelector('.live-v18-guidance')){const p=document.createElement('p');p.className='muted live-v18-guidance';p.textContent='Start low. Check oxidation, failed paint, outlets, door seals, and delicate fixtures before applying.';card.appendChild(p)}}
+    const bp=$('#batchPreset');if(bp){const keep=bp.value;const current=[...bp.options].map(o=>[o.value,o.textContent]);if(current.length!==exactBatch.length||current.some((x,i)=>x[0]!==exactBatch[i]?.[0]||x[1]!==exactBatch[i]?.[1])){bp.innerHTML=exactBatch.map(([v,t])=>`<option value="${v}">${t}</option>`).join('');if([...bp.options].some(o=>o.value===keep))bp.value=keep}}
+    const chips=$('#batchChips');if(chips&&!chips.querySelector('[data-live-custom]')){const b=document.createElement('button');b.type='button';b.className='chip';b.dataset.liveCustom='1';b.textContent='Custom amount';b.addEventListener('click',()=>{if(bp){bp.value='custom';bp.dispatchEvent(new Event('change',{bubbles:true}))}});chips.appendChild(b)}
+    const rt=$('#recipeTitle');if(rt){const raw=rt.textContent.toLowerCase(),surfaceName=$('#surface')?.selectedOptions?.[0]?.textContent?.split(' — ')[0]?.toLowerCase()||'house wash',growth=(raw.includes('heavy')?'heavy':raw.includes('light')?'light':'medium');rt.textContent=`${batchGal().toFixed(2)} gal ${growth} ${surfaceName}`}
+    const ele=$('#eleRate');if(ele){ele.type='number';const recipe=ele.closest('.card');if(recipe&&!recipe.querySelector('.live-v18-ele')){const wrap=document.createElement('div');wrap.className='live-v18-ele';wrap.innerHTML='<label><input id="liveIncludeEle" type="checkbox"> Include Elemonator</label><p class="muted" style="margin:5px 0 0"><strong>Add Elemonator</strong><br>Adjustable dosage; included within total batch volume.</p>';const host=ele.closest('.field')||ele.parentElement;host.insertAdjacentElement('afterend',wrap);const box=$('#liveIncludeEle');box.checked=(+ele.value||0)>0;box.addEventListener('change',()=>{if(box.checked){ele.value=ele.dataset.lastRate||'1'}else{if(+ele.value>0)ele.dataset.lastRate=ele.value;ele.value='0'}ele.dispatchEvent(new Event('input',{bubbles:true}))})}if(recipe&&!recipe.textContent.includes('Add water first, then SH, then bleach-stable surfactant. Pre-wet and post-rinse vegetation.')){const p=document.createElement('p');p.className='muted';p.textContent='Add water first, then SH, then bleach-stable surfactant. Pre-wet and post-rinse vegetation.';recipe.appendChild(p)}}
+    const factory=[...$$('#equipment .muted')].find(p=>p.textContent.includes('Factory proportions are estimates'));if(factory)factory.textContent='Factory proportions are estimates based on a 4 GPM pressure washer at 100 PSI. Hose length, pressure, orifice, elevation and equipment condition can change the draw. Use the measured test below for your real result.';
+    const drawCard=[...$$('#equipment .card')].find(c=>c.textContent.includes('X-Jet bucket draw test'));if(drawCard&&!drawCard.textContent.includes('Start with a marked pickup bucket')){const p=document.createElement('p');p.className='muted';p.textContent='Start with a marked pickup bucket, spray for the exact time entered, then measure how many fluid ounces disappeared. Water volume is calculated from your pressure-washer GPM × test time. Repeat once to confirm the result.';drawCard.appendChild(p)}
     const area=$('#area');if(area&&area.value==='2500')area.value='';
-    const timerCard=[...$$('#tools .card')].find(c=>c.textContent.includes('Application Timer'));
-    if(timerCard&&!timerCard.textContent.includes('A timer never replaces the product label')){
-      const p=document.createElement('p');p.className='muted';p.textContent='A timer never replaces the product label. Watch the surface continuously and rinse sooner if drying or a reaction appears.';timerCard.appendChild(p)
-    }
-
-    const safety=[...$$('#guide .card')].find(c=>c.textContent.includes('Quick safety order'));
-    if(safety){const ol=$('ol',safety);if(ol){const items=$$('li',ol);if(items[1])items[1].textContent='Wear eye/skin protection and keep people, pets, and plants clear.';if(![...items].some(li=>li.textContent.includes('Rinse tools and do not seal or store mixed SH long-term.'))){const li=document.createElement('li');li.textContent='Rinse tools and do not seal or store mixed SH long-term.';ol.appendChild(li)}}}
-
-    const off=[...$$('#tools .card')].find(c=>c.textContent.includes('Version and offline update'));
-    if(off&&!off.textContent.includes('The calculator does not require a sign-in. Your rates, inventory, timer and saved mixes remain on this device and are included in your backup.')){
-      const p=document.createElement('p');p.className='muted';p.textContent='The calculator does not require a sign-in. Your rates, inventory, timer and saved mixes remain on this device and are included in your backup.';off.appendChild(p)
-    }
-    const backup=[...$$('#tools .card')].find(c=>c.textContent.includes('Backup or Restore Field Data'));
-    if(backup&&!backup.textContent.includes('Back up your favorites, inventory, mix history, custom chemicals, X-Jet calibration, calculator settings, and current estimate draft.')){
-      const p=document.createElement('p');p.className='muted';p.textContent='Back up your favorites, inventory, mix history, custom chemicals, X-Jet calibration, calculator settings, and current estimate draft. If you entered a customer or job name, it is included in the backup.';backup.insertBefore(p,backup.children[2]||null)
-    }
+    const timerCard=[...$$('#tools .card')].find(c=>c.textContent.includes('Application Timer'));if(timerCard&&!timerCard.textContent.includes('A timer never replaces the product label')){const p=document.createElement('p');p.className='muted';p.textContent='A timer never replaces the product label. Watch the surface continuously and rinse sooner if drying or a reaction appears.';timerCard.appendChild(p)}
+    const safety=[...$$('#guide .card')].find(c=>c.textContent.includes('Quick safety order'));if(safety){const ol=$('ol',safety);if(ol){const items=$$('li',ol);if(items[1])items[1].textContent='Wear eye/skin protection and keep people, pets, and plants clear.';if(![...items].some(li=>li.textContent.includes('Rinse tools and do not seal or store mixed SH long-term.'))){const li=document.createElement('li');li.textContent='Rinse tools and do not seal or store mixed SH long-term.';ol.appendChild(li)}}}
+    const off=[...$$('#tools .card')].find(c=>c.textContent.includes('Version and offline update'));if(off&&!off.textContent.includes('The calculator does not require a sign-in. Your rates, inventory, timer and saved mixes remain on this device and are included in your backup.')){const p=document.createElement('p');p.className='muted';p.textContent='The calculator does not require a sign-in. Your rates, inventory, timer and saved mixes remain on this device and are included in your backup.';off.appendChild(p)}
+    const backup=[...$$('#tools .card')].find(c=>c.textContent.includes('Backup or Restore Field Data'));if(backup&&!backup.textContent.includes('Back up your favorites, inventory, mix history, custom chemicals, X-Jet calibration, calculator settings, and current estimate draft.')){const p=document.createElement('p');p.className='muted';p.textContent='Back up your favorites, inventory, mix history, custom chemicals, X-Jet calibration, calculator settings, and current estimate draft. If you entered a customer or job name, it is included in the backup.';backup.insertBefore(p,backup.children[2]||null)}
   };
-
-  apply();setTimeout(apply,250);setTimeout(apply,1000);setTimeout(apply,3000);
-  window.addEventListener('fire-v18-core-ready',apply);window.addEventListener('fire-v18-parity-loaded',apply);
-  const mo=new MutationObserver(()=>{clearTimeout(window.__fireV18LiveShellTimer);window.__fireV18LiveShellTimer=setTimeout(apply,80)});mo.observe(document.body,{childList:true,subtree:true});
+  apply();setTimeout(apply,250);setTimeout(apply,1000);setTimeout(apply,3000);window.addEventListener('fire-v18-core-ready',apply);window.addEventListener('fire-v18-parity-loaded',apply);const mo=new MutationObserver(()=>{clearTimeout(window.__fireV18LiveShellTimer);window.__fireV18LiveShellTimer=setTimeout(apply,80)});mo.observe(document.body,{childList:true,subtree:true});
 })();
