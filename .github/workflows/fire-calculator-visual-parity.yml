@@ -1,0 +1,50 @@
+name: FIRE Calculator Visual Parity
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fire-calculator-exact-live-clone
+    paths:
+      - 'calculator/**'
+      - '.github/workflows/fire-calculator-visual-parity.yml'
+
+jobs:
+  visual-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start staging server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/fire-calculator-server.log 2>&1 &
+          echo $! > /tmp/fire-calculator-server.pid
+          sleep 2
+          curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
+
+      - name: Capture live and staging at iPhone viewport
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+          FIRE_VISUAL_OUT: calculator/visual-parity
+        run: node calculator/tests/visual-parity.mjs
+
+      - name: Upload paired screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-calculator-visual-parity
+          path: calculator/visual-parity
+          if-no-files-found: error
+          retention-days: 14
