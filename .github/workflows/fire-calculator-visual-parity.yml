@@ -58,6 +58,14 @@ jobs:
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
         run: node calculator/tests/estimator-edge-live-parity.mjs
 
+      - name: Compare live customer and draft behavior
+        id: customer
+        continue-on-error: true
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        run: node calculator/tests/customer-live-parity.mjs
+
       - name: Inspect live bundle and customer baseline
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -95,4 +103,10 @@ jobs:
         if: steps.edges.outcome == 'failure'
         run: |
           echo 'Live-vs-staging estimator edge-state parity failed.'
+          exit 1
+
+      - name: Enforce customer and draft parity result
+        if: steps.customer.outcome == 'failure'
+        run: |
+          echo 'Live-vs-staging customer/draft parity failed.'
           exit 1
