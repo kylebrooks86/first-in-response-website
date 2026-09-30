@@ -18,6 +18,33 @@ function apply(){
   const factory=$$('p,.muted').find(e=>e.textContent.trim()==='Factory proportions are estimates. Hose length, pressure, orifice, elevation and equipment condition can change the draw. Use the measured test below for your real result.');
   if(factory)factory.textContent='Factory proportions are estimates based on a 4 GPM pressure washer at 100 PSI. Hose length, pressure, orifice, elevation and equipment condition can change the draw. Use the measured test below for your real result.';
 
+  // Match the live measured X-Jet draw-test instructions.
+  const xHead=$$('h2').find(h=>h.textContent.trim()==='X-Jet bucket draw test');
+  if(xHead){
+    const card=xHead.closest('.card');
+    if(card&&!card.textContent.includes('Start with a marked pickup bucket')){
+      const p=document.createElement('p');p.className='muted';
+      p.textContent='Start with a marked pickup bucket, spray for the exact time entered, then measure how many fluid ounces disappeared. Water volume is calculated from your pressure-washer GPM × test time. Repeat once to confirm the result.';
+      card.appendChild(p);
+    }
+  }
+
+  // Match the current live Chemicals-tab product list.
+  const chemSelect=$('#chemicals .card:first-child select');
+  if(chemSelect){
+    const current=chemSelect.value;
+    const products=['Ettore Squeegee-Off','Dawn','Elemonator','Simple Green Pro HD','Krud Kutter','LA’s Totally Awesome','F9 BARC','Gutter Zap','Bio-Clean','OdoBan'];
+    const existing=[...chemSelect.options].map(o=>o.textContent.trim());
+    if(products.some((p,i)=>existing[i]!==p)||existing.length!==products.length){
+      chemSelect.innerHTML='';
+      for(const name of products){const o=document.createElement('option');o.textContent=name;o.value=name;chemSelect.appendChild(o)}
+      if(products.includes(current))chemSelect.value=current;
+    }
+  }
+
+  // Never auto-fill the old 2,500 ft² coverage placeholder.
+  const area=$('#area');if(area&&area.value==='2500')area.value='';
+
   // Restore the final field-safety checklist line present in the live v18 calculator.
   const lists=$$('#guide ul,#guide ol');
   for(const list of lists){
