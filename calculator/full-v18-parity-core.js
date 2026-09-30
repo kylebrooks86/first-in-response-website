@@ -11,7 +11,8 @@
   });
   const q=(sel,root=document)=>root.querySelector(sel);
   const qa=(sel,root=document)=>[...root.querySelectorAll(sel)];
-  const cardBy=(section,title)=>qa(':scope > .card',section).find(c=>q('h2',c)?.textContent.trim()===title);
+  const cardsBy=(section,title)=>qa(':scope > .card',section).filter(c=>q('h2',c)?.textContent.trim()===title);
+  const cardBy=(section,title)=>cardsBy(section,title).find(c=>!c.classList.contains('legacy-estimate')&&!c.classList.contains('legacy-chemical-card'))||cardsBy(section,title)[0];
   const addStyle=()=>{
     if(document.getElementById('v18-parity-style'))return;
     const st=document.createElement('style');st.id='v18-parity-style';st.textContent=`
@@ -36,6 +37,12 @@
     let nav=q('#topJobNav');
     if(!nav){nav=document.createElement('nav');nav.id='topJobNav';nav.className='top-job-nav';nav.setAttribute('aria-label','Job Math quick menu');nav.innerHTML='<button class="chip" data-job-target="jobMixCard" type="button">Mix plan</button><button class="chip" data-job-target="jobMeasureCard" type="button">Measure</button><button class="chip" data-job-target="jobEstimateCard" type="button">Estimate</button><button class="chip" data-job-target="jobLoadoutCard" type="button">Loadout</button>';const tabs=q('.tabswrap');if(tabs)tabs.insertAdjacentElement('afterend',nav);else document.body.insertBefore(nav,q('main')||document.body.firstChild);qa('button',nav).forEach(b=>b.addEventListener('click',()=>q('#'+b.dataset.jobTarget)?.scrollIntoView({behavior:'smooth',block:'start'})))}
     const sync=()=>{const active=q('.view.active')?.id==='job';nav.style.display=active?'flex':'none'};sync();qa('[data-view]').forEach(b=>b.addEventListener('click',()=>setTimeout(sync,0)));
+  };
+  const livePlanningDefaults=()=>{
+    const stateExists=!!localStorage.getItem('fireV18FullState');
+    if(stateExists)return;
+    const defaults={area:'2000',coverage:'300',reserve:'15',shPrice:'4.50',elePrice:'45'};
+    Object.entries(defaults).forEach(([id,value])=>{const e=q('#'+id);if(e)e.value=value});
   };
   const upgradeCoverage=()=>{
     const job=q('#job'),card=job&&cardBy(job,'How much mix should I bring?');if(!card)return;
@@ -73,14 +80,15 @@
     if(tools)moveOrder(tools,['Quick Mix Favorites','Stain & Surface Finder','Chemical Compatibility Checker','Batch History / Mix Log','Chemical Inventory','Application Timer','Weather Adjustment Guide','Custom Chemical Builder','Version and offline update','Backup or Restore Field Data','Field Safety Card']);
     if(guide)moveOrder(guide,['10% SH service presets','Services that should not default to SH','Quick safety order']);
     if(job){
-      const old=qa(':scope > .card',job).find(c=>q('h2',c)?.textContent.trim()==='Price the whole job');
       const full=cardBy(job,'Full FIRE service estimator');
-      if(old)old.classList.add('legacy-estimate');
-      if(full){q('h2',full).textContent='Price the whole job'}
+      const legacy=qa(':scope > .card',job).find(c=>q('h2',c)?.textContent.trim()==='Price the whole job'&&c!==full);
+      if(legacy)legacy.classList.add('legacy-estimate');
+      if(full){full.classList.remove('legacy-estimate');q('h2',full).textContent='Price the whole job';full.id='jobEstimateCard'}
       moveOrder(job,['How much mix should I bring?','Area and real coverage helpers','Know your cost per batch','Price the whole job','Job loadout and profitability']);
-      if(old)job.appendChild(old);
+      if(legacy)job.appendChild(legacy);
     }
-    upgradeCoverage();ensureJobQuickNav();
+    livePlanningDefaults();upgradeCoverage();ensureJobQuickNav();
+    ['area','coverage','reserve','shPrice','elePrice'].forEach(id=>q('#'+id)?.dispatchEvent(new Event('input',{bubbles:true})));
   };
   loadCore().then(()=>{requestAnimationFrame(()=>requestAnimationFrame(apply))}).catch(()=>{console.error('FIRE v18 core failed to load')});
 })();
