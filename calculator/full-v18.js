@@ -7,7 +7,7 @@
   css('./v18-live-chemicals-parity.css?v=3','chemicals-parity');
   css('./v18-live-index-parity.css?v=1','index-parity');
   css('./v18-live-guide-parity.css?v=2','guide-parity');
-  css('./v18-live-tools-parity.css?v=1','tools-parity');
+  css('./v18-live-tools-parity.css?v=2','tools-parity');
   css('./v18-live-tools-fine.css?v=1','tools-fine');
   css('./v18-live-pricing-parity.css?v=1','pricing-parity');
   css('./v18-live-foundation.css?v=5','live-foundation');
