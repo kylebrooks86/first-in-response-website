@@ -56,13 +56,13 @@
         footer>.footer-center strong{font-size:20px!important}
         footer>.footer-center p{font-size:14px!important;margin:8px 0 0!important}
         footer>.footer-cols{display:contents!important}
-        footer>.footer-cols>.footer-col:first-child{grid-column:2!important;grid-row:1 / span 2!important}
-        footer>.footer-cols>.footer-col:last-child{grid-column:3!important;grid-row:1 / span 2!important}
-        footer>.footer-cols>.footer-col h3{margin-top:0!important;font-size:18px!important;color:#fff!important}
-        footer>.footer-cols>.footer-col p,footer>.footer-cols>.footer-col a{font-size:14px!important;line-height:1.8!important}
-        footer>.footer-cols>.footer-col a{display:block!important;margin:3px 0!important}
-        footer>.footer-cols>.footer-col .footer-social{display:flex!important;gap:18px!important;flex-wrap:wrap!important;margin-top:18px!important}
-        footer>.footer-cols>.footer-col .footer-social a{display:inline-block!important;margin:0!important}
+        footer>.footer-cols>div:first-child{grid-column:2!important;grid-row:1 / span 2!important}
+        footer>.footer-cols>div:last-child{grid-column:3!important;grid-row:1 / span 2!important}
+        footer>.footer-cols>div h3{margin-top:0!important;font-size:18px!important;color:#fff!important}
+        footer>.footer-cols>div p,footer>.footer-cols>div a{font-size:14px!important;line-height:1.8!important}
+        footer>.footer-cols>div a{display:block!important;margin:3px 0!important}
+        footer>.footer-cols>div .footer-social{display:flex!important;gap:18px!important;flex-wrap:wrap!important;margin-top:18px!important}
+        footer>.footer-cols>div .footer-social a{display:inline-block!important;margin:0!important}
         footer>.copyright{grid-column:1 / -1!important;grid-row:3!important;margin:30px 0 0!important;padding-top:20px!important;border-top:0!important;font-size:12px!important;color:#7f858d!important}
       }
       @media(max-width:979px){
@@ -78,8 +78,7 @@
     document.head.appendChild(style);
   }
 
-  const ownerSection = document.querySelector('.owner-photo')?.closest('section');
-  if (ownerSection && !ownerSection.id) ownerSection.id = 'meet-kyle';
+  const ownerSection = document.querySelector('#meet-kyle');
   if (ownerSection) {
     const ownerKicker = ownerSection.querySelector('.kicker');
     if (ownerKicker && /meet the owner/i.test(ownerKicker.textContent || '')) ownerKicker.remove();
@@ -87,8 +86,7 @@
     if (ownerHeading) ownerHeading.textContent = 'Meet Kyle Brooks';
   }
 
-  const faqSection = document.querySelector('.faq')?.closest('section');
-  if (faqSection && !faqSection.id) faqSection.id = 'faqs';
+  const faqSection = document.querySelector('#faq') || document.querySelector('.faq')?.closest('section');
   if (faqSection) {
     [...faqSection.querySelectorAll('summary')].forEach((summary) => {
       if (/first responder or military discounts/i.test(summary.textContent || '')) {
@@ -106,7 +104,7 @@
       <a href="#on-the-job">Recent Work</a>
       <a href="#reviews">Reviews</a>
       <a href="#meet-kyle">Meet Kyle</a>
-      <a href="#faqs">FAQs</a>
+      <a href="#faq">FAQs</a>
       <a href="#personal">Personalized Estimate</a>
     `;
   }
@@ -118,13 +116,18 @@
 
   const mobileBar = document.querySelector('.bottom');
   if (mobileBar) {
-    const links = [...mobileBar.querySelectorAll('a')];
-    const call = links.find((a) => (a.getAttribute('href') || '').startsWith('tel:'));
-    const text = links.find((a) => (a.getAttribute('href') || '').startsWith('sms:'));
-    const estimate = links.find((a) => (a.getAttribute('href') || '').includes('#estimate'));
+    let call = mobileBar.querySelector('a[href^="tel:"]');
+    let text = mobileBar.querySelector('a[href^="sms:"]');
+    let estimate = mobileBar.querySelector('.bottom-estimate');
+    if (!estimate) {
+      estimate = document.createElement('a');
+      estimate.className = 'bottom-estimate';
+      mobileBar.appendChild(estimate);
+    }
     if (call) call.textContent = 'Call';
     if (text) text.textContent = 'Text photos';
-    if (estimate) estimate.textContent = 'Estimate';
+    estimate.href = '#estimate';
+    estimate.textContent = 'Estimate';
     [call, text, estimate].filter(Boolean).forEach((a) => mobileBar.appendChild(a));
   }
 
