@@ -19,6 +19,9 @@
       #equipment>.card,#chemicals>.card,#index>.card,#job>.card,#tools>.card,#guide>.card{margin-top:16px;margin-bottom:16px}
       .stock-correction-title{margin-top:22px!important}
       .live-fill-plan{margin-top:12px}
+      .top-job-nav{display:none;gap:8px;overflow-x:auto;scrollbar-width:none;padding:8px 16px;background:#fff;border-bottom:1px solid #eceff1;position:sticky;top:0;z-index:38}
+      .top-job-nav::-webkit-scrollbar{display:none}.top-job-nav .chip{white-space:nowrap;flex:1;min-width:max-content}
+      body.dark .top-job-nav{background:#121a22;border-color:#35414b}
     `;document.head.appendChild(st);
   };
   const headingBefore=(container,target,title,cls='')=>{
@@ -26,6 +29,14 @@
     const h=document.createElement('h2');h.textContent=title;if(cls)h.className=cls;target.before(h);
   };
   const moveOrder=(section,titles)=>titles.forEach(t=>{const c=cardBy(section,t);if(c)section.appendChild(c)});
+  const ensureJobQuickNav=()=>{
+    const job=q('#job');if(!job)return;
+    const mix=cardBy(job,'How much mix should I bring?'),measure=cardBy(job,'Area and real coverage helpers'),estimate=cardBy(job,'Price the whole job'),loadout=cardBy(job,'Job loadout and profitability');
+    if(mix)mix.id='jobMixCard';if(measure)measure.id='jobMeasureCard';if(estimate)estimate.id='jobEstimateCard';if(loadout)loadout.id='jobLoadoutCard';
+    let nav=q('#topJobNav');
+    if(!nav){nav=document.createElement('nav');nav.id='topJobNav';nav.className='top-job-nav';nav.setAttribute('aria-label','Job Math quick menu');nav.innerHTML='<button class="chip" data-job-target="jobMixCard" type="button">Mix plan</button><button class="chip" data-job-target="jobMeasureCard" type="button">Measure</button><button class="chip" data-job-target="jobEstimateCard" type="button">Estimate</button><button class="chip" data-job-target="jobLoadoutCard" type="button">Loadout</button>';const tabs=q('.tabswrap');if(tabs)tabs.insertAdjacentElement('afterend',nav);else document.body.insertBefore(nav,q('main')||document.body.firstChild);qa('button',nav).forEach(b=>b.addEventListener('click',()=>q('#'+b.dataset.jobTarget)?.scrollIntoView({behavior:'smooth',block:'start'})))}
+    const sync=()=>{const active=q('.view.active')?.id==='job';nav.style.display=active?'flex':'none'};sync();qa('[data-view]').forEach(b=>b.addEventListener('click',()=>setTimeout(sync,0)));
+  };
   const upgradeCoverage=()=>{
     const job=q('#job'),card=job&&cardBy(job,'How much mix should I bring?');if(!card)return;
     const grid=q('.grid',card),metrics=q('.metrics',card);if(!grid||!metrics)return;
@@ -69,7 +80,7 @@
       moveOrder(job,['How much mix should I bring?','Area and real coverage helpers','Know your cost per batch','Price the whole job','Job loadout and profitability']);
       if(old)job.appendChild(old);
     }
-    upgradeCoverage();
+    upgradeCoverage();ensureJobQuickNav();
   };
   loadCore().then(()=>{requestAnimationFrame(()=>requestAnimationFrame(apply))}).catch(()=>{console.error('FIRE v18 core failed to load')});
 })();
