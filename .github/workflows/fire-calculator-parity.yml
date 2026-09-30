@@ -44,4 +44,4 @@ jobs:
           calculator/v18-exact-visual.css
 
       - name: Shared-core fingerprint
-        run: node calculator/tests/verify-shared-core.js calculator/SHARED_CORE_MANIFEST.json
+        run: node calculator/tests/verify-shared-core.js calculator
