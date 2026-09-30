@@ -25,12 +25,15 @@ Only infrastructure adapters may differ. Examples: hosting provider, deployment 
 
 - Isolated staging branch: `fire-calculator-exact-live-clone`
 - Production/live calculator has not been overwritten.
+- Current staging shared-core fingerprint: `290a2479c351d2cca65a28541739a38eb402e90d6c8998e9a2fb75de6bc919db`.
 - Shared-core fingerprint is generated and tracked in `SHARED_CORE_MANIFEST.json`.
 - Production and DR infrastructure-adapter boundaries are defined.
-- Formula regression suite currently passes 56/56 approved/default cases.
-- Confirmed live-vs-independent differences are recorded in `CURRENT_PARITY_AUDIT.md`.
-- Shared staging code has been corrected for confirmed live wording/state gaps including recipe-title formatting, Elemonator checked-state behavior, X-Jet factory guidance, timer warning, and Field Safety wording.
-- Bundle/discount stacking behavior remains audit-gated until current live behavior is directly verified; no new stacking formula has been invented.
+- Formula regression suite currently passes 66/66 approved/default and SH Mix reference cases.
+- Confirmed live-vs-independent differences are recorded in `CURRENT_PARITY_AUDIT.md` and `JOB_MATH_PARITY_AUDIT.md`.
+- Shared staging code has been corrected for confirmed live wording/state gaps including recipe-title formatting, Elemonator checked-state behavior, X-Jet factory guidance, timer warning, Field Safety wording, live Job Math quick navigation, Stock SH header behavior, and first-screen SH Mix controls.
+- Job Math Estimate workflow now mirrors the verified live controls for 0.5-point discount increments, whole-dollar final-price override increments, Clear discount, Copy customer quote, Share quote, and Print / Save PDF. The older visible Save estimate draft button is hidden while draft persistence remains available internally.
+- The DR staging service worker caches the new shared estimator-parity module so that workflow remains available offline.
+- Bundle/discount stacking math, minimum-job ordering, override ordering, exact quote/share/print output, Crew job sheet actions, and full service-estimator state parity remain audit-gated until current live behavior is directly verified. No unverified pricing formula has been invented.
 - Visual/iPhone parity, complete state parity, cross-deployment backup restore, and DR takeover are still not verified.
 
 ## Change classification rule
