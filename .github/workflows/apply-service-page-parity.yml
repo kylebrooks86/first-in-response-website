@@ -1,0 +1,33 @@
+name: Apply service page parity
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, 'Apply service page parity') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply shared live-style service page parity
+        run: python apply-service-page-parity.py
+      - name: Commit service page parity updates
+        run: |
+          if git diff --quiet; then
+            echo "No service-page changes needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add services
+          git commit -m "Apply service page parity"
+          git push
