@@ -4,8 +4,19 @@
   const KEY='fireV18ParityDraft';
   const serviceIds=['svcHouse','svcGutter','svcGuard','svcBright','svcFence','svcW1','svcW2','svcF1','svcF2','svcS1','svcS2','svcDrive','svcFront','svcSide','svcRoof','svcPremiumFence','svcDeck','svcPaver','svcBrick','svcBins','svcDryer','svcDown','svcFrenchDrain','svcAC','svcRV','svcVehicle','svcFrame1','svcFrame2','svcOx','svcCobweb'];
   const draftIds=new Set(['estimateJobName','fullCustomDesc','fullCustomAmt','fullNotes','fullDiscount','fullOverride',...serviceIds]);
+  const liveMap={estimateJobName:'estimateJobName',manualAddOnLabel:'fullCustomDesc',manualAddOn:'fullCustomAmt',discountPct:'fullDiscount',quotedPrice:'fullOverride',estimateNotes:'fullNotes',houseWashArea:'svcHouse',gutterFeet:'svcGutter',guardFeet:'svcGuard',brightenFeet:'svcBright',fenceArea:'svcFence',win1:'svcW1',win2:'svcW2',french1:'svcF1',french2:'svcF2',screen1:'svcS1',screen2:'svcS2',drivewayQty:'svcDrive',frontWalkQty:'svcFront',sideWalkQty:'svcSide',roofArea:'svcRoof',premiumFenceArea:'svcPremiumFence',deckArea:'svcDeck',paverArea:'svcPaver',masonryArea:'svcBrick',trashBinQty:'svcBins',dryerVentQty:'svcDryer',undergroundQty:'svcDown',frenchDrainQty:'svcFrenchDrain',acQty:'svcAC',rvQty:'svcRV',vehicleFeet:'svcVehicle',deepFrame1Qty:'svcFrame1',deepFrame2Qty:'svcFrame2',oxidationQty:'svcOx',cobwebQty:'svcCobweb'};
   const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch{return{}}};
   const write=d=>{try{localStorage.setItem(KEY,JSON.stringify(d))}catch{}};
+  function consumeImportedLiveDraft(){
+    if(!localStorage.getItem('fireV18LiveBackupMigratedAt'))return;
+    try{
+      const live=JSON.parse(localStorage.getItem('fireEstimateDraft')||'{}'),fields=live?.fields||{},d=read();
+      let touched=false;
+      for(const [liveId,drId] of Object.entries(liveMap)){if(fields[liveId]!==undefined){d[drId]=String(fields[liveId]??'');touched=true}}
+      if(touched)write(d);
+      localStorage.removeItem('fireV18LiveBackupMigratedAt');
+    }catch{}
+  }
   function priceCard(){const editor=$('#priceEditor');return editor?.closest('.card')||[...document.querySelectorAll('#job .card,#view-job .card')].find(c=>c.textContent.includes('Price the whole job'))}
   function associate(el){if(!el)return;const label=el.closest('.field')?.querySelector('label');if(label){label.setAttribute('for',el.id);el.setAttribute('aria-label',label.textContent.trim())}}
   function save(){const d=read();for(const id of draftIds){const e=$('#'+id);if(e)d[id]=e.value}write(d)}
@@ -42,6 +53,7 @@
   }
   function apply(){
     const card=priceCard();if(!card)return;
+    consumeImportedLiveDraft();
     let name=$('#estimateJobName');
     if(!name){
       const firstDetails=card.querySelector('details');const wrap=document.createElement('div');wrap.className='field live-estimate-name';wrap.innerHTML='<label for="estimateJobName">Customer / job name</label><input id="estimateJobName" type="text" placeholder="Optional — included in copied summary"><p class="muted live-draft-note">Draft saved automatically on this device</p>';
