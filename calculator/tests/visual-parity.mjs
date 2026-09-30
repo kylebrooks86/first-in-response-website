@@ -22,53 +22,39 @@ async function clickText(page,text){
   if(await exact.count()){await exact.first().click();return true}
   return false;
 }
-
-async function routeVisible(page,state){
-  for(const selector of state.views){
-    const loc=page.locator(selector);
-    if(await loc.count() && await loc.first().isVisible()) return true;
-  }
-  return false;
+async function visibleSelector(page,state){
+  for(const selector of state.views){const loc=page.locator(selector);if(await loc.count()&&await loc.first().isVisible())return selector}
+  return null;
 }
-
-async function normalize(page){
-  await page.addStyleTag({content:`
-    *,*::before,*::after{caret-color:transparent!important;animation:none!important;transition:none!important}
-    html{scroll-behavior:auto!important}
-  `});
+async function normalize(page){await page.addStyleTag({content:'*,*::before,*::after{caret-color:transparent!important;animation:none!important;transition:none!important}html{scroll-behavior:auto!important}'})}
+async function auditRoute(page,selector){
+  return page.locator(selector).first().evaluate(root=>{
+    const clean=s=>(s||'').replace(/\s+/g,' ').trim();
+    const controls=[...root.querySelectorAll('input,select,textarea')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0}).map(e=>({tag:e.tagName.toLowerCase(),id:e.id||null,type:e.type||null,value:e.value,label:clean(e.closest('.field')?.querySelector('label')?.textContent||document.querySelector(`label[for="${e.id}"]`)?.textContent||''),placeholder:e.getAttribute('placeholder')||null}));
+    const buttons=[...root.querySelectorAll('button')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0}).map(e=>({id:e.id||null,text:clean(e.textContent),class:e.className||null}));
+    const cards=[...root.querySelectorAll('.card')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0}).map((c,i)=>({index:i,kicker:clean(c.querySelector('.kicker,.eyebrow')?.textContent),heading:clean(c.querySelector('h2,h3')?.textContent),text:clean(c.innerText)}));
+    return {selector,innerText:clean(root.innerText),controls,buttons,cards};
+  });
 }
-
 async function capture(base,label,browser){
   const ctx=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
-  const page=await ctx.newPage();
-  await page.goto(base,{waitUntil:'networkidle',timeout:60000});
-  await normalize(page);
+  const page=await ctx.newPage(),audit={};
+  await page.goto(base,{waitUntil:'networkidle',timeout:60000});await normalize(page);
   await page.screenshot({path:path.join(OUT,`${label}-00-launch.png`),fullPage:true});
   for(const state of states){
-    const clicked=await clickText(page,state.top);
-    if(!clicked) throw new Error(`${label}: could not activate route ${state.top}`);
+    if(!await clickText(page,state.top))throw new Error(`${label}: could not activate route ${state.top}`);
     await page.waitForTimeout(180);
-    if(!await routeVisible(page,state)) throw new Error(`${label}: ${state.top} click did not expose the expected route`);
+    const selector=await visibleSelector(page,state);if(!selector)throw new Error(`${label}: ${state.top} click did not expose the expected route`);
+    audit[state.name]=await auditRoute(page,selector);
     await page.evaluate(()=>window.scrollTo(0,0));
     await page.screenshot({path:path.join(OUT,`${label}-${state.name}.png`),fullPage:true});
   }
+  fs.writeFileSync(path.join(OUT,`${label}-dom-audit.json`),JSON.stringify(audit,null,2));
   await ctx.close();
 }
 
 const browser=await chromium.launch({headless:true});
-try{
-  await capture(LIVE,'live',browser);
-  await capture(STAGING,'staging',browser);
-}finally{await browser.close()}
-
-const manifest={
-  generated_at:new Date().toISOString(),
-  live:LIVE,
-  staging:STAGING,
-  viewport:{width:390,height:844,deviceScaleFactor:1},
-  states:['00-launch',...states.map(s=>s.name)],
-  status:'PAIRED_SCREENSHOTS_CREATED_NOT_AUTOMATICALLY_CERTIFIED',
-  rule:'A human or pixel-diff review is still required before any state may be marked VERIFIED IDENTICAL.'
-};
+try{await capture(LIVE,'live',browser);await capture(STAGING,'staging',browser)}finally{await browser.close()}
+const manifest={generated_at:new Date().toISOString(),live:LIVE,staging:STAGING,viewport:{width:390,height:844,deviceScaleFactor:1},states:['00-launch',...states.map(s=>s.name)],status:'PAIRED_SCREENSHOTS_AND_DOM_AUDIT_CREATED_NOT_AUTOMATICALLY_CERTIFIED',rule:'Human/pixel and state review is required before VERIFIED IDENTICAL.'};
 fs.writeFileSync(path.join(OUT,'manifest.json'),JSON.stringify(manifest,null,2));
-console.log(`Created paired FIRE calculator screenshots in ${OUT}`);
+console.log(`Created paired FIRE screenshots and DOM audits in ${OUT}`);
