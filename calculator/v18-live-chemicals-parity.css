@@ -1,8 +1,8 @@
-/* Verified against paired iPhone live/staging Chemicals screenshots. */
+/* Verified against paired iPhone live/staging Chemicals screenshots and computed style audit. */
 .legacy-chem-ui{display:none!important}
 .fire-chem-list{display:grid;gap:8px}
-.fire-chem-product{width:100%;display:grid;grid-template-columns:44px minmax(0,1fr) 18px;align-items:center;gap:10px;padding:10px 12px;border:1px solid #d6e1e7;border-radius:13px;background:#fff;color:#17212b;text-align:left;min-height:58px}
-.fire-chem-product.active{border-color:#ef765e}
+.fire-chem-product{width:100%;display:grid;grid-template-columns:44px minmax(0,1fr) 18px;align-items:center;gap:11px;padding:11px;border:1px solid #d6e1e7;border-radius:14px;background:#fff;color:#121a22;text-align:left;min-height:70.4px}
+.fire-chem-product.active{border-color:#d84225}
 .fire-chem-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#f5f8fa;font-size:20px}
 .fire-chem-copy{min-width:0}.fire-chem-copy strong{display:block;font-size:15px;line-height:1.2}.fire-chem-copy small{display:block;margin-top:3px;color:#607381;font-size:13px;line-height:1.25}
 .fire-chem-arrow{justify-self:end;color:#607381;font-size:20px}
@@ -14,11 +14,11 @@
 .fire-dil-product{color:#e5482e;font-weight:900}
 #fireChemUnit,#fireDilUnit{min-width:74px}
 @media(max-width:760px){
-  .fire-chem-browser,.fire-chem-detail{padding:12px!important}
+  .fire-chem-browser,.fire-chem-detail{padding:14px!important}
   .fire-chem-browser .kicker,.fire-chem-detail .kicker{margin-bottom:6px!important}
   .fire-chem-browser h2,.fire-chem-detail h2{margin-bottom:10px!important}
   .fire-chem-list{gap:8px}
-  .fire-chem-product{padding:9px 10px;border-radius:12px;min-height:58px}
+  .fire-chem-product{gap:11px;padding:11px;border-radius:14px;min-height:70.4px}
   .fire-chem-copy strong{font-size:15px}.fire-chem-copy small{font-size:12.5px}
   .fire-chem-detail #fireChemAmount{min-width:0}
   .fire-chem-detail #fireChemUnit{flex:0 0 74px!important;width:74px!important}
