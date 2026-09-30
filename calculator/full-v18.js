@@ -21,5 +21,6 @@
     .then(()=>load('./v18-fine-parity.js?v=7'))
     .then(()=>load('./v18-equipment-parity.js?v=1'))
     .then(()=>load('./v18-tools-state.js?v=1'))
+    .then(()=>load('./v18-offline-readiness.js?v=1'))
     .catch(err=>console.error('FIRE v18 offline modules failed to load',err));
 })();
