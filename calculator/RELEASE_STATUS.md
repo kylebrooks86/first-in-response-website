@@ -17,27 +17,38 @@ Deployed independently to:
 1. Production / Live FIRE Calculator
 2. Independent Disaster-Recovery FIRE Calculator
 
-All visible UI, formulas, pricing logic, validation, navigation, state handling, saved-data schema, export/restore behavior, warnings, and business rules belong to the shared core.
-
-Only infrastructure adapters may differ. Examples: hosting provider, deployment URL, secrets, database/storage identifiers, environment variables, and backup destinations.
+All visible UI, formulas, pricing logic, validation, navigation, state handling, saved-data schema, export/restore behavior, warnings, and business rules belong to the shared core. Only infrastructure adapters may differ.
 
 ## Current staging progress
 
-- Isolated staging branch: `fire-calculator-exact-live-clone`
+- Isolated staging branch: `fire-calculator-exact-live-clone`.
 - Production/live calculator has not been overwritten.
-- Current staging shared-core fingerprint: `290a2479c351d2cca65a28541739a38eb402e90d6c8998e9a2fb75de6bc919db`.
+- Current staging shared-core fingerprint: `944aab0b4ac3b256b03f4a725cf76f10813afc09a7f1fe59cf537f772faabd46`.
 - Shared-core fingerprint is generated and tracked in `SHARED_CORE_MANIFEST.json`.
 - Production and DR infrastructure-adapter boundaries are defined.
-- Formula regression suite currently passes 66/66 approved/default and SH Mix reference cases.
-- Confirmed live-vs-independent differences are recorded in `CURRENT_PARITY_AUDIT.md` and `JOB_MATH_PARITY_AUDIT.md`.
-- Shared staging code has been corrected for confirmed live wording/state gaps including recipe-title formatting, Elemonator checked-state behavior, X-Jet factory guidance, timer warning, Field Safety wording, live Job Math quick navigation, Stock SH header behavior, and first-screen SH Mix controls.
-- Job Math Estimate workflow now mirrors the verified live controls for 0.5-point discount increments, whole-dollar final-price override increments, Clear discount, Copy customer quote, Share quote, and Print / Save PDF. The older visible Save estimate draft button is hidden while draft persistence remains available internally.
-- The parity gate now scans the estimator-parity module as part of the live-reference contract.
-- The DR staging service worker caches the shared estimator-parity module so that workflow remains available offline.
-- A paired iPhone-size visual parity harness has been added. It opens the current live calculator and a locally served staging calculator at 390×844, captures launch plus SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Guide, and Tools states, and uploads paired screenshots as a GitHub Actions artifact. Screenshot creation alone does not certify visual parity.
-- Current staging estimator calculation semantics are explicitly documented as: subtotal → one combined discount percentage → minimum-job floor → positive final-price override replaces the calculated result → deposit percentage. This is staging behavior only and is NOT yet certified as matching live.
-- Bundle/discount stacking math, minimum-job ordering, override ordering, exact quote/share/print output, Crew job sheet actions, and full service-estimator state parity remain audit-gated until current live behavior is directly verified. No unverified pricing formula has been invented.
-- Visual/iPhone parity, complete state parity, cross-deployment backup restore, and DR takeover are still not verified.
+- Formula regression suite passes the approved/default pricing and SH Mix reference cases.
+- Direct live-vs-staging Job Math scenarios now verify the current live order/behavior for minimum job, discounts, final-price override, and 50% deposit.
+- Bundle/promotion behavior is directly verified: $220 baseline → +10% bundle = 10% / $198 → +15% promotion = 25% / $165 → Clear = 0% / $220 on both live and staging.
+- Pricing Editor behavior is directly verified against live and the live 30-service structure is mirrored without intentionally changing approved rate values.
+- Estimator edge-state parity is directly verified for blank, zero, negative, decimal, very large, invalid-text, and missing-rate Roof Cleaning cases. Invalid numeric text is sanitized to blank on both deployments.
+- Customer/job field defaults/placeholders and reload persistence have matched live in direct paired testing; the current live customer name is not inserted into the customer quote by default and staging mirrors that behavior.
+- The paired iPhone-size visual parity harness now retries route activation, asserts the intended route, captures launch plus all seven top routes at 390×844, and exports both screenshots and structured DOM audits.
+- SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Tools, and Field Guide all have shared-core parity modules and are substantially aligned functionally. Pixel-level/variant visual certification remains incomplete.
+- DR staging caches the shared calculator assets and does not require ChatGPT/OpenAI calls for normal calculator operation, but full offline takeover/backup-restore acceptance has not yet been performed.
+
+## Remaining major gates
+
+- launch/first-paint visual certification
+- light-mode route-by-route visual certification
+- dark-mode route-by-route parity
+- iPhone safe-area, keyboard and numeric-input interaction behavior
+- reset/clear scope and state restoration
+- save/load state round-trip beyond the already-tested customer field
+- exact copy/share/export outputs and failure fallbacks
+- full backup/export/restore round-trip between deployments
+- remaining Field Tools persistence/alternate-state scenarios
+- final DR offline takeover test with disposable data
+- production and DR must ultimately deploy the exact same shared-core release/fingerprint
 
 ## Change classification rule
 
