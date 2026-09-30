@@ -1,0 +1,54 @@
+/* Shared FIRE service-page parity layer. Visual only; preserves service content, links and SEO. */
+:root{--fire-red:#e62e2e;--fire-blue:#2877d4;--fire-black:#050607;--fire-panel:#11151a;--fire-cream:#f3f1ec;--fire-muted:#b8bec5}
+body{font-family:Arial,Helvetica,sans-serif!important;background:var(--fire-cream)!important;color:#0b0c0e!important}
+.top{background:#050607!important;border-bottom:1px solid #1e2227!important}
+.nav{height:68px!important;max-width:1220px!important;padding:7px 20px!important;gap:18px!important}
+.brand{gap:9px!important}
+.brand img{width:54px!important;height:54px!important;object-fit:contain!important;border:0!important;background:transparent!important}
+.brand b{font-size:13px!important;letter-spacing:.055em!important}
+.brand small{font-size:9px!important;letter-spacing:.18em!important;margin-top:2px!important}
+.menu-toggle{font-size:12px!important;gap:7px!important}
+.menu-toggle .bars{font-size:23px!important}
+.site-menu{top:calc(68px + env(safe-area-inset-top))!important;background:#0c0f13!important;padding:14px 24px 22px!important}
+.site-menu a{padding:14px 4px!important;font-size:15px!important}
+.hero{background:linear-gradient(90deg,rgba(3,5,8,.96),rgba(7,12,18,.9) 55%,rgba(10,20,33,.8))!important;padding:92px 28px 82px!important;min-height:520px!important;display:flex!important;align-items:center!important}
+.hero .max{max-width:980px!important;width:100%!important}
+.kicker{font-size:12px!important;letter-spacing:.2em!important;color:var(--fire-red)!important}
+h1{font-size:clamp(46px,6vw,72px)!important;line-height:.98!important;font-weight:700!important;letter-spacing:-.035em!important;margin:20px 0 24px!important;max-width:900px!important}
+.lead{font-size:18px!important;line-height:1.65!important;max-width:760px!important;color:#d4d9df!important}
+.actions{gap:12px!important;margin-top:28px!important}
+.btn{padding:17px 22px!important;min-height:56px!important;border-radius:4px!important;font-size:15px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;background:var(--fire-red)!important}
+.btn.alt{background:#171b20!important;border:1px solid #3a4149!important}
+.max{max-width:1100px!important}
+.section{padding:68px 28px!important}
+.section h2{font-size:clamp(34px,4.8vw,54px)!important;line-height:1.02!important;font-weight:700!important;letter-spacing:-.035em!important;margin-bottom:22px!important}
+.section p{font-size:16px!important;line-height:1.65!important}
+.grid{gap:18px!important}
+.card{border-top:4px solid var(--fire-red)!important;border-radius:4px!important;padding:26px!important;box-shadow:0 2px 10px rgba(0,0,0,.04)!important}
+.card h3{font-size:22px!important;margin:0 0 10px!important}
+.dark{background:#0d1117!important}
+.dark p{color:#c5cad1!important}
+.dark .card{background:#151a21!important;box-shadow:none!important}
+.notice{padding:20px!important;margin-top:22px!important;border-radius:4px!important}
+.service-footer{background:#050607!important;color:#9fa4ae!important;padding:72px 28px 94px!important}
+.service-footer .foot{max-width:1100px!important;display:grid!important;grid-template-columns:150px minmax(0,1fr)!important;column-gap:34px!important;align-items:start!important}
+.service-footer img{width:118px!important;height:auto!important;object-fit:contain!important;margin:0!important;grid-row:1 / span 4!important}
+.service-footer strong{font-size:20px!important;color:#fff!important}
+.service-footer p{font-size:14px!important;line-height:1.8!important;margin:10px 0 0!important}
+.bottom{height:calc(64px + env(safe-area-inset-bottom))!important;background:#111!important;grid-template-columns:1fr 1.35fr 1fr!important}
+.bottom a{font-size:14px!important;background:#181b1f!important}
+.bottom a:last-child{background:var(--fire-red)!important}
+@media(max-width:799px){
+  body{padding-bottom:calc(64px + env(safe-area-inset-bottom))!important}
+  .nav{height:68px!important;padding:7px 14px!important}
+  .brand img{width:48px!important;height:48px!important}
+  .hero{min-height:500px!important;padding:68px 18px 58px!important}
+  h1{font-size:clamp(40px,12vw,58px)!important}
+  .lead{font-size:16px!important}
+  .actions{display:grid!important;grid-template-columns:1fr!important}
+  .btn{width:100%!important}
+  .section{padding:54px 18px!important}
+  .service-footer{padding:56px 20px 96px!important}
+  .service-footer .foot{display:block!important}
+  .service-footer img{margin:0 0 18px!important}
+}
