@@ -42,7 +42,7 @@
     await load('./v18-equipment-parity.js?v=1');
     await load('./v18-tools-state.js?v=1');
     await load('./v18-offline-readiness.js?v=1');
-    await load('./v18-live-shell.js?v=1');
+    await load('./v18-live-shell.js?v=2');
     window.dispatchEvent(new CustomEvent('fire-v18-parity-loaded'));
   })();
 })();
