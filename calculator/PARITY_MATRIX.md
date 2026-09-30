@@ -42,10 +42,10 @@ The current production/live calculator and the independent/recovery calculator a
 | Job Math — service estimator | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Full Estimate card is rendered in live order; service-row/state matrix remains before VERIFIED IDENTICAL. |
 | Job Math — minimum job | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct live-vs-staging Playwright scenarios match: $22 subtotal floors to $150 total and a $75 deposit; discounted totals above the minimum also match exactly. |
 | Job Math — discounts | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct live-vs-staging scenarios match 10% discount behavior exactly: $176 → $158.40 and $220 → $198, with matching deposit outputs. |
-| Job Math — bundle behavior | NOT YET VERIFIED | Verify whether and how live calculator represents bundles before implementing tests. |
+| Job Math — bundle behavior | NOT YET VERIFIED | Live +10% bundle / +15% promotion behavior is now under direct live-vs-staging CI comparison; do not promote until the run proves accumulation and Clear behavior. |
 | Job Math — final-price override | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct live-vs-staging scenarios prove the override wins after calculated pricing/discount/minimum logic: $100 and $200 overrides produce identical totals and deposits. |
 | Job Math — deposit | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct live-vs-staging scenarios match the 50% deposit exactly for minimum-floor, discounted, and final-price-override cases. The current live baseline has no separate remaining-balance output, so none is required for baseline parity. |
-| Customer/job information | NOT YET VERIFIED | Exact fields, persistence, blank states and output inclusion required. |
+| Customer/job information | NOT YET VERIFIED | Exact live field defaults/placeholders are mirrored; direct live-vs-staging persistence and quote-inclusion CI is now running before promotion. |
 | Customer quote | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Copy / Share / Print-Save-PDF action set is mirrored; exact output/failure behavior still requires state tests. |
 | Crew/job sheet | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Copy crew job sheet / Share crew sheet / Clear this estimate are mirrored; output-state matrix remains. |
 | Job loadout / profitability | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Verified default shortage state, planned chemical deduction and blank-profit state are mirrored; nonblank profitability scenarios remain. |
@@ -69,11 +69,13 @@ The current production/live calculator and the independent/recovery calculator a
 | Reset / clear | NOT YET VERIFIED | Scope, confirmation and resulting default state must be identical. |
 | Save / load | NOT YET VERIFIED | Same schema and restoration order required. |
 | Copy / share / export | NOT YET VERIFIED | Same output and failure handling required. Native share availability may be platform-specific but fallback behavior must match. |
-| Blank values | NOT YET VERIFIED | Required per formula/input. |
-| Zero values | NOT YET VERIFIED | Required per formula/input. |
-| Negative / invalid values | NOT YET VERIFIED | Same clamping/error/validation behavior required. |
-| Very large values | NOT YET VERIFIED | Same handling and no overflow/format divergence. |
-| Missing-rate service | NOT YET VERIFIED | Must never silently underquote; exact live behavior must be established and then shared. |
+| Blank values | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct estimator edge-state test matches live: blank House Wash produces $0 subtotal / $0 total / $0 deposit and the same missing-rate warning state. |
+| Zero values | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct estimator edge-state test matches live at explicit zero values. |
+| Decimal values | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct estimator test matches live: the tested decimal House Wash quantity produces identical $271.59 total and $135.80 deposit. Other numeric fields still require their own value-state coverage. |
+| Negative values | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct estimator test matches live: negative House Wash is clamped/treated to the same $0 result state. |
+| Non-numeric / paste-invalid values | NOT YET VERIFIED | Input-mode and pasted-invalid handling still require direct paired tests. |
+| Very large values | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct estimator test matches live at the tested very-large House Wash quantity: $220,000 total / $110,000 deposit. Other numeric fields still need scale-state coverage. |
+| Missing-rate service | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct paired test matches live for Roof Cleaning at the default $0 unapproved rate; both preserve $0 totals and the same needs-rate warning instead of silently inventing a price. |
 | Network offline — normal calculator | INTENTIONAL INFRASTRUCTURE DIFFERENCE | DR must run without ChatGPT/OpenAI. Shared calculator behavior must remain the same; only asset/data availability plumbing may differ. |
 | ChatGPT/OpenAI dependency | INTENTIONAL INFRASTRUCTURE DIFFERENCE | DR shared core must have no mandatory OpenAI/ChatGPT calls or auth for normal calculator operation. Optional adapters must live outside shared core. |
 | Hosting URL/domain | INTENTIONAL INFRASTRUCTURE DIFFERENCE | May differ; must not affect UI/logic. |
