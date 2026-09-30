@@ -5,9 +5,31 @@ html,body,button,input,select,textarea{font-family:Inter,ui-sans-serif,system-ui
 body{line-height:1.45!important}
 
 @media(max-width:760px){
+  html,body{background:#edf3f7!important}
+  body{padding-bottom:92px!important}
   .page,.page .card,.page input,.page select,.page textarea,.page button{line-height:1.45!important}
+
+  .topbar{width:calc(100% - 24px)!important;margin:0 12px!important;padding:14px 0 10px!important;background:#edf3f7!important;border:0!important;border-bottom:1px solid #cbd7df!important;box-shadow:0 8px 22px rgba(0,0,0,.12)!important}
+  .tabs{box-sizing:border-box!important;width:calc(100% - 24px)!important;margin:0 12px!important;padding:2px 1px 10px!important;gap:8px!important}
+  .bottom{padding:8px 10px calc(8px + env(safe-area-inset-bottom))!important;background:rgba(237,243,247,.97)!important;border-top:1px solid #cbd7df!important;box-shadow:none!important}
+
   body:not(.dark) .page .card{border-color:#cbd7df!important;border-radius:18px!important;box-shadow:0 12px 30px rgba(32,53,69,.12)!important}
   body:not(.dark) .page input,
   body:not(.dark) .page select,
   body:not(.dark) .page textarea{color:#121a22!important;border-color:#cbd7df!important;border-radius:12px!important;padding-left:12px!important;padding-right:12px!important}
+
+  body.dark,body.dark html{background:#080d12!important;color:#f7fafc!important}
+  body.dark .topbar{background:#080d12!important;color:#f7fafc!important;border-bottom-color:#263544!important;box-shadow:0 8px 22px rgba(0,0,0,.12)!important}
+  body.dark .title strong{color:#f7fafc!important}
+  body.dark .tabswrap{background:transparent!important;border-color:transparent!important}
+  body.dark .tab{background:#101a24!important;color:#9fb0bf!important;border-color:#263544!important}
+  body.dark .tab.active{background:#f7fafc!important;color:#17212b!important;border-color:#f7fafc!important}
+  body.dark .page .card{background:#13202b!important;color:#f7fafc!important;border-color:#263544!important;border-radius:18px!important;box-shadow:0 14px 34px rgba(0,0,0,.30)!important}
+  body.dark .page input,
+  body.dark .page select,
+  body.dark .page textarea{background:#0b131b!important;color:#f7fafc!important;border-color:#263544!important;border-radius:12px!important;padding-left:12px!important;padding-right:12px!important}
+  body.dark .page label,body.dark .page .muted{color:#9fb0bf!important}
+  body.dark .bottom{background:rgba(8,13,18,.94)!important;border-top-color:#263544!important;box-shadow:none!important}
+  body.dark .bottom button{background:transparent!important;color:#9fb0bf!important}
+  body.dark .bottom button.active{background:#241510!important;color:#ff6849!important}
 }
