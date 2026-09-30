@@ -35,6 +35,8 @@ jobs:
           curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
 
       - name: Compare live Job Math behavior
+        id: jobmath
+        continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
@@ -54,3 +56,9 @@ jobs:
           path: calculator/visual-parity
           if-no-files-found: error
           retention-days: 14
+
+      - name: Enforce Job Math parity result
+        if: steps.jobmath.outcome == 'failure'
+        run: |
+          echo 'Live-vs-staging Job Math behavior parity failed.'
+          exit 1
