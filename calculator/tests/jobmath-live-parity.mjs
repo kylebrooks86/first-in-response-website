@@ -13,11 +13,11 @@ const scenarios=[
 
 async function clickText(page,text){const x=page.getByText(text,{exact:true});if(await x.count()){await x.first().click();return true}return false}
 async function visibleJobRoot(page){for(const s of ['#view-job','#job']){const x=page.locator(s);if(await x.count()&&await x.first().isVisible())return x.first()}return null}
+async function jobRouteText(page){for(const s of ['#view-job','#job']){const x=page.locator(s);if(await x.count()){const raw=(await x.first().innerText()).replace(/,/g,'').replace(/\s+/g,' ');if(raw.includes('Price the whole job')||raw.includes('Subtotal'))return raw}}return null}
 async function openAllJobDetails(page){const root=await visibleJobRoot(page);if(!root)return false;await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(80);return true}
 async function setByIds(page,ids,value){for(const id of ids){const el=page.locator('#'+id);if(await el.count()){await el.evaluate((node,v)=>{node.value=String(v);node.dispatchEvent(new Event('input',{bubbles:true}));node.dispatchEvent(new Event('change',{bubbles:true}))},value);return true}}return false}
 async function estimateTotals(page){
-  const root=await visibleJobRoot(page);if(!root)return null;
-  const raw=(await root.innerText()).replace(/,/g,'').replace(/\s+/g,' ');
+  const raw=await jobRouteText(page);if(!raw)return null;
   const get=label=>{const esc=label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');const m=raw.match(new RegExp(esc+'\\s+\\$\\s*([0-9]+(?:\\.[0-9]{1,2})?)','i'));return m?Number(m[1]):null};
   return {subtotal:get('Subtotal'),total:get('Customer total'),deposit:get('50% deposit'),raw};
 }
