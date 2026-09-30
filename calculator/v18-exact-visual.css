@@ -93,6 +93,7 @@ body.dark .recipeCard{background:#2b2024!important}
   .fire-loadout-status.is-ready{border:1px solid #bfe8dc!important;background:#eefbf7!important;color:#257b65!important}
   .fire-loadout-actions{margin:0 0 12px!important}
   .fire-loadout-actions button{min-height:38px!important;padding:7px 12px!important;border:1px solid #d3dde3!important;border-radius:9px!important;background:#fff!important;color:#17212b!important;font-weight:700!important}
+  .fire-profit-empty{display:block!important;margin-top:12px!important;padding:10px 12px!important;border:1px solid #f2c4bb!important;border-radius:11px!important;background:#fff1ed!important;color:#b64d38!important;font-size:13px!important;font-weight:700!important;line-height:1.35!important}
 
   .bottom{min-height:68px!important;background:rgba(255,255,255,.94)!important;border-top:1px solid #d9e2e7!important;box-shadow:0 -3px 12px rgba(45,61,70,.08)!important}
   .bottom button{min-height:68px!important;background:transparent!important;color:#607381!important;font-size:11px!important;font-weight:700!important;padding:7px 1px!important}
