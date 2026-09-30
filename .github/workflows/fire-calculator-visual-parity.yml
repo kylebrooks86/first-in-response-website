@@ -22,9 +22,9 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Playwright
+      - name: Install Playwright and visual diff tools
         run: |
-          npm install --no-save playwright@1.55.0
+          npm install --no-save playwright@1.55.0 pngjs@7.0.0 pixelmatch@6.0.0
           npx playwright install --with-deps chromium
 
       - name: Start staging server
@@ -121,7 +121,12 @@ jobs:
           FIRE_VISUAL_OUT: calculator/visual-parity
         run: node calculator/tests/visual-parity.mjs
 
-      - name: Upload paired screenshots
+      - name: Measure light and dark visual differences
+        env:
+          FIRE_VISUAL_OUT: calculator/visual-parity
+        run: node calculator/tests/visual-diff-report.mjs
+
+      - name: Upload paired screenshots and diff report
         uses: actions/upload-artifact@v4
         with:
           name: fire-calculator-visual-parity
