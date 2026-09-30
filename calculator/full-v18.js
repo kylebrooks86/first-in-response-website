@@ -5,6 +5,6 @@
   load('./full-v18-parity-core.js?v=1')
     .then(()=>load('./v18-behavior.js?v=1'))
     .then(()=>load('./v18-interactions.js?v=1'))
-    .then(()=>load('./v18-fine-parity.js?v=3'))
+    .then(()=>load('./v18-fine-parity.js?v=4'))
     .catch(()=>console.error('FIRE v18 offline modules failed to load'));
 })();
