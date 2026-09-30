@@ -28,9 +28,18 @@
     if(actions&&!$('#printCustomerQuote')){
       const print=document.createElement('button');print.id='printCustomerQuote';print.type='button';print.textContent='Print / Save PDF';print.addEventListener('click',()=>window.print());actions.appendChild(print)
     }
-    if(discount&&!$('#clearDiscount')){
-      const row=discount.closest('.inputrow')||discount.parentElement,clear=document.createElement('button');clear.id='clearDiscount';clear.type='button';clear.className='chip';clear.textContent='Clear';
-      clear.addEventListener('click',()=>{discount.value='0';emit('fullDiscount')});row?.insertAdjacentElement('afterend',clear)
+    if(discount&&!$('#bundleDiscount10')){
+      const anchor=discount.closest('.inputrow')||discount.parentElement,row=document.createElement('div');row.className='actions fire-discount-actions';
+      const bundle=document.createElement('button');bundle.id='bundleDiscount10';bundle.type='button';bundle.textContent='+10% bundle';
+      bundle.addEventListener('click',()=>{discount.value=String(Math.min(100,(parseFloat(discount.value)||0)+10));emit('fullDiscount')});
+      const promo=document.createElement('button');promo.id='promotionDiscount15';promo.type='button';promo.textContent='+15% promotion';
+      promo.addEventListener('click',()=>{discount.value=String(Math.min(100,(parseFloat(discount.value)||0)+15));emit('fullDiscount')});
+      const clear=document.createElement('button');clear.id='clearDiscount';clear.type='button';clear.textContent='Clear';
+      clear.addEventListener('click',()=>{discount.value='0';emit('fullDiscount')});
+      row.append(bundle,promo,clear);anchor?.insertAdjacentElement('afterend',row)
+    }else if(discount&&!$('#clearDiscount')){
+      const anchor=discount.closest('.inputrow')||discount.parentElement,clear=document.createElement('button');clear.id='clearDiscount';clear.type='button';clear.textContent='Clear';
+      clear.addEventListener('click',()=>{discount.value='0';emit('fullDiscount')});anchor?.insertAdjacentElement('afterend',clear)
     }
 
     const crew=$('#crewSheet');
@@ -44,7 +53,7 @@
         ['fullCustomDesc','fullCustomAmt','fullNotes','estimateJobName'].forEach(id=>{const el=$('#'+id);if(el)el.value=''});
         if(discount)discount.value='0';if(override)override.value='0';
         emit('svcHouse');emit('fullDiscount');emit('fullOverride');
-        try{localStorage.removeItem('fireV18EstimateDraft')}catch{}
+        try{localStorage.removeItem('fireV18EstimateDraft');localStorage.removeItem('fireV18ParityDraft')}catch{}
         setTimeout(normalizeBlank,0);window.toast?.('Estimate cleared')
       });
       row.append(copyCrew,shareCrew,clearEstimate);crew.insertAdjacentElement('afterend',row)
