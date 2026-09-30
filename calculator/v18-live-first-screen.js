@@ -32,15 +32,15 @@
   };
   const decorateRecipe=()=>{
     const recipe=$('#recipeTitle')?.closest('.card');if(!recipe)return;
-    const metrics=recipe.querySelector('.metrics');
-    if(metrics&&!$('#fireMixGradient')){const bar=document.createElement('div');bar.id='fireMixGradient';bar.setAttribute('aria-hidden','true');metrics.insertAdjacentElement('afterend',bar)}
+    const metrics=recipe.querySelector('.metrics'),toggle=$('.fire-ele-toggle',recipe);
+    let bar=$('#fireMixGradient');
+    if(metrics&&!bar){bar=document.createElement('div');bar.id='fireMixGradient';bar.setAttribute('aria-hidden','true');metrics.insertAdjacentElement('afterend',bar)}
+    if(bar&&toggle&&bar.nextElementSibling!==toggle)recipe.insertBefore(bar,toggle);
     const order=[...recipe.querySelectorAll('p')].find(p=>p.textContent.includes('Add water first, then SH'));
     if(order)order.classList.add('fire-mix-order');
     const guidance=$('.fire-surface-guidance');if(guidance)guidance.classList.add('fire-guidance-note');
   };
-  const forceCustomAmountVisible=()=>{
-    const wrap=$('#customBatchWrap');if(wrap)wrap.classList.remove('hidden');
-  };
+  const forceCustomAmountVisible=()=>{const wrap=$('#customBatchWrap');if(wrap)wrap.classList.remove('hidden')};
   const syncMetrics=()=>{
     const batchSel=$('#batchPreset');if(!batchSel)return;
     let batch=+batchSel.value||4;
@@ -67,8 +67,8 @@
   };
   const apply=()=>{header();moveStockCard();moveElemonatorControls();decorateRecipe();forceCustomAmountVisible();syncMetrics()};
   const bind=()=>{
-    ['target','targetNum','stockStrength','shOnHand','eleRate','batchPreset','customBatch','customUnit'].forEach(id=>$('#'+id)?.addEventListener('input',()=>setTimeout(()=>{forceCustomAmountVisible();syncMetrics()},0)));
-    $('#batchPreset')?.addEventListener('change',()=>setTimeout(()=>{forceCustomAmountVisible();syncMetrics()},0));
+    ['target','targetNum','stockStrength','shOnHand','eleRate','batchPreset','customBatch','customUnit'].forEach(id=>$('#'+id)?.addEventListener('input',()=>setTimeout(()=>{forceCustomAmountVisible();syncMetrics();decorateRecipe()},0)));
+    $('#batchPreset')?.addEventListener('change',()=>setTimeout(()=>{forceCustomAmountVisible();syncMetrics();decorateRecipe()},0));
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{apply();bind()},700));else setTimeout(()=>{apply();bind()},700);
   window.addEventListener('fire-v18-fine-parity-ready',()=>setTimeout(apply,50));
