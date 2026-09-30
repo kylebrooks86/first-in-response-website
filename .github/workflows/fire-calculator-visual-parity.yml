@@ -82,6 +82,14 @@ jobs:
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
         run: node calculator/tests/state-roundtrip-live-parity.mjs
 
+      - name: Compare live quote copy share and print behavior
+        id: export
+        continue-on-error: true
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        run: node calculator/tests/export-live-parity.mjs
+
       - name: Inspect live bundle and customer baseline
         continue-on-error: true
         env:
@@ -138,4 +146,10 @@ jobs:
         if: steps.state.outcome == 'failure'
         run: |
           echo 'Live-vs-staging save/reload/clear parity failed.'
+          exit 1
+
+      - name: Enforce quote copy share and print parity result
+        if: steps.export.outcome == 'failure'
+        run: |
+          echo 'Live-vs-staging quote copy/share/print parity failed.'
           exit 1
