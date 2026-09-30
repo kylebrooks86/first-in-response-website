@@ -19,6 +19,85 @@ Live quick navigation:
 
 Visible quick-nav structure uses `#topJobNav.top-job-nav`.
 
+## Paired iPhone screenshot findings now verified
+
+The paired live/staging iPhone capture exposed and confirmed these live defaults and workflow details:
+
+### Mix planning
+
+- Measured area default: `2000 ft²`
+- Coverage per gallon default: `300 ft²`
+- Overspray / reserve default: `15%`
+- Sprayer / container default: `4 gallons — FlowZone`
+- The default plan therefore produces about `7.67 gal` finished mix.
+- At the current 1% target and 10% stock strength, the default planned stock SH requirement is about `98.1 fl oz`.
+- Default planned Elemonator requirement is about `7.7 fl oz`.
+
+### Measure card
+
+Live shows these shortcut actions after calculated area:
+
+- `Use for mix planning`
+- `Use for house price`
+- `Use for fence price`
+
+Staging now implements all three against the existing shared fields.
+
+### Chemical cost
+
+Live fresh defaults observed in the paired screenshot:
+
+- SH price per gallon: `$4.50`
+- Elemonator price per gallon: `$45`
+- Planned-job chemical cost is shown in a green status-style box below the current recipe cost.
+
+Staging now mirrors these fresh-state defaults and the status-box presentation without changing any customer service pricing.
+
+### Estimate card
+
+A staging ordering bug previously allowed the hidden legacy estimator card to win after both estimator cards temporarily shared the heading `Price the whole job`. This caused the visible full estimator to disappear in staging.
+
+That selector/order bug is fixed. The full FIRE estimator is now the visible `jobEstimateCard` between Chemical Cost and Loadout.
+
+### Customer quote actions
+
+Live shows:
+
+- `Copy customer quote`
+- `Share quote`
+- `Print / Save PDF`
+
+Staging now implements all three.
+
+### Crew job sheet actions
+
+Live shows:
+
+- `Copy crew job sheet`
+- `Share crew sheet`
+- `Clear this estimate`
+
+Staging now implements all three. `Clear this estimate` clears estimate/job-entry state only; it does not erase the pricing table or business-rule configuration.
+
+### Loadout
+
+Live rendered DOM confirms:
+
+- loadout status element: `#loadoutStatus`
+- deduct action: `#deductJobLoadout`
+- button label: `Deduct planned job chemicals`
+
+The paired live screenshot shows the default fresh state as `Loadout is short`, comparing on-truck SH and Elemonator against the planned job amounts.
+
+Staging now:
+
+- calculates planned stock SH and Elemonator from the same Mix Plan state
+- compares those amounts with device inventory
+- renders a shortage/readiness status box
+- provides `Deduct planned job chemicals`
+- deducts the planned quantities from device inventory when the action is used
+- initializes fresh staging inventory to zero where the old standalone defaults had preloaded 5 gal SH / 1 gal Elemonator, matching the observed live fresh-loadout state
+
 ## Verified live Estimate workflow details
 
 The following are directly observed in the rendered live Estimate card:
@@ -26,23 +105,8 @@ The following are directly observed in the rendered live Estimate card:
 - Stackable discount input exists and accepts 0.5 percentage-point increments.
 - Final-price override is labeled `Final-price override (0 = calculated)` and uses whole-dollar increments.
 - A visible `Clear` discount action exists.
-- Customer quote section includes:
-  - `Copy customer quote`
-  - `Share quote`
-  - `Print / Save PDF`
-- A `Crew job sheet` section follows the customer quote section.
-
-## Confirmed staging differences found during this audit
-
-Before this audit, staging used the older standalone controls:
-
-- discount step 0.1
-- override step 0.01
-- only `Copy customer quote`
-- visible `Save estimate draft`
-- no Share quote action
-- no Print / Save PDF action
-- no Clear discount action
+- Customer quote section includes Copy / Share / Print-Save-PDF actions.
+- A Crew job sheet section follows the customer quote section.
 
 ## Staging corrections now applied
 
@@ -55,8 +119,13 @@ Shared staging core now:
 - adds Share quote
 - adds Print / Save PDF
 - hides the standalone-only visible Save estimate draft button while preserving draft persistence in code
+- adds live Crew job sheet actions
+- adds live Measure shortcuts
+- aligns fresh Mix Plan and chemical-cost defaults
+- fixes the full-estimator ordering bug
+- mirrors the live Loadout shortage/deduct workflow
 
-These changes are implemented in `calculator/v18-live-estimator-parity.js`, loaded by the shared-core loader, included in the DR offline cache, included in the live-reference parity gate, and included in the shared-core fingerprint.
+These changes are loaded by the shared-core loader, included in the DR offline cache, included in the live-reference parity gate where applicable, and included in the shared-core fingerprint.
 
 ## Current staging calculation semantics — NOT YET CERTIFIED AS LIVE PARITY
 
@@ -79,27 +148,28 @@ Current staging defaults remain:
 
 This section documents staging only. It must not be treated as proof that the live calculator uses the same ordering. No formula-order change should be made until the live behavior is directly verified.
 
-## Not yet verified — do not assume parity
+## Still not verified — do not assume parity
 
-The following still require paired live/staging verification before promotion:
+The following remain open:
 
-- exact service-row order and grouping in the live Estimate card
-- every live estimator field/default
+- exact service-row order and grouping across every collapsed Estimate section
+- every service row's blank/zero/invalid/large-value behavior
 - exact live discount stacking math
-- whether the displayed `Stackable discount total` is one accumulated percentage or derived from multiple sequential discount operations
-- bundle behavior
+- whether bundle discounts are represented as one accumulated percentage or sequential operations
 - minimum-job application order relative to discounts and override
 - final-price override interaction with minimum job and discount
-- exact deposit calculation timing and wording
-- customer quote line ordering and formatting
-- Share quote payload/fallback behavior
-- Print / Save PDF output scope and formatting
-- Crew job sheet button set and behavior
+- exact deposit calculation timing and wording in all states
+- customer quote line ordering and exact Share/Print payload behavior
+- Crew job sheet exact text formatting
+- loadout behavior when inventory is partially sufficient or fully sufficient
 - pricing-editor field order, labels, persistence and validation
-- blank/zero/negative/very-large estimator states
-- mobile keyboard and iPhone layout
-- visual parity of all Job Math cards
+- mobile keyboard behavior
+- final pixel-level visual parity of all Job Math states
 
-## Release rule
+## Latest shared-core checkpoint
 
-This audit does not certify Job Math as identical. Production and DR remain NOT SYNCHRONIZED until all required parity-matrix rows are verified and both deployments use the same shared-core fingerprint.
+Shared-core fingerprint at this audit update:
+
+`a48c927e09eb1dd27a2c8f640a8e0bdcea551fcacb5172ad17264341454f53e0`
+
+The release gate passes formula regression, live-reference contract, and shared-core fingerprint integrity on the staging branch. Production and DR are still NOT SYNCHRONIZED until the full parity matrix is cleared and both deployments use the same shared-core release.
