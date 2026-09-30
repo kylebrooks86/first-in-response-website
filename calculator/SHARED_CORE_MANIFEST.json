@@ -3,7 +3,7 @@
   "release": "v18",
   "status": "STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED",
   "fingerprint_algorithm": "sha256(sorted lines of path:git_blob_sha)",
-  "shared_core_fingerprint": "e4948009a54de1c5ef7b7313ca8e4a0fc92e90a6a275441538b0c0131b6ab41d",
+  "shared_core_fingerprint": "65f76d8626b7b3bb2d075acd3670f329fff1bfaf1cafdbb19bd0394b6f6adfb5",
   "shared_core_files": {
     "calculator/index.html": "4be24b1101085b4f104a8661fa76e1528df6623b",
     "calculator/manifest.webmanifest": "b0b4896b333d200c8bd4194fcac16c4272c52938",
