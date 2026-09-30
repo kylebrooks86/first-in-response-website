@@ -14,7 +14,7 @@ const states=[
   {name:'04-chemical-index',top:'Chemical Index'},
   {name:'05-job-math',top:'Job Math'},
   {name:'06-field-guide',top:'Field Guide'},
-  {name:'07-tools',bottom:'Tools'}
+  {name:'07-tools',top:'Field Tools'}
 ];
 
 async function clickText(page,text){
@@ -37,8 +37,8 @@ async function capture(base,label,browser){
   await normalize(page);
   await page.screenshot({path:path.join(OUT,`${label}-00-launch.png`),fullPage:true});
   for(const state of states){
-    if(state.top) await clickText(page,state.top);
-    if(state.bottom) await clickText(page,state.bottom);
+    const clicked=await clickText(page,state.top);
+    if(!clicked) throw new Error(`${label}: could not activate route ${state.top}`);
     await page.waitForTimeout(150);
     await page.evaluate(()=>window.scrollTo(0,0));
     await page.screenshot({path:path.join(OUT,`${label}-${state.name}.png`),fullPage:true});
