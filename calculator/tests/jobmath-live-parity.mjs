@@ -12,18 +12,8 @@ const scenarios=[
 ];
 
 async function clickText(page,text){const x=page.getByText(text,{exact:true});if(await x.count()){await x.first().click();return true}return false}
-async function openCustomWork(page){
-  const summaries=page.locator('summary');
-  for(let i=0;i<await summaries.count();i++){
-    const s=summaries.nth(i),text=(await s.innerText()).trim();
-    if(/Custom work|discounts|notes/i.test(text)){
-      const details=s.locator('xpath=..');
-      if(!await details.evaluate(el=>el.open))await s.click();
-      return true;
-    }
-  }
-  return false;
-}
+async function visibleJobRoot(page){for(const s of ['#view-job','#job']){const x=page.locator(s);if(await x.count()&&await x.first().isVisible())return x.first()}return null}
+async function openAllJobDetails(page){const root=await visibleJobRoot(page);if(!root)return false;await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(80);return true}
 async function inputByLabel(page,labels,value){
   for(const label of labels){const all=page.getByLabel(label,{exact:false});for(let i=0;i<await all.count();i++){const el=all.nth(i);if(await el.isVisible()){await el.fill(String(value));await el.dispatchEvent('input');await el.dispatchEvent('change');return true}}}
   return false;
@@ -38,7 +28,7 @@ async function runScenario(browser,base,scenario){
   const page=await ctx.newPage();await page.goto(base,{waitUntil:'networkidle',timeout:60000});
   if(!await clickText(page,'Job Math'))throw new Error(`Could not open Job Math at ${base}`);
   await page.waitForTimeout(300);
-  await openCustomWork(page);
+  if(!await openAllJobDetails(page))throw new Error(`${base}: no visible Job Math route`);
   const house=await inputByLabel(page,['House wash area'],scenario.house);
   const discount=await inputByLabel(page,['Stackable discount total','Discount'],scenario.discount);
   const override=await inputByLabel(page,['Final-price override','Final price override'],scenario.override);
