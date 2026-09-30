@@ -7,7 +7,7 @@
   (async()=>{
     await load('./full-v18-core.js?v=1');
     await waitForCore();
-    await load('./full-v18-parity-core.js?v=1');
+    await load('./full-v18-parity-core.js?v=2');
     await load('./v18-behavior.js?v=4');
     await load('./v18-interactions.js?v=2');
     await load('./v18-fine-parity.js?v=7');
