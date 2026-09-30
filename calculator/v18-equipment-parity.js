@@ -5,7 +5,22 @@ const STORE='fireV18EquipmentTankPlanner';
 function n(id,d=0){const e=$('#'+id),v=e?parseFloat(e.value):NaN;return Number.isFinite(v)?v:d}
 function loadSaved(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch{return{}}}
 function save(){const d={};['waterTankSize','shTankSize','soapTankSize'].forEach(id=>{const e=$('#'+id);if(e)d[id]=e.value});localStorage.setItem(STORE,JSON.stringify(d))}
-function install(){
+function installXJetLiveParity(){
+  const xPct=$('#xPct'),xBucket=$('#xBucket'),xSurface=$('#xSurface');
+  if(xPct&&xBucket&&xSurface&&!$('#xMeasuredPct')){
+    const field=document.createElement('div');field.className='field span4';
+    field.innerHTML='<label>Measured chemical percentage</label><div class="inputrow"><input id="xMeasuredPct" type="number" min="0" max="100" step="0.1" value="'+(+xPct.value||35)+'"><span class="unit">%</span></div>';
+    const grid=xBucket.closest('.grid');if(grid)grid.appendChild(field);
+    const measured=$('#xMeasuredPct');
+    const calc=()=>{const pct=Math.max(0,+measured.value||0),buck=Math.max(0,+xBucket.value||0);xSurface.textContent=(buck*pct/100).toFixed(2)+'% SH at the surface'};
+    xPct.addEventListener('input',()=>{measured.value=xPct.value;calc()});
+    xPct.addEventListener('change',()=>{measured.value=xPct.value;calc()});
+    xBucket.addEventListener('input',calc);measured.addEventListener('input',calc);calc();
+  }
+  const draw=$('#xDrawOz');
+  if(draw&&String(draw.value)==='32'){draw.value='64';draw.dispatchEvent(new Event('input',{bubbles:true}))}
+}
+function installTankPlanner(){
  const head=[...document.querySelectorAll('#equipment h2')].find(h=>h.textContent.trim()==='Three-port proportioner planner');
  if(!head)return;
  const card=head.closest('.card');if(!card||$('#waterTankSize'))return;
@@ -38,5 +53,7 @@ function install(){
  ['waterTankSize','shTankSize','soapTankSize','pumpGpm','propStock','propTarget','soapPct'].forEach(id=>$('#'+id)?.addEventListener('input',calc));
  calc();
 }
+function install(){installXJetLiveParity();installTankPlanner()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,800));else setTimeout(install,800);
+window.addEventListener('fire-v18-core-ready',()=>setTimeout(install,50));
 })();
