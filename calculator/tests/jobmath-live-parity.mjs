@@ -18,7 +18,7 @@ async function openAllJobDetails(page){const root=await visibleJobRoot(page);if(
 async function setByIds(page,ids,value){for(const id of ids){const el=page.locator('#'+id);if(await el.count()){await el.evaluate((node,v)=>{node.value=String(v);node.dispatchEvent(new Event('input',{bubbles:true}));node.dispatchEvent(new Event('change',{bubbles:true}))},value);return true}}return false}
 async function estimateTotals(page){
   const raw=await jobRouteText(page);if(!raw)return null;
-  const get=label=>{const esc=label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');const m=raw.match(new RegExp(esc+'\\s+\\$\\s*([0-9]+(?:\\.[0-9]{1,2})?)','i'));return m?Number(m[1]):null};
+  const get=label=>{const esc=label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');const m=raw.match(new RegExp(esc+'\\s*\\$\\s*([0-9]+(?:\\.[0-9]{1,2})?)','i'));return m?Number(m[1]):null};
   return {subtotal:get('Subtotal'),total:get('Customer total'),deposit:get('50% deposit'),raw};
 }
 async function runScenario(browser,base,scenario){
