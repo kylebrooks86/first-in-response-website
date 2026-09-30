@@ -33,7 +33,31 @@ const contract = Object.freeze({
   safetyBanner: 'Never mix SH with acids, ammonia, F9 BARC, or other cleaners.',
   shMix: {
     headings: ['Choose the surface','Set batch size'],
+    surfaces: [
+      'House wash — vinyl / painted siding',
+      'Roof wash — asphalt shingles',
+      'Roof wash — metal / tile',
+      'Fence wash — vinyl',
+      'Fence wash — wood',
+      'Deck — composite',
+      'Deck — wood',
+      'Concrete — pre-treatment',
+      'Concrete — post-treatment',
+      'Pavers / hardscape',
+      'Brick / masonry',
+      'Stucco / EIFS',
+      'Aluminum siding / gutters — organics',
+      'Pool deck / patio',
+      'Trash bins'
+    ],
     growth: ['Light','Moderate','Heavy'],
+    defaultGrowth: 'moderate',
+    batchPresets: [
+      '4 gallons — FlowZone','12 fl oz','16 fl oz','20 fl oz','24 fl oz','26 fl oz','28 fl oz','32 fl oz','40 fl oz','48 fl oz','64 fl oz / ½ gal','3 quarts','1 gallon','1½ gallons','2 gallons','2½ gallons','3 gallons','5 gallons','7 gallons','10 gallons','15 gallons','20 gallons','25 gallons','30 gallons','35 gallons','50 gallons','65 gallons','75 gallons','100 gallons','125 gallons','150 gallons','200 gallons','250 gallons','Custom amount'
+    ],
+    quickBatch: ['26 oz','½ gal','1 gal','2 gal','4 gal','Custom amount'],
+    customUnits: ['gal','fl oz','quart','liter'],
+    defaultBatch: '4 gallons — FlowZone',
     recipeExample: '4.00 gal medium house wash',
     guidance: 'Start low. Check oxidation, failed paint, outlets, door seals, and delicate fixtures before applying.',
     mixOrder: 'Add water first, then SH, then bleach-stable surfactant. Pre-wet and post-rinse vegetation.',
