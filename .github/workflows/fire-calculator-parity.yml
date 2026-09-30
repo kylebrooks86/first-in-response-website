@@ -38,10 +38,13 @@ jobs:
           calculator/v18-interactions.js
           calculator/v18-fine-parity.js
           calculator/v18-equipment-parity.js
+          calculator/v18-live-equipment-visual.css
           calculator/v18-tools-state.js
           calculator/v18-live-estimator-parity.js
           calculator/v18-live-first-screen.js
           calculator/v18-live-jobmath-parity.js
+          calculator/v18-live-pricing-parity.js
+          calculator/v18-live-pricing-parity.css
           calculator/v18-live-chemicals-parity.js
           calculator/v18-live-chemicals-parity.css
           calculator/v18-live-index-parity.js
