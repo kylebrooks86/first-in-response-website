@@ -1,6 +1,7 @@
 (()=>{
   if(window.__fireV18ModuleLoader)return;
   window.__fireV18ModuleLoader=true;
+  if(!document.querySelector('link[data-fire-exact-visual]')){const l=document.createElement('link');l.rel='stylesheet';l.href='./v18-exact-visual.css?v=1';l.dataset.fireExactVisual='1';document.head.appendChild(l)}
   const load=src=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s)});
   const waitForCore=(timeout=5000)=>new Promise((resolve,reject)=>{
     const start=Date.now();
