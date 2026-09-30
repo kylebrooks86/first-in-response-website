@@ -5,6 +5,7 @@
   const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch{return{}}};
   const write=d=>{try{localStorage.setItem(KEY,JSON.stringify(d))}catch{}};
   function priceCard(){const editor=$('#priceEditor');return editor?.closest('.card')||[...document.querySelectorAll('#job .card,#view-job .card')].find(c=>c.textContent.includes('Price the whole job'))}
+  function associate(el){if(!el)return;const label=el.closest('.field')?.querySelector('label');if(label){label.setAttribute('for',el.id);el.setAttribute('aria-label',label.textContent.trim())}}
   function save(){const d=read(),name=$('#estimateJobName'),desc=$('#fullCustomDesc'),amt=$('#fullCustomAmt'),notes=$('#fullNotes');if(name)d.estimateJobName=name.value;if(desc)d.fullCustomDesc=desc.value;if(amt)d.fullCustomAmt=amt.value;if(notes)d.fullNotes=notes.value;write(d)}
   function apply(){
     const card=priceCard();if(!card)return;
@@ -18,6 +19,7 @@
     if(desc){desc.placeholder='Example: patio furniture cleaning';if(desc.value===''&&saved.fullCustomDesc===undefined)desc.value='Custom service';else if(desc.value===''&&saved.fullCustomDesc!==undefined)desc.value=saved.fullCustomDesc}
     if(amt){if(amt.value===''&&saved.fullCustomAmt===undefined)amt.value='0';else if(amt.value===''&&saved.fullCustomAmt!==undefined)amt.value=saved.fullCustomAmt}
     if(notes){notes.placeholder='Optional scope, access, scheduling, or surface-condition notes';if(notes.value===''&&saved.fullNotes!==undefined)notes.value=saved.fullNotes}
+    [name,desc,amt,notes].filter(Boolean).forEach(associate);
     [name,desc,amt,notes].filter(Boolean).forEach(el=>{if(el.dataset.liveDraftBound)return;el.dataset.liveDraftBound='1';el.addEventListener('input',save);el.addEventListener('change',save)});
     save();
   }
