@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import fs from 'node:fs';
 
 const LIVE=process.env.FIRE_LIVE_URL||'https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site';
 const STAGING=process.env.FIRE_STAGING_URL||'http://127.0.0.1:4173/calculator/';
@@ -23,4 +24,4 @@ async function run(base,browser){
   await clickClear(page);await page.waitForTimeout(220);const afterClear=await snapshot(page);
   await ctx.close();return {beforeReload,afterReload,clearDialog,afterClear};
 }
-const browser=await chromium.launch({headless:true});try{const live=await run(LIVE,browser),staging=await run(STAGING,browser);console.log('LIVE STATE '+JSON.stringify(live));console.log('STAGING STATE '+JSON.stringify(staging));const ok=JSON.stringify(live)===JSON.stringify(staging);console.log(`STATE ROUNDTRIP PARITY ${ok?'PASS':'FAIL'}`);if(!ok)process.exit(1);console.log('STATE ROUNDTRIP LIVE PARITY PASS')}finally{await browser.close()}
+const browser=await chromium.launch({headless:true});try{const live=await run(LIVE,browser),staging=await run(STAGING,browser);const diagnostic={live,staging};fs.mkdirSync('calculator/visual-parity',{recursive:true});fs.writeFileSync('calculator/visual-parity/state-roundtrip.json',JSON.stringify(diagnostic,null,2));console.log('LIVE STATE '+JSON.stringify(live));console.log('STAGING STATE '+JSON.stringify(staging));const ok=JSON.stringify(live)===JSON.stringify(staging);console.log(`STATE ROUNDTRIP PARITY ${ok?'PASS':'FAIL'}`);if(!ok)process.exit(1);console.log('STATE ROUNDTRIP LIVE PARITY PASS')}finally{await browser.close()}
