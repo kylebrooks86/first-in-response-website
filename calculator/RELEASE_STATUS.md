@@ -23,8 +23,8 @@ All visible UI, formulas, pricing logic, validation, navigation, state handling,
 
 - Isolated staging branch: `fire-calculator-exact-live-clone`.
 - Production/live calculator has not been overwritten.
-- Current staging shared-core fingerprint: `d56a0b348e7067a7725fa21e5f4730ef53b2ee56196bd9caa3de5bdc3e3a212c`.
-- Shared-core fingerprint is generated and tracked in `SHARED_CORE_MANIFEST.json`.
+- Current staging shared-core fingerprint: `439a472e11e0757e8cea2761f0edbdb02c5a3fde8ace40b1086447b5bb67922a`.
+- Shared-core fingerprint is generated and tracked in `SHARED_CORE_MANIFEST.json`, including the live-backup hydration layer.
 - Formula regression, live-reference contract, and shared-core fingerprint integrity gates pass.
 - Direct live-vs-staging Job Math scenarios verify minimum-job behavior, discounts, final-price override ordering, and 50% deposit calculations.
 - Bundle/promotion behavior is directly verified: $220 baseline → +10% bundle = $198 → +15% promotion stacks to 25% / $165 → Clear returns to $220.
@@ -33,10 +33,10 @@ All visible UI, formulas, pricing logic, validation, navigation, state handling,
 - Customer/job field defaults, placeholders, quote inclusion behavior, and reload persistence match live in direct paired testing.
 - Save/reload/clear matches live for customer name, House Wash quantity, estimate notes, discount, pricing preservation, and Job Math planning/measurement/calibration fields.
 - Customer quote copy text, share payload, and Print / Save PDF action behavior match live in paired export testing.
-- The live calculator's real v3 backup format is now supported by DR. A disposable live backup successfully restores customer/job state, House Wash quantity, discount, measured area, and SH inventory into the independent calculator after reload.
-- The live-v3 migration preserves the original live backup stores and translates estimate, planning/calibration, seven-product inventory, rig, and X-Jet state into the DR schema.
+- The live calculator's real v3 backup format is supported by DR. A disposable live backup successfully restores customer/job state, House Wash quantity, discount, measured area, and SH inventory into the independent calculator after reload.
+- The live-v3 migration preserves the original live backup stores and translates estimate, planning/calibration, seven-product inventory, rig, and X-Jet state into the DR schema. Post-reload backup hydration is part of the fingerprinted shared core.
 - SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Tools, and Field Guide all have shared-core parity modules and are substantially aligned functionally.
-- The paired 390×844 iPhone harness captures light/dark screenshots, structured DOM audits, and computed-style diagnostics for every top route.
+- The paired 390×844 iPhone harness captures light/dark screenshots, structured DOM audits, computed-style diagnostics, and mobile numeric-input metadata for every top route.
 - The visible-only computed-style audit has been reduced substantially from the earlier baseline, but measurable visual differences remain, so the staging calculator is not yet visually identical.
 - DR staging caches the shared calculator assets and does not require ChatGPT/OpenAI calls for normal calculator operation.
 
