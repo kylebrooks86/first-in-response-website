@@ -14,16 +14,17 @@ const scenarios=[
 async function clickText(page,text){const x=page.getByText(text,{exact:true});if(await x.count()){await x.first().click();return true}return false}
 async function visibleJobRoot(page){for(const s of ['#view-job','#job']){const x=page.locator(s);if(await x.count()&&await x.first().isVisible())return x.first()}return null}
 async function openAllJobDetails(page){const root=await visibleJobRoot(page);if(!root)return false;await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(80);return true}
-async function setByIds(page,ids,value){
-  for(const id of ids){const el=page.locator('#'+id);if(await el.count()){
-    await el.evaluate((node,v)=>{node.value=String(v);node.dispatchEvent(new Event('input',{bubbles:true}));node.dispatchEvent(new Event('change',{bubbles:true}))},value);
-    return true;
-  }}
-  return false;
-}
-async function moneyNear(page,label){
-  const all=page.getByText(label,{exact:true});
-  for(let i=0;i<await all.count();i++){const text=all.nth(i);if(!await text.isVisible())continue;const box=text.locator('xpath=..');const raw=(await box.innerText()).replace(/,/g,'');const m=raw.match(/\$\s*([0-9]+(?:\.[0-9]{1,2})?)/);if(m)return Number(m[1])}
+async function setByIds(page,ids,value){for(const id of ids){const el=page.locator('#'+id);if(await el.count()){await el.evaluate((node,v)=>{node.value=String(v);node.dispatchEvent(new Event('input',{bubbles:true}));node.dispatchEvent(new Event('change',{bubbles:true}))},value);return true}}return false}
+async function estimateTotals(page){
+  const root=await visibleJobRoot(page);if(!root)return null;
+  const cards=root.locator('.card');
+  for(let i=0;i<await cards.count();i++){
+    const c=cards.nth(i),heading=((await c.locator('h2,h3').first().textContent().catch(()=>''))||'').trim();
+    if(heading!=='Price the whole job')continue;
+    const raw=(await c.innerText()).replace(/,/g,'').replace(/\s+/g,' ');
+    const get=label=>{const m=raw.match(new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s+\\$\\s*([0-9]+(?:\\.[0-9]{1,2})?)','i'));return m?Number(m[1]):null};
+    return {subtotal:get('Subtotal'),total:get('Customer total'),deposit:get('50% deposit'),raw};
+  }
   return null;
 }
 async function runScenario(browser,base,scenario){
@@ -36,25 +37,13 @@ async function runScenario(browser,base,scenario){
   const discount=await setByIds(page,['discountPct','fullDiscount'],scenario.discount);
   const override=await setByIds(page,['quotedPrice','fullOverride'],scenario.override);
   if(!house||!discount||!override)throw new Error(`${base}: missing Job Math input for ${scenario.name} house=${house} discount=${discount} override=${override}`);
-  await page.waitForTimeout(250);
-  const subtotal=await moneyNear(page,'Subtotal');
-  const total=await moneyNear(page,'Customer total');
-  const deposit=await moneyNear(page,'50% deposit');
-  await ctx.close();
-  if([subtotal,total,deposit].some(v=>v===null))throw new Error(`${base}: could not read totals for ${scenario.name}`);
-  return {subtotal,total,deposit};
+  await page.waitForTimeout(300);
+  const found=await estimateTotals(page);await ctx.close();
+  if(!found||[found.subtotal,found.total,found.deposit].some(v=>v===null))throw new Error(`${base}: could not read totals for ${scenario.name}. card=${found?.raw||'missing'}`);
+  return {subtotal:found.subtotal,total:found.total,deposit:found.deposit};
 }
 function same(a,b){return Math.abs(a-b)<0.011}
-const browser=await chromium.launch({headless:true});
-let failed=false;
-try{
-  for(const scenario of scenarios){
-    const live=await runScenario(browser,LIVE,scenario);
-    const staging=await runScenario(browser,STAGING,scenario);
-    const ok=same(live.subtotal,staging.subtotal)&&same(live.total,staging.total)&&same(live.deposit,staging.deposit);
-    console.log(`${ok?'PASS':'FAIL'} ${scenario.name}: live=${JSON.stringify(live)} staging=${JSON.stringify(staging)}`);
-    if(!ok)failed=true;
-  }
-}finally{await browser.close()}
+const browser=await chromium.launch({headless:true});let failed=false;
+try{for(const scenario of scenarios){const live=await runScenario(browser,LIVE,scenario);const staging=await runScenario(browser,STAGING,scenario);const ok=same(live.subtotal,staging.subtotal)&&same(live.total,staging.total)&&same(live.deposit,staging.deposit);console.log(`${ok?'PASS':'FAIL'} ${scenario.name}: live=${JSON.stringify(live)} staging=${JSON.stringify(staging)}`);if(!ok)failed=true}}finally{await browser.close()}
 if(failed)process.exit(1);
 console.log('JOB MATH LIVE PARITY PASS');
