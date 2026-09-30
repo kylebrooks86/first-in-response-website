@@ -66,6 +66,14 @@ jobs:
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
         run: node calculator/tests/customer-live-parity.mjs
 
+      - name: Compare live bundle and promotion behavior
+        id: bundle
+        continue-on-error: true
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        run: node calculator/tests/bundle-live-parity.mjs
+
       - name: Inspect live bundle and customer baseline
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -109,4 +117,10 @@ jobs:
         if: steps.customer.outcome == 'failure'
         run: |
           echo 'Live-vs-staging customer/draft parity failed.'
+          exit 1
+
+      - name: Enforce bundle and promotion parity result
+        if: steps.bundle.outcome == 'failure'
+        run: |
+          echo 'Live-vs-staging bundle/promotion parity failed.'
           exit 1
