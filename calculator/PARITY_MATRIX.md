@@ -40,11 +40,11 @@ The current production/live calculator and the independent/recovery calculator a
 | Job Math — measurement helpers | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Area helper plus Use for mix planning / house price / fence price shortcuts are implemented. |
 | Job Math — batch chemical cost | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Verified fresh defaults $4.50 SH and $45 Elemonator plus planned-job status are mirrored. |
 | Job Math — service estimator | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Full Estimate card is rendered in live order; service-row/state matrix remains before VERIFIED IDENTICAL. |
-| Job Math — minimum job | NOT YET VERIFIED | Live-vs-staging Playwright behavior scenarios have been added; do not promote until the run proves totals. |
-| Job Math — discounts | NOT YET VERIFIED | Live-vs-staging Playwright behavior scenarios now test discount interactions; no independent interpretation allowed. |
+| Job Math — minimum job | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct live-vs-staging Playwright scenarios match: $22 subtotal floors to $150 total and a $75 deposit; discounted totals above the minimum also match exactly. |
+| Job Math — discounts | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct live-vs-staging scenarios match 10% discount behavior exactly: $176 → $158.40 and $220 → $198, with matching deposit outputs. |
 | Job Math — bundle behavior | NOT YET VERIFIED | Verify whether and how live calculator represents bundles before implementing tests. |
-| Job Math — final-price override | NOT YET VERIFIED | Live-vs-staging Playwright behavior scenarios now test override ordering; do not promote until proven. |
-| Job Math — deposit / remaining balance | NOT YET VERIFIED | Live-vs-staging Playwright scenarios compare deposit output; remaining-balance output still requires audit. |
+| Job Math — final-price override | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Direct live-vs-staging scenarios prove the override wins after calculated pricing/discount/minimum logic: $100 and $200 overrides produce identical totals and deposits. |
+| Job Math — deposit / remaining balance | NOT YET VERIFIED | 50% deposit calculation is directly verified across all five live-vs-staging scenarios; remaining-balance behavior/output still requires a dedicated paired audit before this combined row can be promoted. |
 | Customer/job information | NOT YET VERIFIED | Exact fields, persistence, blank states and output inclusion required. |
 | Customer quote | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Copy / Share / Print-Save-PDF action set is mirrored; exact output/failure behavior still requires state tests. |
 | Crew/job sheet | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Copy crew job sheet / Share crew sheet / Clear this estimate are mirrored; output-state matrix remains. |
