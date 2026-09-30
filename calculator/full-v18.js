@@ -13,6 +13,8 @@
     await load('./v18-fine-parity.js?v=7');
     await load('./v18-equipment-parity.js?v=1');
     await load('./v18-tools-state.js?v=1');
+    await load('./v18-live-estimator-parity.js?v=1');
+    window.dispatchEvent(new CustomEvent('fire-v18-parity-loaded'));
     window.dispatchEvent(new CustomEvent('fire-v18-shared-core-ready'));
   })();
 })();
