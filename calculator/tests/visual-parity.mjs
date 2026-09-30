@@ -8,13 +8,13 @@ const OUT=process.env.FIRE_VISUAL_OUT||'calculator/visual-parity';
 fs.mkdirSync(OUT,{recursive:true});
 
 const states=[
-  {name:'01-sh-mix',top:'SH Mix',views:['#view-mix','#mix']},
-  {name:'02-equipment',top:'Equipment',views:['#view-delivery','#equipment']},
-  {name:'03-chemicals',top:'Chemicals',views:['#view-chemicals','#chemicals']},
-  {name:'04-chemical-index',top:'Chemical Index',views:['#view-index','#index']},
-  {name:'05-job-math',top:'Job Math',views:['#view-job','#job']},
-  {name:'06-field-guide',top:'Field Guide',views:['#view-guide','#guide']},
-  {name:'07-tools',top:'Field Tools',views:['#view-tools','#tools']}
+  {name:'01-sh-mix',top:'SH Mix',views:['#view-mix','#mix'],signature:'Final SH strength'},
+  {name:'02-equipment',top:'Equipment',views:['#view-delivery','#view-equipment','#equipment'],signature:'X-Jet'},
+  {name:'03-chemicals',top:'Chemicals',views:['#view-chemicals','#chemicals'],signature:'Ettore'},
+  {name:'04-chemical-index',top:'Chemical Index',views:['#view-index','#index'],signature:'Chemical Use Index'},
+  {name:'05-job-math',top:'Job Math',views:['#view-job','#job'],signature:'Price the whole job'},
+  {name:'06-field-guide',top:'Field Guide',views:['#view-guide','#guide'],signature:'Quick safety order'},
+  {name:'07-tools',top:'Field Tools',views:['#view-tools','#tools'],signature:'Chemical Inventory'}
 ];
 
 async function clickText(page,text){
@@ -24,6 +24,22 @@ async function clickText(page,text){
 }
 async function visibleSelector(page,state){
   for(const selector of state.views){const loc=page.locator(selector);if(await loc.count()&&await loc.first().isVisible())return selector}
+  const candidates=page.locator('[id^="view-"],#mix,#equipment,#chemicals,#index,#job,#tools,#guide');
+  for(let i=0;i<await candidates.count();i++){
+    const el=candidates.nth(i);if(!await el.isVisible())continue;
+    const text=(await el.innerText()).replace(/\s+/g,' ');
+    if(text.includes(state.signature)){const id=await el.getAttribute('id');if(id)return '#'+id}
+  }
+  return null;
+}
+async function activateRoute(page,state){
+  for(let attempt=0;attempt<4;attempt++){
+    if(!await clickText(page,state.top)){await page.waitForTimeout(180);continue}
+    for(let poll=0;poll<12;poll++){
+      await page.waitForTimeout(120);
+      const selector=await visibleSelector(page,state);if(selector)return selector;
+    }
+  }
   return null;
 }
 async function normalize(page){await page.addStyleTag({content:'*,*::before,*::after{caret-color:transparent!important;animation:none!important;transition:none!important}html{scroll-behavior:auto!important}'})}
@@ -32,7 +48,7 @@ async function auditRoute(page,selector){
     const clean=s=>(s||'').replace(/\s+/g,' ').trim();
     const controls=[...root.querySelectorAll('input,select,textarea')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0}).map(e=>({
       tag:e.tagName.toLowerCase(),id:e.id||null,type:e.type||null,value:e.value,
-      label:clean(e.closest('.field')?.querySelector('label')?.textContent||document.querySelector(`label[for="${e.id}"]`)?.textContent||''),
+      label:clean(e.closest('.field')?.querySelector('label')?.textContent||document.querySelector(`label[for="${e.id}"]`)?.textContent||e.getAttribute('aria-label')||''),
       placeholder:e.getAttribute('placeholder')||null,
       rowText:clean(e.closest('.pricegrid,.field,.listrow')?.innerText||''),
       dataRateId:e.getAttribute('data-rate-id')||null
@@ -48,9 +64,8 @@ async function capture(base,label,browser){
   await page.goto(base,{waitUntil:'networkidle',timeout:60000});await normalize(page);
   await page.screenshot({path:path.join(OUT,`${label}-00-launch.png`),fullPage:true});
   for(const state of states){
-    if(!await clickText(page,state.top))throw new Error(`${label}: could not activate route ${state.top}`);
-    await page.waitForTimeout(180);
-    const selector=await visibleSelector(page,state);if(!selector)throw new Error(`${label}: ${state.top} click did not expose the expected route`);
+    const selector=await activateRoute(page,state);
+    if(!selector)throw new Error(`${label}: ${state.top} did not expose a route containing ${state.signature}`);
     audit[state.name]=await auditRoute(page,selector);
     await page.evaluate(()=>window.scrollTo(0,0));
     await page.screenshot({path:path.join(OUT,`${label}-${state.name}.png`),fullPage:true});
