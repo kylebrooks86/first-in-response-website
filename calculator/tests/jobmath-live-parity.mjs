@@ -17,15 +17,9 @@ async function openAllJobDetails(page){const root=await visibleJobRoot(page);if(
 async function setByIds(page,ids,value){for(const id of ids){const el=page.locator('#'+id);if(await el.count()){await el.evaluate((node,v)=>{node.value=String(v);node.dispatchEvent(new Event('input',{bubbles:true}));node.dispatchEvent(new Event('change',{bubbles:true}))},value);return true}}return false}
 async function estimateTotals(page){
   const root=await visibleJobRoot(page);if(!root)return null;
-  const cards=root.locator('.card');
-  for(let i=0;i<await cards.count();i++){
-    const c=cards.nth(i),heading=((await c.locator('h2,h3').first().textContent().catch(()=>''))||'').trim();
-    if(heading!=='Price the whole job')continue;
-    const raw=(await c.innerText()).replace(/,/g,'').replace(/\s+/g,' ');
-    const get=label=>{const m=raw.match(new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s+\\$\\s*([0-9]+(?:\\.[0-9]{1,2})?)','i'));return m?Number(m[1]):null};
-    return {subtotal:get('Subtotal'),total:get('Customer total'),deposit:get('50% deposit'),raw};
-  }
-  return null;
+  const raw=(await root.innerText()).replace(/,/g,'').replace(/\s+/g,' ');
+  const get=label=>{const esc=label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');const m=raw.match(new RegExp(esc+'\\s+\\$\\s*([0-9]+(?:\\.[0-9]{1,2})?)','i'));return m?Number(m[1]):null};
+  return {subtotal:get('Subtotal'),total:get('Customer total'),deposit:get('50% deposit'),raw};
 }
 async function runScenario(browser,base,scenario){
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
@@ -39,7 +33,7 @@ async function runScenario(browser,base,scenario){
   if(!house||!discount||!override)throw new Error(`${base}: missing Job Math input for ${scenario.name} house=${house} discount=${discount} override=${override}`);
   await page.waitForTimeout(300);
   const found=await estimateTotals(page);await ctx.close();
-  if(!found||[found.subtotal,found.total,found.deposit].some(v=>v===null))throw new Error(`${base}: could not read totals for ${scenario.name}. card=${found?.raw||'missing'}`);
+  if(!found||[found.subtotal,found.total,found.deposit].some(v=>v===null))throw new Error(`${base}: could not read totals for ${scenario.name}. route=${found?.raw||'missing'}`);
   return {subtotal:found.subtotal,total:found.total,deposit:found.deposit};
 }
 function same(a,b){return Math.abs(a-b)<0.011}
