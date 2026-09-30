@@ -1,7 +1,7 @@
 (()=>{
   if(window.__fireLivePlanningState)return;window.__fireLivePlanningState=true;
   const KEY='fireV18LivePlanningState';
-  const ids=['area','coverage','reserve','planContainer'];
+  const ids=['area','coverage','reserve','planContainer','areaLen','areaWid','areaSides','areaSubtract','calArea','calMix'];
   const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch{return{}}};
   const write=o=>{try{localStorage.setItem(KEY,JSON.stringify(o))}catch{}};
   const save=()=>{const o=read();for(const id of ids){const e=document.getElementById(id);if(e)o[id]=e.value}write(o)};
