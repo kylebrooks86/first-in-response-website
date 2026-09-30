@@ -12,7 +12,8 @@
   function restore(){const d=read();for(const [id,v] of Object.entries(d)){const e=$('#'+id);if(e&&v!==undefined&&v!==null)e.value=String(v)}}
   function refreshCalculatedState(){for(const id of ['svcHouse','fullDiscount','fullOverride']){const e=$('#'+id);if(e){e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}))}}}
   function saveFromEvent(e){if(draftIds.has(e.target?.id))save()}
-  const normalizeQuote=()=>{const q=$('#fullQuote');if(!q)return;const t=q.textContent||'';if(t.includes('Prepared for:'))q.textContent=t.replace(/Prepared for:[^\n]*/,'Prepared for: Customer')};
+  const normalizeQuote=()=>{const q=$('#fullQuote');if(!q)return;const t=q.textContent||'';if(/Prepared for:(?! Customer)/.test(t))q.textContent=t.replace(/Prepared for:[^\n]*/,'Prepared for: Customer')};
+  const observeQuote=()=>{const q=$('#fullQuote');if(!q||q.dataset.fireQuoteObserved==='1')return;q.dataset.fireQuoteObserved='1';new MutationObserver(normalizeQuote).observe(q,{childList:true,characterData:true,subtree:true})};
   const currentQuote=()=>{normalizeQuote();return $('#fullQuote')?.textContent||''};
   const copyText=async text=>{try{await navigator.clipboard.writeText(text);window.toast?.('Customer quote copied')}catch{}};
   const shareText=async text=>{if(navigator.share){try{await navigator.share({title:'First In Response Exteriors estimate',text});return}catch(e){if(e?.name==='AbortError')return}}await copyText(text)};
@@ -29,7 +30,7 @@
     window.toast?.('Estimate cleared');
   }
   function bindLiveActions(){
-    normalizeQuote();
+    observeQuote();normalizeQuote();
     replaceButton('copyFullQuote',b=>b.addEventListener('click',()=>copyText(currentQuote())));
     replaceButton('shareCustomerQuote',b=>b.addEventListener('click',()=>shareText(currentQuote())));
     replaceButton('printCustomerQuote',b=>b.addEventListener('click',()=>printText(currentQuote())));
@@ -50,10 +51,10 @@
     if(notes)notes.placeholder='Optional scope, access, scheduling, or surface-condition notes';
     restore();
     [name,desc,amt,notes,$('#fullDiscount'),$('#fullOverride')].filter(Boolean).forEach(associate);
-    save();setTimeout(()=>{refreshCalculatedState();bindLiveActions()},0)
+    save();setTimeout(refreshCalculatedState,0);setTimeout(bindLiveActions,30)
   }
-  document.addEventListener('input',e=>{saveFromEvent(e);if(e.target?.closest?.('#job,#view-job'))setTimeout(bindLiveActions,0)},true);
-  document.addEventListener('change',e=>{saveFromEvent(e);if(e.target?.closest?.('#job,#view-job'))setTimeout(bindLiveActions,0)},true);
+  document.addEventListener('input',e=>{saveFromEvent(e);if(e.target?.closest?.('#job,#view-job'))setTimeout(bindLiveActions,30)},true);
+  document.addEventListener('change',e=>{saveFromEvent(e);if(e.target?.closest?.('#job,#view-job'))setTimeout(bindLiveActions,30)},true);
   window.addEventListener('pagehide',save);window.addEventListener('beforeunload',save);
   apply();window.addEventListener('fire-v18-core-ready',()=>setTimeout(apply,80));window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(apply,80));setTimeout(apply,500);setTimeout(apply,1400);
 })();
