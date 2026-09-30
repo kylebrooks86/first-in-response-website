@@ -42,6 +42,27 @@ function apply(){
     }
   }
 
+  // Match the full live-v18 batch preset menu.
+  const batch=$('#batchPreset');
+  if(batch){
+    const current=batch.value||'4';
+    const presets=[
+      ['4','4 gallons — FlowZone'],['0.09375','12 fl oz'],['0.125','16 fl oz'],['0.15625','20 fl oz'],['0.1875','24 fl oz'],['0.203125','26 fl oz'],['0.21875','28 fl oz'],['0.25','32 fl oz'],['0.3125','40 fl oz'],['0.375','48 fl oz'],['0.5','64 fl oz / ½ gal'],['0.75','3 quarts'],['1','1 gallon'],['1.5','1½ gallons'],['2','2 gallons'],['2.5','2½ gallons'],['3','3 gallons'],['5','5 gallons'],['7','7 gallons'],['10','10 gallons'],['15','15 gallons'],['20','20 gallons'],['25','25 gallons'],['30','30 gallons'],['35','35 gallons'],['50','50 gallons'],['65','65 gallons'],['75','75 gallons'],['100','100 gallons'],['125','125 gallons'],['150','150 gallons'],['200','200 gallons'],['250','250 gallons'],['custom','Custom amount']
+    ];
+    const labels=[...batch.options].map(o=>o.textContent.trim());
+    if(labels.length!==presets.length||presets.some((p,i)=>labels[i]!==p[1])){
+      batch.innerHTML='';
+      for(const [value,label] of presets){const o=document.createElement('option');o.value=value;o.textContent=label;batch.appendChild(o)}
+      batch.value=presets.some(p=>p[0]===current)?current:'4';
+    }
+  }
+
+  // Keep the recipe title wording aligned with the live source: "medium," not "moderate."
+  const recipe=$('#recipeTitle');
+  const normalizeRecipe=()=>{if(recipe&&recipe.textContent.includes('moderate'))recipe.textContent=recipe.textContent.replace(/moderate/g,'medium')};
+  normalizeRecipe();
+  if(recipe&&!recipe.dataset.fireParityObserver){recipe.dataset.fireParityObserver='1';new MutationObserver(normalizeRecipe).observe(recipe,{childList:true,subtree:true,characterData:true})}
+
   // Never auto-fill the old 2,500 ft² coverage placeholder.
   const area=$('#area');if(area&&area.value==='2500')area.value='';
 
