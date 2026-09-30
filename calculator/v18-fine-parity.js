@@ -9,6 +9,7 @@ function surfaceLabel(){return ($('#surface')?.selectedOptions?.[0]?.textContent
 function syncRecipe(){const r=$('#recipeTitle');if(r)r.textContent=`${batchGal().toFixed(2)} gal ${growthLabel()} ${surfaceLabel()}`}
 function syncStock(){const out=$('#stockNote');if(!out)return;const on=+($('#shOnHand')?.value||0),stock=Math.max(.1,+($('#stockStrength')?.value||10)),target=Math.max(0,+($('#targetNum')?.value||0)),batch=batchGal(),sh=target/stock*batch,count=sh>0?Math.floor(on/sh):0,total=count*batch;out.textContent=`Your ${on} gallons of SH can make ${count} full ${batch.toFixed(2)} gal batches (${total.toFixed(1)} gallons of finished mix).`}
 function apply(){
+  const topTools=$('.tabs .tab[data-view="tools"]');if(topTools)topTools.remove();
   const ver=$('.version');if(ver){ver.textContent='v18';ver.style.color='#949698'}const stock=$('.stock');if(stock)stock.textContent='Stock SH 10%';
   const install=$('#installBtn');if(install){install.classList.remove('hidden');install.textContent='Install'}
   const surfaceCard=$('#surface')?.closest('.card');if(surfaceCard&&!surfaceCard.textContent.includes('Start low. Check oxidation, failed paint, outlets, door seals, and delicate fixtures before applying.')){const p=document.createElement('p');p.className='muted fire-surface-guidance';p.textContent='Start low. Check oxidation, failed paint, outlets, door seals, and delicate fixtures before applying.';surfaceCard.appendChild(p)}
