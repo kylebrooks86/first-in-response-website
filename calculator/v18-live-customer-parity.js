@@ -18,7 +18,7 @@
   const copyText=async text=>{try{await navigator.clipboard.writeText(text);window.toast?.('Customer quote copied')}catch{}};
   const shareText=async text=>{if(navigator.share){try{await navigator.share({title:'First In Response Exteriors estimate',text});return}catch(e){if(e?.name==='AbortError')return}}await copyText(text)};
   const printText=text=>{const w=window.open('','_blank');if(!w)return;const escaped=text.replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));w.document.write(`<!doctype html><meta charset="utf-8"><title>First In Response Exteriors estimate</title><pre style="white-space:pre-wrap;font:16px/1.45 system-ui,-apple-system,sans-serif;max-width:760px;margin:40px auto">${escaped}</pre>`);w.document.close();w.focus();setTimeout(()=>w.print(),50)};
-  const replaceButton=(id,bind)=>{const old=$('#'+id);if(!old||old.dataset.fireCustomerBound==='1')return old;const fresh=old.cloneNode(true);fresh.dataset.fireCustomerBound='1';old.replaceWith(fresh);bind(fresh);return fresh};
+  const replaceButton=(id,bind)=>{const old=$('#'+id);if(!old)return old;if(old.dataset.fireCustomerBound==='1'){old.onclick=null;return old}const fresh=old.cloneNode(true);fresh.onclick=null;fresh.dataset.fireCustomerBound='1';old.replaceWith(fresh);bind(fresh);return fresh};
   const emit=id=>{const el=$('#'+id);if(el){el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))}};
   function clearEstimate(){
     if(!window.confirm('Clear this estimate and job-planning measurements? Your saved pricing will stay unchanged.'))return;
@@ -31,7 +31,7 @@
   }
   function bindLiveActions(){
     observeQuote();normalizeQuote();
-    replaceButton('copyFullQuote',b=>b.addEventListener('click',()=>copyText(currentQuote())));
+    const copy=replaceButton('copyFullQuote',b=>b.addEventListener('click',()=>copyText(currentQuote())));if(copy)copy.onclick=null;
     replaceButton('shareCustomerQuote',b=>b.addEventListener('click',()=>shareText(currentQuote())));
     replaceButton('printCustomerQuote',b=>b.addEventListener('click',()=>printText(currentQuote())));
     replaceButton('clearEstimate',b=>b.addEventListener('click',clearEstimate));
@@ -56,5 +56,5 @@
   document.addEventListener('input',e=>{saveFromEvent(e);if(e.target?.closest?.('#job,#view-job'))setTimeout(bindLiveActions,30)},true);
   document.addEventListener('change',e=>{saveFromEvent(e);if(e.target?.closest?.('#job,#view-job'))setTimeout(bindLiveActions,30)},true);
   window.addEventListener('pagehide',save);window.addEventListener('beforeunload',save);
-  apply();window.addEventListener('fire-v18-core-ready',()=>setTimeout(apply,80));window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(apply,80));setTimeout(apply,500);setTimeout(apply,1400);
+  apply();window.addEventListener('fire-v18-core-ready',()=>setTimeout(apply,80));window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(apply,80));setTimeout(apply,500);setTimeout(apply,800);setTimeout(apply,1400);
 })();
