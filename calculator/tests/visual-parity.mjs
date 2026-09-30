@@ -28,13 +28,13 @@ async function visibleSelector(page,state){
 }
 async function normalize(page){await page.addStyleTag({content:'*,*::before,*::after{caret-color:transparent!important;animation:none!important;transition:none!important}html{scroll-behavior:auto!important}'})}
 async function auditRoute(page,selector){
-  return page.locator(selector).first().evaluate(root=>{
+  return page.locator(selector).first().evaluate((root,routeSelector)=>{
     const clean=s=>(s||'').replace(/\s+/g,' ').trim();
     const controls=[...root.querySelectorAll('input,select,textarea')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0}).map(e=>({tag:e.tagName.toLowerCase(),id:e.id||null,type:e.type||null,value:e.value,label:clean(e.closest('.field')?.querySelector('label')?.textContent||document.querySelector(`label[for="${e.id}"]`)?.textContent||''),placeholder:e.getAttribute('placeholder')||null}));
     const buttons=[...root.querySelectorAll('button')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0}).map(e=>({id:e.id||null,text:clean(e.textContent),class:e.className||null}));
     const cards=[...root.querySelectorAll('.card')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0}).map((c,i)=>({index:i,kicker:clean(c.querySelector('.kicker,.eyebrow')?.textContent),heading:clean(c.querySelector('h2,h3')?.textContent),text:clean(c.innerText)}));
-    return {selector,innerText:clean(root.innerText),controls,buttons,cards};
-  });
+    return {selector:routeSelector,innerText:clean(root.innerText),controls,buttons,cards};
+  },selector);
 }
 async function capture(base,label,browser){
   const ctx=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
