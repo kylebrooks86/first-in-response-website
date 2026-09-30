@@ -4,7 +4,7 @@
 
 **NOT SYNCHRONIZED**
 
-The production/live calculator and independent disaster-recovery calculator currently both identify as v18, but they do not yet share a proven identical FIRE Calculator Core fingerprint. They must not be described as identical, synchronized, complete, or production-ready as a dual-deployment pair.
+The production/live calculator and independent disaster-recovery calculator currently both identify as v18, but they do not yet share a proven identical FIRE Calculator Core fingerprint in production. They must not be described as identical, synchronized, complete, or production-ready as a dual-deployment pair.
 
 ## Architecture target
 
@@ -32,7 +32,10 @@ Only infrastructure adapters may differ. Examples: hosting provider, deployment 
 - Confirmed live-vs-independent differences are recorded in `CURRENT_PARITY_AUDIT.md` and `JOB_MATH_PARITY_AUDIT.md`.
 - Shared staging code has been corrected for confirmed live wording/state gaps including recipe-title formatting, Elemonator checked-state behavior, X-Jet factory guidance, timer warning, Field Safety wording, live Job Math quick navigation, Stock SH header behavior, and first-screen SH Mix controls.
 - Job Math Estimate workflow now mirrors the verified live controls for 0.5-point discount increments, whole-dollar final-price override increments, Clear discount, Copy customer quote, Share quote, and Print / Save PDF. The older visible Save estimate draft button is hidden while draft persistence remains available internally.
-- The DR staging service worker caches the new shared estimator-parity module so that workflow remains available offline.
+- The parity gate now scans the estimator-parity module as part of the live-reference contract.
+- The DR staging service worker caches the shared estimator-parity module so that workflow remains available offline.
+- A paired iPhone-size visual parity harness has been added. It opens the current live calculator and a locally served staging calculator at 390×844, captures launch plus SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Guide, and Tools states, and uploads paired screenshots as a GitHub Actions artifact. Screenshot creation alone does not certify visual parity.
+- Current staging estimator calculation semantics are explicitly documented as: subtotal → one combined discount percentage → minimum-job floor → positive final-price override replaces the calculated result → deposit percentage. This is staging behavior only and is NOT yet certified as matching live.
 - Bundle/discount stacking math, minimum-job ordering, override ordering, exact quote/share/print output, Crew job sheet actions, and full service-estimator state parity remain audit-gated until current live behavior is directly verified. No unverified pricing formula has been invented.
 - Visual/iPhone parity, complete state parity, cross-deployment backup restore, and DR takeover are still not verified.
 
