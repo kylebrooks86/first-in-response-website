@@ -3,11 +3,11 @@
   "release": "v18",
   "status": "STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED",
   "fingerprint_algorithm": "sha256(sorted lines of path:git_blob_sha)",
-  "shared_core_fingerprint": "e3911d3fa28a458c5b1d6c9ed5a7abd740a5adb0d7eee013b6dd6c75931e98e4",
+  "shared_core_fingerprint": "c608a56a86f960793c08533754a3ab0637bd55f6b1023c21f924ac834e65df61",
   "shared_core_files": {
     "calculator/index.html": "4be24b1101085b4f104a8661fa76e1528df6623b",
     "calculator/manifest.webmanifest": "b0b4896b333d200c8bd4194fcac16c4272c52938",
-    "calculator/full-v18.js": "5d95e63e8ba6ba1f974cb0a46ebf328053f6cea0",
+    "calculator/full-v18.js": "6a4c33926fa95c13b102af780c00d0ad1b1fa12a",
     "calculator/full-v18-core.js": "42232e530c81056024f22e7f32c58acd7313085d",
     "calculator/full-v18-parity-core.js": "8e5575fe739800e3eccc79c2327e7af174d86ca5",
     "calculator/v18-behavior.js": "1f0ffcce5bbc4fa77c8a5b0339f5f5f7c66dc44a",
@@ -15,10 +15,10 @@
     "calculator/v18-fine-parity.js": "6b0ca535079d34408fef9d26521f2108c6077fa7",
     "calculator/v18-equipment-parity.js": "ea70951d11b879e55033fa4b5054796a8a4f5c7e",
     "calculator/v18-tools-state.js": "9030b966a47d869d32521a67f645e57d037af755",
-    "calculator/v18-exact-visual.css": "536d78bd2cc3d97850878c6a0c884eaaccf5b123",
+    "calculator/v18-exact-visual.css": "bcc62acb12fb4aa365c037502de6ed954449cb41",
     "calculator/v18-live-estimator-parity.js": "935c1b08f3db505f08f4a63fa5fb2ddea322b3a8",
     "calculator/v18-live-first-screen.js": "37dc149819c396e2365ec59fd140e2126f18f848",
-    "calculator/v18-live-jobmath-parity.js": "98ade847cab3f4483b4ce1695df9acd21c01dc5f"
+    "calculator/v18-live-jobmath-parity.js": "370489da0d11f20f0210bc0836c93a741caf9ac7"
   },
   "infrastructure_only_files": [
     "calculator/sw.js",
