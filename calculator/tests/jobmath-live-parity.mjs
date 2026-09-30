@@ -35,28 +35,39 @@ async function openJob(page){
   return null;
 }
 async function setByIds(page,ids,value){for(const id of ids){const el=page.locator('#'+id);if(await el.count()){await el.evaluate((node,v)=>{node.value=String(v);node.dispatchEvent(new Event('input',{bubbles:true}));node.dispatchEvent(new Event('change',{bubbles:true}))},value);return true}}return false}
-async function routeText(root){if(!root)return null;return (await root.innerText()).replace(/,/g,'').replace(/\s+/g,' ')}
 async function estimateTotals(root){
-  const raw=await routeText(root);if(!raw)return null;
+  const raw=(await root.innerText()).replace(/,/g,'').replace(/\s+/g,' ');
   const get=label=>{const esc=label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');const m=raw.match(new RegExp(esc+'\\s*\\$\\s*([0-9]+(?:\\.[0-9]{1,2})?)','i'));return m?Number(m[1]):null};
   return {subtotal:get('Subtotal'),total:get('Customer total'),deposit:get('50% deposit'),raw};
 }
-async function runScenario(browser,base,scenario){
+async function openSession(browser,base){
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const page=await ctx.newPage();await page.goto(base,{waitUntil:'networkidle',timeout:60000});
-  const root=await openJob(page);if(!root)throw new Error(`${base}: no Job Math DOM found for ${scenario.name}`);
+  const root=await openJob(page);if(!root)throw new Error(`${base}: no Job Math DOM found`);
+  return {ctx,page};
+}
+async function runScenario(session,base,scenario){
+  const {page}=session;
+  const root=await jobRootByFields(page);if(!root)throw new Error(`${base}: Job Math DOM disappeared for ${scenario.name}`);
+  await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));
   const house=await setByIds(page,['houseWashArea','svcHouse'],scenario.house);
   const discount=await setByIds(page,['discountPct','fullDiscount'],scenario.discount);
   const override=await setByIds(page,['quotedPrice','fullOverride'],scenario.override);
   if(!house||!discount||!override)throw new Error(`${base}: missing Job Math input for ${scenario.name} house=${house} discount=${discount} override=${override}`);
-  await page.waitForTimeout(300);
-  const currentRoot=await jobRootByFields(page);
-  const found=await estimateTotals(currentRoot);await ctx.close();
+  await page.waitForTimeout(250);
+  const currentRoot=await jobRootByFields(page);const found=await estimateTotals(currentRoot);
   if(!found||[found.subtotal,found.total,found.deposit].some(v=>v===null))throw new Error(`${base}: could not read totals for ${scenario.name}. route=${found?.raw||'missing'}`);
   return {subtotal:found.subtotal,total:found.total,deposit:found.deposit};
 }
 function same(a,b){return Math.abs(a-b)<0.011}
-const browser=await chromium.launch({headless:true});let failed=false;
-try{for(const scenario of scenarios){const live=await runScenario(browser,LIVE,scenario);const staging=await runScenario(browser,STAGING,scenario);const ok=same(live.subtotal,staging.subtotal)&&same(live.total,staging.total)&&same(live.deposit,staging.deposit);console.log(`${ok?'PASS':'FAIL'} ${scenario.name}: live=${JSON.stringify(live)} staging=${JSON.stringify(staging)}`);if(!ok)failed=true}}finally{await browser.close()}
+const browser=await chromium.launch({headless:true});let failed=false;let liveSession,stagingSession;
+try{
+  liveSession=await openSession(browser,LIVE);stagingSession=await openSession(browser,STAGING);
+  for(const scenario of scenarios){
+    const live=await runScenario(liveSession,LIVE,scenario);const staging=await runScenario(stagingSession,STAGING,scenario);
+    const ok=same(live.subtotal,staging.subtotal)&&same(live.total,staging.total)&&same(live.deposit,staging.deposit);
+    console.log(`${ok?'PASS':'FAIL'} ${scenario.name}: live=${JSON.stringify(live)} staging=${JSON.stringify(staging)}`);if(!ok)failed=true;
+  }
+}finally{await liveSession?.ctx.close();await stagingSession?.ctx.close();await browser.close()}
 if(failed)process.exit(1);
 console.log('JOB MATH LIVE PARITY PASS');
