@@ -1,0 +1,12 @@
+#equipment #xLiveGuidance{margin-top:10px!important}
+#equipment #xLiveGuidance p{margin:8px 0!important;line-height:1.45!important}
+#equipment #xLiveGuidance p:first-child{background:#eef9f2!important;border:1px solid #9ed7ad!important;border-radius:8px!important;padding:10px 12px!important;color:#405b48!important}
+#equipment #xLiveGuidance p:nth-child(2){background:#edf7fb!important;border:1px solid #a8d2e4!important;border-radius:8px!important;padding:10px 12px!important;color:#365b6b!important}
+#equipment #xReverseInstruction{background:#fff1f1!important;border:1px solid #efb7b7!important;border-radius:8px!important;padding:10px 12px!important;color:#754444!important}
+#equipment #propPlannerWarning{background:#fff1f1!important;border:1px solid #efb7b7!important;border-radius:8px!important;padding:10px 12px!important;color:#754444!important}
+#equipment #dsFormulaNote{margin-top:10px!important;line-height:1.45!important}
+#equipment #useXjetMeasured{width:100%!important;min-height:44px!important;border-radius:7px!important;font-weight:800!important}
+#equipment .card{padding-top:18px!important;padding-bottom:18px!important}
+#equipment .card h2{margin-bottom:12px!important}
+#equipment .metric strong{line-height:1.05!important}
+@media(max-width:560px){#equipment .card{padding-left:14px!important;padding-right:14px!important}#equipment #xLiveGuidance p:first-child,#equipment #xLiveGuidance p:nth-child(2),#equipment #xReverseInstruction,#equipment #propPlannerWarning{font-size:12px!important}}
