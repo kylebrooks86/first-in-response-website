@@ -83,7 +83,19 @@ const contract = Object.freeze({
       'Price the whole job',
       'Job loadout and profitability'
     ],
-    quickNavStructure: ['topJobNav','top-job-nav','jobMixCard','jobMeasureCard','jobEstimateCard','jobLoadoutCard']
+    quickNavStructure: ['topJobNav','top-job-nav','jobMixCard','jobMeasureCard','jobEstimateCard','jobLoadoutCard'],
+    estimateWorkflow: [
+      'Stackable discount total',
+      'Final-price override (0 = calculated)',
+      'Clear',
+      'Customer quote',
+      'Copy customer quote',
+      'Share quote',
+      'Print / Save PDF',
+      'Crew job sheet'
+    ],
+    verifiedControlIds: ['quotedPrice','clearDiscount','copyCustomerQuote','shareCustomerQuote','printCustomerQuote'],
+    verifiedControlSteps: ['step="0.5"','step="1"']
   },
   fieldTools: [
     'Quick Mix Favorites',
