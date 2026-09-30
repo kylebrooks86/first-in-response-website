@@ -90,11 +90,21 @@ jobs:
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
         run: node calculator/tests/export-live-parity.mjs
 
+      - name: Verify live backup restores into DR
+        id: takeover
+        continue-on-error: true
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+          FIRE_VISUAL_OUT: calculator/visual-parity
+        run: node calculator/tests/backup-takeover-live-parity.mjs
+
       - name: Inspect computed light/dark style differences
         continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+          FIRE_VISUAL_OUT: calculator/visual-parity
         run: node calculator/tests/style-live-parity.mjs
 
       - name: Inspect live bundle and customer baseline
@@ -159,4 +169,10 @@ jobs:
         if: steps.export.outcome == 'failure'
         run: |
           echo 'Live-vs-staging quote copy/share/print parity failed.'
+          exit 1
+
+      - name: Enforce live backup to DR takeover
+        if: steps.takeover.outcome == 'failure'
+        run: |
+          echo 'Live backup could not fully restore into the DR calculator.'
           exit 1
