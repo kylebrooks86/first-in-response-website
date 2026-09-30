@@ -7,8 +7,8 @@
 .fire-chem-copy{min-width:0}.fire-chem-copy strong{display:block;font-size:15px;line-height:1.2}.fire-chem-copy small{display:block;margin-top:3px;color:#607381;font-size:13px;line-height:1.25}
 .fire-chem-arrow{justify-self:end;color:#607381;font-size:20px}
 .fire-chem-detail .field+ .field{margin-top:12px}
-.fire-chem-metrics{grid-template-columns:1.25fr .85fr!important;align-items:stretch}
-.fire-chem-metrics .metric{border-radius:13px!important}.fire-chem-metrics .metric:first-child strong{color:#b57400!important}.fire-chem-metrics .metric:nth-child(2) strong{color:#0e78b2!important}
+.fire-chem-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:stretch}
+.fire-chem-metrics .metric{border-radius:13px!important}.fire-chem-metrics .metric:first-child{grid-column:1/-1!important}.fire-chem-metrics .metric:first-child strong{color:#b57400!important}.fire-chem-metrics .metric:nth-child(2) strong{color:#0e78b2!important}
 .fire-chem-warning{margin-top:12px;padding:10px 11px;border:1px solid #f0c6bc;border-radius:11px;background:#fff4f1;color:#a85543;font-size:13px;line-height:1.35}
 .fire-chem-range{margin:9px 0 0!important}
 .fire-dil-product{color:#e5482e;font-weight:900}
@@ -22,8 +22,9 @@
   .fire-chem-copy strong{font-size:15px}.fire-chem-copy small{font-size:12.5px}
   .fire-chem-detail #fireChemAmount{min-width:0}
   .fire-chem-detail #fireChemUnit{flex:0 0 74px!important;width:74px!important}
-  .fire-chem-metrics{grid-template-columns:1.2fr .8fr!important;gap:8px!important}
+  .fire-chem-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
   .fire-chem-metrics .metric{padding:9px!important}
+  .fire-chem-metrics .metric:first-child{grid-column:1/-1!important}
   .fire-chem-metrics .metric strong{font-size:18px!important}
   .fire-dil-preset{grid-column:1/-1!important}
   #fireDilUnit{flex:0 0 74px!important;width:74px!important}
