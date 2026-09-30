@@ -49,6 +49,8 @@ jobs:
           calculator/v18-live-guide-parity.js
           calculator/v18-live-guide-parity.css
           calculator/v18-live-navigation-parity.js
+          calculator/v18-live-tools-parity.js
+          calculator/v18-live-tools-parity.css
           calculator/v18-exact-visual.css
 
       - name: Shared-core fingerprint
