@@ -41,12 +41,11 @@
     let row=$('.fire-discount-actions');
     if(!row){row=document.createElement('div');row.className='actions fire-discount-actions';anchor?.insertAdjacentElement('afterend',row)}
     const make=(id,text,pct)=>{let b=$('#'+id);if(!b){b=document.createElement('button');b.id=id;b.type='button';b.addEventListener('click',()=>{discount.value=String(Math.min(100,number(discount.value)+pct));emit('fullDiscount')})}b.textContent=text;return b};
-    const cash=make('cashDiscount3','+3% cash',3);
-    const responder=make('responderDiscount5','+5% responder / military',5);
     const bundle=make('bundleDiscount10','+10% bundle',10);
     const promo=make('promotionDiscount15','+15% promotion',15);
     let clear=$('#clearDiscount');if(!clear){clear=document.createElement('button');clear.id='clearDiscount';clear.type='button';clear.addEventListener('click',()=>{discount.value='0';emit('fullDiscount')})}clear.textContent='Clear';
-    row.append(cash,responder,bundle,promo,clear);
+    $('#cashDiscount3')?.remove();$('#responderDiscount5')?.remove();
+    row.append(bundle,promo,clear);
   };
   const ensure=()=>{
     const discount=$('#fullDiscount');if(discount)discount.step='0.5';const override=$('#fullOverride');if(override)override.step='1';
