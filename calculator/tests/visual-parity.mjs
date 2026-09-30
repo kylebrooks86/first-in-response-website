@@ -58,24 +58,46 @@ async function auditRoute(page,selector){
     return {selector:routeSelector,innerText:clean(root.innerText),controls,buttons,cards};
   },selector);
 }
+async function themeSignature(page){return page.evaluate(()=>({bodyClass:document.body.className,bg:getComputedStyle(document.body).backgroundColor,color:getComputedStyle(document.body).color}))}
+async function enableDark(page,label){
+  const before=await themeSignature(page);
+  let clicked=false;
+  const labelled=page.getByLabel(/dark mode/i);
+  for(let i=0;i<await labelled.count();i++){const el=labelled.nth(i);if(await el.isVisible()){await el.click();clicked=true;break}}
+  if(!clicked){const byId=page.locator('#themeBtn');if(await byId.count()&&await byId.first().isVisible()){await byId.first().click();clicked=true}}
+  if(!clicked){const buttons=page.locator('button');for(let i=0;i<await buttons.count();i++){const el=buttons.nth(i);if(!await el.isVisible())continue;const t=((await el.textContent())||'').trim();if(['☾','☀','🌙','☀️'].includes(t)){await el.click();clicked=true;break}}}
+  if(!clicked)throw new Error(`${label}: dark-mode control not found`);
+  await page.waitForTimeout(180);
+  const after=await themeSignature(page);
+  if(before.bodyClass===after.bodyClass&&before.bg===after.bg&&before.color===after.color)throw new Error(`${label}: dark-mode control did not visibly change theme`);
+  return {before,after};
+}
+async function captureThemeRoutes(page,label,theme,audit){
+  for(const state of states){
+    const selector=await activateRoute(page,state);
+    if(!selector)throw new Error(`${label}: ${theme} ${state.top} did not expose a route containing ${state.signature}`);
+    audit[`${theme}-${state.name}`]=await auditRoute(page,selector);
+    await page.evaluate(()=>window.scrollTo(0,0));
+    await page.screenshot({path:path.join(OUT,`${label}-${theme}-${state.name}.png`),fullPage:true});
+  }
+}
 async function capture(base,label,browser){
   const ctx=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
   const page=await ctx.newPage(),audit={};
   await page.goto(base,{waitUntil:'networkidle',timeout:60000});await normalize(page);
-  await page.screenshot({path:path.join(OUT,`${label}-00-launch.png`),fullPage:true});
-  for(const state of states){
-    const selector=await activateRoute(page,state);
-    if(!selector)throw new Error(`${label}: ${state.top} did not expose a route containing ${state.signature}`);
-    audit[state.name]=await auditRoute(page,selector);
-    await page.evaluate(()=>window.scrollTo(0,0));
-    await page.screenshot({path:path.join(OUT,`${label}-${state.name}.png`),fullPage:true});
-  }
+  await page.screenshot({path:path.join(OUT,`${label}-light-00-launch.png`),fullPage:true});
+  await captureThemeRoutes(page,label,'light',audit);
+  audit.themeTransition=await enableDark(page,label);
+  if(!await clickText(page,'SH Mix'))throw new Error(`${label}: could not return to SH Mix for dark launch`);
+  await page.waitForTimeout(160);await page.evaluate(()=>window.scrollTo(0,0));
+  await page.screenshot({path:path.join(OUT,`${label}-dark-00-launch.png`),fullPage:true});
+  await captureThemeRoutes(page,label,'dark',audit);
   fs.writeFileSync(path.join(OUT,`${label}-dom-audit.json`),JSON.stringify(audit,null,2));
   await ctx.close();
 }
 
 const browser=await chromium.launch({headless:true});
 try{await capture(LIVE,'live',browser);await capture(STAGING,'staging',browser)}finally{await browser.close()}
-const manifest={generated_at:new Date().toISOString(),live:LIVE,staging:STAGING,viewport:{width:390,height:844,deviceScaleFactor:1},states:['00-launch',...states.map(s=>s.name)],status:'PAIRED_SCREENSHOTS_AND_DOM_AUDIT_CREATED_NOT_AUTOMATICALLY_CERTIFIED',rule:'Human/pixel and state review is required before VERIFIED IDENTICAL.'};
+const manifest={generated_at:new Date().toISOString(),live:LIVE,staging:STAGING,viewport:{width:390,height:844,deviceScaleFactor:1},themes:['light','dark'],states:['00-launch',...states.map(s=>s.name)],status:'PAIRED_LIGHT_AND_DARK_SCREENSHOTS_AND_DOM_AUDIT_CREATED_NOT_AUTOMATICALLY_CERTIFIED',rule:'Human/pixel and state review is required before VERIFIED IDENTICAL.'};
 fs.writeFileSync(path.join(OUT,'manifest.json'),JSON.stringify(manifest,null,2));
-console.log(`Created paired FIRE screenshots and DOM audits in ${OUT}`);
+console.log(`Created paired light/dark FIRE screenshots and DOM audits in ${OUT}`);
