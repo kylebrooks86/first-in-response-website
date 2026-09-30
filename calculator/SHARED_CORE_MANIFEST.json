@@ -3,7 +3,7 @@
   "release": "v18",
   "status": "STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED",
   "fingerprint_algorithm": "sha256(sorted lines of path:git_blob_sha)",
-  "shared_core_fingerprint": "83d3bb1fa18ff09ec741845179a008d00ca16565c5e33c00bd93aa8bce85e955",
+  "shared_core_fingerprint": "663d1565d2f479676ee71ed0d4c4e34bdd7f6240aebf690e921e821fc90efbbb",
   "shared_core_files": {
     "calculator/index.html": "4be24b1101085b4f104a8661fa76e1528df6623b",
     "calculator/manifest.webmanifest": "b0b4896b333d200c8bd4194fcac16c4272c52938",
@@ -15,7 +15,7 @@
     "calculator/v18-fine-parity.js": "6b0ca535079d34408fef9d26521f2108c6077fa7",
     "calculator/v18-equipment-parity.js": "9d1ece04a0393fecc06c35899cc4287e09c16bb9",
     "calculator/v18-tools-state.js": "9030b966a47d869d32521a67f645e57d037af755",
-    "calculator/v18-exact-visual.css": "708d4e9b75aeddade95dde402774f8504b9adf59"
+    "calculator/v18-exact-visual.css": "60945e944a51d6afa035748e99a7af916b10fa3c"
   },
   "infrastructure_only_files": [
     "calculator/sw.js",
