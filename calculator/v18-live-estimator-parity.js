@@ -5,6 +5,14 @@
   const emit=id=>{const el=$('#'+id);if(el){el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))}};
   const copyText=async(text,success='Copied')=>{try{await navigator.clipboard.writeText(text);window.toast?.(success);return true}catch{return false}};
   const shareText=async(title,text,copyMessage)=>{if(navigator.share){try{await navigator.share({title,text});return}catch(e){if(e?.name==='AbortError')return}}await copyText(text,copyMessage)};
+  const hasEnteredService=()=>serviceIds.some(id=>{const n=parseFloat($('#'+id)?.value);return Number.isFinite(n)&&n>0})||((parseFloat($('#fullCustomAmt')?.value)||0)>0);
+  const normalizeBlank=()=>{
+    if(hasEnteredService())return;
+    const lines=$('#fullServiceLines'),quote=$('#fullQuote'),crew=$('#crewSheet');
+    if(lines)lines.textContent='No services entered';
+    if(quote)quote.textContent='';
+    if(crew)crew.textContent='';
+  };
   const ensure=()=>{
     const discount=$('#fullDiscount');if(discount)discount.step='0.5';
     const override=$('#fullOverride');if(override)override.step='1';
@@ -33,15 +41,19 @@
       const clearEstimate=document.createElement('button');clearEstimate.type='button';clearEstimate.id='clearEstimate';clearEstimate.className='dangerbtn';clearEstimate.textContent='Clear this estimate';
       clearEstimate.addEventListener('click',()=>{
         serviceIds.forEach(id=>{const el=$('#'+id);if(el)el.value=''});
-        ['fullCustomDesc','fullCustomAmt','fullNotes','jobName'].forEach(id=>{const el=$('#'+id);if(el)el.value=''});
+        ['fullCustomDesc','fullCustomAmt','fullNotes','estimateJobName'].forEach(id=>{const el=$('#'+id);if(el)el.value=''});
         if(discount)discount.value='0';if(override)override.value='0';
         emit('svcHouse');emit('fullDiscount');emit('fullOverride');
         try{localStorage.removeItem('fireV18EstimateDraft')}catch{}
-        window.toast?.('Estimate cleared')
+        setTimeout(normalizeBlank,0);window.toast?.('Estimate cleared')
       });
       row.append(copyCrew,shareCrew,clearEstimate);crew.insertAdjacentElement('afterend',row)
     }
+    normalizeBlank();
   };
+  const scheduleBlank=()=>setTimeout(normalizeBlank,0);
+  document.addEventListener('input',e=>{if(e.target.matches('#job input,#job textarea,#job select,#view-job input,#view-job textarea,#view-job select'))scheduleBlank()},{passive:true});
+  document.addEventListener('change',e=>{if(e.target.matches('#job input,#job textarea,#job select,#view-job input,#view-job textarea,#view-job select'))scheduleBlank()},{passive:true});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(ensure,600));else setTimeout(ensure,600);
   window.addEventListener('fire-v18-core-ready',()=>setTimeout(ensure,50));
   window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(ensure,50));
