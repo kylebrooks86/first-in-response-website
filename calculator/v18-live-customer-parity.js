@@ -14,7 +14,6 @@
       let touched=false;
       for(const [liveId,drId] of Object.entries(liveMap)){if(fields[liveId]!==undefined){d[drId]=String(fields[liveId]??'');touched=true}}
       if(touched)write(d);
-      localStorage.removeItem('fireV18LiveBackupMigratedAt');
     }catch{}
   }
   function priceCard(){const editor=$('#priceEditor');return editor?.closest('.card')||[...document.querySelectorAll('#job .card,#view-job .card')].find(c=>c.textContent.includes('Price the whole job'))}
