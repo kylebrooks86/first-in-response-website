@@ -82,6 +82,18 @@ body.dark .recipeCard{background:#2b2024!important}
   #fireStockCard .inputrow .unit{display:grid!important;place-items:center!important;flex:0 0 30px!important;width:30px!important;height:48px!important;border:1px solid #d2dde3!important;border-radius:13px!important;background:#fff!important;color:#26333d!important;font-size:13px!important;font-weight:800!important}
   #fireStockCard .note{background:#eefbf7!important;border:1px solid #bfe8dc!important;border-left:1px solid #bfe8dc!important;border-radius:12px!important;color:#257b65!important}
 
+  .fire-measure-actions{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:8px!important;margin-top:10px!important}
+  .fire-measure-actions button{min-height:38px!important;padding:7px 12px!important;border:1px solid #d3dde3!important;border-radius:9px!important;background:#fff!important;color:#17212b!important;font-weight:700!important}
+  .fire-measure-actions button.primary{background:#ef4b2d!important;border-color:#ef4b2d!important;color:#fff!important}
+  .fire-planned-chem-cost{display:block!important;margin:10px 0 0!important;padding:10px 12px!important;border:1px solid #bfe8dc!important;border-radius:11px!important;background:#eefbf7!important;color:#257b65!important;font-size:13px!important;line-height:1.35!important}
+  .fire-loadout-status{margin:0 0 10px!important;padding:10px 12px!important;border-radius:11px!important;font-size:13px!important;line-height:1.38!important}
+  .fire-loadout-status strong{display:block!important;margin-bottom:4px!important;font-size:14px!important}
+  .fire-loadout-status p{margin:0!important}
+  .fire-loadout-status.is-short{border:1px solid #f2c4bb!important;background:#fff1ed!important;color:#b64d38!important}
+  .fire-loadout-status.is-ready{border:1px solid #bfe8dc!important;background:#eefbf7!important;color:#257b65!important}
+  .fire-loadout-actions{margin:0 0 12px!important}
+  .fire-loadout-actions button{min-height:38px!important;padding:7px 12px!important;border:1px solid #d3dde3!important;border-radius:9px!important;background:#fff!important;color:#17212b!important;font-weight:700!important}
+
   .bottom{min-height:68px!important;background:rgba(255,255,255,.94)!important;border-top:1px solid #d9e2e7!important;box-shadow:0 -3px 12px rgba(45,61,70,.08)!important}
   .bottom button{min-height:68px!important;background:transparent!important;color:#607381!important;font-size:11px!important;font-weight:700!important;padding:7px 1px!important}
   .bottom button .ico{font-size:22px!important;margin-bottom:3px!important}
