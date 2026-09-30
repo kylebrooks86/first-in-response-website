@@ -19,7 +19,7 @@ const states=[
 
 async function clickText(page,text){
   const exact=page.getByText(text,{exact:true});
-  if(await exact.count()){await exact.first().click();return true}
+  for(let i=0;i<await exact.count();i++){const el=exact.nth(i);if(await el.isVisible()){await el.click();return true}}
   return false;
 }
 async function visibleSelector(page,state){
@@ -30,7 +30,13 @@ async function normalize(page){await page.addStyleTag({content:'*,*::before,*::a
 async function auditRoute(page,selector){
   return page.locator(selector).first().evaluate((root,routeSelector)=>{
     const clean=s=>(s||'').replace(/\s+/g,' ').trim();
-    const controls=[...root.querySelectorAll('input,select,textarea')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0}).map(e=>({tag:e.tagName.toLowerCase(),id:e.id||null,type:e.type||null,value:e.value,label:clean(e.closest('.field')?.querySelector('label')?.textContent||document.querySelector(`label[for="${e.id}"]`)?.textContent||''),placeholder:e.getAttribute('placeholder')||null}));
+    const controls=[...root.querySelectorAll('input,select,textarea')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0}).map(e=>({
+      tag:e.tagName.toLowerCase(),id:e.id||null,type:e.type||null,value:e.value,
+      label:clean(e.closest('.field')?.querySelector('label')?.textContent||document.querySelector(`label[for="${e.id}"]`)?.textContent||''),
+      placeholder:e.getAttribute('placeholder')||null,
+      rowText:clean(e.closest('.pricegrid,.field,.listrow')?.innerText||''),
+      dataRateId:e.getAttribute('data-rate-id')||null
+    }));
     const buttons=[...root.querySelectorAll('button')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0}).map(e=>({id:e.id||null,text:clean(e.textContent),class:e.className||null}));
     const cards=[...root.querySelectorAll('.card')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0}).map((c,i)=>({index:i,kicker:clean(c.querySelector('.kicker,.eyebrow')?.textContent),heading:clean(c.querySelector('h2,h3')?.textContent),text:clean(c.innerText)}));
     return {selector:routeSelector,innerText:clean(root.innerText),controls,buttons,cards};
