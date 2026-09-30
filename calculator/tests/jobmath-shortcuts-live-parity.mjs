@@ -13,11 +13,18 @@ async function setByIds(page,ids,value){
   return false;
 }
 async function readByIds(page,ids){for(const id of ids){const el=page.locator('#'+id);if(await el.count())return Number(await el.inputValue())}return NaN}
+async function openAllJobDetails(page){for(const rootSel of ['#view-job','#job']){const root=page.locator(rootSel);if(await root.count()){await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(80);return true}}return false}
 async function openJob(page){
   if(!await clickVisibleText(page,'Job Math'))throw new Error('Job Math route control not found');
   await page.waitForTimeout(250);
-  for(const rootSel of ['#view-job','#job']){const root=page.locator(rootSel);if(await root.count()){await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));return}}
+  if(await openAllJobDetails(page))return;
   throw new Error('Job Math DOM not found');
+}
+async function clickJobButton(page,text){
+  await openAllJobDetails(page);
+  const q=page.locator('button').filter({hasText:text});
+  for(let i=0;i<await q.count();i++){const b=q.nth(i);if((await b.innerText()).trim()===text){await b.scrollIntoViewIfNeeded();await b.click();return true}}
+  return false;
 }
 async function snapshot(base){
   const browser=await chromium.launch({headless:true});
@@ -28,19 +35,19 @@ async function snapshot(base){
     await openJob(page);
     await setByIds(page,['houseWashArea','svcHouse'],1000);
     await page.waitForTimeout(150);
-    if(!await clickVisibleText(page,'+3% cash'))throw new Error('Missing +3% cash shortcut');
+    if(!await clickJobButton(page,'+3% cash'))throw new Error('Missing +3% cash shortcut');
     await page.waitForTimeout(100);
     const afterCash=await readByIds(page,['discountPct','fullDiscount']);
-    if(!await clickVisibleText(page,'+5% responder / military'))throw new Error('Missing +5% responder / military shortcut');
+    if(!await clickJobButton(page,'+5% responder / military'))throw new Error('Missing +5% responder / military shortcut');
     await page.waitForTimeout(100);
     const afterResponder=await readByIds(page,['discountPct','fullDiscount']);
-    if(!await clickVisibleText(page,'Clear'))throw new Error('Missing Clear discount shortcut');
+    if(!await clickJobButton(page,'Clear'))throw new Error('Missing Clear discount shortcut');
     await page.waitForTimeout(100);
     const afterClear=await readByIds(page,['discountPct','fullDiscount']);
     await setByIds(page,['calArea'],2000);
     await setByIds(page,['calMixUsed','calMix'],5);
     await page.waitForTimeout(100);
-    if(!await clickVisibleText(page,'Use this coverage rate'))throw new Error('Missing Use this coverage rate action');
+    if(!await clickJobButton(page,'Use this coverage rate'))throw new Error('Missing Use this coverage rate action');
     await page.waitForTimeout(120);
     const coverage=await readByIds(page,['coverage']);
     return {afterCash,afterResponder,afterClear,coverage};
