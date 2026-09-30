@@ -1,0 +1,45 @@
+name: FIRE Calculator Parity Gate
+
+on:
+  push:
+    branches:
+      - fire-calculator-exact-live-clone
+    paths:
+      - 'calculator/**'
+      - '.github/workflows/fire-calculator-parity.yml'
+  pull_request:
+    paths:
+      - 'calculator/**'
+      - '.github/workflows/fire-calculator-parity.yml'
+
+jobs:
+  parity-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Formula regression
+        run: node calculator/tests/formula-regression.js
+
+      - name: Live-reference contract
+        run: >-
+          node calculator/tests/live-contract.js
+          calculator/index.html
+          calculator/full-v18.js
+          calculator/full-v18-core.js
+          calculator/full-v18-parity-core.js
+          calculator/v18-behavior.js
+          calculator/v18-interactions.js
+          calculator/v18-fine-parity.js
+          calculator/v18-equipment-parity.js
+          calculator/v18-tools-state.js
+          calculator/v18-exact-visual.css
+
+      - name: Shared-core fingerprint
+        run: node calculator/tests/verify-shared-core.js calculator/SHARED_CORE_MANIFEST.json
