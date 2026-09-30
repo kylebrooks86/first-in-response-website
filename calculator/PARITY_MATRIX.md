@@ -49,7 +49,7 @@ The current production/live calculator and the independent/recovery calculator a
 | Customer quote | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Copy / Share / Print-Save-PDF action set is mirrored; exact output/failure behavior still requires state tests. |
 | Crew/job sheet | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Copy crew job sheet / Share crew sheet / Clear this estimate are mirrored; output-state matrix remains. |
 | Job loadout / profitability | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Verified default shortage state, planned chemical deduction and blank-profit state are mirrored; nonblank profitability scenarios remain. |
-| Pricing editor | NOT YET VERIFIED | Same service schema, rates, units, minimum/deposit business rules and persistence required. |
+| Pricing editor | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | The live 30-service rate sequence/labels/IDs are mirrored, redundant Unit fields were removed, existing saved rate values remain unchanged, and minimum-job/deposit controls remain $150 / 50%. Release gate and paired iPhone/DOM audit are green; persistence edge states and pixel-level styling remain before VERIFIED IDENTICAL. |
 | Quick Mix Favorites | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live four default favorites, Save current SH mix, and saved-favorites empty state are implemented; resulting-state tests remain. |
 | Stain & Surface Finder | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live default labels/recommendation copy are mirrored; alternate selections remain. |
 | Chemical Compatibility Checker | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact live default SH + F9 BARC DO NOT MIX warning is enforced after older core updates; alternate combinations remain. |
