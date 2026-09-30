@@ -23,10 +23,11 @@
     const actions=copy?.closest('.actions');
     if(actions&&!$('#shareCustomerQuote')){
       const share=document.createElement('button');share.id='shareCustomerQuote';share.type='button';share.textContent='Share quote';
-      share.addEventListener('click',()=>shareText('FIRE Estimate',quote?.textContent||'','Quote copied for sharing'));actions.appendChild(share)
+      share.addEventListener('click',()=>shareText('First In Response Exteriors estimate',quote?.textContent||'','Quote copied for sharing'));actions.appendChild(share)
     }
     if(actions&&!$('#printCustomerQuote')){
-      const print=document.createElement('button');print.id='printCustomerQuote';print.type='button';print.textContent='Print / Save PDF';print.addEventListener('click',()=>window.print());actions.appendChild(print)
+      const print=document.createElement('button');print.id='printCustomerQuote';print.type='button';print.textContent='Print / Save PDF';
+      print.addEventListener('click',()=>{const text=quote?.textContent||'';const w=window.open('','_blank');if(!w)return;w.document.write(`<pre style="white-space:pre-wrap;font:16px/1.45 system-ui,sans-serif">${text.replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]))}</pre>`);w.document.close();w.focus();setTimeout(()=>w.print(),50)});actions.appendChild(print)
     }
     if(discount&&!$('#bundleDiscount10')){
       const anchor=discount.closest('.inputrow')||discount.parentElement,row=document.createElement('div');row.className='actions fire-discount-actions';
@@ -49,6 +50,7 @@
       const shareCrew=document.createElement('button');shareCrew.type='button';shareCrew.id='shareCrewSheet';shareCrew.textContent='Share crew sheet';shareCrew.addEventListener('click',()=>shareText('FIRE Crew Job Sheet',crew.textContent||'','Crew sheet copied for sharing'));
       const clearEstimate=document.createElement('button');clearEstimate.type='button';clearEstimate.id='clearEstimate';clearEstimate.className='dangerbtn';clearEstimate.textContent='Clear this estimate';
       clearEstimate.addEventListener('click',()=>{
+        if(!window.confirm('Clear this estimate?'))return;
         serviceIds.forEach(id=>{const el=$('#'+id);if(el)el.value=''});
         ['fullCustomDesc','fullCustomAmt','fullNotes','estimateJobName'].forEach(id=>{const el=$('#'+id);if(el)el.value=''});
         if(discount)discount.value='0';if(override)override.value='0';
