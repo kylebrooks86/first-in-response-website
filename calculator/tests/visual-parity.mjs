@@ -8,18 +8,26 @@ const OUT=process.env.FIRE_VISUAL_OUT||'calculator/visual-parity';
 fs.mkdirSync(OUT,{recursive:true});
 
 const states=[
-  {name:'01-sh-mix',top:'SH Mix'},
-  {name:'02-equipment',top:'Equipment'},
-  {name:'03-chemicals',top:'Chemicals'},
-  {name:'04-chemical-index',top:'Chemical Index'},
-  {name:'05-job-math',top:'Job Math'},
-  {name:'06-field-guide',top:'Field Guide'},
-  {name:'07-tools',top:'Field Tools'}
+  {name:'01-sh-mix',top:'SH Mix',views:['#view-mix','#mix']},
+  {name:'02-equipment',top:'Equipment',views:['#view-delivery','#equipment']},
+  {name:'03-chemicals',top:'Chemicals',views:['#view-chemicals','#chemicals']},
+  {name:'04-chemical-index',top:'Chemical Index',views:['#view-index','#index']},
+  {name:'05-job-math',top:'Job Math',views:['#view-job','#job']},
+  {name:'06-field-guide',top:'Field Guide',views:['#view-guide','#guide']},
+  {name:'07-tools',top:'Field Tools',views:['#view-tools','#tools']}
 ];
 
 async function clickText(page,text){
   const exact=page.getByText(text,{exact:true});
   if(await exact.count()){await exact.first().click();return true}
+  return false;
+}
+
+async function routeVisible(page,state){
+  for(const selector of state.views){
+    const loc=page.locator(selector);
+    if(await loc.count() && await loc.first().isVisible()) return true;
+  }
   return false;
 }
 
@@ -39,7 +47,8 @@ async function capture(base,label,browser){
   for(const state of states){
     const clicked=await clickText(page,state.top);
     if(!clicked) throw new Error(`${label}: could not activate route ${state.top}`);
-    await page.waitForTimeout(150);
+    await page.waitForTimeout(180);
+    if(!await routeVisible(page,state)) throw new Error(`${label}: ${state.top} click did not expose the expected route`);
     await page.evaluate(()=>window.scrollTo(0,0));
     await page.screenshot({path:path.join(OUT,`${label}-${state.name}.png`),fullPage:true});
   }
