@@ -37,20 +37,23 @@ const updateSummaries=()=>{
   const customer=$('#customerQuoteParity'),crew=$('#crewSheetParity');if(!customer&&!crew)return;
   const lines=[];let subtotal=0;
   serviceIds.forEach(id=>{const qty=qv(id);if(!qty)return;let rate=rateDefaults[id]||0;const rateInput=$(`[data-rate-for="${id}"]`);if(rateInput)rate=parseFloat(rateInput.value)||rate;const total=qty*rate;if(total>0){subtotal+=total;lines.push(`${serviceNames[id]||id.replace(/^svc/,'')}: ${money(total)}`)}});
-  const custom=qv('customAmt');if(custom){subtotal+=custom;lines.push(`Custom service: ${money(custom)}`)}
+  const custom=qv('customAmt');if(custom){subtotal+=custom;lines.push(`${$('#customDesc')?.value?.trim()||'Custom service'}: ${money(custom)}`)}
   const discount=Math.max(0,Math.min(100,qv('discount'))),override=qv('override');let total=subtotal*(1-discount/100);if(override>0)total=override;if(total>0&&total<150)total=150;const deposit=total*.5;
   const name=$('#jobName')?.value?.trim()||'Customer';
   if(customer)customer.textContent=lines.length?`${name}\n${lines.join('\n')}\n\nTotal: ${money(total)}\n50% deposit to get on the schedule: ${money(deposit)}\nRemaining balance due upon completion: ${money(total-deposit)}`:'Add services to build the customer quote.';
   if(crew)crew.textContent=lines.length?`${name} — Crew Job Sheet\n${lines.join('\n')}\n\nPlanned total: ${money(total)}\nCurrent SH target: ${qv('targetNum').toFixed(2)}%\nPlanned mix: ${($('#mixNeeded')?.textContent||'—')}`:'Add services to build the crew job sheet.';
 };
+const draftIds=['jobName','quoteNotes','discount','override','customDesc','customAmt',...serviceIds];
 const autosave=()=>{
-  const ids=['jobName','quoteNotes','discount','override',...serviceIds];const data={};ids.forEach(id=>{const e=$('#'+id);if(e)data[id]=e.value});try{localStorage.setItem('fireV18ParityDraft',JSON.stringify(data))}catch{}
+  const data={};draftIds.forEach(id=>{const e=$('#'+id);if(e)data[id]=e.value});try{localStorage.setItem('fireV18ParityDraft',JSON.stringify(data))}catch{}
 };
-const restore=()=>{try{const d=JSON.parse(localStorage.getItem('fireV18ParityDraft')||'{}');Object.entries(d).forEach(([id,v])=>{const e=$('#'+id);if(e&&!e.value)e.value=v})}catch{}};
+const restore=()=>{try{const d=JSON.parse(localStorage.getItem('fireV18ParityDraft')||'{}');Object.entries(d).forEach(([id,v])=>{const e=$('#'+id);if(e&&v!==undefined&&v!==null)e.value=String(v)})}catch{}};
 const offlineStatus=async()=>{const e=$('#offlineParityStatus');if(!e)return;let ready=false;try{if('serviceWorker'in navigator){await navigator.serviceWorker.ready;const keys=await caches.keys();ready=keys.some(k=>k.startsWith('fire-field-calculator-v18'))}}catch{}e.textContent=ready?'Offline package ready on this device.':'Open once online to finish caching the offline package.';e.className=ready?'statusgood':'statuswarn'};
 const loadInteractions=()=>{if(document.querySelector('script[data-v18-interactions]'))return;const s=document.createElement('script');s.src='./v18-interactions.js?v=1';s.dataset.v18Interactions='1';document.head.appendChild(s)};
+const syncAfterRestore=()=>{restore();updateSummaries();['input','change'].forEach(type=>{document.querySelectorAll('#job input,#job select,#job textarea').forEach(e=>e.dispatchEvent(new Event(type,{bubbles:true})))})};
 const bind=()=>{
   ensureExactCopy();restore();updateSummaries();offlineStatus();loadInteractions();
+  setTimeout(syncAfterRestore,500);setTimeout(syncAfterRestore,1200);
   document.addEventListener('input',e=>{if(e.target.matches('input,select,textarea')){autosave();updateSummaries()}},{passive:true});
   document.addEventListener('change',e=>{if(e.target.matches('input,select,textarea')){autosave();updateSummaries()}},{passive:true});
 };
