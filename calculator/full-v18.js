@@ -15,7 +15,7 @@
     await load('./v18-tools-state.js?v=1');
     await load('./v18-live-estimator-parity.js?v=2');
     await load('./v18-live-first-screen.js?v=3');
-    await load('./v18-live-jobmath-parity.js?v=2');
+    await load('./v18-live-jobmath-parity.js?v=3');
     window.dispatchEvent(new CustomEvent('fire-v18-parity-loaded'));
     window.dispatchEvent(new CustomEvent('fire-v18-shared-core-ready'));
   })();
