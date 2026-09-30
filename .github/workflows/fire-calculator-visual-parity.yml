@@ -58,6 +58,12 @@ jobs:
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
         run: node calculator/tests/estimator-edge-live-parity.mjs
 
+      - name: Inspect live bundle and customer baseline
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        run: node calculator/tests/jobmath-baseline-audit.mjs
+
       - name: Capture live and staging at iPhone viewport
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
