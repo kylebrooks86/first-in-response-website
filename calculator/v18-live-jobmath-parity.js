@@ -13,15 +13,28 @@
   const addMeasureShortcuts=()=>{
     const result=$('#areaHelperResult');
     const card=result?.closest('.card');
-    if(!result||!card||$('#fireMeasureShortcuts'))return;
-    const wrap=document.createElement('div');wrap.id='fireMeasureShortcuts';wrap.className='actions fire-measure-actions';
-    const defs=[['Use for mix planning','area',true],['Use for house price','svcHouse',false],['Use for fence price','svcFence',false]];
-    defs.forEach(([label,target,primary])=>{
-      const b=document.createElement('button');b.type='button';b.textContent=label;if(primary)b.classList.add('primary');
-      b.addEventListener('click',()=>{const area=Math.round(calculatedArea());if(setInput(target,area)){window.toast?.(`${label}: ${area.toLocaleString()} ft²`)}});
-      wrap.appendChild(b);
-    });
-    result.insertAdjacentElement('afterend',wrap);
+    if(result&&card&&!$('#fireMeasureShortcuts')){
+      const wrap=document.createElement('div');wrap.id='fireMeasureShortcuts';wrap.className='actions fire-measure-actions';
+      const defs=[['Use for mix planning','area',true],['Use for house price','svcHouse',false],['Use for fence price','svcFence',false]];
+      defs.forEach(([label,target,primary])=>{
+        const b=document.createElement('button');b.type='button';b.textContent=label;if(primary)b.classList.add('primary');
+        b.addEventListener('click',()=>{const area=Math.round(calculatedArea());if(setInput(target,area)){window.toast?.(`${label}: ${area.toLocaleString()} ft²`)}});
+        wrap.appendChild(b);
+      });
+      result.insertAdjacentElement('afterend',wrap);
+    }
+    const coverageResult=$('#coverageResult');
+    if(coverageResult&&!$('#useActualCoverage')){
+      const b=document.createElement('button');b.id='useActualCoverage';b.type='button';b.textContent='Use this coverage rate';b.className='primary';
+      b.addEventListener('click',()=>{
+        const area=num('calArea'),mix=num('calMix');
+        if(area<=0||mix<=0){window.toast?.('Enter completed-job area and mix used first');return}
+        const rate=area/mix;
+        const value=Number(rate.toFixed(2));
+        if(setInput('coverage',value))window.toast?.(`Coverage set to ${value.toLocaleString()} ft² per gallon`);
+      });
+      coverageResult.insertAdjacentElement('afterend',b);
+    }
   };
   const labelLiveDefaults=()=>{
     const card=$('#jobMixCard');
