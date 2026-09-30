@@ -17,7 +17,7 @@
     await load('./v18-behavior.js?v=4');
     await load('./v18-interactions.js?v=2');
     await load('./v18-fine-parity.js?v=7');
-    await load('./v18-equipment-parity.js?v=2');
+    await load('./v18-equipment-parity.js?v=3');
     await load('./v18-tools-state.js?v=1');
     await load('./v18-live-estimator-parity.js?v=2');
     await load('./v18-live-first-screen.js?v=3');
