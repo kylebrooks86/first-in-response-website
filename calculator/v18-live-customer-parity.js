@@ -22,8 +22,9 @@
   const emit=id=>{const el=$('#'+id);if(el){el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))}};
   function clearEstimate(){
     if(!window.confirm('Clear this estimate and job-planning measurements? Your saved pricing will stay unchanged.'))return;
-    serviceIds.forEach(id=>{const el=$('#'+id);if(el)el.value=''});
-    ['fullCustomDesc','fullCustomAmt','fullNotes','estimateJobName'].forEach(id=>{const el=$('#'+id);if(el)el.value=''});
+    serviceIds.forEach(id=>{const el=$('#'+id);if(el)el.value='0'});
+    const desc=$('#fullCustomDesc'),amt=$('#fullCustomAmt'),notes=$('#fullNotes'),name=$('#estimateJobName');
+    if(desc)desc.value='Custom service';if(amt)amt.value='0';if(notes)notes.value='';if(name)name.value='';
     const discount=$('#fullDiscount'),override=$('#fullOverride');if(discount)discount.value='0';if(override)override.value='0';
     emit('svcHouse');emit('fullDiscount');emit('fullOverride');
     try{localStorage.removeItem('fireV18EstimateDraft');localStorage.removeItem(KEY)}catch{}
