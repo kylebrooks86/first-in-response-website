@@ -31,4 +31,4 @@
   #chemicals .resultbig{font-size:22px!important;line-height:1.15!important;color:#17212b!important}
   #chemicals .resultbig .fire-dil-product{color:#e5482e!important}
 }
-body.dark .fire-chem-product{background:#18212b;color:#f6f7f8;border-color:#35414b}body.dark .fire-chem-icon{background:#121a22}body.dark .fire-chem-copy small,body.dark .fire-chem-arrow{color:#b7c0c7}
+body.dark .fire-chem-product{background:#18212b;color:#f7fafc;border-color:#35414b}body.dark .fire-chem-product.active{background:rgba(255,90,54,.08)!important;border-color:#ff5a36!important;color:#f7fafc!important}body.dark .fire-chem-icon{background:#121a22}body.dark .fire-chem-copy small,body.dark .fire-chem-arrow{color:#b7c0c7}
