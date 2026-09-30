@@ -16,55 +16,55 @@ The current production/live calculator and the independent/recovery calculator a
 | Area / state | Current status | Audit note / acceptance requirement |
 | --- | --- | --- |
 | Launch / initial render | NOT YET VERIFIED | Compare first paint, header, warning banner, top tabs, active state, viewport/safe-area behavior, bottom nav and initial saved-state restoration. |
-| Header / FIRE branding | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live stock-strength structure is now mirrored on staging with `.stock-pill` and `#stockPill`; exact dimensions, colors, title/subtitle spacing, install/theme controls and iPhone rendering still require paired visual verification. |
-| Top navigation | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live six-tab model is now mirrored on staging: SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Guide. Field Tools is no longer an extra top tab. Active indicator/scroll/touch visuals still require paired verification. |
-| Job Math quick navigation | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Staging now mirrors live `#topJobNav` / `.top-job-nav` with Mix plan, Measure, Estimate, Loadout and matching target-card IDs. Sticky position, spacing and iPhone behavior still require paired visual verification. |
-| Bottom navigation | NOT YET VERIFIED | Same six controls, icons, order, labels, active states and fixed/safe-area behavior required. |
-| SH Mix — surface selector | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact 15-option live surface list/order is present in staging, with House wash as the first/default option. Visual rendering and state transition behavior still require paired verification. |
-| SH Mix — growth selector | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Light / Moderate / Heavy labels and Moderate default are mirrored in staging. Exact active-state visuals and all resulting recipe updates still require paired verification. |
-| SH Mix — batch presets | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact expanded preset list through 250 gallons, Custom amount, quick-batch controls and custom units are mirrored in staging; paired rendering and interaction-state verification remain. |
-| SH Mix — recipe output | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Staging now matches the live `4.00 gal medium house wash` title format and basic SH/water/surfactant output logic; every surface/growth combination and visual formatting still require paired verification. |
-| SH Mix — stock-strength correction | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact live sentence format is mirrored in staging; edge values and paired visual verification remain. |
-| Elemonator enable/rate behavior | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Checkbox now reflects stored/current rate instead of forcing checked; total-volume behavior and paired live-state verification remain. |
-| Equipment — X-Jet estimate | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Independent calculation exists and live factory wording is mirrored; compare defaults, ratio values and visual card exactly. |
+| Header / FIRE branding | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Header structure is mirrored on staging; exact pixel-level title/control spacing and all iPhone saved/install states remain below VERIFIED IDENTICAL threshold. |
+| Top navigation | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Verified live seven-tab order is mirrored on staging: SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Tools, Field Guide. Route-asserting screenshot harness now verifies the intended route actually opens before capture. |
+| Job Math quick navigation | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Staging mirrors live `#topJobNav` / `.top-job-nav` with Mix plan, Measure, Estimate, Loadout and matching target-card behavior. Sticky-position fine comparison remains. |
+| Bottom navigation | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Six controls/order are mirrored: SH Mix, Equipment, Mixes, Index, Job Math, Tools. Fixed/safe-area and active-state fine comparison remain. |
+| SH Mix — surface selector | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact 15-option live surface list/order is present in staging, with House wash as the first/default option. |
+| SH Mix — growth selector | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Light / Moderate / Heavy labels and Moderate default are mirrored in staging. |
+| SH Mix — batch presets | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Expanded preset list through 250 gallons, Custom amount, quick-batch controls and custom units are mirrored in staging. |
+| SH Mix — recipe output | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Staging matches the live `4.00 gal medium house wash` title format and the verified default SH/water/surfactant example. Every surface/growth combination still needs state-matrix testing. |
+| SH Mix — stock-strength correction | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact live sentence format and stock-card structure are mirrored in staging; edge values remain. |
+| Elemonator enable/rate behavior | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Checkbox reflects stored/current rate and total-volume behavior is retained; full saved-state matrix remains. |
+| Equipment — X-Jet estimate | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live default state and wording are mirrored; broader edge-state matrix remains. |
 | Equipment — reverse X-Jet | NOT YET VERIFIED | Compare desired surface strength, pickup-bucket recipe, surfactant warning and edge states. |
-| Equipment — bucket draw test | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Staging includes the live draw-test instructions; timed draw formula, ratio, rounding and edge states still require paired verification. |
+| Equipment — bucket draw test | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Verified live default is mirrored: 64 fl oz draw → 4.00:1 → 2.00% measured surface strength. Edge states remain. |
 | Equipment — downstream estimate | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Formula exists independently; paired state audit required. |
 | Equipment — real injector ratio | NOT YET VERIFIED | Paired functional/visual audit required. |
 | Equipment — proportioner planner | NOT YET VERIFIED | Water/SH/soap percentages, GPM, tank/runtime behavior and validation require paired audit. |
 | Equipment — fill-time estimate | NOT YET VERIFIED | Paired functional/visual audit required. |
-| Chemicals — product selector | NOT YET VERIFIED | Exact product list, order, default and product-specific behavior required. No generic dosage may be applied to unverified products. |
-| Chemicals — dilution/dose | NOT YET VERIFIED | Product-specific labels/rates and custom dilution math require audit. |
-| Chemical Index | NOT YET VERIFIED | Exact entries, rank/search behavior, wording and ordering required. |
-| Job Math — mix planning | NOT YET VERIFIED | Area, coverage, reserve, fill size, SH/water/surfactant loadout and blank-state defaults require exact audit. |
-| Job Math — measurement helpers | NOT YET VERIFIED | Area and real-coverage helpers require exact audit. |
-| Job Math — batch chemical cost | NOT YET VERIFIED | Defaults, price inputs, rounding and outputs require exact audit. |
-| Job Math — service estimator | NOT YET VERIFIED | Every service row, unit, rate, quantity, section order, open/closed state and calculation require exact audit. |
-| Job Math — minimum job | NOT YET VERIFIED | Approved $150 minimum must be regression-tested in both deployments. |
-| Job Math — discounts | NOT YET VERIFIED | Stacking/order/rounding must match the live calculator exactly; no independent interpretation allowed. |
+| Chemicals — product selector | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live-style 10-product browser/order/default is implemented. Unverified products do not inherit Ettore dosage. Fine screenshot differences remain. |
+| Chemicals — dilution/dose | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Verified default Ettore 1–2 fl oz/gal behavior and custom dilution controls are mirrored. Other products remain label-controlled unless verified. |
+| Chemical Index | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live-style 10-product ranked guide, search, and BEST USE / GOOD OPTION / TEST FIRST / AVOID filtering are implemented; copy/spacing fine pass remains. |
+| Job Math — mix planning | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Verified fresh defaults 2000 ft² / 300 ft² per gal / 15% reserve and live plan display are mirrored. |
+| Job Math — measurement helpers | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Area helper plus Use for mix planning / house price / fence price shortcuts are implemented. |
+| Job Math — batch chemical cost | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Verified fresh defaults $4.50 SH and $45 Elemonator plus planned-job status are mirrored. |
+| Job Math — service estimator | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Full Estimate card is rendered in live order; service-row/state matrix remains before VERIFIED IDENTICAL. |
+| Job Math — minimum job | NOT YET VERIFIED | Live-vs-staging Playwright behavior scenarios have been added; do not promote until the run proves totals. |
+| Job Math — discounts | NOT YET VERIFIED | Live-vs-staging Playwright behavior scenarios now test discount interactions; no independent interpretation allowed. |
 | Job Math — bundle behavior | NOT YET VERIFIED | Verify whether and how live calculator represents bundles before implementing tests. |
-| Job Math — final-price override | NOT YET VERIFIED | Exact zero/default behavior and output effects require audit. |
-| Job Math — deposit / remaining balance | NOT YET VERIFIED | 50% deposit and remaining-balance wording/math must match live behavior wherever shown. |
+| Job Math — final-price override | NOT YET VERIFIED | Live-vs-staging Playwright behavior scenarios now test override ordering; do not promote until proven. |
+| Job Math — deposit / remaining balance | NOT YET VERIFIED | Live-vs-staging Playwright scenarios compare deposit output; remaining-balance output still requires audit. |
 | Customer/job information | NOT YET VERIFIED | Exact fields, persistence, blank states and output inclusion required. |
-| Customer quote | NOT YET VERIFIED | Line ordering, wording, rates, totals, notes, copy result and error behavior required. |
-| Crew/job sheet | NOT YET VERIFIED | Exact fields, output, missing-rate behavior and copy/export behavior required. |
-| Job loadout / profitability | NOT YET VERIFIED | Exact inputs, formulas, defaults and output states required. |
+| Customer quote | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Copy / Share / Print-Save-PDF action set is mirrored; exact output/failure behavior still requires state tests. |
+| Crew/job sheet | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Copy crew job sheet / Share crew sheet / Clear this estimate are mirrored; output-state matrix remains. |
+| Job loadout / profitability | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Verified default shortage state, planned chemical deduction and blank-profit state are mirrored; nonblank profitability scenarios remain. |
 | Pricing editor | NOT YET VERIFIED | Same service schema, rates, units, minimum/deposit business rules and persistence required. |
-| Quick Mix Favorites | NOT YET VERIFIED | Same favorites, labels, navigation and resulting state required. |
-| Stain & Surface Finder | NOT YET VERIFIED | Same inputs, recommendations, warnings and ordering required. |
-| Chemical Compatibility Checker | NOT YET VERIFIED | Same combinations, safety warnings and invalid states required. |
-| Batch History / Mix Log | NOT YET VERIFIED | Save/reuse/delete/order/persistence behavior required. |
-| Chemical Inventory | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live schema/copy and device-local inventory warning are mirrored in staging. Use/clear interaction, persistence edge cases and paired visual verification remain. |
-| Application Timer | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Independent timer exists and live warning text is mirrored; compare presets, background behavior, state transitions and formatting. |
-| Weather Adjustment Guide | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Independent guide exists; exact rules/messages and visual output require paired verification. |
-| Custom Chemical Builder | NOT YET VERIFIED | Schema, validation, save/edit/delete and persistence required. |
-| Version / update UI | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | User-visible v18/offline wording is mirrored; hosting-specific update plumbing may differ invisibly. Exact visual state still requires paired verification. |
-| Backup / restore UI | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact live backup description is mirrored and shared schema is being preserved; restore round-trip, replacement behavior and paired visuals still require testing. |
-| Field Safety Card | NOT YET VERIFIED | Exact content/order/icons/wording required. |
-| Field Guide | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | The confirmed 7-step Quick safety order and confirmed Field Guide service-warning sections are mirrored in staging; full route visual verification remains. |
+| Quick Mix Favorites | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live four default favorites, Save current SH mix, and saved-favorites empty state are implemented; resulting-state tests remain. |
+| Stain & Surface Finder | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live default labels/recommendation copy are mirrored; alternate selections remain. |
+| Chemical Compatibility Checker | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact live default SH + F9 BARC DO NOT MIX warning is enforced after older core updates; alternate combinations remain. |
+| Batch History / Mix Log | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Log/Clear controls and empty-state copy are mirrored; reuse/delete/order/persistence scenarios remain. |
+| Chemical Inventory | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Seven live inventory rows/units are mirrored with conversion into shared Job Math inventory state; persistence/use actions need scenario testing. |
+| Application Timer | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live default controls, Pause label and warning are mirrored; background/time-complete behavior still needs scenario testing. |
+| Weather Adjustment Guide | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live fresh 75°F / 5 mph / Mixed / 50% state and default caution copy are mirrored; alternate conditions remain. |
+| Custom Chemical Builder | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live placeholders, default dose, add-button wording and empty state are mirrored; validation/edit/delete persistence remain. |
+| Version / update UI | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live v18/offline inset, update action and exact device-local wording are mirrored; hosting-specific plumbing may differ invisibly. |
+| Backup / restore UI | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live Download backup / Copy backup text / file restore UI and shared schema are mirrored; full restore round-trip remains. |
+| Field Safety Card | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Five live safety items including Exposure response are mirrored; visual fine pass remains. |
+| Field Guide | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live-style starting-strength matrix, service-warning accordions and safety order are mirrored; two obscured matrix values remain provisional until separately confirmed. |
 | Light mode | NOT YET VERIFIED | Route-by-route screenshot comparison required. |
 | Dark mode | NOT YET VERIFIED | Route-by-route screenshot comparison required. |
-| iPhone portrait layout | NOT YET VERIFIED | Safe areas, sticky/fixed elements, scrolling, keyboard avoidance and tap targets required. |
+| iPhone portrait layout | NOT YET VERIFIED | Route-by-route screenshots exist at 390×844; keyboard/safe-area/state variants still remain. |
 | Keyboard / numeric input behavior | NOT YET VERIFIED | Input mode, focus, scrolling, decimals, negatives and dismissal behavior required. |
 | Reset / clear | NOT YET VERIFIED | Scope, confirmation and resulting default state must be identical. |
 | Save / load | NOT YET VERIFIED | Same schema and restoration order required. |
