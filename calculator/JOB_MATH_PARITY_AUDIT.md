@@ -56,7 +56,28 @@ Shared staging core now:
 - adds Print / Save PDF
 - hides the standalone-only visible Save estimate draft button while preserving draft persistence in code
 
-These changes are implemented in `calculator/v18-live-estimator-parity.js` and that file is included in the shared-core fingerprint.
+These changes are implemented in `calculator/v18-live-estimator-parity.js`, loaded by the shared-core loader, included in the DR offline cache, included in the live-reference parity gate, and included in the shared-core fingerprint.
+
+## Current staging calculation semantics — NOT YET CERTIFIED AS LIVE PARITY
+
+The current staging estimator calculates in this order:
+
+1. Sum priced service lines and custom service amount into `subtotal`.
+2. Apply one combined discount percentage to produce the discounted subtotal.
+3. If the calculated subtotal is greater than zero, apply the configured minimum-job floor.
+4. If final-price override is greater than zero, the override replaces the calculated/minimum result.
+5. Calculate deposit as the configured deposit percentage of the final customer total.
+
+In compact form:
+
+`subtotal → combined % discount → minimum-job floor → positive final-price override replaces result → deposit %`
+
+Current staging defaults remain:
+
+- Minimum job: $150
+- Deposit percent: 50%
+
+This section documents staging only. It must not be treated as proof that the live calculator uses the same ordering. No formula-order change should be made until the live behavior is directly verified.
 
 ## Not yet verified — do not assume parity
 
@@ -65,6 +86,7 @@ The following still require paired live/staging verification before promotion:
 - exact service-row order and grouping in the live Estimate card
 - every live estimator field/default
 - exact live discount stacking math
+- whether the displayed `Stackable discount total` is one accumulated percentage or derived from multiple sequential discount operations
 - bundle behavior
 - minimum-job application order relative to discounts and override
 - final-price override interaction with minimum job and discount
