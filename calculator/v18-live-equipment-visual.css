@@ -5,8 +5,8 @@
 #equipment #xReverseInstruction{background:#fff1f1!important;border:1px solid #efb7b7!important;border-radius:8px!important;padding:10px 12px!important;color:#754444!important}
 #equipment #propPlannerWarning{background:#fff1f1!important;border:1px solid #efb7b7!important;border-radius:8px!important;padding:10px 12px!important;color:#754444!important}
 #equipment #dsFormulaNote{margin-top:10px!important;line-height:1.45!important}
-#equipment #useXjetMeasured{width:100%!important;min-height:44px!important;border-radius:7px!important;font-weight:800!important}
-#equipment .card{padding-top:18px!important;padding-bottom:18px!important}
+#equipment #useXjetMeasured{width:auto!important;min-height:46px!important;padding-left:13px!important;padding-right:13px!important;border:1px solid #d84225!important;border-radius:12px!important;background:transparent!important;font-weight:850!important;box-shadow:0 7px 18px rgba(255,90,54,.2)!important}
+#equipment .card{padding-top:14px!important;padding-bottom:14px!important}
 #equipment .card h2{margin-bottom:12px!important}
 #equipment .metric strong{line-height:1.05!important}
 @media(max-width:560px){#equipment .card{padding-left:14px!important;padding-right:14px!important}#equipment #xLiveGuidance p:first-child,#equipment #xLiveGuidance p:nth-child(2),#equipment #xReverseInstruction,#equipment #propPlannerWarning{font-size:12px!important}}
