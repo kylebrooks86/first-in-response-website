@@ -17,4 +17,6 @@
   #tools #customChemName::placeholder,#tools #customChemPurpose::placeholder,#tools #customChemNotes::placeholder{color:#87949d!important}
   #tools .statusgood{font-size:13px!important}
 }
-body.dark .fire-favorite-stack>button,body.dark #tools #stainResult,body.dark #tools #weatherNote{background:#18212b!important;color:#f6f7f8!important;border-color:#35414b!important}body.dark .fire-favorite-stack small,body.dark .fire-safety-list p{color:#b7c0c7!important}body.dark .fire-safety-list strong,body.dark #tools #weatherNote strong{color:#f6f7f8!important}
+body.dark .fire-favorite-stack>button,body.dark #tools #stainResult,body.dark #tools #weatherNote{background:#0b131b!important;color:#f6f7f8!important;border-color:#263544!important}body.dark .fire-favorite-stack small,body.dark .fire-safety-list p{color:#b7c0c7!important}body.dark .fire-safety-list strong,body.dark #tools #weatherNote strong{color:#f6f7f8!important}
+body.dark #tools input,body.dark #tools select,body.dark #tools textarea{background:#0b131b!important;border-color:#263544!important;color:#f7fafc!important}
+body.dark #tools button:not(#timerStart):not(#exportAll):not(#fireCheckUpdate){background:#0b131b!important;border-color:#263544!important;color:#f7fafc!important}
