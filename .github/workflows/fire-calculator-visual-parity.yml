@@ -98,6 +98,14 @@ jobs:
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
         run: node calculator/tests/export-live-parity.mjs
 
+      - name: Compare live mobile numeric input behavior
+        id: mobileinputs
+        continue-on-error: true
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        run: node calculator/tests/mobile-input-live-parity.mjs
+
       - name: Verify live backup restores into DR
         id: takeover
         continue-on-error: true
@@ -195,6 +203,12 @@ jobs:
         if: steps.export.outcome == 'failure'
         run: |
           echo 'Live-vs-staging quote copy/share/print parity failed.'
+          exit 1
+
+      - name: Enforce mobile numeric input parity result
+        if: steps.mobileinputs.outcome == 'failure'
+        run: |
+          echo 'Live-vs-staging mobile numeric input parity failed.'
           exit 1
 
       - name: Enforce live backup to DR takeover
