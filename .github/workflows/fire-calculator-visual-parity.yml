@@ -74,6 +74,14 @@ jobs:
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
         run: node calculator/tests/bundle-live-parity.mjs
 
+      - name: Compare live save reload and clear behavior
+        id: state
+        continue-on-error: true
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        run: node calculator/tests/state-roundtrip-live-parity.mjs
+
       - name: Inspect live bundle and customer baseline
         continue-on-error: true
         env:
@@ -124,4 +132,10 @@ jobs:
         if: steps.bundle.outcome == 'failure'
         run: |
           echo 'Live-vs-staging bundle/promotion parity failed.'
+          exit 1
+
+      - name: Enforce save reload and clear parity result
+        if: steps.state.outcome == 'failure'
+        run: |
+          echo 'Live-vs-staging save/reload/clear parity failed.'
           exit 1
