@@ -26,13 +26,13 @@ The current production/live calculator and the independent/recovery calculator a
 | SH Mix — recipe output | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Staging matches the live `4.00 gal medium house wash` title format and the verified default SH/water/surfactant example. Every surface/growth combination still needs state-matrix testing. |
 | SH Mix — stock-strength correction | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact live sentence format and stock-card structure are mirrored in staging; edge values remain. |
 | Elemonator enable/rate behavior | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Checkbox reflects stored/current rate and total-volume behavior is retained; full saved-state matrix remains. |
-| Equipment — X-Jet estimate | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live default state and wording are mirrored; broader edge-state matrix remains. |
-| Equipment — reverse X-Jet | NOT YET VERIFIED | Compare desired surface strength, pickup-bucket recipe, surfactant warning and edge states. |
-| Equipment — bucket draw test | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Verified live default is mirrored: 64 fl oz draw → 4.00:1 → 2.00% measured surface strength. Edge states remain. |
-| Equipment — downstream estimate | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Formula exists independently; paired state audit required. |
-| Equipment — real injector ratio | NOT YET VERIFIED | Paired functional/visual audit required. |
-| Equipment — proportioner planner | NOT YET VERIFIED | Water/SH/soap percentages, GPM, tank/runtime behavior and validation require paired audit. |
-| Equipment — fill-time estimate | NOT YET VERIFIED | Paired functional/visual audit required. |
+| Equipment — X-Jet estimate | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live default state, measured-percentage control, target-bracketing guidance and pickup/water guidance are mirrored. Final pixel-level iPhone spacing/style certification remains. |
+| Equipment — reverse X-Jet | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Desired strength, stock strength, pickup-bucket amount, required bucket strength, exact reverse instruction and surfactant warning now match the live DOM audit. Edge-state matrix remains. |
+| Equipment — bucket draw test | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Verified live default is mirrored: 64 fl oz draw → 4.00:1 → 2.00% measured surface strength, including `Use this measured draw`. Edge states remain. |
+| Equipment — downstream estimate | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Source-strength/ratio controls, 0.91% default result and exact formula guidance match the live DOM audit. Edge states remain. |
+| Equipment — real injector ratio | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Water/chemical draw controls, 10.0:1 default result and measured-surface-strength behavior match the live DOM audit. Edge states remain. |
+| Equipment — proportioner planner | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Pump/stock/target/soap controls, valve targets, tank sizes, continuous spray time, 61.5 gal availability and planning warning match the live DOM audit. Edge states remain. |
+| Equipment — fill-time estimate | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | 100 gal / 5 GPM → 20 min default state and control structure match the live DOM audit. Edge states remain. |
 | Chemicals — product selector | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live-style 10-product browser/order/default is implemented. Unverified products do not inherit Ettore dosage. Fine screenshot differences remain. |
 | Chemicals — dilution/dose | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Verified default Ettore 1–2 fl oz/gal behavior and custom dilution controls are mirrored. Other products remain label-controlled unless verified. |
 | Chemical Index | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Live-style 10-product ranked guide, search, and BEST USE / GOOD OPTION / TEST FIRST / AVOID filtering are implemented; copy/spacing fine pass remains. |
