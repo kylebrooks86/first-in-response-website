@@ -21,7 +21,7 @@
     await load('./v18-fine-parity.js?v=7');
     await load('./v18-equipment-parity.js?v=3');
     await load('./v18-tools-state.js?v=1');
-    await load('./v18-live-estimator-parity.js?v=2');
+    await load('./v18-live-estimator-parity.js?v=3');
     await load('./v18-live-first-screen.js?v=3');
     await load('./v18-live-jobmath-parity.js?v=4');
     await load('./v18-live-chemicals-parity.js?v=1');
@@ -31,7 +31,7 @@
     await load('./v18-live-tools-parity.js?v=1');
     await load('./v18-live-tools-fine.js?v=1');
     await load('./v18-live-pricing-parity.js?v=1');
-    await load('./v18-live-customer-parity.js?v=2');
+    await load('./v18-live-customer-parity.js?v=3');
     window.dispatchEvent(new CustomEvent('fire-v18-parity-loaded'));
     window.dispatchEvent(new CustomEvent('fire-v18-shared-core-ready'));
   })();
