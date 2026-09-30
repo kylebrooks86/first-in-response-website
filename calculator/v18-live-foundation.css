@@ -14,7 +14,8 @@ body{line-height:1.45!important}
   .tabs{box-sizing:border-box!important;width:100%!important;margin:0!important;padding:0!important;gap:8px!important}
   .bottom{height:83.5px!important;min-height:83.5px!important;box-sizing:border-box!important;padding:8px 10px calc(8px + env(safe-area-inset-bottom))!important;background:rgba(237,243,247,.97)!important;border-top:1px solid #cbd7df!important;box-shadow:none!important}
 
-  body:not(.dark) .page .card{border-color:#cbd7df!important;border-radius:18px!important;box-shadow:0 12px 30px rgba(32,53,69,.12)!important}
+  .page .card{background:transparent!important}
+  body:not(.dark) .page .card{background:transparent!important;border-color:#cbd7df!important;border-radius:18px!important;box-shadow:0 12px 30px rgba(32,53,69,.12)!important}
   body:not(.dark) .page input,
   body:not(.dark) .page select,
   body:not(.dark) .page textarea{color:#121a22!important;border-color:#cbd7df!important;border-radius:12px!important;padding-left:12px!important;padding-right:12px!important}
@@ -36,7 +37,7 @@ body{line-height:1.45!important}
   body.dark .tabswrap{background:transparent!important;border-color:transparent!important}
   body.dark .tab{background:#101a24!important;color:#9fb0bf!important;border-color:#263544!important}
   body.dark .tab.active{background:#f7fafc!important;color:#17212b!important;border-color:#f7fafc!important}
-  body.dark .page .card{background:#13202b!important;color:#f7fafc!important;border-color:#263544!important;border-radius:18px!important;box-shadow:0 14px 34px rgba(0,0,0,.30)!important}
+  body.dark .page .card{background:transparent!important;color:#f7fafc!important;border-color:#263544!important;border-radius:18px!important;box-shadow:0 14px 34px rgba(0,0,0,.30)!important}
   body.dark .page input,
   body.dark .page select,
   body.dark .page textarea{background:#0b131b!important;color:#f7fafc!important;border-color:#263544!important;border-radius:12px!important;padding-left:12px!important;padding-right:12px!important}
