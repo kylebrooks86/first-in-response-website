@@ -11,28 +11,47 @@ const scenarios=[
   {name:'override after discount',house:1000,discount:10,override:200}
 ];
 
-async function clickText(page,text){const x=page.getByText(text,{exact:true});for(let i=0;i<await x.count();i++){const el=x.nth(i);if(await el.isVisible()){await el.click();return true}}return false}
-async function visibleJobRoot(page){for(const s of ['#view-job','#job']){const x=page.locator(s);if(await x.count()&&await x.first().isVisible())return x.first()}return null}
-async function jobRouteText(page){for(const s of ['#view-job','#job']){const x=page.locator(s);if(await x.count()){const raw=(await x.first().innerText()).replace(/,/g,'').replace(/\s+/g,' ');if(raw.includes('Price the whole job')||raw.includes('Subtotal'))return raw}}return null}
-async function openAllJobDetails(page){const root=await visibleJobRoot(page);if(!root)return false;await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(80);return true}
+async function clickVisibleText(page,text){const x=page.getByText(text,{exact:true});for(let i=0;i<await x.count();i++){const el=x.nth(i);if(await el.isVisible()){await el.click();return true}}return false}
+async function jobRootByFields(page){
+  for(const id of ['houseWashArea','svcHouse']){
+    const field=page.locator('#'+id);
+    if(await field.count()){
+      for(const selector of ['#view-job','#job']){
+        const root=field.locator(`xpath=ancestor::*[@id='${selector.slice(1)}']`);
+        if(await root.count())return root.first();
+      }
+    }
+  }
+  for(const selector of ['#view-job','#job']){const root=page.locator(selector);if(await root.count())return root.first()}
+  return null;
+}
+async function openJob(page){
+  for(let attempt=0;attempt<3;attempt++){
+    await clickVisibleText(page,'Job Math');
+    await page.waitForTimeout(180);
+    const root=await jobRootByFields(page);
+    if(root){await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(80);return root}
+  }
+  return null;
+}
 async function setByIds(page,ids,value){for(const id of ids){const el=page.locator('#'+id);if(await el.count()){await el.evaluate((node,v)=>{node.value=String(v);node.dispatchEvent(new Event('input',{bubbles:true}));node.dispatchEvent(new Event('change',{bubbles:true}))},value);return true}}return false}
-async function estimateTotals(page){
-  const raw=await jobRouteText(page);if(!raw)return null;
+async function routeText(root){if(!root)return null;return (await root.innerText()).replace(/,/g,'').replace(/\s+/g,' ')}
+async function estimateTotals(root){
+  const raw=await routeText(root);if(!raw)return null;
   const get=label=>{const esc=label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');const m=raw.match(new RegExp(esc+'\\s*\\$\\s*([0-9]+(?:\\.[0-9]{1,2})?)','i'));return m?Number(m[1]):null};
   return {subtotal:get('Subtotal'),total:get('Customer total'),deposit:get('50% deposit'),raw};
 }
 async function runScenario(browser,base,scenario){
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const page=await ctx.newPage();await page.goto(base,{waitUntil:'networkidle',timeout:60000});
-  if(!await clickText(page,'Job Math'))throw new Error(`Could not open Job Math at ${base}`);
-  await page.waitForTimeout(300);
-  if(!await openAllJobDetails(page))throw new Error(`${base}: no visible Job Math route`);
+  const root=await openJob(page);if(!root)throw new Error(`${base}: no Job Math DOM found for ${scenario.name}`);
   const house=await setByIds(page,['houseWashArea','svcHouse'],scenario.house);
   const discount=await setByIds(page,['discountPct','fullDiscount'],scenario.discount);
   const override=await setByIds(page,['quotedPrice','fullOverride'],scenario.override);
   if(!house||!discount||!override)throw new Error(`${base}: missing Job Math input for ${scenario.name} house=${house} discount=${discount} override=${override}`);
   await page.waitForTimeout(300);
-  const found=await estimateTotals(page);await ctx.close();
+  const currentRoot=await jobRootByFields(page);
+  const found=await estimateTotals(currentRoot);await ctx.close();
   if(!found||[found.subtotal,found.total,found.deposit].some(v=>v===null))throw new Error(`${base}: could not read totals for ${scenario.name}. route=${found?.raw||'missing'}`);
   return {subtotal:found.subtotal,total:found.total,deposit:found.deposit};
 }
