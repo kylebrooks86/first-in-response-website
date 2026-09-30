@@ -20,12 +20,15 @@
   const printText=text=>{const w=window.open('','_blank');if(!w)return;const escaped=text.replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));w.document.write(`<!doctype html><meta charset="utf-8"><title>First In Response Exteriors estimate</title><pre style="white-space:pre-wrap;font:16px/1.45 system-ui,-apple-system,sans-serif;max-width:760px;margin:40px auto">${escaped}</pre>`);w.document.close();w.focus();setTimeout(()=>w.print(),50)};
   const replaceButton=(id,bind)=>{const old=$('#'+id);if(!old)return old;if(old.dataset.fireCustomerBound==='1'){old.onclick=null;return old}const fresh=old.cloneNode(true);fresh.onclick=null;fresh.dataset.fireCustomerBound='1';old.replaceWith(fresh);bind(fresh);return fresh};
   const emit=id=>{const el=$('#'+id);if(el){el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))}};
+  const set=id=>value=>{const e=$('#'+id);if(e)e.value=String(value)};
   function clearEstimate(){
     if(!window.confirm('Clear this estimate and job-planning measurements? Your saved pricing will stay unchanged.'))return;
     serviceIds.forEach(id=>{const el=$('#'+id);if(el)el.value='0'});
     const desc=$('#fullCustomDesc'),amt=$('#fullCustomAmt'),notes=$('#fullNotes'),name=$('#estimateJobName');
     if(desc)desc.value='Custom service';if(amt)amt.value='0';if(notes)notes.value='';if(name)name.value='';
     const discount=$('#fullDiscount'),override=$('#fullOverride');if(discount)discount.value='0';if(override)override.value='0';
+    set('area')('0');set('areaLen')('0');set('areaWid')('0');set('areaSides')('1');set('areaSubtract')('0');set('calArea')('0');set('calMix')('0');
+    emit('area');emit('areaLen');emit('areaWid');emit('areaSides');emit('areaSubtract');emit('calArea');emit('calMix');
     emit('svcHouse');emit('fullDiscount');emit('fullOverride');
     try{localStorage.removeItem('fireV18EstimateDraft');localStorage.removeItem(KEY)}catch{}
     window.toast?.('Estimate cleared');
