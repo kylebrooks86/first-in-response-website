@@ -21,6 +21,18 @@ All visible UI, formulas, pricing logic, validation, navigation, state handling,
 
 Only infrastructure adapters may differ. Examples: hosting provider, deployment URL, secrets, database/storage identifiers, environment variables, and backup destinations.
 
+## Current staging progress
+
+- Isolated staging branch: `fire-calculator-exact-live-clone`
+- Production/live calculator has not been overwritten.
+- Shared-core fingerprint is generated and tracked in `SHARED_CORE_MANIFEST.json`.
+- Production and DR infrastructure-adapter boundaries are defined.
+- Formula regression suite currently passes 56/56 approved/default cases.
+- Confirmed live-vs-independent differences are recorded in `CURRENT_PARITY_AUDIT.md`.
+- Shared staging code has been corrected for confirmed live wording/state gaps including recipe-title formatting, Elemonator checked-state behavior, X-Jet factory guidance, timer warning, and Field Safety wording.
+- Bundle/discount stacking behavior remains audit-gated until current live behavior is directly verified; no new stacking formula has been invented.
+- Visual/iPhone parity, complete state parity, cross-deployment backup restore, and DR takeover are still not verified.
+
 ## Change classification rule
 
 Every future change must be classified as exactly one of:
