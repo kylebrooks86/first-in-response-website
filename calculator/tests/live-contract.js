@@ -10,7 +10,9 @@ const contract = Object.freeze({
   header: [
     'Field Calculator',
     'First In Response Exteriors',
-    'Stock SH 10%'
+    'Stock SH 10%',
+    'stock-pill',
+    'stockPill'
   ],
   topNavigation: [
     'SH Mix',
@@ -49,13 +51,16 @@ const contract = Object.freeze({
     ],
     factoryCopy: 'Factory proportions are estimates based on a 4 GPM pressure washer at 100 PSI. Hose length, pressure, orifice, elevation and equipment condition can change the draw. Use the measured test below for your real result.'
   },
-  jobMath: [
-    'How much mix should I bring?',
-    'Area and real coverage helpers',
-    'Know your cost per batch',
-    'Price the whole job',
-    'Job loadout and profitability'
-  ],
+  jobMath: {
+    headings: [
+      'How much mix should I bring?',
+      'Area and real coverage helpers',
+      'Know your cost per batch',
+      'Price the whole job',
+      'Job loadout and profitability'
+    ],
+    quickNavStructure: ['topJobNav','top-job-nav','jobMixCard','jobMeasureCard','jobEstimateCard','jobLoadoutCard']
+  },
   fieldTools: [
     'Quick Mix Favorites',
     'Stain & Surface Finder',
@@ -69,9 +74,19 @@ const contract = Object.freeze({
     'Backup or Restore Field Data',
     'Field Safety Card'
   ],
+  inventoryCopy: 'Inventory stays on this device. Amounts are planning aids—verify the container before a job.',
   timerWarning: 'A timer never replaces the product label. Watch the surface continuously and rinse sooner if drying or a reaction appears.',
   offlineCopy: 'The calculator does not require a sign-in. Your rates, inventory, timer and saved mixes remain on this device and are included in your backup.',
-  safetyFinalStep: 'Rinse tools and do not seal or store mixed SH long-term.'
+  backupCopy: 'Back up your favorites, inventory, mix history, custom chemicals, X-Jet calibration, calculator settings, and current estimate draft. If you entered a customer or job name, it is included in the backup.',
+  safetyOrder: [
+    'Read the current product label and SDS.',
+    'Wear eye/skin protection and keep people, pets, and plants clear.',
+    'Add water first, then SH, then bleach-stable surfactant.',
+    'Use separate labeled sprayers for acid, alkaline, and SH products.',
+    'Pre-wet and post-rinse plants; never let mix dry on a surface.',
+    'Test an inconspicuous spot and start weaker when uncertain.',
+    'Rinse tools and do not seal or store mixed SH long-term.'
+  ]
 });
 
 function flatten(value, out=[]){
