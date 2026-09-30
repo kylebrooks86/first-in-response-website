@@ -124,6 +124,29 @@
 .field textarea{min-height:120px!important}
 .submit{padding:17px!important;font-size:17px!important;border-radius:4px!important}
 
+/* Lower-page live parity */
+.section.dark:has(> .max > .acc .opt){padding-top:72px!important;padding-bottom:72px!important}
+.section.dark:has(> .max > .acc .opt) .acc{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:1px!important;margin-top:32px!important;background:#2a2f36!important;border:0!important}
+.section.dark:has(> .max > .acc .opt) .opt{display:block!important;padding:26px!important;border:0!important;background:#11151a!important;min-height:150px!important}
+.section.dark:has(> .max > .acc .opt) .opt b{font-size:19px!important}
+.section.dark:has(> .max > .acc .opt) .opt p{font-size:15px!important;line-height:1.6!important;margin-top:9px!important}
+.section:has(.choice-grid .choice:nth-child(3)) .choice-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:18px!important;margin-top:34px!important}
+.section:has(.choice-grid .choice:nth-child(3)) .choice{min-height:210px!important;padding:26px!important}
+.section:has(.choice-grid .choice:nth-child(3)) .num{font-size:15px!important}
+#personal .max{max-width:980px!important}
+#personal .notice{max-width:760px!important;margin:26px 0!important;padding:18px 20px!important;border-left-width:4px!important;font-size:15px!important;line-height:1.55!important}
+#personal .contact-lines{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:1px!important;background:#30353d!important;border-top:1px solid #30353d!important;border-bottom:1px solid #30353d!important;margin:28px 0!important}
+#personal .contact-line{background:#11151a!important;padding:20px!important;border:0!important;min-height:82px!important}
+#personal .formbox{max-width:900px!important;padding:30px!important;margin-top:28px!important}
+#areas-served .max{max-width:980px!important}
+#areas-served details.notice{margin-top:28px!important;padding:0!important;border-left:0!important;background:transparent!important}
+#areas-served details.notice summary{background:#fff!important;border:1px solid #cfd4da!important;padding:18px 20px!important;border-radius:4px!important;cursor:pointer!important}
+#areas-served details.notice p{background:#fff!important;border:1px solid #cfd4da!important;border-top:0!important;margin:0!important;padding:20px!important;font-size:15px!important;line-height:1.8!important}
+#faq .max{max-width:1100px!important}
+#faq .faq{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important}
+#faq .faq details{min-height:72px!important;padding:20px 22px!important}
+#faq .faq summary{font-size:17px!important;line-height:1.35!important}
+
 /* FAQ and footer */
 .faq{gap:10px!important;margin-top:28px!important}
 .faq details{border-radius:4px!important;overflow:hidden!important;transition:border-color .2s ease,box-shadow .2s ease!important;padding:18px 20px!important}
@@ -162,5 +185,9 @@ footer{padding:54px 28px 90px!important}
   .beforeafter{height:360px!important}
   .features{grid-template-columns:1fr!important}
   .owner-photo{height:440px!important}
+  .section.dark:has(> .max > .acc .opt) .acc{grid-template-columns:1fr!important}
+  .section:has(.choice-grid .choice:nth-child(3)) .choice-grid{grid-template-columns:1fr!important}
+  #personal .contact-lines{grid-template-columns:1fr!important}
+  #faq .faq{grid-template-columns:1fr!important}
   .fire-floating-estimate{display:none!important}
 }
