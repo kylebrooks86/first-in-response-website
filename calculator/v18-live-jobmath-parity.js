@@ -32,10 +32,30 @@
       const container=$('#planContainer');if(container){const label=container.closest('.field')?.querySelector('label');if(label)label.textContent='Sprayer / container size'}
     }
   };
+  const looksLikeAutoState=()=>{
+    try{
+      const o=JSON.parse(localStorage.getItem('fireV18FullState')||'{}');
+      const activeService=Object.keys(o).some(k=>/^svc/.test(k)&&Number(o[k])>0);
+      const textUsed=['fullCustomDesc','fullNotes'].some(k=>String(o[k]||'').trim());
+      const pricingUsed=Number(o.fullCustomAmt||0)>0||Number(o.fullDiscount||0)>0||Number(o.fullOverride||0)>0;
+      const laborUsed=Number(o.laborHours||0)>0||Number(o.laborRate||0)>0||Number(o.otherCosts||0)>0;
+      const inventoryEdited=(String(o.invSH??'5')!=='5'||String(o.invEle??'1')!=='1'||String(o.invOther??'0')!=='0');
+      return !(activeService||textUsed||pricingUsed||laborUsed||inventoryEdited);
+    }catch{return true}
+  };
   const seedFreshInventory=()=>{
-    if(localStorage.getItem('fireV18FullState'))return;
-    if($('#invSH')&&$('#invSH').value==='5')$('#invSH').value='0';
-    if($('#invEle')&&$('#invEle').value==='1')$('#invEle').value='0';
+    if(localStorage.getItem('fireLiveInventoryBaselineApplied'))return;
+    if(!looksLikeAutoState())return;
+    const sh=$('#invSH'),ele=$('#invEle'),other=$('#invOther');
+    if(sh)sh.value='0';if(ele)ele.value='0';if(other)other.value='0';
+    try{const o=JSON.parse(localStorage.getItem('fireV18FullState')||'{}');o.invSH='0';o.invEle='0';o.invOther='0';localStorage.setItem('fireV18FullState',JSON.stringify(o))}catch{}
+    localStorage.setItem('fireLiveInventoryBaselineApplied','1');
+  };
+  const syncLivePlanMetrics=()=>{
+    const plan=plannedMix(),cap=Math.max(.01,num('planContainer')||4),fills=plan.gallons>0?Math.ceil(plan.gallons/cap):0,left=Math.max(0,fills*cap-plan.gallons);
+    const fillsEl=$('#fills');if(fillsEl){fillsEl.textContent=String(fills);const metric=fillsEl.closest('.metric');if(metric){const s=metric.querySelector('small');if(s)s.textContent='Batches / fills';const e=metric.querySelector('em');if(e)e.textContent=`${left.toFixed(2)} gal capacity left`}}
+    const sh=$('#planSh');if(sh)sh.textContent=(plan.shGal*128).toFixed(1)+' fl oz';
+    const measure=$('#jobMeasureCard');if(measure){const details=[...measure.querySelectorAll('details')];if(details[0])details[0].open=true;if(details[1])details[1].open=false}
   };
   const decoratePlannedChemicalCost=()=>{
     const p=$('#plannedChemCost');if(!p)return;
@@ -66,7 +86,8 @@
     ['area','coverage','reserve','stockStrength','targetNum','eleRate','invSH','invEle'].forEach(id=>{const el=$('#'+id);if(el&&!el.dataset.loadoutBound){el.dataset.loadoutBound='1';el.addEventListener('input',render);el.addEventListener('change',render)}});
     render();
   };
-  const apply=()=>{seedFreshInventory();addMeasureShortcuts();labelLiveDefaults();decoratePlannedChemicalCost();ensureLoadout()};
+  const bindMetricSync=()=>['area','coverage','reserve','planContainer','stockStrength','targetNum','eleRate'].forEach(id=>{const el=$('#'+id);if(el&&!el.dataset.liveMetricBound){el.dataset.liveMetricBound='1';el.addEventListener('input',()=>setTimeout(syncLivePlanMetrics,0));el.addEventListener('change',()=>setTimeout(syncLivePlanMetrics,0))}});
+  const apply=()=>{seedFreshInventory();addMeasureShortcuts();labelLiveDefaults();decoratePlannedChemicalCost();bindMetricSync();syncLivePlanMetrics();ensureLoadout()};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(apply,900));else setTimeout(apply,900);
   window.addEventListener('fire-v18-shared-core-ready',()=>setTimeout(apply,60));
   window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(apply,60));
