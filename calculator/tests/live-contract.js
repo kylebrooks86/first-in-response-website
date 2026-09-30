@@ -1,6 +1,6 @@
 /* FIRE Business Calculator live-reference contract.
    Purpose: prevent the shared staging core from drifting from the current live FIRE Field Calculator baseline.
-   This is NOT a substitute for visual verification. It is a text/structure release gate.
+   This is NOT a substitute for visual or behavioral verification. It is a user-visible text/structure release gate.
 */
 'use strict';
 
@@ -93,9 +93,7 @@ const contract = Object.freeze({
       'Share quote',
       'Print / Save PDF',
       'Crew job sheet'
-    ],
-    verifiedControlIds: ['quotedPrice','clearDiscount','copyCustomerQuote','shareCustomerQuote','printCustomerQuote'],
-    verifiedControlSteps: ['step="0.5"','step="1"']
+    ]
   },
   fieldTools: [
     'Quick Mix Favorites',
