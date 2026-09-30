@@ -65,10 +65,15 @@
     const card=$('#jobLoadoutCard')||[...document.querySelectorAll('#job .card')].find(c=>c.querySelector('h2')?.textContent.trim()==='Job loadout and profitability');
     if(!card)return;
     const h3=[...card.querySelectorAll('h3')].find(h=>h.textContent.trim()==='Enter your inventory');
+    if(h3){h3.classList.add('hidden');const p=h3.nextElementSibling;if(p?.tagName==='P')p.classList.add('hidden')}
     let status=$('#loadoutStatus');
     if(!status){status=document.createElement('div');status.id='loadoutStatus';status.className='fire-loadout-status';(h3||card.querySelector('.grid')||card.firstChild).before(status)}
     let btn=$('#deductJobLoadout');
     if(!btn){const row=document.createElement('div');row.className='actions fire-loadout-actions';btn=document.createElement('button');btn.id='deductJobLoadout';btn.type='button';btn.textContent='Deduct planned job chemicals';row.appendChild(btn);status.insertAdjacentElement('afterend',row)}
+    const profitRevenue=$('#profitRevenue'),profitMetrics=profitRevenue?.closest('.metrics');
+    let empty=$('#fireProfitEmpty');if(!empty&&profitMetrics){empty=document.createElement('div');empty.id='fireProfitEmpty';empty.className='fire-profit-empty';empty.textContent='Enter services to estimate gross field profit.';profitMetrics.insertAdjacentElement('afterend',empty)}
+    const renderProfit=()=>{const revenue=parseFloat(String(profitRevenue?.textContent||'0').replace(/[^0-9.-]/g,''))||0;if(profitMetrics)profitMetrics.style.display=revenue>0?'grid':'none';if(empty)empty.style.display=revenue>0?'none':'block'};
+    if(profitRevenue&&!profitRevenue.dataset.blankWatch){profitRevenue.dataset.blankWatch='1';new MutationObserver(renderProfit).observe(profitRevenue,{childList:true,characterData:true,subtree:true})}
     const render=()=>{
       const plan=plannedMix(),onSh=num('invSH'),onEleOz=num('invEle')*128;
       const needShOz=plan.shGal*128,needEleOz=plan.eleOz;
@@ -80,7 +85,7 @@
       }else{
         status.innerHTML=`<strong>Loadout is ready</strong><p>Planned job chemicals are covered by the inventory currently on this device.</p>`;
       }
-      btn.disabled=plan.gallons<=0;
+      btn.disabled=plan.gallons<=0;renderProfit();
     };
     if(!btn.dataset.bound){btn.dataset.bound='1';btn.addEventListener('click',()=>{const plan=plannedMix();setInput('invSH',Math.max(0,num('invSH')-plan.shGal).toFixed(4));setInput('invEle',Math.max(0,num('invEle')-plan.eleOz/128).toFixed(4));render();window.toast?.('Planned job chemicals deducted')})}
     ['area','coverage','reserve','stockStrength','targetNum','eleRate','invSH','invEle'].forEach(id=>{const el=$('#'+id);if(el&&!el.dataset.loadoutBound){el.dataset.loadoutBound='1';el.addEventListener('input',render);el.addEventListener('change',render)}});
