@@ -35,7 +35,7 @@
     await load('./v18-live-pricing-parity.js?v=1');
     await load('./v18-live-customer-parity.js?v=10');
     await load('./v18-live-backup-hydration.js?v=2');
-    await load('./v18-live-input-contract.js?v=1');
+    await load('./v18-live-input-contract.js?v=2');
     window.dispatchEvent(new CustomEvent('fire-v18-parity-loaded'));
     window.dispatchEvent(new CustomEvent('fire-v18-shared-core-ready'));
   })();
