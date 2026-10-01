@@ -9,6 +9,10 @@ on:
       - 'calculator/**'
       - '.github/workflows/fire-calculator-visual-parity.yml'
 
+concurrency:
+  group: fire-calculator-visual-parity-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   visual-parity:
     runs-on: ubuntu-latest
@@ -228,7 +232,7 @@ jobs:
           echo 'Live-vs-staging save/reload/clear parity failed.'
           exit 1
 
-      - name: Enforce quote copy share and print parity result
+      - name: Enforce quote copy share and print behavior
         if: steps.export.outcome == 'failure'
         run: |
           echo 'Live-vs-staging quote copy/share/print parity failed.'
