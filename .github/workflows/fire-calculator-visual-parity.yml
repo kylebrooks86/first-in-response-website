@@ -189,7 +189,9 @@ jobs:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
           FIRE_KEY_CARD_GROUP: equipment
-        run: node calculator/tests/key-card-internals-live-parity.mjs 2>&1 | tee calculator/visual-parity/focused/equipment.log
+        run: |
+          set -o pipefail
+          node calculator/tests/key-card-internals-live-parity.mjs 2>&1 | tee calculator/visual-parity/focused/equipment.log
       - name: Inspect Job Math key-card geometry
         timeout-minutes: 1
         continue-on-error: true
@@ -197,7 +199,9 @@ jobs:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
           FIRE_KEY_CARD_GROUP: jobmath
-        run: node calculator/tests/key-card-internals-live-parity.mjs 2>&1 | tee calculator/visual-parity/focused/jobmath.log
+        run: |
+          set -o pipefail
+          node calculator/tests/key-card-internals-live-parity.mjs 2>&1 | tee calculator/visual-parity/focused/jobmath.log
       - name: Inspect Field Tools key-card geometry
         timeout-minutes: 1
         continue-on-error: true
@@ -205,7 +209,9 @@ jobs:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
           FIRE_KEY_CARD_GROUP: tools
-        run: node calculator/tests/key-card-internals-live-parity.mjs 2>&1 | tee calculator/visual-parity/focused/tools.log
+        run: |
+          set -o pipefail
+          node calculator/tests/key-card-internals-live-parity.mjs 2>&1 | tee calculator/visual-parity/focused/tools.log
       - name: Upload focused geometry logs
         if: always()
         continue-on-error: true
