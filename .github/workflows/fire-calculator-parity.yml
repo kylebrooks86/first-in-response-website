@@ -28,45 +28,7 @@ jobs:
         run: node calculator/tests/formula-regression.js
 
       - name: Live-reference contract
-        run: >-
-          node calculator/tests/live-contract.js
-          calculator/index.html
-          calculator/manifest.webmanifest
-          calculator/full-v18.js
-          calculator/full-v18-core.js
-          calculator/full-v18-parity-core.js
-          calculator/v18-behavior.js
-          calculator/v18-interactions.js
-          calculator/v18-fine-parity.js
-          calculator/v18-equipment-parity.js
-          calculator/v18-live-equipment-structure-parity.js
-          calculator/v18-tools-state.js
-          calculator/v18-exact-visual.css
-          calculator/v18-live-jobmath-visual.css
-          calculator/v18-live-foundation.css
-          calculator/v18-live-equipment-visual.css
-          calculator/v18-live-estimator-parity.js
-          calculator/v18-live-first-screen.js
-          calculator/v18-live-jobmath-parity.js
-          calculator/v18-live-jobmix-parity.js
-          calculator/v18-live-planning-state.js
-          calculator/v18-live-chemicals-parity.js
-          calculator/v18-live-chemicals-parity.css
-          calculator/v18-live-index-parity.js
-          calculator/v18-live-index-parity.css
-          calculator/v18-live-guide-parity.js
-          calculator/v18-live-guide-parity.css
-          calculator/v18-live-navigation-parity.js
-          calculator/v18-live-tools-parity.js
-          calculator/v18-live-tools-options-parity.js
-          calculator/v18-live-tools-parity.css
-          calculator/v18-live-tools-fine.js
-          calculator/v18-live-tools-fine.css
-          calculator/v18-live-pricing-parity.js
-          calculator/v18-live-pricing-parity.css
-          calculator/v18-live-customer-parity.js
-          calculator/v18-live-backup-hydration.js
-          calculator/v18-live-input-contract.js
+        run: node calculator/tests/live-contract.js --manifest calculator/SHARED_CORE_MANIFEST.json
 
       - name: Offline cache contract
         run: node calculator/tests/offline-cache-contract.mjs
