@@ -65,6 +65,39 @@
   #view-job #jobMixCard .metrics>.metric:nth-child(2),
   #view-job #jobMixCard .metrics>.metric:nth-child(5){grid-column:1/-1!important}
 
+  /* LIVE renders Exact fill plan as one compact blue information panel. Keep
+     the generated recipe text intact, but fold the separate staging heading
+     into the panel so it no longer adds an extra line/margin block. */
+  #job #jobMixCard #fireExactFillHeading,
+  #view-job #jobMixCard #fireExactFillHeading{display:none!important}
+  #job #jobMixCard #fillPlan,
+  #view-job #jobMixCard #fillPlan{
+    margin:12px 0 8px!important;
+    padding:11px 12px!important;
+    border:1px solid #b9ddf5!important;
+    border-left:1px solid #b9ddf5!important;
+    border-radius:12px!important;
+    background:#eef8ff!important;
+    color:#115b85!important;
+    font-size:13px!important;
+    line-height:1.4!important;
+  }
+  #job #jobMixCard #fillPlan::before,
+  #view-job #jobMixCard #fillPlan::before{
+    content:"Exact fill plan";
+    display:block;
+    margin-bottom:2px;
+    color:#0f567d;
+    font-size:14px;
+    line-height:1.2;
+    font-weight:900;
+  }
+  #job #jobMixCard #fireCoverageRealityNote,
+  #view-job #jobMixCard #fireCoverageRealityNote{
+    margin:0!important;
+    line-height:1.38!important;
+  }
+
   /* LIVE's measurement helpers are flat sections inside the main card rather
      than nested mini-cards. Removing the nested box also restores the live
      content width so the calculated-area result stays on one line. */
@@ -96,3 +129,7 @@
 }
 body.dark #job .card:has(#fullSubtotal)>.accord .unit,
 body.dark #view-job .card:has(#fullSubtotal)>.accord .unit{background:#18212b!important;color:#f6f7f8!important;border-color:#35414b!important}
+body.dark #job #jobMixCard #fillPlan,
+body.dark #view-job #jobMixCard #fillPlan{background:#102637!important;color:#d8eefc!important;border-color:#28526d!important}
+body.dark #job #jobMixCard #fillPlan::before,
+body.dark #view-job #jobMixCard #fillPlan::before{color:#f6fbff!important}
