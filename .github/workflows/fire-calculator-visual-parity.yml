@@ -6,11 +6,12 @@ on:
     branches:
       - fire-calculator-exact-live-clone
     paths:
-      - 'calculator/**'
+      - 'calculator/SHARED_CORE_MANIFEST.json'
+      - 'calculator/tests/**'
       - '.github/workflows/fire-calculator-visual-parity.yml'
 
 concurrency:
-  group: fire-calculator-visual-parity-${{ github.ref }}
+  group: fire-calculator-visual-parity-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
