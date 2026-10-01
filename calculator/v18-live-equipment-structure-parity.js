@@ -16,12 +16,11 @@
       field.insertBefore(legacyHeading,field.firstChild);
     }
     const surface=$('#xSurface',card);
-    if(surface){surface.className='formula';}
-    let guide=$('#xLiveGuidance',card);
-    if(guide){guide.id='xjetInsertGuide';guide.className='callout good';}
-    else if(!$('#xjetInsertGuide',card)){
-      guide=document.createElement('div');guide.id='xjetInsertGuide';guide.className='callout good';surface?.after(guide);
-    }
+    if(surface)surface.className='formula';
+    let guide=$('#xjetInsertGuide',card)||$('#xLiveGuidance',card);
+    if(guide){guide.id='xjetInsertGuide';guide.className='callout good'}
+    else if(surface){guide=document.createElement('div');guide.id='xjetInsertGuide';guide.className='callout good';surface.after(guide)}
+    if(!guide)return false;
     let results=$('#xjetLiveResults',card);
     if(!results){results=document.createElement('div');results.id='xjetLiveResults';results.className='results';guide.after(results)}
     let note=$('#xjetModelNote',card);
@@ -32,7 +31,7 @@
     return true;
   }
   function render(){
-    const card=firstCard();if(!card||!ensureStructure())return;
+    const card=firstCard();if(!card||!ensureStructure())return false;
     const pct=Math.max(0,n('xMeasuredPct',35)),buck=Math.max(0,n('xBucket',10)),target=Math.max(0,n('xDesired',1));
     const strengths=inserts.map(([name,p])=>({name,p,str:buck*p/100}));
     let lower=strengths[0],upper=strengths[strengths.length-1];
@@ -42,13 +41,28 @@
     if(guide)guide.textContent=`Your target is bracketed by ${lower.name} ≈ ${lower.str.toFixed(2)}% and ${upper.name} ≈ ${upper.str.toFixed(2)}%. Use the reverse recipe below for an exact bucket mix.`;
     if(results)results.innerHTML=`<div class="metric"><small>Pickup solution</small><strong>${chemOz.toFixed(1)} fl oz</strong><em>per gallon sprayed</em></div><div class="metric"><small>Pressure-washer water</small><strong>${waterOz.toFixed(1)} fl oz</strong><em>per gallon sprayed</em></div>`;
     if(note)note.innerHTML=`This matches your ${n('xGpm',4).toFixed(0)} GPM Simpson and the condition used for the factory proportioner estimates.<br><br>The manufacturer lists typical reach up to about 50 ft for the 3–7 GPM DS Twist.`;
+    return true;
   }
   function install(){
-    if(!ensureStructure())return;
-    ['xMeasuredPct','xBucket','xDesired','xGpm','xPct'].forEach(id=>$('#'+id)?.addEventListener('input',()=>queueMicrotask(render)));
+    if(!ensureStructure())return false;
+    const card=firstCard();
+    if(card&&!card.dataset.xjetStructureBound){
+      card.dataset.xjetStructureBound='1';
+      ['xMeasuredPct','xBucket','xDesired','xGpm','xPct'].forEach(id=>$('#'+id)?.addEventListener('input',()=>queueMicrotask(render)));
+    }
     render();
+    return true;
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,1050));else setTimeout(install,1050);
-  window.addEventListener('fire-v18-core-ready',()=>setTimeout(install,180));
-  window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(install,80));
+  let observer=null;
+  const start=()=>{
+    if(install()){observer?.disconnect();return}
+    const root=$('#equipment')||document.body;
+    observer=new MutationObserver(()=>{if(install())observer?.disconnect()});
+    observer.observe(root,{childList:true,subtree:true});
+    setTimeout(()=>{if(install())observer?.disconnect()},120);
+    setTimeout(()=>{if(install())observer?.disconnect()},900);
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+  window.addEventListener('fire-v18-core-ready',start);
+  window.addEventListener('fire-v18-parity-loaded',start);
 })();
