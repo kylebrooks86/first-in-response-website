@@ -4,8 +4,8 @@
   const products=[
     {icon:'🧪',name:'Sodium hypochlorite (SH)',sub:'Organic-growth oxidizer',rows:[
       ['best','Algae, mildew, mold and moss','Exterior siding, roofs, concrete and other compatible washable surfaces.'],
-      ['good','Vinyl fences, trash bins and organic gutter growth','Use a surface-appropriate starting strength and rinse thoroughly.'],
-      ['good','Concrete pre/post treatment','Best for organic staining—not oil, rust or mineral deposits.'],
+      ['good','Vinyl fences, trash bins and organic gutter growth','Use the surface-specific strength calculator and rinse thoroughly.'],
+      ['good','Concrete pre/post-treatment','Best for organic staining—not oil, rust or mineral deposits.'],
       ['test','Wood, composite, stucco, EIFS, painted or oxidized aluminum','Start weak and test for lightening, oxidation or coating damage.'],
       ['avoid','Rust, battery acid, grease, oil, hard-water scale and efflorescence','Wrong chemistry for these stains.'],
       ['avoid','Vehicles, polished metal, glass spot-cleaning and AC coils','High damage or corrosion risk; use a purpose-made cleaner.'],
@@ -26,7 +26,7 @@
     ]},
     {icon:'💧',name:'Dawn dish soap',sub:'Grease-cutting surfactant',rows:[
       ['best','Light grease on compatible washable surfaces','P&G positions Dawn for grease removal.'],
-      ['good','Windows, washable equipment, trash receptacles and walls','P&G Professional lists these as task areas; use sparingly and rinse well.'],
+      ['good','Windows, washable equipment, trash receptacles and tile walls','P&G Professional lists these as task areas; use sparingly and rinse well.'],
       ['test','Window bucket, frames, bins and greasy tools','Start with very little to avoid residue.'],
       ['test','Vehicle or RV spot cleaning','Only after checking the finish manufacturer; it may remove wax or protection.'],
       ['avoid','Bleach/SH surfactant or long-term tank mix','Use bleach-stable Elemonator instead.'],
@@ -91,7 +91,7 @@
   const build=()=>{
     const sec=$('#index');if(!sec||$('#fireIndexRoot'))return;
     [...sec.children].forEach(el=>el.classList.add('legacy-index-ui'));
-    const root=document.createElement('div');root.id='fireIndexRoot';root.innerHTML=`<div class="card fire-index-shell"><div class="kicker">Product and stain finder</div><h2>Chemical Use Index</h2><div class="fire-index-note">Identify the stain before choosing the chemical. “Possible—test first” means a small inconspicuous test only, not a guaranteed or label-approved use. Never experiment by mixing products together.</div><div class="fire-index-controls"><input id="fireIndexSearch" placeholder="Search: gutters, grease, rust, vinyl…"><select id="fireIndexRank"><option value="all">All ranks</option><option value="best">Best use</option><option value="good">Good option</option><option value="test">Test first</option><option value="avoid">Avoid</option></select></div><div id="fireIndexResults"></div></div>`;sec.appendChild(root);
+    const root=document.createElement('div');root.id='fireIndexRoot';root.innerHTML=`<div class="card fire-index-shell"><div class="kicker">Product and stain finder</div><h2>Chemical Use Index</h2><div class="fire-index-note">Identify the stain before choosing the chemical. “Possible—test first” means a small inconspicuous test only, not a guaranteed or label-approved use. Never experiment by mixing products together.</div><div class="fire-index-controls"><input id="fireIndexSearch" placeholder="Search: gutters, grease, rust, vinyl…"><select id="fireIndexRank"><option value="all">All ranks</option><option value="best">Best uses</option><option value="good">Good options</option><option value="test">Test first</option><option value="avoid">Avoid</option></select></div><div id="fireIndexResults"></div></div>`;sec.appendChild(root);
     $('#fireIndexSearch')?.addEventListener('input',render);$('#fireIndexRank')?.addEventListener('change',render);render();
   };
   const render=()=>{
