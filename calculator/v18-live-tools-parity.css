@@ -12,7 +12,12 @@
   .fire-favorite-stack>button{min-height:72px!important;padding:12px!important;border-color:#cbd7df!important;color:#121a22!important;border-radius:14px!important}.fire-favorite-stack strong{font-size:17px!important}.fire-favorite-stack small{font-size:13px!important}
   #fireSaveCurrentSh{background:#e84226!important;border-color:#e84226!important;color:#fff!important;font-weight:900!important;border-radius:11px!important}
   #tools #stainResult strong,#tools #compatResult strong{font-size:16px!important}
-  .fire-inv-row{grid-template-columns:minmax(0,1fr) 78px 68px!important;gap:8px!important}.fire-inv-row input,.fire-inv-row select{height:48px!important;min-height:48px!important;padding:8px 10px!important}.fire-inv-label strong{font-size:14px!important}
+  /* LIVE uses dense inventory controls so seven chemicals fit without turning
+     this card into an oversized form. Keep the three-column row structure but
+     match the compact control/row height only inside Chemical Inventory. */
+  .fire-inv-row{grid-template-columns:minmax(0,1fr) 78px 68px!important;gap:8px!important;padding:6px 0!important}
+  .fire-inv-row input,.fire-inv-row select{height:36px!important;min-height:36px!important;padding:6px 8px!important;font-size:14px!important}
+  .fire-inv-label strong{font-size:14px!important}
   #tools #timerDisplay{font-size:46px!important}
   #tools #customChemName::placeholder,#tools #customChemPurpose::placeholder,#tools #customChemNotes::placeholder{color:#87949d!important}
   #tools .statusgood{font-size:13px!important}
