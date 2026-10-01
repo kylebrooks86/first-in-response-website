@@ -37,6 +37,7 @@ body.dark #equipment .card:has(#xSurface)>p.mini{color:#9fb0bf!important}
 
 @media(max-width:560px){
   #equipment .card{padding-left:14px!important;padding-right:14px!important}
+  #equipment #xReverseInstruction,#equipment #propPlannerWarning{font-size:12px!important}
   #equipment .card:has(#xSurface)>.kicker{font-size:11px!important;line-height:1.45!important;margin-bottom:4px!important}
   #equipment .card:has(#xSurface)>.grid{gap:12px!important}
   #equipment .card:has(#xSurface)>.grid .field{margin-bottom:0!important}
