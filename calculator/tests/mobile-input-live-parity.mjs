@@ -11,13 +11,13 @@ const routes=[
 ];
 async function clickVisibleText(page,text){const q=page.getByText(text,{exact:true});for(let i=0;i<await q.count();i++){const e=q.nth(i);if(await e.isVisible()){await e.evaluate(n=>n.click());return true}}return false}
 const clean=v=>v==null?null:String(v);
-async function inputsByLabel(page,label){return page.evaluate(label=>{
+async function inputsByLabel(page,label){for(let attempt=0;attempt<5;attempt++){try{return await page.evaluate(label=>{
   const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
   const labelOf=e=>(e.closest('.field')?.querySelector('label')?.textContent||document.querySelector(`label[for="${e.id}"]`)?.textContent||e.getAttribute('aria-label')||'').replace(/\s+/g,' ').trim();
   return [...document.querySelectorAll('input[type="number"]')].filter(e=>visible(e)&&labelOf(e)===label).map(e=>({type:e.type,min:e.getAttribute('min'),max:e.getAttribute('max'),step:e.getAttribute('step'),inputMode:e.getAttribute('inputmode'),value:e.value}));
-},label)}
-async function waitInputsByLabel(page,label){for(let i=0;i<20;i++){const inputs=await inputsByLabel(page,label);if(inputs.length)return inputs;await page.waitForTimeout(120)}return []}
-async function openRoute(page,route){for(let i=0;i<20;i++){await clickVisibleText(page,route.top);await page.waitForTimeout(120);const inputs=await inputsByLabel(page,route.labels[0]);if(inputs.length)return true}return false}
+},label)}catch(err){const msg=String(err?.message||err);if(!/Execution context was destroyed|Target page, context or browser has been closed|navigation/i.test(msg)||attempt===4)throw err;await page.waitForLoadState('domcontentloaded').catch(()=>{});await page.waitForTimeout(140)}}return []}
+async function waitInputsByLabel(page,label){for(let i=0;i<25;i++){const inputs=await inputsByLabel(page,label);if(inputs.length)return inputs;await page.waitForTimeout(120)}return []}
+async function openRoute(page,route){for(let i=0;i<25;i++){await clickVisibleText(page,route.top).catch(()=>false);await page.waitForTimeout(120);const inputs=await inputsByLabel(page,route.labels[0]).catch(()=>[]);if(inputs.length)return true}return false}
 async function focusAudit(page,label){
   const q=page.locator('input[type="number"]');
   for(let i=0;i<await q.count();i++){
@@ -32,7 +32,7 @@ async function focusAudit(page,label){
 async function snapshot(base){
   const browser=await chromium.launch({headless:true});const ctx=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});const page=await ctx.newPage();const out={};
   try{
-    await page.goto(base,{waitUntil:'domcontentloaded',timeout:60000});await page.waitForTimeout(700);
+    await page.goto(base,{waitUntil:'domcontentloaded',timeout:60000});await page.waitForTimeout(900);
     for(const route of routes){if(!await openRoute(page,route))throw new Error(`Missing route ${route.top}`);out[route.top]={};for(const label of route.labels){const inputs=await waitInputsByLabel(page,label);if(!inputs.length)throw new Error(`${route.top}: missing numeric input label ${label}`);out[route.top][label]={inputs:inputs.map(x=>({type:clean(x.type),min:clean(x.min),max:clean(x.max),step:clean(x.step),inputMode:clean(x.inputMode),value:clean(x.value)})),focus:await focusAudit(page,label)}}
     }
     return out;
