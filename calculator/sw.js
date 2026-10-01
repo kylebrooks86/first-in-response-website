@@ -1,4 +1,4 @@
-const CACHE='fire-field-calculator-v18-exact-clone-52';
+const CACHE='fire-field-calculator-v18-exact-clone-53';
 const ASSETS=[
   './',
   './index.html',
@@ -32,7 +32,7 @@ const ASSETS=[
   './v18-live-guide-parity.js?v=1',
   './v18-live-navigation-parity.js?v=2',
   './v18-live-tools-parity.js?v=1',
-  './v18-live-tools-options-parity.js?v=1',
+  './v18-live-tools-options-parity.js?v=2',
   './v18-live-tools-fine.js?v=1',
   './v18-live-pricing-parity.js?v=1',
   './v18-live-customer-parity.js?v=10',
