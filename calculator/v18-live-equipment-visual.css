@@ -1,7 +1,3 @@
-#equipment #xLiveGuidance{margin-top:6px!important}
-#equipment #xLiveGuidance p{margin:4px 0!important;line-height:1.45!important}
-#equipment #xLiveGuidance p:first-child{background:#eef9f2!important;border:1px solid #9ed7ad!important;border-radius:8px!important;padding:10px 12px!important;color:#405b48!important}
-#equipment #xLiveGuidance p:nth-child(2){background:#edf7fb!important;border:1px solid #a8d2e4!important;border-radius:8px!important;padding:10px 12px!important;color:#365b6b!important}
 #equipment #xReverseInstruction{background:#fff1f1!important;border:1px solid #efb7b7!important;border-radius:8px!important;padding:10px 12px!important;color:#754444!important}
 #equipment #propPlannerWarning{background:#fff1f1!important;border:1px solid #efb7b7!important;border-radius:8px!important;padding:10px 12px!important;color:#754444!important}
 #equipment #dsFormulaNote{margin-top:8px!important;margin-bottom:0!important;line-height:1.4!important}
@@ -22,9 +18,29 @@ body.dark #equipment .card{border-color:rgba(255,90,54,.32)!important}
 body.dark #equipment #useXjetMeasured{border-color:#ff5a36!important;color:#fff!important;background:transparent!important}
 body.dark #equipment .card:has(#dsFormulaNote) .inputrow .unit,
 body.dark #equipment .card:has(#fillTime) .inputrow .unit{background:#18212b!important;color:#f6f7f8!important;border-color:#35414b!important}
+
+/* Main X-Jet card structural parity: these blocks mirror LIVE rather than
+   compensating with one oversized guidance paragraph. */
+#equipment .card:has(#xSurface) .x-measured-heading{font-size:12px!important;font-weight:800!important;color:#607381!important;margin:0 0 6px!important;line-height:1.25!important}
+#equipment .card:has(#xSurface) #xSurface.formula{margin:5px 0!important;min-height:36px!important;height:36px!important;display:flex!important;align-items:center!important;font-size:18px!important;font-weight:900!important;line-height:1!important}
+#equipment .card:has(#xSurface) #xjetInsertGuide{margin:12px 0 0!important;padding:12px!important;border:1px solid #9ed7ad!important;border-radius:10px!important;background:#eef9f2!important;color:#405b48!important;font-size:13px!important;line-height:1.4!important}
+#equipment .card:has(#xSurface) #xjetLiveResults{display:grid!important;grid-template-columns:1fr!important;gap:9px!important;margin:14px 0 0!important}
+#equipment .card:has(#xSurface) #xjetLiveResults .metric{padding:12px!important;border:1px solid #d7e0e5!important;border-radius:12px!important;background:#fff!important}
+#equipment .card:has(#xSurface) #xjetLiveResults .metric small,#equipment .card:has(#xSurface) #xjetLiveResults .metric em{display:block!important}
+#equipment .card:has(#xSurface) #xjetLiveResults .metric strong{display:block!important;margin:3px 0!important;font-size:20px!important}
+#equipment .card:has(#xSurface) #xjetModelNote{margin:12px 0 0!important;padding:12px!important;border:1px solid #a8d2e4!important;border-radius:10px!important;background:#edf7fb!important;color:#365b6b!important;font-size:13px!important;line-height:1.4!important}
+#equipment .card:has(#xSurface)>p.mini{margin:8px 0 0!important;font-size:12px!important;line-height:1.45!important;color:#607381!important}
+body.dark #equipment .card:has(#xSurface) #xjetLiveResults .metric{background:#18212b!important;border-color:#35414b!important}
+body.dark #equipment .card:has(#xSurface) #xjetInsertGuide{background:#13261c!important;border-color:#315b3c!important;color:#d8efe0!important}
+body.dark #equipment .card:has(#xSurface) #xjetModelNote{background:#102637!important;border-color:#28526d!important;color:#d8eefc!important}
+body.dark #equipment .card:has(#xSurface)>p.mini{color:#9fb0bf!important}
+
 @media(max-width:560px){
   #equipment .card{padding-left:14px!important;padding-right:14px!important}
-  #equipment #xLiveGuidance p:first-child,#equipment #xLiveGuidance p:nth-child(2),#equipment #xReverseInstruction,#equipment #propPlannerWarning{font-size:12px!important}
+  #equipment .card:has(#xSurface)>.kicker{font-size:11px!important;line-height:1.45!important;margin-bottom:4px!important}
+  #equipment .card:has(#xSurface)>.grid{gap:12px!important}
+  #equipment .card:has(#xSurface)>.grid .field{margin-bottom:0!important}
+  #equipment .card:has(#xSurface)>.grid label{font-size:14px!important;line-height:1.45!important}
   #equipment .card:has(#xReqBucket) .grid,
   #equipment .card:has(#xDrawOz) .grid{gap:10px!important}
   #equipment .card:has(#xReqBucket) .metrics,
