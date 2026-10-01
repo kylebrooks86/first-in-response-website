@@ -14,7 +14,7 @@ const staticContract = Object.freeze({
     'stock-pill',
     'stockPill'
   ],
-  topNavigation: ['SH Mix','Equipment','Chemicals','Chemical Index','Job Math','Field Guide'],
+  topNavigation: ['SH Mix','Equipment','Chemicals','Chemical Index','Job Math','Field Tools','Field Guide'],
   bottomNavigation: ['SH Mix','Equipment','Mixes','Index','Job Math','Tools'],
   safetyBanner: 'Never mix SH with acids, ammonia, F9 BARC, or other cleaners.',
   shMix: {
@@ -99,10 +99,23 @@ function verifyDynamic(){
   return {ok:failures.length===0,failures};
 }
 
+function resolveFiles(args,fs){
+  const manifestAt=args.indexOf('--manifest');
+  if(manifestAt<0)return args;
+  const manifestPath=args[manifestAt+1];
+  if(!manifestPath)throw new Error('--manifest requires a manifest path');
+  const manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'));
+  const files=Object.keys(manifest.shared_core_files||{});
+  if(!files.length)throw new Error(`${manifestPath}: shared_core_files is empty`);
+  return files;
+}
+
 if(require.main===module){
   const fs=require('fs');
-  const files=process.argv.slice(2);
-  if(!files.length){console.error('Usage: node calculator/tests/live-contract.js <shared-core-file> [more files...]');process.exit(2)}
+  const args=process.argv.slice(2);
+  if(!args.length){console.error('Usage: node calculator/tests/live-contract.js [--manifest calculator/SHARED_CORE_MANIFEST.json | <shared-core-file> ...]');process.exit(2)}
+  let files;
+  try{files=resolveFiles(args,fs)}catch(err){console.error('LIVE CONTRACT CONFIGURATION FAILED:',err.message);process.exit(2)}
   const combined=files.map(f=>fs.readFileSync(f,'utf8')).join('\n');
   const staticResult=verifyStatic(combined),dynamicResult=verifyDynamic();
   if(!staticResult.ok||!dynamicResult.ok){
@@ -111,7 +124,7 @@ if(require.main===module){
     for(const item of dynamicResult.failures)console.error('DYNAMIC FORMAT FAILURE:',item);
     process.exit(1);
   }
-  console.log(`PASS live contract: ${flatten(staticContract).length} static requirements + ${Object.keys(dynamicContract).length} dynamic format requirements.`);
+  console.log(`PASS live contract: ${flatten(staticContract).length} static requirements + ${Object.keys(dynamicContract).length} dynamic format requirements across ${files.length} governed files.`);
 }
 
-module.exports={staticContract,dynamicContract,verifyStatic,verifyDynamic,formatRecipe,formatStockPlan};
+module.exports={staticContract,dynamicContract,verifyStatic,verifyDynamic,formatRecipe,formatStockPlan,resolveFiles};
