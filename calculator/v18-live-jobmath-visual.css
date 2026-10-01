@@ -125,10 +125,44 @@
   #job #jobMeasureCard #areaHelperResult,
   #view-job #jobMeasureCard #areaHelperResult{
     white-space:nowrap!important;
+    margin:8px 0 6px!important;
+    font-size:26px!important;
+    line-height:1.05!important;
+  }
+  #job #jobMeasureCard .inputrow .unit,
+  #view-job #jobMeasureCard .inputrow .unit{
+    display:grid!important;
+    place-items:center!important;
+    align-self:stretch!important;
+    min-width:30px!important;
+    padding:0 3px!important;
+    border:1px solid #cbd9e2!important;
+    border-radius:11px!important;
+    background:#fff!important;
+    color:#17212b!important;
+    font-size:12px!important;
+    font-weight:800!important;
+  }
+  #job #jobMeasureCard #fireMeasureShortcuts,
+  #view-job #jobMeasureCard #fireMeasureShortcuts{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:flex-start!important;
+    gap:8px!important;
+    margin:10px 0 2px!important;
+  }
+  #job #jobMeasureCard #fireMeasureShortcuts button,
+  #view-job #jobMeasureCard #fireMeasureShortcuts button{
+    width:auto!important;
+    min-height:44px!important;
+    padding:9px 13px!important;
+    border-radius:11px!important;
   }
 }
 body.dark #job .card:has(#fullSubtotal)>.accord .unit,
-body.dark #view-job .card:has(#fullSubtotal)>.accord .unit{background:#18212b!important;color:#f6f7f8!important;border-color:#35414b!important}
+body.dark #view-job .card:has(#fullSubtotal)>.accord .unit,
+body.dark #job #jobMeasureCard .inputrow .unit,
+body.dark #view-job #jobMeasureCard .inputrow .unit{background:#18212b!important;color:#f6f7f8!important;border-color:#35414b!important}
 body.dark #job #jobMixCard #fillPlan,
 body.dark #view-job #jobMixCard #fillPlan{background:#102637!important;color:#d8eefc!important;border-color:#28526d!important}
 body.dark #job #jobMixCard #fillPlan::before,
