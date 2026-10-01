@@ -13,22 +13,27 @@ async function setByIds(page,ids,value){
   return false;
 }
 async function readByIds(page,ids){for(const id of ids){const el=page.locator('#'+id);if(await el.count())return Number(await el.inputValue())}return NaN}
-async function openAllJobDetails(page){for(const rootSel of ['#view-job','#job']){const root=page.locator(rootSel);if(await root.count()){await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(80);return true}}return false}
+async function openAllJobDetails(page){for(const rootSel of ['#view-job','#job']){const root=page.locator(rootSel);if(await root.count()&&await root.first().isVisible()){await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(80);return true}}return false}
 async function openJob(page){
-  if(!await clickVisibleText(page,'Job Math'))throw new Error('Job Math route control not found');
-  await page.waitForTimeout(250);
-  if(await openAllJobDetails(page))return;
-  throw new Error('Job Math DOM not found');
+  for(let attempt=0;attempt<20;attempt++){
+    await clickVisibleText(page,'Job Math').catch(()=>false);
+    await page.waitForTimeout(120);
+    if(await openAllJobDetails(page))return;
+  }
+  throw new Error('Job Math DOM not found after app settled');
 }
 async function clickJobButton(page,text){
-  await openAllJobDetails(page);
-  const q=page.locator('button').filter({hasText:text});
-  for(let i=0;i<await q.count();i++){
-    const b=q.nth(i);
-    if((await b.innerText()).trim()===text&&await b.isVisible()&&await b.isEnabled()){
-      await b.evaluate(node=>node.click());
-      return true;
+  for(let attempt=0;attempt<20;attempt++){
+    await openAllJobDetails(page);
+    const q=page.locator('button').filter({hasText:text});
+    for(let i=0;i<await q.count();i++){
+      const b=q.nth(i);
+      if((await b.innerText()).trim()===text&&await b.isVisible()&&await b.isEnabled()){
+        await b.evaluate(node=>node.click());
+        return true;
+      }
     }
+    await page.waitForTimeout(100);
   }
   return false;
 }
@@ -37,7 +42,8 @@ async function snapshot(base){
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const page=await ctx.newPage();
   try{
-    await page.goto(base,{waitUntil:'networkidle',timeout:60000});
+    await page.goto(base,{waitUntil:'domcontentloaded',timeout:60000});
+    await page.waitForTimeout(700);
     await openJob(page);
 
     await setByIds(page,['measureLength','areaLen'],100);
