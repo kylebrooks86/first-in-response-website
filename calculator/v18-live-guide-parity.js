@@ -9,7 +9,7 @@
     ['Fence wash','wood','0.5%','0.75%','1%'],
     ['Deck','composite','0.5%','0.75%','1%'],
     ['Deck','wood','0.5%','0.75%','1%'],
-    ['Concrete','pre-treatment','1.5%','2%','3%'],
+    ['Concrete','pre-treatment','1.5%','2.5%','3.5%'],
     ['Concrete','post-treatment','0.75%','1%','1.5%'],
     ['Pavers / hardscape','','0.75%','1.5%','2.5%'],
     ['Brick / masonry','','0.75%','1.5%','2.5%'],
