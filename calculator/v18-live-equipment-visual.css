@@ -1,5 +1,5 @@
-#equipment #xLiveGuidance{margin-top:10px!important}
-#equipment #xLiveGuidance p{margin:6px 0!important;line-height:1.45!important}
+#equipment #xLiveGuidance{margin-top:6px!important}
+#equipment #xLiveGuidance p{margin:4px 0!important;line-height:1.45!important}
 #equipment #xLiveGuidance p:first-child{background:#eef9f2!important;border:1px solid #9ed7ad!important;border-radius:8px!important;padding:10px 12px!important;color:#405b48!important}
 #equipment #xLiveGuidance p:nth-child(2){background:#edf7fb!important;border:1px solid #a8d2e4!important;border-radius:8px!important;padding:10px 12px!important;color:#365b6b!important}
 #equipment #xReverseInstruction{background:#fff1f1!important;border:1px solid #efb7b7!important;border-radius:8px!important;padding:10px 12px!important;color:#754444!important}
@@ -37,15 +37,9 @@ body.dark #equipment .card:has(#fillTime) .inputrow .unit{background:#18212b!imp
   #equipment .card:has(#pumpGpm) .grid[style]{margin-top:10px!important}
   #equipment .card:has(#pumpGpm) .metrics{grid-template-columns:1fr!important;gap:6px!important;margin-top:8px!important}
   #equipment .card:has(#pumpGpm) #propPlannerWarning{margin:8px 0 0!important}
-
-  /* Downstream estimate: content already matches LIVE; compact the result and
-     explanatory spacing that accounts for the remaining +20px geometry gap. */
   #equipment .card:has(#dsFormulaNote)>h2{margin-bottom:10px!important}
   #equipment .card:has(#dsFormulaNote) .resultbig{margin:6px 0!important}
   #equipment .card:has(#dsFormulaNote)>p.muted:not(#dsFormulaNote){margin:10px 0 6px!important}
-
-  /* Injector-ratio card: identical text and controls, so only tighten the
-     repeated mobile field/result spacing. */
   #equipment .card:has(#injRatio) .grid{gap:8px!important}
   #equipment .card:has(#injRatio) #injRatio{margin:6px 0!important}
 }
