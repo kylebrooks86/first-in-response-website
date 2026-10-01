@@ -23,11 +23,11 @@ async function openRoute(page,t){for(let i=0;i<16;i++){await clickVisible(page,t
 async function settle(page,base){if(base===LIVE)await page.context().route('**/*',route=>{const t=route.request().resourceType();return ['image','media','font'].includes(t)?route.abort():route.continue()});page.setDefaultTimeout(3000);await page.goto(base,{waitUntil:'commit',timeout:12000});await page.waitForLoadState('domcontentloaded',{timeout:4000}).catch(()=>{});for(let i=0;i<20;i++){if(await page.locator('.tabs,.tabswrap').count())return;await page.waitForTimeout(100)}throw new Error('Calculator navigation did not mount')}
 async function waitForParityReady(page){
   if(GROUP==='equipment'){
-    await page.waitForFunction(()=>{const t=document.querySelector('#equipment')?.innerText||'';return !!document.querySelector('#xjetLiveResults')&&t.includes('Continuous spray time')&&t.includes('Mix the pickup bucket first')},{timeout:7000});
+    await page.waitForFunction(()=>{const t=document.querySelector('#equipment')?.innerText||'';return !!document.querySelector('#xjetLiveResults')&&t.includes('Continuous spray time')&&t.includes('Mix the pickup bucket first')},null,{timeout:7000});
   }else if(GROUP==='jobmath'){
-    await page.waitForFunction(()=>{const t=document.querySelector('#job')?.innerText||document.querySelector('#view-job')?.innerText||'';return !!document.querySelector('#fillPlan')&&t.includes('Exact fill plan')&&t.includes('Coverage varies sharply')},{timeout:7000});
+    await page.waitForFunction(()=>{const t=document.querySelector('#job')?.innerText||document.querySelector('#view-job')?.innerText||'';return !!document.querySelector('#fillPlan')&&t.includes('Exact fill plan')&&t.includes('Coverage varies sharply')},null,{timeout:7000});
   }else if(GROUP==='tools'){
-    await page.waitForFunction(()=>['compatResult','timerDisplay','weatherNote','customChemName'].every(id=>document.getElementById(id))&&!!document.querySelector('.fire-safety-list'),{timeout:7000});
+    await page.waitForFunction(()=>['compatResult','timerDisplay','weatherNote','customChemName'].every(id=>document.getElementById(id))&&!!document.querySelector('.fire-safety-list'),null,{timeout:7000});
   }
   await page.waitForTimeout(120);
 }
