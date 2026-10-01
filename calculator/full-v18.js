@@ -3,6 +3,7 @@
   window.__fireV18ModuleLoader=true;
   const css=(href,key)=>{if(document.querySelector(`link[data-fire-${key}]`))return;const l=document.createElement('link');l.rel='stylesheet';l.href=href;l.dataset[`fire${key.replace(/(^|-)(\w)/g,(_,a,b)=>b.toUpperCase())}`]='1';document.head.appendChild(l)};
   css('./v18-exact-visual.css?v=5','exact-visual');
+  css('./v18-live-jobmath-visual.css?v=1','jobmath-visual');
   css('./v18-live-equipment-visual.css?v=3','equipment-visual');
   css('./v18-live-chemicals-parity.css?v=4','chemicals-parity');
   css('./v18-live-index-parity.css?v=1','index-parity');
