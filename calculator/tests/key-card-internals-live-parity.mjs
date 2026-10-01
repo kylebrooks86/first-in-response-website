@@ -2,11 +2,14 @@ import { chromium } from 'playwright';
 const LIVE=process.env.FIRE_LIVE_URL||'https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site';
 const STAGING=process.env.FIRE_STAGING_URL||'http://127.0.0.1:4173/calculator/';
 const equipmentRoots=['#view-delivery','#view-equipment','#equipment'];
+const toolsRoots=['#view-tools','#tools'];
 const targets=[
   {name:'Equipment / main X-Jet',route:'Equipment',roots:equipmentRoots,heading:'X-Jet M5DS Twist — 3–7 GPM'},
   {name:'Equipment / reverse mix',route:'Equipment',roots:equipmentRoots,heading:'Mix the X-Jet pickup bucket for a target strength'},
   {name:'Equipment / proportioner',route:'Equipment',roots:equipmentRoots,heading:'Three-port proportioner planner'},
-  {name:'Job Math / planning',route:'Job Math',roots:['#view-job','#job'],heading:'How much mix should I bring?'}
+  {name:'Job Math / planning',route:'Job Math',roots:['#view-job','#job'],heading:'How much mix should I bring?'},
+  {name:'Field Tools / compatibility',route:'Field Tools',roots:toolsRoots,heading:'Chemical Compatibility Checker'},
+  {name:'Field Tools / timer',route:'Field Tools',roots:toolsRoots,heading:'Application Timer'}
 ];
 async function clickVisible(page,text){const q=page.getByText(text,{exact:true});for(let i=0;i<await q.count();i++){const e=q.nth(i);if(await e.isVisible()){await e.evaluate(node=>node.click());return true}}return false}
 async function visibleRoot(page,sels){for(const s of sels){const e=page.locator(s);if(await e.count()&&await e.first().isVisible())return e.first()}return null}
