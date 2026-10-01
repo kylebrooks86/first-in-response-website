@@ -26,13 +26,13 @@ async function jobRootByFields(page){
   return null;
 }
 async function openJob(page){
-  for(let attempt=0;attempt<20;attempt++){
+  for(let attempt=0;attempt<28;attempt++){
     await clickVisibleText(page,'Job Math').catch(()=>false);
-    await page.waitForTimeout(120);
+    await page.waitForTimeout(100);
     const root=await jobRootByFields(page);
     if(root){
       const fieldCount=(await page.locator('#houseWashArea').count())+(await page.locator('#svcHouse').count());
-      if(fieldCount){await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(80);return root}
+      if(fieldCount){await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(60);return root}
     }
   }
   return null;
@@ -47,11 +47,13 @@ async function openSession(browser,base){
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   if(base===LIVE)await ctx.route('**/*',route=>{const t=route.request().resourceType();return ['image','media','font'].includes(t)?route.abort():route.continue()});
   const page=await ctx.newPage();
+  page.setDefaultNavigationTimeout(12000);
   let root=null,lastError=null;
-  for(let attempt=0;attempt<3&&!root;attempt++){
+  for(let attempt=0;attempt<4&&!root;attempt++){
     try{
-      await page.goto(base,{waitUntil:'domcontentloaded',timeout:20000});
-      await page.waitForTimeout(350);
+      await page.goto(base,{waitUntil:'commit',timeout:12000});
+      await page.waitForLoadState('domcontentloaded',{timeout:4500}).catch(()=>{});
+      await page.waitForTimeout(220);
       root=await openJob(page);
     }catch(e){lastError=e}
   }
@@ -66,7 +68,7 @@ async function runScenario(session,base,scenario){
   const discount=await setByIds(page,['discountPct','fullDiscount'],scenario.discount);
   const override=await setByIds(page,['quotedPrice','fullOverride'],scenario.override);
   if(!house||!discount||!override)throw new Error(`${base}: missing Job Math input for ${scenario.name} house=${house} discount=${discount} override=${override}`);
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(220);
   const currentRoot=await jobRootByFields(page);const found=await estimateTotals(currentRoot);
   if(!found||[found.subtotal,found.total,found.deposit].some(v=>v===null))throw new Error(`${base}: could not read totals for ${scenario.name}. route=${found?.raw||'missing'}`);
   return {subtotal:found.subtotal,total:found.total,deposit:found.deposit};
