@@ -18,5 +18,13 @@
 #tools .card:has(#exportAll) #importFile{margin:0!important}
 #tools .card:has(#exportAll) #backupStatus{margin:8px 0 0!important}
 #tools #customChemList>.fire-empty-dash{margin-top:12px!important}
-@media(max-width:760px){#tools .fire-version-inset{padding:10px 11px!important}.fire-backup-actions{width:100%!important}.fire-backup-actions button{width:auto!important}}
+@media(max-width:760px){
+  #tools .fire-version-inset{padding:10px 11px!important}
+  .fire-backup-actions{width:100%!important}
+  .fire-backup-actions button{width:auto!important}
+  #tools .card:has(#customChemName) .grid{gap:8px!important}
+  #tools .card:has(#customChemName) .field{margin-bottom:0!important}
+  #tools .card:has(#customChemName) .actions{margin-top:8px!important;margin-bottom:4px!important}
+  #tools .card:has(#customChemName) #customChemList>.fire-empty-dash{margin-top:8px!important;padding:12px!important}
+}
 body.dark #tools .fire-version-inset,body.dark #tools .fire-backup-actions #copyBackupText{background:#18212b!important;color:#f6f7f8!important;border-color:#35414b!important}body.dark #tools .fire-version-inset span{color:#b7c0c7!important}
