@@ -10,6 +10,11 @@
     const shGal=target>stock?0:gal*target/stock,eleOz=gal*eleRate,water=Math.max(0,gal-shGal-eleOz/128);
     return `${(shGal*128).toFixed(1)} fl oz stock SH + ${water.toFixed(2)} gal water + ${eleOz.toFixed(1)} fl oz Elemonator`;
   };
+  const metricCaption=(strongId,text)=>{
+    const strong=$('#'+strongId),metric=strong?.closest('.metric');if(!metric)return;
+    let em=metric.querySelector('em');if(!em){em=document.createElement('em');metric.appendChild(em)}
+    em.textContent=text;
+  };
   const render=()=>{
     const card=$('#jobMixCard')||[...document.querySelectorAll('#job>.card')].find(c=>c.querySelector('h2')?.textContent.trim()==='How much mix should I bring?');
     if(!card)return;
@@ -20,10 +25,14 @@
       select.value=containerOptions.some(([v])=>v===current)?current:'4';
       select.dataset.liveOptions='1';
     }
+    const area=Math.max(0,n('area')),coverage=Math.max(1,n('coverage',1)),reserve=Math.max(0,n('reserve')),needed=area/coverage*(1+reserve/100),cap=Math.max(.01,n('planContainer',4));
+    metricCaption('mixNeeded','including reserve');
+    const fills=Math.ceil(needed/cap),left=needed>0?Math.max(0,fills*cap-needed):0;
+    metricCaption('fills',`${left.toFixed(2)} gal capacity left`);
+
     const fill=$('#fillPlan');if(!fill)return;
     let heading=$('#fireExactFillHeading');if(!heading){heading=document.createElement('h3');heading.id='fireExactFillHeading';heading.textContent='Exact fill plan';fill.before(heading)}
     let note=$('#fireCoverageRealityNote');if(!note){note=document.createElement('p');note.id='fireCoverageRealityNote';note.className='muted';note.textContent='Coverage varies sharply with surface porosity, technique, wind, and equipment. Replace the default with your own measured production rate after each job.';fill.insertAdjacentElement('afterend',note)}
-    const area=Math.max(0,n('area')),coverage=Math.max(1,n('coverage',1)),reserve=Math.max(0,n('reserve')),needed=area/coverage*(1+reserve/100),cap=Math.max(.01,n('planContainer',4));
     if(needed<=0){fill.textContent='Enter measured area and coverage to build a fill plan.';return}
     const full=Math.floor((needed+1e-9)/cap),rem=Math.max(0,needed-full*cap);
     const parts=[];
