@@ -18,7 +18,7 @@
   .fire-chem-browser .kicker,.fire-chem-detail .kicker{margin-bottom:6px!important}
   .fire-chem-browser h2,.fire-chem-detail h2{margin-bottom:10px!important}
   .fire-chem-list{gap:8px}
-  .fire-chem-product{gap:11px;padding:11px;border-radius:14px;min-height:70.4px}
+  .fire-chem-product{gap:11px;padding:11px;border-radius:14px;min-height:77.5px!important}
   .fire-chem-copy strong{font-size:15px}.fire-chem-copy small{font-size:12.5px}
   .fire-chem-detail #fireChemAmount{min-width:0}
   .fire-chem-detail #fireChemUnit{flex:0 0 74px!important;width:74px!important}
@@ -28,6 +28,8 @@
   .fire-chem-metrics .metric strong{font-size:18px!important}
   .fire-dil-preset{grid-column:1/-1!important}
   #fireDilUnit{flex:0 0 74px!important;width:74px!important}
+  #chemicals .card:has(#dilFinal) .grid{gap:12px!important}
+  #chemicals .card:has(#dilFinal) .field{margin-bottom:0!important}
   #chemicals .resultbig{font-size:22px!important;line-height:1.15!important;color:#17212b!important}
   #chemicals .resultbig .fire-dil-product{color:#e5482e!important}
 }
