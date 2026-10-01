@@ -58,10 +58,4 @@
   #view-job #jobMeasureCard #areaHelperResult{
     white-space:nowrap!important;
   }
-  #job #jobMeasureCard #fireMeasureShortcuts button:first-child,
-  #view-job #jobMeasureCard #fireMeasureShortcuts button:first-child{
-    background:#ef4b2d!important;
-    border-color:#ef4b2d!important;
-    color:#fff!important;
-  }
 }
