@@ -2,7 +2,6 @@
    Rules in this file are backed by paired live-vs-staging iPhone screenshots or rendered live DOM evidence.
 */
 
-.tabs .tab[data-view="tools"]{display:none!important}
 .topbar,.bottom{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 .stock-pill{white-space:nowrap}
 .recipeCard{background:#fce4ec!important;border-top:3px solid #f03c3c!important}
