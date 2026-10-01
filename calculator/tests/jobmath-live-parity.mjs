@@ -45,10 +45,17 @@ async function estimateTotals(root){
 }
 async function openSession(browser,base){
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  if(base===LIVE)await ctx.route('**/*',route=>{const t=route.request().resourceType();return ['image','media','font'].includes(t)?route.abort():route.continue()});
   const page=await ctx.newPage();
-  await page.goto(base,{waitUntil:'domcontentloaded',timeout:60000});
-  await page.waitForTimeout(500);
-  const root=await openJob(page);if(!root)throw new Error(`${base}: no Job Math DOM found`);
+  let root=null,lastError=null;
+  for(let attempt=0;attempt<3&&!root;attempt++){
+    try{
+      await page.goto(base,{waitUntil:'domcontentloaded',timeout:20000});
+      await page.waitForTimeout(350);
+      root=await openJob(page);
+    }catch(e){lastError=e}
+  }
+  if(!root){await ctx.close();throw new Error(`${base}: no Job Math DOM found after retries${lastError?` (${lastError.message})`:''}`)}
   return {ctx,page};
 }
 async function runScenario(session,base,scenario){
