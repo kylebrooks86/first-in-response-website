@@ -15,4 +15,18 @@
   #job #crewSheet:empty,
   #view-job #fullQuote:empty,
   #view-job #crewSheet:empty{display:none!important}
+
+  /* LIVE keeps the planning totals compact on iPhone: the two headline totals
+     are full-width, SH + water share a row, and Elemonator spans beneath them. */
+  #job #jobMixCard .metrics,
+  #view-job #jobMixCard .metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+  }
+  #job #jobMixCard .metrics>.metric:nth-child(1),
+  #job #jobMixCard .metrics>.metric:nth-child(2),
+  #job #jobMixCard .metrics>.metric:nth-child(5),
+  #view-job #jobMixCard .metrics>.metric:nth-child(1),
+  #view-job #jobMixCard .metrics>.metric:nth-child(2),
+  #view-job #jobMixCard .metrics>.metric:nth-child(5){grid-column:1/-1!important}
 }
