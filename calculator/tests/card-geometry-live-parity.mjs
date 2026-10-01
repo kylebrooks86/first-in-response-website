@@ -3,7 +3,15 @@ import fs from 'node:fs';
 const LIVE=process.env.FIRE_LIVE_URL||'https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site';
 const STAGING=process.env.FIRE_STAGING_URL||'http://127.0.0.1:4173/calculator/';
 const OUT=process.env.FIRE_VISUAL_OUT||'calculator/visual-parity';
-const routes=[['Equipment',['#view-delivery','#view-equipment','#equipment']],['Job Math',['#view-job','#job']],['Field Tools',['#view-tools','#tools']],['Chemicals',['#view-chemicals','#chemicals']],['Field Guide',['#view-guide','#guide']]];
+const routes=[
+  ['SH Mix',['#view-mix','#mix']],
+  ['Equipment',['#view-delivery','#view-equipment','#equipment']],
+  ['Chemicals',['#view-chemicals','#chemicals']],
+  ['Chemical Index',['#view-index','#index']],
+  ['Job Math',['#view-job','#job']],
+  ['Field Tools',['#view-tools','#tools']],
+  ['Field Guide',['#view-guide','#guide']]
+];
 async function clickVisible(page,text){const q=page.getByText(text,{exact:true});for(let i=0;i<await q.count();i++){const e=q.nth(i);if(await e.isVisible()){await e.evaluate(node=>node.click());return true}}return false}
 async function rootFor(page,sels){for(const s of sels){const e=page.locator(s);if(await e.count()&&await e.first().isVisible())return e.first()}return null}
 async function openRoute(page,name,sels){for(let attempt=0;attempt<20;attempt++){await clickVisible(page,name).catch(()=>false);await page.waitForTimeout(120);const root=await rootFor(page,sels);if(root)return root}throw new Error('Missing route '+name+' after app settled')}
