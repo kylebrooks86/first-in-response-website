@@ -43,13 +43,13 @@ body.dark #equipment .card:has(#xSurface)>p.mini{color:#9fb0bf!important}
   #equipment .card:has(#xSurface)>.grid .field{margin-bottom:0!important}
   #equipment .card:has(#xSurface)>.grid label{font-size:14px!important;line-height:1.45!important}
   #equipment .card:has(#xReqBucket) .grid,
-  #equipment .card:has(#xDrawOz) .grid{gap:10px!important}
+  #equipment .card:has(#xDrawOz) .grid{gap:8px!important}
   #equipment .card:has(#xReqBucket) .metrics,
-  #equipment .card:has(#xDrawOz) .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;margin-top:8px!important}
+  #equipment .card:has(#xDrawOz) .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;margin-top:6px!important}
   #equipment .card:has(#xReqBucket) .metrics>.metric:first-child{grid-column:1/-1!important}
-  #equipment .card:has(#xReqBucket) #xReverseInstruction{margin:8px 0 6px!important;line-height:1.35!important}
-  #equipment .card:has(#xDrawOz) .actions{margin-top:8px!important}
-  #equipment .card:has(#xDrawOz)>p.muted:last-child{margin:8px 0 0!important;line-height:1.4!important}
+  #equipment .card:has(#xReqBucket) #xReverseInstruction{margin:6px 0 4px!important;line-height:1.35!important}
+  #equipment .card:has(#xDrawOz) .actions{margin-top:6px!important}
+  #equipment .card:has(#xDrawOz)>p.muted:last-child{margin:6px 0 0!important;line-height:1.4!important}
   #equipment .card:has(#pumpGpm) .grid{gap:8px!important}
   #equipment .card:has(#pumpGpm) .grid[style]{margin-top:10px!important}
   #equipment .card:has(#pumpGpm) .metrics{grid-template-columns:1fr!important;gap:6px!important;margin-top:8px!important}
