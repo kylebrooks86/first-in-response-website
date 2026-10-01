@@ -7,9 +7,12 @@ const expected=[
 ];
 async function clickVisibleText(page,text){const x=page.getByText(text,{exact:true});for(let i=0;i<await x.count();i++){const e=x.nth(i);if(await e.isVisible()){await e.click();return true}}return false}
 async function openPricing(page){
-  await clickVisibleText(page,'Job Math');await page.waitForTimeout(180);
-  for(const s of ['#view-job','#job']){const r=page.locator(s);if(await r.count()){await r.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));break}}
-  await page.waitForTimeout(120);
+  for(let attempt=0;attempt<20;attempt++){
+    await clickVisibleText(page,'Job Math').catch(()=>false);
+    for(const s of ['#view-job','#job']){const r=page.locator(s);if(await r.count()){await r.first().locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));return}}
+    await page.waitForTimeout(150);
+  }
+  throw new Error('Job Math route missing after app settled');
 }
 async function inspect(page){
   const out=[];
@@ -22,11 +25,18 @@ async function inspect(page){
   }
   return out;
 }
+async function stableReload(page,base){
+  let lastErr=null;
+  for(let attempt=0;attempt<3;attempt++){
+    try{await page.reload({waitUntil:'domcontentloaded',timeout:60000});await page.waitForTimeout(700);return}catch(err){lastErr=err;await page.goto(base,{waitUntil:'domcontentloaded',timeout:60000}).catch(()=>{});await page.waitForTimeout(700)}
+  }
+  throw lastErr||new Error('reload failed');
+}
 async function run(base,browser){
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const page=await ctx.newPage();
-  await page.goto(base,{waitUntil:'networkidle',timeout:60000});await openPricing(page);await inspect(page);
-  const rate=page.locator('#price_houseWash');await rate.evaluate(node=>{node.value='0.23';node.dispatchEvent(new Event('input',{bubbles:true}));node.dispatchEvent(new Event('change',{bubbles:true}))});await page.waitForTimeout(120);
-  await page.reload({waitUntil:'networkidle',timeout:60000});await openPricing(page);const persisted=await page.locator('#price_houseWash').inputValue();
+  await page.goto(base,{waitUntil:'domcontentloaded',timeout:60000});await page.waitForTimeout(700);await openPricing(page);await inspect(page);
+  const rate=page.locator('#price_houseWash');await rate.evaluate(node=>{node.value='0.23';node.dispatchEvent(new Event('input',{bubbles:true}));node.dispatchEvent(new Event('change',{bubbles:true}))});await page.waitForTimeout(180);
+  await stableReload(page,base);await openPricing(page);const persisted=await page.locator('#price_houseWash').inputValue();
   await ctx.close();if(persisted!=='0.23')throw new Error(`${base}: house-wash rate did not persist across reload; got ${persisted}`);return persisted;
 }
 const browser=await chromium.launch({headless:true});
