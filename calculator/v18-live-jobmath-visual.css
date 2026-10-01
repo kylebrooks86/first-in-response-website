@@ -16,6 +16,41 @@
   #view-job #fullQuote:empty,
   #view-job #crewSheet:empty{display:none!important}
 
+  /* LIVE keeps the estimator service groups flat inside the main card. The
+     staging nested white cards repeat padding/margins five times and account
+     for most of the remaining estimator height mismatch. */
+  #job .card:has(#fullSubtotal)>.accord,
+  #view-job .card:has(#fullSubtotal)>.accord{
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    margin:0!important;
+    box-shadow:none!important;
+    border-bottom:1px solid #cfdbe2!important;
+  }
+  #job .card:has(#fullSubtotal)>.accord summary,
+  #view-job .card:has(#fullSubtotal)>.accord summary{
+    padding:11px 0!important;
+  }
+  #job .card:has(#fullSubtotal)>.accord>div,
+  #view-job .card:has(#fullSubtotal)>.accord>div{
+    padding:0 0 12px!important;
+  }
+  #job .card:has(#fullSubtotal)>.accord .unit,
+  #view-job .card:has(#fullSubtotal)>.accord .unit{
+    display:grid!important;
+    place-items:center!important;
+    align-self:stretch!important;
+    min-width:36px!important;
+    padding:0 4px!important;
+    border:1px solid #cbd9e2!important;
+    border-radius:12px!important;
+    background:#fff!important;
+    color:#17212b!important;
+    font-weight:800!important;
+    font-size:12px!important;
+  }
+
   /* LIVE keeps the planning totals compact on iPhone: the two headline totals
      are full-width, SH + water share a row, and Elemonator spans beneath them. */
   #job #jobMixCard .metrics,
@@ -59,3 +94,5 @@
     white-space:nowrap!important;
   }
 }
+body.dark #job .card:has(#fullSubtotal)>.accord .unit,
+body.dark #view-job .card:has(#fullSubtotal)>.accord .unit{background:#18212b!important;color:#f6f7f8!important;border-color:#35414b!important}
