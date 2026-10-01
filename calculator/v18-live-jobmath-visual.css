@@ -14,6 +14,12 @@
   #job .card:has(#fullSubtotal)>.accord>div,#view-job .card:has(#fullSubtotal)>.accord>div{padding:0 0 12px!important}
   #job .card:has(#fullSubtotal)>.accord .unit,#view-job .card:has(#fullSubtotal)>.accord .unit{display:grid!important;place-items:center!important;align-self:stretch!important;min-width:36px!important;padding:0 4px!important;border:1px solid #cbd9e2!important;border-radius:12px!important;background:#fff!important;color:#17212b!important;font-weight:800!important;font-size:12px!important}
 
+  /* Planning card: the LIVE direct-child audit shows an 11px eyebrow with
+     4px bottom margin and a 12px form-grid gap. Matching those real values
+     removes the legacy vertical excess without touching planning math. */
+  #job #jobMixCard>.kicker,#view-job #jobMixCard>.kicker{font-size:11px!important;margin-bottom:4px!important;line-height:1.45!important}
+  #job #jobMixCard>.grid,#view-job #jobMixCard>.grid{gap:12px!important}
+  #job #jobMixCard>.grid label,#view-job #jobMixCard>.grid label{font-size:14px!important;line-height:1.45!important}
   #job #jobMixCard .metrics,#view-job #jobMixCard .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
   #job #jobMixCard .metrics>.metric:nth-child(1),#job #jobMixCard .metrics>.metric:nth-child(2),#job #jobMixCard .metrics>.metric:nth-child(5),#view-job #jobMixCard .metrics>.metric:nth-child(1),#view-job #jobMixCard .metrics>.metric:nth-child(2),#view-job #jobMixCard .metrics>.metric:nth-child(5){grid-column:1/-1!important}
   #job #jobMixCard #fireExactFillHeading,#view-job #jobMixCard #fireExactFillHeading{display:none!important}
