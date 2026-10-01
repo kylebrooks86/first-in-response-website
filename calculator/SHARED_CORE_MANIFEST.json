@@ -3,7 +3,7 @@
   "release": "v18",
   "status": "STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED",
   "fingerprint_algorithm": "sha256(sorted lines of path:git_blob_sha)",
-  "shared_core_fingerprint": "e5a1cc7007c71f7ab6db9aef5735d85d09b685d82e20f0b49438fb94503d9565",
+  "shared_core_fingerprint": "10f9f72bd71690d4d6095d9608aca3aa4f0eea80fa8a38f4c32c977787c41089",
   "shared_core_files": {
     "calculator/index.html": "4be24b1101085b4f104a8661fa76e1528df6623b",
     "calculator/manifest.webmanifest": "b0b4896b333d200c8bd4194fcac16c4272c52938",
@@ -25,7 +25,7 @@
     "calculator/v18-live-jobmath-parity.js": "3e02642bdabf0ea21efe3b6082bba0e601d08b7d",
     "calculator/v18-live-jobmix-parity.js": "5d03f43fcfab788031022ceb01e89109d8ba36fd",
     "calculator/v18-live-planning-state.js": "0040d7a15c04c795ac261b10461bd705f21f329b",
-    "calculator/v18-live-chemicals-parity.js": "c650e0ccb3b0366c1858e28830ea4cd0826edcd0",
+    "calculator/v18-live-chemicals-parity.js": "76cecdc4fd53932fa9bd17a06ac51ee29f596048",
     "calculator/v18-live-chemicals-parity.css": "52bb6822faf7573cc10480949390a4e83a96f147",
     "calculator/v18-live-index-parity.js": "2ebcc719dc9054fbf887ab79000b293b2b5c3993",
     "calculator/v18-live-index-parity.css": "a622a608ff7a025f29a66ca12f48039c48e40fad",
