@@ -25,7 +25,10 @@ async function clickJobButton(page,text){
   const q=page.locator('button').filter({hasText:text});
   for(let i=0;i<await q.count();i++){
     const b=q.nth(i);
-    if((await b.innerText()).trim()===text&&await b.isVisible()){await b.click();return true}
+    if((await b.innerText()).trim()===text&&await b.isVisible()&&await b.isEnabled()){
+      await b.evaluate(node=>node.click());
+      return true;
+    }
   }
   return false;
 }
