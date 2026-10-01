@@ -37,6 +37,7 @@ body{line-height:1.45!important}
   body.dark .topbar{background:#080d12!important;color:#f7fafc!important;border-bottom-color:#263544!important;box-shadow:0 8px 22px rgba(0,0,0,.12)!important}
   body.dark .title strong{color:#f7fafc!important}
   body.dark .tabswrap{background:transparent!important;border-color:transparent!important}
+  body.dark .tabs{color:#f7fafc!important;border-color:#f7fafc!important}
   body.dark .tab{background:#101a24!important;color:#9fb0bf!important;border-color:#263544!important}
   body.dark .tab.active{background:#f7fafc!important;color:#17212b!important;border-color:#f7fafc!important}
   body.dark .page .card{background:transparent!important;color:#f7fafc!important;border-color:#263544!important;border-radius:18px!important;box-shadow:0 14px 34px rgba(0,0,0,.30)!important}
@@ -44,7 +45,7 @@ body{line-height:1.45!important}
   body.dark .page select,
   body.dark .page textarea{background:#0b131b!important;color:#f7fafc!important;border-color:#263544!important;border-radius:12px!important;padding-left:12px!important;padding-right:12px!important}
   body.dark .page label,body.dark .page .muted{color:#9fb0bf!important}
-  body.dark .bottom{background:rgba(8,13,18,.94)!important;border-top-color:#263544!important;box-shadow:none!important}
+  body.dark .bottom{background:rgba(8,13,18,.94)!important;color:#f7fafc!important;border-color:#f7fafc!important;border-top-color:#263544!important;box-shadow:none!important}
   body.dark .bottom button{background:transparent!important;color:#9fb0bf!important}
   body.dark .bottom button.active{background:#241510!important;color:#ff6849!important}
   body.dark #growthSeg .chip{color:#9fb0bf!important;border-color:#9fb0bf!important}
