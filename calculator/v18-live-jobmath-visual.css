@@ -29,4 +29,39 @@
   #view-job #jobMixCard .metrics>.metric:nth-child(1),
   #view-job #jobMixCard .metrics>.metric:nth-child(2),
   #view-job #jobMixCard .metrics>.metric:nth-child(5){grid-column:1/-1!important}
+
+  /* LIVE's measurement helpers are flat sections inside the main card rather
+     than nested mini-cards. Removing the nested box also restores the live
+     content width so the calculated-area result stays on one line. */
+  #job #jobMeasureCard .accord,
+  #view-job #jobMeasureCard .accord{
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    margin:0!important;
+  }
+  #job #jobMeasureCard .accord summary,
+  #view-job #jobMeasureCard .accord summary{
+    padding:10px 0!important;
+  }
+  #job #jobMeasureCard .accord>div,
+  #view-job #jobMeasureCard .accord>div{
+    padding:0!important;
+  }
+  #job #jobMeasureCard .accord:first-of-type,
+  #view-job #jobMeasureCard .accord:first-of-type{
+    border-bottom:1px solid #d7e0e5!important;
+    padding-bottom:12px!important;
+    margin-bottom:6px!important;
+  }
+  #job #jobMeasureCard #areaHelperResult,
+  #view-job #jobMeasureCard #areaHelperResult{
+    white-space:nowrap!important;
+  }
+  #job #jobMeasureCard #fireMeasureShortcuts button:first-child,
+  #view-job #jobMeasureCard #fireMeasureShortcuts button:first-child{
+    background:#ef4b2d!important;
+    border-color:#ef4b2d!important;
+    color:#fff!important;
+  }
 }
