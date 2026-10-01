@@ -10,7 +10,9 @@
      summaries made staging ~38px taller even though the text already matches. */
   #guide>.card:nth-child(2) details summary{padding:10px 0!important;line-height:1.22!important}
   #guide>.card:nth-child(2) details>div{font-size:13px!important;line-height:1.35!important;padding-bottom:10px!important}
+  /* LIVE gives the seven safety steps slightly more breathing room than the
+     staging baseline. The text is identical, so adjust only list rhythm. */
   #guide>.card:nth-child(3) ol{padding-left:22px!important;margin:8px 0 0!important}
-  #guide>.card:nth-child(3) li{margin:3px 0!important;font-size:15px!important;line-height:1.38!important}
+  #guide>.card:nth-child(3) li{margin:4.5px 0!important;font-size:15px!important;line-height:1.46!important}
 }
 body.dark .fire-guide-head,body.dark .fire-guide-row,#guide.dark .fire-guide-row{border-color:#35414b}body.dark .fire-guide-surface strong{color:#f6f7f8}body.dark .fire-guide-surface small{color:#b7c0c7}body.dark #guide>.card:nth-child(2) details{background:transparent!important}
