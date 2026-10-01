@@ -37,4 +37,15 @@ body.dark #equipment .card:has(#fillTime) .inputrow .unit{background:#18212b!imp
   #equipment .card:has(#pumpGpm) .grid[style]{margin-top:10px!important}
   #equipment .card:has(#pumpGpm) .metrics{grid-template-columns:1fr!important;gap:6px!important;margin-top:8px!important}
   #equipment .card:has(#pumpGpm) #propPlannerWarning{margin:8px 0 0!important}
+
+  /* Downstream estimate: content already matches LIVE; compact the result and
+     explanatory spacing that accounts for the remaining +20px geometry gap. */
+  #equipment .card:has(#dsFormulaNote)>h2{margin-bottom:10px!important}
+  #equipment .card:has(#dsFormulaNote) .resultbig{margin:6px 0!important}
+  #equipment .card:has(#dsFormulaNote)>p.muted:not(#dsFormulaNote){margin:10px 0 6px!important}
+
+  /* Injector-ratio card: identical text and controls, so only tighten the
+     repeated mobile field/result spacing. */
+  #equipment .card:has(#injRatio) .grid{gap:8px!important}
+  #equipment .card:has(#injRatio) #injRatio{margin:6px 0!important}
 }
