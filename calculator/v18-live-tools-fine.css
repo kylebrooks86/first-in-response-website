@@ -29,11 +29,13 @@
   #tools .card:has(#compatResult) .grid{gap:8px!important}
   #tools .card:has(#compatResult) .field{margin-bottom:0!important}
   #tools .card:has(#compatResult) #compatResult{margin-top:8px!important}
-  #tools .card:has(#timerDisplay) .grid{gap:8px!important}
-  #tools .card:has(#timerDisplay) #timerDisplay{margin:10px 0!important}
-  #tools .card:has(#timerDisplay) .actions{margin-top:6px!important}
-  #tools .card:has(#weatherNote) .grid{gap:10px!important}
-  #tools .card:has(#weatherNote) #weatherNote{margin-top:8px!important}
+  #tools .card:has(#timerDisplay) .grid{gap:6px!important}
+  #tools .card:has(#timerDisplay) .field{margin-bottom:0!important}
+  #tools .card:has(#timerDisplay) #timerDisplay{margin:6px 0!important}
+  #tools .card:has(#timerDisplay) .actions{margin-top:4px!important}
+  #tools .card:has(#weatherNote) .grid{gap:8px!important}
+  #tools .card:has(#weatherNote) .field{margin-bottom:0!important}
+  #tools .card:has(#weatherNote) #weatherNote{margin-top:6px!important}
   #tools .card:has(.fire-safety-list) .fire-safety-list{gap:16px!important}
   #tools .card:has(.fire-safety-list) .fire-safety-list p{line-height:1.4!important}
 }
