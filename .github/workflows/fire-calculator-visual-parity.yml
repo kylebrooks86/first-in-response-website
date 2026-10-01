@@ -153,7 +153,7 @@ jobs:
 
   visual-geometry:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Checkout staging branch
         uses: actions/checkout@v4
@@ -181,26 +181,24 @@ jobs:
           sleep 2
           curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
 
-      - name: Measure live and staging layout geometry
+      - name: Inspect key-card internal geometry
         timeout-minutes: 2
         continue-on-error: true
         env: &visual-env
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
           FIRE_VISUAL_OUT: calculator/visual-parity
-        run: node calculator/tests/layout-geometry.mjs
+        run: node calculator/tests/key-card-internals-live-parity.mjs
       - name: Measure live and staging card geometry
         timeout-minutes: 2
         continue-on-error: true
         env: *visual-env
         run: node calculator/tests/card-geometry-live-parity.mjs
-      - name: Inspect key-card internal geometry
+      - name: Measure live and staging layout geometry
         timeout-minutes: 2
         continue-on-error: true
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
-        run: node calculator/tests/key-card-internals-live-parity.mjs
+        env: *visual-env
+        run: node calculator/tests/layout-geometry.mjs
       - name: Inspect computed light/dark style differences
         timeout-minutes: 2
         continue-on-error: true
@@ -209,9 +207,7 @@ jobs:
       - name: Inspect live bundle and customer baseline
         timeout-minutes: 2
         continue-on-error: true
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        env: *visual-env
         run: node calculator/tests/jobmath-baseline-audit.mjs
       - name: Capture live and staging at iPhone viewport
         timeout-minutes: 2
