@@ -8,10 +8,15 @@
 #tools .card:has(#fireCheckUpdate) h2{margin-bottom:8px!important}
 #tools .card:has(#fireCheckUpdate)>p.muted{margin:4px 0 0!important;line-height:1.45!important}
 #tools #fireCheckUpdate{margin:6px 0 4px!important;min-height:42px!important;padding:9px 13px!important}
-#tools .fire-backup-actions{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:8px!important;margin:10px 0 12px!important}
+#tools .fire-backup-actions{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:8px!important;margin:6px 0 7px!important}
 #tools .fire-backup-actions button{min-height:40px!important;padding:8px 12px!important;border-radius:10px!important;font-weight:800!important}
 #tools .fire-backup-actions #exportAll{background:#e84226!important;color:#fff!important;border-color:#e84226!important}
 #tools .fire-backup-actions #copyBackupText{background:#fff!important;color:#17212b!important;border:1px solid #cfdce3!important}
+#tools .card:has(#exportAll) h2{margin-bottom:8px!important}
+#tools .card:has(#exportAll)>p.muted:first-of-type{margin:5px 0 8px!important;line-height:1.45!important}
+#tools .card:has(#exportAll) #fireRestoreLabel{margin:4px 0 6px!important}
+#tools .card:has(#exportAll) #importFile{margin:0!important}
+#tools .card:has(#exportAll) #backupStatus{margin:8px 0 0!important}
 #tools #customChemList>.fire-empty-dash{margin-top:12px!important}
 @media(max-width:760px){#tools .fire-version-inset{padding:10px 11px!important}.fire-backup-actions{width:100%!important}.fire-backup-actions button{width:auto!important}}
 body.dark #tools .fire-version-inset,body.dark #tools .fire-backup-actions #copyBackupText{background:#18212b!important;color:#f6f7f8!important;border-color:#35414b!important}body.dark #tools .fire-version-inset span{color:#b7c0c7!important}
