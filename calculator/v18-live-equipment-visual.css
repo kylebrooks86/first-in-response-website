@@ -15,19 +15,26 @@ body.dark #equipment #useXjetMeasured{border-color:#ff5a36!important;color:#fff!
   #equipment .card{padding-left:14px!important;padding-right:14px!important}
   #equipment #xLiveGuidance p:first-child,#equipment #xLiveGuidance p:nth-child(2),#equipment #xReverseInstruction,#equipment #propPlannerWarning{font-size:12px!important}
 
-  /* LIVE keeps these result metrics side-by-side on iPhone instead of using
-     the global one-column mobile metric stack. Scope each rule to the exact
-     Equipment card so no other route/card geometry changes. */
+  /* LIVE keeps the reverse-recipe and draw-test result pairs side-by-side on
+     iPhone. Scope these rules to those exact Equipment cards. */
   #equipment .card:has(#xReqBucket) .metrics,
-  #equipment .card:has(#xDrawOz) .metrics,
-  #equipment .card:has(#pumpGpm) .metrics{
+  #equipment .card:has(#xDrawOz) .metrics{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
     gap:10px!important;
   }
   #equipment .card:has(#xReqBucket) .metrics>.metric:first-child{
     grid-column:1/-1!important;
   }
-  #equipment .card:has(#pumpGpm) .metrics>.metric:nth-child(3){
-    grid-column:1/-1!important;
+
+  /* LIVE's three-port planner keeps all five metrics full-width. The baseline
+     staging stack was too tall because its field/metric row spacing was looser,
+     so compact only this card rather than changing its structure. */
+  #equipment .card:has(#pumpGpm) .grid{gap:8px!important}
+  #equipment .card:has(#pumpGpm) .grid[style]{margin-top:10px!important}
+  #equipment .card:has(#pumpGpm) .metrics{
+    grid-template-columns:1fr!important;
+    gap:6px!important;
+    margin-top:8px!important;
   }
+  #equipment .card:has(#pumpGpm) #propPlannerWarning{margin:8px 0 0!important}
 }
