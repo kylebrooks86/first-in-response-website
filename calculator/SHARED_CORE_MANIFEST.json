@@ -3,7 +3,7 @@
   "release": "v18",
   "status": "STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED",
   "fingerprint_algorithm": "sha256(sorted lines of path:git_blob_sha)",
-  "shared_core_fingerprint": "7c011b187d17e89478ba9f99877bc9403944df163395d3cbf7ec7fac7653d32e",
+  "shared_core_fingerprint": "c139a0d29e94e7f90af0188b605c374d43746346c93af66693165e9c0c6f44a0",
   "shared_core_files": {
     "calculator/index.html": "4be24b1101085b4f104a8661fa76e1528df6623b",
     "calculator/manifest.webmanifest": "b0b4896b333d200c8bd4194fcac16c4272c52938",
@@ -27,7 +27,7 @@
     "calculator/v18-live-chemicals-parity.js": "c650e0ccb3b0366c1858e28830ea4cd0826edcd0",
     "calculator/v18-live-chemicals-parity.css": "378c03ff2b8d38ae665086db08887992b4c87c4b",
     "calculator/v18-live-index-parity.js": "2ebcc719dc9054fbf887ab79000b293b2b5c3993",
-    "calculator/v18-live-index-parity.css": "cffea31b51f8edc924828ad34316fe3fe4654f0b",
+    "calculator/v18-live-index-parity.css": "d38e985e92b80bf862701ba0f34bb01c4b6ec727",
     "calculator/v18-live-guide-parity.js": "be1aa5209050aca45361407f8f3d2b78942789c8",
     "calculator/v18-live-guide-parity.css": "e82077d930547c51502b7e0d033b6012e068fc68",
     "calculator/v18-live-navigation-parity.js": "8ad86841b6008aba324317ee2f3c0f047d579551",
