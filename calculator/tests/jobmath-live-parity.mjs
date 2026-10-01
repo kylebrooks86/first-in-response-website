@@ -11,7 +11,7 @@ const scenarios=[
   {name:'override after discount',house:1000,discount:10,override:200}
 ];
 
-async function clickVisibleText(page,text){const x=page.getByText(text,{exact:true});for(let i=0;i<await x.count();i++){const el=x.nth(i);if(await el.isVisible()){await el.click();return true}}return false}
+async function clickVisibleText(page,text){const x=page.getByText(text,{exact:true});for(let i=0;i<await x.count();i++){const el=x.nth(i);if(await el.isVisible()){await el.evaluate(node=>node.click());return true}}return false}
 async function jobRootByFields(page){
   for(const id of ['houseWashArea','svcHouse']){
     const field=page.locator('#'+id);
@@ -26,11 +26,14 @@ async function jobRootByFields(page){
   return null;
 }
 async function openJob(page){
-  for(let attempt=0;attempt<3;attempt++){
-    await clickVisibleText(page,'Job Math');
-    await page.waitForTimeout(180);
+  for(let attempt=0;attempt<20;attempt++){
+    await clickVisibleText(page,'Job Math').catch(()=>false);
+    await page.waitForTimeout(120);
     const root=await jobRootByFields(page);
-    if(root){await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(80);return root}
+    if(root){
+      const fieldCount=(await page.locator('#houseWashArea').count())+(await page.locator('#svcHouse').count());
+      if(fieldCount){await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(80);return root}
+    }
   }
   return null;
 }
@@ -42,7 +45,9 @@ async function estimateTotals(root){
 }
 async function openSession(browser,base){
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-  const page=await ctx.newPage();await page.goto(base,{waitUntil:'networkidle',timeout:60000});
+  const page=await ctx.newPage();
+  await page.goto(base,{waitUntil:'domcontentloaded',timeout:60000});
+  await page.waitForTimeout(500);
   const root=await openJob(page);if(!root)throw new Error(`${base}: no Job Math DOM found`);
   return {ctx,page};
 }
