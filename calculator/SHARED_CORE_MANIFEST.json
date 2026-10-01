@@ -3,7 +3,7 @@
   "release": "v18",
   "status": "STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED",
   "fingerprint_algorithm": "sha256(sorted lines of path:git_blob_sha)",
-  "shared_core_fingerprint": "f1b6d96894f9555f826494a339f94b09dad70b0916ebc23a4afcea9a73c5e01b",
+  "shared_core_fingerprint": "b85cafc684863a739abb47b2bd1494b3d6c1554664f8c9d0fdd8cf3f25701b12",
   "shared_core_files": {
     "calculator/index.html": "4be24b1101085b4f104a8661fa76e1528df6623b",
     "calculator/manifest.webmanifest": "b0b4896b333d200c8bd4194fcac16c4272c52938",
@@ -15,7 +15,7 @@
     "calculator/v18-fine-parity.js": "2d9bdcdb40734f633c61532832266538c505f29b",
     "calculator/v18-equipment-parity.js": "ba6fa1d70eeae6fd5d5ef26b7b82be34ae3b877b",
     "calculator/v18-tools-state.js": "9030b966a47d869d32521a67f645e57d037af755",
-    "calculator/v18-exact-visual.css": "4359f8e2e76f497db2f96a503e7f70a294f4ecc2",
+    "calculator/v18-exact-visual.css": "1991c65e07c7747935e7427eb9c07756f90faee4",
     "calculator/v18-live-jobmath-visual.css": "82a3d615fbb5cfea65f32a8081066a1b28cc26d1",
     "calculator/v18-live-foundation.css": "e85c228351f90d225d7f6c4a546e8ff9d87827aa",
     "calculator/v18-live-equipment-visual.css": "77f453e44b515050d0d3e4a69ead0fbea26ad8c6",
