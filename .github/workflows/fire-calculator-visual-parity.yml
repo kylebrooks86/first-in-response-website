@@ -144,6 +144,12 @@ jobs:
           FIRE_VISUAL_OUT: calculator/visual-parity
         run: node calculator/tests/card-geometry-live-parity.mjs
 
+      - name: Inspect key-card internal geometry
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        run: node calculator/tests/key-card-internals-live-parity.mjs
+
       - name: Capture live and staging at iPhone viewport
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
