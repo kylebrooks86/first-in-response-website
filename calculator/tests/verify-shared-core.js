@@ -16,7 +16,20 @@ function die(msg){console.error('SYNC FAIL:',msg);process.exit(1)}
 function readJson(p){try{return JSON.parse(fs.readFileSync(p,'utf8'))}catch(e){die(`Cannot read ${p}: ${e.message}`)}}
 function gitBlobSha(buf){return crypto.createHash('sha1').update(Buffer.from(`blob ${buf.length}\0`)).update(buf).digest('hex')}
 function manifestFor(root){return readJson(path.join(root,'SHARED_CORE_MANIFEST.json'))}
+function loadedCoreFiles(root){
+  const loaderPath=path.join(root,'full-v18.js');
+  if(!fs.existsSync(loaderPath))die(`${root}: missing full-v18.js loader`);
+  const loader=fs.readFileSync(loaderPath,'utf8');
+  const refs=[...loader.matchAll(/['"`](\.\/[^'"`?]+\.(?:js|css))(?:\?v=\d+)?['"`]/g)].map(m=>m[1].replace(/^\.\//,''));
+  return [...new Set(['full-v18.js',...refs])];
+}
+function validateLoadedFilesAreGoverned(root,manifest){
+  const governed=new Set(Object.keys(manifest.shared_core_files||{}).map(rel=>rel.startsWith('calculator/')?rel.slice('calculator/'.length):rel));
+  const missing=loadedCoreFiles(root).filter(rel=>!governed.has(rel));
+  if(missing.length)die(`${root}: loader executes ungoverned shared-core file(s): ${missing.join(', ')}`);
+}
 function validateRoot(root,manifest){
+  validateLoadedFilesAreGoverned(root,manifest);
   const rows=[];
   for(const [rel,expected] of Object.entries(manifest.shared_core_files||{})){
     const normalized=rel.startsWith('calculator/')?rel.slice('calculator/'.length):rel;
@@ -36,6 +49,7 @@ if(roots.length===1){
   const root=roots[0],manifest=manifestFor(root),fingerprint=validateRoot(root,manifest);
   console.log(`STAGING CORE PASS: ${manifest.product} ${manifest.release}`);
   console.log(`shared-core fingerprint ${fingerprint}`);
+  console.log(`loader governance ${loadedCoreFiles(root).length} shared modules verified`);
   process.exit(0);
 }
 if(roots.length!==2){console.error('Usage: node verify-shared-core.js <staging-root> OR <production-root> <dr-root>');process.exit(2)}
@@ -46,3 +60,4 @@ const pf=validateRoot(prodRoot,pm),df=validateRoot(drRoot,dm);
 if(pf!==df)die(`calculated fingerprints differ: production ${pf}, DR ${df}`);
 console.log(`SYNC PASS: ${pm.product} ${pm.release}`);
 console.log(`shared-core fingerprint ${pf}`);
+console.log(`loader governance ${loadedCoreFiles(prodRoot).length} shared modules verified`);
