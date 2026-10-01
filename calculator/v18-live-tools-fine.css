@@ -22,9 +22,23 @@
   #tools .fire-version-inset{padding:10px 11px!important}
   .fire-backup-actions{width:100%!important}
   .fire-backup-actions button{width:auto!important}
+
+  /* Custom Chemical Builder: repeated mobile form gaps were the remaining
+     source of height excess; preserve all controls and behavior. */
   #tools .card:has(#customChemName) .grid{gap:8px!important}
   #tools .card:has(#customChemName) .field{margin-bottom:0!important}
   #tools .card:has(#customChemName) .actions{margin-top:8px!important;margin-bottom:4px!important}
   #tools .card:has(#customChemName) #customChemList>.fire-empty-dash{margin-top:8px!important;padding:12px!important}
+
+  /* Application Timer: match LIVE's denser two-field stack and result/action
+     spacing without changing timer duration or button behavior. */
+  #tools .card:has(#timerDisplay) .grid{gap:10px!important}
+  #tools .card:has(#timerDisplay) #timerDisplay{margin:14px 0!important}
+  #tools .card:has(#timerDisplay) .actions{margin-top:8px!important}
+
+  /* Weather guide: four vertically stacked controls amplify the base grid
+     gap on iPhone. LIVE keeps those controls closer together. */
+  #tools .card:has(#weatherNote) .grid{gap:10px!important}
+  #tools .card:has(#weatherNote) #weatherNote{margin-top:8px!important}
 }
 body.dark #tools .fire-version-inset,body.dark #tools .fire-backup-actions #copyBackupText{background:#18212b!important;color:#f6f7f8!important;border-color:#35414b!important}body.dark #tools .fire-version-inset span{color:#b7c0c7!important}
