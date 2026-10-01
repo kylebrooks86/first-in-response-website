@@ -14,35 +14,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  visual-parity:
+  behavior-parity:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout staging branch
         uses: actions/checkout@v4
-
       - name: Use Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - name: Cache Playwright Chromium
         id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: fire-playwright-${{ runner.os }}-1.55.0-chromium
-
-      - name: Install visual diff tools
-        run: npm install --no-save playwright@1.55.0 pngjs@7.0.0 pixelmatch@6.0.0
-
+      - name: Install Playwright
+        run: npm install --no-save playwright@1.55.0
       - name: Install Chromium system dependencies
         run: npx playwright install-deps chromium
-
       - name: Install Chromium browser
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium
-
       - name: Start staging server
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/fire-calculator-server.log 2>&1 &
@@ -54,92 +48,64 @@ jobs:
         id: jobmath
         timeout-minutes: 2
         continue-on-error: true
-        env:
+        env: &live-env
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
         run: node calculator/tests/jobmath-live-parity.mjs
-
       - name: Compare live Job Math shortcuts
         id: shortcuts
         timeout-minutes: 2
         continue-on-error: true
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        env: *live-env
         run: node calculator/tests/jobmath-shortcuts-live-parity.mjs
-
       - name: Compare live Pricing Editor behavior
         id: pricing
         timeout-minutes: 2
         continue-on-error: true
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        env: *live-env
         run: node calculator/tests/pricing-live-parity.mjs
-
       - name: Compare live estimator edge states
         id: edges
         timeout-minutes: 2
         continue-on-error: true
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        env: *live-env
         run: node calculator/tests/estimator-edge-live-parity.mjs
-
       - name: Compare live customer and draft behavior
         id: customer
         timeout-minutes: 2
         continue-on-error: true
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        env: *live-env
         run: node calculator/tests/customer-live-parity.mjs
-
       - name: Compare live bundle and promotion behavior
         id: bundle
         timeout-minutes: 2
         continue-on-error: true
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        env: *live-env
         run: node calculator/tests/bundle-live-parity.mjs
-
       - name: Compare live save reload and clear behavior
         id: state
         timeout-minutes: 2
         continue-on-error: true
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        env: *live-env
         run: node calculator/tests/state-roundtrip-live-parity.mjs
-
       - name: Compare live quote copy share and print behavior
         id: export
         timeout-minutes: 2
         continue-on-error: true
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        env: *live-env
         run: node calculator/tests/export-live-parity.mjs
-
       - name: Compare live mobile numeric input behavior
         id: mobileinputs
         timeout-minutes: 2
         continue-on-error: true
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        env: *live-env
         run: node calculator/tests/mobile-input-live-parity.mjs
-
       - name: Compare live chemical compatibility behavior
         id: compatibility
         timeout-minutes: 2
         continue-on-error: true
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        env: *live-env
         run: node calculator/tests/compatibility-live-parity.mjs
-
       - name: Verify live backup restores into DR
         id: takeover
         timeout-minutes: 2
@@ -150,15 +116,78 @@ jobs:
           FIRE_VISUAL_OUT: calculator/visual-parity
         run: node calculator/tests/backup-takeover-live-parity.mjs
 
+      - name: Enforce Job Math parity result
+        if: steps.jobmath.outcome == 'failure'
+        run: exit 1
+      - name: Enforce Job Math shortcut parity result
+        if: steps.shortcuts.outcome == 'failure'
+        run: exit 1
+      - name: Enforce Pricing Editor parity result
+        if: steps.pricing.outcome == 'failure'
+        run: exit 1
+      - name: Enforce estimator edge-state parity result
+        if: steps.edges.outcome == 'failure'
+        run: exit 1
+      - name: Enforce customer and draft parity result
+        if: steps.customer.outcome == 'failure'
+        run: exit 1
+      - name: Enforce bundle and promotion parity result
+        if: steps.bundle.outcome == 'failure'
+        run: exit 1
+      - name: Enforce save reload and clear parity result
+        if: steps.state.outcome == 'failure'
+        run: exit 1
+      - name: Enforce quote copy share and print behavior
+        if: steps.export.outcome == 'failure'
+        run: exit 1
+      - name: Enforce mobile numeric input parity result
+        if: steps.mobileinputs.outcome == 'failure'
+        run: exit 1
+      - name: Enforce chemical compatibility parity result
+        if: steps.compatibility.outcome == 'failure'
+        run: exit 1
+      - name: Enforce live backup to DR takeover
+        if: steps.takeover.outcome == 'failure'
+        run: exit 1
+
+  visual-geometry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Cache Playwright Chromium
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: fire-playwright-${{ runner.os }}-1.55.0-chromium
+      - name: Install visual diff tools
+        run: npm install --no-save playwright@1.55.0 pngjs@7.0.0 pixelmatch@6.0.0
+      - name: Install Chromium system dependencies
+        run: npx playwright install-deps chromium
+      - name: Install Chromium browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - name: Start staging server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/fire-calculator-server.log 2>&1 &
+          echo $! > /tmp/fire-calculator-server.pid
+          sleep 2
+          curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
+
       - name: Inspect computed light/dark style differences
         timeout-minutes: 2
         continue-on-error: true
-        env:
+        env: &visual-env
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
           FIRE_VISUAL_OUT: calculator/visual-parity
         run: node calculator/tests/style-live-parity.mjs
-
       - name: Inspect live bundle and customer baseline
         timeout-minutes: 2
         continue-on-error: true
@@ -166,43 +195,28 @@ jobs:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
         run: node calculator/tests/jobmath-baseline-audit.mjs
-
       - name: Measure live and staging layout geometry
         timeout-minutes: 2
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
-          FIRE_VISUAL_OUT: calculator/visual-parity
+        env: *visual-env
         run: node calculator/tests/layout-geometry.mjs
-
       - name: Measure live and staging card geometry
         timeout-minutes: 2
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
-          FIRE_VISUAL_OUT: calculator/visual-parity
+        env: *visual-env
         run: node calculator/tests/card-geometry-live-parity.mjs
-
       - name: Inspect key-card internal geometry
         timeout-minutes: 2
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
         run: node calculator/tests/key-card-internals-live-parity.mjs
-
       - name: Capture live and staging at iPhone viewport
         timeout-minutes: 2
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
-          FIRE_VISUAL_OUT: calculator/visual-parity
+        env: *visual-env
         run: node calculator/tests/visual-parity.mjs
-
       - name: Measure light and dark visual differences
         env:
           FIRE_VISUAL_OUT: calculator/visual-parity
         run: node calculator/tests/visual-diff-report.mjs
-
       - name: Upload paired screenshots and diff report
         uses: actions/upload-artifact@v4
         with:
@@ -210,69 +224,3 @@ jobs:
           path: calculator/visual-parity
           if-no-files-found: error
           retention-days: 14
-
-      - name: Enforce Job Math parity result
-        if: steps.jobmath.outcome == 'failure'
-        run: |
-          echo 'Live-vs-staging Job Math behavior parity failed.'
-          exit 1
-
-      - name: Enforce Job Math shortcut parity result
-        if: steps.shortcuts.outcome == 'failure'
-        run: |
-          echo 'Live-vs-staging Job Math shortcut parity failed.'
-          exit 1
-
-      - name: Enforce Pricing Editor parity result
-        if: steps.pricing.outcome == 'failure'
-        run: |
-          echo 'Live-vs-staging Pricing Editor parity failed.'
-          exit 1
-
-      - name: Enforce estimator edge-state parity result
-        if: steps.edges.outcome == 'failure'
-        run: |
-          echo 'Live-vs-staging estimator edge-state parity failed.'
-          exit 1
-
-      - name: Enforce customer and draft parity result
-        if: steps.customer.outcome == 'failure'
-        run: |
-          echo 'Live-vs-staging customer/draft parity failed.'
-          exit 1
-
-      - name: Enforce bundle and promotion parity result
-        if: steps.bundle.outcome == 'failure'
-        run: |
-          echo 'Live-vs-staging bundle/promotion parity failed.'
-          exit 1
-
-      - name: Enforce save reload and clear parity result
-        if: steps.state.outcome == 'failure'
-        run: |
-          echo 'Live-vs-staging save/reload/clear parity failed.'
-          exit 1
-
-      - name: Enforce quote copy share and print behavior
-        if: steps.export.outcome == 'failure'
-        run: |
-          echo 'Live-vs-staging quote copy/share/print parity failed.'
-          exit 1
-
-      - name: Enforce mobile numeric input parity result
-        if: steps.mobileinputs.outcome == 'failure'
-        run: |
-          echo 'Live-vs-staging mobile numeric input parity failed.'
-          exit 1
-
-      - name: Enforce chemical compatibility parity result
-        if: steps.compatibility.outcome == 'failure'
-        run: |
-          echo 'Live-vs-staging chemical compatibility parity failed.'
-          exit 1
-
-      - name: Enforce live backup to DR takeover
-        if: steps.takeover.outcome == 'failure'
-        run: |
-          echo 'Live backup could not fully restore into the DR calculator.'
-          exit 1
