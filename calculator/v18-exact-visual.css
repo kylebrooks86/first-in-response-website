@@ -37,6 +37,7 @@ body.dark .recipeCard{background:#2b2024!important}
 
   .page{padding:0 12px 28px!important;max-width:none!important}
   .card{margin:0 0 16px!important;padding:14px!important;border:1px solid #d7e0e5!important;border-radius:19px!important;background:#fff!important;box-shadow:none!important}
+  #mix>.card{padding-top:10px!important;padding-bottom:10px!important}
   .kicker{font-size:12px!important;letter-spacing:.08em!important;color:#ef4b2d!important;font-weight:900!important;margin-bottom:8px!important}
   .card h2{font-size:18px!important;line-height:1.25!important;color:#17212b!important;margin:0 0 13px!important}
   label{font-size:15px!important;color:#607381!important;font-weight:700!important;margin-bottom:7px!important}
