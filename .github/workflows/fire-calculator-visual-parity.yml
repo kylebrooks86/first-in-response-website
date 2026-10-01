@@ -181,24 +181,12 @@ jobs:
           sleep 2
           curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
 
-      - name: Inspect computed light/dark style differences
+      - name: Measure live and staging layout geometry
         timeout-minutes: 2
-        continue-on-error: true
         env: &visual-env
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
           FIRE_VISUAL_OUT: calculator/visual-parity
-        run: node calculator/tests/style-live-parity.mjs
-      - name: Inspect live bundle and customer baseline
-        timeout-minutes: 2
-        continue-on-error: true
-        env:
-          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
-        run: node calculator/tests/jobmath-baseline-audit.mjs
-      - name: Measure live and staging layout geometry
-        timeout-minutes: 2
-        env: *visual-env
         run: node calculator/tests/layout-geometry.mjs
       - name: Measure live and staging card geometry
         timeout-minutes: 2
@@ -210,6 +198,18 @@ jobs:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
         run: node calculator/tests/key-card-internals-live-parity.mjs
+      - name: Inspect computed light/dark style differences
+        timeout-minutes: 2
+        continue-on-error: true
+        env: *visual-env
+        run: node calculator/tests/style-live-parity.mjs
+      - name: Inspect live bundle and customer baseline
+        timeout-minutes: 2
+        continue-on-error: true
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        run: node calculator/tests/jobmath-baseline-audit.mjs
       - name: Capture live and staging at iPhone viewport
         timeout-minutes: 2
         env: *visual-env
