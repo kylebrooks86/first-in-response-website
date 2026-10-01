@@ -13,36 +13,44 @@
     ['dirt','Loose dirt / cobwebs / general soil']
   ];
   const compatibilityOptions=[
-    ['SH / bleach','Sodium hypochlorite (SH)'],
-    ['Acid / F9 BARC','Generic acid cleaner'],
-    ['Ammonia cleaner','Ammonia cleaner'],
-    ['Unknown product','Unknown product'],
-    ['Ettore Squeegee-Off','Ettore Squeegee-Off'],
-    ['Dawn dish soap','Dawn dish soap'],
-    ['Elemonator','Elemonator'],
-    ['Simple Green Pro HD','Simple Green Pro HD'],
-    ['Krud Kutter Original','Krud Kutter Original'],
-    ["LA’s Totally Awesome","LA’s Totally Awesome"],
-    ['F9 BARC — porous','F9 BARC — porous'],
-    ['Gutter Zap — Black Streak Gutter Cleaner','Gutter Zap — Black Streak Gutter Cleaner'],
-    ['Bio-Clean Hard Water Stain Remover','Bio-Clean Hard Water Stain Remover'],
-    ['OdoBan Disinfectant and Odor Eliminator','OdoBan Disinfectant and Odor Eliminator']
+    ['sh','Sodium hypochlorite (SH)'],
+    ['acid','Generic acid cleaner'],
+    ['ammonia','Ammonia cleaner'],
+    ['unknown','Unknown product'],
+    ['ettore','Ettore Squeegee-Off'],
+    ['dawn','Dawn dish soap'],
+    ['ele','Elemonator'],
+    ['simplegreen','Simple Green Pro HD'],
+    ['krud','Krud Kutter Original'],
+    ['awesome',"LA’s Totally Awesome"],
+    ['f9porous','F9 BARC — porous'],
+    ['gutterzap','Gutter Zap — Black Streak Gutter Cleaner'],
+    ['bioclean','Bio-Clean Hard Water Stain Remover'],
+    ['odoban','OdoBan Disinfectant and Odor Eliminator']
   ];
   const fill=(select,options,current)=>{
     if(!select)return;
     const selected=select.value||current||options[0][0];
     select.innerHTML=options.map(([value,label])=>`<option value="${value.replaceAll('&','&amp;').replaceAll('"','&quot;')}">${label}</option>`).join('');
     select.value=options.some(([value])=>value===selected)?selected:(current||options[0][0]);
-    select.dispatchEvent(new Event('change',{bubbles:true}));
+  };
+  const updateCompatibility=()=>{
+    const a=$('#compatA'),b=$('#compatB'),out=$('#compatResult');if(!a||!b||!out)return;
+    const av=a.value,bv=b.value,pair=new Set([av,bv]);
+    out.className='note';
+    if(av===bv){out.innerHTML='<strong>Use caution</strong><br>Choose two different products to check compatibility.';return}
+    if(pair.has('sh')&&pair.has('f9porous')){out.className='note dangerText';out.innerHTML='<strong>DO NOT MIX</strong><p>Sodium hypochlorite (SH) and F9 BARC — porous must stay separate. Dangerous gas, heat, pressure or an unpredictable reaction may occur.</p>';return}
+    if(pair.has('sh')&&(pair.has('acid')||pair.has('ammonia'))){out.className='note dangerText';out.innerHTML='<strong>Do not mix</strong><br>DANGER: Do not mix these products. SH with acids or ammonia can release dangerous gases. Keep separate and thoroughly rinse equipment.';return}
+    out.innerHTML='<strong>Use caution</strong><br>Do not combine products unless the current labels/SDS explicitly allow it. Separate sprayers are preferred.';
   };
   const apply=()=>{
     fill($('#stainType'),stainOptions,'algae');
-    fill($('#compatA'),compatibilityOptions,'SH / bleach');
-    fill($('#compatB'),compatibilityOptions,'F9 BARC — porous');
-    const a=$('#compatA'),b=$('#compatB'),out=$('#compatResult');
-    if(a&&b&&out&&a.value==='SH / bleach'&&b.value==='F9 BARC — porous'){
-      out.innerHTML='<strong>DO NOT MIX</strong><p>Sodium hypochlorite (SH) and F9 BARC — porous must stay separate. Dangerous gas, heat, pressure or an unpredictable reaction may occur.</p>';
-    }
+    fill($('#compatA'),compatibilityOptions,'sh');
+    fill($('#compatB'),compatibilityOptions,'f9porous');
+    const a=$('#compatA'),b=$('#compatB');
+    if(a&&!a.dataset.liveCompatBound){a.dataset.liveCompatBound='1';a.addEventListener('input',updateCompatibility);a.addEventListener('change',updateCompatibility)}
+    if(b&&!b.dataset.liveCompatBound){b.dataset.liveCompatBound='1';b.addEventListener('input',updateCompatibility);b.addEventListener('change',updateCompatibility)}
+    a?.dispatchEvent(new Event('change',{bubbles:true}));b?.dispatchEvent(new Event('change',{bubbles:true}));updateCompatibility();
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(apply,1300));else setTimeout(apply,1300);
   window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(apply,120));
