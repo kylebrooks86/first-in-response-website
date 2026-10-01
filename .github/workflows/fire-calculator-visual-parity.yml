@@ -181,18 +181,37 @@ jobs:
           sleep 2
           curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
 
-      - name: Inspect key-card internal geometry
+      - name: Inspect Equipment key-card geometry
+        timeout-minutes: 1
+        continue-on-error: true
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+          FIRE_KEY_CARD_GROUP: equipment
+        run: node calculator/tests/key-card-internals-live-parity.mjs
+      - name: Inspect Job Math key-card geometry
+        timeout-minutes: 1
+        continue-on-error: true
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+          FIRE_KEY_CARD_GROUP: jobmath
+        run: node calculator/tests/key-card-internals-live-parity.mjs
+      - name: Inspect Field Tools key-card geometry
+        timeout-minutes: 1
+        continue-on-error: true
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+          FIRE_KEY_CARD_GROUP: tools
+        run: node calculator/tests/key-card-internals-live-parity.mjs
+      - name: Measure live and staging card geometry
         timeout-minutes: 2
         continue-on-error: true
         env: &visual-env
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
           FIRE_VISUAL_OUT: calculator/visual-parity
-        run: node calculator/tests/key-card-internals-live-parity.mjs
-      - name: Measure live and staging card geometry
-        timeout-minutes: 2
-        continue-on-error: true
-        env: *visual-env
         run: node calculator/tests/card-geometry-live-parity.mjs
       - name: Measure live and staging layout geometry
         timeout-minutes: 2
