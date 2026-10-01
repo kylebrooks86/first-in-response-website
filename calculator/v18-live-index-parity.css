@@ -16,7 +16,7 @@
 .fire-index-empty{padding:14px;border:1px dashed #cfdce3;border-radius:12px;color:#607381;text-align:center}
 @media(max-width:760px){
   .fire-index-shell{padding:14px!important}
-  .fire-index-controls{grid-template-columns:minmax(0,1fr) 108px!important;gap:8px!important}
+  .fire-index-controls{grid-template-columns:minmax(0,1fr) 110px!important;gap:8px!important}
   .fire-index-product{padding:12px!important;border-radius:15px!important}
   .fire-index-row{grid-template-columns:86px minmax(0,1fr)!important;gap:10px!important;padding:10px 0!important}
   .fire-index-row strong{font-size:14px!important}.fire-index-row p{font-size:13px!important}
