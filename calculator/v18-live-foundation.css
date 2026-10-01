@@ -36,7 +36,7 @@ body{line-height:1.45!important}
   body.dark,body.dark html{background:#080d12!important;color:#f7fafc!important}
   body.dark .topbar{background:#080d12!important;color:#f7fafc!important;border-bottom-color:#263544!important;box-shadow:0 8px 22px rgba(0,0,0,.12)!important}
   body.dark .title strong{color:#f7fafc!important}
-  body.dark .tabswrap{background:transparent!important;border-color:transparent!important}
+  body.dark .tabswrap{background:transparent!important;color:#f7fafc!important;border-color:#f7fafc!important}
   body.dark .tabs{color:#f7fafc!important;border-color:#f7fafc!important}
   body.dark .tab{background:#101a24!important;color:#9fb0bf!important;border-color:#263544!important}
   body.dark .tab.active{background:#f7fafc!important;color:#17212b!important;border-color:#f7fafc!important}
