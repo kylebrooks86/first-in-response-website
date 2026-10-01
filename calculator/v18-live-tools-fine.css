@@ -26,9 +26,12 @@
   #tools .card:has(#customChemName) .field{margin-bottom:0!important}
   #tools .card:has(#customChemName) .actions{margin-top:9px!important;margin-bottom:5px!important}
   #tools .card:has(#customChemName) #customChemList>.fire-empty-dash{margin-top:9px!important;padding:12px!important}
-  #tools .card:has(#timerDisplay) .grid{gap:10px!important}
-  #tools .card:has(#timerDisplay) #timerDisplay{margin:14px 0!important}
-  #tools .card:has(#timerDisplay) .actions{margin-top:8px!important}
+  #tools .card:has(#compatResult) .grid{gap:8px!important}
+  #tools .card:has(#compatResult) .field{margin-bottom:0!important}
+  #tools .card:has(#compatResult) #compatResult{margin-top:8px!important}
+  #tools .card:has(#timerDisplay) .grid{gap:8px!important}
+  #tools .card:has(#timerDisplay) #timerDisplay{margin:10px 0!important}
+  #tools .card:has(#timerDisplay) .actions{margin-top:6px!important}
   #tools .card:has(#weatherNote) .grid{gap:10px!important}
   #tools .card:has(#weatherNote) #weatherNote{margin-top:8px!important}
   #tools .card:has(.fire-safety-list) .fire-safety-list{gap:16px!important}
