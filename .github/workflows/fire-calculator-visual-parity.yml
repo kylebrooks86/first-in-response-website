@@ -178,6 +178,7 @@ jobs:
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/fire-calculator-server.log 2>&1 &
           echo $! > /tmp/fire-calculator-server.pid
+          mkdir -p calculator/visual-parity/focused
           sleep 2
           curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
 
@@ -188,7 +189,7 @@ jobs:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
           FIRE_KEY_CARD_GROUP: equipment
-        run: node calculator/tests/key-card-internals-live-parity.mjs
+        run: node calculator/tests/key-card-internals-live-parity.mjs 2>&1 | tee calculator/visual-parity/focused/equipment.log
       - name: Inspect Job Math key-card geometry
         timeout-minutes: 1
         continue-on-error: true
@@ -196,7 +197,7 @@ jobs:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
           FIRE_KEY_CARD_GROUP: jobmath
-        run: node calculator/tests/key-card-internals-live-parity.mjs
+        run: node calculator/tests/key-card-internals-live-parity.mjs 2>&1 | tee calculator/visual-parity/focused/jobmath.log
       - name: Inspect Field Tools key-card geometry
         timeout-minutes: 1
         continue-on-error: true
@@ -204,7 +205,16 @@ jobs:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
           FIRE_KEY_CARD_GROUP: tools
-        run: node calculator/tests/key-card-internals-live-parity.mjs
+        run: node calculator/tests/key-card-internals-live-parity.mjs 2>&1 | tee calculator/visual-parity/focused/tools.log
+      - name: Upload focused geometry logs
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-calculator-focused-geometry
+          path: calculator/visual-parity/focused
+          if-no-files-found: warn
+          retention-days: 14
       - name: Measure live and staging card geometry
         timeout-minutes: 2
         continue-on-error: true
