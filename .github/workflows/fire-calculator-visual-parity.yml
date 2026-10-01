@@ -36,6 +36,7 @@ jobs:
 
       - name: Compare live Job Math behavior
         id: jobmath
+        timeout-minutes: 2
         continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -44,6 +45,7 @@ jobs:
 
       - name: Compare live Job Math shortcuts
         id: shortcuts
+        timeout-minutes: 2
         continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -52,6 +54,7 @@ jobs:
 
       - name: Compare live Pricing Editor behavior
         id: pricing
+        timeout-minutes: 2
         continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -60,6 +63,7 @@ jobs:
 
       - name: Compare live estimator edge states
         id: edges
+        timeout-minutes: 2
         continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -68,6 +72,7 @@ jobs:
 
       - name: Compare live customer and draft behavior
         id: customer
+        timeout-minutes: 2
         continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -76,6 +81,7 @@ jobs:
 
       - name: Compare live bundle and promotion behavior
         id: bundle
+        timeout-minutes: 2
         continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -84,6 +90,7 @@ jobs:
 
       - name: Compare live save reload and clear behavior
         id: state
+        timeout-minutes: 2
         continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -92,6 +99,7 @@ jobs:
 
       - name: Compare live quote copy share and print behavior
         id: export
+        timeout-minutes: 2
         continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -100,6 +108,7 @@ jobs:
 
       - name: Compare live mobile numeric input behavior
         id: mobileinputs
+        timeout-minutes: 2
         continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -108,6 +117,7 @@ jobs:
 
       - name: Verify live backup restores into DR
         id: takeover
+        timeout-minutes: 2
         continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -116,6 +126,7 @@ jobs:
         run: node calculator/tests/backup-takeover-live-parity.mjs
 
       - name: Inspect computed light/dark style differences
+        timeout-minutes: 2
         continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -124,6 +135,7 @@ jobs:
         run: node calculator/tests/style-live-parity.mjs
 
       - name: Inspect live bundle and customer baseline
+        timeout-minutes: 2
         continue-on-error: true
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
@@ -131,6 +143,7 @@ jobs:
         run: node calculator/tests/jobmath-baseline-audit.mjs
 
       - name: Measure live and staging layout geometry
+        timeout-minutes: 2
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
@@ -138,6 +151,7 @@ jobs:
         run: node calculator/tests/layout-geometry.mjs
 
       - name: Measure live and staging card geometry
+        timeout-minutes: 2
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
@@ -145,12 +159,14 @@ jobs:
         run: node calculator/tests/card-geometry-live-parity.mjs
 
       - name: Inspect key-card internal geometry
+        timeout-minutes: 2
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
         run: node calculator/tests/key-card-internals-live-parity.mjs
 
       - name: Capture live and staging at iPhone viewport
+        timeout-minutes: 2
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
