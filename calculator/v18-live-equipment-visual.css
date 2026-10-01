@@ -1,5 +1,5 @@
 #equipment #xLiveGuidance{margin-top:10px!important}
-#equipment #xLiveGuidance p{margin:8px 0!important;line-height:1.45!important}
+#equipment #xLiveGuidance p{margin:6px 0!important;line-height:1.45!important}
 #equipment #xLiveGuidance p:first-child{background:#eef9f2!important;border:1px solid #9ed7ad!important;border-radius:8px!important;padding:10px 12px!important;color:#405b48!important}
 #equipment #xLiveGuidance p:nth-child(2){background:#edf7fb!important;border:1px solid #a8d2e4!important;border-radius:8px!important;padding:10px 12px!important;color:#365b6b!important}
 #equipment #xReverseInstruction{background:#fff1f1!important;border:1px solid #efb7b7!important;border-radius:8px!important;padding:10px 12px!important;color:#754444!important}
@@ -25,22 +25,14 @@ body.dark #equipment .card:has(#fillTime) .inputrow .unit{background:#18212b!imp
 @media(max-width:560px){
   #equipment .card{padding-left:14px!important;padding-right:14px!important}
   #equipment #xLiveGuidance p:first-child,#equipment #xLiveGuidance p:nth-child(2),#equipment #xReverseInstruction,#equipment #propPlannerWarning{font-size:12px!important}
-
-  /* LIVE keeps the reverse-recipe and draw-test result pairs side-by-side on
-     iPhone and packs their repeated field rows more tightly. */
   #equipment .card:has(#xReqBucket) .grid,
   #equipment .card:has(#xDrawOz) .grid{gap:10px!important}
   #equipment .card:has(#xReqBucket) .metrics,
-  #equipment .card:has(#xDrawOz) .metrics{
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
-    gap:8px!important;
-    margin-top:8px!important;
-  }
+  #equipment .card:has(#xDrawOz) .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;margin-top:8px!important}
   #equipment .card:has(#xReqBucket) .metrics>.metric:first-child{grid-column:1/-1!important}
   #equipment .card:has(#xReqBucket) #xReverseInstruction{margin:8px 0 6px!important;line-height:1.35!important}
   #equipment .card:has(#xDrawOz) .actions{margin-top:8px!important}
   #equipment .card:has(#xDrawOz)>p.muted:last-child{margin:8px 0 0!important;line-height:1.4!important}
-
   #equipment .card:has(#pumpGpm) .grid{gap:8px!important}
   #equipment .card:has(#pumpGpm) .grid[style]{margin-top:10px!important}
   #equipment .card:has(#pumpGpm) .metrics{grid-template-columns:1fr!important;gap:6px!important;margin-top:8px!important}
