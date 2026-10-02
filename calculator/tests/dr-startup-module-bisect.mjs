@@ -6,9 +6,11 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const loader=fs.readFileSync('calculator/full-v18.js','utf8');
 const modules=[...loader.matchAll(/await load\('(\.\/[^']+)'\);/g)].map(m=>m[1]);
 if(modules.length<20)throw new Error('Unexpected loader module count '+modules.length);
+
 const parityDispatch="window.dispatchEvent(new CustomEvent('fire-v18-parity-loaded'));";
 const sharedDispatch="window.dispatchEvent(new CustomEvent('fire-v18-shared-core-ready'));";
-const noEvents=loader.replace(parityDispatch,'').replace(sharedDispatch,'');
+if(!loader.includes(parityDispatch)||!loader.includes(sharedDispatch))throw new Error('Expected final readiness dispatches missing');
+const noFinalDispatch=loader.replace(parityDispatch,'').replace(sharedDispatch,'');
 const parityOnly=loader.replace(sharedDispatch,'');
 const sharedOnly=loader.replace(parityDispatch,'');
 
@@ -17,12 +19,7 @@ function stopAfter(index){
   const needle="await load('"+src+"');";
   return loader.replace(needle,needle+' return;');
 }
-const parityDispatch="window.dispatchEvent(new CustomEvent('fire-v18-parity-loaded'));";
-const sharedDispatch="window.dispatchEvent(new CustomEvent('fire-v18-shared-core-ready'));";
-if(!loader.includes(parityDispatch)||!loader.includes(sharedDispatch))throw new Error('Expected final readiness dispatches missing');
-const noFinalDispatch=loader.replace(parityDispatch,'').replace(sharedDispatch,'');
-const parityOnly=loader.replace(sharedDispatch,'');
-const sharedOnly=loader.replace(parityDispatch,'');
+
 async function probe(label,loaderBody,{serviceWorkers='block',swMode='normal'}={}){
   const browser=await chromium.launch({headless:true}); let ctx;
   try{
@@ -48,12 +45,13 @@ async function probe(label,loaderBody,{serviceWorkers='block',swMode='normal'}={
       sleep(3000).then(()=>({responsive:false,error:'renderer-unresponsive',errors:errors.slice(0,8),consoleErrors:consoleErrors.slice(0,8)}))
     ]);
     console.log('MODULE BISECT '+label+' '+JSON.stringify(result)); return result;
-  } finally { if(ctx)await Promise.race([ctx.close().catch(()=>{}),sleep(2500)]); await Promise.race([browser.close().catch(()=>{}),sleep(2500)]) }
+  } finally {
+    if(ctx)await Promise.race([ctx.close().catch(()=>{}),sleep(2500)]);
+    await Promise.race([browser.close().catch(()=>{}),sleep(2500)]);
+  }
 }
+
 const results={};
-results.noEvents=await probe('no-final-events',noEvents);
-results.parityOnly=await probe('parity-event-only',parityOnly);
-results.sharedOnly=await probe('shared-event-only',sharedOnly);
 const checkpoints=[4,9,14,19,modules.length-1];
 for(const i of checkpoints)results['blocked-'+i]=await probe('blocked-through-'+(i+1)+'-'+modules[i],stopAfter(i));
 results.fullBlocked=await probe('full-loader-service-worker-blocked',loader,{serviceWorkers:'block'});
@@ -63,6 +61,7 @@ results.sharedOnly=await probe('shared-core-ready-dispatch-only',sharedOnly,{ser
 results.swEnabledFull=await probe('service-worker-enabled-full',loader,{serviceWorkers:'allow',swMode:'normal'});
 results.swRequestAborted=await probe('service-worker-request-aborted-full',loader,{serviceWorkers:'allow',swMode:'abort'});
 results.swInert=await probe('service-worker-inert-full',loader,{serviceWorkers:'allow',swMode:'inert'});
+
 console.log('MODULE LIST '+JSON.stringify(modules));
 console.log('MODULE BISECT SUMMARY '+JSON.stringify(results));
 const firstLocked=checkpoints.find(i=>!results['blocked-'+i].responsive);
