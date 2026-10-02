@@ -33,11 +33,24 @@ async function createDrBackup(browser){
     await page.waitForFunction(()=>window.__reverseCopied?.length>0,{timeout:5000});
     const text=await page.evaluate(()=>window.__reverseCopied.at(-1));
     const parsed=JSON.parse(text);
-    return {text,summary:{schema:parsed.schema||null,version:parsed.version||null,format:parsed.format||null,appVersion:parsed.appVersion||null,topLevelKeys:Object.keys(parsed).sort(),storeKeys:Object.keys(parsed.stores||{}).sort()}};
+    const compatibility=JSON.stringify({
+      format:'FIRE Field Calculator Backup',
+      appVersion:18,
+      version:3,
+      exportedAt:new Date().toISOString(),
+      data:{
+        fireEstimateDraft:JSON.stringify({fields:{estimateJobName:'DR Reverse Portability',houseWashArea:'654',discountPct:'12.5'},savedAt:Date.now()}),
+        fireFieldCalc:JSON.stringify({}),
+        fireInventory:JSON.stringify({}),
+        fireRig:JSON.stringify({}),
+        fireXjet:JSON.stringify({})
+      }
+    },null,2);
+    return {nativeText:text,compatibilityText:compatibility,summary:{schema:parsed.schema||null,version:parsed.version||null,format:parsed.format||null,appVersion:parsed.appVersion||null,topLevelKeys:Object.keys(parsed).sort(),storeKeys:Object.keys(parsed.stores||{}).sort()}};
   } finally {await ctx.close()}
 }
 
-async function tryRestoreIntoLive(browser,backupText){
+async function tryRestoreIntoLive(browser,backupText,label){
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers:'block'});
   try{
     await ctx.route('**/*',route=>['image','media','font'].includes(route.request().resourceType())?route.abort():route.continue());
@@ -52,7 +65,7 @@ async function tryRestoreIntoLive(browser,backupText){
     for(let i=0;i<30&&!await page.locator('input[type="file"]').count();i++)await sleep(100);
     const input=page.locator('input[type="file"]');if(!await input.count())throw new Error('LIVE restore input missing');
     const before={url:page.url(),name:'LIVE Reverse Guard',house:'111'};
-    await input.first().setInputFiles({name:'FIRE_DR_reverse_probe.json',mimeType:'application/json',buffer:Buffer.from(backupText)});
+    await input.first().setInputFiles({name:`FIRE_DR_${label}.json`,mimeType:'application/json',buffer:Buffer.from(backupText)});
     await sleep(1800);
     const status=((await page.locator('#backupStatus').innerText().catch(()=>''))||'').replace(/\s+/g,' ').trim();
     const postJob=await openJob(page);
@@ -61,7 +74,7 @@ async function tryRestoreIntoLive(browser,backupText){
     const after={url:page.url(),name:await postName.first().inputValue(),house:await postHouse.inputValue(),status};
     const accepted=after.name==='DR Reverse Portability'&&after.house==='654';
     const preservedGuard=after.name==='LIVE Reverse Guard'&&after.house==='111';
-    return {before,after,accepted,preservedGuard};
+    return {label,before,after,accepted,preservedGuard};
   } finally {await ctx.close()}
 }
 
@@ -69,8 +82,10 @@ fs.mkdirSync(OUT,{recursive:true});
 const browser=await chromium.launch({headless:true});
 try{
   const backup=await createDrBackup(browser);
-  const live=await tryRestoreIntoLive(browser,backup.text);
-  const report={probe:'DR backup -> isolated LIVE restore',backup:backup.summary,live,status:live.accepted?'ACCEPTED':live.preservedGuard?'REJECTED_SAFELY':'UNEXPECTED_STATE'};
+  const nativeLive=await tryRestoreIntoLive(browser,backup.nativeText,'native-offline');
+  const compatibilityLive=await tryRestoreIntoLive(browser,backup.compatibilityText,'live-v3-compatibility');
+  const classify=x=>x.accepted?'ACCEPTED':x.preservedGuard?'REJECTED_SAFELY':'UNEXPECTED_STATE';
+  const report={probe:'DR backup -> isolated LIVE restore',backup:backup.summary,native:{live:nativeLive,status:classify(nativeLive)},compatibility:{live:compatibilityLive,status:classify(compatibilityLive)}};
   fs.writeFileSync(`${OUT}/reverse-backup-portability.json`,JSON.stringify(report,null,2));
   console.log('REVERSE BACKUP PORTABILITY PROBE '+JSON.stringify(report));
 } catch(e){
