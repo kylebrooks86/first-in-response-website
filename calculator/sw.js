@@ -1,4 +1,4 @@
-const CACHE='fire-field-calculator-v18-exact-clone-59';
+const CACHE='fire-field-calculator-v18-exact-clone-60';
 const ASSETS=[
   './',
   './index.html',
@@ -37,7 +37,7 @@ const ASSETS=[
   './v18-live-tools-fine.js?v=1',
   './v18-live-pricing-parity.js?v=1',
   './v18-live-customer-parity.js?v=10',
-  './v18-live-backup-hydration.js?v=2',
+  './v18-live-backup-hydration.js?v=3',
   './v18-live-input-contract.js?v=3'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
