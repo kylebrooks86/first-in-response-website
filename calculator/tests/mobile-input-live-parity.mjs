@@ -29,15 +29,32 @@ async function focusAudit(page,label){
   }
   return null;
 }
-async function snapshot(base){
-  const browser=await chromium.launch({headless:true});const ctx=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});const page=await ctx.newPage();const out={};
-  try{
-    await page.goto(base,{waitUntil:'domcontentloaded',timeout:60000});await page.waitForTimeout(900);
-    for(const route of routes){if(!await openRoute(page,route))throw new Error(`Missing route ${route.top}`);out[route.top]={};for(const label of route.labels){const inputs=await waitInputsByLabel(page,label);if(!inputs.length)throw new Error(`${route.top}: missing numeric input label ${label}`);out[route.top][label]={inputs:inputs.map(x=>({type:clean(x.type),min:clean(x.min),max:clean(x.max),step:clean(x.step),inputMode:clean(x.inputMode),value:clean(x.value)})),focus:await focusAudit(page,label)}}
-    }
-    return out;
-  }finally{await ctx.close();await browser.close()}
+async function openSession(browser,base){
+  const ctx=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
+  if(base===LIVE)await ctx.route('**/*',route=>{const t=route.request().resourceType();return ['image','media','font'].includes(t)?route.abort():route.continue()});
+  const page=await ctx.newPage();page.setDefaultNavigationTimeout(12000);let mounted=false,lastError=null;
+  for(let attempt=0;attempt<4&&!mounted;attempt++){
+    try{
+      await page.goto(base,{waitUntil:'commit',timeout:12000});
+      await page.waitForLoadState('domcontentloaded',{timeout:4500}).catch(()=>{});
+      for(let i=0;i<20;i++){if(await page.locator('.tabs,.tabswrap').count()){mounted=true;break}await page.waitForTimeout(100)}
+    }catch(err){lastError=err}
+  }
+  if(!mounted){await ctx.close();throw new Error(`${base}: calculator navigation did not mount${lastError?` (${lastError.message})`:''}`)}
+  await page.waitForTimeout(450);
+  return {ctx,page};
 }
-const live=await snapshot(LIVE),staging=await snapshot(STAGING);let failed=false;
-for(const route of routes){for(const label of route.labels){const a=live[route.top][label],b=staging[route.top][label];const am=a.inputs.map(x=>JSON.stringify({type:x.type,min:x.min,max:x.max,step:x.step,inputMode:x.inputMode,value:x.value}));const bm=b.inputs.map(x=>JSON.stringify({type:x.type,min:x.min,max:x.max,step:x.step,inputMode:x.inputMode,value:x.value}));const meta=JSON.stringify(am)===JSON.stringify(bm);const bothCollapsed=!a.focus&&!b.focus;const bothFocused=!!a.focus&&!!b.focus&&a.focus.focused===b.focus.focused&&a.focus.noHorizontalOverflow===b.focus.noHorizontalOverflow&&a.focus.top>=-1&&b.focus.top>=-1&&a.focus.bottom<=a.focus.viewport+1&&b.focus.bottom<=b.focus.viewport+1;const focus=bothCollapsed||bothFocused;const ok=meta&&focus;console.log(`${ok?'PASS':'FAIL'} ${route.top} / ${label}: live=${JSON.stringify(a)} staging=${JSON.stringify(b)}`);if(!ok)failed=true}}
-if(failed)process.exit(1);console.log('MOBILE INPUT LIVE PARITY PASS');
+async function snapshot(session){
+  const {page}=session;const out={};
+  for(const route of routes){if(!await openRoute(page,route))throw new Error(`Missing route ${route.top}`);out[route.top]={};for(const label of route.labels){const inputs=await waitInputsByLabel(page,label);if(!inputs.length)throw new Error(`${route.top}: missing numeric input label ${label}`);out[route.top][label]={inputs:inputs.map(x=>({type:clean(x.type),min:clean(x.min),max:clean(x.max),step:clean(x.step),inputMode:clean(x.inputMode),value:clean(x.value)})),focus:await focusAudit(page,label)}}
+  }
+  return out;
+}
+const browser=await chromium.launch({headless:true});let liveSession,stagingSession;
+try{
+  liveSession=await openSession(browser,LIVE);stagingSession=await openSession(browser,STAGING);
+  const live=await snapshot(liveSession),staging=await snapshot(stagingSession);let failed=false;
+  for(const route of routes){for(const label of route.labels){const a=live[route.top][label],b=staging[route.top][label];const am=a.inputs.map(x=>JSON.stringify({type:x.type,min:x.min,max:x.max,step:x.step,inputMode:x.inputMode,value:x.value}));const bm=b.inputs.map(x=>JSON.stringify({type:x.type,min:x.min,max:x.max,step:x.step,inputMode:x.inputMode,value:x.value}));const meta=JSON.stringify(am)===JSON.stringify(bm);const bothCollapsed=!a.focus&&!b.focus;const bothFocused=!!a.focus&&!!b.focus&&a.focus.focused===b.focus.focused&&a.focus.noHorizontalOverflow===b.focus.noHorizontalOverflow&&a.focus.top>=-1&&b.focus.top>=-1&&a.focus.bottom<=a.focus.viewport+1&&b.focus.bottom<=b.focus.viewport+1;const focus=bothCollapsed||bothFocused;const ok=meta&&focus;console.log(`${ok?'PASS':'FAIL'} ${route.top} / ${label}: live=${JSON.stringify(a)} staging=${JSON.stringify(b)}`);if(!ok)failed=true}}
+  if(failed)process.exitCode=1;else console.log('MOBILE INPUT LIVE PARITY PASS');
+}finally{await liveSession?.ctx.close();await stagingSession?.ctx.close();await browser.close()}
+if(process.exitCode)process.exit(process.exitCode);
