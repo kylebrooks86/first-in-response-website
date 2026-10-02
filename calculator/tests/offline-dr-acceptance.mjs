@@ -84,9 +84,17 @@ try{
   if(offlineState.online)throw new Error('Browser did not enter offline mode');
   if(!offlineState.controller)throw new Error('Offline reload lost service-worker control');
 
-  const mix=await openRoute(page,'SH Mix',['#view-mix','#mix']);
+  await openRoute(page,'SH Mix',['#view-mix','#mix']);
   const target=page.locator('#targetNum');
-  if(await target.count()){await setDom(target.first(),1.25);await sleep(150);const recipe=(await mix.innerText()).replace(/\s+/g,' ');if(!/1\.25%|1\.25/.test(recipe))throw new Error('SH Mix did not recalculate offline')}
+  if(!await target.count())throw new Error('SH Mix target field missing offline');
+  const batchCost=page.locator('#batchCost');
+  if(!await batchCost.count())throw new Error('SH Mix-linked calculation output missing offline');
+  const mixBefore=await batchCost.innerText();
+  const current=Number(await target.first().inputValue())||1;
+  const next=current===1.25?1.5:1.25;
+  await setDom(target.first(),next);await sleep(200);
+  const mixAfter=await batchCost.innerText();
+  if(mixAfter===mixBefore)throw new Error(`SH Mix-linked output did not change offline: ${mixBefore}`);
   await openRoute(page,'Equipment',['#view-equipment','#equipment']);
   await openRoute(page,'Chemicals',['#view-chemicals','#chemicals']);
   await openRoute(page,'Chemical Index',['#view-index','#index']);
@@ -125,7 +133,7 @@ try{
   const authText=(await page.locator('body').innerText()).toLowerCase();
   if(/sign in to (?:chatgpt|openai)|log in to (?:chatgpt|openai)/.test(authText))throw new Error('Calculator exposed an OpenAI/ChatGPT sign-in requirement');
 
-  const report={status:'PASS',cacheState:{controller:cacheState.controller,keys:cacheState.keys,assetCount:cacheState.assets.length},offlineState,offlineRoutes:['SH Mix','Equipment','Chemicals','Chemical Index','Job Math','Field Tools','Field Guide'],restored,total,offlineBackup:{schema:backup.schema,version:backup.version,bytes:backupBytes,storeCount:Object.keys(backup.stores||{}).length},reopenedState,reopenedOffline,reopenedTotal,openAiRequests,openAiSignInRequired:false};
+  const report={status:'PASS',cacheState:{controller:cacheState.controller,keys:cacheState.keys,assetCount:cacheState.assets.length},offlineState,offlineRoutes:['SH Mix','Equipment','Chemicals','Chemical Index','Job Math','Field Tools','Field Guide'],shMixFunctional:{before:mixBefore,after:mixAfter},restored,total,offlineBackup:{schema:backup.schema,version:backup.version,bytes:backupBytes,storeCount:Object.keys(backup.stores||{}).length},reopenedState,reopenedOffline,reopenedTotal,openAiRequests,openAiSignInRequired:false};
   fs.writeFileSync(`${OUT}/offline-dr-acceptance.json`,JSON.stringify(report,null,2));
   console.log('OFFLINE DR ACCEPTANCE PASS '+JSON.stringify(report));
 }catch(e){
