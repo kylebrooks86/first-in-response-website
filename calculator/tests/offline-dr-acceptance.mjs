@@ -43,7 +43,12 @@ try{
   await setDom(await byId(page,'area'),2500);
   await sleep(500);
 
-  const cacheState=await page.evaluate(async()=>({controller:!!navigator.serviceWorker.controller,keys:await caches.keys(),assets:(await caches.open((await caches.keys()).find(k=>k.startsWith('fire-field-calculator-')))).keys().then(xs=>xs.map(x=>x.url))}));
+  const cacheState=await page.evaluate(async()=>{
+    const keys=await caches.keys();
+    const cacheName=keys.find(k=>k.startsWith('fire-field-calculator-'));
+    const assets=cacheName?(await (await caches.open(cacheName)).keys()).map(x=>x.url):[];
+    return {controller:!!navigator.serviceWorker.controller,keys,assets};
+  });
   if(!cacheState.controller)throw new Error('Service worker never controlled DR page');
   if(!cacheState.keys.some(k=>k==='fire-field-calculator-v18-exact-clone-62'))throw new Error('Expected cache generation 62 missing');
   if(!cacheState.assets.some(u=>u.includes('/calculator/full-v18.js?v=6')))throw new Error('Shared loader missing from offline cache');
