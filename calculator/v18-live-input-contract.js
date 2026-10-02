@@ -5,10 +5,6 @@
   const labelOf=e=>(e.closest('.field')?.querySelector('label')?.textContent||document.querySelector(`label[for="${e.id}"]`)?.textContent||e.getAttribute('aria-label')||'').replace(/\s+/g,' ').trim();
   const numericByLabel=label=>$$('input[type="number"]').filter(e=>labelOf(e)===label);
   const attrsByLabel=(label,values)=>numericByLabel(label).forEach(e=>{for(const [k,v] of Object.entries(values)){if(v===null)e.removeAttribute(k);else e.setAttribute(k,String(v))}});
-  const initializeHouseDefault=()=>{
-    const e=numericByLabel('House wash area')[0];
-    if(e&&e.value==='')e.value='0';
-  };
   const apply=()=>{
     attr('fireChemAmount',{min:'0.1',max:'100000',step:'0.1'});
     attr('dilFinal',{min:'0.1',step:'0.1'});
@@ -28,7 +24,6 @@
     const liveLabels={sh:'10% SH Out',ele:'Elemonator Out',gutter:'Gutter Zap Out',bio:'Bio-Clean Out',odo:'OdoBan Out',f9:'F9 BARC Out',ettore:'Ettore Squeegee-Off Out'};
     $$('.fire-inv-row').forEach(row=>{const input=$('input[type="number"]',row);if(input&&liveLabels[row.dataset.invKey]){input.setAttribute('aria-label',liveLabels[row.dataset.invKey]);input.setAttribute('step','0.1')}});
   };
-  initializeHouseDefault();
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(apply,1700));else setTimeout(apply,1700);
   window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(apply,220));
   window.addEventListener('fire-v18-shared-core-ready',()=>setTimeout(apply,220));

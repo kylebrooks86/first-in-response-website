@@ -64,7 +64,9 @@
     if(amt&&!saved.fullCustomAmt&&amt.value==='')amt.value='0';
     if(desc)desc.placeholder='Example: patio furniture cleaning';
     if(notes)notes.placeholder='Optional scope, access, scheduling, or surface-condition notes';
+    const hasSavedHouse=Object.prototype.hasOwnProperty.call(saved,'svcHouse');
     restore();
+    const house=$('#svcHouse');if(house&&!hasSavedHouse&&house.value==='')house.value='0';
     [name,desc,amt,notes,$('#fullDiscount'),$('#fullOverride')].filter(Boolean).forEach(associate);
     save();setTimeout(refreshCalculatedState,0);setTimeout(bindLiveActions,30)
   }
