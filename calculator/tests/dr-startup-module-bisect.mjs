@@ -43,7 +43,7 @@ async function probe(label,loaderBody,{disabledModule=null}={}){
     const result=await Promise.race([
       page.evaluate(()=>({pong:true,ready:!!window.__fireV18CoreReady,priceEditor:!!document.querySelector('#priceEditor'),mixHistory:!!document.querySelector('#mixHistory')})).then(state=>({responsive:true,state,errors:errors.slice(0,8),consoleErrors:consoleErrors.slice(0,8)})).catch(e=>({responsive:false,error:e.message,errors:errors.slice(0,8),consoleErrors:consoleErrors.slice(0,8)})),
       sleep(3000).then(()=>({responsive:false,error:'renderer-unresponsive',errors:errors.slice(0,8),consoleErrors:consoleErrors.slice(0,8)}))
-    ];
+    ]);
     console.log('MODULE BISECT '+label+' '+JSON.stringify(result)); return result;
   } finally {
     if(ctx)await Promise.race([ctx.close().catch(()=>{}),sleep(2500)]);
