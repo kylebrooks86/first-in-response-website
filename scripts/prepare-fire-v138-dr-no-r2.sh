@@ -64,6 +64,24 @@ await writeFile(destination, JSON.stringify(config, null, 2) + '\n');
 console.log('Wrote D1-only isolated DR config to ' + destination);
 NODE
 
+# Wrangler resolves the default migrations directory relative to the generated
+# config file in dist/server. The sealed package stores the canonical migrations
+# in drizzle/, so stage exact copies beside the independent config for deployment.
+migration_count="$(find drizzle -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"
+if [[ "$migration_count" != "21" ]]; then
+  echo "Expected exactly 21 canonical migrations, found $migration_count; refusing to deploy." >&2
+  exit 1
+fi
+mkdir -p dist/server/migrations
+rm -f dist/server/migrations/*.sql
+cp drizzle/*.sql dist/server/migrations/
+staged_migration_count="$(find dist/server/migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"
+if [[ "$staged_migration_count" != "21" ]]; then
+  echo "Failed to stage all 21 migrations for Wrangler." >&2
+  exit 1
+fi
+echo "Staged 21 canonical D1 migrations at dist/server/migrations."
+
 # Run TypeScript in the real dependency-complete environment and preserve the
 # result honestly, but do not block the rendered-parity deployment on known
 # source typing defects that do not prevent the production build from succeeding.
