@@ -6,6 +6,7 @@ const STAGING=process.env.FIRE_STAGING_URL||'http://127.0.0.1:4173/calculator/';
 const OUT=process.env.FIRE_VISUAL_OUT||'calculator/visual-parity';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const BAD_FILE={name:'corrupt-fire-backup.json',mimeType:'application/json',buffer:Buffer.from('{ definitely not valid json')};
+const SAFE_ERROR=/not a valid FIRE backup|could not be restored|couldn.t be restored|invalid|unable/i;
 
 async function clickVisible(page,text){const q=page.getByText(text,{exact:true});for(let i=0;i<await q.count();i++){const e=q.nth(i);if(await e.isVisible()){await e.evaluate(n=>n.click());return true}}return false}
 async function visibleRoot(page,sels){for(const s of sels){const e=page.locator(s);if(await e.count()&&await e.first().isVisible())return e.first()}return null}
@@ -61,7 +62,7 @@ async function run(base,label,browser){
     const restoreControl=await uploadBadBackup(page,label);
     await sleep(1000);
     const statuses=await statusText(page);
-    const status=statuses.find(t=>/could not be restored|couldn.t be restored|invalid|unable/i.test(t))||'';
+    const status=statuses.find(t=>SAFE_ERROR.test(t))||'';
     const afterUrl=page.url();
     const restoredJob=await openJob(page);
     const restoredName=restoredJob.getByLabel('Customer / job name',{exact:true});
