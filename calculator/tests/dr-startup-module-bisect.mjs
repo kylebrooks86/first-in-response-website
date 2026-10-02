@@ -6,6 +6,12 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const loader=fs.readFileSync('calculator/full-v18.js','utf8');
 const modules=[...loader.matchAll(/await load\('(\.\/[^']+)'\);/g)].map(m=>m[1]);
 if(modules.length<20)throw new Error('Unexpected loader module count '+modules.length);
+const parityDispatch="window.dispatchEvent(new CustomEvent('fire-v18-parity-loaded'));";
+const sharedDispatch="window.dispatchEvent(new CustomEvent('fire-v18-shared-core-ready'));";
+const noEvents=loader.replace(parityDispatch,'').replace(sharedDispatch,'');
+const parityOnly=loader.replace(sharedDispatch,'');
+const sharedOnly=loader.replace(parityDispatch,'');
+
 function stopAfter(index){
   const src=modules[index];
   const needle="await load('"+src+"');";
@@ -44,8 +50,11 @@ async function probe(label,loaderBody,{serviceWorkers='block',swMode='normal'}={
     console.log('MODULE BISECT '+label+' '+JSON.stringify(result)); return result;
   } finally { if(ctx)await Promise.race([ctx.close().catch(()=>{}),sleep(2500)]); await Promise.race([browser.close().catch(()=>{}),sleep(2500)]) }
 }
-const checkpoints=[4,9,14,19,modules.length-1];
 const results={};
+results.noEvents=await probe('no-final-events',noEvents);
+results.parityOnly=await probe('parity-event-only',parityOnly);
+results.sharedOnly=await probe('shared-event-only',sharedOnly);
+const checkpoints=[4,9,14,19,modules.length-1];
 for(const i of checkpoints)results['blocked-'+i]=await probe('blocked-through-'+(i+1)+'-'+modules[i],stopAfter(i));
 results.fullBlocked=await probe('full-loader-service-worker-blocked',loader,{serviceWorkers:'block'});
 results.noFinalDispatch=await probe('full-modules-no-final-readiness-dispatch',noFinalDispatch,{serviceWorkers:'block'});
