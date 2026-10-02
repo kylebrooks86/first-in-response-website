@@ -74,7 +74,7 @@ try{
     return {controller:!!navigator.serviceWorker.controller,keys,assets};
   });
   if(!cacheState.controller)throw new Error('Service worker never controlled DR page');
-  if(!cacheState.keys.some(k=>k==='fire-field-calculator-v18-exact-clone-62'))throw new Error('Expected cache generation 62 missing');
+  if(!cacheState.keys.some(k=>k==='fire-field-calculator-v18-exact-clone-63'))throw new Error('Expected cache generation 63 missing');
   if(!cacheState.assets.some(u=>u.includes('/calculator/full-v18.js?v=6')))throw new Error('Shared loader missing from offline cache');
 
   await ctx.setOffline(true);
