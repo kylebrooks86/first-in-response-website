@@ -1,11 +1,12 @@
 name: Unpack FIRE DR source
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - fire-calculator-exact-live-clone
     paths:
-      - 'fire-app-dr-source.zip'
+      - 'FIRE_App_Restore_Failure_Audit_Completeness_v138_2026-10-01.zip'
 
 permissions:
   contents: write
@@ -23,9 +24,10 @@ jobs:
       - name: Validate source archive
         run: |
           set -euo pipefail
-          test -f fire-app-dr-source.zip
+          archive='FIRE_App_Restore_Failure_Audit_Completeness_v138_2026-10-01.zip'
+          test -f "$archive"
           expected='2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca'
-          actual="$(sha256sum fire-app-dr-source.zip | awk '{print $1}')"
+          actual="$(sha256sum "$archive" | awk '{print $1}')"
           echo "Expected: $expected"
           echo "Actual:   $actual"
           test "$actual" = "$expected"
@@ -33,9 +35,10 @@ jobs:
       - name: Replace isolated DR app directory from sealed v138 archive
         run: |
           set -euo pipefail
+          archive='FIRE_App_Restore_Failure_Audit_Completeness_v138_2026-10-01.zip'
           rm -rf fire-app-dr
           mkdir -p fire-app-dr
-          unzip -q fire-app-dr-source.zip -d fire-app-dr
+          unzip -q "$archive" -d fire-app-dr
           test -f fire-app-dr/package.json
           test -f fire-app-dr/CURRENT_VERSION.json
           test -f fire-app-dr/RELEASE_EVIDENCE_SEAL.json
