@@ -1,6 +1,19 @@
 (()=>{
   if(window.__fireV18ModuleLoader)return;
   window.__fireV18ModuleLoader=true;
+  if(!window.__fireMixHistoryDomAlias){
+    window.__fireMixHistoryDomAlias=true;
+    const aliasId='fireMixHistoryList';
+    const nativeInsert=Element.prototype.insertAdjacentHTML;
+    Element.prototype.insertAdjacentHTML=function(position,html){
+      if(typeof html==='string'&&html.includes('id="mixHistory"'))html=html.replace(/id="mixHistory"/g,`id="${aliasId}"`);
+      return nativeInsert.call(this,position,html);
+    };
+    const nativeQuery=Document.prototype.querySelector;
+    Document.prototype.querySelector=function(selector){return nativeQuery.call(this,selector==='#mixHistory'?`#${aliasId}`:selector)};
+    const nativeGetById=Document.prototype.getElementById;
+    Document.prototype.getElementById=function(id){return nativeGetById.call(this,id==='mixHistory'?aliasId:id)};
+  }
   const css=(href,key)=>{if(document.querySelector(`link[data-fire-${key}]`))return;const l=document.createElement('link');l.rel='stylesheet';l.href=href;l.dataset[`fire${key.replace(/(^|-)(\w)/g,(_,a,b)=>b.toUpperCase())}`]='1';document.head.appendChild(l)};
   css('./v18-exact-visual.css?v=6','exact-visual');
   css('./v18-live-jobmath-visual.css?v=2','jobmath-visual');
