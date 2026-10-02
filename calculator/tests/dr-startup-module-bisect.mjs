@@ -11,34 +11,44 @@ function stopAfter(index){
   const needle="await load('"+src+"');";
   return loader.replace(needle,needle+' return;');
 }
-async function probe(label,loaderBody){
+async function probe(label,loaderBody,{serviceWorkers='block',swMode='normal'}={}){
   const browser=await chromium.launch({headless:true}); let ctx;
   try{
-    ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers:'block'});
+    ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers});
     await ctx.route('**/*',route=>{
       const req=route.request(),url=req.url();
       if(url.includes('/full-v18.js'))return route.fulfill({status:200,contentType:'application/javascript; charset=utf-8',body:loaderBody});
+      if(url.includes('/sw.js')){
+        if(swMode==='abort')return route.abort();
+        if(swMode==='inert')return route.fulfill({status:200,contentType:'application/javascript; charset=utf-8',body:"self.addEventListener('install',e=>e.waitUntil(self.skipWaiting()));self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));"});
+      }
       if(['image','media','font'].includes(req.resourceType()))return route.abort();
       return route.continue();
     });
-    const page=await ctx.newPage(); const errors=[];
+    const page=await ctx.newPage(); const errors=[]; const consoleErrors=[];
     page.on('pageerror',e=>errors.push(e.message));
+    page.on('console',m=>{if(['error','warning'].includes(m.type()))consoleErrors.push(m.text())});
     await page.goto(STAGING,{waitUntil:'commit',timeout:10000});
     await page.waitForLoadState('domcontentloaded',{timeout:4000}).catch(()=>{});
     await sleep(1800);
     const result=await Promise.race([
-      page.evaluate(()=>({pong:true,ready:!!window.__fireV18CoreReady,sharedReady:!!window.__fireV18SharedCoreReady,priceEditor:!!document.querySelector('#priceEditor'),mixHistory:!!document.querySelector('#mixHistory')})).then(state=>({responsive:true,state,errors:errors.slice(0,8)})).catch(e=>({responsive:false,error:e.message,errors:errors.slice(0,8)})),
-      sleep(3000).then(()=>({responsive:false,error:'renderer-unresponsive',errors:errors.slice(0,8)}))
+      page.evaluate(async()=>({pong:true,ready:!!window.__fireV18CoreReady,sharedReady:!!window.__fireV18SharedCoreReady,priceEditor:!!document.querySelector('#priceEditor'),mixHistory:!!document.querySelector('#mixHistory'),controller:!!navigator.serviceWorker?.controller,registrations:navigator.serviceWorker?await navigator.serviceWorker.getRegistrations().then(x=>x.length):0,cacheKeys:typeof caches!=='undefined'?await caches.keys():[]})).then(state=>({responsive:true,state,errors:errors.slice(0,8),consoleErrors:consoleErrors.slice(0,8)})).catch(e=>({responsive:false,error:e.message,errors:errors.slice(0,8),consoleErrors:consoleErrors.slice(0,8)})),
+      sleep(3000).then(()=>({responsive:false,error:'renderer-unresponsive',errors:errors.slice(0,8),consoleErrors:consoleErrors.slice(0,8)}))
     ]);
     console.log('MODULE BISECT '+label+' '+JSON.stringify(result)); return result;
   } finally { if(ctx)await Promise.race([ctx.close().catch(()=>{}),sleep(2500)]); await Promise.race([browser.close().catch(()=>{}),sleep(2500)]) }
 }
 const checkpoints=[4,9,14,19,modules.length-1];
 const results={};
-for(const i of checkpoints)results[i]=await probe('through-'+(i+1)+'-'+modules[i],stopAfter(i));
+for(const i of checkpoints)results['blocked-'+i]=await probe('blocked-through-'+(i+1)+'-'+modules[i],stopAfter(i));
+results.swEnabledFull=await probe('service-worker-enabled-full',loader,{serviceWorkers:'allow',swMode:'normal'});
+results.swRequestAborted=await probe('service-worker-request-aborted-full',loader,{serviceWorkers:'allow',swMode:'abort'});
+results.swInert=await probe('service-worker-inert-full',loader,{serviceWorkers:'allow',swMode:'inert'});
 console.log('MODULE LIST '+JSON.stringify(modules));
 console.log('MODULE BISECT SUMMARY '+JSON.stringify(results));
-const firstLocked=checkpoints.find(i=>!results[i].responsive);
-if(firstLocked===undefined){console.log('No lock at module checkpoints');process.exit(0)}
-console.log('FIRST LOCKED MODULE CHECKPOINT '+(firstLocked+1)+' '+modules[firstLocked]);
-process.exitCode=1;
+const firstLocked=checkpoints.find(i=>!results['blocked-'+i].responsive);
+if(firstLocked!==undefined)console.log('FIRST LOCKED MODULE CHECKPOINT '+(firstLocked+1)+' '+modules[firstLocked]);
+const swDiagnosis={enabled:results.swEnabledFull.responsive,aborted:results.swRequestAborted.responsive,inert:results.swInert.responsive};
+console.log('SERVICE WORKER DIAGNOSIS '+JSON.stringify(swDiagnosis));
+if(firstLocked===undefined&&swDiagnosis.aborted&&swDiagnosis.inert&&!swDiagnosis.enabled)console.log('SERVICE WORKER CACHE PATH IS DR LOCK TRIGGER');
+process.exitCode=firstLocked===undefined?0:1;
