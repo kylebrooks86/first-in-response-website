@@ -65,12 +65,21 @@ jobs:
           FIRE_VISUAL_OUT: calculator/visual-parity
         run: node calculator/tests/backup-takeover-live-parity.mjs
 
-      - name: Upload takeover report
+      - name: Verify invalid backup safe-error parity
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+          FIRE_VISUAL_OUT: calculator/visual-parity
+        run: node calculator/tests/invalid-backup-live-parity.mjs
+
+      - name: Upload takeover reports
         if: always()
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: fire-calculator-backup-takeover
-          path: calculator/visual-parity/backup-takeover.json
+          path: |
+            calculator/visual-parity/backup-takeover.json
+            calculator/visual-parity/invalid-backup-parity.json
           if-no-files-found: warn
           retention-days: 14
