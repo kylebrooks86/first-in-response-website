@@ -12,6 +12,10 @@ on:
       - 'calculator/**'
       - '.github/workflows/fire-calculator-parity.yml'
 
+concurrency:
+  group: fire-calculator-parity-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   parity-gate:
     runs-on: ubuntu-latest
