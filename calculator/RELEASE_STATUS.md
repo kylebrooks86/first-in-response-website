@@ -4,20 +4,23 @@
 
 **STAGING CANDIDATE VERIFIED — NOT SYNCHRONIZED**
 
-The production/live calculator and independent disaster-recovery calculator both identify as v18. The current staging candidate has passed the automated LIVE-vs-DR parity suite and independent backup-takeover test, but the release is **not synchronized** because production has not been converted to/deployed from this governed shared-core release. Production remains the untouched master reference.
+The production/live calculator and independent disaster-recovery calculator both identify as v18. The current staging candidate has passed the automated LIVE-vs-DR parity suite, independent backup-takeover test, and real service-worker airplane-mode DR acceptance, but the release is **not synchronized** because production has not been converted to/deployed from this governed shared-core release. Production remains the untouched master reference.
 
 ## Verified staging candidate
 
 - Branch: `fire-calculator-exact-live-clone`
-- Verified head: `40495a629786d4dbd8b04b6bb225124fd729b748`
+- Latest exact-head parity/takeover verification: `e93435f213304d476c31a6abb958e336c0e0e48b`
+- Airplane-mode DR acceptance evidence: `83ced5c857dfed4e1165813fbe25d38a3330ec30`
 - Shared-core fingerprint: `e0318dc8ff02f5bcb1506ad18abd499440ce287f792fabc3b4ca0455e9e869ab`
 - Offline cache generation: `62`
 - Release status remains `STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED` in `SHARED_CORE_MANIFEST.json`.
 - Production/live hosting, DNS, deployment and real customer data were not modified.
 
+The commits after the original calculator parity candidate in this sequence changed tests/governance only; the governed calculator shared core and fingerprint above did not change.
+
 ## Exact-head automated verification
 
-The exact governed head above passed:
+The latest exact-head suite passed:
 
 - Formula regression
 - LIVE-reference contract
@@ -42,7 +45,22 @@ The exact governed head above passed:
 - 390×844 iPhone-viewport captures
 - light/dark visual-difference measurement
 
-The DR takeover test restores disposable LIVE backup state into local DR staging and verifies customer/job name, House Wash quantity, discount, area and SH inventory. It is isolated in its own staging-only workflow and does not deploy anything.
+The expanded LIVE-backup takeover now verifies 17 restored values across both durable DR storage and restored UI where applicable: customer/job name, House Wash, gutter quantity, custom-service description and amount, estimate notes, discount, Job Math area, coverage, reserve, measurement length/height/sections/subtraction, calibration area/mix-used, and SH inventory.
+
+## Airplane-mode DR acceptance
+
+The dedicated `FIRE Calculator Offline DR Acceptance` workflow passed with the real DR service worker and cache generation 62. With browser networking disabled it verified:
+
+- all seven major routes open: SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Tools, Field Guide
+- SH Mix performs a real dependent recalculation offline
+- saved estimate/planning state survives an offline reload
+- Job Math continues calculating offline
+- backup JSON can be generated while offline
+- the calculator can be fully closed and reopened while still offline with state and math preserved
+- no OpenAI/ChatGPT network request was observed
+- no OpenAI/ChatGPT sign-in requirement was present
+
+This closes the automated DR-independence/airplane-mode gate. It does not change production synchronization status.
 
 ## Architecture target
 
@@ -59,11 +77,11 @@ All visible UI, formulas, pricing logic, validation, navigation, state handling,
 
 ## Remaining promotion gates
 
-The automated staging parity candidate is green, but synchronization is intentionally still blocked by the remaining release-level work:
+The automated staging parity and DR-recovery candidate is green, but synchronization is intentionally still blocked by the remaining release-level work:
 
 - native-device acceptance for iPhone safe-area / keyboard / OS share-print presentation where browser automation cannot certify native chrome
-- broader optional state coverage beyond the required paired regression set where desired
-- final airplane-mode/offline DR acceptance using disposable data
+- remaining optional/alternate state matrices required by the final parity matrix
+- reverse DR → production-staging backup/restore acceptance and invalid-backup safe-error parity before any production migration
 - production migration/deployment planning only after staging acceptance
 - production and DR must ultimately run the exact same governed shared-core release/fingerprint before status may become synchronized
 
