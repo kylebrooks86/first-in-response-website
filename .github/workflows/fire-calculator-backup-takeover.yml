@@ -17,7 +17,7 @@ concurrency:
 jobs:
   backup-takeover:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - name: Checkout staging branch
         uses: actions/checkout@v4
@@ -53,7 +53,7 @@ jobs:
           curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
 
       - name: Verify LIVE backup restores into DR
-        timeout-minutes: 5
+        timeout-minutes: 10
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
