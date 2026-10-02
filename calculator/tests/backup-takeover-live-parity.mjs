@@ -92,9 +92,11 @@ async function gotoLive(page){
 async function readMigratedStorage(page){
   return page.evaluate(()=>{
     const parse=k=>{try{return JSON.parse(localStorage.getItem(k)||'{}')}catch{return{}}};
-    const parity=parse('fireV18ParityDraft'),planning=parse('fireV18LivePlanningState'),specialty=parse('fireV18SpecialtyInventory'),full=parse('fireV18FullState'),liveDraft=parse('fireEstimateDraft');
+    const parseNested=k=>{let v=parse(k);if(typeof v==='string'){try{v=JSON.parse(v)}catch{}}return v&&typeof v==='object'?v:{}};
+    const choose=(...vals)=>vals.find(v=>v!==undefined&&v!==null&&String(v)!=='')??'';
+    const parity=parseNested('fireV18ParityDraft'),planning=parseNested('fireV18LivePlanningState'),specialty=parseNested('fireV18SpecialtyInventory'),full=parseNested('fireV18FullState'),liveDraft=parseNested('fireEstimateDraft');
     const liveFields=liveDraft?.fields||{};
-    return {migratedAt:localStorage.getItem('fireV18LiveBackupMigratedAt'),hydratedAt:localStorage.getItem('fireV18LiveBackupHydratedAt'),name:parity.estimateJobName??parity.jobName??liveFields.estimateJobName??'',house:parity.svcHouse??full.svcHouse??liveFields.houseWashArea??'',discount:parity.fullDiscount??full.fullDiscount??liveFields.discountPct??'',area:planning.area??full.area??liveFields.jobArea??'',inventorySh:specialty.sh?.amount??full.invSH??''}
+    return {migratedAt:localStorage.getItem('fireV18LiveBackupMigratedAt'),hydratedAt:localStorage.getItem('fireV18LiveBackupHydratedAt'),name:choose(parity.estimateJobName,parity.jobName,liveFields.estimateJobName),house:choose(parity.svcHouse,full.svcHouse,liveFields.houseWashArea),discount:choose(parity.fullDiscount,full.fullDiscount,liveFields.discountPct),area:choose(planning.area,full.area,liveFields.jobArea),inventorySh:choose(specialty.sh?.amount,full.invSH)}
   })
 }
 
