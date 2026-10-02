@@ -80,6 +80,14 @@ jobs:
           FIRE_VISUAL_OUT: calculator/visual-parity
         run: node calculator/tests/reverse-backup-portability-probe.mjs
 
+      - name: Probe LIVE v3 envelope with embedded DR stores
+        continue-on-error: true
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+          FIRE_VISUAL_OUT: calculator/visual-parity
+        run: node calculator/tests/dual-v3-extra-stores-probe.mjs
+
       - name: Upload takeover reports
         if: always()
         continue-on-error: true
@@ -90,5 +98,6 @@ jobs:
             calculator/visual-parity/backup-takeover.json
             calculator/visual-parity/invalid-backup-parity.json
             calculator/visual-parity/reverse-backup-portability.json
+            calculator/visual-parity/dual-v3-extra-stores.json
           if-no-files-found: warn
           retention-days: 14
