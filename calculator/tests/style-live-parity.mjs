@@ -11,7 +11,16 @@ async function openRoute(page,name,sels){for(let attempt=0;attempt<24;attempt++)
 async function styleOf(locator){if(!locator||!await locator.count())return null;for(let i=0;i<await locator.count();i++){const el=locator.nth(i);const box=await el.boundingBox().catch(()=>null);if(!box||box.width<=0||box.height<=0)continue;return el.evaluate((node,props)=>{const c=getComputedStyle(node),r=node.getBoundingClientRect(),o={};for(const p of props)o[p]=c[p];o.width=Math.round(r.width*10)/10;o.height=Math.round(r.height*10)/10;return o},props)}return null}
 async function snapshot(page){const out={};for(const [name,sels] of routes){const root=await openRoute(page,name,sels);out[name]={route:await styleOf(root),card:await styleOf(root.locator('.card')),input:await styleOf(root.locator('input,select,textarea')),button:await styleOf(root.locator('button'))}}out.global={body:await styleOf(page.locator('body')),header:await styleOf(page.locator('header,.topbar')),tabs:await styleOf(page.locator('.tabs,.tabswrap')),bottom:await styleOf(page.locator('.bottom,[class*=bottom]'))};return out}
 async function toggleDark(page){let q=page.getByLabel(/dark mode/i);for(let i=0;i<await q.count();i++){if(await q.nth(i).isVisible()){await q.nth(i).evaluate(node=>node.click());await page.waitForTimeout(120);return}}q=page.locator('#themeBtn');if(await q.count()){await q.first().evaluate(node=>node.click());await page.waitForTimeout(120);return}throw new Error('Dark toggle missing')}
-async function settle(page,base){if(base===LIVE)await page.context().route('**/*',route=>{const t=route.request().resourceType();return ['image','media','font'].includes(t)?route.abort():route.continue()});await page.goto(base,{waitUntil:'commit',timeout:12000});await page.waitForLoadState('domcontentloaded',{timeout:4500}).catch(()=>{});for(let i=0;i<24;i++){if(await page.locator('.tabs,.tabswrap').count())return;await page.waitForTimeout(100)}throw new Error('Calculator navigation did not mount')}
+async function settle(page,base){
+  if(base===LIVE)await page.context().route('**/*',route=>{const t=route.request().resourceType();return ['image','media','font'].includes(t)?route.abort():route.continue()});
+  await page.goto(base,{waitUntil:'commit',timeout:12000});
+  await page.waitForLoadState('domcontentloaded',{timeout:4500}).catch(()=>{});
+  for(let i=0;i<24;i++){if(await page.locator('.tabs,.tabswrap').count())break;await page.waitForTimeout(100);if(i===23)throw new Error('Calculator navigation did not mount')}
+  if(base===STAGING){
+    await page.waitForFunction(()=>!!window.__fireV18CoreReady&&!!document.querySelector('#equipment [data-live-structure="1"]')&&!!document.querySelector('#xjetLiveResults')&&!!document.querySelector('#xjetModelNote'),null,{timeout:6500});
+    await page.waitForTimeout(180);
+  }
+}
 async function collect(base,browser){const c=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const p=await c.newPage();await settle(p,base);await p.waitForTimeout(350);const light=await snapshot(p);await toggleDark(p);const dark=await snapshot(p);await c.close();return {light,dark}}
 const norm=v=>v==null?null:String(v).replace(/\s+/g,' ').trim();
 function diff(a,b,path='',out=[]){if(typeof a!=='object'||a===null||typeof b!=='object'||b===null){if(norm(a)!==norm(b))out.push({path,live:a,staging:b});return out}for(const k of new Set([...Object.keys(a),...Object.keys(b)]))diff(a[k],b[k],path?`${path}.${k}`:k,out);return out}
