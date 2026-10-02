@@ -2,7 +2,9 @@
 
 Audit status: **STAGING PARITY VERIFIED — NOT SYNCHRONIZED**
 
-Verified staging head: `40495a629786d4dbd8b04b6bb225124fd729b748`
+Latest exact-head parity/takeover verification: `e93435f213304d476c31a6abb958e336c0e0e48b`
+
+Airplane-mode DR acceptance evidence: `83ced5c857dfed4e1165813fbe25d38a3330ec30`
 
 Verified shared-core fingerprint: `e0318dc8ff02f5bcb1506ad18abd499440ce287f792fabc3b4ca0455e9e869ab`
 
@@ -11,13 +13,13 @@ Sources compared:
 - Production/live: current rendered ChatGPT-hosted FIRE Field Calculator v18
 - Independent/recovery: current rendered calculator from `fire-calculator-exact-live-clone`
 
-This audit distinguishes **automated LIVE-vs-staging parity** from **dual-deployment synchronization**. The current staging candidate is green in the governed automated parity suite. It is still not synchronized because production is maintained separately and has not been migrated to the same governed shared core/fingerprint.
+This audit distinguishes **automated LIVE-vs-staging parity** from **dual-deployment synchronization**. The current staging candidate is green in the governed automated parity and DR-acceptance suites. It is still not synchronized because production is maintained separately and has not been migrated to the same governed shared core/fingerprint.
 
 ## Automated parity result
 
-No current automated parity assertion failure remains on the verified head.
+No current automated parity assertion failure remains on the verified calculator/test head.
 
-The exact-head suite passed:
+The suite passed:
 
 - formula regression and LIVE-reference contract
 - offline-cache and shared-core-fingerprint contracts
@@ -38,17 +40,46 @@ The exact-head suite passed:
 
 ## Disaster-recovery takeover
 
-The dedicated staging-only takeover workflow now completes successfully instead of competing for time at the end of the general behavior job.
-
-A disposable LIVE v3 backup is copied into local DR staging and restored after reload. The verified takeover state includes:
+The staging-only takeover workflow restores a disposable LIVE v3 backup into local DR staging after reload. The expanded takeover now verifies 17 restored values:
 
 - customer/job name
 - House Wash quantity
+- gutter quantity
+- custom-service description
+- custom-service amount
+- estimate notes
 - discount
 - Job Math area
+- coverage
+- reserve
+- measurement length
+- measurement height
+- measurement sections
+- measurement subtraction
+- calibration area
+- calibration mix used
 - SH inventory
 
-The migrated customer/job name is also persisted into DR's durable parity draft rather than only being painted into the UI.
+The corresponding UI values match after restore, and the migrated customer/job/estimate state is persisted into DR storage rather than only painted into the DOM.
+
+## Airplane-mode / offline DR acceptance
+
+The dedicated offline acceptance workflow warms the real service worker/cache, disables browser networking, reloads the calculator, and then verifies actual offline use.
+
+Verified offline behavior includes:
+
+- cache generation `fire-field-calculator-v18-exact-clone-62` controls the page
+- all seven major routes open offline
+- SH Mix produces a changed dependent calculation after an offline input change
+- saved estimate/planning state survives offline reload
+- Job Math continues to calculate offline
+- backup JSON exports offline using `FIRE-Field-Calculator-v18-offline` version 18
+- a full page close and new-page reopen succeeds while still offline
+- saved state and calculated total survive that reopen
+- zero OpenAI/ChatGPT network requests were observed during the acceptance run
+- no OpenAI/ChatGPT sign-in requirement appeared
+
+The automated airplane-mode DR-independence gate is therefore closed.
 
 ## Important fixes made during takeover diagnosis
 
@@ -82,12 +113,13 @@ Unapproved services remain configurable at $0. No guessed rate was introduced du
 
 ## Remaining non-automated / release-level verification
 
-The following are not current automated parity failures; they remain promotion/acceptance work outside the exact-head browser regression evidence:
+The following are not current automated parity failures; they remain promotion/acceptance work:
 
 - native iPhone safe-area and software-keyboard chrome acceptance
 - native OS share / print presentation acceptance
-- final airplane-mode/offline recovery acceptance with disposable data
-- optional broader state matrices beyond the required paired suite
+- reverse DR → production-staging backup/restore acceptance
+- invalid-backup safe-error parity
+- remaining optional/alternate state matrices required by final acceptance
 - production migration to the governed shared core
 - final proof that both independently deployed instances report/run the same shared-core fingerprint
 
