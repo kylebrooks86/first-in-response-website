@@ -42,6 +42,11 @@ try{
   }catch(e){console.log('DR STARTUP STATE READ ERROR '+(e.stack||e.message))}
   console.log('DR STARTUP RESULT '+JSON.stringify(result));
   console.log('DR STARTUP STATE '+JSON.stringify(state));
+  const required=['loader','core','coreReady','tools','importFile','priceEditor','mixHistory'];
+  const missing=required.filter(k=>!state?.[k]);
+  if(result.type==='pageerror')throw new Error('DR startup emitted an uncaught page error: '+result.stack);
+  if(missing.length)throw new Error('DR startup missing required runtime state: '+missing.join(', '));
+  console.log('DR STARTUP STACK PASS');
   await ctx.close();
 } finally {
   await browser.close();
