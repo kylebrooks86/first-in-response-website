@@ -15,12 +15,16 @@ const historyLine=original.split('\n').find(line=>line.startsWith('if(!has("Batc
 if(!historyLine)throw new Error('Missing Batch History card source line');
 const withoutHistory=original.split('\n').filter(line=>line!==historyLine).join('\n');
 const minimalHistory=original.replace(historyLine,'if(!has("Batch History / Mix Log"))add("tools","<div class=\\\"card\\\"><h2>Batch History / Mix Log</h2></div>");');
+const historyInputOnly=original.replace(historyLine,'if(!has("Batch History / Mix Log"))add("tools","<div class=\\\"card\\\"><h2>Batch History / Mix Log</h2><input id=\\\"historyName\\\"/></div>");');
+const historyOutputOnly=original.replace(historyLine,'if(!has("Batch History / Mix Log"))add("tools","<div class=\\\"card\\\"><h2>Batch History / Mix Log</h2><div id=\\\"mixHistory\\\"></div></div>");');
 const historyNoButton=original.replace(historyLine,'if(!has("Batch History / Mix Log"))add("tools","<div class=\\\"card\\\"><h2>Batch History / Mix Log</h2><input id=\\\"historyName\\\"/><div id=\\\"mixHistory\\\"></div></div>");');
 const variants={
   blocked:null,
   original,
   withoutHistory,
   minimalHistory,
+  historyInputOnly,
+  historyOutputOnly,
   historyNoButton,
   afterStyle:cut('afterStyle',"const add=(id,html)=>"),
   afterEquipment:cut('afterEquipment','if(!has("Chemical container presets"))'),
@@ -77,7 +81,7 @@ console.log('CORE VARIANT SUMMARY '+JSON.stringify(Object.fromEntries(Object.ent
 
 if(!results.blocked.responsive)throw new Error('Base inline calculator locks even when full-v18-core.js is blocked');
 if(results.original.responsive){console.log('Original core is responsive under diagnostic isolation');process.exit(0)}
-const ordered=['withoutHistory','minimalHistory','historyNoButton','afterStyle','afterEquipment','afterIndexTools','beforeEstimator','beforeToolCards','beforeInventoryCard','beforeCustomChemicalCard','beforeVersionCard','beforeBackupCard','beforeGuideCard','beforeSegmentIds','beforeRates','beforeBuildPrice','beforeStartup','original'];
+const ordered=['withoutHistory','minimalHistory','historyInputOnly','historyOutputOnly','historyNoButton','afterStyle','afterEquipment','afterIndexTools','beforeEstimator','beforeToolCards','beforeInventoryCard','beforeCustomChemicalCard','beforeVersionCard','beforeBackupCard','beforeGuideCard','beforeSegmentIds','beforeRates','beforeBuildPrice','beforeStartup','original'];
 const firstLocked=ordered.find(name=>!results[name]?.responsive);
 console.log('CORE FIRST LOCKED CHECKPOINT '+String(firstLocked));
 if(firstLocked==='original')console.log('All pre-startup cut points responsive; lock is in startup initializer or later execution.');
