@@ -3,11 +3,11 @@
   "release": "v18",
   "status": "STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED",
   "fingerprint_algorithm": "sha256(sorted lines of path:git_blob_sha)",
-  "shared_core_fingerprint": "b6e079ec36cf54a3fbeea434a4d138205fd867d70ef062a6bc9597d3ed54cb45",
+  "shared_core_fingerprint": "8a0cedf5d7a12f13e246518bdc8048d6a584beda477f13df28068cb7676d98b8",
   "shared_core_files": {
     "calculator/index.html": "4be24b1101085b4f104a8661fa76e1528df6623b",
     "calculator/manifest.webmanifest": "b0b4896b333d200c8bd4194fcac16c4272c52938",
-    "calculator/full-v18.js": "24966cb8b8e12fa27d35bf085f07f6ebbfd78222",
+    "calculator/full-v18.js": "e590054473241d96a6a49bffaf8bc0e16cb7b34e",
     "calculator/full-v18-core.js": "42232e530c81056024f22e7f32c58acd7313085d",
     "calculator/v18-legacy-job-detach.js": "6b086072fc73b70b7a581af4da7c0b77e49c1132",
     "calculator/full-v18-parity-core.js": "aa7a97fbb36612f59e190d04efd61b48080a5304",
@@ -41,7 +41,7 @@
     "calculator/v18-live-pricing-parity.js": "309dcb643bbf25d697cf46987f3f09d7680494a1",
     "calculator/v18-live-pricing-parity.css": "304199972a83502dcd7a258e50f1e5496da4be85",
     "calculator/v18-live-customer-parity.js": "60f339b9f716322ec9774b540bcb341a26ecd0c8",
-    "calculator/v18-live-backup-hydration.js": "2895cd75128f4ba927c954976706bf3087c6a91a",
+    "calculator/v18-live-backup-hydration.js": "3bbd6aa4a224c1b1163c32846c479f9ab9d2de4e",
     "calculator/v18-live-input-contract.js": "9e0a571b4b69fc1a864f20d3dd4e0874515f90ea"
   },
   "infrastructure_only_files": [
