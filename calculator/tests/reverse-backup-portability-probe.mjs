@@ -15,21 +15,20 @@ async function byIds(page,ids){for(const id of ids){const e=page.locator('#'+id)
 async function setDom(el,v){if(!el)throw new Error('Missing field');await el.evaluate((n,x)=>{n.value=String(x);n.dispatchEvent(new Event('input',{bubbles:true}));n.dispatchEvent(new Event('change',{bubbles:true}))},v)}
 async function waitForBackupButton(page){const b=page.getByRole('button',{name:'Copy backup text',exact:true});for(let i=0;i<40;i++){if(await b.count()&&await b.first().isVisible().catch(()=>false))return b.first();await sleep(150)}throw new Error('Copy backup text missing')}
 
-function parseStore(backup,key){const raw=backup?.data?.[key];if(typeof raw!=='string')throw new Error(`LIVE backup store ${key} missing`);return JSON.parse(raw)}
+function parseRequiredStore(backup,key){const raw=backup?.data?.[key];if(typeof raw!=='string')throw new Error(`Required LIVE backup store ${key} missing`);return JSON.parse(raw)}
+function parseOptionalStore(backup,key){const raw=backup?.data?.[key];if(typeof raw!=='string')return null;try{return JSON.parse(raw)}catch{return {parseError:true}}}
 function summarizeLiveTemplate(backup){
-  const estimate=parseStore(backup,'fireEstimateDraft');
-  const calc=parseStore(backup,'fireFieldCalc');
-  const inventory=parseStore(backup,'fireInventory');
-  const rig=parseStore(backup,'fireRig');
-  const xjet=parseStore(backup,'fireXjet');
+  const estimate=parseRequiredStore(backup,'fireEstimateDraft');
+  const presentStoreKeys=Object.keys(backup?.data||{}).sort();
   return {
     format:backup.format,version:backup.version,appVersion:backup.appVersion,
+    presentStoreKeys,
     estimateFieldCount:Object.keys(estimate.fields||{}).length,
     estimateDefaults:estimate.fields,
-    fireFieldCalc:calc,
-    fireInventory:inventory,
-    fireRig:rig,
-    fireXjet:xjet
+    fireFieldCalc:parseOptionalStore(backup,'fireFieldCalc'),
+    fireInventory:parseOptionalStore(backup,'fireInventory'),
+    fireRig:parseOptionalStore(backup,'fireRig'),
+    fireXjet:parseOptionalStore(backup,'fireXjet')
   };
 }
 
@@ -72,7 +71,7 @@ async function createDrNativeBackup(browser){
 function buildFullLiveV3Compatibility(liveBaseline){
   const out=JSON.parse(JSON.stringify(liveBaseline));
   out.exportedAt=new Date().toISOString();
-  const estimate=parseStore(out,'fireEstimateDraft');
+  const estimate=parseRequiredStore(out,'fireEstimateDraft');
   estimate.fields={...(estimate.fields||{}),estimateJobName:'DR Reverse Portability',houseWashArea:'654',discountPct:'12.5'};
   estimate.savedAt=Date.now();
   out.data.fireEstimateDraft=JSON.stringify(estimate);
