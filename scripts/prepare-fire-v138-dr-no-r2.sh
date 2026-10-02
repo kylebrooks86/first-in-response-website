@@ -5,8 +5,6 @@ ARCHIVE="FIRE_App_Restore_Failure_Audit_Completeness_v138_2026-10-01.zip"
 EXPECTED_SHA256="2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca"
 APP_DIR="fire-app-dr"
 
-# Safe defaults for the isolated DR deployment. These may still be overridden
-# by environment variables later if the staging resources are intentionally changed.
 FIRE_WORKER_NAME="${FIRE_WORKER_NAME:-fire-app-independent-staging}"
 FIRE_D1_DATABASE_NAME="${FIRE_D1_DATABASE_NAME:-fire-app-staging-db}"
 FIRE_D1_DATABASE_ID="${FIRE_D1_DATABASE_ID:-afb2c05a-d794-4a9a-b580-924ce01c26ad}"
@@ -37,6 +35,16 @@ cd "$APP_DIR"
 node -e "const p=require('./package.json'); if(p.version!=='1.0.0-rc.138') throw new Error('Unexpected package version: '+p.version)"
 node -e "const v=require('./CURRENT_VERSION.json'); if(String(v.fire_release)!=='v138') throw new Error('Unexpected FIRE release: '+v.fire_release)"
 
+# Temporary DR-only auth discovery. This prints source locations and nearby code,
+# but never prints runtime secret values. It lets us replace the password flow
+# precisely instead of weakening unrelated authorization logic.
+echo "AUTH_DISCOVERY_BEGIN"
+grep -R -n -C 6 \
+  --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' \
+  --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.git \
+  -E 'FIRE_ADMIN_PASSWORD_HASH|FIRE_SESSION_SECRET|Private FIRE app|Owner password' . || true
+echo "AUTH_DISCOVERY_END"
+
 corepack enable
 pnpm install --frozen-lockfile
 pnpm run build
@@ -56,17 +64,12 @@ config.d1_databases = [{
   database_id: process.env.FIRE_D1_DATABASE_ID.trim(),
 }];
 
-// Intentionally omit R2 for this DR deployment because the current app has
-// no photos. Photo endpoints already fail closed when BUCKET is unavailable.
 delete config.r2_buckets;
 
 await writeFile(destination, JSON.stringify(config, null, 2) + '\n');
 console.log('Wrote D1-only isolated DR config to ' + destination);
 NODE
 
-# Wrangler resolves the default migrations directory relative to the generated
-# config file in dist/server. The sealed package stores the canonical migrations
-# in drizzle/, so stage exact copies beside the independent config for deployment.
 migration_count="$(find drizzle -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"
 if [[ "$migration_count" != "21" ]]; then
   echo "Expected exactly 21 canonical migrations, found $migration_count; refusing to deploy." >&2
@@ -82,9 +85,6 @@ if [[ "$staged_migration_count" != "21" ]]; then
 fi
 echo "Staged 21 canonical D1 migrations at dist/server/migrations."
 
-# Run TypeScript in the real dependency-complete environment and preserve the
-# result honestly, but do not block the rendered-parity deployment on known
-# source typing defects that do not prevent the production build from succeeding.
 set +e
 pnpm run typecheck
 typecheck_status=$?
