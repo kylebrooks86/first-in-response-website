@@ -7,16 +7,24 @@ const corePath='calculator/full-v18-core.js';
 const original=fs.readFileSync(corePath,'utf8');
 const startupNeedle="try{loadFullState();buildPriceEditor();calcReverseX();calcInjectorReal();calcFill();stainFinder();compat();areaHelpers();calcFullEstimator();chemicalCost();renderHistory();renderCustomChems();inventory()}catch(e){console.error('Full v18 extension',e)}";
 
+const cut=(name,needle)=>{
+  if(!original.includes(needle))throw new Error('Missing diagnostic needle '+name);
+  return original.replace(needle,`throw new Error('__DR_BISECT_${name}__');\n${needle}`)
+};
 const variants={
   blocked:null,
   original,
-  mainOnly:original.split('// LIVE_V18_LAYOUT_PARITY')[0],
-  noGuide:original.split('// LIVE_V18_GUIDE_PRESETS')[0],
-  noStartup:original.replace(startupNeedle,"try{}catch(e){console.error('Full v18 extension',e)}"),
-  noStartupMainOnly:original.replace(startupNeedle,"try{}catch(e){console.error('Full v18 extension',e)}").split('// LIVE_V18_LAYOUT_PARITY')[0]
+  afterStyle:cut('afterStyle',"const add=(id,html)=>"),
+  afterEquipment:cut('afterEquipment','if(!has("Chemical container presets"))'),
+  afterIndexTools:cut('afterIndexTools','if(!has("Area and real coverage helpers"))'),
+  beforeEstimator:cut('beforeEstimator','if(!has("Full FIRE service estimator"))'),
+  beforeToolCards:cut('beforeToolCards','if(!has("Batch History / Mix Log"))'),
+  beforeGuideCard:cut('beforeGuideCard','if(!has("Services that should not default to SH"))'),
+  beforeSegmentIds:cut('beforeSegmentIds',"const gs=document.querySelector('#mix .field.span4 .seg')"),
+  beforeRates:cut('beforeRates','const fullRatesDefaults='),
+  beforeBuildPrice:cut('beforeBuildPrice','function buildPriceEditor()'),
+  beforeStartup:cut('beforeStartup',"try{loadFullState();buildPriceEditor();calcReverseX();calcInjectorReal();calcFill();stainFinder();compat();areaHelpers();calcFullEstimator();chemicalCost();renderHistory();renderCustomChems();inventory()}catch(e){console.error('Full v18 extension',e)}")
 };
-
-if(variants.noStartup===original)throw new Error('Could not locate core startup initializer for diagnostic replacement');
 
 async function probe(name,body){
   const browser=await chromium.launch({headless:true});
@@ -57,9 +65,8 @@ console.log('CORE VARIANT SUMMARY '+JSON.stringify(Object.fromEntries(Object.ent
 
 if(!results.blocked.responsive)throw new Error('Base inline calculator locks even when full-v18-core.js is blocked');
 if(results.original.responsive){console.log('Original core is responsive under diagnostic isolation');process.exit(0)}
-if(!results.mainOnly.responsive&&results.noStartupMainOnly.responsive){console.log('CORE STARTUP INITIALIZER IS FIRST LOCK SOURCE');process.exitCode=1}
-if(results.mainOnly.responsive&&!results.noGuide.responsive){console.log('CORE LAYOUT PARITY BLOCK IS LOCK SOURCE');process.exitCode=1}
-if(results.noGuide.responsive&&!results.original.responsive){console.log('CORE GUIDE PRESETS OR LATER BLOCK IS LOCK SOURCE');process.exitCode=1}
-if(results.noStartup.responsive){console.log('CORE STARTUP INITIALIZER LOCKS; extra core IIFEs are responsive without it');process.exitCode=1}
-console.log('CORE LOCK REQUIRES DEEPER FUNCTION-LEVEL BISECTION');
+const ordered=['afterStyle','afterEquipment','afterIndexTools','beforeEstimator','beforeToolCards','beforeGuideCard','beforeSegmentIds','beforeRates','beforeBuildPrice','beforeStartup','original'];
+const firstLocked=ordered.find(name=>!results[name]?.responsive);
+console.log('CORE FIRST LOCKED CHECKPOINT '+String(firstLocked));
+if(firstLocked==='original')console.log('All pre-startup cut points responsive; lock is in startup initializer or later execution.');
 process.exitCode=1;
