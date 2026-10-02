@@ -136,17 +136,19 @@ For each relevant numeric field test:
 
 ## DR independence
 
-- [ ] Disable network after initial install/cache and launch DR successfully.
-- [ ] SH Mix works offline.
-- [ ] Equipment works offline.
-- [ ] Chemicals/Index work offline.
-- [ ] Job Math works offline.
-- [ ] Field Tools/Guide work offline.
-- [ ] Save/load works offline.
-- [ ] Export backup works offline.
-- [ ] Close/reopen in airplane mode works.
-- [ ] No ChatGPT/OpenAI sign-in is required.
-- [ ] No normal calculator operation requires an OpenAI request.
+Automated acceptance evidence: `FIRE Calculator Offline DR Acceptance` passed on staging commit `83ced5c857dfed4e1165813fbe25d38a3330ec30` with the real service worker/cache, browser network disabled, all seven major routes exercised, an SH Mix dependent calculation changed offline, an offline backup generated, and a full close/reopen completed while still offline. The run observed zero OpenAI/ChatGPT requests and no OpenAI/ChatGPT sign-in requirement.
+
+- [x] Disable network after initial install/cache and launch DR successfully.
+- [x] SH Mix works offline.
+- [x] Equipment works offline.
+- [x] Chemicals/Index work offline.
+- [x] Job Math works offline.
+- [x] Field Tools/Guide work offline.
+- [x] Save/load works offline.
+- [x] Export backup works offline.
+- [x] Close/reopen in airplane mode works.
+- [x] No ChatGPT/OpenAI sign-in is required.
+- [x] No normal calculator operation requires an OpenAI request.
 
 ## Final acceptance
 
