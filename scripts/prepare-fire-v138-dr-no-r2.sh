@@ -5,9 +5,12 @@ ARCHIVE="FIRE_App_Restore_Failure_Audit_Completeness_v138_2026-10-01.zip"
 EXPECTED_SHA256="2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca"
 APP_DIR="fire-app-dr"
 
-: "${FIRE_WORKER_NAME:?Missing FIRE_WORKER_NAME}"
-: "${FIRE_D1_DATABASE_NAME:?Missing FIRE_D1_DATABASE_NAME}"
-: "${FIRE_D1_DATABASE_ID:?Missing FIRE_D1_DATABASE_ID}"
+# Safe defaults for the isolated DR deployment. These may still be overridden
+# by environment variables later if the staging resources are intentionally changed.
+FIRE_WORKER_NAME="${FIRE_WORKER_NAME:-fire-app-independent-staging}"
+FIRE_D1_DATABASE_NAME="${FIRE_D1_DATABASE_NAME:-fire-app-staging-db}"
+FIRE_D1_DATABASE_ID="${FIRE_D1_DATABASE_ID:-afb2c05a-d794-4a9a-b580-924ce01c26ad}"
+export FIRE_WORKER_NAME FIRE_D1_DATABASE_NAME FIRE_D1_DATABASE_ID
 
 if [[ ! "$FIRE_D1_DATABASE_ID" =~ ^[0-9a-fA-F-]{32,36}$ ]]; then
   echo "FIRE_D1_DATABASE_ID does not look like a valid D1 database ID." >&2
@@ -64,3 +67,5 @@ NODE
 pnpm run typecheck
 
 echo "Prepared sealed FIRE v138 DR build with D1 only and no R2 binding."
+echo "Worker: $FIRE_WORKER_NAME"
+echo "D1: $FIRE_D1_DATABASE_NAME ($FIRE_D1_DATABASE_ID)"
