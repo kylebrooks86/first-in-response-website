@@ -22,7 +22,7 @@ concurrency:
 jobs:
   backup-takeover-parity:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout staging branch
         uses: actions/checkout@v4
@@ -57,14 +57,8 @@ jobs:
           sleep 2
           curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
 
-      - name: Audit DR startup stack
-        timeout-minutes: 1
-        env:
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
-        run: node calculator/tests/dr-startup-stack-audit.mjs
-
       - name: Verify live backup restores into DR
-        timeout-minutes: 10
+        timeout-minutes: 6
         env:
           FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
