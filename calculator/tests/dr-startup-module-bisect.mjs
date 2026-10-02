@@ -11,6 +11,12 @@ function stopAfter(index){
   const needle="await load('"+src+"');";
   return loader.replace(needle,needle+' return;');
 }
+const parityDispatch="window.dispatchEvent(new CustomEvent('fire-v18-parity-loaded'));";
+const sharedDispatch="window.dispatchEvent(new CustomEvent('fire-v18-shared-core-ready'));";
+if(!loader.includes(parityDispatch)||!loader.includes(sharedDispatch))throw new Error('Expected final readiness dispatches missing');
+const noFinalDispatch=loader.replace(parityDispatch,'').replace(sharedDispatch,'');
+const parityOnly=loader.replace(sharedDispatch,'');
+const sharedOnly=loader.replace(parityDispatch,'');
 async function probe(label,loaderBody,{serviceWorkers='block',swMode='normal'}={}){
   const browser=await chromium.launch({headless:true}); let ctx;
   try{
@@ -41,6 +47,10 @@ async function probe(label,loaderBody,{serviceWorkers='block',swMode='normal'}={
 const checkpoints=[4,9,14,19,modules.length-1];
 const results={};
 for(const i of checkpoints)results['blocked-'+i]=await probe('blocked-through-'+(i+1)+'-'+modules[i],stopAfter(i));
+results.fullBlocked=await probe('full-loader-service-worker-blocked',loader,{serviceWorkers:'block'});
+results.noFinalDispatch=await probe('full-modules-no-final-readiness-dispatch',noFinalDispatch,{serviceWorkers:'block'});
+results.parityOnly=await probe('parity-ready-dispatch-only',parityOnly,{serviceWorkers:'block'});
+results.sharedOnly=await probe('shared-core-ready-dispatch-only',sharedOnly,{serviceWorkers:'block'});
 results.swEnabledFull=await probe('service-worker-enabled-full',loader,{serviceWorkers:'allow',swMode:'normal'});
 results.swRequestAborted=await probe('service-worker-request-aborted-full',loader,{serviceWorkers:'allow',swMode:'abort'});
 results.swInert=await probe('service-worker-inert-full',loader,{serviceWorkers:'allow',swMode:'inert'});
@@ -48,7 +58,15 @@ console.log('MODULE LIST '+JSON.stringify(modules));
 console.log('MODULE BISECT SUMMARY '+JSON.stringify(results));
 const firstLocked=checkpoints.find(i=>!results['blocked-'+i].responsive);
 if(firstLocked!==undefined)console.log('FIRST LOCKED MODULE CHECKPOINT '+(firstLocked+1)+' '+modules[firstLocked]);
+const finalDispatchDiagnosis={fullBlocked:results.fullBlocked.responsive,noFinalDispatch:results.noFinalDispatch.responsive,parityOnly:results.parityOnly.responsive,sharedOnly:results.sharedOnly.responsive};
+console.log('FINAL DISPATCH DIAGNOSIS '+JSON.stringify(finalDispatchDiagnosis));
 const swDiagnosis={enabled:results.swEnabledFull.responsive,aborted:results.swRequestAborted.responsive,inert:results.swInert.responsive};
 console.log('SERVICE WORKER DIAGNOSIS '+JSON.stringify(swDiagnosis));
-if(firstLocked===undefined&&swDiagnosis.aborted&&swDiagnosis.inert&&!swDiagnosis.enabled)console.log('SERVICE WORKER CACHE PATH IS DR LOCK TRIGGER');
+if(firstLocked===undefined&&results.noFinalDispatch.responsive&&!results.fullBlocked.responsive){
+  if(!results.parityOnly.responsive&&results.sharedOnly.responsive)console.log('PARITY-LOADED EVENT IS DR LOCK TRIGGER');
+  else if(results.parityOnly.responsive&&!results.sharedOnly.responsive)console.log('SHARED-CORE-READY EVENT IS DR LOCK TRIGGER');
+  else if(!results.parityOnly.responsive&&!results.sharedOnly.responsive)console.log('EITHER FINAL READINESS EVENT CAN TRIGGER DR LOCK');
+  else console.log('COMBINED FINAL READINESS DISPATCH SEQUENCE TRIGGERS DR LOCK');
+}
+if(firstLocked===undefined&&results.fullBlocked.responsive&&!results.swEnabledFull.responsive)console.log('SERVICE WORKER ENABLEMENT IS DR LOCK TRIGGER');
 process.exitCode=firstLocked===undefined?0:1;
