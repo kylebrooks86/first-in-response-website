@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 
 const STAGING=process.env.FIRE_STAGING_URL||'http://127.0.0.1:4173/calculator/';
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const browser=await chromium.launch({headless:true});
 try{
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
@@ -19,14 +20,20 @@ try{
     if(['error','warning'].includes(m.type())) console.log(`DR STARTUP CONSOLE ${m.type()}: ${m.text()}`);
   });
   await page.goto(STAGING,{waitUntil:'commit',timeout:15000});
-  await page.waitForLoadState('domcontentloaded',{timeout:5000}).catch(()=>{});
+  console.log('DR STARTUP NAVIGATION COMMITTED');
+  await Promise.race([
+    page.waitForLoadState('domcontentloaded',{timeout:5000}).catch(()=>{}),
+    sleep(5500)
+  ]);
+  console.log('DR STARTUP DOM WAIT COMPLETE');
   const result=await Promise.race([
     firstError,
-    page.waitForTimeout(8000).then(()=>({type:'timeout'}))
+    sleep(8000).then(()=>({type:'quiet-window-complete'}))
   ]);
-  let state=null;
-  try{
-    state=await page.evaluate(()=>({
+  console.log('DR STARTUP RESULT '+JSON.stringify(result));
+  if(result.type==='pageerror')throw new Error('DR startup emitted an uncaught page error: '+result.stack);
+  const state=await Promise.race([
+    page.evaluate(()=>({
       href:location.href,
       loader:!!window.__fireV18ModuleLoader,
       core:!!window.__fireFullV18,
@@ -38,16 +45,16 @@ try{
       mixHistory:!!document.querySelector('#mixHistory'),
       scriptCount:document.scripts.length,
       recentScripts:[...document.scripts].map(s=>s.src).filter(Boolean).slice(-12)
-    }));
-  }catch(e){console.log('DR STARTUP STATE READ ERROR '+(e.stack||e.message))}
-  console.log('DR STARTUP RESULT '+JSON.stringify(result));
+    })),
+    sleep(5000).then(()=>({evaluationTimedOut:true}))
+  ]);
   console.log('DR STARTUP STATE '+JSON.stringify(state));
+  if(state?.evaluationTimedOut)throw new Error('DR startup page became unresponsive during state audit');
   const required=['loader','core','coreReady','tools','importFile','priceEditor','mixHistory'];
   const missing=required.filter(k=>!state?.[k]);
-  if(result.type==='pageerror')throw new Error('DR startup emitted an uncaught page error: '+result.stack);
   if(missing.length)throw new Error('DR startup missing required runtime state: '+missing.join(', '));
   console.log('DR STARTUP STACK PASS');
-  await ctx.close();
+  await Promise.race([ctx.close(),sleep(5000)]);
 } finally {
-  await browser.close();
+  await Promise.race([browser.close(),sleep(5000)]);
 }
