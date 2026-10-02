@@ -32,17 +32,24 @@ async function state(page){
 function assertState(x,house='1234'){
   if(x.name!=='Offline DR Acceptance'||x.house!==house||x.discount!=='10'||x.area!=='2500')throw new Error('Offline state mismatch: '+JSON.stringify(x));
 }
+function watchExternal(page,requests){
+  page.on('request',req=>{
+    const url=req.url();
+    if(/(?:openai\.com|chatgpt\.com|chatgpt\.site)/i.test(url))requests.push({url,method:req.method(),resourceType:req.resourceType()});
+  });
+}
 
 fs.mkdirSync(OUT,{recursive:true});
 const browser=await chromium.launch({headless:true});
 let ctx,page;
+const openAiRequests=[];
 try{
   ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers:'allow'});
   await ctx.addInitScript(()=>{
     window.__fireOfflineCopied=[];
     try{Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.__fireOfflineCopied.push(String(text));}}})}catch{}
   });
-  page=await ctx.newPage();
+  page=await ctx.newPage();watchExternal(page,openAiRequests);
   page.setDefaultTimeout(5000);page.setDefaultNavigationTimeout(20000);
   await page.goto(STAGING,{waitUntil:'domcontentloaded',timeout:20000});
   await waitReady(page);
@@ -77,8 +84,12 @@ try{
   if(offlineState.online)throw new Error('Browser did not enter offline mode');
   if(!offlineState.controller)throw new Error('Offline reload lost service-worker control');
 
+  const mix=await openRoute(page,'SH Mix',['#view-mix','#mix']);
+  const target=page.locator('#targetNum');
+  if(await target.count()){await setDom(target.first(),1.25);await sleep(150);const recipe=(await mix.innerText()).replace(/\s+/g,' ');if(!/1\.25%|1\.25/.test(recipe))throw new Error('SH Mix did not recalculate offline')}
   await openRoute(page,'Equipment',['#view-equipment','#equipment']);
   await openRoute(page,'Chemicals',['#view-chemicals','#chemicals']);
+  await openRoute(page,'Chemical Index',['#view-index','#index']);
   const offlineJob=await openRoute(page,'Job Math',['#view-job','#job']);
   await offlineJob.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));
   await openRoute(page,'Field Tools',['#view-tools','#tools']);
@@ -101,7 +112,7 @@ try{
   if(!/\$198\.00/.test(total))throw new Error('Offline calculator math failed after reload: '+total);
 
   await page.close();page=null;
-  const reopened=await ctx.newPage();page=reopened;
+  const reopened=await ctx.newPage();page=reopened;watchExternal(page,openAiRequests);
   page.setDefaultTimeout(5000);page.setDefaultNavigationTimeout(20000);
   await page.goto(STAGING,{waitUntil:'domcontentloaded',timeout:20000});
   await waitReady(page);
@@ -110,12 +121,15 @@ try{
   if(reopenedOffline.online||!reopenedOffline.controller)throw new Error('Closed/reopened DR page was not fully offline under service-worker control');
   const reopenedTotal=await page.locator('#fullTotal').innerText();
   if(!/\$198\.00/.test(reopenedTotal))throw new Error('Offline close/reopen math state failed: '+reopenedTotal);
+  if(openAiRequests.length)throw new Error('Calculator attempted OpenAI/ChatGPT network requests: '+JSON.stringify(openAiRequests));
+  const authText=(await page.locator('body').innerText()).toLowerCase();
+  if(/sign in to (?:chatgpt|openai)|log in to (?:chatgpt|openai)/.test(authText))throw new Error('Calculator exposed an OpenAI/ChatGPT sign-in requirement');
 
-  const report={status:'PASS',cacheState:{controller:cacheState.controller,keys:cacheState.keys,assetCount:cacheState.assets.length},offlineState,restored,total,offlineBackup:{schema:backup.schema,version:backup.version,bytes:backupBytes,storeCount:Object.keys(backup.stores||{}).length},reopenedState,reopenedOffline,reopenedTotal};
+  const report={status:'PASS',cacheState:{controller:cacheState.controller,keys:cacheState.keys,assetCount:cacheState.assets.length},offlineState,offlineRoutes:['SH Mix','Equipment','Chemicals','Chemical Index','Job Math','Field Tools','Field Guide'],restored,total,offlineBackup:{schema:backup.schema,version:backup.version,bytes:backupBytes,storeCount:Object.keys(backup.stores||{}).length},reopenedState,reopenedOffline,reopenedTotal,openAiRequests,openAiSignInRequired:false};
   fs.writeFileSync(`${OUT}/offline-dr-acceptance.json`,JSON.stringify(report,null,2));
   console.log('OFFLINE DR ACCEPTANCE PASS '+JSON.stringify(report));
 }catch(e){
-  const report={status:'FAIL',message:e?.message||String(e),stack:e?.stack||null};
+  const report={status:'FAIL',message:e?.message||String(e),stack:e?.stack||null,openAiRequests};
   fs.writeFileSync(`${OUT}/offline-dr-acceptance.json`,JSON.stringify(report,null,2));
   console.error('OFFLINE DR ACCEPTANCE FAIL '+JSON.stringify(report));process.exitCode=1;
 }finally{await page?.close().catch(()=>{});await ctx?.close().catch(()=>{});await browser.close().catch(()=>{})}
