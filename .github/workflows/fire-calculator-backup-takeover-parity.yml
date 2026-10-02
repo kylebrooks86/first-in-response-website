@@ -11,7 +11,7 @@ on:
       - '.github/workflows/fire-calculator-backup-takeover-parity.yml'
 
 concurrency:
-  group: fire-calculator-backup-takeover-${{ github.sha }}
+  group: fire-calculator-backup-takeover-parity-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
