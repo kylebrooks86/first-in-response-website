@@ -19,16 +19,33 @@ async function openRoute(page,label,roots){
 }
 async function setDom(el,value){await el.evaluate((n,v)=>{n.value=String(v);n.dispatchEvent(new Event('input',{bubbles:true}));n.dispatchEvent(new Event('change',{bubbles:true}))},value)}
 async function byId(page,id){const e=page.locator('#'+id);if(!await e.count())throw new Error('Missing #'+id);return e.first()}
+async function waitReady(page){await page.waitForFunction(()=>window.__fireV18ModuleLoader&&window.__fireV18CoreReady,{timeout:20000})}
+async function state(page){
+  await openRoute(page,'Job Math',['#view-job','#job']);
+  return {
+    name:await page.locator('#estimateJobName').inputValue().catch(()=>''),
+    house:await byId(page,'svcHouse').then(e=>e.inputValue()),
+    discount:await byId(page,'fullDiscount').then(e=>e.inputValue()),
+    area:await byId(page,'area').then(e=>e.inputValue())
+  }
+}
+function assertState(x,house='1234'){
+  if(x.name!=='Offline DR Acceptance'||x.house!==house||x.discount!=='10'||x.area!=='2500')throw new Error('Offline state mismatch: '+JSON.stringify(x));
+}
 
 fs.mkdirSync(OUT,{recursive:true});
 const browser=await chromium.launch({headless:true});
-let ctx;
+let ctx,page;
 try{
   ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers:'allow'});
-  const page=await ctx.newPage();
+  await ctx.addInitScript(()=>{
+    window.__fireOfflineCopied=[];
+    try{Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.__fireOfflineCopied.push(String(text));}}})}catch{}
+  });
+  page=await ctx.newPage();
   page.setDefaultTimeout(5000);page.setDefaultNavigationTimeout(20000);
   await page.goto(STAGING,{waitUntil:'domcontentloaded',timeout:20000});
-  await page.waitForFunction(()=>window.__fireV18ModuleLoader&&window.__fireV18CoreReady,{timeout:20000});
+  await waitReady(page);
   await page.evaluate(()=>navigator.serviceWorker.ready);
   if(!await page.evaluate(()=>!!navigator.serviceWorker.controller)){
     await page.reload({waitUntil:'domcontentloaded',timeout:20000});
@@ -55,7 +72,7 @@ try{
 
   await ctx.setOffline(true);
   await page.reload({waitUntil:'domcontentloaded',timeout:20000});
-  await page.waitForFunction(()=>window.__fireV18ModuleLoader&&window.__fireV18CoreReady,{timeout:20000});
+  await waitReady(page);
   const offlineState=await page.evaluate(()=>({online:navigator.onLine,controller:!!navigator.serviceWorker.controller,title:document.title,body:(document.body.innerText||'').slice(0,300)}));
   if(offlineState.online)throw new Error('Browser did not enter offline mode');
   if(!offlineState.controller)throw new Error('Offline reload lost service-worker control');
@@ -66,25 +83,39 @@ try{
   await offlineJob.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));
   await openRoute(page,'Field Tools',['#view-tools','#tools']);
   await openRoute(page,'Field Guide',['#view-guide','#guide']);
+  const restored=await state(page);assertState(restored);
+
+  await openRoute(page,'Field Tools',['#view-tools','#tools']);
+  for(let i=0;i<20&&!await page.locator('#copyBackupText').count();i++)await sleep(100);
+  const backupButton=page.locator('#copyBackupText');if(!await backupButton.count())throw new Error('Offline backup text control missing');
+  await backupButton.evaluate(n=>n.click());
+  await page.waitForFunction(()=>Array.isArray(window.__fireOfflineCopied)&&window.__fireOfflineCopied.length>0,{timeout:5000});
+  const backupText=await page.evaluate(()=>window.__fireOfflineCopied.at(-1));
+  let backup;try{backup=JSON.parse(backupText)}catch{throw new Error('Offline backup text was not valid JSON')}
+  if(backup.schema!=='FIRE-Field-Calculator-v18-offline'||backup.version!==18||!backup.stores?.fireV18ParityDraft)throw new Error('Offline backup payload incomplete');
+  const backupBytes=Buffer.byteLength(backupText,'utf8');
+
   await openRoute(page,'Job Math',['#view-job','#job']);
-
-  const restored={
-    name:await page.locator('#estimateJobName').inputValue().catch(()=>''),
-    house:await byId(page,'svcHouse').then(e=>e.inputValue()),
-    discount:await byId(page,'fullDiscount').then(e=>e.inputValue()),
-    area:await byId(page,'area').then(e=>e.inputValue())
-  };
-  if(restored.name!=='Offline DR Acceptance'||restored.house!=='1234'||restored.discount!=='10'||restored.area!=='2500')throw new Error('Offline state did not survive reload: '+JSON.stringify(restored));
-
   await setDom(await byId(page,'svcHouse'),1000);await sleep(250);
   const total=await page.locator('#fullTotal').innerText();
   if(!/\$198\.00/.test(total))throw new Error('Offline calculator math failed after reload: '+total);
 
-  const report={status:'PASS',cacheState:{controller:cacheState.controller,keys:cacheState.keys,assetCount:cacheState.assets.length},offlineState,restored,total};
+  await page.close();page=null;
+  const reopened=await ctx.newPage();page=reopened;
+  page.setDefaultTimeout(5000);page.setDefaultNavigationTimeout(20000);
+  await page.goto(STAGING,{waitUntil:'domcontentloaded',timeout:20000});
+  await waitReady(page);
+  const reopenedState=await state(page);assertState(reopenedState,'1000');
+  const reopenedOffline=await page.evaluate(()=>({online:navigator.onLine,controller:!!navigator.serviceWorker.controller,title:document.title}));
+  if(reopenedOffline.online||!reopenedOffline.controller)throw new Error('Closed/reopened DR page was not fully offline under service-worker control');
+  const reopenedTotal=await page.locator('#fullTotal').innerText();
+  if(!/\$198\.00/.test(reopenedTotal))throw new Error('Offline close/reopen math state failed: '+reopenedTotal);
+
+  const report={status:'PASS',cacheState:{controller:cacheState.controller,keys:cacheState.keys,assetCount:cacheState.assets.length},offlineState,restored,total,offlineBackup:{schema:backup.schema,version:backup.version,bytes:backupBytes,storeCount:Object.keys(backup.stores||{}).length},reopenedState,reopenedOffline,reopenedTotal};
   fs.writeFileSync(`${OUT}/offline-dr-acceptance.json`,JSON.stringify(report,null,2));
   console.log('OFFLINE DR ACCEPTANCE PASS '+JSON.stringify(report));
 }catch(e){
   const report={status:'FAIL',message:e?.message||String(e),stack:e?.stack||null};
   fs.writeFileSync(`${OUT}/offline-dr-acceptance.json`,JSON.stringify(report,null,2));
   console.error('OFFLINE DR ACCEPTANCE FAIL '+JSON.stringify(report));process.exitCode=1;
-}finally{await ctx?.close().catch(()=>{});await browser.close().catch(()=>{})}
+}finally{await page?.close().catch(()=>{});await ctx?.close().catch(()=>{});await browser.close().catch(()=>{})}
