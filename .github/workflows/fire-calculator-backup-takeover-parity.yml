@@ -16,7 +16,7 @@ on:
       - '.github/workflows/fire-calculator-backup-takeover-parity.yml'
 
 concurrency:
-  group: fire-calculator-backup-takeover-parity-${{ github.sha }}
+  group: fire-calculator-backup-takeover-parity-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -56,13 +56,6 @@ jobs:
           mkdir -p calculator/visual-parity
           sleep 2
           curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
-
-      - name: Diagnose DR startup module lock
-        continue-on-error: true
-        timeout-minutes: 3
-        env:
-          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
-        run: node calculator/tests/dr-startup-module-bisect.mjs
 
       - name: Verify live backup restores into DR
         timeout-minutes: 6
