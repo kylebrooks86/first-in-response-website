@@ -1,0 +1,55 @@
+name: Unpack FIRE DR source
+
+on:
+  push:
+    branches:
+      - fire-calculator-exact-live-clone
+    paths:
+      - 'fire-app-dr-source.zip'
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: fire-calculator-exact-live-clone
+          fetch-depth: 0
+
+      - name: Validate source archive
+        run: |
+          set -euo pipefail
+          test -f fire-app-dr-source.zip
+          expected='2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca'
+          actual="$(sha256sum fire-app-dr-source.zip | awk '{print $1}')"
+          echo "Expected: $expected"
+          echo "Actual:   $actual"
+          test "$actual" = "$expected"
+
+      - name: Replace isolated DR app directory from sealed v138 archive
+        run: |
+          set -euo pipefail
+          rm -rf fire-app-dr
+          mkdir -p fire-app-dr
+          unzip -q fire-app-dr-source.zip -d fire-app-dr
+          test -f fire-app-dr/package.json
+          test -f fire-app-dr/CURRENT_VERSION.json
+          test -f fire-app-dr/RELEASE_EVIDENCE_SEAL.json
+          node -e "const p=require('./fire-app-dr/package.json'); if(p.version!=='1.0.0-rc.138') throw new Error('Unexpected FIRE DR package version: '+p.version)"
+
+      - name: Commit extracted v138 source
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add fire-app-dr
+          if git diff --cached --quiet; then
+            echo 'No extracted-source changes to commit.'
+            exit 0
+          fi
+          git commit -m 'Stage sealed FIRE v138 DR source'
+          git push origin HEAD:fire-calculator-exact-live-clone
