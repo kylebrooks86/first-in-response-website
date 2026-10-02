@@ -1,68 +1,67 @@
 # Current LIVE vs Independent FIRE Calculator Audit
 
-Audit status: **NOT SYNCHRONIZED**
+Audit status: **STAGING PARITY VERIFIED — NOT SYNCHRONIZED**
+
+Verified staging head: `40495a629786d4dbd8b04b6bb225124fd729b748`
+
+Verified shared-core fingerprint: `e0318dc8ff02f5bcb1506ad18abd499440ce287f792fabc3b4ca0455e9e869ab`
 
 Sources compared:
 
 - Production/live: current rendered ChatGPT-hosted FIRE Field Calculator v18
-- Independent/recovery: current rendered GitHub-hosted calculator and recovery-source branch
+- Independent/recovery: current rendered calculator from `fire-calculator-exact-live-clone`
 
-This document records only confirmed differences or explicitly unverified areas. It does not infer parity from similar code.
+This audit distinguishes **automated LIVE-vs-staging parity** from **dual-deployment synchronization**. The current staging candidate is green in the governed automated parity suite. It is still not synchronized because production is maintained separately and has not been migrated to the same governed shared core/fingerprint.
 
-## Confirmed architecture difference
+## Automated parity result
 
-### Production/live
+No current automated parity assertion failure remains on the verified head.
 
-The live calculator is a ChatGPT Site projection and is maintained separately from the independent GitHub calculator.
+The exact-head suite passed:
 
-### Independent/recovery
+- formula regression and LIVE-reference contract
+- offline-cache and shared-core-fingerprint contracts
+- Job Math behavior and shortcuts
+- Pricing Editor behavior
+- estimator blank/zero/negative/decimal/large/invalid/missing-rate states
+- customer/job defaults and draft persistence
+- bundle and promotion stacking behavior
+- save/reload/clear behavior
+- customer quote copy/share/print behavior
+- mobile numeric-input metadata/default/focus behavior
+- chemical compatibility behavior
+- Equipment, Job Math and Field Tools focused geometry
+- route/card/layout geometry measurement
+- light/dark computed-style audit
+- paired 390×844 captures and light/dark visual-difference measurement
+- independent LIVE-backup → DR restore takeover
 
-The independent calculator currently originates from an older standalone base document plus multiple v18 extension/parity modules.
+## Disaster-recovery takeover
 
-**Result:** synchronization failure. Two separately evolved codebases are not a valid dual deployment of one shared core.
+The dedicated staging-only takeover workflow now completes successfully instead of competing for time at the end of the general behavior job.
 
-## Confirmed rendered differences
+A disposable LIVE v3 backup is copied into local DR staging and restored after reload. The verified takeover state includes:
 
-### SH Mix recipe title
+- customer/job name
+- House Wash quantity
+- discount
+- Job Math area
+- SH inventory
 
-- Live rendered/source wording: `4.00 gal medium house wash`
-- Independent rendered wording: `4-gallon moderate house wash`
+The migrated customer/job name is also persisted into DR's durable parity draft rather than only being painted into the UI.
 
-Differences include number formatting, unit wording, and growth label (`medium` vs `moderate`).
+## Important fixes made during takeover diagnosis
 
-Status: **NOT YET VERIFIED / CONFIRMED DIFFERENCE**
+The DR startup freeze was traced to the `fire-v18-parity-loaded` event and then to the Equipment structure parity listener. Duplicate MutationObservers could leave an older observer reacting indefinitely to its own DOM adjustments. The observer lifecycle is now single-owner/idempotent and the renderer no longer locks during restore.
 
-### Equipment X-Jet factory guidance
+House Wash input behavior was also split correctly into two distinct LIVE behaviors:
 
-- Live: `Factory proportions are estimates based on a 4 GPM pressure washer at 100 PSI. Hose length, pressure, orifice, elevation and equipment condition can change the draw. Use the measured test below for your real result.`
-- Independent rendered text omits `based on a 4 GPM pressure washer at 100 PSI.`
+- a fresh draft starts House Wash at `0`
+- after a user explicitly clears the field, it remains blank instead of being repeatedly coerced back to zero
 
-Status: **NOT YET VERIFIED / CONFIRMED DIFFERENCE**
+The initial zero now belongs to first-draft initialization, not to a recurring input-normalization loop.
 
-### Application Timer safety warning
-
-Live includes:
-
-`A timer never replaces the product label. Watch the surface continuously and rinse sooner if drying or a reaction appears.`
-
-The current independent rendered extraction does not contain this warning in the same rendered state.
-
-Status: **NOT YET VERIFIED / CONFIRMED DIFFERENCE**
-
-### Quick safety order
-
-Live includes the wording:
-
-- `Wear eye/skin protection and keep people, pets, and plants clear.`
-- final step: `Rinse tools and do not seal or store mixed SH long-term.`
-
-Independent rendered state currently shows different PPE wording and does not include the same final step in the extracted rendered list.
-
-Status: **NOT YET VERIFIED / CONFIRMED DIFFERENCE**
-
-## Confirmed business-rule state in current independent core
-
-Approved defaults currently represented in the independent core:
+## Confirmed business-rule state in current governed core
 
 - House wash: $0.22/sq ft
 - Gutter cleaning + downspout flush: $1.50/linear ft
@@ -79,33 +78,17 @@ Approved defaults currently represented in the independent core:
 - Minimum job: $150
 - Deposit default: 50%
 
-Unapproved services are represented with a $0 configurable rate. This includes Trash Bin Cleaning, Roof Cleaning, Dryer Vent, underground drains/downspouts, AC condenser rinse, and multiple specialty services. These must not be assigned guessed rates during parity work.
+Unapproved services remain configurable at $0. No guessed rate was introduced during parity work.
 
-## Important unresolved behavior
+## Remaining non-automated / release-level verification
 
-The independent estimator currently represents its discount as one total discount percentage. The exact production/live stacking/bundle semantics have not yet been paired and verified under the new model.
+The following are not current automated parity failures; they remain promotion/acceptance work outside the exact-head browser regression evidence:
 
-**Do not freeze or change a bundle-stacking algorithm until production behavior is verified.**
+- native iPhone safe-area and software-keyboard chrome acceptance
+- native OS share / print presentation acceptance
+- final airplane-mode/offline recovery acceptance with disposable data
+- optional broader state matrices beyond the required paired suite
+- production migration to the governed shared core
+- final proof that both independently deployed instances report/run the same shared-core fingerprint
 
-## Areas still requiring exhaustive paired verification
-
-- full launch/header/tab/bottom-nav visual geometry
-- every SH surface/growth state
-- every batch preset and custom-unit state
-- Equipment card order and every formula/default
-- product list/dose behavior in Chemicals
-- entire Chemical Index content/ranking/search
-- every Job Math service, input, default, quantity, rate and validation state
-- discount/bundle behavior
-- quote/crew-sheet exact text
-- pricing editor persistence
-- Field Tools behavior and order
-- Field Guide content/order
-- dark mode
-- iPhone keyboard and safe-area behavior
-- reset/clear
-- backup/export/restore cross-deployment round trip
-- blank/zero/negative/large/invalid states
-- offline behavior in DR
-
-These remain **NOT YET VERIFIED** in `PARITY_MATRIX.md` until paired evidence exists.
+Until those release steps are deliberately completed, keep status **NOT SYNCHRONIZED** and do not alter production.

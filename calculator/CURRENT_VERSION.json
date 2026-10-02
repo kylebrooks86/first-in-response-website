@@ -4,8 +4,11 @@
   "production_display_version": "v18",
   "disaster_recovery_display_version": "v18",
   "synchronization_status": "NOT_SYNCHRONIZED",
-  "baseline_status": "AUDIT_IN_PROGRESS",
-  "rule": "Matching display versions do not establish parity. A release is synchronized only when the shared-core fingerprint matches and the parity matrix and regression suite pass.",
+  "baseline_status": "STAGING_PARITY_VERIFIED_NOT_SYNCHRONIZED",
+  "verified_staging_head": "40495a629786d4dbd8b04b6bb225124fd729b748",
+  "verified_shared_core_fingerprint": "e0318dc8ff02f5bcb1506ad18abd499440ce287f792fabc3b4ca0455e9e869ab",
+  "offline_cache_generation": 62,
+  "rule": "Matching display versions do not establish parity. A release is synchronized only when the shared-core fingerprint matches across both independently deployed instances and the required promotion gates pass.",
   "production_source": "ChatGPT-hosted FIRE Field Calculator",
   "dr_source": "Independent calculator under /calculator/",
   "staging_branch": "fire-calculator-exact-live-clone"
