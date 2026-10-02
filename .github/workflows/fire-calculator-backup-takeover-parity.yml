@@ -8,6 +8,7 @@ on:
     paths:
       - 'calculator/SHARED_CORE_MANIFEST.json'
       - 'calculator/tests/backup-takeover-live-parity.mjs'
+      - 'calculator/tests/dr-startup-stack-audit.mjs'
       - '.github/workflows/fire-calculator-backup-takeover-parity.yml'
 
 concurrency:
@@ -51,6 +52,12 @@ jobs:
           mkdir -p calculator/visual-parity
           sleep 2
           curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
+
+      - name: Audit DR startup stack
+        timeout-minutes: 1
+        env:
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+        run: node calculator/tests/dr-startup-stack-audit.mjs
 
       - name: Verify live backup restores into DR
         timeout-minutes: 6
