@@ -78,7 +78,7 @@ function buildFullLiveV3Compatibility(liveBaseline){
   return JSON.stringify(out,null,2);
 }
 
-async function tryRestoreIntoLive(browser,backupText,label){
+async function tryRestoreIntoLive(browser,backupText,label,expected){
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers:'block'});
   try{
     await ctx.route('**/*',route=>['image','media','font'].includes(route.request().resourceType())?route.abort():route.continue());
@@ -90,21 +90,21 @@ async function tryRestoreIntoLive(browser,backupText,label){
     const house=await byIds(page,['houseWashArea']);if(!house)throw new Error('LIVE House Wash field missing');await setDom(house,111);
     const discount=await byIds(page,['discountPct']);if(discount)await setDom(discount,3);
     await sleep(200);await openTools(page);
-    for(let i=0;i<30&&!await page.locator('input[type="file"]').count();i++)await sleep(100);
-    const input=page.locator('input[type="file"]');if(!await input.count())throw new Error('LIVE restore input missing');
-    const before={url:page.url(),name:'LIVE Reverse Guard',house:'111'};
-    const navPromise=page.waitForNavigation({waitUntil:'domcontentloaded',timeout:4500}).catch(()=>null);
-    await input.first().setInputFiles({name:`FIRE_DR_${label}.json`,mimeType:'application/json',buffer:Buffer.from(backupText)});
-    await navPromise;await sleep(1300);
+    const input=page.locator('#importFieldBackup');for(let i=0;i<30&&!await input.count();i++)await sleep(100);if(!await input.count())throw new Error('LIVE #importFieldBackup restore input missing');
+    const before={url:page.url(),name:'LIVE Reverse Guard',house:'111',discount:'3'};
+    const navPromise=page.waitForNavigation({waitUntil:'domcontentloaded',timeout:5500}).catch(()=>null);
+    await input.setInputFiles({name:`FIRE_DR_${label}.json`,mimeType:'application/json',buffer:Buffer.from(backupText)});
+    const navigation=!!(await navPromise);await sleep(1500);
     const status=((await page.locator('#backupStatus').innerText().catch(()=>''))||'').replace(/\s+/g,' ').trim();
+    const storageEstimate=await page.evaluate(()=>{try{return JSON.parse(localStorage.getItem('fireEstimateDraft')||'null')}catch{return null}});
     const postJob=await openJob(page);
     const postName=postJob.getByLabel('Customer / job name',{exact:true});
     const postHouse=await byIds(page,['houseWashArea']);
     const postDiscount=await byIds(page,['discountPct']);
     const after={url:page.url(),name:await postName.first().inputValue(),house:await postHouse.inputValue(),discount:postDiscount?await postDiscount.inputValue():null,status};
-    const accepted=after.name==='DR Reverse Portability'&&after.house==='654'&&after.discount==='12.5';
-    const preservedGuard=after.name==='LIVE Reverse Guard'&&after.house==='111';
-    return {label,before,after,accepted,preservedGuard};
+    const accepted=after.name===String(expected.name)&&after.house===String(expected.house)&&after.discount===String(expected.discount);
+    const preservedGuard=after.name==='LIVE Reverse Guard'&&after.house==='111'&&after.discount==='3';
+    return {label,before,expected,after,navigation,storageEstimate,accepted,preservedGuard};
   } finally {await ctx.close()}
 }
 
@@ -112,15 +112,20 @@ fs.mkdirSync(OUT,{recursive:true});
 const browser=await chromium.launch({headless:true});
 try{
   const liveBaseline=await copyLiveBaseline(browser);
+  const baselineEstimate=parseRequiredStore(liveBaseline.parsed,'fireEstimateDraft');
+  const baselineFields=baselineEstimate.fields||{};
+  const baselineExpected={name:baselineFields.estimateJobName??'',house:baselineFields.houseWashArea??'0',discount:baselineFields.discountPct??'0'};
   const dr=await createDrNativeBackup(browser);
   const fullCompatibility=buildFullLiveV3Compatibility(liveBaseline.parsed);
-  const nativeLive=await tryRestoreIntoLive(browser,dr.text,'native-offline');
-  const fullLive=await tryRestoreIntoLive(browser,fullCompatibility,'full-live-v3-template');
+  const liveSelfRestore=await tryRestoreIntoLive(browser,liveBaseline.text,'live-self-roundtrip',baselineExpected);
+  const nativeLive=await tryRestoreIntoLive(browser,dr.text,'native-offline',{name:'DR Reverse Portability',house:'654',discount:'12.5'});
+  const fullLive=await tryRestoreIntoLive(browser,fullCompatibility,'full-live-v3-template',{name:'DR Reverse Portability',house:'654',discount:'12.5'});
   const classify=x=>x.accepted?'ACCEPTED':x.preservedGuard?'REJECTED_SAFELY':'UNEXPECTED_STATE';
   const report={
     probe:'DR backup -> isolated LIVE restore',
     drBackup:dr.summary,
     liveTemplate:liveBaseline.summary,
+    liveSelfRestoreControl:{live:liveSelfRestore,status:classify(liveSelfRestore)},
     native:{live:nativeLive,status:classify(nativeLive)},
     fullTemplateCompatibility:{live:fullLive,status:classify(fullLive)}
   };
