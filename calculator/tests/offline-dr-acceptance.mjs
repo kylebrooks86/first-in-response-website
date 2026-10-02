@@ -74,8 +74,9 @@ try{
     return {controller:!!navigator.serviceWorker.controller,keys,assets};
   });
   if(!cacheState.controller)throw new Error('Service worker never controlled DR page');
-  if(!cacheState.keys.some(k=>k==='fire-field-calculator-v18-exact-clone-64'))throw new Error('Expected cache generation 64 missing');
+  if(!cacheState.keys.some(k=>k==='fire-field-calculator-v18-exact-clone-65'))throw new Error('Expected cache generation 65 missing');
   if(!cacheState.assets.some(u=>u.includes('/calculator/full-v18.js?v=6')))throw new Error('Shared loader missing from offline cache');
+  if(!cacheState.assets.some(u=>u.includes('/calculator/v18-live-portable-backup.js?v=1')))throw new Error('Portable backup module missing from offline cache');
 
   await ctx.setOffline(true);
   await page.reload({waitUntil:'domcontentloaded',timeout:20000});
@@ -111,7 +112,10 @@ try{
   await page.waitForFunction(()=>Array.isArray(window.__fireOfflineCopied)&&window.__fireOfflineCopied.length>0,{timeout:5000});
   const backupText=await page.evaluate(()=>window.__fireOfflineCopied.at(-1));
   let backup;try{backup=JSON.parse(backupText)}catch{throw new Error('Offline backup text was not valid JSON')}
-  if(backup.schema!=='FIRE-Field-Calculator-v18-offline'||backup.version!==18||!backup.stores?.fireV18ParityDraft)throw new Error('Offline backup payload incomplete');
+  const requiredDrStores=['fireV18ParityDraft','fireV18FullState','fireV18Rates','fireV18LivePlanningState'];
+  if(backup.format!=='FIRE Field Calculator Backup'||backup.version!==3||backup.appVersion!==18||typeof backup.data?.fireEstimateDraft!=='string'||!requiredDrStores.every(k=>typeof backup.data?.[k]==='string'))throw new Error('Portable offline backup payload incomplete');
+  const liveEstimate=JSON.parse(backup.data.fireEstimateDraft);
+  if(liveEstimate?.fields?.estimateJobName!=='Offline DR Acceptance'||liveEstimate?.fields?.houseWashArea!=='1234'||liveEstimate?.fields?.discountPct!=='10'||liveEstimate?.fields?.jobArea!=='2500')throw new Error('Portable backup LIVE estimate projection mismatch');
   const backupBytes=Buffer.byteLength(backupText,'utf8');
 
   await openRoute(page,'Job Math',['#view-job','#job']);
@@ -133,7 +137,7 @@ try{
   const authText=(await page.locator('body').innerText()).toLowerCase();
   if(/sign in to (?:chatgpt|openai)|log in to (?:chatgpt|openai)/.test(authText))throw new Error('Calculator exposed an OpenAI/ChatGPT sign-in requirement');
 
-  const report={status:'PASS',cacheState:{controller:cacheState.controller,keys:cacheState.keys,assetCount:cacheState.assets.length},offlineState,offlineRoutes:['SH Mix','Equipment','Chemicals','Chemical Index','Job Math','Field Tools','Field Guide'],shMixFunctional:{before:mixBefore,after:mixAfter},restored,total,offlineBackup:{schema:backup.schema,version:backup.version,bytes:backupBytes,storeCount:Object.keys(backup.stores||{}).length},reopenedState,reopenedOffline,reopenedTotal,openAiRequests,openAiSignInRequired:false};
+  const report={status:'PASS',cacheState:{controller:cacheState.controller,keys:cacheState.keys,assetCount:cacheState.assets.length},offlineState,offlineRoutes:['SH Mix','Equipment','Chemicals','Chemical Index','Job Math','Field Tools','Field Guide'],shMixFunctional:{before:mixBefore,after:mixAfter},restored,total,offlineBackup:{format:backup.format,version:backup.version,appVersion:backup.appVersion,bytes:backupBytes,dataKeyCount:Object.keys(backup.data||{}).length,requiredDrStores},reopenedState,reopenedOffline,reopenedTotal,openAiRequests,openAiSignInRequired:false};
   fs.writeFileSync(`${OUT}/offline-dr-acceptance.json`,JSON.stringify(report,null,2));
   console.log('OFFLINE DR ACCEPTANCE PASS '+JSON.stringify(report));
 }catch(e){
