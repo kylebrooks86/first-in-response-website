@@ -38,9 +38,11 @@
   #job #jobMeasureCard #fireMeasureShortcuts,#view-job #jobMeasureCard #fireMeasureShortcuts{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:7px!important;margin:8px 0 1px!important}
   #job #jobMeasureCard #fireMeasureShortcuts button,#view-job #jobMeasureCard #fireMeasureShortcuts button{width:auto!important;min-height:44px!important;padding:10px 13px!important;border-radius:12px!important}
 
-  #job .card:has(#batchCost) .grid,#view-job .card:has(#batchCost) .grid{gap:8px!important}
-  #job .card:has(#batchCost)>h2,#view-job .card:has(#batchCost)>h2{margin-bottom:10px!important}
-  #job .card:has(#batchCost) #batchCost,#view-job .card:has(#batchCost) #batchCost{margin:6px 0!important}
+  /* Exact-text cost card was still ~18px taller than LIVE. Compact only its
+     internal rhythm; the cost inputs and calculation output are untouched. */
+  #job .card:has(#batchCost) .grid,#view-job .card:has(#batchCost) .grid{gap:6px!important}
+  #job .card:has(#batchCost)>h2,#view-job .card:has(#batchCost)>h2{margin-bottom:7px!important}
+  #job .card:has(#batchCost) #batchCost,#view-job .card:has(#batchCost) #batchCost{margin:3px 0!important}
 
   /* Loadout/profit card is exact in content but ~10px tall. Tighten only the
      heading/status/action rhythm; chemical math and deduction controls remain unchanged. */
