@@ -15,7 +15,7 @@ body{line-height:1.45!important}
   .bottom{height:83.5px!important;min-height:83.5px!important;box-sizing:border-box!important;padding:8px 10px calc(8px + env(safe-area-inset-bottom))!important;background:rgba(237,243,247,.97)!important;border-top:1px solid #cbd7df!important;box-shadow:none!important}
 
   .page .card{background:transparent!important}
-  body:not(.dark) .page .card{background:transparent!important;border-color:#cbd7df!important;border-radius:18px!important;box-shadow:0 12px 30px rgba(32,53,69,.12)!important}
+  body:not(.dark) .page .card{background:#fff!important;border-color:#cbd7df!important;border-radius:18px!important;box-shadow:0 12px 30px rgba(32,53,69,.12)!important}
   body:not(.dark) .page input,
   body:not(.dark) .page select,
   body:not(.dark) .page textarea{color:#121a22!important;border-color:#cbd7df!important;border-radius:12px!important;padding-left:12px!important;padding-right:12px!important}
