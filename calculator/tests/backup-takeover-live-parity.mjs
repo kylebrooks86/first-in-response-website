@@ -102,7 +102,7 @@ async function restoreIntoStaging(backupText){
   try{
     console.log('DR RESTORE PHASE launch isolated browser');
     browser=await bounded('DR BROWSER LAUNCH',chromium.launch({headless:true}),15000);
-    ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+    // Backup takeover validates restore/hydration semantics. Offline/service-worker behavior is governed by the separate offline-cache contract, so block SW here to prevent cache installation from racing the takeover transaction on a fresh runner.\n    ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers:'block'});
     await ctx.route('**/*',route=>{const type=route.request().resourceType();return ['image','media','font'].includes(type)?route.abort():route.continue()});
     const page=await ctx.newPage();
     page.setDefaultTimeout(3000);page.setDefaultNavigationTimeout(15000);
