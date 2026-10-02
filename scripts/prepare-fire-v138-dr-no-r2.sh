@@ -35,7 +35,7 @@ unzip -q "$ARCHIVE" -d "$APP_DIR"
 
 cd "$APP_DIR"
 node -e "const p=require('./package.json'); if(p.version!=='1.0.0-rc.138') throw new Error('Unexpected package version: '+p.version)"
-node -e "const v=require('./CURRENT_VERSION.json'); if(String(v.fire_release)!=='138') throw new Error('Unexpected FIRE release: '+v.fire_release)"
+node -e "const v=require('./CURRENT_VERSION.json'); if(String(v.fire_release)!=='v138') throw new Error('Unexpected FIRE release: '+v.fire_release)"
 
 corepack enable
 pnpm install --frozen-lockfile
