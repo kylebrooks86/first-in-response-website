@@ -6,9 +6,13 @@ on:
     branches:
       - fire-calculator-exact-live-clone
     paths:
+      - 'calculator/index.html'
+      - 'calculator/manifest.webmanifest'
+      - 'calculator/*.js'
+      - 'calculator/*.css'
+      - 'calculator/sw.js'
       - 'calculator/SHARED_CORE_MANIFEST.json'
-      - 'calculator/tests/backup-takeover-live-parity.mjs'
-      - 'calculator/tests/dr-startup-stack-audit.mjs'
+      - 'calculator/tests/**'
       - '.github/workflows/fire-calculator-backup-takeover-parity.yml'
 
 concurrency:
