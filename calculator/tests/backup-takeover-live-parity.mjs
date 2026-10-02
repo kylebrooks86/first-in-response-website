@@ -5,6 +5,8 @@ const LIVE=process.env.FIRE_LIVE_URL||'https://fire-field-calculator-fir.kylebro
 const STAGING=process.env.FIRE_STAGING_URL||'http://127.0.0.1:4173/calculator/';
 const OUT=process.env.FIRE_VISUAL_OUT||'calculator/visual-parity';
 const TEST_NAME='DR Takeover Test';
+const TEST_NOTES='DR takeover notes preserved';
+const TEST_CUSTOM='Takeover custom service';
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 async function bounded(label,promise,ms){
@@ -35,6 +37,7 @@ async function clickVisible(page,text){
 }
 async function byIds(page,ids){for(const id of ids){const e=page.locator('#'+id);if(await e.count())return e.first()}return null}
 async function setDom(el,v){if(!el)throw new Error('Missing field');await el.evaluate((n,x)=>{n.value=String(x);n.dispatchEvent(new Event('input',{bubbles:true}));n.dispatchEvent(new Event('change',{bubbles:true}))},v)}
+async function setRequired(page,id,value){const el=await byIds(page,[id]);if(!el)throw new Error(`Required live field missing: #${id}`);await setDom(el,value)}
 async function visibleRoot(page,sels){for(const s of sels){const e=page.locator(s);if(await e.count()&&await e.first().isVisible())return e.first()}return null}
 async function openRoute(page,label,roots){for(let attempt=0;attempt<28;attempt++){await clickVisible(page,label).catch(()=>false);await sleep(100);const root=await visibleRoot(page,roots);if(root)return root}return null}
 async function openJob(page){const root=await openRoute(page,'Job Math',['#view-job','#job']);if(!root)throw new Error('Job Math route missing after app settled');await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));return root}
@@ -45,12 +48,24 @@ async function setLiveDisposableState(page){
   const name=job.getByLabel('Customer / job name',{exact:true});
   if(!await name.count())throw new Error('Live customer/job field missing');
   await setDom(name.first(),TEST_NAME);
-  await setDom(await byIds(page,['houseWashArea']),321);
-  await setDom(await byIds(page,['discountPct']),7.5);
-  await setDom(await byIds(page,['jobArea']),2468);
-  await sleep(200);
+  await setRequired(page,'houseWashArea',321);
+  await setRequired(page,'gutterFeet',88);
+  await setRequired(page,'manualAddOnLabel',TEST_CUSTOM);
+  await setRequired(page,'manualAddOn',55);
+  await setRequired(page,'estimateNotes',TEST_NOTES);
+  await setRequired(page,'discountPct',7.5);
+  await setRequired(page,'jobArea',2468);
+  await setRequired(page,'coverage',333);
+  await setRequired(page,'waste',18);
+  await setRequired(page,'measureLength',42);
+  await setRequired(page,'measureHeight',9);
+  await setRequired(page,'measureSections',2);
+  await setRequired(page,'measureSubtract',30);
+  await setRequired(page,'calArea',1800);
+  await setRequired(page,'calMixUsed',6);
+  await sleep(260);
   await openTools(page);
-  await setDom(await byIds(page,['inv_sh']),2.75);
+  await setRequired(page,'inv_sh',2.75);
   await sleep(180)
 }
 
@@ -96,7 +111,27 @@ async function readMigratedStorage(page){
     const choose=(...vals)=>vals.find(v=>v!==undefined&&v!==null&&String(v)!=='')??'';
     const parity=parseNested('fireV18ParityDraft'),planning=parseNested('fireV18LivePlanningState'),specialty=parseNested('fireV18SpecialtyInventory'),full=parseNested('fireV18FullState'),liveDraft=parseNested('fireEstimateDraft');
     const liveFields=liveDraft?.fields||{};
-    return {migratedAt:localStorage.getItem('fireV18LiveBackupMigratedAt'),hydratedAt:localStorage.getItem('fireV18LiveBackupHydratedAt'),name:choose(parity.estimateJobName,parity.jobName,liveFields.estimateJobName),house:choose(parity.svcHouse,full.svcHouse,liveFields.houseWashArea),discount:choose(parity.fullDiscount,full.fullDiscount,liveFields.discountPct),area:choose(planning.area,full.area,liveFields.jobArea),inventorySh:choose(specialty.sh?.amount,full.invSH)}
+    return {
+      migratedAt:localStorage.getItem('fireV18LiveBackupMigratedAt'),
+      hydratedAt:localStorage.getItem('fireV18LiveBackupHydratedAt'),
+      name:choose(parity.estimateJobName,parity.jobName,liveFields.estimateJobName),
+      house:choose(parity.svcHouse,full.svcHouse,liveFields.houseWashArea),
+      gutter:choose(parity.svcGutter,full.svcGutter,liveFields.gutterFeet),
+      customDesc:choose(parity.fullCustomDesc,full.fullCustomDesc,liveFields.manualAddOnLabel),
+      customAmt:choose(parity.fullCustomAmt,full.fullCustomAmt,liveFields.manualAddOn),
+      notes:choose(parity.fullNotes,full.fullNotes,liveFields.estimateNotes),
+      discount:choose(parity.fullDiscount,full.fullDiscount,liveFields.discountPct),
+      area:choose(planning.area,full.area,liveFields.jobArea),
+      coverage:choose(planning.coverage,full.coverage,liveFields.coverage),
+      reserve:choose(planning.reserve,full.reserve,liveFields.waste),
+      areaLen:choose(planning.areaLen,full.areaLen,liveFields.measureLength),
+      areaWid:choose(planning.areaWid,full.areaWid,liveFields.measureHeight),
+      areaSides:choose(planning.areaSides,full.areaSides,liveFields.measureSections),
+      areaSubtract:choose(planning.areaSubtract,full.areaSubtract,liveFields.measureSubtract),
+      calArea:choose(planning.calArea,full.calArea,liveFields.calArea),
+      calMix:choose(planning.calMix,full.calMix,liveFields.calMixUsed),
+      inventorySh:choose(specialty.sh?.amount,full.invSH)
+    }
   })
 }
 
@@ -105,7 +140,7 @@ async function restoreIntoStaging(backupText){
   try{
     console.log('DR RESTORE PHASE launch isolated browser');
     browser=await bounded('DR BROWSER LAUNCH',chromium.launch({headless:true}),15000);
-    // Backup takeover validates restore/hydration semantics. Offline/service-worker behavior is governed by the separate offline-cache contract, so block SW here to prevent cache installation from racing the takeover transaction on a fresh runner.
+    // Backup takeover validates restore/hydration semantics. Offline/service-worker behavior is governed by the separate offline acceptance gate, so block SW here to prevent cache installation from racing the takeover transaction on a fresh runner.
     ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers:'block'});
     await ctx.route('**/*',route=>{const type=route.request().resourceType();return ['image','media','font'].includes(type)?route.abort():route.continue()});
     const page=await ctx.newPage();
@@ -138,9 +173,10 @@ async function restoreIntoStaging(backupText){
     console.log('DR RESTORE PHASE open job');
     const job=await bounded('DR OPEN JOB',openJob(page),12000);
     const name=job.getByLabel('Customer / job name',{exact:true});
-    const house=await byIds(page,['svcHouse']),discount=await byIds(page,['fullDiscount']),area=await byIds(page,['area']);
-    if(!house||!discount||!area||!await name.count())throw new Error(`DR restored estimate fields missing name=${await name.count()} house=${!!house} discount=${!!discount} area=${!!area}`);
-    const ui={name:await name.first().inputValue(),house:await house.inputValue(),discount:await discount.inputValue(),area:await area.inputValue()};
+    const ids=['svcHouse','svcGutter','fullCustomDesc','fullCustomAmt','fullNotes','fullDiscount','area','coverage','reserve','areaLen','areaWid','areaSides','areaSubtract','calArea','calMix'];
+    const fields={};for(const id of ids){const el=await byIds(page,[id]);if(!el)throw new Error(`DR restored field missing: #${id}`);fields[id]=await el.inputValue()}
+    if(!await name.count())throw new Error('DR restored customer/job field missing');
+    const ui={name:await name.first().inputValue(),house:fields.svcHouse,gutter:fields.svcGutter,customDesc:fields.fullCustomDesc,customAmt:fields.fullCustomAmt,notes:fields.fullNotes,discount:fields.fullDiscount,area:fields.area,coverage:fields.coverage,reserve:fields.reserve,areaLen:fields.areaLen,areaWid:fields.areaWid,areaSides:fields.areaSides,areaSubtract:fields.areaSubtract,calArea:fields.calArea,calMix:fields.calMix};
     console.log('DR RESTORE UI '+JSON.stringify(ui));
     return {storage:stored,ui}
   } finally {
@@ -163,12 +199,12 @@ try{
   await closeBounded('LIVE CONTEXT CLOSE',liveCtx);liveCtx=null;
   await closeBounded('LIVE BROWSER CLOSE',liveBrowser);liveBrowser=null;
   const restored=await restoreIntoStaging(backup.text);
-  const expected={name:TEST_NAME,house:'321',discount:'7.5',area:'2468',inventorySh:'2.75'};
+  const expected={name:TEST_NAME,house:'321',gutter:'88',customDesc:TEST_CUSTOM,customAmt:'55',notes:TEST_NOTES,discount:'7.5',area:'2468',coverage:'333',reserve:'18',areaLen:'42',areaWid:'9',areaSides:'2',areaSubtract:'30',calArea:'1800',calMix:'6',inventorySh:'2.75'};
   const result={backup:backup.summary,expected,restored};
   fs.writeFileSync(`${OUT}/backup-takeover.json`,JSON.stringify(result,null,2));
   console.log('BACKUP TAKEOVER '+JSON.stringify(result));
   const storageOk=Object.entries(expected).every(([k,v])=>String(restored.storage[k])===String(v));
-  const uiExpected={name:TEST_NAME,house:'321',discount:'7.5',area:'2468'};
+  const uiExpected={...expected};delete uiExpected.inventorySh;
   const uiOk=Object.entries(uiExpected).every(([k,v])=>String(restored.ui[k])===String(v));
   if(!storageOk||!uiOk)throw new Error(`Backup takeover mismatch storageOk=${storageOk} uiOk=${uiOk}`);
   console.log('LIVE BACKUP TO DR RESTORE PASS')
