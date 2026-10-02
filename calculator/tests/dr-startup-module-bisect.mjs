@@ -5,6 +5,9 @@ const STAGING=process.env.FIRE_STAGING_URL||'http://127.0.0.1:4173/calculator/';
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const corePath='calculator/full-v18-core.js';
 const original=fs.readFileSync(corePath,'utf8');
+const loaderOriginal=fs.readFileSync('calculator/full-v18.js','utf8');
+const loaderBlocked=loaderOriginal.replace("const ready=!!window.__fireFullV18&&!!document.querySelector('#priceEditor')&&!!document.querySelector('#mixHistory');","const ready=false;");
+if(loaderBlocked===loaderOriginal)throw new Error('Could not patch loader readiness for diagnostic');
 const startupNeedle="try{loadFullState();buildPriceEditor();calcReverseX();calcInjectorReal();calcFill();stainFinder();compat();areaHelpers();calcFullEstimator();chemicalCost();renderHistory();renderCustomChems();inventory()}catch(e){console.error('Full v18 extension',e)}";
 
 const cut=(name,needle)=>{
@@ -42,13 +45,14 @@ const variants={
   beforeStartup:cut('beforeStartup',"try{loadFullState();buildPriceEditor();calcReverseX();calcInjectorReal();calcFill();stainFinder();compat();areaHelpers();calcFullEstimator();chemicalCost();renderHistory();renderCustomChems();inventory()}catch(e){console.error('Full v18 extension',e)}")
 };
 
-async function probe(name,body){
+async function probe(name,body,blockLoaderReady=false){
   const browser=await chromium.launch({headless:true});
   let ctx;
   try{
     ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
     await ctx.route('**/*',route=>{
       const req=route.request(),url=req.url();
+      if(url.includes('/full-v18.js'))return route.fulfill({status:200,contentType:'application/javascript; charset=utf-8',body:blockLoaderReady?loaderBlocked:loaderOriginal});
       if(url.includes('/full-v18-core.js')){
         if(body===null)return route.abort();
         return route.fulfill({status:200,contentType:'application/javascript; charset=utf-8',body});
@@ -76,12 +80,13 @@ async function probe(name,body){
 }
 
 const results={};
+results.originalLoaderBlocked=await probe('originalLoaderBlocked',original,true);
 for(const [name,body] of Object.entries(variants))results[name]=await probe(name,body);
 console.log('CORE VARIANT SUMMARY '+JSON.stringify(Object.fromEntries(Object.entries(results).map(([k,v])=>[k,{responsive:v.responsive,error:v.error||null,errors:v.errors||[]}]))));
 
 if(!results.blocked.responsive)throw new Error('Base inline calculator locks even when full-v18-core.js is blocked');
 if(results.original.responsive){console.log('Original core is responsive under diagnostic isolation');process.exit(0)}
-const ordered=['withoutHistory','minimalHistory','historyInputOnly','historyOutputOnly','historyNoButton','afterStyle','afterEquipment','afterIndexTools','beforeEstimator','beforeToolCards','beforeInventoryCard','beforeCustomChemicalCard','beforeVersionCard','beforeBackupCard','beforeGuideCard','beforeSegmentIds','beforeRates','beforeBuildPrice','beforeStartup','original'];
+const ordered=['originalLoaderBlocked','withoutHistory','minimalHistory','historyInputOnly','historyOutputOnly','historyNoButton','afterStyle','afterEquipment','afterIndexTools','beforeEstimator','beforeToolCards','beforeInventoryCard','beforeCustomChemicalCard','beforeVersionCard','beforeBackupCard','beforeGuideCard','beforeSegmentIds','beforeRates','beforeBuildPrice','beforeStartup','original'];
 const firstLocked=ordered.find(name=>!results[name]?.responsive);
 console.log('CORE FIRST LOCKED CHECKPOINT '+String(firstLocked));
 if(firstLocked==='original')console.log('All pre-startup cut points responsive; lock is in startup initializer or later execution.');
