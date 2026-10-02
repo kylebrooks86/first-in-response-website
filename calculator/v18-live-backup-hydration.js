@@ -14,6 +14,14 @@
   const normUnit=u=>String(u||'').toLowerCase().replace(/\s+/g,'').includes('oz')?'floz':'gal';
   const emit=(id,value)=>{const e=document.getElementById(id);if(!e)return false;e.value=value==null?'':String(value);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));return true};
   const pending=()=>!!localStorage.getItem(marker)||(!localStorage.getItem(hydrated)&&!!localStorage.getItem('fireEstimateDraft'));
+  function persistCustomerName(fields){
+    if(!Object.prototype.hasOwnProperty.call(fields,'estimateJobName'))return;
+    try{
+      const draft=parse('fireV18ParityDraft')||{};
+      draft.estimateJobName=String(fields.estimateJobName??'');
+      localStorage.setItem('fireV18ParityDraft',JSON.stringify(draft));
+    }catch{}
+  }
   function hydrateInventory(){
     const inv=parse('fireInventory')||{},specialty=parse('fireV18SpecialtyInventory')||{};
     const defs={sh:'sh',elemonator:'ele',gutterzap:'gutter',bioclean:'bio',odoban:'odo',f9porous:'f9',ettore:'ettore'};
@@ -25,9 +33,11 @@
   function hydrate(finalPass=false){
     if(!pending())return false;
     const raw=parse('fireEstimateDraft'),fields=raw?.fields;if(!fields)return false;
+    persistCustomerName(fields);
     let applied=0;
     for(const [live,dr] of Object.entries(map))if(Object.prototype.hasOwnProperty.call(fields,live)&&emit(dr,fields[live]))applied++;
     hydrateInventory();
+    persistCustomerName(fields);
     if(applied&&finalPass){
       try{localStorage.setItem(hydrated,new Date().toISOString());localStorage.removeItem(marker)}catch{}
     }
