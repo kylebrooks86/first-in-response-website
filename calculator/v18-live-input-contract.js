@@ -18,7 +18,6 @@
     // Exact live mobile numeric-input metadata/defaults verified at 390×844.
     attrsByLabel('Pressure-washer flow',{min:'1',max:'12',step:'0.1'});
     attrsByLabel('House wash area',{min:'0',step:'10'});
-    numericByLabel('House wash area').forEach(e=>{if(e.value===''){e.value='0';e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}))}});
     attrsByLabel('10% SH Out',{min:'0',step:'0.1'});
     attrsByLabel('Dose or water parts',{min:'0',step:'0.1'});
 
