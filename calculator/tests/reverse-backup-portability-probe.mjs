@@ -83,6 +83,8 @@ async function tryRestoreIntoLive(browser,backupText,label,expected){
   try{
     await ctx.route('**/*',route=>['image','media','font'].includes(route.request().resourceType())?route.abort():route.continue());
     const page=await ctx.newPage();page.setDefaultTimeout(5000);page.setDefaultNavigationTimeout(15000);
+    const dialogs=[];
+    page.on('dialog',async dialog=>{dialogs.push({type:dialog.type(),message:dialog.message()});await dialog.accept().catch(()=>{})});
     await page.goto(LIVE,{waitUntil:'domcontentloaded',timeout:15000});await sleep(900);
     const job=await openJob(page);
     const name=job.getByLabel('Customer / job name',{exact:true});if(!await name.count())throw new Error('LIVE customer/job field missing');
@@ -104,7 +106,7 @@ async function tryRestoreIntoLive(browser,backupText,label,expected){
     const after={url:page.url(),name:await postName.first().inputValue(),house:await postHouse.inputValue(),discount:postDiscount?await postDiscount.inputValue():null,status};
     const accepted=after.name===String(expected.name)&&after.house===String(expected.house)&&after.discount===String(expected.discount);
     const preservedGuard=after.name==='LIVE Reverse Guard'&&after.house==='111'&&after.discount==='3';
-    return {label,before,expected,after,navigation,storageEstimate,accepted,preservedGuard};
+    return {label,before,expected,after,navigation,dialogs,storageEstimate,accepted,preservedGuard};
   } finally {await ctx.close()}
 }
 
