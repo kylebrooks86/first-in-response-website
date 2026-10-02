@@ -26,7 +26,8 @@
     let note=$('#xjetModelNote',card);
     if(!note){note=document.createElement('div');note.id='xjetModelNote';note.className='callout info';results.after(note)}
     const factory=[...card.querySelectorAll('p')].find(p=>p.textContent.includes('Factory proportions are estimates'));
-    if(factory){factory.className='mini';note.after(factory)}
+    if(factory&&factory.previousElementSibling!==note){factory.className='mini';note.after(factory)}
+    else if(factory)factory.className='mini';
     if(grid)grid.dataset.liveStructure='1';
     return true;
   }
@@ -54,13 +55,19 @@
     return true;
   }
   let observer=null;
+  const stopObserver=current=>{
+    current?.disconnect();
+    if(!current||observer===current)observer=null;
+  };
   const start=()=>{
-    if(install()){observer?.disconnect();return}
+    if(install()){stopObserver(observer);return}
+    if(observer)return;
+    const current=new MutationObserver(()=>{if(install())stopObserver(current)});
+    observer=current;
     const root=$('#equipment')||document.body;
-    observer=new MutationObserver(()=>{if(install())observer?.disconnect()});
-    observer.observe(root,{childList:true,subtree:true});
-    setTimeout(()=>{if(install())observer?.disconnect()},120);
-    setTimeout(()=>{if(install())observer?.disconnect()},900);
+    current.observe(root,{childList:true,subtree:true});
+    setTimeout(()=>{if(install())stopObserver(current)},120);
+    setTimeout(()=>{if(install())stopObserver(current)},900);
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
   window.addEventListener('fire-v18-core-ready',start);
