@@ -1,0 +1,71 @@
+name: FIRE Calculator Backup Takeover Parity
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fire-calculator-exact-live-clone
+    paths:
+      - 'calculator/SHARED_CORE_MANIFEST.json'
+      - 'calculator/tests/backup-takeover-live-parity.mjs'
+      - '.github/workflows/fire-calculator-backup-takeover-parity.yml'
+
+concurrency:
+  group: fire-calculator-backup-takeover-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  backup-takeover-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache Playwright Chromium
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: fire-playwright-${{ runner.os }}-1.55.0-chromium
+
+      - name: Install Playwright
+        run: npm install --no-save playwright@1.55.0
+
+      - name: Install Chromium system dependencies
+        run: npx playwright install-deps chromium
+
+      - name: Install Chromium browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+
+      - name: Start staging server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/fire-calculator-server.log 2>&1 &
+          echo $! > /tmp/fire-calculator-server.pid
+          mkdir -p calculator/visual-parity
+          sleep 2
+          curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
+
+      - name: Verify live backup restores into DR
+        timeout-minutes: 6
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+          FIRE_VISUAL_OUT: calculator/visual-parity
+        run: node calculator/tests/backup-takeover-live-parity.mjs
+
+      - name: Upload takeover report
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-calculator-backup-takeover
+          path: calculator/visual-parity/backup-takeover.json
+          if-no-files-found: warn
+          retention-days: 14
