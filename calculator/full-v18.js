@@ -17,6 +17,7 @@
   (async()=>{
     await load('./full-v18-core.js?v=1');
     await waitForCore();
+    await load('./v18-legacy-job-detach.js?v=1');
     await load('./full-v18-parity-core.js?v=3');
     await load('./v18-behavior.js?v=4');
     await load('./v18-interactions.js?v=3');
