@@ -35,36 +35,43 @@ cd "$APP_DIR"
 node -e "const p=require('./package.json'); if(p.version!=='1.0.0-rc.138') throw new Error('Unexpected package version: '+p.version)"
 node -e "const v=require('./CURRENT_VERSION.json'); if(String(v.fire_release)!=='v138') throw new Error('Unexpected FIRE release: '+v.fire_release)"
 
-# Temporary DR-only auth discovery. This prints source locations and nearby code,
-# but never prints runtime secret values. It lets us replace the password flow
-# precisely instead of weakening unrelated authorization logic.
-echo "AUTH_DISCOVERY_BEGIN"
-grep -R -n -C 6 \
-  --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' \
-  --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.git \
-  -E 'FIRE_ADMIN_PASSWORD_HASH|FIRE_SESSION_SECRET|Private FIRE app|Owner password' . || true
-echo "AUTH_DISCOVERY_END"
-# DR-only passwordless access for isolated staging parity testing.
+# DR-only 4-digit PIN overlay for isolated staging parity testing.
+# The sealed v138 archive is not modified; this overlay is applied only after extraction.
 python3 - <<'PY'
 from pathlib import Path
+
+PIN_HASH = "a20a2b7bb0842d5cf8a0c06c626421fd51ec103925c1819a51271f2779afa730"
+
 p = Path("app/owner-auth.ts")
 s = p.read_text()
-
 start = s.index("export async function verifyIndependentPassword")
 end = s.index("\n}", start) + 2
-s = s[:start] + """export async function verifyIndependentPassword(_password: string) {
-  return true;
-}""" + s[end:]
-
+replacement = f'''export async function verifyIndependentPassword(pin: string) {{
+  if (!/^\\d{{4}}$/.test(pin)) return false;
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(pin)));
+  const suppliedHash = Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return constantTimeEqual(suppliedHash, "{PIN_HASH}");
+}}'''
+s = s[:start] + replacement + s[end:]
 p.write_text(s)
-print("DR_AUTH_BYPASS_APPLIED")
+
+login = Path("app/login/page.tsx")
+text = login.read_text()
+text = text.replace("Enter the owner password to access business records.", "Enter your 4-digit PIN to access business records.")
+text = text.replace("Owner password", "4-digit PIN")
+text = text.replace('type="password" autoComplete="current-password"', 'type="password" inputMode="numeric" pattern="[0-9]*" maxLength={4} autoComplete="off"')
+login.write_text(text)
+
+print("DR_PIN_OVERLAY_APPLIED")
 PY
+
 corepack enable
 pnpm install --frozen-lockfile
 pnpm run build
 
 node --input-type=module <<'NODE'
 import { readFile, writeFile } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
 
 const source = 'dist/server/wrangler.json';
 const destination = 'dist/server/wrangler.independent.json';
@@ -77,6 +84,9 @@ config.d1_databases = [{
   database_name: process.env.FIRE_D1_DATABASE_NAME.trim(),
   database_id: process.env.FIRE_D1_DATABASE_ID.trim(),
 }];
+
+// Each DR deployment gets a fresh 64-character session secret without printing it.
+config.vars = { ...(config.vars || {}), FIRE_SESSION_SECRET: randomBytes(32).toString('hex') };
 
 delete config.r2_buckets;
 
