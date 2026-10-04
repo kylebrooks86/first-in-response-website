@@ -5,11 +5,11 @@ if not css_path.exists():
     raise SystemExit('app/globals.css not found')
 
 css = css_path.read_text()
-marker = '/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V6 */'
+marker = '/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V7 */'
 if marker not in css:
     css += r'''
 
-/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V6 */
+/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V7 */
 .fire-dr-stride-button {
   display: flex !important;
   flex-direction: column !important;
@@ -31,17 +31,45 @@ if marker not in css:
   white-space: nowrap !important;
 }
 
-/* In iPhone Home Screen / standalone mode, keep the native sticky topbar
-   below the status-bar safe area instead of underneath the Dynamic Island. */
+/* iPhone Home Screen / standalone parity: keep the header below the safe area,
+   move controls away from the screen edges, and remove all frosted/blur effects. */
 @media (display-mode: standalone) and (max-width: 760px) {
   .topbar {
     top: 0 !important;
     height: calc(64px + env(safe-area-inset-top)) !important;
     min-height: calc(64px + env(safe-area-inset-top)) !important;
     padding-top: env(safe-area-inset-top) !important;
-    padding-left: max(16px, env(safe-area-inset-left)) !important;
-    padding-right: max(16px, env(safe-area-inset-right)) !important;
+    padding-left: max(22px, env(safe-area-inset-left)) !important;
+    padding-right: max(22px, env(safe-area-inset-right)) !important;
     padding-bottom: 0 !important;
+    background: #fff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+  }
+  [data-theme="dark"] .topbar {
+    background: #101d2d !important;
+  }
+  .mobile-primary-actions {
+    background: #fff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+  }
+  [data-theme="dark"] .mobile-primary-actions {
+    background: #132238 !important;
+  }
+  .mobile-primary-actions > button,
+  .top-stride-button,
+  .notification-button,
+  .mobile-brand,
+  .mobile-brand .fire-logo {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+    box-shadow: none !important;
   }
 }
 '''
@@ -52,10 +80,10 @@ if not layout.exists():
     raise SystemExit('app/layout.tsx not found')
 
 text = layout.read_text()
-script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V6'
+script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V7'
 if script_marker not in text:
     script = r'''<script dangerouslySetInnerHTML={{__html: `(function(){
-  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V6 */
+  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V7 */
   function norm(s){return (s||'').replace(/\\s+/g,' ').trim().toLowerCase();}
   function closestClickable(el){
     return el && el.closest ? (el.closest('a,button,[role="button"]') || el) : el;
@@ -77,4 +105,4 @@ if script_marker not in text:
     text = text.replace('</body>', script + '\n</body>', 1)
     layout.write_text(text)
 
-print('DR_STANDALONE_TOPBAR_PARITY_V6_APPLIED')
+print('DR_STANDALONE_TOPBAR_PARITY_V7_APPLIED')
