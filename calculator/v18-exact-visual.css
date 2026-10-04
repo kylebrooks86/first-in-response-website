@@ -1,0 +1,112 @@
+/* FIRE live-parity visual layer.
+   Rules in this file are backed by paired live-vs-staging iPhone screenshots or rendered live DOM evidence.
+*/
+
+.topbar,.bottom{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.stock-pill{white-space:nowrap}
+.recipeCard{background:#fce4ec!important;border-top:3px solid #f03c3c!important}
+body.dark .recipeCard{background:#2b2024!important}
+
+@media(max-width:760px){
+  html,body{background:#e4ebef!important}
+  body{padding-bottom:86px!important}
+
+  .topbar{position:sticky!important;top:0!important;z-index:40!important;background:#e4ebef!important;border:0!important;padding:10px 12px 8px!important}
+  .toprow{min-height:46px!important;gap:8px!important;max-width:none!important}
+  .fire{order:1!important;width:42px!important;min-width:42px!important;height:42px!important;border-radius:11px!important;background:#e53e25!important;color:#111!important;font-size:14px!important;letter-spacing:-.02em!important}
+  .title{order:2!important;line-height:1!important}
+  .title strong{font-size:20px!important;color:#17212b!important;font-weight:800!important}
+  .title span{display:none!important}
+  #themeBtn{order:3!important}
+  .version{order:4!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:52px!important;height:32px!important;padding:0 9px!important;border:1px solid #d6e0e6!important;border-radius:999px!important;background:#fff!important;color:#197c68!important;font-size:12px!important;font-weight:800!important}
+  .version b{display:inline!important;margin-left:3px!important;color:#197c68!important}
+  #installBtn{order:5!important}
+  .topbtn{width:38px!important;min-width:38px!important;height:38px!important;min-height:38px!important;padding:0!important;border:1px solid #d6e0e6!important;border-radius:50%!important;background:#fff!important;color:#e0a500!important;font-size:20px!important}
+  .install{display:inline-grid!important;place-items:center!important;background:#faece8!important;color:#e75239!important;border:1px solid #f0b7aa!important;font-size:18px!important}
+  .stock{display:none!important}
+
+  .warn{margin:0 12px 14px!important;padding:12px 14px!important;border:1px solid #ead8b9!important;border-radius:15px!important;background:#f4f1ea!important;color:#9b6b05!important;font-size:13px!important;line-height:1.45!important;font-weight:500!important}
+  .warn::first-line{font-weight:800!important}
+
+  .tabswrap{margin:0!important;background:transparent!important;border:0!important}
+  .tabs{gap:8px!important;padding:0 12px 10px!important;overflow-x:auto!important}
+  .tab{min-height:44px!important;padding:9px 15px!important;border:1px solid #d3dde3!important;border-radius:999px!important;background:#fff!important;color:#596b78!important;font-size:16px!important;font-weight:700!important}
+  .tab.active{background:#17212b!important;color:#fff!important;border-color:#17212b!important}
+  .tab.active:after{display:none!important}
+
+  .page{padding:0 12px 28px!important;max-width:none!important}
+  .card{margin:0 0 14px!important;padding:14px!important;border:1px solid #d7e0e5!important;border-radius:19px!important;background:#fff!important;box-shadow:none!important}
+
+  /* SH Mix keeps LIVE's 14px card padding. The remaining historical height
+     excess belongs to internal rhythm, not the card box itself. */
+  #mix>.card:nth-child(1)>h2{margin-bottom:9px!important}
+  #mix>.card:nth-child(1) .fire-guidance-note{margin-top:8px!important}
+  #mix>.card:nth-child(2)>h2{margin-bottom:9px!important}
+  #mix>.card:nth-child(3)>h2{margin-bottom:9px!important}
+  #mix>.card:nth-child(3) #fireMixGradient{margin-top:10px!important;margin-bottom:12px!important}
+  #mix>.card:nth-child(4)>h2{margin-bottom:9px!important}
+  #mix>.card:nth-child(4) .note{margin-top:8px!important}
+
+  .kicker{font-size:12px!important;letter-spacing:.08em!important;color:#ef4b2d!important;font-weight:900!important;margin-bottom:8px!important}
+  .card h2{font-size:18px!important;line-height:1.25!important;color:#17212b!important;margin:0 0 13px!important}
+  label{font-size:15px!important;color:#607381!important;font-weight:700!important;margin-bottom:7px!important}
+  input,select,textarea{min-height:48px!important;border:1px solid #cfdbe2!important;border-radius:13px!important;background:#fff!important;color:#26333d!important;padding:10px 13px!important;font-size:16px!important}
+
+  .fire-guidance-note{margin:12px 0 0!important;padding:12px!important;border:1px solid #b8ddf0!important;border-radius:12px!important;background:#edf8ff!important;color:#2d759c!important;font-size:14px!important;line-height:1.38!important}
+
+  #growthSeg{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:0!important;padding:2px!important;border:1px solid #d5e0e6!important;border-radius:14px!important;background:#f7fafb!important}
+  #growthSeg .chip{min-width:0!important;border:0!important;border-radius:11px!important;background:transparent!important;color:#5d7180!important;font-weight:700!important;padding:10px 8px!important}
+  #growthSeg .chip.active{background:#fff!important;color:#17212b!important;box-shadow:0 2px 8px rgba(41,59,69,.18)!important}
+
+  #batchChips{gap:8px!important}
+  #batchChips .chip{border:1px solid #d3dde3!important;border-radius:10px!important;background:#fff!important;color:#607381!important}
+  #batchChips .chip.active{background:#fff!important;color:#ef4b2d!important;border-color:#ef8d78!important;font-weight:800!important}
+  #customBatchWrap,#customBatchWrap.hidden{display:block!important;grid-column:1/-1!important}
+  #customBatchWrap .inputrow{display:grid!important;grid-template-columns:minmax(0,1fr) 86px!important;gap:8px!important}
+
+  #recipeTitle{font-size:19px!important;font-weight:900!important}
+  #mix>.card:nth-child(3),.recipeCard{background:#f1dfdc!important;border:1px solid #f1a995!important;border-top:1px solid #f1a995!important}
+  #mix>.card:nth-child(3) #target{flex:1 1 auto!important;min-width:0!important;padding:0!important;border:0!important;background:transparent!important}
+  #mix>.card:nth-child(3) #targetNum{flex:0 0 40px!important;width:40px!important;min-width:40px!important;padding:8px 6px!important;text-align:center!important}
+  #mix>.card:nth-child(3) #targetNum+.unit{display:grid!important;place-items:center!important;flex:0 0 30px!important;width:30px!important;height:48px!important;border:1px solid #d2dde3!important;border-radius:13px!important;background:#fff!important;color:#607381!important;font-weight:800!important}
+  #mix>.card:nth-child(3) .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+  #mix>.card:nth-child(3) .metrics .metric:nth-child(3){grid-column:1/-1!important}
+  #mix>.card:nth-child(3) .metric{border:1px solid #d7e0e5!important;border-radius:14px!important;background:#fff!important;padding:11px!important}
+  #mix>.card:nth-child(3) .metric small{color:#6d8190!important;font-size:12px!important;font-weight:700!important}
+  #mix>.card:nth-child(3) .metric strong{font-size:20px!important;font-weight:900!important}
+  #mix>.card:nth-child(3) .metric:first-child strong{color:#ea4a2f!important}
+  #mix>.card:nth-child(3) .metric:nth-child(2) strong{color:#1680b8!important}
+  #mix>.card:nth-child(3) .metric:nth-child(3) strong{color:#a46b00!important}
+  #fireMixGradient{height:10px!important;margin:12px 0 14px!important;border-radius:5px!important;background:linear-gradient(90deg,#e64025 0%,#e64025 15%,#f0b24c 35%,#50a9c9 72%,#0d84b8 100%)!important}
+
+  .fire-ele-toggle{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;margin:14px 0 8px!important}
+  .fire-ele-toggle>div{order:-1!important}
+  .fire-ele-toggle input[type="checkbox"]{appearance:none!important;-webkit-appearance:none!important;width:44px!important;height:24px!important;min-height:24px!important;border:0!important;border-radius:999px!important;background:#cfd8dd!important;position:relative!important;padding:0!important;flex:0 0 auto!important}
+  .fire-ele-toggle input[type="checkbox"]:after{content:""!important;position:absolute!important;width:20px!important;height:20px!important;left:2px!important;top:2px!important;border-radius:50%!important;background:#fff!important;box-shadow:0 1px 3px rgba(0,0,0,.2)!important}
+  .fire-ele-toggle input[type="checkbox"]:checked{background:#e84022!important}
+  .fire-ele-toggle input[type="checkbox"]:checked:after{left:22px!important}
+  .fire-mix-order{margin:12px 0 0!important;padding:12px!important;border:1px solid #efc8bd!important;border-radius:12px!important;background:#f7e6e1!important;color:#a55443!important;font-size:14px!important;line-height:1.4!important}
+
+  #fireStockCard{background:#fff!important;border:1px solid #d7e0e5!important}
+  #fireStockCard .inputrow{gap:8px!important}
+  #fireStockCard .inputrow .unit{display:grid!important;place-items:center!important;flex:0 0 30px!important;width:30px!important;height:48px!important;border:1px solid #d2dde3!important;border-radius:13px!important;background:#fff!important;color:#26333d!important;font-size:13px!important;font-weight:800!important}
+  #fireStockCard .note{background:#eefbf7!important;border:1px solid #bfe8dc!important;border-left:1px solid #bfe8dc!important;border-radius:12px!important;color:#257b65!important}
+
+  .fire-measure-actions{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:8px!important;margin-top:10px!important}
+  .fire-measure-actions button{min-height:38px!important;padding:7px 12px!important;border:1px solid #d3dde3!important;border-radius:9px!important;background:#fff!important;color:#17212b!important;font-weight:700!important}
+  .fire-measure-actions button.primary{background:#ef4b2d!important;border-color:#ef4b2d!important;color:#fff!important}
+  .fire-planned-chem-cost{display:block!important;margin:10px 0 0!important;padding:10px 12px!important;border:1px solid #bfe8dc!important;border-radius:11px!important;background:#eefbf7!important;color:#257b65!important;font-size:13px!important;line-height:1.35!important}
+  .fire-loadout-status{margin:0 0 10px!important;padding:10px 12px!important;border-radius:11px!important;font-size:13px!important;line-height:1.38!important}
+  .fire-loadout-status strong{display:block!important;margin-bottom:4px!important;font-size:14px!important}
+  .fire-loadout-status p{margin:0!important}
+  .fire-loadout-status.is-short{border:1px solid #f2c4bb!important;background:#fff1ed!important;color:#b64d38!important}
+  .fire-loadout-status.is-ready{border:1px solid #bfe8dc!important;background:#eefbf7!important;color:#257b65!important}
+  .fire-loadout-actions{margin:0 0 12px!important}
+  .fire-loadout-actions button{min-height:38px!important;padding:7px 12px!important;border:1px solid #d3dde3!important;border-radius:9px!important;background:#fff!important;color:#17212b!important;font-weight:700!important}
+  .fire-profit-empty{display:block!important;margin-top:12px!important;padding:10px 12px!important;border:1px solid #f2c4bb!important;border-radius:11px!important;background:#fff1ed!important;color:#b64d38!important;font-size:13px!important;font-weight:700!important;line-height:1.35!important}
+
+  .bottom{min-height:68px!important;background:rgba(255,255,255,.94)!important;border-top:1px solid #d9e2e7!important;box-shadow:0 -3px 12px rgba(45,61,70,.08)!important}
+  .bottom button{min-height:68px!important;background:transparent!important;color:#607381!important;font-size:11px!important;font-weight:700!important;padding:7px 1px!important}
+  .bottom button .ico{font-size:22px!important;margin-bottom:3px!important}
+  .bottom button.active{background:#fff0ed!important;color:#ef4b2d!important}
+}

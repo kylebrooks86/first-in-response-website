@@ -1,0 +1,27 @@
+{
+  "deployment": "production",
+  "product": "FIRE Business Calculator",
+  "shared_core_required": true,
+  "shared_core_manifest": "../../SHARED_CORE_MANIFEST.json",
+  "allowed_differences": [
+    "hosting provider",
+    "domain/URL",
+    "environment variables",
+    "secrets",
+    "storage/database identifiers",
+    "backup destination"
+  ],
+  "forbidden_differences": [
+    "visible UI",
+    "pricing",
+    "formulas",
+    "service list",
+    "validation",
+    "navigation",
+    "saved-state semantics",
+    "export contents",
+    "error behavior",
+    "version number"
+  ],
+  "status": "TARGET_ADAPTER_NOT_YET_PROMOTED"
+}

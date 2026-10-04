@@ -1,0 +1,42 @@
+/* Final screenshot-backed Field Tools parity corrections. */
+#tools .fire-history-log{display:block!important;width:max-content!important;min-height:34px!important;padding:6px 10px!important;border:1px solid #e84226!important;border-radius:10px!important;background:#e84226!important;color:#fff!important;font-weight:900!important}
+#tools .fire-history-clear{display:block!important;width:max-content!important;min-height:34px!important;margin-top:2px!important;padding:6px 10px!important;border:1px solid #efb4a9!important;border-radius:10px!important;background:#fff8f6!important;color:#bd4936!important;font-weight:800!important}
+#tools #mixHistory>.fire-empty-dash{margin-top:2px!important;padding:8px!important}
+#tools .fire-version-inset{display:block!important;margin:6px 0 7px!important;padding:10px 11px!important;border:1px solid #cfdce3!important;border-radius:13px!important;background:#fff!important;color:#17212b!important}
+#tools .fire-version-inset strong{display:block!important;font-size:17px!important;line-height:1.2!important}
+#tools .fire-version-inset span{display:block!important;margin-top:3px!important;color:#607381!important;font-size:13px!important;font-weight:500!important;line-height:1.25!important}
+#tools .card:has(#fireCheckUpdate) h2{margin-bottom:8px!important}
+#tools .card:has(#fireCheckUpdate)>p.muted{margin:4px 0 0!important;line-height:1.45!important}
+#tools #fireCheckUpdate{margin:6px 0 4px!important;min-height:42px!important;padding:9px 13px!important}
+#tools .fire-backup-actions{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:8px!important;margin:6px 0 9px!important}
+#tools .fire-backup-actions button{min-height:40px!important;padding:8px 12px!important;border-radius:10px!important;font-weight:800!important}
+#tools .fire-backup-actions #exportAll{background:#e84226!important;color:#fff!important;border-color:#e84226!important}
+#tools .fire-backup-actions #copyBackupText{background:#fff!important;color:#17212b!important;border:1px solid #cfdce3!important}
+#tools .card:has(#exportAll) h2{margin-bottom:8px!important}
+#tools .card:has(#exportAll)>p.muted:first-of-type{margin:5px 0 9px!important;line-height:1.45!important}
+#tools .card:has(#exportAll) #fireRestoreLabel{margin:5px 0 7px!important}
+#tools .card:has(#exportAll) #importFile{margin:0!important}
+#tools .card:has(#exportAll) #backupStatus{margin:10px 0 0!important}
+#tools #customChemList>.fire-empty-dash{margin-top:12px!important}
+@media(max-width:760px){
+  #tools .fire-version-inset{padding:10px 11px!important}
+  .fire-backup-actions{width:100%!important}
+  .fire-backup-actions button{width:auto!important}
+  #tools .card:has(#customChemName) .grid{gap:9px!important}
+  #tools .card:has(#customChemName) .field{margin-bottom:0!important}
+  #tools .card:has(#customChemName) .actions{margin-top:9px!important;margin-bottom:5px!important}
+  #tools .card:has(#customChemName) #customChemList>.fire-empty-dash{margin-top:9px!important;padding:12px!important}
+  #tools .card:has(#compatResult) .grid{gap:8px!important}
+  #tools .card:has(#compatResult) .field{margin-bottom:0!important}
+  #tools .card:has(#compatResult) #compatResult{margin-top:8px!important}
+  #tools .card:has(#timerDisplay) .grid{gap:6px!important}
+  #tools .card:has(#timerDisplay) .field{margin-bottom:0!important}
+  #tools .card:has(#timerDisplay) #timerDisplay{margin:6px 0!important}
+  #tools .card:has(#timerDisplay) .actions{margin-top:4px!important}
+  #tools .card:has(#weatherNote) .grid{gap:8px!important}
+  #tools .card:has(#weatherNote) .field{margin-bottom:0!important}
+  #tools .card:has(#weatherNote) #weatherNote{margin-top:6px!important}
+  #tools .card:has(.fire-safety-list) .fire-safety-list{gap:16px!important}
+  #tools .card:has(.fire-safety-list) .fire-safety-list p{line-height:1.4!important}
+}
+body.dark #tools .fire-version-inset,body.dark #tools .fire-backup-actions #copyBackupText{background:#18212b!important;color:#f6f7f8!important;border-color:#35414b!important}body.dark #tools .fire-version-inset span{color:#b7c0c7!important}

@@ -1,0 +1,36 @@
+{
+  "product": "FIRE Business Calculator",
+  "release": "v18",
+  "package_status": "STAGING_ONLY_NOT_SYNCHRONIZED",
+  "source_of_truth": "FIRE Calculator Core",
+  "shared_core_manifest": "SHARED_CORE_MANIFEST.json",
+  "current_version_file": "CURRENT_VERSION.json",
+  "parity_matrix": "PARITY_MATRIX.md",
+  "formula_regression_suite": "tests/formula-regression.js",
+  "deployments": {
+    "production": {
+      "role": "normal/live calculator",
+      "shared_core_required": true,
+      "infrastructure_adapter": "production hosting adapter",
+      "promotion_allowed": false
+    },
+    "disaster_recovery": {
+      "role": "independent doomsday calculator",
+      "shared_core_required": true,
+      "infrastructure_adapter": "independent static/offline hosting adapter",
+      "must_not_require": ["ChatGPT hosting","ChatGPT authentication","OpenAI model calls","OpenAI services for normal calculator operation"],
+      "promotion_allowed": false
+    }
+  },
+  "required_release_artifacts": [
+    "CURRENT_VERSION.json",
+    "SHARED_CORE_MANIFEST.json",
+    "PARITY_MATRIX.md",
+    "RELEASE_STATUS.md",
+    "DISASTER_RECOVERY_DEPLOYMENT_GUIDE.md",
+    "STAGING_ACCEPTANCE_CHECKLIST.md",
+    "BACKUP_RESTORE_GUIDE.md",
+    "tests/formula-regression.js"
+  ],
+  "promotion_rule": "Do not deploy a synchronized release to production until fingerprints match, regression tests pass, required parity rows are VERIFIED IDENTICAL, iPhone staging passes, backup/restore is tested, and DR runs independently of ChatGPT/OpenAI."
+}
