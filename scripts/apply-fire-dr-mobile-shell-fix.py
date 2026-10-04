@@ -5,11 +5,11 @@ if not css_path.exists():
     raise SystemExit('app/globals.css not found')
 
 css = css_path.read_text()
-marker = '/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V9 */'
+marker = '/* FIRE_DR_STANDALONE_SCROLL_PARITY_V10 */'
 if marker not in css:
     css += r'''
 
-/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V9 */
+/* FIRE_DR_STANDALONE_SCROLL_PARITY_V10 */
 .fire-dr-stride-button {
   display: flex !important;
   flex-direction: column !important;
@@ -19,9 +19,7 @@ if marker not in css:
   line-height: 1 !important;
   overflow: hidden !important;
 }
-.fire-dr-stride-button > * {
-  flex: 0 0 auto !important;
-}
+.fire-dr-stride-button > * { flex: 0 0 auto !important; }
 .fire-dr-stride-label {
   position: static !important;
   inset: auto !important;
@@ -31,8 +29,14 @@ if marker not in css:
   white-space: nowrap !important;
 }
 
-/* iPhone Home Screen / standalone parity: opaque header and controls only. */
+/* iPhone Home Screen / standalone parity.
+   Keep the page on the native document scroller, but isolate the two persistent
+   navigation layers so iOS does not repeatedly repaint them with page content. */
 @media (display-mode: standalone) and (max-width: 760px) {
+  html, body {
+    scroll-behavior: auto !important;
+    overflow-x: hidden !important;
+  }
   .topbar {
     top: 0 !important;
     height: calc(64px + env(safe-area-inset-top)) !important;
@@ -49,21 +53,36 @@ if marker not in css:
     box-shadow: none !important;
     text-shadow: none !important;
     opacity: 1 !important;
+    contain: paint !important;
+    isolation: isolate !important;
+    transform: translate3d(0,0,0) !important;
+    -webkit-transform: translate3d(0,0,0) !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
   }
   [data-theme="dark"] .topbar {
     background: #101d2d !important;
     background-image: none !important;
   }
+  .bottom-nav {
+    background: #fff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    contain: paint !important;
+    isolation: isolate !important;
+    transform: translate3d(0,0,0) !important;
+    -webkit-transform: translate3d(0,0,0) !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+  }
+  [data-theme="dark"] .bottom-nav { background: #101d2d !important; }
   .topbar::before,
   .topbar::after,
   .mobile-primary-actions::before,
   .mobile-primary-actions::after {
     content: none !important;
     display: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    filter: none !important;
-    box-shadow: none !important;
   }
   .mobile-primary-actions {
     background: #fff !important;
@@ -100,15 +119,12 @@ if not layout.exists():
     raise SystemExit('app/layout.tsx not found')
 
 text = layout.read_text()
-# The sealed app uses black-translucent for the iOS PWA status bar. In standalone
-# mode that intentionally blends page content under the status area and can look
-# frosted/blurred. DR uses an opaque status bar instead, matching the visual goal.
 text = text.replace('statusBarStyle: "black-translucent"', 'statusBarStyle: "default"')
 
-script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V9'
+script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V10'
 if script_marker not in text:
     script = r'''<script dangerouslySetInnerHTML={{__html: `(function(){
-  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V9 */
+  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V10 */
   function norm(s){return (s||'').replace(/\\s+/g,' ').trim().toLowerCase();}
   function closestClickable(el){
     return el && el.closest ? (el.closest('a,button,[role="button"]') || el) : el;
@@ -130,4 +146,4 @@ if script_marker not in text:
     text = text.replace('</body>', script + '\n</body>', 1)
 
 layout.write_text(text)
-print('DR_STANDALONE_TOPBAR_PARITY_V9_APPLIED')
+print('DR_STANDALONE_SCROLL_PARITY_V10_APPLIED')
