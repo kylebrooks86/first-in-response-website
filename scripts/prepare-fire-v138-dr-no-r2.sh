@@ -62,6 +62,40 @@ text = text.replace("Owner password", "4-digit PIN")
 text = text.replace('type="password" autoComplete="current-password"', 'type="password" inputMode="numeric" pattern="[0-9]*" maxLength={4} autoComplete="off"')
 login.write_text(text)
 
+# Keep the Stride label inside its red header button in both light and dark themes.
+# This is deliberately narrow: only links whose href contains "stride" are affected.
+globals_css = Path("app/globals.css")
+if globals_css.exists():
+    css = globals_css.read_text()
+    marker = "/* FIRE_STRIDE_LABEL_FIX */"
+    if marker not in css:
+        css += r'''
+
+/* FIRE_STRIDE_LABEL_FIX */
+a[href*="stride" i] {
+  position: relative;
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  overflow: visible;
+}
+a[href*="stride" i] span,
+a[href*="stride" i] strong,
+a[href*="stride" i] small {
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+'''
+        globals_css.write_text(css)
+        print("DR_STRIDE_LABEL_FIX_APPLIED")
+else:
+    print("DR_STRIDE_LABEL_FIX_SKIPPED_NO_GLOBALS_CSS")
+
 print("DR_PIN_OVERLAY_APPLIED")
 PY
 
