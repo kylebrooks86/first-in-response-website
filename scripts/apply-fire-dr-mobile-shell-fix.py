@@ -5,11 +5,11 @@ if not css_path.exists():
     raise SystemExit('app/globals.css not found')
 
 css = css_path.read_text()
-marker = '/* FIRE_DR_MOBILE_SHELL_PARITY_V2 */'
+marker = '/* FIRE_DR_MOBILE_SHELL_PARITY_V3 */'
 if marker not in css:
     css += r'''
 
-/* FIRE_DR_MOBILE_SHELL_PARITY_V2 */
+/* FIRE_DR_MOBILE_SHELL_PARITY_V3 */
 .fire-dr-stable-header {
   position: sticky !important;
   top: 0 !important;
@@ -24,6 +24,7 @@ if marker not in css:
   z-index: 1100 !important;
   padding-bottom: env(safe-area-inset-bottom) !important;
   margin: 0 !important;
+  will-change: auto !important;
 }
 html.fire-dr-bottom-nav-active body {
   padding-bottom: calc(88px + env(safe-area-inset-bottom)) !important;
@@ -56,11 +57,10 @@ if not layout.exists():
     raise SystemExit('app/layout.tsx not found')
 
 text = layout.read_text()
-script_marker = 'FIRE_DR_MOBILE_SHELL_PARITY_SCRIPT_V2'
+script_marker = 'FIRE_DR_MOBILE_SHELL_PARITY_SCRIPT_V3'
 if script_marker not in text:
     script = r'''<script dangerouslySetInnerHTML={{__html: `(function(){
-  /* FIRE_DR_MOBILE_SHELL_PARITY_SCRIPT_V2 */
-  var queued=false;
+  /* FIRE_DR_MOBILE_SHELL_PARITY_SCRIPT_V3 */
   function norm(s){return (s||'').replace(/\\s+/g,' ').trim().toLowerCase();}
   function smallestWithLabels(labels){
     var all=[].slice.call(document.querySelectorAll('nav,footer,div'));
@@ -84,27 +84,27 @@ if script_marker not in text:
     label.classList.add('fire-dr-stride-label');
   }
   function apply(){
-    queued=false;
     var header=document.querySelector('header');
-    if(header && !header.classList.contains('fire-dr-stable-header')) header.classList.add('fire-dr-stable-header');
+    if(header) header.classList.add('fire-dr-stable-header');
     var bottom=smallestWithLabels(['home','contracts','customers','estimates','schedule']);
-    if(bottom && !bottom.classList.contains('fire-dr-fixed-bottom-nav')){
+    if(bottom){
       bottom.classList.add('fire-dr-fixed-bottom-nav');
       document.documentElement.classList.add('fire-dr-bottom-nav-active');
     }
     applyStride();
   }
-  function scheduleApply(){
-    if(queued) return;
-    queued=true;
-    requestAnimationFrame(apply);
+  function boot(){
+    apply();
+    setTimeout(apply,250);
+    setTimeout(apply,1000);
   }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',scheduleApply,{once:true}); else scheduleApply();
-  new MutationObserver(function(){scheduleApply();}).observe(document.documentElement,{childList:true,subtree:true});
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+  window.addEventListener('pageshow',apply);
+  window.addEventListener('popstate',function(){setTimeout(apply,0);});
 })();`}} />'''
     if '</body>' not in text:
         raise SystemExit('Could not find </body> in app/layout.tsx')
     text = text.replace('</body>', script + '\n</body>', 1)
     layout.write_text(text)
 
-print('DR_MOBILE_SHELL_PARITY_V2_APPLIED')
+print('DR_MOBILE_SHELL_PARITY_V3_APPLIED')
