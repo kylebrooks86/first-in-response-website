@@ -35,7 +35,7 @@ cd "$APP_DIR"
 node -e "const p=require('./package.json'); if(p.version!=='1.0.0-rc.138') throw new Error('Unexpected package version: '+p.version)"
 node -e "const v=require('./CURRENT_VERSION.json'); if(String(v.fire_release)!=='v138') throw new Error('Unexpected FIRE release: '+v.fire_release)"
 
-# DR-only 4-digit PIN overlay and narrow Stride alignment fix.
+# DR-only 4-digit PIN overlay. The sealed v138 package remains untouched.
 python3 - <<'PY'
 from pathlib import Path
 
@@ -61,42 +61,10 @@ text = text.replace("Owner password", "4-digit PIN")
 text = text.replace('type="password" autoComplete="current-password"', 'type="password" inputMode="numeric" pattern="[0-9]*" maxLength={4} autoComplete="off"')
 login.write_text(text)
 
-globals_css = Path("app/globals.css")
-if globals_css.exists():
-    css = globals_css.read_text()
-    marker = "/* FIRE_STRIDE_LABEL_FIX */"
-    if marker not in css:
-        css += r'''
-
-/* FIRE_STRIDE_LABEL_FIX */
-a[href*="stride" i] {
-  position: relative;
-  display: flex !important;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  overflow: visible;
-}
-a[href*="stride" i] span,
-a[href*="stride" i] strong,
-a[href*="stride" i] small {
-  position: static !important;
-  inset: auto !important;
-  transform: none !important;
-  margin: 0 !important;
-  line-height: 1 !important;
-}
-'''
-        globals_css.write_text(css)
-        print("DR_STRIDE_LABEL_FIX_APPLIED")
-else:
-    print("DR_STRIDE_LABEL_FIX_SKIPPED_NO_GLOBALS_CSS")
-
 print("DR_PIN_OVERLAY_APPLIED")
 PY
 
-# Match LIVE mobile-shell behavior: stable top controls and fixed bottom navigation.
+# Match LIVE mobile-shell behavior and repair the Stride control without legacy CSS conflicts.
 python3 ../scripts/apply-fire-dr-mobile-shell-fix.py
 
 corepack enable
