@@ -5,11 +5,11 @@ if not css_path.exists():
     raise SystemExit('app/globals.css not found')
 
 css = css_path.read_text()
-marker = '/* FIRE_DR_STRIDE_PARITY_V5 */'
+marker = '/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V6 */'
 if marker not in css:
     css += r'''
 
-/* FIRE_DR_STRIDE_PARITY_V5 */
+/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V6 */
 .fire-dr-stride-button {
   display: flex !important;
   flex-direction: column !important;
@@ -30,6 +30,20 @@ if marker not in css:
   line-height: 1 !important;
   white-space: nowrap !important;
 }
+
+/* In iPhone Home Screen / standalone mode, keep the native sticky topbar
+   below the status-bar safe area instead of underneath the Dynamic Island. */
+@media (display-mode: standalone) and (max-width: 760px) {
+  .topbar {
+    top: 0 !important;
+    height: calc(64px + env(safe-area-inset-top)) !important;
+    min-height: calc(64px + env(safe-area-inset-top)) !important;
+    padding-top: env(safe-area-inset-top) !important;
+    padding-left: max(16px, env(safe-area-inset-left)) !important;
+    padding-right: max(16px, env(safe-area-inset-right)) !important;
+    padding-bottom: 0 !important;
+  }
+}
 '''
     css_path.write_text(css)
 
@@ -38,10 +52,10 @@ if not layout.exists():
     raise SystemExit('app/layout.tsx not found')
 
 text = layout.read_text()
-script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V5'
+script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V6'
 if script_marker not in text:
     script = r'''<script dangerouslySetInnerHTML={{__html: `(function(){
-  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V5 */
+  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V6 */
   function norm(s){return (s||'').replace(/\\s+/g,' ').trim().toLowerCase();}
   function closestClickable(el){
     return el && el.closest ? (el.closest('a,button,[role="button"]') || el) : el;
@@ -63,4 +77,4 @@ if script_marker not in text:
     text = text.replace('</body>', script + '\n</body>', 1)
     layout.write_text(text)
 
-print('DR_STRIDE_PARITY_V5_APPLIED')
+print('DR_STANDALONE_TOPBAR_PARITY_V6_APPLIED')
