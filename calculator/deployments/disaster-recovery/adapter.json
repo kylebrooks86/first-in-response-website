@@ -1,0 +1,34 @@
+{
+  "deployment": "disaster-recovery",
+  "product": "FIRE Business Calculator",
+  "shared_core_required": true,
+  "shared_core_manifest": "../../SHARED_CORE_MANIFEST.json",
+  "must_work_without": [
+    "ChatGPT hosting",
+    "ChatGPT authentication",
+    "OpenAI model calls",
+    "OpenAI services for normal calculator operation"
+  ],
+  "allowed_differences": [
+    "hosting provider",
+    "domain/URL",
+    "environment variables",
+    "secrets",
+    "storage/database identifiers",
+    "backup destination",
+    "offline asset-cache implementation"
+  ],
+  "forbidden_differences": [
+    "visible UI",
+    "pricing",
+    "formulas",
+    "service list",
+    "validation",
+    "navigation",
+    "saved-state semantics",
+    "export contents",
+    "error behavior",
+    "version number"
+  ],
+  "status": "STAGING_ONLY_NOT_ACCEPTED"
+}

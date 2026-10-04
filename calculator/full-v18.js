@@ -1,25 +1,62 @@
 (()=>{
   if(window.__fireV18ModuleLoader)return;
   window.__fireV18ModuleLoader=true;
-  const load=src=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s)});
-  const waitForCore=(timeout=5000)=>new Promise((resolve,reject)=>{
-    const start=Date.now();
-    const ready=()=>{
-      const coreLoaded=!!window.__fireFullV18;
-      const estimatorReady=!!document.querySelector('#priceEditor');
-      const toolsReady=!!document.querySelector('#mixHistory');
-      if(coreLoaded&&estimatorReady&&toolsReady){window.__fireV18CoreReady=true;window.dispatchEvent(new CustomEvent('fire-v18-core-ready'));resolve();return}
-      if(Date.now()-start>=timeout){reject(new Error('FIRE v18 core UI did not become ready in time'));return}
-      setTimeout(ready,50);
+  if(!window.__fireMixHistoryDomAlias){
+    window.__fireMixHistoryDomAlias=true;
+    const aliasId='fireMixHistoryList';
+    const nativeInsert=Element.prototype.insertAdjacentHTML;
+    Element.prototype.insertAdjacentHTML=function(position,html){
+      if(typeof html==='string'&&html.includes('id="mixHistory"'))html=html.replace(/id="mixHistory"/g,`id="${aliasId}"`);
+      return nativeInsert.call(this,position,html);
     };
-    ready();
-  });
-  load('./full-v18-parity-core.js?v=1')
-    .then(()=>waitForCore())
-    .then(()=>load('./v18-behavior.js?v=4'))
-    .then(()=>load('./v18-interactions.js?v=2'))
-    .then(()=>load('./v18-fine-parity.js?v=7'))
-    .then(()=>load('./v18-equipment-parity.js?v=1'))
-    .then(()=>load('./v18-tools-state.js?v=1'))
-    .catch(err=>console.error('FIRE v18 offline modules failed to load',err));
+    const nativeQuery=Document.prototype.querySelector;
+    Document.prototype.querySelector=function(selector){return nativeQuery.call(this,selector==='#mixHistory'?`#${aliasId}`:selector)};
+    const nativeGetById=Document.prototype.getElementById;
+    Document.prototype.getElementById=function(id){return nativeGetById.call(this,id==='mixHistory'?aliasId:id)};
+  }
+  const css=(href,key)=>{if(document.querySelector(`link[data-fire-${key}]`))return;const l=document.createElement('link');l.rel='stylesheet';l.href=href;l.dataset[`fire${key.replace(/(^|-)(\w)/g,(_,a,b)=>b.toUpperCase())}`]='1';document.head.appendChild(l)};
+  css('./v18-exact-visual.css?v=6','exact-visual');
+  css('./v18-live-jobmath-visual.css?v=2','jobmath-visual');
+  css('./v18-live-equipment-visual.css?v=5','equipment-visual');
+  css('./v18-live-chemicals-parity.css?v=5','chemicals-parity');
+  css('./v18-live-index-parity.css?v=1','index-parity');
+  css('./v18-live-guide-parity.css?v=3','guide-parity');
+  css('./v18-live-tools-parity.css?v=3','tools-parity');
+  css('./v18-live-tools-fine.css?v=2','tools-fine');
+  css('./v18-live-pricing-parity.css?v=1','pricing-parity');
+  css('./v18-live-foundation.css?v=7','live-foundation');
+  const load=src=>new Promise(resolve=>{const s=document.createElement('script');s.src=src;s.onload=()=>resolve(true);s.onerror=()=>{console.error('FIRE v18 module failed to load:',src);resolve(false)};document.head.appendChild(s)});
+  const waitForCore=(timeout=15000)=>new Promise(resolve=>{const start=Date.now();const check=()=>{const ready=!!window.__fireFullV18&&!!document.querySelector('#priceEditor')&&!!document.querySelector('#mixHistory');if(ready){window.__fireV18CoreReady=true;window.dispatchEvent(new CustomEvent('fire-v18-core-ready'));return resolve(true)}if(Date.now()-start>=timeout){console.warn('FIRE v18 core readiness timed out; continuing shared modules for audit visibility.');return resolve(false)}setTimeout(check,50)};check()});
+  (async()=>{
+    await load('./full-v18-core.js?v=1');
+    await waitForCore();
+    await load('./v18-legacy-job-detach.js?v=2');
+    await load('./full-v18-parity-core.js?v=3');
+    await load('./v18-behavior.js?v=4');
+    await load('./v18-interactions.js?v=3');
+    await load('./v18-fine-parity.js?v=8');
+    await load('./v18-equipment-parity.js?v=3');
+    await load('./v18-live-equipment-structure-parity.js?v=3');
+    await load('./v18-tools-state.js?v=1');
+    await load('./v18-live-estimator-parity.js?v=6');
+    await load('./v18-live-first-screen.js?v=3');
+    await load('./v18-live-jobmath-parity.js?v=5');
+    await load('./v18-live-jobmix-parity.js?v=1');
+    await load('./v18-live-planning-state.js?v=2');
+    await load('./v18-live-chemicals-parity.js?v=3');
+    await load('./v18-live-index-parity.js?v=2');
+    await load('./v18-live-guide-parity.js?v=2');
+    await load('./v18-live-navigation-parity.js?v=2');
+    await load('./v18-live-tools-parity.js?v=1');
+    await load('./v18-live-tools-options-parity.js?v=2');
+    await load('./v18-live-tools-fine.js?v=1');
+    await load('./v18-live-pricing-parity.js?v=1');
+    await load('./v18-live-customer-parity.js?v=11');
+    await load('./v18-live-backup-hydration.js?v=3');
+    await load('./v18-live-invalid-backup-parity.js?v=2');
+    await load('./v18-live-portable-backup.js?v=1');
+    await load('./v18-live-input-contract.js?v=3');
+    window.dispatchEvent(new CustomEvent('fire-v18-parity-loaded'));
+    window.dispatchEvent(new CustomEvent('fire-v18-shared-core-ready'));
+  })();
 })();

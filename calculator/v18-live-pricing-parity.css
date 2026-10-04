@@ -1,0 +1,8 @@
+#priceEditor{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+#priceEditor .live-price-row{display:block!important;margin:0!important;min-width:0!important}
+#priceEditor .live-price-row .field{display:block!important}
+#priceEditor .live-price-row label{display:block!important;margin-bottom:6px!important;font-weight:700!important;color:#343a40!important;line-height:1.25!important}
+#priceEditor .live-price-row .inputrow{width:100%!important}
+#priceEditor .live-price-row input{width:100%!important;min-height:46px!important}
+.dark #priceEditor .live-price-row label{color:#f6f7f8!important}
+@media(max-width:560px){#priceEditor{grid-template-columns:1fr!important;gap:10px!important}#priceEditor .live-price-row label{font-size:13px!important}}
