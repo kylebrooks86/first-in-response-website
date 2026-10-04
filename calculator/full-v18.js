@@ -29,6 +29,10 @@
   const waitForCore=(timeout=3000)=>new Promise(resolve=>{const start=Date.now();const check=()=>{const ready=!!window.__fireFullV18;if(ready){window.__fireV18CoreReady=true;window.dispatchEvent(new CustomEvent('fire-v18-core-ready'));return resolve(true)}if(Date.now()-start>=timeout){console.warn('FIRE v18 core readiness timed out; continuing shared modules.');return resolve(false)}setTimeout(check,25)};check()});
   (async()=>{
     await load('./full-v18-core.js?v=1');
+    await Promise.all([
+      load('./v18-live-chemicals-parity.js?v=4'),
+      load('./v18-live-index-parity.js?v=3')
+    ]);
     await waitForCore();
     await load('./v18-legacy-job-detach.js?v=2');
     await load('./full-v18-parity-core.js?v=3');
@@ -43,10 +47,8 @@
     await load('./v18-live-jobmath-parity.js?v=5');
     await load('./v18-live-jobmix-parity.js?v=1');
     await load('./v18-live-planning-state.js?v=2');
-    await load('./v18-live-chemicals-parity.js?v=3');
-    await load('./v18-live-index-parity.js?v=2');
     await load('./v18-live-guide-parity.js?v=2');
-    await load('./v18-live-navigation-parity.js?v=2');
+    await load('./v18-live-navigation-parity.js?v=3');
     await load('./v18-live-tools-parity.js?v=1');
     await load('./v18-live-tools-options-parity.js?v=2');
     await load('./v18-live-tools-fine.js?v=1');
