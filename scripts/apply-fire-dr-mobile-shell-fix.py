@@ -5,29 +5,15 @@ if not css_path.exists():
     raise SystemExit('app/globals.css not found')
 
 css = css_path.read_text()
-marker = '/* FIRE_DR_MOBILE_SHELL_PARITY_V3 */'
+marker = '/* FIRE_DR_MOBILE_SHELL_PARITY_V4 */'
 if marker not in css:
     css += r'''
 
-/* FIRE_DR_MOBILE_SHELL_PARITY_V3 */
+/* FIRE_DR_MOBILE_SHELL_PARITY_V4 */
 .fire-dr-stable-header {
   position: sticky !important;
   top: 0 !important;
   z-index: 1000 !important;
-}
-.fire-dr-fixed-bottom-nav {
-  position: fixed !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  width: 100% !important;
-  z-index: 1100 !important;
-  padding-bottom: env(safe-area-inset-bottom) !important;
-  margin: 0 !important;
-  will-change: auto !important;
-}
-html.fire-dr-bottom-nav-active body {
-  padding-bottom: calc(88px + env(safe-area-inset-bottom)) !important;
 }
 .fire-dr-stride-button {
   display: flex !important;
@@ -57,20 +43,11 @@ if not layout.exists():
     raise SystemExit('app/layout.tsx not found')
 
 text = layout.read_text()
-script_marker = 'FIRE_DR_MOBILE_SHELL_PARITY_SCRIPT_V3'
+script_marker = 'FIRE_DR_MOBILE_SHELL_PARITY_SCRIPT_V4'
 if script_marker not in text:
     script = r'''<script dangerouslySetInnerHTML={{__html: `(function(){
-  /* FIRE_DR_MOBILE_SHELL_PARITY_SCRIPT_V3 */
+  /* FIRE_DR_MOBILE_SHELL_PARITY_SCRIPT_V4 */
   function norm(s){return (s||'').replace(/\\s+/g,' ').trim().toLowerCase();}
-  function smallestWithLabels(labels){
-    var all=[].slice.call(document.querySelectorAll('nav,footer,div'));
-    var matches=all.filter(function(el){
-      var t=norm(el.innerText);
-      return labels.every(function(label){return t.indexOf(label)>=0;});
-    });
-    matches.sort(function(a,b){return a.querySelectorAll('*').length-b.querySelectorAll('*').length;});
-    return matches[0]||null;
-  }
   function closestClickable(el){
     return el && el.closest ? (el.closest('a,button,[role="button"]') || el) : el;
   }
@@ -86,25 +63,14 @@ if script_marker not in text:
   function apply(){
     var header=document.querySelector('header');
     if(header) header.classList.add('fire-dr-stable-header');
-    var bottom=smallestWithLabels(['home','contracts','customers','estimates','schedule']);
-    if(bottom){
-      bottom.classList.add('fire-dr-fixed-bottom-nav');
-      document.documentElement.classList.add('fire-dr-bottom-nav-active');
-    }
     applyStride();
   }
-  function boot(){
-    apply();
-    setTimeout(apply,250);
-    setTimeout(apply,1000);
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
-  window.addEventListener('pageshow',apply);
-  window.addEventListener('popstate',function(){setTimeout(apply,0);});
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',apply,{once:true}); else apply();
+  window.addEventListener('pageshow',apply,{once:true});
 })();`}} />'''
     if '</body>' not in text:
         raise SystemExit('Could not find </body> in app/layout.tsx')
     text = text.replace('</body>', script + '\n</body>', 1)
     layout.write_text(text)
 
-print('DR_MOBILE_SHELL_PARITY_V3_APPLIED')
+print('DR_MOBILE_SHELL_PARITY_V4_APPLIED')
