@@ -67,6 +67,9 @@ PY
 # Match LIVE mobile-shell behavior and repair the Stride control without legacy CSS conflicts.
 python3 ../scripts/apply-fire-dr-mobile-shell-fix.py
 
+# Match LIVE mobile template selection/editing behavior without altering the sealed v138 archive.
+python3 ../scripts/apply-fire-dr-template-parity-fix.py
+
 corepack enable
 pnpm install --frozen-lockfile
 pnpm run build
