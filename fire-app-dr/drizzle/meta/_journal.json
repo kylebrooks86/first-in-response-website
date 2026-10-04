@@ -1,0 +1,76 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1789870381763,
+      "tag": "0000_wise_namora",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789910681832,
+      "tag": "0001_elite_cammi",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789925699208,
+      "tag": "0002_tearful_ink",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789926596281,
+      "tag": "0003_absent_dracula",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789927176881,
+      "tag": "0004_volatile_fenris",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789947942912,
+      "tag": "0005_unknown_king_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789949067809,
+      "tag": "0006_open_solo",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789949608162,
+      "tag": "0007_open_bloodaxe",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1789992559197,
+      "tag": "0008_typical_tomorrow_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790547554555,
+      "tag": "0009_spicy_micromax",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "schema": "fire-release-package-policy-v1",
+  "fire_release": "v138",
+  "purpose": "Keep the full recovery/source tree while excluding obsolete top-level release-history artifacts and transient build/runtime directories.",
+  "keep_current_versioned_artifacts": [
+    "FIRE_v138_RELEASE_STATUS_2026-10-01.md",
+    "LIVE_v138_SYNC_QUEUE.md"
+  ],
+  "exclude_top_level_versioned_patterns": [
+    "^FIRE_v\\d+_.*",
+    "^LIVE_v\\d+_.*",
+    "^LIVE_V\\d+_.*"
+  ],
+  "exclude_directories": [
+    "node_modules",
+    "dist",
+    ".next",
+    ".wrangler",
+    ".git",
+    "__pycache__"
+  ],
+  "exclude_filenames": [
+    ".DS_Store"
+  ]
+}

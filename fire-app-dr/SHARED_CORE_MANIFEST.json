@@ -1,0 +1,302 @@
+{
+  "fire_release": "v138",
+  "package_version": "1.0.0-rc.138",
+  "shared_core_file_count": 73,
+  "shared_core_fingerprint_sha256": "7a1889d5f9c07483536630ebb8ba3b18d9e6746f874c641c2d5e9a6633f20896",
+  "shared_core_files": [
+    {
+      "path": "app/api/backup/photos/route.ts",
+      "sha256": "a754107556944f2de6472157be6dfbc3e3ae778ad954a2247d76cf5f2ed67f0b"
+    },
+    {
+      "path": "app/api/backup/route.ts",
+      "sha256": "28f9b5019782fc1da1d2872ded734e8dc776c773316030b1ee9e399d57395edf"
+    },
+    {
+      "path": "app/api/customer-messages/route.ts",
+      "sha256": "73296272c6f2f8fdf1dd4bc1dcaed257bbeb5ea44e9f9f88251a1594b7827c96"
+    },
+    {
+      "path": "app/api/customer-notes/route.ts",
+      "sha256": "72af3c245b79738cdef7af8c3ec4dd0e712bbb964a1490208e3a09bfc622dc9a"
+    },
+    {
+      "path": "app/api/customer-photos/[id]/route.ts",
+      "sha256": "27221a0f0bf74b8f08593ae9a326145712a20acea502226e56561d704a05d88a"
+    },
+    {
+      "path": "app/api/customer-photos/route.ts",
+      "sha256": "14dfd2ac06da4a570a92d1b70587e0672613e1323650ae0f50e3581bd0509494"
+    },
+    {
+      "path": "app/api/customers/route.ts",
+      "sha256": "a79e9def7c6c8220a1a32d5ebe908dd878d6286a0c3774998b3aac7fc3197ced"
+    },
+    {
+      "path": "app/api/dashboard-summary/route.ts",
+      "sha256": "644dae1572662067853bf9f9511a686cb8801f26ca9b3928dd945779bd11b297"
+    },
+    {
+      "path": "app/api/estimates/[id]/route.ts",
+      "sha256": "d7bda9f33c78022f13f3b67625b41962c3e8d5c4f584e2afe0f998b317187383"
+    },
+    {
+      "path": "app/api/estimates/[id]/share/route.ts",
+      "sha256": "338dc7044700514837b5f6d533130d69d128f3f4f1f9196e37998a032a79d7ac"
+    },
+    {
+      "path": "app/api/estimates/route.ts",
+      "sha256": "d21db820df4f7b72d6f2add293bfcfd13f84e35e7dae6f75d2a74cbf1e95f0ea"
+    },
+    {
+      "path": "app/api/expenses/route.ts",
+      "sha256": "647b37cad8a78916c96745545607aeb63d3658d4eee5f980b68c353435d70be7"
+    },
+    {
+      "path": "app/api/invoices/[id]/route.ts",
+      "sha256": "8bdc3b1d196af5bad810b41243e418a14e15b6d73f9fae989d706e6db83a1180"
+    },
+    {
+      "path": "app/api/invoices/[id]/share/route.ts",
+      "sha256": "5fc6d3fb4598dffad44cdf81e685565b45a1eedaba203d44319e5fc9240bc22b"
+    },
+    {
+      "path": "app/api/invoices/route.ts",
+      "sha256": "3e614c4e72c70d5a3bb4cc06f44be65589f9d554845e0b9a7b23f2878d40a8fb"
+    },
+    {
+      "path": "app/api/job-reports/route.ts",
+      "sha256": "42e4d01b8da7bca5c5c658902eccedc0885f68afe157d91cbb3cdab7c08e0421"
+    },
+    {
+      "path": "app/api/message-templates/route.ts",
+      "sha256": "d9d93e2c15bd3c0a7f5c7dab05fb6707b49649352492183e307e2138b4c682e1"
+    },
+    {
+      "path": "app/api/notifications/route.ts",
+      "sha256": "45535728568703ccd8b61c6a4cb95a6037cc08812599d1cbc704d26b79c2867a"
+    },
+    {
+      "path": "app/api/payments/checkout/route.ts",
+      "sha256": "e4a018822be5a9c4182b67c98ed3f187790b5108ba23ac374b6c39d52d6c34c4"
+    },
+    {
+      "path": "app/api/payments/refund/route.ts",
+      "sha256": "bc0c52abef762f4de4b2600e0acbf0196a28224d03a6ae2746fec13a2c142eb7"
+    },
+    {
+      "path": "app/api/payments/route.ts",
+      "sha256": "17ba102718ae6ebb86aae5d8db8fba18aa66983793f08600c81cebc5a29b5ad3"
+    },
+    {
+      "path": "app/api/payments/webhook/route.ts",
+      "sha256": "204c0e1a062c5304b2fef5a85f8fd20d4b7f2d15734e472aae235ab2c5c4d695"
+    },
+    {
+      "path": "app/api/public/estimates/[token]/accept/route.ts",
+      "sha256": "8f1c907e14fbfd4c4f3c3c1eaad1737bee2d997a1351e47040507befbe0dd688"
+    },
+    {
+      "path": "app/api/public/estimates/[token]/change-request/route.ts",
+      "sha256": "6c934dc64a1dd4348a0ee3c1af03880184bd1ab62a2629ed103d7d927472274a"
+    },
+    {
+      "path": "app/api/tasks/route.ts",
+      "sha256": "d4125d6e335e13f6ca03893a8af3d1af69c6e5544ff7fad0211ca8104bc11afe"
+    },
+    {
+      "path": "app/customer-portal-nav.tsx",
+      "sha256": "31590ddcaaabe16330bdc3c4ac1e923ce6deed3d9a92a106e2e8443c5713a87e"
+    },
+    {
+      "path": "app/dashboard.tsx",
+      "sha256": "ff4b1eaca19cd3db77ccfc2a0af516ed4d6ce3204067e2ade6c89ef92225e5f9"
+    },
+    {
+      "path": "app/estimate/[token]/accept-button.tsx",
+      "sha256": "632d22284a56910a67d27384dd0d6bf03c6346818ce4030bcba162f264beda3d"
+    },
+    {
+      "path": "app/estimate/[token]/page.tsx",
+      "sha256": "846acb08636f29248a4be0afa10a4c8f2e9c7026b90dfeaeb37a8832aebfdef5"
+    },
+    {
+      "path": "app/globals.css",
+      "sha256": "2f677316a4b9731601071212a425a9cd052fdf70e9055725ae333799696e4601"
+    },
+    {
+      "path": "app/invoice/[token]/page.tsx",
+      "sha256": "ccda7ddd1740bf4f170fb45e5fd509f9401f1a58bf70281350a100be7ab89c40"
+    },
+    {
+      "path": "app/pay/[id]/page.tsx",
+      "sha256": "e8f4fc1337a7af8bb3ad44511b489098ca2b74229ee1b9150e6e620abc53c63c"
+    },
+    {
+      "path": "app/pay/[id]/pay-button.tsx",
+      "sha256": "32ec620a0a0d10c503791e272f3842c0f4310a0e4ce761b5523cea53d488c3db"
+    },
+    {
+      "path": "db/index.ts",
+      "sha256": "12d78b6aaa3ebd160033700f01bf7638595a2f763b08f616898c6dc7576975d5"
+    },
+    {
+      "path": "db/schema.ts",
+      "sha256": "ed27218c6e05f8cd8e657e32440159ee08cd33f7c0e260c4096d97d37e53fe1c"
+    },
+    {
+      "path": "drizzle/0000_wise_namora.sql",
+      "sha256": "bf81df36056d1e29ca3ca96bb10f6b85975fa7adf61cb501614d9ff4aa5b6050"
+    },
+    {
+      "path": "drizzle/0001_elite_cammi.sql",
+      "sha256": "a6e4c3e4754da037435ecde79e7e34e98b86d2cf9d7e36cc4825e38b377ede8b"
+    },
+    {
+      "path": "drizzle/0002_tearful_ink.sql",
+      "sha256": "a52c142f08627a2119473df06bbaf172db26fdafbdae4f68f6e6f6901e530c09"
+    },
+    {
+      "path": "drizzle/0003_absent_dracula.sql",
+      "sha256": "65b77216eed043fdf10f209a2a94ac07074f993685de710d7836ba11627814f0"
+    },
+    {
+      "path": "drizzle/0004_volatile_fenris.sql",
+      "sha256": "7a8ac944ba7ade961e8905c0a0353ab3148e627ae1074b22a43f450bfa71d45b"
+    },
+    {
+      "path": "drizzle/0005_unknown_king_cobra.sql",
+      "sha256": "23fa54825c71a703a3463462966dd987d0f8440be11ad419153ef6894d0de8d0"
+    },
+    {
+      "path": "drizzle/0006_open_solo.sql",
+      "sha256": "ea02ee90b6740ea946f0095282e54c93b175803acf493684cd5044d98ad70bde"
+    },
+    {
+      "path": "drizzle/0007_open_bloodaxe.sql",
+      "sha256": "edcef02c0ffdb45f545c48ec214ea5424d13f8aa2927dc3c3fb1fdfc0141abda"
+    },
+    {
+      "path": "drizzle/0008_typical_tomorrow_man.sql",
+      "sha256": "73d544641f0a31a3b2b3bc86bb23acd20c1c65b5a9e91768c5275d24aa355d1e"
+    },
+    {
+      "path": "drizzle/0009_spicy_micromax.sql",
+      "sha256": "573811bd67d3494f12b5c1f4abad4cfac9b5f212a347c97d10b742b9b8005cfa"
+    },
+    {
+      "path": "drizzle/0010_discount_mode.sql",
+      "sha256": "f634f637ba996ef667ec7e6481208c1e2c29c98dc8f53ef6c82d55a5b6e48c95"
+    },
+    {
+      "path": "drizzle/0011_editable_invoices.sql",
+      "sha256": "960ec64daf36eab7b8a2c1d9e4fa5577d3edf8591b58172feed8612ea5909412"
+    },
+    {
+      "path": "drizzle/0012_invoice_revisions.sql",
+      "sha256": "d9f248e3071d3b1bc23aca77d65db597239efd9adf4365338739856c506f90f3"
+    },
+    {
+      "path": "drizzle/0013_checkout_sessions.sql",
+      "sha256": "84d7b9a8d41cd44ef892c73f215503473d803a6ff59483dcda99ac3116ad522e"
+    },
+    {
+      "path": "drizzle/0014_notification_resolution.sql",
+      "sha256": "2c8fe6c5c7b7e1167f252e5fbc23c8624a23c2b1fa67382449235dd5d43d3f1e"
+    },
+    {
+      "path": "drizzle/0015_single_open_checkout.sql",
+      "sha256": "2af3dfb175f3e376bf4a3cc2f34736dd9b766b79995fb2b6e14b0e481d903fe4"
+    },
+    {
+      "path": "drizzle/0016_notification_resolution_note.sql",
+      "sha256": "8aae84afa39975cc4f5a0a40e2e2f6ce5b7955b7b77b70c15a86b50e225e49fb"
+    },
+    {
+      "path": "drizzle/0017_one_invoice_per_estimate.sql",
+      "sha256": "5dcb11fd59ffd11cd648a33ec2a4415d9d8396bb4109820392908a1163179c37"
+    },
+    {
+      "path": "drizzle/0018_payment_refunds.sql",
+      "sha256": "14285c7d39d19af3b4b66ab205a560ca880044327802a135f2a3fccdfd352b70"
+    },
+    {
+      "path": "drizzle/0019_refund_ledger_unique.sql",
+      "sha256": "b02ac31c9de684467154555db9f67d88b11f0946933ca01ab85c0c5261895df4"
+    },
+    {
+      "path": "drizzle/0020_notification_lifecycle_unique.sql",
+      "sha256": "a61178146bb0f308c813fe9d60f8185f3790d22f9b56c7c7270350ba117a0beb"
+    },
+    {
+      "path": "drizzle/meta/0000_snapshot.json",
+      "sha256": "e66f48bcebf8d19299509eb37861fb6dac2a42faa6f1dcde80a92d1868b8b861"
+    },
+    {
+      "path": "drizzle/meta/0001_snapshot.json",
+      "sha256": "e6058070db9dd9ae6f6af04967286a30a4a971fa27e90b8e54d68c16a9f9edfa"
+    },
+    {
+      "path": "drizzle/meta/0002_snapshot.json",
+      "sha256": "06c94137c0f4ce90362f89df3bdda003a670a4acd465be65a748ae85cb8814da"
+    },
+    {
+      "path": "drizzle/meta/0003_snapshot.json",
+      "sha256": "fa6968de0376df9e8d0f600f39bececadfc92d559f4b09689365f64034dd05d0"
+    },
+    {
+      "path": "drizzle/meta/0004_snapshot.json",
+      "sha256": "ef59c68def42d759848509e499fd017ee838a87d2a5e9588c7df9703a8dc879c"
+    },
+    {
+      "path": "drizzle/meta/0005_snapshot.json",
+      "sha256": "af601b46a32825f150a8a89c4c385b6cb7279e997c77c256fd101004f4c3e4c2"
+    },
+    {
+      "path": "drizzle/meta/0006_snapshot.json",
+      "sha256": "b4bfb83094e68b01e8b838e1e65cb3ef7f16ac5244cf82540069646e29c82130"
+    },
+    {
+      "path": "drizzle/meta/0007_snapshot.json",
+      "sha256": "7c5dc9df6fc97e6f464ba5f74c1cd58b2059fd951bde1e97128eca6046eaa274"
+    },
+    {
+      "path": "drizzle/meta/0008_snapshot.json",
+      "sha256": "73ebaf2761a6a15484e7d6de74137941a321bc966fafa165d4ed759832bdfc9b"
+    },
+    {
+      "path": "drizzle/meta/0009_snapshot.json",
+      "sha256": "e2d4d2372ca73cf25a39606335906593b0bdcf8fcfb46f589c6d264c85e2193c"
+    },
+    {
+      "path": "drizzle/meta/_journal.json",
+      "sha256": "d4ea1bd1d6f911c4032194be111ac4333860a54fb89af9b5f74cd6039a75865b"
+    },
+    {
+      "path": "lib/fire-services.ts",
+      "sha256": "4a4282fcc4d312d6316887e5f68d0701331c2c88f69f4cb4ff2eff452e493d7f"
+    },
+    {
+      "path": "lib/fire-templates.ts",
+      "sha256": "3bc9b1bc75b78fe7c0e3e1d58ba654b99f1dbdf5d2c628291758284cf16a6239"
+    },
+    {
+      "path": "lib/payment-methods.ts",
+      "sha256": "fae6d74bfe43a3d005de513d1fb3d942bf35c77e9c732c7e99d2b3ea795b24fa"
+    },
+    {
+      "path": "scripts/restore-photo-archive.mjs",
+      "sha256": "43da2328c3939c5be149ef827c01acab0dc2faf387bdbe7cebcfbf4702cb29e7"
+    },
+    {
+      "path": "scripts/restore-records-backup.mjs",
+      "sha256": "c81c67f64898c14f08744958af79793f55436a6a9a7184b8f57f97818d1830b1"
+    },
+    {
+      "path": "scripts/validate-records-backup.mjs",
+      "sha256": "8650aed978b3d36f22aa600087199ad744599f8e94b0f797e967bbac6574dacb"
+    }
+  ],
+  "source": "FIRE_UNIFIED_RELEASE.json",
+  "strict_parity_status": "NOT_YET_FULLY_VERIFIED"
+}
