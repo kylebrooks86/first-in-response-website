@@ -5,11 +5,11 @@ if not css_path.exists():
     raise SystemExit('app/globals.css not found')
 
 css = css_path.read_text()
-marker = '/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V8 */'
+marker = '/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V9 */'
 if marker not in css:
     css += r'''
 
-/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V8 */
+/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V9 */
 .fire-dr-stride-button {
   display: flex !important;
   flex-direction: column !important;
@@ -31,8 +31,7 @@ if marker not in css:
   white-space: nowrap !important;
 }
 
-/* Standalone iPhone parity: sharp solid header, no glass/blur/glow anywhere
-   in the top navigation tree. */
+/* iPhone Home Screen / standalone parity: opaque header and controls only. */
 @media (display-mode: standalone) and (max-width: 760px) {
   .topbar {
     top: 0 !important;
@@ -43,34 +42,53 @@ if marker not in css:
     padding-right: max(22px, env(safe-area-inset-right)) !important;
     padding-bottom: 0 !important;
     background: #fff !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
     opacity: 1 !important;
+  }
+  [data-theme="dark"] .topbar {
+    background: #101d2d !important;
+    background-image: none !important;
+  }
+  .topbar::before,
+  .topbar::after,
+  .mobile-primary-actions::before,
+  .mobile-primary-actions::after {
+    content: none !important;
+    display: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     filter: none !important;
     box-shadow: none !important;
-    text-shadow: none !important;
   }
-  [data-theme="dark"] .topbar { background: #101d2d !important; }
-
-  .topbar *,
-  .topbar *::before,
-  .topbar *::after {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    filter: none !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-  }
-
   .mobile-primary-actions {
     background: #fff !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
     opacity: 1 !important;
   }
-  [data-theme="dark"] .mobile-primary-actions { background: #132238 !important; }
-
+  [data-theme="dark"] .mobile-primary-actions {
+    background: #132238 !important;
+    background-image: none !important;
+  }
   .mobile-primary-actions > button,
   .top-stride-button,
-  .notification-button {
+  .notification-button,
+  .mobile-brand,
+  .mobile-brand .fire-logo {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
     opacity: 1 !important;
   }
 }
@@ -82,10 +100,15 @@ if not layout.exists():
     raise SystemExit('app/layout.tsx not found')
 
 text = layout.read_text()
-script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V8'
+# The sealed app uses black-translucent for the iOS PWA status bar. In standalone
+# mode that intentionally blends page content under the status area and can look
+# frosted/blurred. DR uses an opaque status bar instead, matching the visual goal.
+text = text.replace('statusBarStyle: "black-translucent"', 'statusBarStyle: "default"')
+
+script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V9'
 if script_marker not in text:
     script = r'''<script dangerouslySetInnerHTML={{__html: `(function(){
-  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V8 */
+  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V9 */
   function norm(s){return (s||'').replace(/\\s+/g,' ').trim().toLowerCase();}
   function closestClickable(el){
     return el && el.closest ? (el.closest('a,button,[role="button"]') || el) : el;
@@ -105,6 +128,6 @@ if script_marker not in text:
     if '</body>' not in text:
         raise SystemExit('Could not find </body> in app/layout.tsx')
     text = text.replace('</body>', script + '\n</body>', 1)
-    layout.write_text(text)
 
-print('DR_STANDALONE_TOPBAR_PARITY_V8_APPLIED')
+layout.write_text(text)
+print('DR_STANDALONE_TOPBAR_PARITY_V9_APPLIED')
