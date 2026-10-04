@@ -35,8 +35,7 @@ cd "$APP_DIR"
 node -e "const p=require('./package.json'); if(p.version!=='1.0.0-rc.138') throw new Error('Unexpected package version: '+p.version)"
 node -e "const v=require('./CURRENT_VERSION.json'); if(String(v.fire_release)!=='v138') throw new Error('Unexpected FIRE release: '+v.fire_release)"
 
-# DR-only 4-digit PIN overlay for isolated staging parity testing.
-# The sealed v138 archive is not modified; this overlay is applied only after extraction.
+# DR-only 4-digit PIN overlay and narrow Stride alignment fix.
 python3 - <<'PY'
 from pathlib import Path
 
@@ -62,8 +61,6 @@ text = text.replace("Owner password", "4-digit PIN")
 text = text.replace('type="password" autoComplete="current-password"', 'type="password" inputMode="numeric" pattern="[0-9]*" maxLength={4} autoComplete="off"')
 login.write_text(text)
 
-# Keep the Stride label inside its red header button in both light and dark themes.
-# This is deliberately narrow: only links whose href contains "stride" are affected.
 globals_css = Path("app/globals.css")
 if globals_css.exists():
     css = globals_css.read_text()
@@ -99,6 +96,9 @@ else:
 print("DR_PIN_OVERLAY_APPLIED")
 PY
 
+# Match LIVE mobile-shell behavior: stable top controls and fixed bottom navigation.
+python3 ../scripts/apply-fire-dr-mobile-shell-fix.py
+
 corepack enable
 pnpm install --frozen-lockfile
 pnpm run build
@@ -118,10 +118,7 @@ config.d1_databases = [{
   database_name: process.env.FIRE_D1_DATABASE_NAME.trim(),
   database_id: process.env.FIRE_D1_DATABASE_ID.trim(),
 }];
-
-// Each DR deployment gets a fresh 64-character session secret without printing it.
 config.vars = { ...(config.vars || {}), FIRE_SESSION_SECRET: randomBytes(32).toString('hex') };
-
 delete config.r2_buckets;
 
 await writeFile(destination, JSON.stringify(config, null, 2) + '\n');
