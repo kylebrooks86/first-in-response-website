@@ -192,6 +192,17 @@ jobs:
         run: |
           set -o pipefail
           node calculator/tests/key-card-internals-live-parity.mjs 2>&1 | tee calculator/visual-parity/focused/jobmath.log
+      - name: Inspect Field Guide key-card geometry
+        timeout-minutes: 1
+        continue-on-error: true
+        env:
+          FIRE_LIVE_URL: https://fire-field-calculator-fir.kylebrooks8605.chatgpt.site
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+          FIRE_KEY_CARD_GROUP: guide
+          FIRE_KEY_CARD_OUT: calculator/visual-parity/focused/guide.json
+        run: |
+          set -o pipefail
+          node calculator/tests/key-card-internals-live-parity.mjs 2>&1 | tee calculator/visual-parity/focused/guide.log
       - name: Inspect Field Tools key-card geometry
         timeout-minutes: 1
         continue-on-error: true
