@@ -11,7 +11,7 @@
     if(style)return;
     style=document.createElement('style');
     style.id='fireLiveHeaderParityStyle';
-    style.textContent='@media(max-width:760px){.topbar .title strong{font-size:16px!important}.warn{padding-left:16px!important;padding-right:16px!important;font-size:13.12px!important;line-height:1.45!important;font-weight:400!important}}';
+    style.textContent='br.fire-live-warning-break{display:none!important}@media(max-width:760px){.topbar .title strong{font-size:16px!important}.warn{padding-left:16px!important;padding-right:16px!important;font-size:13.12px!important;line-height:1.45!important;font-weight:400!important}br.fire-live-warning-break{display:block!important}}';
     document.head.appendChild(style);
   };
   const activate=view=>{
@@ -25,6 +25,7 @@
     ensureHeaderParity();
     const tabs=$('.tabs'),guide=$('.tabs .tab[data-view="guide"]');if(!tabs||!guide)return;
     const jobNav=$('#topJobNav'),warn=$('.warn');
+    if(warn&&!warn.dataset.liveWarningWrap){warn.dataset.liveWarningWrap='1';warn.innerHTML=warn.innerHTML.replace('Use separate labeled','Use separate<br class="fire-live-warning-break">labeled')}
     if(jobNav&&warn&&jobNav.nextElementSibling!==warn)warn.parentElement?.insertBefore(jobNav,warn);
     let tools=$('.tabs .tab[data-view="tools"]');
     if(!tools){tools=document.createElement('button');tools.type='button';tools.className='tab';tools.dataset.view='tools';tools.textContent='Field Tools';tabs.insertBefore(tools,guide)}
