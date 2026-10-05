@@ -1,4 +1,4 @@
-const CACHE='fire-field-calculator-v18-exact-clone-105';
+const CACHE='fire-field-calculator-v18-exact-clone-106';
 const ASSETS=[
   './',
   './index.html',
