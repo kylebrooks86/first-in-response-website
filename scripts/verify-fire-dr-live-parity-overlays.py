@@ -35,6 +35,18 @@ checks = {
         'window.localStorage.setItem("fire-theme",next)',
         'document.documentElement.dataset.theme=next',
 
+        # Estimate pricing / discount / deposit model.
+        'const appreciationCents=appreciation?Math.round(subtotal*0.05):0;',
+        'const maxPercent=appreciation?45:50;',
+        'const total=subtotal>0?Math.max(15000,subtotal-requestedDiscount):0;',
+        'deposit:Math.round(total/2)',
+        '5% First Responder & Military',
+        '% Percentage',
+        '$ Dollar amount',
+        'The $150 minimum job charge is applied automatically.',
+        '50% deposit to schedule',
+        'Add another service',
+
         # Customer profile structure/tabs and permanent record workflow.
         'Customer profile',
         'Jobs / estimates',
@@ -140,6 +152,7 @@ checks = {
         # Accepted/financially-active estimates are frozen; later billing changes belong on invoice.
         'Keep the accepted estimate unchanged and make any final service or price changes on the invoice.',
         'const deposit=Math.round(total/2);',
+        'const total=Math.max(15000,subtotal-requestedDiscount);',
     ],
     Path('app/api/payments/route.ts'): [
         # Deposit while approved/scheduled; final invoice amount once completed.
@@ -214,5 +227,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_LIVE_PARITY_OVERLAY_GUARD=PASS')
-print('Protected: owner nav/mobile controls/theme; customer record tabs; estimate pipeline/schedule/invoice states; Templates; customer estimate/payment/invoice portals; 50% deposit + final-balance behavior; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation; top-shell status-bar treatment.')
+print('Protected: owner nav/mobile controls/theme; estimate pricing/discount/minimum/deposit rules; customer record tabs; estimate pipeline/schedule/invoice states; Templates; customer estimate/payment/invoice portals; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation; top-shell status-bar treatment.')
 print('Scroll/smoothness behavior is intentionally not modified or pinned by this guard.')
