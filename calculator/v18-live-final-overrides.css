@@ -105,6 +105,25 @@
   #view-job #jobEstimateCard details:has(#priceEditor)>summary{
     color:#1680b8!important;font-weight:850!important
   }
+
+  /* Fresh LIVE iPhone evidence shows this subheading is present. Older
+     Equipment overrides incorrectly hid it. */
+  #equipment .card:has(#xSurface) .x-measured-heading,
+  #equipment #xMeasuredCustomHeading{
+    display:block!important;
+    font-size:12px!important;
+    font-weight:800!important;
+    color:#607381!important;
+    margin:0 0 6px!important;
+    line-height:1.25!important;
+  }
+
+  /* LIVE's X-Jet model-information callout wraps to the taller 14px/1.45
+     treatment seen in the paired iPhone render. */
+  #equipment .card:has(#xSurface) #xjetModelNote{
+    font-size:14px!important;
+    line-height:1.45!important;
+  }
 }
 
 body.dark #job #jobEstimateCard .summarybar:has(#fullSubtotal)>.metric,
