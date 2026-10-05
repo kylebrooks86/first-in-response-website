@@ -13,6 +13,7 @@ const allTargets=[
   {group:'equipment',name:'Equipment / reverse mix',route:'Equipment',roots:equipmentRoots,heading:'Mix the X-Jet pickup bucket for a target strength'},
   {group:'equipment',name:'Equipment / proportioner',route:'Equipment',roots:equipmentRoots,heading:'Three-port proportioner planner'},
   {group:'jobmath',name:'Job Math / planning',route:'Job Math',roots:['#view-job','#job'],heading:'How much mix should I bring?'},
+  {group:'jobmath',name:'Job Math / estimator',route:'Job Math',roots:['#view-job','#job'],heading:'Price the whole job'},
   {group:'tools',name:'Field Tools / compatibility',route:'Field Tools',roots:toolsRoots,marker:'#compatResult',heading:'Chemical Compatibility Checker'},
   {group:'tools',name:'Field Tools / timer',route:'Field Tools',roots:toolsRoots,marker:'#timerDisplay',heading:'Application Timer'},
   {group:'tools',name:'Field Tools / weather',route:'Field Tools',roots:toolsRoots,marker:'#weatherNote',heading:'Weather Adjustment Guide'},
