@@ -20,4 +20,10 @@
   body.dark #fireStockCard{
     background:#13202b!important;
   }
+
+  /* Fresh settled LIVE evidence: the main X-Jet card includes this label. */
+  #equipment .card:has(#xSurface) .x-measured-heading,
+  #equipment #xMeasuredCustomHeading{
+    display:block!important;
+  }
 }
