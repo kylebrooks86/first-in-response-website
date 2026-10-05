@@ -11,16 +11,20 @@ text = runbook.read_text()
 errors: list[str] = []
 
 expected_build = 'git fetch origin fire-calculator-exact-live-clone && git checkout fire-calculator-exact-live-clone && bash scripts/prepare-fire-v138-dr-no-r2.sh'
+expected_predeploy = 'python3 ../scripts/verify-fire-dr-predeploy-provenance.py'
 expected_migrate = 'pnpm exec wrangler d1 migrations apply fire-app-staging-db --remote --config dist/server/wrangler.independent.json'
 expected_deploy = 'pnpm exec wrangler deploy --config dist/server/wrangler.independent.json'
+expected_sequence = f'cd fire-app-dr && {expected_predeploy} && {expected_migrate} && {expected_deploy}'
 expected_worker = 'fire-app-independent-staging'
 expected_db = 'fire-app-staging-db'
 expected_db_id = 'afb2c05a-d794-4a9a-b580-924ce01c26ad'
 
 for label, needle in [
     ('governed staging build command', expected_build),
+    ('mandatory predeploy provenance verifier', expected_predeploy),
     ('isolated D1 migration command', expected_migrate),
     ('independent Wrangler deploy command', expected_deploy),
+    ('fail-closed predeploy/migrate/deploy sequence', expected_sequence),
     ('independent Worker name', expected_worker),
     ('isolated D1 database name', expected_db),
     ('isolated D1 database id', expected_db_id),
@@ -30,18 +34,19 @@ for label, needle in [
     if needle not in text:
         errors.append(f'missing {label}: {needle}')
 
-# Every documented executable Wrangler deploy must name the independent config.
 for line in text.splitlines():
     stripped = line.strip()
     if 'wrangler deploy' in stripped and not stripped.startswith('#'):
         if '--config dist/server/wrangler.independent.json' not in stripped:
             errors.append(f'unsafe/ungoverned Wrangler deploy command: {stripped}')
+        if expected_predeploy not in stripped:
+            errors.append(f'Wrangler deploy is not preceded on the same fail-closed command chain by provenance verification: {stripped}')
     if 'wrangler d1 migrations apply' in stripped and not stripped.startswith('#'):
         if expected_db not in stripped or '--config dist/server/wrangler.independent.json' not in stripped or '--remote' not in stripped:
             errors.append(f'unsafe/ungoverned D1 migration command: {stripped}')
+        if expected_predeploy not in stripped:
+            errors.append(f'remote D1 migration is not preceded on the same fail-closed command chain by provenance verification: {stripped}')
 
-# Prevent common default-config deploy examples from being introduced into the
-# active runbook, where they could accidentally target a non-DR Worker.
 for pattern in [
     r'(?m)^\s*wrangler\s+deploy\s*$',
     r'(?m)^\s*pnpm\s+exec\s+wrangler\s+deploy\s*$',
@@ -52,9 +57,7 @@ for pattern in [
 
 if errors:
     print('DR_DEPLOY_RUNBOOK_GUARD=FAIL')
-    for error in errors:
-        print(f'- {error}')
+    for error in errors: print(f'- {error}')
     raise SystemExit(1)
-
 print('DR_DEPLOY_RUNBOOK_GUARD=PASS')
-print('The governed runbook pins the staging branch, independent Wrangler config, isolated D1 database, remote migration target, no-R2 model, and production-isolation rule.')
+print('The governed runbook requires provenance verification immediately before the isolated remote D1 migration and independent Worker deploy, pins the independent Wrangler config/DR resources, and retains the no-R2/production-isolation rules.')
