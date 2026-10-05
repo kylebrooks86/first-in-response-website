@@ -47,6 +47,9 @@ if set(checklist_ids) != set(ids):
     if missing_from_manifest: errors.append('checklist ids missing from manifest: ' + ', '.join(missing_from_manifest))
 
 live_captured = independent_captured = verified_identical = mismatches = 0
+allowed_evidence_statuses = {'PENDING', 'READY_FOR_CAPTURE', 'CAPTURED', 'NOT_REQUIRED', 'INFRASTRUCTURE_ONLY'}
+allowed_comparison_statuses = {'PENDING', 'VERIFIED_IDENTICAL', 'MISMATCH', 'MISMATCHED', 'INFRASTRUCTURE_ONLY'}
+seen_evidence_files: dict[tuple[str, str], str] = {}
 for entry in entries:
     if not isinstance(entry, dict):
         errors.append('manifest contains a non-object entry.')
@@ -61,16 +64,45 @@ for entry in entries:
     live_status = str(entry.get('live_evidence_status', ''))
     independent_status = str(entry.get('independent_evidence_status', ''))
     comparison = str(entry.get('comparison_status', ''))
+    if live_status not in allowed_evidence_statuses: errors.append(f'{entry_id}: invalid live_evidence_status {live_status!r}.')
+    if independent_status not in allowed_evidence_statuses: errors.append(f'{entry_id}: invalid independent_evidence_status {independent_status!r}.')
+    if comparison not in allowed_comparison_statuses: errors.append(f'{entry_id}: invalid comparison_status {comparison!r}.')
     if live_status == 'CAPTURED':
         live_captured += 1
         if not live_evidence: errors.append(f'{entry_id}: live_evidence_status is CAPTURED but no live evidence is registered.')
+    elif live_evidence:
+        errors.append(f'{entry_id}: LIVE evidence exists but live_evidence_status is {live_status!r}, not CAPTURED.')
     if independent_status == 'CAPTURED':
         independent_captured += 1
         if not independent_evidence: errors.append(f'{entry_id}: independent_evidence_status is CAPTURED but no independent evidence is registered.')
+    elif independent_evidence:
+        errors.append(f'{entry_id}: independent evidence exists but independent_evidence_status is {independent_status!r}, not CAPTURED.')
     if comparison == 'VERIFIED_IDENTICAL':
         verified_identical += 1
         if live_status != 'CAPTURED' or independent_status != 'CAPTURED': errors.append(f'{entry_id}: VERIFIED_IDENTICAL requires both LIVE and independent evidence CAPTURED.')
+        if not live_evidence or not independent_evidence: errors.append(f'{entry_id}: VERIFIED_IDENTICAL requires actual evidence objects from both sides.')
     if comparison in {'MISMATCH', 'MISMATCHED'}: mismatches += 1
+    for item in evidence:
+        if not isinstance(item, dict):
+            errors.append(f'{entry_id}: evidence contains a non-object item.')
+            continue
+        side = str(item.get('side', ''))
+        if side not in {'live', 'independent'}:
+            errors.append(f'{entry_id}: evidence side must be live or independent, found {side!r}.')
+        file_path = str(item.get('file', '')).strip()
+        sha256 = str(item.get('sha256', '')).strip().lower()
+        notes = str(item.get('notes', '')).strip()
+        if not file_path: errors.append(f'{entry_id}: {side or "unknown"} evidence is missing file path.')
+        if not re.fullmatch(r'[0-9a-f]{64}', sha256): errors.append(f'{entry_id}: {side or "unknown"} evidence has missing/invalid sha256.')
+        if not notes: errors.append(f'{entry_id}: {side or "unknown"} evidence is missing notes.')
+        if file_path:
+            key = (side, file_path)
+            prior = seen_evidence_files.get(key)
+            shared = bool(item.get('shared_evidence'))
+            if prior and prior != entry_id and not shared:
+                errors.append(f'{entry_id}: evidence file {file_path} is also registered to {prior} without shared_evidence=true.')
+            else:
+                seen_evidence_files[key] = prior or entry_id
 
 expected = (live_captured, len(entries), independent_captured, len(entries), verified_identical, mismatches)
 release = release_path.read_text()
@@ -140,4 +172,4 @@ if errors:
 
 print('DR_PARITY_LEDGER_CONSISTENCY=PASS')
 print(f'Formal states: {len(entries)}; LIVE evidence: {live_captured}; independent evidence: {independent_captured}; verified identical: {verified_identical}; mismatches: {mismatches}.')
-print('Manifest, checklist, release status, current audit, persistent strict matrix, queue status, user-confirmed V14 mobile shell, six build guards, LIVE-evidence coverage accountability, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
+print('Manifest evidence objects/statuses/hashes, checklist, release status, current audit, persistent strict matrix, queue status, user-confirmed V14 mobile shell, six build guards, LIVE-evidence coverage accountability, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
