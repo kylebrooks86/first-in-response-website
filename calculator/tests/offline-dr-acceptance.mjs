@@ -74,7 +74,7 @@ try{
     return {controller:!!navigator.serviceWorker.controller,keys,assets};
   });
   if(!cacheState.controller)throw new Error('Service worker never controlled DR page');
-  if(!cacheState.keys.some(k=>k==='fire-field-calculator-v18-exact-clone-70'))throw new Error('Expected cache generation 70 missing');
+  if(!cacheState.keys.some(k=>k==='fire-field-calculator-v18-exact-clone-71'))throw new Error('Expected cache generation 71 missing');
   if(!cacheState.assets.some(u=>u.includes('/calculator/full-v18.js?v=6')))throw new Error('Shared loader missing from offline cache');
   if(!cacheState.assets.some(u=>u.includes('/calculator/v18-live-portable-backup.js?v=1')))throw new Error('Portable backup module missing from offline cache');
 
