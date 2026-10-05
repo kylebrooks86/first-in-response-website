@@ -1,3 +1,4 @@
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -50,6 +51,7 @@ live_captured = independent_captured = verified_identical = mismatches = 0
 allowed_evidence_statuses = {'PENDING', 'READY_FOR_CAPTURE', 'CAPTURED', 'NOT_REQUIRED', 'INFRASTRUCTURE_ONLY'}
 allowed_comparison_statuses = {'PENDING', 'VERIFIED_IDENTICAL', 'MISMATCH', 'MISMATCHED', 'INFRASTRUCTURE_ONLY'}
 seen_evidence_files: dict[tuple[str, str], str] = {}
+verified_evidence_files = 0
 for entry in entries:
     if not isinstance(entry, dict):
         errors.append('manifest contains a non-object entry.')
@@ -96,6 +98,24 @@ for entry in entries:
         if not re.fullmatch(r'[0-9a-f]{64}', sha256): errors.append(f'{entry_id}: {side or "unknown"} evidence has missing/invalid sha256.')
         if not notes: errors.append(f'{entry_id}: {side or "unknown"} evidence is missing notes.')
         if file_path:
+            evidence_path = Path(file_path)
+            if evidence_path.is_absolute() or '..' in evidence_path.parts:
+                errors.append(f'{entry_id}: evidence path must stay inside the extracted app: {file_path}')
+            else:
+                physical = root / evidence_path
+                if not physical.is_file():
+                    errors.append(f'{entry_id}: registered evidence file is missing: {file_path}')
+                else:
+                    actual_bytes = physical.stat().st_size
+                    recorded_bytes = item.get('bytes')
+                    if isinstance(recorded_bytes, int) and recorded_bytes != actual_bytes:
+                        errors.append(f'{entry_id}: evidence byte-size mismatch for {file_path}: manifest={recorded_bytes}, actual={actual_bytes}.')
+                    if re.fullmatch(r'[0-9a-f]{64}', sha256):
+                        actual_sha256 = hashlib.sha256(physical.read_bytes()).hexdigest()
+                        if actual_sha256 != sha256:
+                            errors.append(f'{entry_id}: evidence SHA256 mismatch for {file_path}: manifest={sha256}, actual={actual_sha256}.')
+                        else:
+                            verified_evidence_files += 1
             key = (side, file_path)
             prior = seen_evidence_files.get(key)
             shared = bool(item.get('shared_evidence'))
@@ -171,5 +191,5 @@ if errors:
     raise SystemExit(1)
 
 print('DR_PARITY_LEDGER_CONSISTENCY=PASS')
-print(f'Formal states: {len(entries)}; LIVE evidence: {live_captured}; independent evidence: {independent_captured}; verified identical: {verified_identical}; mismatches: {mismatches}.')
-print('Manifest evidence objects/statuses/hashes, checklist, release status, current audit, persistent strict matrix, queue status, user-confirmed V14 mobile shell, six build guards, LIVE-evidence coverage accountability, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
+print(f'Formal states: {len(entries)}; LIVE evidence: {live_captured}; independent evidence: {independent_captured}; verified identical: {verified_identical}; mismatches: {mismatches}; evidence files byte/hash verified: {verified_evidence_files}.')
+print('Manifest evidence objects/statuses/files/bytes/SHA256, checklist, release status, current audit, persistent strict matrix, queue status, user-confirmed V14 mobile shell, six build guards, LIVE-evidence coverage accountability, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
