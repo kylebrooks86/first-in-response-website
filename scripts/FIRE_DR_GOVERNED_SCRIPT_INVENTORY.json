@@ -1,13 +1,15 @@
 {
   "schema_version": 1,
-  "purpose": "Explicit inventory of every DR preparation, overlay, evidence-registration/reporting, verification, provenance, and deploy script that must be fingerprinted for reproducible independent builds.",
+  "purpose": "Explicit inventory of every DR preparation, overlay, evidence-registration/reporting/comparison, verification, provenance, and deploy script that must be fingerprinted for reproducible independent builds.",
   "scripts": [
+    "apply-fire-dr-comparison-overlay.py",
     "apply-fire-dr-independent-evidence-overlay.py",
     "apply-fire-dr-live-evidence-fixes.py",
     "apply-fire-dr-mobile-shell-fix.py",
     "apply-fire-dr-template-parity-fix.py",
     "deploy-fire-dr-staging.sh",
     "prepare-fire-v138-dr-no-r2.sh",
+    "record-fire-dr-parity-comparison.py",
     "register-fire-dr-independent-evidence.py",
     "report-fire-dr-evidence-capture-queue.py",
     "verify-fire-dr-customer-workflows.py",
