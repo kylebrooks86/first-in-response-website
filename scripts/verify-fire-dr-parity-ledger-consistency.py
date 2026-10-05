@@ -171,7 +171,7 @@ for needle in [
 batch_audit = batch_audit_path.read_text()
 for needle in [
     'Top mobile header is user-confirmed crisp and correctly inset',
-    'runs four source/governance parity guards',
+    'runs five source/governance parity guards',
     'Scroll/smoothness tuning is frozen',
 ]:
     if needle not in batch_audit:
@@ -196,4 +196,4 @@ if errors:
 
 print('DR_PARITY_LEDGER_CONSISTENCY=PASS')
 print(f'Formal states: {len(entries)}; LIVE evidence: {live_captured}; independent evidence: {independent_captured}; verified identical: {verified_identical}; mismatches: {mismatches}.')
-print('Manifest, checklist, release status, current audit, strict verdict, queue status, user-confirmed header state, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
+print('Manifest, checklist, release status, current audit, strict verdict, queue status, user-confirmed header state, five build guards, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
