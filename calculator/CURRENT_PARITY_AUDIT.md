@@ -1,10 +1,10 @@
 # Current LIVE vs Independent FIRE Calculator Audit
 
-Audit status: **REAL-DEVICE PARITY RE-AUDIT IN PROGRESS — NOT SYNCHRONIZED**
+Audit status: **AUTOMATED PARITY ACCEPTANCE COMPLETE — PHYSICAL IPHONE ACCEPTANCE PENDING — NOT SYNCHRONIZED**
 
-Current governed staging shared-core fingerprint: `9e3c7d705165e5d74ee369e484f428eecafcddd80cdf92a54dfad8fd5dd6604d`
+Current governed staging shared-core fingerprint: `796216b88d011eb781870d9bcb83eeaedcc38f39ffc7a26c7d4808fd98facaad`
 
-Current DR offline cache generation: `72`
+Current DR offline cache generation: `106`
 
 Sources:
 
@@ -13,19 +13,19 @@ Sources:
 
 The manifest is authoritative for the current governed shared-core file set/fingerprint. Older gate anchors and cache generations are historical evidence only and must not be presented as the current build.
 
-Owner iPhone testing found material visual/functional mismatches despite earlier green automated checks. Automated checks therefore remain supporting evidence and cannot independently establish visual parity. Production remains untouched and the DR candidate stays NOT SYNCHRONIZED.
+Owner iPhone testing previously found material visual/functional mismatches despite earlier green automation. Those mismatches drove a new section-by-section LIVE-render audit. The current cache-106 candidate now passes the rebuilt automated visual, behavior, offline and recovery gates. Production remains untouched and the DR candidate stays NOT SYNCHRONIZED until physical iPhone acceptance and explicit promotion approval.
 
 ## Current re-audit findings and corrections
 
-The re-audit has addressed or reopened the following areas against the actual LIVE render:
+The completed automated re-audit addressed the following areas against the actual LIVE render:
 
 - Index/Mixes: removed the wrong generic Chemical + Mix Index / Custom Mixes interpretation and restored the LIVE Chemical Use Index / SH recipe workflow direction.
-- iPhone delivery: stale cache behavior was identified as capable of retaining pre-fix Index/Mixes assets; the current DR cache generation is 72.
+- iPhone delivery: stale cache behavior was identified as capable of retaining pre-fix assets; the current DR cache generation is 106.
 - Equipment: X-Jet card treatment, unit pills, result grouping, reverse-calculator grouping, proportioner grouping, and mobile card geometry received direct LIVE-render parity corrections.
 - Job Math: quick-navigation placement/visible labels were corrected after light-mode controls rendered incorrectly.
 - Governance: real-device discrepancies now explicitly override prior visual-green conclusions.
 
-These corrections do not by themselves promote any affected section to VERIFIED IDENTICAL. Physical-device acceptance and remaining same-state comparisons are still required.
+Current automated same-state comparisons, focused geometry, behavior parity, backup/takeover and offline acceptance all pass. Physical-device/native-iOS acceptance is still required before promotion.
 
 ## Automated evidence retained
 
@@ -37,7 +37,7 @@ Automated screenshot/geometry checks are supporting evidence only. A real-device
 
 The independent calculator must remain usable without ChatGPT/OpenAI connectivity or authentication. Service-worker/offline behavior is an intentional infrastructure difference only where it does not alter shared calculator UI, calculations, business rules, state behavior, navigation, validation, or backup semantics.
 
-The current cache identifier is `fire-field-calculator-v18-exact-clone-72`.
+The current cache identifier is `fire-field-calculator-v18-exact-clone-106`.
 
 ## Backup portability target
 
@@ -49,20 +49,16 @@ The governed target remains FIRE Field Calculator Backup v3 / appVersion 18 comp
 
 Backup portability is a release gate but does not substitute for rendered/device parity.
 
-## Current section-by-section acceptance queue
+## Remaining acceptance queue
 
-1. SH Mix / Mixes and Chemical Index
-2. Equipment
-3. Chemicals
-4. Job Math
-5. Field Tools
-6. Field Guide
-7. Shared header/navigation and initial render
-8. Light mode route-by-route
-9. Dark mode route-by-route
-10. iPhone portrait safe-area / fixed-navigation behavior
-11. Native numeric keyboard presentation/dismissal
-12. Native OS share and print/save-PDF presentation
+Automated section-by-section LIVE-vs-DR acceptance is complete for SH Mix, Chemical Index, Equipment, Chemicals, Job Math, Field Tools, Field Guide, shared shell/navigation, light/dark routes, persistence, numeric-input behavior, backup portability and offline operation.
+
+Remaining pre-promotion checks:
+
+1. Physical iPhone portrait/safe-area confirmation
+2. Native keyboard presentation/dismissal
+3. Native OS share and print/save-PDF presentation
+4. Explicit owner approval for production promotion
 
 No row is VERIFIED IDENTICAL solely because source-level, formula, or browser-automation tests pass.
 
