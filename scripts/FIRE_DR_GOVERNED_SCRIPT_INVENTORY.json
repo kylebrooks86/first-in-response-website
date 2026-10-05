@@ -15,6 +15,7 @@
     "register-fire-dr-independent-evidence.py",
     "report-fire-dr-evidence-capture-queue.py",
     "verify-fire-dr-comparison-integrity.py",
+    "verify-fire-dr-customer-edit-flow.py",
     "verify-fire-dr-customer-workflows.py",
     "verify-fire-dr-deploy-runbook.py",
     "verify-fire-dr-independent-evidence-integrity.py",
