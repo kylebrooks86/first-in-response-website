@@ -41,7 +41,7 @@
     const guide=$('#xjetInsertGuide',card),results=$('#xjetLiveResults',card),note=$('#xjetModelNote',card);
     if(guide)guide.textContent=`Your target is bracketed by ${lower.name} ≈ ${lower.str.toFixed(2)}% and ${upper.name} ≈ ${upper.str.toFixed(2)}%. Use the reverse recipe below for an exact bucket mix.`;
     if(results)results.innerHTML=`<div class="metric"><small>Pickup solution</small><strong>${chemOz.toFixed(1)} fl oz</strong><em>per gallon sprayed</em></div><div class="metric"><small>Pressure-washer water</small><strong>${waterOz.toFixed(1)} fl oz</strong><em>per gallon sprayed</em></div>`;
-    if(note)note.innerHTML=`This matches your ${n('xGpm',4).toFixed(0)} GPM Simpson and the condition used for the factory proportioner estimates.<br><br>The manufacturer lists typical reach up to about 50 ft for the 3–7 GPM DS Twist.`;
+    if(note)note.textContent=`This matches your ${n('xGpm',4).toFixed(0)} GPM Simpson and the condition used for the factory proportioner estimates. The manufacturer lists typical reach up to about 50 ft for the 3–7 GPM DS Twist.`;
     return true;
   }
   function install(){
