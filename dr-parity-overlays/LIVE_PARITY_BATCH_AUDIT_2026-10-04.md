@@ -47,6 +47,8 @@ These corrections are applied after sealed-v138 extraction. The sealed archive r
 
 Source guards protect Dashboard, Notifications, Contracts, Customers, Follow-ups, Payments, Record payment, Job costs, Service completion report, customer action row/property preview/Messages/Notes/Payments/Invoices/Photos, owner Invoices, final-invoice edit/revision behavior, Business, Templates, refund/overpayment states, and common owner empty/error states.
 
+The richer DR customer profile and Edit customer flow are owner-approved forward-sync targets. They must be preserved in DR and brought into LIVE before those states can be called identical.
+
 ## Shared business behavior protected
 
 - Multi-service estimates.
@@ -86,6 +88,7 @@ These guards do **not** substitute for same-state rendered LIVE-vs-DR comparison
 - 0/32 independent evidence formally registered.
 - 0 VERIFIED_IDENTICAL comparisons.
 - 0 recorded mismatches.
+- Owner-approved forward-sync blockers: **2** (`PENDING_LIVE_SYNC`).
 
 Status remains:
 
