@@ -11,16 +11,9 @@ out_path = root / 'dist/server/FIRE_DR_BUILD_PROVENANCE.json'
 archive = repo_root / 'FIRE_App_Restore_Failure_Audit_Completeness_v138_2026-10-01.zip'
 wrangler_path = root / 'dist/server/wrangler.independent.json'
 manifest_path = root / 'PARITY_EVIDENCE_MANIFEST.json'
-inventory_path = repo_root / 'scripts' / 'FIRE_DR_GOVERNED_SCRIPT_INVENTORY.json'
+inventory_path = repo_root / 'scripts/FIRE_DR_GOVERNED_SCRIPT_INVENTORY.json'
 overlay_dir = repo_root / 'dr-parity-overlays'
-
-governance_names = [
-    'STRICT_RENDERED_PARITY_QUEUE.md',
-    'STRICT_PARITY_MATRIX.md',
-    'GO_NO_GO.md',
-    'INDEPENDENT_DEPLOYMENT.md',
-    'LIVE_PARITY_BATCH_AUDIT_2026-10-04.md',
-]
+governance_names = ['STRICT_RENDERED_PARITY_QUEUE.md','STRICT_PARITY_MATRIX.md','GO_NO_GO.md','INDEPENDENT_DEPLOYMENT.md','LIVE_PARITY_BATCH_AUDIT_2026-10-04.md']
 
 
 def sha256(path: Path) -> str:
@@ -33,169 +26,103 @@ def sha256(path: Path) -> str:
 
 def git_head() -> str | None:
     try:
-        return subprocess.check_output(
-            ['git', 'rev-parse', 'HEAD'], cwd=repo_root, text=True, stderr=subprocess.DEVNULL
-        ).strip() or None
+        return subprocess.check_output(['git','rev-parse','HEAD'], cwd=repo_root, text=True, stderr=subprocess.DEVNULL).strip() or None
     except Exception:
         return None
 
 
 def provider_trigger_commit() -> str | None:
-    for key in ('CF_PAGES_COMMIT_SHA', 'GITHUB_SHA', 'COMMIT_SHA'):
+    for key in ('CF_PAGES_COMMIT_SHA','GITHUB_SHA','COMMIT_SHA'):
         value = os.environ.get(key, '').strip()
-        if value:
-            return value
+        if value: return value
     return None
 
-required = [archive, wrangler_path, manifest_path, inventory_path, root / 'package.json', root / 'CURRENT_VERSION.json']
-for name in governance_names:
-    required.extend([root / name, overlay_dir / name])
-missing = [str(path) for path in required if not path.exists()]
+
+def deployment_tree() -> tuple[int, str, dict[str, str]]:
+    base = root / 'dist/server'
+    files = sorted(p for p in base.rglob('*') if p.is_file() and p != out_path)
+    h = hashlib.sha256()
+    per_file = {}
+    for path in files:
+        rel = path.relative_to(base).as_posix()
+        digest = sha256(path)
+        per_file[rel] = digest
+        h.update(rel.encode('utf-8')); h.update(b'\0'); h.update(digest.encode('ascii')); h.update(b'\n')
+    return len(files), h.hexdigest(), per_file
+
+required=[archive,wrangler_path,manifest_path,inventory_path,root/'package.json',root/'CURRENT_VERSION.json']
+for name in governance_names: required.extend([root/name, overlay_dir/name])
+missing=[str(p) for p in required if not p.exists()]
 if missing:
     print('DR_BUILD_PROVENANCE=FAIL')
-    for path in missing:
-        print(f'- missing provenance input: {path}')
+    for p in missing: print(f'- missing provenance input: {p}')
     raise SystemExit(1)
 
-package = json.loads((root / 'package.json').read_text())
-version = json.loads((root / 'CURRENT_VERSION.json').read_text())
-wrangler = json.loads(wrangler_path.read_text())
-parity = json.loads(manifest_path.read_text())
-inventory = json.loads(inventory_path.read_text())
-entries = parity.get('entries', [])
+package=json.loads((root/'package.json').read_text()); version=json.loads((root/'CURRENT_VERSION.json').read_text())
+wrangler=json.loads(wrangler_path.read_text()); parity=json.loads(manifest_path.read_text()); inventory=json.loads(inventory_path.read_text())
+entries=parity.get('entries',[])
+live=sum(1 for x in entries if isinstance(x,dict) and x.get('live_evidence_status')=='CAPTURED')
+independent=sum(1 for x in entries if isinstance(x,dict) and x.get('independent_evidence_status')=='CAPTURED')
+verified=sum(1 for x in entries if isinstance(x,dict) and x.get('comparison_status')=='VERIFIED_IDENTICAL')
+mismatches=sum(1 for x in entries if isinstance(x,dict) and x.get('comparison_status') in {'MISMATCH','MISMATCHED'})
 
-live_captured = sum(1 for item in entries if isinstance(item, dict) and item.get('live_evidence_status') == 'CAPTURED')
-independent_captured = sum(1 for item in entries if isinstance(item, dict) and item.get('independent_evidence_status') == 'CAPTURED')
-verified_identical = sum(1 for item in entries if isinstance(item, dict) and item.get('comparison_status') == 'VERIFIED_IDENTICAL')
-mismatches = sum(1 for item in entries if isinstance(item, dict) and item.get('comparison_status') in {'MISMATCH', 'MISMATCHED'})
-
-inventory_names = inventory.get('scripts')
-if not isinstance(inventory_names, list) or not inventory_names or any(not isinstance(name, str) or not name for name in inventory_names):
+names=inventory.get('scripts')
+if not isinstance(names,list) or not names or any(not isinstance(n,str) or not n for n in names) or len(names)!=len(set(names)):
+    raise SystemExit('DR_BUILD_PROVENANCE=FAIL: governed script inventory is missing/malformed/duplicated')
+scripts_dir=repo_root/'scripts'
+discovered={p.name for p in scripts_dir.iterdir() if p.is_file() and (p.name.startswith(('apply-fire-dr-','verify-fire-dr-','write-fire-dr-','deploy-fire-dr-')) or p.name=='prepare-fire-v138-dr-no-r2.sh')}
+listed=set(names)
+if discovered!=listed:
     print('DR_BUILD_PROVENANCE=FAIL')
-    print('- governed script inventory is missing or malformed')
+    if discovered-listed: print('- unregistered DR scripts: '+', '.join(sorted(discovered-listed)))
+    if listed-discovered: print('- missing inventoried DR scripts: '+', '.join(sorted(listed-discovered)))
     raise SystemExit(1)
-if len(inventory_names) != len(set(inventory_names)):
-    print('DR_BUILD_PROVENANCE=FAIL')
-    print('- governed script inventory contains duplicate names')
-    raise SystemExit(1)
+governed_scripts={n:sha256(scripts_dir/n) for n in sorted(names)}
 
-scripts_dir = repo_root / 'scripts'
-discovered = {
-    path.name
-    for path in scripts_dir.iterdir()
-    if path.is_file()
-    and (
-        path.name.startswith('apply-fire-dr-')
-        or path.name.startswith('verify-fire-dr-')
-        or path.name.startswith('write-fire-dr-')
-        or path.name.startswith('deploy-fire-dr-')
-        or path.name == 'prepare-fire-v138-dr-no-r2.sh'
-    )
-}
-listed = set(inventory_names)
-unlisted = sorted(discovered - listed)
-missing_listed = sorted(listed - discovered)
-if unlisted or missing_listed:
-    print('DR_BUILD_PROVENANCE=FAIL')
-    if unlisted:
-        print('- DR scripts exist but are not in FIRE_DR_GOVERNED_SCRIPT_INVENTORY.json: ' + ', '.join(unlisted))
-    if missing_listed:
-        print('- inventory lists DR scripts that do not exist: ' + ', '.join(missing_listed))
-    raise SystemExit(1)
-
-governed_scripts = {name: sha256(scripts_dir / name) for name in sorted(inventory_names)}
-
-governance = {}
+governance={}
 for name in governance_names:
-    working = root / name
-    canonical = overlay_dir / name
-    working_hash = sha256(working)
-    canonical_hash = sha256(canonical)
-    if working_hash != canonical_hash:
-        print('DR_BUILD_PROVENANCE=FAIL')
-        print(f'- governance overlay drift before provenance write: {name}')
-        raise SystemExit(1)
-    governance[name] = {'sha256': canonical_hash, 'working_copy_matches_persistent_overlay': True}
+    working=root/name; canonical=overlay_dir/name
+    if sha256(working)!=sha256(canonical): raise SystemExit(f'DR_BUILD_PROVENANCE=FAIL: governance overlay drift: {name}')
+    governance[name]={'sha256':sha256(canonical),'working_copy_matches_persistent_overlay':True}
 
-migrations = {path.name: sha256(path) for path in sorted((root / 'dist/server/migrations').glob('*.sql'))}
-if len(migrations) != 21:
-    print('DR_BUILD_PROVENANCE=FAIL')
-    print(f'- expected 21 staged migrations, found {len(migrations)}')
-    raise SystemExit(1)
+migrations={p.name:sha256(p) for p in sorted((root/'dist/server/migrations').glob('*.sql'))}
+if len(migrations)!=21: raise SystemExit(f'DR_BUILD_PROVENANCE=FAIL: expected 21 staged migrations, found {len(migrations)}')
+d1=wrangler.get('d1_databases') or []; d1_record=d1[0] if len(d1)==1 else {}
+secret=(wrangler.get('vars') or {}).get('FIRE_SESSION_SECRET')
+artifact_count, artifact_tree_sha256, artifact_files = deployment_tree()
 
-d1 = wrangler.get('d1_databases') or []
-d1_record = d1[0] if len(d1) == 1 else {}
-secret = (wrangler.get('vars') or {}).get('FIRE_SESSION_SECRET')
-checked_out_commit = git_head()
-
-record = {
-    'schema_version': 4,
-    'generated_at_utc': datetime.now(timezone.utc).isoformat(),
-    'checked_out_source_commit': checked_out_commit,
-    'provider_trigger_commit': provider_trigger_commit(),
-    'sealed_archive': {'file': archive.name, 'sha256': sha256(archive)},
-    'release': {'package_version': package.get('version'), 'fire_release': version.get('fire_release')},
-    'deployment_target': {
-        'worker_name': wrangler.get('name'),
-        'd1_binding': d1_record.get('binding'),
-        'd1_database_name': d1_record.get('database_name'),
-        'd1_database_id': d1_record.get('database_id'),
-        'r2_binding_present': 'r2_buckets' in wrangler,
-        'session_secret_present': isinstance(secret, str) and len(secret) > 0,
-        'session_secret_value_recorded': False,
-    },
-    'parity_evidence': {
-        'formal_states': len(entries),
-        'live_captured': live_captured,
-        'independent_captured': independent_captured,
-        'verified_identical': verified_identical,
-        'mismatches': mismatches,
-        'manifest_sha256': sha256(manifest_path),
-    },
-    'governed_script_inventory': {
-        'inventory_file': inventory_path.name,
-        'inventory_sha256': sha256(inventory_path),
-        'script_count': len(inventory_names),
-        'all_matching_dr_scripts_accounted_for': discovered == listed,
-        'script_sha256': governed_scripts,
-    },
-    'governance_document_sha256': governance,
-    'staged_migration_sha256': migrations,
-    'safety': {
-        'sealed_archive_modified': False,
-        'live_deployment_modified_by_prepare_script': False,
-        'production_dns_modified_by_prepare_script': False,
-        'photo_storage_r2_provisioned': False,
-    },
+record={
+ 'schema_version':5,
+ 'generated_at_utc':datetime.now(timezone.utc).isoformat(),
+ 'checked_out_source_commit':git_head(),
+ 'provider_trigger_commit':provider_trigger_commit(),
+ 'sealed_archive':{'file':archive.name,'sha256':sha256(archive)},
+ 'release':{'package_version':package.get('version'),'fire_release':version.get('fire_release')},
+ 'deployment_target':{'worker_name':wrangler.get('name'),'d1_binding':d1_record.get('binding'),'d1_database_name':d1_record.get('database_name'),'d1_database_id':d1_record.get('database_id'),'r2_binding_present':'r2_buckets' in wrangler,'session_secret_present':isinstance(secret,str) and len(secret)>0,'session_secret_value_recorded':False},
+ 'parity_evidence':{'formal_states':len(entries),'live_captured':live,'independent_captured':independent,'verified_identical':verified,'mismatches':mismatches,'manifest_sha256':sha256(manifest_path)},
+ 'governed_script_inventory':{'inventory_file':inventory_path.name,'inventory_sha256':sha256(inventory_path),'script_count':len(names),'all_matching_dr_scripts_accounted_for':discovered==listed,'script_sha256':governed_scripts},
+ 'governance_document_sha256':governance,
+ 'staged_migration_sha256':migrations,
+ 'deployment_artifact_tree':{'excludes':['FIRE_DR_BUILD_PROVENANCE.json'],'file_count':artifact_count,'tree_sha256':artifact_tree_sha256,'file_sha256':artifact_files},
+ 'safety':{'sealed_archive_modified':False,'live_deployment_modified_by_prepare_script':False,'production_dns_modified_by_prepare_script':False,'photo_storage_r2_provisioned':False},
 }
+out_path.parent.mkdir(parents=True,exist_ok=True); out_path.write_text(json.dumps(record,indent=2,sort_keys=True)+'\n')
 
-out_path.parent.mkdir(parents=True, exist_ok=True)
-out_path.write_text(json.dumps(record, indent=2, sort_keys=True) + '\n')
-written = json.loads(out_path.read_text())
-target = written['deployment_target']
-errors = []
-if written.get('schema_version') != 4: errors.append('unexpected provenance schema version')
-if not checked_out_commit or written.get('checked_out_source_commit') != checked_out_commit: errors.append('checked-out source commit was not captured correctly')
-if written['sealed_archive']['sha256'] != '2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca': errors.append('sealed archive hash in provenance is not the governed v138 hash')
-if written['release'] != {'package_version': '1.0.0-rc.138', 'fire_release': 'v138'}: errors.append(f"unexpected release identity: {written['release']}")
-if target.get('worker_name') != os.environ.get('FIRE_WORKER_NAME', 'fire-app-independent-staging').strip(): errors.append('provenance worker target does not match expected independent worker')
-if target.get('d1_database_name') != os.environ.get('FIRE_D1_DATABASE_NAME', 'fire-app-staging-db').strip(): errors.append('provenance D1 name does not match expected isolated staging database')
-if target.get('d1_database_id') != os.environ.get('FIRE_D1_DATABASE_ID', 'afb2c05a-d794-4a9a-b580-924ce01c26ad').strip(): errors.append('provenance D1 id does not match expected isolated staging database')
-if target.get('r2_binding_present'): errors.append('provenance indicates an unexpected R2 binding')
-if not target.get('session_secret_present') or target.get('session_secret_value_recorded'): errors.append('session-secret provenance policy failed')
-script_record = written.get('governed_script_inventory') or {}
-if not script_record.get('all_matching_dr_scripts_accounted_for'): errors.append('not every matching DR script is accounted for by the governed inventory')
-if script_record.get('script_count') != len(discovered): errors.append('governed script count does not match discovered DR script count')
-if set((script_record.get('script_sha256') or {}).keys()) != discovered: errors.append('provenance script fingerprint set does not exactly match discovered DR scripts')
-governance_record = written.get('governance_document_sha256') or {}
-if set(governance_record) != set(governance_names): errors.append('provenance governance document set is incomplete or contains unexpected entries')
-for name in governance_names:
-    item = governance_record.get(name) or {}
-    if item.get('sha256') != sha256(overlay_dir / name): errors.append(f'provenance governance hash mismatch: {name}')
-    if item.get('working_copy_matches_persistent_overlay') is not True: errors.append(f'provenance does not confirm persistent overlay match: {name}')
+written=json.loads(out_path.read_text()); target=written['deployment_target']; errors=[]
+if written.get('schema_version')!=5: errors.append('unexpected provenance schema version')
+if not written.get('checked_out_source_commit') or written.get('checked_out_source_commit')!=git_head(): errors.append('checked-out source commit not captured correctly')
+if written['sealed_archive']['sha256']!='2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca': errors.append('sealed archive hash is not governed v138')
+if written['release']!={'package_version':'1.0.0-rc.138','fire_release':'v138'}: errors.append('unexpected release identity')
+if target.get('worker_name')!=os.environ.get('FIRE_WORKER_NAME','fire-app-independent-staging').strip(): errors.append('unexpected Worker target')
+if target.get('d1_database_name')!=os.environ.get('FIRE_D1_DATABASE_NAME','fire-app-staging-db').strip() or target.get('d1_database_id')!=os.environ.get('FIRE_D1_DATABASE_ID','afb2c05a-d794-4a9a-b580-924ce01c26ad').strip(): errors.append('unexpected D1 target')
+if target.get('r2_binding_present') or not target.get('session_secret_present') or target.get('session_secret_value_recorded'): errors.append('deployment target/session-secret policy failed')
+if set((written.get('governed_script_inventory') or {}).get('script_sha256') or {})!=discovered: errors.append('provenance script set mismatch')
+if set(written.get('governance_document_sha256') or {})!=set(governance_names): errors.append('governance document set mismatch')
+art=written.get('deployment_artifact_tree') or {}
+if art.get('file_count')!=artifact_count or art.get('tree_sha256')!=artifact_tree_sha256 or art.get('file_sha256')!=artifact_files: errors.append('deployment artifact tree provenance mismatch')
 if errors:
     print('DR_BUILD_PROVENANCE=FAIL')
-    for error in errors: print(f'- {error}')
+    for e in errors: print(f'- {e}')
     raise SystemExit(1)
 print('DR_BUILD_PROVENANCE=PASS')
-print(f'Wrote {out_path} with checked-out source commit, provider trigger commit, governed release/target, evidence counts, all {len(discovered)} DR scripts, {len(governance_names)} governance documents, and migration fingerprints; no session secret value was recorded.')
+print(f'Wrote {out_path}; fingerprinted {len(discovered)} governed DR scripts, {len(governance_names)} governance documents, 21 migrations, and {artifact_count} deployable dist/server files; no session secret value was recorded.')
