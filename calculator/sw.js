@@ -1,9 +1,9 @@
-const CACHE='fire-field-calculator-v18-exact-clone-75';
+const CACHE='fire-field-calculator-v18-exact-clone-76';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
-  './full-v18.js?v=6',
+  './full-v18.js?v=7',
   './full-v18-core.js?v=1',
   './v18-legacy-job-detach.js?v=2',
   './full-v18-parity-core.js?v=3',
