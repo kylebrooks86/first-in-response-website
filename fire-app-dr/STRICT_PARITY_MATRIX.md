@@ -14,7 +14,7 @@ Status meanings:
 | Area / state | Status | Evidence / blocker |
 |---|---|---|
 | Global FIRE navy/red visual system | VERIFIED IDENTICAL | Matched to supplied LIVE v49 references. |
-| Top header: Back / Home / Theme / Menu | VERIFIED IDENTICAL | Supplied LIVE references. |
+| Top header: Back / Home / Theme / Menu | VERIFIED IDENTICAL | Supplied LIVE references; current independent V14 mobile shell is user-confirmed good after deployment. |
 | Notification control and popup | VERIFIED IDENTICAL | Supplied LIVE references. |
 | Mobile bottom nav | VERIFIED IDENTICAL | Home / Contracts / Customers / Estimates / Schedule. |
 | Drawer navigation | VERIFIED IDENTICAL | Supplied LIVE references including Dashboard label and owner footer. |
@@ -37,7 +37,7 @@ Status meanings:
 | Service selector ordering/options | VERIFIED IDENTICAL for captured catalog | Captured LIVE dropdown; retained Seasonal/Holiday Lighting, Commercial Exterior Cleaning, Specialty Exterior Service, Custom Service. |
 | Estimate detail Deposit / Paid / Balance labels | VERIFIED IDENTICAL | Corrected from v25 onward. |
 | Job date picker interaction | VERIFIED IDENTICAL for iPhone reference | Native iOS picker captured in LIVE. |
-| 50% deposit scheduling rule | LIVE BEHAVIOR CAPTURED | Current LIVE allows an approved job to be Scheduled with Paid $0 while still displaying the 50% deposit. Independent mechanics align to that behavior; rendered independent evidence is still required. |
+| 50% deposit scheduling rule | LIVE BEHAVIOR CAPTURED | Current LIVE allows an approved job to be Scheduled with Paid $0 while still displaying the 50% deposit. Independent mechanics align; rendered independent evidence is still required. |
 | Schedule Needs attention | VERIFIED IDENTICAL | Supplied LIVE references. |
 | Schedule Upcoming jobs / empty state | VERIFIED IDENTICAL | Supplied LIVE references. |
 | Follow-ups dashboard | VERIFIED IDENTICAL | Supplied LIVE references. |
@@ -54,7 +54,7 @@ Status meanings:
 | Job costs & profit modal | VERIFIED IDENTICAL | Supplied LIVE references. |
 | Service completion report | VERIFIED IDENTICAL | Supplied LIVE references including all six checks. |
 | Job report saved state | VERIFIED IDENTICAL | Supplied LIVE reference. |
-| Before/after photos UI/workflow controls | LIVE EVIDENCE CAPTURED | LIVE Photo type / Camera / Photo library controls captured; independent rendered UI comparison still pending. Actual DR photo-file storage is a separate capability gap below. |
+| Before/after photos UI/workflow controls | LIVE EVIDENCE CAPTURED | LIVE controls captured; independent rendered UI comparison still pending. Actual DR photo-file storage is separate capability gap below. |
 | Empty/error states across all owner routes | FUNCTIONALLY VERIFIED / NEEDS LIVE VISUAL | Regression behavior exists; not every live visual error/empty state has been captured. |
 
 ## Customer-facing app
@@ -83,7 +83,7 @@ Status meanings:
 | No duplicate parent rows from estimate_items joins | FUNCTIONALLY VERIFIED | Regression coverage for Home/invoices/payments/expenses/etc. LIVE sync still required. |
 | $150 minimum logic | FUNCTIONALLY VERIFIED | Locked independent safety rule; confirm LIVE equivalent after sync. |
 | Service catalog/pricing rules | FUNCTIONALLY VERIFIED | Known rates locked; unverified services remain intentional manual pricing. |
-| 50% deposit requirement | LIVE BEHAVIOR CAPTURED | LIVE calculates/displays the 50% deposit but does not use it as a scheduling gate. Independent mechanics match that behavior; independent rendered evidence is still required. |
+| 50% deposit requirement | LIVE BEHAVIOR CAPTURED | LIVE calculates/displays the 50% deposit but does not use it as a scheduling gate. Independent mechanics match; independent rendered evidence is still required. |
 | Completion-before-final-balance workflow | FUNCTIONALLY VERIFIED | Independent regression coverage; LIVE sync required. |
 | Stripe server-side amount calculation | FUNCTIONALLY VERIFIED | Independent side only until LIVE sync verified. |
 | Stripe signed webhook + idempotency | FUNCTIONALLY VERIFIED | Independent side only until LIVE sync verified. |
@@ -98,23 +98,35 @@ Status meanings:
 ## Current strict-parity verdict
 **NOT YET IDENTICAL IN EVERY SINGLE LOOK/FUNCTION STATE.**
 
-The known/captured LIVE surfaces are highly matched, but literal parity is blocked until the remaining NEEDS LIVE VISUAL states are captured, independent evidence is registered, and the current shared release rules are synchronized and verified in LIVE. The current no-R2 photo-file capability gap also prevents a claim of full photo-recovery equivalence unless it is later provisioned/tested or explicitly accepted as out of scope.
+The known/captured LIVE surfaces are highly matched, but literal parity is blocked until the remaining visual states are captured on the missing side, independent evidence is formally registered, and the current shared release rules are synchronized and verified in LIVE. The no-R2 photo-file capability gap also prevents a claim of full photo-recovery equivalence unless later provisioned/tested or explicitly accepted as out of scope.
 
-## Required next live captures
-To close the remaining visual blockers, capture these from the LIVE app when available:
-1. Invoices list.
+## Next evidence work — independent DR side first
+These already have LIVE evidence. Do **not** recapture LIVE merely to satisfy parity; capture/register the matching DR state:
+1. Customer Payments tab.
+2. Customer Invoices tab.
+3. Customer Photos tab.
+4. Customer-facing invoice view — due on receipt.
+5. Customer-facing invoice view — specific due date.
+6. 50% deposit scheduling state with Paid $0.
+7. Before/after photo workflow controls.
+8. Captured service-selector/catalog state.
+9. Approved/signed customer confirmation state.
+10. Completion → Create invoice → Invoice created / Send invoice transition.
+
+## Next evidence work — new LIVE visuals still needed
+1. Owner Invoices list.
 2. One owner invoice detail.
-3. Customer-facing invoice page.
-4. Customer-facing payment page, including zero/partial/full balance states if possible.
-5. Templates screen.
-6. Business screen.
-7. Customer Photos tab and before/after photo controls.
-8. Customer Payments and Invoices tabs.
-9. Approval/signature completed state and change-request state.
-10. Populated Payment History.
-11. Any customer expired-link/error page.
-12. Refund payment modal/workflow.
-13. Owner refund-processing hold state.
-14. Customer refund-processing state.
+3. Customer standalone payment page, including partial/full balance if available.
+4. Templates screen.
+5. Business screen.
+6. Approval/signature lifecycle states not already represented by the captured approved/signed evidence.
+7. Change-request state.
+8. Populated Payment History.
+9. Customer expired-link/error page.
+10. Refund payment modal/workflow.
+11. Owner refund-processing hold state.
+12. Customer refund-processing state.
+13. Paid invoice / zero-balance customer state.
+14. Broader owner empty/error states not already represented by the current formal capture.
 
-No release may claim FULL IDENTICAL until these blockers are closed or proven unreachable/nonexistent in both deployments, and any current capability gap is either resolved or explicitly approved as an infrastructure-only exception.
+No release may claim FULL IDENTICAL until these blockers are closed or proven unreachable/nonexistent in both deployments, and any capability gap is resolved or explicitly approved as an infrastructure-only exception.
