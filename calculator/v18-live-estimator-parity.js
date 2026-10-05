@@ -49,6 +49,19 @@
     $('#cashDiscount3')?.remove();$('#responderDiscount5')?.remove();
     row.append(bundle,promo,clear);
   };
+  const wrapQuotePanel=(body,actions)=>{
+    if(!body||!actions)return;
+    if(body.closest('.quote-actions')?.contains(actions))return;
+    const helper=body.previousElementSibling,heading=helper?.previousElementSibling;
+    if(!heading||!helper||heading.tagName!=='H3')return;
+    const panel=document.createElement('div');panel.className='quote-actions';
+    heading.parentElement.insertBefore(panel,heading);
+    panel.append(heading,helper,body,actions);
+  };
+  const ensureQuotePanels=()=>{
+    wrapQuotePanel($('#fullQuote'),$('#copyFullQuote')?.closest('.actions'));
+    wrapQuotePanel($('#crewSheet'),$('#crewSheetActions'));
+  };
   const ensure=()=>{
     const discount=$('#fullDiscount');if(discount)discount.step='0.5';const override=$('#fullOverride');if(override)override.step='1';
     const quote=$('#fullQuote'),copy=$('#copyFullQuote'),save=$('#saveFullDraft');if(save)save.classList.add('hidden');if(copy){copy.textContent='Copy customer quote';copy.classList.add('primary');copy.onclick=()=>copyText(buildCustomerQuote(),'Customer quote copied')}
@@ -57,6 +70,7 @@
     if(actions&&!$('#printCustomerQuote')){const print=document.createElement('button');print.id='printCustomerQuote';print.type='button';print.textContent='Print / Save PDF';print.addEventListener('click',()=>openPrintView(buildCustomerQuote()));actions.appendChild(print)}
     ensureDiscountActions(discount);
     const crew=$('#crewSheet');if(crew&&!$('#crewSheetActions')){const row=document.createElement('div');row.id='crewSheetActions';row.className='actions fire-crew-actions';const copyCrew=document.createElement('button');copyCrew.type='button';copyCrew.id='copyCrewSheet';copyCrew.textContent='Copy crew job sheet';copyCrew.addEventListener('click',()=>copyText(crew.textContent||'','Crew job sheet copied'));const shareCrew=document.createElement('button');shareCrew.type='button';shareCrew.id='shareCrewSheet';shareCrew.textContent='Share crew sheet';shareCrew.addEventListener('click',()=>shareText('FIRE Crew Job Sheet',crew.textContent||'','Crew sheet copied for sharing'));const clearEstimate=document.createElement('button');clearEstimate.type='button';clearEstimate.id='clearEstimate';clearEstimate.className='dangerbtn';clearEstimate.textContent='Clear this estimate';clearEstimate.addEventListener('click',()=>{if(!window.confirm('Clear this estimate?'))return;serviceIds.forEach(id=>{const el=$('#'+id);if(el)el.value=''});['fullCustomDesc','fullCustomAmt','fullNotes','estimateJobName'].forEach(id=>{const el=$('#'+id);if(el)el.value=''});if(discount)discount.value='0';if(override)override.value='0';emit('svcHouse');emit('fullDiscount');emit('fullOverride');try{localStorage.removeItem('fireV18EstimateDraft');localStorage.removeItem('fireV18ParityDraft')}catch{}setTimeout(normalizeBlank,0);window.toast?.('Estimate cleared')});row.append(copyCrew,shareCrew,clearEstimate);crew.insertAdjacentElement('afterend',row)}
+    ensureQuotePanels();
     watchNoServiceLine();setTimeout(syncCustomerQuote,0);normalizeBlank();
   };
   const schedule=()=>setTimeout(()=>{normalizeBlank();syncCustomerQuote()},0);
