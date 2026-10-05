@@ -1,6 +1,6 @@
-import hashlib,json,subprocess
+import hashlib,json,re,subprocess
 from pathlib import Path
-root=Path('.'); repo_root=Path('..'); provenance_path=root/'dist/server/FIRE_DR_BUILD_PROVENANCE.json'; wrangler_path=root/'dist/server/wrangler.independent.json'; inventory_path=repo_root/'scripts/FIRE_DR_GOVERNED_SCRIPT_INVENTORY.json'; overlay_dir=repo_root/'dr-parity-overlays'; manifest_path=root/'PARITY_EVIDENCE_MANIFEST.json'; release_status_path=root/'RELEASE_STATUS.md'; parity_audit_path=root/'CURRENT_PARITY_AUDIT.md'; matrix_path=root/'STRICT_PARITY_MATRIX.md'; forward_sync_path=root/'FORWARD_SYNC_APPROVED.json'; evidence_root=repo_root/'dr-parity-evidence'; live_overlay=evidence_root/'LIVE_EVIDENCE_OVERLAY.json'; independent_overlay=evidence_root/'INDEPENDENT_EVIDENCE_OVERLAY.json'; comparison_overlay=evidence_root/'COMPARISON_OVERLAY.json'
+root=Path('.'); repo_root=Path('..'); provenance_path=root/'dist/server/FIRE_DR_BUILD_PROVENANCE.json'; wrangler_path=root/'dist/server/wrangler.independent.json'; inventory_path=repo_root/'scripts/FIRE_DR_GOVERNED_SCRIPT_INVENTORY.json'; overlay_dir=repo_root/'dr-parity-overlays'; manifest_path=root/'PARITY_EVIDENCE_MANIFEST.json'; release_status_path=root/'RELEASE_STATUS.md'; parity_audit_path=root/'CURRENT_PARITY_AUDIT.md'; matrix_path=root/'STRICT_PARITY_MATRIX.md'; forward_sync_path=root/'FORWARD_SYNC_APPROVED.json'; capture_route_path=root/'app/api/dr-capture-identity/route.ts'; evidence_root=repo_root/'dr-parity-evidence'; live_overlay=evidence_root/'LIVE_EVIDENCE_OVERLAY.json'; independent_overlay=evidence_root/'INDEPENDENT_EVIDENCE_OVERLAY.json'; comparison_overlay=evidence_root/'COMPARISON_OVERLAY.json'
 expected_governance={'STRICT_RENDERED_PARITY_QUEUE.md','STRICT_PARITY_MATRIX.md','GO_NO_GO.md','INDEPENDENT_DEPLOYMENT.md','LIVE_PARITY_BATCH_AUDIT_2026-10-04.md','FORWARD_SYNC_APPROVED.json'}
 def sha256(p): return hashlib.sha256(p.read_bytes()).hexdigest()
 def git_head(): return subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo_root,text=True).strip()
@@ -21,12 +21,23 @@ def readiness_from_manifest_and_registry():
     forward_sync=sum(1 for x in registry['entries'] if isinstance(x,dict) and x.get('status')=='PENDING_LIVE_SYNC' and x.get('blocks_full_identical') is True)
     full=(len(entries)==32 and live_missing==0 and dr_missing==0 and mismatches==0 and forward_sync==0 and all(isinstance(x,dict) and x.get('comparison_status') in {'VERIFIED_IDENTICAL','INFRASTRUCTURE_ONLY'} for x in entries))
     return ('READY_FOR_EXPLICIT_OWNER_REVIEW' if full else 'NOT_YET_FULLY_VERIFIED', live_missing, dr_missing, mismatches, forward_sync)
-required=[provenance_path,wrangler_path,inventory_path,manifest_path,release_status_path,parity_audit_path,matrix_path,forward_sync_path,live_overlay,independent_overlay,comparison_overlay]
+required=[provenance_path,wrangler_path,inventory_path,manifest_path,release_status_path,parity_audit_path,matrix_path,forward_sync_path,capture_route_path,live_overlay,independent_overlay,comparison_overlay]
 missing=[str(p) for p in required if not p.exists()]
 if missing: raise SystemExit('DR_PREDEPLOY_PROVENANCE=FAIL: missing '+', '.join(missing))
 p=json.loads(provenance_path.read_text()); w=json.loads(wrangler_path.read_text()); i=json.loads(inventory_path.read_text()); errors=[]
-if p.get('schema_version')!=12: errors.append(f"expected provenance schema 12, found {p.get('schema_version')!r}")
+if p.get('schema_version')!=13: errors.append(f"expected provenance schema 12, found {p.get('schema_version')!r}")
 if p.get('checked_out_source_commit')!=git_head(): errors.append('checked-out git commit no longer matches build provenance')
+capture_route=capture_route_path.read_text()
+capture_id_match=re.search(r'captureId: "([0-9a-f]{24})"',capture_route); capture_commit_match=re.search(r'sourceCommit: "([0-9a-f]{40})"',capture_route)
+if not capture_id_match or not capture_commit_match:
+    errors.append('capture identity route malformed')
+else:
+    ci=p.get('capture_identity') or {}
+    if capture_commit_match.group(1)!=git_head(): errors.append('capture identity source commit no longer matches checked-out git commit')
+    if ci.get('capture_id')!=capture_id_match.group(1): errors.append('capture identity ID changed after provenance')
+    if ci.get('source_commit')!=capture_commit_match.group(1): errors.append('capture identity source commit changed after provenance')
+    if ci.get('route_sha256')!=sha256(capture_route_path): errors.append('capture identity route changed after provenance')
+    if ci.get('owner_authenticated') is not True or ci.get('cache_control_no_store') is not True: errors.append('capture identity policy changed after provenance')
 if p.get('sealed_archive',{}).get('sha256')!='2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca': errors.append('sealed v138 archive fingerprint mismatch')
 if p.get('release')!={'package_version':'1.0.0-rc.138','fire_release':'v138'}: errors.append('release identity mismatch')
 parity=p.get('parity_evidence') or {}
@@ -54,6 +65,7 @@ if safety.get('comparison_decisions_require_exact_evidence_hashes') is not True:
 if safety.get('parity_summaries_derived_from_manifest') is not True: errors.append('parity summary derivation policy invalid')
 if safety.get('evidence_gate_does_not_auto_sync_production') is not True: errors.append('evidence-gate production-control policy invalid')
 if safety.get('forward_sync_product_differences_block_full_identical') is not True: errors.append('forward-sync blocker policy invalid')
+if safety.get('capture_identity_binds_screenshots_to_source_commit') is not True: errors.append('capture identity binding policy invalid')
 evidence_count,evidence_tree,evidence_files=tree_fingerprint(evidence_root); recorded_evidence=p.get('persistent_evidence_tree') or {}
 if recorded_evidence.get('file_count')!=evidence_count or recorded_evidence.get('tree_sha256')!=evidence_tree or recorded_evidence.get('file_sha256')!=evidence_files: errors.append('persistent DR evidence/comparison/provenance tree changed after build provenance')
 target=p.get('deployment_target') or {}; d1=w.get('d1_databases') or []
@@ -86,4 +98,4 @@ if errors:
     for e in errors: print('- '+e)
     raise SystemExit(1)
 print('DR_PREDEPLOY_PROVENANCE=PASS')
-print(f'EVIDENCE_GATE={current_readiness}; forward-sync blockers={forward_sync}; commit, v138 identity, formal manifest + synchronized parity summaries/matrix, persistent evidence/comparison/provenance tree ({evidence_count} files), Worker/D1/no-R2 config, scripts, governance, 21 migrations, and all {count} deployable files match build provenance.')
+print(f'EVIDENCE_GATE={current_readiness}; capture-id={(p.get("capture_identity") or {}).get("capture_id")}; forward-sync blockers={forward_sync}; commit, v138 identity, formal manifest + synchronized parity summaries/matrix, persistent evidence/comparison/provenance tree ({evidence_count} files), Worker/D1/no-R2 config, scripts, governance, 21 migrations, and all {count} deployable files match build provenance.')
