@@ -7,6 +7,7 @@
     "apply-fire-dr-template-parity-fix.py",
     "prepare-fire-v138-dr-no-r2.sh",
     "verify-fire-dr-customer-workflows.py",
+    "verify-fire-dr-deploy-runbook.py",
     "verify-fire-dr-lifecycle-v134.py",
     "verify-fire-dr-live-evidence-coverage.py",
     "verify-fire-dr-live-parity-overlays.py",
