@@ -18,6 +18,7 @@ checks = {
         'Jobs and driving plan',
         'Reminders and customer contact',
         'Deposits and balances',
+        'const reviewLink = "https://firstinresponseexteriors.com/review";',
 
         # Notification control/popup already matched to LIVE.
         '<strong>Notifications</strong>',
@@ -163,6 +164,11 @@ checks = {
         'refundPaymentProvider=`refund:${row.paymentId}:${row.id}`',
         'idempotency-key',
     ],
+    Path('lib/payment-methods.ts'): [
+        # Captured LIVE manual-payment instructions.
+        'DEFAULT_CASH_APP_HANDLE = "$FIREExteriors"',
+        'DEFAULT_VENMO_HANDLE = "@FirstInResponseExteriors"',
+    ],
     Path('lib/fire-services.ts'): [
         # Captured LIVE service-selector tail options.
         'Seasonal / Holiday Lighting',
@@ -204,5 +210,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_OWNER_WORKFLOW_PARITY_GUARD=PASS')
-print('Protected: already-verified Dashboard/Notifications/Customers/Contracts/Follow-ups/Payments/job-cost/job-report surfaces; customer action row and Messages/Notes states; captured service-selector tail order; Business tasks/expenses/backup-restore UI; Templates editing/reset; owner invoice editing/history; refund modal/statuses; billing-exception states; common owner empty states; restore audit/integrity markers.')
+print('Protected: already-verified Dashboard/Notifications/Customers/Contracts/Follow-ups/Payments/job-cost/job-report surfaces; customer action row and Messages/Notes states; exact LIVE manual-payment handles and review URL; captured service-selector tail order; Business tasks/expenses/backup-restore UI; Templates editing/reset; owner invoice editing/history; refund modal/statuses; billing-exception states; common owner empty states; restore audit/integrity markers.')
 print('This remains source-level protection only; rendered LIVE-vs-DR comparison is still required for strict parity.')
