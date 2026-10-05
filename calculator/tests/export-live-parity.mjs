@@ -24,7 +24,12 @@ async function setDom(el,value){await el.evaluate((n,v)=>{n.value=String(v);n.di
 async function field(page,ids){for(const id of ids){const e=page.locator('#'+id);if(await e.count()&&await e.first().isVisible())return e.first()}return null}
 async function clickButton(page,text){
   for(let attempt=0;attempt<40;attempt++){
-    const r=await openDetails(page);
+    let r=await openDetails(page);
+    if(!r){
+      await clickVisibleText(page,'Job Math').catch(()=>false);
+      await page.waitForTimeout(120);
+      r=await openDetails(page);
+    }
     if(r){
       const ok=await r.locator('button').evaluateAll((bs,t)=>{const norm=s=>(s||'').replace(/\s+/g,' ').trim();const b=bs.find(x=>norm(x.textContent)===t&&x.getBoundingClientRect().width>0);if(!b)return false;b.click();return true},text);
       if(ok){await page.waitForTimeout(180);return}
