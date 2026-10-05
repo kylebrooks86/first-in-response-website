@@ -13,9 +13,10 @@ audit_path = root / 'CURRENT_PARITY_AUDIT.md'
 go_no_go_path = root / 'GO_NO_GO.md'
 runbook_path = root / 'INDEPENDENT_DEPLOYMENT.md'
 batch_audit_path = root / 'LIVE_PARITY_BATCH_AUDIT_2026-10-04.md'
+forward_sync_path = root / 'FORWARD_SYNC_APPROVED.json'
 overlay_dir = Path('..') / 'dr-parity-overlays'
 
-required = [manifest_path, checklist_path, matrix_path, queue_path, release_path, audit_path, go_no_go_path, runbook_path, batch_audit_path]
+required = [manifest_path, checklist_path, matrix_path, queue_path, release_path, audit_path, go_no_go_path, runbook_path, batch_audit_path, forward_sync_path]
 missing_files = [str(path) for path in required if not path.exists()]
 if missing_files:
     print('DR_PARITY_LEDGER_CONSISTENCY=FAIL')
@@ -180,7 +181,7 @@ for needle in [
 ]:
     if needle not in batch_audit: errors.append(f'LIVE_PARITY_BATCH_AUDIT is missing current state: {needle}')
 
-for working_path in [matrix_path, queue_path, go_no_go_path, runbook_path, batch_audit_path]:
+for working_path in [matrix_path, queue_path, go_no_go_path, runbook_path, batch_audit_path, forward_sync_path]:
     canonical_path = overlay_dir / working_path.name
     if not canonical_path.exists():
         errors.append(f'missing persistent governance overlay: {canonical_path}')
@@ -194,4 +195,4 @@ if errors:
 
 print('DR_PARITY_LEDGER_CONSISTENCY=PASS')
 print(f'Formal states: {len(entries)}; LIVE evidence: {live_captured}; independent evidence: {independent_captured}; verified identical: {verified_identical}; mismatches: {mismatches}; evidence files byte/hash verified: {verified_evidence_files}.')
-print('Manifest evidence objects/statuses/files/bytes/SHA256, checklist, release status, current audit, persistent strict matrix, queue status, user-confirmed V14 mobile shell, eight build guards including owner-approved forward-sync protection and final release-readiness, LIVE-evidence coverage accountability, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
+print('Manifest evidence objects/statuses/files/bytes/SHA256, checklist, release status, current audit, persistent strict matrix, queue status, user-confirmed V14 mobile shell, eight build guards including owner-approved forward-sync protection and final release-readiness, LIVE-evidence coverage accountability, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, structured forward-sync registry, and persistent governance/audit overlays are consistent.')
