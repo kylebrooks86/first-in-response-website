@@ -5,10 +5,10 @@
   "disaster_recovery_display_version": "v18",
   "synchronization_status": "NOT_SYNCHRONIZED",
   "baseline_status": "STAGING_REAL_DEVICE_PARITY_REAUDIT_IN_PROGRESS_NOT_SYNCHRONIZED",
-  "verified_calculator_gate_head": "44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558",
+  "verified_calculator_gate_head": "2b4f47fb3d56044b53cafb7db3e9d21947deaa29",
   "verified_visual_behavior_head": null,
-  "verified_shared_core_fingerprint": "8bc01e24e095f80224e0a64157376092c5a2c9de56274979b06a05ffe06d7cdf",
-  "offline_cache_generation": 68,
+  "verified_shared_core_fingerprint": "bee43bb803a857f40464b46d21b71816bfe963538926606c4c32566644d46b65",
+  "offline_cache_generation": 69,
   "verified_gates": {
     "live_to_dr_backup_takeover": true,
     "dr_to_live_reverse_portability": true,
