@@ -19,6 +19,16 @@ checks = {
         'Reminders and customer contact',
         'Deposits and balances',
 
+        # Notification control/popup already matched to LIVE.
+        '<strong>Notifications</strong>',
+        'Mark all read',
+        'You’re all caught up',
+        'No notifications yet',
+        'Customer views, approvals, and confirmed payments will appear here.',
+        'type==="estimate_viewed"',
+        'type==="invoice_viewed"',
+        'type==="estimate_accepted"',
+
         # Add-customer / customer-property workflow already matched to LIVE.
         '<DialogTitle>Add customer</DialogTitle>',
         '<Label>Customer name</Label>',
@@ -30,6 +40,20 @@ checks = {
         'Street View',
         'Google Earth',
         'Navigate',
+
+        # Customer action row and permanent-record Messages / Notes states.
+        '<Phone />Call</a>',
+        '<Send />Text</a>',
+        '<Mail />Email</a>',
+        '>Google Maps</a>',
+        '<StrideButton />',
+        '<Globe2 />Google Earth</a>',
+        '<House />Zillow</a>',
+        'No messages prepared yet',
+        'Use the Message button to create a personalized text or email.',
+        'Gate code, pets, property details…',
+        'No notes yet',
+        'Save access details and job-specific reminders here.',
 
         # Contracts / agreements surfaces already matched to LIVE.
         '<h1>Agreements</h1>',
@@ -180,5 +204,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_OWNER_WORKFLOW_PARITY_GUARD=PASS')
-print('Protected: already-verified Dashboard/Customers/Contracts/Follow-ups/Payments/job-cost/job-report surfaces; captured service-selector tail order; Business tasks/expenses/backup-restore UI; Templates editing/reset; owner invoice editing/history; refund modal/statuses; billing-exception states; common owner empty states; restore audit/integrity markers.')
+print('Protected: already-verified Dashboard/Notifications/Customers/Contracts/Follow-ups/Payments/job-cost/job-report surfaces; customer action row and Messages/Notes states; captured service-selector tail order; Business tasks/expenses/backup-restore UI; Templates editing/reset; owner invoice editing/history; refund modal/statuses; billing-exception states; common owner empty states; restore audit/integrity markers.')
 print('This remains source-level protection only; rendered LIVE-vs-DR comparison is still required for strict parity.')
