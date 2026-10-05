@@ -195,7 +195,7 @@ for needle in ['free-tier, D1-only, no R2','4-digit PIN','Photo-file storage: **
     if needle not in go_no_go: errors.append(f'GO_NO_GO is missing current DR deployment rule: {needle}')
 
 runbook = runbook_path.read_text()
-for needle in ['free-tier, D1-only, no R2','4-digit PIN','Photo-file storage: not provisioned','runs the LIVE-evidence coverage/accountability guard','STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED','NOT_YET_FULLY_VERIFIED']:
+for needle in ['free-tier, D1-only, no R2','4-digit PIN','Photo-file storage: not provisioned','runs the LIVE-evidence coverage/accountability guard','FORWARD_SYNC_APPROVED.json','**2** `PENDING_LIVE_SYNC` entries','2 owner-approved forward-sync blockers','every owner-approved `PENDING_LIVE_SYNC` entry has been brought into LIVE and verified','STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED','NOT_YET_FULLY_VERIFIED']:
     if needle not in runbook: errors.append(f'INDEPENDENT_DEPLOYMENT is missing current DR deployment rule: {needle}')
 
 batch_audit = batch_audit_path.read_text()
