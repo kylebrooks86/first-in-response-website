@@ -106,16 +106,11 @@
     color:#1680b8!important;font-weight:850!important
   }
 
-  /* Fresh LIVE iPhone evidence shows this subheading is present. Older
-     Equipment overrides incorrectly hid it. */
+  /* Fresh paired LIVE iPhone evidence shows no separate measured-draw subheading;
+     the field label itself is "Measured chemical percentage". */
   #equipment .card:has(#xSurface) .x-measured-heading,
   #equipment #xMeasuredCustomHeading{
-    display:block!important;
-    font-size:12px!important;
-    font-weight:800!important;
-    color:#607381!important;
-    margin:0 0 6px!important;
-    line-height:1.25!important;
+    display:none!important;
   }
 
   /* LIVE's X-Jet model-information callout wraps to the taller 14px/1.45
