@@ -49,7 +49,8 @@ for decision in entries:
     notes = str(decision.get('notes', '')).strip()
     if not notes: entry_errors.append(f'{entry_id}: comparison notes are required')
     if not decision.get('reviewed_at'): entry_errors.append(f'{entry_id}: reviewed_at is required')
-    live = next((item for item in target.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'live'), None)
+    live_candidates = [item for item in target.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'live']
+    live = next((item for item in live_candidates if item.get('comparison_reference') is True), None) or (live_candidates[0] if live_candidates else None)
     independent = next((item for item in target.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'independent'), None)
     if target.get('live_evidence_status') != 'CAPTURED' or not live:
         entry_errors.append(f'{entry_id}: comparison requires registered LIVE evidence')
