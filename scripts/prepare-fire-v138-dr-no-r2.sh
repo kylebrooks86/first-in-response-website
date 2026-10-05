@@ -88,6 +88,10 @@ python3 ../scripts/apply-fire-dr-template-parity-fix.py
 # Apply small content/UI corrections backed by stored LIVE screenshots/evidence.
 python3 ../scripts/apply-fire-dr-live-evidence-fixes.py
 
+# Refuse rebuilds where applying the DR overlays again changes the working tree.
+# This catches accidental duplicate CSS/scripts or non-idempotent patch logic.
+python3 ../scripts/verify-fire-dr-overlay-idempotency.py
+
 # Refuse a DR build if known LIVE-parity behavior/wording regresses.
 python3 ../scripts/verify-fire-dr-live-parity-overlays.py
 
