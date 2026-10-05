@@ -1,7 +1,7 @@
 import hashlib,json,subprocess
 from pathlib import Path
-root=Path('.'); repo_root=Path('..'); provenance_path=root/'dist/server/FIRE_DR_BUILD_PROVENANCE.json'; wrangler_path=root/'dist/server/wrangler.independent.json'; inventory_path=repo_root/'scripts/FIRE_DR_GOVERNED_SCRIPT_INVENTORY.json'; overlay_dir=repo_root/'dr-parity-overlays'; manifest_path=root/'PARITY_EVIDENCE_MANIFEST.json'; release_status_path=root/'RELEASE_STATUS.md'; parity_audit_path=root/'CURRENT_PARITY_AUDIT.md'; matrix_path=root/'STRICT_PARITY_MATRIX.md'; evidence_root=repo_root/'dr-parity-evidence'; independent_overlay=evidence_root/'INDEPENDENT_EVIDENCE_OVERLAY.json'; comparison_overlay=evidence_root/'COMPARISON_OVERLAY.json'
-expected_governance={'STRICT_RENDERED_PARITY_QUEUE.md','STRICT_PARITY_MATRIX.md','GO_NO_GO.md','INDEPENDENT_DEPLOYMENT.md','LIVE_PARITY_BATCH_AUDIT_2026-10-04.md'}
+root=Path('.'); repo_root=Path('..'); provenance_path=root/'dist/server/FIRE_DR_BUILD_PROVENANCE.json'; wrangler_path=root/'dist/server/wrangler.independent.json'; inventory_path=repo_root/'scripts/FIRE_DR_GOVERNED_SCRIPT_INVENTORY.json'; overlay_dir=repo_root/'dr-parity-overlays'; manifest_path=root/'PARITY_EVIDENCE_MANIFEST.json'; release_status_path=root/'RELEASE_STATUS.md'; parity_audit_path=root/'CURRENT_PARITY_AUDIT.md'; matrix_path=root/'STRICT_PARITY_MATRIX.md'; forward_sync_path=root/'FORWARD_SYNC_APPROVED.json'; evidence_root=repo_root/'dr-parity-evidence'; independent_overlay=evidence_root/'INDEPENDENT_EVIDENCE_OVERLAY.json'; comparison_overlay=evidence_root/'COMPARISON_OVERLAY.json'
+expected_governance={'STRICT_RENDERED_PARITY_QUEUE.md','STRICT_PARITY_MATRIX.md','GO_NO_GO.md','INDEPENDENT_DEPLOYMENT.md','LIVE_PARITY_BATCH_AUDIT_2026-10-04.md','FORWARD_SYNC_APPROVED.json'}
 def sha256(p): return hashlib.sha256(p.read_bytes()).hexdigest()
 def git_head(): return subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo_root,text=True).strip()
 def tree_fingerprint(base,exclude=None):
@@ -10,19 +10,22 @@ def tree_fingerprint(base,exclude=None):
         rel=p.relative_to(base).as_posix(); d=sha256(p); per[rel]=d; h.update(rel.encode()); h.update(b'\0'); h.update(d.encode()); h.update(b'\n')
     return len(files),h.hexdigest(),per
 def deployment_tree(): return tree_fingerprint(root/'dist/server',{provenance_path})
-def readiness_from_manifest_and_matrix():
+def readiness_from_manifest_and_registry():
     data=json.loads(manifest_path.read_text()); entries=data.get('entries') or []
     live_missing=sum(1 for x in entries if not isinstance(x,dict) or x.get('live_evidence_status')!='CAPTURED')
     dr_missing=sum(1 for x in entries if not isinstance(x,dict) or x.get('independent_evidence_status')!='CAPTURED')
     mismatches=sum(1 for x in entries if isinstance(x,dict) and x.get('comparison_status') in {'MISMATCH','MISMATCHED'})
-    forward_sync=sum(1 for line in matrix_path.read_text().splitlines() if '| FORWARD SYNC APPROVED |' in line)
+    registry=json.loads(forward_sync_path.read_text())
+    if registry.get('schema_version')!=1 or not isinstance(registry.get('entries'),list):
+        raise SystemExit('DR_PREDEPLOY_PROVENANCE=FAIL: forward-sync registry malformed')
+    forward_sync=sum(1 for x in registry['entries'] if isinstance(x,dict) and x.get('status')=='PENDING_LIVE_SYNC' and x.get('blocks_full_identical') is True)
     full=(len(entries)==32 and live_missing==0 and dr_missing==0 and mismatches==0 and forward_sync==0 and all(isinstance(x,dict) and x.get('comparison_status') in {'VERIFIED_IDENTICAL','INFRASTRUCTURE_ONLY'} for x in entries))
     return ('READY_FOR_EXPLICIT_OWNER_REVIEW' if full else 'NOT_YET_FULLY_VERIFIED', live_missing, dr_missing, mismatches, forward_sync)
-required=[provenance_path,wrangler_path,inventory_path,manifest_path,release_status_path,parity_audit_path,matrix_path,independent_overlay,comparison_overlay]
+required=[provenance_path,wrangler_path,inventory_path,manifest_path,release_status_path,parity_audit_path,matrix_path,forward_sync_path,independent_overlay,comparison_overlay]
 missing=[str(p) for p in required if not p.exists()]
 if missing: raise SystemExit('DR_PREDEPLOY_PROVENANCE=FAIL: missing '+', '.join(missing))
 p=json.loads(provenance_path.read_text()); w=json.loads(wrangler_path.read_text()); i=json.loads(inventory_path.read_text()); errors=[]
-if p.get('schema_version')!=10: errors.append(f"expected provenance schema 10, found {p.get('schema_version')!r}")
+if p.get('schema_version')!=11: errors.append(f"expected provenance schema 11, found {p.get('schema_version')!r}")
 if p.get('checked_out_source_commit')!=git_head(): errors.append('checked-out git commit no longer matches build provenance')
 if p.get('sealed_archive',{}).get('sha256')!='2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca': errors.append('sealed v138 archive fingerprint mismatch')
 if p.get('release')!={'package_version':'1.0.0-rc.138','fire_release':'v138'}: errors.append('release identity mismatch')
@@ -31,9 +34,10 @@ if parity.get('manifest_sha256')!=sha256(manifest_path): errors.append('formal p
 if parity.get('release_status_sha256')!=sha256(release_status_path): errors.append('RELEASE_STATUS changed after provenance')
 if parity.get('current_parity_audit_sha256')!=sha256(parity_audit_path): errors.append('CURRENT_PARITY_AUDIT changed after provenance')
 if parity.get('strict_parity_matrix_sha256')!=sha256(matrix_path): errors.append('STRICT_PARITY_MATRIX changed after provenance')
+if parity.get('forward_sync_registry_sha256')!=sha256(forward_sync_path): errors.append('FORWARD_SYNC_APPROVED registry changed after provenance')
 if parity.get('persistent_independent_overlay_sha256')!=sha256(independent_overlay): errors.append('persistent independent evidence overlay changed after provenance')
 if parity.get('persistent_comparison_overlay_sha256')!=sha256(comparison_overlay): errors.append('persistent comparison overlay changed after provenance')
-current_readiness,live_missing,dr_missing,mismatches,forward_sync=readiness_from_manifest_and_matrix()
+current_readiness,live_missing,dr_missing,mismatches,forward_sync=readiness_from_manifest_and_registry()
 if parity.get('evidence_gate')!=current_readiness: errors.append(f"evidence readiness changed after provenance: recorded={parity.get('evidence_gate')!r}, current={current_readiness!r}")
 if parity.get('live_missing')!=live_missing: errors.append('LIVE-missing count changed after provenance')
 if parity.get('independent_missing')!=dr_missing: errors.append('DR-missing count changed after provenance')
