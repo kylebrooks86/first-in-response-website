@@ -14,7 +14,7 @@
 
   /* LIVE shows an explicit $0.00 opposite the empty-service message and keeps the row flat. */
   #job #fullServiceLines.fire-empty-service-line,#view-job #fullServiceLines.fire-empty-service-line{
-    display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important
+    display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;min-height:34px!important
   }
   #job #fullServiceLines.fire-empty-service-line>strong,#view-job #fullServiceLines.fire-empty-service-line>strong{margin-left:auto!important;white-space:nowrap!important}
   #job #jobEstimateCard #fullServiceLines,#view-job #jobEstimateCard #fullServiceLines{
@@ -63,10 +63,12 @@
     width:auto!important;min-height:44px!important;margin:0!important;font-weight:800!important
   }
   #job #jobEstimateCard>.quote-actions,#view-job #jobEstimateCard>.quote-actions{
-    margin:14px 0 0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-sizing:border-box!important
+    margin:14px 0 0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;
+    box-sizing:border-box!important;min-height:253.1px!important
   }
   #job #jobEstimateCard>.quote-actions>.actions,#view-job #jobEstimateCard>.quote-actions>.actions{padding-bottom:15.9px!important}
   #job #jobEstimateCard #copyFullQuote,#view-job #jobEstimateCard #copyFullQuote{background:#e84226!important;border-color:#e84226!important;color:#fff!important}
+  #job #jobEstimateCard details:has(#priceEditor),#view-job #jobEstimateCard details:has(#priceEditor){margin-top:12px!important}
   #job #jobEstimateCard details:has(#priceEditor)>summary,#view-job #jobEstimateCard details:has(#priceEditor)>summary{color:#1680b8!important;font-weight:850!important}
 
   /* Fresh paired LIVE iPhone evidence shows no separate measured-draw subheading. */
