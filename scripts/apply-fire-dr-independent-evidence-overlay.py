@@ -52,7 +52,7 @@ for registration in overlay_entries:
         errors.append(f'overlay references unknown formal parity id: {entry_id}')
         continue
     if 'comparison_status' in registration or 'live_evidence_status' in registration:
-        errors.append(f'{entry_id}: independent overlay may not alter LIVE or comparison status')
+        errors.append(f'{entry_id}: independent overlay may not carry LIVE or comparison status')
         continue
     evidence = registration.get('evidence')
     if not isinstance(evidence, list) or not evidence:
@@ -106,10 +106,11 @@ for registration in overlay_entries:
     retained = [item for item in existing if not (isinstance(item, dict) and item.get('side') == 'independent')]
     target['evidence'] = retained + validated
     target['independent_evidence_status'] = 'CAPTURED'
-    target['comparison_status'] = target.get('comparison_status', 'PENDING')
-    if target['comparison_status'] == 'VERIFIED_IDENTICAL':
-        errors.append(f'{entry_id}: overlay refuses to preserve VERIFIED_IDENTICAL without deliberate comparison workflow')
-        target['comparison_status'] = 'PENDING'
+
+    # Evidence registration alone never owns comparison state. Always reset to
+    # PENDING here; the separate comparison overlay runs afterward and may replay
+    # a deliberate decision only when its exact LIVE/DR hashes still match.
+    target['comparison_status'] = 'PENDING'
     if registration.get('last_updated_at'):
         target['last_updated_at'] = registration['last_updated_at']
 
@@ -126,4 +127,4 @@ if errors:
 
 manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
 print('DR_INDEPENDENT_EVIDENCE_OVERLAY=PASS')
-print(f'Merged {len(overlay_entries)} persistent independent evidence registration(s); comparison statuses were not promoted.')
+print(f'Merged {len(overlay_entries)} persistent independent evidence registration(s); comparison status reset to PENDING before deliberate comparison decisions are replayed.')
