@@ -41,21 +41,40 @@ checks = {
         '<CustomerPortalNav/>',
     ],
     Path('app/pay/[id]/page.tsx'): [
+        # Customer payment-document structure and exact state transitions.
+        '<div className="pay-title"><p>ESTIMATE FOR</p>',
+        '<small>Estimate total</small>',
+        '<small>Paid</small>',
+        'paymentType==="deposit"?"Deposit remaining":"Balance due"',
         'Payment received',
         'Your payment has been recorded successfully.',
+        'After approval, the 50% deposit reserves your place on the schedule. The remaining balance is due upon completion of the work.',
+        '<strong>Manual payment options:</strong> Cash App:',
         'Approve and sign the estimate before making the reservation deposit.',
         'Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.',
         'This job is paid in full.',
         'Payment received — account review in progress.',
+        'Pay ${currency(dueNow)} deposit securely',
+        'Pay ${currency(dueNow)} remaining balance securely',
+        'Card details are handled securely by Stripe.',
         '<CustomerPortalNav/>',
     ],
     Path('app/invoice/[token]/page.tsx'): [
+        # LIVE-captured customer invoice document structure and due-date states.
+        '<p>INVOICE FOR</p>',
+        '<small>Invoice total</small>',
+        '<small>Balance due</small>',
+        'if (!dueAt) return "Payment due on receipt";',
+        'if (sameCalendarDay) return "Payment due on receipt";',
+        'return `Payment due ${new Intl.DateTimeFormat("en-US", { month:"long", day:"numeric", year:"numeric" }).format(due)}`;',
         'Invoice not found',
         'Billing review required',
         'Refund processing',
         'Payment received — account review in progress',
         'Paid in full',
-        'Manual payment options:',
+        '<strong>Manual payment options:</strong> Cash App:',
+        'Please include your name in the payment note.',
+        'Your private invoice link is unique to you.',
         '<CustomerPortalNav/>',
     ],
     Path('app/api/notifications/route.ts'): [
@@ -68,6 +87,10 @@ checks = {
         'Only image files can be uploaded.',
         'That photo is larger than 15 MB. Choose a smaller image.',
         'await env.BUCKET.delete(objectKey);',
+    ],
+    Path('lib/payment-methods.ts'): [
+        'export const DEFAULT_CASH_APP_HANDLE = "$FIREExteriors";',
+        'export const DEFAULT_VENMO_HANDLE = "@FirstInResponseExteriors";',
     ],
 }
 
@@ -103,5 +126,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_CUSTOMER_WORKFLOW_PARITY_GUARD=PASS')
-print('Protected: customer signature/photo-permission approval; change requests; deposit/final-balance portal states; customer invoice edge states; overpayment resolution safeguards; DR photo storage fail-closed behavior.')
+print('Protected: customer signature/photo-permission approval; change requests; payment-document summary/deposit/balance/success/full-paid states; LIVE-captured invoice due-on-receipt and dated-due presentation; manual payment handles; invoice review/refund states; overpayment resolution safeguards; DR photo storage fail-closed behavior.')
 print('Rendered LIVE-vs-DR comparison is still required for strict visual parity.')
