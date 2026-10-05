@@ -53,6 +53,7 @@ PY
 python3 ../scripts/apply-fire-dr-mobile-shell-fix.py
 python3 ../scripts/apply-fire-dr-template-parity-fix.py
 python3 ../scripts/apply-fire-dr-live-evidence-fixes.py
+python3 ../scripts/apply-fire-dr-customer-edit-flow.py
 python3 ../scripts/apply-fire-dr-independent-evidence-overlay.py
 python3 ../scripts/verify-fire-dr-independent-evidence-integrity.py
 python3 ../scripts/apply-fire-dr-comparison-overlay.py
