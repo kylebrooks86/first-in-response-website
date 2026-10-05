@@ -18,6 +18,7 @@
     "verify-fire-dr-refund-stripe-workflows.py",
     "verify-fire-dr-restore-identity.py",
     "verify-fire-dr-restore-v135-v138.py",
+    "verify-fire-dr-script-inventory.py",
     "write-fire-dr-build-provenance.py"
   ]
 }
