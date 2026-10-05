@@ -127,7 +127,24 @@ for entry in entries:
 
 expected = (live_captured, len(entries), independent_captured, len(entries), verified_identical, mismatches)
 matrix = matrix_path.read_text()
-forward_sync_approved = sum(1 for line in matrix.splitlines() if '| FORWARD SYNC APPROVED |' in line)
+forward_sync_data = json.loads(forward_sync_path.read_text())
+if forward_sync_data.get('schema_version') != 1 or not isinstance(forward_sync_data.get('entries'), list):
+    errors.append('FORWARD_SYNC_APPROVED.json must be schema_version 1 with an entries array.')
+    forward_sync_entries = []
+else:
+    forward_sync_entries = forward_sync_data['entries']
+forward_sync_approved = sum(
+    1 for item in forward_sync_entries
+    if isinstance(item, dict)
+    and item.get('status') == 'PENDING_LIVE_SYNC'
+    and item.get('blocks_full_identical') is True
+)
+matrix_forward_sync = sum(1 for line in matrix.splitlines() if '| FORWARD SYNC APPROVED |' in line)
+if matrix_forward_sync != forward_sync_approved:
+    errors.append(
+        f'STRICT_PARITY_MATRIX has {matrix_forward_sync} FORWARD SYNC APPROVED row(s) '
+        f'but registry has {forward_sync_approved} pending blocker(s).'
+    )
 release = release_path.read_text()
 if 'Strict rendered parity: **NOT_YET_FULLY_VERIFIED**' not in release and verified_identical != len(entries): errors.append('RELEASE_STATUS must remain NOT_YET_FULLY_VERIFIED until every formal entry is verified identical.')
 summary_match = re.search(r'Evidence:\s*\*\*(\d+)/(\d+) LIVE,\s*(\d+)/(\d+) independent,\s*(\d+) verified identical,\s*(\d+) mismatches\*\*', release)
