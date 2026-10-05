@@ -12,6 +12,7 @@
   #job .card:has(#fullSubtotal)>.accord,#view-job .card:has(#fullSubtotal)>.accord{border:0!important;border-radius:0!important;background:transparent!important;margin:0!important;box-shadow:none!important;border-bottom:1px solid #cfdbe2!important}
   #job .card:has(#fullSubtotal)>.accord summary,#view-job .card:has(#fullSubtotal)>.accord summary{padding:11px 0!important}
   #job .card:has(#fullSubtotal)>.accord>div,#view-job .card:has(#fullSubtotal)>.accord>div{padding:0 0 12px!important}
+  #job .card:has(#fullSubtotal)>.accord .grid,#view-job .card:has(#fullSubtotal)>.accord .grid{gap:12px!important}
   #job .card:has(#fullSubtotal)>.accord .unit,#view-job .card:has(#fullSubtotal)>.accord .unit{display:grid!important;place-items:center!important;align-self:stretch!important;min-width:36px!important;padding:0 4px!important;border:1px solid #cbd9e2!important;border-radius:12px!important;background:#fff!important;color:#17212b!important;font-weight:800!important;font-size:12px!important}
 
   /* Planning card: the LIVE direct-child audit shows an 11px eyebrow with
