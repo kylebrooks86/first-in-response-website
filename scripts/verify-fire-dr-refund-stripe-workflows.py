@@ -44,6 +44,13 @@ checks = {
         "resolution_note='kept_overpayment'",
         'Overpayment exceptions must be resolved from the job billing-exception action after the refund or retained overpayment is handled.',
     ],
+    Path('app/pay/[id]/page.tsx'): [
+        "AS pendingRefundCount",
+        'const paymentReviewPending = Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0;',
+        'const canPay = dueNow>0&&approved&&!paymentReviewPending',
+        'Refund processing.',
+        'Payment received — account review in progress.',
+    ],
     Path('app/invoice/[token]/page.tsx'): [
         'Refund processing',
         'Payment received — account review in progress',
@@ -69,4 +76,4 @@ if missing:
     raise SystemExit(1)
 
 print('DR_REFUND_STRIPE_WORKFLOWS=PASS')
-print('Protected: owner refund modal/statuses; Stripe/manual refund distinctions; refund idempotency and ledger linkage; unresolved overpayment and pending-refund payment locks; Stripe stale-checkout reconciliation; manual-payment race safety; customer billing-review/refund/paid states.')
+print('Protected: owner refund modal/statuses; Stripe/manual refund distinctions; refund idempotency and ledger linkage; unresolved overpayment and pending-refund payment locks; Stripe stale-checkout reconciliation; manual-payment race safety; customer payment/invoice billing-review, refund-processing, and paid states.')
