@@ -59,6 +59,21 @@ for old_fragment, new_fragment in replacements:
 
 pay_path.write_text(pay)
 
+# The sealed v138 CLI restore script predates one final audit-field spelling that
+# the v135-v138 recovery guard intentionally requires. Keep the immutable archive
+# sealed and restore that invariant only in the extracted DR working tree.
+restore_path = Path('scripts/restore-records-backup.mjs')
+if not restore_path.exists():
+    raise SystemExit('scripts/restore-records-backup.mjs not found')
+restore = restore_path.read_text()
+restore_needle = 'lifecycleNotificationUniquenessVerified: true'
+if restore_needle not in restore:
+    anchor = 'fieldValuesVerified: true'
+    if anchor not in restore:
+        raise SystemExit('Expected restore-audit field anchor was not found; refusing to guess.')
+    restore = restore.replace(anchor, restore_needle + ',' + anchor, 1)
+    restore_path.write_text(restore)
+
 # STRICT_PARITY_MATRIX.md is governance/evidence-routing state, not sealed app
 # source. Restore its canonical copy after every sealed extraction so corrections
 # to the capture queue are not silently reverted by a rebuild.
@@ -69,4 +84,4 @@ if not matrix_overlay.exists():
 matrix_working.write_text(matrix_overlay.read_text())
 
 print('DR_LIVE_EVIDENCE_FIXES_APPLIED')
-print('Approved estimate confirmation retains signer name; customer payment actions are suppressed during unresolved overpayment or pending refund review; strict parity matrix restored from persistent overlay.')
+print('Approved estimate confirmation retains signer name; customer payment actions are suppressed during unresolved overpayment or pending refund review; v138 CLI restore audit retains lifecycle uniqueness verification; strict parity matrix restored from persistent overlay.')
