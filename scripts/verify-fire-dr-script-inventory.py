@@ -31,6 +31,7 @@ discovered = {
         path.name.startswith('apply-fire-dr-')
         or path.name.startswith('verify-fire-dr-')
         or path.name.startswith('write-fire-dr-')
+        or path.name.startswith('deploy-fire-dr-')
         or path.name == 'prepare-fire-v138-dr-no-r2.sh'
     )
 }
@@ -49,4 +50,4 @@ if errors:
     raise SystemExit(1)
 
 print('DR_SCRIPT_INVENTORY=PASS')
-print(f'All {len(discovered)} DR preparation/overlay/verification/provenance scripts are explicitly governed.')
+print(f'All {len(discovered)} DR preparation/overlay/verification/provenance/deploy scripts are explicitly governed.')
