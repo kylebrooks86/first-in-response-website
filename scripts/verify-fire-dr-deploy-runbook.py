@@ -11,17 +11,26 @@ if errors:
 text=runbook.read_text(); deploy=deploy_script.read_text()
 expected_build='git fetch origin fire-calculator-exact-live-clone && git checkout fire-calculator-exact-live-clone && bash scripts/prepare-fire-v138-dr-no-r2.sh'
 expected_wrapper='bash scripts/deploy-fire-dr-staging.sh'
+expected_queue='python3 scripts/report-fire-dr-evidence-capture-queue.py'
+expected_register='python3 scripts/register-fire-dr-independent-evidence.py --entry-id <formal-id> --file <screenshot> --notes "Exact DR state captured to match registered LIVE evidence."'
+expected_identical='python3 scripts/record-fire-dr-parity-comparison.py --entry-id <formal-id> --result identical --notes "Exact registered LIVE and DR pair reviewed." --visual-review-complete --functional-review-complete'
+expected_mismatch='python3 scripts/record-fire-dr-parity-comparison.py --entry-id <formal-id> --result mismatch --notes "Describe the exact rendered or functional difference."'
 expected_predeploy='python3 ../scripts/verify-fire-dr-predeploy-provenance.py'
 expected_migrate='pnpm exec wrangler d1 migrations apply "$EXPECTED_DB" --remote --config "$CONFIG"'
 expected_deploy='pnpm exec wrangler deploy --config "$CONFIG"'
 for label,needle in [
  ('governed staging build command',expected_build),('single governed deploy wrapper command',expected_wrapper),
+ ('capture queue command',expected_queue),('independent evidence registrar command',expected_register),
+ ('explicit identical comparison command',expected_identical),('explicit mismatch comparison command',expected_mismatch),
+ ('evidence replacement invalidates prior comparison','Replacing either DR evidence file invalidates the old comparison and requires fresh review.'),
+ ('no automatic comparison promotion','`VERIFIED_IDENTICAL` is never inferred merely because both screenshots exist.'),
  ('independent Worker name','fire-app-independent-staging'),('isolated D1 database name','fire-app-staging-db'),
  ('isolated D1 database id','afb2c05a-d794-4a9a-b580-924ce01c26ad'),('D1-only/no-R2 rule','free-tier, D1-only, no R2'),
  ('production isolation rule','Do not point the staging Worker at any production database.')]:
     if needle not in text: errors.append(f'runbook missing {label}: {needle}')
 
-# Runbook exposes only the wrapper; no copy-pastable remote Wrangler commands.
+# Runbook exposes only the wrapper for remote deployment; evidence commands are
+# local governance operations and must never contain raw Wrangler mutations.
 for line in text.splitlines():
     stripped=line.strip()
     if re.search(r'\bwrangler\s+(?:d1\s+migrations\s+apply|deploy)\b',stripped): errors.append(f'runbook contains raw remote Wrangler command: {stripped}')
@@ -37,9 +46,6 @@ for label,needle in [
 if deploy.count(expected_predeploy)<2: errors.append('deploy wrapper must verify provenance before migration and again before Worker deploy')
 first=deploy.find(expected_predeploy); migrate=deploy.find(expected_migrate); second=deploy.rfind(expected_predeploy); worker=deploy.find(expected_deploy)
 if min(first,migrate,second,worker)<0 or not (first<migrate<second<worker): errors.append('deploy wrapper command order must be provenance -> migration -> provenance -> Worker deploy')
-
-# Validate every executable Wrangler line in the wrapper instead of relying on
-# a fragile regex negative-lookahead. Any extra/unpinned command is a failure.
 wrangler_lines=[line.strip() for line in deploy.splitlines() if 'wrangler ' in line and not line.lstrip().startswith('#')]
 if wrangler_lines != [expected_migrate, expected_deploy]: errors.append('deploy wrapper Wrangler command set/order differs from the two governed commands')
 for line in wrangler_lines:
@@ -51,4 +57,4 @@ if errors:
     for e in errors: print(f'- {e}')
     raise SystemExit(1)
 print('DR_DEPLOY_RUNBOOK_GUARD=PASS')
-print('Runbook exposes only the governed wrapper; wrapper command order is provenance -> isolated D1 migration -> provenance -> independent Worker deploy, with no extra/default Wrangler commands.')
+print('Runbook exposes one governed deploy wrapper plus exact capture/register/review commands; comparison promotion remains explicit, and remote deploy order stays provenance -> isolated D1 migration -> provenance -> independent Worker deploy.')
