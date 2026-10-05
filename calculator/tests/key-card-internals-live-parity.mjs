@@ -15,9 +15,9 @@ const allTargets=[
   {group:'jobmath',name:'Job Math / planning',route:'Job Math',roots:['#view-job','#job'],heading:'How much mix should I bring?'},
   {group:'tools',name:'Field Tools / compatibility',route:'Field Tools',roots:toolsRoots,marker:'#compatResult',heading:'Chemical Compatibility Checker'},
   {group:'tools',name:'Field Tools / timer',route:'Field Tools',roots:toolsRoots,marker:'#timerDisplay',heading:'Application Timer'},
-  {group:'tools',name:'Field Tools / weather',route:'Field Tools',roots:toolsRoots,marker:'#weatherNote',heading:'Weather / wind check'},
+  {group:'tools',name:'Field Tools / weather',route:'Field Tools',roots:toolsRoots,marker:'#weatherNote',heading:'Weather Adjustment Guide'},
   {group:'tools',name:'Field Tools / custom builder',route:'Field Tools',roots:toolsRoots,marker:'#customChemName',heading:'Custom Chemical Builder'},
-  {group:'tools',name:'Field Tools / safety',route:'Field Tools',roots:toolsRoots,marker:'.fire-safety-list',heading:'Field safety'}
+  {group:'tools',name:'Field Tools / safety',route:'Field Tools',roots:toolsRoots,marker:'.fire-safety-list',heading:'Field Safety Card'}
 ];
 const targets=GROUP==='all'?allTargets:allTargets.filter(t=>t.group===GROUP);
 if(!targets.length)throw new Error(`Unknown FIRE_KEY_CARD_GROUP ${GROUP}`);
