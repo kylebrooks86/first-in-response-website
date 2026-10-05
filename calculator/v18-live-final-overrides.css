@@ -1,0 +1,23 @@
+/* Final LIVE-render parity overrides.
+   This file intentionally loads last so older compatibility layers cannot
+   override current iPhone evidence with stale light/dark card treatments. */
+@media(max-width:760px){
+  body:not(.dark) .page .card{
+    background:#fff!important;
+  }
+  body.dark .page .card{
+    background:#13202b!important;
+    color:#f7fafc!important;
+  }
+  body.dark .page .card h2,
+  body.dark #chemicals .resultbig{
+    color:#f7fafc!important;
+  }
+  body.dark #mix>.card:nth-child(3),
+  body.dark .recipeCard{
+    background:#2b1b17!important;
+  }
+  body.dark #fireStockCard{
+    background:#13202b!important;
+  }
+}
