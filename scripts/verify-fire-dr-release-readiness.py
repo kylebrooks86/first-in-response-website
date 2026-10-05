@@ -10,8 +10,9 @@ matrix_path = root / 'STRICT_PARITY_MATRIX.md'
 queue_path = root / 'STRICT_RENDERED_PARITY_QUEUE.md'
 go_no_go_path = root / 'GO_NO_GO.md'
 runbook_path = root / 'INDEPENDENT_DEPLOYMENT.md'
+forward_sync_path = root / 'FORWARD_SYNC_APPROVED.json'
 
-required = [manifest_path, release_path, audit_path, matrix_path, queue_path, go_no_go_path, runbook_path]
+required = [manifest_path, release_path, audit_path, matrix_path, queue_path, go_no_go_path, runbook_path, forward_sync_path]
 missing = [str(path) for path in required if not path.is_file()]
 if missing:
     print('DR_RELEASE_READINESS=FAIL')
@@ -59,7 +60,18 @@ queue = queue_path.read_text()
 go_no_go = go_no_go_path.read_text()
 runbook = runbook_path.read_text()
 
-forward_sync_approved = sum(1 for line in matrix.splitlines() if '| FORWARD SYNC APPROVED |' in line)
+try:
+    forward_sync_data = json.loads(forward_sync_path.read_text())
+except Exception as exc:
+    forward_sync_data = {}
+    errors.append(f'FORWARD_SYNC_APPROVED.json is invalid JSON: {exc}')
+forward_sync_entries = forward_sync_data.get('entries') if isinstance(forward_sync_data, dict) else None
+if forward_sync_data.get('schema_version') != 1:
+    errors.append('FORWARD_SYNC_APPROVED.json schema_version must be 1')
+if not isinstance(forward_sync_entries, list):
+    forward_sync_entries = []
+    errors.append('FORWARD_SYNC_APPROVED.json entries must be an array')
+forward_sync_approved = sum(1 for item in forward_sync_entries if isinstance(item, dict) and item.get('status') == 'PENDING_LIVE_SYNC' and item.get('blocks_full_identical') is True)
 if forward_sync_approved:
     blockers.append(f'{forward_sync_approved} owner-approved forward-sync product difference(s) still require LIVE synchronization')
 
