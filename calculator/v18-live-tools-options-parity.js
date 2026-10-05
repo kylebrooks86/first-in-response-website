@@ -52,7 +52,7 @@
     if(b&&!b.dataset.liveCompatBound){b.dataset.liveCompatBound='1';b.addEventListener('input',updateCompatibility);b.addEventListener('change',updateCompatibility)}
     a?.dispatchEvent(new Event('change',{bubbles:true}));b?.dispatchEvent(new Event('change',{bubbles:true}));updateCompatibility();
   };
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(apply,1300));else setTimeout(apply,1300);
-  window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(apply,120));
-  window.addEventListener('fire-v18-shared-core-ready',()=>setTimeout(apply,120));
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
+  window.addEventListener('fire-v18-parity-loaded',apply);
+  window.addEventListener('fire-v18-shared-core-ready',apply);
 })();
