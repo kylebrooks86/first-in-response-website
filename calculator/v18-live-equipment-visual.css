@@ -67,7 +67,6 @@ body.dark #equipment .card:has(#xSurface)>p.mini{color:#9fb0bf!important}
   #equipment .card:has(#injRatio)>p.muted:last-child{margin:6px 0 0!important}
 }
 
-
 /* 2026-10-04 direct LIVE-render parity correction for iPhone Equipment. */
 #equipment .card>.kicker{margin-bottom:4px!important;line-height:1.35!important}
 #equipment .card>h2{margin-bottom:13px!important}
@@ -157,3 +156,28 @@ body.dark #equipment .card:has(#xReqBucket)>p.mini{color:#9fb0bf!important}
 
 /* LIVE has no separate “Measured custom draw” subheading. */
 #equipment .card:has(#xSurface) .x-measured-heading,#equipment #xMeasuredCustomHeading{display:none!important}
+
+/* 2026-10-05 fresh post-settle Equipment parity: remove stale visual compensations. */
+#equipment .card:has(#xSurface){background:transparent!important;border-color:rgba(255,90,54,.32)!important}
+body.dark #equipment .card:has(#xSurface){background:transparent!important;border-color:rgba(255,90,54,.32)!important}
+
+@media(max-width:560px){
+  /* LIVE draw-test card uses the normal 12px field rhythm and 14px result spacing. */
+  #equipment .card:has(#xDrawOz) .grid{gap:12px!important}
+  #equipment .card:has(#xDrawOz) .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;margin-top:14px!important}
+  #equipment .card:has(#xDrawOz) .actions{margin-top:12px!important}
+  #equipment .card:has(#xDrawOz)>p.muted:last-child{margin:8px 0 0!important;line-height:1.45!important}
+
+  /* LIVE injector-ratio card presents the explanatory note as an info callout. */
+  #equipment .card:has(#injRatio)>h2{margin-bottom:13px!important}
+  #equipment .card:has(#injRatio) .grid{gap:12px!important}
+  #equipment .card:has(#injRatio) #injRatio{margin:5px 0!important}
+  #equipment .card:has(#injRatio)>p.muted:last-child{
+    margin:12px 0 0!important;padding:12px!important;border:1px solid #a8d2e4!important;
+    border-radius:10px!important;background:#edf7fb!important;color:#365b6b!important;
+    font-size:13px!important;line-height:1.4!important
+  }
+  body.dark #equipment .card:has(#injRatio)>p.muted:last-child{
+    background:#102637!important;border-color:#28526d!important;color:#d8eefc!important
+  }
+}
