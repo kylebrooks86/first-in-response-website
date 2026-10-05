@@ -105,9 +105,12 @@ python3 ../scripts/verify-fire-dr-live-evidence-coverage.py
 # Protect customer approval/payment/document states and DR recovery-edge safeguards.
 python3 ../scripts/verify-fire-dr-customer-workflows.py
 
-# Keep the 32-state formal ledger, checklist, release summary, strict verdict,
-# 95-state queue status, scroll freeze, and DR photo capability disclosure synchronized.
+# Keep the 32-state formal ledger, evidence-object integrity, checklist, release
+# summary, strict verdict, 95-state queue status, scroll freeze, and DR photo
+# capability disclosure synchronized before spending time on dependency install.
 python3 ../scripts/verify-fire-dr-parity-ledger-consistency.py
+
+echo "DR_PREBUILD_PARITY_GATES=PASS"
 
 corepack enable
 pnpm install --frozen-lockfile
