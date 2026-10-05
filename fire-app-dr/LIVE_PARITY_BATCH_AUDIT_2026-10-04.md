@@ -9,18 +9,19 @@ This document is **not rendered proof** and does not change `NOT_YET_FULLY_VERIF
 ## Frozen / owner-confirmed areas
 
 - Scroll/smoothness tuning is frozen at the owner's direction.
-- The prior V11 top-header result is no longer treated as confirmed; the owner reported the top of the app still looked blurry.
-- V12 changes only the standalone mobile header to a true fixed, fully opaque, non-filtered/non-transformed layer with safe-area spacing. V12 is pending owner visual confirmation after deployment.
+- The standalone mobile shell V14 is now user-confirmed good after deployment.
+- V14 keeps the crisp fixed/opaque top shell and explicitly gives the mobile search field its own second row; dashboard content begins below the full two-row header so the `FIRE APP` / `Welcome, Kyle` block is not covered.
+- Do not modify the V14 header/search/welcome spacing unless the owner explicitly reopens it.
 - Templates mobile selection/editing is user-confirmed working acceptably.
 - DR Stride header control is acceptable.
 
 ## LIVE-evidence corrections applied
 
-Stored LIVE approved-estimate evidence shows the signer name in the green signed confirmation. The DR staging overlay now preserves the signed name when available:
+Stored LIVE approved-estimate evidence shows the signer name in the green signed confirmation. The DR staging overlay preserves the signed name when available:
 
 `Estimate approved and agreement signed by <signed name>. Kyle will contact you to schedule.`
 
-The cumulative LIVE v107/v112 billing rules also require customer payment actions to be hidden while an unresolved overpayment or pending refund exists. The sealed v138 standalone payment page did not include `pendingRefundCount` and its `canPay` calculation did not exclude billing-review state. The DR overlay now:
+The cumulative LIVE v107/v112 billing rules require customer payment actions to be hidden while an unresolved overpayment or pending refund exists. The DR overlay:
 
 - queries pending refund count on the standalone customer payment page;
 - treats pending refunds and unresolved overpayments as payment-review holds;
@@ -28,33 +29,23 @@ The cumulative LIVE v107/v112 billing rules also require customer payment action
 - shows `Refund processing.` for a pending refund;
 - shows `Payment received — account review in progress.` for an unresolved overpayment.
 
-These corrections are applied after sealed-v138 extraction and are also synced into the checked-in DR source. The sealed archive remains unchanged.
+These corrections are applied after sealed-v138 extraction. The sealed archive remains unchanged.
 
 ## LIVE-captured states protected
 
-The build guards protect the currently captured LIVE states and wording, including:
-
-- Customer Payments empty state: `No payments recorded` plus Wave, Cash App, Venmo, cash, check, card, and bank-transfer wording.
-- Customer Invoices empty state: `No invoices yet` and `Open an estimate and tap Create invoice.`
-- Customer Photos controls: Photo type, Before / After / Property / damage, Optional note, Camera, Photo library, and the no-photo state.
-- Scheduled estimate behavior: 50% deposit remains displayed but is not a scheduling gate after approval/signature.
-- Scheduled next step: capture before photos, complete the job report, then create the invoice.
-- Completion-before-final-balance transition: Completed exposes `Create invoice`; after creation the state becomes `Invoice created` and the message action becomes `Send invoice`.
-- Customer invoice: INVOICE FOR, service lines, Invoice total, Balance due, due-on-receipt/specific-date treatment, manual Cash App/Venmo instructions, and floating Back/Home controls.
-- Approved/signed customer estimate confirmation now retains the signer name when available.
-- The complete LIVE-captured Create Estimate service catalog is guarded in exact order.
+- Customer Payments empty state and manual-payment wording.
+- Customer Invoices empty state and create-invoice wording.
+- Customer Photos controls and no-photo state.
+- Approved/signed scheduling with 50% deposit displayed but not used as a hard scheduling gate.
+- Scheduled next-step wording.
+- Completed → Create invoice → Invoice created / Send invoice transition.
+- Customer invoice structure, balance, due-on-receipt/specific-date treatment, manual Cash App/Venmo instructions, and Back/Home controls.
+- Approved/signed customer estimate confirmation with signer name.
+- Complete LIVE-captured Create Estimate service catalog in exact order.
 
 ## Owner workflow coverage
 
-Source guards now protect:
-
-- Dashboard cards, recent estimates, quick actions, Notifications, Contracts, Customers, Follow-ups, Payments, Record payment, Job costs, and Service completion report.
-- Customer action row, property preview, Messages, Notes, Payments, Invoices, and Photos states.
-- Owner Invoices list, refund/payment-review states, and Open action.
-- Edit final invoice controls, due-on-receipt vs specific date, percent/dollar discount, totals, and read-only invoice revision history.
-- Business metrics, Tasks/reminders, Expenses, backup/restore controls, and Wave export.
-- Message Templates categories, editor, unsaved-change warning, before-unload warning, save confirmation, and Restore Default confirmation.
-- Refund modal/statuses and unresolved overpayment safeguards.
+Source guards protect Dashboard, Notifications, Contracts, Customers, Follow-ups, Payments, Record payment, Job costs, Service completion report, customer action row/property preview/Messages/Notes/Payments/Invoices/Photos, owner Invoices, final-invoice edit/revision behavior, Business, Templates, refund/overpayment states, and common owner empty/error states.
 
 ## Shared business behavior protected
 
@@ -75,28 +66,24 @@ Source guards now protect:
 
 ## Current build guards
 
-The DR preparation path now runs six source/governance parity guards after applying the DR overlays and before dependency install/build:
+The DR preparation path runs six source/governance parity guards after applying DR overlays and before dependency install/build:
 
-1. `scripts/verify-fire-dr-live-parity-overlays.py` — known LIVE-captured shell, customer records, lifecycle, billing, completion-to-invoice, and document invariants, including the V12 fixed/opaque standalone-header contract.
-2. `scripts/verify-fire-dr-owner-workflows.py` — owner Dashboard/Invoices/Business/Templates/refund/empty-state contracts.
+1. `scripts/verify-fire-dr-live-parity-overlays.py` — known LIVE-captured/user-confirmed shell and workflow invariants, including confirmed V14 two-row standalone-header/search layout.
+2. `scripts/verify-fire-dr-owner-workflows.py` — owner workflow contracts.
 3. `scripts/verify-fire-dr-live-service-catalog.py` — all 30 LIVE-captured Create Estimate service options in exact order.
-4. `scripts/verify-fire-dr-live-evidence-coverage.py` — requires every formal state already marked LIVE `CAPTURED` to be explicitly mapped into current DR parity protection and runs the restore/lifecycle/refund/Stripe integrity subguards.
-5. `scripts/verify-fire-dr-customer-workflows.py` — approval/signature, change requests, customer documents, payment/refund edge states, and no-R2 photo failure behavior.
-6. `scripts/verify-fire-dr-parity-ledger-consistency.py` — formal evidence counts/status, queue/governance consistency, persistent-overlay synchronization, PIN/no-R2 rules, and current release verdict.
+4. `scripts/verify-fire-dr-live-evidence-coverage.py` — every formal LIVE `CAPTURED` state must be mapped into current DR parity protection; restore/lifecycle/refund/Stripe integrity subguards also run here.
+5. `scripts/verify-fire-dr-customer-workflows.py` — approval/signature, customer documents, payment/refund edge states, and no-R2 photo failure behavior.
+6. `scripts/verify-fire-dr-parity-ledger-consistency.py` — evidence counts/status, governance consistency, persistent overlays, PIN/no-R2 rules, and current release verdict.
 
-These guards prevent source/evidence-accountability regressions. They do **not** substitute for same-state rendered LIVE-vs-DR comparison.
+These guards do **not** substitute for same-state rendered LIVE-vs-DR comparison.
 
 ## Current formal evidence status
-
-The formal manifest remains authoritative:
 
 - 32 release-gating parity entries.
 - 11/32 LIVE evidence captured.
 - 0/32 independent evidence formally registered.
 - 0 VERIFIED_IDENTICAL comparisons.
 - 0 recorded mismatches.
-
-The evidence-coverage guard intentionally expects the current 11 LIVE-captured formal states. When new LIVE evidence is registered, the build stops until that new formal state is mapped into the DR parity protection.
 
 Status remains:
 
@@ -106,9 +93,11 @@ Status remains:
 
 ## Remaining rendered blockers
 
-Major remaining comparisons include owner Invoices list/detail, populated payment history, Business, Templates, full approval/signature lifecycle, change request states, customer payment page, paid-in-full state, refund states, expired/not-found/error coverage, broader owner empty/error states, and owner confirmation that the V12 standalone top header is visually crisp.
+For states where LIVE evidence already exists, the next required work is the matching independent DR render—not another LIVE recapture. Those include customer Payments, customer Invoices, customer Photos, customer invoice view, scheduling/deposit behavior, before/after photo controls, and the captured service catalog.
 
-Do not mark these `VERIFIED_IDENTICAL` from source inspection alone.
+New LIVE visual capture is still required for owner refund modal/hold states, owner Invoices list/detail, Business, Templates, populated Payment History, customer standalone payment page, paid/zero-balance state, customer refund-processing state, change-request completion states, and expired/error links.
+
+Do not mark any state `VERIFIED_IDENTICAL` from source inspection alone.
 
 ## DR capability boundary
 
@@ -116,7 +105,7 @@ The independent DR remains intentionally free-tier, D1-only, and no-R2.
 
 - Photo UI can be compared with LIVE.
 - Actual photo-file upload/archive/download is not functionally identical while no storage binding exists.
-- Photo APIs must fail closed with a clear unavailable response rather than pretend success.
+- Photo APIs must fail closed rather than pretend success.
 
 ## Safety boundaries
 
