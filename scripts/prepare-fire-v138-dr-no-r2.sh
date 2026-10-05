@@ -73,6 +73,9 @@ python3 ../scripts/apply-fire-dr-template-parity-fix.py
 # Refuse a DR build if known LIVE-parity behavior/wording regresses.
 python3 ../scripts/verify-fire-dr-live-parity-overlays.py
 
+# Protect owner-side Business/Templates/invoice/refund parity contracts while visual proof is pending.
+python3 ../scripts/verify-fire-dr-owner-workflows.py
+
 corepack enable
 pnpm install --frozen-lockfile
 pnpm run build
