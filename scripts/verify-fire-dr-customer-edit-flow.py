@@ -10,6 +10,15 @@ checks = {
         'body:JSON.stringify({id:customer.id,name:name.trim(),email:email.trim(),phone:phone.trim(),address:address.trim(),leadSource})',
         'This updates the customer profile only. Existing estimates, invoices, payments, and signed agreements keep their recorded history.',
         'EditCustomer customer={selected}',
+        'const selected = customers.find((customer) => customer.id === selectedId) ?? null;',
+        'setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item))',
+        '{selected.phone ? <a href={`tel:${selected.phone}`}',
+        '{selected.phone && <a href={`sms:${selected.phone}`}',
+        '{selected.email ? <a href={`mailto:${selected.email}`}',
+        '{selected.address ? <a className="primary-tool"',
+        '{selected.address && <a href={`https://earth.google.com/web/search/',
+        '{selected.address && <a href={`https://www.zillow.com/homes/',
+        '{selected.address && <PropertyPreview address={selected.address} />}',
     ],
     Path('app/api/customers/route.ts'): [
         'export async function PATCH(request: Request)',
@@ -44,4 +53,4 @@ if missing:
     raise SystemExit(1)
 
 print('DR_CUSTOMER_EDIT_FLOW_GUARD=PASS')
-print('Edit customer is present for name, email, phone, service address, and lead source; PATCH updates only the existing customer record and does not rewrite historical estimates, invoices, payments, line items, or refunds.')
+print('Edit customer is present for name, email, phone, service address, and lead source; PATCH updates only the existing customer record, the selected profile is derived from updated customer state so contact/property actions refresh immediately, and historical estimates, invoices, payments, line items, or refunds are not rewritten.')
