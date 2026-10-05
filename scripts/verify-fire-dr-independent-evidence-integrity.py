@@ -53,7 +53,8 @@ for registration in registrations:
     if target.get('independent_evidence_status') != 'CAPTURED': errors.append(f'{entry_id}: formal independent status is not CAPTURED')
     if target.get('comparison_status') == 'VERIFIED_IDENTICAL': errors.append(f'{entry_id}: persistent registration alone must not produce VERIFIED_IDENTICAL before comparison overlay')
     if manifest_independent != evidence: errors.append(f'{entry_id}: rebuilt manifest independent evidence differs from persistent overlay')
-    live = next((item for item in target.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'live'), None)
+    live_candidates = [item for item in target.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'live']
+    live = next((item for item in live_candidates if item.get('comparison_reference') is True), None) or (live_candidates[0] if live_candidates else None)
     for item in evidence:
         if not isinstance(item, dict):
             errors.append(f'{entry_id}: evidence item is not an object')
@@ -82,13 +83,14 @@ for registration in registrations:
                     if source_provenance.get('deployment_target', {}).get('worker_name') != 'fire-app-independent-staging': errors.append(f'{entry_id}: source provenance Worker is not independent staging')
                     if source_provenance.get('release') != {'package_version':'1.0.0-rc.138','fire_release':'v138'}: errors.append(f'{entry_id}: source provenance release is not governed v138')
                     if item.get('source_commit') != source_provenance.get('checked_out_source_commit'): errors.append(f'{entry_id}: evidence source commit differs from persisted provenance')
-        if item.get('capture_profile_source') != 'dr-registrar-v4': errors.append(f'{entry_id}: capture profile was not produced by governed DR registrar v4')
+        if item.get('capture_profile_source') != 'dr-registrar-v5': errors.append(f'{entry_id}: capture profile was not produced by governed DR registrar v5')
         for key in ['pixel_width','pixel_height','viewport_width','viewport_height']:
             value = item.get(key)
             if not isinstance(value, int) or value <= 0: errors.append(f'{entry_id}: {key} must be a positive integer')
         if item.get('device_class') not in {'mobile','tablet','desktop'}: errors.append(f'{entry_id}: invalid/missing device_class')
         if item.get('orientation') not in {'portrait','landscape'}: errors.append(f'{entry_id}: invalid/missing orientation')
         if item.get('profile_matches_registered_live') not in {True, False}: errors.append(f'{entry_id}: profile_matches_registered_live must be explicit boolean')
+        if live and item.get('registered_live_sha256') != live.get('sha256'): errors.append(f'{entry_id}: DR evidence was registered against a different LIVE comparison reference')
         if item.get('profile_matches_registered_live') is False and not item.get('profile_mismatch_notes'): errors.append(f'{entry_id}: profile mismatch requires explicit mismatch notes')
         if live and item.get('profile_matches_registered_live') is True:
             for key in ['pixel_width','pixel_height','viewport_width','viewport_height','device_class','orientation','theme']:
