@@ -53,6 +53,7 @@ subprocess.run([sys.executable, '../scripts/apply-fire-dr-comparison-overlay.py'
 subprocess.run([sys.executable, '../scripts/apply-fire-dr-parity-summary-sync.py'], cwd=app_dir, check=True)
 subprocess.run([sys.executable, '../scripts/verify-fire-dr-comparison-integrity.py'], cwd=app_dir, check=True)
 subprocess.run([sys.executable, '../scripts/verify-fire-dr-parity-ledger-consistency.py'], cwd=app_dir, check=True)
+subprocess.run([sys.executable, '../scripts/verify-fire-dr-release-readiness.py'], cwd=app_dir, check=True)
 updated = json.loads(manifest_path.read_text()); updated_entry = next(item for item in updated.get('entries',[]) if isinstance(item,dict) and item.get('id') == args.entry_id)
 if updated_entry.get('comparison_status') != result: raise SystemExit('DR_PARITY_COMPARISON_RECORD=FAIL: formal manifest did not receive deliberate comparison decision')
 
@@ -60,4 +61,4 @@ print('DR_PARITY_COMPARISON_RECORD=PASS')
 print(f'{args.entry_id}: {result}')
 print(f'LIVE_SHA256={live["sha256"]}')
 print(f'DR_SHA256={independent["sha256"]}')
-print('Decision persisted separately from evidence registration, passed comparison-integrity verification, and parity summaries/ledger were synchronized to this exact evidence pair.')
+print('Decision persisted separately from evidence registration, passed comparison-integrity and release-readiness verification, and parity summaries/ledger were synchronized to this exact evidence pair.')
