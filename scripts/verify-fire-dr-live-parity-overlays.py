@@ -6,7 +6,7 @@ from pathlib import Path
 checks = {
     Path('app/layout.tsx'): [
         'statusBarStyle: "default"',
-        'FIRE_DR_STRIDE_PARITY_SCRIPT_V12',
+        'FIRE_DR_STRIDE_PARITY_SCRIPT_V14',
     ],
     Path('app/dashboard.tsx'): [
         'const editorRef=useRef<HTMLElement|null>(null);',
@@ -180,11 +180,13 @@ checks = {
     ],
     Path('app/globals.css'): [
         'FIRE_DR_TEMPLATE_MOBILE_PARITY',
-        'FIRE_DR_STANDALONE_TOPBAR_PARITY_V12',
+        'FIRE_DR_STANDALONE_TOPBAR_PARITY_V14',
         'position: fixed !important;',
-        'padding-top: calc(68px + env(safe-area-inset-top)) !important;',
-        'height: calc(68px + env(safe-area-inset-top)) !important;',
-        'padding-top: calc(env(safe-area-inset-top) + 4px) !important;',
+        'padding-top: calc(156px + env(safe-area-inset-top)) !important;',
+        'height: calc(148px + env(safe-area-inset-top)) !important;',
+        '.topbar .search-box {',
+        'bottom: 12px !important;',
+        'display: flex !important;',
         'background-color: #fff !important;',
         'backdrop-filter: none !important;',
         '-webkit-backdrop-filter: none !important;',
@@ -211,5 +213,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_LIVE_PARITY_OVERLAY_GUARD=PASS')
-print('Protected: fixed opaque standalone top shell; owner nav/mobile controls/theme; estimate pricing/discount/minimum/deposit rules; LIVE-captured customer Payments/Invoices/Photos states; scheduling/deposit behavior; completion-to-invoice transition; Templates; customer estimate/payment/invoice portals; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation.')
+print('Protected: crisp fixed opaque standalone top shell with explicit search row and content clearance; owner nav/mobile controls/theme; estimate pricing/discount/minimum/deposit rules; LIVE-captured customer Payments/Invoices/Photos states; scheduling/deposit behavior; completion-to-invoice transition; Templates; customer estimate/payment/invoice portals; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation.')
 print('General scroll/smoothness behavior is intentionally not modified or pinned by this guard.')
