@@ -66,8 +66,7 @@
   #job #jobEstimateCard #fullTotal,#view-job #jobEstimateCard #fullTotal{color:#d6422d!important}
   #job #jobEstimateCard #fullDeposit,#view-job #jobEstimateCard #fullDeposit{color:#a46b00!important}
 
-  /* LIVE customer/crew panels are compact blue-tinted blocks. The paired iPhone
-     capture shows the previous DR panel treatment was ~27px too tall overall. */
+  /* Legacy split-panel treatment retained for old DOM fallback. */
   #job #jobEstimateCard h3:has(+p+#fullQuote),
   #view-job #jobEstimateCard h3:has(+p+#fullQuote),
   #job #jobEstimateCard h3:has(+p+#crewSheet),
@@ -95,6 +94,35 @@
   #view-job #jobEstimateCard #fullQuote + .actions button,
   #job #jobEstimateCard #crewSheet + #crewSheetActions button,
   #view-job #jobEstimateCard #crewSheet + #crewSheetActions button{
+    width:auto!important;min-height:44px!important;margin:0!important;font-weight:800!important
+  }
+
+  /* Current LIVE DOM: Customer quote and Crew job sheet are each one quote-actions shell. */
+  #job #jobEstimateCard>.quote-actions,
+  #view-job #jobEstimateCard>.quote-actions{
+    margin:14px 0 0!important;
+    padding:13px!important;
+    border:1px solid #c8dfe9!important;
+    border-radius:13px!important;
+    background:#f2fbff!important;
+    box-sizing:border-box!important;
+  }
+  #job #jobEstimateCard>.quote-actions>h3,
+  #view-job #jobEstimateCard>.quote-actions>h3{
+    margin:0 0 4px!important;padding:0!important;border:0!important;border-radius:0!important;
+    background:transparent!important;color:#17212b!important
+  }
+  #job #jobEstimateCard>.quote-actions>p,
+  #view-job #jobEstimateCard>.quote-actions>p{
+    margin:0 0 7px!important;padding:0!important;border:0!important;background:transparent!important;color:#607381!important
+  }
+  #job #jobEstimateCard>.quote-actions>.actions,
+  #view-job #jobEstimateCard>.quote-actions>.actions{
+    display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:7px!important;
+    margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important
+  }
+  #job #jobEstimateCard>.quote-actions>.actions button,
+  #view-job #jobEstimateCard>.quote-actions>.actions button{
     width:auto!important;min-height:44px!important;margin:0!important;font-weight:800!important
   }
   #job #jobEstimateCard #copyFullQuote,
@@ -157,10 +185,16 @@ body.dark #view-job #jobEstimateCard p:has(+#crewSheet),
 body.dark #job #jobEstimateCard #fullQuote + .actions,
 body.dark #view-job #jobEstimateCard #fullQuote + .actions,
 body.dark #job #jobEstimateCard #crewSheet + #crewSheetActions,
-body.dark #view-job #jobEstimateCard #crewSheet + #crewSheetActions{
+body.dark #view-job #jobEstimateCard #crewSheet + #crewSheetActions,
+body.dark #job #jobEstimateCard>.quote-actions,
+body.dark #view-job #jobEstimateCard>.quote-actions{
   background:#102637!important;border-color:#28526d!important;color:#f6fbff!important
 }
+body.dark #job #jobEstimateCard>.quote-actions>h3,
+body.dark #view-job #jobEstimateCard>.quote-actions>h3{color:#f6fbff!important}
 body.dark #job #jobEstimateCard p:has(+#fullQuote),
 body.dark #view-job #jobEstimateCard p:has(+#fullQuote),
 body.dark #job #jobEstimateCard p:has(+#crewSheet),
-body.dark #view-job #jobEstimateCard p:has(+#crewSheet){color:#b7cfdd!important}
+body.dark #view-job #jobEstimateCard p:has(+#crewSheet),
+body.dark #job #jobEstimateCard>.quote-actions>p,
+body.dark #view-job #jobEstimateCard>.quote-actions>p{color:#b7cfdd!important}
