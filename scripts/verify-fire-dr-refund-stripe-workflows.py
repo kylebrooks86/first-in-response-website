@@ -37,6 +37,15 @@ checks = {
         'The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again.',
         'const refreshed = await env.DB.prepare',
     ],
+    Path('app/api/payments/webhook/route.ts'): [
+        'verifyStripeSignature',
+        'stripeCheckoutForPaymentIntent',
+        'stripe-external:${refund.id}',
+        'Imported from Stripe webhook',
+        'refund_exceeds_original_payment',
+        'refund_ledger_verification_failed',
+        'refund:${requestRow.paymentId}:${requestRow.id}',
+    ],
     Path('app/api/notifications/route.ts'): [
         'Refunds must be processed from Payments → Refund on the original payment.',
         'A refund is currently processing for this job. Wait for it to finish before resolving the overpayment.',
@@ -76,4 +85,4 @@ if missing:
     raise SystemExit(1)
 
 print('DR_REFUND_STRIPE_WORKFLOWS=PASS')
-print('Protected: owner refund modal/statuses; Stripe/manual refund distinctions; refund idempotency and ledger linkage; unresolved overpayment and pending-refund payment locks; Stripe stale-checkout reconciliation; manual-payment race safety; customer payment/invoice billing-review, refund-processing, and paid states.')
+print('Protected: owner refund modal/statuses; Stripe/manual refund distinctions; refund idempotency and ledger linkage; direct Stripe-dashboard refund convergence; unresolved overpayment and pending-refund payment locks; Stripe stale-checkout reconciliation; manual-payment race safety; customer payment/invoice billing-review, refund-processing, and paid states.')
