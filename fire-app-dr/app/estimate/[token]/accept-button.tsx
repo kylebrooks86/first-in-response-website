@@ -30,7 +30,7 @@ export function AcceptEstimateButton({token,accepted,signedName,photoRelease:exi
     finally{setLoading(false);}
   };
   const requestChanges=async()=>{setLoading(true);setError("");try{const response=await fetch(`/api/public/estimates/${token}/change-request`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:changeMessage})});const result=await response.json() as {ok?:boolean;error?:string};if(!response.ok||!result.ok)throw new Error(result.error||"The request could not be sent.");setChangeSent(true);}catch(reason){setError(reason instanceof Error?reason.message:"The request could not be sent.");}finally{setLoading(false);}};
-  if(done)return <div className="portal-approved"><Check/>Estimate approved and agreement signed. Kyle will contact you to schedule.</div>;
+  if(done)return <div className="portal-approved"><Check/>Estimate approved and agreement signed{signedName?` by ${signedName}`:""}. Kyle will contact you to schedule.</div>;
   return <div className="signature-panel">
     <div className="contract-box"><strong>Service Agreement &amp; Liability Waiver</strong><p>{terms}</p></div>
     <fieldset className="photo-release"><legend>Photo permission (required)</legend><label><input type="radio" name="photoRelease" value="yes" checked={photoRelease==="yes"} onChange={(event)=>setPhotoRelease(event.target.value)}/><span><strong>Yes</strong> — I authorize before-and-after property photos for marketing purposes.</span></label><label><input type="radio" name="photoRelease" value="no" checked={photoRelease==="no"} onChange={(event)=>setPhotoRelease(event.target.value)}/><span><strong>No</strong> — I do not authorize use of property photos for marketing.</span></label></fieldset>
