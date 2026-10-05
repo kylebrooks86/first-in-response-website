@@ -11,17 +11,17 @@ A row may not be promoted to VERIFIED IDENTICAL without checking LIVE and DR in 
 
 ## Current audit summary
 
-**REAL-DEVICE PARITY RE-AUDIT IN PROGRESS — NOT SYNCHRONIZED**
+**AUTOMATED PARITY ACCEPTANCE COMPLETE — PHYSICAL IPHONE ACCEPTANCE PENDING — NOT SYNCHRONIZED**
 
-Current governed DR fingerprint: `9e3c7d705165e5d74ee369e484f428eecafcddd80cdf92a54dfad8fd5dd6604d`
+Current governed DR fingerprint: `796216b88d011eb781870d9bcb83eeaedcc38f39ffc7a26c7d4808fd98facaad`
 
-Current DR offline cache: `fire-field-calculator-v18-exact-clone-72`
+Current DR offline cache: `fire-field-calculator-v18-exact-clone-106`
 
-Production/LIVE remains the untouched reference. The Doomsday calculator remains staging-only for synchronization purposes. Earlier automation remains regression evidence, but the owner’s iPhone discovery of material Index/Mixes differences reopened rendered parity.
+Production/LIVE remains the untouched reference. The Doomsday calculator remains staging-only for synchronization purposes. The cache-106 candidate passes the rebuilt automated functional, rendered, geometry, persistence, backup/takeover and offline acceptance suite. Physical/native iPhone acceptance remains the final pre-promotion requirement.
 
 | Area / state | Current status | Acceptance requirement |
 | --- | --- | --- |
-| Launch / initial render | NOT YET VERIFIED | Same first paint, header, warning, tabs, active state, saved-state restoration, viewport and safe-area behavior. |
+| Launch / initial render | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Automated iPhone-viewport first paint/header/warning/tabs/active-state geometry matches; physical iPhone confirmation remains. |
 | Header / FIRE branding | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Exact iPhone title/control spacing and installed/saved states still require physical-device acceptance. |
 | Top navigation | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Seven-tab order/route behavior has automated coverage; rendered scrolling, spacing and active states remain open. |
 | Bottom navigation | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Six-control order/route behavior is implemented; fixed/safe-area and active-state physical comparison remains. |
@@ -45,15 +45,15 @@ Production/LIVE remains the untouched reference. The Doomsday calculator remains
 | Field Tools — custom chemical/version/backup | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Core behavior/backup compatibility exists; validation states and rendered/native presentation remain. |
 | Field Safety Card | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Content exists; exact card presentation remains. |
 | Field Guide | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Content/order direction is implemented; exact matrix/accordion/card presentation remains. |
-| First-run state | NOT YET VERIFIED | Compare clean-storage LIVE vs clean-storage DR on physical device. |
+| First-run state | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Clean automated LIVE-vs-DR state/launch acceptance passes; physical iPhone confirmation remains. |
 | Reloaded/saved state | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Persistence has automated evidence; rendered restoration states remain. |
 | Theme persistence | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Behavior exists; physical light/dark restored-state parity remains. |
 | Reset / clear | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Automated behavior evidence exists; confirmation/native presentation remains. |
 | Backup portability | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | LIVE-compatible restore, reverse isolated restore and corrupt-backup safety have automated evidence; controls/native presentation remain. |
-| Light mode | NOT YET VERIFIED | Route-by-route same-state physical/rendered comparison required. |
-| Dark mode | NOT YET VERIFIED | Route-by-route same-state physical/rendered comparison required. |
-| iPhone portrait layout | NOT YET VERIFIED | Physical route-by-route acceptance required; browser viewport captures alone are insufficient. |
-| iPhone safe area / fixed controls | NOT YET VERIFIED | Verify header/bottom navigation under real safe-area and keyboard conditions. |
+| Light mode | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Automated route-by-route light-mode render/geometry acceptance passes; physical iPhone confirmation remains. |
+| Dark mode | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Automated route-by-route dark-mode render/geometry acceptance passes; physical iPhone confirmation remains. |
+| iPhone portrait layout | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Automated iPhone-viewport geometry/screenshot acceptance passes; physical-device confirmation remains required. |
+| iPhone safe area / fixed controls | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Automated viewport safe-area/header/bottom-nav geometry passes; real iOS keyboard/safe-area confirmation remains. |
 | Native keyboard | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Input contracts have automated coverage; native iOS keyboard chrome/dismissal remains. |
 | Native share / print | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Payload/action behavior has automated coverage; OS share and print/save-PDF UI remains. |
 | Blank / zero / decimal / negative / very-large / invalid numeric states | FUNCTIONALLY VERIFIED BUT NOT VISUALLY VERIFIED | Estimator/input scenarios have automated evidence; remaining relevant fields require state coverage and rendered comparison. |
@@ -62,6 +62,11 @@ Production/LIVE remains the untouched reference. The Doomsday calculator remains
 | ChatGPT/OpenAI dependency | INTENTIONAL INFRASTRUCTURE DIFFERENCE | DR normal calculator operation must not require OpenAI/ChatGPT calls or authentication. |
 | Hosting URL/domain | INTENTIONAL INFRASTRUCTURE DIFFERENCE | May differ without affecting shared UI/logic. |
 | Hosting secrets/environment | INTENTIONAL INFRASTRUCTURE DIFFERENCE | May differ without affecting shared user-visible/business-functional behavior. |
+
+
+### Cache-106 automated acceptance result
+
+The current candidate has passed the full automated parity gate, visual/geometry workflow, behavior suite, backup/takeover parity and offline/airplane-mode acceptance. Focused card geometry is within small tolerance and the shared mobile shell has no horizontal overflow. Rows remain short of `VERIFIED IDENTICAL` only where physical/native iOS presentation still requires owner-device confirmation or where production has not yet been intentionally promoted.
 
 ## Mandatory same-state comparison order
 
