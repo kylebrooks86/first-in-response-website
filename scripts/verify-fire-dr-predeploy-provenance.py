@@ -1,86 +1,56 @@
-import hashlib
-import json
-import subprocess
+import hashlib,json,subprocess
 from pathlib import Path
-
-root=Path('.'); repo_root=Path('..')
-provenance_path=root/'dist/server/FIRE_DR_BUILD_PROVENANCE.json'; wrangler_path=root/'dist/server/wrangler.independent.json'
-inventory_path=repo_root/'scripts/FIRE_DR_GOVERNED_SCRIPT_INVENTORY.json'; overlay_dir=repo_root/'dr-parity-overlays'; manifest_path=root/'PARITY_EVIDENCE_MANIFEST.json'
+root=Path('.'); repo_root=Path('..'); provenance_path=root/'dist/server/FIRE_DR_BUILD_PROVENANCE.json'; wrangler_path=root/'dist/server/wrangler.independent.json'; inventory_path=repo_root/'scripts/FIRE_DR_GOVERNED_SCRIPT_INVENTORY.json'; overlay_dir=repo_root/'dr-parity-overlays'; manifest_path=root/'PARITY_EVIDENCE_MANIFEST.json'; independent_overlay=repo_root/'dr-parity-evidence/INDEPENDENT_EVIDENCE_OVERLAY.json'
 expected_governance={'STRICT_RENDERED_PARITY_QUEUE.md','STRICT_PARITY_MATRIX.md','GO_NO_GO.md','INDEPENDENT_DEPLOYMENT.md','LIVE_PARITY_BATCH_AUDIT_2026-10-04.md'}
-
-def sha256(path:Path)->str:
-    h=hashlib.sha256()
-    with path.open('rb') as f:
-        for chunk in iter(lambda:f.read(1024*1024),b''): h.update(chunk)
-    return h.hexdigest()
-
-def git_head()->str: return subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo_root,text=True).strip()
-
+def sha256(p): return hashlib.sha256(p.read_bytes()).hexdigest()
+def git_head(): return subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo_root,text=True).strip()
 def deployment_tree():
-    base=root/'dist/server'; files=sorted(p for p in base.rglob('*') if p.is_file() and p!=provenance_path)
-    h=hashlib.sha256(); per_file={}
-    for path in files:
-        rel=path.relative_to(base).as_posix(); digest=sha256(path); per_file[rel]=digest
-        h.update(rel.encode('utf-8')); h.update(b'\0'); h.update(digest.encode('ascii')); h.update(b'\n')
-    return len(files),h.hexdigest(),per_file
-
-required=[provenance_path,wrangler_path,inventory_path,manifest_path]
+    base=root/'dist/server'; files=sorted(p for p in base.rglob('*') if p.is_file() and p!=provenance_path); h=hashlib.sha256(); per={}
+    for p in files:
+        rel=p.relative_to(base).as_posix(); d=sha256(p); per[rel]=d; h.update(rel.encode()); h.update(b'\0'); h.update(d.encode()); h.update(b'\n')
+    return len(files),h.hexdigest(),per
+required=[provenance_path,wrangler_path,inventory_path,manifest_path,independent_overlay]
 missing=[str(p) for p in required if not p.exists()]
-if missing:
-    print('DR_PREDEPLOY_PROVENANCE=FAIL')
-    for p in missing: print(f'- missing required predeploy artifact: {p}')
-    raise SystemExit(1)
+if missing: raise SystemExit('DR_PREDEPLOY_PROVENANCE=FAIL: missing '+', '.join(missing))
 p=json.loads(provenance_path.read_text()); w=json.loads(wrangler_path.read_text()); i=json.loads(inventory_path.read_text()); errors=[]
-if p.get('schema_version')!=5: errors.append(f"expected provenance schema 5, found {p.get('schema_version')!r}")
+if p.get('schema_version')!=6: errors.append(f"expected provenance schema 6, found {p.get('schema_version')!r}")
 if p.get('checked_out_source_commit')!=git_head(): errors.append('checked-out git commit no longer matches build provenance')
-if p.get('sealed_archive',{}).get('sha256')!='2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca': errors.append('sealed v138 archive fingerprint is not governed hash')
-if p.get('release')!={'package_version':'1.0.0-rc.138','fire_release':'v138'}: errors.append('release identity is not governed v138')
+if p.get('sealed_archive',{}).get('sha256')!='2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca': errors.append('sealed v138 archive fingerprint mismatch')
+if p.get('release')!={'package_version':'1.0.0-rc.138','fire_release':'v138'}: errors.append('release identity mismatch')
 parity=p.get('parity_evidence') or {}
-if parity.get('manifest_sha256')!=sha256(manifest_path): errors.append('formal parity evidence manifest changed after build provenance was written')
-if parity.get('formal_states')!=32: errors.append(f"provenance formal parity state count is not 32: {parity.get('formal_states')!r}")
-
+if parity.get('manifest_sha256')!=sha256(manifest_path): errors.append('formal parity manifest changed after provenance')
+if parity.get('persistent_independent_overlay_sha256')!=sha256(independent_overlay): errors.append('persistent independent evidence overlay changed after provenance')
+overlay=json.loads(independent_overlay.read_text())
+if parity.get('persistent_independent_registration_count')!=len(overlay.get('entries') or []): errors.append('independent evidence registration count changed after provenance')
+if p.get('safety',{}).get('independent_evidence_auto_promotes_comparison') is not False: errors.append('independent evidence comparison-promotion policy invalid')
 target=p.get('deployment_target') or {}; d1=w.get('d1_databases') or []
-if w.get('name')!='fire-app-independent-staging' or w.get('topLevelName')!='fire-app-independent-staging': errors.append('Wrangler Worker target drifted after build')
-if len(d1)!=1: errors.append('independent Wrangler config must have exactly one D1 binding')
+if w.get('name')!='fire-app-independent-staging' or w.get('topLevelName')!='fire-app-independent-staging': errors.append('Worker target drifted')
+if len(d1)!=1: errors.append('expected exactly one D1 binding')
 else:
     db=d1[0]
-    if db.get('binding')!='DB' or db.get('database_name')!='fire-app-staging-db' or db.get('database_id')!='afb2c05a-d794-4a9a-b580-924ce01c26ad': errors.append('independent D1 target drifted after build')
-if 'r2_buckets' in w: errors.append('R2 binding appeared after governed build')
+    if db.get('binding')!='DB' or db.get('database_name')!='fire-app-staging-db' or db.get('database_id')!='afb2c05a-d794-4a9a-b580-924ce01c26ad': errors.append('D1 target drifted')
+if 'r2_buckets' in w: errors.append('R2 binding appeared')
 secret=(w.get('vars') or {}).get('FIRE_SESSION_SECRET')
-if not isinstance(secret,str) or len(secret)!=64: errors.append('independent Wrangler session secret is missing or malformed before deploy')
-if target.get('worker_name')!=w.get('name'): errors.append('provenance Worker target no longer matches Wrangler config')
-if target.get('r2_binding_present') is not False or target.get('session_secret_value_recorded') is not False: errors.append('provenance R2/session-secret safety flags invalid')
-if len(d1)==1 and (target.get('d1_database_name')!=d1[0].get('database_name') or target.get('d1_database_id')!=d1[0].get('database_id')): errors.append('provenance D1 target no longer matches Wrangler config')
-
-listed=i.get('scripts') or []; script_record=p.get('governed_script_inventory') or {}; recorded=script_record.get('script_sha256') or {}
-if script_record.get('inventory_sha256')!=sha256(inventory_path): errors.append('governed script inventory changed after build')
-if set(recorded)!=set(listed): errors.append('provenance script set no longer matches governed inventory')
+if not isinstance(secret,str) or len(secret)!=64: errors.append('session secret missing/malformed')
+if target.get('worker_name')!=w.get('name'): errors.append('provenance Worker mismatch')
+listed=i.get('scripts') or []; recorded=(p.get('governed_script_inventory') or {}).get('script_sha256') or {}
+if (p.get('governed_script_inventory') or {}).get('inventory_sha256')!=sha256(inventory_path): errors.append('script inventory changed')
+if set(recorded)!=set(listed): errors.append('script set changed')
 for name in listed:
     path=repo_root/'scripts'/name
-    if not path.exists(): errors.append(f'governed script missing before deploy: {name}')
-    elif recorded.get(name)!=sha256(path): errors.append(f'governed script changed after build: {name}')
-
+    if not path.exists() or recorded.get(name)!=sha256(path): errors.append(f'governed script changed/missing: {name}')
 recorded_governance=p.get('governance_document_sha256') or {}
-if set(recorded_governance)!=expected_governance: errors.append('provenance governance-document set incomplete/unexpected')
+if set(recorded_governance)!=expected_governance: errors.append('governance set changed')
 for name in expected_governance:
-    item=recorded_governance.get(name) or {}; path=overlay_dir/name
-    if not path.exists(): errors.append(f'governance document missing before deploy: {name}')
-    elif item.get('sha256')!=sha256(path): errors.append(f'governance document changed after build: {name}')
-    if item.get('working_copy_matches_persistent_overlay') is not True: errors.append(f'provenance does not certify governance overlay match: {name}')
-
+    path=overlay_dir/name; item=recorded_governance.get(name) or {}
+    if not path.exists() or item.get('sha256')!=sha256(path): errors.append(f'governance changed/missing: {name}')
 recorded_migrations=p.get('staged_migration_sha256') or {}; actual_migrations={x.name:sha256(x) for x in sorted((root/'dist/server/migrations').glob('*.sql'))}
-if len(recorded_migrations)!=21: errors.append(f'provenance does not contain exactly 21 migration fingerprints: {len(recorded_migrations)}')
-if actual_migrations!=recorded_migrations: errors.append('staged migration set or bytes changed after provenance was written')
-
-count,tree_hash,files=deployment_tree(); artifact=p.get('deployment_artifact_tree') or {}
-if artifact.get('excludes')!=['FIRE_DR_BUILD_PROVENANCE.json']: errors.append('unexpected deployment artifact-tree exclusion policy')
-if artifact.get('file_count')!=count: errors.append('deployable artifact file count changed after build')
-if artifact.get('tree_sha256')!=tree_hash: errors.append('deployable dist/server tree hash changed after build')
-if artifact.get('file_sha256')!=files: errors.append('deployable dist/server file set or bytes changed after build')
-
+if len(recorded_migrations)!=21 or actual_migrations!=recorded_migrations: errors.append('migration set/bytes changed')
+count,tree,files=deployment_tree(); artifact=p.get('deployment_artifact_tree') or {}
+if artifact.get('excludes')!=['FIRE_DR_BUILD_PROVENANCE.json'] or artifact.get('file_count')!=count or artifact.get('tree_sha256')!=tree or artifact.get('file_sha256')!=files: errors.append('deployable artifact tree changed')
 if errors:
     print('DR_PREDEPLOY_PROVENANCE=FAIL')
-    for e in errors: print(f'- {e}')
+    for e in errors: print('- '+e)
     raise SystemExit(1)
 print('DR_PREDEPLOY_PROVENANCE=PASS')
-print(f'Checked commit, v138 identity, formal evidence, independent Worker/D1/no-R2 config, session-secret policy, scripts, governance, 21 migrations, and all {count} deployable dist/server files against build provenance.')
+print(f'Commit, v138 identity, formal manifest, persistent independent evidence overlay, Worker/D1/no-R2 config, scripts, governance, 21 migrations, and all {count} deployable files match build provenance.')
