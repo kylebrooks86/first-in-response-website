@@ -1,23 +1,23 @@
 # Current LIVE vs Independent FIRE Calculator Audit
 
-Audit status: **STAGING PARITY VERIFIED — NOT SYNCHRONIZED**
+Audit status: **REAL-DEVICE PARITY RE-AUDIT IN PROGRESS — NOT SYNCHRONIZED**
 
-Latest exact-head parity/takeover verification: `e93435f213304d476c31a6abb958e336c0e0e48b`
+Latest core/offline gate verification: `44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558`
 
-Airplane-mode DR acceptance evidence: `83ced5c857dfed4e1165813fbe25d38a3330ec30`
+Airplane-mode DR acceptance evidence: `44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558`
 
-Verified shared-core fingerprint: `e0318dc8ff02f5bcb1506ad18abd499440ce287f792fabc3b4ca0455e9e869ab`
+Current staging shared-core fingerprint: `8bc01e24e095f80224e0a64157376092c5a2c9de56274979b06a05ffe06d7cdf`
 
 Sources compared:
 
 - Production/live: current rendered ChatGPT-hosted FIRE Field Calculator v18
 - Independent/recovery: current rendered calculator from `fire-calculator-exact-live-clone`
 
-This audit distinguishes **automated LIVE-vs-staging parity** from **dual-deployment synchronization**. The current staging candidate is green in the governed automated parity and DR-acceptance suites. It is still not synchronized because production is maintained separately and has not been migrated to the same governed shared core/fingerprint.
+This audit distinguishes automated checks from real-device parity and dual-deployment synchronization. Owner iPhone testing found material visual/functional mismatches despite earlier green automated checks, so those checks are no longer treated as sufficient evidence of visual parity. Production remains the untouched reference and the DR candidate stays NOT SYNCHRONIZED.
 
 ## Automated parity result
 
-No current automated parity assertion failure remains on the verified calculator/test head.
+Core formula/contract and offline DR checks are green on the current corrected staging build, but visual parity is reopened and is being re-audited section-by-section against the actual LIVE render.
 
 The suite passed:
 
@@ -68,7 +68,7 @@ The dedicated offline acceptance workflow warms the real service worker/cache, d
 
 Verified offline behavior includes:
 
-- cache generation `fire-field-calculator-v18-exact-clone-62` controls the page
+- cache generation `fire-field-calculator-v18-exact-clone-68` controls the page
 - all seven major routes open offline
 - SH Mix produces a changed dependent calculation after an offline input change
 - saved estimate/planning state survives offline reload
@@ -80,6 +80,16 @@ Verified offline behavior includes:
 - no OpenAI/ChatGPT sign-in requirement appeared
 
 The automated airplane-mode DR-independence gate is therefore closed.
+
+## Real-device parity re-audit findings
+
+The owner’s iPhone test invalidated the previous visual-parity conclusion. The current re-audit has already addressed:
+
+- stale cache delivery that could keep old Index/Mixes UI on iPhone
+- Equipment X-Jet card treatment, unit pills, result grouping, reverse-calculator structure, and proportioner grouping
+- Job Math quick-navigation placement and visible labels, which were previously rendered as empty red-outlined buttons in light mode
+
+Index/Mixes remain the first acceptance focus, followed by Equipment, Chemicals, Job Math, Field Tools, and Field Guide. Automated screenshot and geometry checks are supporting evidence only; they no longer override a real-device mismatch.
 
 ## Important fixes made during takeover diagnosis
 
