@@ -62,22 +62,24 @@
     color:#425563!important;box-shadow:none!important
   }
 
-  /* LIVE estimator summary uses three lightly bordered cards with color-coded totals. */
+  /* LIVE estimator summary uses three lightly bordered cards with color-coded totals.
+     Paired iPhone geometry shows the two rows are ~4px shorter in LIVE. */
   #job #jobEstimateCard .summarybar:has(#fullSubtotal)>.metric,
   #view-job #jobEstimateCard .summarybar:has(#fullSubtotal)>.metric{
-    padding:12px!important;border:1px solid #cbdce5!important;border-radius:14px!important;
+    padding:11px!important;border:1px solid #cbdce5!important;border-radius:14px!important;
     background:#fff!important;box-sizing:border-box!important
   }
   #job #jobEstimateCard #fullSubtotal,#view-job #jobEstimateCard #fullSubtotal{color:#1680b8!important}
   #job #jobEstimateCard #fullTotal,#view-job #jobEstimateCard #fullTotal{color:#d6422d!important}
   #job #jobEstimateCard #fullDeposit,#view-job #jobEstimateCard #fullDeposit{color:#a46b00!important}
 
-  /* Customer quote and crew sheet read as two blue-tinted panels in LIVE. */
+  /* Customer quote and crew sheet read as two blue-tinted panels in LIVE.
+     Their combined rendered height is ~8px shorter than the previous DR treatment. */
   #job #jobEstimateCard h3:has(+p+#fullQuote),
   #view-job #jobEstimateCard h3:has(+p+#fullQuote),
   #job #jobEstimateCard h3:has(+p+#crewSheet),
   #view-job #jobEstimateCard h3:has(+p+#crewSheet){
-    margin:14px 0 0!important;padding:13px 13px 4px!important;
+    margin:14px 0 0!important;padding:11px 13px 4px!important;
     border:1px solid #c8dfe9!important;border-bottom:0!important;border-radius:13px 13px 0 0!important;
     background:#f2fbff!important;color:#17212b!important
   }
@@ -85,7 +87,7 @@
   #view-job #jobEstimateCard p:has(+#fullQuote),
   #job #jobEstimateCard p:has(+#crewSheet),
   #view-job #jobEstimateCard p:has(+#crewSheet){
-    margin:0!important;padding:0 13px 10px!important;border-left:1px solid #c8dfe9!important;
+    margin:0!important;padding:0 13px 8px!important;border-left:1px solid #c8dfe9!important;
     border-right:1px solid #c8dfe9!important;background:#f2fbff!important;color:#607381!important
   }
   #job #jobEstimateCard #fullQuote + .actions,
@@ -100,7 +102,11 @@
   #view-job #jobEstimateCard #fullQuote + .actions button,
   #job #jobEstimateCard #crewSheet + #crewSheetActions button,
   #view-job #jobEstimateCard #crewSheet + #crewSheetActions button{
-    width:auto!important;min-height:44px!important;margin:0!important
+    width:auto!important;min-height:44px!important;margin:0!important;font-weight:800!important
+  }
+  #job #jobEstimateCard #copyFullQuote,
+  #view-job #jobEstimateCard #copyFullQuote{
+    background:#e84226!important;border-color:#e84226!important;color:#fff!important
   }
   #job #jobEstimateCard details:has(#priceEditor)>summary,
   #view-job #jobEstimateCard details:has(#priceEditor)>summary{
