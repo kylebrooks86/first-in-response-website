@@ -177,6 +177,11 @@ fi
 # byte-for-byte migration staging must all still match immediately before deploy.
 python3 ../scripts/verify-fire-dr-postbuild-artifacts.py
 
+# Record exactly what this governed DR build contains. The provenance manifest
+# intentionally records only the presence of the generated session secret, never
+# the secret value itself.
+python3 ../scripts/write-fire-dr-build-provenance.py
+
 echo "DR_POSTBUILD_DEPLOYMENT_GATES=PASS"
 
 set +e
