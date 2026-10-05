@@ -47,8 +47,10 @@ git fetch origin fire-calculator-exact-live-clone && git checkout fire-calculato
 Deploy command:
 
 ```sh
-cd fire-app-dr && pnpm exec wrangler d1 migrations apply fire-app-staging-db --remote --config dist/server/wrangler.independent.json && pnpm exec wrangler deploy --config dist/server/wrangler.independent.json
+cd fire-app-dr && python3 ../scripts/verify-fire-dr-predeploy-provenance.py && pnpm exec wrangler d1 migrations apply fire-app-staging-db --remote --config dist/server/wrangler.independent.json && pnpm exec wrangler deploy --config dist/server/wrangler.independent.json
 ```
+
+The predeploy provenance check is mandatory. It re-verifies the checked-out commit, governed release, independent Worker/D1 target, no-R2 rule, governed scripts, governance documents, and staged migration hashes immediately before any remote migration or Worker deployment command runs.
 
 The preparation script:
 
@@ -56,21 +58,19 @@ The preparation script:
 2. extracts a fresh `fire-app-dr` source tree;
 3. restores the persistent DR governance/audit overlays that intentionally live outside the extracted tree;
 4. verifies v138 package/release identity;
-5. applies the DR-only 4-digit PIN overlay;
-6. applies the user-confirmed mobile-shell/header parity overlay;
-7. applies the Templates mobile parity overlay;
-8. applies stored-LIVE evidence corrections, including approved-estimate signer-name wording;
-9. runs the LIVE parity source guard;
-10. runs the owner-workflow parity guard;
-11. runs the full 30-service LIVE service-catalog/order guard;
-12. runs the LIVE-evidence coverage/accountability guard so every formal state already marked LIVE `CAPTURED` is mapped into parity protection;
-13. runs the customer-workflow parity guard;
-14. runs the formal parity-ledger consistency guard;
-15. installs dependencies and builds;
-16. writes a separate D1-only Wrangler config;
-17. removes any R2 binding from that independent config;
-18. stages all 21 migrations;
-19. runs typecheck and reports its result honestly.
+5. verifies the governed DR script inventory and isolated deployment runbook;
+6. applies the DR-only 4-digit PIN overlay;
+7. applies the user-confirmed mobile-shell/header parity overlay;
+8. applies the Templates mobile parity overlay;
+9. applies stored-LIVE evidence corrections, including approved-estimate signer-name wording;
+10. verifies overlay idempotency;
+11. runs LIVE parity, owner-workflow, 30-service catalog, LIVE-evidence coverage, customer-workflow, restore/lifecycle/refund, and formal parity-ledger guards;
+12. installs dependencies and builds;
+13. writes and validates a separate D1-only Wrangler config with no R2 binding;
+14. requires the exact canonical migration sequence `0000` through `0020` and stages all 21 migrations;
+15. verifies post-build deployment artifacts byte-for-byte;
+16. writes build provenance with the checked-out source commit, provider trigger commit, governed scripts/documents, parity evidence, deployment target, and migration fingerprints;
+17. runs typecheck and reports its result honestly.
 
 The sealed-v138 TypeScript errors are currently known and treated as `FAIL_NONBLOCKING` only after the production build succeeds. Do not report typecheck as passing unless it actually passes.
 
@@ -99,7 +99,7 @@ fire-app-staging-db
 afb2c05a-d794-4a9a-b580-924ce01c26ad
 ```
 
-Then apply the 21 migrations with the deploy command above.
+Then run the mandatory predeploy provenance check and apply the 21 migrations with the deploy command above.
 
 Do not point the staging Worker at any production database.
 
