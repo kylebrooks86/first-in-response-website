@@ -18,13 +18,14 @@
   css('./v18-exact-visual.css?v=6','exact-visual');
   css('./v18-live-jobmath-visual.css?v=2','jobmath-visual');
   css('./v18-live-equipment-visual.css?v=5','equipment-visual');
-  css('./v18-live-chemicals-parity.css?v=5','chemicals-parity');
+  css('./v18-live-chemicals-parity.css?v=6','chemicals-parity');
   css('./v18-live-index-parity.css?v=1','index-parity');
   css('./v18-live-guide-parity.css?v=3','guide-parity');
   css('./v18-live-tools-parity.css?v=3','tools-parity');
   css('./v18-live-tools-fine.css?v=2','tools-fine');
   css('./v18-live-pricing-parity.css?v=1','pricing-parity');
   css('./v18-live-foundation.css?v=9','live-foundation');
+  css('./v18-live-final-overrides.css?v=1','live-final-overrides');
   const load=src=>new Promise(resolve=>{const s=document.createElement('script');s.src=src;s.onload=()=>resolve(true);s.onerror=()=>{console.error('FIRE v18 module failed to load:',src);resolve(false)};document.head.appendChild(s)});
   const waitForCore=(timeout=15000)=>new Promise(resolve=>{const start=Date.now();const check=()=>{const ready=!!window.__fireFullV18&&!!document.querySelector('#priceEditor')&&!!document.querySelector('#mixHistory');if(ready){window.__fireV18CoreReady=true;window.dispatchEvent(new CustomEvent('fire-v18-core-ready'));return resolve(true)}if(Date.now()-start>=timeout){console.warn('FIRE v18 core readiness timed out; continuing shared modules for audit visibility.');return resolve(false)}setTimeout(check,50)};check()});
   (async()=>{
