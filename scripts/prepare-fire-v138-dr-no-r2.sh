@@ -65,6 +65,7 @@ python3 ../scripts/verify-fire-dr-live-service-catalog.py
 python3 ../scripts/verify-fire-dr-live-evidence-coverage.py
 python3 ../scripts/verify-fire-dr-customer-workflows.py
 python3 ../scripts/verify-fire-dr-parity-ledger-consistency.py
+python3 ../scripts/verify-fire-dr-release-readiness.py
 
 echo "DR_PREBUILD_PARITY_GATES=PASS"
 corepack enable
