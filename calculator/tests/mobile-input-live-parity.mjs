@@ -19,13 +19,27 @@ async function inputsByLabel(page,label){for(let attempt=0;attempt<5;attempt++){
 async function waitInputsByLabel(page,label){for(let i=0;i<25;i++){const inputs=await inputsByLabel(page,label);if(inputs.length)return inputs;await page.waitForTimeout(120)}return []}
 async function openRoute(page,route){for(let i=0;i<25;i++){await clickVisibleText(page,route.top).catch(()=>false);await page.waitForTimeout(120);const inputs=await inputsByLabel(page,route.labels[0]).catch(()=>[]);if(inputs.length)return true}return false}
 async function focusAudit(page,label){
-  const q=page.locator('input[type="number"]');
-  for(let i=0;i<await q.count();i++){
-    const e=q.nth(i);if(!await e.isVisible())continue;
-    const l=await e.evaluate(node=>(node.closest('.field')?.querySelector('label')?.textContent||document.querySelector(`label[for="${node.id}"]`)?.textContent||node.getAttribute('aria-label')||'').replace(/\s+/g,' ').trim());
-    if(l!==label)continue;
-    await e.scrollIntoViewIfNeeded();await e.focus();await page.waitForTimeout(40);
-    return e.evaluate(node=>{const r=node.getBoundingClientRect();return {focused:document.activeElement===node,top:r.top,bottom:r.bottom,viewport:innerHeight,noHorizontalOverflow:document.documentElement.scrollWidth<=innerWidth+1}});
+  for(let attempt=0;attempt<5;attempt++){
+    try{
+      const q=page.locator('input[type="number"]');
+      const count=await q.count();
+      for(let i=0;i<count;i++){
+        const e=q.nth(i);if(!await e.isVisible().catch(()=>false))continue;
+        const l=await e.evaluate(node=>(node.closest('.field')?.querySelector('label')?.textContent||document.querySelector(`label[for="${node.id}"]`)?.textContent||node.getAttribute('aria-label')||'').replace(/\s+/g,' ').trim()).catch(()=>null);
+        if(l!==label)continue;
+        await e.scrollIntoViewIfNeeded();
+        await e.focus();
+        await page.waitForTimeout(40);
+        return await e.evaluate(node=>{const r=node.getBoundingClientRect();return {focused:document.activeElement===node,top:r.top,bottom:r.bottom,viewport:innerHeight,noHorizontalOverflow:document.documentElement.scrollWidth<=innerWidth+1}});
+      }
+      return null;
+    }catch(err){
+      const msg=String(err?.message||err);
+      const transient=/Element is not attached to the DOM|Execution context was destroyed|Target page, context or browser has been closed|navigation/i.test(msg);
+      if(!transient||attempt===4)throw err;
+      await page.waitForLoadState('domcontentloaded').catch(()=>{});
+      await page.waitForTimeout(120);
+    }
   }
   return null;
 }
