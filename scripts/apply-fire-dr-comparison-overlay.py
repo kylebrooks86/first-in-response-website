@@ -26,6 +26,7 @@ by_id = {item.get('id'): item for item in manifest_entries if isinstance(item, d
 seen = set()
 
 for decision in entries:
+    entry_errors = []
     if not isinstance(decision, dict):
         errors.append('comparison overlay contains non-object decision')
         continue
@@ -46,25 +47,25 @@ for decision in entries:
         errors.append(f'{entry_id}: invalid comparison result {result!r}')
         continue
     notes = str(decision.get('notes', '')).strip()
-    if not notes:
-        errors.append(f'{entry_id}: comparison notes are required')
+    if not notes: entry_errors.append(f'{entry_id}: comparison notes are required')
+    if not decision.get('reviewed_at'): entry_errors.append(f'{entry_id}: reviewed_at is required')
     live = next((item for item in target.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'live'), None)
     independent = next((item for item in target.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'independent'), None)
     if target.get('live_evidence_status') != 'CAPTURED' or not live:
-        errors.append(f'{entry_id}: comparison requires registered LIVE evidence')
-        continue
+        entry_errors.append(f'{entry_id}: comparison requires registered LIVE evidence')
     if target.get('independent_evidence_status') != 'CAPTURED' or not independent:
-        errors.append(f'{entry_id}: comparison requires registered independent evidence')
-        continue
-    if decision.get('live_sha256') != live.get('sha256'):
-        errors.append(f'{entry_id}: comparison LIVE hash no longer matches registered evidence')
-    if decision.get('independent_sha256') != independent.get('sha256'):
-        errors.append(f'{entry_id}: comparison DR hash no longer matches registered evidence')
-    if result == 'VERIFIED_IDENTICAL' and independent.get('profile_matches_registered_live') is not True:
-        errors.append(f'{entry_id}: VERIFIED_IDENTICAL requires a DR capture profile matching the registered LIVE capture')
-    if result == 'VERIFIED_IDENTICAL' and (decision.get('visual_review_complete') is not True or decision.get('functional_review_complete') is not True):
-        errors.append(f'{entry_id}: VERIFIED_IDENTICAL requires explicit visual and functional review completion')
-    if errors and errors[-1].startswith(f'{entry_id}:'):
+        entry_errors.append(f'{entry_id}: comparison requires registered independent evidence')
+    if live and decision.get('live_sha256') != live.get('sha256'):
+        entry_errors.append(f'{entry_id}: comparison LIVE hash no longer matches registered evidence')
+    if independent and decision.get('independent_sha256') != independent.get('sha256'):
+        entry_errors.append(f'{entry_id}: comparison DR hash no longer matches registered evidence')
+    if result == 'VERIFIED_IDENTICAL':
+        if independent and independent.get('profile_matches_registered_live') is not True:
+            entry_errors.append(f'{entry_id}: VERIFIED_IDENTICAL requires a DR capture profile matching the registered LIVE capture')
+        if decision.get('visual_review_complete') is not True or decision.get('functional_review_complete') is not True:
+            entry_errors.append(f'{entry_id}: VERIFIED_IDENTICAL requires explicit visual and functional review completion')
+    if entry_errors:
+        errors.extend(entry_errors)
         continue
     target['comparison_status'] = result
     target['last_updated_at'] = decision.get('reviewed_at') or target.get('last_updated_at')
