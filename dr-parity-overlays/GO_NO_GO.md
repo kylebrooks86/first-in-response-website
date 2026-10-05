@@ -16,13 +16,16 @@ The missing R2 binding is an explicit capability exception, not a hidden success
 
 **GO for isolated staging preparation** only when the governed source/deployment gates pass and the sealed v138 archive hash matches the approved archive.
 
-The current Cloudflare preparation path applies the DR PIN/mobile/Templates overlays plus stored-LIVE evidence corrections, then runs five DR-specific parity/governance guards before building:
+The current Cloudflare preparation path applies the DR PIN/mobile/Templates overlays plus stored-LIVE evidence corrections, then runs six DR-specific parity/governance guards before building:
 
 - LIVE parity overlay guard
 - Owner-workflow parity guard
 - Full LIVE service-catalog order guard
+- LIVE-evidence coverage/accountability guard
 - Customer-workflow parity guard
 - Formal parity-ledger consistency guard
+
+The LIVE-evidence coverage guard requires every formal state already marked LIVE `CAPTURED` to be explicitly mapped into current DR parity protection. A newly captured LIVE state intentionally blocks the build until that mapping is updated.
 
 A passing source/governance gate does **not** mean rendered parity is complete. The current status must remain `NOT_YET_FULLY_VERIFIED` until the required LIVE and independent evidence is captured and compared.
 
@@ -32,7 +35,7 @@ A passing source/governance gate does **not** mean rendered parity is complete. 
 - the sealed v138 archive SHA-256 check passes;
 - all 21 migrations (`0000` through `0020`) are applied to the isolated D1 in order;
 - the production build succeeds;
-- all five DR parity/governance guards pass;
+- all six DR parity/governance guards pass;
 - owner PIN login and session behavior work;
 - staging uses only disposable/test data unless the owner explicitly approves a recovery import;
 - no production domain, production D1 database, production R2 bucket, or real customer data is attached;
