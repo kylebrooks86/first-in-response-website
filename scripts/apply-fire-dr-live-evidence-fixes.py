@@ -1,8 +1,8 @@
 from pathlib import Path
 
-# Small DR-only visual/content parity overlays backed by stored LIVE evidence.
-# The sealed v138 archive remains immutable; these changes are applied after
-# extraction by the independent staging preparation script.
+# Small DR-only visual/content parity overlays backed by stored LIVE evidence or
+# governed cumulative LIVE behavior. The sealed v138 archive remains immutable;
+# these changes are applied after extraction by the independent staging script.
 
 accept_path = Path('app/estimate/[token]/accept-button.tsx')
 if not accept_path.exists():
@@ -18,5 +18,46 @@ if new not in text:
     text = text.replace(old, new, 1)
     accept_path.write_text(text)
 
+# v107/v112 governed customer billing behavior: unresolved overpayment or a
+# pending refund must hide customer payment actions. The sealed v138 payment
+# page omitted pending-refund state and allowed canPay to win before the review
+# message, so patch that narrowly after extraction.
+pay_path = Path('app/pay/[id]/page.tsx')
+if not pay_path.exists():
+    raise SystemExit('app/pay/[id]/page.tsx not found')
+pay = pay_path.read_text()
+
+replacements = [
+    (
+        "           COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen\n",
+        "           COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen,\n           COALESCE((SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending'),0) AS pendingRefundCount\n",
+    ),
+    (
+        "acceptedAt:string|null; paidCents:number; paymentOverageOpen:number; customer:string; address:string|null }>();",
+        "acceptedAt:string|null; paidCents:number; paymentOverageOpen:number; pendingRefundCount:number; customer:string; address:string|null }>();",
+    ),
+    (
+        "const paymentReviewPending = Number(row.paymentOverageOpen??0)>0;",
+        "const paymentReviewPending = Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0;",
+    ),
+    (
+        "const canPay = dueNow>0&&approved&&(paymentType===\"deposit\"||row.status===\"completed\");",
+        "const canPay = dueNow>0&&approved&&!paymentReviewPending&&(paymentType===\"deposit\"||row.status===\"completed\");",
+    ),
+    (
+        "{canPay?<PayButton shareToken={shareToken} paymentType={paymentType} label={paymentType===\"deposit\"?`Pay ${currency(dueNow)} deposit securely`:`Pay ${currency(dueNow)} remaining balance securely`}/>:paymentReviewPending?<p className=\"pay-note\">Payment received — account review in progress.</p>:balance===0?<p className=\"pay-note\">This job is paid in full.</p>",
+        "{canPay?<PayButton shareToken={shareToken} paymentType={paymentType} label={paymentType===\"deposit\"?`Pay ${currency(dueNow)} deposit securely`:`Pay ${currency(dueNow)} remaining balance securely`}/>:Number(row.pendingRefundCount??0)>0?<p className=\"pay-note\">Refund processing.</p>:Number(row.paymentOverageOpen??0)>0?<p className=\"pay-note\">Payment received — account review in progress.</p>:balance===0?<p className=\"pay-note\">This job is paid in full.</p>",
+    ),
+]
+
+for old_fragment, new_fragment in replacements:
+    if new_fragment in pay:
+        continue
+    if old_fragment not in pay:
+        raise SystemExit(f'Expected customer-payment source fragment was not found; refusing to guess: {old_fragment[:90]}')
+    pay = pay.replace(old_fragment, new_fragment, 1)
+
+pay_path.write_text(pay)
+
 print('DR_LIVE_EVIDENCE_FIXES_APPLIED')
-print('Approved estimate confirmation now retains the signer name when available, matching the stored LIVE approved/signed evidence.')
+print('Approved estimate confirmation retains signer name; customer payment actions are suppressed during unresolved overpayment or pending refund review.')
