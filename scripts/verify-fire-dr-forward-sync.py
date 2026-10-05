@@ -67,10 +67,25 @@ for item in entries:
     if item.get('blocks_full_identical') is not True:
         errors.append(f'{entry_id}: blocks_full_identical must remain true')
     area = str(item.get('matrix_area') or '').strip()
+    pending_note = str(item.get('pending_matrix_note') or '').strip()
+    synced_note = str(item.get('synced_matrix_note') or '').strip()
     if not area:
         errors.append(f'{entry_id}: matrix_area is required')
-    else:
-        expected_rows.append((entry_id, area, item.get('status')))
+    if not pending_note:
+        errors.append(f'{entry_id}: pending_matrix_note is required')
+    if not synced_note:
+        errors.append(f'{entry_id}: synced_matrix_note is required')
+    if item.get('status') == 'SYNCED_TO_LIVE':
+        if item.get('same_device_render_reviewed') is not True:
+            errors.append(f'{entry_id}: SYNCED_TO_LIVE requires same_device_render_reviewed=true')
+        if item.get('functional_review_complete') is not True:
+            errors.append(f'{entry_id}: SYNCED_TO_LIVE requires functional_review_complete=true')
+        if not str(item.get('synced_at_utc') or '').strip():
+            errors.append(f'{entry_id}: SYNCED_TO_LIVE requires synced_at_utc')
+        if not str(item.get('sync_notes') or '').strip():
+            errors.append(f'{entry_id}: SYNCED_TO_LIVE requires sync_notes')
+    if area and pending_note and synced_note:
+        expected_rows.append((entry_id, area, item.get('status'), pending_note, synced_note))
 
 if len(ids) != len(set(ids)):
     errors.append('forward-sync registry contains duplicate ids')
@@ -79,11 +94,12 @@ pending_registry = [row for row in expected_rows if row[2] == 'PENDING_LIVE_SYNC
 matrix_pending_rows = [line for line in matrix_text.splitlines() if '| FORWARD SYNC APPROVED |' in line]
 if len(matrix_pending_rows) != len(pending_registry):
     errors.append(f'matrix has {len(matrix_pending_rows)} FORWARD SYNC APPROVED rows but registry has {len(pending_registry)} pending LIVE sync entries')
-for entry_id, area, status in expected_rows:
+for entry_id, area, status, pending_note, synced_note in expected_rows:
     expected_status = 'FORWARD SYNC APPROVED' if status == 'PENDING_LIVE_SYNC' else 'VERIFIED IDENTICAL'
-    row = f'| {area} | {expected_status} |'
+    expected_note = pending_note if status == 'PENDING_LIVE_SYNC' else synced_note
+    row = f'| {area} | {expected_status} | {expected_note} |'
     if row not in matrix_text:
-        errors.append(f'{entry_id}: matrix row does not match registry status {status}: {row}')
+        errors.append(f'{entry_id}: exact matrix row does not match registry status/note: {row}')
 
 queue_needles = [
     'Owner-approved customer-profile forward-sync exception:',
