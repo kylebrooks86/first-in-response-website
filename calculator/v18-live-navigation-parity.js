@@ -11,7 +11,7 @@
     if(style)return;
     style=document.createElement('style');
     style.id='fireLiveHeaderParityStyle';
-    style.textContent='br.fire-live-warning-break{display:none!important}@media(max-width:760px){.topbar .title strong{font-size:16px!important}.warn{padding-left:16px!important;padding-right:16px!important;font-size:13.12px!important;line-height:1.45!important;font-weight:400!important}br.fire-live-warning-break{display:block!important}}';
+    style.textContent='br.fire-live-warning-break{display:none!important}@media(max-width:760px){.topbar .title strong{font-size:16px!important}.warn{padding-left:16px!important;padding-right:16px!important;font-size:13.12px!important;line-height:1.45!important;font-weight:400!important}.page{padding-bottom:0!important}br.fire-live-warning-break{display:block!important}}';
     document.head.appendChild(style);
   };
   const activate=view=>{
