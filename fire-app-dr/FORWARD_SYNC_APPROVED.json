@@ -20,7 +20,9 @@
         "Google Earth",
         "Zillow",
         "Property preview"
-      ]
+      ],
+      "pending_matrix_note": "Owner explicitly prefers the richer DR customer section. Preserve Call / Text / Email / Google Maps / Stride / Google Earth / Zillow / property preview and bring LIVE forward to match rather than removing DR functionality.",
+      "synced_matrix_note": "Owner-approved richer customer profile was brought into LIVE and deliberately reviewed against DR on the same device/profile; forward sync recorded in FORWARD_SYNC_APPROVED.json."
     },
     {
       "id": "edit-existing-customer",
@@ -38,7 +40,9 @@
         "Phone",
         "Service address",
         "How they found FIRE"
-      ]
+      ],
+      "pending_matrix_note": "DR has governed Edit customer support for name, email, phone, service address, and lead source without rewriting historical estimates/invoices/payments/agreements. LIVE deployment must receive the same capability before this state can be identical.",
+      "synced_matrix_note": "Edit customer was brought into LIVE and deliberately reviewed against DR on the same device/profile with historical-record preservation confirmed; forward sync recorded in FORWARD_SYNC_APPROVED.json."
     }
   ]
 }
