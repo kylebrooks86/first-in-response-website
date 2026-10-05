@@ -8,12 +8,16 @@ const GROUP=(process.env.FIRE_KEY_CARD_GROUP||'all').toLowerCase();
 const OUT=process.env.FIRE_KEY_CARD_OUT||'';
 const equipmentRoots=['#view-delivery','#view-equipment','#equipment'];
 const toolsRoots=['#view-tools','#tools'];
+const guideRoots=['#view-guide','#guide'];
 const allTargets=[
   {group:'equipment',name:'Equipment / main X-Jet',route:'Equipment',roots:equipmentRoots,heading:'X-Jet M5DS Twist — 3–7 GPM'},
   {group:'equipment',name:'Equipment / reverse mix',route:'Equipment',roots:equipmentRoots,heading:'Mix the X-Jet pickup bucket for a target strength'},
   {group:'equipment',name:'Equipment / proportioner',route:'Equipment',roots:equipmentRoots,heading:'Three-port proportioner planner'},
   {group:'jobmath',name:'Job Math / planning',route:'Job Math',roots:['#view-job','#job'],heading:'How much mix should I bring?'},
   {group:'jobmath',name:'Job Math / estimator',route:'Job Math',roots:['#view-job','#job'],heading:'Price the whole job'},
+  {group:'guide',name:'Field Guide / presets',route:'Field Guide',roots:guideRoots,cardIndex:0},
+  {group:'guide',name:'Field Guide / reference',route:'Field Guide',roots:guideRoots,cardIndex:1},
+  {group:'guide',name:'Field Guide / workflow',route:'Field Guide',roots:guideRoots,cardIndex:2},
   {group:'tools',name:'Field Tools / compatibility',route:'Field Tools',roots:toolsRoots,marker:'#compatResult',heading:'Chemical Compatibility Checker'},
   {group:'tools',name:'Field Tools / timer',route:'Field Tools',roots:toolsRoots,marker:'#timerDisplay',heading:'Application Timer'},
   {group:'tools',name:'Field Tools / weather',route:'Field Tools',roots:toolsRoots,marker:'#weatherNote',heading:'Weather Adjustment Guide'},
@@ -60,10 +64,11 @@ async function openSession(browser,base){
     }catch(e){lastError=e}
   }
   if(!root){await ctx.close();throw new Error(`${base}: no ${GROUP} route after retries${lastError?` (${lastError.message})`:''}`)}
-  await page.waitForTimeout(GROUP==='tools'?1200:950);
+  await page.waitForTimeout(GROUP==='tools'||GROUP==='guide'?1200:950);
   return {ctx,page};
 }
 async function locateCard(root,page,t){
+  if(Number.isInteger(t.cardIndex))return root.locator(':scope > .card').nth(t.cardIndex);
   if(t.marker){
     const marker=root.locator(t.marker).first();
     if(await marker.count()){
