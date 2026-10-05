@@ -31,17 +31,21 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def source_commit() -> str | None:
-    for key in ('CF_PAGES_COMMIT_SHA', 'GITHUB_SHA', 'COMMIT_SHA'):
-        value = os.environ.get(key, '').strip()
-        if value:
-            return value
+def git_head() -> str | None:
     try:
         return subprocess.check_output(
             ['git', 'rev-parse', 'HEAD'], cwd=repo_root, text=True, stderr=subprocess.DEVNULL
         ).strip() or None
     except Exception:
         return None
+
+
+def provider_trigger_commit() -> str | None:
+    for key in ('CF_PAGES_COMMIT_SHA', 'GITHUB_SHA', 'COMMIT_SHA'):
+        value = os.environ.get(key, '').strip()
+        if value:
+            return value
+    return None
 
 required = [archive, wrangler_path, manifest_path, inventory_path, root / 'package.json', root / 'CURRENT_VERSION.json']
 for name in governance_names:
@@ -84,6 +88,7 @@ discovered = {
         path.name.startswith('apply-fire-dr-')
         or path.name.startswith('verify-fire-dr-')
         or path.name.startswith('write-fire-dr-')
+        or path.name.startswith('deploy-fire-dr-')
         or path.name == 'prepare-fire-v138-dr-no-r2.sh'
     )
 }
@@ -98,10 +103,7 @@ if unlisted or missing_listed:
         print('- inventory lists DR scripts that do not exist: ' + ', '.join(missing_listed))
     raise SystemExit(1)
 
-governed_scripts = {}
-for name in sorted(inventory_names):
-    path = scripts_dir / name
-    governed_scripts[name] = sha256(path)
+governed_scripts = {name: sha256(scripts_dir / name) for name in sorted(inventory_names)}
 
 governance = {}
 for name in governance_names:
@@ -113,14 +115,9 @@ for name in governance_names:
         print('DR_BUILD_PROVENANCE=FAIL')
         print(f'- governance overlay drift before provenance write: {name}')
         raise SystemExit(1)
-    governance[name] = {
-        'sha256': canonical_hash,
-        'working_copy_matches_persistent_overlay': True,
-    }
+    governance[name] = {'sha256': canonical_hash, 'working_copy_matches_persistent_overlay': True}
 
-migrations = {}
-for path in sorted((root / 'dist/server/migrations').glob('*.sql')):
-    migrations[path.name] = sha256(path)
+migrations = {path.name: sha256(path) for path in sorted((root / 'dist/server/migrations').glob('*.sql'))}
 if len(migrations) != 21:
     print('DR_BUILD_PROVENANCE=FAIL')
     print(f'- expected 21 staged migrations, found {len(migrations)}')
@@ -129,19 +126,15 @@ if len(migrations) != 21:
 d1 = wrangler.get('d1_databases') or []
 d1_record = d1[0] if len(d1) == 1 else {}
 secret = (wrangler.get('vars') or {}).get('FIRE_SESSION_SECRET')
+checked_out_commit = git_head()
 
 record = {
-    'schema_version': 3,
+    'schema_version': 4,
     'generated_at_utc': datetime.now(timezone.utc).isoformat(),
-    'source_commit': source_commit(),
-    'sealed_archive': {
-        'file': archive.name,
-        'sha256': sha256(archive),
-    },
-    'release': {
-        'package_version': package.get('version'),
-        'fire_release': version.get('fire_release'),
-    },
+    'checked_out_source_commit': checked_out_commit,
+    'provider_trigger_commit': provider_trigger_commit(),
+    'sealed_archive': {'file': archive.name, 'sha256': sha256(archive)},
+    'release': {'package_version': package.get('version'), 'fire_release': version.get('fire_release')},
     'deployment_target': {
         'worker_name': wrangler.get('name'),
         'd1_binding': d1_record.get('binding'),
@@ -178,47 +171,31 @@ record = {
 
 out_path.parent.mkdir(parents=True, exist_ok=True)
 out_path.write_text(json.dumps(record, indent=2, sort_keys=True) + '\n')
-
 written = json.loads(out_path.read_text())
 target = written['deployment_target']
 errors = []
-if written.get('schema_version') != 3:
-    errors.append('unexpected provenance schema version')
-if written['sealed_archive']['sha256'] != '2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca':
-    errors.append('sealed archive hash in provenance is not the governed v138 hash')
-if written['release'] != {'package_version': '1.0.0-rc.138', 'fire_release': 'v138'}:
-    errors.append(f"unexpected release identity: {written['release']}")
-if target.get('worker_name') != os.environ.get('FIRE_WORKER_NAME', 'fire-app-independent-staging').strip():
-    errors.append('provenance worker target does not match expected independent worker')
-if target.get('d1_database_name') != os.environ.get('FIRE_D1_DATABASE_NAME', 'fire-app-staging-db').strip():
-    errors.append('provenance D1 name does not match expected isolated staging database')
-if target.get('d1_database_id') != os.environ.get('FIRE_D1_DATABASE_ID', 'afb2c05a-d794-4a9a-b580-924ce01c26ad').strip():
-    errors.append('provenance D1 id does not match expected isolated staging database')
-if target.get('r2_binding_present'):
-    errors.append('provenance indicates an unexpected R2 binding')
-if not target.get('session_secret_present') or target.get('session_secret_value_recorded'):
-    errors.append('session-secret provenance policy failed')
+if written.get('schema_version') != 4: errors.append('unexpected provenance schema version')
+if not checked_out_commit or written.get('checked_out_source_commit') != checked_out_commit: errors.append('checked-out source commit was not captured correctly')
+if written['sealed_archive']['sha256'] != '2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca': errors.append('sealed archive hash in provenance is not the governed v138 hash')
+if written['release'] != {'package_version': '1.0.0-rc.138', 'fire_release': 'v138'}: errors.append(f"unexpected release identity: {written['release']}")
+if target.get('worker_name') != os.environ.get('FIRE_WORKER_NAME', 'fire-app-independent-staging').strip(): errors.append('provenance worker target does not match expected independent worker')
+if target.get('d1_database_name') != os.environ.get('FIRE_D1_DATABASE_NAME', 'fire-app-staging-db').strip(): errors.append('provenance D1 name does not match expected isolated staging database')
+if target.get('d1_database_id') != os.environ.get('FIRE_D1_DATABASE_ID', 'afb2c05a-d794-4a9a-b580-924ce01c26ad').strip(): errors.append('provenance D1 id does not match expected isolated staging database')
+if target.get('r2_binding_present'): errors.append('provenance indicates an unexpected R2 binding')
+if not target.get('session_secret_present') or target.get('session_secret_value_recorded'): errors.append('session-secret provenance policy failed')
 script_record = written.get('governed_script_inventory') or {}
-if not script_record.get('all_matching_dr_scripts_accounted_for'):
-    errors.append('not every matching DR script is accounted for by the governed inventory')
-if script_record.get('script_count') != len(discovered):
-    errors.append('governed script count does not match discovered DR script count')
-if set((script_record.get('script_sha256') or {}).keys()) != discovered:
-    errors.append('provenance script fingerprint set does not exactly match discovered DR scripts')
+if not script_record.get('all_matching_dr_scripts_accounted_for'): errors.append('not every matching DR script is accounted for by the governed inventory')
+if script_record.get('script_count') != len(discovered): errors.append('governed script count does not match discovered DR script count')
+if set((script_record.get('script_sha256') or {}).keys()) != discovered: errors.append('provenance script fingerprint set does not exactly match discovered DR scripts')
 governance_record = written.get('governance_document_sha256') or {}
-if set(governance_record) != set(governance_names):
-    errors.append('provenance governance document set is incomplete or contains unexpected entries')
+if set(governance_record) != set(governance_names): errors.append('provenance governance document set is incomplete or contains unexpected entries')
 for name in governance_names:
     item = governance_record.get(name) or {}
-    if item.get('sha256') != sha256(overlay_dir / name):
-        errors.append(f'provenance governance hash mismatch: {name}')
-    if item.get('working_copy_matches_persistent_overlay') is not True:
-        errors.append(f'provenance does not confirm persistent overlay match: {name}')
+    if item.get('sha256') != sha256(overlay_dir / name): errors.append(f'provenance governance hash mismatch: {name}')
+    if item.get('working_copy_matches_persistent_overlay') is not True: errors.append(f'provenance does not confirm persistent overlay match: {name}')
 if errors:
     print('DR_BUILD_PROVENANCE=FAIL')
-    for error in errors:
-        print(f'- {error}')
+    for error in errors: print(f'- {error}')
     raise SystemExit(1)
-
 print('DR_BUILD_PROVENANCE=PASS')
-print(f'Wrote {out_path} with governed release, target, evidence counts, all {len(discovered)} DR scripts, {len(governance_names)} governance documents, and migration fingerprints; no session secret value was recorded.')
+print(f'Wrote {out_path} with checked-out source commit, provider trigger commit, governed release/target, evidence counts, all {len(discovered)} DR scripts, {len(governance_names)} governance documents, and migration fingerprints; no session secret value was recorded.')
