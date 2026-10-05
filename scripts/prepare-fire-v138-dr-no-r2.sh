@@ -24,7 +24,7 @@ ACTUAL_SHA256="$(sha256sum "$ARCHIVE" | awk '{print $1}')"; echo "v138 archive S
 if [[ "$ACTUAL_SHA256" != "$EXPECTED_SHA256" ]]; then echo "Sealed v138 archive hash mismatch; refusing to build." >&2; exit 1; fi
 
 rm -rf "$APP_DIR"; mkdir -p "$APP_DIR"; unzip -q "$ARCHIVE" -d "$APP_DIR"
-for doc in STRICT_RENDERED_PARITY_QUEUE.md STRICT_PARITY_MATRIX.md GO_NO_GO.md INDEPENDENT_DEPLOYMENT.md LIVE_PARITY_BATCH_AUDIT_2026-10-04.md; do
+for doc in STRICT_RENDERED_PARITY_QUEUE.md STRICT_PARITY_MATRIX.md GO_NO_GO.md INDEPENDENT_DEPLOYMENT.md LIVE_PARITY_BATCH_AUDIT_2026-10-04.md FORWARD_SYNC_APPROVED.json; do
   source_path="$GOVERNANCE_OVERLAY_DIR/$doc"; [[ -f "$source_path" ]] || { echo "Missing persistent DR governance overlay: $source_path" >&2; exit 1; }; cp "$source_path" "$APP_DIR/$doc"
 done
 echo "Restored persistent DR governance/audit overlays after sealed extraction."
