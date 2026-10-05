@@ -154,3 +154,6 @@ body.dark #equipment .card:has(#xReqBucket)>p.mini{color:#9fb0bf!important}
 /* Reverse X-Jet final geometry correction from fresh LIVE/DR render. */
 #equipment .card:has(#xReqBucket) .reverse-required{grid-column:1/-1!important;width:100%!important;box-sizing:border-box!important}
 #equipment .card:has(#xReqBucket) #xReverseInstruction{font-weight:400!important}
+
+/* LIVE has no separate “Measured custom draw” subheading. */
+#equipment .card:has(#xSurface) .x-measured-heading,#equipment #xMeasuredCustomHeading{display:none!important}
