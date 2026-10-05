@@ -124,6 +124,16 @@
     font-size:14px!important;
     line-height:1.45!important;
   }
+
+  /* Reverse X-Jet uses the same LIVE warning/note typography. */
+  #equipment .card:has(#xReqBucket) #xReverseInstruction{
+    font-size:14px!important;
+    line-height:1.45!important;
+  }
+  #equipment .card:has(#xReqBucket)>p.mini{
+    font-size:13px!important;
+    line-height:1.45!important;
+  }
 }
 
 body.dark #job #jobEstimateCard .summarybar:has(#fullSubtotal)>.metric,
