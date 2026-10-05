@@ -3,6 +3,7 @@
   "purpose": "Explicit inventory of every DR preparation, overlay, evidence-registration/reporting/comparison, verification, provenance, and deploy script that must be fingerprinted for reproducible independent builds.",
   "scripts": [
     "apply-fire-dr-comparison-overlay.py",
+    "apply-fire-dr-customer-edit-flow.py",
     "apply-fire-dr-independent-evidence-overlay.py",
     "apply-fire-dr-live-evidence-fixes.py",
     "apply-fire-dr-mobile-shell-fix.py",
