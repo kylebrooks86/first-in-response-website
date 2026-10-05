@@ -1,4 +1,6 @@
 from pathlib import Path
+import subprocess
+import sys
 
 # Small DR-only visual/content parity overlays backed by stored LIVE evidence or
 # governed cumulative LIVE behavior. The sealed v138 archive remains immutable;
@@ -74,6 +76,10 @@ if restore_needle not in restore:
     restore = restore.replace(anchor, restore_needle + ',' + anchor, 1)
     restore_path.write_text(restore)
 
+# Customer records must remain editable after creation. Apply the governed edit
+# overlay here so the capability survives every sealed-v138 extraction.
+subprocess.run([sys.executable, '../scripts/apply-fire-dr-customer-edit-flow.py'], check=True)
+
 # STRICT_PARITY_MATRIX.md is governance/evidence-routing state, not sealed app
 # source. Restore its canonical copy after every sealed extraction so corrections
 # to the capture queue are not silently reverted by a rebuild.
@@ -84,4 +90,4 @@ if not matrix_overlay.exists():
 matrix_working.write_text(matrix_overlay.read_text())
 
 print('DR_LIVE_EVIDENCE_FIXES_APPLIED')
-print('Approved estimate confirmation retains signer name; customer payment actions are suppressed during unresolved overpayment or pending refund review; v138 CLI restore audit retains lifecycle uniqueness verification; strict parity matrix restored from persistent overlay.')
+print('Approved estimate confirmation retains signer name; customer payment actions are suppressed during unresolved overpayment or pending refund review; customer profiles remain editable after creation; v138 CLI restore audit retains lifecycle uniqueness verification; strict parity matrix restored from persistent overlay.')
