@@ -34,6 +34,36 @@ checks = {
         # Final invoice remains the canonical completed-job billing amount.
         'const resolvedBillingTotalCents =',
         'estimate.invoiceTotalCents ?? estimate.totalCents',
+
+        # Normal review request is suppressed during refund/overpayment review.
+        'Number(estimate.paymentOverageOpen)===0',
+        'Number(estimate.pendingRefundCount)===0',
+        'initialTemplate="review"',
+    ],
+    Path('app/estimate/[token]/page.tsx'): [
+        # Customer estimate structure and signed-approval flow.
+        '<p>ESTIMATE FOR</p>',
+        '<small>Estimate total</small>',
+        '<small>50% deposit</small>',
+        '<AcceptEstimateButton',
+        'Approve and sign the estimate first. After approval, the 50% deposit reserves your place on the schedule.',
+        'After approval, Kyle will contact you to schedule the job and arrange the 50% deposit.',
+        '<CustomerPortalNav/>',
+
+        # Completed jobs collect final invoice balance; billing review blocks payment.
+        'const billingTotalCents=Number(row.invoiceTotalCents??row.totalCents);',
+        'const canPayBalance=billingStateSafe&&!paymentReviewPending&&row.status==="completed"&&balance>0;',
+        'Payment received — account review in progress.',
+        'Refund processing.',
+    ],
+    Path('app/pay/[id]/page.tsx'): [
+        # Standalone customer payment page uses deposit before completion and final balance after completion.
+        'const paymentType: "deposit"|"balance" = row.status==="completed"?"balance":"deposit";',
+        'const dueNow = paymentType==="deposit"?depositRemaining:balance;',
+        'After approval, the 50% deposit reserves your place on the schedule. The remaining balance is due upon completion of the work.',
+        'Payment received — account review in progress.',
+        'This job is paid in full.',
+        '<CustomerPortalNav/>',
     ],
     Path('app/invoice/[token]/page.tsx'): [
         # LIVE-captured customer invoice structure/content.
@@ -137,5 +167,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_LIVE_PARITY_OVERLAY_GUARD=PASS')
-print('Protected: Templates; customer Payments/Invoices/Photos states; scheduling; accepted-estimate freeze; final-invoice billing; payment/refund safeguards; invoice revisions; customer invoice/navigation; top-shell status-bar treatment.')
+print('Protected: owner Templates/customer tabs/scheduling; customer estimate/payment/invoice portals; 50% deposit + final-balance behavior; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation; top-shell status-bar treatment.')
 print('Scroll/smoothness behavior is intentionally not modified or pinned by this guard.')
