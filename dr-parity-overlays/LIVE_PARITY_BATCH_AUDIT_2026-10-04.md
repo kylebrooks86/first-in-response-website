@@ -9,8 +9,8 @@ This document is **not rendered proof** and does not change `NOT_YET_FULLY_VERIF
 ## Frozen / owner-confirmed areas
 
 - Scroll/smoothness tuning is frozen at the owner's direction.
-- Top mobile header is user-confirmed crisp and correctly inset after the standalone V11 safe-area correction.
-- The accepted header fix removes the old compositing/softening treatment and keeps the top shell off the iPhone screen edge.
+- The prior V11 top-header result is no longer treated as confirmed; the owner reported the top of the app still looked blurry.
+- V12 changes only the standalone mobile header to a true fixed, fully opaque, non-filtered/non-transformed layer with safe-area spacing. V12 is pending owner visual confirmation after deployment.
 - Templates mobile selection/editing is user-confirmed working acceptably.
 - DR Stride header control is acceptable.
 
@@ -77,7 +77,7 @@ Source guards now protect:
 
 The DR preparation path now runs six source/governance parity guards after applying the DR overlays and before dependency install/build:
 
-1. `scripts/verify-fire-dr-live-parity-overlays.py` — known LIVE-captured/user-confirmed shell, customer records, lifecycle, billing, completion-to-invoice, and document invariants.
+1. `scripts/verify-fire-dr-live-parity-overlays.py` — known LIVE-captured shell, customer records, lifecycle, billing, completion-to-invoice, and document invariants, including the V12 fixed/opaque standalone-header contract.
 2. `scripts/verify-fire-dr-owner-workflows.py` — owner Dashboard/Invoices/Business/Templates/refund/empty-state contracts.
 3. `scripts/verify-fire-dr-live-service-catalog.py` — all 30 LIVE-captured Create Estimate service options in exact order.
 4. `scripts/verify-fire-dr-live-evidence-coverage.py` — requires every formal state already marked LIVE `CAPTURED` to be explicitly mapped into current DR parity protection and runs the restore/lifecycle/refund/Stripe integrity subguards.
@@ -106,7 +106,7 @@ Status remains:
 
 ## Remaining rendered blockers
 
-Major remaining comparisons include owner Invoices list/detail, populated payment history, Business, Templates, full approval/signature lifecycle, change request states, customer payment page, paid-in-full state, refund states, expired/not-found/error coverage, and broader owner empty/error states.
+Major remaining comparisons include owner Invoices list/detail, populated payment history, Business, Templates, full approval/signature lifecycle, change request states, customer payment page, paid-in-full state, refund states, expired/not-found/error coverage, broader owner empty/error states, and owner confirmation that the V12 standalone top header is visually crisp.
 
 Do not mark these `VERIFIED_IDENTICAL` from source inspection alone.
 
