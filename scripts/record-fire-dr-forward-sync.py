@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -22,6 +23,8 @@ parser.add_argument('--result', required=True, choices=['synced', 'reopen'])
 parser.add_argument('--notes', required=True)
 parser.add_argument('--same-device-render-reviewed', action='store_true')
 parser.add_argument('--functional-review-complete', action='store_true')
+parser.add_argument('--live-screenshot-sha256')
+parser.add_argument('--dr-screenshot-sha256')
 args = parser.parse_args()
 
 tracked_paths = [
@@ -96,11 +99,29 @@ if args.result == 'synced':
             'DR_FORWARD_SYNC_RECORD=FAIL: synced result requires both '
             '--same-device-render-reviewed and --functional-review-complete'
         )
+    live_sha = str(args.live_screenshot_sha256 or '').strip().lower()
+    dr_sha = str(args.dr_screenshot_sha256 or '').strip().lower()
+    if not re.fullmatch(r'[0-9a-f]{64}', live_sha):
+        raise SystemExit(
+            'DR_FORWARD_SYNC_RECORD=FAIL: synced result requires '
+            '--live-screenshot-sha256 as 64 lowercase/uppercase hex characters'
+        )
+    if not re.fullmatch(r'[0-9a-f]{64}', dr_sha):
+        raise SystemExit(
+            'DR_FORWARD_SYNC_RECORD=FAIL: synced result requires '
+            '--dr-screenshot-sha256 as 64 lowercase/uppercase hex characters'
+        )
     entry['status'] = 'SYNCED_TO_LIVE'
     entry['synced_at_utc'] = now
     entry['sync_notes'] = notes
     entry['same_device_render_reviewed'] = True
     entry['functional_review_complete'] = True
+    entry['live_screenshot_sha256'] = live_sha
+    entry['dr_screenshot_sha256'] = dr_sha
+    history = entry.setdefault('sync_history', [])
+    if not isinstance(history, list):
+        raise SystemExit('DR_FORWARD_SYNC_RECORD=FAIL: sync_history must be an array')
+    history.append({'event':'SYNCED_TO_LIVE','at_utc':now,'notes':notes,'live_screenshot_sha256':live_sha,'dr_screenshot_sha256':dr_sha,'same_device_render_reviewed':True,'functional_review_complete':True})
     entry.pop('reopened_at_utc', None)
     entry.pop('reopen_notes', None)
     matrix_status = 'VERIFIED IDENTICAL'
@@ -113,10 +134,16 @@ else:
     entry['status'] = 'PENDING_LIVE_SYNC'
     entry['reopened_at_utc'] = now
     entry['reopen_notes'] = notes
+    history = entry.setdefault('sync_history', [])
+    if not isinstance(history, list):
+        raise SystemExit('DR_FORWARD_SYNC_RECORD=FAIL: sync_history must be an array')
+    history.append({'event':'REOPENED','at_utc':now,'notes':notes})
     entry.pop('synced_at_utc', None)
     entry.pop('sync_notes', None)
     entry.pop('same_device_render_reviewed', None)
     entry.pop('functional_review_complete', None)
+    entry.pop('live_screenshot_sha256', None)
+    entry.pop('dr_screenshot_sha256', None)
     matrix_status = 'FORWARD SYNC APPROVED'
     matrix_note = pending_note
 
