@@ -12,6 +12,7 @@ const scenarios=[
 ];
 
 async function clickVisibleText(page,text){const x=page.getByText(text,{exact:true});for(let i=0;i<await x.count();i++){const el=x.nth(i);if(await el.isVisible()){await el.evaluate(node=>node.click());return true}}return false}
+async function waitSettled(page){await page.waitForLoadState('domcontentloaded',{timeout:4500}).catch(()=>{});await page.waitForTimeout(120)}
 async function jobRootByFields(page){
   for(const id of ['houseWashArea','svcHouse']){
     const field=page.locator('#'+id);
@@ -25,6 +26,13 @@ async function jobRootByFields(page){
   for(const selector of ['#view-job','#job']){const root=page.locator(selector);if(await root.count())return root.first()}
   return null;
 }
+async function expandDetailsStable(page,root){
+  for(let attempt=0;attempt<5;attempt++){
+    try{await waitSettled(page);await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(60);return true}
+    catch(e){if(!/Execution context was destroyed|navigation|Target closed/i.test(String(e?.message||e)))throw e;await waitSettled(page)}
+  }
+  return false;
+}
 async function openJob(page){
   for(let attempt=0;attempt<28;attempt++){
     await clickVisibleText(page,'Job Math').catch(()=>false);
@@ -32,7 +40,7 @@ async function openJob(page){
     const root=await jobRootByFields(page);
     if(root){
       const fieldCount=(await page.locator('#houseWashArea').count())+(await page.locator('#svcHouse').count());
-      if(fieldCount){await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));await page.waitForTimeout(60);return root}
+      if(fieldCount&&await expandDetailsStable(page,root))return await jobRootByFields(page);
     }
   }
   return null;
@@ -52,18 +60,17 @@ async function openSession(browser,base){
   for(let attempt=0;attempt<4&&!root;attempt++){
     try{
       await page.goto(base,{waitUntil:'commit',timeout:12000});
-      await page.waitForLoadState('domcontentloaded',{timeout:4500}).catch(()=>{});
-      await page.waitForTimeout(220);
+      await waitSettled(page);
       root=await openJob(page);
-    }catch(e){lastError=e}
+    }catch(e){lastError=e;await waitSettled(page).catch(()=>{})}
   }
   if(!root){await ctx.close();throw new Error(`${base}: no Job Math DOM found after retries${lastError?` (${lastError.message})`:''}`)}
   return {ctx,page};
 }
 async function runScenario(session,base,scenario){
   const {page}=session;
-  const root=await jobRootByFields(page);if(!root)throw new Error(`${base}: Job Math DOM disappeared for ${scenario.name}`);
-  await root.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));
+  let root=await jobRootByFields(page);if(!root)throw new Error(`${base}: Job Math DOM disappeared for ${scenario.name}`);
+  if(!await expandDetailsStable(page,root)){root=await openJob(page);if(!root)throw new Error(`${base}: could not stabilize Job Math DOM for ${scenario.name}`)}
   const house=await setByIds(page,['houseWashArea','svcHouse'],scenario.house);
   const discount=await setByIds(page,['discountPct','fullDiscount'],scenario.discount);
   const override=await setByIds(page,['quotedPrice','fullOverride'],scenario.override);
