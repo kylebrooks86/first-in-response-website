@@ -116,7 +116,14 @@ for needle in ['free-tier, D1-only, no R2','4-digit PIN','Photo-file storage: no
     if needle not in runbook: errors.append(f'INDEPENDENT_DEPLOYMENT is missing current DR deployment rule: {needle}')
 
 batch_audit = batch_audit_path.read_text()
-for needle in ['V12 changes only the standalone mobile header','V12 is pending owner visual confirmation','runs six source/governance parity guards','verify-fire-dr-live-evidence-coverage.py','Completion-before-final-balance transition','Scroll/smoothness tuning is frozen']:
+for needle in [
+    'The standalone mobile shell V14 is now user-confirmed good after deployment.',
+    'Do not modify the V14 header/search/welcome spacing unless the owner explicitly reopens it.',
+    'runs six source/governance parity guards',
+    'verify-fire-dr-live-evidence-coverage.py',
+    'Completed → Create invoice → Invoice created / Send invoice transition.',
+    'Scroll/smoothness tuning is frozen',
+]:
     if needle not in batch_audit: errors.append(f'LIVE_PARITY_BATCH_AUDIT is missing current state: {needle}')
 
 for working_path in [queue_path, go_no_go_path, runbook_path, batch_audit_path]:
@@ -133,4 +140,4 @@ if errors:
 
 print('DR_PARITY_LEDGER_CONSISTENCY=PASS')
 print(f'Formal states: {len(entries)}; LIVE evidence: {live_captured}; independent evidence: {independent_captured}; verified identical: {verified_identical}; mismatches: {mismatches}.')
-print('Manifest, checklist, release status, current audit, strict verdict, queue status, V12 header pending-confirmation state, six build guards, LIVE-evidence coverage accountability, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
+print('Manifest, checklist, release status, current audit, strict verdict, queue status, user-confirmed V14 mobile shell, six build guards, LIVE-evidence coverage accountability, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
