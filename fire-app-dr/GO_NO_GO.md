@@ -16,7 +16,7 @@ The missing R2 binding is an explicit capability exception, not a hidden success
 
 **GO for isolated staging preparation** only when the governed source/deployment gates pass and the sealed v138 archive hash matches the approved archive.
 
-The current Cloudflare preparation path applies the DR PIN/mobile/Templates overlays plus stored-LIVE evidence corrections, then runs six DR-specific parity/governance guards before building:
+The current Cloudflare preparation path applies the DR PIN/mobile/Templates overlays plus stored-LIVE evidence corrections, then runs seven DR-specific parity/governance guards before building:
 
 - LIVE parity overlay guard
 - Owner-workflow parity guard
@@ -24,8 +24,11 @@ The current Cloudflare preparation path applies the DR PIN/mobile/Templates over
 - LIVE-evidence coverage/accountability guard
 - Customer-workflow parity guard
 - Formal parity-ledger consistency guard
+- Final release-readiness guard
 
 The LIVE-evidence coverage guard requires every formal state already marked LIVE `CAPTURED` to be explicitly mapped into current DR parity protection. A newly captured LIVE state intentionally blocks the build until that mapping is updated.
+
+The final release-readiness guard derives blockers from the formal manifest and requires every release-facing document to stay conservative while parity is incomplete. It can report `READY_FOR_EXPLICIT_OWNER_REVIEW` only when the manifest completion rule is satisfied; it never synchronizes or modifies production automatically.
 
 A passing source/governance gate does **not** mean rendered parity is complete. The current status must remain `NOT_YET_FULLY_VERIFIED` until the required LIVE and independent evidence is captured and compared.
 
@@ -35,7 +38,7 @@ A passing source/governance gate does **not** mean rendered parity is complete. 
 - the sealed v138 archive SHA-256 check passes;
 - all 21 migrations (`0000` through `0020`) are applied to the isolated D1 in order;
 - the production build succeeds;
-- all six DR parity/governance guards pass;
+- all seven DR parity/governance guards pass;
 - owner PIN login and session behavior work;
 - staging uses only disposable/test data unless the owner explicitly approves a recovery import;
 - no production domain, production D1 database, production R2 bucket, or real customer data is attached;
@@ -51,6 +54,7 @@ Known sealed-v138 TypeScript errors remain a nonblocking deployment fact; do not
 - every required comparison is `VERIFIED_IDENTICAL` or explicitly approved as an infrastructure-only exception;
 - any remaining customer/owner visual mismatches are corrected;
 - the formal evidence manifest and strict parity gate agree;
+- the final release-readiness guard reports `READY_FOR_EXPLICIT_OWNER_REVIEW`;
 - any storage capability required for real photo recovery is separately provisioned and tested before claiming photo-file recovery capability.
 
 ## Production safety
@@ -66,4 +70,4 @@ Do not:
 
 ## Promotion rule
 
-The D1-only independent DR can be used as isolated staging/recovery validation without R2. **FULL_IDENTICAL** and full operational photo-recovery claims remain blocked until the formal rendered-evidence requirements and any intentionally omitted capabilities are resolved or explicitly accepted as infrastructure-only exceptions.
+The D1-only independent DR can be used as isolated staging/recovery validation without R2. **FULL_IDENTICAL** and full operational photo-recovery claims remain blocked until the formal rendered-evidence requirements and any intentionally omitted capabilities are resolved or explicitly accepted as infrastructure-only exceptions. Even after the evidence gate becomes ready, production synchronization remains an explicit owner-controlled action.
