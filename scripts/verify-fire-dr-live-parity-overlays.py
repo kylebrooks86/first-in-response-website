@@ -35,6 +35,18 @@ checks = {
         'window.localStorage.setItem("fire-theme",next)',
         'document.documentElement.dataset.theme=next',
 
+        # Customer profile structure/tabs and permanent record workflow.
+        'Customer profile',
+        'Jobs / estimates',
+        'Open balance',
+        'Continue current job',
+        '>Estimates <b>{customerEstimates.length}</b>',
+        '>Payments</button>',
+        '>Invoices</button>',
+        '>Photos <b>{customerPhotos.length}</b>',
+        '>Messages <b>{customerMessages.length}</b>',
+        '>Notes <b>{customerNotes.length}</b>',
+
         # LIVE-captured customer profile empty states.
         'No payments recorded',
         'Open an estimate and choose Record payment after receiving money through Wave, Cash App, Venmo, cash, check, card, or bank transfer.',
@@ -48,6 +60,19 @@ checks = {
         '<SelectItem value="property">Property / damage</SelectItem>',
         'Optional note',
         'Photo library',
+
+        # Estimate pipeline / schedule / invoice owner-state structure.
+        '{key:"draft",label:"New quotes"',
+        '{key:"sent",label:"Follow up"',
+        '{key:"approved",label:"Approved"',
+        '{key:"scheduled",label:"Scheduled"',
+        '{key:"completed",label:"Completed"',
+        '{key:"paid",label:"Paid"',
+        '{key:"declined",label:"Lost"',
+        '<h2>Needs attention</h2>',
+        '<h2>Upcoming jobs</h2>',
+        'Number(invoice.pendingRefundCount)>0?"Refund processing":Number(invoice.paymentOverageOpen)>0?"Payment review":statusLabel(invoice.status)',
+        'Number(invoice.pendingRefundCount)>0?"Refund pending":Number(invoice.paymentOverageOpen)>0?"Billing exception open"',
 
         # LIVE-captured scheduling behavior and next-step wording.
         'estimate.status==="approved"?"Next: choose the job date and save it."',
@@ -189,5 +214,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_LIVE_PARITY_OVERLAY_GUARD=PASS')
-print('Protected: owner nav/mobile controls/theme; Templates/customer tabs/scheduling; customer estimate/payment/invoice portals; 50% deposit + final-balance behavior; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation; top-shell status-bar treatment.')
+print('Protected: owner nav/mobile controls/theme; customer record tabs; estimate pipeline/schedule/invoice states; Templates; customer estimate/payment/invoice portals; 50% deposit + final-balance behavior; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation; top-shell status-bar treatment.')
 print('Scroll/smoothness behavior is intentionally not modified or pinned by this guard.')
