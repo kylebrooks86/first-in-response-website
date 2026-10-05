@@ -11,6 +11,7 @@ The current recovery/shared-core package must not be called fully identical to L
 - VERIFIED_IDENTICAL comparisons: **0**
 - Pending comparisons: **32**
 - Mismatches: **0**
+- Owner-approved forward-sync blockers: **2**
 
 ## Refund parity states still unresolved
 - Owner Refund payment modal/workflow
