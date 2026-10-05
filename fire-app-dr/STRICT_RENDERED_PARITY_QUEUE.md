@@ -1,6 +1,6 @@
 # FIRE DR — Strict Rendered Parity Queue
 
-Updated: 2026-10-04
+Updated: 2026-10-05
 
 Status: `STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED`
 
@@ -13,6 +13,7 @@ This queue does not replace `PARITY_EVIDENCE_MANIFEST.json`. It orders the remai
 - LIVE is the visual/functional master.
 - Do not touch LIVE deployment, DNS, or real customer data while closing DR parity.
 - Do not change scrolling/smoothness unless the owner explicitly reopens that issue.
+- Do not modify the user-confirmed V14 standalone mobile header/search/welcome spacing unless the owner explicitly reopens it.
 - Do not mark a state `VERIFIED_IDENTICAL` from source inspection alone.
 - Compare the same state, same content, same viewport/device class, and same theme.
 - Record independent evidence before declaring a comparison complete.
@@ -28,7 +29,7 @@ This queue does not replace `PARITY_EVIDENCE_MANIFEST.json`. It orders the remai
 5. Sidebar/menu open state.
 6. Search behavior and visible spacing on iPhone.
 
-Owner-confirmed so far: top header acceptable; Stride acceptable; scrolling accepted as good enough and frozen.
+Owner-confirmed: V14 top shell is crisp and fixed; search occupies its own second row; the FIRE APP / Welcome block is clear below the header; Stride is acceptable; scrolling is accepted as good enough and frozen.
 
 ## Priority 2 — estimates and scheduling
 
