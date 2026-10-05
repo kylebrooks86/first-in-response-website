@@ -21,12 +21,6 @@
     background:#13202b!important;
   }
 
-  /* Fresh settled LIVE evidence: the main X-Jet card includes this label. */
-  #equipment .card:has(#xSurface) .x-measured-heading,
-  #equipment #xMeasuredCustomHeading{
-    display:block!important;
-  }
-
   /* LIVE shows an explicit $0.00 opposite the empty-service message. */
   #job #fullServiceLines.fire-empty-service-line,
   #view-job #fullServiceLines.fire-empty-service-line{
