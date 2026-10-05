@@ -94,6 +94,9 @@ python3 ../scripts/verify-fire-dr-live-parity-overlays.py
 # Protect owner-side Business/Templates/invoice/refund parity contracts while visual proof is pending.
 python3 ../scripts/verify-fire-dr-owner-workflows.py
 
+# Protect the complete LIVE-captured Create Estimate service catalog and ordering.
+python3 ../scripts/verify-fire-dr-live-service-catalog.py
+
 # Protect customer approval/payment/document states and DR recovery-edge safeguards.
 python3 ../scripts/verify-fire-dr-customer-workflows.py
 
