@@ -94,7 +94,8 @@ if not pixel_width or not pixel_height or pixel_width <= 0 or pixel_height <= 0:
 if args.pixel_width and args.pixel_width != pixel_width: raise SystemExit(f'DR_EVIDENCE_REGISTER=FAIL: supplied pixel width {args.pixel_width} does not match detected width {pixel_width}')
 if args.pixel_height and args.pixel_height != pixel_height: raise SystemExit(f'DR_EVIDENCE_REGISTER=FAIL: supplied pixel height {args.pixel_height} does not match detected height {pixel_height}')
 
-live = next((item for item in target.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'live'), None)
+live_candidates = [item for item in target.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'live']
+live = next((item for item in live_candidates if item.get('comparison_reference') is True), None) or (live_candidates[0] if live_candidates else None)
 live_profile = live or {}
 viewport_width = args.viewport_width or live_profile.get('viewport_width') or pixel_width
 viewport_height = args.viewport_height or live_profile.get('viewport_height') or pixel_height
@@ -142,7 +143,7 @@ if comparison_index is not None:
     comparison_overlay_path.write_text(json.dumps(comparison_overlay, indent=2) + '\n')
 
 persistent_dir.mkdir(parents=True, exist_ok=True); shutil.copy2(source, destination)
-evidence = {'side':'independent','file':relative_file,'captured_at':captured_at,'registered_at':now,'source_environment':'independent-dr','source_label':'fire-app-independent-staging','source_release':'v138-dr-staging','route_family':args.entry_id,'deployment_provenance_source':f'dr-parity-evidence/provenance/{provenance_sha256}.json','deployment_provenance_sha256':provenance_sha256,'source_commit':provenance.get('checked_out_source_commit'),'notes':notes,'sha256':digest,'bytes':size,'media_type':media_types[suffix],'pixel_width':pixel_width,'pixel_height':pixel_height,'viewport_width':viewport_width,'viewport_height':viewport_height,'device_class':device_class,'orientation':orientation,'capture_profile_source':'dr-registrar-v4','profile_matches_registered_live':not profile_mismatches}
+evidence = {'side':'independent','file':relative_file,'captured_at':captured_at,'registered_at':now,'source_environment':'independent-dr','source_label':'fire-app-independent-staging','source_release':'v138-dr-staging','route_family':args.entry_id,'deployment_provenance_source':f'dr-parity-evidence/provenance/{provenance_sha256}.json','deployment_provenance_sha256':provenance_sha256,'source_commit':provenance.get('checked_out_source_commit'),'notes':notes,'sha256':digest,'bytes':size,'media_type':media_types[suffix],'pixel_width':pixel_width,'pixel_height':pixel_height,'viewport_width':viewport_width,'viewport_height':viewport_height,'device_class':device_class,'orientation':orientation,'capture_profile_source':'dr-registrar-v5','profile_matches_registered_live':not profile_mismatches,'registered_live_sha256':live.get('sha256') if live else None}
 if theme: evidence['theme'] = theme
 if profile_mismatches: evidence['profile_mismatch_notes'] = profile_mismatches
 registration = {'id':args.entry_id,'last_updated_at':now,'evidence':[evidence]}
