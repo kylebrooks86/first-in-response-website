@@ -85,6 +85,9 @@ python3 ../scripts/apply-fire-dr-mobile-shell-fix.py
 # Match LIVE mobile template selection/editing behavior without altering the sealed v138 archive.
 python3 ../scripts/apply-fire-dr-template-parity-fix.py
 
+# Apply small content/UI corrections backed by stored LIVE screenshots/evidence.
+python3 ../scripts/apply-fire-dr-live-evidence-fixes.py
+
 # Refuse a DR build if known LIVE-parity behavior/wording regresses.
 python3 ../scripts/verify-fire-dr-live-parity-overlays.py
 
