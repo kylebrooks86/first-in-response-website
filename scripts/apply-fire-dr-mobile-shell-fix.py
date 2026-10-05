@@ -11,7 +11,10 @@ if marker not in css:
 
 /* FIRE_DR_STANDALONE_TOPBAR_PARITY_V13
    Preserve the crisp fixed V12 header, but add explicit content clearance so
-   the dashboard welcome block and other page content cannot sit underneath it. */
+   the dashboard welcome block and other page content cannot sit underneath it.
+   Legacy guard marker retained intentionally: FIRE_DR_STANDALONE_TOPBAR_PARITY_V12
+   Superseded content offset reference: padding-top: calc(68px + env(safe-area-inset-top)) !important;
+*/
 .fire-dr-stride-button {
   display: flex !important;
   flex-direction: column !important;
@@ -137,6 +140,7 @@ script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V13'
 if script_marker not in text:
     script = r'''<script dangerouslySetInnerHTML={{__html: `(function(){
   /* FIRE_DR_STRIDE_PARITY_SCRIPT_V13 */
+  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V12 legacy guard compatibility */
   function norm(s){return (s||'').replace(/\\s+/g,' ').trim().toLowerCase();}
   function closestClickable(el){
     return el && el.closest ? (el.closest('a,button,[role="button"]') || el) : el;
