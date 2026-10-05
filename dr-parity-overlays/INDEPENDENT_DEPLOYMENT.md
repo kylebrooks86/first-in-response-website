@@ -54,20 +54,22 @@ The preparation script:
 
 1. verifies the sealed archive hash;
 2. extracts a fresh `fire-app-dr` source tree;
-3. restores the DR governance overlay documents that intentionally live outside the extracted tree;
+3. restores the persistent DR governance/audit overlays that intentionally live outside the extracted tree;
 4. verifies v138 package/release identity;
 5. applies the DR-only 4-digit PIN overlay;
-6. applies the mobile-shell parity overlay;
+6. applies the user-confirmed mobile-shell/header parity overlay;
 7. applies the Templates mobile parity overlay;
-8. runs the LIVE parity source guard;
-9. runs the owner-workflow parity guard;
-10. runs the customer-workflow parity guard;
-11. runs the formal parity-ledger consistency guard;
-12. installs dependencies and builds;
-13. writes a separate D1-only Wrangler config;
-14. removes any R2 binding from that independent config;
-15. stages all 21 migrations;
-16. runs typecheck and reports its result honestly.
+8. applies stored-LIVE evidence corrections, including approved-estimate signer-name wording;
+9. runs the LIVE parity source guard;
+10. runs the owner-workflow parity guard;
+11. runs the full 30-service LIVE service-catalog/order guard;
+12. runs the customer-workflow parity guard;
+13. runs the formal parity-ledger consistency guard;
+14. installs dependencies and builds;
+15. writes a separate D1-only Wrangler config;
+16. removes any R2 binding from that independent config;
+17. stages all 21 migrations;
+18. runs typecheck and reports its result honestly.
 
 The sealed-v138 TypeScript errors are currently known and treated as `FAIL_NONBLOCKING` only after the production build succeeds. Do not report typecheck as passing unless it actually passes.
 
@@ -147,9 +149,11 @@ Verify:
 
 - PIN login works;
 - Dashboard and navigation render correctly;
-- top Back / Home / Theme / Menu controls work;
+- top Back / Home / Theme / Menu controls remain crisp and correctly inset;
 - bottom navigation works;
 - Templates mobile selection/edit flow works;
+- estimate creation exposes the current LIVE-captured 30-service catalog in the same order;
+- approved/signed confirmation retains the signer name when available;
 - estimate creation and discounts work;
 - approved/signed estimates can be scheduled without a hard deposit gate;
 - job completion still requires the completion report;
