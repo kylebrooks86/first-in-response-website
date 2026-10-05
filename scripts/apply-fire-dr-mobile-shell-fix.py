@@ -5,14 +5,13 @@ if not css_path.exists():
     raise SystemExit('app/globals.css not found')
 
 css = css_path.read_text()
-marker = '/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V12 */'
+marker = '/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V13 */'
 if marker not in css:
     css += r'''
 
-/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V12
-   iPhone Home Screen header-only correction. Do not tune page scrolling here.
-   Use a true fixed, fully opaque top shell so iOS does not rasterize a sticky
-   translucent/composited header while page content moves underneath it. */
+/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V13
+   Preserve the crisp fixed V12 header, but add explicit content clearance so
+   the dashboard welcome block and other page content cannot sit underneath it. */
 .fire-dr-stride-button {
   display: flex !important;
   flex-direction: column !important;
@@ -42,7 +41,7 @@ if marker not in css:
     background: #101d2d !important;
   }
   .main-area {
-    padding-top: calc(68px + env(safe-area-inset-top)) !important;
+    padding-top: calc(88px + env(safe-area-inset-top)) !important;
   }
   .topbar {
     position: fixed !important;
@@ -134,10 +133,10 @@ if not layout.exists():
 text = layout.read_text()
 text = text.replace('statusBarStyle: "black-translucent"', 'statusBarStyle: "default"')
 
-script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V12'
+script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V13'
 if script_marker not in text:
     script = r'''<script dangerouslySetInnerHTML={{__html: `(function(){
-  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V12 */
+  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V13 */
   function norm(s){return (s||'').replace(/\\s+/g,' ').trim().toLowerCase();}
   function closestClickable(el){
     return el && el.closest ? (el.closest('a,button,[role="button"]') || el) : el;
@@ -159,4 +158,4 @@ if script_marker not in text:
     text = text.replace('</body>', script + '\n</body>', 1)
 
 layout.write_text(text)
-print('DR_STANDALONE_TOPBAR_PARITY_V12_APPLIED')
+print('DR_STANDALONE_TOPBAR_PARITY_V13_APPLIED')
