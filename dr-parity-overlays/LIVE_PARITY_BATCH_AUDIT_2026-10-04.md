@@ -88,7 +88,7 @@ These guards do **not** substitute for same-state rendered LIVE-vs-DR comparison
 - 0/32 independent evidence formally registered.
 - 0 VERIFIED_IDENTICAL comparisons.
 - 0 recorded mismatches.
-- Owner-approved forward-sync blockers: **2** (`PENDING_LIVE_SYNC`).
+- Owner-approved forward-sync blockers are tracked in `FORWARD_SYNC_APPROVED.json`; each `PENDING_LIVE_SYNC` entry blocks `FULL_IDENTICAL` until individually verified in LIVE.
 
 Status remains:
 
