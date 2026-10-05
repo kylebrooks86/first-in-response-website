@@ -107,9 +107,14 @@ checks = {
         'Refund processing.',
     ],
     Path('app/pay/[id]/page.tsx'): [
+        'pendingRefundCount:number',
+        "status='pending'",
+        'const paymentReviewPending = Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0;',
         'const paymentType: "deposit"|"balance" = row.status==="completed"?"balance":"deposit";',
         'const dueNow = paymentType==="deposit"?depositRemaining:balance;',
+        'const canPay = dueNow>0&&approved&&!paymentReviewPending&&(paymentType==="deposit"||row.status==="completed");',
         'After approval, the 50% deposit reserves your place on the schedule. The remaining balance is due upon completion of the work.',
+        'Refund processing.',
         'Payment received — account review in progress.',
         'This job is paid in full.',
         '<CustomerPortalNav/>',
@@ -213,5 +218,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_LIVE_PARITY_OVERLAY_GUARD=PASS')
-print('Protected: crisp fixed opaque standalone top shell with explicit search row and content clearance; owner nav/mobile controls/theme; estimate pricing/discount/minimum/deposit rules; LIVE-captured customer Payments/Invoices/Photos states; scheduling/deposit behavior; completion-to-invoice transition; Templates; customer estimate/payment/invoice portals; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation.')
+print('Protected: crisp fixed opaque standalone top shell with explicit search row and content clearance; owner nav/mobile controls/theme; estimate pricing/discount/minimum/deposit rules; LIVE-captured customer Payments/Invoices/Photos states; scheduling/deposit behavior; completion-to-invoice transition; Templates; customer estimate/payment/invoice portals including pending-refund and unresolved-overpayment payment suppression; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation.')
 print('General scroll/smoothness behavior is intentionally not modified or pinned by this guard.')
