@@ -29,7 +29,8 @@ entry = next((item for item in manifest.get('entries', []) if isinstance(item, d
 if entry is None: raise SystemExit(f'DR_PARITY_COMPARISON_RECORD=FAIL: unknown formal parity id: {args.entry_id}')
 if entry.get('live_evidence_status') != 'CAPTURED': raise SystemExit('DR_PARITY_COMPARISON_RECORD=FAIL: LIVE evidence must be CAPTURED first')
 if entry.get('independent_evidence_status') != 'CAPTURED': raise SystemExit('DR_PARITY_COMPARISON_RECORD=FAIL: independent DR evidence must be CAPTURED first')
-live = next((item for item in entry.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'live'), None)
+live_candidates = [item for item in entry.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'live']
+live = next((item for item in live_candidates if item.get('comparison_reference') is True), None) or (live_candidates[0] if live_candidates else None)
 independent = next((item for item in entry.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'independent'), None)
 if not live or not independent: raise SystemExit('DR_PARITY_COMPARISON_RECORD=FAIL: both registered evidence objects are required')
 if not live.get('sha256') or not independent.get('sha256'): raise SystemExit('DR_PARITY_COMPARISON_RECORD=FAIL: both evidence objects require SHA-256 fingerprints')
