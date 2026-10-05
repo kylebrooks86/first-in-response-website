@@ -2,8 +2,8 @@ import json
 import subprocess
 from pathlib import Path
 
-repo_root = Path('..')
-scripts_dir = repo_root / 'scripts'
+scripts_dir = Path(__file__).resolve().parent
+repo_root = scripts_dir.parent
 inventory_path = scripts_dir / 'FIRE_DR_GOVERNED_SCRIPT_INVENTORY.json'
 
 if not inventory_path.is_file():
