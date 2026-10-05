@@ -16,6 +16,7 @@
     "verify-fire-dr-owner-workflows.py",
     "verify-fire-dr-parity-ledger-consistency.py",
     "verify-fire-dr-postbuild-artifacts.py",
+    "verify-fire-dr-predeploy-provenance.py",
     "verify-fire-dr-refund-stripe-workflows.py",
     "verify-fire-dr-restore-identity.py",
     "verify-fire-dr-restore-v135-v138.py",
