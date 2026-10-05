@@ -21,6 +21,7 @@ parser = argparse.ArgumentParser(description='Register one rendered independent-
 parser.add_argument('--entry-id', required=True, help='Formal PARITY_EVIDENCE_MANIFEST entry id')
 parser.add_argument('--file', required=True, help='Path to the screenshot/evidence file to register')
 parser.add_argument('--notes', required=True, help='What exact DR state this evidence proves')
+parser.add_argument('--capture-id', required=True, help='Capture ID from the deployed DR /api/dr-capture-identity endpoint')
 parser.add_argument('--replace', action='store_true', help='Explicitly replace an existing independent registration for this entry; any prior comparison decision is invalidated')
 parser.add_argument('--captured-at', help='Optional ISO-8601 capture time; defaults to registration time')
 parser.add_argument('--viewport-width', type=int, help='Rendered viewport width; defaults to registered LIVE profile when known')
@@ -112,6 +113,17 @@ if profile_mismatches and not args.allow_profile_mismatch:
 provenance_bytes = provenance_path.read_bytes(); provenance = json.loads(provenance_bytes)
 if provenance.get('checked_out_source_commit') is None: raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: build provenance does not identify the checked-out source commit')
 if provenance.get('deployment_target', {}).get('worker_name') != 'fire-app-independent-staging': raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: provenance is not for governed independent staging Worker')
+capture_identity = provenance.get('capture_identity') or {}
+provided_capture_id = args.capture_id.strip().lower()
+expected_capture_id = str(capture_identity.get('capture_id') or '').strip().lower()
+if not provided_capture_id or len(provided_capture_id) != 24 or any(ch not in '0123456789abcdef' for ch in provided_capture_id):
+    raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: --capture-id must be the 24-character hexadecimal ID returned by the deployed DR capture-identity endpoint')
+if expected_capture_id != provided_capture_id:
+    raise SystemExit(f'DR_EVIDENCE_REGISTER=FAIL: screenshot capture ID {provided_capture_id!r} does not match prepared build provenance {expected_capture_id!r}; recapture from the currently prepared/deployed DR build')
+if capture_identity.get('source_commit') != provenance.get('checked_out_source_commit'):
+    raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: build provenance capture identity is not bound to the checked-out source commit')
+if capture_identity.get('owner_authenticated') is not True or capture_identity.get('cache_control_no_store') is not True:
+    raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: build provenance capture identity policy is invalid')
 provenance_sha256 = sha256_bytes(provenance_bytes)
 persistent_provenance_dir.mkdir(parents=True, exist_ok=True)
 persistent_provenance = persistent_provenance_dir / f'{provenance_sha256}.json'
@@ -143,7 +155,7 @@ if comparison_index is not None:
     comparison_overlay_path.write_text(json.dumps(comparison_overlay, indent=2) + '\n')
 
 persistent_dir.mkdir(parents=True, exist_ok=True); shutil.copy2(source, destination)
-evidence = {'side':'independent','file':relative_file,'captured_at':captured_at,'registered_at':now,'source_environment':'independent-dr','source_label':'fire-app-independent-staging','source_release':'v138-dr-staging','route_family':args.entry_id,'deployment_provenance_source':f'dr-parity-evidence/provenance/{provenance_sha256}.json','deployment_provenance_sha256':provenance_sha256,'source_commit':provenance.get('checked_out_source_commit'),'notes':notes,'sha256':digest,'bytes':size,'media_type':media_types[suffix],'pixel_width':pixel_width,'pixel_height':pixel_height,'viewport_width':viewport_width,'viewport_height':viewport_height,'device_class':device_class,'orientation':orientation,'capture_profile_source':'dr-registrar-v5','profile_matches_registered_live':not profile_mismatches,'registered_live_sha256':live.get('sha256') if live else None}
+evidence = {'side':'independent','file':relative_file,'captured_at':captured_at,'registered_at':now,'source_environment':'independent-dr','source_label':'fire-app-independent-staging','source_release':'v138-dr-staging','route_family':args.entry_id,'deployment_provenance_source':f'dr-parity-evidence/provenance/{provenance_sha256}.json','deployment_provenance_sha256':provenance_sha256,'deployment_capture_id':provided_capture_id,'source_commit':provenance.get('checked_out_source_commit'),'notes':notes,'sha256':digest,'bytes':size,'media_type':media_types[suffix],'pixel_width':pixel_width,'pixel_height':pixel_height,'viewport_width':viewport_width,'viewport_height':viewport_height,'device_class':device_class,'orientation':orientation,'capture_profile_source':'dr-registrar-v6','profile_matches_registered_live':not profile_mismatches,'registered_live_sha256':live.get('sha256') if live else None}
 if theme: evidence['theme'] = theme
 if profile_mismatches: evidence['profile_mismatch_notes'] = profile_mismatches
 registration = {'id':args.entry_id,'last_updated_at':now,'evidence':[evidence]}
@@ -172,5 +184,6 @@ print(f'Registered independent evidence for {args.entry_id}: {relative_file}')
 print(f'SHA256={digest} bytes={size} pixels={pixel_width}x{pixel_height} viewport={viewport_width}x{viewport_height} {device_class}/{orientation}')
 print('PROFILE_MATCH=' + ('YES' if not profile_mismatches else 'NO (explicitly accepted; comparison remains pending)'))
 print(f'BUILD_PROVENANCE_SHA256={provenance_sha256} (persisted snapshot)')
+print(f'DEPLOYMENT_CAPTURE_ID={provided_capture_id}')
 if comparison_index is not None: print('PRIOR_COMPARISON_INVALIDATED=YES (replacement evidence requires fresh review)')
 print('Parity summaries and ledger were synchronized; comparison status was not promoted.')
