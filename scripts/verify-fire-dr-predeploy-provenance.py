@@ -1,28 +1,35 @@
 import hashlib,json,subprocess
 from pathlib import Path
-root=Path('.'); repo_root=Path('..'); provenance_path=root/'dist/server/FIRE_DR_BUILD_PROVENANCE.json'; wrangler_path=root/'dist/server/wrangler.independent.json'; inventory_path=repo_root/'scripts/FIRE_DR_GOVERNED_SCRIPT_INVENTORY.json'; overlay_dir=repo_root/'dr-parity-overlays'; manifest_path=root/'PARITY_EVIDENCE_MANIFEST.json'; independent_overlay=repo_root/'dr-parity-evidence/INDEPENDENT_EVIDENCE_OVERLAY.json'
+root=Path('.'); repo_root=Path('..'); provenance_path=root/'dist/server/FIRE_DR_BUILD_PROVENANCE.json'; wrangler_path=root/'dist/server/wrangler.independent.json'; inventory_path=repo_root/'scripts/FIRE_DR_GOVERNED_SCRIPT_INVENTORY.json'; overlay_dir=repo_root/'dr-parity-overlays'; manifest_path=root/'PARITY_EVIDENCE_MANIFEST.json'; evidence_root=repo_root/'dr-parity-evidence'; independent_overlay=evidence_root/'INDEPENDENT_EVIDENCE_OVERLAY.json'; comparison_overlay=evidence_root/'COMPARISON_OVERLAY.json'
 expected_governance={'STRICT_RENDERED_PARITY_QUEUE.md','STRICT_PARITY_MATRIX.md','GO_NO_GO.md','INDEPENDENT_DEPLOYMENT.md','LIVE_PARITY_BATCH_AUDIT_2026-10-04.md'}
 def sha256(p): return hashlib.sha256(p.read_bytes()).hexdigest()
 def git_head(): return subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo_root,text=True).strip()
-def deployment_tree():
-    base=root/'dist/server'; files=sorted(p for p in base.rglob('*') if p.is_file() and p!=provenance_path); h=hashlib.sha256(); per={}
+def tree_fingerprint(base,exclude=None):
+    exclude=exclude or set(); files=sorted(p for p in base.rglob('*') if p.is_file() and p not in exclude); h=hashlib.sha256(); per={}
     for p in files:
         rel=p.relative_to(base).as_posix(); d=sha256(p); per[rel]=d; h.update(rel.encode()); h.update(b'\0'); h.update(d.encode()); h.update(b'\n')
     return len(files),h.hexdigest(),per
-required=[provenance_path,wrangler_path,inventory_path,manifest_path,independent_overlay]
+def deployment_tree(): return tree_fingerprint(root/'dist/server',{provenance_path})
+required=[provenance_path,wrangler_path,inventory_path,manifest_path,independent_overlay,comparison_overlay]
 missing=[str(p) for p in required if not p.exists()]
 if missing: raise SystemExit('DR_PREDEPLOY_PROVENANCE=FAIL: missing '+', '.join(missing))
 p=json.loads(provenance_path.read_text()); w=json.loads(wrangler_path.read_text()); i=json.loads(inventory_path.read_text()); errors=[]
-if p.get('schema_version')!=6: errors.append(f"expected provenance schema 6, found {p.get('schema_version')!r}")
+if p.get('schema_version')!=7: errors.append(f"expected provenance schema 7, found {p.get('schema_version')!r}")
 if p.get('checked_out_source_commit')!=git_head(): errors.append('checked-out git commit no longer matches build provenance')
 if p.get('sealed_archive',{}).get('sha256')!='2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca': errors.append('sealed v138 archive fingerprint mismatch')
 if p.get('release')!={'package_version':'1.0.0-rc.138','fire_release':'v138'}: errors.append('release identity mismatch')
 parity=p.get('parity_evidence') or {}
 if parity.get('manifest_sha256')!=sha256(manifest_path): errors.append('formal parity manifest changed after provenance')
 if parity.get('persistent_independent_overlay_sha256')!=sha256(independent_overlay): errors.append('persistent independent evidence overlay changed after provenance')
-overlay=json.loads(independent_overlay.read_text())
+if parity.get('persistent_comparison_overlay_sha256')!=sha256(comparison_overlay): errors.append('persistent comparison overlay changed after provenance')
+overlay=json.loads(independent_overlay.read_text()); comparisons=json.loads(comparison_overlay.read_text())
 if parity.get('persistent_independent_registration_count')!=len(overlay.get('entries') or []): errors.append('independent evidence registration count changed after provenance')
-if p.get('safety',{}).get('independent_evidence_auto_promotes_comparison') is not False: errors.append('independent evidence comparison-promotion policy invalid')
+if parity.get('persistent_comparison_count')!=len(comparisons.get('entries') or []): errors.append('comparison decision count changed after provenance')
+safety=p.get('safety',{})
+if safety.get('independent_evidence_auto_promotes_comparison') is not False: errors.append('independent evidence comparison-promotion policy invalid')
+if safety.get('comparison_decisions_require_exact_evidence_hashes') is not True: errors.append('comparison exact-evidence-hash policy invalid')
+evidence_count,evidence_tree,evidence_files=tree_fingerprint(evidence_root); recorded_evidence=p.get('persistent_evidence_tree') or {}
+if recorded_evidence.get('file_count')!=evidence_count or recorded_evidence.get('tree_sha256')!=evidence_tree or recorded_evidence.get('file_sha256')!=evidence_files: errors.append('persistent DR evidence/comparison/provenance tree changed after build provenance')
 target=p.get('deployment_target') or {}; d1=w.get('d1_databases') or []
 if w.get('name')!='fire-app-independent-staging' or w.get('topLevelName')!='fire-app-independent-staging': errors.append('Worker target drifted')
 if len(d1)!=1: errors.append('expected exactly one D1 binding')
@@ -53,4 +60,4 @@ if errors:
     for e in errors: print('- '+e)
     raise SystemExit(1)
 print('DR_PREDEPLOY_PROVENANCE=PASS')
-print(f'Commit, v138 identity, formal manifest, persistent independent evidence overlay, Worker/D1/no-R2 config, scripts, governance, 21 migrations, and all {count} deployable files match build provenance.')
+print(f'Commit, v138 identity, formal manifest, persistent evidence/comparison/provenance tree ({evidence_count} files), Worker/D1/no-R2 config, scripts, governance, 21 migrations, and all {count} deployable files match build provenance.')
