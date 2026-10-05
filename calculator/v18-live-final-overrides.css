@@ -2,199 +2,92 @@
    This file intentionally loads last so older compatibility layers cannot
    override current iPhone evidence with stale light/dark card treatments. */
 @media(max-width:760px){
-  body:not(.dark) .page .card{
-    background:#fff!important;
-  }
-  body.dark .page .card{
-    background:#13202b!important;
-    color:#f7fafc!important;
-  }
-  body.dark .page .card h2,
-  body.dark #chemicals .resultbig{
-    color:#f7fafc!important;
-  }
-  body.dark #mix>.card:nth-child(3),
-  body.dark .recipeCard{
-    background:#2b1b17!important;
-  }
-  body.dark #fireStockCard{
-    background:#13202b!important;
-  }
+  body:not(.dark) .page .card{background:#fff!important}
+  body.dark .page .card{background:#13202b!important;color:#f7fafc!important}
+  body.dark .page .card h2,body.dark #chemicals .resultbig{color:#f7fafc!important}
+  body.dark #mix>.card:nth-child(3),body.dark .recipeCard{background:#2b1b17!important}
+  body.dark #fireStockCard{background:#13202b!important}
 
-  /* LIVE shows an explicit $0.00 opposite the empty-service message. */
-  #job #fullServiceLines.fire-empty-service-line,
-  #view-job #fullServiceLines.fire-empty-service-line{
-    display:flex!important;
-    align-items:center!important;
-    justify-content:space-between!important;
-    gap:12px!important;
+  /* Estimator heading/name rhythm from settled LIVE iPhone geometry. */
+  #job #jobEstimateCard>.kicker,#view-job #jobEstimateCard>.kicker{margin-bottom:4px!important}
+  #job #jobEstimateCard>.live-estimate-name,#view-job #jobEstimateCard>.live-estimate-name{margin-bottom:12px!important}
+
+  /* LIVE shows an explicit $0.00 opposite the empty-service message and keeps the row flat. */
+  #job #fullServiceLines.fire-empty-service-line,#view-job #fullServiceLines.fire-empty-service-line{
+    display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important
   }
-  #job #fullServiceLines.fire-empty-service-line>strong,
-  #view-job #fullServiceLines.fire-empty-service-line>strong{
-    margin-left:auto!important;
-    white-space:nowrap!important;
+  #job #fullServiceLines.fire-empty-service-line>strong,#view-job #fullServiceLines.fire-empty-service-line>strong{margin-left:auto!important;white-space:nowrap!important}
+  #job #jobEstimateCard #fullServiceLines,#view-job #jobEstimateCard #fullServiceLines{
+    margin:12px 0 0!important;padding:0!important;border:0!important;border-bottom:1px solid #cfdbe2!important;
+    border-radius:0!important;background:transparent!important;color:#425563!important;box-shadow:none!important
   }
 
   /* LIVE estimate draft status uses a green circular check rather than plain muted copy. */
-  #job #jobEstimateCard .live-draft-note,
-  #view-job #jobEstimateCard .live-draft-note{
-    display:flex!important;align-items:center!important;gap:7px!important;
-    margin:7px 0 3px!important;color:#087d59!important;font-size:13px!important;
-    line-height:1.35!important;font-weight:800!important
+  #job #jobEstimateCard .live-draft-note,#view-job #jobEstimateCard .live-draft-note{
+    display:flex!important;align-items:center!important;gap:7px!important;margin:7px 0 3px!important;
+    color:#087d59!important;font-size:13px!important;line-height:1.35!important;font-weight:800!important
   }
-  #job #jobEstimateCard .live-draft-note::before,
-  #view-job #jobEstimateCard .live-draft-note::before{
-    content:"✓";display:grid;place-items:center;flex:0 0 18px;width:18px;height:18px;
-    border-radius:999px;background:#e4f7ef;color:#087d59;font-size:12px;font-weight:900
-  }
-
-  /* LIVE service-total line is flat, not a gray rounded quote box. */
-  #job #jobEstimateCard #fullServiceLines,
-  #view-job #jobEstimateCard #fullServiceLines{
-    margin:10px 0 12px!important;padding:11px 0!important;border:0!important;
-    border-bottom:1px solid #cfdbe2!important;border-radius:0!important;background:transparent!important;
-    color:#425563!important;box-shadow:none!important
+  #job #jobEstimateCard .live-draft-note::before,#view-job #jobEstimateCard .live-draft-note::before{
+    content:"✓";display:grid;place-items:center;flex:0 0 18px;width:18px;height:18px;border-radius:999px;
+    background:#e4f7ef;color:#087d59;font-size:12px;font-weight:900
   }
 
   /* LIVE estimator summary uses three lightly bordered cards with color-coded totals. */
-  #job #jobEstimateCard .summarybar:has(#fullSubtotal)>.metric,
-  #view-job #jobEstimateCard .summarybar:has(#fullSubtotal)>.metric{
-    padding:11px!important;border:1px solid #cbdce5!important;border-radius:14px!important;
-    background:#fff!important;box-sizing:border-box!important
+  #job #jobEstimateCard .summarybar:has(#fullSubtotal)>.metric,#view-job #jobEstimateCard .summarybar:has(#fullSubtotal)>.metric{
+    padding:11px!important;border:1px solid #cbdce5!important;border-radius:14px!important;background:#fff!important;box-sizing:border-box!important
   }
   #job #jobEstimateCard #fullSubtotal,#view-job #jobEstimateCard #fullSubtotal{color:#1680b8!important}
   #job #jobEstimateCard #fullTotal,#view-job #jobEstimateCard #fullTotal{color:#d6422d!important}
   #job #jobEstimateCard #fullDeposit,#view-job #jobEstimateCard #fullDeposit{color:#a46b00!important}
 
-  /* Legacy split-panel treatment retained for old DOM fallback. */
-  #job #jobEstimateCard h3:has(+p+#fullQuote),
-  #view-job #jobEstimateCard h3:has(+p+#fullQuote),
-  #job #jobEstimateCard h3:has(+p+#crewSheet),
-  #view-job #jobEstimateCard h3:has(+p+#crewSheet){
-    margin:10px 0 0!important;padding:9px 13px 4px!important;
-    border:1px solid #c8dfe9!important;border-bottom:0!important;border-radius:13px 13px 0 0!important;
-    background:#f2fbff!important;color:#17212b!important
+  /* Quote/crew visual treatment. The current DOM wraps these pieces in quote-actions,
+     but the visible panel is still formed by the inner heading/helper/actions so there
+     is no second outer border or padding shell. */
+  #job #jobEstimateCard h3:has(+p+#fullQuote),#view-job #jobEstimateCard h3:has(+p+#fullQuote),
+  #job #jobEstimateCard h3:has(+p+#crewSheet),#view-job #jobEstimateCard h3:has(+p+#crewSheet){
+    margin:10px 0 0!important;padding:9px 13px 4px!important;border:1px solid #c8dfe9!important;border-bottom:0!important;
+    border-radius:13px 13px 0 0!important;background:#f2fbff!important;color:#17212b!important
   }
-  #job #jobEstimateCard p:has(+#fullQuote),
-  #view-job #jobEstimateCard p:has(+#fullQuote),
-  #job #jobEstimateCard p:has(+#crewSheet),
-  #view-job #jobEstimateCard p:has(+#crewSheet){
-    margin:0!important;padding:0 13px 6px!important;border-left:1px solid #c8dfe9!important;
-    border-right:1px solid #c8dfe9!important;background:#f2fbff!important;color:#607381!important
+  #job #jobEstimateCard p:has(+#fullQuote),#view-job #jobEstimateCard p:has(+#fullQuote),
+  #job #jobEstimateCard p:has(+#crewSheet),#view-job #jobEstimateCard p:has(+#crewSheet){
+    margin:0!important;padding:0 13px 6px!important;border-left:1px solid #c8dfe9!important;border-right:1px solid #c8dfe9!important;
+    background:#f2fbff!important;color:#607381!important
   }
-  #job #jobEstimateCard #fullQuote + .actions,
-  #view-job #jobEstimateCard #fullQuote + .actions,
-  #job #jobEstimateCard #crewSheet + #crewSheetActions,
-  #view-job #jobEstimateCard #crewSheet + #crewSheetActions{
-    display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:7px!important;
-    margin:0!important;padding:0 13px 10px!important;border:1px solid #c8dfe9!important;border-top:0!important;
-    border-radius:0 0 13px 13px!important;background:#f2fbff!important
+  #job #jobEstimateCard #fullQuote + .actions,#view-job #jobEstimateCard #fullQuote + .actions,
+  #job #jobEstimateCard #crewSheet + #crewSheetActions,#view-job #jobEstimateCard #crewSheet + #crewSheetActions{
+    display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:7px!important;margin:0!important;
+    padding:0 13px 10px!important;border:1px solid #c8dfe9!important;border-top:0!important;border-radius:0 0 13px 13px!important;background:#f2fbff!important
   }
-  #job #jobEstimateCard #fullQuote + .actions button,
-  #view-job #jobEstimateCard #fullQuote + .actions button,
-  #job #jobEstimateCard #crewSheet + #crewSheetActions button,
-  #view-job #jobEstimateCard #crewSheet + #crewSheetActions button{
+  #job #jobEstimateCard #fullQuote + .actions button,#view-job #jobEstimateCard #fullQuote + .actions button,
+  #job #jobEstimateCard #crewSheet + #crewSheetActions button,#view-job #jobEstimateCard #crewSheet + #crewSheetActions button{
     width:auto!important;min-height:44px!important;margin:0!important;font-weight:800!important
   }
+  #job #jobEstimateCard>.quote-actions,#view-job #jobEstimateCard>.quote-actions{
+    margin:14px 0 0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-sizing:border-box!important
+  }
+  #job #jobEstimateCard>.quote-actions>.actions,#view-job #jobEstimateCard>.quote-actions>.actions{padding-bottom:15.9px!important}
+  #job #jobEstimateCard #copyFullQuote,#view-job #jobEstimateCard #copyFullQuote{background:#e84226!important;border-color:#e84226!important;color:#fff!important}
+  #job #jobEstimateCard details:has(#priceEditor)>summary,#view-job #jobEstimateCard details:has(#priceEditor)>summary{color:#1680b8!important;font-weight:850!important}
 
-  /* Current LIVE DOM: Customer quote and Crew job sheet are each one quote-actions shell. */
-  #job #jobEstimateCard>.quote-actions,
-  #view-job #jobEstimateCard>.quote-actions{
-    margin:14px 0 0!important;
-    padding:13px!important;
-    border:1px solid #c8dfe9!important;
-    border-radius:13px!important;
-    background:#f2fbff!important;
-    box-sizing:border-box!important;
-  }
-  #job #jobEstimateCard>.quote-actions>h3,
-  #view-job #jobEstimateCard>.quote-actions>h3{
-    margin:0 0 4px!important;padding:0!important;border:0!important;border-radius:0!important;
-    background:transparent!important;color:#17212b!important
-  }
-  #job #jobEstimateCard>.quote-actions>p,
-  #view-job #jobEstimateCard>.quote-actions>p{
-    margin:0 0 7px!important;padding:0!important;border:0!important;background:transparent!important;color:#607381!important
-  }
-  #job #jobEstimateCard>.quote-actions>.actions,
-  #view-job #jobEstimateCard>.quote-actions>.actions{
-    display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:7px!important;
-    margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important
-  }
-  #job #jobEstimateCard>.quote-actions>.actions button,
-  #view-job #jobEstimateCard>.quote-actions>.actions button{
-    width:auto!important;min-height:44px!important;margin:0!important;font-weight:800!important
-  }
-  #job #jobEstimateCard #copyFullQuote,
-  #view-job #jobEstimateCard #copyFullQuote{
-    background:#e84226!important;border-color:#e84226!important;color:#fff!important
-  }
-  #job #jobEstimateCard details:has(#priceEditor)>summary,
-  #view-job #jobEstimateCard details:has(#priceEditor)>summary{
-    color:#1680b8!important;font-weight:850!important
-  }
-
-  /* Fresh paired LIVE iPhone evidence shows no separate measured-draw subheading;
-     the field label itself is "Measured chemical percentage". */
-  #equipment .card:has(#xSurface) .x-measured-heading,
-  #equipment #xMeasuredCustomHeading{
-    display:none!important;
-  }
-
-  /* Final main X-Jet geometry from paired settled iPhone renders. */
-  #equipment .card:has(#xSurface) #xjetInsertGuide{
-    line-height:1.5!important;
-  }
-  #equipment .card:has(#xSurface) #xjetLiveResults .metric{
-    padding:14.4px 12px!important;
-  }
-  #equipment .card:has(#xSurface) #xjetModelNote{
-    font-size:14px!important;
-    line-height:1.4!important;
-  }
-  #equipment .card:has(#xSurface)>p.mini{
-    font-size:13px!important;
-    line-height:1.45!important;
-  }
-
-  /* Reverse X-Jet uses the same LIVE warning/note typography. */
-  #equipment .card:has(#xReqBucket) #xReverseInstruction{
-    font-size:14px!important;
-    line-height:1.45!important;
-  }
-  #equipment .card:has(#xReqBucket)>p.mini{
-    font-size:13px!important;
-    line-height:1.45!important;
-  }
+  /* Fresh paired LIVE iPhone evidence shows no separate measured-draw subheading. */
+  #equipment .card:has(#xSurface) .x-measured-heading,#equipment #xMeasuredCustomHeading{display:none!important}
+  #equipment .card:has(#xSurface) #xjetInsertGuide{line-height:1.5!important}
+  #equipment .card:has(#xSurface) #xjetLiveResults .metric{padding:14.4px 12px!important}
+  #equipment .card:has(#xSurface) #xjetModelNote{font-size:14px!important;line-height:1.4!important}
+  #equipment .card:has(#xSurface)>p.mini{font-size:13px!important;line-height:1.45!important}
+  #equipment .card:has(#xReqBucket) #xReverseInstruction{font-size:14px!important;line-height:1.45!important}
+  #equipment .card:has(#xReqBucket)>p.mini{font-size:13px!important;line-height:1.45!important}
 }
 
-body.dark #job #jobEstimateCard .summarybar:has(#fullSubtotal)>.metric,
-body.dark #view-job #jobEstimateCard .summarybar:has(#fullSubtotal)>.metric{
-  background:#18212b!important;border-color:#35414b!important
-}
-body.dark #job #jobEstimateCard #fullServiceLines,
-body.dark #view-job #jobEstimateCard #fullServiceLines{border-color:#35414b!important;color:#b7c0c7!important}
-body.dark #job #jobEstimateCard h3:has(+p+#fullQuote),
-body.dark #view-job #jobEstimateCard h3:has(+p+#fullQuote),
-body.dark #job #jobEstimateCard h3:has(+p+#crewSheet),
-body.dark #view-job #jobEstimateCard h3:has(+p+#crewSheet),
-body.dark #job #jobEstimateCard p:has(+#fullQuote),
-body.dark #view-job #jobEstimateCard p:has(+#fullQuote),
-body.dark #job #jobEstimateCard p:has(+#crewSheet),
-body.dark #view-job #jobEstimateCard p:has(+#crewSheet),
-body.dark #job #jobEstimateCard #fullQuote + .actions,
-body.dark #view-job #jobEstimateCard #fullQuote + .actions,
-body.dark #job #jobEstimateCard #crewSheet + #crewSheetActions,
-body.dark #view-job #jobEstimateCard #crewSheet + #crewSheetActions,
-body.dark #job #jobEstimateCard>.quote-actions,
-body.dark #view-job #jobEstimateCard>.quote-actions{
+body.dark #job #jobEstimateCard .summarybar:has(#fullSubtotal)>.metric,body.dark #view-job #jobEstimateCard .summarybar:has(#fullSubtotal)>.metric{background:#18212b!important;border-color:#35414b!important}
+body.dark #job #jobEstimateCard #fullServiceLines,body.dark #view-job #jobEstimateCard #fullServiceLines{border-color:#35414b!important;color:#b7c0c7!important}
+body.dark #job #jobEstimateCard h3:has(+p+#fullQuote),body.dark #view-job #jobEstimateCard h3:has(+p+#fullQuote),
+body.dark #job #jobEstimateCard h3:has(+p+#crewSheet),body.dark #view-job #jobEstimateCard h3:has(+p+#crewSheet),
+body.dark #job #jobEstimateCard p:has(+#fullQuote),body.dark #view-job #jobEstimateCard p:has(+#fullQuote),
+body.dark #job #jobEstimateCard p:has(+#crewSheet),body.dark #view-job #jobEstimateCard p:has(+#crewSheet),
+body.dark #job #jobEstimateCard #fullQuote + .actions,body.dark #view-job #jobEstimateCard #fullQuote + .actions,
+body.dark #job #jobEstimateCard #crewSheet + #crewSheetActions,body.dark #view-job #jobEstimateCard #crewSheet + #crewSheetActions{
   background:#102637!important;border-color:#28526d!important;color:#f6fbff!important
 }
-body.dark #job #jobEstimateCard>.quote-actions>h3,
-body.dark #view-job #jobEstimateCard>.quote-actions>h3{color:#f6fbff!important}
-body.dark #job #jobEstimateCard p:has(+#fullQuote),
-body.dark #view-job #jobEstimateCard p:has(+#fullQuote),
-body.dark #job #jobEstimateCard p:has(+#crewSheet),
-body.dark #view-job #jobEstimateCard p:has(+#crewSheet),
-body.dark #job #jobEstimateCard>.quote-actions>p,
-body.dark #view-job #jobEstimateCard>.quote-actions>p{color:#b7cfdd!important}
+body.dark #job #jobEstimateCard p:has(+#fullQuote),body.dark #view-job #jobEstimateCard p:has(+#fullQuote),
+body.dark #job #jobEstimateCard p:has(+#crewSheet),body.dark #view-job #jobEstimateCard p:has(+#crewSheet){color:#b7cfdd!important}
