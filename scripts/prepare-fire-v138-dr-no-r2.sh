@@ -4,6 +4,7 @@ set -euo pipefail
 ARCHIVE="FIRE_App_Restore_Failure_Audit_Completeness_v138_2026-10-01.zip"
 EXPECTED_SHA256="2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca"
 APP_DIR="fire-app-dr"
+GOVERNANCE_OVERLAY_DIR="dr-parity-overlays"
 
 FIRE_WORKER_NAME="${FIRE_WORKER_NAME:-fire-app-independent-staging}"
 FIRE_D1_DATABASE_NAME="${FIRE_D1_DATABASE_NAME:-fire-app-staging-db}"
@@ -30,6 +31,20 @@ fi
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR"
 unzip -q "$ARCHIVE" -d "$APP_DIR"
+
+# The sealed archive is the immutable application baseline, but current DR-only
+# governance documents intentionally live outside fire-app-dr because this
+# directory is deleted and re-extracted on every build. Restore those documents
+# into the fresh working tree before any consistency guard runs.
+for doc in STRICT_RENDERED_PARITY_QUEUE.md GO_NO_GO.md INDEPENDENT_DEPLOYMENT.md; do
+  source_path="$GOVERNANCE_OVERLAY_DIR/$doc"
+  if [[ ! -f "$source_path" ]]; then
+    echo "Missing persistent DR governance overlay: $source_path" >&2
+    exit 1
+  fi
+  cp "$source_path" "$APP_DIR/$doc"
+done
+echo "Restored persistent DR governance overlays after sealed extraction."
 
 cd "$APP_DIR"
 node -e "const p=require('./package.json'); if(p.version!=='1.0.0-rc.138') throw new Error('Unexpected package version: '+p.version)"
