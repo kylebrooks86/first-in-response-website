@@ -13,11 +13,11 @@ const allTargets=[
   {group:'equipment',name:'Equipment / reverse mix',route:'Equipment',roots:equipmentRoots,heading:'Mix the X-Jet pickup bucket for a target strength'},
   {group:'equipment',name:'Equipment / proportioner',route:'Equipment',roots:equipmentRoots,heading:'Three-port proportioner planner'},
   {group:'jobmath',name:'Job Math / planning',route:'Job Math',roots:['#view-job','#job'],heading:'How much mix should I bring?'},
-  {group:'tools',name:'Field Tools / compatibility',route:'Field Tools',roots:toolsRoots,marker:'#compatResult'},
-  {group:'tools',name:'Field Tools / timer',route:'Field Tools',roots:toolsRoots,marker:'#timerDisplay'},
-  {group:'tools',name:'Field Tools / weather',route:'Field Tools',roots:toolsRoots,marker:'#weatherNote'},
-  {group:'tools',name:'Field Tools / custom builder',route:'Field Tools',roots:toolsRoots,marker:'#customChemName'},
-  {group:'tools',name:'Field Tools / safety',route:'Field Tools',roots:toolsRoots,marker:'.fire-safety-list'}
+  {group:'tools',name:'Field Tools / compatibility',route:'Field Tools',roots:toolsRoots,marker:'#compatResult',heading:'Chemical Compatibility Checker'},
+  {group:'tools',name:'Field Tools / timer',route:'Field Tools',roots:toolsRoots,marker:'#timerDisplay',heading:'Application Timer'},
+  {group:'tools',name:'Field Tools / weather',route:'Field Tools',roots:toolsRoots,marker:'#weatherNote',heading:'Weather / wind check'},
+  {group:'tools',name:'Field Tools / custom builder',route:'Field Tools',roots:toolsRoots,marker:'#customChemName',heading:'Custom Chemical Builder'},
+  {group:'tools',name:'Field Tools / safety',route:'Field Tools',roots:toolsRoots,marker:'.fire-safety-list',heading:'Field safety'}
 ];
 const targets=GROUP==='all'?allTargets:allTargets.filter(t=>t.group===GROUP);
 if(!targets.length)throw new Error(`Unknown FIRE_KEY_CARD_GROUP ${GROUP}`);
@@ -65,10 +65,16 @@ async function openSession(browser,base){
 async function locateCard(root,page,t){
   if(t.marker){
     const marker=root.locator(t.marker).first();
-    if(await marker.count())return marker.locator('xpath=ancestor::*[contains(concat(" ",normalize-space(@class)," ")," card ")]').first();
+    if(await marker.count()){
+      const card=marker.locator('xpath=ancestor::*[contains(concat(" ",normalize-space(@class)," ")," card ")]').first();
+      if(await card.count())return card;
+    }
   }
-  const heading=page.getByRole('heading',{name:t.heading,exact:true});
-  return root.locator('.card').filter({has:heading}).first();
+  if(t.heading){
+    const heading=page.getByRole('heading',{name:t.heading,exact:true});
+    return root.locator('.card').filter({has:heading}).first();
+  }
+  return root.locator('.card').filter({hasText:'__FIRE_PARITY_NO_MATCH__'}).first();
 }
 async function collect(browser,base){
   const session=await openSession(browser,base);
