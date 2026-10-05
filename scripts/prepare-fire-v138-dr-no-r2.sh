@@ -142,6 +142,37 @@ await writeFile(destination, JSON.stringify(config, null, 2) + '\n');
 console.log('Wrote D1-only isolated DR config to ' + destination);
 NODE
 
+node --input-type=module <<'NODE'
+import { readFile } from 'node:fs/promises';
+
+const path = 'dist/server/wrangler.independent.json';
+const config = JSON.parse(await readFile(path, 'utf8'));
+const expectedName = process.env.FIRE_WORKER_NAME.trim();
+const expectedDbName = process.env.FIRE_D1_DATABASE_NAME.trim();
+const expectedDbId = process.env.FIRE_D1_DATABASE_ID.trim();
+const errors = [];
+if (config.name !== expectedName) errors.push(`worker name mismatch: ${config.name}`);
+if (config.topLevelName !== expectedName) errors.push(`topLevelName mismatch: ${config.topLevelName}`);
+if (!Array.isArray(config.d1_databases) || config.d1_databases.length !== 1) {
+  errors.push('expected exactly one D1 binding');
+} else {
+  const db = config.d1_databases[0];
+  if (db.binding !== 'DB') errors.push(`unexpected D1 binding: ${db.binding}`);
+  if (db.database_name !== expectedDbName) errors.push(`D1 database name mismatch: ${db.database_name}`);
+  if (db.database_id !== expectedDbId) errors.push(`D1 database id mismatch: ${db.database_id}`);
+}
+if ('r2_buckets' in config) errors.push('R2 binding unexpectedly present in independent config');
+const secret = config.vars?.FIRE_SESSION_SECRET;
+if (typeof secret !== 'string' || !/^[0-9a-f]{64}$/.test(secret)) errors.push('FIRE_SESSION_SECRET is missing or malformed');
+if (errors.length) {
+  console.error('DR_WRANGLER_ISOLATION=FAIL');
+  for (const error of errors) console.error(`- ${error}`);
+  process.exit(1);
+}
+console.log('DR_WRANGLER_ISOLATION=PASS');
+console.log('Independent config is isolated to the intended Worker + single D1 DB, contains no R2 binding, and has a generated session secret.');
+NODE
+
 # Count alone is not enough: require the canonical migration prefix sequence
 # 0000 through 0020 exactly once before anything is staged for Wrangler.
 python3 - <<'PY'
