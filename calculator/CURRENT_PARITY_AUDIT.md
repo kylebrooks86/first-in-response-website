@@ -2,135 +2,87 @@
 
 Audit status: **REAL-DEVICE PARITY RE-AUDIT IN PROGRESS — NOT SYNCHRONIZED**
 
-Latest core/offline gate verification: `44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558`
+Current governed staging shared-core fingerprint: `9e3c7d705165e5d74ee369e484f428eecafcddd80cdf92a54dfad8fd5dd6604d`
 
-Airplane-mode DR acceptance evidence: `44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558`
+Current DR offline cache generation: `72`
 
-Current staging shared-core fingerprint: `bee43bb803a857f40464b46d21b71816bfe963538926606c4c32566644d46b65`
+Sources:
 
-Sources compared:
+- Production/LIVE: current rendered ChatGPT-hosted FIRE Field Calculator v18, reference only
+- Independent/Doomsday DR: calculator on `fire-calculator-exact-live-clone`
 
-- Production/live: current rendered ChatGPT-hosted FIRE Field Calculator v18
-- Independent/recovery: current rendered calculator from `fire-calculator-exact-live-clone`
+The manifest is authoritative for the current governed shared-core file set/fingerprint. Older gate anchors and cache generations are historical evidence only and must not be presented as the current build.
 
-This audit distinguishes automated checks from real-device parity and dual-deployment synchronization. Owner iPhone testing found material visual/functional mismatches despite earlier green automated checks, so those checks are no longer treated as sufficient evidence of visual parity. Production remains the untouched reference and the DR candidate stays NOT SYNCHRONIZED.
+Owner iPhone testing found material visual/functional mismatches despite earlier green automated checks. Automated checks therefore remain supporting evidence and cannot independently establish visual parity. Production remains untouched and the DR candidate stays NOT SYNCHRONIZED.
 
-## Automated parity result
+## Current re-audit findings and corrections
 
-Core formula/contract and offline DR checks are green on the current corrected staging build, but visual parity is reopened and is being re-audited section-by-section against the actual LIVE render.
+The re-audit has addressed or reopened the following areas against the actual LIVE render:
 
-The suite passed:
+- Index/Mixes: removed the wrong generic Chemical + Mix Index / Custom Mixes interpretation and restored the LIVE Chemical Use Index / SH recipe workflow direction.
+- iPhone delivery: stale cache behavior was identified as capable of retaining pre-fix Index/Mixes assets; the current DR cache generation is 72.
+- Equipment: X-Jet card treatment, unit pills, result grouping, reverse-calculator grouping, proportioner grouping, and mobile card geometry received direct LIVE-render parity corrections.
+- Job Math: quick-navigation placement/visible labels were corrected after light-mode controls rendered incorrectly.
+- Governance: real-device discrepancies now explicitly override prior visual-green conclusions.
 
-- formula regression and LIVE-reference contract
-- offline-cache and shared-core-fingerprint contracts
-- Job Math behavior and shortcuts
-- Pricing Editor behavior
-- estimator blank/zero/negative/decimal/large/invalid/missing-rate states
-- customer/job defaults and draft persistence
-- bundle and promotion stacking behavior
-- save/reload/clear behavior
-- customer quote copy/share/print behavior
-- mobile numeric-input metadata/default/focus behavior
-- chemical compatibility behavior
-- Equipment, Job Math and Field Tools focused geometry
-- route/card/layout geometry measurement
-- light/dark computed-style audit
-- paired 390×844 captures and light/dark visual-difference measurement
-- independent LIVE-backup → DR restore takeover
+These corrections do not by themselves promote any affected section to VERIFIED IDENTICAL. Physical-device acceptance and remaining same-state comparisons are still required.
 
-## Disaster-recovery takeover
+## Automated evidence retained
 
-The staging-only takeover workflow restores a disposable LIVE v3 backup into local DR staging after reload. The expanded takeover now verifies 17 restored values:
+Existing automated coverage remains useful for regression detection, including formula/contract behavior, estimator states, Job Math, pricing, customer/draft persistence, bundle/promotion behavior, save/reload/clear, quote copy/share/print payload behavior, numeric-input contracts, chemical compatibility, backup/restore, offline operation, and route/card geometry.
 
-- customer/job name
-- House Wash quantity
-- gutter quantity
-- custom-service description
-- custom-service amount
-- estimate notes
-- discount
-- Job Math area
-- coverage
-- reserve
-- measurement length
-- measurement height
-- measurement sections
-- measurement subtraction
-- calibration area
-- calibration mix used
-- SH inventory
+Automated screenshot/geometry checks are supporting evidence only. A real-device mismatch reopens the affected area even if those checks pass.
 
-The corresponding UI values match after restore, and the migrated customer/job/estimate state is persisted into DR storage rather than only painted into the DOM.
+## Offline / disaster-recovery boundary
 
-## Airplane-mode / offline DR acceptance
+The independent calculator must remain usable without ChatGPT/OpenAI connectivity or authentication. Service-worker/offline behavior is an intentional infrastructure difference only where it does not alter shared calculator UI, calculations, business rules, state behavior, navigation, validation, or backup semantics.
 
-The dedicated offline acceptance workflow warms the real service worker/cache, disables browser networking, reloads the calculator, and then verifies actual offline use.
+The current cache identifier is `fire-field-calculator-v18-exact-clone-72`.
 
-Verified offline behavior includes:
+## Backup portability target
 
-- cache generation `fire-field-calculator-v18-exact-clone-69` controls the page
-- all seven major routes open offline
-- SH Mix produces a changed dependent calculation after an offline input change
-- saved estimate/planning state survives offline reload
-- Job Math continues to calculate offline
-- backup JSON exports offline using `FIRE-Field-Calculator-v18-offline` version 18
-- a full page close and new-page reopen succeeds while still offline
-- saved state and calculated total survive that reopen
-- zero OpenAI/ChatGPT network requests were observed during the acceptance run
-- no OpenAI/ChatGPT sign-in requirement appeared
+The governed target remains FIRE Field Calculator Backup v3 / appVersion 18 compatibility, including:
 
-The automated airplane-mode DR-independence gate is therefore closed.
+- LIVE-compatible state projection into DR
+- DR portable backup suitable for isolated LIVE-compatible restore testing
+- invalid/corrupt backup rejection without silently damaging existing state
 
-## Real-device parity re-audit findings
+Backup portability is a release gate but does not substitute for rendered/device parity.
 
-The owner’s iPhone test invalidated the previous visual-parity conclusion. The current re-audit has already addressed:
+## Current section-by-section acceptance queue
 
-- stale cache delivery that could keep old Index/Mixes UI on iPhone
-- Equipment X-Jet card treatment, unit pills, result grouping, reverse-calculator structure, and proportioner grouping
-- Job Math quick-navigation placement and visible labels, which were previously rendered as empty red-outlined buttons in light mode
+1. SH Mix / Mixes and Chemical Index
+2. Equipment
+3. Chemicals
+4. Job Math
+5. Field Tools
+6. Field Guide
+7. Shared header/navigation and initial render
+8. Light mode route-by-route
+9. Dark mode route-by-route
+10. iPhone portrait safe-area / fixed-navigation behavior
+11. Native numeric keyboard presentation/dismissal
+12. Native OS share and print/save-PDF presentation
 
-Index/Mixes remain the first acceptance focus, followed by Equipment, Chemicals, Job Math, Field Tools, and Field Guide. Automated screenshot and geometry checks are supporting evidence only; they no longer override a real-device mismatch.
+No row is VERIFIED IDENTICAL solely because source-level, formula, or browser-automation tests pass.
 
-## Important fixes made during takeover diagnosis
+## Business-rule preservation
 
-The DR startup freeze was traced to the `fire-v18-parity-loaded` event and then to the Equipment structure parity listener. Duplicate MutationObservers could leave an older observer reacting indefinitely to its own DOM adjustments. The observer lifecycle is now single-owner/idempotent and the renderer no longer locks during restore.
+This parity project must not silently change calculator business rules while matching UI. Current governed calculator values remain whatever is encoded by the shared core and its pricing editor; unapproved services remain configurable rather than being assigned guessed prices. The parity pass is not a venue for unrelated pricing changes.
 
-House Wash input behavior was also split correctly into two distinct LIVE behaviors:
+## Separation from FIRE Business App work
 
-- a fresh draft starts House Wash at `0`
-- after a user explicitly clears the field, it remains blank instead of being repeatedly coerced back to zero
+Unrelated FIRE Business App / v138 Cloudflare/D1/Doomsday work may coexist in the same repository. It is outside this calculator audit and must not be treated as calculator parity evidence or merged conceptually into this release.
 
-The initial zero now belongs to first-draft initialization, not to a recurring input-normalization loop.
+## Remaining release-level work
 
-## Confirmed business-rule state in current governed core
+Before synchronization:
 
-- House wash: $0.22/sq ft
-- Gutter cleaning + downspout flush: $1.50/linear ft
-- Existing gutter guard removal + reinstall: $0.50/linear ft
-- Gutter brightening: $2.00/linear ft
-- Fence cleaning: $0.40/sq ft
-- Standard windows: $7 first floor / $11 second floor
-- French panes: $12 first floor / $18 second floor
-- Screens: $3 first floor / $6 second floor
-- Driveway: $175 each
-- Front sidewalk + curb: $75 each
-- Side sidewalk: $25 each
-- RV wash: $150 each
-- Minimum job: $150
-- Deposit default: 50%
+- complete same-state LIVE-vs-DR rendered comparison for the remaining queue
+- complete physical iPhone acceptance for native safe-area, keyboard, share, and print presentation
+- retain backup portability and invalid-backup safety
+- obtain explicit owner approval before production promotion
+- promote only the governed shared core intentionally
+- prove both independent deployments report the exact same governed shared-core fingerprint after promotion
 
-Unapproved services remain configurable at $0. No guessed rate was introduced during parity work.
-
-## Remaining non-automated / release-level verification
-
-The following are not current automated parity failures; they remain promotion/acceptance work:
-
-- native iPhone safe-area and software-keyboard chrome acceptance
-- native OS share / print presentation acceptance
-- reverse DR → production-staging backup/restore acceptance
-- invalid-backup safe-error parity
-- remaining optional/alternate state matrices required by final acceptance
-- production migration to the governed shared core
-- final proof that both independently deployed instances report/run the same shared-core fingerprint
-
-Until those release steps are deliberately completed, keep status **NOT SYNCHRONIZED** and do not alter production.
+Until those steps are deliberately completed, keep status **NOT SYNCHRONIZED** and do not alter production.
