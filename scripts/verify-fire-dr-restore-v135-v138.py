@@ -6,7 +6,7 @@ checks = {
         'phase="target_conflict_validation"',
         'normalizeLegacyLifecycleNotifications',
         'legacyLifecycleNotificationsSkipped',
-        'lifecycleNotificationUniquenessVerified:true',
+        'lifecycleNotificationUniquenessVerified: true',
         'restoredAndVerified: verified',
         'fieldValuesVerified: true',
         'existingRecordsPreserved:',
