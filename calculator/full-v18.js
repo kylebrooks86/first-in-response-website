@@ -15,11 +15,11 @@
     Document.prototype.getElementById=function(id){return nativeGetById.call(this,id==='mixHistory'?aliasId:id)};
   }
   const css=(href,key)=>{if(document.querySelector(`link[data-fire-${key}]`))return;const l=document.createElement('link');l.rel='stylesheet';l.href=href;l.dataset[`fire${key.replace(/(^|-)(\w)/g,(_,a,b)=>b.toUpperCase())}`]='1';document.head.appendChild(l)};
-  css('./v18-exact-visual.css?v=7','exact-visual');
+  css('./v18-exact-visual.css?v=6','exact-visual');
   css('./v18-live-jobmath-visual.css?v=2','jobmath-visual');
   css('./v18-live-equipment-visual.css?v=5','equipment-visual');
   css('./v18-live-chemicals-parity.css?v=5','chemicals-parity');
-  css('./v18-live-index-parity.css?v=2','index-parity');
+  css('./v18-live-index-parity.css?v=1','index-parity');
   css('./v18-live-guide-parity.css?v=3','guide-parity');
   css('./v18-live-tools-parity.css?v=3','tools-parity');
   css('./v18-live-tools-fine.css?v=2','tools-fine');
@@ -41,10 +41,10 @@
     await load('./v18-live-estimator-parity.js?v=6');
     await load('./v18-live-first-screen.js?v=3');
     await load('./v18-live-jobmath-parity.js?v=5');
-    await load('./v18-live-jobmix-parity.js?v=2');
+    await load('./v18-live-jobmix-parity.js?v=1');
     await load('./v18-live-planning-state.js?v=2');
     await load('./v18-live-chemicals-parity.js?v=3');
-    await load('./v18-live-index-parity.js?v=3');
+    await load('./v18-live-index-parity.js?v=2');
     await load('./v18-live-guide-parity.js?v=2');
     await load('./v18-live-navigation-parity.js?v=2');
     await load('./v18-live-tools-parity.js?v=1');
