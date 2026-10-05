@@ -33,6 +33,7 @@ cd "$APP_DIR"
 node -e "const p=require('./package.json'); if(p.version!=='1.0.0-rc.138') throw new Error('Unexpected package version: '+p.version)"
 node -e "const v=require('./CURRENT_VERSION.json'); if(String(v.fire_release)!=='v138') throw new Error('Unexpected FIRE release: '+v.fire_release)"
 python3 ../scripts/verify-fire-dr-script-inventory.py
+python3 ../scripts/verify-fire-dr-tooling-syntax.py
 python3 ../scripts/verify-fire-dr-deploy-runbook.py
 
 python3 - <<'PY'
