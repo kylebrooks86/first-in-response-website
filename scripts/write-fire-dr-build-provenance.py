@@ -12,6 +12,15 @@ archive = repo_root / 'FIRE_App_Restore_Failure_Audit_Completeness_v138_2026-10-
 wrangler_path = root / 'dist/server/wrangler.independent.json'
 manifest_path = root / 'PARITY_EVIDENCE_MANIFEST.json'
 inventory_path = repo_root / 'scripts' / 'FIRE_DR_GOVERNED_SCRIPT_INVENTORY.json'
+overlay_dir = repo_root / 'dr-parity-overlays'
+
+governance_names = [
+    'STRICT_RENDERED_PARITY_QUEUE.md',
+    'STRICT_PARITY_MATRIX.md',
+    'GO_NO_GO.md',
+    'INDEPENDENT_DEPLOYMENT.md',
+    'LIVE_PARITY_BATCH_AUDIT_2026-10-04.md',
+]
 
 
 def sha256(path: Path) -> str:
@@ -35,6 +44,8 @@ def source_commit() -> str | None:
         return None
 
 required = [archive, wrangler_path, manifest_path, inventory_path, root / 'package.json', root / 'CURRENT_VERSION.json']
+for name in governance_names:
+    required.extend([root / name, overlay_dir / name])
 missing = [str(path) for path in required if not path.exists()]
 if missing:
     print('DR_BUILD_PROVENANCE=FAIL')
@@ -92,6 +103,21 @@ for name in sorted(inventory_names):
     path = scripts_dir / name
     governed_scripts[name] = sha256(path)
 
+governance = {}
+for name in governance_names:
+    working = root / name
+    canonical = overlay_dir / name
+    working_hash = sha256(working)
+    canonical_hash = sha256(canonical)
+    if working_hash != canonical_hash:
+        print('DR_BUILD_PROVENANCE=FAIL')
+        print(f'- governance overlay drift before provenance write: {name}')
+        raise SystemExit(1)
+    governance[name] = {
+        'sha256': canonical_hash,
+        'working_copy_matches_persistent_overlay': True,
+    }
+
 migrations = {}
 for path in sorted((root / 'dist/server/migrations').glob('*.sql')):
     migrations[path.name] = sha256(path)
@@ -105,7 +131,7 @@ d1_record = d1[0] if len(d1) == 1 else {}
 secret = (wrangler.get('vars') or {}).get('FIRE_SESSION_SECRET')
 
 record = {
-    'schema_version': 2,
+    'schema_version': 3,
     'generated_at_utc': datetime.now(timezone.utc).isoformat(),
     'source_commit': source_commit(),
     'sealed_archive': {
@@ -140,6 +166,7 @@ record = {
         'all_matching_dr_scripts_accounted_for': discovered == listed,
         'script_sha256': governed_scripts,
     },
+    'governance_document_sha256': governance,
     'staged_migration_sha256': migrations,
     'safety': {
         'sealed_archive_modified': False,
@@ -155,7 +182,7 @@ out_path.write_text(json.dumps(record, indent=2, sort_keys=True) + '\n')
 written = json.loads(out_path.read_text())
 target = written['deployment_target']
 errors = []
-if written.get('schema_version') != 2:
+if written.get('schema_version') != 3:
     errors.append('unexpected provenance schema version')
 if written['sealed_archive']['sha256'] != '2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca':
     errors.append('sealed archive hash in provenance is not the governed v138 hash')
@@ -178,6 +205,15 @@ if script_record.get('script_count') != len(discovered):
     errors.append('governed script count does not match discovered DR script count')
 if set((script_record.get('script_sha256') or {}).keys()) != discovered:
     errors.append('provenance script fingerprint set does not exactly match discovered DR scripts')
+governance_record = written.get('governance_document_sha256') or {}
+if set(governance_record) != set(governance_names):
+    errors.append('provenance governance document set is incomplete or contains unexpected entries')
+for name in governance_names:
+    item = governance_record.get(name) or {}
+    if item.get('sha256') != sha256(overlay_dir / name):
+        errors.append(f'provenance governance hash mismatch: {name}')
+    if item.get('working_copy_matches_persistent_overlay') is not True:
+        errors.append(f'provenance does not confirm persistent overlay match: {name}')
 if errors:
     print('DR_BUILD_PROVENANCE=FAIL')
     for error in errors:
@@ -185,4 +221,4 @@ if errors:
     raise SystemExit(1)
 
 print('DR_BUILD_PROVENANCE=PASS')
-print(f'Wrote {out_path} with governed release, target, evidence counts, all {len(discovered)} DR scripts, and migration fingerprints; no session secret value was recorded.')
+print(f'Wrote {out_path} with governed release, target, evidence counts, all {len(discovered)} DR scripts, {len(governance_names)} governance documents, and migration fingerprints; no session secret value was recorded.')
