@@ -45,29 +45,9 @@ Governed deploy command:
 bash scripts/deploy-fire-dr-staging.sh
 ```
 
-Do not manually substitute a plain Wrangler deploy command. The governed wrapper requires the current `origin/fire-calculator-exact-live-clone` commit, re-runs predeploy provenance, validates the independent Worker/D1/no-R2 target, applies remote migrations only to `fire-app-staging-db` with `dist/server/wrangler.independent.json`, re-runs provenance after migrations, and only then deploys the independent Worker with that same config.
+Do not manually substitute a plain Wrangler deploy command. The governed wrapper requires the current `origin/fire-calculator-exact-live-clone` commit, re-runs predeploy provenance, validates the independent Worker/D1/no-R2 target, applies remote migrations only to `fire-app-staging-db` with the independent config, re-runs provenance after migrations, and only then deploys the independent Worker with that same config.
 
-The preparation script:
-
-1. verifies the checked-out staging branch equals current `origin/fire-calculator-exact-live-clone`;
-2. verifies the sealed archive hash;
-3. extracts a fresh `fire-app-dr` source tree;
-4. restores persistent DR governance/audit overlays;
-5. verifies v138 package/release identity;
-6. verifies the governed DR script inventory and isolated deployment runbook;
-7. applies the DR-only 4-digit PIN overlay;
-8. applies the user-confirmed mobile-shell/header parity overlay;
-9. applies the Templates mobile parity overlay;
-10. applies stored-LIVE evidence corrections;
-11. verifies overlay idempotency;
-12. runs LIVE parity, owner-workflow, 30-service catalog, LIVE-evidence coverage, customer-workflow, restore/lifecycle/refund, and formal parity-ledger guards;
-13. installs dependencies and builds;
-14. writes and validates a separate D1-only Wrangler config with no R2 binding;
-15. requires the exact canonical migration sequence `0000` through `0020` and stages all 21 migrations;
-16. verifies post-build deployment artifacts byte-for-byte;
-17. writes build provenance with the checked-out source commit, provider trigger commit, governed scripts/documents, parity evidence, deployment target, and migration fingerprints;
-18. self-tests the predeploy provenance gate;
-19. runs typecheck and reports its result honestly.
+The preparation script verifies the current staging branch and sealed archive, restores persistent governance/evidence overlays, verifies v138 identity and the governed script inventory, applies the PIN/mobile/Templates/LIVE-evidence overlays, restores persistent independent evidence and deliberate comparison decisions, synchronizes parity summaries, verifies overlay idempotency plus owner/customer/service/restore/refund/evidence/parity guards, builds, validates the D1-only/no-R2 deployment config, stages the exact 21 migrations, fingerprints post-build artifacts and evidence state, self-tests predeploy provenance, then runs typecheck and reports the result honestly.
 
 The preparation script runs the LIVE-evidence coverage/accountability guard so newly registered LIVE evidence cannot silently bypass DR parity coverage.
 
@@ -120,7 +100,35 @@ Scrolling/smoothness is intentionally frozen as accepted by the owner and is not
 
 Formal parity remains governed by `PARITY_EVIDENCE_MANIFEST.json`, `STRICT_PARITY_MATRIX.md`, `LIVE_MASTER_PARITY_CHECKLIST.md`, and `STRICT_RENDERED_PARITY_QUEUE.md`. The working queue contains 95 rendered states; the formal evidence manifest contains 32 release-gating parity entries.
 
-Do not mark a formal state identical from source inspection alone. For every formal comparison, capture the same state in LIVE and DR; use the same content/state, device class, orientation, viewport, and theme where practical; register both evidence files with hashes and provenance; compare the exact registered pair; and mark `VERIFIED_IDENTICAL` only when the comparison is actually complete.
+Do not mark a formal state identical from source inspection alone. Independent evidence and comparison decisions persist outside the extracted `fire-app-dr` tree so sealed-v138 rebuilds cannot silently erase them.
+
+Show the current capture queue first:
+
+```sh
+python3 scripts/report-fire-dr-evidence-capture-queue.py
+```
+
+Register one real DR screenshot only after the governed DR build that produced it exists:
+
+```sh
+python3 scripts/register-fire-dr-independent-evidence.py --entry-id <formal-id> --file <screenshot> --notes "Exact DR state captured to match registered LIVE evidence."
+```
+
+The registrar records the screenshot hash/bytes/dimensions/profile, persists the exact source-build provenance snapshot, rejects profile mismatches by default, invalidates any prior comparison if evidence is explicitly replaced, synchronizes parity summaries, and never auto-promotes `comparison_status`.
+
+After visually and functionally reviewing the exact registered LIVE/DR pair, record an identical result only with both review confirmations:
+
+```sh
+python3 scripts/record-fire-dr-parity-comparison.py --entry-id <formal-id> --result identical --notes "Exact registered LIVE and DR pair reviewed." --visual-review-complete --functional-review-complete
+```
+
+Record a mismatch instead when the pair differs:
+
+```sh
+python3 scripts/record-fire-dr-parity-comparison.py --entry-id <formal-id> --result mismatch --notes "Describe the exact rendered or functional difference."
+```
+
+Every comparison decision is tied to the exact LIVE and DR SHA-256 values. Replacing either DR evidence file invalidates the old comparison and requires fresh review. `VERIFIED_IDENTICAL` is never inferred merely because both screenshots exist.
 
 Known current formal evidence summary remains:
 
