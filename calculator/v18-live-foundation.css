@@ -14,15 +14,20 @@ body{line-height:1.45!important}
   .tabs{box-sizing:border-box!important;width:100%!important;margin:0!important;padding:0!important;gap:8px!important}
   .bottom{height:83.5px!important;min-height:83.5px!important;box-sizing:border-box!important;padding:8px 10px calc(8px + env(safe-area-inset-bottom))!important;background:rgba(237,243,247,.97)!important;border-top:1px solid #cbd7df!important;box-shadow:none!important}
 
+  /* Fresh LIVE computed style: top-level cards stay transparent in light mode;
+     border/radius/shadow provide the card treatment over the page background. */
   .page .card{background:transparent!important}
-  body:not(.dark) .page .card{background:#fff!important;border-color:#cbd7df!important;border-radius:18px!important;box-shadow:0 12px 30px rgba(32,53,69,.12)!important}
+  body:not(.dark) .page .card{background:transparent!important;border-color:#cbd7df!important;border-radius:18px!important;box-shadow:0 12px 30px rgba(32,53,69,.12)!important}
   body:not(.dark) .page input,
   body:not(.dark) .page select,
   body:not(.dark) .page textarea{color:#121a22!important;border-color:#cbd7df!important;border-radius:12px!important;padding-left:12px!important;padding-right:12px!important}
 
   #mix{gap:normal!important}
-  #growthSeg .chip{color:#526574!important;border-color:#526574!important;border-radius:9px!important;font-weight:800!important;padding-left:5px!important;padding-right:5px!important;min-height:43.2px!important}
-  #growthSeg .chip.active{color:#17212b!important}
+  /* Fresh LIVE width audit: 3 growth buttons are flex items with 8px gaps
+     (104px each at the 390px iPhone viewport), not a no-gap segmented grid. */
+  #growthSeg{display:flex!important;gap:8px!important;padding:0!important;border:0!important;background:transparent!important}
+  #growthSeg .chip{flex:1 1 0!important;min-width:0!important;background:transparent!important;color:#526574!important;border:0!important;border-radius:9px!important;font-weight:800!important;padding:10px 5px!important;min-height:43.2px!important;box-shadow:none!important}
+  #growthSeg .chip.active{color:#17212b!important;background:transparent!important;box-shadow:none!important}
   #fireMixGradient{background:linear-gradient(90deg,#ef4b2d 0 11%,#1680b8 11% 100%)!important}
   #mix input[type="range"]{accent-color:#ef4b2d!important}
 
@@ -49,7 +54,8 @@ body{line-height:1.45!important}
   body.dark .bottom{background:rgba(8,13,18,.94)!important;color:#f7fafc!important;border-color:#f7fafc!important;border-top-color:#263544!important;box-shadow:none!important}
   body.dark .bottom button{background:transparent!important;color:#9fb0bf!important}
   body.dark .bottom button.active{background:#241510!important;color:#ff6849!important}
-  body.dark #growthSeg .chip{color:#9fb0bf!important;border-color:#9fb0bf!important}
+  body.dark #growthSeg .chip{background:transparent!important;color:#9fb0bf!important;border-color:transparent!important}
+  body.dark #growthSeg .chip.active{background:transparent!important;color:#f7fafc!important;box-shadow:none!important}
   body.dark .top-job-nav{background:#101a24!important;border-color:#263544!important;box-shadow:0 8px 22px rgba(0,0,0,.22)!important}
   body.dark .top-job-nav button{background:#101a24!important;color:#f7fafc!important;border-color:#263544!important;box-shadow:none!important}
   body.dark .top-job-nav button.active,body.dark .top-job-nav button:active{background:#17212b!important;color:#fff!important;border-color:#526574!important}
