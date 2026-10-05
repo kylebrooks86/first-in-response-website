@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 root = Path('.')
@@ -84,6 +85,32 @@ for item in entries:
             errors.append(f'{entry_id}: SYNCED_TO_LIVE requires synced_at_utc')
         if not str(item.get('sync_notes') or '').strip():
             errors.append(f'{entry_id}: SYNCED_TO_LIVE requires sync_notes')
+        live_sha = str(item.get('live_screenshot_sha256') or '').strip().lower()
+        dr_sha = str(item.get('dr_screenshot_sha256') or '').strip().lower()
+        if not re.fullmatch(r'[0-9a-f]{64}', live_sha):
+            errors.append(f'{entry_id}: SYNCED_TO_LIVE requires valid live_screenshot_sha256')
+        if not re.fullmatch(r'[0-9a-f]{64}', dr_sha):
+            errors.append(f'{entry_id}: SYNCED_TO_LIVE requires valid dr_screenshot_sha256')
+    history = item.get('sync_history')
+    if history is not None and not isinstance(history, list):
+        errors.append(f'{entry_id}: sync_history must be an array when present')
+    if isinstance(history, list):
+        for idx, event in enumerate(history):
+            if not isinstance(event, dict):
+                errors.append(f'{entry_id}: sync_history[{idx}] must be an object')
+                continue
+            if event.get('event') not in {'SYNCED_TO_LIVE','REOPENED'}:
+                errors.append(f'{entry_id}: sync_history[{idx}] has invalid event {event.get("event")!r}')
+            if not str(event.get('at_utc') or '').strip():
+                errors.append(f'{entry_id}: sync_history[{idx}] requires at_utc')
+            if not str(event.get('notes') or '').strip():
+                errors.append(f'{entry_id}: sync_history[{idx}] requires notes')
+            if event.get('event') == 'SYNCED_TO_LIVE':
+                if event.get('same_device_render_reviewed') is not True or event.get('functional_review_complete') is not True:
+                    errors.append(f'{entry_id}: sync_history[{idx}] synced event requires both review flags')
+                for key in ['live_screenshot_sha256','dr_screenshot_sha256']:
+                    if not re.fullmatch(r'[0-9a-f]{64}', str(event.get(key) or '').strip().lower()):
+                        errors.append(f'{entry_id}: sync_history[{idx}] synced event requires valid {key}')
     if area and pending_note and synced_note:
         expected_rows.append((entry_id, area, item.get('status'), pending_note, synced_note))
 
