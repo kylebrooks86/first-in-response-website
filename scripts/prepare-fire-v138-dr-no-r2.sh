@@ -32,10 +32,6 @@ rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR"
 unzip -q "$ARCHIVE" -d "$APP_DIR"
 
-# The sealed archive is the immutable application baseline, but current DR-only
-# governance/audit documents intentionally live outside fire-app-dr because this
-# directory is deleted and re-extracted on every build. Restore those documents
-# into the fresh working tree before any consistency guard runs.
 for doc in STRICT_RENDERED_PARITY_QUEUE.md STRICT_PARITY_MATRIX.md GO_NO_GO.md INDEPENDENT_DEPLOYMENT.md LIVE_PARITY_BATCH_AUDIT_2026-10-04.md; do
   source_path="$GOVERNANCE_OVERLAY_DIR/$doc"
   if [[ ! -f "$source_path" ]]; then
@@ -50,7 +46,6 @@ cd "$APP_DIR"
 node -e "const p=require('./package.json'); if(p.version!=='1.0.0-rc.138') throw new Error('Unexpected package version: '+p.version)"
 node -e "const v=require('./CURRENT_VERSION.json'); if(String(v.fire_release)!=='v138') throw new Error('Unexpected FIRE release: '+v.fire_release)"
 
-# DR-only 4-digit PIN overlay. The sealed v138 package remains untouched.
 python3 - <<'PY'
 from pathlib import Path
 
@@ -79,39 +74,15 @@ login.write_text(text)
 print("DR_PIN_OVERLAY_APPLIED")
 PY
 
-# Match LIVE mobile-shell behavior and repair the Stride control without legacy CSS conflicts.
 python3 ../scripts/apply-fire-dr-mobile-shell-fix.py
-
-# Match LIVE mobile template selection/editing behavior without altering the sealed v138 archive.
 python3 ../scripts/apply-fire-dr-template-parity-fix.py
-
-# Apply small content/UI corrections backed by stored LIVE screenshots/evidence.
 python3 ../scripts/apply-fire-dr-live-evidence-fixes.py
-
-# Refuse rebuilds where applying the DR overlays again changes the working tree.
-# This catches accidental duplicate CSS/scripts or non-idempotent patch logic.
 python3 ../scripts/verify-fire-dr-overlay-idempotency.py
-
-# Refuse a DR build if known LIVE-parity behavior/wording regresses.
 python3 ../scripts/verify-fire-dr-live-parity-overlays.py
-
-# Protect owner-side Business/Templates/invoice/refund parity contracts while visual proof is pending.
 python3 ../scripts/verify-fire-dr-owner-workflows.py
-
-# Protect the complete LIVE-captured Create Estimate service catalog and ordering.
 python3 ../scripts/verify-fire-dr-live-service-catalog.py
-
-# Ensure every formal state that already has LIVE evidence is explicitly covered
-# by the current DR parity work. New LIVE captures intentionally stop the build
-# until this coverage map is updated.
 python3 ../scripts/verify-fire-dr-live-evidence-coverage.py
-
-# Protect customer approval/payment/document states and DR recovery-edge safeguards.
 python3 ../scripts/verify-fire-dr-customer-workflows.py
-
-# Keep the 32-state formal ledger, evidence-object integrity, checklist, release
-# summary, strict verdict, 95-state queue status, scroll freeze, and DR photo
-# capability disclosure synchronized before spending time on dependency install.
 python3 ../scripts/verify-fire-dr-parity-ledger-consistency.py
 
 echo "DR_PREBUILD_PARITY_GATES=PASS"
@@ -127,7 +98,6 @@ import { randomBytes } from 'node:crypto';
 const source = 'dist/server/wrangler.json';
 const destination = 'dist/server/wrangler.independent.json';
 const config = JSON.parse(await readFile(source, 'utf8'));
-
 config.name = process.env.FIRE_WORKER_NAME.trim();
 config.topLevelName = config.name;
 config.d1_databases = [{
@@ -137,14 +107,12 @@ config.d1_databases = [{
 }];
 config.vars = { ...(config.vars || {}), FIRE_SESSION_SECRET: randomBytes(32).toString('hex') };
 delete config.r2_buckets;
-
 await writeFile(destination, JSON.stringify(config, null, 2) + '\n');
 console.log('Wrote D1-only isolated DR config to ' + destination);
 NODE
 
 node --input-type=module <<'NODE'
 import { readFile } from 'node:fs/promises';
-
 const path = 'dist/server/wrangler.independent.json';
 const config = JSON.parse(await readFile(path, 'utf8'));
 const expectedName = process.env.FIRE_WORKER_NAME.trim();
@@ -170,15 +138,11 @@ if (errors.length) {
   process.exit(1);
 }
 console.log('DR_WRANGLER_ISOLATION=PASS');
-console.log('Independent config is isolated to the intended Worker + single D1 DB, contains no R2 binding, and has a generated session secret.');
 NODE
 
-# Count alone is not enough: require the canonical migration prefix sequence
-# 0000 through 0020 exactly once before anything is staged for Wrangler.
 python3 - <<'PY'
 from pathlib import Path
 import re
-
 files = sorted(Path('drizzle').glob('*.sql'))
 expected = list(range(21))
 parsed = []
@@ -195,11 +159,9 @@ if parsed != expected:
     errors.append(f'migration prefixes must be contiguous 0000..0020 exactly once; found {parsed}')
 if errors:
     print('DR_MIGRATION_SEQUENCE=FAIL')
-    for error in errors:
-        print(f'- {error}')
+    for error in errors: print(f'- {error}')
     raise SystemExit(1)
 print('DR_MIGRATION_SEQUENCE=PASS')
-print('Canonical migration prefixes are contiguous and unique: 0000..0020.')
 PY
 
 mkdir -p dist/server/migrations
@@ -210,7 +172,12 @@ if [[ "$staged_migration_count" != "21" ]]; then
   echo "Failed to stage all 21 migrations for Wrangler." >&2
   exit 1
 fi
-echo "Staged 21 canonical D1 migrations at dist/server/migrations."
+
+# Final artifact-level guard: release identity, isolated Wrangler resources, and
+# byte-for-byte migration staging must all still match immediately before deploy.
+python3 ../scripts/verify-fire-dr-postbuild-artifacts.py
+
+echo "DR_POSTBUILD_DEPLOYMENT_GATES=PASS"
 
 set +e
 pnpm run typecheck
