@@ -33,10 +33,10 @@ mkdir -p "$APP_DIR"
 unzip -q "$ARCHIVE" -d "$APP_DIR"
 
 # The sealed archive is the immutable application baseline, but current DR-only
-# governance documents intentionally live outside fire-app-dr because this
+# governance/audit documents intentionally live outside fire-app-dr because this
 # directory is deleted and re-extracted on every build. Restore those documents
 # into the fresh working tree before any consistency guard runs.
-for doc in STRICT_RENDERED_PARITY_QUEUE.md GO_NO_GO.md INDEPENDENT_DEPLOYMENT.md; do
+for doc in STRICT_RENDERED_PARITY_QUEUE.md GO_NO_GO.md INDEPENDENT_DEPLOYMENT.md LIVE_PARITY_BATCH_AUDIT_2026-10-04.md; do
   source_path="$GOVERNANCE_OVERLAY_DIR/$doc"
   if [[ ! -f "$source_path" ]]; then
     echo "Missing persistent DR governance overlay: $source_path" >&2
@@ -44,7 +44,7 @@ for doc in STRICT_RENDERED_PARITY_QUEUE.md GO_NO_GO.md INDEPENDENT_DEPLOYMENT.md
   fi
   cp "$source_path" "$APP_DIR/$doc"
 done
-echo "Restored persistent DR governance overlays after sealed extraction."
+echo "Restored persistent DR governance/audit overlays after sealed extraction."
 
 cd "$APP_DIR"
 node -e "const p=require('./package.json'); if(p.version!=='1.0.0-rc.138') throw new Error('Unexpected package version: '+p.version)"
