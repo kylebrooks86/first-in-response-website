@@ -10,7 +10,7 @@ checks = {
         'Sign agreement & approve',
         'Need something changed?',
         'Send change request',
-        'Estimate approved and agreement signed. Kyle will contact you to schedule.',
+        'Estimate approved and agreement signed{signedName?` by ${signedName}`:""}. Kyle will contact you to schedule.',
     ],
     Path('app/api/public/estimates/[token]/accept/route.ts'): [
         'Please choose photo permission, type your full name, and accept the service agreement.',
@@ -140,5 +140,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_CUSTOMER_WORKFLOW_PARITY_GUARD=PASS')
-print('Protected: customer signature/photo-permission approval; change requests; estimate/payment/invoice not-found states; customer Back/Home navigation; payment-document summary/deposit/balance/success/full-paid states; LIVE-captured invoice due-on-receipt and dated-due presentation; manual payment handles; invoice review/refund states; overpayment resolution safeguards; DR photo storage fail-closed behavior.')
+print('Protected: LIVE-evidence signer-name confirmation; customer signature/photo-permission approval; change requests; estimate/payment/invoice not-found states; customer Back/Home navigation; payment-document summary/deposit/balance/success/full-paid states; LIVE-captured invoice due-on-receipt and dated-due presentation; manual payment handles; invoice review/refund states; overpayment resolution safeguards; DR photo storage fail-closed behavior.')
 print('Rendered LIVE-vs-DR comparison is still required for strict visual parity.')
