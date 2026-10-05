@@ -27,7 +27,7 @@ package=json.loads((root/'package.json').read_text()); version=json.loads((root/
 entries=parity.get('entries',[]); live=sum(1 for x in entries if isinstance(x,dict) and x.get('live_evidence_status')=='CAPTURED'); independent=sum(1 for x in entries if isinstance(x,dict) and x.get('independent_evidence_status')=='CAPTURED'); verified=sum(1 for x in entries if isinstance(x,dict) and x.get('comparison_status')=='VERIFIED_IDENTICAL'); mismatches=sum(1 for x in entries if isinstance(x,dict) and x.get('comparison_status') in {'MISMATCH','MISMATCHED'})
 names=inventory.get('scripts'); scripts_dir=repo_root/'scripts'
 if not isinstance(names,list) or len(names)!=len(set(names)): raise SystemExit('DR_BUILD_PROVENANCE=FAIL: malformed script inventory')
-discovered={p.name for p in scripts_dir.iterdir() if p.is_file() and (p.name.startswith(('apply-fire-dr-','verify-fire-dr-','write-fire-dr-','deploy-fire-dr-','register-fire-dr-')) or p.name=='prepare-fire-v138-dr-no-r2.sh')}; listed=set(names)
+discovered={p.name for p in scripts_dir.iterdir() if p.is_file() and (p.name.startswith(('apply-fire-dr-','verify-fire-dr-','write-fire-dr-','deploy-fire-dr-','register-fire-dr-','report-fire-dr-')) or p.name=='prepare-fire-v138-dr-no-r2.sh')}; listed=set(names)
 if discovered!=listed: raise SystemExit('DR_BUILD_PROVENANCE=FAIL: governed script inventory drift')
 governed_scripts={n:sha256(scripts_dir/n) for n in sorted(names)}
 governance={}
@@ -49,4 +49,4 @@ if written['parity_evidence']['persistent_independent_overlay_sha256']!=sha256(i
 if written['safety']['independent_evidence_auto_promotes_comparison'] is not False: errors.append('comparison-promotion-policy')
 if errors: raise SystemExit('DR_BUILD_PROVENANCE=FAIL: '+', '.join(errors))
 print('DR_BUILD_PROVENANCE=PASS')
-print(f'Fingerprint includes {len(discovered)} governed DR scripts, persistent independent evidence overlay, {len(governance_names)} governance documents, 21 migrations, and {count} deployable files; no session secret value recorded.')
+print(f'Fingerprint includes {len(discovered)} governed DR scripts (including evidence registration/reporting), persistent independent evidence overlay, {len(governance_names)} governance documents, 21 migrations, and {count} deployable files; no session secret value recorded.')
