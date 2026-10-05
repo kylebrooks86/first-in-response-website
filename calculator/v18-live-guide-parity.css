@@ -8,6 +8,7 @@
   #guide>.card:nth-child(2) details,#guide>.card:nth-child(2) details summary,#guide>.card:nth-child(2) details>div{background:transparent!important}
   #guide>.card:nth-child(2) details summary{padding:14px 0!important;line-height:1.22!important}
   #guide>.card:nth-child(2) details>div{padding:0!important;color:#607381!important}
+  #guide>.card:nth-child(2) details[open]>div{padding-bottom:16px!important}
   #guide>.card:nth-child(2) details[open]>div>p.muted{margin:0!important;font-size:13px!important;line-height:1.35!important}
   #guide>.card:nth-child(2) details:nth-of-type(4)>summary{min-height:71.4px!important;display:flex!important;align-items:center!important}
   #guide>.card:nth-child(2) details:last-child>summary{min-height:48.2px!important}
