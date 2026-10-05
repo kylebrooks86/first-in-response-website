@@ -66,6 +66,14 @@ Known LIVE evidence already exists for selected Payments/Invoices/Photos states;
 
 Owner decision recorded 2026-10-05: the current DR customer section is preferred over the older LIVE customer section. The richer DR profile is an approved forward-sync target, not a defect. Preserve its customer actions, property preview, and Edit customer capability. Exact-parity review of individual customer tabs (Payments, Invoices, Photos, Messages, Notes, Estimates) still applies; the surrounding richer customer-profile shell remains intentionally ahead until LIVE is upgraded to match it.
 
+LIVE forward-sync acceptance criteria for this customer-profile exception:
+- Existing customer can be edited in place for name, email, phone, service address, and lead source.
+- Saving keeps the same customer record/ID and does not create a duplicate customer.
+- Existing estimates, invoices, payments, signed agreements, pricing, and job history are not rewritten.
+- Newly added phone/email/address immediately enables the applicable Call / Text / Email / Google Maps / Google Earth / Zillow / property-preview actions after save.
+- The richer DR customer shell remains intact; LIVE is brought forward rather than DR being reduced.
+- Do not remove the two `FORWARD SYNC APPROVED` matrix rows until the upgraded LIVE customer profile is rendered on the same device/profile and deliberately compared against DR.
+
 ## Priority 4 — customer-facing estimate / approval
 
 29. Estimate document initial state.
