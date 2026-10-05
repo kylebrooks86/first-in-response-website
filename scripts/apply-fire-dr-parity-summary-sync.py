@@ -6,8 +6,9 @@ manifest_path = Path('PARITY_EVIDENCE_MANIFEST.json')
 release_path = Path('RELEASE_STATUS.md')
 audit_path = Path('CURRENT_PARITY_AUDIT.md')
 matrix_path = Path('STRICT_PARITY_MATRIX.md')
+forward_sync_path = Path('FORWARD_SYNC_APPROVED.json')
 
-for path in [manifest_path, release_path, audit_path, matrix_path]:
+for path in [manifest_path, release_path, audit_path, matrix_path, forward_sync_path]:
     if not path.is_file():
         raise SystemExit(f'DR_PARITY_SUMMARY_SYNC=FAIL: missing {path}')
 
@@ -42,10 +43,24 @@ infrastructure_only = sum(
 pending = len(entries) - verified - mismatches - infrastructure_only
 
 matrix_text = matrix_path.read_text()
+forward_sync = json.loads(forward_sync_path.read_text())
+if forward_sync.get('schema_version') != 1 or not isinstance(forward_sync.get('entries'), list):
+    raise SystemExit('DR_PARITY_SUMMARY_SYNC=FAIL: forward-sync registry malformed')
 forward_sync_approved = sum(
+    1 for item in forward_sync['entries']
+    if isinstance(item, dict)
+    and item.get('status') == 'PENDING_LIVE_SYNC'
+    and item.get('blocks_full_identical') is True
+)
+matrix_forward_sync = sum(
     1 for line in matrix_text.splitlines()
     if '| FORWARD SYNC APPROVED |' in line
 )
+if matrix_forward_sync != forward_sync_approved:
+    raise SystemExit(
+        'DR_PARITY_SUMMARY_SYNC=FAIL: '
+        f'matrix forward-sync rows={matrix_forward_sync} but registry blockers={forward_sync_approved}'
+    )
 
 if min(
     live,
