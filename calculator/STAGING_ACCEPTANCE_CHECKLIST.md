@@ -1,14 +1,24 @@
 # FIRE Business Calculator — Staging Acceptance Checklist
 
-Do not promote a release until every required item is checked in BOTH staging deployments using disposable test data.
+Do not promote this release until every required parity item is verified against the actual LIVE calculator and all physical-device acceptance items are complete.
+
+Current release state: **REAL-DEVICE PARITY RE-AUDIT IN PROGRESS — NOT SYNCHRONIZED**
+
+Current governed DR identity:
+
+- Shared-core fingerprint: `9e3c7d705165e5d74ee369e484f428eecafcddd80cdf92a54dfad8fd5dd6604d`
+- Offline cache generation: `72`
+- Branch: `fire-calculator-exact-live-clone`
+
+The owner’s iPhone test found material Index/Mixes visual/functional mismatches despite earlier green automation. Therefore unchecked rendered/device items below remain true release blockers. Automated checks are regression evidence only and cannot close a real-device mismatch.
 
 ## Release identity
 
-- [ ] Both show the same FIRE Calculator version.
-- [ ] Both expose the same shared-core fingerprint.
-- [ ] `SHARED_CORE_MANIFEST.json` matches byte-for-byte.
-- [ ] Formula regression suite passes with zero failures.
-- [ ] No shared-core file differs between deployments.
+- [ ] LIVE and DR show the same FIRE Calculator version after intentional promotion.
+- [ ] LIVE and DR expose the same shared-core fingerprint after intentional promotion.
+- [ ] `SHARED_CORE_MANIFEST.json` matches the promoted shared core.
+- [x] Formula regression/contract automation has passed on staging.
+- [ ] No shared-core file differs between independently deployed LIVE and DR after promotion.
 
 ## Launch / layout
 
@@ -18,94 +28,100 @@ Do not promote a release until every required item is checked in BOTH staging de
 - [ ] Same top tabs, order, labels, active state and scrolling.
 - [ ] Same bottom navigation, order, icons, labels and active state.
 - [ ] Same card order, width, spacing, borders, shadows and backgrounds.
-- [ ] Same light-mode colors.
-- [ ] Same dark-mode colors.
+- [ ] Same light-mode colors route-by-route.
+- [ ] Same dark-mode colors route-by-route.
 - [ ] Same iPhone safe-area handling.
 - [ ] No top-edge blur/transparency difference.
 
-## SH Mix
+## SH Mix / Mixes
 
-- [ ] Every surface option matches.
-- [ ] Growth options/default match.
-- [ ] Every batch preset and quick-batch option matches.
-- [ ] Custom units/defaults match.
-- [ ] Recipe wording and rounding match.
-- [ ] SH/water/Elemonator values match.
-- [ ] Elemonator enable/rate behavior matches.
-- [ ] Stock-strength correction matches.
-- [ ] Blank/zero/invalid/large inputs match.
+- [ ] Surface options/order match LIVE.
+- [ ] Growth options/default match LIVE.
+- [ ] Batch presets and quick-batch options match LIVE.
+- [ ] Custom units/defaults match LIVE.
+- [ ] Recipe wording and rounding match LIVE.
+- [ ] SH/water/Elemonator values match LIVE.
+- [ ] Elemonator enable/rate behavior matches LIVE.
+- [ ] Stock-strength correction matches LIVE.
+- [ ] Blank/zero/invalid/large inputs match LIVE.
+- [ ] iPhone card structure, spacing and control sizing match LIVE.
+
+## Chemical Index / Chemicals
+
+- [ ] Chemical Use Index product list and order match LIVE.
+- [ ] Index card structure/spacing match LIVE on iPhone.
+- [ ] Search behavior matches LIVE.
+- [ ] Rank filtering matches LIVE.
+- [ ] Dose/dilution controls match LIVE.
+- [ ] Custom dilution math matches LIVE.
+- [ ] Stain/surface recommendations match LIVE.
+- [ ] Compatibility warnings match LIVE.
+- [ ] No unverified product inherits a generic dose silently.
 
 ## Equipment
 
-- [ ] X-Jet defaults, labels and outputs match.
-- [ ] Reverse X-Jet matches.
-- [ ] Bucket draw test matches.
-- [ ] Downstream estimate matches.
-- [ ] Injector-ratio test matches.
-- [ ] Three-port proportioner planner matches.
-- [ ] Tank/runtime planning matches.
-- [ ] Fill-time calculator matches.
-- [ ] Every warning/help paragraph matches.
+Direct parity corrections have been applied for X-Jet card treatment, unit pills, result grouping, reverse-calculator grouping and proportioner grouping. These remain acceptance items until compared on the real device.
 
-## Chemicals / Index
-
-- [ ] Product list and order match.
-- [ ] Dose/dilution controls match.
-- [ ] Custom dilution math matches.
-- [ ] Search behavior matches.
-- [ ] Rank filtering matches.
-- [ ] Stain/surface recommendations match.
-- [ ] Compatibility warnings match.
-- [ ] No unverified product inherits a generic dose silently.
+- [ ] X-Jet defaults, labels, card treatment and outputs match LIVE.
+- [ ] Reverse X-Jet structure/results match LIVE.
+- [ ] Bucket draw test matches LIVE.
+- [ ] Downstream estimate matches LIVE.
+- [ ] Injector-ratio test matches LIVE.
+- [ ] Three-port proportioner planner structure/results match LIVE.
+- [ ] Tank/runtime planning matches LIVE.
+- [ ] Fill-time calculator matches LIVE.
+- [ ] Every warning/help paragraph matches LIVE.
+- [ ] iPhone Equipment card geometry matches LIVE.
 
 ## Job Math
 
-- [ ] Mix-planning fields/defaults match.
-- [ ] Area helpers match.
-- [ ] Coverage calibration matches.
-- [ ] Chemical cost matches.
-- [ ] Every service row appears in the same group/order.
-- [ ] Every approved rate matches.
-- [ ] Every unapproved rate remains unpriced/configurable.
-- [ ] Minimum-job behavior matches.
-- [ ] Discount behavior matches.
-- [ ] Bundle behavior matches.
-- [ ] Override behavior matches.
-- [ ] Deposit and remaining-balance math/wording match.
-- [ ] Customer/job fields match.
-- [ ] Customer quote text/order matches.
-- [ ] Crew sheet text/order matches.
-- [ ] Loadout/profitability fields and math match.
-- [ ] Pricing editor behavior and persistence match.
+Automated behavior remains useful regression evidence, and quick-navigation visibility/placement received a parity correction. Physical/rendered acceptance remains open.
 
-## Field Tools / Guide
+- [ ] Mix-planning fields/defaults match LIVE.
+- [ ] Area helpers match LIVE.
+- [ ] Coverage calibration matches LIVE.
+- [ ] Chemical cost matches LIVE.
+- [ ] Service rows/groups/order match LIVE.
+- [ ] Approved rates match the governed LIVE calculator release.
+- [ ] Unapproved rates remain unpriced/configurable.
+- [ ] Minimum-job behavior matches LIVE.
+- [ ] Discount and bundle behavior match LIVE.
+- [ ] Override behavior matches LIVE.
+- [ ] Deposit and remaining-balance math/wording match LIVE.
+- [ ] Customer/job fields match LIVE.
+- [ ] Customer quote and crew-sheet output/order match LIVE.
+- [ ] Loadout/profitability fields and math match LIVE.
+- [ ] Pricing editor behavior/persistence match LIVE.
+- [ ] iPhone quick navigation and card geometry match LIVE.
 
-- [ ] Quick Mix Favorites match.
-- [ ] Batch History / Mix Log matches.
-- [ ] Chemical Inventory matches.
-- [ ] Timer presets/state/messages match.
-- [ ] Weather guide inputs/messages match.
-- [ ] Custom Chemical Builder matches.
-- [ ] Version/update screen matches.
-- [ ] Backup/restore UI and output schema match.
-- [ ] Field Safety Card matches.
-- [ ] Field Guide content/order matches.
+## Field Tools / Field Guide
+
+- [ ] Quick Mix Favorites match LIVE.
+- [ ] Batch History / Mix Log matches LIVE.
+- [ ] Chemical Inventory matches LIVE.
+- [ ] Timer presets/state/messages match LIVE.
+- [ ] Weather guide inputs/messages match LIVE.
+- [ ] Custom Chemical Builder matches LIVE.
+- [ ] Version/update screen matches LIVE.
+- [ ] Backup/restore UI matches LIVE-compatible behavior.
+- [ ] Field Safety Card matches LIVE.
+- [ ] Field Guide content/order/card presentation matches LIVE.
 
 ## State / persistence
 
-- [ ] First-run state matches.
-- [ ] Reloaded state matches.
+- [ ] First-run state matches LIVE.
+- [ ] Reloaded state matches LIVE.
 - [ ] Saved estimate restores identically.
 - [ ] Saved rates restore identically.
 - [ ] Timer/weather state restores identically.
 - [ ] Mix history restores identically.
 - [ ] Custom chemicals restore identically.
 - [ ] Theme restores identically.
-- [ ] Reset/clear confirmation and resulting state match.
+- [ ] Reset/clear confirmation and resulting state match LIVE.
 
 ## Value-state matrix
 
-For each relevant numeric field test:
+For each relevant numeric field compare LIVE and DR for:
 
 - [ ] blank
 - [ ] zero
@@ -115,53 +131,59 @@ For each relevant numeric field test:
 - [ ] very large value
 - [ ] pasted invalid/non-numeric value where possible
 
-## Copy / export / restore
+## Backup / restore / export
 
-Automated recovery evidence now verifies the portable FIRE Field Calculator Backup v3 contract in both directions and validates safe handling of invalid backups. Reverse DR → isolated LIVE portability is a hard release gate.
+Automated recovery evidence supports the portable FIRE Field Calculator Backup v3 / appVersion 18 contract, but rendered/native presentation remains separate.
 
-- [x] Production/LIVE backup restores into DR staging.
-- [x] DR staging portable backup restores into isolated LIVE acceptance target.
-- [x] Invalid backup produces safe error behavior without silently damaging saved state.
-- [x] Restore preserves the required tested estimate/planning fields.
-- [ ] Customer quote clipboard output matches on physical device.
-- [ ] Native OS share/export presentation matches on physical device.
+- [x] LIVE-compatible backup restores into DR staging in automated acceptance.
+- [x] DR portable backup restores into isolated LIVE-compatible acceptance target.
+- [x] Invalid backup fails safely in automated acceptance.
+- [x] Required tested estimate/planning state survives automated restore.
+- [ ] Backup/restore controls and wording match LIVE render.
+- [ ] Customer quote clipboard presentation matches on physical iPhone.
+- [ ] Native OS share/export presentation matches on physical iPhone.
+- [ ] Native print/save-PDF presentation matches on physical iPhone.
 
 ## Mobile / iPhone
 
-- [ ] Portrait layout matches at current iPhone viewport on physical device.
+- [ ] Portrait layout matches LIVE at the owner’s current iPhone viewport.
 - [ ] Keyboard does not obscure critical active field/action.
-- [x] Automated numeric input modes/behavior match.
+- [x] Automated numeric input metadata/behavior has regression coverage.
 - [ ] Sticky/fixed controls do not jump or overlap under native keyboard/safe-area conditions.
-- [ ] Tab/navigation touch targets match on physical device.
-- [x] Automated close/reopen preserves the same state offline.
+- [ ] Tab/navigation touch targets match LIVE on physical device.
+- [ ] Light-mode route-by-route physical-device acceptance complete.
+- [ ] Dark-mode route-by-route physical-device acceptance complete.
+- [x] Automated close/reopen preserves state offline.
 
 ## DR independence
 
-Automated acceptance evidence: `FIRE Calculator Offline DR Acceptance` passed on calculator verification commit `2ce908d790f240d44ee4c7e6ab35c71b6be78f0b` with the real service worker/cache generation 65, browser network disabled, all seven major routes exercised, an SH Mix dependent calculation changed offline, a portable v3 backup generated, and a full close/reopen completed while still offline. The run observed zero OpenAI/ChatGPT requests and no OpenAI/ChatGPT sign-in requirement.
+- [x] DR has automated offline-launch acceptance evidence.
+- [x] SH Mix works offline in automated acceptance.
+- [x] Equipment works offline in automated acceptance.
+- [x] Chemicals/Index works offline in automated acceptance.
+- [x] Job Math works offline in automated acceptance.
+- [x] Field Tools/Guide works offline in automated acceptance.
+- [x] Save/load works offline in automated acceptance.
+- [x] Portable backup export works offline in automated acceptance.
+- [x] Close/reopen works offline in automated acceptance.
+- [x] No ChatGPT/OpenAI sign-in is required for normal DR calculator operation.
 
-- [x] Disable network after initial install/cache and launch DR successfully.
-- [x] SH Mix works offline.
-- [x] Equipment works offline.
-- [x] Chemicals/Index works offline.
-- [x] Job Math works offline.
-- [x] Field Tools/Guide works offline.
-- [x] Save/load works offline.
-- [x] Export portable backup works offline.
-- [x] Close/reopen in airplane mode works.
-- [x] No ChatGPT/OpenAI sign-in is required.
-- [x] No normal calculator operation requires an OpenAI request.
+Current service-worker cache identifier: `fire-field-calculator-v18-exact-clone-72`.
 
-## Automated parity evidence
+## Production safety
 
-The browser automation suite has passed the current calculator candidate for Job Math, shortcuts, Pricing Editor, estimator edge states, customer/draft behavior, bundles/promotions, save/reload/clear, quote copy/share/print behavior, mobile numeric-input behavior, chemical compatibility, visual geometry, and light/dark visual comparison.
-
-These automated checks reduce the remaining acceptance work to native-device presentation items and explicit production-promotion approval; they do not authorize production changes.
+- [x] Production/LIVE remains reference-only during this re-audit.
+- [x] No production DNS change is authorized.
+- [x] No production deployment is authorized.
+- [x] No real customer data change is authorized.
+- [x] Unrelated FIRE Business App / v138 work is outside this calculator acceptance checklist.
 
 ## Final acceptance
 
+- [ ] Complete same-state LIVE-vs-DR rendered comparisons for every required section.
 - [ ] Complete remaining physical-device iPhone acceptance items.
-- [ ] Confirm no required parity-matrix row remains unresolved for production promotion.
-- [ ] Obtain explicit owner approval for production switch/promote.
-- [ ] Deploy the same governed shared-core release to production and DR.
+- [ ] Confirm no required parity row remains unresolved.
+- [ ] Obtain explicit owner approval for production promotion.
+- [ ] Deploy the same governed shared-core release intentionally to LIVE and DR.
 - [ ] Verify both deployments report the exact same shared-core fingerprint.
 - [ ] Only then update release status to SYNCHRONIZED.
