@@ -110,13 +110,21 @@ Show the current capture queue first:
 python3 scripts/report-fire-dr-evidence-capture-queue.py
 ```
 
+Before taking screenshots, while logged into the DR app, open the authenticated capture-identity endpoint and record its `captureId`:
+
+```text
+https://fire-app-independent-staging.kyle-bfc.workers.dev/api/dr-capture-identity
+```
+
+The endpoint returns only non-secret staging identity fields (exact source commit, v138 release, deterministic capture ID, and forward-sync registry fingerprint), is owner-authenticated, and is marked no-store. The capture ID must come from the same deployed DR build shown in the screenshots.
+
 Register one real DR screenshot only after the governed DR build that produced it exists:
 
 ```sh
-python3 scripts/register-fire-dr-independent-evidence.py --entry-id <formal-id> --file <screenshot> --notes "Exact DR state captured to match registered LIVE evidence."
+python3 scripts/register-fire-dr-independent-evidence.py --entry-id <formal-id> --file <screenshot> --capture-id <capture-id> --notes "Exact DR state captured to match registered LIVE evidence."
 ```
 
-The registrar records the screenshot hash/bytes/dimensions/profile, persists the exact source-build provenance snapshot, rejects profile mismatches by default, invalidates any prior comparison if evidence is explicitly replaced, synchronizes parity summaries, and never auto-promotes `comparison_status`.
+The registrar requires the deployed capture ID to match the exact source-build provenance, records the screenshot hash/bytes/dimensions/profile, persists that provenance snapshot, rejects stale-build or profile-mismatched captures by default, invalidates any prior comparison if evidence is explicitly replaced, synchronizes parity summaries, and never auto-promotes `comparison_status`.
 
 After visually and functionally reviewing the exact registered LIVE/DR pair, record an identical result only with both review confirmations:
 
