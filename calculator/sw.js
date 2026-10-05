@@ -3,7 +3,7 @@ const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
-  './full-v18.js?v=7',
+  './full-v18.js?v=6',
   './full-v18-core.js?v=1',
   './v18-legacy-job-detach.js?v=2',
   './full-v18-parity-core.js?v=3',
@@ -42,6 +42,14 @@ const ASSETS=[
   './v18-live-portable-backup.js?v=1',
   './v18-live-input-contract.js?v=3'
 ];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
+self.addEventListener('install',e=>e.waitUntil((async()=>{
+  const cache=await caches.open(CACHE);
+  await Promise.all(ASSETS.map(async url=>{
+    const response=await fetch(url,{cache:'reload'});
+    if(!response||!response.ok)throw new Error(`Failed to refresh ${url}`);
+    await cache.put(url,response);
+  }));
+  await self.skipWaiting();
+})()));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('fire-field-calculator-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{if(res&&res.status===200){const copy=res.clone();caches.open(CACHE).then(c=>c.put(e.request,copy))}return res}).catch(()=>e.request.mode==='navigate'?caches.match('./index.html'):undefined)))});
