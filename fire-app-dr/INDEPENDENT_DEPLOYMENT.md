@@ -17,12 +17,7 @@ The sealed v138 package remains unchanged. DR-only compatibility/auth/parity cha
 
 Do not attach the production website domain, reuse production databases/storage, import real customer records, or modify LIVE while strict DR parity is still being closed.
 
-The current DR deployment must remain isolated from:
-
-- production/LIVE hosting
-- production DNS
-- production D1/R2 resources
-- real customer data unless the owner explicitly authorizes a recovery import
+The current DR deployment must remain isolated from production/LIVE hosting, production DNS, production D1/R2 resources, and real customer data unless the owner explicitly authorizes a recovery import.
 
 ## 1. Required source baseline
 
@@ -36,7 +31,7 @@ The current preparation path requires:
 
 If the archive hash or release identity does not match, preparation must stop.
 
-## 2. Current Cloudflare build configuration
+## 2. Current Cloudflare build and deploy configuration
 
 Build command:
 
@@ -44,101 +39,52 @@ Build command:
 git fetch origin fire-calculator-exact-live-clone && git checkout fire-calculator-exact-live-clone && bash scripts/prepare-fire-v138-dr-no-r2.sh
 ```
 
-Deploy command:
+Governed deploy command:
 
 ```sh
-cd fire-app-dr && python3 ../scripts/verify-fire-dr-predeploy-provenance.py && pnpm exec wrangler d1 migrations apply fire-app-staging-db --remote --config dist/server/wrangler.independent.json && pnpm exec wrangler deploy --config dist/server/wrangler.independent.json
+bash scripts/deploy-fire-dr-staging.sh
 ```
 
-The predeploy provenance check is mandatory. It re-verifies the checked-out commit, governed release, independent Worker/D1 target, no-R2 rule, governed scripts, governance documents, and staged migration hashes immediately before any remote migration or Worker deployment command runs.
+Do not manually substitute a plain Wrangler deploy command. The governed wrapper requires the current `origin/fire-calculator-exact-live-clone` commit, re-runs predeploy provenance, validates the independent Worker/D1/no-R2 target, applies remote migrations only to `fire-app-staging-db` with the independent config, re-runs provenance after migrations, and only then deploys the independent Worker with that same config.
 
-The preparation script:
+The preparation script verifies the current staging branch and sealed archive, restores persistent governance/evidence overlays, verifies v138 identity and the governed script inventory, applies the PIN/mobile/Templates/LIVE-evidence overlays, restores persistent independent evidence and deliberate comparison decisions, synchronizes parity summaries, verifies overlay idempotency plus owner/customer/service/restore/refund/evidence/parity guards, builds, validates the D1-only/no-R2 deployment config, stages the exact 21 migrations, fingerprints post-build artifacts and evidence state, self-tests predeploy provenance, then runs typecheck and reports the result honestly.
 
-1. verifies the sealed archive hash;
-2. extracts a fresh `fire-app-dr` source tree;
-3. restores the persistent DR governance/audit overlays that intentionally live outside the extracted tree;
-4. verifies v138 package/release identity;
-5. verifies the governed DR script inventory and isolated deployment runbook;
-6. applies the DR-only 4-digit PIN overlay;
-7. applies the user-confirmed mobile-shell/header parity overlay;
-8. applies the Templates mobile parity overlay;
-9. applies stored-LIVE evidence corrections, including approved-estimate signer-name wording;
-10. verifies overlay idempotency;
-11. runs LIVE parity, owner-workflow, 30-service catalog, LIVE-evidence coverage, customer-workflow, restore/lifecycle/refund, and formal parity-ledger guards;
-12. installs dependencies and builds;
-13. writes and validates a separate D1-only Wrangler config with no R2 binding;
-14. requires the exact canonical migration sequence `0000` through `0020` and stages all 21 migrations;
-15. verifies post-build deployment artifacts byte-for-byte;
-16. writes build provenance with the checked-out source commit, provider trigger commit, governed scripts/documents, parity evidence, deployment target, and migration fingerprints;
-17. runs typecheck and reports its result honestly.
+The preparation script runs the LIVE-evidence coverage/accountability guard so newly registered LIVE evidence cannot silently bypass DR parity coverage.
 
 The sealed-v138 TypeScript errors are currently known and treated as `FAIL_NONBLOCKING` only after the production build succeeds. Do not report typecheck as passing unless it actually passes.
 
 ## 3. Authentication
 
-The current DR deployment does **not** use the old long-password setup described by earlier staging documents.
+The current DR deployment does **not** use the old long-password setup described by earlier staging documents. The preparation overlay changes the owner login to a 4-digit PIN flow and creates a signed owner session. The PIN itself must not be stored in plain text in documentation or source.
 
-The preparation overlay changes the owner login to a 4-digit PIN flow and creates a signed owner session. The PIN itself must not be stored in plain text in documentation or source.
-
-Verify after deployment:
-
-- incorrect PIN is rejected;
-- correct PIN opens the owner app;
-- the session persists as expected;
-- the owner can return to the Home Screen-installed app without reconfiguration;
-- authentication changes do not alter the post-login LIVE-style app experience.
+Verify after deployment that an incorrect PIN is rejected, the correct PIN opens the owner app, the session persists as expected, the Home Screen-installed app remains usable, and authentication does not alter the post-login LIVE-style experience.
 
 ## 4. D1-only staging and migrations
 
-The current independent Wrangler config must contain exactly the isolated D1 binding and no R2 binding.
+The current independent Wrangler config must contain exactly the isolated D1 binding and no R2 binding. The governed deploy wrapper is the only documented deployment path.
 
-Before deploy, verify the generated config targets:
+Before any remote mutation, the wrapper verifies the generated config still targets:
 
 ```text
 fire-app-staging-db
 afb2c05a-d794-4a9a-b580-924ce01c26ad
 ```
 
-Then run the mandatory predeploy provenance check and apply the 21 migrations with the deploy command above.
-
 Do not point the staging Worker at any production database.
 
 ## 5. Photo capability exception
 
-The current DR deployment has no R2 bucket because the owner chose the free D1-only staging path.
-
-Therefore:
-
-- Photos UI can still be compared visually with LIVE.
-- Actual photo upload/archive/download is **not** functionally equivalent to LIVE.
-- `/api/customer-photos` must fail closed with `Photo storage is unavailable.` when storage is missing.
-- JSON records backup may include photo metadata, but photo files are not recoverable from this D1-only deployment.
-- Do not mark photo-file recovery `VERIFIED_IDENTICAL` until a storage capability is intentionally provisioned and tested.
+The current DR deployment has no R2 bucket because the owner chose the free D1-only staging path. Photos UI can still be compared visually with LIVE, but actual photo upload/archive/download is **not** functionally equivalent to LIVE. `/api/customer-photos` must fail closed with `Photo storage is unavailable.` when storage is missing. JSON records backup may include photo metadata, but photo files are not recoverable from this D1-only deployment. Do not mark photo-file recovery `VERIFIED_IDENTICAL` until storage is intentionally provisioned and tested.
 
 This is an explicit capability exception, not a hidden defect or fake-success path.
 
 ## 6. Stripe
 
-Stripe configuration is not required to prove basic owner UI parity.
-
-If Stripe is tested in staging, use the intended non-production configuration and verify server-side amount calculation, session tracking, webhook signature handling, idempotency, refund behavior, and stale-session expiration.
-
-Do not enable live charging merely to prove rendered parity.
+Stripe configuration is not required to prove basic owner UI parity. If Stripe is tested in staging, use the intended non-production configuration and verify server-side amount calculation, session tracking, webhook signature handling, idempotency, refund behavior, and stale-session expiration. Do not enable live charging merely to prove rendered parity.
 
 ## 7. Backup and restore
 
-The records backup/restore path remains important in D1-only DR staging.
-
-The in-app JSON restore is merge-only:
-
-- missing records may be added;
-- existing records are preserved;
-- records are not silently overwritten or deleted;
-- checkout-session safety is preserved;
-- invoice revision history is preserved;
-- refund integrity is validated;
-- lifecycle notification duplicates from older backups are normalized;
-- post-write verification failures return structured restore-audit guidance.
+The records backup/restore path remains important in D1-only DR staging. The in-app JSON restore is merge-only: missing records may be added; existing records are preserved; records are not silently overwritten or deleted; checkout-session safety is preserved; invoice revision history is preserved; refund integrity is validated; lifecycle notification duplicates from older backups are normalized; and post-write verification failures return structured restore-audit guidance.
 
 Photo-file restore remains unavailable without storage and must not be represented as working.
 
@@ -146,47 +92,43 @@ Photo-file restore remains unavailable without storage and must not be represent
 
 Use disposable staging data only while parity is incomplete.
 
-Verify:
-
-- PIN login works;
-- Dashboard and navigation render correctly;
-- top Back / Home / Theme / Menu controls remain crisp and correctly inset;
-- bottom navigation works;
-- Templates mobile selection/edit flow works;
-- estimate creation exposes the current LIVE-captured 30-service catalog in the same order;
-- approved/signed confirmation retains the signer name when available;
-- estimate creation and discounts work;
-- approved/signed estimates can be scheduled without a hard deposit gate;
-- job completion still requires the completion report;
-- Completed exposes Create invoice and, after creation, the owner state changes to Invoice created / Send invoice;
-- final invoice becomes the canonical completed-job billing amount;
-- payments/refunds fail closed during unresolved refund/overpayment states;
-- JSON backup and merge-only restore work against disposable D1 data;
-- photo actions fail clearly while no storage binding exists;
-- no production resources are attached.
+Verify PIN login, Dashboard/navigation, crisp/inset top Back/Home/Theme/Menu controls, bottom navigation, Templates mobile selection/edit flow, the LIVE-captured 30-service catalog/order, signer-name retention, estimate/discount behavior, scheduling without a hard deposit gate, completion-report requirement, Completed → Create invoice → Invoice created / Send invoice transition, final-invoice billing, refund/overpayment payment locks, JSON backup/merge-only restore, clear photo-storage failure, and absence of production resource bindings.
 
 Scrolling/smoothness is intentionally frozen as accepted by the owner and is not an active parity-tuning target.
 
 ## 9. Rendered parity evidence
 
-Formal parity remains governed by:
+Formal parity remains governed by `PARITY_EVIDENCE_MANIFEST.json`, `STRICT_PARITY_MATRIX.md`, `LIVE_MASTER_PARITY_CHECKLIST.md`, and `STRICT_RENDERED_PARITY_QUEUE.md`. The working queue contains 95 rendered states; the formal evidence manifest contains 32 release-gating parity entries.
 
-- `PARITY_EVIDENCE_MANIFEST.json`
-- `STRICT_PARITY_MATRIX.md`
-- `LIVE_MASTER_PARITY_CHECKLIST.md`
-- `STRICT_RENDERED_PARITY_QUEUE.md`
+Do not mark a formal state identical from source inspection alone. Independent evidence and comparison decisions persist outside the extracted `fire-app-dr` tree so sealed-v138 rebuilds cannot silently erase them.
 
-The working queue contains 95 rendered states; the formal evidence manifest contains 32 release-gating parity entries.
+Show the current capture queue first:
 
-Do not mark a formal state identical from source inspection alone.
+```sh
+python3 scripts/report-fire-dr-evidence-capture-queue.py
+```
 
-For every formal comparison:
+Register one real DR screenshot only after the governed DR build that produced it exists:
 
-1. capture the same state in LIVE and DR;
-2. use the same content/state, device class, orientation, viewport, and theme where practical;
-3. register both evidence files with hashes and provenance;
-4. compare the exact registered pair;
-5. mark `VERIFIED_IDENTICAL` only when the comparison is actually complete.
+```sh
+python3 scripts/register-fire-dr-independent-evidence.py --entry-id <formal-id> --file <screenshot> --notes "Exact DR state captured to match registered LIVE evidence."
+```
+
+The registrar records the screenshot hash/bytes/dimensions/profile, persists the exact source-build provenance snapshot, rejects profile mismatches by default, invalidates any prior comparison if evidence is explicitly replaced, synchronizes parity summaries, and never auto-promotes `comparison_status`.
+
+After visually and functionally reviewing the exact registered LIVE/DR pair, record an identical result only with both review confirmations:
+
+```sh
+python3 scripts/record-fire-dr-parity-comparison.py --entry-id <formal-id> --result identical --notes "Exact registered LIVE and DR pair reviewed." --visual-review-complete --functional-review-complete
+```
+
+Record a mismatch instead when the pair differs:
+
+```sh
+python3 scripts/record-fire-dr-parity-comparison.py --entry-id <formal-id> --result mismatch --notes "Describe the exact rendered or functional difference."
+```
+
+Every comparison decision is tied to the exact LIVE and DR SHA-256 values. Replacing either DR evidence file invalidates the old comparison and requires fresh review. `VERIFIED_IDENTICAL` is never inferred merely because both screenshots exist.
 
 Known current formal evidence summary remains:
 
