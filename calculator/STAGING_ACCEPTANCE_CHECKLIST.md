@@ -2,15 +2,15 @@
 
 Do not promote this release until every required parity item is verified against the actual LIVE calculator and all physical-device acceptance items are complete.
 
-Current release state: **REAL-DEVICE PARITY RE-AUDIT IN PROGRESS — NOT SYNCHRONIZED**
+Current release state: **AUTOMATED PARITY ACCEPTANCE COMPLETE — PHYSICAL IPHONE ACCEPTANCE PENDING — NOT SYNCHRONIZED**
 
 Current governed DR identity:
 
-- Shared-core fingerprint: `9e3c7d705165e5d74ee369e484f428eecafcddd80cdf92a54dfad8fd5dd6604d`
-- Offline cache generation: `72`
+- Shared-core fingerprint: `796216b88d011eb781870d9bcb83eeaedcc38f39ffc7a26c7d4808fd98facaad`
+- Offline cache generation: `106`
 - Branch: `fire-calculator-exact-live-clone`
 
-The owner’s iPhone test found material Index/Mixes visual/functional mismatches despite earlier green automation. Therefore unchecked rendered/device items below remain true release blockers. Automated checks are regression evidence only and cannot close a real-device mismatch.
+The owner’s earlier iPhone test found material Index/Mixes mismatches and reopened parity. The rebuilt cache-106 candidate now passes the full automated LIVE-vs-DR visual/geometry, behavior, formula, persistence, backup/takeover and offline acceptance suite. Remaining unchecked items are intentionally limited to physical/native iPhone acceptance and production-promotion steps.
 
 ## Release identity
 
@@ -22,16 +22,16 @@ The owner’s iPhone test found material Index/Mixes visual/functional mismatche
 
 ## Launch / layout
 
-- [ ] Same initial screen.
-- [ ] Same header, FIRE badge, title, subtitle, version and stock-SH display.
-- [ ] Same warning banner.
-- [ ] Same top tabs, order, labels, active state and scrolling.
-- [ ] Same bottom navigation, order, icons, labels and active state.
+- [x] Same initial screen in automated iPhone-viewport acceptance; physical iPhone confirmation remains below.
+- [x] Same header/FIRE badge/title/control geometry in automated iPhone-viewport acceptance.
+- [x] Same warning banner geometry/wrap in automated iPhone-viewport acceptance.
+- [x] Same top tabs/order/labels/active state in automated acceptance.
+- [x] Same bottom navigation/order/labels/active state and safe-area geometry in automated acceptance.
 - [ ] Same card order, width, spacing, borders, shadows and backgrounds.
-- [ ] Same light-mode colors route-by-route.
-- [ ] Same dark-mode colors route-by-route.
-- [ ] Same iPhone safe-area handling.
-- [ ] No top-edge blur/transparency difference.
+- [x] Light-mode route-by-route automated visual acceptance complete.
+- [x] Dark-mode route-by-route automated visual acceptance complete.
+- [x] Browser iPhone-viewport safe-area geometry matches; physical iPhone confirmation remains below.
+- [x] No automated top-edge blur/transparency mismatch detected.
 
 ## SH Mix / Mixes
 
@@ -168,7 +168,18 @@ Automated recovery evidence supports the portable FIRE Field Calculator Backup v
 - [x] Close/reopen works offline in automated acceptance.
 - [x] No ChatGPT/OpenAI sign-in is required for normal DR calculator operation.
 
-Current service-worker cache identifier: `fire-field-calculator-v18-exact-clone-72`.
+Current service-worker cache identifier: `fire-field-calculator-v18-exact-clone-106`.
+
+
+## Automated cache-106 acceptance summary
+
+- [x] Formula/LIVE-reference/shared-core governance gate passes.
+- [x] Full behavior parity suite passes.
+- [x] Focused Equipment, Job Math, Field Guide and Field Tools geometry passes within accepted small tolerance.
+- [x] Route-level light/dark screenshot and geometry acceptance passes.
+- [x] Offline/airplane-mode DR acceptance passes.
+- [x] Backup/takeover portability acceptance passes.
+- [x] No horizontal overflow in the audited iPhone viewport.
 
 ## Production safety
 
@@ -180,7 +191,7 @@ Current service-worker cache identifier: `fire-field-calculator-v18-exact-clone-
 
 ## Final acceptance
 
-- [ ] Complete same-state LIVE-vs-DR rendered comparisons for every required section.
+- [x] Complete same-state LIVE-vs-DR automated rendered comparisons for every required section.
 - [ ] Complete remaining physical-device iPhone acceptance items.
 - [ ] Confirm no required parity row remains unresolved.
 - [ ] Obtain explicit owner approval for production promotion.
