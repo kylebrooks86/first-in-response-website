@@ -79,6 +79,10 @@ python3 ../scripts/verify-fire-dr-owner-workflows.py
 # Protect customer approval/payment/document states and DR recovery-edge safeguards.
 python3 ../scripts/verify-fire-dr-customer-workflows.py
 
+# Keep the 32-state formal ledger, checklist, release summary, strict verdict,
+# 95-state queue status, scroll freeze, and DR photo capability disclosure synchronized.
+python3 ../scripts/verify-fire-dr-parity-ledger-consistency.py
+
 corepack enable
 pnpm install --frozen-lockfile
 pnpm run build
