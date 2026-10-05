@@ -76,6 +76,9 @@ python3 ../scripts/verify-fire-dr-live-parity-overlays.py
 # Protect owner-side Business/Templates/invoice/refund parity contracts while visual proof is pending.
 python3 ../scripts/verify-fire-dr-owner-workflows.py
 
+# Protect customer approval/payment/document states and DR recovery-edge safeguards.
+python3 ../scripts/verify-fire-dr-customer-workflows.py
+
 corepack enable
 pnpm install --frozen-lockfile
 pnpm run build
