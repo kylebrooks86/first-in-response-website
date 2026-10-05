@@ -109,7 +109,7 @@
       const isShort=shortSh>.049||shortEle>.049;
       status.className='fire-loadout-status '+(isShort?'is-short':'is-ready');
       if(isShort){
-        status.innerHTML=`<strong>Loadout is short</strong><p>SH: ${(onSh*128).toFixed(1)} fl oz on hand / ${needShOz.toFixed(1)} fl oz needed — need ${shortSh.toFixed(1)} fl oz more. Elemonator: ${onEleOz.toFixed(1)} oz on hand / ${needEleOz.toFixed(1)} oz needed — need ${shortEle.toFixed(1)} oz more.</p>`;
+        status.innerHTML=`<strong>Loadout is short</strong><p>SH: ${(onSh*128).toFixed(2)} fl oz on hand / ${needShOz.toFixed(1)} fl oz needed — need ${shortSh.toFixed(1)} fl oz more. Elemonator: ${onEleOz.toFixed(1)} oz on hand / ${needEleOz.toFixed(1)} oz needed — need ${shortEle.toFixed(1)} oz more.</p>`;
       }else{
         status.innerHTML=`<strong>Loadout is ready</strong><p>Planned job chemicals are covered by the inventory currently on this device.</p>`;
       }
