@@ -67,16 +67,19 @@ if errors:
         print(f'- {error}')
     raise SystemExit(1)
 
-# v135-v138 are restore/recovery milestones rather than rendered states. Run the
-# dedicated restore-invariant guard as a subguard here so every normal DR build
-# also protects legacy lifecycle normalization, post-apply verification, audit
-# phases/attempt IDs, and audit-first retry guidance after possible writes.
-restore_guard = Path(__file__).with_name('verify-fire-dr-restore-v135-v138.py')
-subprocess.run([sys.executable, str(restore_guard)], check=True)
+# v134-v138 are lifecycle/recovery integrity milestones rather than rendered
+# states. Run their dedicated subguards here so every normal DR build protects
+# those release invariants in addition to the formal LIVE-evidence mapping.
+for guard_name in [
+    'verify-fire-dr-lifecycle-v134.py',
+    'verify-fire-dr-restore-v135-v138.py',
+]:
+    guard = Path(__file__).with_name(guard_name)
+    subprocess.run([sys.executable, str(guard)], check=True)
 
 print('DR_LIVE_EVIDENCE_COVERAGE=PASS')
 print(f'All {len(captured)} currently LIVE-captured formal states are explicitly mapped to DR parity protection.')
 for entry_id in sorted(captured):
     print(f'- {entry_id}: {covered[entry_id]}')
-print('Late v135-v138 restore/recovery invariants also passed their dedicated subguard.')
+print('v134 lifecycle-race integrity and v135-v138 restore/recovery invariants also passed their dedicated subguards.')
 print('This is coverage/accountability only; independent rendered evidence is still required before VERIFIED_IDENTICAL.')
