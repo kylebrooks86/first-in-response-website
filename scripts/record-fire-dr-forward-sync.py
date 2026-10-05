@@ -11,6 +11,8 @@ persistent_registry = repo_root / 'dr-parity-overlays' / 'FORWARD_SYNC_APPROVED.
 working_registry = app_dir / 'FORWARD_SYNC_APPROVED.json'
 persistent_matrix = repo_root / 'dr-parity-overlays' / 'STRICT_PARITY_MATRIX.md'
 working_matrix = app_dir / 'STRICT_PARITY_MATRIX.md'
+release_status = app_dir / 'RELEASE_STATUS.md'
+parity_audit = app_dir / 'CURRENT_PARITY_AUDIT.md'
 
 parser = argparse.ArgumentParser(
     description='Deliberately record or reopen one owner-approved DR-to-LIVE forward-sync state.'
@@ -22,7 +24,15 @@ parser.add_argument('--same-device-render-reviewed', action='store_true')
 parser.add_argument('--functional-review-complete', action='store_true')
 args = parser.parse_args()
 
-for path in [persistent_registry, working_registry, persistent_matrix, working_matrix]:
+tracked_paths = [
+    persistent_registry,
+    working_registry,
+    persistent_matrix,
+    working_matrix,
+    release_status,
+    parity_audit,
+]
+for path in tracked_paths:
     if not path.is_file():
         raise SystemExit(f'DR_FORWARD_SYNC_RECORD=FAIL: missing {path}')
 
@@ -30,7 +40,13 @@ notes = args.notes.strip()
 if not notes:
     raise SystemExit('DR_FORWARD_SYNC_RECORD=FAIL: notes must not be blank')
 
-registry = json.loads(persistent_registry.read_text())
+old_text = {path: path.read_text() for path in tracked_paths}
+if old_text[persistent_registry] != old_text[working_registry]:
+    raise SystemExit('DR_FORWARD_SYNC_RECORD=FAIL: working forward-sync registry drifted from persistent overlay')
+if old_text[persistent_matrix] != old_text[working_matrix]:
+    raise SystemExit('DR_FORWARD_SYNC_RECORD=FAIL: working strict matrix drifted from persistent overlay')
+
+registry = json.loads(old_text[persistent_registry])
 if registry.get('schema_version') != 1 or not isinstance(registry.get('entries'), list):
     raise SystemExit('DR_FORWARD_SYNC_RECORD=FAIL: forward-sync registry malformed')
 
@@ -51,6 +67,16 @@ if not area or not pending_note or not synced_note:
     raise SystemExit(
         'DR_FORWARD_SYNC_RECORD=FAIL: registry entry requires matrix_area, '
         'pending_matrix_note, and synced_matrix_note'
+    )
+
+matrix = old_text[persistent_matrix]
+lines = matrix.splitlines()
+prefix = f'| {area} |'
+matches = [i for i, line in enumerate(lines) if line.startswith(prefix)]
+if len(matches) != 1:
+    raise SystemExit(
+        f'DR_FORWARD_SYNC_RECORD=FAIL: expected exactly one matrix row for {area!r}, '
+        f'found {len(matches)}'
     )
 
 current_status = entry.get('status')
@@ -75,6 +101,8 @@ if args.result == 'synced':
     entry['sync_notes'] = notes
     entry['same_device_render_reviewed'] = True
     entry['functional_review_complete'] = True
+    entry.pop('reopened_at_utc', None)
+    entry.pop('reopen_notes', None)
     matrix_status = 'VERIFIED IDENTICAL'
     matrix_note = synced_note
 else:
@@ -93,47 +121,46 @@ else:
     matrix_note = pending_note
 
 new_registry = json.dumps(registry, indent=2) + '\n'
-persistent_registry.write_text(new_registry)
-working_registry.write_text(new_registry)
-
-matrix = persistent_matrix.read_text()
-lines = matrix.splitlines()
-prefix = f'| {area} |'
-matches = [i for i, line in enumerate(lines) if line.startswith(prefix)]
-if len(matches) != 1:
-    raise SystemExit(
-        f'DR_FORWARD_SYNC_RECORD=FAIL: expected exactly one matrix row for {area!r}, '
-        f'found {len(matches)}'
-    )
 lines[matches[0]] = f'| {area} | {matrix_status} | {matrix_note} |'
 new_matrix = '\n'.join(lines) + ('\n' if matrix.endswith('\n') else '')
-persistent_matrix.write_text(new_matrix)
-working_matrix.write_text(new_matrix)
 
-subprocess.run(
-    [sys.executable, '../scripts/verify-fire-dr-forward-sync.py'],
-    cwd=app_dir,
-    check=True,
-)
-subprocess.run(
-    [sys.executable, '../scripts/apply-fire-dr-parity-summary-sync.py'],
-    cwd=app_dir,
-    check=True,
-)
-subprocess.run(
-    [sys.executable, '../scripts/verify-fire-dr-parity-ledger-consistency.py'],
-    cwd=app_dir,
-    check=True,
-)
-subprocess.run(
-    [sys.executable, '../scripts/verify-fire-dr-release-readiness.py'],
-    cwd=app_dir,
-    check=True,
-)
+try:
+    persistent_registry.write_text(new_registry)
+    working_registry.write_text(new_registry)
+    persistent_matrix.write_text(new_matrix)
+    working_matrix.write_text(new_matrix)
+
+    subprocess.run(
+        [sys.executable, '../scripts/verify-fire-dr-forward-sync.py'],
+        cwd=app_dir,
+        check=True,
+    )
+    subprocess.run(
+        [sys.executable, '../scripts/apply-fire-dr-parity-summary-sync.py'],
+        cwd=app_dir,
+        check=True,
+    )
+    subprocess.run(
+        [sys.executable, '../scripts/verify-fire-dr-parity-ledger-consistency.py'],
+        cwd=app_dir,
+        check=True,
+    )
+    subprocess.run(
+        [sys.executable, '../scripts/verify-fire-dr-release-readiness.py'],
+        cwd=app_dir,
+        check=True,
+    )
+except Exception as exc:
+    for path, text_value in old_text.items():
+        path.write_text(text_value)
+    raise SystemExit(
+        'DR_FORWARD_SYNC_RECORD=FAIL: verification failed; all registry, matrix, '
+        f'release-summary, and parity-audit changes were rolled back. {exc}'
+    )
 
 print('DR_FORWARD_SYNC_RECORD=PASS')
 print(f'{args.entry_id}: {entry["status"]}')
 print(
-    'Forward-sync registry and strict matrix were updated together; '
+    'Forward-sync registry and strict matrix were updated atomically; '
     'governance, parity summaries, ledger consistency, and release readiness passed.'
 )
