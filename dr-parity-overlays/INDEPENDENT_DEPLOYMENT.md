@@ -100,6 +100,8 @@ Scrolling/smoothness is intentionally frozen as accepted by the owner and is not
 
 Formal parity remains governed by `PARITY_EVIDENCE_MANIFEST.json`, `STRICT_PARITY_MATRIX.md`, `LIVE_MASTER_PARITY_CHECKLIST.md`, and `STRICT_RENDERED_PARITY_QUEUE.md`. The working queue contains 95 rendered states; the formal evidence manifest contains 32 release-gating parity entries.
 
+Owner-approved user-facing differences are additionally governed by `FORWARD_SYNC_APPROVED.json`. It currently contains **2** `PENDING_LIVE_SYNC` entries: the richer DR customer-profile command center and Edit existing customer. Preserve those DR behaviors; do not remove them to imitate the older LIVE customer profile. They block `FULL_IDENTICAL` until LIVE is upgraded and same-device rendered comparison confirms the forward sync.
+
 Do not mark a formal state identical from source inspection alone. Independent evidence and comparison decisions persist outside the extracted `fire-app-dr` tree so sealed-v138 rebuilds cannot silently erase them.
 
 Show the current capture queue first:
@@ -136,6 +138,7 @@ Known current formal evidence summary remains:
 - 0/32 independent evidence captured
 - 0 verified identical comparisons
 - 0 mismatches
+- 2 owner-approved forward-sync blockers (`PENDING_LIVE_SYNC`)
 
 The evidence-coverage guard intentionally requires all current 11 LIVE-captured formal states to be mapped. When a new LIVE capture is registered, preparation stops until the coverage map is deliberately updated.
 
@@ -148,7 +151,7 @@ STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED
 NOT_YET_FULLY_VERIFIED
 ```
 
-Do not promote it to FULL_IDENTICAL until the formal rendered-evidence gate is complete or a difference is explicitly approved as infrastructure-only.
+Do not promote it to FULL_IDENTICAL until the formal rendered-evidence gate is complete, every owner-approved `PENDING_LIVE_SYNC` entry has been brought into LIVE and verified, and any remaining difference is explicitly approved as infrastructure-only.
 
 ## Rollback
 
