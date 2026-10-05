@@ -191,11 +191,11 @@ if 'Do not change scrolling/smoothness unless the owner explicitly reopens that 
 if 'Photo-file functionality remains an explicit capability gap until storage exists' not in queue: errors.append('STRICT_RENDERED_PARITY_QUEUE must retain the DR photo-storage capability-gap disclosure.')
 
 go_no_go = go_no_go_path.read_text()
-for needle in ['free-tier, D1-only, no R2','4-digit PIN','Photo-file storage: **not provisioned**','eight DR-specific parity/governance guards','all eight DR parity/governance guards pass','LIVE-evidence coverage/accountability guard','Final release-readiness guard','structured forward-sync registry currently contains **2**','every `PENDING_LIVE_SYNC` entry in `FORWARD_SYNC_APPROVED.json`','READY_FOR_EXPLICIT_OWNER_REVIEW','NOT_YET_FULLY_VERIFIED']:
+for needle in ['free-tier, D1-only, no R2','4-digit PIN','Photo-file storage: **not provisioned**','eight DR-specific parity/governance guards','all eight DR parity/governance guards pass','LIVE-evidence coverage/accountability guard','Final release-readiness guard','structured forward-sync registry tracks owner-approved user-facing blockers','every `PENDING_LIVE_SYNC` entry in `FORWARD_SYNC_APPROVED.json`','READY_FOR_EXPLICIT_OWNER_REVIEW','NOT_YET_FULLY_VERIFIED']:
     if needle not in go_no_go: errors.append(f'GO_NO_GO is missing current DR deployment rule: {needle}')
 
 runbook = runbook_path.read_text()
-for needle in ['free-tier, D1-only, no R2','4-digit PIN','Photo-file storage: not provisioned','runs the LIVE-evidence coverage/accountability guard','FORWARD_SYNC_APPROVED.json','**2** `PENDING_LIVE_SYNC` entries','2 owner-approved forward-sync blockers','every owner-approved `PENDING_LIVE_SYNC` entry has been brought into LIVE and verified','STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED','NOT_YET_FULLY_VERIFIED']:
+for needle in ['free-tier, D1-only, no R2','4-digit PIN','Photo-file storage: not provisioned','runs the LIVE-evidence coverage/accountability guard','FORWARD_SYNC_APPROVED.json','Any entry that remains `PENDING_LIVE_SYNC`','Owner-approved forward-sync blockers: see current `PENDING_LIVE_SYNC` entries in `FORWARD_SYNC_APPROVED.json`','every owner-approved `PENDING_LIVE_SYNC` entry has been brought into LIVE and verified','STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED','NOT_YET_FULLY_VERIFIED']:
     if needle not in runbook: errors.append(f'INDEPENDENT_DEPLOYMENT is missing current DR deployment rule: {needle}')
 
 batch_audit = batch_audit_path.read_text()
@@ -207,7 +207,7 @@ for needle in [
     'verify-fire-dr-forward-sync.py',
     'verify-fire-dr-release-readiness.py',
     'Completed → Create invoice → Invoice created / Send invoice transition.',
-    'Owner-approved forward-sync blockers: **2** (`PENDING_LIVE_SYNC`).',
+    'Owner-approved forward-sync blockers are tracked in `FORWARD_SYNC_APPROVED.json`',
     'owner-approved forward-sync targets',
     'Scroll/smoothness tuning is frozen',
 ]:
