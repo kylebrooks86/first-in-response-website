@@ -7,8 +7,8 @@
   "baseline_status": "STAGING_REAL_DEVICE_PARITY_REAUDIT_IN_PROGRESS_NOT_SYNCHRONIZED",
   "verified_calculator_gate_head": "33a1e6e2d2ddd4e00d6030ae315230b7ef894f65",
   "verified_visual_behavior_head": null,
-  "verified_shared_core_fingerprint": "d73a54a3554797f5310ea8d2da2cb0e0e26263258e5037a041a25b38bca42685",
-  "offline_cache_generation": 75,
+  "verified_shared_core_fingerprint": "f874f35ae8d54f045e37b95330fe806cfb967c7dd7373cedc09623c6e193e46d",
+  "offline_cache_generation": 76,
   "verified_gates": {
     "live_to_dr_backup_takeover": true,
     "dr_to_live_reverse_portability": true,
@@ -22,5 +22,5 @@
   "dr_source": "Independent calculator under /calculator/",
   "staging_branch": "fire-calculator-exact-live-clone",
   "production_promotion_approved": false,
-  "reaudit_note": "Fresh LIVE computed-style evidence on 2026-10-05 showed top-level cards are transparent over the page background and SH Mix growth buttons are 104px flex items with 8px gaps at the iPhone viewport. DR generation 75 applies those corrections. Field Tools remains in both current LIVE top navigation and bottom Tools navigation. Remaining route/device parity continues section-by-section."
+  "reaudit_note": "DR generation 76 aligns the actual shared module loader with the current Foundation and Navigation asset versions, preventing older query-string variants from undermining iPhone cache busting. It also carries the fresh LIVE transparent card-shell and 104px SH Mix growth-button corrections. Remaining visual/behavior parity stays open until re-verified."
 }
