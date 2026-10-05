@@ -66,7 +66,7 @@ Source guards protect Dashboard, Notifications, Contracts, Customers, Follow-ups
 
 ## Current build guards
 
-The DR preparation path runs six source/governance parity guards after applying DR overlays and before dependency install/build:
+The DR preparation path runs seven source/governance parity guards after applying DR overlays and before dependency install/build:
 
 1. `scripts/verify-fire-dr-live-parity-overlays.py` — known LIVE-captured/user-confirmed shell and workflow invariants, including confirmed V14 two-row standalone-header/search layout.
 2. `scripts/verify-fire-dr-owner-workflows.py` — owner workflow contracts.
@@ -74,6 +74,7 @@ The DR preparation path runs six source/governance parity guards after applying 
 4. `scripts/verify-fire-dr-live-evidence-coverage.py` — every formal LIVE `CAPTURED` state must be mapped into current DR parity protection; restore/lifecycle/refund/Stripe integrity subguards also run here.
 5. `scripts/verify-fire-dr-customer-workflows.py` — approval/signature, customer documents, payment/refund edge states, and no-R2 photo failure behavior.
 6. `scripts/verify-fire-dr-parity-ledger-consistency.py` — evidence counts/status, governance consistency, persistent overlays, PIN/no-R2 rules, and current release verdict.
+7. `scripts/verify-fire-dr-release-readiness.py` — derives final evidence blockers and refuses premature FULL_IDENTICAL / synchronized claims while parity remains incomplete; it never promotes production automatically.
 
 These guards do **not** substitute for same-state rendered LIVE-vs-DR comparison.
 
