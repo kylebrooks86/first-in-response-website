@@ -13,8 +13,8 @@ Production remains the untouched master reference and has **not** been migrated,
 - Branch: `fire-calculator-exact-live-clone`
 - Latest calculator gate anchor: `44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558`
 - Latest offline acceptance verification: `44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558`
-- Governed shared-core fingerprint: `8bc01e24e095f80224e0a64157376092c5a2c9de56274979b06a05ffe06d7cdf`
-- Offline cache generation: `68`
+- Governed shared-core fingerprint: `bee43bb803a857f40464b46d21b71816bfe963538926606c4c32566644d46b65`
+- Offline cache generation: `69`
 - Release status remains `STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED` in `SHARED_CORE_MANIFEST.json`.
 - Production/live hosting, DNS, deployment and real customer data were not modified.
 
@@ -48,7 +48,7 @@ The reverse portability check is now a **hard release gate** rather than a conti
 
 ## Airplane-mode DR acceptance
 
-The dedicated `FIRE Calculator Offline DR Acceptance` workflow passed against cache generation 68 after the parity corrections. With browser networking disabled it verified:
+The dedicated `FIRE Calculator Offline DR Acceptance` workflow passed against cache generation 69 after the parity corrections. With browser networking disabled it verified:
 
 - all seven major routes open: SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Tools, Field Guide
 - SH Mix performs a real dependent recalculation offline
