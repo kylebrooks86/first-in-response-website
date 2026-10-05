@@ -152,6 +152,9 @@ for needle in [
     'free-tier, D1-only, no R2',
     '4-digit PIN',
     'Photo-file storage: **not provisioned**',
+    'six DR-specific parity/governance guards',
+    'all six DR parity/governance guards pass',
+    'LIVE-evidence coverage/accountability guard',
     'NOT_YET_FULLY_VERIFIED',
 ]:
     if needle not in go_no_go:
@@ -162,6 +165,7 @@ for needle in [
     'free-tier, D1-only, no R2',
     '4-digit PIN',
     'Photo-file storage: not provisioned',
+    'runs the LIVE-evidence coverage/accountability guard',
     'STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED',
     'NOT_YET_FULLY_VERIFIED',
 ]:
@@ -171,7 +175,9 @@ for needle in [
 batch_audit = batch_audit_path.read_text()
 for needle in [
     'Top mobile header is user-confirmed crisp and correctly inset',
-    'runs five source/governance parity guards',
+    'runs six source/governance parity guards',
+    'verify-fire-dr-live-evidence-coverage.py',
+    'Completion-before-final-balance transition',
     'Scroll/smoothness tuning is frozen',
 ]:
     if needle not in batch_audit:
@@ -196,4 +202,4 @@ if errors:
 
 print('DR_PARITY_LEDGER_CONSISTENCY=PASS')
 print(f'Formal states: {len(entries)}; LIVE evidence: {live_captured}; independent evidence: {independent_captured}; verified identical: {verified_identical}; mismatches: {mismatches}.')
-print('Manifest, checklist, release status, current audit, strict verdict, queue status, user-confirmed header state, five build guards, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
+print('Manifest, checklist, release status, current audit, strict verdict, queue status, user-confirmed header state, six build guards, LIVE-evidence coverage accountability, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
