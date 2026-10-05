@@ -5,6 +5,70 @@ from pathlib import Path
 # rendered proof and does not authorize FULL_IDENTICAL.
 checks = {
     Path('app/dashboard.tsx'): [
+        # Already-verified LIVE owner/dashboard surfaces.
+        'Welcome, {userName}',
+        '<p>Outstanding</p>',
+        '<p>Upcoming jobs</p>',
+        '<p>Saved estimates</p>',
+        '<p>Completed jobs</p>',
+        'Keep every job moving',
+        '<h2>Recent estimates</h2>',
+        '<h2>Quick actions</h2>',
+        'Profiles, photos, and history',
+        'Jobs and driving plan',
+        'Reminders and customer contact',
+        'Deposits and balances',
+
+        # Add-customer / customer-property workflow already matched to LIVE.
+        '<DialogTitle>Add customer</DialogTitle>',
+        '<Label>Customer name</Label>',
+        '<Label>Email</Label>',
+        '<Label>Phone</Label>',
+        '<Label>Service address</Label>',
+        'Property preview',
+        'Satellite',
+        'Street View',
+        'Google Earth',
+        'Navigate',
+
+        # Contracts / agreements surfaces already matched to LIVE.
+        '<h1>Agreements</h1>',
+        'Signed agreements',
+        'Awaiting signature',
+        'Change requests',
+
+        # Follow-ups dashboard / prepare-message workflow.
+        '<h1>Follow-ups</h1>',
+        'recommended actions',
+        'Messages open prefilled and editable. Your phone still lets you review and tap Send.',
+        'triggerLabel="Prepare message"',
+        'You’re caught up',
+
+        # Payments dashboard + Record payment modal.
+        '<p className="eyebrow">Money received</p><h1>Payments</h1>',
+        '<h2>Balances to collect</h2>',
+        '<h2>Payment history</h2>',
+        '<DialogTitle>Record payment</DialogTitle>',
+        '<small>Deposit due</small>',
+        '<small>Full balance</small>',
+        '<Label>Amount received</Label>',
+        '<Label>Payment method</Label>',
+        '"Wave","Cash App","Venmo","Cash","Check","Card","ACH / bank","Other"',
+        'Cash App {DEFAULT_CASH_APP_HANDLE} · Venmo {DEFAULT_VENMO_HANDLE}',
+
+        # Job costs/profit and service-completion report already matched to LIVE.
+        '<DialogTitle>Job costs and profit</DialogTitle>',
+        '<small>Estimated gross profit</small>',
+        'No job costs recorded yet.',
+        '<DialogTitle>Service completion report</DialogTitle>',
+        'Property condition documented',
+        'Before photos captured',
+        'Plants and fragile areas protected',
+        'Service completed as quoted',
+        'After photos captured',
+        'Customer walkthrough completed',
+        'Job report saved.',
+
         # Business screen structure.
         '<p className="eyebrow">Owner operations</p><h1>Business</h1>',
         'Tasks, expenses, and job profitability in one simple place.',
@@ -75,6 +139,13 @@ checks = {
         'refundPaymentProvider=`refund:${row.paymentId}:${row.id}`',
         'idempotency-key',
     ],
+    Path('lib/fire-services.ts'): [
+        # Captured LIVE service-selector tail options.
+        'Seasonal / Holiday Lighting',
+        'Commercial Exterior Cleaning',
+        'Specialty Exterior Service',
+        'Custom Service',
+    ],
 }
 
 missing = []
@@ -87,6 +158,21 @@ for path, needles in checks.items():
         if needle not in text:
             missing.append(f'{path}: missing expected owner-workflow parity content: {needle}')
 
+# The captured LIVE selector specifically established this tail ordering; do not
+# let later catalog work silently reorder these options.
+services_path = Path('lib/fire-services.ts')
+if services_path.exists():
+    service_text = services_path.read_text()
+    captured_tail = [
+        'Seasonal / Holiday Lighting',
+        'Commercial Exterior Cleaning',
+        'Specialty Exterior Service',
+        'Custom Service',
+    ]
+    positions = [service_text.find(name) for name in captured_tail]
+    if any(position < 0 for position in positions) or positions != sorted(positions):
+        missing.append('lib/fire-services.ts: captured LIVE service-selector tail ordering regressed.')
+
 if missing:
     print('DR_OWNER_WORKFLOW_PARITY_GUARD=FAIL')
     for item in missing:
@@ -94,5 +180,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_OWNER_WORKFLOW_PARITY_GUARD=PASS')
-print('Protected: Business tasks/expenses/backup-restore UI; Templates editing/reset; owner invoice editing/history; refund modal/statuses; billing-exception states; common owner empty states; restore audit/integrity markers.')
+print('Protected: already-verified Dashboard/Customers/Contracts/Follow-ups/Payments/job-cost/job-report surfaces; captured service-selector tail order; Business tasks/expenses/backup-restore UI; Templates editing/reset; owner invoice editing/history; refund modal/statuses; billing-exception states; common owner empty states; restore audit/integrity markers.')
 print('This remains source-level protection only; rendered LIVE-vs-DR comparison is still required for strict parity.')
