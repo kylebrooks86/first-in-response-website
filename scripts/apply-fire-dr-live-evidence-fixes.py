@@ -59,5 +59,14 @@ for old_fragment, new_fragment in replacements:
 
 pay_path.write_text(pay)
 
+# STRICT_PARITY_MATRIX.md is governance/evidence-routing state, not sealed app
+# source. Restore its canonical copy after every sealed extraction so corrections
+# to the capture queue are not silently reverted by a rebuild.
+matrix_overlay = Path('../dr-parity-overlays/STRICT_PARITY_MATRIX.md')
+matrix_working = Path('STRICT_PARITY_MATRIX.md')
+if not matrix_overlay.exists():
+    raise SystemExit('Persistent strict parity matrix overlay is missing.')
+matrix_working.write_text(matrix_overlay.read_text())
+
 print('DR_LIVE_EVIDENCE_FIXES_APPLIED')
-print('Approved estimate confirmation retains signer name; customer payment actions are suppressed during unresolved overpayment or pending refund review.')
+print('Approved estimate confirmation retains signer name; customer payment actions are suppressed during unresolved overpayment or pending refund review; strict parity matrix restored from persistent overlay.')
