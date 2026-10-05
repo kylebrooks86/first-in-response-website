@@ -32,16 +32,22 @@ checks = {
         'This estimate has already moved into the job workflow. Contact Kyle directly for any new scope changes.',
     ],
     Path('app/estimate/[token]/page.tsx'): [
+        'Estimate not found',
+        'Please check the link or contact First In Response Exteriors.',
         '<p>ESTIMATE FOR</p>',
         '<AcceptEstimateButton',
         'Approve and sign the estimate first. After approval, the 50% deposit reserves your place on the schedule.',
         'Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.',
         'Payment received — account review in progress.',
         'Refund processing.',
+        'Billing review required.',
+        'Your private estimate link is unique to you.',
         '<CustomerPortalNav/>',
     ],
     Path('app/pay/[id]/page.tsx'): [
         # Customer payment-document structure and exact state transitions.
+        'Estimate not found',
+        'Please check the link or contact First In Response Exteriors.',
         '<div className="pay-title"><p>ESTIMATE FOR</p>',
         '<small>Estimate total</small>',
         '<small>Paid</small>',
@@ -61,13 +67,14 @@ checks = {
     ],
     Path('app/invoice/[token]/page.tsx'): [
         # LIVE-captured customer invoice document structure and due-date states.
+        'Invoice not found',
+        'Please check the link or contact First In Response Exteriors.',
         '<p>INVOICE FOR</p>',
         '<small>Invoice total</small>',
         '<small>Balance due</small>',
         'if (!dueAt) return "Payment due on receipt";',
         'if (sameCalendarDay) return "Payment due on receipt";',
         'return `Payment due ${new Intl.DateTimeFormat("en-US", { month:"long", day:"numeric", year:"numeric" }).format(due)}`;',
-        'Invoice not found',
         'Billing review required',
         'Refund processing',
         'Payment received — account review in progress',
@@ -76,6 +83,13 @@ checks = {
         'Please include your name in the payment note.',
         'Your private invoice link is unique to you.',
         '<CustomerPortalNav/>',
+    ],
+    Path('app/customer-portal-nav.tsx'): [
+        'aria-label="Customer document navigation"',
+        'className="portal-back"',
+        'onClick={()=>window.history.back()}',
+        '<ArrowLeft/> <span>Back</span>',
+        '<a href="/"><House/> <span>Home</span></a>',
     ],
     Path('app/api/notifications/route.ts'): [
         'Notifications are temporarily unavailable.',
@@ -126,5 +140,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_CUSTOMER_WORKFLOW_PARITY_GUARD=PASS')
-print('Protected: customer signature/photo-permission approval; change requests; payment-document summary/deposit/balance/success/full-paid states; LIVE-captured invoice due-on-receipt and dated-due presentation; manual payment handles; invoice review/refund states; overpayment resolution safeguards; DR photo storage fail-closed behavior.')
+print('Protected: customer signature/photo-permission approval; change requests; estimate/payment/invoice not-found states; customer Back/Home navigation; payment-document summary/deposit/balance/success/full-paid states; LIVE-captured invoice due-on-receipt and dated-due presentation; manual payment handles; invoice review/refund states; overpayment resolution safeguards; DR photo storage fail-closed behavior.')
 print('Rendered LIVE-vs-DR comparison is still required for strict visual parity.')
