@@ -15,7 +15,8 @@ This document is **not** rendered proof and does not change `NOT_YET_FULLY_VERIF
 ## User-confirmed DR states preserved
 
 - Templates mobile selection/editing flow is working acceptably.
-- Top mobile header is acceptable after safe-area / opaque-status-bar corrections.
+- Top mobile header is user-confirmed crisp and correctly inset after the standalone V11 safe-area correction.
+- The accepted header fix removes the old compositing/softening treatment and keeps the top shell off the iPhone screen edge.
 - DR Stride header control is acceptable.
 
 ## LIVE-captured visual/content states protected by build guard
@@ -31,6 +32,7 @@ This document is **not** rendered proof and does not change `NOT_YET_FULLY_VERIF
   - Before / After / Property / damage
   - Optional note
   - Camera / Photo library workflow
+  - No-property-photos empty state
 - Owner scheduled-job next step:
   - capture before photos
   - complete the job report
@@ -51,6 +53,7 @@ This document is **not** rendered proof and does not change `NOT_YET_FULLY_VERIF
 - Bottom mobile navigation retains Home, Contracts, Customers, Estimates, and Schedule.
 - Light/dark theme preference remains stored in local browser storage and reapplied through the document theme data attribute.
 - Search remains available for customers/jobs/addresses and mobile menu search remains available.
+- The user-confirmed standalone header uses the V11 safe-area treatment and explicitly avoids `translate3d`/paint-containment softening on the top shell.
 
 ### Customer records
 
@@ -87,7 +90,7 @@ This document is **not** rendered proof and does not change `NOT_YET_FULLY_VERIF
 
 ### Customer approval / signature / change request
 
-- Customer approval requires all three: selected photo permission, typed full name, and explicit acceptance of the service agreement/payment terms.
+- Customer approval requires selected photo permission, typed full name, and explicit acceptance of the service agreement/payment terms.
 - Approval records `accepted_at`, `signed_name`, `signed_at`, photo permission, and the governed contract version.
 - Approval is idempotent when the estimate was already accepted.
 - Draft/sent estimates with invalid billing or service-line data fail closed rather than being approved.
@@ -170,11 +173,12 @@ This document is **not** rendered proof and does not change `NOT_YET_FULLY_VERIF
 
 ## Build guards
 
-The DR preparation script now runs three source-level parity guards after applying DR overlays and before dependency install/build:
+The DR preparation script runs four source/governance parity guards after applying DR overlays and before dependency install/build:
 
-1. `scripts/verify-fire-dr-live-parity-overlays.py` — known LIVE-captured/user-confirmed screens and core billing/lifecycle invariants.
-2. `scripts/verify-fire-dr-owner-workflows.py` — Business, Templates, invoice edit/history, refund UI, restore UI, billing-exception states, and common owner empty states.
+1. `scripts/verify-fire-dr-live-parity-overlays.py` — known LIVE-captured/user-confirmed screens, the user-confirmed top shell, and core billing/lifecycle invariants.
+2. `scripts/verify-fire-dr-owner-workflows.py` — already-matched owner surfaces plus Business, Templates, invoice edit/history, refund UI, restore UI, billing-exception states, and common owner empty states.
 3. `scripts/verify-fire-dr-customer-workflows.py` — signature/photo permission approval, change requests, customer payment/invoice edge states, overpayment safeguards, and DR photo-storage fail-closed behavior.
+4. `scripts/verify-fire-dr-parity-ledger-consistency.py` — formal evidence counts/status, queue/governance consistency, free D1-only/no-R2 deployment rules, and persistent overlay synchronization.
 
 These guards prevent accidental source regressions. They intentionally do **not** claim pixel-identical rendered parity.
 
