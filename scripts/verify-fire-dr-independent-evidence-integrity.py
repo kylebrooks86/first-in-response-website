@@ -82,7 +82,7 @@ for registration in registrations:
                     if source_provenance.get('deployment_target', {}).get('worker_name') != 'fire-app-independent-staging': errors.append(f'{entry_id}: source provenance Worker is not independent staging')
                     if source_provenance.get('release') != {'package_version':'1.0.0-rc.138','fire_release':'v138'}: errors.append(f'{entry_id}: source provenance release is not governed v138')
                     if item.get('source_commit') != source_provenance.get('checked_out_source_commit'): errors.append(f'{entry_id}: evidence source commit differs from persisted provenance')
-        if item.get('capture_profile_source') != 'dr-registrar-v3': errors.append(f'{entry_id}: capture profile was not produced by governed DR registrar v3')
+        if item.get('capture_profile_source') != 'dr-registrar-v4': errors.append(f'{entry_id}: capture profile was not produced by governed DR registrar v4')
         for key in ['pixel_width','pixel_height','viewport_width','viewport_height']:
             value = item.get(key)
             if not isinstance(value, int) or value <= 0: errors.append(f'{entry_id}: {key} must be a positive integer')
