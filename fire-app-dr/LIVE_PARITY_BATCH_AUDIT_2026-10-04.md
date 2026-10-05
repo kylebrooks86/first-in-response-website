@@ -85,6 +85,17 @@ This document is **not** rendered proof and does not change `NOT_YET_FULLY_VERIF
 - Accepted / financially active estimates are frozen from service-line rewrites; later price/scope changes belong on the final invoice.
 - Job completion requires the scheduled stage and a completed job report.
 
+### Customer approval / signature / change request
+
+- Customer approval requires all three: selected photo permission, typed full name, and explicit acceptance of the service agreement/payment terms.
+- Approval records `accepted_at`, `signed_name`, `signed_at`, photo permission, and the governed contract version.
+- Approval is idempotent when the estimate was already accepted.
+- Draft/sent estimates with invalid billing or service-line data fail closed rather than being approved.
+- Customer approval creates the owner `estimate_accepted` notification.
+- Before approval, the customer can submit a change request from the estimate portal.
+- Change requests create both an open `estimate_change_requests` record and an owner notification.
+- Once the estimate has entered the accepted/job workflow, the public change-request endpoint refuses a new pre-approval change request and directs the customer to contact Kyle.
+
 ### Customer estimate / payment behavior
 
 - Customer estimate shows Estimate total and 50% deposit.
@@ -93,6 +104,8 @@ This document is **not** rendered proof and does not change `NOT_YET_FULLY_VERIF
 - Completed work uses the resolved final-invoice total / remaining balance.
 - Pending refunds and unresolved overpayment exceptions suppress new normal payment flow.
 - Customer account-review wording is retained during unresolved billing review.
+- Successful payment state says the payment was received and recorded.
+- Paid-in-full state is distinct from reservation-deposit-recorded state.
 - Back / Home customer-document navigation remains available.
 
 ### Final invoice behavior
@@ -107,6 +120,8 @@ This document is **not** rendered proof and does not change `NOT_YET_FULLY_VERIF
 - Sent/viewed state is preserved through edits when unpaid.
 - Active Stripe checkout sessions are expired/reconciled before invoice amount changes.
 - Pending refund blocks invoice editing until reconciliation completes.
+- Customer invoice fails closed with Billing review required when the stored billing snapshot is unsafe.
+- Customer invoice distinguishes Refund processing, Payment received — account review in progress, and Paid in full.
 
 ### Manual payment behavior
 
@@ -117,7 +132,7 @@ This document is **not** rendered proof and does not change `NOT_YET_FULLY_VERIF
 - Manual payment insert is guarded at database-write time against stale/concurrent overpayment.
 - The payment total / remaining balance is re-read after insertion.
 
-### Refund behavior
+### Refund / overpayment behavior
 
 - Refund request is linked to the original payment and estimate.
 - Refund amount cannot exceed the remaining refundable amount.
@@ -126,6 +141,10 @@ This document is **not** rendered proof and does not change `NOT_YET_FULLY_VERIF
 - Successful refund writes one negative `Refund` payment row and reconciles invoice status.
 - Successful reconciliation can clear the matching unresolved overpayment exception when the net paid amount is no longer above the obligation.
 - Pending/succeeded refund state is durable in `payment_refunds`.
+- Overpayment exceptions cannot be generically resolved; refund handling must happen through Payments → Refund on the original payment.
+- Intentional retained overpayment is a separate explicit action.
+- Pending refund blocks retained-overpayment resolution.
+- The retained-overpayment action rechecks the current billing state before resolving the exception.
 
 ### Templates
 
@@ -141,11 +160,23 @@ This document is **not** rendered proof and does not change `NOT_YET_FULLY_VERIF
 - Normal review-request action is suppressed while an overpayment exception is unresolved.
 - Review action only appears for a completed, fully paid, safe-accounting job.
 
-## Build guard
+### DR photo-storage boundary
 
-`scripts/verify-fire-dr-live-parity-overlays.py` is executed by `scripts/prepare-fire-v138-dr-no-r2.sh` after DR overlays are applied and before dependency install/build.
+- Independent DR deliberately has no R2 binding.
+- Customer photo upload API explicitly returns `503 Photo storage is unavailable.` when `BUCKET` is absent.
+- Image-only validation and the 15 MB upload limit remain present if storage is ever bound later.
+- If metadata insertion fails after an object upload, the uploaded object is deleted to avoid orphan storage.
+- This DR build must not be represented as having working photo-file storage while the R2 binding is absent.
 
-The guard now protects the above known parity contracts from accidental regression. It intentionally does not claim that visual pixel parity has been proven.
+## Build guards
+
+The DR preparation script now runs three source-level parity guards after applying DR overlays and before dependency install/build:
+
+1. `scripts/verify-fire-dr-live-parity-overlays.py` — known LIVE-captured/user-confirmed screens and core billing/lifecycle invariants.
+2. `scripts/verify-fire-dr-owner-workflows.py` — Business, Templates, invoice edit/history, refund UI, restore UI, billing-exception states, and common owner empty states.
+3. `scripts/verify-fire-dr-customer-workflows.py` — signature/photo permission approval, change requests, customer payment/invoice edge states, overpayment safeguards, and DR photo-storage fail-closed behavior.
+
+These guards prevent accidental source regressions. They intentionally do **not** claim pixel-identical rendered parity.
 
 ## Still pending for strict rendered parity
 
@@ -157,10 +188,13 @@ The formal evidence ledger remains authoritative. Major items still needing actu
 - Business screen
 - Templates screen exact visual comparison
 - customer approval/signature flow rendered comparison
+- customer change-request states
 - customer payment page rendered comparison
+- payment-success state
 - paid-in-full / zero-balance customer states
 - owner refund modal / refund processing state
 - customer refund-processing state
+- overpayment-review customer/owner states
 - expired/error-link states
 - broader owner empty/error state coverage
 
