@@ -36,7 +36,7 @@ unzip -q "$ARCHIVE" -d "$APP_DIR"
 # governance/audit documents intentionally live outside fire-app-dr because this
 # directory is deleted and re-extracted on every build. Restore those documents
 # into the fresh working tree before any consistency guard runs.
-for doc in STRICT_RENDERED_PARITY_QUEUE.md GO_NO_GO.md INDEPENDENT_DEPLOYMENT.md LIVE_PARITY_BATCH_AUDIT_2026-10-04.md; do
+for doc in STRICT_RENDERED_PARITY_QUEUE.md STRICT_PARITY_MATRIX.md GO_NO_GO.md INDEPENDENT_DEPLOYMENT.md LIVE_PARITY_BATCH_AUDIT_2026-10-04.md; do
   source_path="$GOVERNANCE_OVERLAY_DIR/$doc"
   if [[ ! -f "$source_path" ]]; then
     echo "Missing persistent DR governance overlay: $source_path" >&2
