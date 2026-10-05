@@ -1,5 +1,4 @@
 import json
-import py_compile
 import subprocess
 from pathlib import Path
 
@@ -27,10 +26,13 @@ for name in names:
 
     if path.suffix == '.py':
         try:
-            py_compile.compile(str(path), doraise=True)
+            compile(path.read_text(), str(path), 'exec')
             checked_python += 1
-        except py_compile.PyCompileError as exc:
-            errors.append(f'Python syntax error in {name}: {exc.msg}')
+        except SyntaxError as exc:
+            errors.append(
+                f'Python syntax error in {name}: '
+                f'line {exc.lineno}: {exc.msg}'
+            )
     elif path.suffix == '.sh':
         result = subprocess.run(
             ['bash', '-n', str(path)],
