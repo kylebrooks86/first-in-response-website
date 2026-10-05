@@ -11,6 +11,7 @@ release_path = root / 'RELEASE_STATUS.md'
 audit_path = root / 'CURRENT_PARITY_AUDIT.md'
 go_no_go_path = root / 'GO_NO_GO.md'
 runbook_path = root / 'INDEPENDENT_DEPLOYMENT.md'
+overlay_dir = Path('..') / 'dr-parity-overlays'
 
 required = [
     manifest_path,
@@ -165,6 +166,18 @@ for needle in [
     if needle not in runbook:
         errors.append(f'INDEPENDENT_DEPLOYMENT is missing current DR deployment rule: {needle}')
 
+# These three DR-only governance documents must survive the prepare script's
+# delete-and-reextract step. Their canonical copies live outside fire-app-dr and
+# are restored immediately after extraction. Refuse the build if either side
+# disappears or drifts.
+for working_path in [queue_path, go_no_go_path, runbook_path]:
+    canonical_path = overlay_dir / working_path.name
+    if not canonical_path.exists():
+        errors.append(f'missing persistent governance overlay: {canonical_path}')
+        continue
+    if canonical_path.read_text() != working_path.read_text():
+        errors.append(f'governance overlay drift: {working_path.name} does not match {canonical_path}')
+
 if errors:
     print('DR_PARITY_LEDGER_CONSISTENCY=FAIL')
     for error in errors:
@@ -173,4 +186,4 @@ if errors:
 
 print('DR_PARITY_LEDGER_CONSISTENCY=PASS')
 print(f'Formal states: {len(entries)}; LIVE evidence: {live_captured}; independent evidence: {independent_captured}; verified identical: {verified_identical}; mismatches: {mismatches}.')
-print('Manifest, checklist, release status, current audit, strict verdict, queue status, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, and photo capability exception are consistent.')
+print('Manifest, checklist, release status, current audit, strict verdict, queue status, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance overlays are consistent.')
