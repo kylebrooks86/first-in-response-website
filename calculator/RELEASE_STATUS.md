@@ -2,19 +2,19 @@
 
 ## Current status
 
-**STAGING / DISASTER-RECOVERY CANDIDATE VERIFIED — PRODUCTION NOT SYNCHRONIZED**
+**STAGING REAL-DEVICE PARITY RE-AUDIT IN PROGRESS — PRODUCTION NOT SYNCHRONIZED**
 
-The production/live calculator and independent disaster-recovery calculator both identify as v18. The independent staging/DR candidate has now passed the automated LIVE-vs-DR visual and behavior parity suite, independent LIVE-backup → DR takeover, reverse DR-backup → isolated-LIVE restore, invalid-backup safe-handling parity, and real service-worker airplane-mode DR acceptance.
+The production/live calculator and independent disaster-recovery calculator both identify as v18. Previous automated gates were insufficient to establish real-device visual parity: owner iPhone testing found material mismatches in Index and Mixes. The staging/DR candidate is therefore back in section-by-section parity re-audit while production remains untouched.
 
 Production remains the untouched master reference and has **not** been migrated, redeployed, synchronized, or altered by this verification work.
 
 ## Verified calculator state
 
 - Branch: `fire-calculator-exact-live-clone`
-- Final calculator gate anchor: `c3bfa3c86ee85d40d2a7c41b0f6a5d0fdeba8611`
-- Portable-backup / offline acceptance verification: `2ce908d790f240d44ee4c7e6ab35c71b6be78f0b`
-- Governed shared-core fingerprint: `579dd1c259fe8fc7eea92455244442acdcdb9f14e3441a249a4a743d34a79814`
-- Offline cache generation: `65`
+- Latest calculator gate anchor: `44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558`
+- Latest offline acceptance verification: `44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558`
+- Governed shared-core fingerprint: `8bc01e24e095f80224e0a64157376092c5a2c9de56274979b06a05ffe06d7cdf`
+- Offline cache generation: `68`
 - Release status remains `STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED` in `SHARED_CORE_MANIFEST.json`.
 - Production/live hosting, DNS, deployment and real customer data were not modified.
 
@@ -48,7 +48,7 @@ The reverse portability check is now a **hard release gate** rather than a conti
 
 ## Airplane-mode DR acceptance
 
-The dedicated `FIRE Calculator Offline DR Acceptance` workflow passed against cache generation 65. With browser networking disabled it verified:
+The dedicated `FIRE Calculator Offline DR Acceptance` workflow passed against cache generation 68 after the parity corrections. With browser networking disabled it verified:
 
 - all seven major routes open: SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Tools, Field Guide
 - SH Mix performs a real dependent recalculation offline
@@ -87,7 +87,7 @@ All visible UI, formulas, pricing logic, validation, navigation, state handling,
 
 ## What remains before synchronization
 
-The automated calculator disaster-recovery/parity batch is complete. The release is intentionally still **NOT_SYNCHRONIZED** because production has not been promoted to the governed shared-core deployment.
+The automated disaster-recovery checks remain useful, but the visual/behavior parity batch is **not complete** because real-device findings reopened the audit. The release remains **NOT_SYNCHRONIZED** and production has not been promoted.
 
 Remaining release-level work is limited to:
 
