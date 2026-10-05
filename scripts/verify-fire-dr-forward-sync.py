@@ -47,6 +47,11 @@ queue_needles = [
     'Owner-approved customer-profile forward-sync exception:',
     'the current DR customer section is preferred over the older LIVE customer section',
     'Preserve its customer actions, property preview, and Edit customer capability.',
+    'LIVE forward-sync acceptance criteria for this customer-profile exception:',
+    'Saving keeps the same customer record/ID and does not create a duplicate customer.',
+    'Existing estimates, invoices, payments, signed agreements, pricing, and job history are not rewritten.',
+    'Newly added phone/email/address immediately enables the applicable Call / Text / Email / Google Maps / Google Earth / Zillow / property-preview actions after save.',
+    'Do not remove the two `FORWARD SYNC APPROVED` matrix rows until the upgraded LIVE customer profile is rendered on the same device/profile and deliberately compared against DR.',
     'do not qualify as `VERIFIED_IDENTICAL` until LIVE is intentionally upgraded to match them',
 ]
 for needle in queue_needles:
