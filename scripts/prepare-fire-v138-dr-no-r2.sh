@@ -55,6 +55,8 @@ python3 ../scripts/apply-fire-dr-template-parity-fix.py
 python3 ../scripts/apply-fire-dr-live-evidence-fixes.py
 python3 ../scripts/apply-fire-dr-independent-evidence-overlay.py
 python3 ../scripts/verify-fire-dr-independent-evidence-integrity.py
+python3 ../scripts/apply-fire-dr-comparison-overlay.py
+python3 ../scripts/verify-fire-dr-comparison-integrity.py
 python3 ../scripts/verify-fire-dr-overlay-idempotency.py
 python3 ../scripts/verify-fire-dr-live-parity-overlays.py
 python3 ../scripts/verify-fire-dr-owner-workflows.py
