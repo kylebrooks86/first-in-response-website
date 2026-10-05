@@ -56,6 +56,8 @@ python3 ../scripts/apply-fire-dr-template-parity-fix.py
 python3 ../scripts/apply-fire-dr-live-evidence-fixes.py
 python3 ../scripts/apply-fire-dr-customer-edit-flow.py
 python3 ../scripts/verify-fire-dr-customer-edit-flow.py
+python3 ../scripts/apply-fire-dr-capture-identity.py
+python3 ../scripts/verify-fire-dr-capture-identity.py
 python3 ../scripts/verify-fire-dr-forward-sync.py
 python3 ../scripts/apply-fire-dr-live-evidence-overlay.py
 python3 ../scripts/verify-fire-dr-live-registered-evidence-integrity.py
