@@ -31,7 +31,7 @@ checks = {
         'Personalized fields are filled automatically when you prepare the message.',
 
         # Owner invoice and refund UI.
-        '<DialogTitle>Edit invoice</DialogTitle>',
+        '<DialogTitle>Edit final invoice</DialogTitle>',
         'Invoice revision history',
         'Refund payment',
         'Refund amount',
@@ -59,6 +59,13 @@ checks = {
     Path('app/api/backup/route.ts'): [
         # Restore remains merge-oriented and should never silently replace the app.
         'fire-app-records-backup',
+        'invoiceRevisionHistory: true',
+        'paymentCheckoutSessionSafety: true',
+        'paymentRefundHistory: true',
+        'Customer photo files are stored separately and are not included in this JSON backup.',
+        'attemptId:crypto.randomUUID()',
+        'phase:"input_validation"',
+        'phase="target_conflict_validation"',
     ],
     Path('app/api/payments/refund/route.ts'): [
         # Refund request lifecycle / durable reconciliation.
@@ -87,5 +94,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_OWNER_WORKFLOW_PARITY_GUARD=PASS')
-print('Protected: Business tasks/expenses/backup-restore UI; Templates editing/reset; owner invoice editing/history; refund modal/statuses; billing-exception states; common owner empty states.')
+print('Protected: Business tasks/expenses/backup-restore UI; Templates editing/reset; owner invoice editing/history; refund modal/statuses; billing-exception states; common owner empty states; restore audit/integrity markers.')
 print('This remains source-level protection only; rendered LIVE-vs-DR comparison is still required for strict parity.')
