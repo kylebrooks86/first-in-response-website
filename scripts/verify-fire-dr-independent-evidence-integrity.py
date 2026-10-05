@@ -83,7 +83,17 @@ for registration in registrations:
                     if source_provenance.get('deployment_target', {}).get('worker_name') != 'fire-app-independent-staging': errors.append(f'{entry_id}: source provenance Worker is not independent staging')
                     if source_provenance.get('release') != {'package_version':'1.0.0-rc.138','fire_release':'v138'}: errors.append(f'{entry_id}: source provenance release is not governed v138')
                     if item.get('source_commit') != source_provenance.get('checked_out_source_commit'): errors.append(f'{entry_id}: evidence source commit differs from persisted provenance')
-        if item.get('capture_profile_source') != 'dr-registrar-v5': errors.append(f'{entry_id}: capture profile was not produced by governed DR registrar v5')
+                    capture_identity = source_provenance.get('capture_identity') or {}
+                    deployment_capture_id = item.get('deployment_capture_id')
+                    if not isinstance(deployment_capture_id, str) or len(deployment_capture_id) != 24 or any(ch not in '0123456789abcdef' for ch in deployment_capture_id):
+                        errors.append(f'{entry_id}: invalid/missing deployment capture ID')
+                    elif deployment_capture_id != capture_identity.get('capture_id'):
+                        errors.append(f'{entry_id}: evidence deployment capture ID differs from persisted source-build provenance')
+                    if capture_identity.get('source_commit') != source_provenance.get('checked_out_source_commit'):
+                        errors.append(f'{entry_id}: persisted provenance capture identity is not bound to its source commit')
+                    if capture_identity.get('owner_authenticated') is not True or capture_identity.get('cache_control_no_store') is not True:
+                        errors.append(f'{entry_id}: persisted provenance capture identity policy is invalid')
+        if item.get('capture_profile_source') != 'dr-registrar-v6': errors.append(f'{entry_id}: capture profile was not produced by governed DR registrar v6')
         for key in ['pixel_width','pixel_height','viewport_width','viewport_height']:
             value = item.get(key)
             if not isinstance(value, int) or value <= 0: errors.append(f'{entry_id}: {key} must be a positive integer')
@@ -121,4 +131,4 @@ if errors:
     for error in errors: print('- '+error)
     raise SystemExit(1)
 print('DR_INDEPENDENT_EVIDENCE_INTEGRITY=PASS')
-print(f'{len(registrations)} persistent independent registration(s) match rebuilt manifest/files, capture profiles, and their persisted source-build provenance snapshots; comparison promotion remains separate.')
+print(f'{len(registrations)} persistent independent registration(s) match rebuilt manifest/files, capture profiles, deployed capture IDs, and their persisted source-build provenance snapshots; comparison promotion remains separate.')
