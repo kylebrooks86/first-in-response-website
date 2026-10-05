@@ -33,6 +33,8 @@ The final release-readiness guard derives blockers from the formal manifest and 
 
 A passing source/governance gate does **not** mean rendered parity is complete. The current status must remain `NOT_YET_FULLY_VERIFIED` until the required LIVE and independent evidence is captured and compared.
 
+The structured forward-sync registry currently contains **2** owner-approved user-facing blockers: the richer DR customer-profile command center and Edit existing customer. Both remain `PENDING_LIVE_SYNC`. They intentionally block `FULL_IDENTICAL` until LIVE is upgraded and same-device rendered comparison confirms the forward sync.
+
 ## GO for current D1-only DR staging when
 
 - the staging Worker and D1 are isolated from production;
@@ -54,6 +56,7 @@ Known sealed-v138 TypeScript errors remain a nonblocking deployment fact; do not
 - each required formal parity state is compared against LIVE;
 - every required comparison is `VERIFIED_IDENTICAL` or explicitly approved as an infrastructure-only exception;
 - any remaining customer/owner visual mismatches are corrected;
+- every `PENDING_LIVE_SYNC` entry in `FORWARD_SYNC_APPROVED.json` is intentionally brought into LIVE and verified;
 - the formal evidence manifest and strict parity gate agree;
 - the final release-readiness guard reports `READY_FOR_EXPLICIT_OWNER_REVIEW`;
 - any storage capability required for real photo recovery is separately provisioned and tested before claiming photo-file recovery capability.
