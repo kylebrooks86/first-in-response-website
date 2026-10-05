@@ -8,6 +8,7 @@ Status meanings:
 - FUNCTIONALLY VERIFIED — behavior is covered by regression/safety checks, but exact live visual state has not yet been captured and compared.
 - NEEDS LIVE VISUAL — implementation exists, but a corresponding live screenshot/state is still required before identical can be claimed.
 - INFRASTRUCTURE ONLY — intentionally different implementation detail that must not alter visible or business behavior.
+- CAPABILITY GAP — intentionally unavailable in the current DR deployment; it cannot be called functionally identical until provisioned/tested or explicitly accepted as out of scope.
 
 ## Owner app
 | Area / state | Status | Evidence / blocker |
@@ -36,7 +37,7 @@ Status meanings:
 | Service selector ordering/options | VERIFIED IDENTICAL for captured catalog | Captured LIVE dropdown; retained Seasonal/Holiday Lighting, Commercial Exterior Cleaning, Specialty Exterior Service, Custom Service. |
 | Estimate detail Deposit / Paid / Balance labels | VERIFIED IDENTICAL | Corrected from v25 onward. |
 | Job date picker interaction | VERIFIED IDENTICAL for iPhone reference | Native iOS picker captured in LIVE. |
-| 50% deposit scheduling rule | LIVE BEHAVIOR CAPTURED | Current LIVE allows an approved job to be Scheduled with Paid $0 while still displaying the 50% deposit. v38 aligns the independent mechanics to LIVE; rendered independent evidence is still required. |
+| 50% deposit scheduling rule | LIVE BEHAVIOR CAPTURED | Current LIVE allows an approved job to be Scheduled with Paid $0 while still displaying the 50% deposit. Independent mechanics align to that behavior; rendered independent evidence is still required. |
 | Schedule Needs attention | VERIFIED IDENTICAL | Supplied LIVE references. |
 | Schedule Upcoming jobs / empty state | VERIFIED IDENTICAL | Supplied LIVE references. |
 | Follow-ups dashboard | VERIFIED IDENTICAL | Supplied LIVE references. |
@@ -44,8 +45,8 @@ Status meanings:
 | Payments dashboard | VERIFIED IDENTICAL | Supplied LIVE references. |
 | Record payment modal | VERIFIED IDENTICAL | Supplied LIVE references including Cash App/Venmo. |
 | Payment history | FUNCTIONALLY VERIFIED | Duplicate prevention tested; exact populated LIVE history screen still needed. |
-| Refund payment modal / payment-level refund workflow | NEEDS LIVE VISUAL | v111+ functionality is regression-covered; exact LIVE owner refund UI must be captured and compared. |
-| Refund processing hold across owner job/invoice/payment views | NEEDS LIVE VISUAL | v112+ behavior is regression-covered; exact LIVE rendered hold state remains to be compared. |
+| Refund payment modal / payment-level refund workflow | NEEDS LIVE VISUAL | Functionality is source/regression-guarded; exact LIVE owner refund UI must be captured and compared. |
+| Refund processing hold across owner job/invoice/payment views | NEEDS LIVE VISUAL | Behavior is source/regression-guarded; exact LIVE rendered hold state remains to be compared. |
 | Invoices list | NEEDS LIVE VISUAL | Functional/multi-service behavior audited; exact LIVE screen still needed. |
 | Invoice detail owner view | NEEDS LIVE VISUAL | Exact LIVE state not yet captured. |
 | Business screen | NEEDS LIVE VISUAL | Exact LIVE screen not yet captured. |
@@ -53,7 +54,7 @@ Status meanings:
 | Job costs & profit modal | VERIFIED IDENTICAL | Supplied LIVE references. |
 | Service completion report | VERIFIED IDENTICAL | Supplied LIVE references including all six checks. |
 | Job report saved state | VERIFIED IDENTICAL | Supplied LIVE reference. |
-| Before/after photos workflow | LIVE EVIDENCE CAPTURED | LIVE Photo type / Camera / Photo library controls captured; independent rendered comparison still pending. |
+| Before/after photos UI/workflow controls | LIVE EVIDENCE CAPTURED | LIVE Photo type / Camera / Photo library controls captured; independent rendered UI comparison still pending. Actual DR photo-file storage is a separate capability gap below. |
 | Empty/error states across all owner routes | FUNCTIONALLY VERIFIED / NEEDS LIVE VISUAL | Regression behavior exists; not every live visual error/empty state has been captured. |
 
 ## Customer-facing app
@@ -82,21 +83,22 @@ Status meanings:
 | No duplicate parent rows from estimate_items joins | FUNCTIONALLY VERIFIED | Regression coverage for Home/invoices/payments/expenses/etc. LIVE sync still required. |
 | $150 minimum logic | FUNCTIONALLY VERIFIED | Locked independent safety rule; confirm LIVE equivalent after sync. |
 | Service catalog/pricing rules | FUNCTIONALLY VERIFIED | Known rates locked; unverified services remain intentional manual pricing. |
-| 50% deposit requirement | LIVE BEHAVIOR CAPTURED | LIVE calculates/displays the 50% deposit but does not use it as a scheduling gate. v38 matches that behavior; independent rendered evidence is still required. |
+| 50% deposit requirement | LIVE BEHAVIOR CAPTURED | LIVE calculates/displays the 50% deposit but does not use it as a scheduling gate. Independent mechanics match that behavior; independent rendered evidence is still required. |
 | Completion-before-final-balance workflow | FUNCTIONALLY VERIFIED | Independent regression coverage; LIVE sync required. |
 | Stripe server-side amount calculation | FUNCTIONALLY VERIFIED | Independent side only until LIVE sync verified. |
 | Stripe signed webhook + idempotency | FUNCTIONALLY VERIFIED | Independent side only until LIVE sync verified. |
 | Manual payment safeguards | FUNCTIONALLY VERIFIED | Regression coverage. |
 | Backup/restore behavior | INFRASTRUCTURE ONLY | Independent recovery capability; must not alter shared business UX. |
-| Owner authentication implementation | INFRASTRUCTURE ONLY | May differ technically, but post-login FIRE experience must match. |
+| Owner authentication implementation | INFRASTRUCTURE ONLY | DR uses a separate 4-digit PIN implementation; post-login FIRE experience must match. |
 | Database/resource IDs | INFRASTRUCTURE ONLY | Expected difference. |
 | Domain/host URL | INFRASTRUCTURE ONLY | Expected difference. |
 | Stripe test/live secrets | INFRASTRUCTURE ONLY | Expected difference; resulting FIRE workflow must remain the same. |
+| Photo-file storage in current DR | CAPABILITY GAP | Current independent staging is intentionally D1-only with no R2. Photo UI can be visually compared, but upload/archive/download cannot be called functionally identical. The photo API must fail closed until storage is intentionally provisioned and tested. |
 
 ## Current strict-parity verdict
 **NOT YET IDENTICAL IN EVERY SINGLE LOOK/FUNCTION STATE.**
 
-The known/captured LIVE surfaces are highly matched, but literal parity is blocked until the remaining NEEDS LIVE VISUAL states are captured and the current shared release rules are synchronized and verified in LIVE (especially remaining uncaptured owner/customer states, multi-service query protections, and Stripe lifecycle).
+The known/captured LIVE surfaces are highly matched, but literal parity is blocked until the remaining NEEDS LIVE VISUAL states are captured, independent evidence is registered, and the current shared release rules are synchronized and verified in LIVE. The current no-R2 photo-file capability gap also prevents a claim of full photo-recovery equivalence unless it is later provisioned/tested or explicitly accepted as out of scope.
 
 ## Required next live captures
 To close the remaining visual blockers, capture these from the LIVE app when available:
@@ -115,4 +117,4 @@ To close the remaining visual blockers, capture these from the LIVE app when ava
 13. Owner refund-processing hold state.
 14. Customer refund-processing state.
 
-No release may claim FULL IDENTICAL until these blockers are closed or proven unreachable/nonexistent in both deployments.
+No release may claim FULL IDENTICAL until these blockers are closed or proven unreachable/nonexistent in both deployments, and any current capability gap is either resolved or explicitly approved as an infrastructure-only exception.
