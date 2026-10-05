@@ -7,10 +7,12 @@ repo_root = Path('..')
 manifest_path = root / 'PARITY_EVIDENCE_MANIFEST.json'
 overlay_path = repo_root / 'dr-parity-evidence/INDEPENDENT_EVIDENCE_OVERLAY.json'
 persistent_dir = repo_root / 'dr-parity-evidence/independent'
+provenance_path = root / 'dist/server/FIRE_DR_BUILD_PROVENANCE.json'
 errors = []
 
 if not manifest_path.is_file(): errors.append('formal parity manifest missing')
 if not overlay_path.is_file(): errors.append('persistent independent evidence overlay missing')
+if not provenance_path.is_file(): errors.append('governed build provenance missing')
 if errors:
     print('DR_INDEPENDENT_EVIDENCE_INTEGRITY=FAIL')
     for error in errors: print('- '+error)
@@ -18,6 +20,12 @@ if errors:
 
 manifest = json.loads(manifest_path.read_text())
 overlay = json.loads(overlay_path.read_text())
+provenance_bytes = provenance_path.read_bytes()
+provenance = json.loads(provenance_bytes)
+current_provenance_sha = hashlib.sha256(provenance_bytes).hexdigest()
+current_source_commit = provenance.get('checked_out_source_commit')
+if not current_source_commit: errors.append('build provenance does not contain checked_out_source_commit')
+if provenance.get('deployment_target', {}).get('worker_name') != 'fire-app-independent-staging': errors.append('build provenance is not for governed independent staging Worker')
 if overlay.get('schema_version') != 1: errors.append('unexpected persistent overlay schema')
 if overlay.get('side') != 'independent': errors.append('persistent overlay side must be independent')
 registrations = overlay.get('entries')
@@ -52,12 +60,32 @@ for registration in registrations:
     if target.get('independent_evidence_status') != 'CAPTURED': errors.append(f'{entry_id}: formal independent status is not CAPTURED')
     if target.get('comparison_status') == 'VERIFIED_IDENTICAL': errors.append(f'{entry_id}: persistent registration alone must not produce VERIFIED_IDENTICAL')
     if manifest_independent != evidence: errors.append(f'{entry_id}: rebuilt manifest independent evidence differs from persistent overlay')
+    live = next((item for item in target.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'live'), None)
     for item in evidence:
         if not isinstance(item, dict):
             errors.append(f'{entry_id}: evidence item is not an object')
             continue
         if item.get('side') != 'independent': errors.append(f'{entry_id}: evidence side is not independent')
         if item.get('source_environment') != 'independent-dr': errors.append(f'{entry_id}: source_environment must be independent-dr')
+        if item.get('source_label') != 'fire-app-independent-staging': errors.append(f'{entry_id}: source_label must identify independent staging')
+        if item.get('source_release') != 'v138-dr-staging': errors.append(f'{entry_id}: source_release must be v138-dr-staging')
+        if item.get('deployment_provenance_source') != 'FIRE_DR_BUILD_PROVENANCE.json': errors.append(f'{entry_id}: deployment provenance source is missing/unexpected')
+        if item.get('deployment_provenance_sha256') != current_provenance_sha: errors.append(f'{entry_id}: evidence provenance hash does not match current governed build')
+        if item.get('source_commit') != current_source_commit: errors.append(f'{entry_id}: evidence source commit does not match governed build provenance')
+        if item.get('capture_profile_source') != 'dr-registrar-v2': errors.append(f'{entry_id}: capture profile was not produced by governed DR registrar v2')
+        for key in ['pixel_width','pixel_height','viewport_width','viewport_height']:
+            value = item.get(key)
+            if not isinstance(value, int) or value <= 0: errors.append(f'{entry_id}: {key} must be a positive integer')
+        if item.get('device_class') not in {'mobile','tablet','desktop'}: errors.append(f'{entry_id}: invalid/missing device_class')
+        if item.get('orientation') not in {'portrait','landscape'}: errors.append(f'{entry_id}: invalid/missing orientation')
+        if item.get('profile_matches_registered_live') not in {True, False}: errors.append(f'{entry_id}: profile_matches_registered_live must be explicit boolean')
+        if item.get('profile_matches_registered_live') is False and not item.get('profile_mismatch_notes'): errors.append(f'{entry_id}: profile mismatch requires explicit mismatch notes')
+        if live and item.get('profile_matches_registered_live') is True:
+            for key in ['pixel_width','pixel_height','viewport_width','viewport_height','device_class','orientation','theme']:
+                live_value = live.get(key)
+                dr_value = item.get(key)
+                if live_value is not None and dr_value is not None and live_value != dr_value:
+                    errors.append(f'{entry_id}: profile declared matching but {key} differs: LIVE={live_value!r}, DR={dr_value!r}')
         file_value = item.get('file')
         if not isinstance(file_value, str) or not file_value.startswith('evidence/independent/'):
             errors.append(f'{entry_id}: evidence path is not under evidence/independent/')
@@ -74,8 +102,6 @@ for registration in registrations:
             if item.get('sha256') != persistent_sha: errors.append(f'{entry_id}: registered SHA-256 differs from evidence bytes: {filename}')
             if item.get('bytes') != persistent.stat().st_size: errors.append(f'{entry_id}: registered byte count differs: {filename}')
 
-# Any independent evidence in the formal manifest must come from the persistent
-# overlay. This prevents one-off working-tree captures from disappearing later.
 for entry in manifest_entries:
     if not isinstance(entry, dict): continue
     independent_items = [item for item in entry.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'independent']
@@ -87,4 +113,4 @@ if errors:
     for error in errors: print('- '+error)
     raise SystemExit(1)
 print('DR_INDEPENDENT_EVIDENCE_INTEGRITY=PASS')
-print(f'{len(registrations)} persistent independent registration(s) match the rebuilt manifest/files exactly; no registration auto-promotes VERIFIED_IDENTICAL.')
+print(f'{len(registrations)} persistent independent registration(s) match rebuilt manifest/files, capture profiles, source commit, and governed build provenance exactly; no registration auto-promotes VERIFIED_IDENTICAL.')
