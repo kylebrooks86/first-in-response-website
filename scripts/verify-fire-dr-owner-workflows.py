@@ -94,34 +94,84 @@ checks = {
         'Customer walkthrough completed',
         'Job report saved.',
 
-        # Business screen structure.
+        # Owner Invoices list and exception states.
+        '<p className="eyebrow">Billing</p><h1>Invoices</h1>',
+        'Open, send, and record payment against every invoice.',
+        'Number(invoice.pendingRefundCount)>0?"Refund processing":Number(invoice.paymentOverageOpen)>0?"Payment review":statusLabel(invoice.status)',
+        'Number(invoice.pendingRefundCount)>0?"Refund pending":Number(invoice.paymentOverageOpen)>0?"Billing exception open"',
+        'href={`/invoice/${invoice.shareToken}`}',
+        '<ExternalLink/>Open</a>',
+        'Number(invoice.pendingRefundCount)===0&&<RecordPayment',
+        'Open an estimate and choose Create invoice.',
+
+        # Final-invoice editing and immutable revision review.
+        '<DialogTitle>Edit final invoice</DialogTitle>',
+        'Add last-minute services or adjust the final discount without changing the original accepted estimate. Recorded payments are preserved.',
+        '<Label>Payment due</Label>',
+        'Due on receipt',
+        'Specific date',
+        '<Label>Final invoice discount</Label>',
+        '% Percentage',
+        '$ Dollar amount',
+        'Invoice subtotal',
+        'Invoice total',
+        'Paid already',
+        'Invoice revision history',
+        'Previous invoice versions are retained automatically before each edit.',
+        'Due on receipt',
+        'Save invoice changes',
+
+        # Business screen structure, metrics, forms, and restore behavior.
         '<p className="eyebrow">Owner operations</p><h1>Business</h1>',
         'Tasks, expenses, and job profitability in one simple place.',
         'Full records backup',
         'Photo archive',
         'Restore missing records',
         'Export for Wave',
+        '<small>Open tasks</small>',
+        'This month&apos;s expenses',
+        '<small>Recorded expenses</small>',
         '<h2>Tasks and reminders</h2>',
-        '<h2>Expenses</h2>',
+        'Task, call, or reminder',
+        'General business task',
+        'Optional notes',
+        'Add task',
+        'No due date',
         'No tasks yet.',
+        '<h2>Expenses</h2>',
+        'Track costs and export them for Wave.',
+        '"Supplies","Chemicals","Equipment","Fuel","Insurance","Marketing","Labor","Other"',
+        'General business expense',
+        'What was the expense?',
+        '$ Amount',
+        'Add expense',
         'No expenses recorded yet.',
         'Restore missing FIRE App records?',
         'It will not delete or overwrite records already in the app.',
         'Customer photo files are not included and will be skipped.',
+        'missing records restored;',
+        'existing records preserved.',
 
-        # Templates screen structure and edit/reset behavior.
+        # Templates screen structure, unsaved-change protection, save/reset behavior.
         'function SettingsView(){',
+        '<p className="eyebrow">Communication center</p><h1>Message templates</h1>',
+        'Edit every customer message once, then use it from estimates, invoices, customer profiles, and follow-ups.',
+        '["Estimates","Invoices","Scheduling","After service","Documents"]',
+        'Discard your unsaved template changes?',
+        'Restore the original FIRE template and replace your current edits?',
+        'beforeunload',
         'Email subject',
         'Service agreement text',
         'Insert a personalized field',
         'Restore default',
         'Save template',
         'Text + email',
+        'Default restored.',
+        'Template saved.',
+        'This is the full agreement customers review before signing once.',
         'Personalized fields are filled automatically when you prepare the message.',
 
-        # Owner invoice and refund UI.
-        '<DialogTitle>Edit final invoice</DialogTitle>',
-        'Invoice revision history',
+        # Owner refund UI.
         'Refund payment',
         'Refund amount',
         'Refund note',
@@ -210,5 +260,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_OWNER_WORKFLOW_PARITY_GUARD=PASS')
-print('Protected: already-verified Dashboard/Notifications/Customers/Contracts/Follow-ups/Payments/job-cost/job-report surfaces; customer action row and Messages/Notes states; exact LIVE manual-payment handles and review URL; captured service-selector tail order; Business tasks/expenses/backup-restore UI; Templates editing/reset; owner invoice editing/history; refund modal/statuses; billing-exception states; common owner empty states; restore audit/integrity markers.')
+print('Protected: already-verified Dashboard/Notifications/Customers/Contracts/Follow-ups/Payments/job-cost/job-report surfaces; exact owner Invoices list and billing-exception states; final-invoice due-date/discount/revision controls; Business metrics/tasks/expenses/restore states; Templates categories, unsaved-change protection, save/reset confirmations; customer action row and Messages/Notes states; exact LIVE manual-payment handles and review URL; captured service-selector tail order; refund modal/statuses; common owner empty states; restore audit/integrity markers.')
 print('This remains source-level protection only; rendered LIVE-vs-DR comparison is still required for strict parity.')
