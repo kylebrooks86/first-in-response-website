@@ -34,6 +34,7 @@
     "verify-fire-dr-restore-identity.py",
     "verify-fire-dr-restore-v135-v138.py",
     "verify-fire-dr-script-inventory.py",
+    "verify-fire-dr-tooling-syntax.py",
     "write-fire-dr-build-provenance.py"
   ]
 }
