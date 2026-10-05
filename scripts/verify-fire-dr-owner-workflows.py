@@ -32,6 +32,12 @@ checks = {
 
         # Add-customer / customer-property workflow already matched to LIVE.
         '<DialogTitle>Add customer</DialogTitle>',
+        # Owner-approved forward-sync customer editing workflow.
+        'function EditCustomer(',
+        'Edit customer',
+        'Save customer changes',
+        'How they found FIRE',
+        'EditCustomer customer={selected}',
         '<Label>Customer name</Label>',
         '<Label>Email</Label>',
         '<Label>Phone</Label>',
@@ -260,5 +266,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_OWNER_WORKFLOW_PARITY_GUARD=PASS')
-print('Protected: already-verified Dashboard/Notifications/Customers/Contracts/Follow-ups/Payments/job-cost/job-report surfaces; exact owner Invoices list and billing-exception states; final-invoice due-date/discount/revision controls; Business metrics/tasks/expenses/restore states; Templates categories, unsaved-change protection, save/reset confirmations; customer action row and Messages/Notes states; exact LIVE manual-payment handles and review URL; captured service-selector tail order; refund modal/statuses; common owner empty states; restore audit/integrity markers.')
+print('Protected: already-verified Dashboard/Notifications/Customers/Contracts/Follow-ups/Payments/job-cost/job-report surfaces; owner-approved customer-profile/Edit customer forward-sync target; exact owner Invoices list and billing-exception states; final-invoice due-date/discount/revision controls; Business metrics/tasks/expenses/restore states; Templates categories, unsaved-change protection, save/reset confirmations; customer action row and Messages/Notes states; exact LIVE manual-payment handles and review URL; captured service-selector tail order; refund modal/statuses; common owner empty states; restore audit/integrity markers.')
 print('This remains source-level protection only; rendered LIVE-vs-DR comparison is still required for strict parity.')
