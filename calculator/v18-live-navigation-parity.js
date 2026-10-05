@@ -11,7 +11,7 @@
     if(style)return;
     style=document.createElement('style');
     style.id='fireLiveHeaderParityStyle';
-    style.textContent='@media(max-width:760px){.topbar .title strong{font-size:16px!important}}';
+    style.textContent='@media(max-width:760px){.topbar .title strong{font-size:16px!important}.warn{padding-left:16px!important;padding-right:16px!important;font-size:13.12px!important;line-height:1.45!important;font-weight:400!important}}';
     document.head.appendChild(style);
   };
   const activate=view=>{
