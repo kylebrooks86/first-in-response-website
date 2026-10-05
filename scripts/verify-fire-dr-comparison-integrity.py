@@ -43,7 +43,8 @@ for decision in entries:
     if result not in {'VERIFIED_IDENTICAL','MISMATCH'}: errors.append(f'{entry_id}: invalid comparison result {result!r}')
     if not str(decision.get('notes','')).strip(): errors.append(f'{entry_id}: comparison notes required')
     if not decision.get('reviewed_at'): errors.append(f'{entry_id}: reviewed_at required')
-    live = next((item for item in target.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'live'), None)
+    live_candidates = [item for item in target.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'live']
+    live = next((item for item in live_candidates if item.get('comparison_reference') is True), None) or (live_candidates[0] if live_candidates else None)
     independent = next((item for item in target.get('evidence', []) if isinstance(item, dict) and item.get('side') == 'independent'), None)
     if not live or target.get('live_evidence_status') != 'CAPTURED': errors.append(f'{entry_id}: LIVE evidence missing/not CAPTURED')
     if not independent or target.get('independent_evidence_status') != 'CAPTURED': errors.append(f'{entry_id}: DR evidence missing/not CAPTURED')
