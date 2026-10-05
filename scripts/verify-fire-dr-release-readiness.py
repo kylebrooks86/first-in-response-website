@@ -52,27 +52,33 @@ for item in entries:
     else:
         blockers.append(f'{entry_id}: comparison={comparison}')
 
-# Formal FULL_IDENTICAL follows the manifest completion rule. Infrastructure-only
-# is only acceptable when explicitly classified there; unresolved mismatches are
-# never acceptable.
-full_identical_ready = (
-    len(entries) == 32
-    and live_missing == 0
-    and dr_missing == 0
-    and mismatches == 0
-    and all(
-        isinstance(item, dict)
-        and item.get('comparison_status') in {'VERIFIED_IDENTICAL','INFRASTRUCTURE_ONLY'}
-        for item in entries
-    )
-)
-
 release = release_path.read_text()
 audit = audit_path.read_text()
 matrix = matrix_path.read_text()
 queue = queue_path.read_text()
 go_no_go = go_no_go_path.read_text()
 runbook = runbook_path.read_text()
+
+forward_sync_approved = sum(1 for line in matrix.splitlines() if '| FORWARD SYNC APPROVED |' in line)
+if forward_sync_approved:
+    blockers.append(f'{forward_sync_approved} owner-approved forward-sync product difference(s) still require LIVE synchronization')
+
+# Formal FULL_IDENTICAL follows the manifest completion rule and also requires
+# every owner-approved forward-sync user-facing improvement to have been brought
+# into LIVE. Infrastructure-only is acceptable only when explicitly classified;
+# unresolved mismatches and user-facing forward-sync gaps are never acceptable.
+full_identical_ready = (
+    len(entries) == 32
+    and live_missing == 0
+    and dr_missing == 0
+    and mismatches == 0
+    and forward_sync_approved == 0
+    and all(
+        isinstance(item, dict)
+        and item.get('comparison_status') in {'VERIFIED_IDENTICAL','INFRASTRUCTURE_ONLY'}
+        for item in entries
+    )
+)
 
 if not full_identical_ready:
     required_markers = [
@@ -99,9 +105,6 @@ if not full_identical_ready:
         if re.search(pattern, text, flags=re.IGNORECASE):
             errors.append(f'{label} contains a premature completion/synchronization claim while formal blockers remain')
 
-# Even when the evidence ledger eventually satisfies the completion rule, never
-# let this guard itself promote production. It only reports readiness; actual
-# production synchronization remains an explicit owner-controlled action.
 if errors:
     print('DR_RELEASE_READINESS=FAIL')
     for error in errors:
@@ -109,10 +112,10 @@ if errors:
     raise SystemExit(1)
 
 print('DR_RELEASE_READINESS=PASS')
-print(f'Formal states={len(entries)}; LIVE missing={live_missing}; DR missing={dr_missing}; verified identical={verified}; infrastructure-only={infrastructure_only}; mismatches={mismatches}.')
+print(f'Formal states={len(entries)}; LIVE missing={live_missing}; DR missing={dr_missing}; verified identical={verified}; infrastructure-only={infrastructure_only}; mismatches={mismatches}; forward-sync approved={forward_sync_approved}.')
 if full_identical_ready:
     print('EVIDENCE_GATE=READY_FOR_EXPLICIT_OWNER_REVIEW')
-    print('The evidence completion rule is satisfied, but this guard does not synchronize or modify production.')
+    print('The evidence completion rule is satisfied and no owner-approved forward-sync product gaps remain, but this guard does not synchronize or modify production.')
 else:
     print('EVIDENCE_GATE=NOT_YET_FULLY_VERIFIED')
-    print(f'Parity remains staging-only with {len(blockers)} unresolved evidence/comparison blocker(s); release-facing documents remain conservatively labeled.')
+    print(f'Parity remains staging-only with {len(blockers)} unresolved evidence/comparison/forward-sync blocker(s); release-facing documents remain conservatively labeled.')
