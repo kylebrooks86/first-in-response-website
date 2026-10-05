@@ -7,8 +7,8 @@
   "baseline_status": "STAGING_REAL_DEVICE_PARITY_REAUDIT_IN_PROGRESS_NOT_SYNCHRONIZED",
   "verified_calculator_gate_head": "33a1e6e2d2ddd4e00d6030ae315230b7ef894f65",
   "verified_visual_behavior_head": null,
-  "verified_shared_core_fingerprint": "6c82bbf6d685e72ef3a478e25b88cd328e1508813959b46e442b074064366251",
-  "offline_cache_generation": 77,
+  "verified_shared_core_fingerprint": "101185de1ae663d7179f0ae9dee18135819ed175c088f5478ad909b300a4ff6e",
+  "offline_cache_generation": 78,
   "verified_gates": {
     "live_to_dr_backup_takeover": true,
     "dr_to_live_reverse_portability": true,
@@ -22,5 +22,5 @@
   "dr_source": "Independent calculator under /calculator/",
   "staging_branch": "fire-calculator-exact-live-clone",
   "production_promotion_approved": false,
-  "reaudit_note": "DR generation 77 fixes major dark-mode specificity conflicts against fresh LIVE evidence: header controls, warning banner, headings, segmented growth selector, SH recipe card/metrics/order note, and stock-strength card now use dark LIVE-style treatments. The mobile header also uses filled moon/sun icons and smaller theme/install controls to prevent the Field Calculator title from clipping. Visual/behavior parity remains open pending fresh rendered verification."
+  "reaudit_note": "DR generation 78 corrects the prior generic-card probe using actual LIVE iPhone screenshots: normal cards render white in light mode and navy in dark mode, while route-specific recipe/X-Jet treatments remain intact. Chemicals mobile product rows now match the measured 70.4px LIVE height, dark custom-dilution result text is restored, and final LIVE-render overrides load last to prevent stale compatibility CSS from winning by specificity. Visual/behavior parity remains open pending fresh rendered verification."
 }
