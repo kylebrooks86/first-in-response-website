@@ -7,8 +7,8 @@
   "baseline_status": "STAGING_REAL_DEVICE_PARITY_REAUDIT_IN_PROGRESS_NOT_SYNCHRONIZED",
   "verified_calculator_gate_head": "33a1e6e2d2ddd4e00d6030ae315230b7ef894f65",
   "verified_visual_behavior_head": null,
-  "verified_shared_core_fingerprint": "9e3c7d705165e5d74ee369e484f428eecafcddd80cdf92a54dfad8fd5dd6604d",
-  "offline_cache_generation": 74,
+  "verified_shared_core_fingerprint": "d73a54a3554797f5310ea8d2da2cb0e0e26263258e5037a041a25b38bca42685",
+  "offline_cache_generation": 75,
   "verified_gates": {
     "live_to_dr_backup_takeover": true,
     "dr_to_live_reverse_portability": true,
@@ -22,5 +22,5 @@
   "dr_source": "Independent calculator under /calculator/",
   "staging_branch": "fire-calculator-exact-live-clone",
   "production_promotion_approved": false,
-  "reaudit_note": "Owner real-device iPhone testing invalidated the prior automated visual-parity claim. A fresh LIVE capture on 2026-10-05 confirmed Field Tools remains a top navigation tab as well as a bottom Tools destination, so the temporary removal was reverted. Index/Mixes, Equipment, Chemicals, Job Math and remaining routes continue section-by-section verification against fresh LIVE evidence."
+  "reaudit_note": "Fresh LIVE computed-style evidence on 2026-10-05 showed top-level cards are transparent over the page background and SH Mix growth buttons are 104px flex items with 8px gaps at the iPhone viewport. DR generation 75 applies those corrections. Field Tools remains in both current LIVE top navigation and bottom Tools navigation. Remaining route/device parity continues section-by-section."
 }
