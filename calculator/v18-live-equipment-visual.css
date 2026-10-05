@@ -66,3 +66,87 @@ body.dark #equipment .card:has(#xSurface)>p.mini{color:#9fb0bf!important}
   #equipment .card:has(#injRatio) #injRatio{margin:3px 0!important}
   #equipment .card:has(#injRatio)>p.muted:last-child{margin:6px 0 0!important}
 }
+
+
+/* 2026-10-04 direct LIVE-render parity correction for iPhone Equipment. */
+#equipment .card>.kicker{margin-bottom:4px!important;line-height:1.35!important}
+#equipment .card>h2{margin-bottom:13px!important}
+#equipment .inputrow{gap:8px!important}
+#equipment .inputrow>.unit{
+  display:grid!important;place-items:center!important;align-self:stretch!important;
+  flex:0 0 auto!important;min-width:30px!important;padding:0 6px!important;
+  border:1px solid #cfdbe2!important;border-radius:12px!important;
+  background:#fff!important;color:#607381!important;font-size:12px!important;font-weight:800!important;white-space:nowrap!important
+}
+#equipment .card:has(#xSurface){
+  background:#f1dfdc!important;border-color:#f1a995!important
+}
+#equipment .card:has(#xSurface) #xjetInsertGuide{margin-top:12px!important}
+#equipment .card:has(#xSurface) #xjetLiveResults{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;margin-top:14px!important
+}
+#equipment .card:has(#xSurface) #xjetLiveResults>.metric:first-child{grid-column:1/-1!important}
+#equipment .card:has(#xSurface) #xjetModelNote{margin-top:12px!important}
+#equipment .card:has(#xSurface)>p.mini{margin-top:8px!important}
+
+#equipment .card:has(#xReqBucket)>.grid{gap:12px!important}
+#equipment .card:has(#xReqBucket) .reverse-required{
+  margin:0!important;padding:11px 12px!important;border:1px solid #d7e0e5!important;
+  border-radius:12px!important;background:#fff!important
+}
+#equipment .card:has(#xReqBucket) .reverse-required small,
+#equipment .card:has(#xReqBucket) .reverse-required strong{display:block!important}
+#equipment .card:has(#xReqBucket) .reverse-required strong{margin-top:4px!important;font-size:20px!important}
+#equipment .card:has(#xReqBucket) .x-reverse-results{
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:9px!important;margin-top:14px!important
+}
+#equipment .card:has(#xReqBucket) .x-reverse-results .metric{
+  padding:11px 10px!important;border:1px solid #d7e0e5!important;border-radius:12px!important;background:#fff!important
+}
+#equipment .card:has(#xReqBucket) #xReverseInstruction{
+  margin:12px 0 0!important;padding:12px!important;border:1px solid #efc8bd!important;
+  border-radius:12px!important;background:#f7e6e1!important;color:#a55443!important;
+  font-size:13px!important;line-height:1.4!important
+}
+#equipment .card:has(#xReqBucket)>p.mini{margin:8px 0 0!important;font-size:12px!important;line-height:1.45!important;color:#607381!important}
+
+#equipment .card:has(#pumpGpm)>.grid{gap:12px!important}
+#equipment .card:has(#pumpGpm)>.prop-valve-results{
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:9px!important;margin-top:14px!important
+}
+#equipment .card:has(#pumpGpm)>.prop-valve-results>.metric:first-child{grid-column:1/-1!important}
+#equipment .card:has(#pumpGpm)>.prop-tank-grid{gap:12px!important;margin-top:12px!important}
+#equipment .card:has(#pumpGpm)>.prop-tank-results{
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:9px!important;margin-top:14px!important
+}
+#equipment .card:has(#pumpGpm)>.prop-tank-results>.metric:first-child{grid-column:1/-1!important}
+#equipment .card:has(#pumpGpm)>.results .metric{
+  padding:11px!important;border:1px solid #d7e0e5!important;border-radius:12px!important;background:#fff!important
+}
+#equipment .card:has(#pumpGpm) #propPlannerWarning{
+  margin:12px 0 0!important;padding:12px!important;border:1px solid #efc8bd!important;
+  border-radius:12px!important;background:#f7e6e1!important;color:#a55443!important;
+  font-size:13px!important;line-height:1.4!important
+}
+body.dark #equipment .inputrow>.unit,
+body.dark #equipment .card:has(#xReqBucket) .reverse-required,
+body.dark #equipment .card:has(#xReqBucket) .x-reverse-results .metric,
+body.dark #equipment .card:has(#pumpGpm)>.results .metric{
+  background:#18212b!important;border-color:#35414b!important;color:#f6f7f8!important
+}
+body.dark #equipment .card:has(#xSurface){background:#2b2024!important;border-color:#75463e!important}
+body.dark #equipment .card:has(#xReqBucket)>p.mini{color:#9fb0bf!important}
+
+@media(max-width:560px){
+  #equipment .card:has(#xReqBucket) .x-reverse-results,
+  #equipment .card:has(#pumpGpm)>.prop-valve-results,
+  #equipment .card:has(#pumpGpm)>.prop-tank-results{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important
+  }
+  #equipment .card:has(#xReqBucket)>.grid,
+  #equipment .card:has(#pumpGpm)>.grid,
+  #equipment .card:has(#pumpGpm)>.prop-tank-grid{gap:12px!important}
+}
