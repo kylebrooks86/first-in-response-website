@@ -69,13 +69,13 @@ The preparation script:
 18. self-tests the predeploy provenance gate;
 19. runs typecheck and reports its result honestly.
 
+The preparation script runs the LIVE-evidence coverage/accountability guard so newly registered LIVE evidence cannot silently bypass DR parity coverage.
+
 The sealed-v138 TypeScript errors are currently known and treated as `FAIL_NONBLOCKING` only after the production build succeeds. Do not report typecheck as passing unless it actually passes.
 
 ## 3. Authentication
 
-The current DR deployment does **not** use the old long-password setup described by earlier staging documents.
-
-The preparation overlay changes the owner login to a 4-digit PIN flow and creates a signed owner session. The PIN itself must not be stored in plain text in documentation or source.
+The current DR deployment does **not** use the old long-password setup described by earlier staging documents. The preparation overlay changes the owner login to a 4-digit PIN flow and creates a signed owner session. The PIN itself must not be stored in plain text in documentation or source.
 
 Verify after deployment that an incorrect PIN is rejected, the correct PIN opens the owner app, the session persists as expected, the Home Screen-installed app remains usable, and authentication does not alter the post-login LIVE-style experience.
 
