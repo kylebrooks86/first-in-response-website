@@ -5,11 +5,14 @@ if not css_path.exists():
     raise SystemExit('app/globals.css not found')
 
 css = css_path.read_text()
-marker = '/* FIRE_DR_STANDALONE_SCROLL_PARITY_V10 */'
+marker = '/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V11 */'
 if marker not in css:
     css += r'''
 
-/* FIRE_DR_STANDALONE_SCROLL_PARITY_V10 */
+/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V11
+   Keep the accepted native page scrolling untouched. This overlay only fixes
+   the iPhone Home Screen top shell: safe-area placement, crisp rendering, and
+   the DR Stride label alignment. */
 .fire-dr-stride-button {
   display: flex !important;
   flex-direction: column !important;
@@ -29,21 +32,14 @@ if marker not in css:
   white-space: nowrap !important;
 }
 
-/* iPhone Home Screen / standalone parity.
-   Keep the page on the native document scroller, but isolate the two persistent
-   navigation layers so iOS does not repeatedly repaint them with page content. */
 @media (display-mode: standalone) and (max-width: 760px) {
-  html, body {
-    scroll-behavior: auto !important;
-    overflow-x: hidden !important;
-  }
   .topbar {
     top: 0 !important;
-    height: calc(64px + env(safe-area-inset-top)) !important;
-    min-height: calc(64px + env(safe-area-inset-top)) !important;
-    padding-top: env(safe-area-inset-top) !important;
-    padding-left: max(22px, env(safe-area-inset-left)) !important;
-    padding-right: max(22px, env(safe-area-inset-right)) !important;
+    height: calc(68px + env(safe-area-inset-top)) !important;
+    min-height: calc(68px + env(safe-area-inset-top)) !important;
+    padding-top: calc(env(safe-area-inset-top) + 4px) !important;
+    padding-left: max(16px, env(safe-area-inset-left)) !important;
+    padding-right: max(16px, env(safe-area-inset-right)) !important;
     padding-bottom: 0 !important;
     background: #fff !important;
     background-image: none !important;
@@ -53,30 +49,17 @@ if marker not in css:
     box-shadow: none !important;
     text-shadow: none !important;
     opacity: 1 !important;
-    contain: paint !important;
-    isolation: isolate !important;
-    transform: translate3d(0,0,0) !important;
-    -webkit-transform: translate3d(0,0,0) !important;
-    backface-visibility: hidden !important;
-    -webkit-backface-visibility: hidden !important;
+    contain: none !important;
+    isolation: auto !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    backface-visibility: visible !important;
+    -webkit-backface-visibility: visible !important;
   }
   [data-theme="dark"] .topbar {
     background: #101d2d !important;
     background-image: none !important;
   }
-  .bottom-nav {
-    background: #fff !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    box-shadow: none !important;
-    contain: paint !important;
-    isolation: isolate !important;
-    transform: translate3d(0,0,0) !important;
-    -webkit-transform: translate3d(0,0,0) !important;
-    backface-visibility: hidden !important;
-    -webkit-backface-visibility: hidden !important;
-  }
-  [data-theme="dark"] .bottom-nav { background: #101d2d !important; }
   .topbar::before,
   .topbar::after,
   .mobile-primary-actions::before,
@@ -93,6 +76,8 @@ if marker not in css:
     box-shadow: none !important;
     text-shadow: none !important;
     opacity: 1 !important;
+    transform: none !important;
+    -webkit-transform: none !important;
   }
   [data-theme="dark"] .mobile-primary-actions {
     background: #132238 !important;
@@ -109,6 +94,10 @@ if marker not in css:
     box-shadow: none !important;
     text-shadow: none !important;
     opacity: 1 !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    backface-visibility: visible !important;
+    -webkit-backface-visibility: visible !important;
   }
 }
 '''
@@ -121,10 +110,10 @@ if not layout.exists():
 text = layout.read_text()
 text = text.replace('statusBarStyle: "black-translucent"', 'statusBarStyle: "default"')
 
-script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V10'
+script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V11'
 if script_marker not in text:
     script = r'''<script dangerouslySetInnerHTML={{__html: `(function(){
-  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V10 */
+  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V11 */
   function norm(s){return (s||'').replace(/\\s+/g,' ').trim().toLowerCase();}
   function closestClickable(el){
     return el && el.closest ? (el.closest('a,button,[role="button"]') || el) : el;
@@ -146,4 +135,4 @@ if script_marker not in text:
     text = text.replace('</body>', script + '\n</body>', 1)
 
 layout.write_text(text)
-print('DR_STANDALONE_SCROLL_PARITY_V10_APPLIED')
+print('DR_STANDALONE_TOPBAR_PARITY_V11_APPLIED')
