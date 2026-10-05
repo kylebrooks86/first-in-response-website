@@ -4,22 +4,23 @@
   "production_display_version": "v18",
   "disaster_recovery_display_version": "v18",
   "synchronization_status": "NOT_SYNCHRONIZED",
-  "baseline_status": "STAGING_PARITY_AND_DR_GATES_VERIFIED_NOT_SYNCHRONIZED",
-  "verified_calculator_gate_head": "c3bfa3c86ee85d40d2a7c41b0f6a5d0fdeba8611",
-  "verified_visual_behavior_head": "2ce908d790f240d44ee4c7e6ab35c71b6be78f0b",
-  "verified_shared_core_fingerprint": "579dd1c259fe8fc7eea92455244442acdcdb9f14e3441a249a4a743d34a79814",
-  "offline_cache_generation": 65,
+  "baseline_status": "STAGING_REAL_DEVICE_PARITY_REAUDIT_IN_PROGRESS_NOT_SYNCHRONIZED",
+  "verified_calculator_gate_head": "44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558",
+  "verified_visual_behavior_head": null,
+  "verified_shared_core_fingerprint": "8bc01e24e095f80224e0a64157376092c5a2c9de56274979b06a05ffe06d7cdf",
+  "offline_cache_generation": 68,
   "verified_gates": {
     "live_to_dr_backup_takeover": true,
     "dr_to_live_reverse_portability": true,
     "invalid_backup_safe_handling": true,
     "offline_airplane_mode_acceptance": true,
-    "visual_geometry_parity": true,
-    "behavior_parity": true
+    "visual_geometry_parity": false,
+    "behavior_parity": false
   },
   "rule": "Matching display versions do not establish parity. A release is synchronized only when the shared-core fingerprint matches across both independently deployed instances, required promotion gates pass, and production promotion is explicitly approved.",
   "production_source": "Current untouched LIVE FIRE Field Calculator",
   "dr_source": "Independent calculator under /calculator/",
   "staging_branch": "fire-calculator-exact-live-clone",
-  "production_promotion_approved": false
+  "production_promotion_approved": false,
+  "reaudit_note": "Owner real-device iPhone testing invalidated the prior automated visual-parity claim. Index/Mixes cache delivery, Equipment structure/visuals, and Job Math quick navigation are being re-audited against actual LIVE rendering section-by-section."
 }
