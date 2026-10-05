@@ -42,11 +42,43 @@ This document is **not** rendered proof and does not change `NOT_YET_FULLY_VERIF
   - Cash App / Venmo instructions
   - Back / Home customer portal navigation
 
+## Source-level look/feel structure audited and guarded
+
+### Owner navigation and shell
+
+- Owner navigation retains Dashboard, Contracts, Customers, Estimates, Follow-ups, Schedule, Invoices, Business, Payments, and Templates.
+- Mobile top actions retain Back, Home, Theme, and Menu controls.
+- Bottom mobile navigation retains Home, Contracts, Customers, Estimates, and Schedule.
+- Light/dark theme preference remains stored in local browser storage and reapplied through the document theme data attribute.
+- Search remains available for customers/jobs/addresses and mobile menu search remains available.
+
+### Customer records
+
+- Customer profile retains jobs/estimates, paid total, open balance, current stage, and Continue current job summary.
+- Customer profile tabs remain Estimates, Payments, Invoices, Photos, Messages, and Notes.
+- Phone, text, email, Google Maps, Stride, Google Earth, Zillow, and property preview actions remain in the customer workflow when data is available.
+
+### Estimate pipeline / schedule / invoice owner states
+
+- Estimate pipeline retains New quotes, Follow up, Approved, Scheduled, Completed, Paid, and Lost columns.
+- Schedule retains Needs attention and Upcoming jobs sections.
+- Owner invoice list keeps Payment review / Billing exception open states for unresolved overpayment cases.
+- Owner invoice list keeps Refund processing / Refund pending states while a refund is still pending.
+
 ## Source-level business/functionality parity audited and guarded
+
+### Estimate pricing and creation
+
+- Multi-service estimate creation remains available with Add another service.
+- Standard 5% First Responder & Military appreciation discount remains separate.
+- Additional discount supports Percentage or Dollar amount.
+- Percentage stacking is constrained to the governed maximum.
+- $150 minimum job charge remains enforced.
+- 50% deposit is calculated from the final estimate total.
+- Estimate creation retains the two-step Customer details → Services and pricing flow.
 
 ### Estimate lifecycle
 
-- 50% deposit is calculated from the approved estimate total.
 - Customer approval/signature is required before owner scheduling.
 - Scheduling requires a date/time.
 - Scheduling does **not** require the deposit to already be recorded, preserving the approved exception behavior.
