@@ -93,7 +93,7 @@ queue_needles = [
     'Saving keeps the same customer record/ID and does not create a duplicate customer.',
     'Existing estimates, invoices, payments, signed agreements, pricing, and job history are not rewritten.',
     'Newly added phone/email/address immediately enables the applicable Call / Text / Email / Google Maps / Google Earth / Zillow / property-preview actions after save.',
-    'Do not remove the two `FORWARD SYNC APPROVED` matrix rows until the upgraded LIVE customer profile is rendered on the same device/profile and deliberately compared against DR.',
+    'Do not clear any `FORWARD SYNC APPROVED` matrix row until its matching `FORWARD_SYNC_APPROVED.json` entry is deliberately marked `SYNCED_TO_LIVE` after same-device rendered and functional review.',
     'do not qualify as `VERIFIED_IDENTICAL` until LIVE is intentionally upgraded to match them',
 ]
 for needle in queue_needles:
