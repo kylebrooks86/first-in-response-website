@@ -18,7 +18,7 @@
   css('./v18-exact-visual.css?v=6','exact-visual');
   css('./v18-live-jobmath-visual.css?v=2','jobmath-visual');
   css('./v18-live-equipment-visual.css?v=5','equipment-visual');
-  css('./v18-live-chemicals-parity.css?v=6','chemicals-parity');
+  css('./v18-live-chemicals-parity.css?v=7','chemicals-parity');
   css('./v18-live-index-parity.css?v=1','index-parity');
   css('./v18-live-guide-parity.css?v=3','guide-parity');
   css('./v18-live-tools-parity.css?v=3','tools-parity');
@@ -47,7 +47,7 @@
     await load('./v18-live-chemicals-parity.js?v=3');
     await load('./v18-live-index-parity.js?v=2');
     await load('./v18-live-guide-parity.js?v=2');
-    await load('./v18-live-navigation-parity.js?v=4');
+    await load('./v18-live-navigation-parity.js?v=5');
     await load('./v18-live-tools-parity.js?v=1');
     await load('./v18-live-tools-options-parity.js?v=2');
     await load('./v18-live-tools-fine.js?v=1');
