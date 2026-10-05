@@ -49,12 +49,22 @@ function installXJetLiveParity(){
 
   const reverse=cardByHeading('Mix the X-Jet pickup bucket for a target strength');
   if(reverse){
-    const em=$('#xReqBucket',reverse)?.parentElement?.querySelector('em');if(em)em.textContent='';
-    if(!$('#xReverseInstruction',reverse)){
-      const p=document.createElement('p');p.id='xReverseInstruction';p.className='muted';p.textContent='Mix the pickup bucket first, verify the selected insert, then confirm the real draw with a timed bucket test.';
-      const surf=[...reverse.querySelectorAll('p.muted')].find(x=>x.textContent.includes('This recipe does not include surfactant volume'));
-      reverse.insertBefore(p,surf||null);
+    const req=$('#xReqBucket',reverse),reqMetric=req?.closest('.metric'),grid=reverse.querySelector('.grid');
+    const metrics=reqMetric?.parentElement;
+    const em=reqMetric?.querySelector('em');if(em)em.textContent='';
+    if(reqMetric&&grid&&!reqMetric.dataset.liveReverseRequired){
+      reqMetric.dataset.liveReverseRequired='1';
+      reqMetric.classList.add('reverse-required');
+      grid.appendChild(reqMetric);
     }
+    if(metrics&&metrics!==grid){metrics.className='results x-reverse-results'}
+    if(!$('#xReverseInstruction',reverse)){
+      const p=document.createElement('div');p.id='xReverseInstruction';p.className='callout warn';p.textContent='Mix the pickup bucket first, verify the selected insert, then confirm the real draw with a timed bucket test.';
+      const surf=[...reverse.querySelectorAll('p')].find(x=>x.textContent.includes('This recipe does not include surfactant volume'));
+      reverse.insertBefore(p,surf||null);
+    }else{$('#xReverseInstruction',reverse).className='callout warn'}
+    const surf=[...reverse.querySelectorAll('p')].find(x=>x.textContent.includes('This recipe does not include surfactant volume'));
+    if(surf)surf.className='mini';
   }
 
   const test=cardByHeading('X-Jet bucket draw test');
@@ -96,12 +106,28 @@ function installTankPlanner(){
      <div class="metric"><small>Continuous spray time</small><strong id="continuousSprayTime">—</strong><em id="limitingTank">water tank limits run</em></div>
      <div class="metric"><small>Total solution available</small><strong id="totalSolutionAvailable">—</strong><em>at entered pump output</em></div>
    </div><p class="muted" id="propPlannerWarning">Planning target only: proportioner dial positions are not exact percentages. Calibrate each pickup line and verify the delivered mix. This is separate from both your X-Jet and downstream injector.</p>`;
-   card.appendChild(block);
+   while(block.firstElementChild)card.appendChild(block.firstElementChild);
  }else{
    const fields=[['waterTankSize','Water tank'],['shTankSize','SH tank'],['soapTankSize','Soap tank']];fields.forEach(([id,text])=>{const l=$('#'+id)?.closest('.field')?.querySelector('label');if(l)l.textContent=text});
    const m=$('#totalSolutionAvailable')?.closest('.metric');if(m){const s=m.querySelector('small');if(s)s.textContent='Total solution available';const e=m.querySelector('em');if(e)e.textContent='at entered pump output'}
-   if(!$('#propPlannerWarning',card)){const p=document.createElement('p');p.id='propPlannerWarning';p.className='muted';p.textContent='Planning target only: proportioner dial positions are not exact percentages. Calibrate each pickup line and verify the delivered mix. This is separate from both your X-Jet and downstream injector.';card.appendChild(p)}
+   if(!$('#propPlannerWarning',card)){const p=document.createElement('div');p.id='propPlannerWarning';p.className='callout warn';p.textContent='Planning target only: proportioner dial positions are not exact percentages. Calibrate each pickup line and verify the delivered mix. This is separate from both your X-Jet and downstream injector.';card.appendChild(p)}
  }
+ const tankGrid=$('#waterTankSize',card)?.closest('.grid');
+ const tankResults=$('#continuousSprayTime',card)?.closest('.metrics, .results');
+ const warning=$('#propPlannerWarning',card);
+ const wrapper=tankGrid?.parentElement;
+ if(wrapper&&wrapper!==card&&!wrapper.classList.contains('card')){
+   if(tankGrid)card.insertBefore(tankGrid,wrapper);
+   if(tankResults)card.insertBefore(tankResults,wrapper);
+   if(warning)card.insertBefore(warning,wrapper);
+   wrapper.remove();
+ }
+ const valveMetrics=[...card.querySelectorAll('.metrics')].find(m=>m.querySelector('small')?.textContent.includes('Water valve target'));
+ if(valveMetrics)valveMetrics.className='results prop-valve-results';
+ const liveTankResults=$('#continuousSprayTime',card)?.closest('.metrics, .results');
+ if(liveTankResults)liveTankResults.className='results prop-tank-results';
+ if(tankGrid){tankGrid.classList.add('prop-tank-grid');tankGrid.style.marginTop='12px'}
+ if(warning)warning.className='callout warn';
  function calc(){
    const pump=Math.max(0,n('pumpGpm',7)),stock=Math.max(.1,n('propStock',10)),target=Math.max(0,n('propTarget',1)),soapPct=Math.max(0,n('soapPct',.5));
    const shPct=Math.max(0,target/stock*100),waterPct=Math.max(0,100-shPct-soapPct);
