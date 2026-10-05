@@ -2,6 +2,7 @@
   "schema_version": 1,
   "purpose": "Explicit inventory of every DR preparation, overlay, evidence-registration/reporting/comparison, verification, provenance, and deploy script that must be fingerprinted for reproducible independent builds.",
   "scripts": [
+    "apply-fire-dr-capture-identity.py",
     "apply-fire-dr-comparison-overlay.py",
     "apply-fire-dr-customer-edit-flow.py",
     "apply-fire-dr-independent-evidence-overlay.py",
@@ -17,6 +18,7 @@
     "register-fire-dr-independent-evidence.py",
     "register-fire-dr-live-evidence.py",
     "report-fire-dr-evidence-capture-queue.py",
+    "verify-fire-dr-capture-identity.py",
     "verify-fire-dr-comparison-integrity.py",
     "verify-fire-dr-customer-edit-flow.py",
     "verify-fire-dr-customer-workflows.py",
