@@ -72,7 +72,7 @@ LIVE forward-sync acceptance criteria for this customer-profile exception:
 - Existing estimates, invoices, payments, signed agreements, pricing, and job history are not rewritten.
 - Newly added phone/email/address immediately enables the applicable Call / Text / Email / Google Maps / Google Earth / Zillow / property-preview actions after save.
 - The richer DR customer shell remains intact; LIVE is brought forward rather than DR being reduced.
-- Do not remove the two `FORWARD SYNC APPROVED` matrix rows until the upgraded LIVE customer profile is rendered on the same device/profile and deliberately compared against DR.
+- Do not clear any `FORWARD SYNC APPROVED` matrix row until its matching `FORWARD_SYNC_APPROVED.json` entry is deliberately marked `SYNCED_TO_LIVE` after same-device rendered and functional review.
 
 ## Priority 4 — customer-facing estimate / approval
 
