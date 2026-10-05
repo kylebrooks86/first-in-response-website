@@ -15,6 +15,8 @@ expected_queue='python3 scripts/report-fire-dr-evidence-capture-queue.py'
 expected_register='python3 scripts/register-fire-dr-independent-evidence.py --entry-id <formal-id> --file <screenshot> --notes "Exact DR state captured to match registered LIVE evidence."'
 expected_identical='python3 scripts/record-fire-dr-parity-comparison.py --entry-id <formal-id> --result identical --notes "Exact registered LIVE and DR pair reviewed." --visual-review-complete --functional-review-complete'
 expected_mismatch='python3 scripts/record-fire-dr-parity-comparison.py --entry-id <formal-id> --result mismatch --notes "Describe the exact rendered or functional difference."'
+expected_forward_synced='python3 scripts/record-fire-dr-forward-sync.py --entry-id <forward-sync-id> --result synced --notes "Describe the verified LIVE upgrade." --same-device-render-reviewed --functional-review-complete'
+expected_forward_reopen='python3 scripts/record-fire-dr-forward-sync.py --entry-id <forward-sync-id> --result reopen --notes "Describe the LIVE regression or reason for reopening."'
 expected_predeploy='python3 ../scripts/verify-fire-dr-predeploy-provenance.py'
 expected_migrate='pnpm exec wrangler d1 migrations apply "$EXPECTED_DB" --remote --config "$CONFIG"'
 expected_deploy='pnpm exec wrangler deploy --config "$CONFIG"'
@@ -22,6 +24,9 @@ for label,needle in [
  ('governed staging build command',expected_build),('single governed deploy wrapper command',expected_wrapper),
  ('capture queue command',expected_queue),('independent evidence registrar command',expected_register),
  ('explicit identical comparison command',expected_identical),('explicit mismatch comparison command',expected_mismatch),
+ ('explicit forward-sync completion command',expected_forward_synced),('explicit forward-sync reopen command',expected_forward_reopen),
+ ('forward-sync completion requires rendered and functional review','It never marks a state synchronized from source inspection alone.'),
+ ('forward-sync recorder rollback safety','rolls all touched files back if any verification fails.'),
  ('evidence replacement invalidates prior comparison','Replacing either DR evidence file invalidates the old comparison and requires fresh review.'),
  ('no automatic comparison promotion','`VERIFIED_IDENTICAL` is never inferred merely because both screenshots exist.'),
  ('independent Worker name','fire-app-independent-staging'),('isolated D1 database name','fire-app-staging-db'),
@@ -57,4 +62,4 @@ if errors:
     for e in errors: print(f'- {e}')
     raise SystemExit(1)
 print('DR_DEPLOY_RUNBOOK_GUARD=PASS')
-print('Runbook exposes one governed deploy wrapper plus exact capture/register/review commands; comparison promotion remains explicit, and remote deploy order stays provenance -> isolated D1 migration -> provenance -> independent Worker deploy.')
+print('Runbook exposes one governed deploy wrapper plus exact capture/register/review and forward-sync completion/reopen commands; comparison/synchronization promotion remains explicit and reviewed, and remote deploy order stays provenance -> isolated D1 migration -> provenance -> independent Worker deploy.')
