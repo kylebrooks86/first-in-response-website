@@ -8,15 +8,13 @@
     try{history.replaceState(null,'','#'+view)}catch{}
   };
   const ensure=()=>{
-    const tabs=$('.tabs');if(!tabs)return;
+    const tabs=$('.tabs'),guide=$('.tabs .tab[data-view="guide"]');if(!tabs||!guide)return;
     const jobNav=$('#topJobNav'),warn=$('.warn');
     if(jobNav&&warn&&jobNav.nextElementSibling!==warn)warn.parentElement?.insertBefore(jobNav,warn);
-
-    // LIVE baseline: Field Tools is not a top tab. It is reached from the
-    // bottom Tools control only. Remove any older DR/parity-injected top-tab
-    // copy so the top navigation remains SH Mix, Equipment, Chemicals,
-    // Chemical Index, Job Math, Field Guide.
-    $$('.tabs .tab[data-view="tools"]',tabs).forEach(b=>b.remove());
+    let tools=$('.tabs .tab[data-view="tools"]');
+    if(!tools){tools=document.createElement('button');tools.type='button';tools.className='tab';tools.dataset.view='tools';tools.textContent='Field Tools';tabs.insertBefore(tools,guide)}
+    tools.style.setProperty('display','inline-flex','important');
+    if(!tools.dataset.liveNavBound){tools.dataset.liveNavBound='1';tools.addEventListener('click',()=>activate('tools'))}
   };
   const apply=()=>ensure();
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(apply,1100));else setTimeout(apply,1100);
