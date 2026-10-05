@@ -63,13 +63,14 @@ The preparation script:
 9. runs the LIVE parity source guard;
 10. runs the owner-workflow parity guard;
 11. runs the full 30-service LIVE service-catalog/order guard;
-12. runs the customer-workflow parity guard;
-13. runs the formal parity-ledger consistency guard;
-14. installs dependencies and builds;
-15. writes a separate D1-only Wrangler config;
-16. removes any R2 binding from that independent config;
-17. stages all 21 migrations;
-18. runs typecheck and reports its result honestly.
+12. runs the LIVE-evidence coverage/accountability guard so every formal state already marked LIVE `CAPTURED` is mapped into parity protection;
+13. runs the customer-workflow parity guard;
+14. runs the formal parity-ledger consistency guard;
+15. installs dependencies and builds;
+16. writes a separate D1-only Wrangler config;
+17. removes any R2 binding from that independent config;
+18. stages all 21 migrations;
+19. runs typecheck and reports its result honestly.
 
 The sealed-v138 TypeScript errors are currently known and treated as `FAIL_NONBLOCKING` only after the production build succeeds. Do not report typecheck as passing unless it actually passes.
 
@@ -157,6 +158,7 @@ Verify:
 - estimate creation and discounts work;
 - approved/signed estimates can be scheduled without a hard deposit gate;
 - job completion still requires the completion report;
+- Completed exposes Create invoice and, after creation, the owner state changes to Invoice created / Send invoice;
 - final invoice becomes the canonical completed-job billing amount;
 - payments/refunds fail closed during unresolved refund/overpayment states;
 - JSON backup and merge-only restore work against disposable D1 data;
@@ -192,6 +194,8 @@ Known current formal evidence summary remains:
 - 0/32 independent evidence captured
 - 0 verified identical comparisons
 - 0 mismatches
+
+The evidence-coverage guard intentionally requires all current 11 LIVE-captured formal states to be mapped. When a new LIVE capture is registered, preparation stops until the coverage map is deliberately updated.
 
 ## 10. Current release verdict
 
