@@ -54,11 +54,13 @@ checks = {
         'Overpayment exceptions must be resolved from the job billing-exception action after the refund or retained overpayment is handled.',
     ],
     Path('app/pay/[id]/page.tsx'): [
-        "AS pendingRefundCount",
+        'pendingRefundCount:number',
+        "status='pending'",
         'const paymentReviewPending = Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0;',
-        'const canPay = dueNow>0&&approved&&!paymentReviewPending',
-        'Refund processing.',
-        'Payment received — account review in progress.',
+        'const canPay = dueNow>0&&approved&&!paymentReviewPending&&(paymentType==="deposit"||row.status==="completed");',
+        'Number(row.pendingRefundCount??0)>0?<p className="pay-note">Refund processing.</p>',
+        'Number(row.paymentOverageOpen??0)>0?<p className="pay-note">Payment received — account review in progress.</p>',
+        'balance===0?<p className="pay-note">This job is paid in full.</p>',
     ],
     Path('app/invoice/[token]/page.tsx'): [
         'Refund processing',
@@ -85,4 +87,4 @@ if missing:
     raise SystemExit(1)
 
 print('DR_REFUND_STRIPE_WORKFLOWS=PASS')
-print('Protected: owner refund modal/statuses; Stripe/manual refund distinctions; refund idempotency and ledger linkage; direct Stripe-dashboard refund convergence; unresolved overpayment and pending-refund payment locks; Stripe stale-checkout reconciliation; manual-payment race safety; customer payment/invoice billing-review, refund-processing, and paid states.')
+print('Protected: owner refund modal/statuses; Stripe/manual refund distinctions; refund idempotency and ledger linkage; direct Stripe-dashboard refund convergence; unresolved overpayment and pending-refund payment locks; exact customer payment-page hold precedence; Stripe stale-checkout reconciliation; manual-payment race safety; customer payment/invoice billing-review, refund-processing, and paid states.')
