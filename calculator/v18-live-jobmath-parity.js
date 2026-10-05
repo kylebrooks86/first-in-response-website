@@ -70,6 +70,21 @@
     const sh=$('#planSh');if(sh)sh.textContent=(plan.shGal*128).toFixed(1)+' fl oz';
     const measure=$('#jobMeasureCard');if(measure){const details=[...measure.querySelectorAll('details')];if(details[0])details[0].open=true;if(details[1])details[1].open=false}
   };
+  const ensurePlanningResultGroups=()=>{
+    const card=$('#jobMixCard'),mix=$('#mixNeeded')?.closest('.metric'),fills=$('#fills')?.closest('.metric'),sh=$('#planSh')?.closest('.metric'),water=$('#planWater')?.closest('.metric'),ele=$('#planEle')?.closest('.metric');
+    if(!card||!mix||!fills||!sh||!water||!ele)return;
+    let first=$('#firePlanPrimaryResults',card);
+    let second=$('#firePlanChemicalResults',card);
+    if(!first){first=document.createElement('div');first.id='firePlanPrimaryResults';first.className='results fire-plan-primary-results'}
+    if(!second){second=document.createElement('div');second.id='firePlanChemicalResults';second.className='results fire-plan-chemical-results'}
+    const legacy=mix.parentElement;
+    const anchor=legacy&&legacy!==first&&legacy!==second?legacy:null;
+    if(anchor){anchor.before(first);anchor.before(second)}
+    else if(!first.isConnected){card.querySelector('.grid')?.insertAdjacentElement('afterend',first);first.insertAdjacentElement('afterend',second)}
+    [mix,fills].forEach(x=>first.appendChild(x));
+    [sh,water,ele].forEach(x=>second.appendChild(x));
+    if(anchor&&anchor.children.length===0)anchor.remove();
+  };
   const decoratePlannedChemicalCost=()=>{
     const p=$('#plannedChemCost');if(!p)return;
     p.classList.remove('muted');p.classList.add('fire-planned-chem-cost');
@@ -105,7 +120,7 @@
     render();
   };
   const bindMetricSync=()=>['area','coverage','reserve','planContainer','stockStrength','targetNum','eleRate'].forEach(id=>{const el=$('#'+id);if(el&&!el.dataset.liveMetricBound){el.dataset.liveMetricBound='1';el.addEventListener('input',()=>setTimeout(syncLivePlanMetrics,0));el.addEventListener('change',()=>setTimeout(syncLivePlanMetrics,0))}});
-  const apply=()=>{seedFreshInventory();addMeasureShortcuts();labelLiveDefaults();decoratePlannedChemicalCost();bindMetricSync();syncLivePlanMetrics();ensureLoadout()};
+  const apply=()=>{seedFreshInventory();addMeasureShortcuts();labelLiveDefaults();ensurePlanningResultGroups();decoratePlannedChemicalCost();bindMetricSync();syncLivePlanMetrics();ensureLoadout()};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(apply,900));else setTimeout(apply,900);
   window.addEventListener('fire-v18-shared-core-ready',()=>setTimeout(apply,60));
   window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(apply,60));
