@@ -142,11 +142,35 @@ await writeFile(destination, JSON.stringify(config, null, 2) + '\n');
 console.log('Wrote D1-only isolated DR config to ' + destination);
 NODE
 
-migration_count="$(find drizzle -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"
-if [[ "$migration_count" != "21" ]]; then
-  echo "Expected exactly 21 canonical migrations, found $migration_count; refusing to deploy." >&2
-  exit 1
-fi
+# Count alone is not enough: require the canonical migration prefix sequence
+# 0000 through 0020 exactly once before anything is staged for Wrangler.
+python3 - <<'PY'
+from pathlib import Path
+import re
+
+files = sorted(Path('drizzle').glob('*.sql'))
+expected = list(range(21))
+parsed = []
+errors = []
+for path in files:
+    match = re.match(r'^(\d{4})_.+\.sql$', path.name)
+    if not match:
+        errors.append(f'invalid migration filename: {path.name}')
+        continue
+    parsed.append(int(match.group(1)))
+if len(files) != 21:
+    errors.append(f'expected exactly 21 canonical migrations, found {len(files)}')
+if parsed != expected:
+    errors.append(f'migration prefixes must be contiguous 0000..0020 exactly once; found {parsed}')
+if errors:
+    print('DR_MIGRATION_SEQUENCE=FAIL')
+    for error in errors:
+        print(f'- {error}')
+    raise SystemExit(1)
+print('DR_MIGRATION_SEQUENCE=PASS')
+print('Canonical migration prefixes are contiguous and unique: 0000..0020.')
+PY
+
 mkdir -p dist/server/migrations
 rm -f dist/server/migrations/*.sql
 cp drizzle/*.sql dist/server/migrations/
