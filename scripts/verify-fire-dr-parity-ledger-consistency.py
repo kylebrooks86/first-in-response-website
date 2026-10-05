@@ -160,7 +160,7 @@ if 'Do not change scrolling/smoothness unless the owner explicitly reopens that 
 if 'Photo-file functionality remains an explicit capability gap until storage exists' not in queue: errors.append('STRICT_RENDERED_PARITY_QUEUE must retain the DR photo-storage capability-gap disclosure.')
 
 go_no_go = go_no_go_path.read_text()
-for needle in ['free-tier, D1-only, no R2','4-digit PIN','Photo-file storage: **not provisioned**','seven DR-specific parity/governance guards','all seven DR parity/governance guards pass','LIVE-evidence coverage/accountability guard','Final release-readiness guard','READY_FOR_EXPLICIT_OWNER_REVIEW','NOT_YET_FULLY_VERIFIED']:
+for needle in ['free-tier, D1-only, no R2','4-digit PIN','Photo-file storage: **not provisioned**','eight DR-specific parity/governance guards','all eight DR parity/governance guards pass','LIVE-evidence coverage/accountability guard','Final release-readiness guard','READY_FOR_EXPLICIT_OWNER_REVIEW','NOT_YET_FULLY_VERIFIED']:
     if needle not in go_no_go: errors.append(f'GO_NO_GO is missing current DR deployment rule: {needle}')
 
 runbook = runbook_path.read_text()
@@ -171,8 +171,9 @@ batch_audit = batch_audit_path.read_text()
 for needle in [
     'The standalone mobile shell V14 is now user-confirmed good after deployment.',
     'Do not modify the V14 header/search/welcome spacing unless the owner explicitly reopens it.',
-    'runs seven source/governance parity guards',
+    'runs eight source/governance parity guards',
     'verify-fire-dr-live-evidence-coverage.py',
+    'verify-fire-dr-forward-sync.py',
     'verify-fire-dr-release-readiness.py',
     'Completed → Create invoice → Invoice created / Send invoice transition.',
     'Scroll/smoothness tuning is frozen',
@@ -193,4 +194,4 @@ if errors:
 
 print('DR_PARITY_LEDGER_CONSISTENCY=PASS')
 print(f'Formal states: {len(entries)}; LIVE evidence: {live_captured}; independent evidence: {independent_captured}; verified identical: {verified_identical}; mismatches: {mismatches}; evidence files byte/hash verified: {verified_evidence_files}.')
-print('Manifest evidence objects/statuses/files/bytes/SHA256, checklist, release status, current audit, persistent strict matrix, queue status, user-confirmed V14 mobile shell, seven build guards including final release-readiness, LIVE-evidence coverage accountability, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
+print('Manifest evidence objects/statuses/files/bytes/SHA256, checklist, release status, current audit, persistent strict matrix, queue status, user-confirmed V14 mobile shell, eight build guards including owner-approved forward-sync protection and final release-readiness, LIVE-evidence coverage accountability, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
