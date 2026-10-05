@@ -52,12 +52,17 @@ checks = {
         '<small>Estimate total</small>',
         '<small>Paid</small>',
         'paymentType==="deposit"?"Deposit remaining":"Balance due"',
+        'pendingRefundCount:number',
+        "status='pending'",
+        'const paymentReviewPending = Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0;',
+        'const canPay = dueNow>0&&approved&&!paymentReviewPending&&(paymentType==="deposit"||row.status==="completed");',
         'Payment received',
         'Your payment has been recorded successfully.',
         'After approval, the 50% deposit reserves your place on the schedule. The remaining balance is due upon completion of the work.',
         '<strong>Manual payment options:</strong> Cash App:',
         'Approve and sign the estimate before making the reservation deposit.',
         'Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.',
+        'Refund processing.',
         'This job is paid in full.',
         'Payment received — account review in progress.',
         'Pay ${currency(dueNow)} deposit securely',
@@ -140,5 +145,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_CUSTOMER_WORKFLOW_PARITY_GUARD=PASS')
-print('Protected: LIVE-evidence signer-name confirmation; customer signature/photo-permission approval; change requests; estimate/payment/invoice not-found states; customer Back/Home navigation; payment-document summary/deposit/balance/success/full-paid states; LIVE-captured invoice due-on-receipt and dated-due presentation; manual payment handles; invoice review/refund states; overpayment resolution safeguards; DR photo storage fail-closed behavior.')
+print('Protected: LIVE-evidence signer-name confirmation; customer signature/photo-permission approval; change requests; estimate/payment/invoice not-found states; customer Back/Home navigation; payment-document summary/deposit/balance/success/full-paid states; pending-refund and unresolved-overpayment payment suppression; LIVE-captured invoice due-on-receipt and dated-due presentation; manual payment handles; invoice review/refund states; overpayment resolution safeguards; DR photo storage fail-closed behavior.')
 print('Rendered LIVE-vs-DR comparison is still required for strict visual parity.')
