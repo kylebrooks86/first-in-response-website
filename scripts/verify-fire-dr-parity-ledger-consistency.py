@@ -134,6 +134,12 @@ if summary_match:
     if actual != expected: errors.append(f'RELEASE_STATUS evidence summary {actual} does not match manifest-derived counts {expected}.')
 else: errors.append('RELEASE_STATUS evidence summary could not be parsed.')
 
+forward_release = re.search(r'Owner-approved forward-sync blockers:\s*\*\*(\d+)\*\*', release)
+if not forward_release:
+    errors.append('RELEASE_STATUS forward-sync blocker count could not be parsed.')
+elif int(forward_release.group(1)) != forward_sync_approved:
+    errors.append(f'RELEASE_STATUS forward-sync blocker count {forward_release.group(1)} does not match matrix-derived count {forward_sync_approved}.')
+
 audit = audit_path.read_text()
 audit_patterns = {
     'entries': (r'Evidence entries:\s*\*\*(\d+)\*\*', len(entries)),
@@ -152,7 +158,14 @@ for label, (pattern, wanted) in audit_patterns.items():
     if actual_value != wanted: errors.append(f'CURRENT_PARITY_AUDIT {label} count {actual_value} does not match {wanted}.')
 if '**Verdict:** NOT_YET_FULLY_VERIFIED' not in audit and verified_identical != len(entries): errors.append('CURRENT_PARITY_AUDIT must remain NOT_YET_FULLY_VERIFIED while formal evidence is incomplete.')
 
+forward_audit = re.search(r'Owner-approved forward-sync blockers:\s*\*\*(\d+)\*\*', audit)
+if not forward_audit:
+    errors.append('CURRENT_PARITY_AUDIT forward-sync blocker count could not be parsed.')
+elif int(forward_audit.group(1)) != forward_sync_approved:
+    errors.append(f'CURRENT_PARITY_AUDIT forward-sync blocker count {forward_audit.group(1)} does not match matrix-derived count {forward_sync_approved}.')
+
 matrix = matrix_path.read_text()
+forward_sync_approved = sum(1 for line in matrix.splitlines() if '| FORWARD SYNC APPROVED |' in line)
 if '**NOT YET IDENTICAL IN EVERY SINGLE LOOK/FUNCTION STATE.**' not in matrix and verified_identical != len(entries): errors.append('STRICT_PARITY_MATRIX must retain the NOT YET IDENTICAL verdict while formal evidence remains incomplete.')
 
 queue = queue_path.read_text()
