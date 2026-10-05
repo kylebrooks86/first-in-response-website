@@ -1,7 +1,8 @@
 from pathlib import Path
 
-# Guard only evidence-backed or user-confirmed LIVE parity. Scrolling/smoothness is
-# intentionally NOT asserted here; the user froze that area as good enough.
+# Guard only evidence-backed, governed, or user-confirmed LIVE parity behavior.
+# Scrolling/smoothness is intentionally NOT asserted here; the user froze that
+# area as good enough and requested no further smoothness work.
 checks = {
     Path('app/layout.tsx'): [
         'statusBarStyle: "default"',
@@ -26,10 +27,13 @@ checks = {
         'Optional note',
         'Photo library',
 
-        # LIVE-captured scheduling behavior: approval can proceed to scheduling
-        # without making the reservation deposit a hard gate.
+        # LIVE-captured scheduling behavior and next-step wording.
         'estimate.status==="approved"?"Next: choose the job date and save it."',
         'estimate.status==="scheduled"?"Next: capture before photos, complete the job report, then create the invoice."',
+
+        # Final invoice remains the canonical completed-job billing amount.
+        'const resolvedBillingTotalCents =',
+        'estimate.invoiceTotalCents ?? estimate.totalCents',
     ],
     Path('app/invoice/[token]/page.tsx'): [
         # LIVE-captured customer invoice structure/content.
@@ -39,12 +43,75 @@ checks = {
         'Cash App:',
         'Venmo:',
         '<CustomerPortalNav/>',
+
+        # Customer-facing billing exception / refund states remain fail-closed.
+        'Payment received — account review in progress',
+        'Refund processing',
     ],
     Path('app/customer-portal-nav.tsx'): [
         'className="portal-floating-nav"',
         'window.history.back()',
         '<span>Back</span>',
         '<span>Home</span>',
+    ],
+    Path('app/api/estimates/[id]/route.ts'): [
+        # Scheduling requires approval/signature and date, but not a recorded deposit.
+        'if(!existing.acceptedAt||!existing.signedAt)',
+        'Only an approved estimate can be scheduled.',
+        'Choose a job date and time before marking this estimate scheduled.',
+
+        # Accepted/financially-active estimates are frozen; later billing changes belong on invoice.
+        'Keep the accepted estimate unchanged and make any final service or price changes on the invoice.',
+        'const deposit=Math.round(total/2);',
+    ],
+    Path('app/api/payments/route.ts'): [
+        # Deposit while approved/scheduled; final invoice amount once completed.
+        'estimate.status === "completed"',
+        '["approved","scheduled"].includes(estimate.status)',
+        'Number(estimate.depositCents)',
+        'Number(estimate.totalCents)',
+
+        # No new money while billing reconciliation/refund is unresolved.
+        "type='payment_overage' AND resolved_at IS NULL",
+        "status='pending' LIMIT 1",
+
+        # Race-safe manual payment insertion and post-write balance re-read.
+        'INSERT INTO payments',
+        'WHERE ? <= (',
+        'The amount due changed while this payment was being recorded.',
+        'const refreshed = await env.DB.prepare',
+    ],
+    Path('app/api/invoices/route.ts'): [
+        # Final invoice only after completion; one invoice per estimate; snapshot line items.
+        'Mark the job completed before creating the final invoice.',
+        'SELECT id,customer_id AS customerId,share_token AS shareToken FROM invoices WHERE estimate_id=? LIMIT 1',
+        'INSERT INTO invoice_items',
+        'const invoiceStatus = paidCents >= estimateTotalCents ? "paid" : paidCents > 0 ? "partial" : "draft";',
+    ],
+    Path('app/api/invoices/[id]/route.ts'): [
+        # Editable final invoice with revision history and payment/session safety.
+        'INSERT INTO invoice_revisions',
+        'Invoice total cannot be lower than payments already recorded.',
+        'expireOpenCheckoutSessions(existing.estimateId)',
+        'A refund is currently processing for this job. Wait for it to finish before editing the final invoice.',
+        'existing.status==="sent"||Boolean(existing.firstViewedAt)?"sent":"draft"',
+    ],
+    Path('app/api/payments/refund/route.ts'): [
+        # Refunds are durable, linked to original payment, idempotent, and reconciled into ledger.
+        "'Refund',?,'paid'",
+        'refundPaymentProvider=`refund:${row.paymentId}:${row.id}`',
+        'idempotency-key',
+        'fire-refund-${requestId}',
+        'externalRefundConfirmed',
+        'send the money back first and confirm the external refund before FIRE records it.',
+        "status='succeeded'",
+    ],
+    Path('app/api/message-templates/route.ts'): [
+        # Templates remain owner-editable and resettable to governed defaults.
+        'if(body.reset)',
+        'DELETE FROM message_templates WHERE key=?',
+        'ON CONFLICT(key) DO UPDATE SET subject=excluded.subject,body=excluded.body,updated_at=excluded.updated_at',
+        'Template message cannot be empty.',
     ],
     Path('app/globals.css'): [
         # Keep the working Templates mobile-flow correction. Do not pin a
@@ -70,5 +137,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_LIVE_PARITY_OVERLAY_GUARD=PASS')
-print('Protected: user-confirmed Templates behavior; LIVE-captured customer Payments/Invoices/Photos states; scheduling flow; customer invoice structure/navigation; accepted top-shell status-bar treatment.')
+print('Protected: Templates; customer Payments/Invoices/Photos states; scheduling; accepted-estimate freeze; final-invoice billing; payment/refund safeguards; invoice revisions; customer invoice/navigation; top-shell status-bar treatment.')
 print('Scroll/smoothness behavior is intentionally not modified or pinned by this guard.')
