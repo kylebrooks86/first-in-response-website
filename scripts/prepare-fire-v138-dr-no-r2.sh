@@ -46,6 +46,10 @@ cd "$APP_DIR"
 node -e "const p=require('./package.json'); if(p.version!=='1.0.0-rc.138') throw new Error('Unexpected package version: '+p.version)"
 node -e "const v=require('./CURRENT_VERSION.json'); if(String(v.fire_release)!=='v138') throw new Error('Unexpected FIRE release: '+v.fire_release)"
 
+# Fail early if any DR preparation/overlay/verification/provenance script exists
+# outside the explicit governed inventory, or if an inventoried script is missing.
+python3 ../scripts/verify-fire-dr-script-inventory.py
+
 python3 - <<'PY'
 from pathlib import Path
 
@@ -173,13 +177,7 @@ if [[ "$staged_migration_count" != "21" ]]; then
   exit 1
 fi
 
-# Final artifact-level guard: release identity, isolated Wrangler resources, and
-# byte-for-byte migration staging must all still match immediately before deploy.
 python3 ../scripts/verify-fire-dr-postbuild-artifacts.py
-
-# Record exactly what this governed DR build contains. The provenance manifest
-# intentionally records only the presence of the generated session secret, never
-# the secret value itself.
 python3 ../scripts/write-fire-dr-build-provenance.py
 
 echo "DR_POSTBUILD_DEPLOYMENT_GATES=PASS"
