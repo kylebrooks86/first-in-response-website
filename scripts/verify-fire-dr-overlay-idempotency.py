@@ -5,7 +5,7 @@ from pathlib import Path
 
 # DR overlays run after every sealed-v138 extraction. They must be idempotent:
 # applying them a second time must not keep appending CSS/scripts/evidence or
-# otherwise mutate the extracted working tree.
+# comparison decisions, or otherwise mutate the extracted working tree.
 tracked = [
     Path('app/globals.css'),
     Path('app/layout.tsx'),
@@ -48,6 +48,7 @@ for script_name in [
     'apply-fire-dr-template-parity-fix.py',
     'apply-fire-dr-live-evidence-fixes.py',
     'apply-fire-dr-independent-evidence-overlay.py',
+    'apply-fire-dr-comparison-overlay.py',
 ]:
     script = Path('..') / 'scripts' / script_name
     subprocess.run([sys.executable, str(script)], check=True)
@@ -64,4 +65,4 @@ if changed:
     raise SystemExit(1)
 
 print('DR_OVERLAY_IDEMPOTENCY=PASS')
-print('Mobile-shell V14, Templates parity, LIVE-evidence/payment/refund, persistent independent evidence, restore-audit, and strict-matrix overlays are stable when reapplied.')
+print('Mobile-shell V14, Templates parity, LIVE-evidence/payment/refund, persistent independent evidence, deliberate comparison decisions, restore-audit, and strict-matrix overlays are stable when reapplied.')
