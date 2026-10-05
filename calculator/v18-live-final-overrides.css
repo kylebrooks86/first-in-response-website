@@ -26,4 +26,18 @@
   #equipment #xMeasuredCustomHeading{
     display:block!important;
   }
+
+  /* LIVE shows an explicit $0.00 opposite the empty-service message. */
+  #job #fullServiceLines.fire-empty-service-line,
+  #view-job #fullServiceLines.fire-empty-service-line{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:12px!important;
+  }
+  #job #fullServiceLines.fire-empty-service-line>strong,
+  #view-job #fullServiceLines.fire-empty-service-line>strong{
+    margin-left:auto!important;
+    white-space:nowrap!important;
+  }
 }
