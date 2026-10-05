@@ -13,6 +13,28 @@ checks = {
         'editorRef.current?.scrollIntoView({behavior:"smooth",block:"start"})',
         '<section ref={editorRef} className="template-editor"><header>',
 
+        # Owner navigation / mobile shell behavior that must remain consistent.
+        '["dashboard", "Dashboard", House]',
+        '["contracts", "Contracts", PenLine]',
+        '["customers", "Customers", Users]',
+        '["estimates", "Estimates", ClipboardList]',
+        '["followups", "Follow-ups", Clock3]',
+        '["schedule", "Schedule", CalendarDays]',
+        '["invoices", "Invoices", Receipt]',
+        '["business", "Business", BriefcaseBusiness]',
+        '["payments", "Payments", CreditCard]',
+        '["settings", "Templates", Settings]',
+        'className="mobile-primary-actions"',
+        'className="mobile-back-button"',
+        'className={`mobile-home-button ${tab==="dashboard"?"active":""}`}',
+        'className="mobile-theme-button"',
+        'className="menu-button"',
+        'className="bottom-nav"',
+        '["dashboard","contracts","customers","estimates","schedule"].includes(id)',
+        'window.localStorage.getItem("fire-theme")',
+        'window.localStorage.setItem("fire-theme",next)',
+        'document.documentElement.dataset.theme=next',
+
         # LIVE-captured customer profile empty states.
         'No payments recorded',
         'Open an estimate and choose Record payment after receiving money through Wave, Cash App, Venmo, cash, check, card, or bank transfer.',
@@ -167,5 +189,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_LIVE_PARITY_OVERLAY_GUARD=PASS')
-print('Protected: owner Templates/customer tabs/scheduling; customer estimate/payment/invoice portals; 50% deposit + final-balance behavior; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation; top-shell status-bar treatment.')
+print('Protected: owner nav/mobile controls/theme; Templates/customer tabs/scheduling; customer estimate/payment/invoice portals; 50% deposit + final-balance behavior; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation; top-shell status-bar treatment.')
 print('Scroll/smoothness behavior is intentionally not modified or pinned by this guard.')
