@@ -7,6 +7,7 @@ Status meanings:
 - VERIFIED IDENTICAL — live reference exists and the independent implementation has been matched to it.
 - FUNCTIONALLY VERIFIED — behavior is covered by regression/safety checks, but exact live visual state has not yet been captured and compared.
 - NEEDS LIVE VISUAL — implementation exists, but a corresponding live screenshot/state is still required before identical can be claimed.
+- FORWARD SYNC APPROVED — the owner explicitly prefers the independent/DR user-facing implementation; preserve DR and bring LIVE forward before claiming identical.
 - INFRASTRUCTURE ONLY — intentionally different implementation detail that must not alter visible or business behavior.
 - CAPABILITY GAP — intentionally unavailable in the current DR deployment; it cannot be called functionally identical until provisioned/tested or explicitly accepted as out of scope.
 
@@ -24,7 +25,8 @@ Status meanings:
 | Contracts list | VERIFIED IDENTICAL | Supplied LIVE references. |
 | Customers list | VERIFIED IDENTICAL | Supplied LIVE references. |
 | Add customer modal | VERIFIED IDENTICAL | Supplied LIVE references. |
-| Customer detail property/map block | VERIFIED IDENTICAL | Supplied LIVE references. |
+| Customer detail profile shell / action row / property tools | FORWARD SYNC APPROVED | Owner explicitly prefers the richer DR customer section. Preserve Call / Text / Email / Google Maps / Stride / Google Earth / Zillow / property preview and bring LIVE forward to match rather than removing DR functionality. |
+| Edit existing customer | FORWARD SYNC APPROVED | DR has governed Edit customer support for name, email, phone, service address, and lead source without rewriting historical estimates/invoices/payments/agreements. LIVE deployment must receive the same capability before this state can be identical. |
 | Customer Messages tab | VERIFIED IDENTICAL | Supplied LIVE references. |
 | Customer Notes tab | VERIFIED IDENTICAL | Supplied LIVE references. |
 | Customer Payments tab | LIVE EVIDENCE CAPTURED | Exact LIVE empty/populated behavior captured; independent rendered comparison still pending. |
@@ -98,7 +100,7 @@ Status meanings:
 ## Current strict-parity verdict
 **NOT YET IDENTICAL IN EVERY SINGLE LOOK/FUNCTION STATE.**
 
-The known/captured LIVE surfaces are highly matched, but literal parity is blocked until the remaining visual states are captured on the missing side, independent evidence is formally registered, and the current shared release rules are synchronized and verified in LIVE. The no-R2 photo-file capability gap also prevents a claim of full photo-recovery equivalence unless later provisioned/tested or explicitly accepted as out of scope.
+The known/captured LIVE surfaces are highly matched, but literal parity is blocked until the remaining visual states are captured on the missing side, independent evidence is formally registered, the current shared release rules are synchronized and verified in LIVE, and owner-approved forward-sync product differences are brought into LIVE. The richer DR customer profile must not be removed just to reduce differences. The no-R2 photo-file capability gap also prevents a claim of full photo-recovery equivalence unless later provisioned/tested or explicitly accepted as out of scope.
 
 ## Next evidence work — independent DR side first
 These already have LIVE evidence. Do **not** recapture LIVE merely to satisfy parity; capture/register the matching DR state:
@@ -128,5 +130,6 @@ These already have LIVE evidence. Do **not** recapture LIVE merely to satisfy pa
 12. Customer refund-processing state.
 13. Paid invoice / zero-balance customer state.
 14. Broader owner empty/error states not already represented by the current formal capture.
+15. After the LIVE customer-profile upgrade is deployed, capture the upgraded LIVE customer profile/action/property/edit states and compare them to the preserved DR forward-sync target.
 
-No release may claim FULL IDENTICAL until these blockers are closed or proven unreachable/nonexistent in both deployments, and any capability gap is resolved or explicitly approved as an infrastructure-only exception.
+No release may claim FULL IDENTICAL until these blockers are closed or proven unreachable/nonexistent in both deployments, every FORWARD SYNC APPROVED user-facing state has been intentionally synchronized into LIVE, and any capability gap is resolved or explicitly approved as an infrastructure-only exception.
