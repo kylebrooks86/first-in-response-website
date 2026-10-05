@@ -6,7 +6,7 @@ Latest core/offline gate verification: `44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558
 
 Airplane-mode DR acceptance evidence: `44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558`
 
-Current staging shared-core fingerprint: `8bc01e24e095f80224e0a64157376092c5a2c9de56274979b06a05ffe06d7cdf`
+Current staging shared-core fingerprint: `bee43bb803a857f40464b46d21b71816bfe963538926606c4c32566644d46b65`
 
 Sources compared:
 
@@ -68,7 +68,7 @@ The dedicated offline acceptance workflow warms the real service worker/cache, d
 
 Verified offline behavior includes:
 
-- cache generation `fire-field-calculator-v18-exact-clone-68` controls the page
+- cache generation `fire-field-calculator-v18-exact-clone-69` controls the page
 - all seven major routes open offline
 - SH Mix produces a changed dependent calculation after an offline input change
 - saved estimate/planning state survives offline reload
