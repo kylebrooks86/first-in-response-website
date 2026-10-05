@@ -132,6 +132,23 @@ python3 scripts/record-fire-dr-parity-comparison.py --entry-id <formal-id> --res
 
 Every comparison decision is tied to the exact LIVE and DR SHA-256 values. Replacing either DR evidence file invalidates the old comparison and requires fresh review. `VERIFIED_IDENTICAL` is never inferred merely because both screenshots exist.
 
+
+Forward-sync product differences use a separate deliberate recorder. After the LIVE customer-profile upgrade is actually deployed and the matching LIVE/DR state has been reviewed on the same device/profile, mark one registry entry synchronized with:
+
+```sh
+python3 scripts/record-fire-dr-forward-sync.py --entry-id <forward-sync-id> --result synced --notes "Describe the verified LIVE upgrade." --same-device-render-reviewed --functional-review-complete
+```
+
+This updates `FORWARD_SYNC_APPROVED.json` and the strict parity matrix together, synchronizes release summaries, runs forward-sync/ledger/release-readiness verification, and rolls all touched files back if any verification fails. It never marks a state synchronized from source inspection alone.
+
+If a previously synchronized LIVE behavior later regresses, reopen only that entry with:
+
+```sh
+python3 scripts/record-fire-dr-forward-sync.py --entry-id <forward-sync-id> --result reopen --notes "Describe the LIVE regression or reason for reopening."
+```
+
+Reopening restores that state to `PENDING_LIVE_SYNC` / `FORWARD SYNC APPROVED` without disturbing other forward-sync states.
+
 Known current formal evidence summary remains:
 
 - 11/32 LIVE evidence captured
