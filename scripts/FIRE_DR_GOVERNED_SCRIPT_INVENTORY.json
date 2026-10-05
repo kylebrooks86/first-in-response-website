@@ -11,6 +11,7 @@
     "apply-fire-dr-template-parity-fix.py",
     "deploy-fire-dr-staging.sh",
     "prepare-fire-v138-dr-no-r2.sh",
+    "record-fire-dr-forward-sync.py",
     "record-fire-dr-parity-comparison.py",
     "register-fire-dr-independent-evidence.py",
     "report-fire-dr-evidence-capture-queue.py",
