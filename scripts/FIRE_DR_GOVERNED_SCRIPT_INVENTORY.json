@@ -27,6 +27,7 @@
     "verify-fire-dr-postbuild-artifacts.py",
     "verify-fire-dr-predeploy-provenance.py",
     "verify-fire-dr-refund-stripe-workflows.py",
+    "verify-fire-dr-release-readiness.py",
     "verify-fire-dr-restore-identity.py",
     "verify-fire-dr-restore-v135-v138.py",
     "verify-fire-dr-script-inventory.py",
