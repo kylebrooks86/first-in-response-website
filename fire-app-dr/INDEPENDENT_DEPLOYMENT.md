@@ -54,19 +54,20 @@ The preparation script:
 
 1. verifies the sealed archive hash;
 2. extracts a fresh `fire-app-dr` source tree;
-3. verifies v138 package/release identity;
-4. applies the DR-only 4-digit PIN overlay;
-5. applies the mobile-shell parity overlay;
-6. applies the Templates mobile parity overlay;
-7. runs the LIVE parity source guard;
-8. runs the owner-workflow parity guard;
-9. runs the customer-workflow parity guard;
-10. runs the formal parity-ledger consistency guard;
-11. installs dependencies and builds;
-12. writes a separate D1-only Wrangler config;
-13. removes any R2 binding from that independent config;
-14. stages all 21 migrations;
-15. runs typecheck and reports its result honestly.
+3. restores the DR governance overlay documents that intentionally live outside the extracted tree;
+4. verifies v138 package/release identity;
+5. applies the DR-only 4-digit PIN overlay;
+6. applies the mobile-shell parity overlay;
+7. applies the Templates mobile parity overlay;
+8. runs the LIVE parity source guard;
+9. runs the owner-workflow parity guard;
+10. runs the customer-workflow parity guard;
+11. runs the formal parity-ledger consistency guard;
+12. installs dependencies and builds;
+13. writes a separate D1-only Wrangler config;
+14. removes any R2 binding from that independent config;
+15. stages all 21 migrations;
+16. runs typecheck and reports its result honestly.
 
 The sealed-v138 TypeScript errors are currently known and treated as `FAIL_NONBLOCKING` only after the production build succeeds. Do not report typecheck as passing unless it actually passes.
 
