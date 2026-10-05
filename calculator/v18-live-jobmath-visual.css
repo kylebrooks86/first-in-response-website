@@ -75,3 +75,27 @@ body.dark #view-job #jobMixCard #fillPlan::before{color:#f6fbff!important}
 }
 body.dark #job #jobMixCard .inputrow .unit,
 body.dark #view-job #jobMixCard .inputrow .unit{background:#18212b!important;color:#f6f7f8!important;border-color:#35414b!important}
+
+/* LIVE uses two separate Job Math result groups, not one five-metric grid. */
+@media(max-width:760px){
+  #job #jobMixCard .fire-plan-primary-results,#view-job #jobMixCard .fire-plan-primary-results{
+    display:grid!important;grid-template-columns:1fr!important;gap:9px!important;margin-top:14px!important
+  }
+  #job #jobMixCard .fire-plan-chemical-results,#view-job #jobMixCard .fire-plan-chemical-results{
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;margin-top:14px!important
+  }
+  #job #jobMixCard .fire-plan-chemical-results>.metric:nth-child(3),
+  #view-job #jobMixCard .fire-plan-chemical-results>.metric:nth-child(3){grid-column:1/-1!important}
+  #job #jobMixCard .fire-plan-primary-results>.metric,
+  #job #jobMixCard .fire-plan-chemical-results>.metric,
+  #view-job #jobMixCard .fire-plan-primary-results>.metric,
+  #view-job #jobMixCard .fire-plan-chemical-results>.metric{
+    padding:11px!important;border:1px solid #d7e0e5!important;border-radius:14px!important;background:#fff!important
+  }
+}
+body.dark #job #jobMixCard .fire-plan-primary-results>.metric,
+body.dark #job #jobMixCard .fire-plan-chemical-results>.metric,
+body.dark #view-job #jobMixCard .fire-plan-primary-results>.metric,
+body.dark #view-job #jobMixCard .fire-plan-chemical-results>.metric{
+  background:#18212b!important;border-color:#35414b!important
+}
