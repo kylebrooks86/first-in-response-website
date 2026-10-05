@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 root = Path('.')
@@ -7,8 +8,10 @@ queue = root / 'STRICT_RENDERED_PARITY_QUEUE.md'
 persistent_matrix = repo_root / 'dr-parity-overlays' / 'STRICT_PARITY_MATRIX.md'
 persistent_queue = repo_root / 'dr-parity-overlays' / 'STRICT_RENDERED_PARITY_QUEUE.md'
 dashboard = root / 'app/dashboard.tsx'
+registry = root / 'FORWARD_SYNC_APPROVED.json'
+persistent_registry = repo_root / 'dr-parity-overlays' / 'FORWARD_SYNC_APPROVED.json'
 
-required = [matrix, queue, persistent_matrix, persistent_queue, dashboard]
+required = [matrix, queue, persistent_matrix, persistent_queue, dashboard, registry, persistent_registry]
 missing = [str(p) for p in required if not p.is_file()]
 if missing:
     print('DR_FORWARD_SYNC_GUARD=FAIL')
@@ -28,20 +31,59 @@ if matrix_text != persistent_matrix_text:
 if queue_text != persistent_queue_text:
     errors.append('STRICT_RENDERED_PARITY_QUEUE.md working copy drifted from persistent overlay')
 
-expected_rows = [
-    '| Customer detail profile shell / action row / property tools | FORWARD SYNC APPROVED |',
-    '| Edit existing customer | FORWARD SYNC APPROVED |',
-]
-for row in expected_rows:
-    if row not in matrix_text:
-        errors.append(f'missing approved forward-sync matrix row: {row}')
+registry_text = registry.read_text()
+persistent_registry_text = persistent_registry.read_text()
+if registry_text != persistent_registry_text:
+    errors.append('FORWARD_SYNC_APPROVED.json working copy drifted from persistent overlay')
 
-forward_sync_rows = [
-    line for line in matrix_text.splitlines()
-    if '| FORWARD SYNC APPROVED |' in line
-]
-if len(forward_sync_rows) != 2:
-    errors.append(f'expected exactly 2 FORWARD SYNC APPROVED matrix rows, found {len(forward_sync_rows)}')
+try:
+    registry_data = json.loads(registry_text)
+except Exception as exc:
+    registry_data = {}
+    errors.append(f'FORWARD_SYNC_APPROVED.json is invalid JSON: {exc}')
+
+entries = registry_data.get('entries') if isinstance(registry_data, dict) else None
+if registry_data.get('schema_version') != 1:
+    errors.append('FORWARD_SYNC_APPROVED.json schema_version must be 1')
+if not isinstance(entries, list):
+    entries = []
+    errors.append('FORWARD_SYNC_APPROVED.json entries must be an array')
+
+ids = []
+expected_rows = []
+for item in entries:
+    if not isinstance(item, dict):
+        errors.append('forward-sync registry contains a non-object entry')
+        continue
+    entry_id = str(item.get('id') or '').strip()
+    if not entry_id:
+        errors.append('forward-sync registry contains a blank id')
+        continue
+    ids.append(entry_id)
+    if item.get('status') not in {'PENDING_LIVE_SYNC','SYNCED_TO_LIVE'}:
+        errors.append(f'{entry_id}: invalid forward-sync status {item.get("status")!r}')
+    if item.get('preserve_in_dr') is not True:
+        errors.append(f'{entry_id}: preserve_in_dr must remain true')
+    if item.get('blocks_full_identical') is not True:
+        errors.append(f'{entry_id}: blocks_full_identical must remain true')
+    area = str(item.get('matrix_area') or '').strip()
+    if not area:
+        errors.append(f'{entry_id}: matrix_area is required')
+    else:
+        expected_rows.append((entry_id, area, item.get('status')))
+
+if len(ids) != len(set(ids)):
+    errors.append('forward-sync registry contains duplicate ids')
+
+pending_registry = [row for row in expected_rows if row[2] == 'PENDING_LIVE_SYNC']
+matrix_pending_rows = [line for line in matrix_text.splitlines() if '| FORWARD SYNC APPROVED |' in line]
+if len(matrix_pending_rows) != len(pending_registry):
+    errors.append(f'matrix has {len(matrix_pending_rows)} FORWARD SYNC APPROVED rows but registry has {len(pending_registry)} pending LIVE sync entries')
+for entry_id, area, status in expected_rows:
+    expected_status = 'FORWARD SYNC APPROVED' if status == 'PENDING_LIVE_SYNC' else 'VERIFIED IDENTICAL'
+    row = f'| {area} | {expected_status} |'
+    if row not in matrix_text:
+        errors.append(f'{entry_id}: matrix row does not match registry status {status}: {row}')
 
 queue_needles = [
     'Owner-approved customer-profile forward-sync exception:',
@@ -81,4 +123,5 @@ if errors:
     raise SystemExit(1)
 
 print('DR_FORWARD_SYNC_GUARD=PASS')
-print('Exactly two owner-approved customer-profile forward-sync states are protected; richer DR customer actions/property tools/Edit customer remain present and LIVE must catch up before FULL_IDENTICAL.')
+pending_count=sum(1 for item in entries if isinstance(item,dict) and item.get('status')=='PENDING_LIVE_SYNC')
+print(f'{pending_count} owner-approved forward-sync state(s) are protected by the structured registry; DR preserves them and LIVE must catch up before FULL_IDENTICAL.')
