@@ -12,6 +12,7 @@ tracked = [
     Path('app/pay/[id]/page.tsx'),
     Path('scripts/restore-records-backup.mjs'),
     Path('STRICT_PARITY_MATRIX.md'),
+    Path('FORWARD_SYNC_APPROVED.json'),
     Path('PARITY_EVIDENCE_MANIFEST.json'),
     Path('RELEASE_STATUS.md'),
     Path('CURRENT_PARITY_AUDIT.md'),
@@ -45,4 +46,4 @@ if changed:
     for path in changed: print(f'- second overlay application changed {path}')
     raise SystemExit(1)
 print('DR_OVERLAY_IDEMPOTENCY=PASS')
-print('Mobile-shell V14, Templates parity, LIVE-evidence/payment/refund, customer-edit profile/API, persistent independent evidence, deliberate comparison decisions, parity summary counts, restore-audit, and strict-matrix overlays are stable when reapplied.')
+print('Mobile-shell V14, Templates parity, LIVE-evidence/payment/refund, customer-edit profile/API, persistent independent evidence, deliberate comparison decisions, parity summary counts, structured forward-sync registry, restore-audit, and strict-matrix overlays are stable when reapplied.')
