@@ -10,7 +10,7 @@ This queue does not replace `PARITY_EVIDENCE_MANIFEST.json`. It orders the remai
 
 ## Rules
 
-- LIVE is the visual/functional master.
+- LIVE is the visual/functional master except for owner-approved forward-sync improvements explicitly documented below.
 - Do not touch LIVE deployment, DNS, or real customer data while closing DR parity.
 - Do not change scrolling/smoothness unless the owner explicitly reopens that issue.
 - Do not modify the user-confirmed V14 standalone mobile header/search/welcome spacing unless the owner explicitly reopens it.
@@ -19,6 +19,7 @@ This queue does not replace `PARITY_EVIDENCE_MANIFEST.json`. It orders the remai
 - Record independent evidence before declaring a comparison complete.
 - DR-only PIN authentication and D1/no-R2 infrastructure are deployment exceptions; they must not leak into unrelated app UI/functionality.
 - Photo-file functionality remains an explicit capability gap until storage exists; do not hide that gap.
+- Owner-approved customer-profile forward-sync exception: preserve the richer DR customer profile (Call / Text / Email / Google Maps / Stride / Google Earth / Zillow / property preview plus Edit customer). Do not remove those tools merely to make DR look like an older LIVE customer profile. The intended resolution is to bring LIVE forward to the approved DR customer profile through the LIVE deployment path.
 
 ## Priority 1 — owner mobile shell and primary navigation
 
@@ -62,6 +63,8 @@ Functional contracts already source-guarded: 50% deposit calculation, approval/s
 28. Property preview.
 
 Known LIVE evidence already exists for selected Payments/Invoices/Photos states; those states still need independent captures mapped into the formal ledger.
+
+Owner decision recorded 2026-10-05: the current DR customer section is preferred over the older LIVE customer section. The richer DR profile is an approved forward-sync target, not a defect. Preserve its customer actions, property preview, and Edit customer capability. Exact-parity review of individual customer tabs (Payments, Invoices, Photos, Messages, Notes, Estimates) still applies; the surrounding richer customer-profile shell remains intentionally ahead until LIVE is upgraded to match it.
 
 ## Priority 4 — customer-facing estimate / approval
 
@@ -164,4 +167,4 @@ The current independent deployment is D1-only and intentionally has no R2 bindin
 
 ## Completion gate
 
-Strict parity is complete only when the formal evidence manifest is updated with both LIVE and independent evidence for every required state and each comparison is either `VERIFIED_IDENTICAL` or explicitly classified as an approved infrastructure-only exception.
+Strict parity is complete only when the formal evidence manifest is updated with both LIVE and independent evidence for every required state and each comparison is either `VERIFIED_IDENTICAL` or explicitly classified as an approved infrastructure-only exception. Owner-approved forward-sync product improvements such as the richer DR customer profile do not qualify as `VERIFIED_IDENTICAL` until LIVE is intentionally upgraded to match them; they must remain documented as synchronization work rather than being silently removed from DR.
