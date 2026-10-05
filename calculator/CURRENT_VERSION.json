@@ -7,8 +7,8 @@
   "baseline_status": "STAGING_REAL_DEVICE_PARITY_REAUDIT_IN_PROGRESS_NOT_SYNCHRONIZED",
   "verified_calculator_gate_head": "33a1e6e2d2ddd4e00d6030ae315230b7ef894f65",
   "verified_visual_behavior_head": null,
-  "verified_shared_core_fingerprint": "f874f35ae8d54f045e37b95330fe806cfb967c7dd7373cedc09623c6e193e46d",
-  "offline_cache_generation": 76,
+  "verified_shared_core_fingerprint": "6c82bbf6d685e72ef3a478e25b88cd328e1508813959b46e442b074064366251",
+  "offline_cache_generation": 77,
   "verified_gates": {
     "live_to_dr_backup_takeover": true,
     "dr_to_live_reverse_portability": true,
@@ -22,5 +22,5 @@
   "dr_source": "Independent calculator under /calculator/",
   "staging_branch": "fire-calculator-exact-live-clone",
   "production_promotion_approved": false,
-  "reaudit_note": "DR generation 76 aligns the actual shared module loader with the current Foundation and Navigation asset versions, preventing older query-string variants from undermining iPhone cache busting. It also carries the fresh LIVE transparent card-shell and 104px SH Mix growth-button corrections. Remaining visual/behavior parity stays open until re-verified."
+  "reaudit_note": "DR generation 77 fixes major dark-mode specificity conflicts against fresh LIVE evidence: header controls, warning banner, headings, segmented growth selector, SH recipe card/metrics/order note, and stock-strength card now use dark LIVE-style treatments. The mobile header also uses filled moon/sun icons and smaller theme/install controls to prevent the Field Calculator title from clipping. Visual/behavior parity remains open pending fresh rendered verification."
 }
