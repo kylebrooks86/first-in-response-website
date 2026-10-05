@@ -3,6 +3,9 @@ import fs from 'node:fs';
 
 const STAGING=process.env.FIRE_STAGING_URL||'http://127.0.0.1:4173/calculator/';
 const OUT=process.env.FIRE_VISUAL_OUT||'calculator/visual-parity';
+const swSource=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
+const expectedCache=swSource.match(/const CACHE='([^']+)'/)?.[1];
+if(!expectedCache)throw new Error('Unable to read current service-worker cache name');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 async function clickVisible(page,text){
@@ -74,7 +77,7 @@ try{
     return {controller:!!navigator.serviceWorker.controller,keys,assets};
   });
   if(!cacheState.controller)throw new Error('Service worker never controlled DR page');
-  if(!cacheState.keys.some(k=>k==='fire-field-calculator-v18-exact-clone-72'))throw new Error('Expected cache generation 72 missing');
+  if(!cacheState.keys.includes(expectedCache))throw new Error(`Expected current cache ${expectedCache} missing`);
   if(!cacheState.assets.some(u=>u.includes('/calculator/full-v18.js?v=6')))throw new Error('Shared loader missing from offline cache');
   if(!cacheState.assets.some(u=>u.includes('/calculator/v18-live-portable-backup.js?v=1')))throw new Error('Portable backup module missing from offline cache');
 
@@ -137,7 +140,7 @@ try{
   const authText=(await page.locator('body').innerText()).toLowerCase();
   if(/sign in to (?:chatgpt|openai)|log in to (?:chatgpt|openai)/.test(authText))throw new Error('Calculator exposed an OpenAI/ChatGPT sign-in requirement');
 
-  const report={status:'PASS',cacheState:{controller:cacheState.controller,keys:cacheState.keys,assetCount:cacheState.assets.length},offlineState,offlineRoutes:['SH Mix','Equipment','Chemicals','Chemical Index','Job Math','Field Tools','Field Guide'],shMixFunctional:{before:mixBefore,after:mixAfter},restored,total,offlineBackup:{format:backup.format,version:backup.version,appVersion:backup.appVersion,bytes:backupBytes,dataKeyCount:Object.keys(backup.data||{}).length,requiredDrStores},reopenedState,reopenedOffline,reopenedTotal,openAiRequests,openAiSignInRequired:false};
+  const report={status:'PASS',expectedCache,cacheState:{controller:cacheState.controller,keys:cacheState.keys,assetCount:cacheState.assets.length},offlineState,offlineRoutes:['SH Mix','Equipment','Chemicals','Chemical Index','Job Math','Field Tools','Field Guide'],shMixFunctional:{before:mixBefore,after:mixAfter},restored,total,offlineBackup:{format:backup.format,version:backup.version,appVersion:backup.appVersion,bytes:backupBytes,dataKeyCount:Object.keys(backup.data||{}).length,requiredDrStores},reopenedState,reopenedOffline,reopenedTotal,openAiRequests,openAiSignInRequired:false};
   fs.writeFileSync(`${OUT}/offline-dr-acceptance.json`,JSON.stringify(report,null,2));
   console.log('OFFLINE DR ACCEPTANCE PASS '+JSON.stringify(report));
 }catch(e){
