@@ -19,6 +19,8 @@
   #tools .card:has(#timerDisplay)>.grid{gap:12px!important}
   #tools .card:has(#timerDisplay)>.actions{margin-top:12px!important}
   #tools .card:has(#timerDisplay)>p.muted{margin:8px 0 0!important;font-size:12px!important;line-height:1.45!important;color:#607381!important}
+  /* LIVE's installed-version status panel is 74px tall on the paired iPhone capture. */
+  #tools .card:has(#fireCheckUpdate)>h3{min-height:74px!important;box-sizing:border-box!important}
   #tools #customChemName::placeholder,#tools #customChemPurpose::placeholder,#tools #customChemNotes::placeholder{color:#87949d!important}
   #tools .statusgood{font-size:13px!important}
 }
