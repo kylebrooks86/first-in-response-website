@@ -126,7 +126,7 @@ for needle in [
 ]:
     if needle not in batch_audit: errors.append(f'LIVE_PARITY_BATCH_AUDIT is missing current state: {needle}')
 
-for working_path in [queue_path, go_no_go_path, runbook_path, batch_audit_path]:
+for working_path in [matrix_path, queue_path, go_no_go_path, runbook_path, batch_audit_path]:
     canonical_path = overlay_dir / working_path.name
     if not canonical_path.exists():
         errors.append(f'missing persistent governance overlay: {canonical_path}')
@@ -140,4 +140,4 @@ if errors:
 
 print('DR_PARITY_LEDGER_CONSISTENCY=PASS')
 print(f'Formal states: {len(entries)}; LIVE evidence: {live_captured}; independent evidence: {independent_captured}; verified identical: {verified_identical}; mismatches: {mismatches}.')
-print('Manifest, checklist, release status, current audit, strict verdict, queue status, user-confirmed V14 mobile shell, six build guards, LIVE-evidence coverage accountability, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
+print('Manifest, checklist, release status, current audit, persistent strict matrix, queue status, user-confirmed V14 mobile shell, six build guards, LIVE-evidence coverage accountability, scroll freeze, free D1-only/no-R2 runbook, PIN auth documentation, photo capability exception, and persistent governance/audit overlays are consistent.')
