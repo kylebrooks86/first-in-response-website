@@ -5,16 +5,14 @@ if not css_path.exists():
     raise SystemExit('app/globals.css not found')
 
 css = css_path.read_text()
-marker = '/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V13 */'
+marker = '/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V14 */'
 if marker not in css:
     css += r'''
 
-/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V13
-   Preserve the crisp fixed V12 header, but add explicit content clearance so
-   the dashboard welcome block and other page content cannot sit underneath it.
-   Legacy guard marker retained intentionally: FIRE_DR_STANDALONE_TOPBAR_PARITY_V12
-   Superseded content offset reference: padding-top: calc(68px + env(safe-area-inset-top)) !important;
-*/
+/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V14
+   Preserve the crisp fixed header while giving the mobile search box its own
+   explicit second row. The page begins below the full two-row header so the
+   FIRE APP / Welcome block can never sit underneath the search field. */
 .fire-dr-stride-button {
   display: flex !important;
   flex-direction: column !important;
@@ -43,9 +41,14 @@ if marker not in css:
   [data-theme="dark"] body {
     background: #101d2d !important;
   }
+
   .main-area {
-    padding-top: calc(88px + env(safe-area-inset-top)) !important;
+    padding-top: calc(156px + env(safe-area-inset-top)) !important;
   }
+  .main-area:has(> .topbar.compact-mobile) {
+    padding-top: calc(80px + env(safe-area-inset-top)) !important;
+  }
+
   .topbar {
     position: fixed !important;
     inset: 0 0 auto 0 !important;
@@ -53,13 +56,17 @@ if marker not in css:
     left: 0 !important;
     right: 0 !important;
     z-index: 60 !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-content: flex-start !important;
+    align-items: center !important;
     width: 100% !important;
-    height: calc(68px + env(safe-area-inset-top)) !important;
-    min-height: calc(68px + env(safe-area-inset-top)) !important;
+    height: calc(148px + env(safe-area-inset-top)) !important;
+    min-height: calc(148px + env(safe-area-inset-top)) !important;
     padding-top: calc(env(safe-area-inset-top) + 4px) !important;
     padding-left: max(16px, env(safe-area-inset-left)) !important;
     padding-right: max(16px, env(safe-area-inset-right)) !important;
-    padding-bottom: 0 !important;
+    padding-bottom: 12px !important;
     background: #fff !important;
     background-color: #fff !important;
     background-image: none !important;
@@ -77,6 +84,36 @@ if marker not in css:
     -webkit-backface-visibility: visible !important;
     will-change: auto !important;
   }
+
+  .topbar.compact-mobile {
+    height: calc(72px + env(safe-area-inset-top)) !important;
+    min-height: calc(72px + env(safe-area-inset-top)) !important;
+    padding-bottom: 0 !important;
+  }
+
+  .topbar > .mobile-brand,
+  .topbar > .mobile-primary-actions,
+  .topbar > .top-actions {
+    flex: 0 0 auto !important;
+  }
+
+  .topbar .search-box {
+    display: flex !important;
+    position: absolute !important;
+    left: max(16px, env(safe-area-inset-left)) !important;
+    right: max(16px, env(safe-area-inset-right)) !important;
+    bottom: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    height: 44px !important;
+    margin: 0 !important;
+    z-index: 1 !important;
+  }
+
+  .topbar.compact-mobile .search-box {
+    display: none !important;
+  }
+
   [data-theme="dark"] .topbar {
     background: #101d2d !important;
     background-color: #101d2d !important;
@@ -136,11 +173,10 @@ if not layout.exists():
 text = layout.read_text()
 text = text.replace('statusBarStyle: "black-translucent"', 'statusBarStyle: "default"')
 
-script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V13'
+script_marker = 'FIRE_DR_STRIDE_PARITY_SCRIPT_V14'
 if script_marker not in text:
     script = r'''<script dangerouslySetInnerHTML={{__html: `(function(){
-  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V13 */
-  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V12 legacy guard compatibility */
+  /* FIRE_DR_STRIDE_PARITY_SCRIPT_V14 */
   function norm(s){return (s||'').replace(/\\s+/g,' ').trim().toLowerCase();}
   function closestClickable(el){
     return el && el.closest ? (el.closest('a,button,[role="button"]') || el) : el;
@@ -162,4 +198,4 @@ if script_marker not in text:
     text = text.replace('</body>', script + '\n</body>', 1)
 
 layout.write_text(text)
-print('DR_STANDALONE_TOPBAR_PARITY_V13_APPLIED')
+print('DR_STANDALONE_TOPBAR_PARITY_V14_APPLIED')
