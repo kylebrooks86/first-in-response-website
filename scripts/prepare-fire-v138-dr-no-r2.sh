@@ -5,22 +5,34 @@ ARCHIVE="FIRE_App_Restore_Failure_Audit_Completeness_v138_2026-10-01.zip"
 EXPECTED_SHA256="2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca"
 APP_DIR="fire-app-dr"
 GOVERNANCE_OVERLAY_DIR="dr-parity-overlays"
+EXPECTED_BRANCH="fire-calculator-exact-live-clone"
 
 FIRE_WORKER_NAME="${FIRE_WORKER_NAME:-fire-app-independent-staging}"
 FIRE_D1_DATABASE_NAME="${FIRE_D1_DATABASE_NAME:-fire-app-staging-db}"
 FIRE_D1_DATABASE_ID="${FIRE_D1_DATABASE_ID:-afb2c05a-d794-4a9a-b580-924ce01c26ad}"
 export FIRE_WORKER_NAME FIRE_D1_DATABASE_NAME FIRE_D1_DATABASE_ID
 
+CURRENT_BRANCH="$(git branch --show-current)"
+HEAD_SHA="$(git rev-parse HEAD)"
+ORIGIN_SHA="$(git rev-parse "origin/$EXPECTED_BRANCH")"
+if [[ "$CURRENT_BRANCH" != "$EXPECTED_BRANCH" ]]; then
+  echo "DR_SOURCE_BRANCH=FAIL: expected $EXPECTED_BRANCH, found $CURRENT_BRANCH" >&2
+  exit 1
+fi
+if [[ "$HEAD_SHA" != "$ORIGIN_SHA" ]]; then
+  echo "DR_SOURCE_BRANCH=FAIL: checked-out HEAD $HEAD_SHA does not match origin/$EXPECTED_BRANCH $ORIGIN_SHA" >&2
+  exit 1
+fi
+echo "DR_SOURCE_BRANCH=PASS ($EXPECTED_BRANCH @ $HEAD_SHA)"
+
 if [[ ! "$FIRE_D1_DATABASE_ID" =~ ^[0-9a-fA-F-]{32,36}$ ]]; then
   echo "FIRE_D1_DATABASE_ID does not look like a valid D1 database ID." >&2
   exit 1
 fi
-
 if [[ ! -f "$ARCHIVE" ]]; then
   echo "Missing sealed v138 archive: $ARCHIVE" >&2
   exit 1
 fi
-
 ACTUAL_SHA256="$(sha256sum "$ARCHIVE" | awk '{print $1}')"
 echo "v138 archive SHA256: $ACTUAL_SHA256"
 if [[ "$ACTUAL_SHA256" != "$EXPECTED_SHA256" ]]; then
@@ -45,17 +57,12 @@ echo "Restored persistent DR governance/audit overlays after sealed extraction."
 cd "$APP_DIR"
 node -e "const p=require('./package.json'); if(p.version!=='1.0.0-rc.138') throw new Error('Unexpected package version: '+p.version)"
 node -e "const v=require('./CURRENT_VERSION.json'); if(String(v.fire_release)!=='v138') throw new Error('Unexpected FIRE release: '+v.fire_release)"
-
-# Fail early if DR scripts drift outside the governed inventory or the runbook
-# ever stops pinning the independent Wrangler config / isolated staging D1.
 python3 ../scripts/verify-fire-dr-script-inventory.py
 python3 ../scripts/verify-fire-dr-deploy-runbook.py
 
 python3 - <<'PY'
 from pathlib import Path
-
 PIN_HASH = "a20a2b7bb0842d5cf8a0c06c626421fd51ec103925c1819a51271f2779afa730"
-
 p = Path("app/owner-auth.ts")
 s = p.read_text()
 start = s.index("export async function verifyIndependentPassword")
@@ -68,14 +75,12 @@ replacement = f'''export async function verifyIndependentPassword(pin: string) {
 }}'''
 s = s[:start] + replacement + s[end:]
 p.write_text(s)
-
 login = Path("app/login/page.tsx")
 text = login.read_text()
 text = text.replace("Enter the owner password to access business records.", "Enter your 4-digit PIN to access business records.")
 text = text.replace("Owner password", "4-digit PIN")
 text = text.replace('type="password" autoComplete="current-password"', 'type="password" inputMode="numeric" pattern="[0-9]*" maxLength={4} autoComplete="off"')
 login.write_text(text)
-
 print("DR_PIN_OVERLAY_APPLIED")
 PY
 
@@ -91,7 +96,6 @@ python3 ../scripts/verify-fire-dr-customer-workflows.py
 python3 ../scripts/verify-fire-dr-parity-ledger-consistency.py
 
 echo "DR_PREBUILD_PARITY_GATES=PASS"
-
 corepack enable
 pnpm install --frozen-lockfile
 pnpm run build
@@ -99,17 +103,12 @@ pnpm run build
 node --input-type=module <<'NODE'
 import { readFile, writeFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
-
 const source = 'dist/server/wrangler.json';
 const destination = 'dist/server/wrangler.independent.json';
 const config = JSON.parse(await readFile(source, 'utf8'));
 config.name = process.env.FIRE_WORKER_NAME.trim();
 config.topLevelName = config.name;
-config.d1_databases = [{
-  binding: 'DB',
-  database_name: process.env.FIRE_D1_DATABASE_NAME.trim(),
-  database_id: process.env.FIRE_D1_DATABASE_ID.trim(),
-}];
+config.d1_databases = [{ binding: 'DB', database_name: process.env.FIRE_D1_DATABASE_NAME.trim(), database_id: process.env.FIRE_D1_DATABASE_ID.trim() }];
 config.vars = { ...(config.vars || {}), FIRE_SESSION_SECRET: randomBytes(32).toString('hex') };
 delete config.r2_buckets;
 await writeFile(destination, JSON.stringify(config, null, 2) + '\n');
@@ -126,9 +125,8 @@ const expectedDbId = process.env.FIRE_D1_DATABASE_ID.trim();
 const errors = [];
 if (config.name !== expectedName) errors.push(`worker name mismatch: ${config.name}`);
 if (config.topLevelName !== expectedName) errors.push(`topLevelName mismatch: ${config.topLevelName}`);
-if (!Array.isArray(config.d1_databases) || config.d1_databases.length !== 1) {
-  errors.push('expected exactly one D1 binding');
-} else {
+if (!Array.isArray(config.d1_databases) || config.d1_databases.length !== 1) errors.push('expected exactly one D1 binding');
+else {
   const db = config.d1_databases[0];
   if (db.binding !== 'DB') errors.push(`unexpected D1 binding: ${db.binding}`);
   if (db.database_name !== expectedDbName) errors.push(`D1 database name mismatch: ${db.database_name}`);
@@ -158,10 +156,8 @@ for path in files:
         errors.append(f'invalid migration filename: {path.name}')
         continue
     parsed.append(int(match.group(1)))
-if len(files) != 21:
-    errors.append(f'expected exactly 21 canonical migrations, found {len(files)}')
-if parsed != expected:
-    errors.append(f'migration prefixes must be contiguous 0000..0020 exactly once; found {parsed}')
+if len(files) != 21: errors.append(f'expected exactly 21 canonical migrations, found {len(files)}')
+if parsed != expected: errors.append(f'migration prefixes must be contiguous 0000..0020 exactly once; found {parsed}')
 if errors:
     print('DR_MIGRATION_SEQUENCE=FAIL')
     for error in errors: print(f'- {error}')
@@ -180,9 +176,9 @@ fi
 
 python3 ../scripts/verify-fire-dr-postbuild-artifacts.py
 python3 ../scripts/write-fire-dr-build-provenance.py
+python3 ../scripts/verify-fire-dr-predeploy-provenance.py
 
 echo "DR_POSTBUILD_DEPLOYMENT_GATES=PASS"
-
 set +e
 pnpm run typecheck
 typecheck_status=$?
