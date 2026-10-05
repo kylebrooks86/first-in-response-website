@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "purpose": "Owner-approved user-facing DR improvements that must remain in the independent app and block FULL_IDENTICAL until LIVE is intentionally upgraded to match.",
+  "entries": [
+    {
+      "id": "customer-profile-command-center",
+      "status": "PENDING_LIVE_SYNC",
+      "scope": "owner-app/customer-profile",
+      "approved_at": "2026-10-05",
+      "preserve_in_dr": true,
+      "blocks_full_identical": true,
+      "matrix_area": "Customer detail profile shell / action row / property tools",
+      "live_sync_target": "Bring LIVE customer profiles up to the richer DR customer command-center behavior without removing DR functionality.",
+      "protected_behavior": [
+        "Call",
+        "Text",
+        "Email",
+        "Google Maps",
+        "Stride",
+        "Google Earth",
+        "Zillow",
+        "Property preview"
+      ]
+    },
+    {
+      "id": "edit-existing-customer",
+      "status": "PENDING_LIVE_SYNC",
+      "scope": "owner-app/customer-profile/edit",
+      "approved_at": "2026-10-05",
+      "preserve_in_dr": true,
+      "blocks_full_identical": true,
+      "matrix_area": "Edit existing customer",
+      "live_sync_target": "Add the DR Edit customer flow to LIVE for name, email, phone, service address, and lead source while preserving historical records.",
+      "protected_behavior": [
+        "Edit customer",
+        "Customer name",
+        "Email",
+        "Phone",
+        "Service address",
+        "How they found FIRE"
+      ]
+    }
+  ]
+}
