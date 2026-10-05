@@ -4,73 +4,42 @@
 
 **STAGING REAL-DEVICE PARITY RE-AUDIT IN PROGRESS — PRODUCTION NOT SYNCHRONIZED**
 
-The production/live calculator and independent disaster-recovery calculator both identify as v18. Previous automated gates were insufficient to establish real-device visual parity: owner iPhone testing found material mismatches in Index and Mixes. The staging/DR candidate is therefore back in section-by-section parity re-audit while production remains untouched.
+The production/live calculator remains the untouched source of truth. Previous automated gates were insufficient to establish real-device visual parity after owner iPhone testing found material mismatches in Index and Mixes. The independent DR candidate therefore remains in section-by-section real-device parity re-audit.
 
-Production remains the untouched master reference and has **not** been migrated, redeployed, synchronized, or altered by this verification work.
+Production/live hosting, DNS, deployment and real customer data have not been modified by this verification work.
 
-## Verified calculator state
+## Current governed calculator state
 
 - Branch: `fire-calculator-exact-live-clone`
-- Latest calculator gate anchor: `44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558`
-- Latest offline acceptance verification: `44b5eb0bc9f9b1ba45d248493e23d4c2c9bf0558`
-- Governed shared-core fingerprint: `bee43bb803a857f40464b46d21b71816bfe963538926606c4c32566644d46b65`
-- Offline cache generation: `69`
-- Release status remains `STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED` in `SHARED_CORE_MANIFEST.json`.
-- Production/live hosting, DNS, deployment and real customer data were not modified.
+- Governed shared-core fingerprint: `9e3c7d705165e5d74ee369e484f428eecafcddd80cdf92a54dfad8fd5dd6604d`
+- Offline cache generation: `72`
+- Release status: `STAGING_CANDIDATE_ONLY_NOT_SYNCHRONIZED`
+- The manifest is authoritative for the current shared-core file set and fingerprint.
+- Later unrelated FIRE Business App / v138 DR commits on this repository do not change calculator synchronization status and must remain outside this calculator audit.
 
-A later repository commit, `25ba82ab4ae572b5dfdcf2cce662491620fab461`, added an unrelated D1-only v138 app DR helper and does not change calculator shared-core code or calculator verification scope.
+## Automated verification
 
-## Verified automated gates
+Automated formula, contract, offline, backup/restore, estimator, Job Math, pricing, input, persistence, navigation and screenshot/geometry checks remain supporting evidence. They are not sufficient by themselves to mark visual parity VERIFIED IDENTICAL after the real-device mismatch.
 
-The staging/DR candidate has verified coverage for:
+The DR offline design remains intentional: the calculator must operate independently without requiring ChatGPT/OpenAI connectivity or sign-in. Infrastructure may differ only where it does not alter shared user-visible or business-functional behavior.
 
-- Formula regression and LIVE-reference contract
-- Offline-cache contract and shared-core fingerprint integrity
-- Independent LIVE-backup → DR restore/takeover
-- DR portable backup → isolated LIVE restore
-- Invalid/corrupt backup safe handling
-- Job Math behavior and shortcuts
-- Pricing Editor behavior
-- Estimator edge states
-- Customer/draft behavior
-- Bundle/promotion behavior
-- Save/reload/clear behavior
-- Quote copy/share/print behavior
-- Mobile numeric-input behavior
-- Chemical compatibility behavior
-- Equipment, Job Math and Field Tools key-card geometry
-- LIVE-vs-staging card/layout geometry measurements
-- light/dark computed-style comparison
-- 390×844 iPhone-viewport captures
-- light/dark visual-difference measurement
+## Real-device parity re-audit
 
-The reverse portability check is now a **hard release gate** rather than a continue-on-error probe. A failure in DR → LIVE backup portability fails the calculator takeover workflow.
+The re-audit is being performed against the actual LIVE rendered calculator, section by section. Current acceptance focus remains:
 
-## Airplane-mode DR acceptance
+1. SH Mix / Mixes and Chemical Index
+2. Equipment
+3. Chemicals
+4. Job Math
+5. Field Tools
+6. Field Guide
+7. Shared navigation, light/dark presentation, iPhone portrait/safe-area behavior, native keyboard behavior, and OS share/print presentation
 
-The dedicated `FIRE Calculator Offline DR Acceptance` workflow passed against cache generation 69 after the parity corrections. With browser networking disabled it verified:
+A section is not promoted to VERIFIED IDENTICAL merely because a source-level or browser-automation gate passes. Real-device discrepancies take precedence and reopen the affected area.
 
-- all seven major routes open: SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Tools, Field Guide
-- SH Mix performs a real dependent recalculation offline
-- saved estimate/planning state survives an offline reload
-- Job Math continues calculating offline
-- a portable v3 backup can be generated while offline
-- the portable backup includes the LIVE-compatible estimate projection plus required DR stores
-- the calculator can be fully closed and reopened while still offline with state and math preserved
-- no OpenAI/ChatGPT network request was observed
-- no OpenAI/ChatGPT sign-in requirement was present
+## Backup portability
 
-This closes the automated DR-independence / airplane-mode gate.
-
-## Backup portability status
-
-Required backup recovery directions are now covered:
-
-1. **LIVE → DR:** verified.
-2. **DR → isolated LIVE restore:** verified and enforced as a hard gate.
-3. **Invalid/corrupt backup:** verified to fail safely without silently damaging state.
-
-The portable backup contract remains FIRE Field Calculator Backup v3 / appVersion 18 and preserves DR-specific stores in addition to the LIVE-compatible estimate projection.
+The governed target remains portable FIRE Field Calculator Backup v3 / appVersion 18 behavior in both directions, with invalid/corrupt backup handling failing safely. Backup compatibility is a release gate but does not substitute for visual/device acceptance.
 
 ## Architecture target
 
@@ -80,33 +49,24 @@ One shared codebase:
 
 Deployed independently to:
 
-1. Production / Live FIRE Calculator
-2. Independent Disaster-Recovery FIRE Calculator
+1. Production / LIVE FIRE Calculator
+2. Independent Doomsday / DR FIRE Calculator
 
 All visible UI, formulas, pricing logic, validation, navigation, state handling, saved-data schema, export/restore behavior, warnings and business rules belong to the shared core. Only infrastructure adapters may differ.
 
-## What remains before synchronization
+## Promotion rule
 
-The automated disaster-recovery checks remain useful, but the visual/behavior parity batch is **not complete** because real-device findings reopened the audit. The release remains **NOT_SYNCHRONIZED** and production has not been promoted.
-
-Remaining release-level work is limited to:
-
-- physical-device owner acceptance where browser automation cannot certify native iPhone keyboard, safe-area and OS share/print presentation
-- explicit owner approval before any production promotion
-- production migration/deployment from the governed shared-core release only after that approval
-- post-promotion verification that LIVE and DR report the exact same governed shared-core fingerprint
-
-No production promotion is implied by automated staging success.
+Do not synchronize or promote production while required parity work remains unresolved. Production promotion requires explicit owner approval after real-device acceptance. After intentional promotion, both independent deployments must report the exact same governed shared-core fingerprint before release status can change to synchronized.
 
 ## Change classification rule
 
 Every future calculator change must be classified as exactly one of:
 
-- **SHARED FIRE CALCULATOR CHANGE** — must ship to both deployments from the same core release.
+- **SHARED FIRE CALCULATOR CHANGE** — must ultimately ship to both deployments from the same governed core release.
 - **INFRASTRUCTURE-ONLY CHANGE** — may differ between deployments and must not change user-visible or business-functional behavior.
 
 If a shared change reaches only one deployment after synchronization, release status immediately becomes **SYNCHRONIZATION FAILURE** until corrected.
 
 ## Production safety
 
-The existing working live calculator must not be overwritten merely because staging/DR automation is green. Work remains isolated on `fire-calculator-exact-live-clone` until explicit production promotion is approved.
+The existing working LIVE calculator must not be overwritten merely because staging/DR automation is green. Work remains isolated on `fire-calculator-exact-live-clone` until explicit production promotion is approved.
