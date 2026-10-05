@@ -6,6 +6,7 @@ from pathlib import Path
 checks = {
     Path('app/layout.tsx'): [
         'statusBarStyle: "default"',
+        'FIRE_DR_STRIDE_PARITY_SCRIPT_V11',
     ],
     Path('app/dashboard.tsx'): [
         # User-confirmed Templates mobile behavior.
@@ -59,19 +60,27 @@ checks = {
         '>Messages <b>{customerMessages.length}</b>',
         '>Notes <b>{customerNotes.length}</b>',
 
-        # LIVE-captured customer profile empty states.
-        'No payments recorded',
+        # LIVE-captured customer profile Payments and Invoices empty states.
+        '<div className="record-empty"><CreditCard /><strong>No payments recorded</strong>',
         'Open an estimate and choose Record payment after receiving money through Wave, Cash App, Venmo, cash, check, card, or bank transfer.',
-        'No invoices yet',
+        '<div className="record-empty"><Receipt /><strong>No invoices yet</strong>',
         'Open an estimate and tap Create invoice.',
 
-        # LIVE-captured Photos controls.
+        # LIVE-captured Photos controls and no-photo state.
+        'function CustomerPhotos(',
+        '<div className="photo-panel">',
+        '<div className="photo-toolbar">',
         '<Label>Photo type</Label>',
         '<SelectItem value="before">Before</SelectItem>',
         '<SelectItem value="after">After</SelectItem>',
         '<SelectItem value="property">Property / damage</SelectItem>',
-        'Optional note',
-        'Photo library',
+        '<Label htmlFor="photoCaption">Optional note</Label>',
+        'North siding, cracked outlet cover…',
+        'Uploading…":"Camera"',
+        '<Images className="h-4 w-4"/>Photo library',
+        'capture="environment"',
+        '<div className="record-empty"><Camera/><strong>No property photos yet</strong>',
+        'Choose Before, After, or Property / damage, then use your camera or photo library.',
 
         # Estimate pipeline / schedule / invoice owner-state structure.
         '{key:"draft",label:"New quotes"',
@@ -204,9 +213,20 @@ checks = {
         'Template message cannot be empty.',
     ],
     Path('app/globals.css'): [
-        # Keep the working Templates mobile-flow correction. Do not pin a
-        # particular scrolling/performance experiment marker.
+        # Keep the working Templates mobile-flow correction.
         'FIRE_DR_TEMPLATE_MOBILE_PARITY',
+
+        # User-confirmed crisp / inset standalone top shell. These assertions are
+        # deliberately limited to the header fix and do not pin scroll behavior.
+        'FIRE_DR_STANDALONE_TOPBAR_PARITY_V11',
+        'height: calc(68px + env(safe-area-inset-top)) !important;',
+        'padding-top: calc(env(safe-area-inset-top) + 4px) !important;',
+        'padding-left: max(16px, env(safe-area-inset-left)) !important;',
+        'padding-right: max(16px, env(safe-area-inset-right)) !important;',
+        'contain: none !important;',
+        'transform: none !important;',
+        '-webkit-transform: none !important;',
+        'backface-visibility: visible !important;',
     ],
 }
 
@@ -227,5 +247,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_LIVE_PARITY_OVERLAY_GUARD=PASS')
-print('Protected: owner nav/mobile controls/theme; estimate pricing/discount/minimum/deposit rules; customer record tabs; estimate pipeline/schedule/invoice states; Templates; customer estimate/payment/invoice portals; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation; top-shell status-bar treatment.')
+print('Protected: user-confirmed crisp/inset top shell; owner nav/mobile controls/theme; estimate pricing/discount/minimum/deposit rules; LIVE-captured customer Payments/Invoices/Photos states; estimate pipeline/schedule/invoice states; Templates; customer estimate/payment/invoice portals; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation.')
 print('Scroll/smoothness behavior is intentionally not modified or pinned by this guard.')
