@@ -11,6 +11,7 @@
     "register-fire-dr-independent-evidence.py",
     "verify-fire-dr-customer-workflows.py",
     "verify-fire-dr-deploy-runbook.py",
+    "verify-fire-dr-independent-evidence-integrity.py",
     "verify-fire-dr-lifecycle-v134.py",
     "verify-fire-dr-live-evidence-coverage.py",
     "verify-fire-dr-live-parity-overlays.py",
