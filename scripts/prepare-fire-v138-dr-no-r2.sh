@@ -97,6 +97,11 @@ python3 ../scripts/verify-fire-dr-owner-workflows.py
 # Protect the complete LIVE-captured Create Estimate service catalog and ordering.
 python3 ../scripts/verify-fire-dr-live-service-catalog.py
 
+# Ensure every formal state that already has LIVE evidence is explicitly covered
+# by the current DR parity work. New LIVE captures intentionally stop the build
+# until this coverage map is updated.
+python3 ../scripts/verify-fire-dr-live-evidence-coverage.py
+
 # Protect customer approval/payment/document states and DR recovery-edge safeguards.
 python3 ../scripts/verify-fire-dr-customer-workflows.py
 
