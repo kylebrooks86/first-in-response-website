@@ -1,6 +1,6 @@
 # FIRE DR — Extended LIVE Parity Audit Batch
 
-Updated: 2026-10-04
+Updated: 2026-10-05
 
 Purpose: preserve the current DR-only parity state after the owner directed that the independent app mirror the current LIVE FIRE app rather than be redesigned.
 
@@ -31,6 +31,7 @@ The build guards protect the currently captured LIVE states and wording, includi
 - Customer Photos controls: Photo type, Before / After / Property / damage, Optional note, Camera, Photo library, and the no-photo state.
 - Scheduled estimate behavior: 50% deposit remains displayed but is not a scheduling gate after approval/signature.
 - Scheduled next step: capture before photos, complete the job report, then create the invoice.
+- Completion-before-final-balance transition: Completed exposes `Create invoice`; after creation the state becomes `Invoice created` and the message action becomes `Send invoice`.
 - Customer invoice: INVOICE FOR, service lines, Invoice total, Balance due, due-on-receipt/specific-date treatment, manual Cash App/Venmo instructions, and floating Back/Home controls.
 - Approved/signed customer estimate confirmation now retains the signer name when available.
 - The complete LIVE-captured Create Estimate service catalog is guarded in exact order.
@@ -55,6 +56,7 @@ Source guards now protect:
 - $150 minimum job charge.
 - 50% deposit calculation/display.
 - Approved/signed scheduling without a hard deposit-payment gate.
+- Completed → Create invoice → Invoice created / Send invoice transition.
 - Final invoice as canonical completed-job billing total.
 - Editable final invoice with revision history and stale Stripe-session safety.
 - Manual-payment safeguards, refund reconciliation, and retained-overpayment handling.
@@ -64,15 +66,16 @@ Source guards now protect:
 
 ## Current build guards
 
-The DR preparation path now runs five source/governance parity guards after applying the DR overlays and before dependency install/build:
+The DR preparation path now runs six source/governance parity guards after applying the DR overlays and before dependency install/build:
 
-1. `scripts/verify-fire-dr-live-parity-overlays.py` — known LIVE-captured/user-confirmed shell, customer records, lifecycle, billing, and document invariants.
+1. `scripts/verify-fire-dr-live-parity-overlays.py` — known LIVE-captured/user-confirmed shell, customer records, lifecycle, billing, completion-to-invoice, and document invariants.
 2. `scripts/verify-fire-dr-owner-workflows.py` — owner Dashboard/Invoices/Business/Templates/refund/empty-state contracts.
 3. `scripts/verify-fire-dr-live-service-catalog.py` — all 30 LIVE-captured Create Estimate service options in exact order.
-4. `scripts/verify-fire-dr-customer-workflows.py` — approval/signature, change requests, customer documents, payment/refund edge states, and no-R2 photo failure behavior.
-5. `scripts/verify-fire-dr-parity-ledger-consistency.py` — formal evidence counts/status, queue/governance consistency, persistent-overlay synchronization, PIN/no-R2 rules, and current release verdict.
+4. `scripts/verify-fire-dr-live-evidence-coverage.py` — requires every formal state already marked LIVE `CAPTURED` to be explicitly mapped into current DR parity protection and requires its registered evidence metadata.
+5. `scripts/verify-fire-dr-customer-workflows.py` — approval/signature, change requests, customer documents, payment/refund edge states, and no-R2 photo failure behavior.
+6. `scripts/verify-fire-dr-parity-ledger-consistency.py` — formal evidence counts/status, queue/governance consistency, persistent-overlay synchronization, PIN/no-R2 rules, and current release verdict.
 
-These guards prevent source regressions. They do **not** substitute for same-state rendered LIVE-vs-DR comparison.
+These guards prevent source/evidence-accountability regressions. They do **not** substitute for same-state rendered LIVE-vs-DR comparison.
 
 ## Current formal evidence status
 
@@ -83,6 +86,8 @@ The formal manifest remains authoritative:
 - 0/32 independent evidence formally registered.
 - 0 VERIFIED_IDENTICAL comparisons.
 - 0 recorded mismatches.
+
+The evidence-coverage guard intentionally expects the current 11 LIVE-captured formal states. When new LIVE evidence is registered, the build stops until that new formal state is mapped into the DR parity protection.
 
 Status remains:
 
