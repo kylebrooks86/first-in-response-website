@@ -126,6 +126,8 @@ for entry in entries:
                 seen_evidence_files[key] = prior or entry_id
 
 expected = (live_captured, len(entries), independent_captured, len(entries), verified_identical, mismatches)
+matrix = matrix_path.read_text()
+forward_sync_approved = sum(1 for line in matrix.splitlines() if '| FORWARD SYNC APPROVED |' in line)
 release = release_path.read_text()
 if 'Strict rendered parity: **NOT_YET_FULLY_VERIFIED**' not in release and verified_identical != len(entries): errors.append('RELEASE_STATUS must remain NOT_YET_FULLY_VERIFIED until every formal entry is verified identical.')
 summary_match = re.search(r'Evidence:\s*\*\*(\d+)/(\d+) LIVE,\s*(\d+)/(\d+) independent,\s*(\d+) verified identical,\s*(\d+) mismatches\*\*', release)
@@ -164,8 +166,6 @@ if not forward_audit:
 elif int(forward_audit.group(1)) != forward_sync_approved:
     errors.append(f'CURRENT_PARITY_AUDIT forward-sync blocker count {forward_audit.group(1)} does not match matrix-derived count {forward_sync_approved}.')
 
-matrix = matrix_path.read_text()
-forward_sync_approved = sum(1 for line in matrix.splitlines() if '| FORWARD SYNC APPROVED |' in line)
 if '**NOT YET IDENTICAL IN EVERY SINGLE LOOK/FUNCTION STATE.**' not in matrix and verified_identical != len(entries): errors.append('STRICT_PARITY_MATRIX must retain the NOT YET IDENTICAL verdict while formal evidence remains incomplete.')
 
 queue = queue_path.read_text()
