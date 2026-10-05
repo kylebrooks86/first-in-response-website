@@ -150,3 +150,7 @@ body.dark #equipment .card:has(#xReqBucket)>p.mini{color:#9fb0bf!important}
   #equipment .card:has(#pumpGpm)>.grid,
   #equipment .card:has(#pumpGpm)>.prop-tank-grid{gap:12px!important}
 }
+
+/* Reverse X-Jet final geometry correction from fresh LIVE/DR render. */
+#equipment .card:has(#xReqBucket) .reverse-required{grid-column:1/-1!important;width:100%!important;box-sizing:border-box!important}
+#equipment .card:has(#xReqBucket) #xReverseInstruction{font-weight:400!important}
