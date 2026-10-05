@@ -7,8 +7,8 @@
   "baseline_status": "STAGING_REAL_DEVICE_PARITY_REAUDIT_IN_PROGRESS_NOT_SYNCHRONIZED",
   "verified_calculator_gate_head": "33a1e6e2d2ddd4e00d6030ae315230b7ef894f65",
   "verified_visual_behavior_head": null,
-  "verified_shared_core_fingerprint": "9e3c7d705165e5d74ee369e484f428eecafcddd80cdf92a54dfad8fd5dd6604d",
-  "offline_cache_generation": 72,
+  "verified_shared_core_fingerprint": "a42d2a776a9ca66fbc04616b2ea9e082934d7fb2f09d9d0d092d02836c2afb61",
+  "offline_cache_generation": 73,
   "verified_gates": {
     "live_to_dr_backup_takeover": true,
     "dr_to_live_reverse_portability": true,
@@ -22,5 +22,5 @@
   "dr_source": "Independent calculator under /calculator/",
   "staging_branch": "fire-calculator-exact-live-clone",
   "production_promotion_approved": false,
-  "reaudit_note": "Owner real-device iPhone testing invalidated the prior automated visual-parity claim. Index/Mixes cache delivery, Equipment structure/visuals, and Job Math quick navigation are being re-audited against actual LIVE rendering section-by-section."
+  "reaudit_note": "Owner real-device iPhone testing invalidated the prior automated visual-parity claim. Current re-audit now also removes the DR-only Field Tools top tab so LIVE top navigation remains SH Mix, Equipment, Chemicals, Chemical Index, Job Math, Field Guide while Tools stays in bottom navigation. Index/Mixes, Equipment, Chemicals, Job Math and remaining routes continue section-by-section verification."
 }
