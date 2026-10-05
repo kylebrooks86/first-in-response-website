@@ -20,7 +20,15 @@ Stored LIVE approved-estimate evidence shows the signer name in the green signed
 
 `Estimate approved and agreement signed by <signed name>. Kyle will contact you to schedule.`
 
-The correction is applied after sealed-v138 extraction and is also synced into the checked-in DR source. The sealed archive remains unchanged.
+The cumulative LIVE v107/v112 billing rules also require customer payment actions to be hidden while an unresolved overpayment or pending refund exists. The sealed v138 standalone payment page did not include `pendingRefundCount` and its `canPay` calculation did not exclude billing-review state. The DR overlay now:
+
+- queries pending refund count on the standalone customer payment page;
+- treats pending refunds and unresolved overpayments as payment-review holds;
+- suppresses the secure-pay action during either hold;
+- shows `Refund processing.` for a pending refund;
+- shows `Payment received — account review in progress.` for an unresolved overpayment.
+
+These corrections are applied after sealed-v138 extraction and are also synced into the checked-in DR source. The sealed archive remains unchanged.
 
 ## LIVE-captured states protected
 
@@ -60,6 +68,7 @@ Source guards now protect:
 - Final invoice as canonical completed-job billing total.
 - Editable final invoice with revision history and stale Stripe-session safety.
 - Manual-payment safeguards, refund reconciliation, and retained-overpayment handling.
+- Customer payment actions suppressed during pending-refund or unresolved-overpayment review.
 - Review-request suppression while billing/refund exceptions are unresolved.
 - Exact review URL: `https://firstinresponseexteriors.com/review`.
 - Cash App `$FIREExteriors` and Venmo `@FirstInResponseExteriors`.
@@ -71,7 +80,7 @@ The DR preparation path now runs six source/governance parity guards after apply
 1. `scripts/verify-fire-dr-live-parity-overlays.py` — known LIVE-captured/user-confirmed shell, customer records, lifecycle, billing, completion-to-invoice, and document invariants.
 2. `scripts/verify-fire-dr-owner-workflows.py` — owner Dashboard/Invoices/Business/Templates/refund/empty-state contracts.
 3. `scripts/verify-fire-dr-live-service-catalog.py` — all 30 LIVE-captured Create Estimate service options in exact order.
-4. `scripts/verify-fire-dr-live-evidence-coverage.py` — requires every formal state already marked LIVE `CAPTURED` to be explicitly mapped into current DR parity protection and requires its registered evidence metadata.
+4. `scripts/verify-fire-dr-live-evidence-coverage.py` — requires every formal state already marked LIVE `CAPTURED` to be explicitly mapped into current DR parity protection and runs the restore/lifecycle/refund/Stripe integrity subguards.
 5. `scripts/verify-fire-dr-customer-workflows.py` — approval/signature, change requests, customer documents, payment/refund edge states, and no-R2 photo failure behavior.
 6. `scripts/verify-fire-dr-parity-ledger-consistency.py` — formal evidence counts/status, queue/governance consistency, persistent-overlay synchronization, PIN/no-R2 rules, and current release verdict.
 
