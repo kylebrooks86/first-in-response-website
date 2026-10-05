@@ -99,6 +99,12 @@ checks = {
         'estimate.status==="approved"?"Next: choose the job date and save it."',
         'estimate.status==="scheduled"?"Next: capture before photos, complete the job report, then create the invoice."',
 
+        # LIVE-captured completion-before-final-balance transition.
+        'estimate.invoiceId ? "Invoice created" : estimate.status === "completed" ? "Create invoice" : "Complete job first"',
+        'initialTemplate={estimate.invoiceId?"invoice":"estimate"}',
+        'triggerLabel={estimate.invoiceId?"Send invoice":"Send estimate"}',
+        'disabled={saving || Boolean(estimate.invoiceId) || estimate.status !== "completed"}',
+
         # Final invoice remains the canonical completed-job billing amount.
         'const resolvedBillingTotalCents =',
         'estimate.invoiceTotalCents ?? estimate.totalCents',
@@ -247,5 +253,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_LIVE_PARITY_OVERLAY_GUARD=PASS')
-print('Protected: user-confirmed crisp/inset top shell; owner nav/mobile controls/theme; estimate pricing/discount/minimum/deposit rules; LIVE-captured customer Payments/Invoices/Photos states; estimate pipeline/schedule/invoice states; Templates; customer estimate/payment/invoice portals; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation.')
+print('Protected: user-confirmed crisp/inset top shell; owner nav/mobile controls/theme; estimate pricing/discount/minimum/deposit rules; LIVE-captured customer Payments/Invoices/Photos states; scheduling/deposit behavior; completion-to-invoice transition; Templates; customer estimate/payment/invoice portals; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation.')
 print('Scroll/smoothness behavior is intentionally not modified or pinned by this guard.')
