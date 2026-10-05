@@ -58,3 +58,20 @@ body.dark #job #jobMixCard #fillPlan,
 body.dark #view-job #jobMixCard #fillPlan{background:#102637!important;color:#d8eefc!important;border-color:#28526d!important}
 body.dark #job #jobMixCard #fillPlan::before,
 body.dark #view-job #jobMixCard #fillPlan::before{color:#f6fbff!important}
+
+/* Fresh paired iPhone render: Job Math planning units and metric emphasis. */
+@media(max-width:760px){
+  #job #jobMixCard .inputrow .unit,#view-job #jobMixCard .inputrow .unit{
+    display:grid!important;place-items:center!important;align-self:stretch!important;
+    flex:0 0 30px!important;width:30px!important;min-width:30px!important;
+    padding:0 3px!important;border:1px solid #cbd9e2!important;border-radius:11px!important;
+    background:#fff!important;color:#17212b!important;font-size:12px!important;font-weight:800!important;
+    box-sizing:border-box!important
+  }
+  #job #jobMixCard #fills,#view-job #jobMixCard #fills{color:#a46b00!important}
+  #job #jobMixCard #planSh,#view-job #jobMixCard #planSh{color:#d6422d!important}
+  #job #jobMixCard #planWater,#view-job #jobMixCard #planWater{color:#1680b8!important}
+  #job #jobMixCard #planEle,#view-job #jobMixCard #planEle{color:#a46b00!important}
+}
+body.dark #job #jobMixCard .inputrow .unit,
+body.dark #view-job #jobMixCard .inputrow .unit{background:#18212b!important;color:#f6f7f8!important;border-color:#35414b!important}
