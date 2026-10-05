@@ -12,6 +12,7 @@ repo_root = Path(__file__).resolve().parent.parent
 app_dir = repo_root / 'fire-app-dr'
 manifest_path = app_dir / 'PARITY_EVIDENCE_MANIFEST.json'
 overlay_path = repo_root / 'dr-parity-evidence' / 'INDEPENDENT_EVIDENCE_OVERLAY.json'
+comparison_overlay_path = repo_root / 'dr-parity-evidence' / 'COMPARISON_OVERLAY.json'
 persistent_dir = repo_root / 'dr-parity-evidence' / 'independent'
 provenance_path = app_dir / 'dist/server/FIRE_DR_BUILD_PROVENANCE.json'
 persistent_provenance_dir = repo_root / 'dr-parity-evidence' / 'provenance'
@@ -20,7 +21,7 @@ parser = argparse.ArgumentParser(description='Register one rendered independent-
 parser.add_argument('--entry-id', required=True, help='Formal PARITY_EVIDENCE_MANIFEST entry id')
 parser.add_argument('--file', required=True, help='Path to the screenshot/evidence file to register')
 parser.add_argument('--notes', required=True, help='What exact DR state this evidence proves')
-parser.add_argument('--replace', action='store_true', help='Explicitly replace an existing independent registration for this entry')
+parser.add_argument('--replace', action='store_true', help='Explicitly replace an existing independent registration for this entry; any prior comparison decision is invalidated')
 parser.add_argument('--captured-at', help='Optional ISO-8601 capture time; defaults to registration time')
 parser.add_argument('--viewport-width', type=int, help='Rendered viewport width; defaults to registered LIVE profile when known')
 parser.add_argument('--viewport-height', type=int, help='Rendered viewport height; defaults to registered LIVE profile when known')
@@ -71,6 +72,7 @@ source = Path(args.file).expanduser().resolve()
 if not source.is_file(): raise SystemExit(f'DR_EVIDENCE_REGISTER=FAIL: evidence file does not exist: {source}')
 if not manifest_path.is_file(): raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: fire-app-dr/PARITY_EVIDENCE_MANIFEST.json is missing; run the governed prepare flow first')
 if not overlay_path.is_file(): raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: persistent independent evidence overlay is missing')
+if not comparison_overlay_path.is_file(): raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: persistent comparison overlay is missing')
 if not provenance_path.is_file(): raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: build provenance is missing; prepare the governed DR build before registering rendered evidence')
 notes = args.notes.strip()
 if not notes: raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: notes must not be blank')
@@ -127,9 +129,20 @@ overlay = json.loads(overlay_path.read_text())
 if overlay.get('schema_version') != 1 or overlay.get('side') != 'independent' or not isinstance(overlay.get('entries'), list): raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: persistent independent evidence overlay is malformed')
 registrations = overlay['entries']; existing_index = next((i for i,item in enumerate(registrations) if isinstance(item,dict) and item.get('id') == args.entry_id), None)
 if existing_index is not None and not args.replace: raise SystemExit(f'DR_EVIDENCE_REGISTER=FAIL: {args.entry_id} already has persistent independent evidence; use --replace only after deliberate review')
-persistent_dir.mkdir(parents=True, exist_ok=True); shutil.copy2(source, destination)
 
-evidence = {'side':'independent','file':relative_file,'captured_at':captured_at,'registered_at':now,'source_environment':'independent-dr','source_label':'fire-app-independent-staging','source_release':'v138-dr-staging','route_family':args.entry_id,'deployment_provenance_source':f'dr-parity-evidence/provenance/{provenance_sha256}.json','deployment_provenance_sha256':provenance_sha256,'source_commit':provenance.get('checked_out_source_commit'),'notes':notes,'sha256':digest,'bytes':size,'media_type':media_types[suffix],'pixel_width':pixel_width,'pixel_height':pixel_height,'viewport_width':viewport_width,'viewport_height':viewport_height,'device_class':device_class,'orientation':orientation,'capture_profile_source':'dr-registrar-v3','profile_matches_registered_live':not profile_mismatches}
+comparison_overlay = json.loads(comparison_overlay_path.read_text())
+if comparison_overlay.get('schema_version') != 1 or not isinstance(comparison_overlay.get('entries'), list):
+    raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: persistent comparison overlay is malformed')
+comparison_entries = comparison_overlay['entries']
+comparison_index = next((i for i,item in enumerate(comparison_entries) if isinstance(item,dict) and item.get('id') == args.entry_id), None)
+if comparison_index is not None and not args.replace:
+    raise SystemExit(f'DR_EVIDENCE_REGISTER=FAIL: {args.entry_id} already has a deliberate comparison decision; replacement evidence requires --replace and re-review')
+if comparison_index is not None:
+    comparison_entries.pop(comparison_index)
+    comparison_overlay_path.write_text(json.dumps(comparison_overlay, indent=2) + '\n')
+
+persistent_dir.mkdir(parents=True, exist_ok=True); shutil.copy2(source, destination)
+evidence = {'side':'independent','file':relative_file,'captured_at':captured_at,'registered_at':now,'source_environment':'independent-dr','source_label':'fire-app-independent-staging','source_release':'v138-dr-staging','route_family':args.entry_id,'deployment_provenance_source':f'dr-parity-evidence/provenance/{provenance_sha256}.json','deployment_provenance_sha256':provenance_sha256,'source_commit':provenance.get('checked_out_source_commit'),'notes':notes,'sha256':digest,'bytes':size,'media_type':media_types[suffix],'pixel_width':pixel_width,'pixel_height':pixel_height,'viewport_width':viewport_width,'viewport_height':viewport_height,'device_class':device_class,'orientation':orientation,'capture_profile_source':'dr-registrar-v4','profile_matches_registered_live':not profile_mismatches}
 if theme: evidence['theme'] = theme
 if profile_mismatches: evidence['profile_mismatch_notes'] = profile_mismatches
 registration = {'id':args.entry_id,'last_updated_at':now,'evidence':[evidence]}
@@ -141,8 +154,15 @@ else:
         if old_path != destination and old_path.is_file(): old_path.unlink()
 overlay_path.write_text(json.dumps(overlay, indent=2) + '\n')
 
+# Rebuild the working evidence/comparison state immediately. A replaced capture
+# invalidates any prior comparison because that decision was tied to the old hash.
 subprocess.run([sys.executable, '../scripts/apply-fire-dr-independent-evidence-overlay.py'], cwd=app_dir, check=True)
+subprocess.run([sys.executable, '../scripts/apply-fire-dr-comparison-overlay.py'], cwd=app_dir, check=True)
+subprocess.run([sys.executable, '../scripts/apply-fire-dr-parity-summary-sync.py'], cwd=app_dir, check=True)
 subprocess.run([sys.executable, '../scripts/verify-fire-dr-independent-evidence-integrity.py'], cwd=app_dir, check=True)
+subprocess.run([sys.executable, '../scripts/verify-fire-dr-comparison-integrity.py'], cwd=app_dir, check=True)
+subprocess.run([sys.executable, '../scripts/verify-fire-dr-parity-ledger-consistency.py'], cwd=app_dir, check=True)
+
 updated = json.loads(manifest_path.read_text()); updated_target = next(item for item in updated.get('entries',[]) if isinstance(item,dict) and item.get('id') == args.entry_id)
 if updated_target.get('independent_evidence_status') != 'CAPTURED': raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: independent status did not become CAPTURED after merge')
 if updated_target.get('comparison_status') == 'VERIFIED_IDENTICAL': raise SystemExit('DR_EVIDENCE_REGISTER=FAIL: registrar must never auto-promote comparison status')
@@ -151,4 +171,5 @@ print(f'Registered independent evidence for {args.entry_id}: {relative_file}')
 print(f'SHA256={digest} bytes={size} pixels={pixel_width}x{pixel_height} viewport={viewport_width}x{viewport_height} {device_class}/{orientation}')
 print('PROFILE_MATCH=' + ('YES' if not profile_mismatches else 'NO (explicitly accepted; comparison remains pending)'))
 print(f'BUILD_PROVENANCE_SHA256={provenance_sha256} (persisted snapshot)')
-print('Comparison status was not promoted; a deliberate LIVE-vs-DR comparison is still required.')
+if comparison_index is not None: print('PRIOR_COMPARISON_INVALIDATED=YES (replacement evidence requires fresh review)')
+print('Parity summaries and ledger were synchronized; comparison status was not promoted.')
