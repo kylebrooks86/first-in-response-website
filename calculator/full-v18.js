@@ -24,7 +24,7 @@
   css('./v18-live-tools-parity.css?v=3','tools-parity');
   css('./v18-live-tools-fine.css?v=2','tools-fine');
   css('./v18-live-pricing-parity.css?v=1','pricing-parity');
-  css('./v18-live-foundation.css?v=7','live-foundation');
+  css('./v18-live-foundation.css?v=8','live-foundation');
   const load=src=>new Promise(resolve=>{const s=document.createElement('script');s.src=src;s.onload=()=>resolve(true);s.onerror=()=>{console.error('FIRE v18 module failed to load:',src);resolve(false)};document.head.appendChild(s)});
   const waitForCore=(timeout=15000)=>new Promise(resolve=>{const start=Date.now();const check=()=>{const ready=!!window.__fireFullV18&&!!document.querySelector('#priceEditor')&&!!document.querySelector('#mixHistory');if(ready){window.__fireV18CoreReady=true;window.dispatchEvent(new CustomEvent('fire-v18-core-ready'));return resolve(true)}if(Date.now()-start>=timeout){console.warn('FIRE v18 core readiness timed out; continuing shared modules for audit visibility.');return resolve(false)}setTimeout(check,50)};check()});
   (async()=>{
@@ -46,7 +46,7 @@
     await load('./v18-live-chemicals-parity.js?v=3');
     await load('./v18-live-index-parity.js?v=2');
     await load('./v18-live-guide-parity.js?v=2');
-    await load('./v18-live-navigation-parity.js?v=2');
+    await load('./v18-live-navigation-parity.js?v=4');
     await load('./v18-live-tools-parity.js?v=1');
     await load('./v18-live-tools-options-parity.js?v=2');
     await load('./v18-live-tools-fine.js?v=1');
