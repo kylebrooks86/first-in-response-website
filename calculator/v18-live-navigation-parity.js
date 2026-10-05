@@ -6,6 +6,14 @@
     const jobNav=$('#topJobNav');if(!jobNav)return;
     jobNav.style.setProperty('display',activeView()==='job'?'flex':'none','important');
   };
+  const ensureHeaderParity=()=>{
+    let style=$('#fireLiveHeaderParityStyle');
+    if(style)return;
+    style=document.createElement('style');
+    style.id='fireLiveHeaderParityStyle';
+    style.textContent='@media(max-width:760px){.topbar .title strong{font-size:16px!important}}';
+    document.head.appendChild(style);
+  };
   const activate=view=>{
     $$('.view').forEach(v=>v.classList.toggle('active',v.id===view));
     $$('.tabs .tab').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
@@ -14,6 +22,7 @@
     syncJobNav();
   };
   const ensure=()=>{
+    ensureHeaderParity();
     const tabs=$('.tabs'),guide=$('.tabs .tab[data-view="guide"]');if(!tabs||!guide)return;
     const jobNav=$('#topJobNav'),warn=$('.warn');
     if(jobNav&&warn&&jobNav.nextElementSibling!==warn)warn.parentElement?.insertBefore(jobNav,warn);
