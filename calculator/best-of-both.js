@@ -211,6 +211,7 @@
     const profit=byHeading('Job loadout and profitability');
 
     if(coverage){
+      coverage.classList.add('bob-coverage-card');
       const k=$('.kicker',coverage),h=$('h2',coverage);
       if(k)k.textContent='📐 COVERAGE PLANNER';
       if(h)h.textContent='How much mix will the job need?';
