@@ -47,6 +47,10 @@ ok(bob.includes("const currentGrowth=()=>$('#growthSeg [data-growth].active')?.d
 for(const [label,value] of [['Light','light'],['Medium','moderate'],['Heavy','heavy']]){
   ok(index.includes(`data-growth="${value}">${label}</button>`),`missing visible ${label} dirtiness control`);
 }
+const staticIds=[...index.matchAll(/\\bid="([^"]+)"/g)].map(m=>m[1]);
+const duplicateIds=[...new Set(staticIds.filter((id,i,a)=>a.indexOf(id)!==i))];
+ok(duplicateIds.length===0,`duplicate static DOM ids: ${duplicateIds.join(', ')}`);
+ok(!index.includes('data-growth="moderate">Moderate</button>'),'visible dirtiness label regressed from Medium to Moderate');
 
 for(const size of ['1','2','4','5']){
   ok(index.includes(`data-batch="${size}"`),`missing quick batch size ${size} gal`);
