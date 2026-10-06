@@ -18,14 +18,15 @@ body.fire-bob #themeBtn{display:none!important}
 body.fire-bob .warn{display:none!important}
 
 body.fire-bob .tabswrap{position:sticky;top:78px;z-index:39;max-width:880px;margin:0 auto!important;padding:10px 14px 8px;background:rgba(9,13,16,.96)!important;border:0!important;backdrop-filter:blur(12px)}
-body.fire-bob .tabs{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px!important;padding:5px!important;background:#040607!important;border:1px solid var(--bob-line)!important;border-radius:18px!important;overflow:visible!important}
+body.fire-bob .tabs{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px!important;padding:5px!important;background:#040607!important;border:1px solid var(--bob-line)!important;border-radius:18px!important;overflow:visible!important}
 body.fire-bob .tab{display:none!important;background:transparent!important;color:#bec6cd!important;border-radius:13px!important;min-height:50px!important;padding:12px 8px!important;font-size:16px!important;font-weight:850!important}
-body.fire-bob .tab[data-view="mix"],body.fire-bob .tab[data-view="job"],body.fire-bob .tab[data-view="chemicals"]{display:block!important}
+body.fire-bob .tab[data-view="mix"],body.fire-bob .tab[data-view="chemicals"],body.fire-bob .tab[data-view="index"],body.fire-bob .tab[data-view="job"]{display:block!important}
 body.fire-bob .tab.active{background:#1b2126!important;color:#fff!important}
 body.fire-bob .tab.active:after{display:none!important}
-body.fire-bob .tab[data-view="job"]{order:2}
-body.fire-bob .tab[data-view="chemicals"]{order:3}
 body.fire-bob .tab[data-view="mix"]{order:1}
+body.fire-bob .tab[data-view="chemicals"]{order:2}
+body.fire-bob .tab[data-view="index"]{order:3}
+body.fire-bob .tab[data-view="job"]{order:4}
 
 body.fire-bob .page{max-width:880px!important;padding:8px 14px 34px!important}
 body.fire-bob .card{background:var(--bob-panel)!important;border:1px solid var(--bob-line)!important;border-radius:22px!important;box-shadow:none!important;padding:20px!important;margin:16px 0!important}
@@ -114,3 +115,40 @@ body.fire-bob #surface{display:block!important}
 body.fire-bob #index .card{background:var(--panel)!important;border-color:var(--line)!important}
 body.fire-bob #index input,body.fire-bob #index select{background:#0b131b!important;border-color:#263544!important;color:#f7fafc!important}
 body.fire-bob #indexResults{color:var(--ink)!important}
+
+
+/* LIVE-favorite protection: restore original v18 presentation inside Mixes + Index.
+   The best-of-both redesign is allowed around these views, not through them. */
+body.fire-bob #mix .card,
+body.fire-bob #index .card{
+  background:#18212b!important;
+  border:1px solid #35414b!important;
+  border-radius:8px!important;
+  box-shadow:0 4px 6px -1px rgba(0,0,0,.05),0 2px 4px -1px rgba(0,0,0,.04)!important;
+  padding:24px!important;
+}
+body.fire-bob #mix .kicker,body.fire-bob #index .kicker{color:#fff!important;font-size:14px!important;letter-spacing:.08em!important}
+body.fire-bob #mix h2,body.fire-bob #index h2{color:#fff!important}
+body.fire-bob #mix label,body.fire-bob #index label{color:#b7c0c7!important;font-weight:400!important}
+body.fire-bob #mix input,body.fire-bob #mix select,body.fire-bob #mix textarea,
+body.fire-bob #index input,body.fire-bob #index select,body.fire-bob #index textarea{
+  background:#18212b!important;color:#f6f7f8!important;border:1px solid #35414b!important;border-radius:6px!important;min-height:49px!important;
+}
+body.fire-bob #mix .chip,body.fire-bob #index .chip{
+  background:#18212b!important;color:#f6f7f8!important;border:1px solid #35414b!important;border-radius:6px!important;
+}
+body.fire-bob #mix .chip.active{background:#d84225!important;border-color:#d84225!important;color:#121a22!important}
+body.fire-bob #mix .metric,body.fire-bob #index .metric{
+  background:#18212b!important;border:1px solid #35414b!important;border-radius:8px!important;padding:12px!important;
+}
+body.fire-bob #mix .metric small,body.fire-bob #index .metric small{color:#6c7882!important}
+body.fire-bob #mix .metric strong,body.fire-bob #index .metric strong{font-size:20px!important;color:#f6f7f8!important}
+body.fire-bob #mix .note,body.fire-bob #index .note{
+  background:#fafafa!important;border-left:4px solid #f03c3c!important;border-radius:6px!important;color:#5a6670!important;padding:12px!important;
+}
+body.fire-bob #mix .resultbig,body.fire-bob #index .resultbig{color:#d84225!important}
+@media(max-width:560px){
+  body.fire-bob .tabs{gap:3px!important;padding:4px!important}
+  body.fire-bob .tab{font-size:13px!important;padding:10px 4px!important}
+  body.fire-bob #mix .card,body.fire-bob #index .card{padding:20px 16px!important}
+}
