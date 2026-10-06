@@ -87,6 +87,7 @@ ok(css.includes('.tab[data-view="mix"]')&&css.includes('.tab[data-view="chemical
 ok(css.includes('body.fire-bob .tab{display:none!important'), 'secondary tabs are not hidden by default');
 ok(bob.includes("['equipment','⚙️ Equipment / X-Jet']")&&bob.includes("['tools','🧰 Field Tools']")&&bob.includes("['guide','🛡️ Safety Guide']"),'secondary tools are not routed through compact Tools menu');
 ok(toolsParity.includes('<h2>Saved mixes</h2>'),'Field Tools saved-mix card is missing');
+ok(toolsParity.includes("if(!c){")&&toolsParity.includes("c=document.createElement('div');c.className='card';"),'Saved mixes card is not created when no legacy favorite card exists');
 ok(!toolsParity.includes('data-fire-fav="house"')&&!toolsParity.includes('data-fire-fav="concrete"')&&!toolsParity.includes('data-fire-fav="gutter"')&&!toolsParity.includes('data-fire-fav="odoban"'),'duplicate one-tap favorites returned to Field Tools');
 ok(toolsParity.includes("stockStrength:n('stockStrength')")&&toolsParity.includes("eleRate:n('eleRate')"),'Saved mixes do not preserve stock strength and Elemonator rate');
 ok(toolsParity.includes("hasPreset=[...b.options].some(o=>o.value===value)")&&toolsParity.includes("b.value='custom'"),'Saved custom batch sizes cannot be restored reliably');
