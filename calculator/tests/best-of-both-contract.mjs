@@ -26,7 +26,7 @@ const presets=[
 ];
 
 ok(count(bob,/icon:/g)===9,'expected exactly 9 quick presets');
-const normalizedBob=bob.replace(/(^|[^\\d])\\.(\\d+)/g,(_,prefix,digits)=>prefix+'0.'+digits);
+const normalizedBob=bob.replace(/(^|[^\d])\.(\d+)/g,(_,prefix,digits)=>prefix+'0.'+digits);
 for(const [name,surface,strengths] of presets){
   ok(bob.includes(`name:'${name}'`),`missing quick preset: ${name}`);
   ok(bob.includes(`surface:'${surface}'`),`missing surface binding for ${name}`);
