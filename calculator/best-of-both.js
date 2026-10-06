@@ -117,7 +117,7 @@
       if(p.surface&&window.__fireSetDwellForSurface)window.__fireSetDwellForSurface(p.surface);
       const target=$('#targetNum'); if(target){target.value=presetStrength(p,currentGrowth());fireInput(target);}
       const ele=$('#eleRate'); if(ele){ele.value=p.ele;fireInput(ele);}
-      $('.bob-preset-option',card).forEach(b=>b.classList.toggle('selected',b._bobPreset===p));
+      $('.bob-preset-option',card).forEach(b=>(b.classList.toggle('selected',b._bobPreset===p),b.setAttribute('aria-pressed',String(b._bobPreset===p))));
       setSummary(p);applyingPreset=false;
       if(menu)menu.open=false;
       if(note){
@@ -130,7 +130,7 @@
 
     presets.forEach((p,i)=>{
       const b=document.createElement('button');
-      b.type='button'; b.className='bob-preset-option'; b.dataset.presetIndex=String(i); b._bobPreset=p;
+      b.type='button'; b.className='bob-preset-option'; b.dataset.presetIndex=String(i); b._bobPreset=p; b.setAttribute('aria-pressed','false');
       const vals=[p.strengths.light,p.strengths.moderate,p.strengths.heavy],fixed=vals.every(v=>v===vals[0]),range=fixed?(vals[0]+'% SH · conservative fixed preset'):(vals.join(' / ')+'% SH · Light / Medium / Heavy');
       b.innerHTML='<span class="bob-preset-option-icon">'+p.icon+'</span><span class="bob-preset-option-copy"><strong>'+p.name+'</strong><small>'+range+'</small></span><span class="bob-preset-check" aria-hidden="true">✓</span>';
       b.addEventListener('click',()=>selectPreset(p));
@@ -139,12 +139,12 @@
 
     const refreshAmounts=()=>{
       if(activePreset){
-        $('.bob-preset-option',card).forEach(b=>b.classList.toggle('selected',b._bobPreset===activePreset));
+        $('.bob-preset-option',card).forEach(b=>(b.classList.toggle('selected',b._bobPreset===activePreset),b.setAttribute('aria-pressed',String(b._bobPreset===activePreset))));
         setSummary(activePreset);
       }else{
         const g=currentGrowth(),target=+($('#targetNum')?.value||0),ele=+($('#eleRate')?.value||0);
         const current=presets.find(p=>p.surface===surface?.value && Math.abs(target-presetStrength(p,g))<.001 && Math.abs(ele-p.ele)<.001);
-        if(current){activePreset=current;$('.bob-preset-option',card).forEach(b=>b.classList.toggle('selected',b._bobPreset===current));setSummary(current);}
+        if(current){activePreset=current;$('.bob-preset-option',card).forEach(b=>(b.classList.toggle('selected',b._bobPreset===current),b.setAttribute('aria-pressed',String(b._bobPreset===current))));setSummary(current);}
         else{$('.bob-preset-option',card).forEach(b=>b.classList.remove('selected'));setCustomSummary();}
       }
     };
