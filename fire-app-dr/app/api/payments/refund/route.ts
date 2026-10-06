@@ -46,13 +46,13 @@ async function finalizeRefund(id:string,providerRefundId:string|null){
         AND NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
       .bind(crypto.randomUUID(),row.estimateId,-amount,refundPaymentProvider,now,row.id,refundPaymentProvider),
     env.DB.prepare(`UPDATE invoices SET status=CASE
-      WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid'),0)>=total_cents THEN 'paid'
-      WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid'),0)>0 THEN 'partial'
+      WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)>=total_cents THEN 'paid'
+      WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)>0 THEN 'partial'
       WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
       ELSE 'draft' END WHERE estimate_id=?`).bind(row.estimateId,row.estimateId,row.estimateId),
     env.DB.prepare(`UPDATE notifications SET read_at=COALESCE(read_at,?),resolved_at=?,resolution_note=?
       WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL
-      AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid'),0)
+      AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
         <= COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=? LIMIT 1),(SELECT e.total_cents FROM estimates e WHERE e.id=?))`)
       .bind(now,now,`refund:${amount}`,row.estimateId,row.estimateId,row.estimateId,row.estimateId),
     env.DB.prepare(`INSERT OR IGNORE INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
