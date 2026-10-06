@@ -51,8 +51,6 @@ body.fire-bob .resultbig{color:var(--bob-amber)!important}
 
 body.fire-bob #mix.active{display:block!important}
 body.fire-bob #mix>.card{margin:16px 0!important}
-body.fire-bob #mix>.card:nth-child(3){background:var(--bob-panel)!important}
-body.fire-bob #job>.card:not(:first-child){margin-top:18px!important}
 body.fire-bob #chemicals>.card{margin-top:16px!important}
 body.fire-bob .accord{background:#0b1013!important;border-color:#303940!important;border-radius:16px!important}
 body.fire-bob .accord summary{color:#fff!important}
