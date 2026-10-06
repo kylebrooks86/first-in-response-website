@@ -301,3 +301,9 @@ body.fire-bob .bob-preset-check{
 }
 body.fire-bob .bob-preset-option.selected{background:#17211c}
 body.fire-bob .bob-preset-option.selected .bob-preset-check{opacity:1}
+
+
+body.fire-bob .bob-tools-sheet .bob-tools-install{
+  min-height:46px!important;border:1px solid #303940!important;background:#1a2025!important;
+  color:#fff!important;border-radius:13px!important;font-weight:800!important;padding:8px 10px!important;
+}
