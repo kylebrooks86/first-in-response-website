@@ -164,7 +164,7 @@ async function stripeCheckoutForPaymentIntent(paymentIntent:string,secret:string
   return {id:payload.data?.[0]?.id??null,error:null};
 }
 
-async function finalizeWebhookRefund(requestRow:{id:string;paymentId:string;estimateId:string;amountCents:number;mode?:string;status:string;providerRefundId?:string|null;customerId:string;customer:string},refund:StripeRefund){
+async function finalizeWebhookRefund(requestRow:{id:string;paymentId:string;estimateId:string;amountCents:number;mode?:string;status:string;providerRefundId?:string|null;paymentType:string;customerId:string;customer:string},refund:StripeRefund){
   if(requestRow.mode!=="stripe")return {ok:false,reason:"refund_mode_mismatch"};
   if(requestRow.status==="succeeded")return {ok:true,duplicate:true};
   if(requestRow.status==="failed"&&refund.status==="succeeded"&&requestRow.mode==="stripe"&&requestRow.providerRefundId&&requestRow.providerRefundId!==refund.id)
@@ -184,10 +184,10 @@ async function finalizeWebhookRefund(requestRow:{id:string;paymentId:string;esti
   await env.DB.batch([
     env.DB.prepare("UPDATE payment_refunds SET status='succeeded',provider_refund_id=?,completed_at=? WHERE id=? AND mode='stripe' AND status IN ('pending','failed')").bind(refund.id,now,requestRow.id),
     env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
-      SELECT ?,?,'Refund',?,'paid',?,?
+      SELECT ?,?,CASE WHEN ?='Tip' THEN 'Tip Refund' ELSE 'Refund' END,?,'paid',?,?
       WHERE EXISTS (SELECT 1 FROM payment_refunds r WHERE r.id=? AND r.mode='stripe' AND r.status='succeeded' AND r.provider_refund_id=?)
         AND NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
-      .bind(crypto.randomUUID(),requestRow.estimateId,-amount,provider,now,requestRow.id,refund.id,provider),
+      .bind(crypto.randomUUID(),requestRow.estimateId,requestRow.paymentType,-amount,provider,now,requestRow.id,refund.id,provider),
     env.DB.prepare(`UPDATE invoices SET status=CASE
       WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)>=total_cents THEN 'paid'
       WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)>0 THEN 'partial'
@@ -199,7 +199,7 @@ async function finalizeWebhookRefund(requestRow:{id:string;paymentId:string;esti
         <= COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=? LIMIT 1),(SELECT e.total_cents FROM estimates e WHERE e.id=?))`)
       .bind(now,now,`refund:${amount}`,requestRow.estimateId,requestRow.estimateId,requestRow.estimateId,requestRow.estimateId),
     env.DB.prepare(`INSERT OR IGNORE INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)`)
-      .bind(`refund-note:${requestRow.id}`,"payment_refunded",`Refund recorded for ${requestRow.customer}`,`${currency(amount)} Stripe refund completed.`,requestRow.customerId,requestRow.estimateId,now),
+      .bind(`refund-note:${requestRow.id}`,requestRow.paymentType==="Tip"?"tip_refunded":"payment_refunded",requestRow.paymentType==="Tip"?`Tip refund recorded for ${requestRow.customer}`:`Refund recorded for ${requestRow.customer}`,`${currency(amount)} Stripe ${requestRow.paymentType==="Tip"?"tip refund":"refund"} completed.`,requestRow.customerId,requestRow.estimateId,now),
   ]);
   const [verifiedRequest,verifiedLedger]=await Promise.all([
     env.DB.prepare("SELECT status,provider_refund_id AS providerRefundId,amount_cents AS amountCents FROM payment_refunds WHERE id=?").bind(requestRow.id).first<{status:string;providerRefundId:string|null;amountCents:number}>(),
@@ -253,9 +253,9 @@ async function recordRefundUpdate(refund:StripeRefund,stripeSecret?:string){
   }
 
   const requestRow=await env.DB.prepare(`SELECT r.id,r.payment_id AS paymentId,r.estimate_id AS estimateId,r.amount_cents AS amountCents,r.mode,r.status,r.provider_refund_id AS providerRefundId,
-    p.amount_cents AS originalAmount,e.customer_id AS customerId,c.name AS customer
+    p.amount_cents AS originalAmount,p.type AS paymentType,e.customer_id AS customerId,c.name AS customer
     FROM payment_refunds r JOIN payments p ON p.id=r.payment_id JOIN estimates e ON e.id=r.estimate_id JOIN customers c ON c.id=e.customer_id
-    WHERE r.id=? LIMIT 1`).bind(requestId).first<{id:string;paymentId:string;estimateId:string;amountCents:number;mode:string;status:string;providerRefundId:string|null;originalAmount:number;customerId:string;customer:string}>();
+    WHERE r.id=? LIMIT 1`).bind(requestId).first<{id:string;paymentId:string;estimateId:string;amountCents:number;mode:string;status:string;providerRefundId:string|null;originalAmount:number;paymentType:string;customerId:string;customer:string}>();
   if(!requestRow||requestRow.paymentId!==paymentId)return {ok:false,reason:"refund_request_not_found"};
   if(requestRow.mode!=="stripe")return {ok:false,reason:"refund_mode_mismatch"};
   return finalizeWebhookRefund(requestRow,refund);
