@@ -278,7 +278,7 @@
     const placeInstall=(sheet)=>{
       const install=$('#installBtn');
       if(!install||!sheet)return;
-      install.classList.remove('hidden','topbtn','install');
+      install.classList.remove('topbtn','install');
       install.classList.add('bob-tools-install');
       install.textContent='⬇️ Install / Update App';
       if(install.parentElement!==sheet)sheet.appendChild(install);
