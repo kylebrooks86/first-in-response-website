@@ -1,0 +1,689 @@
+diff --git a/fire-app-dr/app/api/customers/route.ts b/fire-app-dr/app/api/customers/route.ts
+--- a/fire-app-dr/app/api/customers/route.ts
++++ b/fire-app-dr/app/api/customers/route.ts
+@@ -15,15 +15,15 @@ export async function GET() {
+         SELECT c.id,c.name,c.email,c.phone,c.address,c.lead_source AS leadSource,c.created_at AS createdAt,
+           COUNT(DISTINCT e.id) AS estimateCount,
+           COALESCE((SELECT SUM(COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=ce.id LIMIT 1),ce.total_cents)) FROM estimates ce WHERE ce.customer_id=c.id),0) AS estimateTotal,
+-          COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN estimates pe ON pe.id=p.estimate_id WHERE pe.customer_id=c.id AND p.status='paid'),0) AS paidTotal
++          COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN estimates pe ON pe.id=p.estimate_id WHERE pe.customer_id=c.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidTotal
+         FROM customers c LEFT JOIN estimates e ON e.customer_id=c.id
+         GROUP BY c.id ORDER BY c.created_at DESC
+       `),
+       env.DB.prepare(`
+         SELECT e.id,e.customer_id AS customerId,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.total_cents AS totalCents,
+           (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,
+           e.deposit_cents AS depositCents,e.scheduled_at AS scheduledAt,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,e.created_at AS createdAt,
+-          COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0) AS paidCents,
++          COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+           (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceId,
+           (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceShareToken,
+           (SELECT COUNT(*) FROM estimate_change_requests cr WHERE cr.estimate_id=e.id AND cr.status='open') AS pendingChangeCount,
+@@ -44,7 +44,7 @@ export async function GET() {
+       env.DB.prepare(`SELECT p.id,p.estimate_id AS estimateId,e.customer_id AS customerId,p.type,p.amount_cents AS amountCents,p.status,p.provider_id AS reference,p.created_at AS createdAt,
+           CASE WHEN p.amount_cents>0 THEN COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status='succeeded'),0) ELSE 0 END AS refundedCents,
+           CASE WHEN p.amount_cents>0 THEN MAX(0,p.amount_cents-COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status IN ('pending','succeeded')),0)) ELSE 0 END AS refundableCents,
+-          CASE WHEN p.type IN ('deposit','balance') AND p.provider_id LIKE 'cs_%' THEN 1 ELSE 0 END AS stripePayment
++          CASE WHEN p.type IN ('deposit','balance','Tip') AND p.provider_id LIKE 'cs_%' THEN 1 ELSE 0 END AS stripePayment
+           FROM payments p JOIN estimates e ON e.id=p.estimate_id WHERE p.status='paid' ORDER BY p.created_at DESC`),
+       env.DB.prepare(`SELECT id,estimate_id AS estimateId,name,description,quantity,unit,total_cents AS totalCents FROM estimate_items ORDER BY rowid ASC`),
+     ]);
+diff --git a/fire-app-dr/app/api/dashboard-summary/route.ts b/fire-app-dr/app/api/dashboard-summary/route.ts
+--- a/fire-app-dr/app/api/dashboard-summary/route.ts
++++ b/fire-app-dr/app/api/dashboard-summary/route.ts
+@@ -9,17 +9,17 @@ export async function GET() {
+     env.DB.prepare(`SELECT COUNT(*) AS estimates,
+       COALESCE(SUM(CASE WHEN status IN ('draft','sent') THEN total_cents ELSE 0 END),0) AS openValue,
+       COALESCE(SUM(CASE
+-        WHEN status IN ('approved','scheduled') AND EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=estimates.id) THEN MAX(0, (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=estimates.id LIMIT 1)-(SELECT COALESCE(SUM(amount_cents),0) FROM payments p WHERE p.estimate_id=estimates.id AND p.status='paid'))
+-        WHEN status IN ('approved','scheduled') THEN MAX(0, deposit_cents-(SELECT COALESCE(SUM(amount_cents),0) FROM payments p WHERE p.estimate_id=estimates.id AND p.status='paid'))
+-        WHEN status='completed' THEN MAX(0, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=estimates.id LIMIT 1), total_cents)-(SELECT COALESCE(SUM(amount_cents),0) FROM payments p WHERE p.estimate_id=estimates.id AND p.status='paid'))
++        WHEN status IN ('approved','scheduled') AND EXISTS(SELECT 1 FROM invoices inv WHERE inv.estimate_id=estimates.id) THEN MAX(0, (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=estimates.id LIMIT 1)-(SELECT COALESCE(SUM(amount_cents),0) FROM payments p WHERE p.estimate_id=estimates.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')))
++        WHEN status IN ('approved','scheduled') THEN MAX(0, deposit_cents-(SELECT COALESCE(SUM(amount_cents),0) FROM payments p WHERE p.estimate_id=estimates.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')))
++        WHEN status='completed' THEN MAX(0, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=estimates.id LIMIT 1), total_cents)-(SELECT COALESCE(SUM(amount_cents),0) FROM payments p WHERE p.estimate_id=estimates.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')))
+         ELSE 0
+       END),0) AS outstanding
+       FROM estimates`),
+     env.DB.prepare(`SELECT e.id,e.customer_id AS customerId,e.status,e.total_cents AS totalCents,e.deposit_cents AS depositCents,e.scheduled_at AS scheduledAt,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,e.created_at AS createdAt,
+       c.name AS customer,c.email,c.phone,c.address,
+       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Custom service') AS service,
+       COALESCE((SELECT description FROM estimate_items ei WHERE ei.estimate_id=e.id ORDER BY rowid ASC LIMIT 1),'') AS serviceDescription,
+-      COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0) AS paidCents,
++      COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+       (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceId,
+       (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceShareToken,
+       (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,
+diff --git a/fire-app-dr/app/api/estimates/[id]/route.ts b/fire-app-dr/app/api/estimates/[id]/route.ts
+--- a/fire-app-dr/app/api/estimates/[id]/route.ts
++++ b/fire-app-dr/app/api/estimates/[id]/route.ts
+@@ -17,7 +17,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
+     if (status && !statuses.has(status)) return Response.json({ error: "Choose a valid estimate status." }, { status: 400 });
+     const existing = await env.DB.prepare(`
+       SELECT e.id,e.status,e.scheduled_at AS scheduledAt,e.deposit_cents AS depositCents,e.accepted_at AS acceptedAt,e.signed_at AS signedAt,
+-             COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0) AS paidCents,
++             COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+              (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id) AS invoiceCount
+       FROM estimates e WHERE e.id=?
+     `).bind(id).first<{id:string;status:string;scheduledAt:string|null;depositCents:number;acceptedAt:string|null;signedAt:string|null;paidCents:number;invoiceCount:number}>();
+@@ -89,14 +89,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
+     }
+     if (body.resolveChangeRequests === true) statements.push(env.DB.prepare("UPDATE estimate_change_requests SET status='resolved' WHERE estimate_id=? AND status='open'").bind(id));
+     if(changingStatus){
+-      const latestWorkflow=await env.DB.prepare(`SELECT status,accepted_at AS acceptedAt,signed_at AS signedAt,COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0) AS paidCents FROM estimates e WHERE e.id=?`).bind(id).first<{status:string;acceptedAt:string|null;signedAt:string|null;paidCents:number}>();
++      const latestWorkflow=await env.DB.prepare(`SELECT status,accepted_at AS acceptedAt,signed_at AS signedAt,COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents FROM estimates e WHERE e.id=?`).bind(id).first<{status:string;acceptedAt:string|null;signedAt:string|null;paidCents:number}>();
+       if(!latestWorkflow)return Response.json({error:"Estimate not found."},{status:404});
+       const latestPaidCents=Number(latestWorkflow.paidCents);
+       if(!Number.isSafeInteger(latestPaidCents)||latestPaidCents<0)return Response.json({error:"This job's payment state is outside FIRE's safe accounting range. Stop and review it before changing workflow status."},{status:409});
+       if(latestWorkflow.status!==existing.status||latestWorkflow.acceptedAt!==existing.acceptedAt||latestWorkflow.signedAt!==existing.signedAt)return Response.json({error:"This job changed while you were updating its status or schedule. Refresh it before trying again."},{status:409});
+     }
+     if(Array.isArray(body.items)){
+-      const latest=await env.DB.prepare(`SELECT status,COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0) AS paidCents,(SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id) AS invoiceCount FROM estimates e WHERE e.id=?`).bind(id).first<{status:string;paidCents:number;invoiceCount:number}>();
++      const latest=await env.DB.prepare(`SELECT status,COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,(SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id) AS invoiceCount FROM estimates e WHERE e.id=?`).bind(id).first<{status:string;paidCents:number;invoiceCount:number}>();
+       if(!latest||["approved","scheduled","completed"].includes(latest.status)||Number(latest.paidCents)>0||Number(latest.invoiceCount)>0)return Response.json({error:"This estimate became approved or financially active while you were editing it. Refresh the job; keep the accepted estimate unchanged and make later billing changes on the final invoice."},{status:409});
+       if(!Number.isSafeInteger(Number(latest.paidCents))||Number(latest.paidCents)<0)return Response.json({error:"This estimate's payment state is outside FIRE's safe accounting range. Stop and review the job before editing the estimate."},{status:409});
+     }
+diff --git a/fire-app-dr/app/api/estimates/route.ts b/fire-app-dr/app/api/estimates/route.ts
+--- a/fire-app-dr/app/api/estimates/route.ts
++++ b/fire-app-dr/app/api/estimates/route.ts
+@@ -13,7 +13,7 @@ export async function GET() {
+       env.DB.prepare(`
+         SELECT e.id,e.customer_id AS customerId,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.appreciation_discount AS appreciationDiscount,e.additional_discount_type AS additionalDiscountType,e.additional_discount_value AS additionalDiscountValue,e.total_cents AS totalCents,e.deposit_cents AS depositCents,
+                e.scheduled_at AS scheduledAt,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,e.created_at AS createdAt,c.name AS customer,c.email,c.phone,c.address,
+-               COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0) AS paidCents,
++               COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+                (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceId,
+                (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceShareToken,
+                (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,
+diff --git a/fire-app-dr/app/api/invoices/[id]/route.ts b/fire-app-dr/app/api/invoices/[id]/route.ts
+--- a/fire-app-dr/app/api/invoices/[id]/route.ts
++++ b/fire-app-dr/app/api/invoices/[id]/route.ts
+@@ -74,7 +74,7 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
+     }
+     const totalCents=subtotalCents>0?Math.max(15000,subtotalCents-discountCents):0;
+     const appliedDiscountCents=Math.max(0,subtotalCents-totalCents);
+-    const paidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid'").bind(existing.estimateId).first<{paidCents:number}>();
++    const paidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(existing.estimateId).first<{paidCents:number}>();
+     const paidCents=Number(paidRow?.paidCents||0);
+     if(!Number.isSafeInteger(paidCents)||paidCents<0)return Response.json({error:"Recorded payments are outside FIRE's safe accounting range. Stop and review this job before editing the invoice."},{status:409});
+     if(totalCents<paidCents)return Response.json({error:"Invoice total cannot be lower than payments already recorded. Record a refund or adjustment first."},{status:409});
+@@ -89,7 +89,7 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
+       else if(/^\d{4}-\d{2}-\d{2}$/.test(rawDueAt)){const parsed=new Date(`${rawDueAt}T12:00:00.000Z`);if(Number.isNaN(parsed.getTime()))return Response.json({error:"Choose a valid invoice due date."},{status:400});dueAt=parsed.toISOString();}
+       else return Response.json({error:"Choose a valid invoice due date."},{status:400});
+     }
+-    const latestPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid'").bind(existing.estimateId).first<{paidCents:number}>();
++    const latestPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(existing.estimateId).first<{paidCents:number}>();
+     const latestPaidCents=Number(latestPaidRow?.paidCents??0);
+     if(!Number.isSafeInteger(latestPaidCents)||latestPaidCents<0)return Response.json({error:"Recorded payments changed outside FIRE's safe accounting range. Stop and review this job before editing the invoice."},{status:409});
+     if(totalCents<latestPaidCents)return Response.json({error:"A payment changed while this invoice was being edited. Refresh the job before saving a lower invoice total."},{status:409});
+diff --git a/fire-app-dr/app/api/invoices/route.ts b/fire-app-dr/app/api/invoices/route.ts
+--- a/fire-app-dr/app/api/invoices/route.ts
++++ b/fire-app-dr/app/api/invoices/route.ts
+@@ -10,7 +10,7 @@ export async function GET() {
+     const result = await env.DB.prepare(`SELECT inv.id,inv.estimate_id AS estimateId,inv.customer_id AS customerId,inv.status,inv.subtotal_cents AS subtotalCents,inv.discount_cents AS discountCents,inv.discount_type AS discountType,inv.discount_value AS discountValue,inv.total_cents AS totalCents,inv.due_at AS dueAt,inv.share_token AS shareToken,inv.first_viewed_at AS firstViewedAt,inv.created_at AS createdAt,c.name AS customer,c.email,c.phone,c.address,
+       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM invoice_items ii WHERE ii.invoice_id=inv.id),'Custom service') AS service,
+       COALESCE((SELECT description FROM estimate_items ei WHERE ei.estimate_id=e.id ORDER BY rowid ASC LIMIT 1),'') AS serviceDescription,
+-      COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0) AS paidCents,
++      COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+       COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen,
+       COALESCE((SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending'),0) AS pendingRefundCount
+       FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id ORDER BY inv.created_at DESC`).all();
+@@ -30,7 +30,7 @@ export async function POST(request: Request) {
+     const estimateId = String(body.estimateId ?? "").trim();
+     const estimate = await env.DB.prepare(`
+       SELECT e.id,e.customer_id AS customerId,e.total_cents AS totalCents,e.status,
+-             COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0) AS paidCents
++             COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents
+       FROM estimates e WHERE e.id=?
+     `).bind(estimateId).first<{id:string;customerId:string;totalCents:number;status:string;paidCents:number}>();
+     if (!estimate) return Response.json({ error: "Estimate not found." }, { status: 404 });
+diff --git a/fire-app-dr/app/api/payments/checkout/route.ts b/fire-app-dr/app/api/payments/checkout/route.ts
+--- a/fire-app-dr/app/api/payments/checkout/route.ts
++++ b/fire-app-dr/app/api/payments/checkout/route.ts
+@@ -20,9 +20,12 @@ export async function POST(request: Request) {
+   const runtime = env as RuntimeEnv;
+   if (!runtime.STRIPE_SECRET_KEY) return Response.json({ error: "Payments have not been connected yet." }, { status: 503 });
+   try {
+-    const { shareToken, paymentType = "deposit" } = await request.json() as { shareToken?: string; paymentType?: "deposit" | "balance" };
++    const { shareToken, paymentType = "deposit", tipCents: requestedTipCents = 0 } = await request.json() as { shareToken?: string; paymentType?: "deposit" | "balance"; tipCents?: number };
+     if (!shareToken) return Response.json({ error: "Estimate link is required." }, { status: 400 });
+     if (!["deposit","balance"].includes(paymentType)) return Response.json({ error: "Invalid payment type." }, { status: 400 });
++    const tipCents = Math.round(Number(requestedTipCents) || 0);
++    if (!Number.isSafeInteger(tipCents) || tipCents < 0) return Response.json({ error: "Invalid tip amount." }, { status: 400 });
++    if (paymentType !== "balance" && tipCents > 0) return Response.json({ error: "Tips are available only with the final balance payment." }, { status: 400 });
+     const row = await env.DB.prepare(`
+       SELECT e.id, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, e.status, e.accepted_at AS acceptedAt,
+              c.name AS customer,
+@@ -38,13 +41,17 @@ export async function POST(request: Request) {
+     if (!row.acceptedAt && !["approved","scheduled","completed"].includes(row.status)) return Response.json({ error: "Approve and sign the estimate before making the reservation deposit." }, { status: 409 });
+     if (paymentType === "balance" && row.status !== "completed") return Response.json({ error: "The remaining balance is due after the job is completed." }, { status: 409 });
+     if (paymentType === "deposit" && row.status === "completed") return Response.json({ error: "This job is complete. Pay the remaining final invoice balance instead of a reservation deposit." }, { status: 409 });
+-    const paid = await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(row.id).first<{ amount: number }>();
++    const paid = await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(row.id).first<{ amount: number }>();
+     const paidCents = Number(paid?.amount ?? 0);
+     const totalCents=Number(row.totalCents);const depositCents=Number(row.depositCents);
+     if(!Number.isSafeInteger(paidCents)||!Number.isSafeInteger(totalCents)||!Number.isSafeInteger(depositCents))return Response.json({error:"Billing totals are outside FIRE's safe payment range. Contact Kyle before paying."},{status:409});
+     const amount = paymentType === "deposit" ? Math.max(0, depositCents - paidCents) : Math.max(0, totalCents - paidCents);
+     if(!Number.isSafeInteger(amount))return Response.json({error:"The amount due cannot be represented safely. Contact Kyle before paying."},{status:409});
+     if (amount < 50) return Response.json({ error: "This estimate has no balance due." }, { status: 400 });
++    const maxTipCents = Math.min(amount, 50000);
++    if (tipCents > maxTipCents) return Response.json({ error: `Tip cannot exceed ${Math.min(100, Math.round((maxTipCents / amount) * 100))}% of the balance or $500.` }, { status: 400 });
++    const chargeAmount = amount + tipCents;
++    if (!Number.isSafeInteger(chargeAmount) || chargeAmount <= 0) return Response.json({ error: "The total card charge is outside FIRE's safe payment range." }, { status: 409 });
+     const openSessions = await env.DB.prepare("SELECT id FROM payment_checkout_sessions WHERE estimate_id=? AND status='open'").bind(row.id).all<{id:string}>();
+     for (const session of openSessions.results) {
+       const remotelyExpired = await expireTrackedCheckout(session.id, runtime.STRIPE_SECRET_KEY);
+@@ -60,17 +67,25 @@ export async function POST(request: Request) {
+     form.set("metadata[estimate_id]", row.id);
+     form.set("metadata[payment_type]", paymentType);
+     form.set("metadata[expected_amount_cents]", String(amount));
++    form.set("metadata[tip_amount_cents]", String(tipCents));
++    form.set("metadata[expected_charge_cents]", String(chargeAmount));
+     form.set("line_items[0][quantity]", "1");
+     form.set("line_items[0][price_data][currency]", "usd");
+     form.set("line_items[0][price_data][unit_amount]", String(amount));
+     form.set("line_items[0][price_data][product_data][name]", `${row.service} — ${paymentType === "deposit" ? "50% deposit" : "remaining balance"}`);
++    if (tipCents > 0) {
++      form.set("line_items[1][quantity]", "1");
++      form.set("line_items[1][price_data][currency]", "usd");
++      form.set("line_items[1][price_data][unit_amount]", String(tipCents));
++      form.set("line_items[1][price_data][product_data][name]", "Optional tip");
++    }
+     form.set("payment_intent_data[description]", `FIRE estimate ${row.id}`);
+     const stripe = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: { authorization: `Bearer ${runtime.STRIPE_SECRET_KEY}`, "content-type": "application/x-www-form-urlencoded" }, body: form });
+     const data = await stripe.json() as { id?: string; url?: string; error?: { message?: string } };
+     if (!stripe.ok || !data.id || !data.url) return Response.json({ error: data.error?.message || "Payment checkout could not be started." }, { status: 502 });
+     const current=await env.DB.prepare(`SELECT e.status,e.deposit_cents AS depositCents,
+       COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,
+-      COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0) AS paidCents,
++      COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+       (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen
+       FROM estimates e WHERE e.id=?`).bind(row.id).first<{status:string;depositCents:number;totalCents:number;paidCents:number;paymentOverageOpen:number}>();
+     const currentDue=current?(paymentType==="deposit"&&current.status!=="completed"?Math.max(0,Number(current.depositCents)-Number(current.paidCents)):paymentType==="balance"&&current.status==="completed"?Math.max(0,Number(current.totalCents)-Number(current.paidCents)):0):0;
+@@ -80,7 +95,7 @@ export async function POST(request: Request) {
+     }
+     try {
+       await env.DB.prepare("INSERT INTO payment_checkout_sessions (id,estimate_id,type,amount_cents,status,created_at) VALUES (?,?,?,?, 'open', ?)")
+-        .bind(data.id,row.id,paymentType,amount,new Date().toISOString()).run();
++        .bind(data.id,row.id,paymentType,chargeAmount,new Date().toISOString()).run();
+     } catch {
+       await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(data.id)}/expire`, { method:"POST", headers:{ authorization:`Bearer ${runtime.STRIPE_SECRET_KEY}` } });
+       return Response.json({ error:"Payment checkout could not be safely tracked. Please try again." }, { status:502 });
+diff --git a/fire-app-dr/app/api/payments/refund/route.ts b/fire-app-dr/app/api/payments/refund/route.ts
+--- a/fire-app-dr/app/api/payments/refund/route.ts
++++ b/fire-app-dr/app/api/payments/refund/route.ts
+@@ -26,7 +26,7 @@ async function finalizeRefund(id:string,providerRefundId:string|null){
+   const row=await refundRow(id);
+   if(!row)return {ok:false,status:404,error:"Refund request not found."};
+   if(row.status==="succeeded"){
+-    const paid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(row.estimateId).first<{amount:number}>();
++    const paid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(row.estimateId).first<{amount:number}>();
+     const paidCents=Number(paid?.amount??0);
+     if(!Number.isSafeInteger(paidCents)||paidCents<0)return {ok:false,status:409,error:"This completed refund has a payment total outside FIRE's safe accounting range."};
+     return {ok:true,status:200,paidCents,duplicate:true};
+@@ -41,22 +41,22 @@ async function finalizeRefund(id:string,providerRefundId:string|null){
+     env.DB.prepare("UPDATE payment_refunds SET status='succeeded',provider_refund_id=COALESCE(?,provider_refund_id),completed_at=? WHERE id=? AND status='pending'")
+       .bind(providerRefundId,now,row.id),
+     env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+-      SELECT ?,?,'Refund',?,'paid',?,?
++      SELECT ?,?,CASE WHEN ?='Tip' THEN 'Tip Refund' ELSE 'Refund' END,?,'paid',?,?
+       WHERE EXISTS (SELECT 1 FROM payment_refunds r WHERE r.id=? AND r.status='succeeded')
+         AND NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
+-      .bind(crypto.randomUUID(),row.estimateId,-amount,refundPaymentProvider,now,row.id,refundPaymentProvider),
++      .bind(crypto.randomUUID(),row.estimateId,row.paymentType,-amount,refundPaymentProvider,now,row.id,refundPaymentProvider),
+     env.DB.prepare(`UPDATE invoices SET status=CASE
+-      WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid'),0)>=total_cents THEN 'paid'
+-      WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid'),0)>0 THEN 'partial'
++      WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)>=total_cents THEN 'paid'
++      WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)>0 THEN 'partial'
+       WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
+       ELSE 'draft' END WHERE estimate_id=?`).bind(row.estimateId,row.estimateId,row.estimateId),
+     env.DB.prepare(`UPDATE notifications SET read_at=COALESCE(read_at,?),resolved_at=?,resolution_note=?
+       WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL
+-      AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid'),0)
++      AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
+         <= COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=? LIMIT 1),(SELECT e.total_cents FROM estimates e WHERE e.id=?))`)
+       .bind(now,now,`refund:${amount}`,row.estimateId,row.estimateId,row.estimateId,row.estimateId),
+     env.DB.prepare(`INSERT OR IGNORE INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
+-      VALUES (?,?,?,?,?,?,?)`).bind(`refund-note:${row.id}`,"payment_refunded",`Refund recorded for ${row.customer}`,`${currency(amount)} refund recorded for this job.`,row.customerId,row.estimateId,now),
++      VALUES (?,?,?,?,?,?,?)`).bind(`refund-note:${row.id}`,row.paymentType==="Tip"?"tip_refunded":"payment_refunded",row.paymentType==="Tip"?`Tip refund recorded for ${row.customer}`:`Refund recorded for ${row.customer}`,`${currency(amount)} ${row.paymentType==="Tip"?"tip refund":"refund"} recorded for this job.`,row.customerId,row.estimateId,now),
+   ];
+   await env.DB.batch(statements);
+   const [verifiedRequest,verifiedLedger]=await Promise.all([
+@@ -65,7 +65,7 @@ async function finalizeRefund(id:string,providerRefundId:string|null){
+   ]);
+   if(verifiedRequest?.status!=="succeeded"||Number(verifiedRequest.amountCents)!==amount||Number(verifiedLedger?.amountCents)!==-amount)
+     return {ok:false,status:409,error:"Refund confirmation did not converge on one verified ledger entry. Refresh payment history before trying anything else."};
+-  const paid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(row.estimateId).first<{amount:number}>();
++  const paid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(row.estimateId).first<{amount:number}>();
+   const paidCents=Number(paid?.amount??0);
+   if(!Number.isSafeInteger(paidCents)||paidCents<0)return {ok:false,status:409,error:"Refund was recorded, but the refreshed payment total requires owner review."};
+   return {ok:true,status:200,paidCents,duplicate:false};
+@@ -96,7 +96,7 @@ export async function POST(request:Request){
+     if(payment.status!=="paid"||!Number.isSafeInteger(originalAmount)||originalAmount<=0)
+       return Response.json({error:"Only a positive recorded payment can be refunded."},{status:409});
+ 
+-    const stripePayment=(payment.type==="deposit"||payment.type==="balance")&&Boolean(payment.providerId?.startsWith("cs_"));
++    const stripePayment=["deposit","balance","Tip"].includes(payment.type)&&Boolean(payment.providerId?.startsWith("cs_"));
+     const mode=stripePayment?"stripe":"manual";
+ 
+     const existing=await env.DB.prepare("SELECT payment_id AS paymentId,amount_cents AS amountCents,mode,status,provider_refund_id AS providerRefundId FROM payment_refunds WHERE id=? LIMIT 1")
+@@ -154,7 +154,8 @@ export async function POST(request:Request){
+       return Response.json({...result,mode:"stripe",moneyMovedByFire:true},{status:result.status});
+     }
+ 
+-    const sessionResponse=await stripeGet(`checkout/sessions/${encodeURIComponent(payment.providerId!)}`,runtime.STRIPE_SECRET_KEY);
++    const checkoutSessionId=payment.type==="Tip"?String(payment.providerId||"").replace(/:tip$/,""):payment.providerId!;
++    const sessionResponse=await stripeGet(`checkout/sessions/${encodeURIComponent(checkoutSessionId)}`,runtime.STRIPE_SECRET_KEY);
+     const session=await sessionResponse.json() as {payment_intent?:string|{id?:string};error?:{message?:string}};
+     const paymentIntent=typeof session.payment_intent==="string"?session.payment_intent:session.payment_intent?.id;
+     if(!sessionResponse.ok||!paymentIntent){
+diff --git a/fire-app-dr/app/api/payments/route.ts b/fire-app-dr/app/api/payments/route.ts
+--- a/fire-app-dr/app/api/payments/route.ts
++++ b/fire-app-dr/app/api/payments/route.ts
+@@ -15,7 +15,7 @@ export async function GET() {
+       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Custom service') AS service,
+       CASE WHEN p.amount_cents>0 THEN COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status='succeeded'),0) ELSE 0 END AS refundedCents,
+       CASE WHEN p.amount_cents>0 THEN MAX(0,p.amount_cents-COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status IN ('pending','succeeded')),0)) ELSE 0 END AS refundableCents,
+-      CASE WHEN p.type IN ('deposit','balance') AND p.provider_id LIKE 'cs_%' THEN 1 ELSE 0 END AS stripePayment
++      CASE WHEN p.type IN ('deposit','balance','Tip') AND p.provider_id LIKE 'cs_%' THEN 1 ELSE 0 END AS stripePayment
+     FROM payments p
+     JOIN estimates e ON e.id=p.estimate_id
+     JOIN customers c ON c.id=e.customer_id
+@@ -43,7 +43,7 @@ export async function POST(request: Request) {
+ 
+     const estimate = await env.DB.prepare(`
+       SELECT e.id,e.total_cents AS estimateTotalCents,COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,e.deposit_cents AS depositCents,e.status,
+-        COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid'),0) AS paidCents
++        COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid' AND type NOT IN ('Tip','Tip Refund')),0) AS paidCents
+       FROM estimates e WHERE e.id=?
+     `).bind(estimateId).first<{id:string;estimateTotalCents:number;totalCents:number;depositCents:number;status:string;paidCents:number}>();
+     if (!estimate) return Response.json({ error: "Estimate not found." }, { status: 404 });
+@@ -73,19 +73,19 @@ export async function POST(request: Request) {
+             WHEN e.status='completed' THEN COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents)
+             WHEN e.status IN ('approved','scheduled') THEN e.deposit_cents
+             ELSE 0
+-          END - COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0)
++          END - COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
+         )
+         FROM estimates e WHERE e.id=?
+       )
+-      AND (SELECT COALESCE(SUM(p.amount_cents),0) FROM payments p WHERE p.estimate_id=? AND p.status='paid') <= 9007199254740991 - ?
++      AND (SELECT COALESCE(SUM(p.amount_cents),0) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')) <= 9007199254740991 - ?
+     `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, amountCents, estimateId, estimateId, amountCents).run();
+     if (!inserted.meta.changes) return Response.json({ error: "The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." }, { status: 409 });
+ 
+     const refreshed = await env.DB.prepare(`
+       SELECT e.status,
+         COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,
+         e.deposit_cents AS depositCents,
+-        COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid'),0) AS paidCents
++        COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid' AND type NOT IN ('Tip','Tip Refund')),0) AS paidCents
+       FROM estimates e WHERE e.id=?
+     `).bind(estimateId).first<{status:string;totalCents:number;depositCents:number;paidCents:number}>();
+     const nextPaid = Number(refreshed?.paidCents ?? (paidCents + amountCents));
+diff --git a/fire-app-dr/app/api/payments/webhook/route.ts b/fire-app-dr/app/api/payments/webhook/route.ts
+--- a/fire-app-dr/app/api/payments/webhook/route.ts
++++ b/fire-app-dr/app/api/payments/webhook/route.ts
+@@ -10,6 +10,8 @@ type StripeCheckoutSession = {
+     estimate_id?: string;
+     payment_type?: string;
+     expected_amount_cents?: string;
++    tip_amount_cents?: string;
++    expected_charge_cents?: string;
+   };
+ };
+ 
+@@ -71,21 +73,30 @@ async function recordCheckoutPayment(session:StripeCheckoutSession) {
+   if (!estimate) return { ok:false, reason:"estimate_not_found" };
+ 
+   const sessionAmount=Number(session.amount_total);
+-  const expectedAmount = Number(session.metadata?.expected_amount_cents ?? sessionAmount);
+-  if (!Number.isSafeInteger(sessionAmount) || sessionAmount<=0 || !Number.isSafeInteger(expectedAmount) || expectedAmount !== sessionAmount) return { ok:false, reason:"amount_mismatch" };
+   const paymentType = session.metadata?.payment_type === "balance" ? "balance" : "deposit";
++  const expectedAmount = Number(session.metadata?.expected_amount_cents ?? sessionAmount);
++  const tipCents = Number(session.metadata?.tip_amount_cents ?? 0);
++  const expectedCharge = Number(session.metadata?.expected_charge_cents ?? (expectedAmount + tipCents));
++  if (!Number.isSafeInteger(sessionAmount) || sessionAmount<=0 || !Number.isSafeInteger(expectedAmount) || expectedAmount<=0 || !Number.isSafeInteger(tipCents) || tipCents<0 || !Number.isSafeInteger(expectedCharge) || expectedCharge!==sessionAmount || expectedAmount+tipCents!==sessionAmount) return { ok:false, reason:"amount_mismatch" };
++  if (paymentType!=="balance" && tipCents>0) return {ok:false,reason:"tip_not_allowed_for_deposit"};
+   const tracked = await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payment_checkout_sessions WHERE id=? LIMIT 1").bind(session.id).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+-  if (!tracked || tracked.estimateId !== estimateId || tracked.type !== paymentType || Number(tracked.amountCents) !== Number(session.amount_total) || !["open","paid"].includes(tracked.status)) {
++  if (!tracked || tracked.estimateId !== estimateId || tracked.type !== paymentType || Number(tracked.amountCents) !== sessionAmount || !["open","paid"].includes(tracked.status)) {
+     return { ok:false, reason:"untracked_or_stale_checkout" };
+   }
+ 
+   const prior = await env.DB.prepare("SELECT id FROM payments WHERE provider_id=? LIMIT 1").bind(session.id).first();
+   if (prior) {
++    if (tipCents>0) {
++      await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
++        SELECT ?,?,'Tip',?,'paid',?,?
++        WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
++        .bind(crypto.randomUUID(),estimateId,tipCents,`${session.id}:tip`,new Date().toISOString(),`${session.id}:tip`).run();
++    }
+     await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();
+     return { ok:true, duplicate:true };
+   }
+ 
+-  const existingPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(estimateId).first<{amount:number}>();
++  const existingPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(estimateId).first<{amount:number}>();
+   const existingPaid=Number(existingPaidRow?.amount??0);
+   if(!Number.isSafeInteger(existingPaid)||!Number.isSafeInteger(existingPaid+sessionAmount))return {ok:false,reason:"unsafe_paid_total"};
+ 
+@@ -97,10 +108,16 @@ async function recordCheckoutPayment(session:StripeCheckoutSession) {
+     INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+     SELECT ?,?,?,?,'paid',?,?
+     WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)
+-  `).bind(crypto.randomUUID(),estimateId,paymentType,sessionAmount,session.id,now,session.id).run();
++  `).bind(crypto.randomUUID(),estimateId,paymentType,expectedAmount,session.id,now,session.id).run();
+   if (!inserted.meta.changes) return { ok:true, duplicate:true };
+ 
+-  const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(estimateId).first<{amount:number}>();
++  if (tipCents>0) {
++    await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
++      SELECT ?,?,'Tip',?,'paid',?,?
++      WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
++      .bind(crypto.randomUUID(),estimateId,tipCents,`${session.id}:tip`,now,`${session.id}:tip`).run();
++  }
++  const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(estimateId).first<{amount:number}>();
+   const nextPaid=Number(refreshedPaid?.amount??0);
+   if(!Number.isSafeInteger(nextPaid)||nextPaid<0)return {ok:false,reason:"unsafe_paid_total"};
+   const overpaymentCents=Math.max(0,nextPaid-obligationCents);
+@@ -109,7 +126,7 @@ async function recordCheckoutPayment(session:StripeCheckoutSession) {
+   const followups=[
+     env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id),
+     env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)")
+-      .bind(crypto.randomUUID(),"payment_received",`Payment received from ${estimate.customer}`,`${currency(sessionAmount)} ${paymentType} received for ${estimate.service}.`,estimate.customerId,estimateId,now),
++      .bind(crypto.randomUUID(),"payment_received",`Payment received from ${estimate.customer}`,`${currency(expectedAmount)} ${paymentType} received for ${estimate.service}.`,estimate.customerId,estimateId,now),
+   ];
+   if(estimate.status==="completed"||paymentType==="balance")followups.unshift(
+     env.DB.prepare(`UPDATE invoices SET status=CASE
+@@ -118,6 +135,12 @@ async function recordCheckoutPayment(session:StripeCheckoutSession) {
+       WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
+       ELSE 'draft' END WHERE estimate_id=?`).bind(nextPaid,nextPaid,estimateId)
+   );
++  if(tipCents>0){
++    followups.push(
++      env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)")
++        .bind(crypto.randomUUID(),"tip_received",`Tip received from ${estimate.customer}`,`${currency(tipCents)} tip received with the final card payment.`,estimate.customerId,estimateId,now)
++    );
++  }
+   if(overpaymentCents>0){
+     const overpaymentBody=`${currency(overpaymentCents)} is currently recorded above the amount due. Review the Stripe payments and either refund the excess or intentionally keep it as an overpayment on this job.`;
+     followups.push(
+@@ -141,7 +164,7 @@ async function stripeCheckoutForPaymentIntent(paymentIntent:string,secret:string
+   return {id:payload.data?.[0]?.id??null,error:null};
+ }
+ 
+-async function finalizeWebhookRefund(requestRow:{id:string;paymentId:string;estimateId:string;amountCents:number;mode?:string;status:string;providerRefundId?:string|null;customerId:string;customer:string},refund:StripeRefund){
++async function finalizeWebhookRefund(requestRow:{id:string;paymentId:string;estimateId:string;amountCents:number;mode?:string;status:string;providerRefundId?:string|null;paymentType:string;customerId:string;customer:string},refund:StripeRefund){
+   if(requestRow.mode!=="stripe")return {ok:false,reason:"refund_mode_mismatch"};
+   if(requestRow.status==="succeeded")return {ok:true,duplicate:true};
+   if(requestRow.status==="failed"&&refund.status==="succeeded"&&requestRow.mode==="stripe"&&requestRow.providerRefundId&&requestRow.providerRefundId!==refund.id)
+@@ -161,22 +184,22 @@ async function finalizeWebhookRefund(requestRow:{id:string;paymentId:string;esti
+   await env.DB.batch([
+     env.DB.prepare("UPDATE payment_refunds SET status='succeeded',provider_refund_id=?,completed_at=? WHERE id=? AND mode='stripe' AND status IN ('pending','failed')").bind(refund.id,now,requestRow.id),
+     env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+-      SELECT ?,?,'Refund',?,'paid',?,?
++      SELECT ?,?,CASE WHEN ?='Tip' THEN 'Tip Refund' ELSE 'Refund' END,?,'paid',?,?
+       WHERE EXISTS (SELECT 1 FROM payment_refunds r WHERE r.id=? AND r.mode='stripe' AND r.status='succeeded' AND r.provider_refund_id=?)
+         AND NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
+-      .bind(crypto.randomUUID(),requestRow.estimateId,-amount,provider,now,requestRow.id,refund.id,provider),
++      .bind(crypto.randomUUID(),requestRow.estimateId,requestRow.paymentType,-amount,provider,now,requestRow.id,refund.id,provider),
+     env.DB.prepare(`UPDATE invoices SET status=CASE
+-      WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid'),0)>=total_cents THEN 'paid'
+-      WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid'),0)>0 THEN 'partial'
++      WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)>=total_cents THEN 'paid'
++      WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)>0 THEN 'partial'
+       WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
+       ELSE 'draft' END WHERE estimate_id=?`).bind(requestRow.estimateId,requestRow.estimateId,requestRow.estimateId),
+     env.DB.prepare(`UPDATE notifications SET read_at=COALESCE(read_at,?),resolved_at=?,resolution_note=?
+       WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL
+-      AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid'),0)
++      AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
+         <= COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=? LIMIT 1),(SELECT e.total_cents FROM estimates e WHERE e.id=?))`)
+       .bind(now,now,`refund:${amount}`,requestRow.estimateId,requestRow.estimateId,requestRow.estimateId,requestRow.estimateId),
+     env.DB.prepare(`INSERT OR IGNORE INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)`)
+-      .bind(`refund-note:${requestRow.id}`,"payment_refunded",`Refund recorded for ${requestRow.customer}`,`${currency(amount)} Stripe refund completed.`,requestRow.customerId,requestRow.estimateId,now),
++      .bind(`refund-note:${requestRow.id}`,requestRow.paymentType==="Tip"?"tip_refunded":"payment_refunded",requestRow.paymentType==="Tip"?`Tip refund recorded for ${requestRow.customer}`:`Refund recorded for ${requestRow.customer}`,`${currency(amount)} Stripe ${requestRow.paymentType==="Tip"?"tip refund":"refund"} completed.`,requestRow.customerId,requestRow.estimateId,now),
+   ]);
+   const [verifiedRequest,verifiedLedger]=await Promise.all([
+     env.DB.prepare("SELECT status,provider_refund_id AS providerRefundId,amount_cents AS amountCents FROM payment_refunds WHERE id=?").bind(requestRow.id).first<{status:string;providerRefundId:string|null;amountCents:number}>(),
+@@ -230,9 +253,9 @@ async function recordRefundUpdate(refund:StripeRefund,stripeSecret?:string){
+   }
+ 
+   const requestRow=await env.DB.prepare(`SELECT r.id,r.payment_id AS paymentId,r.estimate_id AS estimateId,r.amount_cents AS amountCents,r.mode,r.status,r.provider_refund_id AS providerRefundId,
+-    p.amount_cents AS originalAmount,e.customer_id AS customerId,c.name AS customer
++    p.amount_cents AS originalAmount,p.type AS paymentType,e.customer_id AS customerId,c.name AS customer
+     FROM payment_refunds r JOIN payments p ON p.id=r.payment_id JOIN estimates e ON e.id=r.estimate_id JOIN customers c ON c.id=e.customer_id
+-    WHERE r.id=? LIMIT 1`).bind(requestId).first<{id:string;paymentId:string;estimateId:string;amountCents:number;mode:string;status:string;providerRefundId:string|null;originalAmount:number;customerId:string;customer:string}>();
++    WHERE r.id=? LIMIT 1`).bind(requestId).first<{id:string;paymentId:string;estimateId:string;amountCents:number;mode:string;status:string;providerRefundId:string|null;originalAmount:number;paymentType:string;customerId:string;customer:string}>();
+   if(!requestRow||requestRow.paymentId!==paymentId)return {ok:false,reason:"refund_request_not_found"};
+   if(requestRow.mode!=="stripe")return {ok:false,reason:"refund_mode_mismatch"};
+   return finalizeWebhookRefund(requestRow,refund);
+diff --git a/fire-app-dr/app/estimate/[token]/page.tsx b/fire-app-dr/app/estimate/[token]/page.tsx
+--- a/fire-app-dr/app/estimate/[token]/page.tsx
++++ b/fire-app-dr/app/estimate/[token]/page.tsx
+@@ -17,17 +17,27 @@ async function confirmPayment(sessionId:string,estimate:{id:string;customerId:st
+   if(!runtime.STRIPE_SECRET_KEY)return false;
+   const response=await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`,{headers:{authorization:`Bearer ${runtime.STRIPE_SECRET_KEY}`}});
+   if(!response.ok)return false;
+-  const session=await response.json() as {id:string;payment_status?:string;amount_total?:number;metadata?:{estimate_id?:string;payment_type?:string;expected_amount_cents?:string}};
++  const session=await response.json() as {id:string;payment_status?:string;amount_total?:number;metadata?:{estimate_id?:string;payment_type?:string;expected_amount_cents?:string;tip_amount_cents?:string;expected_charge_cents?:string}};
+   if(session.payment_status!=="paid"||session.metadata?.estimate_id!==estimate.id||!session.amount_total)return false;
+   const sessionAmount=Number(session.amount_total);
++  const paymentType=session.metadata?.payment_type==="balance"?"balance":"deposit";
+   const expectedAmount=Number(session.metadata?.expected_amount_cents??sessionAmount);
+-  if(!Number.isSafeInteger(sessionAmount)||sessionAmount<=0||!Number.isSafeInteger(expectedAmount)||expectedAmount!==sessionAmount)return false;
+-  const paymentType=session.metadata.payment_type==="balance"?"balance":"deposit";
++  const tipCents=Number(session.metadata?.tip_amount_cents??0);
++  const expectedCharge=Number(session.metadata?.expected_charge_cents??(expectedAmount+tipCents));
++  if(!Number.isSafeInteger(sessionAmount)||sessionAmount<=0||!Number.isSafeInteger(expectedAmount)||expectedAmount<=0||!Number.isSafeInteger(tipCents)||tipCents<0||!Number.isSafeInteger(expectedCharge)||expectedCharge!==sessionAmount||expectedAmount+tipCents!==sessionAmount)return false;
++  if(paymentType!=="balance"&&tipCents>0)return false;
+   const tracked=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payment_checkout_sessions WHERE id=? LIMIT 1").bind(session.id).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+   if(!tracked||tracked.estimateId!==estimate.id||tracked.type!==paymentType||!Number.isSafeInteger(Number(tracked.amountCents))||Number(tracked.amountCents)!==sessionAmount||!["open","paid"].includes(tracked.status))return false;
+   const prior=await env.DB.prepare("SELECT id FROM payments WHERE provider_id=? LIMIT 1").bind(session.id).first();
+-  if(prior){await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();return true;}
+-  const existingPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(estimate.id).first<{amount:number}>();
++  if(prior){
++    if(tipCents>0)await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
++      SELECT ?,?,'Tip',?,'paid',?,?
++      WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
++      .bind(crypto.randomUUID(),estimate.id,tipCents,`${session.id}:tip`,new Date().toISOString(),`${session.id}:tip`).run();
++    await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();
++    return true;
++  }
++  const existingPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(estimate.id).first<{amount:number}>();
+   const existingPaid=Number(existingPaidRow?.amount??0);
+   if(!Number.isSafeInteger(existingPaid)||existingPaid<0||!Number.isSafeInteger(existingPaid+sessionAmount))return false;
+   const now=new Date().toISOString();
+@@ -37,16 +47,20 @@ async function confirmPayment(sessionId:string,estimate:{id:string;customerId:st
+     INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+     SELECT ?,?,?,?,'paid',?,?
+     WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)
+-  `).bind(crypto.randomUUID(),estimate.id,paymentType,sessionAmount,session.id,now,session.id).run();
++  `).bind(crypto.randomUUID(),estimate.id,paymentType,expectedAmount,session.id,now,session.id).run();
+   if(!inserted.meta.changes){await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();return true;}
+-  const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(estimate.id).first<{amount:number}>();
++  if(tipCents>0)await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
++    SELECT ?,?,'Tip',?,'paid',?,?
++    WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
++    .bind(crypto.randomUUID(),estimate.id,tipCents,`${session.id}:tip`,now,`${session.id}:tip`).run();
++  const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(estimate.id).first<{amount:number}>();
+   const nextPaid=Number(refreshedPaid?.amount??0);
+   if(!Number.isSafeInteger(nextPaid)||nextPaid<0)return false;
+   const overpaymentCents=Math.max(0,nextPaid-obligationCents);
+   if(!Number.isSafeInteger(overpaymentCents))return false;
+   const followups=[
+     env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id),
+-    env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),"payment_received",`Payment received from ${estimate.customer}`,`${currency(sessionAmount)} ${paymentType} received for ${estimate.service}.`,estimate.customerId,estimate.id,now),
++    env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),"payment_received",`Payment received from ${estimate.customer}`,`${currency(expectedAmount)} ${paymentType} received for ${estimate.service}.`,estimate.customerId,estimate.id,now),
+   ];
+   if(estimate.status==="completed"||paymentType==="balance")followups.unshift(
+     env.DB.prepare(`UPDATE invoices SET status=CASE
+@@ -55,6 +69,10 @@ async function confirmPayment(sessionId:string,estimate:{id:string;customerId:st
+       WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
+       ELSE 'draft' END WHERE estimate_id=?`).bind(nextPaid,nextPaid,estimate.id)
+   );
++  if(tipCents>0)followups.push(
++    env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)")
++      .bind(crypto.randomUUID(),"tip_received",`Tip received from ${estimate.customer}`,`${currency(tipCents)} tip received with the final card payment.`,estimate.customerId,estimate.id,now)
++  );
+   if(overpaymentCents>0){
+     const overpaymentBody=`${currency(overpaymentCents)} is currently recorded above the amount due. Review the Stripe payments and either refund the excess or intentionally keep it as an overpayment on this job.`;
+     followups.push(
+@@ -93,7 +111,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
+     ]);
+   }
+   const billingTotalCents=Number(row.invoiceTotalCents??row.totalCents);
+-  const paid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(row.id).first<{amount:number}>();
++  const paid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(row.id).first<{amount:number}>();
+   const paidCents=Number(paid?.amount??0);
+   const billingStateSafe=estimateSnapshotSafe&&[billingTotalCents,Number(row.totalCents),Number(row.depositCents),paidCents].every((value)=>Number.isSafeInteger(value)&&value>=0)&&Number(row.depositCents)<=Number(row.totalCents);
+   const paymentReviewPending=Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0;
+@@ -119,7 +137,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
+     {!billingStateSafe&&<p className="pay-note"><strong>Billing review required.</strong> Please contact First In Response Exteriors before making a payment.</p>}
+     {Number(row.pendingRefundCount??0)>0?<p className="pay-note"><strong>Refund processing.</strong> FIRE is waiting for the refund to finish before any additional payment is accepted.</p>:Number(row.paymentOverageOpen??0)>0&&<p className="pay-note"><strong>Payment received — account review in progress.</strong> No additional payment is needed until FIRE finishes reviewing the account.</p>}
+     {paymentsReady&&canPayDeposit&&<div className="portal-payment"><PayButton shareToken={token} paymentType="deposit" label={`Pay ${currency(depositRemaining)} deposit securely`}/></div>}
+-    {paymentsReady&&canPayBalance&&<div className="portal-payment"><PayButton shareToken={token} paymentType="balance" label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
++    {paymentsReady&&canPayBalance&&<div className="portal-payment"><PayButton shareToken={token} paymentType="balance" baseAmountCents={balance} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
+     {paymentsReady&&!estimateApproved&&<p className="pay-note">Approve and sign the estimate first. After approval, the 50% deposit reserves your place on the schedule.</p>}
+     {paymentsReady&&estimateApproved&&!canPayDeposit&&!canPayBalance&&balance>0&&<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
+     {!paymentsReady&&<p className="pay-note">After approval, Kyle will contact you to schedule the job and arrange the 50% deposit.</p>}
+diff --git a/fire-app-dr/app/invoice/[token]/page.tsx b/fire-app-dr/app/invoice/[token]/page.tsx
+--- a/fire-app-dr/app/invoice/[token]/page.tsx
++++ b/fire-app-dr/app/invoice/[token]/page.tsx
+@@ -25,7 +25,7 @@ export default async function CustomerInvoicePage({ params }: { params:Promise<{
+   const row = await env.DB.prepare(`
+     SELECT inv.id,inv.estimate_id AS estimateId,inv.customer_id AS customerId,inv.status,inv.subtotal_cents AS subtotalCents,inv.discount_cents AS discountCents,inv.total_cents AS totalCents,
+       inv.due_at AS dueAt,inv.created_at AS createdAt,inv.first_viewed_at AS firstViewedAt,c.name AS customer,c.address,e.share_token AS estimateShareToken,e.status AS estimateStatus,
+-      COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=inv.estimate_id AND p.status='paid'),0) AS paidCents,
++      COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=inv.estimate_id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+       (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=inv.estimate_id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
+       (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=inv.estimate_id AND r.status='pending') AS pendingRefundCount
+     FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id
+@@ -68,7 +68,7 @@ export default async function CustomerInvoicePage({ params }: { params:Promise<{
+     <div className="pay-summary"><span><small>Invoice total</small><strong>{currency(row.totalCents)}</strong></span><span><small>Balance due</small><strong className="red-text">{currency(balance)}</strong></span></div>
+     <p className="invoice-due"><CalendarDays/> {!billingStateSafe?"Billing review required":Number(row.pendingRefundCount??0)>0?"Refund processing":Number(row.paymentOverageOpen??0)>0?"Payment received — account review in progress":balance===0?"Paid in full":invoiceDueLabel(row.dueAt,row.createdAt)}</p>
+     {!billingStateSafe&&<p className="pay-note"><strong>Please contact First In Response Exteriors before making a payment.</strong> This invoice needs an owner billing review.</p>}
+-    {billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
++    {billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" baseAmountCents={balance} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
+     {billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&<p className="pay-note"><strong>Manual payment options:</strong> Cash App: {handles.cashApp} · Venmo: {handles.venmo}. Please include your name in the payment note.</p>}
+     <p className="pay-note">{footer?.body||templateByKey("invoiceFooter").body}</p>
+     <div className="secure-note"><ShieldCheck/> Your private invoice link is unique to you.</div>
+diff --git a/fire-app-dr/app/pay/[id]/page.tsx b/fire-app-dr/app/pay/[id]/page.tsx
+--- a/fire-app-dr/app/pay/[id]/page.tsx
++++ b/fire-app-dr/app/pay/[id]/page.tsx
+@@ -14,7 +14,7 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
+   const row = await env.DB.prepare(`
+     SELECT e.id, e.total_cents AS estimateTotalCents, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, e.status, e.accepted_at AS acceptedAt,
+            c.name AS customer, c.address,
+-           COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0) AS paidCents,
++           COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+            COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen,
+            COALESCE((SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending'),0) AS pendingRefundCount
+     FROM estimates e JOIN customers c ON c.id=e.customer_id
+@@ -40,7 +40,7 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
+       <div className="pay-summary"><span><small>Estimate total</small><strong>{currency(row.totalCents)}</strong></span><span><small>Paid</small><strong>{currency(paidCents)}</strong></span><span><small>{paymentType==="deposit"?"Deposit remaining":"Balance due"}</small><strong className="red-text">{currency(dueNow)}</strong></span></div>
+       <p className="pay-note">After approval, the 50% deposit reserves your place on the schedule. The remaining balance is due upon completion of the work.</p>
+       <p className="pay-note"><strong>Manual payment options:</strong> Cash App: {handles.cashApp} · Venmo: {handles.venmo}. Please include your name in the payment note.</p>
+-      {canPay?<PayButton shareToken={shareToken} paymentType={paymentType} label={paymentType==="deposit"?`Pay ${currency(dueNow)} deposit securely`:`Pay ${currency(dueNow)} remaining balance securely`}/>:Number(row.pendingRefundCount??0)>0?<p className="pay-note">Refund processing.</p>:Number(row.paymentOverageOpen??0)>0?<p className="pay-note">Payment received — account review in progress.</p>:balance===0?<p className="pay-note">This job is paid in full.</p>:!approved?<p className="pay-note">Approve and sign the estimate before making the reservation deposit.</p>:<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
++      {canPay?<PayButton shareToken={shareToken} paymentType={paymentType} baseAmountCents={paymentType==="balance"?dueNow:undefined} label={paymentType==="deposit"?`Pay ${currency(dueNow)} deposit securely`:`Pay ${currency(dueNow)} remaining balance securely`}/>:Number(row.pendingRefundCount??0)>0?<p className="pay-note">Refund processing.</p>:Number(row.paymentOverageOpen??0)>0?<p className="pay-note">Payment received — account review in progress.</p>:balance===0?<p className="pay-note">This job is paid in full.</p>:!approved?<p className="pay-note">Approve and sign the estimate before making the reservation deposit.</p>:<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
+       <div className="secure-note"><ShieldCheck /> Card details are handled securely by Stripe.</div>
+       <CustomerPortalNav/>
+     </>}
+diff --git a/fire-app-dr/app/pay/[id]/pay-button.tsx b/fire-app-dr/app/pay/[id]/pay-button.tsx
+--- a/fire-app-dr/app/pay/[id]/pay-button.tsx
++++ b/fire-app-dr/app/pay/[id]/pay-button.tsx
+@@ -1,20 +1,87 @@
+ "use client";
+ 
+-import { useState } from "react";
+-import { CreditCard, LoaderCircle } from "lucide-react";
++import { useMemo, useState } from "react";
++import { CreditCard, Heart, LoaderCircle } from "lucide-react";
+ import { Button } from "@/components/ui/button";
++import { Input } from "@/components/ui/input";
+ 
+-export function PayButton({ shareToken, paymentType = "deposit", label }: { shareToken:string; paymentType?: "deposit" | "balance"; label?: string }) {
++const currency = (cents:number) => new Intl.NumberFormat("en-US", { style:"currency", currency:"USD" }).format(cents/100);
++const TIP_PRESETS = [0,5,10,15] as const;
++
++export function PayButton({
++  shareToken,
++  paymentType = "deposit",
++  label,
++  baseAmountCents,
++}: {
++  shareToken:string;
++  paymentType?: "deposit" | "balance";
++  label?: string;
++  baseAmountCents?: number;
++}) {
+   const [loading, setLoading] = useState(false);
+   const [error, setError] = useState("");
++  const [tipChoice, setTipChoice] = useState<"0"|"5"|"10"|"15"|"custom">("0");
++  const [customTip, setCustomTip] = useState("");
++
++  const allowTip = paymentType === "balance" && Number.isSafeInteger(baseAmountCents) && Number(baseAmountCents) > 0;
++  const tipCents = useMemo(() => {
++    if (!allowTip) return 0;
++    if (tipChoice === "custom") {
++      const dollars = Number(customTip);
++      if (!Number.isFinite(dollars) || dollars <= 0) return 0;
++      return Math.max(0, Math.round(dollars * 100));
++    }
++    return Math.round(Number(baseAmountCents) * Number(tipChoice) / 100);
++  }, [allowTip, baseAmountCents, customTip, tipChoice]);
++  const totalCents = Number(baseAmountCents ?? 0) + tipCents;
++
+   const checkout = async () => {
+     setLoading(true); setError("");
+     try {
+-      const response = await fetch("/api/payments/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ shareToken, paymentType }) });
++      const response = await fetch("/api/payments/checkout", {
++        method: "POST",
++        headers: { "content-type": "application/json" },
++        body: JSON.stringify({ shareToken, paymentType, tipCents: allowTip ? tipCents : 0 }),
++      });
+       const result = await response.json() as { url?: string; error?: string };
+       if (!response.ok || !result.url) throw new Error(result.error || "Unable to open payment checkout.");
+       window.location.href = result.url;
+-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to open payment checkout."); setLoading(false); }
++    } catch (reason) {
++      setError(reason instanceof Error ? reason.message : "Unable to open payment checkout.");
++      setLoading(false);
++    }
+   };
+-  return <div><Button onClick={checkout} disabled={loading} className="brand-button h-12 w-full text-base">{loading ? <LoaderCircle className="animate-spin" /> : <CreditCard />} {loading ? "Opening secure checkout…" : (label || "Pay securely")}</Button>{error && <p className="mt-3 text-center text-sm text-red-600">{error}</p>}</div>;
++
++  return <div className="space-y-3">
++    {allowTip && <section className="rounded-xl border border-slate-700/70 bg-slate-950/20 p-3" aria-label="Optional tip">
++      <div className="mb-2 flex items-center gap-2">
++        <Heart className="h-4 w-4" />
++        <div><strong className="block text-sm">Add an optional tip</strong><span className="text-xs text-muted-foreground">Thank you for supporting FIRE. No tip is selected by default.</span></div>
++      </div>
++      <div className="grid grid-cols-5 gap-1.5">
++        {TIP_PRESETS.map((percent)=><button
++          key={percent}
++          type="button"
++          className={`rounded-lg border px-2 py-2 text-sm ${tipChoice===String(percent)?"border-red-500 bg-red-500/15 text-red-400":"border-slate-700"}`}
++          onClick={()=>{setTipChoice(String(percent) as "0"|"5"|"10"|"15");setCustomTip("");}}
++        >{percent===0?"No tip":`${percent}%`}</button>)}
++        <button
++          type="button"
++          className={`rounded-lg border px-2 py-2 text-sm ${tipChoice==="custom"?"border-red-500 bg-red-500/15 text-red-400":"border-slate-700"}`}
++          onClick={()=>setTipChoice("custom")}
++        >Custom</button>
++      </div>
++      {tipChoice==="custom" && <div className="mt-2">
++        <label className="text-xs text-muted-foreground" htmlFor="fire-custom-tip">Custom tip amount</label>
++        <Input id="fire-custom-tip" inputMode="decimal" type="number" min="0" step="1" placeholder="$0" value={customTip} onChange={(event)=>setCustomTip(event.target.value)} />
++      </div>}
++      {tipCents>0 && <p className="mt-2 text-center text-sm">Tip: <strong>{currency(tipCents)}</strong> · Total card charge: <strong>{currency(totalCents)}</strong></p>}
++    </section>}
++    <Button onClick={checkout} disabled={loading} className="brand-button h-12 w-full text-base">
++      {loading ? <LoaderCircle className="animate-spin" /> : <CreditCard />}
++      {loading ? "Opening secure checkout…" : tipCents>0 ? `Pay ${currency(totalCents)} total securely` : (label || "Pay securely")}
++    </Button>
++    {error && <p className="text-center text-sm text-red-600">{error}</p>}
++  </div>;
+ }
