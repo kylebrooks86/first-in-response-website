@@ -288,7 +288,7 @@
     if(existing){placeInstall(existing);return;}
 
     const top=$('.toprow'); if(!top)return;
-    const btn=document.createElement('button'); btn.type='button'; btn.className='bob-tools-btn'; btn.textContent='🧰 Tools';
+    const btn=document.createElement('button'); btn.type='button'; btn.className='bob-tools-btn'; btn.textContent='🧰 Tools'; btn.setAttribute('aria-label','Tools');
     btn.setAttribute('aria-controls','bobToolsSheet');btn.setAttribute('aria-expanded','false');
     const sheet=document.createElement('div'); sheet.id='bobToolsSheet'; sheet.className='bob-tools-sheet';
     const close=()=>{sheet.classList.remove('open');btn.setAttribute('aria-expanded','false')};
