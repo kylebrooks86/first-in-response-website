@@ -37,9 +37,13 @@ export async function POST(request: Request) {
     const body = await request.json() as Record<string, unknown>;
     const estimateId = String(body.estimateId ?? "").trim();
     const amountCents = Math.round(Number(body.amountCents) || 0);
+    const tipCents = Math.round(Number(body.tipCents) || 0);
     const method = String(body.method ?? "Other").trim() || "Other";
     const reference = String(body.reference ?? "").trim() || null;
-    if (!estimateId || !Number.isSafeInteger(amountCents) || amountCents <= 0) return Response.json({ error: "Choose a job and enter a valid payment amount." }, { status: 400 });
+    if (!estimateId || !Number.isSafeInteger(amountCents) || amountCents < 0 || !Number.isSafeInteger(tipCents) || tipCents < 0 || (amountCents <= 0 && tipCents <= 0)) {
+      return Response.json({ error: "Choose a job and enter a valid payment or tip amount." }, { status: 400 });
+    }
+    if (tipCents > 50000) return Response.json({ error: "Tip cannot exceed $500." }, { status: 400 });
 
     const estimate = await env.DB.prepare(`
       SELECT e.id,e.total_cents AS estimateTotalCents,COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,e.deposit_cents AS depositCents,e.status,
@@ -47,10 +51,13 @@ export async function POST(request: Request) {
       FROM estimates e WHERE e.id=?
     `).bind(estimateId).first<{id:string;estimateTotalCents:number;totalCents:number;depositCents:number;status:string;paidCents:number}>();
     if (!estimate) return Response.json({ error: "Estimate not found." }, { status: 404 });
+    if (tipCents > 0 && estimate.status !== "completed") return Response.json({ error: "Tips can be recorded only after the job is completed." }, { status: 409 });
+
     const billingException = await env.DB.prepare("SELECT id FROM notifications WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL LIMIT 1").bind(estimateId).first<{id:string}>();
-    if (billingException) return Response.json({ error: "This job has an unresolved payment exception. Complete the refund or retained-overpayment handling and resolve the exception before recording another payment." }, { status: 409 });
+    if (billingException) return Response.json({ error: "This job has an unresolved payment exception. Complete the refund or retained-overpayment handling and resolve the exception before recording another payment or tip." }, { status: 409 });
     const pendingRefund=await env.DB.prepare("SELECT id FROM payment_refunds WHERE estimate_id=? AND status='pending' LIMIT 1").bind(estimateId).first<{id:string}>();
-    if(pendingRefund)return Response.json({error:"A refund is currently processing for this job. Wait for it to finish before recording another payment."},{status:409});
+    if(pendingRefund)return Response.json({error:"A refund is currently processing for this job. Wait for it to finish before recording another payment or tip."},{status:409});
+
     const paidCents = Number(estimate.paidCents);
     const dueLimit = estimate.status === "completed"
       ? Number(estimate.totalCents)
@@ -59,27 +66,41 @@ export async function POST(request: Request) {
         : 0;
     if(!Number.isSafeInteger(paidCents)||paidCents<0||!Number.isSafeInteger(dueLimit)||dueLimit<0||!Number.isSafeInteger(paidCents+amountCents))return Response.json({error:"Billing totals are outside FIRE's safe accounting range. Stop and review this job before recording another payment."},{status:409});
     const balance = Math.max(0, dueLimit - paidCents);
-    if (dueLimit <= 0) return Response.json({ error: "A payment is not due on this estimate yet." }, { status: 409 });
-    if (balance <= 0) return Response.json({ error: estimate.status === "completed" ? "This job is already paid in full." : "The reservation deposit is already paid." }, { status: 400 });
-    if (amountCents > balance) return Response.json({ error: `Payment cannot exceed the amount currently due of $${(balance / 100).toFixed(2)}.` }, { status: 400 });
 
-    const payment = { id:crypto.randomUUID(), estimateId, type:method, amountCents, status:"paid", reference, createdAt:new Date().toISOString() };
-    const inserted = await env.DB.prepare(`
-      INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
-      SELECT ?,?,?,?,'paid',?,?
-      WHERE ? <= (
-        SELECT MAX(0,
-          CASE
-            WHEN e.status='completed' THEN COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents)
-            WHEN e.status IN ('approved','scheduled') THEN e.deposit_cents
-            ELSE 0
-          END - COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
+    let payment:{id:string;estimateId:string;type:string;amountCents:number;status:string;reference:string|null;createdAt:string}|null=null;
+    if(amountCents>0){
+      if (dueLimit <= 0) return Response.json({ error: "A payment is not due on this estimate yet." }, { status: 409 });
+      if (balance <= 0) return Response.json({ error: estimate.status === "completed" ? "This job is already paid in full. Record the tip by itself instead." : "The reservation deposit is already paid." }, { status: 400 });
+      if (amountCents > balance) return Response.json({ error: `Payment cannot exceed the amount currently due of $${(balance / 100).toFixed(2)}. Put any extra amount in Tip received instead.` }, { status: 400 });
+
+      payment = { id:crypto.randomUUID(), estimateId, type:method, amountCents, status:"paid", reference, createdAt:new Date().toISOString() };
+      const inserted = await env.DB.prepare(`
+        INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+        SELECT ?,?,?,?,'paid',?,?
+        WHERE ? <= (
+          SELECT MAX(0,
+            CASE
+              WHEN e.status='completed' THEN COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents)
+              WHEN e.status IN ('approved','scheduled') THEN e.deposit_cents
+              ELSE 0
+            END - COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
+          )
+          FROM estimates e WHERE e.id=?
         )
-        FROM estimates e WHERE e.id=?
-      )
-      AND (SELECT COALESCE(SUM(p.amount_cents),0) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')) <= 9007199254740991 - ?
-    `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, amountCents, estimateId, estimateId, amountCents).run();
-    if (!inserted.meta.changes) return Response.json({ error: "The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." }, { status: 409 });
+        AND (SELECT COALESCE(SUM(p.amount_cents),0) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')) <= 9007199254740991 - ?
+      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, amountCents, estimateId, estimateId, amountCents).run();
+      if (!inserted.meta.changes) return Response.json({ error: "The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." }, { status: 409 });
+    }
+
+    let tip:{id:string;estimateId:string;type:string;amountCents:number;status:string;reference:string|null;createdAt:string}|null=null;
+    if(tipCents>0){
+      tip={id:crypto.randomUUID(),estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:[method,reference].filter(Boolean).join(" · ")||method,createdAt:new Date().toISOString()};
+      await env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at) VALUES (?,?, 'Tip',?,'paid',?,?)")
+        .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt).run();
+      const customer=await env.DB.prepare("SELECT name FROM customers WHERE id=(SELECT customer_id FROM estimates WHERE id=? LIMIT 1)").bind(estimateId).first<{name:string}>();
+      await env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates WHERE id=?")
+        .bind(crypto.randomUUID(),`Tip received from ${customer?.name||"customer"}`,`$${(tipCents/100).toFixed(2)} tip recorded via ${method}.`,estimateId,tip.createdAt,estimateId).run();
+    }
 
     const refreshed = await env.DB.prepare(`
       SELECT e.status,
@@ -95,7 +116,7 @@ export async function POST(request: Request) {
         ? Number(refreshed.depositCents)
         : dueLimit;
     if(!Number.isSafeInteger(nextPaid)||nextPaid<0||!Number.isSafeInteger(refreshedDueLimit)||refreshedDueLimit<0)return Response.json({error:"Payment was recorded, but refreshed billing totals require review before FIRE can reconcile the balance."},{status:409});
-    if(refreshed?.status==="completed"){
+    if(refreshed?.status==="completed"&&amountCents>0){
       await env.DB.prepare(`UPDATE invoices SET status=CASE
         WHEN ?>=total_cents THEN 'paid'
         WHEN ?>0 THEN 'partial'
@@ -103,8 +124,9 @@ export async function POST(request: Request) {
         ELSE 'draft' END WHERE estimate_id=?`)
         .bind(nextPaid,nextPaid,estimateId).run();
     }
-    return Response.json({ payment, paidCents:nextPaid, balanceCents:Math.max(0, refreshedDueLimit-nextPaid) }, { status: 201 });
+    return Response.json({ payment, tip, paidCents:nextPaid, balanceCents:Math.max(0, refreshedDueLimit-nextPaid) }, { status: 201 });
   } catch {
     return Response.json({ error: "We couldn't record this payment. Please try again." }, { status: 500 });
   }
 }
+
