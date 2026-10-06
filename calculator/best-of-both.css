@@ -217,3 +217,9 @@ body.fire-bob .bob-coverage-card .metrics{grid-template-columns:repeat(2,minmax(
   body.fire-bob .bob-coverage-card .metric{padding:10px!important}
   body.fire-bob .bob-coverage-card .metric strong{font-size:18px!important}
 }
+
+
+body.fire-bob .bob-inline-action{
+  width:100%;min-height:44px;margin:0 0 12px;padding:10px 12px;border:1px solid #3b4953;
+  border-radius:12px;background:#111a20;color:#f7fafc;font-weight:850;text-align:center
+}
