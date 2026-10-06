@@ -10,7 +10,7 @@ export async function GET() {
     const result = await env.DB.prepare(`SELECT inv.id,inv.estimate_id AS estimateId,inv.customer_id AS customerId,inv.status,inv.subtotal_cents AS subtotalCents,inv.discount_cents AS discountCents,inv.discount_type AS discountType,inv.discount_value AS discountValue,inv.total_cents AS totalCents,inv.due_at AS dueAt,inv.share_token AS shareToken,inv.first_viewed_at AS firstViewedAt,inv.created_at AS createdAt,c.name AS customer,c.email,c.phone,c.address,
       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM invoice_items ii WHERE ii.invoice_id=inv.id),'Custom service') AS service,
       COALESCE((SELECT description FROM estimate_items ei WHERE ei.estimate_id=e.id ORDER BY rowid ASC LIMIT 1),'') AS serviceDescription,
-      COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0) AS paidCents,
+      COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
       COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen,
       COALESCE((SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending'),0) AS pendingRefundCount
       FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id ORDER BY inv.created_at DESC`).all();
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const estimateId = String(body.estimateId ?? "").trim();
     const estimate = await env.DB.prepare(`
       SELECT e.id,e.customer_id AS customerId,e.total_cents AS totalCents,e.status,
-             COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0) AS paidCents
+             COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents
       FROM estimates e WHERE e.id=?
     `).bind(estimateId).first<{id:string;customerId:string;totalCents:number;status:string;paidCents:number}>();
     if (!estimate) return Response.json({ error: "Estimate not found." }, { status: 404 });
