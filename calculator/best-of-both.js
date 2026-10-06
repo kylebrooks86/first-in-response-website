@@ -269,8 +269,6 @@
     const fillTime=byHeading('Fill-time estimate');
 
     $('#bobEquipmentIntro')?.remove();
-    $('#bobLoadCurrentTarget')?.remove();
-    $('#bobUseInjectorRatio')?.remove();
 
     /* Rebuild only our presentation wrappers so Equipment stays compact even
        after late v18 modules inject or rearrange cards. */
@@ -370,7 +368,6 @@
     const dwell=$('#dwellTimerCard');
     if(dwell && tools.firstElementChild!==dwell)tools.insertBefore(dwell,tools.firstChild);
 
-    $('#bobGoDwellFromMix')?.remove();
   }
 
   function reapplyLateLayout(){
