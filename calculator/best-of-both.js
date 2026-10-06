@@ -29,6 +29,11 @@
     const t=$('.title strong'); if(t)t.textContent='FIRE Field Calculator';
     const s=$('.title span'); if(s)s.textContent='Fast mixes. Safer jobs.';
     const stock=$('.stock'); if(stock)stock.textContent='10% SH BASE';
+    const top=$('.toprow');
+    if(top && !$('#bobStageBadge')){
+      const badge=document.createElement('span'); badge.id='bobStageBadge'; badge.className='bob-stage-badge'; badge.textContent='STAGING';
+      top.appendChild(badge);
+    }
   }
 
   function relabelTabs(){
@@ -171,19 +176,42 @@
   }
 
   function jobPolish(){
-    const job=$('#job'); if(!job)return;
-    const first=job.querySelector('.card');
+    const job=$('#job'); if(!job || job.dataset.bobDone)return;
+    job.dataset.bobDone='1';
+    const cards=$(':scope > .card',job);
+    const first=cards[0], estimate=cards[1];
     if(first){
       const k=$('.kicker',first),h=$('h2',first);
       if(k)k.textContent='COVERAGE PLANNER';
       if(h)h.textContent='How much mix will the job need?';
     }
+    if(estimate){
+      const wrap=document.createElement('details'); wrap.className='bob-section-toggle bob-job-estimate';
+      const summary=document.createElement('summary'); summary.innerHTML='<strong>Full job estimate</strong><span>Open only when you need pricing</span>';
+      estimate.before(wrap); wrap.append(summary,estimate);
+    }
+  }
+
+  function equipmentPolish(){
+    const eq=$('#equipment'); if(!eq || eq.dataset.bobDone)return;
+    eq.dataset.bobDone='1';
+    const cards=$(':scope > .card',eq);
+    if(cards.length<4)return;
+    /* Keep the two everyday tools immediately visible: X-Jet and downstream.
+       Collapse calibration and future-rig planning so the screen stays field-fast. */
+    const downstream=cards[2];
+    cards[0].after(downstream);
+    [[cards[1],'X-Jet calibration','Measured bucket-draw test'],[cards[3],'Future 7-GPM rig','Proportioner planning']].forEach(([card,title,sub])=>{
+      const wrap=document.createElement('details'); wrap.className='bob-section-toggle';
+      const summary=document.createElement('summary'); summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
+      card.before(wrap); wrap.append(summary,card);
+    });
   }
 
   function chemicalPolish(){
     /* LIVE Mixes is a user-favorite section. Preserve its content and calculator behavior. */
   }
 
-  setTitle(); relabelTabs(); toolsMenu(); jobPolish(); chemicalPolish();
+  setTitle(); relabelTabs(); toolsMenu(); jobPolish(); equipmentPolish(); chemicalPolish();
   $('#surface')?.addEventListener('change',syncSurface);
 })();
