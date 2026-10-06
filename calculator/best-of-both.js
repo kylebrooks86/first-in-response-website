@@ -316,7 +316,7 @@
     };
 
     wrapCard(xjetCal,'X-Jet calibration','Measured bucket-draw test');
-    wrapCard(proportioner,'Future 7-GPM soft-wash rig','Three-port proportioner planning');
+    wrapCard(proportioner,'Future REMCO 7-GPM soft-wash rig','Three-port proportioner planning');
     wrapCard(fillTime,'Future tank fill time','Estimate fill time from hose flow');
   }
 
