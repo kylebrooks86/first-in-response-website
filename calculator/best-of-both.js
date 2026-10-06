@@ -85,10 +85,11 @@
       }
     }
     const surfaceField=surface?.closest('.field'),surfaceCard=surface?.closest('.card');
+    let manualSurface=null,manualSurfaceSummary=null;
     if(surfaceField){
       surfaceField.classList.add('bob-surface-only-field');
-      const manual=document.createElement('details');manual.className='bob-manual-surface';
-      const manualSummary=document.createElement('summary');manualSummary.textContent='Other / manual surface';
+      const manual=document.createElement('details');manual.className='bob-manual-surface'; manualSurface=manual;
+      const manualSummary=document.createElement('summary');manualSummary.textContent='Other / manual surface'; manualSurfaceSummary=manualSummary;
       const manualBody=document.createElement('div');manualBody.className='bob-manual-surface-body';
       manualBody.appendChild(surfaceField);manual.append(manualSummary,manualBody);
       card.insertBefore(manual,noteWrap);
@@ -167,6 +168,11 @@
     },0)));
     surface?.addEventListener('change',()=>setTimeout(()=>{
       if(activePreset&&surface.value!==activePreset.surface)activePreset=null;
+      if(!activePreset&&manualSurfaceSummary){
+        const label=surface.selectedOptions?.[0]?.textContent||'Manual surface';
+        manualSurfaceSummary.textContent='Other · '+label;
+        if(document.activeElement===surface&&manualSurface)manualSurface.open=false;
+      }
       refreshAmounts();
     },0));
     const markCustom=()=>{
