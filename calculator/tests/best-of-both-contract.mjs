@@ -8,6 +8,8 @@ const bob=read('best-of-both.js');
 const css=read('best-of-both.css');
 const loader=read('full-v18.js');
 const sw=read('sw.js');
+const toolsParity=read('v18-live-tools-parity.js');
+const parityCore=read('full-v18-parity-core.js');
 
 const fail=msg=>{console.error('BEST-OF-BOTH CONTRACT FAIL:',msg);process.exit(1)};
 const ok=(cond,msg)=>{if(!cond)fail(msg)};
@@ -82,6 +84,10 @@ for(const label of ['🧪 SH Mix','🧴 Mixes','🔎 Index','📐 Job Plan']){
 ok(css.includes('.tab[data-view="mix"]')&&css.includes('.tab[data-view="chemicals"]')&&css.includes('.tab[data-view="index"]')&&css.includes('.tab[data-view="job"]'),'four primary tab selectors are missing');
 ok(css.includes('body.fire-bob .tab{display:none!important'), 'secondary tabs are not hidden by default');
 ok(bob.includes("['equipment','⚙️ Equipment / X-Jet']")&&bob.includes("['tools','🧰 Field Tools']")&&bob.includes("['guide','🛡️ Safety Guide']"),'secondary tools are not routed through compact Tools menu');
+ok(toolsParity.includes('<h2>Saved mixes</h2>'),'Field Tools saved-mix card is missing');
+ok(!toolsParity.includes('data-fire-fav="house"')&&!toolsParity.includes('data-fire-fav="concrete"')&&!toolsParity.includes('data-fire-fav="gutter"')&&!toolsParity.includes('data-fire-fav="odoban"'),'duplicate one-tap favorites returned to Field Tools');
+ok(parityCore.includes("moveOrder(tools,['Saved mixes'"),'Saved mixes is not ordered in the Field Tools workflow');
+ok(!bob.includes('oldFav?.remove()'),'best-of-both late layout can delete the Saved mixes card');
 
 ok(css.includes('body.fire-bob #chemicals .card')&&css.includes('body.fire-bob #index .card'),'LIVE Mixes / Index protection rules are missing');
 ok(css.includes('font-size:16px!important'),'best-of-both inputs no longer protect against iPhone focus zoom');
