@@ -159,6 +159,82 @@
     }
   }
 
+  function quickFavorites(){
+    const mix=$('#mix'); if(!mix || $('#bobQuickFavorites'))return;
+
+    /* Direct-application Elemonator guidance from the current Pressure Tek usage guide
+       is 0.3 fl oz per mixed gallon. Flatwork post-treatment intentionally defaults
+       to no surfactant; concrete pre-treatment leaves it optional rather than forced. */
+    const surface=$('#surface');
+    if(surface && !surface.querySelector('option[value="painted"]')){
+      const opt=document.createElement('option');
+      opt.value='painted';
+      opt.textContent='Painted exterior — wood / brick / masonry';
+      surface.appendChild(opt);
+      try{ if(typeof surfaceTargets!=='undefined') surfaceTargets.painted={light:.25,moderate:.5,heavy:1}; }catch(e){}
+    }
+
+    const presets=[
+      {icon:'🏠',name:'House / Vinyl',pct:1,surface:'house',ele:.3,note:'Normal organic growth on vinyl siding, soffit/fascia, or vinyl fence.'},
+      {icon:'🪵',name:'Bare Wood Fence',pct:.5,surface:'fencew',ele:.3,note:'Conservative starting mix for unfinished wood. Test first.'},
+      {icon:'🎨',name:'Painted Wood / Brick / Masonry',pct:.5,surface:'painted',ele:.3,note:'Sound exterior paint only. Check for chalking, peeling, oxidation, or failing coating and test first.'},
+      {icon:'🧱',name:'Concrete Pre-Treat',pct:2,surface:'concrete',ele:0,eleOptional:.3,note:'Surfactant is optional here; add only when extra wetting / cling helps.'},
+      {icon:'💦',name:'Concrete Post-Treat',pct:1,surface:'post',ele:0,note:'No surfactant by default for a leave-on post-treatment.'},
+      {icon:'🏚️',name:'Asphalt Roof / Black Streaks',pct:4,surface:'roof',ele:.3,note:'Typical black-streak starting mix. Verify the shingle manufacturer and never use high pressure.'},
+      {icon:'🧱',name:'Bare Brick / Masonry',pct:1,surface:'brick',ele:.3,note:'For ordinary organic growth on unpainted brick / masonry. Natural stone is not included.'}
+    ];
+    const more=[
+      {icon:'🏡',name:'Stucco / Synthetic Stucco',pct:.5,surface:'stucco',ele:.3,note:'Conservative starting point. Low pressure and test first.'},
+      {icon:'🧱',name:'Pavers / Hardscape',pct:1,surface:'pavers',ele:.3,note:'Routine organic-growth starting point; verify sealer / surface compatibility.'},
+      {icon:'🪨',name:'Natural Stone — Identify / Test First',pct:null,surface:null,ele:null,note:'Do not use one universal SH strength. Identify the stone and any sealer before choosing a mix.'},
+      {icon:'🌊',name:'Pool Deck — Choose Surface First',pct:null,surface:null,ele:null,note:'Pool deck describes the location, not the material. Identify concrete, paver, coated surface, or stone first.'}
+    ];
+
+    const card=document.createElement('div');
+    card.id='bobQuickFavorites'; card.className='card bob-quick-card';
+    card.innerHTML='<div class="kicker">QUICK FAVORITES</div><h2>Common SH starting mixes</h2><p class="muted bob-fav-help">Tap a favorite to load the surface, Moderate condition, target SH strength, 4-gal FlowZone batch, and the appropriate Elemonator setting. You can fine-tune anything afterward.</p><div class="bob-fav-grid" id="bobFavGrid"></div><details class="bob-more-presets"><summary>➕ More presets / special surfaces</summary><div class="bob-fav-grid" id="bobMoreGrid"></div></details><div class="bob-fav-note" id="bobFavNote">Starting points only — surface condition and the current product label still control.</div>';
+
+    const surfactantText=(p,batch=4)=>{
+      if(p.ele==null)return 'Elemonator: choose after surface ID';
+      if(p.ele===0 && p.eleOptional)return 'Elemonator: optional '+(p.eleOptional*batch).toFixed(1)+' oz';
+      if(p.ele===0)return 'Elemonator: none';
+      return 'Elemonator: '+(p.ele*batch).toFixed(1)+' oz';
+    };
+
+    const makeButton=(p)=>{
+      const b=document.createElement('button'); b.type='button'; b.className='bob-fav-btn';
+      const strength=p.pct==null?'Test first':(p.pct+'% SH');
+      b.innerHTML='<span class="bob-fav-icon">'+p.icon+'</span><span class="bob-fav-copy"><strong>'+p.name+'</strong><small>'+strength+' · '+surfactantText(p,4)+'</small></span>';
+      if(p.pct==null)b.classList.add('bob-fav-info');
+      b.addEventListener('click',()=>{
+        const note=$('#bobFavNote');
+        if(p.pct==null){
+          if(note)note.textContent=p.icon+' '+p.name+': '+p.note;
+          return;
+        }
+        if(surface){surface.value=p.surface;fireInput(surface);}
+        /* Standardize favorites on the existing Moderate condition behavior. */
+        const mod=$('#growthSeg [data-growth="moderate"]'); if(mod)mod.click();
+        const preset=$('#batchPreset'); if(preset){preset.value='4';fireInput(preset);}
+        const target=$('#targetNum'); if(target){target.value=p.pct;fireInput(target);}
+        const ele=$('#eleRate'); if(ele){ele.value=p.ele;fireInput(ele);}
+        $('.bob-fav-btn').forEach(x=>x.classList.toggle('active',x===b));
+        if(note){
+          const surf=p.ele===0&&p.eleOptional
+            ?' Elemonator is optional here; the preset leaves it at 0 oz. For extra wetting/cling, the direct-application guide rate is '+(p.eleOptional*4).toFixed(1)+' oz in this 4-gal batch.'
+            :(p.ele===0?' No Elemonator is added by default.':' Elemonator loaded at '+(p.ele*4).toFixed(1)+' oz for this 4-gal batch ('+p.ele.toFixed(1)+' oz/gal).');
+          note.textContent=p.icon+' '+p.name+': '+p.note+surf;
+        }
+      });
+      return b;
+    };
+    presets.forEach(p=>$('#bobFavGrid',card).appendChild(makeButton(p)));
+    more.forEach(p=>$('#bobMoreGrid',card).appendChild(makeButton(p)));
+
+    /* Insert favorites without altering the LIVE Mixes / Index layouts. */
+    mix.insertBefore(card,mix.firstElementChild);
+  }
+
   function toolsMenu(){
     if($('#bobToolsSheet'))return;
     const top=$('.toprow'); if(!top)return;
@@ -212,6 +288,6 @@
     /* LIVE Mixes is a user-favorite section. Preserve its content and calculator behavior. */
   }
 
-  setTitle(); relabelTabs(); toolsMenu(); jobPolish(); equipmentPolish(); chemicalPolish();
+  setTitle(); relabelTabs(); quickFavorites(); toolsMenu(); jobPolish(); equipmentPolish(); chemicalPolish();
   $('#surface')?.addEventListener('change',syncSurface);
 })();
