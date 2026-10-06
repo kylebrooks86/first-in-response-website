@@ -99,6 +99,9 @@ ok(toolsParity.includes("const esc=s=>String(s??'').replace")&&toolsParity.inclu
 ok(toolsParity.includes("requestedSurface")&&toolsParity.includes("[...s.options].some(o=>o.value===requestedSurface)"),'Saved mixes do not validate restored surface values');
 ok(parityCore.includes("moveOrder(tools,['Saved mixes'"),'Saved mixes is not ordered in the Field Tools workflow');
 ok(!bob.includes('oldFav?.remove()'),'best-of-both late layout can delete the Saved mixes card');
+ok(bob.includes("group('🧭 Jobsite reference'")&&bob.includes("group('🧪 Records & chemicals'")&&bob.includes("group('⚙️ App & data'"),'Field Tools compact helper groups are missing');
+ok(bob.includes("bob-tools-group[open]")&&bob.includes("wrap.open=openTitles.has(title)"),'Field Tools group open state is not preserved');
+ok(bob.includes("if(guide&&safety&&safety.parentElement===tools)guide.appendChild(safety)"),'Field Safety Card is duplicated inside Field Tools instead of Safety Guide');
 ok(interactions.includes("const prefixes=['fireV18','fireFieldCalculator','fireCalcTheme']"),'full offline backup no longer includes fireV18 Saved mixes storage');
 ok(portableBackup.includes("k?.startsWith('fire')"),'portable backup no longer captures Saved mixes storage');
 
