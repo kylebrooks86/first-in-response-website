@@ -115,7 +115,7 @@ Current asset generation at this audit:
 - `full-v18.js?v=18`
 - `best-of-both.js?v=23`
 - `best-of-both.css?v=13`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-136`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-137`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
@@ -127,6 +127,7 @@ Regression evidence:
 - impossible target-above-stock behavior verified
 - 27 dynamically loaded modules represented in the offline cache
 - 38 versioned loader/entry assets covered by the best-of-both cache contract
+- all 45 service-worker precache URLs currently resolve to files present on the staging branch
 - no detected single-element selector being used as a collection in `best-of-both.js`
 - main best-of-both source parses successfully
 
