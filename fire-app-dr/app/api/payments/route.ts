@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       if (amountCents > balance) return Response.json({ error: `Payment cannot exceed the amount currently due of $${(balance / 100).toFixed(2)}. Put any extra amount in Tip received instead.` }, { status: 400 });
 
       payment = { id:crypto.randomUUID(), estimateId, type:method, amountCents, status:"paid", reference, createdAt:new Date().toISOString() };
-      const inserted = await env.DB.prepare(`
+      const paymentStatement = env.DB.prepare(`
         INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
         SELECT ?,?,?,?,'paid',?,?
         WHERE ? <= (
@@ -88,18 +88,42 @@ export async function POST(request: Request) {
           FROM estimates e WHERE e.id=?
         )
         AND (SELECT COALESCE(SUM(p.amount_cents),0) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')) <= 9007199254740991 - ?
-      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, amountCents, estimateId, estimateId, amountCents).run();
-      if (!inserted.meta.changes) return Response.json({ error: "The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." }, { status: 409 });
+      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, amountCents, estimateId, estimateId, amountCents);
+
+      if(tipCents>0){
+        const tipId=crypto.randomUUID();
+        const tipReference=[method,reference].filter(Boolean).join(" · ")||method;
+        const tipCreatedAt=new Date().toISOString();
+        const results=await env.DB.batch([
+          paymentStatement,
+          env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+            SELECT ?,?,'Tip',?,'paid',?,?
+            WHERE EXISTS (SELECT 1 FROM payments WHERE id=? AND estimate_id=? AND status='paid')`)
+            .bind(tipId,estimateId,tipCents,tipReference,tipCreatedAt,payment.id,estimateId),
+          env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
+            SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates
+            WHERE id=? AND EXISTS (SELECT 1 FROM payments WHERE id=? AND estimate_id=? AND status='paid')`)
+            .bind(crypto.randomUUID(),"Tip received",`${(tipCents/100).toFixed(2)} tip recorded via ${method}.`,estimateId,tipCreatedAt,estimateId,payment.id,estimateId),
+        ]);
+        if(!results[0]?.meta.changes)return Response.json({ error:"The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." },{status:409});
+        if(!results[1]?.meta.changes)return Response.json({ error:"The invoice payment was not paired with its tip record. Refresh Payment History before recording anything else." },{status:409});
+        tip={id:tipId,estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:tipReference,createdAt:tipCreatedAt};
+      }else{
+        const inserted=await paymentStatement.run();
+        if(!inserted.meta.changes)return Response.json({ error:"The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." },{status:409});
+      }
     }
 
     let tip:{id:string;estimateId:string;type:string;amountCents:number;status:string;reference:string|null;createdAt:string}|null=null;
-    if(tipCents>0){
+    if(tipCents>0&&amountCents<=0){
       tip={id:crypto.randomUUID(),estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:[method,reference].filter(Boolean).join(" · ")||method,createdAt:new Date().toISOString()};
-      await env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at) VALUES (?,?, 'Tip',?,'paid',?,?)")
-        .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt).run();
-      const customer=await env.DB.prepare("SELECT name FROM customers WHERE id=(SELECT customer_id FROM estimates WHERE id=? LIMIT 1)").bind(estimateId).first<{name:string}>();
-      await env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates WHERE id=?")
-        .bind(crypto.randomUUID(),`Tip received from ${customer?.name||"customer"}`,`$${(tipCents/100).toFixed(2)} tip recorded via ${method}.`,estimateId,tip.createdAt,estimateId).run();
+      const results=await env.DB.batch([
+        env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at) VALUES (?,?, 'Tip',?,'paid',?,?)")
+          .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt),
+        env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates WHERE id=?")
+          .bind(crypto.randomUUID(),"Tip received",`${(tipCents/100).toFixed(2)} tip recorded via ${method}.`,estimateId,tip.createdAt,estimateId),
+      ]);
+      if(!results[0]?.meta.changes)return Response.json({error:"The tip could not be recorded safely. Refresh Payment History before trying again."},{status:409});
     }
 
     const refreshed = await env.DB.prepare(`
