@@ -68,6 +68,7 @@ export async function POST(request: Request) {
     const balance = Math.max(0, dueLimit - paidCents);
 
     let payment:{id:string;estimateId:string;type:string;amountCents:number;status:string;reference:string|null;createdAt:string}|null=null;
+    let tip:{id:string;estimateId:string;type:string;amountCents:number;status:string;reference:string|null;createdAt:string}|null=null;
     if(amountCents>0){
       if (dueLimit <= 0) return Response.json({ error: "A payment is not due on this estimate yet." }, { status: 409 });
       if (balance <= 0) return Response.json({ error: estimate.status === "completed" ? "This job is already paid in full. Record the tip by itself instead." : "The reservation deposit is already paid." }, { status: 400 });
@@ -114,7 +115,6 @@ export async function POST(request: Request) {
       }
     }
 
-    let tip:{id:string;estimateId:string;type:string;amountCents:number;status:string;reference:string|null;createdAt:string}|null=null;
     if(tipCents>0&&amountCents<=0){
       tip={id:crypto.randomUUID(),estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:[method,reference].filter(Boolean).join(" · ")||method,createdAt:new Date().toISOString()};
       const results=await env.DB.batch([
