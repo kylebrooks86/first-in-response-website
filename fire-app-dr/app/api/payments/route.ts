@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     const estimate = await env.DB.prepare(`
       SELECT e.id,e.total_cents AS estimateTotalCents,COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,e.deposit_cents AS depositCents,e.status,
-        COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid'),0) AS paidCents
+        COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid' AND type NOT IN ('Tip','Tip Refund')),0) AS paidCents
       FROM estimates e WHERE e.id=?
     `).bind(estimateId).first<{id:string;estimateTotalCents:number;totalCents:number;depositCents:number;status:string;paidCents:number}>();
     if (!estimate) return Response.json({ error: "Estimate not found." }, { status: 404 });
@@ -73,11 +73,11 @@ export async function POST(request: Request) {
             WHEN e.status='completed' THEN COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents)
             WHEN e.status IN ('approved','scheduled') THEN e.deposit_cents
             ELSE 0
-          END - COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0)
+          END - COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
         )
         FROM estimates e WHERE e.id=?
       )
-      AND (SELECT COALESCE(SUM(p.amount_cents),0) FROM payments p WHERE p.estimate_id=? AND p.status='paid') <= 9007199254740991 - ?
+      AND (SELECT COALESCE(SUM(p.amount_cents),0) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')) <= 9007199254740991 - ?
     `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, amountCents, estimateId, estimateId, amountCents).run();
     if (!inserted.meta.changes) return Response.json({ error: "The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." }, { status: 409 });
 
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       SELECT e.status,
         COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,
         e.deposit_cents AS depositCents,
-        COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid'),0) AS paidCents
+        COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid' AND type NOT IN ('Tip','Tip Refund')),0) AS paidCents
       FROM estimates e WHERE e.id=?
     `).bind(estimateId).first<{status:string;totalCents:number;depositCents:number;paidCents:number}>();
     const nextPaid = Number(refreshed?.paidCents ?? (paidCents + amountCents));
