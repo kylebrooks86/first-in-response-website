@@ -169,6 +169,25 @@
   }
 
 
+  function recipePolish(){
+    const recipe=$('#recipeTitle')?.closest('.card');if(!recipe)return;
+    [...recipe.querySelectorAll('h2')].filter(h=>h.textContent.includes('Stock-strength correction')).forEach(h=>h.remove());
+
+    const stock=$('#stockStrength')?.closest('.field'),onHand=$('#shOnHand')?.closest('.field'),note=$('#stockNote');
+    if(stock){stock.classList.remove('span6');stock.classList.add('span12')}
+
+    if(onHand && !$('#bobStockExtra',recipe)){
+      const wrap=document.createElement('details');wrap.id='bobStockExtra';wrap.className='bob-stock-extra';
+      const summary=document.createElement('summary');summary.innerHTML='<strong>Stock on hand</strong><span>Optional batch-count planning</span>';
+      const body=document.createElement('div');body.className='bob-stock-extra-body';
+      onHand.classList.remove('span6');onHand.classList.add('span12');
+      body.appendChild(onHand);if(note)body.appendChild(note);
+      wrap.append(summary,body);
+      const grid=stock?.closest('.grid');
+      (grid?.parentElement||recipe).appendChild(wrap);
+    }
+  }
+
   function batchMethodNote(){
     const preset=$('#batchPreset'); if(!preset || $('#bobBatchMethodNote'))return;
     const host=preset.closest('.card')||preset.parentElement;
@@ -384,6 +403,7 @@
     jobPolish();
     equipmentPolish();
     toolsPolish();
+    recipePolish();
     syncLateStockTools();
   }
 
@@ -391,7 +411,7 @@
     /* LIVE Mixes is a user-favorite section. Preserve its content and calculator behavior. */
   }
 
-  setTitle(); relabelTabs(); quickFavorites(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); chemicalPolish(); syncLateStockTools();
+  setTitle(); relabelTabs(); quickFavorites(); recipePolish(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); chemicalPolish(); syncLateStockTools();
   $('#stockStrength')?.addEventListener('input',syncLateStockTools);
   window.addEventListener('fire-v18-shared-core-ready',()=>setTimeout(reapplyLateLayout,0));
   window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(reapplyLateLayout,0));
