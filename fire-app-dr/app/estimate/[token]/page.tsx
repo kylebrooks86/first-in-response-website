@@ -119,7 +119,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
     {!billingStateSafe&&<p className="pay-note"><strong>Billing review required.</strong> Please contact First In Response Exteriors before making a payment.</p>}
     {Number(row.pendingRefundCount??0)>0?<p className="pay-note"><strong>Refund processing.</strong> FIRE is waiting for the refund to finish before any additional payment is accepted.</p>:Number(row.paymentOverageOpen??0)>0&&<p className="pay-note"><strong>Payment received — account review in progress.</strong> No additional payment is needed until FIRE finishes reviewing the account.</p>}
     {paymentsReady&&canPayDeposit&&<div className="portal-payment"><PayButton shareToken={token} paymentType="deposit" label={`Pay ${currency(depositRemaining)} deposit securely`}/></div>}
-    {paymentsReady&&canPayBalance&&<div className="portal-payment"><PayButton shareToken={token} paymentType="balance" label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
+    {paymentsReady&&canPayBalance&&<div className="portal-payment"><PayButton shareToken={token} paymentType="balance" baseAmountCents={balance} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
     {paymentsReady&&!estimateApproved&&<p className="pay-note">Approve and sign the estimate first. After approval, the 50% deposit reserves your place on the schedule.</p>}
     {paymentsReady&&estimateApproved&&!canPayDeposit&&!canPayBalance&&balance>0&&<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
     {!paymentsReady&&<p className="pay-note">After approval, Kyle will contact you to schedule the job and arrange the 50% deposit.</p>}
