@@ -187,14 +187,19 @@
     if($('#bobToolsSheet'))return;
     const top=$('.toprow'); if(!top)return;
     const btn=document.createElement('button'); btn.type='button'; btn.className='bob-tools-btn'; btn.textContent='Tools';
+    btn.setAttribute('aria-controls','bobToolsSheet');btn.setAttribute('aria-expanded','false');
     const sheet=document.createElement('div'); sheet.id='bobToolsSheet'; sheet.className='bob-tools-sheet';
+    const close=()=>{sheet.classList.remove('open');btn.setAttribute('aria-expanded','false')};
     const items=[['equipment','Equipment / X-Jet'],['tools','Field Tools'],['guide','Safety Guide']];
     items.forEach(([view,label])=>{
       const b=document.createElement('button');b.type='button';b.textContent=label;
-      b.addEventListener('click',()=>{const t=$('.tab[data-view="'+view+'"]'); if(t)t.click(); sheet.classList.remove('open');});
+      b.addEventListener('click',()=>{const t=$('.tab[data-view="'+view+'"]'); if(t)t.click(); close();});
       sheet.appendChild(b);
     });
-    btn.addEventListener('click',()=>sheet.classList.toggle('open'));
+    btn.addEventListener('click',e=>{e.stopPropagation();const open=!sheet.classList.contains('open');sheet.classList.toggle('open',open);btn.setAttribute('aria-expanded',String(open))});
+    sheet.addEventListener('click',e=>e.stopPropagation());
+    document.addEventListener('click',close);
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
     top.appendChild(btn);
     $('.tabswrap')?.after(sheet);
   }
