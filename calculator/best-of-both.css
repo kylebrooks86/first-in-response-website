@@ -280,3 +280,17 @@ body.fire-bob .bob-batch-select-field select{min-height:44px!important}
 
 
 body.fire-bob .toast{bottom:calc(20px + env(safe-area-inset-bottom))!important}
+
+
+body.fire-bob .bob-recipe-fine,
+body.fire-bob .bob-other-stock{
+  margin-top:9px;border-top:1px solid #2f3b44;padding-top:6px
+}
+body.fire-bob .bob-recipe-fine>summary,
+body.fire-bob .bob-other-stock>summary{
+  min-height:40px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  cursor:pointer;color:#dbe3e8;font-size:12px;font-weight:800
+}
+body.fire-bob .bob-recipe-fine>summary span{color:#8f9aa2;font-weight:600}
+body.fire-bob .bob-recipe-fine-body{padding-top:8px}
+body.fire-bob .bob-other-stock .inputrow{margin-top:7px}
