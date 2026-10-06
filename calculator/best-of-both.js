@@ -184,7 +184,7 @@
     $('#targetNum')?.addEventListener('input',markCustom);
     $('#eleRate')?.addEventListener('input',markCustom);
     $('#stockStrength')?.addEventListener('input',()=>setTimeout(()=>{markCustom();refreshAmounts()},0));
-    $('#stockQuick [data-stock]').forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{markCustom();refreshAmounts()},0)));
+    Array.from(document.querySelectorAll('#stockQuick [data-stock]')).forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{markCustom();refreshAmounts()},0)));
     refreshAmounts();
 
     mix.insertBefore(card,mix.firstElementChild);
