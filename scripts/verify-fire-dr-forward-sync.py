@@ -137,6 +137,12 @@ queue_needles = [
     'Existing estimates, invoices, payments, signed agreements, pricing, and job history are not rewritten.',
     'Newly added phone/email/address immediately enables the applicable Call / Text / Email / Google Maps / Google Earth / Zillow / property-preview actions after save.',
     'Do not clear any `FORWARD SYNC APPROVED` matrix row until its matching `FORWARD_SYNC_APPROVED.json` entry is deliberately marked `SYNCED_TO_LIVE` after same-device rendered and functional review.',
+    'Owner-approved payment forward-sync addition (2026-10-06):',
+    'No tip must remain selected by default, with 5% / 10% / 15% / Custom choices.',
+    'Deposits must never offer a tip.',
+    'Tip and Tip Refund entries must remain separate from invoice-paid/balance calculations.',
+    'A Stripe Tip can be refunded as a Tip Refund without reopening an invoice balance.',
+    'Do not clear the tipping `FORWARD SYNC APPROVED` state until LIVE and DR are deliberately reviewed on the same device/profile.',
     'do not qualify as `VERIFIED_IDENTICAL` until LIVE is intentionally upgraded to match them',
 ]
 for needle in queue_needles:
