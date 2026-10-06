@@ -304,18 +304,41 @@
   function jobPolish(){
     const job=$('#job'); if(!job || job.dataset.bobDone)return;
     job.dataset.bobDone='1';
-    const cards=$(':scope > .card',job);
-    const first=cards[0], estimate=cards[1];
-    if(first){
-      const k=$('.kicker',first),h=$('h2',first);
-      if(k)k.textContent='COVERAGE PLANNER';
+
+    const cards=$$(':scope > .card',job);
+    const byHeading=(needle)=>cards.find(card=>($('h2',card)?.textContent||'').toLowerCase().includes(needle.toLowerCase()));
+    const coverage=byHeading('How much mix');
+    const area=byHeading('Area and real coverage helpers');
+    const cost=byHeading('Know your cost per batch');
+    const estimate=byHeading('Price the whole job');
+    const profit=byHeading('Job loadout and profitability');
+
+    if(coverage){
+      const k=$('.kicker',coverage),h=$('h2',coverage);
+      if(k)k.textContent='📐 COVERAGE PLANNER';
       if(h)h.textContent='How much mix will the job need?';
     }
-    if(estimate){
-      const wrap=document.createElement('details'); wrap.className='bob-section-toggle bob-job-estimate';
-      const summary=document.createElement('summary'); summary.innerHTML='<strong>Full job estimate</strong><span>Open only when you need pricing</span>';
-      estimate.before(wrap); wrap.append(summary,estimate);
-    }
+
+    const intro=document.createElement('div');
+    intro.className='bob-job-intro';
+    intro.innerHTML='<strong>📋 Job Plan</strong><span>Coverage stays up front. Measuring, chemical cost, estimating, and profitability are available when you need them without making the field screen feel crowded.</span>';
+    job.insertBefore(intro,job.firstChild);
+
+    let cursor=intro;
+    if(coverage){cursor.after(coverage);cursor=coverage;}
+
+    const wrapCard=(card,title,sub,open=false)=>{
+      if(!card || card.closest('.bob-section-toggle'))return;
+      const wrap=document.createElement('details'); wrap.className='bob-section-toggle bob-job-toggle'; wrap.open=open;
+      const summary=document.createElement('summary'); summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
+      card.before(wrap); wrap.append(summary,card);
+      cursor.after(wrap); cursor=wrap;
+    };
+
+    wrapCard(area,'📏 Measure / calibrate coverage','Area helper and your real ft²-per-gallon calibration');
+    wrapCard(cost,'🧪 Chemical cost','Cost of the current SH batch and planned job mix');
+    wrapCard(estimate,'💵 Full job estimate','Open when you need pricing and customer totals');
+    wrapCard(profit,'📦 Loadout / profitability','Inventory, labor, costs, and gross field profit');
   }
 
   function equipmentPolish(){
