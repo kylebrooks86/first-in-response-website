@@ -147,11 +147,11 @@ try{loadFullState();buildPriceEditor();calcReverseX();calcInjectorReal();calcFil
   const guide=document.getElementById('guide');
   if(!guide)return;
   const findCard=(heading)=>[...guide.querySelectorAll('.card')].find(c=>[...c.querySelectorAll('h2,h3')].some(h=>h.textContent.trim()===heading));
-  let presets=findCard('10% SH service presets');
+  let presets=findCard('SH starting-strength guide');
   if(!presets){
     presets=document.createElement('div');
     presets.className='card';
-    presets.innerHTML=`<div class="kicker">Starting-strength guide</div><h2>10% SH service presets</h2><p class="muted">Starting points for 10% stock SH. Test the actual surface, start weaker when uncertain, and follow the current product label/SDS.</p><table class="rate-table"><thead><tr><th>Surface</th><th>Light</th><th>Moderate</th><th>Heavy</th></tr></thead><tbody><tr><td>House wash</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Asphalt-shingle roof</td><td>2.0%</td><td>3.0%</td><td>4.0%</td></tr><tr><td>Fence / siding organics</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Concrete pre-treatment</td><td>1.5%</td><td>2.0%</td><td>3.0%</td></tr></tbody></table>`;
+    presets.innerHTML=`<div class="kicker">Starting-strength guide</div><h2>SH starting-strength guide</h2><p class="muted">These are delivered/final SH starting points, not guarantees. Test the actual surface, start weaker when uncertain, and follow the current product label/SDS.</p><table class="rate-table"><thead><tr><th>Surface</th><th>Light</th><th>Moderate</th><th>Heavy</th></tr></thead><tbody><tr><td>House wash / vinyl</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Asphalt-shingle roof</td><td>3.0%</td><td>4.0%</td><td>5.0%</td></tr><tr><td>Bare wood fence</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Concrete pre-treatment</td><td>1.0%</td><td>2.0%</td><td>3.0%</td></tr><tr><td>Concrete post-treatment</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Bare brick / masonry</td><td>0.5%</td><td>1.0%</td><td>2.0%</td></tr><tr><td>Stucco / synthetic stucco</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Pavers / hardscape</td><td>0.5%</td><td>1.0%</td><td>2.0%</td></tr></tbody></table><p class="muted" style="margin-top:10px"><strong>Quick Favorites intentionally start more conservatively on bare wood and synthetic stucco.</strong> Natural stone and pool-deck materials require surface identification first.</p>`;
   }
   const noSH=findCard('Services that should not default to SH');
   const safety=findCard('Quick safety order');
