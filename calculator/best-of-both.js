@@ -359,17 +359,29 @@
     card.dataset.bobDone='1';
     const min=$('#timerMin'), preset=$('#timerPreset');
 
+    const mini=document.createElement('button');
+    mini.type='button'; mini.id='bobDwellMini'; mini.className='bob-dwell-mini';
+    mini.innerHTML='<span>⏱️ Dwell</span><strong id="bobDwellMiniText">'+($('#timerDisplay')?.textContent||'05:00')+'</strong>';
+    mini.addEventListener('click',()=>{$('.tab[data-view="tools"]')?.click();setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),100);});
+    document.body.appendChild(mini);
+
     const setMinutes=(n)=>{
       if(!min)return;
       min.value=Math.max(1,Math.min(120,Math.round(n)));
       fireInput(min);
-      $('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value));
+      $$('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value));
     };
 
-    $('#dwellQuick [data-dwell-min]').forEach(b=>b.addEventListener('click',()=>setMinutes(+b.dataset.dwellMin)));
-    $('#timerMinus')?.addEventListener('click',()=>setMinutes((+min.value||1)-1));
-    $('#timerPlus')?.addEventListener('click',()=>setMinutes((+min.value||1)+1));
-    min?.addEventListener('input',()=>$('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value)));
+    $$('#dwellQuick [data-dwell-min]').forEach(b=>b.addEventListener('click',()=>setMinutes(+b.dataset.dwellMin)));
+    $('#timerMinus')?.addEventListener('click',()=>{
+      if(typeof timerEndAt!=='undefined'&&timerEndAt){timerEndAt-=60000;timerTick();return;}
+      setMinutes((+min.value||1)-1);
+    });
+    $('#timerPlus')?.addEventListener('click',()=>{
+      if(typeof timerEndAt!=='undefined'&&timerEndAt){timerEndAt+=60000;timerTick();return;}
+      setMinutes((+min.value||1)+1);
+    });
+    min?.addEventListener('input',()=>$$('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value)));
 
     /* Keep suggested checks tied to the selected SH favorite without auto-starting. */
     const suggested={
