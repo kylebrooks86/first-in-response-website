@@ -17,17 +17,27 @@ async function confirmPayment(sessionId:string,estimate:{id:string;customerId:st
   if(!runtime.STRIPE_SECRET_KEY)return false;
   const response=await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`,{headers:{authorization:`Bearer ${runtime.STRIPE_SECRET_KEY}`}});
   if(!response.ok)return false;
-  const session=await response.json() as {id:string;payment_status?:string;amount_total?:number;metadata?:{estimate_id?:string;payment_type?:string;expected_amount_cents?:string}};
+  const session=await response.json() as {id:string;payment_status?:string;amount_total?:number;metadata?:{estimate_id?:string;payment_type?:string;expected_amount_cents?:string;tip_amount_cents?:string;expected_charge_cents?:string}};
   if(session.payment_status!=="paid"||session.metadata?.estimate_id!==estimate.id||!session.amount_total)return false;
   const sessionAmount=Number(session.amount_total);
+  const paymentType=session.metadata?.payment_type==="balance"?"balance":"deposit";
   const expectedAmount=Number(session.metadata?.expected_amount_cents??sessionAmount);
-  if(!Number.isSafeInteger(sessionAmount)||sessionAmount<=0||!Number.isSafeInteger(expectedAmount)||expectedAmount!==sessionAmount)return false;
-  const paymentType=session.metadata.payment_type==="balance"?"balance":"deposit";
+  const tipCents=Number(session.metadata?.tip_amount_cents??0);
+  const expectedCharge=Number(session.metadata?.expected_charge_cents??(expectedAmount+tipCents));
+  if(!Number.isSafeInteger(sessionAmount)||sessionAmount<=0||!Number.isSafeInteger(expectedAmount)||expectedAmount<=0||!Number.isSafeInteger(tipCents)||tipCents<0||!Number.isSafeInteger(expectedCharge)||expectedCharge!==sessionAmount||expectedAmount+tipCents!==sessionAmount)return false;
+  if(paymentType!=="balance"&&tipCents>0)return false;
   const tracked=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payment_checkout_sessions WHERE id=? LIMIT 1").bind(session.id).first<{estimateId:string;type:string;amountCents:number;status:string}>();
   if(!tracked||tracked.estimateId!==estimate.id||tracked.type!==paymentType||!Number.isSafeInteger(Number(tracked.amountCents))||Number(tracked.amountCents)!==sessionAmount||!["open","paid"].includes(tracked.status))return false;
   const prior=await env.DB.prepare("SELECT id FROM payments WHERE provider_id=? LIMIT 1").bind(session.id).first();
-  if(prior){await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();return true;}
-  const existingPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(estimate.id).first<{amount:number}>();
+  if(prior){
+    if(tipCents>0)await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+      SELECT ?,?,'Tip',?,'paid',?,?
+      WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
+      .bind(crypto.randomUUID(),estimate.id,tipCents,`${session.id}:tip`,new Date().toISOString(),`${session.id}:tip`).run();
+    await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();
+    return true;
+  }
+  const existingPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(estimate.id).first<{amount:number}>();
   const existingPaid=Number(existingPaidRow?.amount??0);
   if(!Number.isSafeInteger(existingPaid)||existingPaid<0||!Number.isSafeInteger(existingPaid+sessionAmount))return false;
   const now=new Date().toISOString();
@@ -37,16 +47,20 @@ async function confirmPayment(sessionId:string,estimate:{id:string;customerId:st
     INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
     SELECT ?,?,?,?,'paid',?,?
     WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)
-  `).bind(crypto.randomUUID(),estimate.id,paymentType,sessionAmount,session.id,now,session.id).run();
+  `).bind(crypto.randomUUID(),estimate.id,paymentType,expectedAmount,session.id,now,session.id).run();
   if(!inserted.meta.changes){await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();return true;}
-  const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(estimate.id).first<{amount:number}>();
+  if(tipCents>0)await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+    SELECT ?,?,'Tip',?,'paid',?,?
+    WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
+    .bind(crypto.randomUUID(),estimate.id,tipCents,`${session.id}:tip`,now,`${session.id}:tip`).run();
+  const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(estimate.id).first<{amount:number}>();
   const nextPaid=Number(refreshedPaid?.amount??0);
   if(!Number.isSafeInteger(nextPaid)||nextPaid<0)return false;
   const overpaymentCents=Math.max(0,nextPaid-obligationCents);
   if(!Number.isSafeInteger(overpaymentCents))return false;
   const followups=[
     env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id),
-    env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),"payment_received",`Payment received from ${estimate.customer}`,`${currency(sessionAmount)} ${paymentType} received for ${estimate.service}.`,estimate.customerId,estimate.id,now),
+    env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),"payment_received",`Payment received from ${estimate.customer}`,`${currency(expectedAmount)} ${paymentType} received for ${estimate.service}.`,estimate.customerId,estimate.id,now),
   ];
   if(estimate.status==="completed"||paymentType==="balance")followups.unshift(
     env.DB.prepare(`UPDATE invoices SET status=CASE
@@ -54,6 +68,10 @@ async function confirmPayment(sessionId:string,estimate:{id:string;customerId:st
       WHEN ?>0 THEN 'partial'
       WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
       ELSE 'draft' END WHERE estimate_id=?`).bind(nextPaid,nextPaid,estimate.id)
+  );
+  if(tipCents>0)followups.push(
+    env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)")
+      .bind(crypto.randomUUID(),"tip_received",`Tip received from ${estimate.customer}`,`${currency(tipCents)} tip received with the final card payment.`,estimate.customerId,estimate.id,now)
   );
   if(overpaymentCents>0){
     const overpaymentBody=`${currency(overpaymentCents)} is currently recorded above the amount due. Review the Stripe payments and either refund the excess or intentionally keep it as an overpayment on this job.`;
@@ -93,7 +111,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
     ]);
   }
   const billingTotalCents=Number(row.invoiceTotalCents??row.totalCents);
-  const paid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(row.id).first<{amount:number}>();
+  const paid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(row.id).first<{amount:number}>();
   const paidCents=Number(paid?.amount??0);
   const billingStateSafe=estimateSnapshotSafe&&[billingTotalCents,Number(row.totalCents),Number(row.depositCents),paidCents].every((value)=>Number.isSafeInteger(value)&&value>=0)&&Number(row.depositCents)<=Number(row.totalCents);
   const paymentReviewPending=Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0;
