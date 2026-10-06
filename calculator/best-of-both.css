@@ -240,3 +240,15 @@ body.fire-bob .bob-dirtiness-field #growthSeg .chip{
   flex:1!important;min-width:0!important;min-height:40px!important;padding:8px 6px!important;font-size:13px!important;
 }
 body.fire-bob .bob-surface-only-field{grid-column:1/-1!important}
+
+
+body.fire-bob .bob-manual-surface{
+  margin-top:9px;border-top:1px solid #2f3b44;padding-top:7px
+}
+body.fire-bob .bob-manual-surface>summary{
+  min-height:38px;display:flex;align-items:center;cursor:pointer;color:#aeb9c1;font-size:12px;font-weight:800
+}
+body.fire-bob .bob-manual-surface-body{padding:4px 0 2px}
+body.fire-bob .bob-manual-surface-body .field{margin:0!important}
+body.fire-bob .bob-manual-surface-body label{font-size:12px!important;color:#aeb9c1!important}
+body.fire-bob .bob-manual-surface-body select{min-height:44px!important}
