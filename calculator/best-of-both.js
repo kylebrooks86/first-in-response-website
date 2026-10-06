@@ -512,15 +512,52 @@
 
   function toolsPolish(){
     const tools=$('#tools'); if(!tools)return;
+    const openTitles=new Set(Array.from(tools.querySelectorAll('.bob-tools-group[open] > summary strong')).map(x=>x.textContent.trim()));
+
+    Array.from(tools.querySelectorAll(':scope > .bob-tools-group')).forEach(w=>{
+      Array.from(w.querySelectorAll(':scope > .bob-group-body > .card')).forEach(card=>tools.insertBefore(card,w));
+      w.remove();
+    });
 
     /* Preserve the saved-mix card; the late Tools parity layer converts the old one-tap favorites into Saved mixes. */
     const oldFav=Array.from(tools.querySelectorAll(':scope > .card')).find(card=>($('h2',card)?.textContent||'').trim()==='Quick Mix Favorites');
     const oldFavHeading=oldFav&&$('h2',oldFav);
     if(oldFavHeading)oldFavHeading.textContent='Saved mixes';
 
-    const dwell=$('#dwellTimerCard');
-    if(dwell && tools.firstElementChild!==dwell)tools.insertBefore(dwell,tools.firstChild);
+    const titleOf=card=>($('h2',card)?.textContent||'').trim();
+    const directCards=()=>Array.from(tools.querySelectorAll(':scope > .card'));
+    const cardByTitle=title=>directCards().find(card=>titleOf(card)===title);
 
+    const guide=$('#guide'),safety=cardByTitle('Field Safety Card');
+    if(guide&&safety&&safety.parentElement===tools)guide.appendChild(safety);
+
+    const dwell=$('#dwellTimerCard'),saved=cardByTitle('Saved mixes');
+    if(dwell&&tools.firstElementChild!==dwell)tools.insertBefore(dwell,tools.firstChild);
+    if(saved&&saved.parentElement===tools){
+      if(dwell&&dwell.parentElement===tools)dwell.insertAdjacentElement('afterend',saved);
+      else tools.insertBefore(saved,tools.firstElementChild);
+    }
+
+    const group=(title,sub,names)=>{
+      const cards=names.map(cardByTitle).filter(Boolean);
+      if(!cards.length)return;
+      const wrap=document.createElement('details');wrap.className='bob-section-toggle bob-tools-group';
+      wrap.open=openTitles.has(title);
+      const summary=document.createElement('summary');summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
+      const body=document.createElement('div');body.className='bob-group-body';
+      cards.forEach(card=>body.appendChild(card));
+      wrap.append(summary,body);tools.appendChild(wrap);
+    };
+
+    group('🧭 Jobsite reference','Weather, stain and compatibility helpers',[
+      'Weather Adjustment Guide','Stain & Surface Finder','Chemical Compatibility Checker'
+    ]);
+    group('🧪 Records & chemicals','History, inventory and custom products',[
+      'Batch History / Mix Log','Chemical Inventory','Custom Chemical Builder'
+    ]);
+    group('⚙️ App & data','Offline update and backup tools',[
+      'Version and offline update','Backup or Restore Field Data'
+    ]);
   }
 
   function reapplyLateLayout(){
