@@ -41,7 +41,7 @@
   const version=()=>{
     const c=card('Version and offline update');if(!c)return;
     const h3=$('h3',c);if(h3){h3.classList.add('fire-version-inset');h3.innerHTML='<strong>FIRE Field Calculator v18</strong><span>Version 18 is installed and offline-ready.</span>'}
-    const exact='The calculator does not require a sign-in. Your rates, inventory, timer and saved mixes remain on this device and are included in your backup.';
+    const exact='The calculator does not require a sign-in. Your rates, inventory, saved mixes, calculator settings, and current estimate data remain on this device and are included in your backup.';
     const notes=$$('p',c);
     let kept=false;
     notes.forEach(p=>{
