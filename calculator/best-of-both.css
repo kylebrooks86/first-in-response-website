@@ -232,3 +232,13 @@ body.fire-bob .bob-dwell-link{
   background:#111a20;color:#f7fafc;font-weight:850;cursor:pointer
 }
 body.fire-bob.dwell-running #timerDisplay{box-shadow:0 0 0 2px rgba(239,75,45,.35)}
+
+
+body.fire-bob .bob-dwell-mini{
+  position:fixed;right:14px;bottom:16px;z-index:50;display:none;align-items:center;gap:8px;
+  min-height:42px;padding:8px 11px;border:1px solid #ef4b2d;border-radius:999px;
+  background:#171d22;color:#fff;box-shadow:0 8px 26px rgba(0,0,0,.35);font-weight:800
+}
+body.fire-bob.dwell-running .bob-dwell-mini{display:flex}
+body.fire-bob .bob-dwell-mini span{font-size:12px}
+body.fire-bob .bob-dwell-mini strong{font-variant-numeric:tabular-nums;font-size:15px}
