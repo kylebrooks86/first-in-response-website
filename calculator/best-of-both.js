@@ -112,12 +112,15 @@
       const fine=$('#bobRecipeFineTune');if(fine)fine.open=true;
     };
 
+    const clearPresetSelection=()=>{
+      Array.from(card.querySelectorAll('.bob-preset-option')).forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false')});
+    };
     const applyPresetTarget=(p,g=currentGrowth())=>{
       const desired=presetStrength(p,g),stock=Math.max(0,+($('#stockStrength')?.value||0)),target=$('#targetNum');
       const limited=stock>0&&desired>stock;
       if(target){target.value=limited?stock:desired;fireInput(target);}
       if(limited){
-        activePreset=null;setCustomSummary();if(noteWrap)noteWrap.open=true;
+        activePreset=null;clearPresetSelection();setCustomSummary();if(noteWrap)noteWrap.open=true;
         if(note)note.textContent='⚠️ '+p.name+' calls for '+desired+'% SH at this dirtiness level, but your current stock is only '+stock+'%. The recipe was limited to '+stock+'%. Use stronger stock or choose a lower target.';
       }
       return {desired,stock,limited};
@@ -158,7 +161,7 @@
         const g=currentGrowth(),target=+($('#targetNum')?.value||0),ele=+($('#eleRate')?.value||0);
         const current=presets.find(p=>p.surface===surface?.value && Math.abs(target-presetStrength(p,g))<.001 && Math.abs(ele-p.ele)<.001);
         if(current){activePreset=current;Array.from(card.querySelectorAll('.bob-preset-option')).forEach(b=>(b.classList.toggle('selected',b._bobPreset===current),b.setAttribute('aria-pressed',String(b._bobPreset===current))));setSummary(current);}
-        else{Array.from(card.querySelectorAll('.bob-preset-option')).forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false')});setCustomSummary();}
+        else{clearPresetSelection();setCustomSummary();}
       }
     };
     ['#batchPreset','#customBatch','#customUnit'].forEach(sel=>{
@@ -190,8 +193,15 @@
     };
     $('#targetNum')?.addEventListener('input',markCustom);
     $('#eleRate')?.addEventListener('input',markCustom);
-    $('#stockStrength')?.addEventListener('input',()=>setTimeout(()=>{markCustom();refreshAmounts()},0));
-    Array.from(document.querySelectorAll('#stockQuick [data-stock]')).forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{markCustom();refreshAmounts()},0)));
+    const stockChanged=()=>setTimeout(()=>{
+      if(activePreset){
+        const p=activePreset,result=applyPresetTarget(p,currentGrowth());
+        if(!result.limited)setSummary(p);
+      }
+      refreshAmounts();
+    },0);
+    $('#stockStrength')?.addEventListener('input',stockChanged);
+    Array.from(document.querySelectorAll('#stockQuick [data-stock]')).forEach(b=>b.addEventListener('click',stockChanged));
     refreshAmounts();
 
     mix.insertBefore(card,mix.firstElementChild);
