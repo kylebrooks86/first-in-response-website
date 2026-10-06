@@ -9,16 +9,16 @@
   "description": "Standalone field calculator for First In Response Exteriors.",
   "icons": [
     {
-      "src": "../assets/recent-work/fire-logo-direct.png?v=2",
-      "sizes": "192x192",
+      "src": "/first-in-response-website/assets/recent-work/fire-logo-direct.png?fireicon=20261005-3",
+      "sizes": "384x384",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "../assets/recent-work/fire-logo-direct.png?v=2",
-      "sizes": "512x512",
+      "src": "/first-in-response-website/assets/recent-work/fire-logo-direct.png?fireicon=20261005-3",
+      "sizes": "384x384",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ]
 }
