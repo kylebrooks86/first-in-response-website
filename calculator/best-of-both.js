@@ -198,7 +198,7 @@
       if(preset.value==='custom')more.open=true;
     };
     preset.addEventListener('change',refresh);
-    $('#batchChips [data-batch]').forEach(b=>b.addEventListener('click',()=>{if(more)more.open=false;setTimeout(refresh,0)}));
+    Array.from(document.querySelectorAll('#batchChips [data-batch]')).forEach(b=>b.addEventListener('click',()=>{if(custom)custom.classList.add('hidden');if(more)more.open=false;setTimeout(refresh,0)}));
     refresh();
   }
 
