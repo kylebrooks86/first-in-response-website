@@ -51,10 +51,12 @@
   };
 
   const header=()=>{
-    const row=$('.toprow'),theme=$('#themeBtn'),version=$('.version'),install=$('#installBtn');
+    const version=$('.version'),install=$('#installBtn');
     if(version)version.innerHTML='v18 <b>✓</b>';
-    if(install){install.textContent='↓';install.setAttribute('aria-label','Install or update calculator');install.classList.remove('hidden')}
-    if(row&&theme&&version&&install){row.appendChild(theme);row.appendChild(version);row.appendChild(install)}
+    if(install){
+      install.setAttribute('aria-label','Install or update calculator');install.classList.remove('hidden');
+      if(!install.classList.contains('bob-tools-install'))install.textContent='↓';
+    }
   };
 
   const apply=()=>{header();normalizeRecipe();syncCustomAmount();syncMetrics()};
