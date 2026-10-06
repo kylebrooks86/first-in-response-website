@@ -181,3 +181,29 @@ body.fire-bob #equipment>.card:nth-of-type(2){border-radius:22px!important}
   body.fire-bob .bob-section-toggle>summary{min-height:58px;padding:12px 14px}
   body.fire-bob .bob-section-toggle>summary strong{font-size:15px}
 }
+
+
+/* Quick Favorites — compact, visual, and deliberately additive to the LIVE SH Mix view. */
+body.fire-bob #mix>.bob-quick-card{
+  grid-column:1/-1!important;background:#10161b!important;border:1px solid #35414b!important;
+  border-radius:16px!important;padding:16px!important;
+}
+body.fire-bob .bob-fav-help{margin:0 0 12px!important}
+body.fire-bob .bob-fav-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+body.fire-bob .bob-fav-btn{
+  min-height:76px;padding:11px;border:1px solid #34414a;border-radius:14px;background:#18212b;color:#f7fafc;
+  display:grid;grid-template-columns:34px minmax(0,1fr);gap:9px;align-items:center;text-align:left;
+}
+body.fire-bob .bob-fav-btn.active{border-color:#ef4b2d;box-shadow:inset 0 0 0 1px #ef4b2d;background:#241715}
+body.fire-bob .bob-fav-btn.bob-fav-info{border-style:dashed}
+body.fire-bob .bob-fav-icon{font-size:25px;line-height:1}
+body.fire-bob .bob-fav-copy{min-width:0}
+body.fire-bob .bob-fav-copy strong{display:block;color:#fff;font-size:14px;line-height:1.2}
+body.fire-bob .bob-fav-copy small{display:block;margin-top:5px;color:#aeb9c1;font-size:11px;line-height:1.25}
+body.fire-bob .bob-more-presets{margin-top:12px;border-top:1px solid #2d3941;padding-top:10px}
+body.fire-bob .bob-more-presets>summary{cursor:pointer;color:#dbe3e8;font-weight:850;min-height:44px;display:flex;align-items:center}
+body.fire-bob .bob-more-presets>.bob-fav-grid{margin-top:9px}
+body.fire-bob .bob-fav-note{margin-top:12px;padding:10px 11px;border-radius:11px;background:#0b1115;color:#9fabb4;font-size:12px;line-height:1.4}
+@media(max-width:390px){
+  body.fire-bob .bob-fav-grid{grid-template-columns:1fr}
+}
