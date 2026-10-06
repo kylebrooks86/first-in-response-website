@@ -19,12 +19,16 @@
     attrsByLabel('Pressure-washer flow',{min:'1',max:'12',step:'0.1'});
     attrsByLabel('House wash area',{min:'0',step:'10'});
     attrsByLabel('10% SH Out',{min:'0',step:'0.1'});
+    attrsByLabel('12.5% SH Out',{min:'0',step:'0.1'});
+    attrsByLabel('Stock SH Out',{min:'0',step:'0.1'});
     attrsByLabel('Dose or water parts',{min:'0',step:'0.1'});
 
-    const liveLabels={sh:'10% SH Out',ele:'Elemonator Out',gutter:'Gutter Zap Out',bio:'Bio-Clean Out',odo:'OdoBan Out',f9:'F9 BARC Out',ettore:'Ettore Squeegee-Off Out'};
-    $$('.fire-inv-row').forEach(row=>{const input=$('input[type="number"]',row);if(input&&liveLabels[row.dataset.invKey]){input.setAttribute('aria-label',liveLabels[row.dataset.invKey]);input.setAttribute('step','0.1')}});
+    const stock=+($('#stockStrength')?.value||10),stockText=stock.toFixed(stock%1?1:0)+'% SH Out';
+    const liveLabels={sh:stockText,ele:'Elemonator Out',gutter:'Gutter Zap Out',bio:'Bio-Clean Out',odo:'OdoBan Out',f9:'F9 BARC Out',ettore:'Ettore Squeegee-Off Out'};
+    $('.fire-inv-row').forEach(row=>{const input=$('input[type="number"]',row);if(input&&liveLabels[row.dataset.invKey]){input.setAttribute('aria-label',liveLabels[row.dataset.invKey]);input.setAttribute('step','0.1');const label=$('label',row);if(row.dataset.invKey==='sh'&&label)label.textContent=stockText}});
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(apply,1700));else setTimeout(apply,1700);
+  $('#stockStrength')?.addEventListener('input',()=>setTimeout(apply,0));
   window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(apply,220));
   window.addEventListener('fire-v18-shared-core-ready',()=>setTimeout(apply,220));
 })();
