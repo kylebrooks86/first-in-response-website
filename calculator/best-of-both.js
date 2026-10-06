@@ -107,7 +107,8 @@
     const setCustomSummary=()=>{
       if(!summary)return;
       const strength=+($('#targetNum')?.value||0);
-      summary.innerHTML='<span class="bob-preset-summary-icon">🛠️</span><span class="bob-preset-summary-copy"><strong>Custom / manual mix</strong><small>'+strength+'% SH · adjust below</small></span>';
+      summary.innerHTML='<span class="bob-preset-summary-icon">🛠️</span><span class="bob-preset-summary-copy"><strong>Custom / manual mix</strong><small>'+strength+'% SH · fine-tune below</small></span>';
+      const fine=$('#bobRecipeFineTune');if(fine)fine.open=true;
     };
 
     const selectPreset=(p)=>{
@@ -206,8 +207,30 @@
     const recipe=$('#recipeTitle')?.closest('.card');if(!recipe)return;
     [...recipe.querySelectorAll('h2')].filter(h=>h.textContent.includes('Stock-strength correction')).forEach(h=>h.remove());
 
+    const target=$('#target')?.closest('.field'),ele=$('#eleRate')?.closest('.field'),metrics=$('.metrics',recipe);
+    if(target&&ele&&!$('#bobRecipeFineTune',recipe)){
+      const targetGrid=target.parentElement;
+      const fine=document.createElement('details');fine.id='bobRecipeFineTune';fine.className='bob-recipe-fine';
+      const summary=document.createElement('summary');summary.innerHTML='<strong>Fine-tune mix</strong><span>SH % and Elemonator</span>';
+      const body=document.createElement('div');body.className='bob-recipe-fine-body grid';
+      target.classList.remove('span6');target.classList.add('span6');
+      ele.classList.remove('span6');ele.classList.add('span6');
+      body.append(target,ele);fine.append(summary,body);
+      if(metrics)metrics.insertAdjacentElement('afterend',fine);else recipe.appendChild(fine);
+      if(targetGrid&&targetGrid.children.length===0)targetGrid.remove();
+    }
+
     const stock=$('#stockStrength')?.closest('.field'),onHand=$('#shOnHand')?.closest('.field'),note=$('#stockNote');
-    if(stock){stock.classList.remove('span6');stock.classList.add('span12')}
+    if(stock){
+      stock.classList.remove('span6');stock.classList.add('span12');
+      const label=$('label',stock);if(label)label.textContent='Stock SH strength';
+      const row=$('#stockStrength')?.closest('.inputrow');
+      if(row&&!$('#bobOtherStock',stock)){
+        const other=document.createElement('details');other.id='bobOtherStock';other.className='bob-other-stock';
+        const summary=document.createElement('summary');summary.textContent='Other stock %';
+        other.append(summary,row);stock.appendChild(other);
+      }
+    }
 
     if(onHand && !$('#bobStockExtra',recipe)){
       const wrap=document.createElement('details');wrap.id='bobStockExtra';wrap.className='bob-stock-extra';
