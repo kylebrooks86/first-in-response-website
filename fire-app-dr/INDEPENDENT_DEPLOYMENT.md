@@ -80,6 +80,8 @@ This is an explicit capability exception, not a hidden defect or fake-success pa
 
 ## 6. Stripe
 
+Optional tipping is intentionally available only on the final balance card payment: No tip is selected by default, with 5% / 10% / 15% / Custom choices. Deposits do not offer or accept tips. Stripe receives the tip as a separate line item, FIRE records Tip / Tip Refund separately, and those entries must never change invoice paid/balance, paid-in-full, overpayment, or refund-review math. Until LIVE receives the same flow, tipping remains a `PENDING_LIVE_SYNC` forward-sync blocker.
+
 Stripe configuration is not required to prove basic owner UI parity. If Stripe is tested in staging, use the intended non-production configuration and verify server-side amount calculation, session tracking, webhook signature handling, idempotency, refund behavior, and stale-session expiration. Do not enable live charging merely to prove rendered parity.
 
 ## 7. Backup and restore
