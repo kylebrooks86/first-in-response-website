@@ -32,7 +32,12 @@ for label,needle in [
  ('no automatic comparison promotion','`VERIFIED_IDENTICAL` is never inferred merely because both screenshots exist.'),
  ('independent Worker name','fire-app-independent-staging'),('isolated D1 database name','fire-app-staging-db'),
  ('isolated D1 database id','afb2c05a-d794-4a9a-b580-924ce01c26ad'),('D1-only/no-R2 rule','free-tier, D1-only, no R2'),
- ('production isolation rule','Do not point the staging Worker at any production database.')]:
+ ('production isolation rule','Do not point the staging Worker at any production database.'),
+ ('tipping final-balance-only rule','Optional tipping is intentionally available only on the final balance card payment'),
+ ('tipping default/presets','No tip is selected by default, with 5% / 10% / 15% / Custom choices.'),
+ ('deposit tipping prohibition','Deposits do not offer or accept tips.'),
+ ('separate tip accounting','FIRE records Tip / Tip Refund separately'),
+ ('tip forward-sync blocker','tipping remains a `PENDING_LIVE_SYNC` forward-sync blocker.')]:
     if needle not in text: errors.append(f'runbook missing {label}: {needle}')
 
 # Runbook exposes only the wrapper for remote deployment; evidence commands are
@@ -63,4 +68,4 @@ if errors:
     for e in errors: print(f'- {e}')
     raise SystemExit(1)
 print('DR_DEPLOY_RUNBOOK_GUARD=PASS')
-print('Runbook exposes one governed deploy wrapper plus authenticated build-bound capture identity and exact capture/register/review and forward-sync completion/reopen commands; comparison/synchronization promotion remains explicit and reviewed, and remote deploy order stays provenance -> isolated D1 migration -> provenance -> independent Worker deploy.')
+print('Runbook exposes one governed deploy wrapper plus authenticated build-bound capture identity, exact capture/register/review and forward-sync completion/reopen commands, and the governed final-balance tipping rules; comparison/synchronization promotion remains explicit and reviewed, and remote deploy order stays provenance -> isolated D1 migration -> provenance -> independent Worker deploy.')
