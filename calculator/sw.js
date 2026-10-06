@@ -1,16 +1,16 @@
-const CACHE='fire-field-calculator-v18-best-of-both-121';
+const CACHE='fire-field-calculator-v18-best-of-both-122';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   '../assets/recent-work/fire-logo-direct.png',
-  './full-v18.js?v=10',
-  './full-v18-core.js?v=4',
+  './full-v18.js?v=11',
+  './full-v18-core.js?v=5',
   './v18-legacy-job-detach.js?v=2',
   './full-v18-parity-core.js?v=3',
   './v18-behavior.js?v=7',
   './v18-interactions.js?v=4',
-  './v18-fine-parity.js?v=8',
+  './v18-fine-parity.js?v=9',
   './v18-equipment-parity.js?v=4',
   './v18-live-equipment-structure-parity.js?v=4',
   './v18-tools-state.js?v=1',
@@ -25,7 +25,7 @@ const ASSETS=[
   './v18-live-pricing-parity.css?v=1',
   './v18-live-foundation.css?v=9',
   './v18-live-final-overrides.css?v=1',
-  './best-of-both.css?v=7',
+  './best-of-both.css?v=8',
   './v18-live-estimator-parity.js?v=8',
   './v18-live-first-screen.js?v=3',
   './v18-live-jobmath-parity.js?v=5',
@@ -33,7 +33,7 @@ const ASSETS=[
   './v18-live-planning-state.js?v=2',
   './v18-live-chemicals-parity.js?v=3',
   './v18-live-index-parity.js?v=2',
-  './v18-live-guide-parity.js?v=3',
+  './v18-live-guide-parity.js?v=4',
   './v18-live-navigation-parity.js?v=5',
   './v18-live-tools-parity.js?v=2',
   './v18-live-tools-options-parity.js?v=2',
@@ -44,7 +44,7 @@ const ASSETS=[
   './v18-live-invalid-backup-parity.js?v=2',
   './v18-live-portable-backup.js?v=2',
   './v18-live-input-contract.js?v=5',
-  './best-of-both.js?v=12'
+  './best-of-both.js?v=13'
 ];
 self.addEventListener('install',e=>e.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
