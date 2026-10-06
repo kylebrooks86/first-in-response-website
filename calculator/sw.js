@@ -1,4 +1,4 @@
-const CACHE='fire-field-calculator-v18-best-of-both-119';
+const CACHE='fire-field-calculator-v18-best-of-both-120';
 const ASSETS=[
   './',
   './index.html',
@@ -25,7 +25,7 @@ const ASSETS=[
   './v18-live-pricing-parity.css?v=1',
   './v18-live-foundation.css?v=9',
   './v18-live-final-overrides.css?v=1',
-  './best-of-both.css?v=6',
+  './best-of-both.css?v=7',
   './v18-live-estimator-parity.js?v=8',
   './v18-live-first-screen.js?v=3',
   './v18-live-jobmath-parity.js?v=5',
@@ -44,7 +44,7 @@ const ASSETS=[
   './v18-live-invalid-backup-parity.js?v=2',
   './v18-live-portable-backup.js?v=2',
   './v18-live-input-contract.js?v=5',
-  './best-of-both.js?v=10'
+  './best-of-both.js?v=11'
 ];
 self.addEventListener('install',e=>e.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
