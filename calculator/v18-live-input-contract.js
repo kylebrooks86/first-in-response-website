@@ -10,7 +10,7 @@
     attr('dilFinal',{min:'0.1',step:'0.1'});
     attr('waterParts',{min:'0',step:'0.1'});
     attr('prodParts',{min:'0.1',step:'0.1'});
-    attr('timerMin',{min:'0.1',max:'180',step:'0.5'});
+    attr('timerMin',{min:'1',max:'120',step:'1'});
     attr('temp',{min:'0',max:'130'});
     attr('wind',{min:'0',max:'100'});
     attr('humidity',{min:'0',max:'100'});
