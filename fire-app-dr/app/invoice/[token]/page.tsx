@@ -25,7 +25,7 @@ export default async function CustomerInvoicePage({ params }: { params:Promise<{
   const row = await env.DB.prepare(`
     SELECT inv.id,inv.estimate_id AS estimateId,inv.customer_id AS customerId,inv.status,inv.subtotal_cents AS subtotalCents,inv.discount_cents AS discountCents,inv.total_cents AS totalCents,
       inv.due_at AS dueAt,inv.created_at AS createdAt,inv.first_viewed_at AS firstViewedAt,c.name AS customer,c.address,e.share_token AS estimateShareToken,e.status AS estimateStatus,
-      COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=inv.estimate_id AND p.status='paid'),0) AS paidCents,
+      COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=inv.estimate_id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
       (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=inv.estimate_id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
       (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=inv.estimate_id AND r.status='pending') AS pendingRefundCount
     FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id
