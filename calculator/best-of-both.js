@@ -15,12 +15,10 @@
     post:['Concrete Post','after cleaning'],
     pavers:['Pavers','test joint / surface'],
     brick:['Brick / Masonry','organic growth'],
-    stucco:['Stucco / EIFS','delicate exterior'],
-    bins:['Trash Bins','organic sanitation'],
+    stucco:['Stucco / Synthetic Stucco','delicate exterior'],
     deckw:['Wood Deck','low strength / test'],
     metalroof:['Metal Roof','coating-sensitive'],
     aluminum:['Gutter Exterior','organic wash only'],
-    pool:['Pool Deck / Patio','test surface'],
     deckc:['Composite Deck','low strength / test']
   };
 
