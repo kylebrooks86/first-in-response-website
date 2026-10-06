@@ -152,3 +152,32 @@ body.fire-bob #mix .resultbig,body.fire-bob #index .resultbig{color:#d84225!impo
   body.fire-bob .tab{font-size:13px!important;padding:10px 4px!important}
   body.fire-bob #mix .card,body.fire-bob #index .card{padding:20px 16px!important}
 }
+
+
+/* Secondary-section simplification: keep frequent tools visible and advanced work one tap away. */
+body.fire-bob .bob-stage-badge{
+  display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:5px 8px;
+  border:1px solid #76531d;border-radius:999px;background:#241b0d;color:#ffbd3f;
+  font-size:9px;font-weight:950;letter-spacing:.12em;
+}
+body.fire-bob .bob-section-toggle{
+  margin:16px 0;border:1px solid #303940;border-radius:18px;background:#0d1215;overflow:hidden;
+}
+body.fire-bob .bob-section-toggle>summary{
+  list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:14px;
+  min-height:64px;padding:14px 16px;color:#fff;
+}
+body.fire-bob .bob-section-toggle>summary::-webkit-details-marker{display:none}
+body.fire-bob .bob-section-toggle>summary strong{font-size:16px}
+body.fire-bob .bob-section-toggle>summary span{color:#96a1aa;font-size:12px;text-align:right}
+body.fire-bob .bob-section-toggle>summary:after{content:'＋';flex:0 0 auto;color:#ffbd3f;font-size:20px;font-weight:900}
+body.fire-bob .bob-section-toggle[open]>summary:after{content:'–'}
+body.fire-bob .bob-section-toggle>.card{margin:0!important;border:0!important;border-top:1px solid #303940!important;border-radius:0!important}
+body.fire-bob .bob-job-estimate>.card{background:#12181c!important}
+body.fire-bob #equipment>.card:nth-of-type(1),
+body.fire-bob #equipment>.card:nth-of-type(2){border-radius:22px!important}
+@media(max-width:560px){
+  body.fire-bob .bob-stage-badge{display:none}
+  body.fire-bob .bob-section-toggle>summary{min-height:58px;padding:12px 14px}
+  body.fire-bob .bob-section-toggle>summary strong{font-size:15px}
+}
