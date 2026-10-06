@@ -20,7 +20,9 @@ Secondary sections remain available through **🧰 Tools**:
 - 🛡️ Safety Guide
 - Install / Update App only when the browser exposes a real install prompt
 
-Field Tools no longer carries a second set of one-tap SH favorites. That duplicate launcher was consolidated into a smaller **Saved mixes** card that only saves/reuses mixes the owner actually chooses to keep. Saved mixes now preserve surface, dirtiness, batch size, final SH target, actual stock strength, and Elemonator rate; arbitrary custom batch sizes restore through the Custom batch path.
+Field Tools no longer carries a second set of one-tap SH favorites. That duplicate launcher was consolidated into a smaller **Saved mixes** card that only saves/reuses mixes the owner actually chooses to keep.
+
+Saved mixes preserve the full practical SH recipe state used to recreate the mix: surface, dirtiness, batch gallons, target SH %, actual stock SH %, and Elemonator rate. Older saved mixes that predate stock/surfactant fields remain reusable; missing Elemonator data falls back to the current surface-safe default instead of inheriting an unrelated value from the screen. Malformed legacy storage is ignored safely, custom batch sizes restore in gallons, and saved names are escaped before rendering. Saved mixes now preserve surface, dirtiness, batch size, final SH target, actual stock strength, and Elemonator rate; arbitrary custom batch sizes restore through the Custom batch path.
 
 ### SH Mix
 
@@ -115,10 +117,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=20`
+- `full-v18.js?v=23`
 - `best-of-both.js?v=28`
 - `best-of-both.css?v=15`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-145`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-148`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
@@ -152,6 +154,7 @@ The best-of-both contract specifically protects:
 - offline asset-version consistency
 - advanced Job Plan / Equipment open-state preservation
 - duplicate one-tap favorites staying out of Field Tools while Saved mixes remains available
+- full Saved mix restore behavior, custom batch restoration, malformed-storage recovery, and legacy Saved mix migration
 - full Saved mixes restore behavior, including custom batch sizes, stock strength, and Elemonator rate
 
 ## Validation boundary
