@@ -227,7 +227,7 @@
           if(note)note.textContent=p.icon+' '+p.name+': '+p.note;
           return;
         }
-        if(surface){surface.value=p.surface;fireInput(surface);}
+        if(surface){surface.value=p.surface;fireInput(surface);} if(p.surface&&window.__fireSetDwellForSurface)window.__fireSetDwellForSurface(p.surface);
         /* Standardize favorites on the existing Moderate condition behavior. */
         const mod=$('#growthSeg [data-growth="moderate"]'); if(mod)mod.click();
         const target=$('#targetNum'); if(target){target.value=p.pct;fireInput(target);}
@@ -354,10 +354,49 @@
     wrapCard(fillTime,'Future tank fill time','Estimate fill time from hose flow');
   }
 
+  function dwellTimerPolish(){
+    const card=$('#dwellTimerCard'); if(!card || card.dataset.bobDone)return;
+    card.dataset.bobDone='1';
+    const min=$('#timerMin'), preset=$('#timerPreset');
+
+    const setMinutes=(n)=>{
+      if(!min)return;
+      min.value=Math.max(1,Math.min(120,Math.round(n)));
+      fireInput(min);
+      $('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value));
+    };
+
+    $('#dwellQuick [data-dwell-min]').forEach(b=>b.addEventListener('click',()=>setMinutes(+b.dataset.dwellMin)));
+    $('#timerMinus')?.addEventListener('click',()=>setMinutes((+min.value||1)-1));
+    $('#timerPlus')?.addEventListener('click',()=>setMinutes((+min.value||1)+1));
+    min?.addEventListener('input',()=>$('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value)));
+
+    /* Keep suggested checks tied to the selected SH favorite without auto-starting. */
+    const suggested={
+      house:5,fencew:3,painted:3,concrete:5,roof:10,brick:5,stucco:3,pavers:5
+    };
+    window.__fireSetDwellForSurface=(surface)=>{
+      const n=suggested[surface];
+      if(!n || !preset)return;
+      const match=Array.from(preset.options).find(o=>+o.value===n && o.textContent.toLowerCase().includes(
+        surface==='house'?'house':
+        surface==='fencew'?'wood':
+        surface==='painted'?'painted':
+        surface==='concrete'?'concrete':
+        surface==='roof'?'roof':
+        surface==='brick'?'brick':
+        surface==='stucco'?'stucco':
+        surface==='pavers'?'pavers':''
+      ));
+      if(match)preset.value=match.value;
+      setMinutes(n);
+    };
+  }
+
   function chemicalPolish(){
     /* LIVE Mixes is a user-favorite section. Preserve its content and calculator behavior. */
   }
 
-  setTitle(); relabelTabs(); quickFavorites(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); chemicalPolish();
+  setTitle(); relabelTabs(); quickFavorites(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); chemicalPolish();
   $('#surface')?.addEventListener('change',syncSurface);
 })();
