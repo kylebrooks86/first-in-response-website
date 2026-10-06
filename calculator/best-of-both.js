@@ -180,7 +180,7 @@
       {icon:'🎨',name:'Painted Wood / Brick / Masonry',pct:.5,surface:'painted',ele:.3,note:'Sound exterior paint only. Check for chalking, peeling, oxidation, or failing coating and test first.'},
       {icon:'🧱',name:'Concrete Pre-Treat',pct:2,surface:'concrete',ele:0,eleOptional:.3,note:'Surfactant is optional here; add only when extra wetting / cling helps.'},
       {icon:'💦',name:'Concrete Post-Treat',pct:1,surface:'post',ele:0,note:'No surfactant by default for a leave-on post-treatment.'},
-      {icon:'🏚️',name:'Asphalt Roof / Black Streaks',pct:4,surface:'roof',ele:.3,note:'Typical black-streak starting mix. Verify the shingle manufacturer and never use high pressure.'},
+      {icon:'🏚️',name:'Asphalt Roof / Black Streaks',pct:4,surface:'roof',ele:1,note:'Typical black-streak starting mix. Roof preset uses a heavier Elemonator dose for more cling. Verify the shingle manufacturer and never use high pressure.'},
       {icon:'🧱',name:'Bare Brick / Masonry',pct:1,surface:'brick',ele:.3,note:'For ordinary organic growth on unpainted brick / masonry. Natural stone is not included.'}
     ];
     const more=[
