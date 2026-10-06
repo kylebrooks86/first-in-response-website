@@ -393,10 +393,34 @@
     };
   }
 
+  function toolsPolish(){
+    const tools=$('#tools'); if(!tools || tools.dataset.bobDone)return;
+    tools.dataset.bobDone='1';
+
+    /* Remove the old v18 one-tap favorites so they cannot conflict with the
+       newer surface-aware Quick Favorites in SH Mix (including 4% roof). */
+    const oldFav=$(':scope > .card',tools).find(card=>($('h2',card)?.textContent||'').trim()==='Quick Mix Favorites');
+    oldFav?.remove();
+
+    const dwell=$('#dwellTimerCard');
+    if(dwell)tools.insertBefore(dwell,tools.firstChild);
+
+    if(dwell && !$('#bobGoDwellFromMix')){
+      const fav=$('#bobQuickFavorites');
+      if(fav){
+        const go=document.createElement('button');
+        go.type='button'; go.id='bobGoDwellFromMix'; go.className='bob-dwell-link';
+        go.textContent='⏱️ Open Dwell Timer';
+        go.addEventListener('click',()=>{$('.tab[data-view="tools"]')?.click();setTimeout(()=>dwell.scrollIntoView({behavior:'smooth',block:'start'}),120);});
+        fav.appendChild(go);
+      }
+    }
+  }
+
   function chemicalPolish(){
     /* LIVE Mixes is a user-favorite section. Preserve its content and calculator behavior. */
   }
 
-  setTitle(); relabelTabs(); quickFavorites(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); chemicalPolish();
+  setTitle(); relabelTabs(); quickFavorites(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); chemicalPolish();
   $('#surface')?.addEventListener('change',syncSurface);
 })();
