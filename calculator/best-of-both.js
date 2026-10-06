@@ -273,7 +273,18 @@
   }
 
   function toolsMenu(){
-    if($('#bobToolsSheet'))return;
+    const placeInstall=(sheet)=>{
+      const install=$('#installBtn');
+      if(!install||!sheet)return;
+      install.classList.remove('hidden','topbtn','install');
+      install.classList.add('bob-tools-install');
+      install.textContent='Install / Update App';
+      if(install.parentElement!==sheet)sheet.appendChild(install);
+    };
+
+    const existing=$('#bobToolsSheet');
+    if(existing){placeInstall(existing);return;}
+
     const top=$('.toprow'); if(!top)return;
     const btn=document.createElement('button'); btn.type='button'; btn.className='bob-tools-btn'; btn.textContent='Tools';
     btn.setAttribute('aria-controls','bobToolsSheet');btn.setAttribute('aria-expanded','false');
@@ -285,6 +296,7 @@
       b.addEventListener('click',()=>{const t=$('.tab[data-view="'+view+'"]'); if(t)t.click(); close();});
       sheet.appendChild(b);
     });
+    placeInstall(sheet);
     btn.addEventListener('click',e=>{e.stopPropagation();const open=!sheet.classList.contains('open');sheet.classList.toggle('open',open);btn.setAttribute('aria-expanded',String(open))});
     sheet.addEventListener('click',e=>e.stopPropagation());
     document.addEventListener('click',close);
