@@ -32,7 +32,7 @@
     await load('./full-v18-core.js?v=7');
     await waitForCore();
     await load('./v18-legacy-job-detach.js?v=2');
-    await load('./full-v18-parity-core.js?v=3');
+    await load('./full-v18-parity-core.js?v=4');
     await load('./v18-behavior.js?v=7');
     await load('./v18-interactions.js?v=4');
     await load('./v18-fine-parity.js?v=13');
@@ -48,7 +48,7 @@
     await load('./v18-live-index-parity.js?v=2');
     await load('./v18-live-guide-parity.js?v=4');
     await load('./v18-live-navigation-parity.js?v=6');
-    await load('./v18-live-tools-parity.js?v=2');
+    await load('./v18-live-tools-parity.js?v=3');
     await load('./v18-live-tools-options-parity.js?v=2');
     await load('./v18-live-tools-fine.js?v=2');
     await load('./v18-live-pricing-parity.js?v=2');
