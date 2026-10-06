@@ -10,6 +10,8 @@ const loader=read('full-v18.js');
 const sw=read('sw.js');
 const toolsParity=read('v18-live-tools-parity.js');
 const parityCore=read('full-v18-parity-core.js');
+const interactions=read('v18-interactions.js');
+const portableBackup=read('v18-live-portable-backup.js');
 
 const fail=msg=>{console.error('BEST-OF-BOTH CONTRACT FAIL:',msg);process.exit(1)};
 const ok=(cond,msg)=>{if(!cond)fail(msg)};
@@ -95,6 +97,8 @@ ok(toolsParity.includes("const esc=s=>String(s??'').replace")&&toolsParity.inclu
 ok(toolsParity.includes("requestedSurface")&&toolsParity.includes("[...s.options].some(o=>o.value===requestedSurface)"),'Saved mixes do not validate restored surface values');
 ok(parityCore.includes("moveOrder(tools,['Saved mixes'"),'Saved mixes is not ordered in the Field Tools workflow');
 ok(!bob.includes('oldFav?.remove()'),'best-of-both late layout can delete the Saved mixes card');
+ok(interactions.includes("const prefixes=['fireV18','fireFieldCalculator','fireCalcTheme']"),'full offline backup no longer includes fireV18 Saved mixes storage');
+ok(portableBackup.includes("k?.startsWith('fire')"),'portable backup no longer captures Saved mixes storage');
 
 ok(css.includes('body.fire-bob #chemicals .card')&&css.includes('body.fire-bob #index .card'),'LIVE Mixes / Index protection rules are missing');
 ok(css.includes('font-size:16px!important'),'best-of-both inputs no longer protect against iPhone focus zoom');
