@@ -23,4 +23,4 @@ No production/LIVE deployment was changed by this recovery release. Rendered par
 - Database migrations: **21 contiguous (0000–0020)**
 - Strict rendered parity: **NOT_YET_FULLY_VERIFIED**
 - Evidence: **11/32 LIVE, 0/32 independent, 0 verified identical, 0 mismatches**
-- Owner-approved forward-sync blockers: **2**
+- Owner-approved forward-sync blockers: **3**
