@@ -119,8 +119,12 @@ Current asset generation at this audit:
 
 Regression evidence:
 - **68/68 formula regression tests pass**
+- **13/13 best-of-both preset chemistry tests pass**
 - **Best-of-both contract passes**
 - 9 Quick Presets verified
+- 4-gal house / roof / concrete recipe math verified at current preset surfactant rates
+- 10% vs 12.5% stock behavior verified
+- impossible target-above-stock behavior verified
 - 27 dynamically loaded modules represented in the offline cache
 - 38 versioned loader/entry assets covered by the best-of-both cache contract
 - no detected single-element selector being used as a collection in `best-of-both.js`
