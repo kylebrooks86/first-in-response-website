@@ -112,26 +112,32 @@
       const fine=$('#bobRecipeFineTune');if(fine)fine.open=true;
     };
 
+    const applyPresetTarget=(p,g=currentGrowth())=>{
+      const desired=presetStrength(p,g),stock=Math.max(0,+($('#stockStrength')?.value||0)),target=$('#targetNum');
+      const limited=stock>0&&desired>stock;
+      if(target){target.value=limited?stock:desired;fireInput(target);}
+      if(limited){
+        activePreset=null;setCustomSummary();if(noteWrap)noteWrap.open=true;
+        if(note)note.textContent='⚠️ '+p.name+' calls for '+desired+'% SH at this dirtiness level, but your current stock is only '+stock+'%. The recipe was limited to '+stock+'%. Use stronger stock or choose a lower target.';
+      }
+      return {desired,stock,limited};
+    };
+
     const selectPreset=(p)=>{
       applyingPreset=true;activePreset=p;
       if(surface){surface.value=p.surface;fireInput(surface);}
       if(p.surface&&window.__fireSetDwellForSurface)window.__fireSetDwellForSurface(p.surface);
-      const desired=presetStrength(p,currentGrowth()),stock=Math.max(0,+($('#stockStrength')?.value||0)),target=$('#targetNum');
-      const limited=stock>0&&desired>stock;
-      if(target){target.value=limited?stock:desired;fireInput(target);}
+      const result=applyPresetTarget(p);
       const ele=$('#eleRate'); if(ele){ele.value=p.ele;fireInput(ele);}
       Array.from(card.querySelectorAll('.bob-preset-option')).forEach(b=>(b.classList.toggle('selected',b._bobPreset===p),b.setAttribute('aria-pressed',String(b._bobPreset===p))));
-      if(limited){activePreset=null;setCustomSummary();if(noteWrap)noteWrap.open=true;}
-      else setSummary(p);
+      if(!result.limited)setSummary(p);
       applyingPreset=false;
       if(menu)menu.open=false;
-      if(note){
+      if(note&&!result.limited){
         const surf=p.ele===0&&p.eleOptional
           ?' Elemonator is optional here; the preset leaves it at 0 oz. Add '+p.eleOptional.toFixed(1)+' oz per gallon of final mixed solution only when extra wetting or dwell is useful.'
           :(p.ele===0?' No Elemonator is added by default.':' Elemonator is set to '+p.ele.toFixed(1)+' oz per gallon of final mixed solution.');
-        note.textContent=limited
-          ?'⚠️ '+p.name+' calls for '+desired+'% SH at this dirtiness level, but your current stock is only '+stock+'%. The recipe was limited to '+stock+'%. Use stronger stock or choose a lower target.'
-          :p.icon+' '+p.name+': '+p.note+surf;
+        note.textContent=p.icon+' '+p.name+': '+p.note+surf;
       }
     };
 
@@ -160,10 +166,11 @@
     });
     Array.from(document.querySelectorAll('#growthSeg [data-growth]')).forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{
       if(activePreset&&surface?.value===activePreset.surface){
-        const g=b.dataset.growth,target=$('#targetNum'),strength=presetStrength(activePreset,g);
-        if(target){target.value=strength;fireInput(target);}
-        setSummary(activePreset);
-        if(note&&activePreset.surface==='painted')note.textContent='🎨 Painted exterior stays at a conservative 0.5% SH for Light, Medium, and Heavy. Inspect for chalking, peeling, oxidation, or failing coating and test first.';
+        const p=activePreset,result=applyPresetTarget(p,b.dataset.growth);
+        if(!result.limited){
+          setSummary(p);
+          if(note&&p.surface==='painted')note.textContent='🎨 Painted exterior stays at a conservative 0.5% SH for Light, Medium, and Heavy. Inspect for chalking, peeling, oxidation, or failing coating and test first.';
+        }
       }else setCustomSummary();
     },0)));
     surface?.addEventListener('change',()=>setTimeout(()=>{
@@ -220,8 +227,15 @@
       if(preset.value==='custom')more.open=true;
       else if(document.activeElement===preset)more.open=false;
     };
-    preset.addEventListener('change',refresh);
-    Array.from(document.querySelectorAll('#batchChips [data-batch]')).forEach(b=>b.addEventListener('click',()=>{if(custom)custom.classList.add('hidden');if(more)more.open=false;setTimeout(refresh,0)}));
+    if(!preset.dataset.bobBatchBound){
+      preset.dataset.bobBatchBound='1';
+      preset.addEventListener('change',refresh);
+    }
+    Array.from(document.querySelectorAll('#batchChips [data-batch]')).forEach(b=>{
+      if(b.dataset.bobBatchBound)return;
+      b.dataset.bobBatchBound='1';
+      b.addEventListener('click',()=>{if(custom)custom.classList.add('hidden');if(more)more.open=false;setTimeout(refresh,0)});
+    });
     refresh();
   }
 
