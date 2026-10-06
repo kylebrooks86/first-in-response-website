@@ -41,7 +41,7 @@ async function finalizeRefund(id:string,providerRefundId:string|null){
     env.DB.prepare("UPDATE payment_refunds SET status='succeeded',provider_refund_id=COALESCE(?,provider_refund_id),completed_at=? WHERE id=? AND status='pending'")
       .bind(providerRefundId,now,row.id),
     env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
-      SELECT ?,?,'Refund',?,'paid',?,?
+      SELECT ?,?,CASE WHEN ?='Tip' THEN 'Tip Refund' ELSE 'Refund' END,?,'paid',?,?
       WHERE EXISTS (SELECT 1 FROM payment_refunds r WHERE r.id=? AND r.status='succeeded')
         AND NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
       .bind(crypto.randomUUID(),row.estimateId,row.paymentType,-amount,refundPaymentProvider,now,row.id,refundPaymentProvider),
