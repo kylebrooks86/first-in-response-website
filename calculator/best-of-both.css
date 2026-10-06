@@ -34,7 +34,7 @@ body.fire-bob .card h2,body.fire-bob .card h3{color:#fff!important}
 body.fire-bob .kicker{color:var(--bob-amber)!important;font-size:13px!important;letter-spacing:.14em!important;font-weight:900!important}
 body.fire-bob label{color:#c4cbd1!important;font-weight:800!important;font-size:14px!important}
 body.fire-bob .muted{color:var(--bob-muted)!important}
-body.fire-bob input,body.fire-bob select,body.fire-bob textarea{background:#050809!important;color:#fff!important;border:1px solid #343e45!important;border-radius:15px!important;min-height:54px!important}
+body.fire-bob input,body.fire-bob select,body.fire-bob textarea{background:#050809!important;color:#fff!important;border:1px solid #343e45!important;border-radius:15px!important;min-height:54px!important;font-size:16px!important}
 body.fire-bob input:focus,body.fire-bob select:focus,body.fire-bob textarea:focus{outline:2px solid rgba(87,185,255,.22)!important;border-color:var(--bob-blue)!important}
 body.fire-bob .unit{color:#c7ced3!important}
 body.fire-bob .chip{border:1px solid #343e45!important;background:#191f24!important;color:#e9edf0!important;border-radius:16px!important;font-weight:800!important}
@@ -64,7 +64,7 @@ body.fire-bob .bottom{display:none!important}
 
 @media(max-width:560px){
   body.fire-bob .stock{display:none!important}
-  body.fire-bob .bob-tools-btn{width:42px!important;min-width:42px!important;padding:8px 0!important;font-size:0!important}
+  body.fire-bob .bob-tools-btn{width:44px!important;min-width:44px!important;padding:8px 0!important;font-size:0!important}
   body.fire-bob .bob-tools-btn::before{content:'🧰';font-size:18px;line-height:1}
   body.fire-bob .page{padding-left:14px!important;padding-right:14px!important}
   body.fire-bob .card{padding:16px!important;border-radius:20px!important}
@@ -238,7 +238,7 @@ body.fire-bob .bob-dirtiness-field label{
 }
 body.fire-bob .bob-dirtiness-field #growthSeg{gap:6px!important}
 body.fire-bob .bob-dirtiness-field #growthSeg .chip{
-  flex:1!important;min-width:0!important;min-height:40px!important;padding:8px 6px!important;font-size:13px!important;
+  flex:1!important;min-width:0!important;min-height:44px!important;padding:8px 6px!important;font-size:13px!important;
 }
 body.fire-bob .bob-surface-only-field{grid-column:1/-1!important}
 
@@ -247,7 +247,7 @@ body.fire-bob .bob-manual-surface{
   margin-top:9px;border-top:1px solid #2f3b44;padding-top:7px
 }
 body.fire-bob .bob-manual-surface>summary{
-  min-height:38px;display:flex;align-items:center;cursor:pointer;color:#aeb9c1;font-size:12px;font-weight:800
+  min-height:44px;display:flex;align-items:center;cursor:pointer;color:#aeb9c1;font-size:12px;font-weight:800
 }
 body.fire-bob .bob-manual-surface-body{padding:4px 0 2px}
 body.fire-bob .bob-manual-surface-body .field{margin:0!important}
@@ -259,7 +259,7 @@ body.fire-bob .bob-stock-extra{
   margin-top:10px;border-top:1px solid #2f3b44;padding-top:6px
 }
 body.fire-bob .bob-stock-extra>summary{
-  min-height:40px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:10px;
   cursor:pointer;color:#dbe3e8;font-size:12px
 }
 body.fire-bob .bob-stock-extra>summary strong{font-size:13px}
@@ -273,7 +273,7 @@ body.fire-bob .bob-batch-more{
   grid-column:1/-1;margin-top:8px;border-top:1px solid #2f3b44;padding-top:6px
 }
 body.fire-bob .bob-batch-more>summary{
-  min-height:40px;display:flex;align-items:center;cursor:pointer;color:#aeb9c1;font-size:12px;font-weight:800
+  min-height:44px;display:flex;align-items:center;cursor:pointer;color:#aeb9c1;font-size:12px;font-weight:800
 }
 body.fire-bob .bob-batch-more-body{padding:6px 0 0}
 body.fire-bob .bob-batch-more-body .field{margin:0 0 8px!important}
@@ -289,7 +289,7 @@ body.fire-bob .bob-other-stock{
 }
 body.fire-bob .bob-recipe-fine>summary,
 body.fire-bob .bob-other-stock>summary{
-  min-height:40px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:10px;
   cursor:pointer;color:#dbe3e8;font-size:12px;font-weight:800
 }
 body.fire-bob .bob-recipe-fine>summary span{color:#8f9aa2;font-weight:600}
@@ -315,7 +315,7 @@ body.fire-bob .bob-preset-note{
   margin-top:8px;border-top:1px solid #2f3b44;padding-top:5px
 }
 body.fire-bob .bob-preset-note>summary{
-  min-height:36px;display:flex;align-items:center;cursor:pointer;color:#9fabb4;
+  min-height:44px;display:flex;align-items:center;cursor:pointer;color:#9fabb4;
   font-size:11px;font-weight:800
 }
 body.fire-bob .bob-preset-note .bob-fav-note{margin:2px 0 4px}
