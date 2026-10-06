@@ -11,6 +11,7 @@
     "apply-fire-dr-mobile-shell-fix.py",
     "apply-fire-dr-parity-summary-sync.py",
     "apply-fire-dr-template-parity-fix.py",
+    "apply-fire-dr-tipping.py",
     "deploy-fire-dr-staging.sh",
     "prepare-fire-v138-dr-no-r2.sh",
     "record-fire-dr-forward-sync.py",
@@ -40,6 +41,7 @@
     "verify-fire-dr-restore-identity.py",
     "verify-fire-dr-restore-v135-v138.py",
     "verify-fire-dr-script-inventory.py",
+    "verify-fire-dr-tipping.py",
     "verify-fire-dr-tooling-syntax.py",
     "write-fire-dr-build-provenance.py"
   ]
