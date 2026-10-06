@@ -42,7 +42,7 @@ function installXJetLiveParity(){
       for(const x of strengths){if(x.str<=target)lower=x;if(x.str>=target){upper=x;break}}
       const chemOz=128*pct/100,waterOz=128-chemOz;
       const box=$('#xLiveGuidance',first);if(!box)return;
-      box.innerHTML=`<p>Your target is bracketed by ${lower.name} ≈ ${lower.str.toFixed(2)}% and ${upper.name} ≈ ${upper.str.toFixed(2)}%. Use the reverse recipe below for an exact bucket mix.</p><p><strong>Pickup solution</strong> ${chemOz.toFixed(1)} fl oz per gallon sprayed<br><strong>Pressure-washer water</strong> ${waterOz.toFixed(1)} fl oz per gallon sprayed</p><p>This matches your ${n('xGpm',4).toFixed(0)} GPM Simpson and the condition used for the factory proportioner estimates.</p><p>The manufacturer lists typical reach up to about 50 ft for the 3–7 GPM DS Twist.</p>`;
+      box.innerHTML=`<p>Your target is bracketed by ${lower.name} ≈ ${lower.str.toFixed(2)}% and ${upper.name} ≈ ${upper.str.toFixed(2)}%. Use the reverse recipe below for an exact bucket mix.</p><p><strong>Pickup solution</strong> ${chemOz.toFixed(1)} fl oz per gallon sprayed<br><strong>Pressure-washer water</strong> ${waterOz.toFixed(1)} fl oz per gallon sprayed</p><p>This matches your ${n('xGpm',4).toFixed(0)} GPM pressure washer and the condition used for the factory proportioner estimates.</p><p>The manufacturer lists typical reach up to about 50 ft for the 3–7 GPM DS Twist.</p>`;
     };
     ['xMeasuredPct','xBucket','xDesired','xGpm'].forEach(id=>$('#'+id)?.addEventListener('input',renderGuidance));renderGuidance();
   }
