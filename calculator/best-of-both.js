@@ -101,7 +101,8 @@
 
     const setSummary=(p)=>{
       if(!summary)return;
-      const strength=presetStrength(p);summary.innerHTML='<span class="bob-preset-summary-icon">'+p.icon+'</span><span class="bob-preset-summary-copy"><strong>'+p.name+'</strong><small>'+strength+'% SH · '+surfactantText(p)+'</small></span>';
+      const g=currentGrowth(),dirt=g==='moderate'?'Medium':g.charAt(0).toUpperCase()+g.slice(1),strength=presetStrength(p,g);
+      summary.innerHTML='<span class="bob-preset-summary-icon">'+p.icon+'</span><span class="bob-preset-summary-copy"><strong>'+p.name+'</strong><small>'+dirt+' · '+strength+'% SH · '+surfactantText(p)+'</small></span>';
     };
     const setCustomSummary=()=>{
       if(!summary)return;
