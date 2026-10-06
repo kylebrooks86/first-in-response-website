@@ -90,6 +90,9 @@ ok(toolsParity.includes("stockStrength:n('stockStrength')")&&toolsParity.include
 ok(toolsParity.includes("hasPreset=[...b.options].some(o=>o.value===value)")&&toolsParity.includes("b.value='custom'"),'Saved custom batch sizes cannot be restored reliably');
 ok(toolsParity.includes("if(stockStrength!=null)setVal('stockStrength',stockStrength)")&&toolsParity.includes("const restoredEle=eleRate!=null?eleRate:defaultEleRate[surface]")&&toolsParity.includes("if(restoredEle!=null)setVal('eleRate',restoredEle)"),'Saved mixes do not restore full SH recipe settings');
 ok(toolsParity.includes("const defaultEleRate={house:.3")&&toolsParity.includes("roof:1"),'legacy Saved mixes have no surfactant fallback migration');
+ok(toolsParity.includes("return Array.isArray(data)?data.filter")&&toolsParity.includes("typeof x==='object'"),'Saved mixes do not reject malformed legacy storage');
+ok(toolsParity.includes("const esc=s=>String(s??'').replace")&&toolsParity.includes("esc(x.name||'Saved SH mix')"),'Saved mix names are not escaped before rendering');
+ok(toolsParity.includes("requestedSurface")&&toolsParity.includes("[...s.options].some(o=>o.value===requestedSurface)"),'Saved mixes do not validate restored surface values');
 ok(parityCore.includes("moveOrder(tools,['Saved mixes'"),'Saved mixes is not ordered in the Field Tools workflow');
 ok(!bob.includes('oldFav?.remove()'),'best-of-both late layout can delete the Saved mixes card');
 
