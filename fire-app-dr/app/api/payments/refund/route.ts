@@ -26,7 +26,7 @@ async function finalizeRefund(id:string,providerRefundId:string|null){
   const row=await refundRow(id);
   if(!row)return {ok:false,status:404,error:"Refund request not found."};
   if(row.status==="succeeded"){
-    const paid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(row.estimateId).first<{amount:number}>();
+    const paid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(row.estimateId).first<{amount:number}>();
     const paidCents=Number(paid?.amount??0);
     if(!Number.isSafeInteger(paidCents)||paidCents<0)return {ok:false,status:409,error:"This completed refund has a payment total outside FIRE's safe accounting range."};
     return {ok:true,status:200,paidCents,duplicate:true};
@@ -44,7 +44,7 @@ async function finalizeRefund(id:string,providerRefundId:string|null){
       SELECT ?,?,'Refund',?,'paid',?,?
       WHERE EXISTS (SELECT 1 FROM payment_refunds r WHERE r.id=? AND r.status='succeeded')
         AND NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
-      .bind(crypto.randomUUID(),row.estimateId,-amount,refundPaymentProvider,now,row.id,refundPaymentProvider),
+      .bind(crypto.randomUUID(),row.estimateId,row.paymentType,-amount,refundPaymentProvider,now,row.id,refundPaymentProvider),
     env.DB.prepare(`UPDATE invoices SET status=CASE
       WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)>=total_cents THEN 'paid'
       WHEN COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)>0 THEN 'partial'
@@ -56,7 +56,7 @@ async function finalizeRefund(id:string,providerRefundId:string|null){
         <= COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=? LIMIT 1),(SELECT e.total_cents FROM estimates e WHERE e.id=?))`)
       .bind(now,now,`refund:${amount}`,row.estimateId,row.estimateId,row.estimateId,row.estimateId),
     env.DB.prepare(`INSERT OR IGNORE INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
-      VALUES (?,?,?,?,?,?,?)`).bind(`refund-note:${row.id}`,"payment_refunded",`Refund recorded for ${row.customer}`,`${currency(amount)} refund recorded for this job.`,row.customerId,row.estimateId,now),
+      VALUES (?,?,?,?,?,?,?)`).bind(`refund-note:${row.id}`,row.paymentType==="Tip"?"tip_refunded":"payment_refunded",row.paymentType==="Tip"?`Tip refund recorded for ${row.customer}`:`Refund recorded for ${row.customer}`,`${currency(amount)} ${row.paymentType==="Tip"?"tip refund":"refund"} recorded for this job.`,row.customerId,row.estimateId,now),
   ];
   await env.DB.batch(statements);
   const [verifiedRequest,verifiedLedger]=await Promise.all([
@@ -65,7 +65,7 @@ async function finalizeRefund(id:string,providerRefundId:string|null){
   ]);
   if(verifiedRequest?.status!=="succeeded"||Number(verifiedRequest.amountCents)!==amount||Number(verifiedLedger?.amountCents)!==-amount)
     return {ok:false,status:409,error:"Refund confirmation did not converge on one verified ledger entry. Refresh payment history before trying anything else."};
-  const paid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(row.estimateId).first<{amount:number}>();
+  const paid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(row.estimateId).first<{amount:number}>();
   const paidCents=Number(paid?.amount??0);
   if(!Number.isSafeInteger(paidCents)||paidCents<0)return {ok:false,status:409,error:"Refund was recorded, but the refreshed payment total requires owner review."};
   return {ok:true,status:200,paidCents,duplicate:false};
@@ -96,7 +96,7 @@ export async function POST(request:Request){
     if(payment.status!=="paid"||!Number.isSafeInteger(originalAmount)||originalAmount<=0)
       return Response.json({error:"Only a positive recorded payment can be refunded."},{status:409});
 
-    const stripePayment=(payment.type==="deposit"||payment.type==="balance")&&Boolean(payment.providerId?.startsWith("cs_"));
+    const stripePayment=["deposit","balance","Tip"].includes(payment.type)&&Boolean(payment.providerId?.startsWith("cs_"));
     const mode=stripePayment?"stripe":"manual";
 
     const existing=await env.DB.prepare("SELECT payment_id AS paymentId,amount_cents AS amountCents,mode,status,provider_refund_id AS providerRefundId FROM payment_refunds WHERE id=? LIMIT 1")
@@ -154,7 +154,8 @@ export async function POST(request:Request){
       return Response.json({...result,mode:"stripe",moneyMovedByFire:true},{status:result.status});
     }
 
-    const sessionResponse=await stripeGet(`checkout/sessions/${encodeURIComponent(payment.providerId!)}`,runtime.STRIPE_SECRET_KEY);
+    const checkoutSessionId=payment.type==="Tip"?String(payment.providerId||"").replace(/:tip$/,""):payment.providerId!;
+    const sessionResponse=await stripeGet(`checkout/sessions/${encodeURIComponent(checkoutSessionId)}`,runtime.STRIPE_SECRET_KEY);
     const session=await sessionResponse.json() as {payment_intent?:string|{id?:string};error?:{message?:string}};
     const paymentIntent=typeof session.payment_intent==="string"?session.payment_intent:session.payment_intent?.id;
     if(!sessionResponse.ok||!paymentIntent){
