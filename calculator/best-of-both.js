@@ -32,12 +32,13 @@
   }
 
   function relabelTabs(){
-    const mix=$('.tab[data-view="mix"]'), job=$('.tab[data-view="job"]'), chem=$('.tab[data-view="chemicals"]');
+    const mix=$('.tab[data-view="mix"]'), chem=$('.tab[data-view="chemicals"]'), index=$('.tab[data-view="index"]'), job=$('.tab[data-view="job"]');
     if(mix)mix.textContent='SH Mix';
+    if(chem)chem.textContent='Mixes';
+    if(index)index.textContent='Index';
     if(job)job.textContent='Job Plan';
-    if(chem)chem.textContent='Other Chems';
     const tabs=$('.tabs');
-    if(tabs && mix && job && chem){ tabs.append(mix,job,chem); }
+    if(tabs && mix && chem && index && job){ tabs.append(mix,chem,index,job); }
   }
 
   function surfaceTiles(){
@@ -158,7 +159,7 @@
     const top=$('.toprow'); if(!top)return;
     const btn=document.createElement('button'); btn.type='button'; btn.className='bob-tools-btn'; btn.textContent='Tools';
     const sheet=document.createElement('div'); sheet.id='bobToolsSheet'; sheet.className='bob-tools-sheet';
-    const items=[['equipment','Equipment / X-Jet'],['index','Chemical Index'],['tools','Field Tools'],['guide','Safety Guide']];
+    const items=[['equipment','Equipment / X-Jet'],['tools','Field Tools'],['guide','Safety Guide']];
     items.forEach(([view,label])=>{
       const b=document.createElement('button');b.type='button';b.textContent=label;
       b.addEventListener('click',()=>{const t=$('.tab[data-view="'+view+'"]'); if(t)t.click(); sheet.classList.remove('open');});
@@ -180,10 +181,7 @@
   }
 
   function chemicalPolish(){
-    const chem=$('#chemicals'); if(!chem || $('#bobChemIntro'))return;
-    const intro=document.createElement('div');intro.id='bobChemIntro';intro.className='card';
-    intro.innerHTML='<div class="kicker">YOUR CHEMICAL SHELF</div><h2>Pick the right calculator</h2><p class="muted">Use separate, labeled sprayers and follow the current product label. Advanced chemical search and compatibility tools are under Tools.</p>';
-    chem.prepend(intro);
+    /* LIVE Mixes is a user-favorite section. Preserve its content and calculator behavior. */
   }
 
   setTitle(); relabelTabs(); toolsMenu(); jobPolish(); chemicalPolish();
