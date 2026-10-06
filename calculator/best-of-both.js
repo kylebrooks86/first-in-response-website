@@ -484,11 +484,7 @@
     syncLateStockTools();
   }
 
-  function chemicalPolish(){
-    /* LIVE Mixes is a user-favorite section. Preserve its content and calculator behavior. */
-  }
-
-  setTitle(); relabelTabs(); quickFavorites(); batchPolish(); recipePolish(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); chemicalPolish(); syncLateStockTools();
+  setTitle(); relabelTabs(); quickFavorites(); batchPolish(); recipePolish(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); syncLateStockTools();
   $('#stockStrength')?.addEventListener('input',syncLateStockTools);
   window.addEventListener('fire-v18-shared-core-ready',()=>setTimeout(reapplyLateLayout,0));
   window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(reapplyLateLayout,0));
