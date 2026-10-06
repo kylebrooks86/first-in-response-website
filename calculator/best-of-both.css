@@ -5,7 +5,7 @@ body.fire-bob{
   --bob-bg:#090d10;--bob-panel:#12181c;--bob-panel2:#1a2025;--bob-line:#303940;
   --bob-text:#f5f7f8;--bob-muted:#aab3bb;--bob-red:#e52b24;--bob-red2:#b8201b;
   --bob-amber:#ffbd3f;--bob-blue:#57b9ff;--bob-green:#4ad58b;
-  background:var(--bob-bg)!important;color:var(--bob-text)!important;padding-bottom:84px!important;
+  background:var(--bob-bg)!important;color:var(--bob-text)!important;padding-bottom:calc(84px + env(safe-area-inset-bottom))!important;
 }
 body.fire-bob .topbar{position:sticky;top:0;background:linear-gradient(180deg,#190d0e 0%,#100d0e 100%)!important;border-bottom:1px solid #291416!important;padding:calc(10px + env(safe-area-inset-top)) 14px 10px!important}
 body.fire-bob .toprow{max-width:880px!important;min-height:58px!important;gap:12px!important}
@@ -17,7 +17,7 @@ body.fire-bob .stock{margin-left:auto;border:1px solid #7f2929!important;backgro
 body.fire-bob #themeBtn{display:none!important}
 body.fire-bob .warn{display:none!important}
 
-body.fire-bob .tabswrap{position:sticky;top:78px;z-index:39;max-width:880px;margin:0 auto!important;padding:10px 14px 8px;background:rgba(9,13,16,.96)!important;border:0!important;backdrop-filter:blur(12px)}
+body.fire-bob .tabswrap{position:sticky;top:calc(78px + env(safe-area-inset-top));z-index:39;max-width:880px;margin:0 auto!important;padding:10px 14px 8px;background:rgba(9,13,16,.96)!important;border:0!important;backdrop-filter:blur(12px)}
 body.fire-bob .tabs{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px!important;padding:5px!important;background:#040607!important;border:1px solid var(--bob-line)!important;border-radius:18px!important;overflow:visible!important}
 body.fire-bob .tab{display:none!important;background:transparent!important;color:#bec6cd!important;border-radius:13px!important;min-height:50px!important;padding:12px 8px!important;font-size:16px!important;font-weight:850!important}
 body.fire-bob .tab[data-view="mix"],body.fire-bob .tab[data-view="chemicals"],body.fire-bob .tab[data-view="index"],body.fire-bob .tab[data-view="job"]{display:block!important}
@@ -81,7 +81,7 @@ body.fire-bob .accord summary{color:#fff!important}
 body.fire-bob .quoteBox{background:#0b1013!important;color:#fff!important;border-color:#303940!important}
 
 body.fire-bob .bob-tools-btn{border:1px solid #39434a;background:#161c20;color:#fff;border-radius:13px;min-height:42px;padding:8px 11px;font-weight:900}
-body.fire-bob .bob-tools-sheet{display:none;position:sticky;top:142px;z-index:38;margin:0 14px 8px;padding:12px;background:#0d1215;border:1px solid #303940;border-radius:18px;box-shadow:0 18px 36px rgba(0,0,0,.35)}
+body.fire-bob .bob-tools-sheet{display:none;position:sticky;top:calc(142px + env(safe-area-inset-top));z-index:38;margin:0 14px 8px;padding:12px;background:#0d1215;border:1px solid #303940;border-radius:18px;box-shadow:0 18px 36px rgba(0,0,0,.35)}
 body.fire-bob .bob-tools-sheet.open{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 body.fire-bob .bob-tools-sheet button{min-height:46px;border:1px solid #303940;background:#1a2025;color:#fff;border-radius:13px;font-weight:800}
 body.fire-bob .bottom{display:none!important}
