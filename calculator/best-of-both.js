@@ -40,16 +40,12 @@
   function quickFavorites(){
     const mix=$('#mix'); if(!mix || $('#bobQuickFavorites'))return;
 
-    /* Direct-application Elemonator guidance from the current Pressure Tek usage guide
-       is 0.3 fl oz per mixed gallon. Flatwork post-treatment intentionally defaults
-       to no surfactant; concrete pre-treatment leaves it optional rather than forced. */
     const surface=$('#surface');
     if(surface && !surface.querySelector('option[value="painted"]')){
       const opt=document.createElement('option');
       opt.value='painted';
       opt.textContent='Painted exterior — wood / brick / masonry';
       surface.appendChild(opt);
-
     }
 
     const presets=[
@@ -63,11 +59,10 @@
       {icon:'🏡',name:'Stucco / Synthetic Stucco',pct:.5,surface:'stucco',growth:'light',ele:.3,note:'Conservative starting point. Low pressure and test first.'},
       {icon:'🧱',name:'Pavers / Hardscape',pct:1,surface:'pavers',growth:'moderate',ele:.3,note:'Routine organic-growth starting point; verify sealer / surface compatibility.'}
     ];
-    const more=[];
 
     const card=document.createElement('div');
     card.id='bobQuickFavorites'; card.className='card bob-quick-card';
-    card.innerHTML='<div class="kicker">QUICK FAVORITES</div><h2>Common SH starting mixes</h2><p class="muted bob-fav-help">Tap a favorite to load the starting mix. Your batch size stays the same and the recipe updates below.</p><div class="bob-fav-grid" id="bobFavGrid"></div><div class="bob-fav-note" id="bobFavNote">Starting points only — surface condition and the current product label still control.</div>';
+    card.innerHTML='<div class="kicker">QUICK PRESET</div><details class="bob-preset-menu" id="bobPresetMenu"><summary id="bobPresetSummary"><span class="bob-preset-summary-icon">✨</span><span class="bob-preset-summary-copy"><strong>Choose a quick preset</strong><small>9 common SH starting mixes</small></span></summary><div class="bob-preset-options" id="bobPresetOptions"></div></details><div class="bob-fav-note" id="bobFavNote">Starting points only — surface condition and the current product label still control.</div>';
 
     const batchGallons=()=>{
       const preset=$('#batchPreset');
@@ -81,58 +76,54 @@
     };
     const fmtOz=(n)=>n<1?n.toFixed(2):n.toFixed(1);
     const surfactantText=(p)=>{
-      if(p.ele==null)return 'Elemonator: choose after surface ID';
-      if(p.ele===0 && p.eleOptional){
-        const total=p.eleOptional*batchGallons();
-        return 'Elemonator: optional · '+fmtOz(total)+' oz for this batch';
+      if(p.ele===0 && p.eleOptional)return 'Elemonator optional · '+fmtOz(p.eleOptional*batchGallons())+' oz this batch';
+      if(p.ele===0)return 'No Elemonator';
+      return 'Elemonator '+fmtOz(p.ele*batchGallons())+' oz this batch';
+    };
+    const summary=$('#bobPresetSummary',card),menu=$('#bobPresetMenu',card),options=$('#bobPresetOptions',card),note=$('#bobFavNote',card);
+
+    const setSummary=(p)=>{
+      if(!summary)return;
+      summary.innerHTML='<span class="bob-preset-summary-icon">'+p.icon+'</span><span class="bob-preset-summary-copy"><strong>'+p.name+'</strong><small>'+p.pct+'% SH · '+surfactantText(p)+'</small></span>';
+    };
+
+    const selectPreset=(p)=>{
+      if(surface){surface.value=p.surface;fireInput(surface);}
+      if(p.surface&&window.__fireSetDwellForSurface)window.__fireSetDwellForSurface(p.surface);
+      const condition=$('#growthSeg [data-growth="'+(p.growth||'moderate')+'"]'); if(condition)condition.click();
+      const target=$('#targetNum'); if(target){target.value=p.pct;fireInput(target);}
+      const ele=$('#eleRate'); if(ele){ele.value=p.ele;fireInput(ele);}
+      setSummary(p);
+      if(menu)menu.open=false;
+      if(note){
+        const surf=p.ele===0&&p.eleOptional
+          ?' Elemonator is optional here; the preset leaves it at 0 oz. Add '+p.eleOptional.toFixed(1)+' oz per gallon of final mixed solution only when extra wetting or dwell is useful.'
+          :(p.ele===0?' No Elemonator is added by default.':' Elemonator is set to '+p.ele.toFixed(1)+' oz per gallon of final mixed solution.');
+        note.textContent=p.icon+' '+p.name+': '+p.note+surf;
       }
-      if(p.ele===0)return 'Elemonator: none';
-      const total=p.ele*batchGallons();
-      return 'Elemonator: '+fmtOz(total)+' oz for this batch ('+p.ele.toFixed(1)+' oz/gal)';
     };
 
-    const makeButton=(p)=>{
-      const b=document.createElement('button'); b.type='button'; b.className='bob-fav-btn'; b._bobPreset=p;
-      const strength=p.pct==null?'Test first':(p.pct+'% SH');
-      b.innerHTML='<span class="bob-fav-icon">'+p.icon+'</span><span class="bob-fav-copy"><strong>'+p.name+'</strong><small>'+strength+' · '+surfactantText(p)+'</small></span>';
-      if(p.pct==null)b.classList.add('bob-fav-info');
-      b.addEventListener('click',()=>{
-        const note=$('#bobFavNote');
-        if(p.pct==null){
-          if(note)note.textContent=p.icon+' '+p.name+': '+p.note;
-          return;
-        }
-        if(surface){surface.value=p.surface;fireInput(surface);} if(p.surface&&window.__fireSetDwellForSurface)window.__fireSetDwellForSurface(p.surface);
-        /* Keep the visible condition aligned with the favorite's actual starting strength. */
-        const condition=$('#growthSeg [data-growth="'+(p.growth||'moderate')+'"]'); if(condition)condition.click();
-        const target=$('#targetNum'); if(target){target.value=p.pct;fireInput(target);}
-        const ele=$('#eleRate'); if(ele){ele.value=p.ele;fireInput(ele);}
-        $$('.bob-fav-btn').forEach(x=>x.classList.toggle('active',x===b));
-        if(note){
-          const surf=p.ele===0&&p.eleOptional
-            ?' Elemonator is optional here; the preset leaves it at 0 oz. For extra wetting/cling, the direct-application guide rate is '+p.eleOptional.toFixed(1)+' oz per gallon of final mixed solution.'
-            :(p.ele===0?' No Elemonator is added by default.':' Elemonator loaded at '+p.ele.toFixed(1)+' oz per gallon of final mixed solution. The recipe below calculates the total ounces from your selected batch size.');
-          note.textContent=p.icon+' '+p.name+': '+p.note+surf;
-        }
-      });
-      return b;
-    };
-    presets.forEach(p=>$('#bobFavGrid',card).appendChild(makeButton(p)));
+    presets.forEach((p,i)=>{
+      const b=document.createElement('button');
+      b.type='button'; b.className='bob-preset-option'; b.dataset.presetIndex=String(i); b._bobPreset=p;
+      b.innerHTML='<span class="bob-preset-option-icon">'+p.icon+'</span><span class="bob-preset-option-copy"><strong>'+p.name+'</strong><small>'+p.pct+'% SH · '+surfactantText(p)+'</small></span>';
+      b.addEventListener('click',()=>selectPreset(p));
+      options.appendChild(b);
+    });
 
-    const refreshFavoriteAmounts=()=>{
-      $$('.bob-fav-btn',card).forEach(b=>{
+    const refreshAmounts=()=>{
+      $$('.bob-preset-option',card).forEach(b=>{
         const p=b._bobPreset,small=$('small',b);
-        if(!p||!small)return;
-        const strength=p.pct==null?'Test first':(p.pct+'% SH');
-        small.textContent=strength+' · '+surfactantText(p);
+        if(p&&small)small.textContent=p.pct+'% SH · '+surfactantText(p);
       });
+      const current=presets.find(p=>p.surface===surface?.value && Math.abs((+$('#targetNum')?.value||0)-p.pct)<.001 && Math.abs((+$('#eleRate')?.value||0)-p.ele)<.001);
+      if(current)setSummary(current);
     };
     ['#batchPreset','#customBatch','#customUnit'].forEach(sel=>{
-      const el=$(sel); if(el){el.addEventListener('input',refreshFavoriteAmounts);el.addEventListener('change',refreshFavoriteAmounts);}
+      const el=$(sel);if(el){el.addEventListener('input',refreshAmounts);el.addEventListener('change',refreshAmounts);}
     });
-    refreshFavoriteAmounts();
+    refreshAmounts();
 
-    /* Insert favorites without altering the LIVE Mixes / Index layouts. */
     mix.insertBefore(card,mix.firstElementChild);
   }
 
