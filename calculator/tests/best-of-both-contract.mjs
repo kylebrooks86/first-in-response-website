@@ -40,7 +40,7 @@ for(const [,surface] of presets){
 }
 for(const [,surface,strengths] of presets){
   const light=String(strengths.light).replace(/^0\./,'.');
-  const medium=String(strengths.medium).replace(/^0\./,'.');
+  const medium=String(strengths.moderate).replace(/^0\./,'.');
   const heavy=String(strengths.heavy).replace(/^0\./,'.');
   const mapping=`${surface}:{light:${light},moderate:${medium},heavy:${heavy}}`;
   ok(index.includes(mapping),`base surface target map differs from quick preset profile: ${surface}`);
