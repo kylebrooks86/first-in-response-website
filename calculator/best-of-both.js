@@ -262,6 +262,29 @@
     mix.insertBefore(card,mix.firstElementChild);
   }
 
+  function batchMethodNote(){
+    const preset=$('#batchPreset'); if(!preset || $('#bobBatchMethodNote'))return;
+    const host=preset.closest('.card')||preset.parentElement;
+    const note=document.createElement('div');
+    note.id='bobBatchMethodNote'; note.className='bob-batch-method-note';
+    const refresh=()=>{
+      const v=preset.value;
+      const gal=v==='custom'?null:+v;
+      if(gal===5){
+        note.innerHTML='<strong>🪣 5-gal mix bucket</strong><span>This SH Mix recipe is the <em>finished/direct-application</em> strength. If this bucket will feed your X-Jet or downstream injector, the injector dilutes it again. Use <button type="button" id="bobGoEquipment">Equipment / X-Jet</button> to calculate the required pickup-bucket strength from your real draw ratio.</span>';
+        note.classList.add('show');
+        $('#bobGoEquipment',note)?.addEventListener('click',()=>$('.tab[data-view="equipment"]')?.click());
+      }else{
+        note.innerHTML='<strong>💧 Batch-size note</strong><span>SH Mix calculates a finished/direct-application batch. X-Jet and downstream pickup buckets need their injector/draw dilution accounted for separately in Equipment.</span>';
+        note.classList.toggle('show',v==='custom' || (gal&&gal>=1));
+      }
+    };
+    host.appendChild(note);
+    preset.addEventListener('change',refresh);
+    $('#customBatch')?.addEventListener('input',refresh);
+    refresh();
+  }
+
   function toolsMenu(){
     if($('#bobToolsSheet'))return;
     const top=$('.toprow'); if(!top)return;
@@ -315,6 +338,6 @@
     /* LIVE Mixes is a user-favorite section. Preserve its content and calculator behavior. */
   }
 
-  setTitle(); relabelTabs(); quickFavorites(); toolsMenu(); jobPolish(); equipmentPolish(); chemicalPolish();
+  setTitle(); relabelTabs(); quickFavorites(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); chemicalPolish();
   $('#surface')?.addEventListener('change',syncSurface);
 })();
