@@ -338,8 +338,9 @@
 
   function jobPolish(){
     const job=$('#job'); if(!job)return;
+    const openTitles=new Set($('#job .bob-section-toggle[open] > summary strong').map(x=>x.textContent.trim()));
 
-    const cards=$$('#job .card');
+    const cards=$('#job .card');
     const byHeading=(needle)=>cards.find(card=>($('h2',card)?.textContent||'').toLowerCase().includes(needle.toLowerCase()));
     const coverage=byHeading('How much mix');
     const area=byHeading('Area and real coverage helpers');
@@ -372,6 +373,7 @@
       if(!card)return;
       const wrap=document.createElement('details');wrap.className='bob-section-toggle bob-job-toggle';
       const summary=document.createElement('summary');summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
+      wrap.open=openTitles.has(title);
       wrap.append(summary,card);place(wrap);
     };
     const group=(groupCards,title,sub)=>{
@@ -380,6 +382,7 @@
       const summary=document.createElement('summary');summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
       const body=document.createElement('div');body.className='bob-group-body';
       present.forEach(card=>body.appendChild(card));
+      wrap.open=openTitles.has(title);
       wrap.append(summary,body);place(wrap);
     };
 
@@ -390,8 +393,9 @@
 
   function equipmentPolish(){
     const eq=$('#equipment'); if(!eq)return;
+    const openTitles=new Set($('#equipment .bob-section-toggle[open] > summary strong').map(x=>x.textContent.trim()));
 
-    const cards=$$('#equipment .card');
+    const cards=$('#equipment .card');
     const byHeading=(needle)=>cards.find(card=>($('h2',card)?.textContent||'').toLowerCase().includes(needle.toLowerCase()));
     const xjetMain=byHeading('X-Jet M5DS Twist');
     const xjetCal=byHeading('X-Jet bucket draw test');
@@ -423,6 +427,7 @@
       if(!card)return;
       const wrap=document.createElement('details'); wrap.className='bob-section-toggle';
       const summary=document.createElement('summary'); summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
+      wrap.open=openTitles.has(title);
       wrap.append(summary,card); place(wrap);
     };
     const group=(groupCards,title,sub)=>{
@@ -431,6 +436,7 @@
       const summary=document.createElement('summary'); summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
       const body=document.createElement('div');body.className='bob-group-body';
       present.forEach(card=>body.appendChild(card));
+      wrap.open=openTitles.has(title);
       wrap.append(summary,body); place(wrap);
     };
 
