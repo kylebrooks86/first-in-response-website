@@ -20,7 +20,7 @@ function installXJetLiveParity(){
     xPct.addEventListener('input',useFactory);
     xPct.addEventListener('change',useFactory);
     xBucket.addEventListener('input',calc);
-    measured.addEventListener('input',()=>{try{localStorage.setItem('fireV18XjetMeasuredPct',String(measured.value))}catch{};calc()});
+    measured.addEventListener('input',()=>{try{localStorage.setItem('fireV18XjetMeasuredPct',String(measured.value))}catch{};calc();window.__fireCalcReverseX?.()});
     calc();
   }
   const draw=$('#xDrawOz');
@@ -84,7 +84,7 @@ function installXJetLiveParity(){
         const chem=Math.max(0,n('xDrawOz',64))/128;
         const pct=(water+chem)>0?chem/(water+chem)*100:0;
         const measured=$('#xMeasuredPct');if(measured){measured.value=pct.toFixed(2);measured.dispatchEvent(new Event('input',{bubbles:true}));measured.dispatchEvent(new Event('change',{bubbles:true}))}
-        try{localStorage.setItem('fireV18XjetMeasuredPct',String(pct))}catch{}
+        try{localStorage.setItem('fireV18XjetMeasuredPct',String(pct))}catch{};window.__fireCalcReverseX?.()
       });
     }
   }
