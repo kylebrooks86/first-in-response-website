@@ -115,16 +115,22 @@
       applyingPreset=true;activePreset=p;
       if(surface){surface.value=p.surface;fireInput(surface);}
       if(p.surface&&window.__fireSetDwellForSurface)window.__fireSetDwellForSurface(p.surface);
-      const target=$('#targetNum'); if(target){target.value=presetStrength(p,currentGrowth());fireInput(target);}
+      const desired=presetStrength(p,currentGrowth()),stock=Math.max(0,+($('#stockStrength')?.value||0)),target=$('#targetNum');
+      const limited=stock>0&&desired>stock;
+      if(target){target.value=limited?stock:desired;fireInput(target);}
       const ele=$('#eleRate'); if(ele){ele.value=p.ele;fireInput(ele);}
       Array.from(card.querySelectorAll('.bob-preset-option')).forEach(b=>(b.classList.toggle('selected',b._bobPreset===p),b.setAttribute('aria-pressed',String(b._bobPreset===p))));
-      setSummary(p);applyingPreset=false;
+      if(limited){activePreset=null;setCustomSummary();if(noteWrap)noteWrap.open=true;}
+      else setSummary(p);
+      applyingPreset=false;
       if(menu)menu.open=false;
       if(note){
         const surf=p.ele===0&&p.eleOptional
           ?' Elemonator is optional here; the preset leaves it at 0 oz. Add '+p.eleOptional.toFixed(1)+' oz per gallon of final mixed solution only when extra wetting or dwell is useful.'
           :(p.ele===0?' No Elemonator is added by default.':' Elemonator is set to '+p.ele.toFixed(1)+' oz per gallon of final mixed solution.');
-        note.textContent=p.icon+' '+p.name+': '+p.note+surf;
+        note.textContent=limited
+          ?'⚠️ '+p.name+' calls for '+desired+'% SH at this dirtiness level, but your current stock is only '+stock+'%. The recipe was limited to '+stock+'%. Use stronger stock or choose a lower target.'
+          :p.icon+' '+p.name+': '+p.note+surf;
       }
     };
 
