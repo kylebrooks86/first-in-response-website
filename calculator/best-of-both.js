@@ -153,17 +153,20 @@
       const el=$(sel);if(el){el.addEventListener('input',refreshAmounts);el.addEventListener('change',refreshAmounts);}
     });
     Array.from(document.querySelectorAll('#growthSeg [data-growth]')).forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{
-      if(!activePreset||surface?.value!==activePreset.surface)return;
-      const g=b.dataset.growth,target=$('#targetNum'),strength=presetStrength(activePreset,g);
-      if(target){target.value=strength;fireInput(target);}
-      setSummary(activePreset);
-      if(note&&activePreset.surface==='painted')note.textContent='🎨 Painted exterior stays at a conservative 0.5% SH for Light, Medium, and Heavy. Inspect for chalking, peeling, oxidation, or failing coating and test first.';
+      if(activePreset&&surface?.value===activePreset.surface){
+        const g=b.dataset.growth,target=$('#targetNum'),strength=presetStrength(activePreset,g);
+        if(target){target.value=strength;fireInput(target);}
+        setSummary(activePreset);
+        if(note&&activePreset.surface==='painted')note.textContent='🎨 Painted exterior stays at a conservative 0.5% SH for Light, Medium, and Heavy. Inspect for chalking, peeling, oxidation, or failing coating and test first.';
+      }else setCustomSummary();
     },0)));
-    surface?.addEventListener('change',()=>{
-      if(activePreset&&surface.value!==activePreset.surface){activePreset=null;if(!applyingPreset)setCustomSummary();}
-    });
+    surface?.addEventListener('change',()=>setTimeout(()=>{
+      if(activePreset&&surface.value!==activePreset.surface)activePreset=null;
+      refreshAmounts();
+    },0));
     const markCustom=()=>{
-      if(applyingPreset||!activePreset)return;
+      if(applyingPreset)return;
+      if(!activePreset){setCustomSummary();return;}
       const g=currentGrowth(),target=+($('#targetNum')?.value||0),ele=+($('#eleRate')?.value||0);
       if(Math.abs(target-presetStrength(activePreset,g))>.001||Math.abs(ele-activePreset.ele)>.001){activePreset=null;setCustomSummary();}
     };
