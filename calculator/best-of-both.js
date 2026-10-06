@@ -41,12 +41,6 @@
     const mix=$('#mix'); if(!mix || $('#bobQuickFavorites'))return;
 
     const surface=$('#surface');
-    if(surface && !surface.querySelector('option[value="painted"]')){
-      const opt=document.createElement('option');
-      opt.value='painted';
-      opt.textContent='Painted exterior — wood / brick / masonry';
-      surface.appendChild(opt);
-    }
 
     const presets=[
       {icon:'🏠',name:'House / Vinyl',pct:1,strengths:{light:.5,moderate:1,heavy:1.5},surface:'house',growth:'moderate',ele:.3,note:'Normal organic growth on vinyl siding, soffit/fascia, or vinyl fence.'},
@@ -90,8 +84,17 @@
         card.insertBefore(growthField,note);
       }
     }
-    const surfaceField=surface?.closest('.field');if(surfaceField)surfaceField.classList.add('bob-surface-only-field');
-    let activePreset=null;
+    const surfaceField=surface?.closest('.field'),surfaceCard=surface?.closest('.card');
+    if(surfaceField){
+      surfaceField.classList.add('bob-surface-only-field');
+      const manual=document.createElement('details');manual.className='bob-manual-surface';
+      const manualSummary=document.createElement('summary');manualSummary.textContent='Other / manual surface';
+      const manualBody=document.createElement('div');manualBody.className='bob-manual-surface-body';
+      manualBody.appendChild(surfaceField);manual.append(manualSummary,manualBody);
+      card.insertBefore(manual,note);
+      if(surfaceCard && !surfaceCard.querySelector('.field'))surfaceCard.remove();
+    }
+    let activePreset=null,applyingPreset=false;
 
     const currentGrowth=()=>$('#growthSeg [data-growth].active')?.dataset.growth||'moderate';
     const presetStrength=(p,g=currentGrowth())=>p?.strengths?.[g]??p?.pct??0;
@@ -100,15 +103,20 @@
       if(!summary)return;
       const strength=presetStrength(p);summary.innerHTML='<span class="bob-preset-summary-icon">'+p.icon+'</span><span class="bob-preset-summary-copy"><strong>'+p.name+'</strong><small>'+strength+'% SH · '+surfactantText(p)+'</small></span>';
     };
+    const setCustomSummary=()=>{
+      if(!summary)return;
+      const strength=+($('#targetNum')?.value||0);
+      summary.innerHTML='<span class="bob-preset-summary-icon">🛠️</span><span class="bob-preset-summary-copy"><strong>Custom / manual mix</strong><small>'+strength+'% SH · adjust below</small></span>';
+    };
 
     const selectPreset=(p)=>{
-      activePreset=p;
+      applyingPreset=true;activePreset=p;
       if(surface){surface.value=p.surface;fireInput(surface);}
       if(p.surface&&window.__fireSetDwellForSurface)window.__fireSetDwellForSurface(p.surface);
       const condition=$('#growthSeg [data-growth="'+(p.growth||'moderate')+'"]'); if(condition)condition.click();
       const target=$('#targetNum'); if(target){target.value=presetStrength(p,p.growth||'moderate');fireInput(target);}
       const ele=$('#eleRate'); if(ele){ele.value=p.ele;fireInput(ele);}
-      setSummary(p);
+      setSummary(p);applyingPreset=false;
       if(menu)menu.open=false;
       if(note){
         const surf=p.ele===0&&p.eleOptional
@@ -129,8 +137,9 @@
     const refreshAmounts=()=>{
       if(activePreset)setSummary(activePreset);
       else{
-        const current=presets.find(p=>p.surface===surface?.value && Math.abs((+$('#eleRate')?.value||0)-p.ele)<.001);
-        if(current){activePreset=current;setSummary(current);}
+        const g=currentGrowth(),target=+($('#targetNum')?.value||0),ele=+($('#eleRate')?.value||0);
+        const current=presets.find(p=>p.surface===surface?.value && Math.abs(target-presetStrength(p,g))<.001 && Math.abs(ele-p.ele)<.001);
+        if(current){activePreset=current;setSummary(current);}else setCustomSummary();
       }
     };
     ['#batchPreset','#customBatch','#customUnit'].forEach(sel=>{
@@ -143,31 +152,21 @@
       setSummary(activePreset);
       if(note&&activePreset.surface==='painted')note.textContent='🎨 Painted exterior stays at a conservative 0.5% SH for Light, Medium, and Heavy. Inspect for chalking, peeling, oxidation, or failing coating and test first.';
     },0)));
-    surface?.addEventListener('change',()=>{if(activePreset&&surface.value!==activePreset.surface)activePreset=null;});
+    surface?.addEventListener('change',()=>{
+      if(activePreset&&surface.value!==activePreset.surface){activePreset=null;if(!applyingPreset)setCustomSummary();}
+    });
+    const markCustom=()=>{
+      if(applyingPreset||!activePreset)return;
+      const g=currentGrowth(),target=+($('#targetNum')?.value||0),ele=+($('#eleRate')?.value||0);
+      if(Math.abs(target-presetStrength(activePreset,g))>.001||Math.abs(ele-activePreset.ele)>.001){activePreset=null;setCustomSummary();}
+    };
+    $('#targetNum')?.addEventListener('input',markCustom);
+    $('#eleRate')?.addEventListener('input',markCustom);
     refreshAmounts();
 
     mix.insertBefore(card,mix.firstElementChild);
   }
 
-  function paintedSurfaceGuard(){
-    const surface=$('#surface'),target=$('#targetNum');
-    if(!surface||!target)return;
-    const enforce=()=>{
-      if(surface.value!=='painted')return;
-      /* Painted exterior is intentionally a single conservative quick-start value.
-         Growth chips must not fall through to the core's unknown-surface 1% fallback. */
-      if(Math.abs((+target.value||0)-0.5)>.001){
-        target.value='0.5';
-        fireInput(target);
-      }
-      const note=$('#bobFavNote');
-      if(note&&!note.textContent.includes('Painted Wood / Brick / Masonry')){
-        note.textContent='🎨 Painted exterior: keep the quick-start target at 0.5% SH when changing growth chips. Inspect for chalking, peeling, oxidation, or failing coating and test first; manually fine-tune only after the surface check.';
-      }
-    };
-    surface.addEventListener('change',()=>setTimeout(enforce,0));
-    $$('#growthSeg [data-growth]').forEach(b=>b.addEventListener('click',()=>setTimeout(enforce,0)));
-  }
 
   function batchMethodNote(){
     const preset=$('#batchPreset'); if(!preset || $('#bobBatchMethodNote'))return;
@@ -391,7 +390,7 @@
     /* LIVE Mixes is a user-favorite section. Preserve its content and calculator behavior. */
   }
 
-  setTitle(); relabelTabs(); quickFavorites(); paintedSurfaceGuard(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); chemicalPolish(); syncLateStockTools();
+  setTitle(); relabelTabs(); quickFavorites(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); chemicalPolish(); syncLateStockTools();
   $('#stockStrength')?.addEventListener('input',syncLateStockTools);
   window.addEventListener('fire-v18-shared-core-ready',()=>setTimeout(reapplyLateLayout,0));
   window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(reapplyLateLayout,0));
