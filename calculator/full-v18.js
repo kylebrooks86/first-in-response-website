@@ -33,13 +33,13 @@
     await waitForCore();
     await load('./v18-legacy-job-detach.js?v=2');
     await load('./full-v18-parity-core.js?v=3');
-    await load('./v18-behavior.js?v=4');
+    await load('./v18-behavior.js?v=5');
     await load('./v18-interactions.js?v=3');
     await load('./v18-fine-parity.js?v=8');
     await load('./v18-equipment-parity.js?v=3');
     await load('./v18-live-equipment-structure-parity.js?v=3');
     await load('./v18-tools-state.js?v=1');
-    await load('./v18-live-estimator-parity.js?v=6');
+    await load('./v18-live-estimator-parity.js?v=7');
     await load('./v18-live-first-screen.js?v=3');
     await load('./v18-live-jobmath-parity.js?v=5');
     await load('./v18-live-jobmix-parity.js?v=1');
