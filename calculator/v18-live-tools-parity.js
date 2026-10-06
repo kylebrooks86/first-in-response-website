@@ -11,16 +11,31 @@
   const favoritesKey='fireV18SavedFavorites';
   const savedFavorites=()=>{try{return JSON.parse(localStorage.getItem(favoritesKey)||'[]')}catch{return[]}};
   const saveFavorites=a=>{try{localStorage.setItem(favoritesKey,JSON.stringify(a))}catch{}};
-  const applyShFavorite=({surface='house',growth='moderate',batch=4,target=1})=>{
+  const applyShFavorite=({surface='house',growth='moderate',batch=4,target=1,stockStrength=null,eleRate=null})=>{
     const s=$('#surface');if(s){s.value=surface;s.dispatchEvent(new Event('change',{bubbles:true}))}
     const g=$(`#growthSeg [data-growth="${growth}"]`);g?.click();
-    const b=$('#batchPreset');if(b){b.value=String(batch);b.dispatchEvent(new Event('change',{bubbles:true}))}
-    setVal('targetNum',target);selectView('mix');
+
+    const b=$('#batchPreset');
+    if(b){
+      const value=String(batch),hasPreset=[...b.options].some(o=>o.value===value);
+      if(hasPreset)b.value=value;
+      else{
+        b.value='custom';
+        setVal('customBatch',batch);
+        const unit=$('#customUnit');if(unit){unit.value='gal';unit.dispatchEvent(new Event('change',{bubbles:true}))}
+      }
+      b.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+
+    if(stockStrength!=null)setVal('stockStrength',stockStrength);
+    if(eleRate!=null)setVal('eleRate',eleRate);
+    setVal('targetNum',target);
+    selectView('mix');
   };
   const renderSavedFavorites=wrap=>{
     const list=$('#fireSavedFavorites',wrap);if(!list)return;const data=savedFavorites();
     if(!data.length){list.innerHTML='<div class="fire-empty-dash">Your saved mixes will appear here.</div>';return}
-    list.innerHTML=data.map((x,i)=>`<div class="fire-saved-fav"><div><strong>${x.name||'Saved SH mix'}</strong><small>${Number(x.batch||0).toFixed(2)} gal · ${Number(x.target||0).toFixed(2)}% SH</small></div><div><button type="button" data-fire-reuse-fav="${i}">Reuse</button><button type="button" data-fire-delete-fav="${i}">Delete</button></div></div>`).join('');
+    list.innerHTML=data.map((x,i)=>`<div class="fire-saved-fav"><div><strong>${x.name||'Saved SH mix'}</strong><small>${Number(x.batch||0).toFixed(2)} gal · ${Number(x.target||0).toFixed(2)}% SH${x.stockStrength!=null?' · '+Number(x.stockStrength).toFixed(Number(x.stockStrength)%1?1:0)+'% stock':''}</small></div><div><button type="button" data-fire-reuse-fav="${i}">Reuse</button><button type="button" data-fire-delete-fav="${i}">Delete</button></div></div>`).join('');
     $$('[data-fire-reuse-fav]',list).forEach(b=>b.onclick=()=>{const x=savedFavorites()[+b.dataset.fireReuseFav];if(x)applyShFavorite(x)});
     $$('[data-fire-delete-fav]',list).forEach(b=>b.onclick=()=>{const a=savedFavorites();a.splice(+b.dataset.fireDeleteFav,1);saveFavorites(a);renderSavedFavorites(wrap)});
   };
@@ -39,7 +54,9 @@
         surface:$('#surface')?.value||'house',
         growth:$('#growthSeg .chip.active')?.dataset.growth||'moderate',
         batch:batchGal(),
-        target:n('targetNum')
+        target:n('targetNum'),
+        stockStrength:n('stockStrength'),
+        eleRate:n('eleRate')
       });
       saveFavorites(a.slice(-20));
       renderSavedFavorites(c);
