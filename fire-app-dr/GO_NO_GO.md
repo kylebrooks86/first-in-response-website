@@ -33,7 +33,7 @@ The final release-readiness guard derives blockers from the formal manifest and 
 
 A passing source/governance gate does **not** mean rendered parity is complete. The current status must remain `NOT_YET_FULLY_VERIFIED` until the required LIVE and independent evidence is captured and compared.
 
-The structured forward-sync registry tracks owner-approved user-facing blockers such as the richer DR customer-profile command center and Edit existing customer. Every entry that remains `PENDING_LIVE_SYNC` intentionally blocks `FULL_IDENTICAL` until LIVE is upgraded and same-device rendered/functional comparison confirms that specific forward sync.
+The structured forward-sync registry tracks owner-approved user-facing blockers such as the richer DR customer-profile command center, Edit existing customer, and optional final-payment tipping. Every entry that remains `PENDING_LIVE_SYNC` intentionally blocks `FULL_IDENTICAL` until LIVE is upgraded and same-device rendered/functional comparison confirms that specific forward sync.
 
 ## GO for current D1-only DR staging when
 
