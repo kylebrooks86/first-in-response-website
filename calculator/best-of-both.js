@@ -136,7 +136,7 @@
     ['#batchPreset','#customBatch','#customUnit'].forEach(sel=>{
       const el=$(sel);if(el){el.addEventListener('input',refreshAmounts);el.addEventListener('change',refreshAmounts);}
     });
-    $('#growthSeg [data-growth]').forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{
+    Array.from(document.querySelectorAll('#growthSeg [data-growth]')).forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{
       if(!activePreset||surface?.value!==activePreset.surface)return;
       const g=b.dataset.growth,target=$('#targetNum'),strength=presetStrength(activePreset,g);
       if(target){target.value=strength;fireInput(target);}
