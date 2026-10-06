@@ -35,6 +35,9 @@ for(const [name,surface,strengths] of presets){
 }
 ok(!/growth:'(?:light|moderate|heavy)'/.test(bob),'quick presets must not reset the global dirtiness selector');
 ok(!/\bp\.growth\b/.test(bob),'quick preset selection still references a per-preset dirtiness default');
+for(const [,surface] of presets){
+  ok(index.includes(`<option value="${surface}"`),`quick preset surface is missing from base surface selector: ${surface}`);
+}
 ok(bob.includes("const applyPresetTarget=(p,g=currentGrowth())=>"),'shared stock-limit guard is missing from quick preset flow');
 ok(bob.includes("applyPresetTarget(p,b.dataset.growth)"),'dirtiness changes bypass the stock-limit guard');
 ok(bob.includes("const stockChanged=()=>setTimeout(()=>")&&bob.includes("applyPresetTarget(p,currentGrowth())"),'stock-strength changes bypass the stock-limit guard');
