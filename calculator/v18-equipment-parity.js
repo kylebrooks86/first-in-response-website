@@ -14,10 +14,14 @@ function installXJetLiveParity(){
     field.innerHTML='<label>Measured chemical percentage</label><div class="inputrow"><input id="xMeasuredPct" type="number" min="0" max="100" step="0.1" value="'+(+xPct.value||35)+'"><span class="unit">%</span></div>';
     const grid=xBucket.closest('.grid');if(grid)grid.appendChild(field);
     const measured=$('#xMeasuredPct');
+    try{const saved=localStorage.getItem('fireV18XjetMeasuredPct');if(saved!==null&&Number.isFinite(+saved))measured.value=String(+saved)}catch{}
     const calc=()=>{const pct=Math.max(0,+measured.value||0),buck=Math.max(0,+xBucket.value||0);xSurface.textContent=(buck*pct/100).toFixed(2)+'% SH at the surface'};
-    xPct.addEventListener('input',()=>{measured.value=xPct.value;calc()});
-    xPct.addEventListener('change',()=>{measured.value=xPct.value;calc()});
-    xBucket.addEventListener('input',calc);measured.addEventListener('input',calc);calc();
+    const useFactory=()=>{measured.value=xPct.value;try{localStorage.setItem('fireV18XjetMeasuredPct',String(measured.value))}catch{};calc()};
+    xPct.addEventListener('input',useFactory);
+    xPct.addEventListener('change',useFactory);
+    xBucket.addEventListener('input',calc);
+    measured.addEventListener('input',()=>{try{localStorage.setItem('fireV18XjetMeasuredPct',String(measured.value))}catch{};calc()});
+    calc();
   }
   const draw=$('#xDrawOz');
   if(draw&&String(draw.value)==='32'){draw.value='64';draw.dispatchEvent(new Event('input',{bubbles:true}))}
