@@ -1,46 +1,36 @@
 (()=>{
   if(window.__fireV18LiveFirstScreen)return;window.__fireV18LiveFirstScreen=true;
   const $=(s,r=document)=>r.querySelector(s);
-  const moveStockCard=()=>{
-    const stock=$('#stockStrength');
-    const recipe=$('#recipeTitle')?.closest('.card');
-    if(!stock||!recipe||$('#fireStockCard'))return;
-    const stockGrid=stock.closest('.grid');
-    const stockNote=$('#stockNote');
-    let heading=[...recipe.querySelectorAll('h2')].find(h=>h.textContent.includes('Stock-strength correction'));
-    if(!heading){heading=document.createElement('h2');heading.textContent='🧪 Stock-strength correction';}
-    const card=document.createElement('div');card.className='card';card.id='fireStockCard';
-    card.appendChild(heading);
-    if(stockGrid)card.appendChild(stockGrid);
-    if(stockNote)card.appendChild(stockNote);
-    recipe.insertAdjacentElement('afterend',card);
-  };
-  const moveElemonatorControls=()=>{
-    const recipe=$('#recipeTitle')?.closest('.card');
-    const ele=$('#eleRate');
-    const metrics=recipe?.querySelector('.metrics');
-    const toggle=$('.fire-ele-toggle',recipe||document);
-    const field=ele?.closest('.field');
-    if(!recipe||!ele||!metrics||!field)return;
-    const grid=field.parentElement;
-    const target=$('#target')?.closest('.field');
-    if(target)target.classList.replace('span6','span12');
-    if(toggle&&toggle.parentElement!==recipe)recipe.insertBefore(toggle,metrics.nextSibling);
-    if(field.parentElement!==recipe)recipe.insertBefore(field,toggle?toggle.nextSibling:metrics.nextSibling);
-    field.classList.remove('span6');field.classList.add('span12');
-    if(grid&&grid.children.length===0)grid.remove();
-  };
-  const decorateRecipe=()=>{
+
+  const normalizeRecipe=()=>{
     const recipe=$('#recipeTitle')?.closest('.card');if(!recipe)return;
-    const metrics=recipe.querySelector('.metrics'),toggle=$('.fire-ele-toggle',recipe);
+    const oldStock=$('#fireStockCard');
+    if(oldStock){
+      const stockGrid=$('#stockStrength')?.closest('.grid'),stockNote=$('#stockNote');
+      const heading=[...oldStock.querySelectorAll('h2')].find(h=>h.textContent.includes('Stock-strength correction'));
+      if(heading)heading.remove();
+      if(stockGrid)recipe.appendChild(stockGrid);
+      if(stockNote)recipe.appendChild(stockNote);
+      oldStock.remove();
+    }
+    const heading=[...recipe.querySelectorAll('h2')].find(h=>h.textContent.includes('Stock-strength correction'));
+    heading?.remove();
+    const target=$('#target')?.closest('.field'),ele=$('#eleRate')?.closest('.field');
+    if(target){target.classList.remove('span12');target.classList.add('span6')}
+    if(ele){ele.classList.remove('span12');ele.classList.add('span6')}
+    $('.fire-ele-toggle',recipe)?.remove();
     let bar=$('#fireMixGradient');
+    const metrics=recipe.querySelector('.metrics');
     if(metrics&&!bar){bar=document.createElement('div');bar.id='fireMixGradient';bar.setAttribute('aria-hidden','true');metrics.insertAdjacentElement('afterend',bar)}
-    if(bar&&toggle&&bar.nextElementSibling!==toggle)recipe.insertBefore(bar,toggle);
     const order=[...recipe.querySelectorAll('p')].find(p=>p.textContent.includes('Add water first, then SH'));
     if(order)order.classList.add('fire-mix-order');
-    const guidance=$('.fire-surface-guidance');if(guidance)guidance.classList.add('fire-guidance-note');
   };
-  const forceCustomAmountVisible=()=>{const wrap=$('#customBatchWrap');if(wrap)wrap.classList.remove('hidden')};
+
+  const syncCustomAmount=()=>{
+    const wrap=$('#customBatchWrap'),batch=$('#batchPreset');
+    if(wrap&&batch)wrap.classList.toggle('hidden',batch.value!=='custom');
+  };
+
   const syncMetrics=()=>{
     const batchSel=$('#batchPreset');if(!batchSel)return;
     let batch=+batchSel.value||4;
@@ -59,16 +49,18 @@
     if($('#eleAmt'))$('#eleAmt').textContent=eleOz.toFixed(1)+' fl oz';
     const eleMetric=$('#eleAmt')?.closest('.metric')?.querySelector('em');if(eleMetric)eleMetric.textContent=eleRate.toFixed(1)+' oz per batch gal';
   };
+
   const header=()=>{
     const row=$('.toprow'),theme=$('#themeBtn'),version=$('.version'),install=$('#installBtn');
     if(version)version.innerHTML='v18 <b>✓</b>';
     if(install){install.textContent='↓';install.setAttribute('aria-label','Install or update calculator');install.classList.remove('hidden')}
     if(row&&theme&&version&&install){row.appendChild(theme);row.appendChild(version);row.appendChild(install)}
   };
-  const apply=()=>{header();moveStockCard();moveElemonatorControls();decorateRecipe();forceCustomAmountVisible();syncMetrics()};
+
+  const apply=()=>{header();normalizeRecipe();syncCustomAmount();syncMetrics()};
   const bind=()=>{
-    ['target','targetNum','stockStrength','shOnHand','eleRate','batchPreset','customBatch','customUnit'].forEach(id=>$('#'+id)?.addEventListener('input',()=>setTimeout(()=>{forceCustomAmountVisible();syncMetrics();decorateRecipe()},0)));
-    $('#batchPreset')?.addEventListener('change',()=>setTimeout(()=>{forceCustomAmountVisible();syncMetrics();decorateRecipe()},0));
+    ['target','targetNum','stockStrength','shOnHand','eleRate','customBatch','customUnit'].forEach(id=>$('#'+id)?.addEventListener('input',()=>setTimeout(syncMetrics,0)));
+    $('#batchPreset')?.addEventListener('change',()=>setTimeout(()=>{syncCustomAmount();syncMetrics()},0));
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{apply();bind()},700));else setTimeout(()=>{apply();bind()},700);
   window.addEventListener('fire-v18-fine-parity-ready',()=>setTimeout(apply,50));
