@@ -338,9 +338,9 @@
 
   function jobPolish(){
     const job=$('#job'); if(!job)return;
-    const openTitles=new Set($('#job .bob-section-toggle[open] > summary strong').map(x=>x.textContent.trim()));
+    const openTitles=new Set(Array.from(document.querySelectorAll('#job .bob-section-toggle[open] > summary strong')).map(x=>x.textContent.trim()));
 
-    const cards=$('#job .card');
+    const cards=Array.from(document.querySelectorAll('#job .card'));
     const byHeading=(needle)=>cards.find(card=>($('h2',card)?.textContent||'').toLowerCase().includes(needle.toLowerCase()));
     const coverage=byHeading('How much mix');
     const area=byHeading('Area and real coverage helpers');
@@ -393,9 +393,9 @@
 
   function equipmentPolish(){
     const eq=$('#equipment'); if(!eq)return;
-    const openTitles=new Set($('#equipment .bob-section-toggle[open] > summary strong').map(x=>x.textContent.trim()));
+    const openTitles=new Set(Array.from(document.querySelectorAll('#equipment .bob-section-toggle[open] > summary strong')).map(x=>x.textContent.trim()));
 
-    const cards=$('#equipment .card');
+    const cards=Array.from(document.querySelectorAll('#equipment .card'));
     const byHeading=(needle)=>cards.find(card=>($('h2',card)?.textContent||'').toLowerCase().includes(needle.toLowerCase()));
     const xjetMain=byHeading('X-Jet M5DS Twist');
     const xjetCal=byHeading('X-Jet bucket draw test');
