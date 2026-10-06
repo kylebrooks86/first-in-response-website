@@ -187,9 +187,11 @@
     },0));
     const markCustom=()=>{
       if(applyingPreset)return;
-      if(!activePreset){setCustomSummary();return;}
+      if(!activePreset){clearPresetSelection();setCustomSummary();return;}
       const g=currentGrowth(),target=+($('#targetNum')?.value||0),ele=+($('#eleRate')?.value||0);
-      if(Math.abs(target-presetStrength(activePreset,g))>.001||Math.abs(ele-activePreset.ele)>.001){activePreset=null;setCustomSummary();}
+      if(Math.abs(target-presetStrength(activePreset,g))>.001||Math.abs(ele-activePreset.ele)>.001){
+        activePreset=null;clearPresetSelection();setCustomSummary();
+      }
     };
     $('#targetNum')?.addEventListener('input',markCustom);
     $('#eleRate')?.addEventListener('input',markCustom);
