@@ -178,17 +178,6 @@ body.fire-bob .bob-batch-method-note button{
 }
 
 
-body.fire-bob .bob-equipment-intro{
-  margin:0 0 12px;padding:12px 13px;border:1px solid #35414b;border-radius:13px;background:#0e151a;color:#aeb9c1;
-}
-body.fire-bob .bob-equipment-intro strong{display:block;color:#fff;font-size:14px;margin-bottom:3px}
-body.fire-bob .bob-equipment-intro span{display:block;font-size:12px;line-height:1.4}
-
-
-body.fire-bob .bob-dwell-link{
-  margin-top:12px;width:100%;min-height:44px;border:1px solid #3a4852;border-radius:12px;
-  background:#111a20;color:#f7fafc;font-weight:850;cursor:pointer
-}
 body.fire-bob.dwell-running #timerDisplay{box-shadow:0 0 0 2px rgba(239,75,45,.35)}
 
 
@@ -202,11 +191,6 @@ body.fire-bob .bob-dwell-mini span{font-size:12px}
 body.fire-bob .bob-dwell-mini strong{font-variant-numeric:tabular-nums;font-size:15px}
 
 
-body.fire-bob .bob-job-intro{
-  margin:0 0 12px;padding:12px 13px;border:1px solid #35414b;border-radius:13px;background:#0e151a;color:#aeb9c1;
-}
-body.fire-bob .bob-job-intro strong{display:block;color:#fff;font-size:14px;margin-bottom:3px}
-body.fire-bob .bob-job-intro span{display:block;font-size:12px;line-height:1.4}
 body.fire-bob .bob-job-toggle>.card{margin:0!important;border:0!important;border-radius:0 0 12px 12px!important}
 
 
@@ -219,7 +203,3 @@ body.fire-bob .bob-coverage-card .metrics{grid-template-columns:repeat(2,minmax(
 }
 
 
-body.fire-bob .bob-inline-action{
-  width:100%;min-height:44px;margin:0 0 12px;padding:10px 12px;border:1px solid #3b4953;
-  border-radius:12px;background:#111a20;color:#f7fafc;font-weight:850;text-align:center
-}
