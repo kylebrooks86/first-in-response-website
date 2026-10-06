@@ -100,3 +100,17 @@ body.fire-bob .bob-advanced-note{margin:12px 0 0;color:#909aa2;font-size:12px;te
   body.fire-bob #job>.card:first-child .metric{padding:10px!important}
   body.fire-bob #job>.card:first-child .metric strong{font-size:18px!important}
 }
+
+
+/* User preference lock — 2026-10-05:
+   LIVE Mixes and Chemical Index are the strongest parts of the calculator.
+   Preserve their existing v18 structure/interaction instead of forcing the older
+   calculator's tile/recipe layout onto them. The best-of-both skin should improve
+   surrounding navigation and secondary sections without redesigning these two views. */
+body.fire-bob #mix.active{display:grid!important}
+@media(max-width:760px){body.fire-bob #mix.active{grid-template-columns:1fr!important}}
+body.fire-bob #mix>.card:nth-child(3){background:var(--panel)!important}
+body.fire-bob #surface{display:block!important}
+body.fire-bob #index .card{background:var(--panel)!important;border-color:var(--line)!important}
+body.fire-bob #index input,body.fire-bob #index select{background:#0b131b!important;border-color:#263544!important;color:#f7fafc!important}
+body.fire-bob #indexResults{color:var(--ink)!important}
