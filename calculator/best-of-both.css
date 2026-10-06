@@ -226,3 +226,17 @@ body.fire-bob .bob-group-body>.card{
 }
 body.fire-bob .bob-group-body>.card:first-child{border-top:0!important}
 body.fire-bob .bob-group-body>.card:last-child{border-radius:0 0 12px 12px!important}
+
+
+body.fire-bob .bob-dirtiness-field{
+  margin-top:10px!important;padding-top:10px!important;border-top:1px solid #2f3b44!important;
+  grid-column:1/-1!important;
+}
+body.fire-bob .bob-dirtiness-field label{
+  display:block!important;margin-bottom:7px!important;color:#b7c0c7!important;font-size:12px!important;font-weight:800!important;
+}
+body.fire-bob .bob-dirtiness-field #growthSeg{gap:6px!important}
+body.fire-bob .bob-dirtiness-field #growthSeg .chip{
+  flex:1!important;min-width:0!important;min-height:40px!important;padding:8px 6px!important;font-size:13px!important;
+}
+body.fire-bob .bob-surface-only-field{grid-column:1/-1!important}
