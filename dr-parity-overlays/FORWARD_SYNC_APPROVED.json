@@ -43,6 +43,28 @@
       ],
       "pending_matrix_note": "DR has governed Edit customer support for name, email, phone, service address, and lead source without rewriting historical estimates/invoices/payments/agreements. LIVE deployment must receive the same capability before this state can be identical.",
       "synced_matrix_note": "Edit customer was brought into LIVE and deliberately reviewed against DR on the same device/profile with historical-record preservation confirmed; forward sync recorded in FORWARD_SYNC_APPROVED.json."
+    },
+    {
+      "id": "optional-final-payment-tipping",
+      "status": "PENDING_LIVE_SYNC",
+      "scope": "customer-facing/payments/final-balance",
+      "approved_at": "2026-10-06",
+      "preserve_in_dr": true,
+      "blocks_full_identical": true,
+      "matrix_area": "Optional final-payment tipping",
+      "live_sync_target": "Bring LIVE final-balance card checkout up to the governed DR tipping flow without changing invoice balances or deposit behavior.",
+      "protected_behavior": [
+        "No tip selected by default",
+        "5% preset",
+        "10% preset",
+        "15% preset",
+        "Custom tip",
+        "Tips only on final balance payments",
+        "Tip stored separately from invoice payment",
+        "Tip and Tip Refund excluded from invoice paid/balance math"
+      ],
+      "pending_matrix_note": "Owner approved optional final-payment tipping with No tip selected by default plus 5% / 10% / 15% / Custom. Tips are final-balance-only and must remain separate from invoice paid/balance accounting. LIVE must receive the same flow before this state can be identical.",
+      "synced_matrix_note": "Optional final-payment tipping was brought into LIVE with No tip default, 5% / 10% / 15% / Custom, final-balance-only behavior, and separate tip accounting; LIVE/DR were deliberately reviewed on the same device/profile."
     }
   ]
 }
