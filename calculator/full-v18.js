@@ -29,7 +29,7 @@
   const load=src=>new Promise(resolve=>{const s=document.createElement('script');s.src=src;s.onload=()=>resolve(true);s.onerror=()=>{console.error('FIRE v18 module failed to load:',src);resolve(false)};document.head.appendChild(s)});
   const waitForCore=(timeout=15000)=>new Promise(resolve=>{const start=Date.now();const check=()=>{const ready=!!window.__fireFullV18&&!!document.querySelector('#priceEditor')&&!!document.querySelector('#mixHistory');if(ready){window.__fireV18CoreReady=true;window.dispatchEvent(new CustomEvent('fire-v18-core-ready'));return resolve(true)}if(Date.now()-start>=timeout){console.warn('FIRE v18 core readiness timed out; continuing shared modules for audit visibility.');return resolve(false)}setTimeout(check,50)};check()});
   (async()=>{
-    await load('./full-v18-core.js?v=5');
+    await load('./full-v18-core.js?v=6');
     await waitForCore();
     await load('./v18-legacy-job-detach.js?v=2');
     await load('./full-v18-parity-core.js?v=3');
