@@ -52,11 +52,6 @@ body.fire-bob .resultbig{color:var(--bob-amber)!important}
 body.fire-bob #mix.active{display:block!important}
 body.fire-bob #mix>.card{margin:16px 0!important}
 body.fire-bob #mix>.card:nth-child(3){background:var(--bob-panel)!important}
-body.fire-bob #surface{display:none!important}
-body.fire-bob #job>.card:first-child .metrics{grid-template-columns:repeat(3,minmax(0,1fr))!important}
-body.fire-bob #job>.card:first-child{padding-bottom:18px!important}
-body.fire-bob #job>.card:first-child .field:nth-child(3){display:none!important}
-body.fire-bob #job>.card:first-child .field{grid-column:span 6!important}
 body.fire-bob #job>.card:not(:first-child){margin-top:18px!important}
 body.fire-bob #chemicals>.card{margin-top:16px!important}
 body.fire-bob .accord{background:#0b1013!important;border-color:#303940!important;border-radius:16px!important}
@@ -76,9 +71,6 @@ body.fire-bob .bob-advanced-note{margin:12px 0 0;color:#909aa2;font-size:12px;te
   body.fire-bob .tabswrap{top:calc(76px + env(safe-area-inset-top))!important;padding-left:14px!important;padding-right:14px!important}
   body.fire-bob .tab{font-size:15px!important}
   body.fire-bob .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
-  body.fire-bob #job>.card:first-child .metrics{grid-template-columns:repeat(3,minmax(0,1fr))!important}
-  body.fire-bob #job>.card:first-child .metric{padding:10px!important}
-  body.fire-bob #job>.card:first-child .metric strong{font-size:18px!important}
 }
 
 
@@ -86,9 +78,6 @@ body.fire-bob .bob-advanced-note{margin:12px 0 0;color:#909aa2;font-size:12px;te
    LIVE Mixes (#chemicals) and Chemical Index (#index) are the strongest parts of
    the calculator. Preserve their v18 structure/interaction. SH Mix (#mix) is the
    best-of-both field workspace and may receive additive workflow improvements. */
-body.fire-bob #mix.active{display:grid!important}
-@media(max-width:760px){body.fire-bob #mix.active{grid-template-columns:1fr!important}}
-body.fire-bob #surface{display:block!important}
 body.fire-bob #indexResults{color:var(--ink)!important}
 
 /* Preserve original v18 presentation inside the actual LIVE Mixes + Index views. */
@@ -147,8 +136,6 @@ body.fire-bob .bob-section-toggle>summary:after{content:'＋';flex:0 0 auto;colo
 body.fire-bob .bob-section-toggle[open]>summary:after{content:'–'}
 body.fire-bob .bob-section-toggle>.card{margin:0!important;border:0!important;border-top:1px solid #303940!important;border-radius:0!important}
 body.fire-bob .bob-job-estimate>.card{background:#12181c!important}
-body.fire-bob #equipment>.card:nth-of-type(1),
-body.fire-bob #equipment>.card:nth-of-type(2){border-radius:22px!important}
 @media(max-width:560px){
   body.fire-bob .bob-stage-badge{display:none}
   body.fire-bob .bob-section-toggle>summary{min-height:58px;padding:12px 14px}
@@ -223,3 +210,12 @@ body.fire-bob .bob-job-intro{
 body.fire-bob .bob-job-intro strong{display:block;color:#fff;font-size:14px;margin-bottom:3px}
 body.fire-bob .bob-job-intro span{display:block;font-size:12px;line-height:1.4}
 body.fire-bob .bob-job-toggle>.card{margin:0!important;border:0!important;border-radius:0 0 12px 12px!important}
+
+
+body.fire-bob .bob-coverage-card{padding-bottom:18px!important}
+body.fire-bob .bob-coverage-card .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+@media(max-width:560px){
+  body.fire-bob .bob-coverage-card .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  body.fire-bob .bob-coverage-card .metric{padding:10px!important}
+  body.fire-bob .bob-coverage-card .metric strong{font-size:18px!important}
+}
