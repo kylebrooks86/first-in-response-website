@@ -103,6 +103,9 @@ for needle in [
     'Put any extra amount in Tip received instead.',
     'VALUES (?,?, \'Tip\',?,\'paid\',?,?)',
     '"tip_received"',
+    'const results=await env.DB.batch([',
+    "WHERE EXISTS (SELECT 1 FROM payments WHERE id=? AND estimate_id=? AND status='paid')",
+    'if(!results[1]?.meta.changes)return Response.json({ error:"The invoice payment was not paired with its tip record.',
 ]:
     if needle not in text['payments']:
         errors.append(f'manual payment API missing tip invariant: {needle}')
