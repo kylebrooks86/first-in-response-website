@@ -92,7 +92,7 @@
     }
     if(index&&tools){['Stain & Surface Finder','Chemical Compatibility Checker'].forEach(t=>{const c=cardBy(index,t);if(c)tools.appendChild(c)})}
     if(guide&&tools){const safety=cardBy(guide,'Field Safety Card');if(safety){if(![...safety.querySelectorAll('h3')].some(h=>h.textContent.includes('Exposure response')))safety.insertAdjacentHTML('beforeend','<h3>🚿 Exposure response</h3><p>Stop work, move to fresh air and rinse exposed skin or eyes with clean water. Follow the product label/SDS; call 911 for a serious reaction.</p>');tools.appendChild(safety)}}
-    if(tools)moveOrder(tools,['Saved mixes','Stain & Surface Finder','Chemical Compatibility Checker','Batch History / Mix Log','Chemical Inventory','Application Timer','Weather Adjustment Guide','Custom Chemical Builder','Version and offline update','Backup or Restore Field Data','Field Safety Card']);
+    if(tools)moveOrder(tools,['Saved mixes','Quick Mix Favorites','Stain & Surface Finder','Chemical Compatibility Checker','Batch History / Mix Log','Chemical Inventory','Application Timer','Weather Adjustment Guide','Custom Chemical Builder','Version and offline update','Backup or Restore Field Data','Field Safety Card']);
     if(guide)moveOrder(guide,['10% SH service presets','Services that should not default to SH','Quick safety order']);
     if(job){
       const full=q('#priceEditor')?.closest('.card')||q('#fullServiceLines')?.closest('.card')||cardBy(job,'Full FIRE service estimator');
