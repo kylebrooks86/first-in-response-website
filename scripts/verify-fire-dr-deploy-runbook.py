@@ -37,7 +37,9 @@ for label,needle in [
  ('tipping default/presets','No tip is selected by default, with 5% / 10% / 15% / Custom choices.'),
  ('deposit tipping prohibition','Deposits do not offer or accept tips.'),
  ('separate tip accounting','FIRE records Tip / Tip Refund separately'),
- ('tip forward-sync blocker','tipping remains a `PENDING_LIVE_SYNC` forward-sync blocker.')]:
+ ('tip forward-sync blocker','tipping remains a `PENDING_LIVE_SYNC` forward-sync blocker.'),
+ ('safe tip refund workflow',"initiate any refund from FIRE's Payment History"),
+ ('combined Stripe-dashboard tip refund warning','Do not use a single combined Stripe Dashboard refund as the normal tipping-refund workflow')]:
     if needle not in text: errors.append(f'runbook missing {label}: {needle}')
 
 # Runbook exposes only the wrapper for remote deployment; evidence commands are
