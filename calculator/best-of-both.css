@@ -168,7 +168,7 @@ body.fire-bob .bob-preset-options{
 }
 body.fire-bob .bob-preset-option{
   width:100%;min-height:56px;padding:9px 10px;border:0;border-radius:10px;background:transparent;color:#f7fafc;
-  display:grid;grid-template-columns:32px minmax(0,1fr);gap:9px;align-items:center;text-align:left;
+  display:grid;grid-template-columns:32px minmax(0,1fr) 22px;gap:9px;align-items:center;text-align:left;
 }
 body.fire-bob .bob-preset-option+ .bob-preset-option{border-top:1px solid rgba(52,65,74,.55)}
 body.fire-bob .bob-preset-option:active{background:#241715}
@@ -294,3 +294,10 @@ body.fire-bob .bob-other-stock>summary{
 body.fire-bob .bob-recipe-fine>summary span{color:#8f9aa2;font-weight:600}
 body.fire-bob .bob-recipe-fine-body{padding-top:8px}
 body.fire-bob .bob-other-stock .inputrow{margin-top:7px}
+
+
+body.fire-bob .bob-preset-check{
+  opacity:0;color:#7fd8a5;font-weight:900;font-size:15px;justify-self:end
+}
+body.fire-bob .bob-preset-option.selected{background:#17211c}
+body.fire-bob .bob-preset-option.selected .bob-preset-check{opacity:1}
