@@ -2,15 +2,7 @@
 if(window.__fireV18FineParity)return;window.__fireV18FineParity=true;
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const style=document.createElement('style');style.textContent=`#batchChips{gap:8px;align-items:stretch}#batchChips .chip{min-width:62px;min-height:44px;padding:10px 12px;justify-content:center}.toprow .version{white-space:nowrap}.stock-pill{font-size:12px;white-space:nowrap;font-weight:700;border-radius:999px;padding:5px 9px;background:#d4edda;color:#155724}.stock-pill b{font-weight:800}.dark .stock-pill{background:#173b2b;color:#a9e9bf}.fire-surface-guidance{margin-top:12px}@media(max-width:560px){#batchChips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;width:100%}#batchChips .chip{width:100%;min-width:0;min-height:40px;padding:8px 3px;font-size:12px}.stock-pill{font-size:10px;padding:4px 7px}}`;document.head.appendChild(style);
-function batchGal(){const b=$('#batchPreset');if(!b)return 4;if(b.value==='custom'){const n=+($('#customBatch')?.value||0),u=$('#customUnit')?.value;return u==='floz'?n/128:u==='quart'?n/4:u==='liter'?n/3.78541:n}return +b.value||4}
-function growthLabel(){const a=$('#growthSeg .chip.active');const g=(a?.dataset.growth||a?.textContent||'moderate').trim().toLowerCase();return g==='moderate'?'medium':g}
-function surfaceLabel(){return ($('#surface')?.selectedOptions?.[0]?.textContent||'House wash').split(' — ')[0].trim().toLowerCase()}
-function syncRecipe(){const r=$('#recipeTitle');if(r)r.textContent=`${batchGal().toFixed(2)} gal ${growthLabel()} ${surfaceLabel()}`}
-function syncStock(){const out=$('#stockNote');if(!out)return;const on=+($('#shOnHand')?.value||0),stock=Math.max(.1,+($('#stockStrength')?.value||10)),target=Math.max(0,+($('#targetNum')?.value||0)),batch=batchGal(),sh=target/stock*batch,count=sh>0?Math.floor(on/sh):0,total=count*batch;out.textContent=`Your ${on} gallons of SH can make ${count} full ${batch.toFixed(2)} gal batches (${total.toFixed(1)} gallons of finished mix).`;const pill=$('#stockPill');if(pill)pill.textContent=stock.toFixed(stock%1?1:0)+'%'}
 function apply(){
-  const topTools=$('.tabs .tab[data-view="tools"]');if(topTools)topTools.remove();
-  const ver=$('.version');if(ver){ver.textContent='v18';ver.style.color='#949698'}const stock=$('.stock');if(stock){stock.classList.add('stock-pill');stock.innerHTML='Stock SH <b id="stockPill">10%</b>'}
-  const install=$('#installBtn');if(install){install.classList.remove('hidden');install.textContent='Install'}
   const surfaceCard=$('#surface')?.closest('.card');if(surfaceCard&&surfaceCard.id!=='bobQuickFavorites'&&!surfaceCard.textContent.includes('Start low. Check oxidation, failed paint, outlets, door seals, and delicate fixtures before applying.')){const p=document.createElement('p');p.className='muted fire-surface-guidance';p.textContent='Start low. Check oxidation, failed paint, outlets, door seals, and delicate fixtures before applying.';surfaceCard.appendChild(p)}
   const ele=$('#eleRate');if(ele){
     ele.type='number';ele.removeAttribute('list');
@@ -25,8 +17,6 @@ function apply(){
   const area=$('#area');if(area&&area.value==='2500')area.value='';
   const timerCard=$$('h2').find(h=>h.textContent.trim()==='Application Timer')?.closest('.card');if(timerCard&&!timerCard.textContent.includes('A timer never replaces the product label.')){const p=document.createElement('p');p.className='muted';p.textContent='A timer never replaces the product label. Watch the surface continuously and rinse sooner if drying or a reaction appears.';timerCard.appendChild(p)}
   const safety=$$('h2').find(h=>h.textContent.trim()==='Quick safety order')?.closest('.card');if(safety){const items=$$('li',safety);if(items[1])items[1].textContent='Wear eye/skin protection and keep people, pets, and plants clear.';const ol=$('ol',safety);if(ol&&![...ol.children].some(li=>li.textContent.trim()==='Rinse tools and do not seal or store mixed SH long-term.')){const li=document.createElement('li');li.textContent='Rinse tools and do not seal or store mixed SH long-term.';ol.appendChild(li)}}
-  syncRecipe();syncStock();
 }
-function bind(){['surface','batchPreset','customBatch','customUnit','targetNum','stockStrength','shOnHand','eleRate'].forEach(id=>$('#'+id)?.addEventListener('input',()=>{setTimeout(syncRecipe,0);setTimeout(syncStock,0)}));$('#batchPreset')?.addEventListener('change',()=>{setTimeout(syncRecipe,0);setTimeout(syncStock,0)});$$('#growthSeg .chip').forEach(b=>b.addEventListener('click',()=>setTimeout(syncRecipe,0)));}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{apply();bind();window.dispatchEvent(new CustomEvent('fire-v18-fine-parity-ready'))},250));else setTimeout(()=>{apply();bind();window.dispatchEvent(new CustomEvent('fire-v18-fine-parity-ready'))},250);
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{apply();window.dispatchEvent(new CustomEvent('fire-v18-fine-parity-ready'))},250));else setTimeout(()=>{apply();bind();window.dispatchEvent(new CustomEvent('fire-v18-fine-parity-ready'))},250);
 })();
