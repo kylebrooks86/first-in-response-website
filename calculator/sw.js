@@ -1,8 +1,9 @@
-const CACHE='fire-field-calculator-v18-exact-clone-106';
+const CACHE='fire-field-calculator-v18-exact-clone-107';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
+  '../assets/recent-work/fire-logo-direct.png',
   './full-v18.js?v=6',
   './full-v18-core.js?v=1',
   './v18-legacy-job-detach.js?v=2',
