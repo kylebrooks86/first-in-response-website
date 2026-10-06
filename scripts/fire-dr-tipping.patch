@@ -321,7 +321,7 @@ diff --git a/fire-app-dr/app/api/payments/route.ts b/fire-app-dr/app/api/payment
      const paidCents = Number(estimate.paidCents);
      const dueLimit = estimate.status === "completed"
        ? Number(estimate.totalCents)
-@@ -59,33 +66,47 @@ export async function POST(request: Request) {
+@@ -59,33 +66,71 @@ export async function POST(request: Request) {
          : 0;
      if(!Number.isSafeInteger(paidCents)||paidCents<0||!Number.isSafeInteger(dueLimit)||dueLimit<0||!Number.isSafeInteger(paidCents+amountCents))return Response.json({error:"Billing totals are outside FIRE's safe accounting range. Stop and review this job before recording another payment."},{status:409});
      const balance = Math.max(0, dueLimit - paidCents);
@@ -341,13 +341,14 @@ diff --git a/fire-app-dr/app/api/payments/route.ts b/fire-app-dr/app/api/payment
 -            ELSE 0
 -          END - COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0)
 +    let payment:{id:string;estimateId:string;type:string;amountCents:number;status:string;reference:string|null;createdAt:string}|null=null;
++    let tip:{id:string;estimateId:string;type:string;amountCents:number;status:string;reference:string|null;createdAt:string}|null=null;
 +    if(amountCents>0){
 +      if (dueLimit <= 0) return Response.json({ error: "A payment is not due on this estimate yet." }, { status: 409 });
 +      if (balance <= 0) return Response.json({ error: estimate.status === "completed" ? "This job is already paid in full. Record the tip by itself instead." : "The reservation deposit is already paid." }, { status: 400 });
 +      if (amountCents > balance) return Response.json({ error: `Payment cannot exceed the amount currently due of $${(balance / 100).toFixed(2)}. Put any extra amount in Tip received instead.` }, { status: 400 });
 +
 +      payment = { id:crypto.randomUUID(), estimateId, type:method, amountCents, status:"paid", reference, createdAt:new Date().toISOString() };
-+      const inserted = await env.DB.prepare(`
++      const paymentStatement = env.DB.prepare(`
 +        INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
 +        SELECT ?,?,?,?,'paid',?,?
 +        WHERE ? <= (
@@ -366,18 +367,41 @@ diff --git a/fire-app-dr/app/api/payments/route.ts b/fire-app-dr/app/api/payment
 -    `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, amountCents, estimateId, estimateId, amountCents).run();
 -    if (!inserted.meta.changes) return Response.json({ error: "The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." }, { status: 409 });
 +        AND (SELECT COALESCE(SUM(p.amount_cents),0) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')) <= 9007199254740991 - ?
-+      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, amountCents, estimateId, estimateId, amountCents).run();
-+      if (!inserted.meta.changes) return Response.json({ error: "The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." }, { status: 409 });
++      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, amountCents, estimateId, estimateId, amountCents);
++
++      if(tipCents>0){
++        const tipId=crypto.randomUUID();
++        const tipReference=[method,reference].filter(Boolean).join(" · ")||method;
++        const tipCreatedAt=new Date().toISOString();
++        const results=await env.DB.batch([
++          paymentStatement,
++          env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
++            SELECT ?,?,'Tip',?,'paid',?,?
++            WHERE EXISTS (SELECT 1 FROM payments WHERE id=? AND estimate_id=? AND status='paid')`)
++            .bind(tipId,estimateId,tipCents,tipReference,tipCreatedAt,payment.id,estimateId),
++          env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
++            SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates
++            WHERE id=? AND EXISTS (SELECT 1 FROM payments WHERE id=? AND estimate_id=? AND status='paid')`)
++            .bind(crypto.randomUUID(),"Tip received",`${(tipCents/100).toFixed(2)} tip recorded via ${method}.`,estimateId,tipCreatedAt,estimateId,payment.id,estimateId),
++        ]);
++        if(!results[0]?.meta.changes)return Response.json({ error:"The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." },{status:409});
++        if(!results[1]?.meta.changes)return Response.json({ error:"The invoice payment was not paired with its tip record. Refresh Payment History before recording anything else." },{status:409});
++        tip={id:tipId,estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:tipReference,createdAt:tipCreatedAt};
++      }else{
++        const inserted=await paymentStatement.run();
++        if(!inserted.meta.changes)return Response.json({ error:"The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." },{status:409});
++      }
 +    }
 +
-+    let tip:{id:string;estimateId:string;type:string;amountCents:number;status:string;reference:string|null;createdAt:string}|null=null;
-+    if(tipCents>0){
++    if(tipCents>0&&amountCents<=0){
 +      tip={id:crypto.randomUUID(),estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:[method,reference].filter(Boolean).join(" · ")||method,createdAt:new Date().toISOString()};
-+      await env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at) VALUES (?,?, 'Tip',?,'paid',?,?)")
-+        .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt).run();
-+      const customer=await env.DB.prepare("SELECT name FROM customers WHERE id=(SELECT customer_id FROM estimates WHERE id=? LIMIT 1)").bind(estimateId).first<{name:string}>();
-+      await env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates WHERE id=?")
-+        .bind(crypto.randomUUID(),`Tip received from ${customer?.name||"customer"}`,`$${(tipCents/100).toFixed(2)} tip recorded via ${method}.`,estimateId,tip.createdAt,estimateId).run();
++      const results=await env.DB.batch([
++        env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at) VALUES (?,?, 'Tip',?,'paid',?,?)")
++          .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt),
++        env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates WHERE id=?")
++          .bind(crypto.randomUUID(),"Tip received",`${(tipCents/100).toFixed(2)} tip recorded via ${method}.`,estimateId,tip.createdAt,estimateId),
++      ]);
++      if(!results[0]?.meta.changes)return Response.json({error:"The tip could not be recorded safely. Refresh Payment History before trying again."},{status:409});
 +    }
  
      const refreshed = await env.DB.prepare(`
@@ -389,7 +413,7 @@ diff --git a/fire-app-dr/app/api/payments/route.ts b/fire-app-dr/app/api/payment
        FROM estimates e WHERE e.id=?
      `).bind(estimateId).first<{status:string;totalCents:number;depositCents:number;paidCents:number}>();
      const nextPaid = Number(refreshed?.paidCents ?? (paidCents + amountCents));
-@@ -95,16 +116,17 @@ export async function POST(request: Request) {
+@@ -95,16 +140,17 @@ export async function POST(request: Request) {
          ? Number(refreshed.depositCents)
          : dueLimit;
      if(!Number.isSafeInteger(nextPaid)||nextPaid<0||!Number.isSafeInteger(refreshedDueLimit)||refreshedDueLimit<0)return Response.json({error:"Payment was recorded, but refreshed billing totals require review before FIRE can reconcile the balance."},{status:409});
