@@ -49,15 +49,15 @@
     }
 
     const presets=[
-      {icon:'🏠',name:'House / Vinyl',pct:1,surface:'house',growth:'moderate',ele:.3,note:'Normal organic growth on vinyl siding, soffit/fascia, or vinyl fence.'},
-      {icon:'🪵',name:'Bare Wood Fence',pct:.5,surface:'fencew',growth:'light',ele:.3,note:'Conservative starting mix for unfinished wood. Test first.'},
-      {icon:'🎨',name:'Painted Wood / Brick / Masonry',pct:.5,surface:'painted',growth:'moderate',ele:.3,note:'Sound exterior paint only. Check for chalking, peeling, oxidation, or failing coating and test first.'},
-      {icon:'🧱',name:'Concrete Pre-Treat',pct:2,surface:'concrete',growth:'moderate',ele:0,eleOptional:.3,note:'No surfactant by default. If the concrete is sloped, vertical, very hot/dry, or the solution is drying/running off too quickly, add Elemonator at 0.3 oz per gallon of finished mix for extra wetting and dwell.'},
-      {icon:'💦',name:'Concrete Post-Treat',pct:1,surface:'post',growth:'moderate',ele:0,note:'No surfactant by default for a leave-on post-treatment.'},
-      {icon:'🏚️',name:'Asphalt Roof / Black Streaks',pct:4,surface:'roof',growth:'moderate',ele:1,note:'Typical black-streak starting mix. Roof preset uses a heavier Elemonator dose for more cling. Verify the shingle manufacturer and never use high pressure.'},
-      {icon:'🧱',name:'Bare Brick / Masonry',pct:1,surface:'brick',growth:'moderate',ele:.3,note:'For ordinary organic growth on unpainted brick / masonry. Natural stone is not included.'},
-      {icon:'🏡',name:'Stucco / Synthetic Stucco',pct:.5,surface:'stucco',growth:'light',ele:.3,note:'Conservative starting point. Low pressure and test first.'},
-      {icon:'🧱',name:'Pavers / Hardscape',pct:1,surface:'pavers',growth:'moderate',ele:.3,note:'Routine organic-growth starting point; verify sealer / surface compatibility.'}
+      {icon:'🏠',name:'House / Vinyl',pct:1,strengths:{light:.5,moderate:1,heavy:1.5},surface:'house',growth:'moderate',ele:.3,note:'Normal organic growth on vinyl siding, soffit/fascia, or vinyl fence.'},
+      {icon:'🪵',name:'Bare Wood Fence',pct:.5,strengths:{light:.5,moderate:1,heavy:1.5},surface:'fencew',growth:'light',ele:.3,note:'Conservative starting mix for unfinished wood. Test first.'},
+      {icon:'🎨',name:'Painted Wood / Brick / Masonry',pct:.5,strengths:{light:.5,moderate:.5,heavy:.5},surface:'painted',growth:'moderate',ele:.3,note:'Sound exterior paint only. Check for chalking, peeling, oxidation, or failing coating and test first.'},
+      {icon:'🧱',name:'Concrete Pre-Treat',pct:2,strengths:{light:1,moderate:2,heavy:3},surface:'concrete',growth:'moderate',ele:0,eleOptional:.3,note:'No surfactant by default. If the concrete is sloped, vertical, very hot/dry, or the solution is drying/running off too quickly, add Elemonator at 0.3 oz per gallon of finished mix for extra wetting and dwell.'},
+      {icon:'💦',name:'Concrete Post-Treat',pct:1,strengths:{light:.5,moderate:1,heavy:1.5},surface:'post',growth:'moderate',ele:0,note:'No surfactant by default for a leave-on post-treatment.'},
+      {icon:'🏚️',name:'Asphalt Roof / Black Streaks',pct:4,strengths:{light:3,moderate:4,heavy:5},surface:'roof',growth:'moderate',ele:1,note:'Typical black-streak starting mix. Roof preset uses a heavier Elemonator dose for more cling. Verify the shingle manufacturer and never use high pressure.'},
+      {icon:'🧱',name:'Bare Brick / Masonry',pct:1,strengths:{light:.5,moderate:1,heavy:2},surface:'brick',growth:'moderate',ele:.3,note:'For ordinary organic growth on unpainted brick / masonry. Natural stone is not included.'},
+      {icon:'🏡',name:'Stucco / Synthetic Stucco',pct:.5,strengths:{light:.5,moderate:1,heavy:1.5},surface:'stucco',growth:'light',ele:.3,note:'Conservative starting point. Low pressure and test first.'},
+      {icon:'🧱',name:'Pavers / Hardscape',pct:1,strengths:{light:.5,moderate:1,heavy:2},surface:'pavers',growth:'moderate',ele:.3,note:'Routine organic-growth starting point; verify sealer / surface compatibility.'}
     ];
 
     const card=document.createElement('div');
@@ -81,17 +81,32 @@
       return 'Elemonator '+fmtOz(p.ele*batchGallons())+' oz this batch';
     };
     const summary=$('#bobPresetSummary',card),menu=$('#bobPresetMenu',card),options=$('#bobPresetOptions',card),note=$('#bobFavNote',card);
+    const growthSeg=$('#growthSeg'),growthField=growthSeg?.closest('.field');
+    if(growthSeg){
+      const medium=$('[data-growth="moderate"]',growthSeg);if(medium)medium.textContent='Medium';
+      if(growthField){
+        growthField.classList.add('bob-dirtiness-field');
+        const label=$('label',growthField);if(label)label.textContent='Dirtiness / organic growth';
+        card.insertBefore(growthField,note);
+      }
+    }
+    const surfaceField=surface?.closest('.field');if(surfaceField)surfaceField.classList.add('bob-surface-only-field');
+    let activePreset=null;
+
+    const currentGrowth=()=>$('#growthSeg [data-growth].active')?.dataset.growth||'moderate';
+    const presetStrength=(p,g=currentGrowth())=>p?.strengths?.[g]??p?.pct??0;
 
     const setSummary=(p)=>{
       if(!summary)return;
-      summary.innerHTML='<span class="bob-preset-summary-icon">'+p.icon+'</span><span class="bob-preset-summary-copy"><strong>'+p.name+'</strong><small>'+p.pct+'% SH · '+surfactantText(p)+'</small></span>';
+      const strength=presetStrength(p);summary.innerHTML='<span class="bob-preset-summary-icon">'+p.icon+'</span><span class="bob-preset-summary-copy"><strong>'+p.name+'</strong><small>'+strength+'% SH · '+surfactantText(p)+'</small></span>';
     };
 
     const selectPreset=(p)=>{
+      activePreset=p;
       if(surface){surface.value=p.surface;fireInput(surface);}
       if(p.surface&&window.__fireSetDwellForSurface)window.__fireSetDwellForSurface(p.surface);
       const condition=$('#growthSeg [data-growth="'+(p.growth||'moderate')+'"]'); if(condition)condition.click();
-      const target=$('#targetNum'); if(target){target.value=p.pct;fireInput(target);}
+      const target=$('#targetNum'); if(target){target.value=presetStrength(p,p.growth||'moderate');fireInput(target);}
       const ele=$('#eleRate'); if(ele){ele.value=p.ele;fireInput(ele);}
       setSummary(p);
       if(menu)menu.open=false;
@@ -106,22 +121,29 @@
     presets.forEach((p,i)=>{
       const b=document.createElement('button');
       b.type='button'; b.className='bob-preset-option'; b.dataset.presetIndex=String(i); b._bobPreset=p;
-      b.innerHTML='<span class="bob-preset-option-icon">'+p.icon+'</span><span class="bob-preset-option-copy"><strong>'+p.name+'</strong><small>'+p.pct+'% SH · '+surfactantText(p)+'</small></span>';
+      const range=[p.strengths.light,p.strengths.moderate,p.strengths.heavy].join(' / ');b.innerHTML='<span class="bob-preset-option-icon">'+p.icon+'</span><span class="bob-preset-option-copy"><strong>'+p.name+'</strong><small>'+range+'% SH · Light / Medium / Heavy</small></span>';
       b.addEventListener('click',()=>selectPreset(p));
       options.appendChild(b);
     });
 
     const refreshAmounts=()=>{
-      $$('.bob-preset-option',card).forEach(b=>{
-        const p=b._bobPreset,small=$('small',b);
-        if(p&&small)small.textContent=p.pct+'% SH · '+surfactantText(p);
-      });
-      const current=presets.find(p=>p.surface===surface?.value && Math.abs((+$('#targetNum')?.value||0)-p.pct)<.001 && Math.abs((+$('#eleRate')?.value||0)-p.ele)<.001);
-      if(current)setSummary(current);
+      if(activePreset)setSummary(activePreset);
+      else{
+        const current=presets.find(p=>p.surface===surface?.value && Math.abs((+$('#eleRate')?.value||0)-p.ele)<.001);
+        if(current){activePreset=current;setSummary(current);}
+      }
     };
     ['#batchPreset','#customBatch','#customUnit'].forEach(sel=>{
       const el=$(sel);if(el){el.addEventListener('input',refreshAmounts);el.addEventListener('change',refreshAmounts);}
     });
+    $('#growthSeg [data-growth]').forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{
+      if(!activePreset||surface?.value!==activePreset.surface)return;
+      const g=b.dataset.growth,target=$('#targetNum'),strength=presetStrength(activePreset,g);
+      if(target){target.value=strength;fireInput(target);}
+      setSummary(activePreset);
+      if(note&&activePreset.surface==='painted')note.textContent='🎨 Painted exterior stays at a conservative 0.5% SH for Light, Medium, and Heavy. Inspect for chalking, peeling, oxidation, or failing coating and test first.';
+    },0)));
+    surface?.addEventListener('change',()=>{if(activePreset&&surface.value!==activePreset.surface)activePreset=null;});
     refreshAmounts();
 
     mix.insertBefore(card,mix.firstElementChild);
