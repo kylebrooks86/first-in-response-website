@@ -14,7 +14,7 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
   const row = await env.DB.prepare(`
     SELECT e.id, e.total_cents AS estimateTotalCents, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, e.status, e.accepted_at AS acceptedAt,
            c.name AS customer, c.address,
-           COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0) AS paidCents,
+           COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
            COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen,
            COALESCE((SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending'),0) AS pendingRefundCount
     FROM estimates e JOIN customers c ON c.id=e.customer_id
