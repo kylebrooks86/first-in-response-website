@@ -74,7 +74,7 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     }
     const totalCents=subtotalCents>0?Math.max(15000,subtotalCents-discountCents):0;
     const appliedDiscountCents=Math.max(0,subtotalCents-totalCents);
-    const paidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid'").bind(existing.estimateId).first<{paidCents:number}>();
+    const paidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(existing.estimateId).first<{paidCents:number}>();
     const paidCents=Number(paidRow?.paidCents||0);
     if(!Number.isSafeInteger(paidCents)||paidCents<0)return Response.json({error:"Recorded payments are outside FIRE's safe accounting range. Stop and review this job before editing the invoice."},{status:409});
     if(totalCents<paidCents)return Response.json({error:"Invoice total cannot be lower than payments already recorded. Record a refund or adjustment first."},{status:409});
@@ -89,7 +89,7 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
       else if(/^\d{4}-\d{2}-\d{2}$/.test(rawDueAt)){const parsed=new Date(`${rawDueAt}T12:00:00.000Z`);if(Number.isNaN(parsed.getTime()))return Response.json({error:"Choose a valid invoice due date."},{status:400});dueAt=parsed.toISOString();}
       else return Response.json({error:"Choose a valid invoice due date."},{status:400});
     }
-    const latestPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid'").bind(existing.estimateId).first<{paidCents:number}>();
+    const latestPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(existing.estimateId).first<{paidCents:number}>();
     const latestPaidCents=Number(latestPaidRow?.paidCents??0);
     if(!Number.isSafeInteger(latestPaidCents)||latestPaidCents<0)return Response.json({error:"Recorded payments changed outside FIRE's safe accounting range. Stop and review this job before editing the invoice."},{status:409});
     if(totalCents<latestPaidCents)return Response.json({error:"A payment changed while this invoice was being edited. Refresh the job before saving a lower invoice total."},{status:409});
