@@ -513,7 +513,7 @@
     const tools=$('#tools'); if(!tools)return;
 
     /* Preserve the saved-mix card; the late Tools parity layer converts the old one-tap favorites into Saved mixes. */
-    const oldFav=$(':scope > .card',tools).find(card=>($('h2',card)?.textContent||'').trim()==='Quick Mix Favorites');
+    const oldFav=Array.from(tools.querySelectorAll(':scope > .card')).find(card=>($('h2',card)?.textContent||'').trim()==='Quick Mix Favorites');
     const oldFavHeading=oldFav&&$('h2',oldFav);
     if(oldFavHeading)oldFavHeading.textContent='Saved mixes';
 
