@@ -194,15 +194,30 @@
     card.id='bobQuickFavorites'; card.className='card bob-quick-card';
     card.innerHTML='<div class="kicker">QUICK FAVORITES</div><h2>Common SH starting mixes</h2><p class="muted bob-fav-help">Tap a favorite to load the surface, Moderate condition, target SH strength, and the appropriate Elemonator rate. Your currently selected batch size stays in place, and the recipe calculates the actual Elemonator ounces for that batch. You can fine-tune anything afterward.</p><div class="bob-fav-grid" id="bobFavGrid"></div><details class="bob-more-presets"><summary>➕ More presets / special surfaces</summary><div class="bob-fav-grid" id="bobMoreGrid"></div></details><div class="bob-fav-note" id="bobFavNote">Starting points only — surface condition and the current product label still control.</div>';
 
+    const batchGallons=()=>{
+      const preset=$('#batchPreset');
+      if(!preset)return 4;
+      if(preset.value!=='custom')return Math.max(0,+preset.value||0);
+      const amt=Math.max(0,+$('#customBatch')?.value||0),unit=$('#customUnit')?.value||'gal';
+      if(unit==='floz')return amt/128;
+      if(unit==='quart')return amt/4;
+      if(unit==='liter')return amt/3.785411784;
+      return amt;
+    };
+    const fmtOz=(n)=>n<1?n.toFixed(2):n.toFixed(1);
     const surfactantText=(p)=>{
       if(p.ele==null)return 'Elemonator: choose after surface ID';
-      if(p.ele===0 && p.eleOptional)return 'Elemonator: optional up to '+p.eleOptional.toFixed(1)+' oz/gal final mix';
+      if(p.ele===0 && p.eleOptional){
+        const total=p.eleOptional*batchGallons();
+        return 'Elemonator: optional · '+fmtOz(total)+' oz for this batch';
+      }
       if(p.ele===0)return 'Elemonator: none';
-      return 'Elemonator: '+p.ele.toFixed(1)+' oz/gal final mix';
+      const total=p.ele*batchGallons();
+      return 'Elemonator: '+fmtOz(total)+' oz for this batch ('+p.ele.toFixed(1)+' oz/gal)';
     };
 
     const makeButton=(p)=>{
-      const b=document.createElement('button'); b.type='button'; b.className='bob-fav-btn';
+      const b=document.createElement('button'); b.type='button'; b.className='bob-fav-btn'; b._bobPreset=p;
       const strength=p.pct==null?'Test first':(p.pct+'% SH');
       b.innerHTML='<span class="bob-fav-icon">'+p.icon+'</span><span class="bob-fav-copy"><strong>'+p.name+'</strong><small>'+strength+' · '+surfactantText(p)+'</small></span>';
       if(p.pct==null)b.classList.add('bob-fav-info');
@@ -229,6 +244,19 @@
     };
     presets.forEach(p=>$('#bobFavGrid',card).appendChild(makeButton(p)));
     more.forEach(p=>$('#bobMoreGrid',card).appendChild(makeButton(p)));
+
+    const refreshFavoriteAmounts=()=>{
+      $('.bob-fav-btn',card).forEach(b=>{
+        const p=b._bobPreset,small=$('small',b);
+        if(!p||!small)return;
+        const strength=p.pct==null?'Test first':(p.pct+'% SH');
+        small.textContent=strength+' · '+surfactantText(p);
+      });
+    };
+    ['#batchPreset','#customBatch','#customUnit'].forEach(sel=>{
+      const el=$(sel); if(el){el.addEventListener('input',refreshFavoriteAmounts);el.addEventListener('change',refreshFavoriteAmounts);}
+    });
+    refreshFavoriteAmounts();
 
     /* Insert favorites without altering the LIVE Mixes / Index layouts. */
     mix.insertBefore(card,mix.firstElementChild);
