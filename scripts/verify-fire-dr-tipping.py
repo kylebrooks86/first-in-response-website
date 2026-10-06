@@ -40,6 +40,7 @@ for needle in [
     '>Custom</button>',
     'paymentType === "balance"',
     'tipCents: allowTip ? tipCents : 0',
+    'type="number" min="0" step="0.01" placeholder="$0.00"',
 ]:
     if needle not in text['button']: errors.append(f'pay button missing tip invariant: {needle}')
 preset_match=re.search(r'const TIP_PRESETS\s*=\s*\[([^\]]+)\]',text['button'])
