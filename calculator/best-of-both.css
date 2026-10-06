@@ -62,7 +62,6 @@ body.fire-bob .bob-tools-sheet.open{display:grid;grid-template-columns:repeat(2,
 body.fire-bob .bob-tools-sheet button{min-height:46px;border:1px solid #303940;background:#1a2025;color:#fff;border-radius:13px;font-weight:800}
 body.fire-bob .bottom{display:none!important}
 
-body.fire-bob .bob-advanced-note{margin:12px 0 0;color:#909aa2;font-size:12px;text-align:center}
 @media(max-width:560px){
   body.fire-bob .page{padding-left:14px!important;padding-right:14px!important}
   body.fire-bob .card{padding:16px!important;border-radius:20px!important}
@@ -133,7 +132,6 @@ body.fire-bob .bob-section-toggle>summary span{color:#96a1aa;font-size:12px;text
 body.fire-bob .bob-section-toggle>summary:after{content:'＋';flex:0 0 auto;color:#ffbd3f;font-size:20px;font-weight:900}
 body.fire-bob .bob-section-toggle[open]>summary:after{content:'–'}
 body.fire-bob .bob-section-toggle>.card{margin:0!important;border:0!important;border-top:1px solid #303940!important;border-radius:0!important}
-body.fire-bob .bob-job-estimate>.card{background:#12181c!important}
 @media(max-width:560px){
   body.fire-bob .bob-stage-badge{display:none}
   body.fire-bob .bob-section-toggle>summary{min-height:58px;padding:12px 14px}
