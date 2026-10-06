@@ -1,14 +1,14 @@
-const CACHE='fire-field-calculator-v18-best-of-both-111';
+const CACHE='fire-field-calculator-v18-best-of-both-112';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   '../assets/recent-work/fire-logo-direct.png',
-  './full-v18.js?v=7',
-  './full-v18-core.js?v=2',
+  './full-v18.js?v=8',
+  './full-v18-core.js?v=3',
   './v18-legacy-job-detach.js?v=2',
   './full-v18-parity-core.js?v=3',
-  './v18-behavior.js?v=5',
+  './v18-behavior.js?v=6',
   './v18-interactions.js?v=3',
   './v18-fine-parity.js?v=8',
   './v18-equipment-parity.js?v=3',
@@ -35,16 +35,16 @@ const ASSETS=[
   './v18-live-index-parity.js?v=2',
   './v18-live-guide-parity.js?v=3',
   './v18-live-navigation-parity.js?v=5',
-  './v18-live-tools-parity.js?v=1',
+  './v18-live-tools-parity.js?v=2',
   './v18-live-tools-options-parity.js?v=2',
-  './v18-live-tools-fine.js?v=1',
+  './v18-live-tools-fine.js?v=2',
   './v18-live-pricing-parity.js?v=2',
   './v18-live-customer-parity.js?v=11',
   './v18-live-backup-hydration.js?v=3',
   './v18-live-invalid-backup-parity.js?v=2',
   './v18-live-portable-backup.js?v=1',
-  './v18-live-input-contract.js?v=4',
-  './best-of-both.js?v=2'
+  './v18-live-input-contract.js?v=5',
+  './best-of-both.js?v=3'
 ];
 self.addEventListener('install',e=>e.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
