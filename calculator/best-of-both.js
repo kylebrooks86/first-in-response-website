@@ -309,10 +309,9 @@
   }
 
   function jobPolish(){
-    const job=$('#job'); if(!job || job.dataset.bobDone)return;
-    job.dataset.bobDone='1';
+    const job=$('#job'); if(!job)return;
 
-    const cards=$$(':scope > .card',job);
+    const cards=$$(':scope > .card, :scope > .bob-section-toggle > .card',job);
     const byHeading=(needle)=>cards.find(card=>($('h2',card)?.textContent||'').toLowerCase().includes(needle.toLowerCase()));
     const coverage=byHeading('How much mix');
     const area=byHeading('Area and real coverage helpers');
@@ -326,19 +325,25 @@
       if(h)h.textContent='How much mix will the job need?';
     }
 
-    const intro=document.createElement('div');
-    intro.className='bob-job-intro';
-    intro.innerHTML='<strong>📋 Job Plan</strong><span>Coverage stays up front. Measuring, chemical cost, estimating, and profitability are available when you need them without making the field screen feel crowded.</span>';
-    job.insertBefore(intro,job.firstChild);
+    let intro=$('#bobJobIntro');
+    if(!intro){
+      intro=document.createElement('div');
+      intro.id='bobJobIntro'; intro.className='bob-job-intro';
+      intro.innerHTML='<strong>📋 Job Plan</strong><span>Coverage stays up front. Measuring, chemical cost, estimating, and profitability are available when you need them without making the field screen feel crowded.</span>';
+      job.insertBefore(intro,job.firstChild);
+    }
 
     let cursor=intro;
     if(coverage){cursor.after(coverage);cursor=coverage;}
 
-    const wrapCard=(card,title,sub,open=false)=>{
-      if(!card || card.closest('.bob-section-toggle'))return;
-      const wrap=document.createElement('details'); wrap.className='bob-section-toggle bob-job-toggle'; wrap.open=open;
-      const summary=document.createElement('summary'); summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
-      card.before(wrap); wrap.append(summary,card);
+    const wrapCard=(card,title,sub)=>{
+      if(!card)return;
+      let wrap=card.closest('.bob-section-toggle');
+      if(!wrap){
+        wrap=document.createElement('details'); wrap.className='bob-section-toggle bob-job-toggle';
+        const summary=document.createElement('summary'); summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
+        card.before(wrap); wrap.append(summary,card);
+      }
       cursor.after(wrap); cursor=wrap;
     };
 
@@ -349,10 +354,9 @@
   }
 
   function equipmentPolish(){
-    const eq=$('#equipment'); if(!eq || eq.dataset.bobDone)return;
-    eq.dataset.bobDone='1';
+    const eq=$('#equipment'); if(!eq)return;
 
-    const cards=$$(':scope > .card',eq);
+    const cards=$$(':scope > .card, :scope > .bob-section-toggle > .card',eq);
     const byHeading=(needle)=>cards.find(card=>($('h2',card)?.textContent||'').toLowerCase().includes(needle.toLowerCase()));
     const xjetMain=byHeading('X-Jet M5DS Twist');
     const xjetCal=byHeading('X-Jet bucket draw test');
@@ -362,20 +366,30 @@
     const realInjector=byHeading('Find your real injector ratio');
     const fillTime=byHeading('Fill-time estimate');
 
-    const label=document.createElement('div');
-    label.className='bob-equipment-intro';
-    label.innerHTML='<strong>🪣 Current bucket workflows</strong><span>X-Jet and downstream tools stay up front. Calibration and future-rig tools are tucked away until you need them.</span>';
-    eq.insertBefore(label,eq.firstChild);
+    let label=$('#bobEquipmentIntro');
+    if(!label){
+      label=document.createElement('div');
+      label.id='bobEquipmentIntro'; label.className='bob-equipment-intro';
+      label.innerHTML='<strong>🪣 Current bucket workflows</strong><span>X-Jet and downstream tools stay up front. Calibration and future-rig tools are tucked away until you need them.</span>';
+      eq.insertBefore(label,eq.firstChild);
+    }
 
-    /* Arrange the things the user actually reaches for today. */
     let cursor=label;
-    [xjetMain,reverseX,downstream,realInjector].filter(Boolean).forEach(card=>{cursor.after(card);cursor=card;});
+    const moveCard=(card)=>{
+      if(!card)return;
+      const node=card.closest('.bob-section-toggle')||card;
+      cursor.after(node); cursor=node;
+    };
+    [xjetMain,reverseX,downstream,realInjector].forEach(moveCard);
 
     const wrapCard=(card,title,sub)=>{
-      if(!card || card.closest('.bob-section-toggle'))return;
-      const wrap=document.createElement('details'); wrap.className='bob-section-toggle';
-      const summary=document.createElement('summary'); summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
-      card.before(wrap); wrap.append(summary,card);
+      if(!card)return;
+      let wrap=card.closest('.bob-section-toggle');
+      if(!wrap){
+        wrap=document.createElement('details'); wrap.className='bob-section-toggle';
+        const summary=document.createElement('summary'); summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
+        card.before(wrap); wrap.append(summary,card);
+      }
       cursor.after(wrap); cursor=wrap;
     };
 
@@ -436,16 +450,14 @@
   }
 
   function toolsPolish(){
-    const tools=$('#tools'); if(!tools || tools.dataset.bobDone)return;
-    tools.dataset.bobDone='1';
+    const tools=$('#tools'); if(!tools)return;
 
-    /* Remove the old v18 one-tap favorites so they cannot conflict with the
-       newer surface-aware Quick Favorites in SH Mix (including 4% roof). */
-    const oldFav=$(':scope > .card',tools).find(card=>($('h2',card)?.textContent||'').trim()==='Quick Mix Favorites');
+    /* Remove any obsolete pre-best-of-both favorite card if an older module restores it. */
+    const oldFav=$$(':scope > .card',tools).find(card=>($('h2',card)?.textContent||'').trim()==='Quick Mix Favorites');
     oldFav?.remove();
 
     const dwell=$('#dwellTimerCard');
-    if(dwell)tools.insertBefore(dwell,tools.firstChild);
+    if(dwell && tools.firstElementChild!==dwell)tools.insertBefore(dwell,tools.firstChild);
 
     if(dwell && !$('#bobGoDwellFromMix')){
       const fav=$('#bobQuickFavorites');
@@ -459,6 +471,14 @@
     }
   }
 
+  function reapplyLateLayout(){
+    relabelTabs();
+    jobPolish();
+    equipmentPolish();
+    toolsPolish();
+    syncLateStockTools();
+  }
+
   function chemicalPolish(){
     /* LIVE Mixes is a user-favorite section. Preserve its content and calculator behavior. */
   }
@@ -466,6 +486,6 @@
   setTitle(); relabelTabs(); quickFavorites(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); chemicalPolish(); syncLateStockTools();
   $('#surface')?.addEventListener('change',syncSurface);
   $('#stockStrength')?.addEventListener('input',syncLateStockTools);
-  window.addEventListener('fire-v18-shared-core-ready',()=>setTimeout(syncLateStockTools,0));
-  window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(syncLateStockTools,0));
+  window.addEventListener('fire-v18-shared-core-ready',()=>setTimeout(reapplyLateLayout,0));
+  window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(reapplyLateLayout,0));
 })();
