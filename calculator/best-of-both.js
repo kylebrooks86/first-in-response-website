@@ -246,7 +246,7 @@
   function equipmentPolish(){
     const eq=$('#equipment'); if(!eq)return;
 
-    const cards=$$(':scope > .card, :scope > .bob-section-toggle > .card',eq);
+    const cards=$$('#equipment .card');
     const byHeading=(needle)=>cards.find(card=>($('h2',card)?.textContent||'').toLowerCase().includes(needle.toLowerCase()));
     const xjetMain=byHeading('X-Jet M5DS Twist');
     const xjetCal=byHeading('X-Jet bucket draw test');
@@ -260,36 +260,41 @@
     $('#bobLoadCurrentTarget')?.remove();
     $('#bobUseInjectorRatio')?.remove();
 
+    /* Rebuild only our presentation wrappers so Equipment stays compact even
+       after late v18 modules inject or rearrange cards. */
+    $$('#equipment .bob-equipment-group, #equipment .bob-section-toggle').forEach(w=>{
+      const parent=w.parentElement;
+      $$(':scope > .card, :scope > .bob-group-body > .card',w).forEach(card=>parent.insertBefore(card,w));
+      w.remove();
+    });
+
     let cursor=null;
-    const moveCard=(card)=>{
-      if(!card)return;
-      const node=card.closest('.bob-section-toggle')||card;
+    const place=(node)=>{
+      if(!node)return;
       if(cursor)cursor.after(node); else eq.insertBefore(node,eq.firstChild);
       cursor=node;
     };
-    [xjetMain,downstream].forEach(moveCard);
+    place(xjetMain);
+    place(downstream);
 
-    const wrapCard=(card,title,sub)=>{
+    const one=(card,title,sub)=>{
       if(!card)return;
-      let wrap=card.closest('.bob-section-toggle');
-      if(!wrap){
-        wrap=document.createElement('details'); wrap.className='bob-section-toggle';
-        const summary=document.createElement('summary'); summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
-        card.before(wrap); wrap.append(summary,card);
-      }else{
-        const summary=$('summary',wrap);
-        if(summary)summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
-        wrap.open=false;
-      }
-      if(cursor)cursor.after(wrap); else eq.insertBefore(wrap,eq.firstChild);
-      cursor=wrap;
+      const wrap=document.createElement('details'); wrap.className='bob-section-toggle';
+      const summary=document.createElement('summary'); summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
+      wrap.append(summary,card); place(wrap);
+    };
+    const group=(groupCards,title,sub)=>{
+      const present=groupCards.filter(Boolean); if(!present.length)return;
+      const wrap=document.createElement('details'); wrap.className='bob-section-toggle bob-equipment-group';
+      const summary=document.createElement('summary'); summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
+      const body=document.createElement('div');body.className='bob-group-body';
+      present.forEach(card=>body.appendChild(card));
+      wrap.append(summary,body); place(wrap);
     };
 
-    wrapCard(reverseX,'X-Jet pickup bucket recipe','Reverse calculator for a target delivered strength');
-    wrapCard(xjetCal,'X-Jet calibration','Measured bucket-draw test');
-    wrapCard(realInjector,'Downstream calibration','Measure and verify your real injector ratio');
-    wrapCard(proportioner,'Future REMCO 7-GPM soft-wash rig','Three-port proportioner planning');
-    wrapCard(fillTime,'Future tank fill time','Estimate fill time from hose flow');
+    one(reverseX,'X-Jet pickup bucket recipe','Build a pickup mix for a delivered target');
+    group([xjetCal,realInjector],'Calibration tools','X-Jet and downstream draw tests');
+    group([proportioner,fillTime],'Future rig planning','REMCO proportioner, tanks, and fill time');
   }
 
   function dwellTimerPolish(){
