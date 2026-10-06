@@ -18,7 +18,7 @@
   ];
   const buildTable=()=>{
     const guide=$('#guide');if(!guide)return;const first=$(':scope > .card:first-child',guide);if(!first||first.dataset.liveGuide==='1')return;first.dataset.liveGuide='1';
-    first.innerHTML=`<div class="kicker">Starting-strength guide</div><h2>SH starting-strength guide</h2><p class="muted">Final / delivered SH starting points. Stock strength changes how much concentrate you use, not the target percentage shown here.</p><div class="fire-guide-table"><div class="fire-guide-head"><span>Surface</span><span>Light</span><span>Moderate</span><span>Heavy</span></div>${rows.map(r=>`<div class="fire-guide-row"><span class="fire-guide-surface"><strong>${r[0]}</strong>${r[1]?`<small>${r[1]}</small>`:''}</span><span><b>${r[2]}</b></span><span><b>${r[3]}</b></span><span><b>${r[4]}</b></span></div>`).join('')}</div>`;
+    first.innerHTML=`<div class="kicker">Starting-strength guide</div><h2>SH starting-strength guide</h2><p class="muted">Final / delivered SH starting points. Stock strength changes how much concentrate you use, not the target percentage shown here.</p><div class="fire-guide-table"><div class="fire-guide-head"><span>Surface</span><span>Light</span><span>Medium</span><span>Heavy</span></div>${rows.map(r=>`<div class="fire-guide-row"><span class="fire-guide-surface"><strong>${r[0]}</strong>${r[1]?`<small>${r[1]}</small>`:''}</span><span><b>${r[2]}</b></span><span><b>${r[3]}</b></span><span><b>${r[4]}</b></span></div>`).join('')}</div>`;
   };
   const openLiveAccordion=()=>{
     const guide=$('#guide');if(!guide)return;const second=$(':scope > .card:nth-child(2)',guide);if(!second)return;
