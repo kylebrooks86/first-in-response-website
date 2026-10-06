@@ -192,19 +192,19 @@
 
     const card=document.createElement('div');
     card.id='bobQuickFavorites'; card.className='card bob-quick-card';
-    card.innerHTML='<div class="kicker">QUICK FAVORITES</div><h2>Common SH starting mixes</h2><p class="muted bob-fav-help">Tap a favorite to load the surface, Moderate condition, target SH strength, 4-gal FlowZone batch, and the appropriate Elemonator setting. You can fine-tune anything afterward.</p><div class="bob-fav-grid" id="bobFavGrid"></div><details class="bob-more-presets"><summary>➕ More presets / special surfaces</summary><div class="bob-fav-grid" id="bobMoreGrid"></div></details><div class="bob-fav-note" id="bobFavNote">Starting points only — surface condition and the current product label still control.</div>';
+    card.innerHTML='<div class="kicker">QUICK FAVORITES</div><h2>Common SH starting mixes</h2><p class="muted bob-fav-help">Tap a favorite to load the surface, Moderate condition, target SH strength, and the appropriate Elemonator rate. Your currently selected batch size stays in place, and the recipe calculates the actual Elemonator ounces for that batch. You can fine-tune anything afterward.</p><div class="bob-fav-grid" id="bobFavGrid"></div><details class="bob-more-presets"><summary>➕ More presets / special surfaces</summary><div class="bob-fav-grid" id="bobMoreGrid"></div></details><div class="bob-fav-note" id="bobFavNote">Starting points only — surface condition and the current product label still control.</div>';
 
-    const surfactantText=(p,batch=4)=>{
+    const surfactantText=(p)=>{
       if(p.ele==null)return 'Elemonator: choose after surface ID';
-      if(p.ele===0 && p.eleOptional)return 'Elemonator: optional '+(p.eleOptional*batch).toFixed(1)+' oz';
+      if(p.ele===0 && p.eleOptional)return 'Elemonator: optional up to '+p.eleOptional.toFixed(1)+' oz/gal final mix';
       if(p.ele===0)return 'Elemonator: none';
-      return 'Elemonator: '+(p.ele*batch).toFixed(1)+' oz';
+      return 'Elemonator: '+p.ele.toFixed(1)+' oz/gal final mix';
     };
 
     const makeButton=(p)=>{
       const b=document.createElement('button'); b.type='button'; b.className='bob-fav-btn';
       const strength=p.pct==null?'Test first':(p.pct+'% SH');
-      b.innerHTML='<span class="bob-fav-icon">'+p.icon+'</span><span class="bob-fav-copy"><strong>'+p.name+'</strong><small>'+strength+' · '+surfactantText(p,4)+'</small></span>';
+      b.innerHTML='<span class="bob-fav-icon">'+p.icon+'</span><span class="bob-fav-copy"><strong>'+p.name+'</strong><small>'+strength+' · '+surfactantText(p)+'</small></span>';
       if(p.pct==null)b.classList.add('bob-fav-info');
       b.addEventListener('click',()=>{
         const note=$('#bobFavNote');
@@ -215,14 +215,13 @@
         if(surface){surface.value=p.surface;fireInput(surface);}
         /* Standardize favorites on the existing Moderate condition behavior. */
         const mod=$('#growthSeg [data-growth="moderate"]'); if(mod)mod.click();
-        const preset=$('#batchPreset'); if(preset){preset.value='4';fireInput(preset);}
         const target=$('#targetNum'); if(target){target.value=p.pct;fireInput(target);}
         const ele=$('#eleRate'); if(ele){ele.value=p.ele;fireInput(ele);}
         $('.bob-fav-btn').forEach(x=>x.classList.toggle('active',x===b));
         if(note){
           const surf=p.ele===0&&p.eleOptional
-            ?' Elemonator is optional here; the preset leaves it at 0 oz. For extra wetting/cling, the direct-application guide rate is '+(p.eleOptional*4).toFixed(1)+' oz in this 4-gal batch.'
-            :(p.ele===0?' No Elemonator is added by default.':' Elemonator loaded at '+(p.ele*4).toFixed(1)+' oz for this 4-gal batch ('+p.ele.toFixed(1)+' oz/gal).');
+            ?' Elemonator is optional here; the preset leaves it at 0 oz. For extra wetting/cling, the direct-application guide rate is '+p.eleOptional.toFixed(1)+' oz per gallon of final mixed solution.'
+            :(p.ele===0?' No Elemonator is added by default.':' Elemonator loaded at '+p.ele.toFixed(1)+' oz per gallon of final mixed solution. The recipe below calculates the total ounces from your selected batch size.');
           note.textContent=p.icon+' '+p.name+': '+p.note+surf;
         }
       });
