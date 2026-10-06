@@ -35,6 +35,9 @@ for(const [name,surface,strengths] of presets){
 }
 ok(!/growth:'(?:light|moderate|heavy)'/.test(bob),'quick presets must not reset the global dirtiness selector');
 ok(!/\bp\.growth\b/.test(bob),'quick preset selection still references a per-preset dirtiness default');
+ok(bob.includes("const applyPresetTarget=(p,g=currentGrowth())=>"),'shared stock-limit guard is missing from quick preset flow');
+ok(bob.includes("applyPresetTarget(p,b.dataset.growth)"),'dirtiness changes bypass the stock-limit guard');
+ok(bob.includes("preset.dataset.bobBatchBound")&&bob.includes("b.dataset.bobBatchBound"),'batch controls are not protected against duplicate late-layout event binding');
 ok(bob.includes("const currentGrowth=()=>$('#growthSeg [data-growth].active')?.dataset.growth||'moderate'"),'global dirtiness source is missing');
 
 for(const [label,value] of [['Light','light'],['Medium','moderate'],['Heavy','heavy']]){
