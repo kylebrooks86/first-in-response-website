@@ -5,7 +5,7 @@ body.fire-bob{
   --bob-bg:#090d10;--bob-panel:#12181c;--bob-panel2:#1a2025;--bob-line:#303940;
   --bob-text:#f5f7f8;--bob-muted:#aab3bb;--bob-red:#e52b24;--bob-red2:#b8201b;
   --bob-amber:#ffbd3f;--bob-blue:#57b9ff;--bob-green:#4ad58b;
-  background:var(--bob-bg)!important;color:var(--bob-text)!important;padding-bottom:calc(84px + env(safe-area-inset-bottom))!important;
+  background:var(--bob-bg)!important;color:var(--bob-text)!important;padding-bottom:calc(24px + env(safe-area-inset-bottom))!important;
 }
 body.fire-bob .topbar{position:sticky;top:0;background:linear-gradient(180deg,#190d0e 0%,#100d0e 100%)!important;border-bottom:1px solid #291416!important;padding:calc(10px + env(safe-area-inset-top)) 14px 10px!important}
 body.fire-bob .toprow{max-width:880px!important;min-height:58px!important;gap:12px!important}
@@ -277,3 +277,6 @@ body.fire-bob .bob-batch-more>summary{
 body.fire-bob .bob-batch-more-body{padding:6px 0 0}
 body.fire-bob .bob-batch-more-body .field{margin:0 0 8px!important}
 body.fire-bob .bob-batch-select-field select{min-height:44px!important}
+
+
+body.fire-bob .toast{bottom:calc(20px + env(safe-area-inset-bottom))!important}
