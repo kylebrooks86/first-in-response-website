@@ -48,7 +48,7 @@
     await load('./v18-live-index-parity.js?v=2');
     await load('./v18-live-guide-parity.js?v=4');
     await load('./v18-live-navigation-parity.js?v=6');
-    await load('./v18-live-tools-parity.js?v=3');
+    await load('./v18-live-tools-parity.js?v=4');
     await load('./v18-live-tools-options-parity.js?v=2');
     await load('./v18-live-tools-fine.js?v=2');
     await load('./v18-live-pricing-parity.js?v=2');
