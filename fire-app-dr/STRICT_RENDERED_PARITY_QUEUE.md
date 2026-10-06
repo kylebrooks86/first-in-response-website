@@ -102,6 +102,19 @@ Functional contracts source-guarded: signature essentials, photo permission, con
 
 Functional contracts source-guarded: deposit obligation before completion, final invoice obligation after completion, no payment during pending refund/open overpayment review, concurrency-safe manual payment insertion.
 
+
+Owner-approved payment forward-sync addition (2026-10-06): preserve the DR optional tipping flow on final balance card payments. No tip must remain selected by default, with 5% / 10% / 15% / Custom choices. Deposits must never offer a tip. Tip and Tip Refund entries must remain separate from invoice-paid/balance calculations. Bring LIVE forward to this behavior rather than removing tipping from DR.
+
+LIVE tipping forward-sync acceptance criteria:
+- Final balance card payment shows No tip / 5% / 10% / 15% / Custom.
+- No tip is selected by default.
+- Deposit checkout does not offer or accept tipping.
+- Stripe shows the tip as a separate Optional tip line item.
+- FIRE records the invoice payment and Tip separately.
+- Tip and Tip Refund do not alter invoice paid, balance due, paid-in-full, overpayment, or refund-review calculations.
+- A Stripe Tip can be refunded as a Tip Refund without reopening an invoice balance.
+- Do not clear the tipping `FORWARD SYNC APPROVED` state until LIVE and DR are deliberately reviewed on the same device/profile.
+
 ## Priority 6 — invoices
 
 47. Owner Invoices list populated.
