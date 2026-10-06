@@ -86,6 +86,27 @@ for name in ['invoice','pay','estimate']:
     if 'baseAmountCents=' not in text[name]:
         errors.append(f'{name} does not pass final balance to tip selector')
 
+
+for needle in [
+    'Tip received (optional)',
+    'Recorded separately and does not change the invoice balance.',
+    '?"Record tip":"Deposit recorded"',
+    'body:JSON.stringify({estimateId:estimate.id,amountCents,tipCents,method,reference})',
+]:
+    if needle not in text['owner_dashboard']:
+        errors.append(f'owner Record payment/tip UI missing invariant: {needle}')
+
+for needle in [
+    'const tipCents = Math.round(Number(body.tipCents) || 0);',
+    'Tips can be recorded only after the job is completed.',
+    'This job is already paid in full. Record the tip by itself instead.',
+    'Put any extra amount in Tip received instead.',
+    'VALUES (?,?, \'Tip\',?,\'paid\',?,?)',
+    '"tip_received"',
+]:
+    if needle not in text['payments']:
+        errors.append(f'manual payment API missing tip invariant: {needle}')
+
 for name in ['payments','customers']:
     if "p.type IN ('deposit','balance','Tip')" not in text[name]:
         errors.append(f'{name} does not identify Stripe Tip rows as refundable Stripe payments')
@@ -133,4 +154,4 @@ if errors:
     for error in errors: print('- '+error)
     raise SystemExit(1)
 print('DR_TIPPING_GUARD=PASS')
-print('Optional final-payment tipping is governed: No tip default; 5/10/15/Custom presets; deposits cannot tip; Stripe tip is separate; Tip/Tip Refund never change invoice math; Payment History labels and LIVE forward-sync/runbook policy are protected.')
+print('Optional tipping is governed end-to-end: No tip default; 5/10/15/Custom final-card presets; deposits cannot tip; manual Venmo/Cash App tips can be logged separately/tip-only; Tip/Tip Refund never change invoice math; Payment History labels and LIVE forward-sync/runbook policy are protected.')
