@@ -37,6 +37,8 @@ ok(!/growth:'(?:light|moderate|heavy)'/.test(bob),'quick presets must not reset 
 ok(!/\bp\.growth\b/.test(bob),'quick preset selection still references a per-preset dirtiness default');
 ok(bob.includes("const applyPresetTarget=(p,g=currentGrowth())=>"),'shared stock-limit guard is missing from quick preset flow');
 ok(bob.includes("applyPresetTarget(p,b.dataset.growth)"),'dirtiness changes bypass the stock-limit guard');
+ok(bob.includes("const stockChanged=()=>setTimeout(()=>")&&bob.includes("applyPresetTarget(p,currentGrowth())"),'stock-strength changes bypass the stock-limit guard');
+ok(bob.includes("const clearPresetSelection=()=>")&&bob.includes("activePreset=null;clearPresetSelection();setCustomSummary()"),'stock-limited presets can leave a stale selected checkmark');
 ok(bob.includes("preset.dataset.bobBatchBound")&&bob.includes("b.dataset.bobBatchBound"),'batch controls are not protected against duplicate late-layout event binding');
 ok(bob.includes("#job .bob-section-toggle[open] > summary strong"),'Job Plan open-state preservation is missing');
 ok(bob.includes("#equipment .bob-section-toggle[open] > summary strong"),'Equipment open-state preservation is missing');
