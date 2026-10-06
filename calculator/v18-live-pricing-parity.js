@@ -2,8 +2,8 @@
   if(window.__fireLivePricingParity)return;window.__fireLivePricingParity=true;
   const defs=[
     ['svcHouse','price_houseWash','House wash / ft²'],
-    ['svcGutter','price_gutterClean','Gutter clean / linear ft'],
-    ['svcGuard','price_gutterGuards','Guard remove + reinstall / ft'],
+    ['svcGutter','price_gutterClean','Gutter Cleaning & Downspout Flushing / linear ft'],
+    ['svcGuard','price_gutterGuards','Gutter Guard Removal / Reinstall / ft'],
     ['svcBright','price_gutterBrightening','Gutter brightening / ft'],
     ['svcW1','price_window1','Standard window — 1st'],
     ['svcW2','price_window2','Standard window — 2nd'],
