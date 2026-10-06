@@ -26,12 +26,21 @@
     document.body.classList.add('fire-bob','dark');
     const t=$('.title strong'); if(t)t.textContent='FIRE Field Calculator';
     const s=$('.title span'); if(s)s.textContent='Fast mixes. Safer jobs.';
-    const stock=$('.stock'); if(stock)stock.textContent='10% SH BASE';
+    const stock=$('.stock'),stockVal=+($('#stockStrength')?.value||10); if(stock)stock.textContent='Stock SH '+stockVal.toFixed(stockVal%1?1:0)+'%';
     const top=$('.toprow');
     if(top && !$('#bobStageBadge')){
       const badge=document.createElement('span'); badge.id='bobStageBadge'; badge.className='bob-stage-badge'; badge.textContent='STAGING';
       top.appendChild(badge);
     }
+  }
+
+  function syncLateStockTools(){
+    const v=+($('#stockStrength')?.value||10);
+    const reverse=$('#xReverseStock'), prop=$('#propStock');
+    if(reverse && Math.abs((+reverse.value||0)-v)>.001){reverse.value=v;fireInput(reverse);}
+    if(prop && Math.abs((+prop.value||0)-v)>.001){prop.value=v;fireInput(prop);}
+    const badge=$('#stockBadge')||$('.stock');
+    if(badge)badge.textContent='Stock SH '+v.toFixed(v%1?1:0)+'%';
   }
 
   function relabelTabs(){
@@ -454,6 +463,9 @@
     /* LIVE Mixes is a user-favorite section. Preserve its content and calculator behavior. */
   }
 
-  setTitle(); relabelTabs(); quickFavorites(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); chemicalPolish();
+  setTitle(); relabelTabs(); quickFavorites(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); chemicalPolish(); syncLateStockTools();
   $('#surface')?.addEventListener('change',syncSurface);
+  $('#stockStrength')?.addEventListener('input',syncLateStockTools);
+  window.addEventListener('fire-v18-shared-core-ready',()=>setTimeout(syncLateStockTools,0));
+  window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(syncLateStockTools,0));
 })();
