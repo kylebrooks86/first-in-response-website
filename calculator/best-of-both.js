@@ -55,13 +55,13 @@
     const presets=[
       {icon:'🏠',name:'House / Vinyl',pct:1,surface:'house',growth:'moderate',ele:.3,note:'Normal organic growth on vinyl siding, soffit/fascia, or vinyl fence.'},
       {icon:'🪵',name:'Bare Wood Fence',pct:.5,surface:'fencew',growth:'light',ele:.3,note:'Conservative starting mix for unfinished wood. Test first.'},
-      {icon:'🎨',name:'Painted Wood / Brick / Masonry',pct:.5,surface:'painted',growth:'moderate',ele:.3,note:'Sound exterior paint only. Check for chalking, peeling, oxidation, or failing coating and test first.'},
       {icon:'🧱',name:'Concrete Pre-Treat',pct:2,surface:'concrete',growth:'moderate',ele:0,eleOptional:.3,note:'No surfactant by default. If the concrete is sloped, vertical, very hot/dry, or the solution is drying/running off too quickly, add Elemonator at 0.3 oz per gallon of finished mix for extra wetting and dwell.'},
       {icon:'💦',name:'Concrete Post-Treat',pct:1,surface:'post',growth:'moderate',ele:0,note:'No surfactant by default for a leave-on post-treatment.'},
       {icon:'🏚️',name:'Asphalt Roof / Black Streaks',pct:4,surface:'roof',growth:'moderate',ele:1,note:'Typical black-streak starting mix. Roof preset uses a heavier Elemonator dose for more cling. Verify the shingle manufacturer and never use high pressure.'},
-      {icon:'🧱',name:'Bare Brick / Masonry',pct:1,surface:'brick',growth:'moderate',ele:.3,note:'For ordinary organic growth on unpainted brick / masonry. Natural stone is not included.'}
     ];
     const more=[
+      {icon:'🎨',name:'Painted Wood / Brick / Masonry',pct:.5,surface:'painted',growth:'moderate',ele:.3,note:'Sound exterior paint only. Check for chalking, peeling, oxidation, or failing coating and test first.'},
+      {icon:'🧱',name:'Bare Brick / Masonry',pct:1,surface:'brick',growth:'moderate',ele:.3,note:'For ordinary organic growth on unpainted brick / masonry. Natural stone is not included.'},
       {icon:'🏡',name:'Stucco / Synthetic Stucco',pct:.5,surface:'stucco',growth:'light',ele:.3,note:'Conservative starting point. Low pressure and test first.'},
       {icon:'🧱',name:'Pavers / Hardscape',pct:1,surface:'pavers',growth:'moderate',ele:.3,note:'Routine organic-growth starting point; verify sealer / surface compatibility.'},
       {icon:'🪨',name:'Natural Stone — Identify / Test First',pct:null,surface:null,ele:null,note:'Do not use one universal SH strength. Identify the stone and any sealer before choosing a mix.'},
@@ -222,16 +222,9 @@
       if(h)h.textContent='How much mix will the job need?';
     }
 
-    let intro=$('#bobJobIntro');
-    if(!intro){
-      intro=document.createElement('div');
-      intro.id='bobJobIntro'; intro.className='bob-job-intro';
-      intro.innerHTML='<strong>📋 Job Plan</strong><span>Coverage stays up front. Measuring, chemical cost, estimating, and profitability are available when you need them without making the field screen feel crowded.</span>';
-      job.insertBefore(intro,job.firstChild);
-    }
-
-    let cursor=intro;
-    if(coverage){cursor.after(coverage);cursor=coverage;}
+    $('#bobJobIntro')?.remove();
+    let cursor=null;
+    if(coverage){job.insertBefore(coverage,job.firstChild);cursor=coverage;}
 
     const wrapCard=(card,title,sub)=>{
       if(!card)return;
@@ -261,48 +254,20 @@
     const proportioner=byHeading('Three-port proportioner planner');
     const reverseX=byHeading('Mix the X-Jet pickup bucket for a target strength');
     const realInjector=byHeading('Find your real injector ratio');
-
-    if(reverseX && !$('#bobLoadCurrentTarget',reverseX)){
-      const b=document.createElement('button');
-      b.type='button'; b.id='bobLoadCurrentTarget'; b.className='bob-inline-action';
-      const refreshLabel=()=>{const v=+($('#targetNum')?.value||0);b.textContent='🎯 Use current SH Mix target'+(v?' ('+v+'%)':'');};
-      refreshLabel();
-      b.addEventListener('click',()=>{
-        const desired=$('#xDesired'),target=$('#targetNum');
-        if(desired&&target){desired.value=target.value;fireInput(desired);refreshLabel();}
-      });
-      $('#targetNum')?.addEventListener('input',refreshLabel);
-      const h=$('h2',reverseX); h?.insertAdjacentElement('afterend',b);
-    }
     const fillTime=byHeading('Fill-time estimate');
 
-    if(realInjector && !$('#bobUseInjectorRatio',realInjector)){
-      const b=document.createElement('button');
-      b.type='button'; b.id='bobUseInjectorRatio'; b.className='bob-inline-action';
-      b.textContent='↪ Use measured ratio in downstream estimate';
-      b.addEventListener('click',()=>{
-        const water=Math.max(0,+($('#injWater')?.value||0)),chem=Math.max(.0001,+($('#injChem')?.value||0));
-        const ratio=water/chem,field=$('#dsRatio');
-        if(field&&Number.isFinite(ratio)){field.value=ratio.toFixed(2);fireInput(field);}
-      });
-      const result=$('#injRatio',realInjector); result?.insertAdjacentElement('afterend',b);
-    }
+    $('#bobEquipmentIntro')?.remove();
+    $('#bobLoadCurrentTarget')?.remove();
+    $('#bobUseInjectorRatio')?.remove();
 
-    let label=$('#bobEquipmentIntro');
-    if(!label){
-      label=document.createElement('div');
-      label.id='bobEquipmentIntro'; label.className='bob-equipment-intro';
-      label.innerHTML='<strong>🪣 Current bucket workflows</strong><span>X-Jet and downstream tools stay up front. Calibration and future-rig tools are tucked away until you need them.</span>';
-      eq.insertBefore(label,eq.firstChild);
-    }
-
-    let cursor=label;
+    let cursor=null;
     const moveCard=(card)=>{
       if(!card)return;
       const node=card.closest('.bob-section-toggle')||card;
-      cursor.after(node); cursor=node;
+      if(cursor)cursor.after(node); else eq.insertBefore(node,eq.firstChild);
+      cursor=node;
     };
-    [xjetMain,reverseX,downstream,realInjector].forEach(moveCard);
+    [xjetMain,downstream].forEach(moveCard);
 
     const wrapCard=(card,title,sub)=>{
       if(!card)return;
@@ -311,11 +276,18 @@
         wrap=document.createElement('details'); wrap.className='bob-section-toggle';
         const summary=document.createElement('summary'); summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
         card.before(wrap); wrap.append(summary,card);
+      }else{
+        const summary=$('summary',wrap);
+        if(summary)summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
+        wrap.open=false;
       }
-      cursor.after(wrap); cursor=wrap;
+      if(cursor)cursor.after(wrap); else eq.insertBefore(wrap,eq.firstChild);
+      cursor=wrap;
     };
 
+    wrapCard(reverseX,'X-Jet pickup bucket recipe','Reverse calculator for a target delivered strength');
     wrapCard(xjetCal,'X-Jet calibration','Measured bucket-draw test');
+    wrapCard(realInjector,'Downstream calibration','Measure and verify your real injector ratio');
     wrapCard(proportioner,'Future REMCO 7-GPM soft-wash rig','Three-port proportioner planning');
     wrapCard(fillTime,'Future tank fill time','Estimate fill time from hose flow');
   }
@@ -381,16 +353,7 @@
     const dwell=$('#dwellTimerCard');
     if(dwell && tools.firstElementChild!==dwell)tools.insertBefore(dwell,tools.firstChild);
 
-    if(dwell && !$('#bobGoDwellFromMix')){
-      const fav=$('#bobQuickFavorites');
-      if(fav){
-        const go=document.createElement('button');
-        go.type='button'; go.id='bobGoDwellFromMix'; go.className='bob-dwell-link';
-        go.textContent='⏱️ Open Dwell Timer';
-        go.addEventListener('click',()=>{$('.tab[data-view="tools"]')?.click();setTimeout(()=>dwell.scrollIntoView({behavior:'smooth',block:'start'}),120);});
-        fav.appendChild(go);
-      }
-    }
+    $('#bobGoDwellFromMix')?.remove();
   }
 
   function reapplyLateLayout(){
