@@ -146,7 +146,7 @@ function installTankPlanner(){
    const pump=Math.max(0,n('pumpGpm',7)),stock=Math.max(.1,n('propStock',10)),target=Math.max(0,n('propTarget',1)),soapPct=Math.max(0,n('soapPct',.5));
    const shPct=Math.max(0,target/stock*100),waterPct=Math.max(0,100-shPct-soapPct);
    const flows={Water:pump*waterPct/100,SH:pump*shPct/100,Soap:pump*soapPct/100};
-   const tanks={Water:Math.max(0,n('waterTankSize',55)),SH:Math.max(0,n('shTankSize',35)),Soap:Math.max(0,n('soapTankSize',5))};
+   const tanks={Water:Math.max(0,n('waterTankSize',75)),SH:Math.max(0,n('shTankSize',40)),Soap:Math.max(0,n('soapTankSize',5))};
    const times=Object.entries(flows).filter(([,f])=>f>0).map(([name,f])=>({name,min:tanks[name]/f})).filter(x=>Number.isFinite(x.min));
    const limiting=times.length?times.reduce((a,b)=>b.min<a.min?b:a):null;
    const mins=limiting?Math.max(0,limiting.min):0,total=mins*pump;
