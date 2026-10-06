@@ -204,6 +204,7 @@
       const quick=['1','2','4','5'].includes(preset.value);
       if(summary)summary.textContent=quick?'More sizes / custom':'More sizes · '+opt;
       if(preset.value==='custom')more.open=true;
+      else if(document.activeElement===preset)more.open=false;
     };
     preset.addEventListener('change',refresh);
     Array.from(document.querySelectorAll('#batchChips [data-batch]')).forEach(b=>b.addEventListener('click',()=>{if(custom)custom.classList.add('hidden');if(more)more.open=false;setTimeout(refresh,0)}));
