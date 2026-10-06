@@ -203,3 +203,10 @@ body.fire-bob .bob-coverage-card .metrics{grid-template-columns:repeat(2,minmax(
 }
 
 
+
+
+body.fire-bob .bob-group-body>.card{
+  margin:0!important;border:0!important;border-top:1px solid #303940!important;border-radius:0!important;
+}
+body.fire-bob .bob-group-body>.card:first-child{border-top:0!important}
+body.fire-bob .bob-group-body>.card:last-child{border-radius:0 0 12px 12px!important}
