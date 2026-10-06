@@ -114,7 +114,7 @@ Deliberately custom user rates are preserved.
 Current asset generation at this audit:
 - `full-v18.js?v=18`
 - `best-of-both.js?v=23`
-- `best-of-both.css?v=13`
+- `best-of-both.css?v=14`
 - service-worker cache: `fire-field-calculator-v18-best-of-both-137`
 
 Regression evidence:
