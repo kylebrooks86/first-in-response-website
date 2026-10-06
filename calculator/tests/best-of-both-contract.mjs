@@ -88,7 +88,8 @@ ok(toolsParity.includes('<h2>Saved mixes</h2>'),'Field Tools saved-mix card is m
 ok(!toolsParity.includes('data-fire-fav="house"')&&!toolsParity.includes('data-fire-fav="concrete"')&&!toolsParity.includes('data-fire-fav="gutter"')&&!toolsParity.includes('data-fire-fav="odoban"'),'duplicate one-tap favorites returned to Field Tools');
 ok(toolsParity.includes("stockStrength:n('stockStrength')")&&toolsParity.includes("eleRate:n('eleRate')"),'Saved mixes do not preserve stock strength and Elemonator rate');
 ok(toolsParity.includes("hasPreset=[...b.options].some(o=>o.value===value)")&&toolsParity.includes("b.value='custom'"),'Saved custom batch sizes cannot be restored reliably');
-ok(toolsParity.includes("if(stockStrength!=null)setVal('stockStrength',stockStrength)")&&toolsParity.includes("if(eleRate!=null)setVal('eleRate',eleRate)"),'Saved mixes do not restore full SH recipe settings');
+ok(toolsParity.includes("if(stockStrength!=null)setVal('stockStrength',stockStrength)")&&toolsParity.includes("const restoredEle=eleRate!=null?eleRate:defaultEleRate[surface]")&&toolsParity.includes("if(restoredEle!=null)setVal('eleRate',restoredEle)"),'Saved mixes do not restore full SH recipe settings');
+ok(toolsParity.includes("const defaultEleRate={house:.3")&&toolsParity.includes("roof:1"),'legacy Saved mixes have no surfactant fallback migration');
 ok(parityCore.includes("moveOrder(tools,['Saved mixes'"),'Saved mixes is not ordered in the Field Tools workflow');
 ok(!bob.includes('oldFav?.remove()'),'best-of-both late layout can delete the Saved mixes card');
 
