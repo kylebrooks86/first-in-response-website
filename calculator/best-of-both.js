@@ -232,7 +232,7 @@
         const mod=$('#growthSeg [data-growth="moderate"]'); if(mod)mod.click();
         const target=$('#targetNum'); if(target){target.value=p.pct;fireInput(target);}
         const ele=$('#eleRate'); if(ele){ele.value=p.ele;fireInput(ele);}
-        $('.bob-fav-btn').forEach(x=>x.classList.toggle('active',x===b));
+        $$('.bob-fav-btn').forEach(x=>x.classList.toggle('active',x===b));
         if(note){
           const surf=p.ele===0&&p.eleOptional
             ?' Elemonator is optional here; the preset leaves it at 0 oz. For extra wetting/cling, the direct-application guide rate is '+p.eleOptional.toFixed(1)+' oz per gallon of final mixed solution.'
@@ -246,7 +246,7 @@
     more.forEach(p=>$('#bobMoreGrid',card).appendChild(makeButton(p)));
 
     const refreshFavoriteAmounts=()=>{
-      $('.bob-fav-btn',card).forEach(b=>{
+      $$('.bob-fav-btn',card).forEach(b=>{
         const p=b._bobPreset,small=$('small',b);
         if(!p||!small)return;
         const strength=p.pct==null?'Test first':(p.pct+'% SH');
