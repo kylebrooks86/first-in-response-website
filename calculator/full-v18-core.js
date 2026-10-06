@@ -152,7 +152,7 @@ try{loadFullState();buildPriceEditor();calcReverseX();calcInjectorReal();calcFil
   move('Job loadout and profitability','job');
 
   // Add the real stock-strength subsection label within the batch recipe.
-  const recipe=cardByHeading('4-gallon moderate house wash');
+  const recipe=cardByHeading('4-gallon medium house wash');
   if(recipe && ![...recipe.querySelectorAll('h2')].some(h=>h.textContent.includes('Stock-strength correction'))){
     const stockInput=document.getElementById('stockStrength');
     const grid=stockInput?.closest('.grid');
@@ -170,7 +170,7 @@ try{loadFullState();buildPriceEditor();calcReverseX();calcInjectorReal();calcFil
   if(!presets){
     presets=document.createElement('div');
     presets.className='card';
-    presets.innerHTML=`<div class="kicker">Starting-strength guide</div><h2>SH starting-strength guide</h2><p class="muted">These are delivered/final SH starting points, not guarantees. Test the actual surface, start weaker when uncertain, and follow the current product label/SDS.</p><table class="rate-table"><thead><tr><th>Surface</th><th>Light</th><th>Moderate</th><th>Heavy</th></tr></thead><tbody><tr><td>House wash / vinyl</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Asphalt-shingle roof</td><td>3.0%</td><td>4.0%</td><td>5.0%</td></tr><tr><td>Bare wood fence</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Concrete pre-treatment</td><td>1.0%</td><td>2.0%</td><td>3.0%</td></tr><tr><td>Concrete post-treatment</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Bare brick / masonry</td><td>0.5%</td><td>1.0%</td><td>2.0%</td></tr><tr><td>Stucco / synthetic stucco</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Pavers / hardscape</td><td>0.5%</td><td>1.0%</td><td>2.0%</td></tr></tbody></table><p class="muted" style="margin-top:10px"><strong>Quick Favorites intentionally start more conservatively on bare wood and synthetic stucco.</strong> Natural stone and pool-deck materials require surface identification first.</p>`;
+    presets.innerHTML=`<div class="kicker">Starting-strength guide</div><h2>SH starting-strength guide</h2><p class="muted">These are delivered/final SH starting points, not guarantees. Test the actual surface, start weaker when uncertain, and follow the current product label/SDS.</p><table class="rate-table"><thead><tr><th>Surface</th><th>Light</th><th>Medium</th><th>Heavy</th></tr></thead><tbody><tr><td>House wash / vinyl</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Asphalt-shingle roof</td><td>3.0%</td><td>4.0%</td><td>5.0%</td></tr><tr><td>Bare wood fence</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Concrete pre-treatment</td><td>1.0%</td><td>2.0%</td><td>3.0%</td></tr><tr><td>Concrete post-treatment</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Bare brick / masonry</td><td>0.5%</td><td>1.0%</td><td>2.0%</td></tr><tr><td>Stucco / synthetic stucco</td><td>0.5%</td><td>1.0%</td><td>1.5%</td></tr><tr><td>Pavers / hardscape</td><td>0.5%</td><td>1.0%</td><td>2.0%</td></tr></tbody></table><p class="muted" style="margin-top:10px"><strong>Quick Favorites intentionally start more conservatively on bare wood and synthetic stucco.</strong> Natural stone and pool-deck materials require surface identification first.</p>`;
   }
   const noSH=findCard('Services that should not default to SH');
   const safety=findCard('Quick safety order');
