@@ -36,7 +36,7 @@ function getFullRates(){
 let fullRates=getFullRates();
 function buildPriceEditor(){const e=$('#priceEditor');if(!e)return;e.innerHTML=Object.entries(fullRates).map(([id,r])=>`<div class="pricegrid"><div class="name"><strong>${r.name}</strong><div class="rateunit">${r.unit}${r.rate===0?' · needs approved rate':''}</div></div><div class="field"><label>Rate</label><div class="inputrow"><span class="unit">$</span><input data-rate-id="${id}" type="number" min="0" step=".01" value="${r.rate}"></div></div><div class="field"><label>Unit</label><input value="${r.unit}" disabled></div></div>`).join('');$$('[data-rate-id]').forEach(inp=>inp.addEventListener('input',()=>{fullRates[inp.dataset.rateId].rate=Math.max(0,+inp.value||0);localStorage.setItem('fireV18Rates',JSON.stringify(fullRates));calcFullEstimator()}))}
 function calcReverseX(){
-  const draw=Math.max(0,(+$('#xPct').value||0)/100),desired=Math.max(0,+$('#xDesired').value||0),stock=Math.max(.1,+$('#xReverseStock').value||10),gal=Math.max(0,+$('#xBucketGal').value||0);
+  const drawPct=$('#xMeasuredPct')?+$('#xMeasuredPct').value:+$('#xPct').value,draw=Math.max(0,(drawPct||0)/100),desired=Math.max(0,+$('#xDesired').value||0),stock=Math.max(.1,+$('#xReverseStock').value||10),gal=Math.max(0,+$('#xBucketGal').value||0);
   const req=draw>0?desired/draw:0,maxSurface=stock*draw,possible=draw>0&&req<=stock+.0001;
   $('#xReqBucket').textContent=draw>0?req.toFixed(2)+'%':'No draw';
   if(possible){
@@ -54,6 +54,7 @@ function calcReverseX(){
     else{note.className='note';note.innerHTML='<strong>Recipe is achievable at the selected estimated draw.</strong><br>Maximum theoretical surface strength with '+stock.toFixed(stock%1?1:0)+'% stock at this draw is about '+maxSurface.toFixed(2)+'% SH. Verify with your real draw test.'}
   }
 }
+window.__fireCalcReverseX=calcReverseX;
 function calcInjectorReal(){const w=+$('#injWater').value||0,c=Math.max(.0001,+$('#injChem').value||0),ratio=w/c,src=+$('#dsSource').value||10;$('#injRatio').textContent=ratio.toFixed(1)+' : 1 draw ratio';$('#injStrengthNote').textContent=`With ${src}% source SH, that is about ${(src/(ratio+1)).toFixed(2)}% at the surface.`}
 function calcFill(){const t=+$('#tankSize').value||0,f=Math.max(.01,+$('#hoseFlow').value||0);$('#fillTime').textContent=(t/f).toFixed(0)+' min to fill'}
 ['xDesired','xReverseStock','xBucketGal','xPct'].forEach(id=>{const e=$('#'+id);e?.addEventListener('input',calcReverseX);e?.addEventListener('change',calcReverseX)});['injWater','injChem','dsSource'].forEach(id=>{const e=$('#'+id);e?.addEventListener('input',calcInjectorReal);e?.addEventListener('change',calcInjectorReal)});['tankSize','hoseFlow'].forEach(id=>$('#'+id)?.addEventListener('input',calcFill));
