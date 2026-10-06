@@ -140,6 +140,27 @@ for needle in [
     if needle not in text['runbook']:
         errors.append(f'runbook missing tipping rule: {needle}')
 
+# Arithmetic/accounting contract examples. These deliberately mirror the source rules:
+# invoice-paid cents are base/refund rows only; Tip/Tip Refund are non-billing ledger rows.
+def billing_paid(rows):
+    return sum(amount for payment_type, amount in rows if payment_type not in {'Tip','Tip Refund'})
+
+stripe_final=[('balance',15000),('Tip',1500)]
+if billing_paid(stripe_final)!=15000 or sum(amount for _,amount in stripe_final)!=16500:
+    errors.append('accounting invariant failed: Stripe final balance + 10% tip must charge 16500 while invoice paid remains 15000')
+
+manual_final=[('Venmo',15000),('Tip',750)]
+if billing_paid(manual_final)!=15000 or sum(amount for _,amount in manual_final)!=15750:
+    errors.append('accounting invariant failed: manual Venmo payment + tip must keep invoice paid separate')
+
+tip_refunded=[('balance',15000),('Tip',1500),('Tip Refund',-1500)]
+if billing_paid(tip_refunded)!=15000 or sum(amount for _,amount in tip_refunded)!=15000:
+    errors.append('accounting invariant failed: Tip Refund must leave invoice paid at 15000')
+
+invoice_refunded=[('balance',15000),('Tip',1500),('Refund',-5000)]
+if billing_paid(invoice_refunded)!=10000:
+    errors.append('accounting invariant failed: normal invoice Refund must still reduce invoice paid cents')
+
 # Any invoice/balance SUM over payments that lacks the Tip exclusion is suspect.
 billing_files=['dashboard','estimates','estimate_id','invoices','invoice_id','invoice','pay','estimate','customers','checkout','webhook','refund','payments']
 for name in billing_files:
@@ -154,4 +175,4 @@ if errors:
     for error in errors: print('- '+error)
     raise SystemExit(1)
 print('DR_TIPPING_GUARD=PASS')
-print('Optional tipping is governed end-to-end: No tip default; 5/10/15/Custom final-card presets; deposits cannot tip; manual Venmo/Cash App tips can be logged separately/tip-only; Tip/Tip Refund never change invoice math; Payment History labels and LIVE forward-sync/runbook policy are protected.')
+print('Optional tipping is governed end-to-end: No tip default; 5/10/15/Custom final-card presets; deposits cannot tip; manual Venmo/Cash App tips can be logged separately/tip-only; Tip/Tip Refund never change invoice math; Payment History labels, arithmetic separation, and LIVE forward-sync/runbook policy are protected.')
