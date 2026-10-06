@@ -60,8 +60,15 @@
     $$('[data-fire-delete-fav]',list).forEach(b=>b.onclick=()=>{const a=savedFavorites();a.splice(+b.dataset.fireDeleteFav,1);saveFavorites(a);renderSavedFavorites(wrap)});
   };
   const favorites=()=>{
-    const c=cardByHeading('Quick Mix Favorites')||cardByHeading('Saved mixes');
-    if(!c||c.dataset.liveToolsDone)return;
+    let c=cardByHeading('Quick Mix Favorites')||cardByHeading('Saved mixes');
+    if(!c){
+      const tools=$('#tools');if(!tools)return;
+      c=document.createElement('div');c.className='card';
+      const dwell=$('#dwellTimerCard');
+      if(dwell&&dwell.parentElement===tools)dwell.insertAdjacentElement('afterend',c);
+      else tools.insertBefore(c,tools.firstElementChild);
+    }
+    if(c.dataset.liveToolsDone)return;
     c.dataset.liveToolsDone='1';
     c.innerHTML=`<div class="kicker">SAVED MIXES</div><h2>Saved mixes</h2>
       <p class="muted">Save a mix you actually use, then reuse or delete it here. Common SH starting points stay in the Quick Preset control on SH Mix.</p>
