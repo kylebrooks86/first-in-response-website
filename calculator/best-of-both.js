@@ -186,6 +186,6 @@
     chem.prepend(intro);
   }
 
-  setTitle(); relabelTabs(); surfaceTiles(); quickBatch(); restructureMix(); toolsMenu(); jobPolish(); chemicalPolish();
+  setTitle(); relabelTabs(); toolsMenu(); jobPolish(); chemicalPolish();
   $('#surface')?.addEventListener('change',syncSurface);
 })();
