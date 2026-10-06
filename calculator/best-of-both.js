@@ -29,10 +29,10 @@
 
   function relabelTabs(){
     const mix=$('.tab[data-view="mix"]'), chem=$('.tab[data-view="chemicals"]'), index=$('.tab[data-view="index"]'), job=$('.tab[data-view="job"]');
-    if(mix)mix.textContent='SH Mix';
-    if(chem)chem.textContent='Mixes';
-    if(index)index.textContent='Index';
-    if(job)job.textContent='Job Plan';
+    if(mix){mix.textContent='🧪 SH Mix';mix.setAttribute('aria-label','SH Mix')}
+    if(chem){chem.textContent='🧴 Mixes';chem.setAttribute('aria-label','Mixes')}
+    if(index){index.textContent='🔎 Index';index.setAttribute('aria-label','Chemical Index')}
+    if(job){job.textContent='📐 Job Plan';job.setAttribute('aria-label','Job Plan')}
     const tabs=$('.tabs');
     if(tabs && mix && chem && index && job){ tabs.append(mix,chem,index,job); }
   }
@@ -281,7 +281,7 @@
       if(!install||!sheet)return;
       install.classList.remove('hidden','topbtn','install');
       install.classList.add('bob-tools-install');
-      install.textContent='Install / Update App';
+      install.textContent='⬇️ Install / Update App';
       if(install.parentElement!==sheet)sheet.appendChild(install);
     };
 
@@ -289,11 +289,11 @@
     if(existing){placeInstall(existing);return;}
 
     const top=$('.toprow'); if(!top)return;
-    const btn=document.createElement('button'); btn.type='button'; btn.className='bob-tools-btn'; btn.textContent='Tools';
+    const btn=document.createElement('button'); btn.type='button'; btn.className='bob-tools-btn'; btn.textContent='🧰 Tools';
     btn.setAttribute('aria-controls','bobToolsSheet');btn.setAttribute('aria-expanded','false');
     const sheet=document.createElement('div'); sheet.id='bobToolsSheet'; sheet.className='bob-tools-sheet';
     const close=()=>{sheet.classList.remove('open');btn.setAttribute('aria-expanded','false')};
-    const items=[['equipment','Equipment / X-Jet'],['tools','Field Tools'],['guide','Safety Guide']];
+    const items=[['equipment','⚙️ Equipment / X-Jet'],['tools','🧰 Field Tools'],['guide','🛡️ Safety Guide']];
     items.forEach(([view,label])=>{
       const b=document.createElement('button');b.type='button';b.textContent=label;
       b.addEventListener('click',()=>{const t=$('.tab[data-view="'+view+'"]'); if(t)t.click(); close();});
