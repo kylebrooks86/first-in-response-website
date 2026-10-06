@@ -70,7 +70,7 @@
 
     const card=document.createElement('div');
     card.id='bobQuickFavorites'; card.className='card bob-quick-card';
-    card.innerHTML='<div class="kicker">QUICK FAVORITES</div><h2>Common SH starting mixes</h2><p class="muted bob-fav-help">Tap a favorite to load the surface, matching condition, target SH strength, and the appropriate Elemonator rate. Your currently selected batch size stays in place, and the recipe calculates the actual Elemonator ounces for that batch. You can fine-tune anything afterward.</p><div class="bob-fav-grid" id="bobFavGrid"></div><details class="bob-more-presets"><summary>➕ More presets / special surfaces</summary><div class="bob-fav-grid" id="bobMoreGrid"></div></details><div class="bob-fav-note" id="bobFavNote">Starting points only — surface condition and the current product label still control.</div>';
+    card.innerHTML='<div class="kicker">QUICK FAVORITES</div><h2>Common SH starting mixes</h2><p class="muted bob-fav-help">Tap a favorite to load the starting mix. Your batch size stays the same and the recipe updates below.</p><div class="bob-fav-grid" id="bobFavGrid"></div><details class="bob-more-presets"><summary>➕ More presets / special surfaces</summary><div class="bob-fav-grid" id="bobMoreGrid"></div></details><div class="bob-fav-note" id="bobFavNote">Starting points only — surface condition and the current product label still control.</div>';
 
     const batchGallons=()=>{
       const preset=$('#batchPreset');
@@ -174,7 +174,7 @@
         $('#bobGoEquipment',note)?.addEventListener('click',()=>$('.tab[data-view="equipment"]')?.click());
       }else{
         note.innerHTML='<strong>💧 Batch-size note</strong><span>SH Mix calculates a finished/direct-application batch. X-Jet and downstream pickup buckets need their injector/draw dilution accounted for separately in Equipment.</span>';
-        note.classList.toggle('show',v==='custom' || (gal&&gal>=1));
+        note.classList.toggle('show',v==='custom');
       }
     };
     host.appendChild(note);
