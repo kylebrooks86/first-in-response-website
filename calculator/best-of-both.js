@@ -56,7 +56,7 @@
 
     const card=document.createElement('div');
     card.id='bobQuickFavorites'; card.className='card bob-quick-card';
-    card.innerHTML='<div class="kicker">QUICK PRESET</div><details class="bob-preset-menu" id="bobPresetMenu"><summary id="bobPresetSummary"><span class="bob-preset-summary-icon">✨</span><span class="bob-preset-summary-copy"><strong>Choose a quick preset</strong><small>9 common SH starting mixes</small></span></summary><div class="bob-preset-options" id="bobPresetOptions"></div></details><div class="bob-fav-note" id="bobFavNote">Starting points only — surface condition and the current product label still control.</div>';
+    card.innerHTML='<div class="kicker">QUICK PRESET</div><details class="bob-preset-menu" id="bobPresetMenu"><summary id="bobPresetSummary"><span class="bob-preset-summary-icon">✨</span><span class="bob-preset-summary-copy"><strong>Choose a quick preset</strong><small>9 common SH starting mixes</small></span></summary><div class="bob-preset-options" id="bobPresetOptions"></div></details><details class="bob-preset-note" id="bobPresetNote"><summary>Preset notes</summary><div class="bob-fav-note" id="bobFavNote">Starting points only — surface condition and the current product label still control.</div></details>';
 
     const batchGallons=()=>{
       const preset=$('#batchPreset');
@@ -74,14 +74,14 @@
       if(p.ele===0)return 'No Elemonator';
       return 'Elemonator '+fmtOz(p.ele*batchGallons())+' oz this batch';
     };
-    const summary=$('#bobPresetSummary',card),menu=$('#bobPresetMenu',card),options=$('#bobPresetOptions',card),note=$('#bobFavNote',card);
+    const summary=$('#bobPresetSummary',card),menu=$('#bobPresetMenu',card),options=$('#bobPresetOptions',card),note=$('#bobFavNote',card),noteWrap=$('#bobPresetNote',card);
     const growthSeg=$('#growthSeg'),growthField=growthSeg?.closest('.field');
     if(growthSeg){
       const medium=$('[data-growth="moderate"]',growthSeg);if(medium)medium.textContent='Medium';
       if(growthField){
         growthField.classList.add('bob-dirtiness-field');
         const label=$('label',growthField);if(label)label.textContent='Dirtiness / organic growth';
-        card.insertBefore(growthField,note);
+        card.insertBefore(growthField,noteWrap);
       }
     }
     const surfaceField=surface?.closest('.field'),surfaceCard=surface?.closest('.card');
@@ -91,7 +91,7 @@
       const manualSummary=document.createElement('summary');manualSummary.textContent='Other / manual surface';
       const manualBody=document.createElement('div');manualBody.className='bob-manual-surface-body';
       manualBody.appendChild(surfaceField);manual.append(manualSummary,manualBody);
-      card.insertBefore(manual,note);
+      card.insertBefore(manual,noteWrap);
       if(surfaceCard && !surfaceCard.querySelector('.field'))surfaceCard.remove();
     }
     let activePreset=null,applyingPreset=false;
