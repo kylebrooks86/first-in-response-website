@@ -73,7 +73,7 @@ body.fire-bob .bob-advanced-note{margin:12px 0 0;color:#909aa2;font-size:12px;te
 @media(max-width:560px){
   body.fire-bob .page{padding-left:14px!important;padding-right:14px!important}
   body.fire-bob .card{padding:16px!important;border-radius:20px!important}
-  body.fire-bob .tabswrap{top:76px!important;padding-left:14px!important;padding-right:14px!important}
+  body.fire-bob .tabswrap{top:calc(76px + env(safe-area-inset-top))!important;padding-left:14px!important;padding-right:14px!important}
   body.fire-bob .tab{font-size:15px!important}
   body.fire-bob .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   body.fire-bob #job>.card:first-child .metrics{grid-template-columns:repeat(3,minmax(0,1fr))!important}
