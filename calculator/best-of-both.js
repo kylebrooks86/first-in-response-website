@@ -64,8 +64,6 @@
       {icon:'🧱',name:'Bare Brick / Masonry',pct:1,surface:'brick',growth:'moderate',ele:.3,note:'For ordinary organic growth on unpainted brick / masonry. Natural stone is not included.'},
       {icon:'🏡',name:'Stucco / Synthetic Stucco',pct:.5,surface:'stucco',growth:'light',ele:.3,note:'Conservative starting point. Low pressure and test first.'},
       {icon:'🧱',name:'Pavers / Hardscape',pct:1,surface:'pavers',growth:'moderate',ele:.3,note:'Routine organic-growth starting point; verify sealer / surface compatibility.'},
-      {icon:'🪨',name:'Natural Stone — Identify / Test First',pct:null,surface:null,ele:null,note:'Do not use one universal SH strength. Identify the stone and any sealer before choosing a mix.'},
-      {icon:'🌊',name:'Pool Deck — Choose Surface First',pct:null,surface:null,ele:null,note:'Pool deck describes the location, not the material. Identify concrete, paver, coated surface, or stone first.'}
     ];
 
     const card=document.createElement('div');
@@ -207,7 +205,7 @@
   function jobPolish(){
     const job=$('#job'); if(!job)return;
 
-    const cards=$$(':scope > .card, :scope > .bob-section-toggle > .card',job);
+    const cards=$$('#job .card');
     const byHeading=(needle)=>cards.find(card=>($('h2',card)?.textContent||'').toLowerCase().includes(needle.toLowerCase()));
     const coverage=byHeading('How much mix');
     const area=byHeading('Area and real coverage helpers');
@@ -223,24 +221,38 @@
     }
 
     $('#bobJobIntro')?.remove();
-    let cursor=null;
-    if(coverage){job.insertBefore(coverage,job.firstChild);cursor=coverage;}
+    $$('#job .bob-job-group, #job .bob-job-toggle').forEach(w=>{
+      const parent=w.parentElement;
+      $$(':scope > .card, :scope > .bob-group-body > .card',w).forEach(card=>parent.insertBefore(card,w));
+      w.remove();
+    });
 
-    const wrapCard=(card,title,sub)=>{
+    let cursor=null;
+    const place=(node)=>{
+      if(!node)return;
+      if(cursor)cursor.after(node); else job.insertBefore(node,job.firstChild);
+      cursor=node;
+    };
+    place(coverage);
+
+    const one=(card,title,sub)=>{
       if(!card)return;
-      let wrap=card.closest('.bob-section-toggle');
-      if(!wrap){
-        wrap=document.createElement('details'); wrap.className='bob-section-toggle bob-job-toggle';
-        const summary=document.createElement('summary'); summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
-        card.before(wrap); wrap.append(summary,card);
-      }
-      cursor.after(wrap); cursor=wrap;
+      const wrap=document.createElement('details');wrap.className='bob-section-toggle bob-job-toggle';
+      const summary=document.createElement('summary');summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
+      wrap.append(summary,card);place(wrap);
+    };
+    const group=(groupCards,title,sub)=>{
+      const present=groupCards.filter(Boolean);if(!present.length)return;
+      const wrap=document.createElement('details');wrap.className='bob-section-toggle bob-job-toggle bob-job-group';
+      const summary=document.createElement('summary');summary.innerHTML='<strong>'+title+'</strong><span>'+sub+'</span>';
+      const body=document.createElement('div');body.className='bob-group-body';
+      present.forEach(card=>body.appendChild(card));
+      wrap.append(summary,body);place(wrap);
     };
 
-    wrapCard(area,'📏 Measure / calibrate coverage','Area helper and your real ft²-per-gallon calibration');
-    wrapCard(cost,'🧪 Chemical cost','Cost of the current SH batch and planned job mix');
-    wrapCard(estimate,'💵 Full job estimate','Open when you need pricing and customer totals');
-    wrapCard(profit,'📦 Loadout / profitability','Inventory, labor, costs, and gross field profit');
+    one(area,'📏 Measure / calibrate','Area and real coverage helpers');
+    one(estimate,'💵 Full job estimate','Pricing and customer totals');
+    group([cost,profit],'🧪 Cost / profit','Chemical cost, inventory, labor, and field profit');
   }
 
   function equipmentPolish(){
