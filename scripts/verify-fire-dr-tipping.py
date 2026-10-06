@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import re
 
 root=Path('.')
@@ -13,6 +14,9 @@ files={
     'payments':root/'app/api/payments/route.ts',
     'customers':root/'app/api/customers/route.ts',
     'dashboard':root/'app/api/dashboard-summary/route.ts',
+    'owner_dashboard':root/'app/dashboard.tsx',
+    'forward_sync':root/'FORWARD_SYNC_APPROVED.json',
+    'runbook':root/'INDEPENDENT_DEPLOYMENT.md',
     'estimates':root/'app/api/estimates/route.ts',
     'estimate_id':root/'app/api/estimates/[id]/route.ts',
     'invoices':root/'app/api/invoices/route.ts',
@@ -38,7 +42,10 @@ for needle in [
     'tipCents: allowTip ? tipCents : 0',
 ]:
     if needle not in text['button']: errors.append(f'pay button missing tip invariant: {needle}')
-if '20' in re.search(r'const TIP_PRESETS\s*=\s*\[([^\]]+)\]',text['button']).group(1):
+preset_match=re.search(r'const TIP_PRESETS\s*=\s*\[([^\]]+)\]',text['button'])
+if not preset_match:
+    errors.append('tip preset declaration could not be parsed')
+elif '20' in preset_match.group(1):
     errors.append('20% must not be a default tip preset')
 if 'useState<"0"|"5"|"10"|"15"|"custom">("0")' not in text['button']:
     errors.append('No tip must remain the default selection')
@@ -83,6 +90,35 @@ for name in ['payments','customers']:
     if "p.type IN ('deposit','balance','Tip')" not in text[name]:
         errors.append(f'{name} does not identify Stripe Tip rows as refundable Stripe payments')
 
+if '{payment.type} · {payment.service||"Service"}' not in text['owner_dashboard']:
+    errors.append('Payment History must preserve Tip / Tip Refund labels instead of collapsing all negative rows to generic Refund')
+
+try:
+    registry=json.loads(text['forward_sync'])
+except Exception as exc:
+    registry={}
+    errors.append(f'forward-sync registry is invalid JSON: {exc}')
+tip_entry=next((item for item in registry.get('entries',[]) if isinstance(item,dict) and item.get('id')=='optional-final-payment-tipping'),None)
+if not tip_entry:
+    errors.append('optional-final-payment-tipping is missing from FORWARD_SYNC_APPROVED.json')
+else:
+    if tip_entry.get('preserve_in_dr') is not True or tip_entry.get('blocks_full_identical') is not True:
+        errors.append('optional-final-payment-tipping must remain preserved in DR and block FULL_IDENTICAL until LIVE sync')
+    protected=set(tip_entry.get('protected_behavior') or [])
+    for required_behavior in ['No tip selected by default','5% preset','10% preset','15% preset','Custom tip','Tips only on final balance payments','Tip stored separately from invoice payment','Tip and Tip Refund excluded from invoice paid/balance math']:
+        if required_behavior not in protected:
+            errors.append(f'forward-sync tipping registry missing protected behavior: {required_behavior}')
+
+for needle in [
+    'Optional tipping is intentionally available only on the final balance card payment',
+    'No tip is selected by default',
+    '5% / 10% / 15% / Custom',
+    'Tip / Tip Refund separately',
+    'tipping remains a `PENDING_LIVE_SYNC` forward-sync blocker',
+]:
+    if needle not in text['runbook']:
+        errors.append(f'runbook missing tipping rule: {needle}')
+
 # Any invoice/balance SUM over payments that lacks the Tip exclusion is suspect.
 billing_files=['dashboard','estimates','estimate_id','invoices','invoice_id','invoice','pay','estimate','customers','checkout','webhook','refund','payments']
 for name in billing_files:
@@ -97,4 +133,4 @@ if errors:
     for error in errors: print('- '+error)
     raise SystemExit(1)
 print('DR_TIPPING_GUARD=PASS')
-print('Optional final-payment tipping is governed: No tip default; 5/10/15/Custom presets; deposits cannot tip; Stripe tip is a separate line/payment entry; Tip and Tip Refund never change invoice paid/balance math.')
+print('Optional final-payment tipping is governed: No tip default; 5/10/15/Custom presets; deposits cannot tip; Stripe tip is separate; Tip/Tip Refund never change invoice math; Payment History labels and LIVE forward-sync/runbook policy are protected.')
