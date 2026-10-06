@@ -10,10 +10,24 @@
 
   const favoritesKey='fireV18SavedFavorites';
   const defaultEleRate={house:.3,fencev:.3,fencew:.3,deckc:.3,deckw:.3,painted:.3,concrete:0,post:0,pavers:.3,brick:.3,stucco:.3,roof:1,metalroof:.3,aluminum:.3};
-  const savedFavorites=()=>{try{return JSON.parse(localStorage.getItem(favoritesKey)||'[]')}catch{return[]}};
-  const saveFavorites=a=>{try{localStorage.setItem(favoritesKey,JSON.stringify(a))}catch{}};
-  const applyShFavorite=({surface='house',growth='moderate',batch=4,target=1,stockStrength=null,eleRate=null})=>{
-    const s=$('#surface');if(s){s.value=surface;s.dispatchEvent(new Event('change',{bubbles:true}))}
+  const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const savedFavorites=()=>{
+    try{
+      const data=JSON.parse(localStorage.getItem(favoritesKey)||'[]');
+      return Array.isArray(data)?data.filter(x=>x&&typeof x==='object').slice(-20):[];
+    }catch{return[]}
+  };
+  const saveFavorites=a=>{try{localStorage.setItem(favoritesKey,JSON.stringify(Array.isArray(a)?a.slice(-20):[]))}catch{}};
+  const applyShFavorite=(raw={})=>{
+    const s=$('#surface');
+    const requestedSurface=typeof raw.surface==='string'?raw.surface:'house';
+    const surface=s&&[...s.options].some(o=>o.value===requestedSurface)?requestedSurface:'house';
+    const growth=['light','moderate','heavy'].includes(raw.growth)?raw.growth:'moderate';
+    const batch=Number.isFinite(+raw.batch)&&+raw.batch>0?+raw.batch:4;
+    const target=Number.isFinite(+raw.target)&&+raw.target>=0?+raw.target:1;
+    const stockStrength=Number.isFinite(+raw.stockStrength)&&+raw.stockStrength>0?+raw.stockStrength:null;
+    const eleRate=Number.isFinite(+raw.eleRate)&&+raw.eleRate>=0?+raw.eleRate:null;
+    if(s){s.value=surface;s.dispatchEvent(new Event('change',{bubbles:true}))}
     const g=$(`#growthSeg [data-growth="${growth}"]`);g?.click();
 
     const b=$('#batchPreset');
@@ -37,7 +51,11 @@
   const renderSavedFavorites=wrap=>{
     const list=$('#fireSavedFavorites',wrap);if(!list)return;const data=savedFavorites();
     if(!data.length){list.innerHTML='<div class="fire-empty-dash">Your saved mixes will appear here.</div>';return}
-    list.innerHTML=data.map((x,i)=>`<div class="fire-saved-fav"><div><strong>${x.name||'Saved SH mix'}</strong><small>${Number(x.batch||0).toFixed(2)} gal · ${Number(x.target||0).toFixed(2)}% SH${x.stockStrength!=null?' · '+Number(x.stockStrength).toFixed(Number(x.stockStrength)%1?1:0)+'% stock':''}</small></div><div><button type="button" data-fire-reuse-fav="${i}">Reuse</button><button type="button" data-fire-delete-fav="${i}">Delete</button></div></div>`).join('');
+    list.innerHTML=data.map((x,i)=>{
+      const batch=Number.isFinite(+x.batch)?Math.max(0,+x.batch):0,target=Number.isFinite(+x.target)?Math.max(0,+x.target):0;
+      const stock=Number.isFinite(+x.stockStrength)&&+x.stockStrength>0?' · '+Number(x.stockStrength).toFixed(Number(x.stockStrength)%1?1:0)+'% stock':'';
+      return `<div class="fire-saved-fav"><div><strong>${esc(x.name||'Saved SH mix')}</strong><small>${batch.toFixed(2)} gal · ${target.toFixed(2)}% SH${stock}</small></div><div><button type="button" data-fire-reuse-fav="${i}">Reuse</button><button type="button" data-fire-delete-fav="${i}">Delete</button></div></div>`;
+    }).join('');
     $$('[data-fire-reuse-fav]',list).forEach(b=>b.onclick=()=>{const x=savedFavorites()[+b.dataset.fireReuseFav];if(x)applyShFavorite(x)});
     $$('[data-fire-delete-fav]',list).forEach(b=>b.onclick=()=>{const a=savedFavorites();a.splice(+b.dataset.fireDeleteFav,1);saveFavorites(a);renderSavedFavorites(wrap)});
   };
