@@ -1,4 +1,4 @@
-const CACHE='fire-field-calculator-v18-best-of-both-116';
+const CACHE='fire-field-calculator-v18-best-of-both-117';
 const ASSETS=[
   './',
   './index.html',
@@ -44,7 +44,7 @@ const ASSETS=[
   './v18-live-invalid-backup-parity.js?v=2',
   './v18-live-portable-backup.js?v=2',
   './v18-live-input-contract.js?v=5',
-  './best-of-both.js?v=7'
+  './best-of-both.js?v=8'
 ];
 self.addEventListener('install',e=>e.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
