@@ -29,7 +29,7 @@
     if(jobNav&&warn&&jobNav.nextElementSibling!==warn)warn.parentElement?.insertBefore(jobNav,warn);
     let tools=$('.tabs .tab[data-view="tools"]');
     if(!tools){tools=document.createElement('button');tools.type='button';tools.className='tab';tools.dataset.view='tools';tools.textContent='Field Tools';tabs.insertBefore(tools,guide)}
-    tools.style.setProperty('display','inline-flex','important');
+    tools.style.setProperty('display',document.body.classList.contains('fire-bob')?'none':'inline-flex','important');
     if(!tools.dataset.liveNavBound){tools.dataset.liveNavBound='1';tools.addEventListener('click',()=>activate('tools'))}
     if(!document.documentElement.dataset.liveJobNavBound){
       document.documentElement.dataset.liveJobNavBound='1';
