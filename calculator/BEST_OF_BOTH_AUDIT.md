@@ -114,9 +114,9 @@ Deliberately custom user rates are preserved.
 
 Current asset generation at this audit:
 - `full-v18.js?v=18`
-- `best-of-both.js?v=24`
-- `best-of-both.css?v=14`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-138`
+- `best-of-both.js?v=26`
+- `best-of-both.css?v=15`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-141`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
@@ -130,6 +130,9 @@ Regression evidence:
 - 38 versioned loader/entry assets covered by the best-of-both cache contract
 - all 45 service-worker precache URLs currently resolve to files present on the staging branch
 - no detected single-element selector being used as a collection in `best-of-both.js`
+- static DOM id audit reports no duplicate ids
+- best-of-both form controls are protected at 16px input text to avoid iPhone focus zoom
+- compact dirtiness/disclosure/Tools controls use protected 44px touch targets
 - main best-of-both source parses successfully
 
 The best-of-both contract specifically protects:
