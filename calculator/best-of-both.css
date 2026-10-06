@@ -225,3 +225,10 @@ body.fire-bob .bob-equipment-intro{
 }
 body.fire-bob .bob-equipment-intro strong{display:block;color:#fff;font-size:14px;margin-bottom:3px}
 body.fire-bob .bob-equipment-intro span{display:block;font-size:12px;line-height:1.4}
+
+
+body.fire-bob .bob-dwell-link{
+  margin-top:12px;width:100%;min-height:44px;border:1px solid #3a4852;border-radius:12px;
+  background:#111a20;color:#f7fafc;font-weight:850;cursor:pointer
+}
+body.fire-bob.dwell-running #timerDisplay{box-shadow:0 0 0 2px rgba(239,75,45,.35)}
