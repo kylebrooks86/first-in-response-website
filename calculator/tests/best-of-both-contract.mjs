@@ -77,6 +77,7 @@ ok(bob.includes("More sizes / custom"),'uncommon batch sizes must remain collaps
 ok(index.includes('data-stock="10"')&&index.includes('data-stock="12.5"'),'10% and 12.5% stock shortcuts must remain visible');
 ok(bob.includes("Other stock %"),'manual stock percentage must remain available');
 ok(bob.includes("Fine-tune mix"),'manual SH / Elemonator fine tuning must remain available');
+ok(bob.includes("$('#bobPresetSummary strong')?.textContent==='Custom / manual mix')fine.open=true"),'restored custom mixes can hide their fine-tune controls');
 ok(bob.includes("Other / manual surface"),'manual surface fallback must remain available');
 ok(bob.includes("Preset notes"),'preset guidance must remain available without permanent screen clutter');
 
