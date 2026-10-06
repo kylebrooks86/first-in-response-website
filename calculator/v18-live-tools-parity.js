@@ -25,18 +25,26 @@
     $$('[data-fire-delete-fav]',list).forEach(b=>b.onclick=()=>{const a=savedFavorites();a.splice(+b.dataset.fireDeleteFav,1);saveFavorites(a);renderSavedFavorites(wrap)});
   };
   const favorites=()=>{
-    const c=cardByHeading('Quick Mix Favorites');if(!c||c.dataset.liveToolsDone)return;c.dataset.liveToolsDone='1';
-    c.innerHTML=`<div class="kicker">ONE-TAP SETUP</div><h2>Quick Mix Favorites</h2><div class="fire-favorite-stack">
-      <button type="button" data-fire-fav="house"><strong>🏠 4-gal house wash</strong><small>Moderate growth · current stock strength</small></button>
-      <button type="button" data-fire-fav="concrete"><strong>🧱 2-gal concrete pre-treat</strong><small>Moderate organic loading</small></button>
-      <button type="button" data-fire-fav="gutter"><strong>🏠 26-oz Gutter Zap</strong><small>3:1 water to product</small></button>
-      <button type="button" data-fire-fav="odoban"><strong>💦 1-gal OdoBan</strong><small>Strong deodorizing · 22 oz/gal</small></button>
-    </div><div class="actions"><button class="primary" id="fireSaveCurrentSh" type="button">Save current SH mix</button></div><div id="fireSavedFavorites"></div>`;
-    $('[data-fire-fav="house"]',c).onclick=()=>applyShFavorite({surface:'house',growth:'moderate',batch:4,target:1});
-    $('[data-fire-fav="concrete"]',c).onclick=()=>applyShFavorite({surface:'concrete',growth:'moderate',batch:2,target:2});
-    $('[data-fire-fav="gutter"]',c).onclick=()=>{localStorage.setItem('fireV18SelectedSpecialtyMix',JSON.stringify({product:'Gutter Zap — Black Streak Gutter Cleaner',amount:26,unit:'fl oz',waterParts:3,productParts:1}));selectView('chemicals');toast('26-oz Gutter Zap favorite loaded')};
-    $('[data-fire-fav="odoban"]',c).onclick=()=>{localStorage.setItem('fireV18SelectedSpecialtyMix',JSON.stringify({product:'OdoBan Disinfectant and Odor Eliminator',amount:1,unit:'gal',doseOzPerGal:22}));selectView('chemicals');toast('1-gal OdoBan favorite loaded')};
-    $('#fireSaveCurrentSh',c).onclick=()=>{const a=savedFavorites();a.push({name:$('#recipeTitle')?.textContent||'Saved SH mix',surface:$('#surface')?.value||'house',growth:$('#growthSeg .chip.active')?.dataset.growth||'moderate',batch:batchGal(),target:n('targetNum')});saveFavorites(a.slice(-20));renderSavedFavorites(c);toast('Current SH mix saved')};
+    const c=cardByHeading('Quick Mix Favorites')||cardByHeading('Saved mixes');
+    if(!c||c.dataset.liveToolsDone)return;
+    c.dataset.liveToolsDone='1';
+    c.innerHTML=`<div class="kicker">SAVED MIXES</div><h2>Saved mixes</h2>
+      <p class="muted">Save a mix you actually use, then reuse or delete it here. Common SH starting points stay in the Quick Preset control on SH Mix.</p>
+      <div class="actions"><button class="primary" id="fireSaveCurrentSh" type="button">Save current SH mix</button></div>
+      <div id="fireSavedFavorites"></div>`;
+    $('#fireSaveCurrentSh',c).onclick=()=>{
+      const a=savedFavorites();
+      a.push({
+        name:$('#recipeTitle')?.textContent||'Saved SH mix',
+        surface:$('#surface')?.value||'house',
+        growth:$('#growthSeg .chip.active')?.dataset.growth||'moderate',
+        batch:batchGal(),
+        target:n('targetNum')
+      });
+      saveFavorites(a.slice(-20));
+      renderSavedFavorites(c);
+      toast('Current SH mix saved');
+    };
     renderSavedFavorites(c);
   };
 
