@@ -55,13 +55,13 @@
     const presets=[
       {icon:'🏠',name:'House / Vinyl',pct:1,surface:'house',growth:'moderate',ele:.3,note:'Normal organic growth on vinyl siding, soffit/fascia, or vinyl fence.'},
       {icon:'🪵',name:'Bare Wood Fence',pct:.5,surface:'fencew',growth:'light',ele:.3,note:'Conservative starting mix for unfinished wood. Test first.'},
+      {icon:'🎨',name:'Painted Wood / Brick / Masonry',pct:.5,surface:'painted',growth:'moderate',ele:.3,note:'Sound exterior paint only. Check for chalking, peeling, oxidation, or failing coating and test first.'},
       {icon:'🧱',name:'Concrete Pre-Treat',pct:2,surface:'concrete',growth:'moderate',ele:0,eleOptional:.3,note:'No surfactant by default. If the concrete is sloped, vertical, very hot/dry, or the solution is drying/running off too quickly, add Elemonator at 0.3 oz per gallon of finished mix for extra wetting and dwell.'},
       {icon:'💦',name:'Concrete Post-Treat',pct:1,surface:'post',growth:'moderate',ele:0,note:'No surfactant by default for a leave-on post-treatment.'},
       {icon:'🏚️',name:'Asphalt Roof / Black Streaks',pct:4,surface:'roof',growth:'moderate',ele:1,note:'Typical black-streak starting mix. Roof preset uses a heavier Elemonator dose for more cling. Verify the shingle manufacturer and never use high pressure.'},
+      {icon:'🧱',name:'Bare Brick / Masonry',pct:1,surface:'brick',growth:'moderate',ele:.3,note:'For ordinary organic growth on unpainted brick / masonry. Natural stone is not included.'}
     ];
     const more=[
-      {icon:'🎨',name:'Painted Wood / Brick / Masonry',pct:.5,surface:'painted',growth:'moderate',ele:.3,note:'Sound exterior paint only. Check for chalking, peeling, oxidation, or failing coating and test first.'},
-      {icon:'🧱',name:'Bare Brick / Masonry',pct:1,surface:'brick',growth:'moderate',ele:.3,note:'For ordinary organic growth on unpainted brick / masonry. Natural stone is not included.'},
       {icon:'🏡',name:'Stucco / Synthetic Stucco',pct:.5,surface:'stucco',growth:'light',ele:.3,note:'Conservative starting point. Low pressure and test first.'},
       {icon:'🧱',name:'Pavers / Hardscape',pct:1,surface:'pavers',growth:'moderate',ele:.3,note:'Routine organic-growth starting point; verify sealer / surface compatibility.'},
     ];
