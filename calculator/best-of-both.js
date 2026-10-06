@@ -194,6 +194,7 @@
       }
     };
     $('#targetNum')?.addEventListener('input',markCustom);
+    $('#target')?.addEventListener('input',()=>setTimeout(markCustom,0));
     $('#eleRate')?.addEventListener('input',markCustom);
     const stockChanged=()=>setTimeout(()=>{
       if(activePreset){
