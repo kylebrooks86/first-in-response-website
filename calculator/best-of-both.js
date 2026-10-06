@@ -178,7 +178,7 @@
       opt.value='painted';
       opt.textContent='Painted exterior — wood / brick / masonry';
       surface.appendChild(opt);
-      try{ if(typeof surfaceTargets!=='undefined') surfaceTargets.painted={light:.25,moderate:.5,heavy:1}; }catch(e){}
+
     }
 
     const presets=[
@@ -199,7 +199,7 @@
 
     const card=document.createElement('div');
     card.id='bobQuickFavorites'; card.className='card bob-quick-card';
-    card.innerHTML='<div class="kicker">QUICK FAVORITES</div><h2>Common SH starting mixes</h2><p class="muted bob-fav-help">Tap a favorite to load the surface, Moderate condition, target SH strength, and the appropriate Elemonator rate. Your currently selected batch size stays in place, and the recipe calculates the actual Elemonator ounces for that batch. You can fine-tune anything afterward.</p><div class="bob-fav-grid" id="bobFavGrid"></div><details class="bob-more-presets"><summary>➕ More presets / special surfaces</summary><div class="bob-fav-grid" id="bobMoreGrid"></div></details><div class="bob-fav-note" id="bobFavNote">Starting points only — surface condition and the current product label still control.</div>';
+    card.innerHTML='<div class="kicker">QUICK FAVORITES</div><h2>Common SH starting mixes</h2><p class="muted bob-fav-help">Tap a favorite to load the surface, matching condition, target SH strength, and the appropriate Elemonator rate. Your currently selected batch size stays in place, and the recipe calculates the actual Elemonator ounces for that batch. You can fine-tune anything afterward.</p><div class="bob-fav-grid" id="bobFavGrid"></div><details class="bob-more-presets"><summary>➕ More presets / special surfaces</summary><div class="bob-fav-grid" id="bobMoreGrid"></div></details><div class="bob-fav-note" id="bobFavNote">Starting points only — surface condition and the current product label still control.</div>';
 
     const batchGallons=()=>{
       const preset=$('#batchPreset');
@@ -267,6 +267,26 @@
 
     /* Insert favorites without altering the LIVE Mixes / Index layouts. */
     mix.insertBefore(card,mix.firstElementChild);
+  }
+
+  function paintedSurfaceGuard(){
+    const surface=$('#surface'),target=$('#targetNum');
+    if(!surface||!target)return;
+    const enforce=()=>{
+      if(surface.value!=='painted')return;
+      /* Painted exterior is intentionally a single conservative quick-start value.
+         Growth chips must not fall through to the core's unknown-surface 1% fallback. */
+      if(Math.abs((+target.value||0)-0.5)>.001){
+        target.value='0.5';
+        fireInput(target);
+      }
+      const note=$('#bobFavNote');
+      if(note&&!note.textContent.includes('Painted Wood / Brick / Masonry')){
+        note.textContent='🎨 Painted exterior: keep the quick-start target at 0.5% SH when changing growth chips. Inspect for chalking, peeling, oxidation, or failing coating and test first; manually fine-tune only after the surface check.';
+      }
+    };
+    surface.addEventListener('change',()=>setTimeout(enforce,0));
+    $('#growthSeg [data-growth]').forEach(b=>b.addEventListener('click',()=>setTimeout(enforce,0)));
   }
 
   function batchMethodNote(){
@@ -483,7 +503,7 @@
     /* LIVE Mixes is a user-favorite section. Preserve its content and calculator behavior. */
   }
 
-  setTitle(); relabelTabs(); quickFavorites(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); chemicalPolish(); syncLateStockTools();
+  setTitle(); relabelTabs(); quickFavorites(); paintedSurfaceGuard(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); chemicalPolish(); syncLateStockTools();
   $('#surface')?.addEventListener('change',syncSurface);
   $('#stockStrength')?.addEventListener('input',syncLateStockTools);
   window.addEventListener('fire-v18-shared-core-ready',()=>setTimeout(reapplyLateLayout,0));
