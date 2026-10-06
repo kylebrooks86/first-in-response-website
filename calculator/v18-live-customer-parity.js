@@ -18,6 +18,15 @@
   }
   function priceCard(){const editor=$('#priceEditor');return editor?.closest('.card')||[...document.querySelectorAll('#job .card,#view-job .card')].find(c=>c.textContent.includes('Price the whole job'))}
   function associate(el){if(!el)return;const label=el.closest('.field')?.querySelector('label');if(label){label.setAttribute('for',el.id);el.setAttribute('aria-label',label.textContent.trim())}}
+  function syncLegacyJobName(){
+    const live=$('#estimateJobName'),legacy=$('#jobName');
+    if(!live||!legacy)return;
+    if(legacy.value!==live.value){
+      legacy.value=live.value;
+      legacy.dispatchEvent(new Event('input',{bubbles:true}));
+      legacy.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+  }
   function save(){const d=read();for(const id of draftIds){const e=$('#'+id);if(e)d[id]=e.value}write(d)}
   function restore(){const d=read();for(const [id,v] of Object.entries(d)){const e=$('#'+id);if(e&&v!==undefined&&v!==null)e.value=String(v)}}
   function refreshCalculatedState(){for(const id of ['svcHouse','fullDiscount','fullOverride']){const e=$('#'+id);if(e){e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}))}}}
@@ -66,12 +75,12 @@
     if(amt&&!saved.fullCustomAmt&&amt.value==='')amt.value='0';
     if(desc)desc.placeholder='Example: patio furniture cleaning';
     if(notes)notes.placeholder='Optional scope, access, scheduling, or surface-condition notes';
-    restore();
+    restore();syncLegacyJobName();
     for(const id of serviceIds){const el=$('#'+id);if(el&&!Object.prototype.hasOwnProperty.call(saved,id)&&el.value==='')el.value='0'}
     [name,desc,amt,notes,$('#fullDiscount'),$('#fullOverride')].filter(Boolean).forEach(associate);
     save();setTimeout(refreshCalculatedState,0);setTimeout(bindLiveActions,30)
   }
-  document.addEventListener('input',e=>{saveFromEvent(e);if(e.target?.closest?.('#job,#view-job'))setTimeout(bindLiveActions,30)},true);
+  document.addEventListener('input',e=>{saveFromEvent(e);if(e.target?.id==='estimateJobName')syncLegacyJobName();if(e.target?.closest?.('#job,#view-job'))setTimeout(bindLiveActions,30)},true);
   document.addEventListener('change',e=>{saveFromEvent(e);if(e.target?.closest?.('#job,#view-job'))setTimeout(bindLiveActions,30)},true);
   window.addEventListener('pagehide',save);window.addEventListener('beforeunload',save);
   apply();window.addEventListener('fire-v18-core-ready',()=>setTimeout(apply,80));window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(apply,80));setTimeout(apply,500);setTimeout(apply,800);setTimeout(apply,1400);
