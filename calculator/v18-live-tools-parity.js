@@ -9,6 +9,7 @@
   const selectView=view=>{const tab=$(`.tabs .tab[data-view="${view}"]`);tab?.click()};
 
   const favoritesKey='fireV18SavedFavorites';
+  const defaultEleRate={house:.3,fencev:.3,fencew:.3,deckc:.3,deckw:.3,painted:.3,concrete:0,post:0,pavers:.3,brick:.3,stucco:.3,roof:1,metalroof:.3,aluminum:.3};
   const savedFavorites=()=>{try{return JSON.parse(localStorage.getItem(favoritesKey)||'[]')}catch{return[]}};
   const saveFavorites=a=>{try{localStorage.setItem(favoritesKey,JSON.stringify(a))}catch{}};
   const applyShFavorite=({surface='house',growth='moderate',batch=4,target=1,stockStrength=null,eleRate=null})=>{
@@ -28,7 +29,8 @@
     }
 
     if(stockStrength!=null)setVal('stockStrength',stockStrength);
-    if(eleRate!=null)setVal('eleRate',eleRate);
+    const restoredEle=eleRate!=null?eleRate:defaultEleRate[surface];
+    if(restoredEle!=null)setVal('eleRate',restoredEle);
     setVal('targetNum',target);
     selectView('mix');
   };
