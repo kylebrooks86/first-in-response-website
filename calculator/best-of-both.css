@@ -207,3 +207,14 @@ body.fire-bob .bob-fav-note{margin-top:12px;padding:10px 11px;border-radius:11px
 @media(max-width:390px){
   body.fire-bob .bob-fav-grid{grid-template-columns:1fr}
 }
+
+
+body.fire-bob .bob-batch-method-note{
+  display:none;margin-top:12px;padding:11px 12px;border:1px solid #34414a;border-radius:12px;background:#0d1419;
+  color:#aeb9c1;font-size:12px;line-height:1.4;
+}
+body.fire-bob .bob-batch-method-note.show{display:block}
+body.fire-bob .bob-batch-method-note strong{display:block;color:#f7fafc;font-size:13px;margin-bottom:4px}
+body.fire-bob .bob-batch-method-note button{
+  appearance:none;border:0;background:none;padding:0;color:#7db8ff;font:inherit;font-weight:800;text-decoration:underline;cursor:pointer
+}
