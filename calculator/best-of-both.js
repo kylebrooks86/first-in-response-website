@@ -169,6 +169,39 @@
   }
 
 
+  function batchPolish(){
+    const preset=$('#batchPreset'),card=preset?.closest('.card');if(!preset||!card)return;
+    const kicker=$('.kicker',card),heading=$('h2',card);
+    if(kicker)kicker.textContent='BATCH SIZE';
+    if(heading)heading.textContent='Choose batch size';
+
+    const selectField=preset.closest('.field'),chips=$('#batchChips'),quickField=chips?.closest('.field'),custom=$('#customBatchWrap');
+    if(quickField){quickField.classList.remove('span6');quickField.classList.add('span12')}
+    if(selectField)selectField.classList.add('bob-batch-select-field');
+
+    let more=$('#bobBatchMore',card);
+    if(!more&&selectField){
+      more=document.createElement('details');more.id='bobBatchMore';more.className='bob-batch-more';
+      const summary=document.createElement('summary');
+      const body=document.createElement('div');body.className='bob-batch-more-body';
+      selectField.classList.remove('span6');selectField.classList.add('span12');
+      body.appendChild(selectField);if(custom)body.appendChild(custom);
+      more.append(summary,body);
+      (quickField?.parentElement||card).appendChild(more);
+    }
+
+    const refresh=()=>{
+      if(!more)return;
+      const summary=$('summary',more),opt=preset.selectedOptions?.[0]?.textContent||'More sizes / custom';
+      const quick=['1','2','4','5'].includes(preset.value);
+      if(summary)summary.textContent=quick?'More sizes / custom':'More sizes · '+opt;
+      if(preset.value==='custom')more.open=true;
+    };
+    preset.addEventListener('change',refresh);
+    $('#batchChips [data-batch]').forEach(b=>b.addEventListener('click',()=>{if(more)more.open=false;setTimeout(refresh,0)}));
+    refresh();
+  }
+
   function recipePolish(){
     const recipe=$('#recipeTitle')?.closest('.card');if(!recipe)return;
     [...recipe.querySelectorAll('h2')].filter(h=>h.textContent.includes('Stock-strength correction')).forEach(h=>h.remove());
@@ -403,6 +436,7 @@
     jobPolish();
     equipmentPolish();
     toolsPolish();
+    batchPolish();
     recipePolish();
     syncLateStockTools();
   }
@@ -411,7 +445,7 @@
     /* LIVE Mixes is a user-favorite section. Preserve its content and calculator behavior. */
   }
 
-  setTitle(); relabelTabs(); quickFavorites(); recipePolish(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); chemicalPolish(); syncLateStockTools();
+  setTitle(); relabelTabs(); quickFavorites(); batchPolish(); recipePolish(); batchMethodNote(); toolsMenu(); jobPolish(); equipmentPolish(); dwellTimerPolish(); toolsPolish(); chemicalPolish(); syncLateStockTools();
   $('#stockStrength')?.addEventListener('input',syncLateStockTools);
   window.addEventListener('fire-v18-shared-core-ready',()=>setTimeout(reapplyLateLayout,0));
   window.addEventListener('fire-v18-parity-loaded',()=>setTimeout(reapplyLateLayout,0));
