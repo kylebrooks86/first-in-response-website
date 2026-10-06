@@ -256,6 +256,19 @@
     const proportioner=byHeading('Three-port proportioner planner');
     const reverseX=byHeading('Mix the X-Jet pickup bucket for a target strength');
     const realInjector=byHeading('Find your real injector ratio');
+
+    if(reverseX && !$('#bobLoadCurrentTarget',reverseX)){
+      const b=document.createElement('button');
+      b.type='button'; b.id='bobLoadCurrentTarget'; b.className='bob-inline-action';
+      const refreshLabel=()=>{const v=+($('#targetNum')?.value||0);b.textContent='🎯 Use current SH Mix target'+(v?' ('+v+'%)':'');};
+      refreshLabel();
+      b.addEventListener('click',()=>{
+        const desired=$('#xDesired'),target=$('#targetNum');
+        if(desired&&target){desired.value=target.value;fireInput(desired);refreshLabel();}
+      });
+      $('#targetNum')?.addEventListener('input',refreshLabel);
+      const h=$('h2',reverseX); h?.insertAdjacentElement('afterend',b);
+    }
     const fillTime=byHeading('Fill-time estimate');
 
     let label=$('#bobEquipmentIntro');
