@@ -252,3 +252,17 @@ body.fire-bob .bob-manual-surface-body{padding:4px 0 2px}
 body.fire-bob .bob-manual-surface-body .field{margin:0!important}
 body.fire-bob .bob-manual-surface-body label{font-size:12px!important;color:#aeb9c1!important}
 body.fire-bob .bob-manual-surface-body select{min-height:44px!important}
+
+
+body.fire-bob .bob-stock-extra{
+  margin-top:10px;border-top:1px solid #2f3b44;padding-top:6px
+}
+body.fire-bob .bob-stock-extra>summary{
+  min-height:40px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  cursor:pointer;color:#dbe3e8;font-size:12px
+}
+body.fire-bob .bob-stock-extra>summary strong{font-size:13px}
+body.fire-bob .bob-stock-extra>summary span{color:#8f9aa2;font-weight:600}
+body.fire-bob .bob-stock-extra-body{padding:6px 0 2px}
+body.fire-bob .bob-stock-extra-body .field{margin:0!important}
+body.fire-bob .bob-stock-extra-body .note{margin-top:8px!important}
