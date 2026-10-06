@@ -155,7 +155,7 @@
       }
     };
     surface.addEventListener('change',()=>setTimeout(enforce,0));
-    $('#growthSeg [data-growth]').forEach(b=>b.addEventListener('click',()=>setTimeout(enforce,0)));
+    $$('#growthSeg [data-growth]').forEach(b=>b.addEventListener('click',()=>setTimeout(enforce,0)));
   }
 
   function batchMethodNote(){
@@ -220,7 +220,6 @@
       if(h)h.textContent='How much mix will the job need?';
     }
 
-    $('#bobJobIntro')?.remove();
     $$('#job .bob-job-group, #job .bob-job-toggle').forEach(w=>{
       const parent=w.parentElement;
       $$(':scope > .card, :scope > .bob-group-body > .card',w).forEach(card=>parent.insertBefore(card,w));
@@ -268,7 +267,6 @@
     const realInjector=byHeading('Find your real injector ratio');
     const fillTime=byHeading('Fill-time estimate');
 
-    $('#bobEquipmentIntro')?.remove();
 
     /* Rebuild only our presentation wrappers so Equipment stays compact even
        after late v18 modules inject or rearrange cards. */
