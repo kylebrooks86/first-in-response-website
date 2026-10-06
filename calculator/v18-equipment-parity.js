@@ -3,7 +3,17 @@ if(window.__fireV18EquipmentParity)return;window.__fireV18EquipmentParity=true;
 const $=(s,r=document)=>r.querySelector(s);
 const STORE='fireV18EquipmentTankPlanner';
 function n(id,d=0){const e=$('#'+id),v=e?parseFloat(e.value):NaN;return Number.isFinite(v)?v:d}
-function loadSaved(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch{return{}}}
+function loadSaved(){
+  try{
+    const d=JSON.parse(localStorage.getItem(STORE)||'{}')||{};
+    const oldDefault=(String(d.waterTankSize??'55')==='55'&&String(d.shTankSize??'35')==='35'&&String(d.soapTankSize??'5')==='5');
+    if(oldDefault){
+      d.waterTankSize='75';d.shTankSize='40';d.soapTankSize='5';
+      localStorage.setItem(STORE,JSON.stringify(d));
+    }
+    return d;
+  }catch{return{}}
+}
 function save(){const d={};['waterTankSize','shTankSize','soapTankSize'].forEach(id=>{const e=$('#'+id);if(e)d[id]=e.value});localStorage.setItem(STORE,JSON.stringify(d))}
 function round2(v){return (Math.round((v+Number.EPSILON)*100)/100).toFixed(2)}
 function cardByHeading(text){return [...document.querySelectorAll('#equipment .card')].find(c=>c.querySelector('h2')?.textContent.trim()===text)}
@@ -102,8 +112,8 @@ function installTankPlanner(){
    const saved=loadSaved();
    const block=document.createElement('div');
    block.innerHTML=`<div class="grid" style="margin-top:16px">
-     <div class="field span4"><label>Water tank</label><div class="inputrow"><input id="waterTankSize" type="number" min="0" step="1" value="${saved.waterTankSize??55}"><span class="unit">gal</span></div></div>
-     <div class="field span4"><label>SH tank</label><div class="inputrow"><input id="shTankSize" type="number" min="0" step="1" value="${saved.shTankSize??35}"><span class="unit">gal</span></div></div>
+     <div class="field span4"><label>Water tank</label><div class="inputrow"><input id="waterTankSize" type="number" min="0" step="1" value="${saved.waterTankSize??75}"><span class="unit">gal</span></div></div>
+     <div class="field span4"><label>SH tank</label><div class="inputrow"><input id="shTankSize" type="number" min="0" step="1" value="${saved.shTankSize??40}"><span class="unit">gal</span></div></div>
      <div class="field span4"><label>Soap tank</label><div class="inputrow"><input id="soapTankSize" type="number" min="0" step="1" value="${saved.soapTankSize??5}"><span class="unit">gal</span></div></div>
    </div>
    <div class="metrics" style="margin-top:12px">
