@@ -265,6 +265,7 @@
       target.classList.remove('span6');target.classList.add('span6');
       ele.classList.remove('span6');ele.classList.add('span6');
       body.append(target,ele);fine.append(summary,body);
+      if($('#bobPresetSummary strong')?.textContent==='Custom / manual mix')fine.open=true;
       if(metrics)metrics.insertAdjacentElement('afterend',fine);else recipe.appendChild(fine);
       if(targetGrid&&targetGrid.children.length===0)targetGrid.remove();
     }
