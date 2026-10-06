@@ -38,7 +38,7 @@ body.fire-bob input,body.fire-bob select,body.fire-bob textarea{background:#0508
 body.fire-bob input:focus,body.fire-bob select:focus,body.fire-bob textarea:focus{outline:2px solid rgba(87,185,255,.22)!important;border-color:var(--bob-blue)!important}
 body.fire-bob .unit{color:#c7ced3!important}
 body.fire-bob .chip{border:1px solid #343e45!important;background:#191f24!important;color:#e9edf0!important;border-radius:16px!important;font-weight:800!important}
-body.fire-bob .chip.active{background:#2c2415!important;color:#111!important;border-color:var(--bob-amber)!important}
+body.fire-bob .chip.active{background:#2c2415!important;color:var(--bob-amber)!important;border-color:var(--bob-amber)!important}
 body.fire-bob #growthSeg .chip.active{background:var(--bob-amber)!important;color:#111!important}
 body.fire-bob #batchChips .chip.active{background:#172633!important;color:var(--bob-blue)!important;border-color:var(--bob-blue)!important}
 body.fire-bob .metrics{gap:12px!important}
