@@ -57,6 +57,7 @@ Stock-strength safety:
 - If a selected preset/dirtiness combination calls for a final SH percentage above the actual stock strength, the preset cannot silently show an impossible recipe.
 - The target is limited to the stock strength, the UI switches to Custom/manual, and the note explains the limitation.
 - The same guard applies when Light / Medium / Heavy is changed after choosing a preset.
+- The guard also re-checks an active preset if the actual stock strength itself is changed afterward; an impossible preset is converted to Custom/manual and its stale selected checkmark is cleared.
 
 ### Mixes / Index protection
 
@@ -113,9 +114,9 @@ Deliberately custom user rates are preserved.
 
 Current asset generation at this audit:
 - `full-v18.js?v=18`
-- `best-of-both.js?v=23`
+- `best-of-both.js?v=24`
 - `best-of-both.css?v=14`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-137`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-138`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
