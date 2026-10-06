@@ -276,6 +276,18 @@
     }
     const fillTime=byHeading('Fill-time estimate');
 
+    if(realInjector && !$('#bobUseInjectorRatio',realInjector)){
+      const b=document.createElement('button');
+      b.type='button'; b.id='bobUseInjectorRatio'; b.className='bob-inline-action';
+      b.textContent='↪ Use measured ratio in downstream estimate';
+      b.addEventListener('click',()=>{
+        const water=Math.max(0,+($('#injWater')?.value||0)),chem=Math.max(.0001,+($('#injChem')?.value||0));
+        const ratio=water/chem,field=$('#dsRatio');
+        if(field&&Number.isFinite(ratio)){field.value=ratio.toFixed(2);fireInput(field);}
+      });
+      const result=$('#injRatio',realInjector); result?.insertAdjacentElement('afterend',b);
+    }
+
     let label=$('#bobEquipmentIntro');
     if(!label){
       label=document.createElement('div');
