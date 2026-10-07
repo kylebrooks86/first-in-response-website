@@ -33,6 +33,7 @@ function migrateLiveV3(data){
   for(const [live,dr] of Object.entries(liveServiceMap)){if(fields[live]!==undefined){parity[dr]=String(fields[live]??'');full[dr]=String(fields[live]??'')}}
   for(const [live,dr] of Object.entries(liveEstimateMap)){if(fields[live]!==undefined){parity[dr]=String(fields[live]??'');if(dr!=='estimateJobName')full[dr]=String(fields[live]??'')}}
   for(const [live,dr] of Object.entries(livePlanningMap)){if(fields[live]!==undefined){planning[dr]=String(fields[live]??'');if(['areaLen','areaWid','areaSides','areaSubtract','calArea','calMix'].includes(dr))full[dr]=String(fields[live]??'')}}
+  if(fields.jobBatchSizeManual!==undefined)planning.planContainerManual=fields.jobBatchSizeManual===true||fields.jobBatchSizeManual==='true';
   saveJSON('fireV18ParityDraft',parity);saveJSON('fireV18FullState',full);saveJSON('fireV18LivePlanningState',planning);
   const specialty=safeParse('fireV18SpecialtyInventory',{});
   for(const [live,dr] of Object.entries(invMap)){const x=inventory[live];if(!x)continue;specialty[dr]={amount:+x.qty||0,unit:normalizeInvUnit(x.unit)}}
