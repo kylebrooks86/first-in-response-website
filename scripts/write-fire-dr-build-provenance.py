@@ -41,7 +41,7 @@ if capture_commit!=git_head(): raise SystemExit('DR_BUILD_PROVENANCE=FAIL: captu
 if 'if (!await authorized())' not in capture_route or '"cache-control": "no-store, max-age=0"' not in capture_route: raise SystemExit('DR_BUILD_PROVENANCE=FAIL: capture identity auth/cache policy missing')
 names=inventory.get('scripts'); scripts_dir=repo_root/'scripts'
 if not isinstance(names,list) or len(names)!=len(set(names)): raise SystemExit('DR_BUILD_PROVENANCE=FAIL: malformed script inventory')
-discovered={p.name for p in scripts_dir.iterdir() if p.is_file() and (p.name.startswith(('apply-fire-dr-','verify-fire-dr-','write-fire-dr-','deploy-fire-dr-','register-fire-dr-','report-fire-dr-','record-fire-dr-')) or p.name=='prepare-fire-v138-dr-no-r2.sh' or p.name=='fire-dr-tipping.patch')}; listed=set(names)
+discovered={p.name for p in scripts_dir.iterdir() if p.is_file() and (p.name.startswith(('apply-fire-dr-','verify-fire-dr-','write-fire-dr-','deploy-fire-dr-','register-fire-dr-','report-fire-dr-','record-fire-dr-')) or p.name=='prepare-fire-v138-dr-no-r2.sh' or p.name in {'fire-dr-tipping.patch','fire-dr-processing-fees.patch'})}; listed=set(names)
 if discovered!=listed: raise SystemExit('DR_BUILD_PROVENANCE=FAIL: governed script inventory drift')
 governed_scripts={n:sha256(scripts_dir/n) for n in sorted(names)}
 governance={}
