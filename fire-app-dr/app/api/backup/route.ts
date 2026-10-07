@@ -250,7 +250,7 @@ export async function POST(request: Request) {
       env.DB.prepare("SELECT id,provider_refund_id AS providerRefundId FROM payment_refunds WHERE provider_refund_id IS NOT NULL").all<{id:string;providerRefundId:string}>(),
       env.DB.prepare("SELECT id,provider_id AS providerId FROM payments WHERE provider_id LIKE 'cs_%' OR provider_id LIKE 'refund:%'").all<{id:string;providerId:string}>(),
       env.DB.prepare("SELECT id,payment_id AS paymentId,estimate_id AS estimateId,amount_cents AS amountCents,mode FROM payment_refunds").all<{id:string;paymentId:string;estimateId:string;amountCents:number;mode:string}>(),
-      env.DB.prepare("SELECT id,estimate_id AS estimateId,amount_cents AS amountCents,provider_id AS providerId FROM payments").all<{id:string;estimateId:string;amountCents:number;providerId:string|null}>(),
+      env.DB.prepare("SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents,status,provider_id AS providerId FROM payments").all<{id:string;estimateId:string;type:string;amountCents:number;status:string;providerId:string|null}>(),
       env.DB.prepare("SELECT id,customer_id AS customerId,subtotal_cents AS subtotalCents,discount_cents AS discountCents,total_cents AS totalCents,deposit_cents AS depositCents,share_token AS shareToken FROM estimates").all(),
       env.DB.prepare("SELECT id,estimate_id AS estimateId,customer_id AS customerId,subtotal_cents AS subtotalCents,discount_cents AS discountCents,total_cents AS totalCents,share_token AS shareToken FROM invoices").all(),
       env.DB.prepare("SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents FROM payment_checkout_sessions").all(),
@@ -445,7 +445,7 @@ export async function POST(request: Request) {
         const provider=raw.provider_id==null?"":String(raw.provider_id);
         const existing=targetPaymentById.get(id);
         const existingProvider=existing?.providerId==null?"":String(existing.providerId);
-        if(existing&&(String(existing.estimateId)!==String(raw.estimate_id??"")||Number(existing.amountCents)!==Number(raw.amount_cents)||existingProvider!==provider))
+        if(existing&&(String(existing.estimateId)!==String(raw.estimate_id??"")||String(existing.type)!==String(raw.type??"")||Number(existing.amountCents)!==Number(raw.amount_cents)||String(existing.status)!==String(raw.status??"")||existingProvider!==provider))
           return Response.json({error:`Restore conflict: payment ${id} already exists with different immutable financial values.`},{status:409});
         const strongProvider=provider.startsWith("cs_")||provider.startsWith("refund:");
         const existingId=strongProvider?targetPaymentProviderToId.get(provider):undefined;
