@@ -489,12 +489,12 @@
       applyingSuggestedDwell=suggested;
       min.value=Math.max(1,Math.min(120,Math.round(n)));
       fireInput(min);
-      $('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value));
+      $$('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value));
       if(!suggested)syncManualPreset();
       applyingSuggestedDwell=false;
     };
 
-    $('#dwellQuick [data-dwell-min]').forEach(b=>b.addEventListener('click',()=>setMinutes(+b.dataset.dwellMin)));
+    $$('#dwellQuick [data-dwell-min]').forEach(b=>b.addEventListener('click',()=>setMinutes(+b.dataset.dwellMin)));
     $('#timerMinus')?.addEventListener('click',()=>{
       if(typeof timerEndAt!=='undefined'&&timerEndAt){timerEndAt-=60000;timerTick();return;}
       setMinutes((+min.value||1)-1);
@@ -503,7 +503,8 @@
       if(typeof timerEndAt!=='undefined'&&timerEndAt){timerEndAt+=60000;timerTick();return;}
       setMinutes((+min.value||1)+1);
     });
-    min?.addEventListener('input',()=>{$('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value));syncManualPreset()});
+    min?.addEventListener('input',()=>{$$('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value));syncManualPreset()});
+    preset?.addEventListener('change',()=>setTimeout(()=>$$('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value)),0));
 
     /* Keep suggested checks tied to the selected SH favorite without auto-starting. */
     const suggested={
