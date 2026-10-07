@@ -43,6 +43,7 @@
     if(finalPass&&localStorage.getItem(marker)){
       try{window.__fireHydrateImportedLiveState?.(true)}catch{}
       try{localStorage.setItem(hydrated,new Date().toISOString());localStorage.removeItem(marker)}catch{}
+      window.dispatchEvent(new CustomEvent('fire-backup-hydration-complete'));
     }
     return applied>0;
   }
