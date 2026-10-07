@@ -1,14 +1,14 @@
-const CACHE='fire-field-calculator-v18-best-of-both-189';
+const CACHE='fire-field-calculator-v18-best-of-both-190';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   '../assets/recent-work/fire-logo-direct.png',
-  './full-v18.js?v=59',
+  './full-v18.js?v=60',
   './full-v18-core.js?v=8',
   './v18-legacy-job-detach.js?v=2',
   './full-v18-parity-core.js?v=9',
-  './v18-behavior.js?v=7',
+  './v18-behavior.js?v=8',
   './v18-interactions.js?v=17',
   './v18-fine-parity.js?v=13',
   './v18-equipment-parity.js?v=4',
