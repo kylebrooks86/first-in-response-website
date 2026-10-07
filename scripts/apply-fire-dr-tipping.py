@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from pathlib import Path
 
 repo_root=Path(__file__).resolve().parent.parent
@@ -24,11 +25,23 @@ if check.returncode==0:
     print('Applied optional final-payment tipping patch.')
 else:
     reverse=run('--reverse','--check')
-    if reverse.returncode!=0:
-        detail=check.stderr.strip() or reverse.stderr.strip() or 'patch neither applies nor reverses cleanly'
-        raise SystemExit('DR_TIPPING_APPLY=FAIL: '+detail)
-    print('DR_TIPPING_APPLY=PASS')
-    print('Optional final-payment tipping patch already applied; no changes made.')
+    if reverse.returncode==0:
+        print('DR_TIPPING_APPLY=PASS')
+        print('Optional final-payment tipping patch already applied; no changes made.')
+    else:
+        verifier=repo_root/'scripts/verify-fire-dr-tipping.py'
+        verified=subprocess.run(
+            [sys.executable,str(verifier)],
+            cwd=repo_root/'fire-app-dr',
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        if verified.returncode!=0:
+            detail=verified.stdout.strip() or check.stderr.strip() or reverse.stderr.strip() or 'patch neither applies nor reverses cleanly'
+            raise SystemExit('DR_TIPPING_APPLY=FAIL: combined-source tipping verification failed.\n'+detail)
+        print('DR_TIPPING_APPLY=PASS')
+        print('Optional final-payment tipping behavior already satisfied in the combined post-overlay source.')
 
 
 def replace_once(path: Path, old: str, new: str, label: str):
