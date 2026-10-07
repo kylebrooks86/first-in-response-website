@@ -214,6 +214,10 @@ checks = {
         'attemptId:crypto.randomUUID()',
         'phase:"input_validation"',
         'phase="target_conflict_validation"',
+        'SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents,status,provider_id AS providerId FROM payments',
+        'String(existing.type)!==String(raw.type??"")',
+        'String(existing.status)!==String(raw.status??"")',
+        'const expectedLedgerType=String(payment.type??"")==="Tip"?"Tip Refund":"Refund";',
     ],
     Path('app/api/invoices/[id]/route.ts'): [
         # Final-invoice edit race reconciliation.
@@ -230,6 +234,9 @@ checks = {
         "status='pending'",
         "status='succeeded'",
         'refundPaymentProvider=`refund:${row.paymentId}:${row.id}`',
+        'const expectedLedgerType=row.paymentType==="Tip"?"Tip Refund":"Refund";',
+        'verifiedLedger?.type!==expectedLedgerType',
+        'verifiedLedger?.status!=="paid"',
         'idempotency-key',
     ],
     Path('lib/payment-methods.ts'): [
