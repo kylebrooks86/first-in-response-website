@@ -36,6 +36,7 @@ discovered = {
         or path.name.startswith('report-fire-dr-')
         or path.name.startswith('record-fire-dr-')
         or path.name == 'prepare-fire-v138-dr-no-r2.sh'
+        or path.name == 'fire-dr-tipping.patch'
     )
 }
 
@@ -53,4 +54,4 @@ if errors:
     raise SystemExit(1)
 
 print('DR_SCRIPT_INVENTORY=PASS')
-print(f'All {len(discovered)} DR preparation/overlay/evidence-registration/reporting/comparison/verification/provenance/deploy scripts are explicitly governed.')
+print(f'All {len(discovered)} DR preparation/overlay/patch/evidence-registration/reporting/comparison/verification/provenance/deploy artifacts are explicitly governed.')
