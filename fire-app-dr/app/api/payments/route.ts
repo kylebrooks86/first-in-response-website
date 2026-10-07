@@ -43,14 +43,15 @@ export async function POST(request: Request) {
     if (!estimateId || !Number.isSafeInteger(amountCents) || amountCents < 0 || !Number.isSafeInteger(tipCents) || tipCents < 0 || (amountCents <= 0 && tipCents <= 0)) {
       return Response.json({ error: "Choose a job and enter a valid payment or tip amount." }, { status: 400 });
     }
-    if (tipCents > 50000) return Response.json({ error: "Tip cannot exceed $500." }, { status: 400 });
-
     const estimate = await env.DB.prepare(`
       SELECT e.id,e.total_cents AS estimateTotalCents,COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,e.deposit_cents AS depositCents,e.status,
         COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid' AND type NOT IN ('Tip','Tip Refund')),0) AS paidCents
       FROM estimates e WHERE e.id=?
     `).bind(estimateId).first<{id:string;estimateTotalCents:number;totalCents:number;depositCents:number;status:string;paidCents:number}>();
     if (!estimate) return Response.json({ error: "Estimate not found." }, { status: 404 });
+    const maxTipCents=Math.min(Number(estimate.totalCents),50000);
+    if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0)return Response.json({error:"This job's tip limit cannot be represented safely. Stop and review the invoice total."},{status:409});
+    if(tipCents>maxTipCents)return Response.json({error:"Tip cannot exceed the invoice total or $500."},{status:400});
     if (tipCents > 0 && estimate.status !== "completed") return Response.json({ error: "Tips can be recorded only after the job is completed." }, { status: 409 });
 
     const billingException = await env.DB.prepare("SELECT id FROM notifications WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL LIMIT 1").bind(estimateId).first<{id:string}>();
