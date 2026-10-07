@@ -24,6 +24,11 @@ Field Tools no longer carries a second set of one-tap SH favorites. That duplica
 
 Saved mix restore order is intentionally protected: stock strength, Elemonator, and final SH target restore before the batch selector fires its best-of-both refresh. This prevents stale Quick Preset state from overwriting a custom saved recipe. Field Tools remains condensed into **Jobsite reference**, **Records & chemicals**, and **App & data** disclosure groups, while the dwell timer and Saved mixes stay easy to reach. The Field Safety Card lives in Safety Guide instead of duplicating Field Tools.
 
+Additional staging hardening in this batch:
+- Quick batch buttons now synchronize to the actual batch selector after dropdown or Saved mix restoration, so an old 1 / 2 / 4 / 5 gal highlight cannot disagree with the restored recipe.
+- The inventory input-contract pass uses the collection selector for all inventory rows instead of treating one element like an array.
+- Customer quote normalization preserves an entered customer/job name; only a truly blank `Prepared for:` line falls back to `Customer`.
+
 ### SH Mix
 
 Normal field flow:
@@ -117,10 +122,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=31`
-- `best-of-both.js?v=29`
+- `full-v18.js?v=34`
+- `best-of-both.js?v=30`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-159`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-163`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
