@@ -1,0 +1,2266 @@
+diff --git a/fire-app-dr/app/api/backup/route.ts b/fire-app-dr/app/api/backup/route.ts
+index ee0f634..be189d3 100644
+--- a/fire-app-dr/app/api/backup/route.ts
++++ b/fire-app-dr/app/api/backup/route.ts
+@@ -32,7 +32,7 @@ const RESTORE_TABLES = [
+   ["invoice_revisions", ["id", "invoice_id", "subtotal_cents", "discount_cents", "discount_type", "discount_value", "total_cents", "due_at", "status", "items_json", "created_at"]],
+   ["payment_checkout_sessions", ["id", "estimate_id", "type", "amount_cents", "status", "created_at", "expired_at"]],
+   ["estimate_items", ["id", "estimate_id", "name", "description", "quantity", "unit", "total_cents"]],
+-  ["payments", ["id", "estimate_id", "type", "amount_cents", "status", "provider_id", "created_at"]],
++  ["payments", ["id", "estimate_id", "type", "amount_cents", "status", "provider_id", "created_at", "processing_fee_cents", "gross_received_cents", "bundled_tip_cents", "processing_method"]],
+   ["payment_refunds", ["id", "payment_id", "estimate_id", "amount_cents", "mode", "status", "provider_refund_id", "note", "created_at", "completed_at"]],
+   ["customer_messages", ["id", "customer_id", "estimate_id", "channel", "template", "body", "created_at"]],
+   ["notifications", ["id", "type", "title", "body", "customer_id", "estimate_id", "read_at", "resolved_at", "resolution_note", "created_at"]],
+@@ -245,13 +245,20 @@ export async function POST(request: Request) {
+     const refundIntegrityError=validateRefundIntegrity(backupTables);
+     if(refundIntegrityError)return Response.json({error:`This backup failed refund-integrity validation: ${refundIntegrityError}`},{status:400});
+ 
++    if(Array.isArray(backupTables.payments)) for(const row of backupTables.payments) {
++      if(!isRecord(row))return Response.json({error:"Invalid payment record."},{status:400});
++      const fee=row.processing_fee_cents, gross=row.gross_received_cents, tip=row.bundled_tip_cents;
++      if(fee!=null&&(!Number.isSafeInteger(fee)||Number(fee)<0||gross==null||Number(fee)>Number(gross)))return Response.json({error:"Invalid processing fee in backup."},{status:400});
++      if(gross!=null&&(!Number.isSafeInteger(gross)||Number(gross)<0||!Number.isSafeInteger(Number(tip??0))||Number(tip??0)<0||Number(gross)!==Number(row.amount_cents)+Number(tip??0)))return Response.json({error:"Invalid gross payment accounting in backup."},{status:400});
++      if(row.processing_method!=null&&typeof row.processing_method!=="string")return Response.json({error:"Invalid processing method in backup."},{status:400});
++    }
+     const restoredAt = new Date().toISOString();
+ 
+     const [targetRefundProviders,targetPaymentProviders,targetRefundIdentities,targetPaymentIdentities,targetEstimates,targetInvoices,targetCheckouts,targetRevisions,targetEstimateItems,targetInvoiceItems,targetTasks,targetExpenses,targetJobReports,targetChangeRequests,targetCustomers,targetCustomerNotes,targetCustomerMessages,targetNotifications,targetTemplates]=await Promise.all([
+       env.DB.prepare("SELECT id,provider_refund_id AS providerRefundId FROM payment_refunds WHERE provider_refund_id IS NOT NULL").all<{id:string;providerRefundId:string}>(),
+       env.DB.prepare("SELECT id,provider_id AS providerId FROM payments WHERE provider_id LIKE 'cs_%' OR provider_id LIKE 'refund:%'").all<{id:string;providerId:string}>(),
+       env.DB.prepare("SELECT id,payment_id AS paymentId,estimate_id AS estimateId,amount_cents AS amountCents,mode FROM payment_refunds").all<{id:string;paymentId:string;estimateId:string;amountCents:number;mode:string}>(),
+-      env.DB.prepare("SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents,status,provider_id AS providerId FROM payments").all<{id:string;estimateId:string;type:string;amountCents:number;status:string;providerId:string|null}>(),
++      env.DB.prepare("SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents,status,provider_id AS providerId,processing_fee_cents,gross_received_cents,bundled_tip_cents,processing_method FROM payments").all<{id:string;estimateId:string;type:string;amountCents:number;status:string;providerId:string|null;processing_fee_cents:number|null;gross_received_cents:number|null;bundled_tip_cents:number|null;processing_method:string|null}>(),
+       env.DB.prepare("SELECT id,customer_id AS customerId,subtotal_cents AS subtotalCents,discount_cents AS discountCents,total_cents AS totalCents,deposit_cents AS depositCents,share_token AS shareToken FROM estimates").all(),
+       env.DB.prepare("SELECT id,estimate_id AS estimateId,customer_id AS customerId,subtotal_cents AS subtotalCents,discount_cents AS discountCents,total_cents AS totalCents,share_token AS shareToken FROM invoices").all(),
+       env.DB.prepare("SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents FROM payment_checkout_sessions").all(),
+@@ -448,6 +455,9 @@ export async function POST(request: Request) {
+         const existingProvider=existing?.providerId==null?"":String(existing.providerId);
+         if(existing&&(String(existing.estimateId)!==String(raw.estimate_id??"")||String(existing.type)!==String(raw.type??"")||Number(existing.amountCents)!==Number(raw.amount_cents)||String(existing.status)!==String(raw.status??"")||existingProvider!==provider))
+           return Response.json({error:`Restore conflict: payment ${id} already exists with different immutable financial values.`},{status:409});
++        if(existing) for(const column of ["processing_fee_cents","gross_received_cents","bundled_tip_cents","processing_method"] as const) {
++          if(raw[column]!==undefined && raw[column]!==existing[column])return Response.json({error:`Restore conflict: payment ${id} has different processing accounting.`},{status:409});
++        }
+         const strongProvider=provider.startsWith("cs_")||provider.startsWith("refund:");
+         const existingId=strongProvider?targetPaymentProviderToId.get(provider):undefined;
+         if(existingId&&existingId!==id)return Response.json({error:`Restore conflict: payment provider ${provider} already belongs to another payment in this database.`},{status:409});
+@@ -466,6 +476,7 @@ export async function POST(request: Request) {
+         if (!isRecord(candidate)) return Response.json({ error: `The ${table} backup contains an invalid record.` }, { status: 400 });
+         const values = columns.map((column) => {
+           const value=candidate[column];
++          if(table==="payments"&&["processing_fee_cents","gross_received_cents","bundled_tip_cents","processing_method"].includes(column)&&value===undefined)return null;
+           if(value!==undefined)return value;
+           if(table==="invoices"&&column==="subtotal_cents")return candidate.total_cents??0;
+           if(table==="invoices"&&column==="discount_cents")return 0;
+diff --git a/fire-app-dr/app/api/customers/route.ts b/fire-app-dr/app/api/customers/route.ts
+index 79c82bd..085ba30 100644
+--- a/fire-app-dr/app/api/customers/route.ts
++++ b/fire-app-dr/app/api/customers/route.ts
+@@ -41,7 +41,7 @@ export async function GET() {
+           FROM invoices inv ORDER BY inv.created_at DESC`),
+       env.DB.prepare(`SELECT id,customer_id AS customerId,category,caption,filename,content_type AS contentType,size_bytes AS sizeBytes,created_at AS createdAt FROM customer_photos ORDER BY created_at DESC`),
+       env.DB.prepare(`SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages ORDER BY created_at DESC`),
+-      env.DB.prepare(`SELECT p.id,p.estimate_id AS estimateId,e.customer_id AS customerId,p.type,p.amount_cents AS amountCents,p.status,p.provider_id AS reference,p.created_at AS createdAt,
++      env.DB.prepare(`SELECT p.id,p.estimate_id AS estimateId,e.customer_id AS customerId,p.type,p.amount_cents AS amountCents,p.processing_fee_cents AS processingFeeCents,p.gross_received_cents AS grossReceivedCents,p.bundled_tip_cents AS bundledTipCents,p.processing_method AS processingMethod,p.status,p.provider_id AS reference,p.created_at AS createdAt,
+           CASE WHEN p.amount_cents>0 THEN COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status='succeeded'),0) ELSE 0 END AS refundedCents,
+           CASE WHEN p.amount_cents>0 THEN MAX(0,p.amount_cents-COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status IN ('pending','succeeded')),0)) ELSE 0 END AS refundableCents,
+           CASE WHEN p.type IN ('deposit','balance','Tip') AND p.provider_id LIKE 'cs_%' THEN 1 ELSE 0 END AS stripePayment
+diff --git a/fire-app-dr/app/api/payments/route.ts b/fire-app-dr/app/api/payments/route.ts
+index cceccaa..022bb9b 100644
+--- a/fire-app-dr/app/api/payments/route.ts
++++ b/fire-app-dr/app/api/payments/route.ts
+@@ -1,3 +1,4 @@
++import { processingAmounts } from "../../../lib/processing-fees";
+ import { env } from "cloudflare:workers";
+ import { getOwnerUser } from "../../owner-auth";
+ 
+@@ -10,7 +11,7 @@ async function authorized() {
+ export async function GET() {
+   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+   const result = await env.DB.prepare(`
+-    SELECT p.id,p.estimate_id AS estimateId,p.type,p.amount_cents AS amountCents,p.status,
++    SELECT p.id,p.estimate_id AS estimateId,p.type,p.amount_cents AS amountCents,p.status,p.processing_fee_cents AS processingFeeCents,p.gross_received_cents AS grossReceivedCents,p.bundled_tip_cents AS bundledTipCents,p.processing_method AS processingMethod,
+       p.provider_id AS reference,p.created_at AS createdAt,c.id AS customerId,c.name AS customer,
+       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Custom service') AS service,
+       CASE WHEN p.amount_cents>0 THEN COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status='succeeded'),0) ELSE 0 END AS refundedCents,
+@@ -40,6 +41,10 @@ export async function POST(request: Request) {
+     const tipCents = Math.round(Number(body.tipCents) || 0);
+     const method = String(body.method ?? "Other").trim() || "Other";
+     const reference = String(body.reference ?? "").trim() || null;
++    let accounting: ReturnType<typeof processingAmounts>;
++    try { accounting=processingAmounts(amountCents,tipCents,body.processingFeeCents,method); }
++    catch(error) { return Response.json({error:error instanceof Error?error.message:"Invalid processing fee."},{status:400}); }
++
+     if (!estimateId || !Number.isSafeInteger(amountCents) || amountCents < 0 || !Number.isSafeInteger(tipCents) || tipCents < 0 || (amountCents <= 0 && tipCents <= 0)) {
+       return Response.json({ error: "Choose a job and enter a valid payment or tip amount." }, { status: 400 });
+     }
+@@ -77,8 +82,8 @@ export async function POST(request: Request) {
+ 
+       payment = { id:crypto.randomUUID(), estimateId, type:method, amountCents, status:"paid", reference, createdAt:new Date().toISOString() };
+       const paymentStatement = env.DB.prepare(`
+-        INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+-        SELECT ?,?,?,?,'paid',?,?
++        INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at,processing_fee_cents,gross_received_cents,bundled_tip_cents,processing_method)
++        SELECT ?,?,?,?,'paid',?,?,?,?,?,?
+         WHERE ? <= (
+           SELECT MAX(0,
+             CASE
+@@ -90,7 +95,7 @@ export async function POST(request: Request) {
+           FROM estimates e WHERE e.id=?
+         )
+         AND (SELECT COALESCE(SUM(p.amount_cents),0) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')) <= 9007199254740991 - ?
+-      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, amountCents, estimateId, estimateId, amountCents);
++      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, accounting.processingFeeCents, accounting.grossReceivedCents, tipCents, method, amountCents, estimateId, estimateId, amountCents);
+ 
+       if(tipCents>0){
+         const tipId=crypto.randomUUID();
+@@ -119,8 +124,8 @@ export async function POST(request: Request) {
+     if(tipCents>0&&amountCents<=0){
+       tip={id:crypto.randomUUID(),estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:[method,reference].filter(Boolean).join(" · ")||method,createdAt:new Date().toISOString()};
+       const results=await env.DB.batch([
+-        env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at) VALUES (?,?, 'Tip',?,'paid',?,?)")
+-          .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt),
++        env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at,processing_fee_cents,gross_received_cents,bundled_tip_cents,processing_method) VALUES (?,?, 'Tip',?,'paid',?,?,?,?,?,?)")
++          .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt,accounting.processingFeeCents,accounting.grossReceivedCents,0,method),
+         env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates WHERE id=?")
+           .bind(crypto.randomUUID(),"Tip received",`${(tipCents/100).toFixed(2)} tip recorded via ${method}.`,estimateId,tip.createdAt,estimateId),
+       ]);
+@@ -149,7 +154,7 @@ export async function POST(request: Request) {
+         ELSE 'draft' END WHERE estimate_id=?`)
+         .bind(nextPaid,nextPaid,estimateId).run();
+     }
+-    return Response.json({ payment, tip, paidCents:nextPaid, balanceCents:Math.max(0, refreshedDueLimit-nextPaid) }, { status: 201 });
++    return Response.json({ payment, tip, accounting, paidCents:nextPaid, balanceCents:Math.max(0, refreshedDueLimit-nextPaid) }, { status: 201 });
+   } catch {
+     return Response.json({ error: "We couldn't record this payment. Please try again." }, { status: 500 });
+   }
+diff --git a/fire-app-dr/app/dashboard.tsx b/fire-app-dr/app/dashboard.tsx
+index b27e2f9..535303b 100644
+--- a/fire-app-dr/app/dashboard.tsx
++++ b/fire-app-dr/app/dashboard.tsx
+@@ -1,4 +1,5 @@
+ "use client";
++import { summarizeProcessing } from "../lib/processing-fees";
+ 
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import {
+@@ -75,7 +76,7 @@ type CustomerMessage = { id:string; customerId:string; estimateId?:string|null;
+ type AppNotification = { id:string; type:string; title:string; body:string; customerId?:string|null; estimateId?:string|null; readAt?:string|null; resolvedAt?:string|null; createdAt:string };
+ type TaskRow = { id:string; title:string; customerId?:string|null; customer?:string|null; dueAt?:string|null; status:string; notes?:string|null; createdAt:string; completedAt?:string|null };
+ type ExpenseRow = { id:string; estimateId?:string|null; category:string; description:string; amountCents:number; incurredAt:string; customer?:string|null; service?:string|null };
+-type PaymentRow = { id:string; estimateId:string; customerId?:string; customer?:string; service?:string; type:string; amountCents:number; status:string; reference?:string|null; refundedCents?:number; refundableCents?:number; stripePayment?:number; createdAt:string };
++type PaymentRow = { processingFeeCents?:number|null; grossReceivedCents?:number|null; bundledTipCents?:number|null; processingMethod?:string|null; id:string; estimateId:string; customerId?:string; customer?:string; service?:string; type:string; amountCents:number; status:string; reference?:string|null; refundedCents?:number; refundableCents?:number; stripePayment?:number; createdAt:string };
+ type JobReportRow = { id:string; estimateId:string; customerId:string; checklist:string; notes?:string; airflowBefore?:string; airflowAfter?:string; status:string; createdAt:string; completedAt?:string|null };
+ 
+ const statusLabel = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+@@ -474,20 +475,36 @@ function JobCost({estimate}:{estimate:EstimateRow}){
+   return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="outline"><CircleDollarSign className="h-4 w-4"/> Job costs</Button></DialogTrigger><DialogContent className="sm:max-w-[600px]"><DialogHeader><DialogTitle>Job costs and profit</DialogTitle></DialogHeader><div className="job-cost"><div className="profit-summary"><span><small>{estimate.invoiceId?"Final invoice":"Estimate"}</small><strong>{money(billingTotal)}</strong></span><span><small>Costs</small><strong>{money(total)}</strong></span><span><small>Estimated gross profit</small><strong>{money(billingTotal-total)}</strong></span></div><div className="cost-form"><Select value={category} onValueChange={setCategory}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Supplies","Chemicals","Equipment","Fuel","Labor","Other"].map((item)=><SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent></Select><Input value={description} onChange={(event)=>setDescription(event.target.value)} placeholder="Expense description"/><Input value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="$ Amount"/><Button className="brand-button" onClick={()=>void add()}>Add cost</Button></div><div className="cost-list">{rows.map((row)=><div key={row.id}><span><strong>{row.description}</strong><small>{row.category}</small></span><b>{money(row.amountCents)}</b></div>)}{!rows.length&&<p>No job costs recorded yet.</p>}</div></div></DialogContent></Dialog>;
+ }
+ 
++
++function ProcessingDetails({payment}:{payment:PaymentRow}) {
++  if(payment.grossReceivedCents==null||!["Cash App","Venmo"].includes(payment.processingMethod??""))return null;
++  return <small className="payment-handle-note">{payment.bundledTipCents?<>Invoice payment: {money(payment.amountCents)} · Tip: {money(payment.bundledTipCents)}<br/></>:null}Customer payment: {money(payment.grossReceivedCents)}<br/>Processing fee: {payment.processingFeeCents==null?"Not recorded":`−${money(payment.processingFeeCents)}`}<br/>Net received{payment.processingFeeCents==null?" before unrecorded fees":""}: {money(payment.grossReceivedCents-(payment.processingFeeCents??0))}</small>;
++}
++function ProcessingReport({payments}:{payments:PaymentRow[]}) {
++ const fees=payments.reduce((sum,row)=>sum+(row.processingFeeCents??0),0);
++ return <details className="business-panel"><summary>Processing fees · {money(fees)} recorded</summary><p>Gross includes tips; fees are expenses. Unrecorded fees are excluded. Refunds remain separate ledger entries; original fees are retained.</p><table style={{width:"100%"}}><thead><tr><th>Method</th><th>Gross</th><th>Fees</th><th>Net</th></tr></thead><tbody>{["Cash App","Venmo"].map(method=>{const totals=summarizeProcessing(payments,method);return <tr key={method}><th>{method}</th><td>{money(totals.gross)}{totals.tips>0&&<small style={{display:"block"}}>Tips {money(totals.tips)}</small>}</td><td>{money(totals.fees)}</td><td>{money(totals.net)}</td></tr>;})}</tbody></table></details>;
++}
++
+ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"customer"|"service"|"totalCents"|"paidCents">&Partial<Pick<EstimateRow,"depositCents"|"status"|"invoiceTotalCents">>;onRecorded?:(paidCents:number)=>void}){
+-  const [open,setOpen]=useState(false);const [amount,setAmount]=useState("");const [tip,setTip]=useState("");const [method,setMethod]=useState("Wave");const [reference,setReference]=useState("");const [saving,setSaving]=useState(false);const [error,setError]=useState("");
++  const [fee,setFee]=useState("");const [feeMode,setFeeMode]=useState<"fee"|"net">("fee");const [feeEstimate,setFeeEstimate]=useState<number|null>(null);const [open,setOpen]=useState(false);const [amount,setAmount]=useState("");const [tip,setTip]=useState("");const [method,setMethod]=useState("Wave");const [reference,setReference]=useState("");const [saving,setSaving]=useState(false);const [error,setError]=useState("");
+   const billingTotal=estimate.invoiceTotalCents??estimate.totalCents;
+   const normalized = {status:estimate.status??"completed",totalCents:billingTotal,depositCents:estimate.depositCents??Math.round(estimate.totalCents/2),paidCents:estimate.paidCents,invoiceTotalCents:estimate.invoiceTotalCents};
+   const balance=amountDueNow(normalized);
+   const totalRemaining=Math.max(0,normalized.totalCents-normalized.paidCents);
+   const depositRemaining=Math.max(0,normalized.depositCents-normalized.paidCents);
+-  useEffect(()=>{if(open){setAmount(balance>0?(balance/100).toFixed(2):"");setTip("");setError("");}},[open,balance]);
+-  const save=async()=>{const amountCents=Math.round(Number(amount||0)*100);const tipCents=Math.round(Number(tip||0)*100);const maxTipCents=Math.min(normalized.totalCents,50000);if((!Number.isSafeInteger(amountCents)||amountCents<0)||(!Number.isSafeInteger(tipCents)||tipCents<0)||(amountCents<=0&&tipCents<=0)){setError("Enter a payment or tip amount.");return;}if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0){setError("This job's tip limit cannot be represented safely.");return;}if(tipCents>maxTipCents){setError("Tip cannot exceed the invoice total or $500.");return;}setSaving(true);setError("");try{const response=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,amountCents,tipCents,method,reference})});const result=await response.json() as {paidCents?:number;error?:string};if(!response.ok||result.paidCents===undefined)throw new Error(result.error||"The payment could not be recorded.");onRecorded?.(Number(result.paidCents));setOpen(false);}catch(saveError){setError(saveError instanceof Error?saveError.message:"The payment could not be recorded.");}finally{setSaving(false);}};
+-  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="outline" disabled={balance<=0&&normalized.status!=="completed"}><CircleDollarSign className="h-4 w-4"/>{balance<=0?(normalized.status==="completed"?"Record tip":"Deposit recorded"):"Record payment"}</Button></DialogTrigger><DialogContent className="sm:max-w-[500px]"><DialogHeader><DialogTitle>{balance<=0&&normalized.status==="completed"?"Record tip":"Record payment"}</DialogTitle></DialogHeader><div className="payment-form">
++  useEffect(()=>{if(open){setAmount(balance>0?(balance/100).toFixed(2):"");setTip("");setFee("");setFeeEstimate(null);setError("");}},[open,balance]);
++  const feeMethod=method==="Cash App"||method==="Venmo";
++  const grossCents=Math.round(Number(amount||0)*100)+Math.round(Number(tip||0)*100);
++  const enteredFeeCents=fee===""?null:Math.round(Number(fee)*100);
++  const processingFeeCents=enteredFeeCents==null?null:feeMode==="fee"?enteredFeeCents:grossCents-enteredFeeCents;
++  const feeValid=processingFeeCents==null||Number.isSafeInteger(processingFeeCents)&&processingFeeCents>=0&&processingFeeCents<=grossCents;
++  const save=async()=>{const amountCents=Math.round(Number(amount||0)*100);const tipCents=Math.round(Number(tip||0)*100);const maxTipCents=Math.min(normalized.totalCents,50000);if((!Number.isSafeInteger(amountCents)||amountCents<0)||(!Number.isSafeInteger(tipCents)||tipCents<0)||(amountCents<=0&&tipCents<=0)){setError("Enter a payment or tip amount.");return;}if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0){setError("This job's tip limit cannot be represented safely.");return;}if(tipCents>maxTipCents){setError("Tip cannot exceed the invoice total or $500.");return;}if(feeMethod&&!feeValid){setError("Fee and net deposited must be between zero and the customer payment.");return;}setSaving(true);setError("");try{const response=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,amountCents,tipCents,method,reference,processingFeeCents:feeMethod?processingFeeCents:undefined})});const result=await response.json() as {paidCents?:number;error?:string};if(!response.ok||result.paidCents===undefined)throw new Error(result.error||"The payment could not be recorded.");onRecorded?.(Number(result.paidCents));setOpen(false);}catch(saveError){setError(saveError instanceof Error?saveError.message:"The payment could not be recorded.");}finally{setSaving(false);}};
++  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="outline" disabled={balance<=0&&normalized.status!=="completed"}><CircleDollarSign className="h-4 w-4"/>{balance<=0?(normalized.status==="completed"?"Record tip":"Deposit recorded"):"Record payment"}</Button></DialogTrigger><DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>{balance<=0&&normalized.status==="completed"?"Record tip":"Record payment"}</DialogTitle></DialogHeader><div className="payment-form">
+     <p className="payment-estimate-summary"><strong>{estimate.customer}</strong> · {estimate.service}<br/><span>{money(totalRemaining)} remaining</span></p>
+     <div className="payment-due-options"><span><small>Deposit due</small><strong>{money(depositRemaining)}</strong></span><span><small>Full balance</small><strong>{money(totalRemaining)}</strong></span></div>
+     <div><Label>Amount applied to invoice</Label><Input value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<div><Label>Tip received (optional)</Label><Input value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" placeholder="0.00"/><small className="payment-handle-note">Recorded separately and does not change the invoice balance.</small></div>}
+-    <div><Label>Payment method</Label><Select value={method} onValueChange={setMethod}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Wave","Cash App","Venmo","Cash","Check","Card","ACH / bank","Other"].map((item)=><SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select><small className="payment-handle-note">Cash App {DEFAULT_CASH_APP_HANDLE} · Venmo {DEFAULT_VENMO_HANDLE}</small></div>
++    <div><Label>Payment method</Label><Select value={method} onValueChange={(value)=>{setMethod(value);setFee("");setFeeEstimate(null);}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Wave","Cash App","Venmo","Cash","Check","Card","ACH / bank","Other"].map((item)=><SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select><small className="payment-handle-note">Cash App {DEFAULT_CASH_APP_HANDLE} · Venmo {DEFAULT_VENMO_HANDLE}</small></div>
++    {feeMethod&&<details><summary>Processing fee (optional)</summary><div className="payment-form"><div><Label>Customer paid (invoice + tip)</Label><Input readOnly value={(grossCents/100).toFixed(2)}/></div><div><Label>Processing fee</Label><Input inputMode="decimal" value={feeMode==="fee"?fee:processingFeeCents==null?"":(processingFeeCents/100).toFixed(2)} placeholder="Not recorded" onChange={event=>{setFeeMode("fee");setFee(event.target.value);}}/></div><div><Label>Net deposited</Label><Input inputMode="decimal" value={feeMode==="net"?fee:processingFeeCents==null?"":((grossCents-processingFeeCents)/100).toFixed(2)} placeholder={(grossCents/100).toFixed(2)} onChange={event=>{setFeeMode("net");setFee(event.target.value);}}/></div><small>Enter the actual fee or net deposit. Invoice credit stays {money(Math.round(Number(amount||0)*100))}.</small>{method==="Venmo"&&<><Button type="button" variant="outline" onClick={()=>setFeeEstimate(Math.round(grossCents*0.019)+10)}>Estimate fee</Button>{feeEstimate!=null&&<div><small>Venmo Business direct-payment estimate: 1.9% + $0.10 = {money(feeEstimate)}. Check the actual transaction; Tap to Pay and rates may differ.</small><Button type="button" variant="outline" onClick={()=>{setFeeMode("fee");setFee((feeEstimate/100).toFixed(2));setFeeEstimate(null);}}>Use this fee</Button></div>}</>}</div></details>}
+     <div><Label>Reference or note</Label><Input value={reference} onChange={(event)=>setReference(event.target.value)} placeholder="Wave transaction, check number, or note"/></div>
+     {error&&<p className="save-error">{error}</p>}<Button className="brand-button" onClick={()=>void save()} disabled={saving}>{saving?"Saving…":Number(amount||0)<=0&&Number(tip||0)>0?"Save tip":"Save payment"}</Button>
+   </div></DialogContent></Dialog>;
+@@ -950,7 +967,7 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
+   const remainingBalance=(estimate:EstimateRow)=>amountDueNow(estimate);
+   const open=estimates.filter((item)=>Number(item.pendingRefundCount)===0&&remainingBalance(item)>0&&[item.customer,item.service,item.status].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));
+   const collected=Math.max(0,safeSignedSumCents(payments.map((item)=>item.amountCents)));const tipRevenue=Math.max(0,safeSignedSumCents(payments.filter((item)=>item.type==="Tip"||item.type==="Tip Refund").map((item)=>item.amountCents)));const outstanding=safeSumCents(estimates.map((item)=>remainingBalance(item)));
+-  return <div className="workspace-view"><section className="workspace-head"><div><p className="eyebrow">Money received</p><h1>Payments</h1><p>Track Wave, Cash App, Venmo, cash, check, card, and bank payments without waiting for a processor connection.</p></div></section><section className="business-metrics"><article><small>Total recorded</small><strong>{money(collected)}</strong></article><article><small>Tip revenue</small><strong>{money(tipRevenue)}</strong></article><article><small>Outstanding</small><strong>{money(outstanding)}</strong></article><article><small>Open balances</small><strong>{open.length}</strong></article></section>{loading?<div className="customers-state">Loading balances…</div>:<div className="payment-layout"><section className="business-panel"><header><div><h2>Balances to collect</h2><p>Record money after it reaches Wave, Cash App, Venmo, or your account.</p></div></header><div className="balance-list">{open.length?open.map((estimate)=><article key={estimate.id}><div><strong>{estimate.customer}</strong><small>{estimate.service} · {statusLabel(estimate.status)}</small></div><span><strong>{money(remainingBalance(estimate))}</strong><small>remaining</small></span><RecordPayment estimate={estimate} onRecorded={()=>void load()}/></article>):<div className="record-empty"><CheckCircle2/><strong>All caught up</strong><p>No outstanding customer balances.</p></div>}</div></section><section className="business-panel"><header><div><h2>Payment history</h2><p>Every recorded transaction, newest first.</p></div></header><div className="payment-history">{payments.length?payments.map((payment)=><article key={payment.id}><span className="payment-method"><CircleDollarSign/></span><div><strong>{payment.customer||"Customer"}</strong><small>{payment.type} · {payment.service||"Service"} · {new Date(payment.createdAt).toLocaleDateString()}</small>{payment.refundedCents?` · ${money(payment.refundedCents)} refunded`:""}{payment.amountCents>0&&payment.reference&&<em>{payment.reference}</em>}</div><strong>{money(payment.amountCents)}</strong>{payment.amountCents>0&&<RefundPayment payment={payment} onRefunded={()=>void load()}/>}</article>):<div className="record-empty"><CreditCard/><strong>No payments recorded</strong><p>Use Record payment on an estimate or open balance.</p></div>}</div></section></div>}</div>;
++  return <div className="workspace-view"><section className="workspace-head"><div><p className="eyebrow">Money received</p><h1>Payments</h1><p>Track Wave, Cash App, Venmo, cash, check, card, and bank payments without waiting for a processor connection.</p></div></section><section className="business-metrics"><article><small>Total recorded</small><strong>{money(collected)}</strong></article><article><small>Tip revenue</small><strong>{money(tipRevenue)}</strong></article><article><small>Outstanding</small><strong>{money(outstanding)}</strong></article><article><small>Open balances</small><strong>{open.length}</strong></article></section><ProcessingReport payments={payments}/>{loading?<div className="customers-state">Loading balances…</div>:<div className="payment-layout"><section className="business-panel"><header><div><h2>Balances to collect</h2><p>Record money after it reaches Wave, Cash App, Venmo, or your account.</p></div></header><div className="balance-list">{open.length?open.map((estimate)=><article key={estimate.id}><div><strong>{estimate.customer}</strong><small>{estimate.service} · {statusLabel(estimate.status)}</small></div><span><strong>{money(remainingBalance(estimate))}</strong><small>remaining</small></span><RecordPayment estimate={estimate} onRecorded={()=>void load()}/></article>):<div className="record-empty"><CheckCircle2/><strong>All caught up</strong><p>No outstanding customer balances.</p></div>}</div></section><section className="business-panel"><header><div><h2>Payment history</h2><p>Every recorded transaction, newest first.</p></div></header><div className="payment-history">{payments.length?payments.map((payment)=><article key={payment.id}><span className="payment-method"><CircleDollarSign/></span><div><strong>{payment.customer||"Customer"}</strong><small>{payment.type} · {payment.service||"Service"} · {new Date(payment.createdAt).toLocaleDateString()}</small>{payment.refundedCents?` · ${money(payment.refundedCents)} refunded`:""}{payment.amountCents>0&&payment.reference&&<em>{payment.reference}</em>}<ProcessingDetails payment={payment}/></div><strong>{money(payment.amountCents)}</strong>{payment.amountCents>0&&<RefundPayment payment={payment} onRefunded={()=>void load()}/>}</article>):<div className="record-empty"><CreditCard/><strong>No payments recorded</strong><p>Use Record payment on an estimate or open balance.</p></div>}</div></section></div>}</div>;
+ }
+ 
+ function BusinessView(){
+diff --git a/fire-app-dr/db/schema.ts b/fire-app-dr/db/schema.ts
+index 82afc58..5193ac7 100644
+--- a/fire-app-dr/db/schema.ts
++++ b/fire-app-dr/db/schema.ts
+@@ -7,7 +7,7 @@ export const invoices = sqliteTable("invoices", { id: text("id").primaryKey(), e
+ export const invoiceItems = sqliteTable("invoice_items", { id: text("id").primaryKey(), invoiceId: text("invoice_id").notNull().references(() => invoices.id, {onDelete:"cascade"}), name: text("name").notNull(), description: text("description").notNull().default(""), quantity: integer("quantity").notNull().default(1), unit: text("unit").notNull().default("job"), totalCents: integer("total_cents").notNull() }, (table)=>[index("idx_invoice_items_invoice_id").on(table.invoiceId)]);
+ export const invoiceRevisions = sqliteTable("invoice_revisions", { id:text("id").primaryKey(), invoiceId:text("invoice_id").notNull().references(()=>invoices.id,{onDelete:"cascade"}), subtotalCents:integer("subtotal_cents").notNull(), discountCents:integer("discount_cents").notNull().default(0), discountType:text("discount_type").notNull().default("dollar"), discountValue:integer("discount_value").notNull().default(0), totalCents:integer("total_cents").notNull(), dueAt:text("due_at"), status:text("status").notNull(), itemsJson:text("items_json").notNull(), createdAt:text("created_at").notNull() }, (table)=>[index("idx_invoice_revisions_invoice_id").on(table.invoiceId,table.createdAt)]);
+ export const estimateItems = sqliteTable("estimate_items", { id: text("id").primaryKey(), estimateId: text("estimate_id").notNull().references(() => estimates.id), name: text("name").notNull(), description: text("description").notNull().default(""), quantity: integer("quantity").notNull(), unit: text("unit").notNull(), totalCents: integer("total_cents").notNull() }, (table) => [index("idx_estimate_items_estimate_id").on(table.estimateId)]);
+-export const payments = sqliteTable("payments", { id: text("id").primaryKey(), estimateId: text("estimate_id").notNull().references(() => estimates.id), type: text("type").notNull(), amountCents: integer("amount_cents").notNull(), status: text("status").notNull().default("pending"), providerId: text("provider_id"), createdAt: text("created_at").notNull() }, (table) => [index("idx_payments_estimate_status").on(table.estimateId, table.status)]);
++export const payments = sqliteTable("payments", { processingFeeCents: integer("processing_fee_cents"), grossReceivedCents: integer("gross_received_cents"), bundledTipCents: integer("bundled_tip_cents"), processingMethod: text("processing_method"), id: text("id").primaryKey(), estimateId: text("estimate_id").notNull().references(() => estimates.id), type: text("type").notNull(), amountCents: integer("amount_cents").notNull(), status: text("status").notNull().default("pending"), providerId: text("provider_id"), createdAt: text("created_at").notNull() }, (table) => [index("idx_payments_estimate_status").on(table.estimateId, table.status)]);
+ export const paymentCheckoutSessions = sqliteTable("payment_checkout_sessions", { id:text("id").primaryKey(), estimateId:text("estimate_id").notNull().references(()=>estimates.id), type:text("type").notNull(), amountCents:integer("amount_cents").notNull(), status:text("status").notNull().default("open"), createdAt:text("created_at").notNull(), expiredAt:text("expired_at") }, (table)=>[index("idx_payment_checkout_sessions_estimate_status").on(table.estimateId,table.status)]);
+ export const paymentRefunds = sqliteTable("payment_refunds", { id:text("id").primaryKey(), paymentId:text("payment_id").notNull().references(()=>payments.id), estimateId:text("estimate_id").notNull().references(()=>estimates.id), amountCents:integer("amount_cents").notNull(), mode:text("mode").notNull(), status:text("status").notNull().default("pending"), providerRefundId:text("provider_refund_id"), note:text("note"), createdAt:text("created_at").notNull(), completedAt:text("completed_at") }, (table)=>[index("idx_payment_refunds_payment_status").on(table.paymentId,table.status),index("idx_payment_refunds_estimate_status").on(table.estimateId,table.status),uniqueIndex("idx_payment_refunds_provider").on(table.providerRefundId)]);
+ export const customerPhotos = sqliteTable("customer_photos", { id: text("id").primaryKey(), customerId: text("customer_id").notNull().references(() => customers.id), category: text("category").notNull().default("property"), caption: text("caption"), filename: text("filename").notNull(), contentType: text("content_type").notNull(), sizeBytes: integer("size_bytes").notNull(), objectKey: text("object_key").notNull(), createdAt: text("created_at").notNull() }, (table) => [index("idx_customer_photos_customer_id").on(table.customerId), index("idx_customer_photos_category").on(table.customerId, table.category)]);
+diff --git a/fire-app-dr/drizzle/0021_manual_processing_fees.sql b/fire-app-dr/drizzle/0021_manual_processing_fees.sql
+new file mode 100644
+index 0000000..bcd94bc
+--- /dev/null
++++ b/fire-app-dr/drizzle/0021_manual_processing_fees.sql
+@@ -0,0 +1,5 @@
++-- Nullable additions preserve historical payments; net is derived, never invoice credit.
++ALTER TABLE payments ADD COLUMN gross_received_cents INTEGER CHECK (gross_received_cents IS NULL OR gross_received_cents BETWEEN 0 AND 9007199254740991);
++ALTER TABLE payments ADD COLUMN bundled_tip_cents INTEGER CHECK (bundled_tip_cents IS NULL OR (bundled_tip_cents >= 0 AND gross_received_cents = amount_cents + bundled_tip_cents));
++ALTER TABLE payments ADD COLUMN processing_fee_cents INTEGER CHECK (processing_fee_cents IS NULL OR (processing_fee_cents >= 0 AND gross_received_cents IS NOT NULL AND processing_fee_cents <= gross_received_cents));
++ALTER TABLE payments ADD COLUMN processing_method TEXT;
+diff --git a/fire-app-dr/drizzle/meta/0021_snapshot.json b/fire-app-dr/drizzle/meta/0021_snapshot.json
+new file mode 100644
+index 0000000..09abdbd
+--- /dev/null
++++ b/fire-app-dr/drizzle/meta/0021_snapshot.json
+@@ -0,0 +1,1906 @@
++{
++  "version": "6",
++  "dialect": "sqlite",
++  "id": "d3dce894-dc5d-4d2a-88d6-ee45db43d815",
++  "prevId": "3260c655-f32d-4d64-a33a-7afae36e2154",
++  "tables": {
++    "auth_rate_limits": {
++      "name": "auth_rate_limits",
++      "columns": {
++        "key": {
++          "name": "key",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "attempts": {
++          "name": "attempts",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": 0
++        },
++        "window_started_at": {
++          "name": "window_started_at",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "blocked_until": {
++          "name": "blocked_until",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": 0
++        }
++      },
++      "indexes": {},
++      "foreignKeys": {},
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "customer_messages": {
++      "name": "customer_messages",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "customer_id": {
++          "name": "customer_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "estimate_id": {
++          "name": "estimate_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "channel": {
++          "name": "channel",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "template": {
++          "name": "template",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "body": {
++          "name": "body",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_customer_messages_customer_id": {
++          "name": "idx_customer_messages_customer_id",
++          "columns": [
++            "customer_id"
++          ],
++          "isUnique": false
++        },
++        "idx_customer_messages_estimate_id": {
++          "name": "idx_customer_messages_estimate_id",
++          "columns": [
++            "estimate_id"
++          ],
++          "isUnique": false
++        }
++      },
++      "foreignKeys": {
++        "customer_messages_customer_id_customers_id_fk": {
++          "name": "customer_messages_customer_id_customers_id_fk",
++          "tableFrom": "customer_messages",
++          "tableTo": "customers",
++          "columnsFrom": [
++            "customer_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        },
++        "customer_messages_estimate_id_estimates_id_fk": {
++          "name": "customer_messages_estimate_id_estimates_id_fk",
++          "tableFrom": "customer_messages",
++          "tableTo": "estimates",
++          "columnsFrom": [
++            "estimate_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "customer_notes": {
++      "name": "customer_notes",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "customer_id": {
++          "name": "customer_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "body": {
++          "name": "body",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_customer_notes_customer_id": {
++          "name": "idx_customer_notes_customer_id",
++          "columns": [
++            "customer_id"
++          ],
++          "isUnique": false
++        }
++      },
++      "foreignKeys": {
++        "customer_notes_customer_id_customers_id_fk": {
++          "name": "customer_notes_customer_id_customers_id_fk",
++          "tableFrom": "customer_notes",
++          "tableTo": "customers",
++          "columnsFrom": [
++            "customer_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "customer_photos": {
++      "name": "customer_photos",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "customer_id": {
++          "name": "customer_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "category": {
++          "name": "category",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'property'"
++        },
++        "caption": {
++          "name": "caption",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "filename": {
++          "name": "filename",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "content_type": {
++          "name": "content_type",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "size_bytes": {
++          "name": "size_bytes",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "object_key": {
++          "name": "object_key",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_customer_photos_customer_id": {
++          "name": "idx_customer_photos_customer_id",
++          "columns": [
++            "customer_id"
++          ],
++          "isUnique": false
++        },
++        "idx_customer_photos_category": {
++          "name": "idx_customer_photos_category",
++          "columns": [
++            "customer_id",
++            "category"
++          ],
++          "isUnique": false
++        }
++      },
++      "foreignKeys": {
++        "customer_photos_customer_id_customers_id_fk": {
++          "name": "customer_photos_customer_id_customers_id_fk",
++          "tableFrom": "customer_photos",
++          "tableTo": "customers",
++          "columnsFrom": [
++            "customer_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "customers": {
++      "name": "customers",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "name": {
++          "name": "name",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "email": {
++          "name": "email",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "phone": {
++          "name": "phone",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "address": {
++          "name": "address",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "lead_source": {
++          "name": "lead_source",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'Unknown'"
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {},
++      "foreignKeys": {},
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "estimate_change_requests": {
++      "name": "estimate_change_requests",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "estimate_id": {
++          "name": "estimate_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "customer_id": {
++          "name": "customer_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "message": {
++          "name": "message",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "status": {
++          "name": "status",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'open'"
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_change_requests_estimate": {
++          "name": "idx_change_requests_estimate",
++          "columns": [
++            "estimate_id",
++            "status"
++          ],
++          "isUnique": false
++        }
++      },
++      "foreignKeys": {
++        "estimate_change_requests_estimate_id_estimates_id_fk": {
++          "name": "estimate_change_requests_estimate_id_estimates_id_fk",
++          "tableFrom": "estimate_change_requests",
++          "tableTo": "estimates",
++          "columnsFrom": [
++            "estimate_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        },
++        "estimate_change_requests_customer_id_customers_id_fk": {
++          "name": "estimate_change_requests_customer_id_customers_id_fk",
++          "tableFrom": "estimate_change_requests",
++          "tableTo": "customers",
++          "columnsFrom": [
++            "customer_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "estimate_items": {
++      "name": "estimate_items",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "estimate_id": {
++          "name": "estimate_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "name": {
++          "name": "name",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "description": {
++          "name": "description",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "''"
++        },
++        "quantity": {
++          "name": "quantity",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "unit": {
++          "name": "unit",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "total_cents": {
++          "name": "total_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_estimate_items_estimate_id": {
++          "name": "idx_estimate_items_estimate_id",
++          "columns": [
++            "estimate_id"
++          ],
++          "isUnique": false
++        }
++      },
++      "foreignKeys": {
++        "estimate_items_estimate_id_estimates_id_fk": {
++          "name": "estimate_items_estimate_id_estimates_id_fk",
++          "tableFrom": "estimate_items",
++          "tableTo": "estimates",
++          "columnsFrom": [
++            "estimate_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "estimates": {
++      "name": "estimates",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "customer_id": {
++          "name": "customer_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "status": {
++          "name": "status",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'draft'"
++        },
++        "subtotal_cents": {
++          "name": "subtotal_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "discount_cents": {
++          "name": "discount_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": 0
++        },
++        "appreciation_discount": {
++          "name": "appreciation_discount",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": 0
++        },
++        "additional_discount_type": {
++          "name": "additional_discount_type",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'percent'"
++        },
++        "additional_discount_value": {
++          "name": "additional_discount_value",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": 0
++        },
++        "total_cents": {
++          "name": "total_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "deposit_cents": {
++          "name": "deposit_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "scheduled_at": {
++          "name": "scheduled_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "share_token": {
++          "name": "share_token",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "first_viewed_at": {
++          "name": "first_viewed_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "accepted_at": {
++          "name": "accepted_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "signed_name": {
++          "name": "signed_name",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "signed_at": {
++          "name": "signed_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "contract_initials": {
++          "name": "contract_initials",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "photo_release": {
++          "name": "photo_release",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "contract_version": {
++          "name": "contract_version",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_estimates_customer_id": {
++          "name": "idx_estimates_customer_id",
++          "columns": [
++            "customer_id"
++          ],
++          "isUnique": false
++        },
++        "idx_estimates_created_at": {
++          "name": "idx_estimates_created_at",
++          "columns": [
++            "created_at"
++          ],
++          "isUnique": false
++        },
++        "idx_estimates_scheduled_at": {
++          "name": "idx_estimates_scheduled_at",
++          "columns": [
++            "scheduled_at"
++          ],
++          "isUnique": false
++        },
++        "idx_estimates_share_token": {
++          "name": "idx_estimates_share_token",
++          "columns": [
++            "share_token"
++          ],
++          "isUnique": true
++        }
++      },
++      "foreignKeys": {
++        "estimates_customer_id_customers_id_fk": {
++          "name": "estimates_customer_id_customers_id_fk",
++          "tableFrom": "estimates",
++          "tableTo": "customers",
++          "columnsFrom": [
++            "customer_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "expenses": {
++      "name": "expenses",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "estimate_id": {
++          "name": "estimate_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "category": {
++          "name": "category",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "description": {
++          "name": "description",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "amount_cents": {
++          "name": "amount_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "incurred_at": {
++          "name": "incurred_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_expenses_estimate": {
++          "name": "idx_expenses_estimate",
++          "columns": [
++            "estimate_id"
++          ],
++          "isUnique": false
++        },
++        "idx_expenses_incurred": {
++          "name": "idx_expenses_incurred",
++          "columns": [
++            "incurred_at"
++          ],
++          "isUnique": false
++        }
++      },
++      "foreignKeys": {
++        "expenses_estimate_id_estimates_id_fk": {
++          "name": "expenses_estimate_id_estimates_id_fk",
++          "tableFrom": "expenses",
++          "tableTo": "estimates",
++          "columnsFrom": [
++            "estimate_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "invoice_items": {
++      "name": "invoice_items",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "invoice_id": {
++          "name": "invoice_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "name": {
++          "name": "name",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "description": {
++          "name": "description",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "''"
++        },
++        "quantity": {
++          "name": "quantity",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": 1
++        },
++        "unit": {
++          "name": "unit",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'job'"
++        },
++        "total_cents": {
++          "name": "total_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_invoice_items_invoice_id": {
++          "name": "idx_invoice_items_invoice_id",
++          "columns": [
++            "invoice_id"
++          ],
++          "isUnique": false
++        }
++      },
++      "foreignKeys": {
++        "invoice_items_invoice_id_invoices_id_fk": {
++          "name": "invoice_items_invoice_id_invoices_id_fk",
++          "tableFrom": "invoice_items",
++          "tableTo": "invoices",
++          "columnsFrom": [
++            "invoice_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "cascade",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "invoice_revisions": {
++      "name": "invoice_revisions",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "invoice_id": {
++          "name": "invoice_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "subtotal_cents": {
++          "name": "subtotal_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "discount_cents": {
++          "name": "discount_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": 0
++        },
++        "discount_type": {
++          "name": "discount_type",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'dollar'"
++        },
++        "discount_value": {
++          "name": "discount_value",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": 0
++        },
++        "total_cents": {
++          "name": "total_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "due_at": {
++          "name": "due_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "status": {
++          "name": "status",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "items_json": {
++          "name": "items_json",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_invoice_revisions_invoice_id": {
++          "name": "idx_invoice_revisions_invoice_id",
++          "columns": [
++            "invoice_id",
++            "created_at"
++          ],
++          "isUnique": false
++        }
++      },
++      "foreignKeys": {
++        "invoice_revisions_invoice_id_invoices_id_fk": {
++          "name": "invoice_revisions_invoice_id_invoices_id_fk",
++          "tableFrom": "invoice_revisions",
++          "tableTo": "invoices",
++          "columnsFrom": [
++            "invoice_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "cascade",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "invoices": {
++      "name": "invoices",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "estimate_id": {
++          "name": "estimate_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "customer_id": {
++          "name": "customer_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "status": {
++          "name": "status",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'draft'"
++        },
++        "subtotal_cents": {
++          "name": "subtotal_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": 0
++        },
++        "discount_cents": {
++          "name": "discount_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": 0
++        },
++        "discount_type": {
++          "name": "discount_type",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'dollar'"
++        },
++        "discount_value": {
++          "name": "discount_value",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": 0
++        },
++        "total_cents": {
++          "name": "total_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "due_at": {
++          "name": "due_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "share_token": {
++          "name": "share_token",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "first_viewed_at": {
++          "name": "first_viewed_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_invoices_customer_id": {
++          "name": "idx_invoices_customer_id",
++          "columns": [
++            "customer_id"
++          ],
++          "isUnique": false
++        },
++        "idx_invoices_estimate_id": {
++          "name": "idx_invoices_estimate_id",
++          "columns": [
++            "estimate_id"
++          ],
++          "isUnique": false
++        },
++        "idx_invoices_share_token": {
++          "name": "idx_invoices_share_token",
++          "columns": [
++            "share_token"
++          ],
++          "isUnique": true
++        }
++      },
++      "foreignKeys": {
++        "invoices_estimate_id_estimates_id_fk": {
++          "name": "invoices_estimate_id_estimates_id_fk",
++          "tableFrom": "invoices",
++          "tableTo": "estimates",
++          "columnsFrom": [
++            "estimate_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        },
++        "invoices_customer_id_customers_id_fk": {
++          "name": "invoices_customer_id_customers_id_fk",
++          "tableFrom": "invoices",
++          "tableTo": "customers",
++          "columnsFrom": [
++            "customer_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "job_reports": {
++      "name": "job_reports",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "estimate_id": {
++          "name": "estimate_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "customer_id": {
++          "name": "customer_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "checklist": {
++          "name": "checklist",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "notes": {
++          "name": "notes",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "airflow_before": {
++          "name": "airflow_before",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "airflow_after": {
++          "name": "airflow_after",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "status": {
++          "name": "status",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'draft'"
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "completed_at": {
++          "name": "completed_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_job_reports_estimate": {
++          "name": "idx_job_reports_estimate",
++          "columns": [
++            "estimate_id"
++          ],
++          "isUnique": false
++        }
++      },
++      "foreignKeys": {
++        "job_reports_estimate_id_estimates_id_fk": {
++          "name": "job_reports_estimate_id_estimates_id_fk",
++          "tableFrom": "job_reports",
++          "tableTo": "estimates",
++          "columnsFrom": [
++            "estimate_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        },
++        "job_reports_customer_id_customers_id_fk": {
++          "name": "job_reports_customer_id_customers_id_fk",
++          "tableFrom": "job_reports",
++          "tableTo": "customers",
++          "columnsFrom": [
++            "customer_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "message_templates": {
++      "name": "message_templates",
++      "columns": {
++        "key": {
++          "name": "key",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "subject": {
++          "name": "subject",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "''"
++        },
++        "body": {
++          "name": "body",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "updated_at": {
++          "name": "updated_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {},
++      "foreignKeys": {},
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "notifications": {
++      "name": "notifications",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "type": {
++          "name": "type",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "title": {
++          "name": "title",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "body": {
++          "name": "body",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "customer_id": {
++          "name": "customer_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "estimate_id": {
++          "name": "estimate_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "read_at": {
++          "name": "read_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "resolved_at": {
++          "name": "resolved_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "resolution_note": {
++          "name": "resolution_note",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_notifications_created_at": {
++          "name": "idx_notifications_created_at",
++          "columns": [
++            "created_at"
++          ],
++          "isUnique": false
++        },
++        "idx_notifications_unread": {
++          "name": "idx_notifications_unread",
++          "columns": [
++            "read_at",
++            "created_at"
++          ],
++          "isUnique": false
++        }
++      },
++      "foreignKeys": {
++        "notifications_customer_id_customers_id_fk": {
++          "name": "notifications_customer_id_customers_id_fk",
++          "tableFrom": "notifications",
++          "tableTo": "customers",
++          "columnsFrom": [
++            "customer_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        },
++        "notifications_estimate_id_estimates_id_fk": {
++          "name": "notifications_estimate_id_estimates_id_fk",
++          "tableFrom": "notifications",
++          "tableTo": "estimates",
++          "columnsFrom": [
++            "estimate_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "payment_checkout_sessions": {
++      "name": "payment_checkout_sessions",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "estimate_id": {
++          "name": "estimate_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "type": {
++          "name": "type",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "amount_cents": {
++          "name": "amount_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "status": {
++          "name": "status",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'open'"
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "expired_at": {
++          "name": "expired_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_payment_checkout_sessions_estimate_status": {
++          "name": "idx_payment_checkout_sessions_estimate_status",
++          "columns": [
++            "estimate_id",
++            "status"
++          ],
++          "isUnique": false
++        }
++      },
++      "foreignKeys": {
++        "payment_checkout_sessions_estimate_id_estimates_id_fk": {
++          "name": "payment_checkout_sessions_estimate_id_estimates_id_fk",
++          "tableFrom": "payment_checkout_sessions",
++          "tableTo": "estimates",
++          "columnsFrom": [
++            "estimate_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "payment_refunds": {
++      "name": "payment_refunds",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "payment_id": {
++          "name": "payment_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "estimate_id": {
++          "name": "estimate_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "amount_cents": {
++          "name": "amount_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "mode": {
++          "name": "mode",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "status": {
++          "name": "status",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'pending'"
++        },
++        "provider_refund_id": {
++          "name": "provider_refund_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "note": {
++          "name": "note",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "completed_at": {
++          "name": "completed_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_payment_refunds_payment_status": {
++          "name": "idx_payment_refunds_payment_status",
++          "columns": [
++            "payment_id",
++            "status"
++          ],
++          "isUnique": false
++        },
++        "idx_payment_refunds_estimate_status": {
++          "name": "idx_payment_refunds_estimate_status",
++          "columns": [
++            "estimate_id",
++            "status"
++          ],
++          "isUnique": false
++        },
++        "idx_payment_refunds_provider": {
++          "name": "idx_payment_refunds_provider",
++          "columns": [
++            "provider_refund_id"
++          ],
++          "isUnique": true
++        }
++      },
++      "foreignKeys": {
++        "payment_refunds_payment_id_payments_id_fk": {
++          "name": "payment_refunds_payment_id_payments_id_fk",
++          "tableFrom": "payment_refunds",
++          "tableTo": "payments",
++          "columnsFrom": [
++            "payment_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        },
++        "payment_refunds_estimate_id_estimates_id_fk": {
++          "name": "payment_refunds_estimate_id_estimates_id_fk",
++          "tableFrom": "payment_refunds",
++          "tableTo": "estimates",
++          "columnsFrom": [
++            "estimate_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "payments": {
++      "name": "payments",
++      "columns": {
++        "processing_fee_cents": {
++          "name": "processing_fee_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "gross_received_cents": {
++          "name": "gross_received_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "bundled_tip_cents": {
++          "name": "bundled_tip_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "processing_method": {
++          "name": "processing_method",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "estimate_id": {
++          "name": "estimate_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "type": {
++          "name": "type",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "amount_cents": {
++          "name": "amount_cents",
++          "type": "integer",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "status": {
++          "name": "status",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'pending'"
++        },
++        "provider_id": {
++          "name": "provider_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_payments_estimate_status": {
++          "name": "idx_payments_estimate_status",
++          "columns": [
++            "estimate_id",
++            "status"
++          ],
++          "isUnique": false
++        }
++      },
++      "foreignKeys": {
++        "payments_estimate_id_estimates_id_fk": {
++          "name": "payments_estimate_id_estimates_id_fk",
++          "tableFrom": "payments",
++          "tableTo": "estimates",
++          "columnsFrom": [
++            "estimate_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    },
++    "tasks": {
++      "name": "tasks",
++      "columns": {
++        "id": {
++          "name": "id",
++          "type": "text",
++          "primaryKey": true,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "title": {
++          "name": "title",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "customer_id": {
++          "name": "customer_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "estimate_id": {
++          "name": "estimate_id",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "due_at": {
++          "name": "due_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "status": {
++          "name": "status",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false,
++          "default": "'open'"
++        },
++        "notes": {
++          "name": "notes",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        },
++        "created_at": {
++          "name": "created_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": true,
++          "autoincrement": false
++        },
++        "completed_at": {
++          "name": "completed_at",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
++        }
++      },
++      "indexes": {
++        "idx_tasks_status_due": {
++          "name": "idx_tasks_status_due",
++          "columns": [
++            "status",
++            "due_at"
++          ],
++          "isUnique": false
++        }
++      },
++      "foreignKeys": {
++        "tasks_customer_id_customers_id_fk": {
++          "name": "tasks_customer_id_customers_id_fk",
++          "tableFrom": "tasks",
++          "tableTo": "customers",
++          "columnsFrom": [
++            "customer_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        },
++        "tasks_estimate_id_estimates_id_fk": {
++          "name": "tasks_estimate_id_estimates_id_fk",
++          "tableFrom": "tasks",
++          "tableTo": "estimates",
++          "columnsFrom": [
++            "estimate_id"
++          ],
++          "columnsTo": [
++            "id"
++          ],
++          "onDelete": "no action",
++          "onUpdate": "no action"
++        }
++      },
++      "compositePrimaryKeys": {},
++      "uniqueConstraints": {},
++      "checkConstraints": {}
++    }
++  },
++  "views": {},
++  "enums": {},
++  "_meta": {
++    "schemas": {},
++    "tables": {},
++    "columns": {}
++  },
++  "internal": {
++    "indexes": {}
++  }
++}
+\ No newline at end of file
+diff --git a/fire-app-dr/drizzle/meta/_journal.json b/fire-app-dr/drizzle/meta/_journal.json
+index 53fd45c..3906b80 100644
+--- a/fire-app-dr/drizzle/meta/_journal.json
++++ b/fire-app-dr/drizzle/meta/_journal.json
+@@ -71,6 +71,13 @@
+       "when": 1790547554555,
+       "tag": "0009_spicy_micromax",
+       "breakpoints": true
++    },
++    {
++      "idx": 21,
++      "version": "6",
++      "when": 1791397014741,
++      "tag": "0021_manual_processing_fees",
++      "breakpoints": true
+     }
+   ]
+-}
+\ No newline at end of file
++}
+diff --git a/fire-app-dr/lib/processing-fees.ts b/fire-app-dr/lib/processing-fees.ts
+new file mode 100644
+index 0000000..e97f4c7
+--- /dev/null
++++ b/fire-app-dr/lib/processing-fees.ts
+@@ -0,0 +1,16 @@
++export type ProcessingAccounting = { processingFeeCents?: number | null; grossReceivedCents?: number | null; bundledTipCents?: number | null; processingMethod?: string | null; amountCents: number; type: string };
++export function processingAmounts(invoiceCents: number, tipCents: number, fee: unknown, method: string) {
++  const gross = invoiceCents + tipCents;
++  if (!Number.isSafeInteger(invoiceCents) || invoiceCents < 0 || !Number.isSafeInteger(tipCents) || tipCents < 0 || !Number.isSafeInteger(gross)) throw new Error("Enter valid invoice and tip amounts.");
++  const recorded = fee !== undefined && fee !== null && fee !== "";
++  if (recorded && !["Cash App", "Venmo"].includes(method)) throw new Error("Manual processing fees are available only for Cash App and Venmo.");
++  if (recorded && (typeof fee !== "number" || !Number.isSafeInteger(fee) || fee < 0 || fee > gross)) throw new Error("Processing fee must be between zero and the full customer payment.");
++  return { grossReceivedCents: gross, processingFeeCents: recorded ? fee as number : null, bundledTipCents: tipCents, netReceivedCents: gross - (recorded ? fee as number : 0) };
++}
++export function summarizeProcessing(rows: ProcessingAccounting[], method?: string) {
++  const included = rows.filter(row => row.processingMethod === method || (!row.processingMethod && row.type === method));
++  const gross = included.reduce((sum,row)=>sum+(row.grossReceivedCents ?? row.amountCents),0);
++  const fees = included.reduce((sum,row)=>sum+(row.processingFeeCents ?? 0),0);
++  const tips = included.reduce((sum,row)=>sum+(row.type === "Tip" ? row.amountCents : row.bundledTipCents ?? 0),0);
++  return { gross, fees, net: gross-fees, tips };
++}
+diff --git a/fire-app-dr/scripts/restore-records-backup.mjs b/fire-app-dr/scripts/restore-records-backup.mjs
+index d3fccdc..6b00d6b 100644
+--- a/fire-app-dr/scripts/restore-records-backup.mjs
++++ b/fire-app-dr/scripts/restore-records-backup.mjs
+@@ -13,7 +13,7 @@ const TABLES = [
+   ["invoice_revisions", ["id", "invoice_id", "subtotal_cents", "discount_cents", "discount_type", "discount_value", "total_cents", "due_at", "status", "items_json", "created_at"]],
+   ["payment_checkout_sessions", ["id", "estimate_id", "type", "amount_cents", "status", "created_at", "expired_at"]],
+   ["estimate_items", ["id", "estimate_id", "name", "description", "quantity", "unit", "total_cents"]],
+-  ["payments", ["id", "estimate_id", "type", "amount_cents", "status", "provider_id", "created_at"]],
++  ["payments", ["id", "estimate_id", "type", "amount_cents", "status", "provider_id", "created_at", "processing_fee_cents", "gross_received_cents", "bundled_tip_cents", "processing_method"]],
+   ["payment_refunds", ["id", "payment_id", "estimate_id", "amount_cents", "mode", "status", "provider_refund_id", "note", "created_at", "completed_at"]],
+   ["customer_messages", ["id", "customer_id", "estimate_id", "channel", "template", "body", "created_at"]],
+   ["notifications", ["id", "type", "title", "body", "customer_id", "estimate_id", "read_at", "resolved_at", "resolution_note", "created_at"]],
+@@ -187,6 +187,7 @@ for (const [table, columns] of TABLES) {
+     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error(`The ${table} backup contains an invalid record.`);
+     const values = columns.map((column) => {
+       const value=candidate[column];
++          if(table==="payments"&&["processing_fee_cents","gross_received_cents","bundled_tip_cents","processing_method"].includes(column)&&value===undefined)return null;
+       if(value!==undefined)return value;
+       if(table==="invoices"&&column==="subtotal_cents")return candidate.total_cents??0;
+       if(table==="invoices"&&column==="discount_cents")return 0;
+diff --git a/fire-app-dr/scripts/test-processing-fees.mjs b/fire-app-dr/scripts/test-processing-fees.mjs
+new file mode 100644
+index 0000000..3b73f6c
+--- /dev/null
++++ b/fire-app-dr/scripts/test-processing-fees.mjs
+@@ -0,0 +1,55 @@
++import assert from 'node:assert/strict';
++import {readFileSync,readdirSync} from 'node:fs';
++import {resolve} from 'node:path';
++import {DatabaseSync} from 'node:sqlite';
++import {createHmac} from 'node:crypto';
++import ts from 'typescript';
++const root=resolve(process.argv[2]||'.');
++const sql=new DatabaseSync(':memory:');
++for(const file of readdirSync(root+'/drizzle').filter(f=>f.endsWith('.sql')).sort())sql.exec(readFileSync(root+'/drizzle/'+file,'utf8'));
++const DB={prepare(query){return {args:[],bind(...args){this.args=args;return this;},async first(){return sql.prepare(query).get(...this.args)||null;},async all(){return {results:sql.prepare(query).all(...this.args)};},async run(){return {meta:{changes:Number(sql.prepare(query).run(...this.args).changes)}}},query};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements){const stmt=sql.prepare(s.query);results.push(/^\s*SELECT/i.test(s.query)?{results:stmt.all(...s.args)}:{meta:{changes:Number(stmt.run(...s.args).changes)}});}sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
++globalThis.__feeTestDB=DB;
++async function load(path){let source=readFileSync(root+'/'+path,'utf8').replace(/^import .*?;\n/gm,'');source=source.replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');if(path.includes('payments/route'))source=readFileSync(root+'/lib/processing-fees.ts','utf8')+'\n'+source;source='const env={DB:globalThis.__feeTestDB,STRIPE_WEBHOOK_SECRET:"whsec_test_fixture"};const getOwnerUser=async()=>({email:"kylebrooks8605@gmail.com"});const getChatGPTUser=getOwnerUser;\n'+source;const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;return import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));}
++const route=await load('app/api/payments/route.ts');
++const backup=await load('app/api/backup/route.ts');
++let n=0;
++function job(total=7500,status='completed',deposit=Math.round(total/2)){const id='job-'+(++n),customer='customer-'+n;sql.prepare("INSERT INTO customers (id,name,created_at) VALUES (?,?,'2026-10-07')").run(customer,'Test');sql.prepare("INSERT INTO estimates (id,customer_id,status,subtotal_cents,discount_cents,total_cents,deposit_cents,share_token,created_at) VALUES (?,?,?,?,0,?,?,?,'2026-10-07')").run(id,customer,status,total,total,deposit,id);sql.prepare("INSERT INTO invoices (id,estimate_id,customer_id,status,total_cents,created_at) VALUES (?,?,?,'sent',?,'2026-10-07')").run('inv-'+n,id,customer,total);return id;}
++async function pay(id,amountCents,method='Cash App',processingFeeCents,tipCents=0){return route.POST(new Request('https://test/api/payments',{method:'POST',body:JSON.stringify({estimateId:id,amountCents,method,processingFeeCents,tipCents})}));}
++function rows(id){return sql.prepare('SELECT * FROM payments WHERE estimate_id=? ORDER BY rowid').all(id);}
++function principal(id){return Number(sql.prepare("SELECT COALESCE(SUM(amount_cents),0) amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").get(id).amount);}
++const a=job();assert.equal((await pay(a,7500,'Cash App',210)).status,201);assert.equal(principal(a),7500);assert.equal(rows(a)[0].gross_received_cents-rows(a)[0].processing_fee_cents,7290);
++const b=job(10000);assert.equal((await pay(b,10000,'Venmo',200)).status,201);assert.equal(principal(b),10000);assert.equal(rows(b)[0].gross_received_cents-rows(b)[0].processing_fee_cents,9800);
++const c=job();assert.equal((await pay(c,7500)).status,201);assert.equal(rows(c)[0].processing_fee_cents,null);
++const d=job(10000);assert.equal((await pay(d,4000,'Cash App',100)).status,201);assert.equal(principal(d),4000);assert.equal(sql.prepare('SELECT status FROM invoices WHERE estimate_id=?').get(d).status,'partial');
++const e=job(10000);assert.equal((await pay(e,10000,'Cash App',300,1000)).status,201);assert.equal(principal(e),10000);assert.equal(rows(e).find(r=>r.type==='Tip').amount_cents,1000);assert.equal(rows(e)[0].gross_received_cents,11000);assert.equal(rows(e)[0].gross_received_cents-rows(e)[0].processing_fee_cents,10700);
++const f=job(15000,'approved',7500);assert.equal((await pay(f,7500,'Cash App',210)).status,201);assert.equal(principal(f),7500);assert.equal((await pay(f,0,'Cash App',0,100)).status,409);
++const g=job(7500);assert.equal((await pay(g,8000,'Cash App',500)).status,400);assert.equal(rows(g).length,0);
++// Exercise the existing DR refund endpoint when present; no processor request is made.
++if(readdirSync(root+'/app/api/payments').includes('refund')) {
++ const refundRoute=await load('app/api/payments/refund/route.ts');
++ const response=await refundRoute.POST(new Request('https://test/api/payments/refund',{method:'POST',body:JSON.stringify({paymentId:rows(b)[0].id,requestId:'fee-refund',amountCents:2000,externalRefundConfirmed:true})}));
++ assert.equal(response.status,200,await response.text());assert.equal(principal(b),8000);assert.equal(rows(b)[0].processing_fee_cents,200);
++}
++// Refund ledger remains principal only; processor expense remains original, not assumed returned.
++sql.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,created_at) VALUES ('refund',?,'Refund',-2500,'paid','2026-10-07')").run(a);assert.equal(principal(a),5000);assert.equal(rows(a)[0].processing_fee_cents,210);
++const invoiceRoute=await load('app/api/invoices/[id]/route.ts');
++const invoice=sql.prepare('SELECT id FROM invoices WHERE estimate_id=?').get(d);
++const revisionResponse=await invoiceRoute.PATCH(new Request('https://test/api/invoices/x',{method:'PATCH',body:JSON.stringify({items:[{name:'Test service',quantity:1,unit:'job',totalCents:15000}],discountType:'dollar',discountValue:0})}),{params:Promise.resolve({id:invoice.id})});
++assert.equal(revisionResponse.status,200,await revisionResponse.text());assert.equal(rows(d)[0].processing_fee_cents,100);assert.equal(sql.prepare('SELECT COUNT(*) n FROM invoice_revisions WHERE invoice_id=?').get(invoice.id).n,1);
++// Invoice revision changes only balance, not gross or fee records.
++sql.prepare('UPDATE invoices SET total_cents=9000 WHERE estimate_id=?').run(a);assert.equal(principal(a),5000);assert.equal(rows(a)[0].gross_received_cents,7500);
++assert.equal((await pay(job(),7500,'Cash App',7501)).status,400);assert.equal((await pay(job(),7500,'Cash',210)).status,400);
++// Signed Stripe event + retry retain idempotency, ignore manual tips in principal math.
++const stripeJob=job(10000);await pay(stripeJob,0,'Cash App',10,500);
++sql.prepare("INSERT INTO payment_checkout_sessions (id,estimate_id,type,amount_cents,status,created_at) VALUES ('cs_fee_test',?,'balance',10000,'open','2026-10-07')").run(stripeJob);
++const webhook=await load('app/api/payments/webhook/route.ts');
++const event=JSON.stringify({type:'checkout.session.completed',data:{object:{id:'cs_fee_test',payment_status:'paid',amount_total:10000,metadata:{estimate_id:stripeJob,payment_type:'balance',expected_amount_cents:'10000',expected_tip_cents:'0'}}}});
++const timestamp=Math.floor(Date.now()/1000);const signature=createHmac('sha256','whsec_test_fixture').update(timestamp+'.'+event).digest('hex');
++for(let i=0;i<2;i++){const response=await webhook.POST(new Request('https://test/api/payments/webhook',{method:'POST',headers:{'stripe-signature':`t=${timestamp},v1=${signature}`},body:event}));assert.equal(response.status,200,await response.text());}
++assert.equal(principal(stripeJob),10000);assert.equal(rows(stripeJob).filter(r=>r.provider_id==='cs_fee_test').length,1);assert.equal(sql.prepare("SELECT status FROM payment_checkout_sessions WHERE id='cs_fee_test'").get().status,'paid');assert.equal(sql.prepare("SELECT COUNT(*) n FROM notifications WHERE estimate_id=? AND type='payment_overage'").get(stripeJob).n,0);
++const exported=await (await backup.GET()).json();assert.equal(exported.tables.payments.find(r=>r.estimate_id===e&&r.type==='Cash App').processing_fee_cents,300);
++// Restore in an empty database, preserving all three accounting dimensions.
++sql.exec('PRAGMA foreign_keys=OFF');for(const table of Object.keys(exported.tables).reverse()){sql.exec('DELETE FROM '+table);}sql.exec('PRAGMA foreign_keys=ON');
++const restored=await backup.POST(new Request('https://test/api/backup',{method:'POST',body:JSON.stringify(exported)}));assert.equal(restored.status,200,await restored.text());assert.equal(rows(e)[0].processing_fee_cents,300);assert.equal(rows(e)[0].gross_received_cents,11000);assert.equal(principal(e),10000);
++const legacy=structuredClone(exported);for(const r of legacy.tables.payments){delete r.processing_fee_cents;delete r.gross_received_cents;delete r.bundled_tip_cents;delete r.processing_method;}const legacyResponse=await backup.POST(new Request('https://test/api/backup',{method:'POST',body:JSON.stringify(legacy)}));assert.equal(legacyResponse.status,200,await legacyResponse.text());
++console.log('PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees.');

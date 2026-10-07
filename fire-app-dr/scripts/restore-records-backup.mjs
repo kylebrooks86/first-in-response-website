@@ -13,7 +13,7 @@ const TABLES = [
   ["invoice_revisions", ["id", "invoice_id", "subtotal_cents", "discount_cents", "discount_type", "discount_value", "total_cents", "due_at", "status", "items_json", "created_at"]],
   ["payment_checkout_sessions", ["id", "estimate_id", "type", "amount_cents", "status", "created_at", "expired_at"]],
   ["estimate_items", ["id", "estimate_id", "name", "description", "quantity", "unit", "total_cents"]],
-  ["payments", ["id", "estimate_id", "type", "amount_cents", "status", "provider_id", "created_at"]],
+  ["payments", ["id", "estimate_id", "type", "amount_cents", "status", "provider_id", "created_at", "processing_fee_cents", "gross_received_cents", "bundled_tip_cents", "processing_method"]],
   ["payment_refunds", ["id", "payment_id", "estimate_id", "amount_cents", "mode", "status", "provider_refund_id", "note", "created_at", "completed_at"]],
   ["customer_messages", ["id", "customer_id", "estimate_id", "channel", "template", "body", "created_at"]],
   ["notifications", ["id", "type", "title", "body", "customer_id", "estimate_id", "read_at", "resolved_at", "resolution_note", "created_at"]],
@@ -187,6 +187,7 @@ for (const [table, columns] of TABLES) {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error(`The ${table} backup contains an invalid record.`);
     const values = columns.map((column) => {
       const value=candidate[column];
+          if(table==="payments"&&["processing_fee_cents","gross_received_cents","bundled_tip_cents","processing_method"].includes(column)&&value===undefined)return null;
       if(value!==undefined)return value;
       if(table==="invoices"&&column==="subtotal_cents")return candidate.total_cents??0;
       if(table==="invoices"&&column==="discount_cents")return 0;

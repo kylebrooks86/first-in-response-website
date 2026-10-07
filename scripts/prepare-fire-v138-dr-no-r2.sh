@@ -58,6 +58,7 @@ python3 ../scripts/apply-fire-dr-customer-edit-flow.py
 python3 ../scripts/verify-fire-dr-customer-edit-flow.py
 python3 ../scripts/apply-fire-dr-tipping.py
 python3 ../scripts/verify-fire-dr-tipping.py
+python3 ../scripts/apply-fire-dr-processing-fees.py
 python3 ../scripts/apply-fire-dr-invoice-edit-ui.py
 python3 ../scripts/apply-fire-dr-capture-identity.py
 python3 ../scripts/verify-fire-dr-capture-identity.py
@@ -106,14 +107,14 @@ for p in files:
  m=re.match(r'^(\d{4})_.+\.sql$',p.name)
  if not m: errors.append(f'invalid migration filename: {p.name}')
  else: parsed.append(int(m.group(1)))
-if len(files)!=21: errors.append(f'expected exactly 21 canonical migrations, found {len(files)}')
-if parsed!=list(range(21)): errors.append(f'migration prefixes must be contiguous 0000..0020 exactly once; found {parsed}')
+if len(files)!=22: errors.append(f'expected exactly 22 canonical migrations, found {len(files)}')
+if parsed!=list(range(22)): errors.append(f'migration prefixes must be contiguous 0000..0021 exactly once; found {parsed}')
 if errors:
  print('DR_MIGRATION_SEQUENCE=FAIL'); [print('- '+e) for e in errors]; raise SystemExit(1)
 print('DR_MIGRATION_SEQUENCE=PASS')
 PY
 mkdir -p dist/server/migrations; rm -f dist/server/migrations/*.sql; cp drizzle/*.sql dist/server/migrations/
-staged_migration_count="$(find dist/server/migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"; [[ "$staged_migration_count" == "21" ]] || { echo "Failed to stage all 21 migrations for Wrangler." >&2; exit 1; }
+staged_migration_count="$(find dist/server/migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"; [[ "$staged_migration_count" == "22" ]] || { echo "Failed to stage all 22 migrations for Wrangler." >&2; exit 1; }
 
 python3 ../scripts/verify-fire-dr-postbuild-artifacts.py
 python3 ../scripts/write-fire-dr-build-provenance.py

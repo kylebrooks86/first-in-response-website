@@ -91,7 +91,7 @@ for name in expected_governance:
     path=overlay_dir/name; item=recorded_governance.get(name) or {}
     if not path.exists() or item.get('sha256')!=sha256(path): errors.append(f'governance changed/missing: {name}')
 recorded_migrations=p.get('staged_migration_sha256') or {}; actual_migrations={x.name:sha256(x) for x in sorted((root/'dist/server/migrations').glob('*.sql'))}
-if len(recorded_migrations)!=21 or actual_migrations!=recorded_migrations: errors.append('migration set/bytes changed')
+if len(recorded_migrations)!=22 or actual_migrations!=recorded_migrations: errors.append('migration set/bytes changed')
 count,tree,files=deployment_tree(); artifact=p.get('deployment_artifact_tree') or {}
 if artifact.get('excludes')!=['FIRE_DR_BUILD_PROVENANCE.json'] or artifact.get('file_count')!=count or artifact.get('tree_sha256')!=tree or artifact.get('file_sha256')!=files: errors.append('deployable artifact tree changed')
 if errors:
@@ -99,4 +99,4 @@ if errors:
     for e in errors: print('- '+e)
     raise SystemExit(1)
 print('DR_PREDEPLOY_PROVENANCE=PASS')
-print(f'EVIDENCE_GATE={current_readiness}; capture-id={(p.get("capture_identity") or {}).get("capture_id")}; forward-sync blockers={forward_sync}; commit, v138 identity, formal manifest + synchronized parity summaries/matrix, persistent evidence/comparison/provenance tree ({evidence_count} files), Worker/D1/no-R2 config, scripts, governance, governed tipping patch, 21 migrations, and all {count} deployable files match build provenance.')
+print(f'EVIDENCE_GATE={current_readiness}; capture-id={(p.get("capture_identity") or {}).get("capture_id")}; forward-sync blockers={forward_sync}; commit, v138 identity, formal manifest + synchronized parity summaries/matrix, persistent evidence/comparison/provenance tree ({evidence_count} files), Worker/D1/no-R2 config, scripts, governance, governed tipping patch, 22 migrations, and all {count} deployable files match build provenance.')

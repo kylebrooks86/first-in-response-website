@@ -1,3 +1,4 @@
+import { processingAmounts } from "../../../lib/processing-fees";
 import { env } from "cloudflare:workers";
 import { getOwnerUser } from "../../owner-auth";
 
@@ -10,7 +11,7 @@ async function authorized() {
 export async function GET() {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const result = await env.DB.prepare(`
-    SELECT p.id,p.estimate_id AS estimateId,p.type,p.amount_cents AS amountCents,p.status,
+    SELECT p.id,p.estimate_id AS estimateId,p.type,p.amount_cents AS amountCents,p.status,p.processing_fee_cents AS processingFeeCents,p.gross_received_cents AS grossReceivedCents,p.bundled_tip_cents AS bundledTipCents,p.processing_method AS processingMethod,
       p.provider_id AS reference,p.created_at AS createdAt,c.id AS customerId,c.name AS customer,
       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Custom service') AS service,
       CASE WHEN p.amount_cents>0 THEN COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status='succeeded'),0) ELSE 0 END AS refundedCents,
@@ -40,6 +41,10 @@ export async function POST(request: Request) {
     const tipCents = Math.round(Number(body.tipCents) || 0);
     const method = String(body.method ?? "Other").trim() || "Other";
     const reference = String(body.reference ?? "").trim() || null;
+    let accounting: ReturnType<typeof processingAmounts>;
+    try { accounting=processingAmounts(amountCents,tipCents,body.processingFeeCents,method); }
+    catch(error) { return Response.json({error:error instanceof Error?error.message:"Invalid processing fee."},{status:400}); }
+
     if (!estimateId || !Number.isSafeInteger(amountCents) || amountCents < 0 || !Number.isSafeInteger(tipCents) || tipCents < 0 || (amountCents <= 0 && tipCents <= 0)) {
       return Response.json({ error: "Choose a job and enter a valid payment or tip amount." }, { status: 400 });
     }
@@ -77,8 +82,8 @@ export async function POST(request: Request) {
 
       payment = { id:crypto.randomUUID(), estimateId, type:method, amountCents, status:"paid", reference, createdAt:new Date().toISOString() };
       const paymentStatement = env.DB.prepare(`
-        INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
-        SELECT ?,?,?,?,'paid',?,?
+        INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at,processing_fee_cents,gross_received_cents,bundled_tip_cents,processing_method)
+        SELECT ?,?,?,?,'paid',?,?,?,?,?,?
         WHERE ? <= (
           SELECT MAX(0,
             CASE
@@ -90,7 +95,7 @@ export async function POST(request: Request) {
           FROM estimates e WHERE e.id=?
         )
         AND (SELECT COALESCE(SUM(p.amount_cents),0) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')) <= 9007199254740991 - ?
-      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, amountCents, estimateId, estimateId, amountCents);
+      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, accounting.processingFeeCents, accounting.grossReceivedCents, tipCents, method, amountCents, estimateId, estimateId, amountCents);
 
       if(tipCents>0){
         const tipId=crypto.randomUUID();
@@ -119,8 +124,8 @@ export async function POST(request: Request) {
     if(tipCents>0&&amountCents<=0){
       tip={id:crypto.randomUUID(),estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:[method,reference].filter(Boolean).join(" · ")||method,createdAt:new Date().toISOString()};
       const results=await env.DB.batch([
-        env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at) VALUES (?,?, 'Tip',?,'paid',?,?)")
-          .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt),
+        env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at,processing_fee_cents,gross_received_cents,bundled_tip_cents,processing_method) VALUES (?,?, 'Tip',?,'paid',?,?,?,?,?,?)")
+          .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt,accounting.processingFeeCents,accounting.grossReceivedCents,0,method),
         env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates WHERE id=?")
           .bind(crypto.randomUUID(),"Tip received",`${(tipCents/100).toFixed(2)} tip recorded via ${method}.`,estimateId,tip.createdAt,estimateId),
       ]);
@@ -149,7 +154,7 @@ export async function POST(request: Request) {
         ELSE 'draft' END WHERE estimate_id=?`)
         .bind(nextPaid,nextPaid,estimateId).run();
     }
-    return Response.json({ payment, tip, paidCents:nextPaid, balanceCents:Math.max(0, refreshedDueLimit-nextPaid) }, { status: 201 });
+    return Response.json({ payment, tip, accounting, paidCents:nextPaid, balanceCents:Math.max(0, refreshedDueLimit-nextPaid) }, { status: 201 });
   } catch {
     return Response.json({ error: "We couldn't record this payment. Please try again." }, { status: 500 });
   }

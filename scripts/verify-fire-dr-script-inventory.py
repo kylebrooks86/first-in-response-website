@@ -36,7 +36,7 @@ discovered = {
         or path.name.startswith('report-fire-dr-')
         or path.name.startswith('record-fire-dr-')
         or path.name == 'prepare-fire-v138-dr-no-r2.sh'
-        or path.name == 'fire-dr-tipping.patch'
+        or path.name in {'fire-dr-tipping.patch','fire-dr-processing-fees.patch'}
     )
 }
 

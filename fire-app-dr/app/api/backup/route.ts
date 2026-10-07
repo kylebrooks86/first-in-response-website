@@ -32,7 +32,7 @@ const RESTORE_TABLES = [
   ["invoice_revisions", ["id", "invoice_id", "subtotal_cents", "discount_cents", "discount_type", "discount_value", "total_cents", "due_at", "status", "items_json", "created_at"]],
   ["payment_checkout_sessions", ["id", "estimate_id", "type", "amount_cents", "status", "created_at", "expired_at"]],
   ["estimate_items", ["id", "estimate_id", "name", "description", "quantity", "unit", "total_cents"]],
-  ["payments", ["id", "estimate_id", "type", "amount_cents", "status", "provider_id", "created_at"]],
+  ["payments", ["id", "estimate_id", "type", "amount_cents", "status", "provider_id", "created_at", "processing_fee_cents", "gross_received_cents", "bundled_tip_cents", "processing_method"]],
   ["payment_refunds", ["id", "payment_id", "estimate_id", "amount_cents", "mode", "status", "provider_refund_id", "note", "created_at", "completed_at"]],
   ["customer_messages", ["id", "customer_id", "estimate_id", "channel", "template", "body", "created_at"]],
   ["notifications", ["id", "type", "title", "body", "customer_id", "estimate_id", "read_at", "resolved_at", "resolution_note", "created_at"]],
@@ -245,13 +245,20 @@ export async function POST(request: Request) {
     const refundIntegrityError=validateRefundIntegrity(backupTables);
     if(refundIntegrityError)return Response.json({error:`This backup failed refund-integrity validation: ${refundIntegrityError}`},{status:400});
 
+    if(Array.isArray(backupTables.payments)) for(const row of backupTables.payments) {
+      if(!isRecord(row))return Response.json({error:"Invalid payment record."},{status:400});
+      const fee=row.processing_fee_cents, gross=row.gross_received_cents, tip=row.bundled_tip_cents;
+      if(fee!=null&&(!Number.isSafeInteger(fee)||Number(fee)<0||gross==null||Number(fee)>Number(gross)))return Response.json({error:"Invalid processing fee in backup."},{status:400});
+      if(gross!=null&&(!Number.isSafeInteger(gross)||Number(gross)<0||!Number.isSafeInteger(Number(tip??0))||Number(tip??0)<0||Number(gross)!==Number(row.amount_cents)+Number(tip??0)))return Response.json({error:"Invalid gross payment accounting in backup."},{status:400});
+      if(row.processing_method!=null&&typeof row.processing_method!=="string")return Response.json({error:"Invalid processing method in backup."},{status:400});
+    }
     const restoredAt = new Date().toISOString();
 
     const [targetRefundProviders,targetPaymentProviders,targetRefundIdentities,targetPaymentIdentities,targetEstimates,targetInvoices,targetCheckouts,targetRevisions,targetEstimateItems,targetInvoiceItems,targetTasks,targetExpenses,targetJobReports,targetChangeRequests,targetCustomers,targetCustomerNotes,targetCustomerMessages,targetNotifications,targetTemplates]=await Promise.all([
       env.DB.prepare("SELECT id,provider_refund_id AS providerRefundId FROM payment_refunds WHERE provider_refund_id IS NOT NULL").all<{id:string;providerRefundId:string}>(),
       env.DB.prepare("SELECT id,provider_id AS providerId FROM payments WHERE provider_id LIKE 'cs_%' OR provider_id LIKE 'refund:%'").all<{id:string;providerId:string}>(),
       env.DB.prepare("SELECT id,payment_id AS paymentId,estimate_id AS estimateId,amount_cents AS amountCents,mode FROM payment_refunds").all<{id:string;paymentId:string;estimateId:string;amountCents:number;mode:string}>(),
-      env.DB.prepare("SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents,status,provider_id AS providerId FROM payments").all<{id:string;estimateId:string;type:string;amountCents:number;status:string;providerId:string|null}>(),
+      env.DB.prepare("SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents,status,provider_id AS providerId,processing_fee_cents,gross_received_cents,bundled_tip_cents,processing_method FROM payments").all<{id:string;estimateId:string;type:string;amountCents:number;status:string;providerId:string|null;processing_fee_cents:number|null;gross_received_cents:number|null;bundled_tip_cents:number|null;processing_method:string|null}>(),
       env.DB.prepare("SELECT id,customer_id AS customerId,subtotal_cents AS subtotalCents,discount_cents AS discountCents,total_cents AS totalCents,deposit_cents AS depositCents,share_token AS shareToken FROM estimates").all(),
       env.DB.prepare("SELECT id,estimate_id AS estimateId,customer_id AS customerId,subtotal_cents AS subtotalCents,discount_cents AS discountCents,total_cents AS totalCents,share_token AS shareToken FROM invoices").all(),
       env.DB.prepare("SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents FROM payment_checkout_sessions").all(),
@@ -448,6 +455,9 @@ export async function POST(request: Request) {
         const existingProvider=existing?.providerId==null?"":String(existing.providerId);
         if(existing&&(String(existing.estimateId)!==String(raw.estimate_id??"")||String(existing.type)!==String(raw.type??"")||Number(existing.amountCents)!==Number(raw.amount_cents)||String(existing.status)!==String(raw.status??"")||existingProvider!==provider))
           return Response.json({error:`Restore conflict: payment ${id} already exists with different immutable financial values.`},{status:409});
+        if(existing) for(const column of ["processing_fee_cents","gross_received_cents","bundled_tip_cents","processing_method"] as const) {
+          if(raw[column]!==undefined && raw[column]!==existing[column])return Response.json({error:`Restore conflict: payment ${id} has different processing accounting.`},{status:409});
+        }
         const strongProvider=provider.startsWith("cs_")||provider.startsWith("refund:");
         const existingId=strongProvider?targetPaymentProviderToId.get(provider):undefined;
         if(existingId&&existingId!==id)return Response.json({error:`Restore conflict: payment provider ${provider} already belongs to another payment in this database.`},{status:409});
@@ -466,6 +476,7 @@ export async function POST(request: Request) {
         if (!isRecord(candidate)) return Response.json({ error: `The ${table} backup contains an invalid record.` }, { status: 400 });
         const values = columns.map((column) => {
           const value=candidate[column];
+          if(table==="payments"&&["processing_fee_cents","gross_received_cents","bundled_tip_cents","processing_method"].includes(column)&&value===undefined)return null;
           if(value!==undefined)return value;
           if(table==="invoices"&&column==="subtotal_cents")return candidate.total_cents??0;
           if(table==="invoices"&&column==="discount_cents")return 0;
