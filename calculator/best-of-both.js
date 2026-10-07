@@ -236,6 +236,7 @@
       if(!more)return;
       const summary=$('summary',more),opt=preset.selectedOptions?.[0]?.textContent||'More sizes / custom';
       const quick=['1','2','4','5'].includes(preset.value);
+      Array.from(document.querySelectorAll('#batchChips [data-batch]')).forEach(b=>b.classList.toggle('active',quick&&b.dataset.batch===preset.value));
       if(summary)summary.textContent=quick?'More sizes / custom':'More sizes · '+opt;
       if(preset.value==='custom')more.open=true;
       else if(document.activeElement===preset)more.open=false;
