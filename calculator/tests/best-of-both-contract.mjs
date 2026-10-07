@@ -10,6 +10,7 @@ const loader=read('full-v18.js');
 const sw=read('sw.js');
 const toolsParity=read('v18-live-tools-parity.js');
 const parityCore=read('full-v18-parity-core.js');
+const core=read('full-v18-core.js');
 const interactions=read('v18-interactions.js');
 const portableBackup=read('v18-live-portable-backup.js');
 const inputContract=read('v18-live-input-contract.js');
@@ -118,7 +119,7 @@ ok(parityCore.includes("let planContainerManual=false")&&parityCore.includes("ba
 ok(bob.includes("if(guide&&safety&&safety.parentElement===tools)guide.appendChild(safety)"),'Field Safety Card is duplicated inside Field Tools instead of Safety Guide');
 ok(interactions.includes("const prefixes=['fireV18','fireFieldCalculator','fireCalcTheme']"),'full offline backup no longer includes fireV18 Saved mixes storage');
 ok(interactions.includes("const gal=parseFloat(d.batch)")&&interactions.includes("batch.value='custom'")&&interactions.includes("custom.value=String(gal)"),'mix history reuse cannot restore normalized or custom batch sizes');
-ok(parityCore.includes("surface:$('#surface')?.value||'house'")&&parityCore.includes("growth:$('#growthSeg [data-growth].active')?.dataset.growth||'moderate'")&&parityCore.includes("stockStrength:$('#stockStrength')?.value||'10'")&&parityCore.includes("eleRate:$('#eleRate')?.value||'0'"),'new Mix History entries do not preserve the complete SH recipe');
+ok(core.includes("surface:$('#surface')?.value||'house'")&&core.includes("growth:$('#growthSeg [data-growth].active')?.dataset.growth||'moderate'")&&core.includes("stockStrength:$('#stockStrength')?.value||'10'")&&core.includes("eleRate:$('#eleRate')?.value||'0'"),'new Mix History entries do not preserve the complete SH recipe');
 ok(interactions.includes("if(surface&&d.surface&&[...surface.options].some")&&interactions.includes("emit('stockStrength',d.stockStrength)")&&interactions.includes("emit('eleRate',d.eleRate)"),'Mix History reuse does not restore complete SH recipe fields');
 ok(interactions.includes("window.__fireRestoringSavedMix=true")&&interactions.includes("window.__fireSavedMixRestoreToken===token"),'Mix History reuse is not protected from preset listener races');
 ok(interactions.includes("calc.growth==='medium'?'moderate':calc.growth"),'portable backup restore can lose the Medium dirtiness setting');
