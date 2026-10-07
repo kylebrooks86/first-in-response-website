@@ -47,6 +47,7 @@ Additional staging hardening in this batch:
 - Portable compatibility backups now preserve the active SH batch as normalized gallons plus the original preset/custom amount and unit. Restore reproduces preset batches when possible and restores custom batches in their original unit (for example 96 fl oz stays 96 fl oz instead of being flattened to 0.75 gal).
 - Saved custom dwell-timer state now reconstructs its dynamic `Custom — X min` option deterministically after reload instead of relying on module/listener timing. Suggested surface presets remain unchanged and restoring timer state does not auto-start a countdown.
 - Job Plan persistence now distinguishes synthetic restore events from genuine edits and generation-guards its delayed startup retries. Once the user edits a planning field (including Clear Estimate's planning reset), already-scheduled restores are invalidated so stale startup state cannot overwrite the newer job state.
+- Job Plan container persistence now stores explicit `planContainerManual` provenance only when the user genuinely changes that container. Merely saving another planning field no longer makes a saved/default container look manual, so untouched Job Plan containers continue following the active SH batch while deliberate overrides still survive reload.
 
 ### SH Mix
 
@@ -141,10 +142,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=52`
+- `full-v18.js?v=53`
 - `best-of-both.js?v=32`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-182`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-183`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
