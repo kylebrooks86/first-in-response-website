@@ -1,4 +1,4 @@
-Trigger Cloudflare DR staging build after full overlay/idempotency audit.
-Latest fixed branch head before trigger: 1f4360a545b1ef38c3ebdb7b2029b7a3afb5945d
-Purpose: force a fresh Cloudflare build from current fire-calculator-exact-live-clone after semantic verifier and final-stack idempotency corrections.
+Trigger Cloudflare DR staging build after combined-source tipping early-exit fix.
+Latest fixed branch head before trigger: c257897c73a6ab077d85c79b5e20a1ffed4963d8
+Purpose: force a fresh Cloudflare build from current fire-calculator-exact-live-clone after eliminating false second-pass tipping transformations.
 No application/runtime behavior is changed by this file.
