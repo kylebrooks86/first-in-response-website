@@ -52,7 +52,7 @@
     await load('./v18-live-tools-options-parity.js?v=2');
     await load('./v18-live-tools-fine.js?v=2');
     await load('./v18-live-pricing-parity.js?v=2');
-    await load('./v18-live-customer-parity.js?v=12');
+    await load('./v18-live-customer-parity.js?v=13');
     await load('./v18-live-backup-hydration.js?v=3');
     await load('./v18-live-invalid-backup-parity.js?v=2');
     await load('./v18-live-portable-backup.js?v=2');
