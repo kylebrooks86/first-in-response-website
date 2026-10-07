@@ -29,3 +29,46 @@ else:
         raise SystemExit('DR_TIPPING_APPLY=FAIL: '+detail)
     print('DR_TIPPING_APPLY=PASS')
     print('Optional final-payment tipping patch already applied; no changes made.')
+
+
+def replace_once(path: Path, old: str, new: str, label: str):
+    if not path.exists():
+        raise SystemExit(f'DR_BILLING_INTEGRITY_APPLY=FAIL: {path} not found')
+    source=path.read_text()
+    if new in source:
+        return
+    if old not in source:
+        raise SystemExit(f'DR_BILLING_INTEGRITY_APPLY=FAIL: {label} source fragment not found')
+    path.write_text(source.replace(old,new,1))
+
+invoice=repo_root/'fire-app-dr/app/api/invoices/[id]/route.ts'
+replace_once(
+    invoice,
+    '    await env.DB.batch(statements);\n    return Response.json({invoice:{id,subtotalCents,discountCents:appliedDiscountCents,discountType,discountValue,totalCents,status,dueAt,items:normalized}});',
+    '''    await env.DB.batch(statements);
+
+    const postPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(existing.estimateId).first<{paidCents:number}>();
+    const postPaidCents=Number(postPaidRow?.paidCents??0);
+    if(!Number.isSafeInteger(postPaidCents)||postPaidCents<0)return Response.json({error:"Invoice changes were saved, but the refreshed payment total requires owner review before billing continues."},{status:409});
+    const reconciledStatus=postPaidCents>=totalCents?"paid":postPaidCents>0?"partial":(existing.status==="sent"||Boolean(existing.firstViewedAt)?"sent":"draft");
+    const postOverpaymentCents=Math.max(0,postPaidCents-totalCents);
+    const reconcileStatements=[env.DB.prepare("UPDATE invoices SET status=? WHERE id=?").bind(reconciledStatus,id)];
+    if(postOverpaymentCents>0){
+      const overpaymentBody="$"+(postOverpaymentCents/100).toFixed(2)+" is currently recorded above the final invoice total after an invoice edit/payment timing change. Review Payments and either refund the excess or intentionally keep it as an overpayment on this job.";
+      reconcileStatements.push(
+        env.DB.prepare("UPDATE notifications SET title=?,body=? WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL").bind("Review invoice overpayment",overpaymentBody,existing.estimateId),
+        env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
+          SELECT ?,'payment_overage',?,?,e.customer_id,e.id,? FROM estimates e
+          WHERE e.id=? AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL)`)
+          .bind(crypto.randomUUID(),"Review invoice overpayment",overpaymentBody,new Date().toISOString(),existing.estimateId)
+      );
+    }else{
+      const resolvedAt=new Date().toISOString();
+      reconcileStatements.push(env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?),resolved_at=?,resolution_note='invoice_edit_reconciled' WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL").bind(resolvedAt,resolvedAt,existing.estimateId));
+    }
+    await env.DB.batch(reconcileStatements);
+    return Response.json({invoice:{id,subtotalCents,discountCents:appliedDiscountCents,discountType,discountValue,totalCents,status:reconciledStatus,dueAt,items:normalized},paidCents:postPaidCents,billingExceptionOpen:postOverpaymentCents>0});''',
+    'invoice post-write reconciliation',
+)
+
+print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
