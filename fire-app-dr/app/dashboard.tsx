@@ -591,7 +591,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
 }
 
 
-function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(totalCents:number)=>void}){
+function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(totalCents:number,paidCents:number,billingExceptionOpen:boolean)=>void}){
   const [open,setOpen]=useState(false);
   const [items,setItems]=useState<EditableEstimateItem[]>([]);
   const [discountMode,setDiscountMode]=useState<DiscountMode>("dollar");
