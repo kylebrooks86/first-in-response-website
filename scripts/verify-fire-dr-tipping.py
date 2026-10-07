@@ -141,7 +141,7 @@ else:
     if tip_entry.get('preserve_in_dr') is not True or tip_entry.get('blocks_full_identical') is not True:
         errors.append('optional-final-payment-tipping must remain preserved in DR and block FULL_IDENTICAL until LIVE sync')
     protected=set(tip_entry.get('protected_behavior') or [])
-    for required_behavior in ['No tip selected by default','5% preset','10% preset','15% preset','Custom tip','Tips only on final balance payments','Tip stored separately from invoice payment','Tip and Tip Refund excluded from invoice paid/balance math']:
+    for required_behavior in ['No tip selected by default','5% preset','10% preset','15% preset','Custom tip','Tips only on final balance payments','Percentage presets are based on the full invoice total','Stripe card charge equals remaining balance plus tip','Tip stored separately from invoice payment','Tip and Tip Refund excluded from invoice paid/balance math']:
         if required_behavior not in protected:
             errors.append(f'forward-sync tipping registry missing protected behavior: {required_behavior}')
 
@@ -149,6 +149,8 @@ for needle in [
     'Optional tipping is intentionally available only on the final balance card payment',
     'No tip is selected by default',
     '5% / 10% / 15% / Custom',
+    'Percentage presets are calculated from the full invoice total',
+    'Stripe card charge is only the remaining balance plus the selected tip',
     'Tip / Tip Refund separately',
     'tipping remains a `PENDING_LIVE_SYNC` forward-sync blocker',
 ]:
