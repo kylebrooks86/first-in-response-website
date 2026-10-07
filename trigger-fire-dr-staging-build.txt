@@ -1,4 +1,4 @@
-Trigger Cloudflare DR staging build after refund workflow tip-lock guard alignment.
-Latest fixed branch head before trigger: 5f509f14e595a449871841893b220d5ed20af426
-Purpose: validate strengthened payment-or-tip refund/overpayment locks through the remaining release gates.
+Trigger Cloudflare DR staging build after estimate reconciliation compiler fix.
+Latest fixed branch head before trigger: 60f3d43ea23aac706b2322d1f75967750589fb7e
+Purpose: validate single refreshedPaid reconciliation declaration and exact tip-exclusion normalization through build and deploy gates.
 No application/runtime behavior is changed by this file.
