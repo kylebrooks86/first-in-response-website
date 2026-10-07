@@ -42,6 +42,7 @@ Additional staging hardening in this batch:
 - A deliberate Job Plan container override now survives reload/restoration by recognizing the existing planning-state value before automatic SH-batch synchronization runs.
 - Clear Estimate now clears job-specific planning measurements from both live planning persistence and full-state persistence, preventing a supposedly cleared job from repopulating after delayed restore/reload; reusable preferences such as coverage, reserve and planning container are preserved.
 - Portable v3 backup restore now validates the normalized estimate, inventory, calculator, rig and X-Jet payloads before writing any imported storage, reducing the risk of a malformed backup leaving a partially restored state. Raw imported keys are restricted to the calculator's `fire*` namespace.
+- Backup restore writes are now transactional across portable v3, full offline and legacy v18 formats: if a storage write fails mid-restore, every key touched by that restore is rolled back to its exact prior value instead of leaving a mixed/partial calculator state.
 
 ### SH Mix
 
@@ -136,10 +137,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=47`
+- `full-v18.js?v=48`
 - `best-of-both.js?v=32`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-177`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-178`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
