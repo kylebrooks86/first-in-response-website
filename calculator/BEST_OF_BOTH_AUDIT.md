@@ -43,6 +43,7 @@ Additional staging hardening in this batch:
 - Clear Estimate now clears job-specific planning measurements from both live planning persistence and full-state persistence, preventing a supposedly cleared job from repopulating after delayed restore/reload; reusable preferences such as coverage, reserve and planning container are preserved.
 - Portable v3 backup restore now validates the normalized estimate, inventory, calculator, rig and X-Jet payloads before writing any imported storage, reducing the risk of a malformed backup leaving a partially restored state. Raw imported keys are restricted to the calculator's `fire*` namespace.
 - Backup restore writes are now transactional across portable v3, full offline and legacy v18 formats: if a storage write fails mid-restore, every key touched by that restore is rolled back to its exact prior value instead of leaving a mixed/partial calculator state.
+- Portable backup hydration now uses the explicit migration marker as its only pending-import signal, so ordinary saved estimate drafts are not repeatedly treated as imports. The final hydration pass also closes the migration marker even when a valid backup contains no estimate fields (for example calculator/rig/X-Jet-only data), preventing stale re-hydration on later loads.
 
 ### SH Mix
 
@@ -137,10 +138,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=48`
+- `full-v18.js?v=49`
 - `best-of-both.js?v=32`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-178`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-179`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
