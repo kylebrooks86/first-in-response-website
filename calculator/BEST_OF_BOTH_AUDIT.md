@@ -52,6 +52,7 @@ Additional staging hardening in this batch:
 - Native/offline backup restore now prevalidates the entire `stores` object before any write: it must be a non-array object, every value must be a string, and every key must remain inside the native export namespaces (`fireV18*`, `fireFieldCalculator*`, or `fireCalcTheme*`). Any invalid entry rejects the whole import instead of being silently skipped into an incomplete restore; transactional rollback remains in place for write-time failures.
 - Portable-import bridge keys (`fireV18ImportedLiveFieldCalc`, `fireV18ImportedLiveRig`, and `fireV18ImportedLiveXjet`) are now migration-marker gated and consumed after the final 1400 ms hydration pass. They remain available long enough for late-loaded calculator modules during the import reload, but cannot replay stale imported SH/rig/X-Jet values on later normal launches.
 - Portable helper cleanup is now success-aware per category: calculator, rig, and X-Jet bridge keys are each removed only when that category actually reached at least one live target control on the final hydration pass. A genuinely late/missing module therefore keeps its helper payload instead of losing import data prematurely.
+- The backup hydration finalizer now performs one coordinated imported-helper retry immediately before removing `fireV18LiveBackupMigratedAt`. This closes the retained-helper gap: a control that appears after the 1400 ms pass gets one last chance to receive its imported state, while marker cleanup still bounds the migration lifecycle.
 
 ### SH Mix
 
@@ -146,10 +147,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=57`
+- `full-v18.js?v=58`
 - `best-of-both.js?v=32`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-187`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-188`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
