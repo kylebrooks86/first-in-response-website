@@ -127,6 +127,10 @@ ok(interactions.includes("calc.growth==='medium'?'moderate':calc.growth"),'porta
 ok(portableBackup.includes("k?.startsWith('fire')"),'portable backup no longer captures Saved mixes storage');
 ok(portableBackup.includes("target:val('targetNum',prior.target||'1')"),'portable backup does not preserve the fine-tuned SH target');
 ok(interactions.includes("emit('targetNum',calc.target)")&&interactions.indexOf("emit('targetNum',calc.target)")>interactions.indexOf("s.dispatchEvent(new Event('change',{bubbles:true}))"),'portable restore can overwrite a custom SH target after restoring surface/dirtiness');
+const backupValidateAt=interactions.indexOf("const estimate=parsePayload('fireEstimateDraft')");
+const backupWriteAt=interactions.indexOf("Object.entries(data.data).forEach");
+ok(backupValidateAt>=0&&backupWriteAt>backupValidateAt&&interactions.includes("const xjet=parsePayload('fireXjet')"),'portable v3 backup can write storage before core payload validation');
+ok(interactions.includes("k.startsWith('fire')&&typeof v==='string'"),'portable v3 restore can write unrelated local-storage keys');
 
 ok(css.includes('body.fire-bob #chemicals .card')&&css.includes('body.fire-bob #index .card'),'LIVE Mixes / Index protection rules are missing');
 ok(css.includes('font-size:16px!important'),'best-of-both inputs no longer protect against iPhone focus zoom');
