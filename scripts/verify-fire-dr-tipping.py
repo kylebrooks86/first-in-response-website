@@ -71,7 +71,6 @@ for needle in [
 
 for needle in [
     "expectedAmount+tipCents!==sessionAmount",
-    'paymentType !== "balance" && tipCents>0',
     'const maxTipCents=Math.min(Number(estimate.totalCents),50000);',
     'tip_outside_allowed_range',
     "'Tip',?,'paid'",
@@ -85,6 +84,11 @@ for needle in [
 ]:
     if needle not in text['webhook']: errors.append(f'webhook missing tip accounting invariant: {needle}')
 
+if not re.search(r'paymentType\s*!==\s*"balance"\s*&&\s*tipCents\s*>\s*0', text['webhook']):
+    errors.append('webhook tip-on-balance guard could not be parsed')
+if not re.search(r'["\']tip_received["\']', text['webhook']):
+    errors.append('webhook tip notification type is missing')
+
 for needle in [
     "expectedAmount+tipCents!==sessionAmount",
     "paymentType!==\"balance\"&&tipCents>0",
@@ -94,9 +98,11 @@ for needle in [
     'Number(prior.amountCents)!==expectedAmount',
     'Number(raced.amountCents)!==expectedAmount',
     "type NOT IN ('Tip','Tip Refund')",
-    '"tip_received"',
 ]:
     if needle not in text['estimate']: errors.append(f'estimate success-page fallback missing tip accounting invariant: {needle}')
+
+if not re.search(r'["\']tip_received["\']', text['estimate']):
+    errors.append('estimate success-page tip notification type is missing')
 
 for needle in [
     'CASE WHEN ?=\'Tip\' THEN \'Tip Refund\' ELSE \'Refund\' END',
@@ -137,13 +143,15 @@ for needle in [
     'This job is already paid in full. Record the tip by itself instead.',
     'Put any extra amount in Tip received instead.',
     'VALUES (?,?, \'Tip\',?,\'paid\',?,?)',
-    '"tip_received"',
     'const results=await env.DB.batch([',
     "WHERE EXISTS (SELECT 1 FROM payments WHERE id=? AND estimate_id=? AND status='paid')",
     'if(!results[1]?.meta.changes)return Response.json({ error:"The invoice payment was not paired with its tip record.',
 ]:
     if needle not in text['payments']:
         errors.append(f'manual payment API missing tip invariant: {needle}')
+
+if not re.search(r'["\']tip_received["\']', text['payments']):
+    errors.append('manual payment API tip notification type is missing')
 
 for name in ['payments','customers']:
     if "p.type IN ('deposit','balance','Tip')" not in text[name]:
