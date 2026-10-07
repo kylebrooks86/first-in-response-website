@@ -134,6 +134,8 @@ ok(backupValidateAt>=0&&backupWriteAt>backupValidateAt&&interactions.includes("c
 ok(interactions.includes("k.startsWith('fire')&&typeof v==='string'"),'portable v3 restore can write unrelated local-storage keys');
 ok(interactions.includes("const withRestoreTransaction=fn=>")&&interactions.includes("restoreTxn.entries()].reverse()")&&interactions.includes("v===null?localStorage.removeItem(k):localStorage.setItem(k,v)"),'failed backup restore cannot roll touched storage back');
 ok(interactions.includes("withRestoreTransaction(()=>migrateLiveV3(data))")&&interactions.includes("withRestoreTransaction(()=>Object.entries(data.stores)")&&interactions.includes("else if(data.version===18){withRestoreTransaction"),'not all supported backup formats use transactional restore');
+ok(backupHydration.includes("const pending=()=>!!localStorage.getItem(marker);"),'ordinary estimate drafts can be mistaken for pending imported backups');
+ok(backupHydration.includes("if(finalPass&&localStorage.getItem(marker))")&&backupHydration.includes("localStorage.removeItem(marker)"),'calculator-only portable backups can leave a stale migration marker after final hydration');
 
 ok(css.includes('body.fire-bob #chemicals .card')&&css.includes('body.fire-bob #index .card'),'LIVE Mixes / Index protection rules are missing');
 ok(css.includes('font-size:16px!important'),'best-of-both inputs no longer protect against iPhone focus zoom');
