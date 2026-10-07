@@ -1,4 +1,4 @@
-Trigger Cloudflare DR staging build after estimate reconciliation compiler fix.
-Latest fixed branch head before trigger: 60f3d43ea23aac706b2322d1f75967750589fb7e
-Purpose: validate single refreshedPaid reconciliation declaration and exact tip-exclusion normalization through build and deploy gates.
+Trigger Cloudflare DR staging build after tipping verifier initialization-order fix.
+Latest fixed branch head before trigger: 36b0e01badb0d3d4d883a311ab939942da624bbe
+Purpose: validate estimate reconciliation regression checks after source loading, then continue through application build/postbuild/deploy gates.
 No application/runtime behavior is changed by this file.
