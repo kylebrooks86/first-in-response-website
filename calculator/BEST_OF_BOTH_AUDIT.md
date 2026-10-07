@@ -150,10 +150,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=61`
+- `full-v18.js?v=62`
 - `best-of-both.js?v=34`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-192`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-193`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
@@ -209,3 +209,5 @@ Before any production promotion:
 Until then, keep status **STAGING CANDIDATE ONLY — NOT SYNCHRONIZED**.
 
 - Cache 192: after backup hydration, Quick Preset explicitly clears its prior active selection before re-identifying the preset from the fully restored surface, growth, target SH and Elemonator rate. No recipe values are changed. Exact-source contract passes (9 presets, 38 assets, 27 cached modules); no physical iPhone testing claimed.
+
+- Cache 193: fixed shared boolean success tracking in portable helper hydration. A numeric count now independently detects calculator, rig, and X-Jet fields applied, so each helper is consumed according to its own success rather than the prior category's result. Contract and cache parity pass; no physical iPhone test performed.
