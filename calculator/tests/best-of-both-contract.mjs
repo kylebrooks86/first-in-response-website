@@ -110,6 +110,8 @@ ok(css.includes('body.fire-bob #chemicals .card')&&css.includes('body.fire-bob #
 ok(css.includes('font-size:16px!important'),'best-of-both inputs no longer protect against iPhone focus zoom');
 ok(css.includes('width:44px!important;min-width:44px!important'),'mobile Tools touch target is below the protected size');
 ok(css.includes('body.fire-bob .bob-dirtiness-field #growthSeg .chip')&&css.includes('min-height:44px!important'),'dirtiness touch targets are below the protected size');
+ok(css.includes('body.fire-bob .fire-saved-fav button')&&css.includes('min-height:44px!important'),'Saved mixes buttons are not protected for iPhone touch use');
+ok(css.includes('body.fire-bob .fire-saved-fav small{color:#aab3bb!important}'),'Saved mixes text can regress to low-contrast light-theme colors');
 
 ok(index.includes("const rates={qHouse:.22,qGutter:1.75,qGuard:1,qBright:2,qFence:.4"),'current FIRE core pricing defaults are wrong');
 ok(index.includes('Gutter Cleaning & Downspout Flushing')&&index.includes('Gutter Guard Removal / Reinstall'),'current gutter service wording is missing');
