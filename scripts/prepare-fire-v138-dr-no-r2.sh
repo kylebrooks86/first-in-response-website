@@ -52,6 +52,7 @@ print('DR_PIN_OVERLAY_APPLIED')
 PY
 
 python3 ../scripts/apply-fire-dr-mobile-shell-fix.py
+python3 ../scripts/apply-fire-dr-mobile-back-history.py
 python3 ../scripts/apply-fire-dr-template-parity-fix.py
 python3 ../scripts/apply-fire-dr-live-evidence-fixes.py
 python3 ../scripts/apply-fire-dr-customer-edit-flow.py
