@@ -121,7 +121,7 @@ ok(css.includes('width:44px!important;min-width:44px!important;min-height:44px!i
 ok(css.includes('body.fire-bob .bob-dirtiness-field #growthSeg .chip')&&css.includes('min-height:44px!important'),'dirtiness touch targets are below the protected size');
 ok(css.includes('body.fire-bob .fire-saved-fav button')&&css.includes('min-height:44px!important'),'Saved mixes buttons are not protected for iPhone touch use');
 ok(css.includes('body.fire-bob .fire-saved-fav small{color:#aab3bb!important}'),'Saved mixes text can regress to low-contrast light-theme colors');
-ok(inputContract.includes("$('.fire-inv-row').forEach"),'inventory input contract is not using the collection selector');
+ok(inputContract.includes("$$('.fire-inv-row').forEach"),'inventory input contract is not using the collection selector');
 ok(toolsParity.includes("['sh','Stock SH','gal']"),'Chemical Inventory still hard-codes 10% SH');
 ok(inputContract.includes("name.textContent=stockText")&&inputContract.includes("label+' amount'")&&inputContract.includes("label+' unit'"),'SH inventory label/accessibility does not track active stock strength');
 ok(!inputContract.includes("\n    $('.fire-inv-row').forEach"),'inventory input contract uses a single-element selector as a collection');
