@@ -115,7 +115,7 @@ ok(toolsParity.includes("return Array.isArray(data)?data.filter")&&toolsParity.i
 ok(toolsParity.includes("const esc=s=>String(s??'').replace")&&toolsParity.includes("esc(x.name||'Saved SH mix')"),'Saved mix names are not escaped before rendering');
 ok(toolsParity.includes("requestedSurface")&&toolsParity.includes("[...s.options].some(o=>o.value===requestedSurface)"),'Saved mixes do not validate restored surface values');
 ok(toolsParity.includes("window.__fireSavedMixRestoreToken=restoreToken")&&toolsParity.includes("if(window.__fireSavedMixRestoreToken===restoreToken)window.__fireRestoringSavedMix=false"),'Saved mix restore token cannot protect overlapping restores');
-ok(bob.includes("const restoringSavedMix=()=>window.__fireRestoringSavedMix===true")&&bob.includes("if(applyingPreset||restoringSavedMix())return")&&bob.includes("if(restoringSavedMix())return;\n      if(activePreset){"),'preset listeners can interfere with Saved mix restoration');
+ok(bob.includes("const restoringRecipe=()=>window.__fireRestoringSavedMix===true||window.__fireHydratingBackup===true")&&bob.includes("if(applyingPreset||restoringRecipe())return")&&bob.includes("if(restoringRecipe())return;\n      if(activePreset){"),'preset listeners can interfere with recipe restoration');
 ok(parityCore.includes("moveOrder(tools,['Saved mixes'"),'Saved mixes is not ordered in the Field Tools workflow');
 ok(!bob.includes('oldFav?.remove()'),'best-of-both late layout can delete the Saved mixes card');
 ok(bob.includes("group('🧭 Jobsite reference'")&&bob.includes("group('🧪 Records & chemicals'")&&bob.includes("group('⚙️ App & data'"),'Field Tools compact helper groups are missing');
