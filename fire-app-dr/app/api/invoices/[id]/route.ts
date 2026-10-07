@@ -114,7 +114,7 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     const postOverpaymentCents=Math.max(0,postPaidCents-totalCents);
     const reconcileStatements=[env.DB.prepare("UPDATE invoices SET status=? WHERE id=?").bind(reconciledStatus,id)];
     if(postOverpaymentCents>0){
-      const overpaymentBody=`${(postOverpaymentCents/100).toFixed(2)} is currently recorded above the final invoice total after an invoice edit/payment timing change. Review Payments and either refund the excess or intentionally keep it as an overpayment on this job.`;
+      const overpaymentBody="$"+(postOverpaymentCents/100).toFixed(2)+" is currently recorded above the final invoice total after an invoice edit/payment timing change. Review Payments and either refund the excess or intentionally keep it as an overpayment on this job.";
       reconcileStatements.push(
         env.DB.prepare("UPDATE notifications SET title=?,body=? WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL").bind("Review invoice overpayment",overpaymentBody,existing.estimateId),
         env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
