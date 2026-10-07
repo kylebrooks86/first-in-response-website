@@ -13,7 +13,7 @@
   };
   const normUnit=u=>String(u||'').toLowerCase().replace(/\s+/g,'').includes('oz')?'floz':'gal';
   const emit=(id,value)=>{const e=document.getElementById(id);if(!e)return false;e.value=value==null?'':String(value);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));return true};
-  const pending=()=>!!localStorage.getItem(marker)||(!localStorage.getItem(hydrated)&&!!localStorage.getItem('fireEstimateDraft'));
+  const pending=()=>!!localStorage.getItem(marker);
   function persistCustomerName(fields){
     if(!Object.prototype.hasOwnProperty.call(fields,'estimateJobName'))return;
     try{
