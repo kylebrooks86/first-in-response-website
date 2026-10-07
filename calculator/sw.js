@@ -1,10 +1,10 @@
-const CACHE='fire-field-calculator-v18-best-of-both-160';
+const CACHE='fire-field-calculator-v18-best-of-both-161';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   '../assets/recent-work/fire-logo-direct.png',
-  './full-v18.js?v=31',
+  './full-v18.js?v=32',
   './full-v18-core.js?v=7',
   './v18-legacy-job-detach.js?v=2',
   './full-v18-parity-core.js?v=6',
@@ -43,7 +43,7 @@ const ASSETS=[
   './v18-live-backup-hydration.js?v=3',
   './v18-live-invalid-backup-parity.js?v=2',
   './v18-live-portable-backup.js?v=2',
-  './v18-live-input-contract.js?v=5',
+  './v18-live-input-contract.js?v=6',
   './best-of-both.js?v=30'
 ];
 self.addEventListener('install',e=>e.waitUntil((async()=>{
