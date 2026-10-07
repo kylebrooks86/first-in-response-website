@@ -112,7 +112,7 @@ ok(portableBackup.includes("k?.startsWith('fire')"),'portable backup no longer c
 
 ok(css.includes('body.fire-bob #chemicals .card')&&css.includes('body.fire-bob #index .card'),'LIVE Mixes / Index protection rules are missing');
 ok(css.includes('font-size:16px!important'),'best-of-both inputs no longer protect against iPhone focus zoom');
-ok(css.includes('width:44px!important;min-width:44px!important'),'mobile Tools touch target is below the protected size');
+ok(css.includes('width:44px!important;min-width:44px!important;min-height:44px!important'),'mobile Tools touch target is below the protected 44x44 size');
 ok(css.includes('body.fire-bob .bob-dirtiness-field #growthSeg .chip')&&css.includes('min-height:44px!important'),'dirtiness touch targets are below the protected size');
 ok(css.includes('body.fire-bob .fire-saved-fav button')&&css.includes('min-height:44px!important'),'Saved mixes buttons are not protected for iPhone touch use');
 ok(css.includes('body.fire-bob .fire-saved-fav small{color:#aab3bb!important}'),'Saved mixes text can regress to low-contrast light-theme colors');
