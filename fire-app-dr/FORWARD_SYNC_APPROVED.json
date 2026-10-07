@@ -64,10 +64,11 @@
         "Tip and Tip Refund excluded from invoice paid/balance math",
         "Percentage presets are based on the full invoice total",
         "Stripe card charge equals remaining balance plus tip",
-        "Net tip revenue shown separately in Payments summary"
+        "Net tip revenue shown separately in Payments summary",
+        "Stripe webhook and success-page replay reconciliation verify existing invoice-payment and tip ledger rows"
       ],
-      "pending_matrix_note": "Owner approved optional final-payment tipping with No tip selected by default plus 5% / 10% / 15% / Custom. Tips are final-balance-only, must remain separate from invoice paid/balance accounting, and net tip revenue must remain visible separately in Payments. LIVE must receive the same flow before this state can be identical.",
-      "synced_matrix_note": "Optional final-payment tipping was brought into LIVE with No tip default, 5% / 10% / 15% / Custom, final-balance-only behavior, separate tip accounting, and separate net tip revenue visibility; LIVE/DR were deliberately reviewed on the same device/profile."
+      "pending_matrix_note": "Owner approved optional final-payment tipping with No tip selected by default plus 5% / 10% / 15% / Custom. Tips are final-balance-only, must remain separate from invoice paid/balance accounting, net tip revenue must remain visible separately in Payments, and Stripe webhook/success-page replay reconciliation must verify the existing payment and tip ledger split before accepting duplicates. LIVE must receive the same flow before this state can be identical.",
+      "synced_matrix_note": "Optional final-payment tipping was brought into LIVE with No tip default, 5% / 10% / 15% / Custom, final-balance-only behavior, separate tip accounting, separate net tip revenue visibility, and replay-safe Stripe completion reconciliation; LIVE/DR were deliberately reviewed on the same device/profile."
     }
   ]
 }
