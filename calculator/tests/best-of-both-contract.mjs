@@ -114,6 +114,8 @@ ok(interactions.includes("const prefixes=['fireV18','fireFieldCalculator','fireC
 ok(interactions.includes("const gal=parseFloat(d.batch)")&&interactions.includes("batch.value='custom'")&&interactions.includes("custom.value=String(gal)"),'mix history reuse cannot restore normalized or custom batch sizes');
 ok(interactions.includes("calc.growth==='medium'?'moderate':calc.growth"),'portable backup restore can lose the Medium dirtiness setting');
 ok(portableBackup.includes("k?.startsWith('fire')"),'portable backup no longer captures Saved mixes storage');
+ok(portableBackup.includes("target:val('targetNum',prior.target||'1')"),'portable backup does not preserve the fine-tuned SH target');
+ok(interactions.includes("emit('targetNum',calc.target)")&&interactions.indexOf("emit('targetNum',calc.target)")>interactions.indexOf("s.dispatchEvent(new Event('change',{bubbles:true}))"),'portable restore can overwrite a custom SH target after restoring surface/dirtiness');
 
 ok(css.includes('body.fire-bob #chemicals .card')&&css.includes('body.fire-bob #index .card'),'LIVE Mixes / Index protection rules are missing');
 ok(css.includes('font-size:16px!important'),'best-of-both inputs no longer protect against iPhone focus zoom');
