@@ -117,6 +117,9 @@ ok(bob.includes("bob-tools-group[open]")&&bob.includes("wrap.open=openTitles.has
 ok(bob.includes("if(guide&&safety&&safety.parentElement===tools)guide.appendChild(safety)"),'Field Safety Card is duplicated inside Field Tools instead of Safety Guide');
 ok(interactions.includes("const prefixes=['fireV18','fireFieldCalculator','fireCalcTheme']"),'full offline backup no longer includes fireV18 Saved mixes storage');
 ok(interactions.includes("const gal=parseFloat(d.batch)")&&interactions.includes("batch.value='custom'")&&interactions.includes("custom.value=String(gal)"),'mix history reuse cannot restore normalized or custom batch sizes');
+ok(parityCore.includes("surface:$('#surface')?.value||'house'")&&parityCore.includes("growth:$('#growthSeg [data-growth].active')?.dataset.growth||'moderate'")&&parityCore.includes("stockStrength:$('#stockStrength')?.value||'10'")&&parityCore.includes("eleRate:$('#eleRate')?.value||'0'"),'new Mix History entries do not preserve the complete SH recipe');
+ok(interactions.includes("if(surface&&d.surface&&[...surface.options].some")&&interactions.includes("emit('stockStrength',d.stockStrength)")&&interactions.includes("emit('eleRate',d.eleRate)"),'Mix History reuse does not restore complete SH recipe fields');
+ok(interactions.includes("window.__fireRestoringSavedMix=true")&&interactions.includes("window.__fireSavedMixRestoreToken===token"),'Mix History reuse is not protected from preset listener races');
 ok(interactions.includes("calc.growth==='medium'?'moderate':calc.growth"),'portable backup restore can lose the Medium dirtiness setting');
 ok(portableBackup.includes("k?.startsWith('fire')"),'portable backup no longer captures Saved mixes storage');
 ok(portableBackup.includes("target:val('targetNum',prior.target||'1')"),'portable backup does not preserve the fine-tuned SH target');
