@@ -64,7 +64,7 @@ body.fire-bob .bottom{display:none!important}
 
 @media(max-width:560px){
   body.fire-bob .stock{display:none!important}
-  body.fire-bob .bob-tools-btn{width:44px!important;min-width:44px!important;padding:8px 0!important;font-size:0!important}
+  body.fire-bob .bob-tools-btn{width:44px!important;min-width:44px!important;min-height:44px!important;padding:8px 0!important;font-size:0!important}
   body.fire-bob .bob-tools-btn::before{content:'🧰';font-size:18px;line-height:1}
   body.fire-bob .page{padding-left:14px!important;padding-right:14px!important}
   body.fire-bob .card{padding:16px!important;border-radius:20px!important}
