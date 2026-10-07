@@ -30,6 +30,8 @@ Additional staging hardening in this batch:
 - Customer quote normalization preserves an entered customer/job name; only a truly blank `Prepared for:` line falls back to `Customer`.
 - Clearing an estimate now clears the hidden legacy customer-name compatibility field before estimator recalculation, preventing an old customer name from resurfacing in the quote or crew sheet.
 - Batch History / Mix Log reuse now normalizes stored sizes such as `4.00` back to the matching batch option and restores non-standard history sizes through Custom gallons instead of silently losing the batch.
+- Portable backup hydration now maps legacy/live `medium` dirtiness back to the current internal `moderate` value so Medium restores correctly.
+- Chemical Inventory no longer hard-codes the SH row as 10%; it starts as **Stock SH** and updates the visible/accessibility label to the current stock strength, including 12.5%.
 
 ### SH Mix
 
@@ -124,10 +126,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=36`
+- `full-v18.js?v=39`
 - `best-of-both.js?v=30`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-165`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-168`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
