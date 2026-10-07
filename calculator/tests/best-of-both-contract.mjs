@@ -12,6 +12,7 @@ const toolsParity=read('v18-live-tools-parity.js');
 const parityCore=read('full-v18-parity-core.js');
 const core=read('full-v18-core.js');
 const interactions=read('v18-interactions.js');
+const behavior=read('v18-behavior.js');
 const portableBackup=read('v18-live-portable-backup.js');
 const inputContract=read('v18-live-input-contract.js');
 const customerParity=read('v18-live-customer-parity.js');
@@ -143,6 +144,7 @@ ok(interactions.includes("setTimeout(()=>hydrateImportedLiveState(false),500);se
 ok(interactions.includes("window.__fireHydrateImportedLiveState=hydrateImportedLiveState"),'portable helper hydration is not available for coordinated final retry');
 ok(interactions.includes("const priorHydrating=window.__fireHydratingBackup===true;window.__fireHydratingBackup=true")&&interactions.includes("window.__fireHydratingBackup=priorHydrating"),'portable hydration does not guard its synthetic events');
 ok(planningState.includes("if(restoring||window.__fireHydratingBackup===true)return"),'planning state can mistake backup hydration for a genuine user edit');
+ok(behavior.includes("if(window.__fireHydratingBackup!==true)autosave();updateSummaries()"),'global draft autosave can persist a partially hydrated backup state');
 ok(backupHydration.includes("window.__fireHydrateImportedLiveState?.(true)")&&backupHydration.indexOf("window.__fireHydrateImportedLiveState?.(true)")<backupHydration.indexOf("localStorage.removeItem(marker)"),'backup marker can clear before the final imported-helper retry');
 ok(interactions.includes("emit('targetNum',calc.target)")&&interactions.indexOf("emit('targetNum',calc.target)")>interactions.indexOf("s.dispatchEvent(new Event('change',{bubbles:true}))"),'portable restore can overwrite a custom SH target after restoring surface/dirtiness');
 ok(interactions.includes("if(preset==='custom'&&calc.customBatch!==undefined)")&&interactions.includes("emit('customBatch',calc.customBatch)")&&interactions.includes("emit('customUnit',calc.customUnit||'gal')")&&interactions.includes("batch.dispatchEvent(new Event('change',{bubbles:true}))"),'portable restore cannot reproduce the active preset/custom batch');
