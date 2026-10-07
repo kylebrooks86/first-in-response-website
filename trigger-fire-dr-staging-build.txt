@@ -2,3 +2,5 @@ Trigger Cloudflare DR staging build after provenance inventory repair.
 Latest fixed branch head before trigger: 1b9229bd73dbe435108c23ee64f42f68a9de325e
 Purpose: validate all 48 governed artifacts including processing-fee patch through build provenance and predeploy provenance.
 No application/runtime behavior is changed by this file.
+
+2026-10-07: Trigger staging rebuild after mobile workspace scroll-reset fix (eb525fef).
