@@ -23,7 +23,7 @@ function migrateLiveV3(data){
   if(data?.format!=='FIRE Field Calculator Backup'||Number(data?.version)!==3||Number(data?.appVersion)!==18||!data.data||typeof data.data!=='object'||Array.isArray(data.data))throw new Error('Unsupported live backup');
   const parsePayload=(key,fallback={})=>{const raw=data.data[key];if(raw===undefined||raw===null)return fallback;const parsed=parseString(raw);if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('Invalid '+key+' payload');return parsed};
   const estimate=parsePayload('fireEstimateDraft'),fields=estimate.fields||{};
-  if(fields&&typeof fields!=='object')throw new Error('Invalid estimate fields');
+  if(!fields||typeof fields!=='object'||Array.isArray(fields))throw new Error('Invalid estimate fields');
   const inventory=parsePayload('fireInventory');
   const calc=parsePayload('fireFieldCalc');
   const rig=parsePayload('fireRig');
@@ -43,7 +43,7 @@ function migrateLiveV3(data){
   saveJSON('fireV18FullState',full);
   
   if(calc.coverage!==undefined)planning.coverage=String(calc.coverage);saveJSON('fireV18LivePlanningState',planning);
-  const base=safeParse('fireV18ImportedLiveFieldCalc',{});Object.assign(base,calc);saveJSON('fireV18ImportedLiveFieldCalc',base);
+  saveJSON('fireV18ImportedLiveFieldCalc',calc);
   saveJSON('fireV18ImportedLiveRig',rig);
   const tank=safeParse('fireV18EquipmentTankPlanner',{});if(rig.rigWaterTank!==undefined)tank.waterTankSize=String(rig.rigWaterTank);if(rig.rigShTank!==undefined)tank.shTankSize=String(rig.rigShTank);if(rig.rigSoapTank!==undefined)tank.soapTankSize=String(rig.rigSoapTank);saveJSON('fireV18EquipmentTankPlanner',tank);
   saveJSON('fireV18ImportedLiveXjet',xjet);
