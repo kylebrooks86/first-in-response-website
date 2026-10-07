@@ -51,6 +51,7 @@ Additional staging hardening in this batch:
 - Portable compatibility backup/restore now carries the explicit Job Plan container override provenance (`jobBatchSizeManual`) alongside `jobBatchSize`. Deliberate container choices therefore survive portable restores, while older backups without the flag safely fall back to automatic SH-batch following instead of guessing.
 - Native/offline backup restore now prevalidates the entire `stores` object before any write: it must be a non-array object, every value must be a string, and every key must remain inside the native export namespaces (`fireV18*`, `fireFieldCalculator*`, or `fireCalcTheme*`). Any invalid entry rejects the whole import instead of being silently skipped into an incomplete restore; transactional rollback remains in place for write-time failures.
 - Portable-import bridge keys (`fireV18ImportedLiveFieldCalc`, `fireV18ImportedLiveRig`, and `fireV18ImportedLiveXjet`) are now migration-marker gated and consumed after the final 1400 ms hydration pass. They remain available long enough for late-loaded calculator modules during the import reload, but cannot replay stale imported SH/rig/X-Jet values on later normal launches.
+- Portable helper cleanup is now success-aware per category: calculator, rig, and X-Jet bridge keys are each removed only when that category actually reached at least one live target control on the final hydration pass. A genuinely late/missing module therefore keeps its helper payload instead of losing import data prematurely.
 
 ### SH Mix
 
@@ -145,10 +146,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=56`
+- `full-v18.js?v=57`
 - `best-of-both.js?v=32`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-186`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-187`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
