@@ -165,8 +165,8 @@ diff --git a/fire-app-dr/app/api/payments/checkout/route.ts b/fire-app-dr/app/ap
      const amount = paymentType === "deposit" ? Math.max(0, depositCents - paidCents) : Math.max(0, totalCents - paidCents);
      if(!Number.isSafeInteger(amount))return Response.json({error:"The amount due cannot be represented safely. Contact Kyle before paying."},{status:409});
      if (amount < 50) return Response.json({ error: "This estimate has no balance due." }, { status: 400 });
-+    const maxTipCents = Math.min(amount, 50000);
-+    if (tipCents > maxTipCents) return Response.json({ error: `Tip cannot exceed ${Math.min(100, Math.round((maxTipCents / amount) * 100))}% of the balance or $500.` }, { status: 400 });
++    const maxTipCents = Math.min(totalCents, 50000);
++    if (tipCents > maxTipCents) return Response.json({ error: `Tip cannot exceed the invoice total or $500.` }, { status: 400 });
 +    const chargeAmount = amount + tipCents;
 +    if (!Number.isSafeInteger(chargeAmount) || chargeAmount <= 0) return Response.json({ error: "The total card charge is outside FIRE's safe payment range." }, { status: 409 });
      const openSessions = await env.DB.prepare("SELECT id FROM payment_checkout_sessions WHERE estimate_id=? AND status='open'").bind(row.id).all<{id:string}>();
@@ -696,7 +696,7 @@ diff --git a/fire-app-dr/app/estimate/[token]/page.tsx b/fire-app-dr/app/estimat
      {Number(row.pendingRefundCount??0)>0?<p className="pay-note"><strong>Refund processing.</strong> FIRE is waiting for the refund to finish before any additional payment is accepted.</p>:Number(row.paymentOverageOpen??0)>0&&<p className="pay-note"><strong>Payment received — account review in progress.</strong> No additional payment is needed until FIRE finishes reviewing the account.</p>}
      {paymentsReady&&canPayDeposit&&<div className="portal-payment"><PayButton shareToken={token} paymentType="deposit" label={`Pay ${currency(depositRemaining)} deposit securely`}/></div>}
 -    {paymentsReady&&canPayBalance&&<div className="portal-payment"><PayButton shareToken={token} paymentType="balance" label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
-+    {paymentsReady&&canPayBalance&&<div className="portal-payment"><PayButton shareToken={token} paymentType="balance" baseAmountCents={balance} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
++    {paymentsReady&&canPayBalance&&<div className="portal-payment"><PayButton shareToken={token} paymentType="balance" dueAmountCents={balance} tipBaseCents={billingTotalCents} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
      {paymentsReady&&!estimateApproved&&<p className="pay-note">Approve and sign the estimate first. After approval, the 50% deposit reserves your place on the schedule.</p>}
      {paymentsReady&&estimateApproved&&!canPayDeposit&&!canPayBalance&&balance>0&&<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
      {!paymentsReady&&<p className="pay-note">After approval, Kyle will contact you to schedule the job and arrange the 50% deposit.</p>}
@@ -717,7 +717,7 @@ diff --git a/fire-app-dr/app/invoice/[token]/page.tsx b/fire-app-dr/app/invoice/
      <p className="invoice-due"><CalendarDays/> {!billingStateSafe?"Billing review required":Number(row.pendingRefundCount??0)>0?"Refund processing":Number(row.paymentOverageOpen??0)>0?"Payment received — account review in progress":balance===0?"Paid in full":invoiceDueLabel(row.dueAt,row.createdAt)}</p>
      {!billingStateSafe&&<p className="pay-note"><strong>Please contact First In Response Exteriors before making a payment.</strong> This invoice needs an owner billing review.</p>}
 -    {billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
-+    {billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" baseAmountCents={balance} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
++    {billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" dueAmountCents={balance} tipBaseCents={totalCents} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
      {billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&<p className="pay-note"><strong>Manual payment options:</strong> Cash App: {handles.cashApp} · Venmo: {handles.venmo}. Please include your name in the payment note.</p>}
      <p className="pay-note">{footer?.body||templateByKey("invoiceFooter").body}</p>
      <div className="secure-note"><ShieldCheck/> Your private invoice link is unique to you.</div>
@@ -738,7 +738,7 @@ diff --git a/fire-app-dr/app/pay/[id]/page.tsx b/fire-app-dr/app/pay/[id]/page.t
        <p className="pay-note">After approval, the 50% deposit reserves your place on the schedule. The remaining balance is due upon completion of the work.</p>
        <p className="pay-note"><strong>Manual payment options:</strong> Cash App: {handles.cashApp} · Venmo: {handles.venmo}. Please include your name in the payment note.</p>
 -      {canPay?<PayButton shareToken={shareToken} paymentType={paymentType} label={paymentType==="deposit"?`Pay ${currency(dueNow)} deposit securely`:`Pay ${currency(dueNow)} remaining balance securely`}/>:Number(row.pendingRefundCount??0)>0?<p className="pay-note">Refund processing.</p>:Number(row.paymentOverageOpen??0)>0?<p className="pay-note">Payment received — account review in progress.</p>:balance===0?<p className="pay-note">This job is paid in full.</p>:!approved?<p className="pay-note">Approve and sign the estimate before making the reservation deposit.</p>:<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
-+      {canPay?<PayButton shareToken={shareToken} paymentType={paymentType} baseAmountCents={paymentType==="balance"?dueNow:undefined} label={paymentType==="deposit"?`Pay ${currency(dueNow)} deposit securely`:`Pay ${currency(dueNow)} remaining balance securely`}/>:Number(row.pendingRefundCount??0)>0?<p className="pay-note">Refund processing.</p>:Number(row.paymentOverageOpen??0)>0?<p className="pay-note">Payment received — account review in progress.</p>:balance===0?<p className="pay-note">This job is paid in full.</p>:!approved?<p className="pay-note">Approve and sign the estimate before making the reservation deposit.</p>:<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
++      {canPay?<PayButton shareToken={shareToken} paymentType={paymentType} dueAmountCents={paymentType==="balance"?dueNow:undefined} tipBaseCents={paymentType==="balance"?row.totalCents:undefined} label={paymentType==="deposit"?`Pay ${currency(dueNow)} deposit securely`:`Pay ${currency(dueNow)} remaining balance securely`}/>:Number(row.pendingRefundCount??0)>0?<p className="pay-note">Refund processing.</p>:Number(row.paymentOverageOpen??0)>0?<p className="pay-note">Payment received — account review in progress.</p>:balance===0?<p className="pay-note">This job is paid in full.</p>:!approved?<p className="pay-note">Approve and sign the estimate before making the reservation deposit.</p>:<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
        <div className="secure-note"><ShieldCheck /> Card details are handled securely by Stripe.</div>
        <CustomerPortalNav/>
      </>}
@@ -763,19 +763,19 @@ diff --git a/fire-app-dr/app/pay/[id]/pay-button.tsx b/fire-app-dr/app/pay/[id]/
 +  shareToken,
 +  paymentType = "deposit",
 +  label,
-+  baseAmountCents,
++  dueAmountCents, tipBaseCents,
 +}: {
 +  shareToken:string;
 +  paymentType?: "deposit" | "balance";
 +  label?: string;
-+  baseAmountCents?: number;
++  dueAmountCents?: number; tipBaseCents?: number;
 +}) {
    const [loading, setLoading] = useState(false);
    const [error, setError] = useState("");
 +  const [tipChoice, setTipChoice] = useState<"0"|"5"|"10"|"15"|"custom">("0");
 +  const [customTip, setCustomTip] = useState("");
 +
-+  const allowTip = paymentType === "balance" && Number.isSafeInteger(baseAmountCents) && Number(baseAmountCents) > 0;
++  const allowTip = paymentType === "balance" && Number.isSafeInteger(dueAmountCents) && Number(dueAmountCents) > 0 && Number.isSafeInteger(tipBaseCents) && Number(tipBaseCents) > 0;
 +  const tipCents = useMemo(() => {
 +    if (!allowTip) return 0;
 +    if (tipChoice === "custom") {
@@ -783,9 +783,9 @@ diff --git a/fire-app-dr/app/pay/[id]/pay-button.tsx b/fire-app-dr/app/pay/[id]/
 +      if (!Number.isFinite(dollars) || dollars <= 0) return 0;
 +      return Math.max(0, Math.round(dollars * 100));
 +    }
-+    return Math.round(Number(baseAmountCents) * Number(tipChoice) / 100);
-+  }, [allowTip, baseAmountCents, customTip, tipChoice]);
-+  const totalCents = Number(baseAmountCents ?? 0) + tipCents;
++    return Math.round(Number(tipBaseCents) * Number(tipChoice) / 100);
++  }, [allowTip, customTip, tipBaseCents, tipChoice]);
++  const totalCents = Number(dueAmountCents ?? 0) + tipCents;
 +
    const checkout = async () => {
      setLoading(true); setError("");
@@ -811,7 +811,7 @@ diff --git a/fire-app-dr/app/pay/[id]/pay-button.tsx b/fire-app-dr/app/pay/[id]/
 +    {allowTip && <section className="rounded-xl border border-slate-700/70 bg-slate-950/20 p-3" aria-label="Optional tip">
 +      <div className="mb-2 flex items-center gap-2">
 +        <Heart className="h-4 w-4" />
-+        <div><strong className="block text-sm">Add an optional tip</strong><span className="text-xs text-muted-foreground">Thank you for supporting FIRE. No tip is selected by default.</span></div>
++        <div><strong className="block text-sm">Add an optional tip</strong><span className="text-xs text-muted-foreground">No tip is selected by default. Percentage tips are based on the full invoice total.</span></div>
 +      </div>
 +      <div className="grid grid-cols-5 gap-1.5">
 +        {TIP_PRESETS.map((percent)=><button
@@ -839,3 +839,25 @@ diff --git a/fire-app-dr/app/pay/[id]/pay-button.tsx b/fire-app-dr/app/pay/[id]/
 +    {error && <p className="text-center text-sm text-red-600">{error}</p>}
 +  </div>;
  }
+
+diff --git a/fire-app-dr/app/api/notifications/route.ts b/fire-app-dr/app/api/notifications/route.ts
+--- a/fire-app-dr/app/api/notifications/route.ts
++++ b/fire-app-dr/app/api/notifications/route.ts
+@@ -26,7 +26,7 @@ export async function PATCH(request:Request){
+       const alert=await env.DB.prepare("SELECT id FROM notifications WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL ORDER BY created_at ASC LIMIT 1").bind(value.estimateId).first<{id:string}>();
+       if(!alert)return Response.json({error:"No open overpayment alert was found."},{status:404});
+       const pendingRefund=await env.DB.prepare("SELECT id FROM payment_refunds WHERE estimate_id=? AND status='pending' LIMIT 1").bind(value.estimateId).first<{id:string}>();
+-      const billing=await env.DB.prepare(`SELECT COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid'),0) AS paidCents,COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents FROM estimates e WHERE e.id=?`).bind(value.estimateId).first<{paidCents:number;totalCents:number}>();
++      const billing=await env.DB.prepare(`SELECT COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid' AND type NOT IN ('Tip','Tip Refund')),0) AS paidCents,COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents FROM estimates e WHERE e.id=?`).bind(value.estimateId).first<{paidCents:number;totalCents:number}>();
+       if(!billing)return Response.json({error:"Estimate not found."},{status:404});
+       const paidBefore=Math.max(0,Number(billing.paidCents)||0);
+       const billedTotal=Math.max(0,Number(billing.totalCents)||0);
+@@ -37,7 +37,7 @@ export async function PATCH(request:Request){
+         WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL
+         AND EXISTS (
+           SELECT 1 FROM estimates e WHERE e.id=?
+-          AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0)
++          AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
+             > COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents)
+         )`).bind(now,now,value.estimateId,value.estimateId).run();
+       if(!kept.meta.changes)return Response.json({error:"The overpayment state changed while resolving this exception. Refresh the job and verify the billing totals."},{status:409});
