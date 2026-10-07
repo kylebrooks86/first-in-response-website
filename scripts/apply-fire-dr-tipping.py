@@ -64,6 +64,47 @@ replace_once(
     'estimate success tip validation',
 )
 
+replace_once(
+    estimate_page,
+    '''  if(prior){await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();return true;}
+  const existingPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid'").bind(estimate.id).first<{amount:number}>();''',
+    '''  if(prior){
+    if(tipCents>0)await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+      SELECT ?,?,'Tip',?,'paid',?,?
+      WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
+      .bind(crypto.randomUUID(),estimate.id,tipCents,`${session.id}:tip`,new Date().toISOString(),`${session.id}:tip`).run();
+    await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();
+    return true;
+  }
+  const existingPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(estimate.id).first<{amount:number}>();''',
+    'estimate success prior payment reconciliation',
+)
+replace_once(
+    estimate_page,
+    ').bind(crypto.randomUUID(),estimate.id,paymentType,sessionAmount,session.id,now,session.id).run();',
+    ').bind(crypto.randomUUID(),estimate.id,paymentType,expectedAmount,session.id,now,session.id).run();',
+    'estimate success base payment amount',
+)
+replace_once(
+    estimate_page,
+    '''  if(!inserted.meta.changes){await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();return true;}''',
+    '''  if(!inserted.meta.changes){
+    const raced=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(session.id).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+    if(!raced||raced.estimateId!==estimate.id||raced.type!==paymentType||raced.status!=="paid"||Number(raced.amountCents)!==expectedAmount)return false;
+    if(tipCents>0){
+      await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+        SELECT ?,?,'Tip',?,'paid',?,?
+        WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
+        .bind(crypto.randomUUID(),estimate.id,tipCents,`${session.id}:tip`,now,`${session.id}:tip`).run();
+      const tipRow=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(`${session.id}:tip`).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+      if(!tipRow||tipRow.estimateId!==estimate.id||tipRow.type!=="Tip"||tipRow.status!=="paid"||Number(tipRow.amountCents)!==tipCents)return false;
+    }
+    await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();
+    return true;
+  }''',
+    'estimate success insert race reconciliation',
+)
+
 notifications=repo_root/'fire-app-dr/app/api/notifications/route.ts'
 replace_once(
     notifications,
