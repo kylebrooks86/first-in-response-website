@@ -140,7 +140,8 @@ function validateRefundIntegrity(tables: Record<string, unknown>) {
       const expectedProvider = `refund:${paymentId}:${id}`;
       const ledgerRows = payments.filter((row) => String(row.provider_id ?? "") === expectedProvider);
       if (ledgerRows.length !== 1) return `Succeeded refund ${id} must have exactly one matching negative payment ledger row.`;
-      if (Number(ledgerRows[0].amount_cents) !== -amount || String(ledgerRows[0].status ?? "") !== "paid")
+      const expectedLedgerType=String(payment.type??"")==="Tip"?"Tip Refund":"Refund";
+      if (Number(ledgerRows[0].amount_cents) !== -amount || String(ledgerRows[0].status ?? "") !== "paid" || String(ledgerRows[0].type ?? "") !== expectedLedgerType)
         return `Succeeded refund ${id} has a mismatched negative payment ledger row.`;
       succeededRefundProviders.add(expectedProvider);
     }
