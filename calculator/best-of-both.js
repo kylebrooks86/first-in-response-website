@@ -210,6 +210,7 @@
     $('#stockStrength')?.addEventListener('input',stockChanged);
     Array.from(document.querySelectorAll('#stockQuick [data-stock]')).forEach(b=>b.addEventListener('click',stockChanged));
     refreshAmounts();
+    window.addEventListener('fire-backup-hydration-complete',()=>setTimeout(refreshAmounts,0));
 
     mix.insertBefore(card,mix.firstElementChild);
   }
