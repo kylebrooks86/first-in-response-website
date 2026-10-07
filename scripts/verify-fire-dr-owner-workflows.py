@@ -215,6 +215,15 @@ checks = {
         'phase:"input_validation"',
         'phase="target_conflict_validation"',
     ],
+    Path('app/api/invoices/[id]/route.ts'): [
+        # Final-invoice edit race reconciliation.
+        "SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')",
+        'const postPaidCents=Number(postPaidRow?.paidCents??0);',
+        'const postOverpaymentCents=Math.max(0,postPaidCents-totalCents);',
+        '"Review invoice overpayment"',
+        "resolution_note='invoice_edit_reconciled'",
+        'billingExceptionOpen:postOverpaymentCents>0',
+    ],
     Path('app/api/payments/refund/route.ts'): [
         # Refund request lifecycle / durable reconciliation.
         'payment_refunds',
