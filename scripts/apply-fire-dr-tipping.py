@@ -199,6 +199,13 @@ replace_once(
     'estimate success prior payment verification',
 )
 
+# Normalize every remaining legacy paid-total query in the customer estimate page.
+estimate_text=estimate_page.read_text()
+legacy_paid='SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status=\'paid\''
+safe_paid='SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status=\'paid\' AND type NOT IN (\'Tip\',\'Tip Refund\')'
+if legacy_paid in estimate_text:
+    estimate_page.write_text(estimate_text.replace(legacy_paid,safe_paid))
+
 notifications=repo_root/'fire-app-dr/app/api/notifications/route.ts'
 replace_once(
     notifications,
