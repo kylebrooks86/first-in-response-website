@@ -46,6 +46,7 @@
     serviceIds.forEach(id=>{const el=$('#'+id);if(el)el.value='0'});
     const desc=$('#fullCustomDesc'),amt=$('#fullCustomAmt'),notes=$('#fullNotes'),name=$('#estimateJobName');
     if(desc)desc.value='Custom service';if(amt)amt.value='0';if(notes)notes.value='';if(name)name.value='';
+    syncLegacyJobName();
     const discount=$('#fullDiscount'),override=$('#fullOverride');if(discount)discount.value='0';if(override)override.value='0';
     set('area')('0');set('areaLen')('0');set('areaWid')('0');set('areaSides')('1');set('areaSubtract')('0');set('calArea')('0');set('calMix')('0');
     emit('area');emit('areaLen');emit('areaWid');emit('areaSides');emit('areaSubtract');emit('calArea');emit('calMix');
