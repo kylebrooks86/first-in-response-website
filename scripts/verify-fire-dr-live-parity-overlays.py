@@ -169,7 +169,7 @@ checks = {
         'existing.status==="sent"||Boolean(existing.firstViewedAt)?"sent":"draft"',
     ],
     Path('app/api/payments/refund/route.ts'): [
-        "'Refund',?,'paid'",
+        "CASE WHEN ?='Tip' THEN 'Tip Refund' ELSE 'Refund' END,?,'paid'",
         'refundPaymentProvider=`refund:${row.paymentId}:${row.id}`',
         'idempotency-key',
         'fire-refund-${requestId}',
