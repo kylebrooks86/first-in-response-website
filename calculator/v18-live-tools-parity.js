@@ -75,8 +75,7 @@
       <div class="actions"><button class="primary" id="fireSaveCurrentSh" type="button">Save current SH mix</button></div>
       <div id="fireSavedFavorites"></div>`;
     $('#fireSaveCurrentSh',c).onclick=()=>{
-      const a=savedFavorites();
-      a.push({
+      const entry={
         name:$('#recipeTitle')?.textContent||'Saved SH mix',
         surface:$('#surface')?.value||'house',
         growth:$('#growthSeg .chip.active')?.dataset.growth||'moderate',
@@ -84,10 +83,14 @@
         target:n('targetNum'),
         stockStrength:n('stockStrength'),
         eleRate:n('eleRate')
-      });
-      saveFavorites(a.slice(-20));
+      };
+      const same=(x)=>x&&x.surface===entry.surface&&x.growth===entry.growth
+        &&Math.abs((+x.batch||0)-entry.batch)<.001&&Math.abs((+x.target||0)-entry.target)<.001
+        &&Math.abs((+x.stockStrength||0)-entry.stockStrength)<.001&&Math.abs((+x.eleRate||0)-entry.eleRate)<.001;
+      const a=savedFavorites(),had=a.some(same);
+      saveFavorites([...a.filter(x=>!same(x)),entry]);
       renderSavedFavorites(c);
-      toast('Current SH mix saved');
+      toast(had?'Saved mix refreshed':'Current SH mix saved');
     };
     renderSavedFavorites(c);
   };
