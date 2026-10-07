@@ -124,6 +124,8 @@ if migration_count != 1:
 
 release_path.write_text(release)
 
+audit = audit_path.read_text()
+
 replacements = [
     (r'Evidence entries:\s*\*\*\d+\*\*', f'Evidence entries: **{len(entries)}**'),
     (
