@@ -91,4 +91,30 @@ replace_once(
     'refund ledger type verification',
 )
 
+
+backup=repo_root/'fire-app-dr/app/api/backup/route.ts'
+replace_once(
+    backup,
+    '      env.DB.prepare("SELECT id,estimate_id AS estimateId,amount_cents AS amountCents,provider_id AS providerId FROM payments").all<{id:string;estimateId:string;amountCents:number;providerId:string|null}>(),',
+    '      env.DB.prepare("SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents,status,provider_id AS providerId FROM payments").all<{id:string;estimateId:string;type:string;amountCents:number;status:string;providerId:string|null}>(),',
+    'backup payment identity query',
+)
+replace_once(
+    backup,
+    '''        if(existing&&(String(existing.estimateId)!==String(raw.estimate_id??"")||Number(existing.amountCents)!==Number(raw.amount_cents)||existingProvider!==provider))
+          return Response.json({error:`Restore conflict: payment ${id} already exists with different immutable financial values.`},{status:409});''',
+    '''        if(existing&&(String(existing.estimateId)!==String(raw.estimate_id??"")||String(existing.type)!==String(raw.type??"")||Number(existing.amountCents)!==Number(raw.amount_cents)||String(existing.status)!==String(raw.status??"")||existingProvider!==provider))
+          return Response.json({error:`Restore conflict: payment ${id} already exists with different immutable financial values.`},{status:409});''',
+    'backup payment type/status identity',
+)
+replace_once(
+    backup,
+    '''      if (Number(ledgerRows[0].amount_cents) !== -amount || String(ledgerRows[0].status ?? "") !== "paid")
+        return `Succeeded refund ${id} has a mismatched negative payment ledger row.`;''',
+    '''      const expectedLedgerType=String(payment.type??"")==="Tip"?"Tip Refund":"Refund";
+      if (Number(ledgerRows[0].amount_cents) !== -amount || String(ledgerRows[0].status ?? "") !== "paid" || String(ledgerRows[0].type ?? "") !== expectedLedgerType)
+        return `Succeeded refund ${id} has a mismatched negative payment ledger row.`;''',
+    'backup refund ledger type verification',
+)
+
 print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
