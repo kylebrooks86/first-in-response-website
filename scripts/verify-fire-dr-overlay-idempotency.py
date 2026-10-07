@@ -55,7 +55,7 @@ if missing:
     raise SystemExit(1)
 
 before = {str(path): digest(path) for path in tracked}; before_evidence_tree = evidence_tree_digest(); before_live_tree = live_evidence_tree_digest()
-for script_name in ['apply-fire-dr-mobile-shell-fix.py','apply-fire-dr-template-parity-fix.py','apply-fire-dr-live-evidence-fixes.py','apply-fire-dr-customer-edit-flow.py','apply-fire-dr-capture-identity.py','apply-fire-dr-tipping.py','apply-fire-dr-invoice-edit-ui.py','apply-fire-dr-live-evidence-overlay.py','apply-fire-dr-independent-evidence-overlay.py','apply-fire-dr-comparison-overlay.py','apply-fire-dr-parity-summary-sync.py']:
+for script_name in ['apply-fire-dr-mobile-shell-fix.py','apply-fire-dr-mobile-back-history.py','apply-fire-dr-template-parity-fix.py','apply-fire-dr-live-evidence-fixes.py','apply-fire-dr-customer-edit-flow.py','apply-fire-dr-capture-identity.py','apply-fire-dr-tipping.py','apply-fire-dr-invoice-edit-ui.py','apply-fire-dr-live-evidence-overlay.py','apply-fire-dr-independent-evidence-overlay.py','apply-fire-dr-comparison-overlay.py','apply-fire-dr-parity-summary-sync.py']:
     subprocess.run([sys.executable, str(Path('..')/'scripts'/script_name)], check=True)
 after = {str(path): digest(path) for path in tracked}; after_evidence_tree = evidence_tree_digest(); after_live_tree = live_evidence_tree_digest()
 changed = [path for path in before if before[path] != after[path]]
@@ -66,4 +66,4 @@ if changed:
     for path in changed: print(f'- second overlay application changed {path}')
     raise SystemExit(1)
 print('DR_OVERLAY_IDEMPOTENCY=PASS')
-print('Mobile-shell V14, Templates parity, LIVE-evidence/payment/refund, customer-edit profile/API, authenticated capture identity, optional final-payment tipping, invoice-edit billing reconciliation, persistent LIVE/independent evidence, deliberate comparison decisions, parity summary counts, structured forward-sync registry, restore-audit, and strict-matrix overlays are stable when reapplied.')
+print('Mobile-shell V14, mobile Back history, Templates parity, LIVE-evidence/payment/refund, customer-edit profile/API, authenticated capture identity, optional final-payment tipping, invoice-edit billing reconciliation, persistent LIVE/independent evidence, deliberate comparison decisions, parity summary counts, structured forward-sync registry, restore-audit, and strict-matrix overlays are stable when reapplied.')
