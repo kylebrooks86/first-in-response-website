@@ -129,6 +129,7 @@ ok(portableBackup.includes("k?.startsWith('fire')"),'portable backup no longer c
 ok(portableBackup.includes("target:val('targetNum',prior.target||'1')"),'portable backup does not preserve the fine-tuned SH target');
 ok(portableBackup.includes("batchPreset=val('batchPreset'")&&portableBackup.includes("customBatch=val('customBatch'")&&portableBackup.includes("customUnit=val('customUnit'")&&portableBackup.includes("batch:String(batch)"),'portable backup does not preserve the active preset/custom batch');
 ok(interactions.includes("emit('targetNum',calc.target)")&&interactions.indexOf("emit('targetNum',calc.target)")>interactions.indexOf("s.dispatchEvent(new Event('change',{bubbles:true}))"),'portable restore can overwrite a custom SH target after restoring surface/dirtiness');
+ok(interactions.includes("if(preset==='custom'&&calc.customBatch!==undefined)")&&interactions.includes("emit('customBatch',calc.customBatch)")&&interactions.includes("emit('customUnit',calc.customUnit||'gal')")&&interactions.includes("batch.dispatchEvent(new Event('change',{bubbles:true}))"),'portable restore cannot reproduce the active preset/custom batch');
 const backupValidateAt=interactions.indexOf("const estimate=parsePayload('fireEstimateDraft')");
 const backupWriteAt=interactions.indexOf("Object.entries(data.data).forEach");
 ok(backupValidateAt>=0&&backupWriteAt>backupValidateAt&&interactions.includes("const xjet=parsePayload('fireXjet')"),'portable v3 backup can write storage before core payload validation');
