@@ -32,7 +32,7 @@
   function refreshCalculatedState(){for(const id of ['svcHouse','fullDiscount','fullOverride']){const e=$('#'+id);if(e){e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}))}}}
   function saveFromEvent(e){if(draftIds.has(e.target?.id))save()}
   function removeLegacyDraftHelper(){document.querySelectorAll('.muted').forEach(e=>{if(e.textContent.trim()==='Draft saves automatically on this device')e.remove()})}
-  const normalizeQuote=()=>{const q=$('#fullQuote');if(!q)return;const t=q.textContent||'';if(/Prepared for:\\s*(?=\\n|$)/.test(t))q.textContent=t.replace(/Prepared for:\\s*(?=\\n|$)/,'Prepared for: Customer')};
+  const normalizeQuote=()=>{const q=$('#fullQuote');if(!q)return;const t=q.textContent||'';if(/Prepared for:\s*(?=\n|$)/.test(t))q.textContent=t.replace(/Prepared for:\s*(?=\n|$)/,'Prepared for: Customer')};
   const observeQuote=()=>{const q=$('#fullQuote');if(!q||q.dataset.fireQuoteObserved==='1')return;q.dataset.fireQuoteObserved='1';new MutationObserver(normalizeQuote).observe(q,{childList:true,characterData:true,subtree:true})};
   const currentQuote=()=>{normalizeQuote();return $('#fullQuote')?.textContent||''};
   const copyText=async text=>{try{await navigator.clipboard.writeText(text);window.toast?.('Customer quote copied')}catch{}};
