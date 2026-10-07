@@ -56,7 +56,7 @@
     await load('./v18-live-backup-hydration.js?v=3');
     await load('./v18-live-invalid-backup-parity.js?v=2');
     await load('./v18-live-portable-backup.js?v=2');
-    await load('./v18-live-input-contract.js?v=6');
+    await load('./v18-live-input-contract.js?v=7');
     window.dispatchEvent(new CustomEvent('fire-v18-parity-loaded'));
     window.dispatchEvent(new CustomEvent('fire-v18-shared-core-ready'));
   })();
