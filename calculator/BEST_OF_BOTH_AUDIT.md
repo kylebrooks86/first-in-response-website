@@ -41,6 +41,7 @@ Additional staging hardening in this batch:
 - Job Plan container size now follows the active SH batch size when that size is supported, preventing accidental 4-gal fill counts after choosing 1 / 2 / 5 gal in SH Mix. A deliberate Job Plan container selection becomes an override and is not subsequently replaced by SH batch changes.
 - A deliberate Job Plan container override now survives reload/restoration by recognizing the existing planning-state value before automatic SH-batch synchronization runs.
 - Clear Estimate now clears job-specific planning measurements from both live planning persistence and full-state persistence, preventing a supposedly cleared job from repopulating after delayed restore/reload; reusable preferences such as coverage, reserve and planning container are preserved.
+- Portable v3 backup restore now validates the normalized estimate, inventory, calculator, rig and X-Jet payloads before writing any imported storage, reducing the risk of a malformed backup leaving a partially restored state. Raw imported keys are restricted to the calculator's `fire*` namespace.
 
 ### SH Mix
 
@@ -135,10 +136,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=46`
+- `full-v18.js?v=47`
 - `best-of-both.js?v=32`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-176`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-177`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
