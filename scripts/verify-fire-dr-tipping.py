@@ -12,6 +12,7 @@ files={
     'invoice':root/'app/invoice/[token]/page.tsx',
     'pay':root/'app/pay/[id]/page.tsx',
     'payments':root/'app/api/payments/route.ts',
+    'notifications':root/'app/api/notifications/route.ts',
     'customers':root/'app/api/customers/route.ts',
     'dashboard':root/'app/api/dashboard-summary/route.ts',
     'owner_dashboard':root/'app/dashboard.tsx',
@@ -39,6 +40,12 @@ for needle in [
     'Add an optional tip',
     '>Custom</button>',
     'paymentType === "balance"',
+    'dueAmountCents',
+    'tipBaseCents',
+    'return Math.round(Number(tipBaseCents) * Number(tipChoice) / 100);',
+    'const totalCents = Number(dueAmountCents ?? 0) + tipCents;',
+    'Percentage tips are based on the full invoice total.',
+    'Tip cannot exceed the invoice total or $500.',
     'tipCents: allowTip ? tipCents : 0',
     'type="number" min="0" step="0.01" placeholder="$0.00"',
 ]:
@@ -53,7 +60,8 @@ if 'useState<"0"|"5"|"10"|"15"|"custom">("0")' not in text['button']:
 
 for needle in [
     'Tips are available only with the final balance payment.',
-    'const maxTipCents = Math.min(amount, 50000);',
+    'const maxTipCents = Math.min(totalCents, 50000);',
+    'Tip cannot exceed the invoice total or $500.',
     'form.set("metadata[tip_amount_cents]", String(tipCents));',
     'form.set("metadata[expected_charge_cents]", String(chargeAmount));',
     'form.set("line_items[1][price_data][product_data][name]", "Optional tip");',
@@ -79,13 +87,16 @@ for needle in [
 ]:
     if needle not in text['refund']: errors.append(f'refund route missing tip invariant: {needle}')
 
-for name in ['invoice','pay','dashboard','estimates','estimate_id','invoices','invoice_id','customers']:
+for name in ['invoice','pay','dashboard','estimates','estimate_id','invoices','invoice_id','customers','notifications']:
     if "type NOT IN ('Tip','Tip Refund')" not in text[name] and "p.type NOT IN ('Tip','Tip Refund')" not in text[name]:
         errors.append(f'{name} does not exclude tips from at least one billing paid-total query')
 
-for name in ['invoice','pay','estimate']:
-    if 'baseAmountCents=' not in text[name]:
-        errors.append(f'{name} does not pass final balance to tip selector')
+if 'dueAmountCents={balance} tipBaseCents={totalCents}' not in text['invoice']:
+    errors.append('invoice page must pass remaining balance separately from full invoice tip base')
+if 'dueAmountCents={paymentType==="balance"?dueNow:undefined} tipBaseCents={paymentType==="balance"?row.totalCents:undefined}' not in text['pay']:
+    errors.append('payment page must pass remaining balance separately from full invoice tip base')
+if 'dueAmountCents={balance} tipBaseCents={billingTotalCents}' not in text['estimate']:
+    errors.append('estimate page must pass remaining balance separately from full billing-total tip base')
 
 
 for needle in [
@@ -166,7 +177,7 @@ if billing_paid(invoice_refunded)!=10000:
     errors.append('accounting invariant failed: normal invoice Refund must still reduce invoice paid cents')
 
 # Any invoice/balance SUM over payments that lacks the Tip exclusion is suspect.
-billing_files=['dashboard','estimates','estimate_id','invoices','invoice_id','invoice','pay','estimate','customers','checkout','webhook','refund','payments']
+billing_files=['dashboard','estimates','estimate_id','invoices','invoice_id','invoice','pay','estimate','customers','checkout','webhook','refund','payments','notifications']
 for name in billing_files:
     for line_no,line in enumerate(text[name].splitlines(),1):
         if 'SUM(' in line and 'payments' in line and "status='paid'" in line:
@@ -179,4 +190,4 @@ if errors:
     for error in errors: print('- '+error)
     raise SystemExit(1)
 print('DR_TIPPING_GUARD=PASS')
-print('Optional tipping is governed end-to-end: No tip default; 5/10/15/Custom final-card presets; deposits cannot tip; manual Venmo/Cash App tips can be logged separately/tip-only; Tip/Tip Refund never change invoice math; Payment History labels, arithmetic separation, and LIVE forward-sync/runbook policy are protected.')
+print('Optional tipping is governed end-to-end: No tip default; 5/10/15/Custom final-card presets calculated from the full invoice total; card charge remains remaining balance plus tip; deposits cannot tip; manual Venmo/Cash App tips can be logged separately/tip-only; Tip/Tip Refund never change invoice math or overpayment reconciliation; Payment History labels, arithmetic separation, and LIVE forward-sync/runbook policy are protected.')
