@@ -1,4 +1,4 @@
-Trigger Cloudflare DR staging build after processing-fee dashboard overlay split.
-Latest fixed branch head before trigger: 2d22488abf8c70b910c9d895c195e0b7bce2429a
+Trigger Cloudflare DR staging build after parity-summary sync cleanup.
+Latest fixed branch head before trigger: 2075ab0a683196b464b5021183fbd82405d273b8
 Purpose: force a fresh Cloudflare build from current fire-calculator-exact-live-clone.
 No application/runtime behavior is changed by this file.
