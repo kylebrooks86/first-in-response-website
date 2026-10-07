@@ -1,4 +1,4 @@
-Trigger Cloudflare DR staging build after semantic tipping verifier update.
-Latest fixed branch head before trigger: 4eee60f76fc48b66ee60225c8c006ab36f5c2a7b
-Purpose: force a fresh Cloudflare build from current fire-calculator-exact-live-clone.
+Trigger Cloudflare DR staging build after full overlay/idempotency audit.
+Latest fixed branch head before trigger: 1f4360a545b1ef38c3ebdb7b2029b7a3afb5945d
+Purpose: force a fresh Cloudflare build from current fire-calculator-exact-live-clone after semantic verifier and final-stack idempotency corrections.
 No application/runtime behavior is changed by this file.
