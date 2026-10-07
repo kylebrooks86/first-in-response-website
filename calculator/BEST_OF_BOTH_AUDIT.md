@@ -54,6 +54,7 @@ Additional staging hardening in this batch:
 - Portable helper cleanup is now success-aware per category: calculator, rig, and X-Jet bridge keys are each removed only when that category actually reached at least one live target control on the final hydration pass. A genuinely late/missing module therefore keeps its helper payload instead of losing import data prematurely.
 - The backup hydration finalizer now performs one coordinated imported-helper retry immediately before removing `fireV18LiveBackupMigratedAt`. This closes the retained-helper gap: a control that appears after the 1400 ms pass gets one last chance to receive its imported state, while marker cleanup still bounds the migration lifecycle.
 - Portable helper hydration now raises a shared `__fireHydratingBackup` guard while it dispatches synthetic input/change events. Planning-state persistence ignores those synthetic events, so restoring imported coverage or other planning-adjacent values cannot increment the genuine-user generation counter or cancel delayed planning restoration. The prior guard value is restored afterward for nested/future hydration safety.
+- Global parity-draft autosave now also honors the backup-hydration guard. Synthetic restore events still recalculate summaries, but they cannot persist a transient half-hydrated draft while imported fields are being applied one at a time; migration already writes the intended durable parity/planning state.
 
 ### SH Mix
 
@@ -148,10 +149,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=59`
+- `full-v18.js?v=60`
 - `best-of-both.js?v=32`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-189`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-190`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
