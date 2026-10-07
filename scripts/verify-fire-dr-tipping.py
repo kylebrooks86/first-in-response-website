@@ -120,6 +120,8 @@ if 'dueAmountCents={balance} tipBaseCents={billingTotalCents}' not in text['esti
 
 for needle in [
     'Tip received (optional)',
+    'const maxTipCents=Math.min(normalized.totalCents,50000);',
+    'Tip cannot exceed the invoice total or $500.',
     'Recorded separately and does not change the invoice balance.',
     '?"Record tip":"Deposit recorded"',
     'body:JSON.stringify({estimateId:estimate.id,amountCents,tipCents,method,reference})',
@@ -129,6 +131,8 @@ for needle in [
 
 for needle in [
     'const tipCents = Math.round(Number(body.tipCents) || 0);',
+    'const maxTipCents=Math.min(Number(estimate.totalCents),50000);',
+    'Tip cannot exceed the invoice total or $500.',
     'Tips can be recorded only after the job is completed.',
     'This job is already paid in full. Record the tip by itself instead.',
     'Put any extra amount in Tip received instead.',
