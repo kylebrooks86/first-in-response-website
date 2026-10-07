@@ -33,6 +33,8 @@ for label,needle in [
  ('independent Worker name','fire-app-independent-staging'),('isolated D1 database name','fire-app-staging-db'),
  ('isolated D1 database id','afb2c05a-d794-4a9a-b580-924ce01c26ad'),('D1-only/no-R2 rule','free-tier, D1-only, no R2'),
  ('production isolation rule','Do not point the staging Worker at any production database.'),
+ ('migration count/range','22 canonical migrations, `0000` through `0021`'),
+ ('migration staging count','stages the exact 22 migrations'),
  ('tipping final-balance-only rule','Optional tipping is intentionally available only on the final balance card payment'),
  ('tipping default/presets','No tip is selected by default, with 5% / 10% / 15% / Custom choices.'),
  ('deposit tipping prohibition','Deposits do not offer or accept tips.'),
