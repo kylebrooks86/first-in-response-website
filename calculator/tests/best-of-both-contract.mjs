@@ -141,6 +141,7 @@ ok(!inputContract.includes("\n    $('.fire-inv-row').forEach"),'inventory input 
 ok(!customerParity.includes("/Prepared for:(?! Customer)/"),'customer quote normalization can erase an entered customer name');
 ok(customerParity.includes("Prepared for:\\s*(?=\\n|$)"),'blank customer-name fallback is missing from quote normalization');
 ok(customerParity.includes("if(name)name.value='';\n    syncLegacyJobName();"),'clearing an estimate can leave the legacy customer name stale');
+ok(customerParity.includes("localStorage.getItem('fireV18LivePlanningState')")&&customerParity.includes("Object.assign(planning,{area:'0',areaLen:'0',areaWid:'0',areaSides:'1',areaSubtract:'0',calArea:'0',calMix:'0'})")&&customerParity.includes("localStorage.getItem('fireV18FullState')"),'Clear Estimate can leave persisted job measurements that repopulate later');
 
 ok(index.includes("const rates={qHouse:.22,qGutter:1.75,qGuard:1,qBright:2,qFence:.4"),'current FIRE core pricing defaults are wrong');
 ok(index.includes('Gutter Cleaning & Downspout Flushing')&&index.includes('Gutter Guard Removal / Reinstall'),'current gutter service wording is missing');
