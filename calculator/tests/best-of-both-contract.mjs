@@ -119,10 +119,10 @@ ok(css.includes('width:44px!important;min-width:44px!important;min-height:44px!i
 ok(css.includes('body.fire-bob .bob-dirtiness-field #growthSeg .chip')&&css.includes('min-height:44px!important'),'dirtiness touch targets are below the protected size');
 ok(css.includes('body.fire-bob .fire-saved-fav button')&&css.includes('min-height:44px!important'),'Saved mixes buttons are not protected for iPhone touch use');
 ok(css.includes('body.fire-bob .fire-saved-fav small{color:#aab3bb!important}'),'Saved mixes text can regress to low-contrast light-theme colors');
-ok(inputContract.includes("$('.fire-inv-row').forEach"),'inventory input contract is not using the collection selector');
+ok(inputContract.includes("$$('.fire-inv-row').forEach"),'inventory input contract is not using the collection selector');
 ok(!inputContract.includes("\n    $('.fire-inv-row').forEach"),'inventory input contract uses a single-element selector as a collection');
 ok(!customerParity.includes("/Prepared for:(?! Customer)/"),'customer quote normalization can erase an entered customer name');
-ok(customerParity.includes("Prepared for:\\\\s*(?=\\\\n|$)"),'blank customer-name fallback is missing from quote normalization');
+ok(customerParity.includes("Prepared for:\\s*(?=\\n|$)"),'blank customer-name fallback is missing from quote normalization');
 
 ok(index.includes("const rates={qHouse:.22,qGutter:1.75,qGuard:1,qBright:2,qFence:.4"),'current FIRE core pricing defaults are wrong');
 ok(index.includes('Gutter Cleaning & Downspout Flushing')&&index.includes('Gutter Guard Removal / Reinstall'),'current gutter service wording is missing');
