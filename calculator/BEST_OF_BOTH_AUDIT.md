@@ -20,7 +20,7 @@ Secondary sections remain available through **🧰 Tools**:
 - 🛡️ Safety Guide
 - Install / Update App only when the browser exposes a real install prompt
 
-Field Tools no longer carries a second set of one-tap SH favorites. That duplicate launcher was consolidated into a smaller **Saved mixes** card that only saves/reuses mixes the owner actually chooses to keep.
+Field Tools no longer carries a second set of one-tap SH favorites. That duplicate launcher was consolidated into a smaller **Saved mixes** card that only saves/reuses mixes the owner actually chooses to keep. Saved mixes now restore surface, dirtiness, batch volume (including custom gallon sizes), target SH, actual stock strength, and Elemonator rate; malformed legacy entries are ignored and duplicate saves refresh the existing mix instead of stacking copies.
 
 Saved mixes now preserves the full reusable SH setup: surface, dirtiness, batch size, target SH %, actual stock strength, and Elemonator rate. Non-standard batch sizes reopen as Custom gallons instead of being lost. Field Tools is further condensed into **Jobsite reference**, **Records & chemicals**, and **App & data** disclosure groups, while the dwell timer and Saved mixes stay easy to reach. The Field Safety Card lives in Safety Guide instead of duplicating Field Tools. Saved mixes now preserves surface, dirtiness, batch size, final SH target, stock strength, and Elemonator rate; custom gallon batch sizes restore through the Custom path.
 
@@ -119,10 +119,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=29`
+- `full-v18.js?v=30`
 - `best-of-both.js?v=29`
-- `best-of-both.css?v=15`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-155`
+- `best-of-both.css?v=16`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-157`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
@@ -139,6 +139,7 @@ Regression evidence:
 - static DOM id audit reports no duplicate ids
 - best-of-both form controls are protected at 16px input text to avoid iPhone focus zoom
 - compact dirtiness/disclosure/Tools controls use protected 44px touch targets
+- Saved mixes dark/mobile styling keeps text readable and Reuse/Delete controls at 44px touch size
 - main best-of-both source parses successfully
 
 The best-of-both contract specifically protects:
