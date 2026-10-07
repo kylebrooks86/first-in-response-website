@@ -26,17 +26,18 @@ files={
 errors=[]
 for name,path in files.items():
     if not path.is_file(): errors.append(f'missing tipping target: {path}')
-if text['estimate'].count('const refreshedPaid=') != 1:
-    errors.append('customer estimate payment success flow must declare refreshedPaid exactly once')
-if "AND type NOT IN ('Tip','Tip Refund') AND type NOT IN ('Tip','Tip Refund')" in text['estimate']:
-    errors.append('customer estimate paid-total query must not duplicate the Tip/Tip Refund exclusion')
-
 if errors:
     print('DR_TIPPING_GUARD=FAIL')
     for error in errors: print('- '+error)
     raise SystemExit(1)
 
 text={name:path.read_text() for name,path in files.items()}
+
+if text['estimate'].count('const refreshedPaid=') != 1:
+    errors.append('customer estimate payment success flow must declare refreshedPaid exactly once')
+if "AND type NOT IN ('Tip','Tip Refund') AND type NOT IN ('Tip','Tip Refund')" in text['estimate']:
+    errors.append('customer estimate paid-total query must not duplicate the Tip/Tip Refund exclusion')
+
 
 for needle in [
     'const TIP_PRESETS = [0,5,10,15] as const;',
