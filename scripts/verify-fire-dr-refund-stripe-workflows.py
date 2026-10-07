@@ -31,8 +31,8 @@ checks = {
         'remote.status === "expired"',
     ],
     Path('app/api/payments/route.ts'): [
-        'This job has an unresolved payment exception. Complete the refund or retained-overpayment handling and resolve the exception before recording another payment.',
-        'A refund is currently processing for this job. Wait for it to finish before recording another payment.',
+        'This job has an unresolved payment exception. Complete the refund or retained-overpayment handling and resolve the exception before recording another payment or tip.',
+        'A refund is currently processing for this job. Wait for it to finish before recording another payment or tip.',
         'Payment cannot exceed the amount currently due',
         'The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again.',
         'const refreshed = await env.DB.prepare',
