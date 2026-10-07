@@ -93,6 +93,10 @@ ok(!toolsParity.includes('data-fire-fav="house"')&&!toolsParity.includes('data-f
 ok(toolsParity.includes("stockStrength:n('stockStrength')")&&toolsParity.includes("eleRate:n('eleRate')"),'Saved mixes do not preserve stock strength and Elemonator rate');
 ok(toolsParity.includes("hasPreset=[...b.options].some(o=>o.value===value)")&&toolsParity.includes("b.value='custom'"),'Saved custom batch sizes cannot be restored reliably');
 ok(toolsParity.includes("if(stockStrength!=null)setVal('stockStrength',stockStrength)")&&toolsParity.includes("const restoredEle=eleRate!=null?eleRate:defaultEleRate[surface]")&&toolsParity.includes("if(restoredEle!=null)setVal('eleRate',restoredEle)"),'Saved mixes do not restore full SH recipe settings');
+const restoreStockAt=toolsParity.indexOf("if(stockStrength!=null)setVal('stockStrength',stockStrength)");
+const restoreTargetAt=toolsParity.indexOf("setVal('targetNum',target)");
+const restoreBatchAt=toolsParity.indexOf("const b=$('#batchPreset')");
+ok(restoreStockAt>=0&&restoreTargetAt>restoreStockAt&&restoreBatchAt>restoreTargetAt,'Saved mix batch refresh can run before final stock/target restoration');
 ok(toolsParity.includes("const a=savedFavorites(),had=a.some(same)")&&toolsParity.includes("saveFavorites([...a.filter(x=>!same(x)),entry])"),'identical Saved mixes are not deduplicated');
 ok(toolsParity.includes("const defaultEleRate={house:.3")&&toolsParity.includes("roof:1"),'legacy Saved mixes have no surfactant fallback migration');
 ok(toolsParity.includes("return Array.isArray(data)?data.filter")&&toolsParity.includes("typeof x==='object'"),'Saved mixes do not reject malformed legacy storage');
