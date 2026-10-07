@@ -25,7 +25,7 @@
 
     const stock=+($('#stockStrength')?.value||10),stockText=stock.toFixed(stock%1?1:0)+'% SH Out';
     const liveLabels={sh:stockText,ele:'Elemonator Out',gutter:'Gutter Zap Out',bio:'Bio-Clean Out',odo:'OdoBan Out',f9:'F9 BARC Out',ettore:'Ettore Squeegee-Off Out'};
-    $$('.fire-inv-row').forEach(row=>{const input=$('input[type="number"]',row);if(input&&liveLabels[row.dataset.invKey]){input.setAttribute('aria-label',liveLabels[row.dataset.invKey]);input.setAttribute('step','0.1');const label=$('label',row);if(row.dataset.invKey==='sh'&&label)label.textContent=stockText}});
+    $('.fire-inv-row').forEach(row=>{const input=$('input[type="number"]',row),unit=$('select',row),name=$('.fire-inv-label strong',row),label=liveLabels[row.dataset.invKey];if(input&&label){input.setAttribute('aria-label',label+' amount');input.setAttribute('step','0.1')}if(unit&&label)unit.setAttribute('aria-label',label+' unit');if(row.dataset.invKey==='sh'&&name)name.textContent=stockText});
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(apply,1700));else setTimeout(apply,1700);
   $('#stockStrength')?.addEventListener('input',()=>setTimeout(apply,0));
