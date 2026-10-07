@@ -120,8 +120,10 @@ ok(!bob.includes('oldFav?.remove()'),'best-of-both late layout can delete the Sa
 ok(bob.includes("group('🧭 Jobsite reference'")&&bob.includes("group('🧪 Records & chemicals'")&&bob.includes("group('⚙️ App & data'"),'Field Tools compact helper groups are missing');
 ok(bob.includes("bob-tools-group[open]")&&bob.includes("wrap.open=openTitles.has(title)"),'Field Tools group open state is not preserved');
 ok(parityCore.includes("let planContainerManual=false")&&parityCore.includes("batch?.addEventListener('change',syncBatch)")&&parityCore.includes("if(planContainerManual||!plan||!batch)return"),'Job Plan container can drift from SH batch before a manual planning override');
-ok(parityCore.includes("localStorage.getItem('fireV18LivePlanningState')")&&parityCore.includes("saved.planContainer!==undefined"),'manual Job Plan container override does not survive reload');
-ok(planningState.includes("let restoring=false,userGeneration=0")&&planningState.includes("if(generation!==userGeneration)return false")&&planningState.includes("const onUserEdit=()=>{if(restoring)return;userGeneration++;save()}"),'delayed planning restores can overwrite a real user edit');
+ok(parityCore.includes("localStorage.getItem('fireV18LivePlanningState')")&&parityCore.includes("saved.planContainerManual===true"),'manual Job Plan container override does not survive reload');
+ok(planningState.includes("if(e?.target?.id==='planContainer')o.planContainerManual=true"),'Job Plan persistence does not record explicit manual-container provenance');
+ok(!parityCore.includes("saved.planContainer!==undefined"),'saved default Job Plan container can be falsely treated as a manual override');
+ok(planningState.includes("let restoring=false,userGeneration=0")&&planningState.includes("if(generation!==userGeneration)return false")&&planningState.includes("const onUserEdit=e=>{if(restoring)return;userGeneration++"),'delayed planning restores can overwrite a real user edit');
 ok(planningState.includes("const generation=userGeneration;restore(generation);setTimeout(()=>restore(generation),250);setTimeout(()=>restore(generation),900)"),'planning restore retries are not generation-guarded');
 ok(bob.includes("if(guide&&safety&&safety.parentElement===tools)guide.appendChild(safety)"),'Field Safety Card is duplicated inside Field Tools instead of Safety Guide');
 ok(interactions.includes("const prefixes=['fireV18','fireFieldCalculator','fireCalcTheme']"),'full offline backup no longer includes fireV18 Saved mixes storage');
