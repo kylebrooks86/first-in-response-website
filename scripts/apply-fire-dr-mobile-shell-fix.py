@@ -5,7 +5,7 @@ if not css_path.exists():
     raise SystemExit('app/globals.css not found')
 
 css = css_path.read_text()
-marker = '/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V14 */'
+marker = '/* FIRE_DR_STANDALONE_TOPBAR_PARITY_V14'
 if marker not in css:
     css += r'''
 
