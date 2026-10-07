@@ -79,6 +79,8 @@ async function recordCheckoutPayment(session:StripeCheckoutSession) {
   const expectedCharge = Number(session.metadata?.expected_charge_cents ?? (expectedAmount + tipCents));
   if (!Number.isSafeInteger(sessionAmount) || sessionAmount<=0 || !Number.isSafeInteger(expectedAmount) || expectedAmount<=0 || !Number.isSafeInteger(tipCents) || tipCents<0 || !Number.isSafeInteger(expectedCharge) || expectedCharge!==sessionAmount || expectedAmount+tipCents!==sessionAmount) return { ok:false, reason:"amount_mismatch" };
   if (paymentType!=="balance" && tipCents>0) return {ok:false,reason:"tip_not_allowed_for_deposit"};
+  const maxTipCents=Math.min(Number(estimate.totalCents),50000);
+  if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0||tipCents>maxTipCents)return {ok:false,reason:"tip_outside_allowed_range"};
   const tracked = await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payment_checkout_sessions WHERE id=? LIMIT 1").bind(session.id).first<{estimateId:string;type:string;amountCents:number;status:string}>();
   if (!tracked || tracked.estimateId !== estimateId || tracked.type !== paymentType || Number(tracked.amountCents) !== sessionAmount || !["open","paid"].includes(tracked.status)) {
     return { ok:false, reason:"untracked_or_stale_checkout" };
@@ -91,6 +93,8 @@ async function recordCheckoutPayment(session:StripeCheckoutSession) {
         SELECT ?,?,'Tip',?,'paid',?,?
         WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
         .bind(crypto.randomUUID(),estimateId,tipCents,`${session.id}:tip`,new Date().toISOString(),`${session.id}:tip`).run();
+      const tipRow=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(`${session.id}:tip`).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+      if(!tipRow||tipRow.estimateId!==estimateId||tipRow.type!=="Tip"||tipRow.status!=="paid"||Number(tipRow.amountCents)!==tipCents)return {ok:false,reason:"tip_ledger_verification_failed"};
     }
     await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();
     return { ok:true, duplicate:true };
@@ -116,6 +120,8 @@ async function recordCheckoutPayment(session:StripeCheckoutSession) {
       SELECT ?,?,'Tip',?,'paid',?,?
       WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
       .bind(crypto.randomUUID(),estimateId,tipCents,`${session.id}:tip`,now,`${session.id}:tip`).run();
+    const tipRow=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(`${session.id}:tip`).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+    if(!tipRow||tipRow.estimateId!==estimateId||tipRow.type!=="Tip"||tipRow.status!=="paid"||Number(tipRow.amountCents)!==tipCents)return {ok:false,reason:"tip_ledger_verification_failed"};
   }
   const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(estimateId).first<{amount:number}>();
   const nextPaid=Number(refreshedPaid?.amount??0);
