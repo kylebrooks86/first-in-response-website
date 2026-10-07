@@ -52,3 +52,28 @@ function ProcessingReport({payments}:{payments:PaymentRow[]}) {
 function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"customer"|"service"|"totalCents"|"paidCents">&Partial<Pick<EstimateRow,"depositCents"|"status"|"invoiceTotalCents">>;onRecorded?:(paidCents:number)=>void}){''',
     'dashboard processing detail/report helpers',
 )
+
+replace_once(
+    dashboard,
+    '  const [open,setOpen]=useState(false);const [amount,setAmount]=useState("");const [tip,setTip]=useState("");const [method,setMethod]=useState("Wave");const [reference,setReference]=useState("");const [saving,setSaving]=useState(false);const [error,setError]=useState("");',
+    '  const [fee,setFee]=useState("");const [feeMode,setFeeMode]=useState<"fee"|"net">("fee");const [feeEstimate,setFeeEstimate]=useState<number|null>(null);const [open,setOpen]=useState(false);const [amount,setAmount]=useState("");const [tip,setTip]=useState("");const [method,setMethod]=useState("Wave");const [reference,setReference]=useState("");const [saving,setSaving]=useState(false);const [error,setError]=useState("");',
+    'record payment processing state',
+)
+replace_once(
+    dashboard,
+    '  useEffect(()=>{if(open){setAmount(balance>0?(balance/100).toFixed(2):"");setTip("");setError("");}},[open,balance]);',
+    '  useEffect(()=>{if(open){setAmount(balance>0?(balance/100).toFixed(2):"");setTip("");setFee("");setFeeEstimate(null);setError("");}},[open,balance]);',
+    'record payment reset processing state',
+)
+replace_once(
+    dashboard,
+    '  const save=async()=>{const amountCents=Math.round(Number(amount||0)*100);const tipCents=Math.round(Number(tip||0)*100);const maxTipCents=Math.min(normalized.totalCents,50000);if((!Number.isSafeInteger(amountCents)||amountCents<0)||(!Number.isSafeInteger(tipCents)||tipCents<0)||(amountCents<=0&&tipCents<=0)){setError("Enter a payment or tip amount.");return;}if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0){setError("This job\'s tip limit cannot be represented safely.");return;}if(tipCents>maxTipCents){setError("Tip cannot exceed the invoice total or $500.");return;}setSaving(true);setError("");try{const response=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,amountCents,tipCents,method,reference})});const result=await response.json() as {paidCents?:number;error?:string};if(!response.ok||result.paidCents===undefined)throw new Error(result.error||"The payment could not be recorded.");onRecorded?.(Number(result.paidCents));setOpen(false);}catch(saveError){setError(saveError instanceof Error?saveError.message:"The payment could not be recorded.");}finally{setSaving(false);}};',
+    '  const feeMethod=method==="Cash App"||method==="Venmo";\n  const grossCents=Math.round(Number(amount||0)*100)+Math.round(Number(tip||0)*100);\n  const enteredFeeCents=fee===""?null:Math.round(Number(fee)*100);\n  const processingFeeCents=enteredFeeCents==null?null:feeMode==="fee"?enteredFeeCents:grossCents-enteredFeeCents;\n  const feeValid=processingFeeCents==null||Number.isSafeInteger(processingFeeCents)&&processingFeeCents>=0&&processingFeeCents<=grossCents;\n  const save=async()=>{const amountCents=Math.round(Number(amount||0)*100);const tipCents=Math.round(Number(tip||0)*100);const maxTipCents=Math.min(normalized.totalCents,50000);if((!Number.isSafeInteger(amountCents)||amountCents<0)||(!Number.isSafeInteger(tipCents)||tipCents<0)||(amountCents<=0&&tipCents<=0)){setError("Enter a payment or tip amount.");return;}if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0){setError("This job\'s tip limit cannot be represented safely.");return;}if(tipCents>maxTipCents){setError("Tip cannot exceed the invoice total or $500.");return;}if(feeMethod&&!feeValid){setError("Fee and net deposited must be between zero and the customer payment.");return;}setSaving(true);setError("");try{const response=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,amountCents,tipCents,method,reference,processingFeeCents:feeMethod?processingFeeCents:undefined})});const result=await response.json() as {paidCents?:number;error?:string};if(!response.ok||result.paidCents===undefined)throw new Error(result.error||"The payment could not be recorded.");onRecorded?.(Number(result.paidCents));setOpen(false);}catch(saveError){setError(saveError instanceof Error?saveError.message:"The payment could not be recorded.");}finally{setSaving(false);}};',
+    'record payment processing payload',
+)
+replace_once(
+    dashboard,
+    '<DialogContent className="sm:max-w-[500px]"><DialogHeader>',
+    '<DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto"><DialogHeader>',
+    'record payment mobile dialog scroll',
+)
