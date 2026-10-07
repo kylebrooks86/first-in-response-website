@@ -51,6 +51,7 @@ login=Path('app/login/page.tsx'); text=login.read_text(); text=text.replace('Ent
 print('DR_PIN_OVERLAY_APPLIED')
 PY
 
+python3 ../scripts/apply-fire-dr-customer-nav-owner-settings.py
 python3 ../scripts/apply-fire-dr-mobile-shell-fix.py
 python3 ../scripts/apply-fire-dr-mobile-back-history.py
 python3 ../scripts/apply-fire-dr-template-parity-fix.py
