@@ -51,6 +51,7 @@ function migrateLiveV3(data){
 }
 function hydrateImportedLiveState(finalPass=false){
   if(!localStorage.getItem('fireV18LiveBackupMigratedAt'))return false;
+  const priorHydrating=window.__fireHydratingBackup===true;window.__fireHydratingBackup=true;
   let applied=false;
   const emit=(id,v)=>{const e=$('#'+id);if(!e||v===undefined||v===null)return false;e.value=String(v);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));applied=true;return true};
   const calc=safeParse('fireV18ImportedLiveFieldCalc',{}),calcBefore=applied;emit('coverage',calc.coverage);emit('stockStrength',calc.stock);emit('shPrice',calc.shPrice);emit('elePrice',calc.soapPrice);emit('eleRate',calc.soapRate);if(calc.growth){const growth=calc.growth==='medium'?'moderate':calc.growth,b=$(`#growthSeg [data-growth="${growth}"]`);b?.click()}if(calc.service){const s=$('#surface');if(s&&[...s.options].some(o=>o.value===calc.service)){s.value=calc.service;s.dispatchEvent(new Event('change',{bubbles:true}))}}emit('targetNum',calc.target);const batch=$('#batchPreset');if(batch){const preset=calc.batchPreset,gal=parseFloat(calc.batch);if(preset==='custom'&&calc.customBatch!==undefined){batch.value='custom';emit('customBatch',calc.customBatch);emit('customUnit',calc.customUnit||'gal')}else{const match=[...batch.options].find(o=>o.value!=='custom'&&((preset&&o.value===String(preset))||(Number.isFinite(gal)&&Math.abs((+o.value||0)-gal)<.001)));if(match)batch.value=match.value;else if(Number.isFinite(gal)&&gal>0){batch.value='custom';emit('customBatch',String(gal));emit('customUnit','gal')}}batch.dispatchEvent(new Event('change',{bubbles:true}))}
@@ -60,6 +61,7 @@ function hydrateImportedLiveState(finalPass=false){
   const x=safeParse('fireV18ImportedLiveXjet',{}),xBefore=applied;emit('xGpm',x.xjetGpm);emit('xPct',x.xjetProportioner);emit('xBucket',x.xjetBucketStrength);emit('xReverseStock',x.xjetStock);emit('xDesired',x.xjetTarget);emit('xBucketGal',x.xjetBucketSize);emit('xMeasuredPct',x.xjetCustomPct);emit('xDrawOz',x.xjetTestChemOz);emit('xSecs',x.xjetTestSeconds);
   const xApplied=applied!==xBefore;
   if(finalPass){for(const [k,ok] of [['fireV18ImportedLiveFieldCalc',calcApplied],['fireV18ImportedLiveRig',rigApplied],['fireV18ImportedLiveXjet',xApplied]])if(ok)try{localStorage.removeItem(k)}catch{}}
+  window.__fireHydratingBackup=priorHydrating;
   return applied;
 }
 window.__fireHydrateImportedLiveState=hydrateImportedLiveState;
