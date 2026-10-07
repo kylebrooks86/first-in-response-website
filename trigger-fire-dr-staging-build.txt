@@ -1,4 +1,4 @@
-Trigger Cloudflare DR staging build after LIVE-evidence idempotency fix.
-Latest fixed branch head before trigger: d97d26e1ffcc456e6cfa2332e8834214d16c9987
+Trigger Cloudflare DR staging build after combined-source tipping idempotency fix.
+Latest fixed branch head before trigger: a4f43c7846ef7d44547a738f300eaf7d51844f72
 Purpose: force a fresh Cloudflare build from current fire-calculator-exact-live-clone.
 No application/runtime behavior is changed by this file.
