@@ -126,4 +126,17 @@ replace_once(
     'invoice edit callback signature',
 )
 
+replace_once(
+    dashboard,
+    'const customerPaidTotal=Math.max(0,safeSignedSumCents(customerPayments.map((payment)=>payment.amountCents)));',
+    'const customerPaidTotal=Math.max(0,safeSignedSumCents(customerPayments.filter((payment)=>payment.type!=="Tip"&&payment.type!=="Tip Refund").map((payment)=>payment.amountCents)));',
+    'customer profile paid total excludes tips',
+)
+replace_once(
+    dashboard,
+    '<strong>{payment.amountCents<0?"Refund":`${paymentTypeLabel(payment.type)} payment`}</strong>',
+    '<strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":payment.amountCents<0?"Refund":`${paymentTypeLabel(payment.type)} payment`}</strong>',
+    'customer payment history labels tips explicitly',
+)
+
 print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
