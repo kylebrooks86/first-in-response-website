@@ -53,7 +53,7 @@
     await load('./v18-live-tools-fine.js?v=2');
     await load('./v18-live-pricing-parity.js?v=2');
     await load('./v18-live-customer-parity.js?v=15');
-    await load('./v18-live-backup-hydration.js?v=3');
+    await load('./v18-live-backup-hydration.js?v=4');
     await load('./v18-live-invalid-backup-parity.js?v=2');
     await load('./v18-live-portable-backup.js?v=3');
     await load('./v18-live-input-contract.js?v=9');
