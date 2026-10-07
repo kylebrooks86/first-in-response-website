@@ -135,12 +135,14 @@ for needle in [
         errors.append(f'owner Record payment/tip UI missing invariant: {needle}')
 
 
-owner_payment_payload = re.search(
-    r'body:JSON\.stringify\(\{estimateId:estimate\.id,([^}]*)\}\)',
-    text['owner_dashboard'],
-)
-if not owner_payment_payload or 'amountCents' not in owner_payment_payload.group(1) or 'tipCents' not in owner_payment_payload.group(1):
-    errors.append('owner Record payment/tip UI must send both amountCents and tipCents')
+owner_payloads = re.findall(r'JSON\.stringify\(\{([^}]*)\}\)', text['owner_dashboard'])
+if not any(
+    'estimateId:estimate.id' in payload
+    and 'amountCents' in payload
+    and 'tipCents' in payload
+    for payload in owner_payloads
+):
+    errors.append('owner Record payment/tip UI must send estimateId, amountCents, and tipCents')
 
 for needle in [
     'const tipCents = Math.round(Number(body.tipCents) || 0);',
@@ -158,7 +160,7 @@ for needle in [
 
 
 if not re.search(
-    r'INSERT INTO payments \([^)]*\) VALUES \(\?\?, \'Tip\',\?,\'paid\',[^)]*\)',
+    r"INSERT INTO payments\s*\([^)]*\)\s*VALUES\s*\(\?,\?\s*,\s*'Tip'\s*,\s*\?\s*,\s*'paid'\s*,",
     text['payments'],
 ):
     errors.append('manual payment API must insert a paid Tip ledger row with the supplied tip amount')
