@@ -64,7 +64,8 @@ ok(bob.includes("preset.dataset.bobBatchBound")&&bob.includes("b.dataset.bobBatc
 ok(bob.includes("b.classList.toggle('active',quick&&b.dataset.batch===preset.value)"),'quick batch buttons can show stale selection after dropdown or Saved mix restore');
 ok(bob.includes("dataset.bobCustomDwell==='1'")&&bob.includes("opt.textContent='⏱️ Custom — '+min.value+' min'"),'manual dwell changes can leave a stale surface suggestion');
 ok((bob.match(/\$\$\('#dwellQuick \[data-dwell-min\]'\)\.forEach/g)||[]).length>=4,'dwell quick controls are not using collection-safe handlers');
-ok(bob.includes("preset?.addEventListener('change',()=>setTimeout(()=>$$('#dwellQuick [data-dwell-min]').forEach"),'dwell suggestion dropdown does not resync quick minute buttons');
+ok(bob.includes("preset?.addEventListener('change',()=>setTimeout(()=>$('#dwellQuick [data-dwell-min]').forEach"),'dwell suggestion dropdown does not resync quick minute buttons');
+ok(toolsState.includes("wanted.startsWith('custom-')")&&toolsState.includes("o.dataset.bobCustomDwell==='1'")&&toolsState.includes("opt.textContent='⏱️ Custom — '+mins+' min'")&&toolsState.includes("opt.selected=true"),'saved custom dwell timer state cannot be reconstructed deterministically after reload');
 ok(bob.includes("#job .bob-section-toggle[open] > summary strong"),'Job Plan open-state preservation is missing');
 ok(bob.includes("#equipment .bob-section-toggle[open] > summary strong"),'Equipment open-state preservation is missing');
 ok(bob.includes("const currentGrowth=()=>$('#growthSeg [data-growth].active')?.dataset.growth||'moderate'"),'global dirtiness source is missing');
