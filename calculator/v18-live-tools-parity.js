@@ -30,6 +30,16 @@
     if(s){s.value=surface;s.dispatchEvent(new Event('change',{bubbles:true}))}
     const g=$(`#growthSeg [data-growth="${growth}"]`);g?.click();
 
+    /*
+      Restore recipe-critical controls before batch. best-of-both's batch refresh
+      can re-detect a matching preset, so letting the batch event fire last keeps
+      stale preset state from overwriting a custom Saved mix during restore.
+    */
+    if(stockStrength!=null)setVal('stockStrength',stockStrength);
+    const restoredEle=eleRate!=null?eleRate:defaultEleRate[surface];
+    if(restoredEle!=null)setVal('eleRate',restoredEle);
+    setVal('targetNum',target);
+
     const b=$('#batchPreset');
     if(b){
       const value=String(batch),hasPreset=[...b.options].some(o=>o.value===value);
@@ -41,11 +51,6 @@
       }
       b.dispatchEvent(new Event('change',{bubbles:true}));
     }
-
-    if(stockStrength!=null)setVal('stockStrength',stockStrength);
-    const restoredEle=eleRate!=null?eleRate:defaultEleRate[surface];
-    if(restoredEle!=null)setVal('eleRate',restoredEle);
-    setVal('targetNum',target);
     selectView('mix');
   };
   const renderSavedFavorites=wrap=>{
