@@ -51,7 +51,15 @@
     set('area')('0');set('areaLen')('0');set('areaWid')('0');set('areaSides')('1');set('areaSubtract')('0');set('calArea')('0');set('calMix')('0');
     emit('area');emit('areaLen');emit('areaWid');emit('areaSides');emit('areaSubtract');emit('calArea');emit('calMix');
     emit('svcHouse');emit('fullDiscount');emit('fullOverride');
-    try{localStorage.removeItem('fireV18EstimateDraft');localStorage.removeItem(KEY)}catch{}
+    try{
+      localStorage.removeItem('fireV18EstimateDraft');localStorage.removeItem(KEY);
+      const planning=JSON.parse(localStorage.getItem('fireV18LivePlanningState')||'{}');
+      Object.assign(planning,{area:'0',areaLen:'0',areaWid:'0',areaSides:'1',areaSubtract:'0',calArea:'0',calMix:'0'});
+      localStorage.setItem('fireV18LivePlanningState',JSON.stringify(planning));
+      const full=JSON.parse(localStorage.getItem('fireV18FullState')||'{}');
+      Object.assign(full,{areaLen:'0',areaWid:'0',areaSides:'1',areaSubtract:'0',calArea:'0',calMix:'0'});
+      localStorage.setItem('fireV18FullState',JSON.stringify(full));
+    }catch{}
     window.toast?.('Estimate cleared');
   }
   function bindLiveActions(){
