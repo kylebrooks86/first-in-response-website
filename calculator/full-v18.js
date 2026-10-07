@@ -33,7 +33,7 @@
     await waitForCore();
     await load('./v18-legacy-job-detach.js?v=2');
     await load('./full-v18-parity-core.js?v=9');
-    await load('./v18-behavior.js?v=7');
+    await load('./v18-behavior.js?v=8');
     await load('./v18-interactions.js?v=17');
     await load('./v18-fine-parity.js?v=13');
     await load('./v18-equipment-parity.js?v=4');
