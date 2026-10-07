@@ -132,6 +132,10 @@ for name in ['payments','customers']:
 
 if '{payment.type} · {payment.service||"Service"}' not in text['owner_dashboard']:
     errors.append('Payment History must preserve Tip / Tip Refund labels instead of collapsing all negative rows to generic Refund')
+if 'const tipRevenue=Math.max(0,safeSignedSumCents(payments.filter((item)=>item.type==="Tip"||item.type==="Tip Refund").map((item)=>item.amountCents)));' not in text['owner_dashboard']:
+    errors.append('Payments summary must calculate net Tip revenue separately from invoice balances')
+if '<small>Tip revenue</small><strong>{money(tipRevenue)}</strong>' not in text['owner_dashboard']:
+    errors.append('Payments summary must display separate Tip revenue')
 
 try:
     registry=json.loads(text['forward_sync'])
@@ -181,6 +185,25 @@ if billing_paid(tip_refunded)!=15000 or sum(amount for _,amount in tip_refunded)
 invoice_refunded=[('balance',15000),('Tip',1500),('Refund',-5000)]
 if billing_paid(invoice_refunded)!=10000:
     errors.append('accounting invariant failed: normal invoice Refund must still reduce invoice paid cents')
+
+preset_base=20000
+expected_presets={5:1000,10:2000,15:3000}
+for percent,expected_tip in expected_presets.items():
+    actual=round(preset_base*percent/100)
+    if actual!=expected_tip:
+        errors.append(f'accounting invariant failed: {percent}% preset should produce {expected_tip} cents from a 20000-cent invoice')
+
+custom_tip=[('balance',15000),('Tip',2345)]
+if billing_paid(custom_tip)!=15000 or sum(amount for _,amount in custom_tip)!=17345:
+    errors.append('accounting invariant failed: custom tip must stay separate from invoice paid cents')
+
+tip_only=[('Tip',2500)]
+if billing_paid(tip_only)!=0:
+    errors.append('accounting invariant failed: tip-only manual entry must not create invoice-paid cents')
+
+deposit_without_tip=[('deposit',10000)]
+if billing_paid(deposit_without_tip)!=10000:
+    errors.append('accounting invariant failed: deposit without tip must still count normally toward invoice-paid cents')
 
 # Any invoice/balance SUM over payments that lacks the Tip exclusion is suspect.
 billing_files=['dashboard','estimates','estimate_id','invoices','invoice_id','invoice','pay','estimate','customers','checkout','webhook','refund','payments','notifications']
