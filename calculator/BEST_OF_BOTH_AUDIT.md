@@ -117,10 +117,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=26`
+- `full-v18.js?v=27`
 - `best-of-both.js?v=29`
 - `best-of-both.css?v=15`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-152`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-153`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
