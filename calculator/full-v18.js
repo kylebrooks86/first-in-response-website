@@ -34,7 +34,7 @@
     await load('./v18-legacy-job-detach.js?v=2');
     await load('./full-v18-parity-core.js?v=6');
     await load('./v18-behavior.js?v=7');
-    await load('./v18-interactions.js?v=6');
+    await load('./v18-interactions.js?v=7');
     await load('./v18-fine-parity.js?v=13');
     await load('./v18-equipment-parity.js?v=4');
     await load('./v18-live-equipment-structure-parity.js?v=4');
@@ -55,7 +55,7 @@
     await load('./v18-live-customer-parity.js?v=14');
     await load('./v18-live-backup-hydration.js?v=3');
     await load('./v18-live-invalid-backup-parity.js?v=2');
-    await load('./v18-live-portable-backup.js?v=2');
+    await load('./v18-live-portable-backup.js?v=3');
     await load('./v18-live-input-contract.js?v=9');
     window.dispatchEvent(new CustomEvent('fire-v18-parity-loaded'));
     window.dispatchEvent(new CustomEvent('fire-v18-shared-core-ready'));
