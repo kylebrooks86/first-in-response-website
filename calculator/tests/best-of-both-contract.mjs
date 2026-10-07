@@ -12,6 +12,7 @@ const toolsParity=read('v18-live-tools-parity.js');
 const parityCore=read('full-v18-parity-core.js');
 const interactions=read('v18-interactions.js');
 const portableBackup=read('v18-live-portable-backup.js');
+const inputContract=read('v18-live-input-contract.js');
 
 const fail=msg=>{console.error('BEST-OF-BOTH CONTRACT FAIL:',msg);process.exit(1)};
 const ok=(cond,msg)=>{if(!cond)fail(msg)};
@@ -117,6 +118,7 @@ ok(css.includes('width:44px!important;min-width:44px!important;min-height:44px!i
 ok(css.includes('body.fire-bob .bob-dirtiness-field #growthSeg .chip')&&css.includes('min-height:44px!important'),'dirtiness touch targets are below the protected size');
 ok(css.includes('body.fire-bob .fire-saved-fav button')&&css.includes('min-height:44px!important'),'Saved mixes buttons are not protected for iPhone touch use');
 ok(css.includes('body.fire-bob .fire-saved-fav small{color:#aab3bb!important}'),'Saved mixes text can regress to low-contrast light-theme colors');
+ok(inputContract.includes("$('.fire-inv-row').forEach"),'inventory input contract uses a single-element selector as a collection');
 
 ok(index.includes("const rates={qHouse:.22,qGutter:1.75,qGuard:1,qBright:2,qFence:.4"),'current FIRE core pricing defaults are wrong');
 ok(index.includes('Gutter Cleaning & Downspout Flushing')&&index.includes('Gutter Guard Removal / Reinstall'),'current gutter service wording is missing');
