@@ -1,4 +1,4 @@
-Trigger Cloudflare DR staging build after mobile-shell CSS idempotency marker fix.
-Latest fixed branch head before trigger: a5c1fe13f63e23a8acaeb43f990ed91157615a8e
-Purpose: force a fresh Cloudflare build from current fire-calculator-exact-live-clone after eliminating duplicate mobile-shell CSS on overlay reapply.
+Trigger Cloudflare DR staging build after refund parity verifier alignment.
+Latest fixed branch head before trigger: 1cde2b6b3deaa0de9f61ac0b6b7f7de5f868d560
+Purpose: force a fresh Cloudflare build after aligning LIVE parity and Stripe refund guards with Tip Refund ledger typing.
 No application/runtime behavior is changed by this file.
