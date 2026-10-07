@@ -1,13 +1,13 @@
-const CACHE='fire-field-calculator-v18-best-of-both-182';
+const CACHE='fire-field-calculator-v18-best-of-both-183';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   '../assets/recent-work/fire-logo-direct.png',
-  './full-v18.js?v=52',
+  './full-v18.js?v=53',
   './full-v18-core.js?v=8',
   './v18-legacy-job-detach.js?v=2',
-  './full-v18-parity-core.js?v=8',
+  './full-v18-parity-core.js?v=9',
   './v18-behavior.js?v=7',
   './v18-interactions.js?v=11',
   './v18-fine-parity.js?v=13',
@@ -30,7 +30,7 @@ const ASSETS=[
   './v18-live-first-screen.js?v=6',
   './v18-live-jobmath-parity.js?v=5',
   './v18-live-jobmix-parity.js?v=1',
-  './v18-live-planning-state.js?v=3',
+  './v18-live-planning-state.js?v=4',
   './v18-live-chemicals-parity.js?v=3',
   './v18-live-index-parity.js?v=2',
   './v18-live-guide-parity.js?v=4',
