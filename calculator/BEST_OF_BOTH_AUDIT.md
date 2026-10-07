@@ -28,6 +28,8 @@ Additional staging hardening in this batch:
 - Quick batch buttons now synchronize to the actual batch selector after dropdown or Saved mix restoration, so an old 1 / 2 / 4 / 5 gal highlight cannot disagree with the restored recipe.
 - The inventory input-contract pass uses the collection selector for all inventory rows instead of treating one element like an array.
 - Customer quote normalization preserves an entered customer/job name; only a truly blank `Prepared for:` line falls back to `Customer`.
+- Clearing an estimate now clears the hidden legacy customer-name compatibility field before estimator recalculation, preventing an old customer name from resurfacing in the quote or crew sheet.
+- Batch History / Mix Log reuse now normalizes stored sizes such as `4.00` back to the matching batch option and restores non-standard history sizes through Custom gallons instead of silently losing the batch.
 
 ### SH Mix
 
@@ -122,10 +124,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=34`
+- `full-v18.js?v=36`
 - `best-of-both.js?v=30`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-163`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-165`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
