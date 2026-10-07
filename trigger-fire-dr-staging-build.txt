@@ -1,4 +1,4 @@
-Trigger Cloudflare DR staging build after tipping verifier initialization-order fix.
-Latest fixed branch head before trigger: 36b0e01badb0d3d4d883a311ab939942da624bbe
-Purpose: validate estimate reconciliation regression checks after source loading, then continue through application build/postbuild/deploy gates.
+Trigger Cloudflare DR staging build after provenance inventory repair.
+Latest fixed branch head before trigger: 1b9229bd73dbe435108c23ee64f42f68a9de325e
+Purpose: validate all 48 governed artifacts including processing-fee patch through build provenance and predeploy provenance.
 No application/runtime behavior is changed by this file.
