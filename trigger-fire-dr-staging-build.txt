@@ -1,4 +1,4 @@
-Trigger Cloudflare DR staging build after tipping verifier/rebuild normalization.
-Latest fixed branch head before trigger: a31aac68361bbdf5d4895428fa6928535bc3b533
+Trigger Cloudflare DR staging build after semantic tipping verifier fix.
+Latest fixed branch head before trigger: 2aa58ed62b2533ec6b5cdf1c37303292bdc0b8b2
 Purpose: force a fresh Cloudflare build from current fire-calculator-exact-live-clone.
 No application/runtime behavior is changed by this file.
