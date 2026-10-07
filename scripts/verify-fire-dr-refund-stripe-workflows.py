@@ -16,7 +16,7 @@ checks = {
         'send the money back first and confirm the external refund before FIRE records it.',
         'idempotency-key',
         'fire-refund-${requestId}',
-        "'Refund',?,'paid'",
+        "CASE WHEN ?='Tip' THEN 'Tip Refund' ELSE 'Refund' END,?,'paid'",
         'refund:${row.paymentId}:${row.id}',
         "status='succeeded'",
         'Refund confirmation did not converge on one verified ledger entry.',
