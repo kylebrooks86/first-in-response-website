@@ -41,6 +41,43 @@ def replace_once(path: Path, old: str, new: str, label: str):
         raise SystemExit(f'DR_BILLING_INTEGRITY_APPLY=FAIL: {label} source fragment not found')
     path.write_text(source.replace(old,new,1))
 
+estimate_page=repo_root/'fire-app-dr/app/estimate/[token]/page.tsx'
+replace_once(
+    estimate_page,
+    'const session=await response.json() as {id:string;payment_status?:string;amount_total?:number;metadata?:{estimate_id?:string;payment_type?:string;expected_amount_cents?:string}};',
+    'const session=await response.json() as {id:string;payment_status?:string;amount_total?:number;metadata?:{estimate_id?:string;payment_type?:string;expected_amount_cents?:string;tip_amount_cents?:string;expected_charge_cents?:string}};',
+    'estimate success session metadata',
+)
+replace_once(
+    estimate_page,
+    '''  const expectedAmount=Number(session.metadata?.expected_amount_cents??sessionAmount);
+  if(!Number.isSafeInteger(sessionAmount)||sessionAmount<=0||!Number.isSafeInteger(expectedAmount)||expectedAmount!==sessionAmount)return false;
+  const paymentType=session.metadata.payment_type==="balance"?"balance":"deposit";''',
+    '''  const paymentType=session.metadata?.payment_type==="balance"?"balance":"deposit";
+  const expectedAmount=Number(session.metadata?.expected_amount_cents??sessionAmount);
+  const tipCents=Number(session.metadata?.tip_amount_cents??0);
+  const expectedCharge=Number(session.metadata?.expected_charge_cents??(expectedAmount+tipCents));
+  if(!Number.isSafeInteger(sessionAmount)||sessionAmount<=0||!Number.isSafeInteger(expectedAmount)||expectedAmount<=0||!Number.isSafeInteger(tipCents)||tipCents<0||!Number.isSafeInteger(expectedCharge)||expectedCharge!==sessionAmount||expectedAmount+tipCents!==sessionAmount)return false;
+  if(paymentType!=="balance"&&tipCents>0)return false;
+  const maxTipCents=Math.min(Number(estimate.totalCents),50000);
+  if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0||tipCents>maxTipCents)return false;''',
+    'estimate success tip validation',
+)
+
+notifications=repo_root/'fire-app-dr/app/api/notifications/route.ts'
+replace_once(
+    notifications,
+    "SELECT COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid'),0) AS paidCents",
+    "SELECT COALESCE((SELECT SUM(amount_cents) FROM payments WHERE estimate_id=e.id AND status='paid' AND type NOT IN ('Tip','Tip Refund')),0) AS paidCents",
+    'notification billing paid total excludes tips',
+)
+replace_once(
+    notifications,
+    "AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid'),0)",
+    "AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)",
+    'notification overpayment resolution excludes tips',
+)
+
 invoice=repo_root/'fire-app-dr/app/api/invoices/[id]/route.ts'
 replace_once(
     invoice,
