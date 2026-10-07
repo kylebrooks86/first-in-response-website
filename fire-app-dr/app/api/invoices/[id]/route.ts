@@ -102,6 +102,28 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     if(updateDueAt)statements.push(env.DB.prepare("UPDATE invoices SET subtotal_cents=?,discount_cents=?,discount_type=?,discount_value=?,total_cents=?,status=?,due_at=? WHERE id=?").bind(subtotalCents,appliedDiscountCents,discountType,discountValue,totalCents,status,dueAt,id));
     else statements.push(env.DB.prepare("UPDATE invoices SET subtotal_cents=?,discount_cents=?,discount_type=?,discount_value=?,total_cents=?,status=? WHERE id=?").bind(subtotalCents,appliedDiscountCents,discountType,discountValue,totalCents,status,id));
     await env.DB.batch(statements);
-    return Response.json({invoice:{id,subtotalCents,discountCents:appliedDiscountCents,discountType,discountValue,totalCents,status,dueAt,items:normalized}});
+
+    // Reconcile once more after the invoice write. A manual payment can land
+    // between the pre-save payment check and this batch even after open Stripe
+    // checkout sessions have been expired. Never let that race leave the
+    // invoice status stale or an overpayment hidden from the owner.
+    const postPaidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(existing.estimateId).first<{paidCents:number}>();
+    const postPaidCents=Number(postPaidRow?.paidCents??0);
+    if(!Number.isSafeInteger(postPaidCents)||postPaidCents<0)return Response.json({error:"Invoice changes were saved, but the refreshed payment total requires owner review before billing continues."},{status:409});
+    const reconciledStatus=postPaidCents>=totalCents?"paid":postPaidCents>0?"partial":(existing.status==="sent"||Boolean(existing.firstViewedAt)?"sent":"draft");
+    const postOverpaymentCents=Math.max(0,postPaidCents-totalCents);
+    const reconcileStatements=[env.DB.prepare("UPDATE invoices SET status=? WHERE id=?").bind(reconciledStatus,id)];
+    if(postOverpaymentCents>0){
+      const overpaymentBody=`${(postOverpaymentCents/100).toFixed(2)} is currently recorded above the final invoice total after an invoice edit/payment timing change. Review Payments and either refund the excess or intentionally keep it as an overpayment on this job.`;
+      reconcileStatements.push(
+        env.DB.prepare("UPDATE notifications SET title=?,body=? WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL").bind("Review invoice overpayment",overpaymentBody,existing.estimateId),
+        env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
+          SELECT ?,'payment_overage',?,?,e.customer_id,e.id,? FROM estimates e
+          WHERE e.id=? AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL)`)
+          .bind(crypto.randomUUID(),"Review invoice overpayment",overpaymentBody,new Date().toISOString(),existing.estimateId)
+      );
+    }
+    await env.DB.batch(reconcileStatements);
+    return Response.json({invoice:{id,subtotalCents,discountCents:appliedDiscountCents,discountType,discountValue,totalCents,status:reconciledStatus,dueAt,items:normalized},billingExceptionOpen:postOverpaymentCents>0});
   }catch{return Response.json({error:"We couldn't update this invoice."},{status:500});}
 }
