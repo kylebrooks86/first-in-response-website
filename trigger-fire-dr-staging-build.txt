@@ -1,6 +1,4 @@
-Trigger Cloudflare DR staging build.
-
-Expected source branch: fire-calculator-exact-live-clone
-Previous verified head before trigger: 925fd74e61aa64188adf6f45c3a7b2916260f147
-Purpose: trigger configured Cloudflare build after Branch control was changed from main to the governed DR staging branch.
+Trigger Cloudflare DR staging build after tipping patch repair.
+Latest fixed branch head before trigger: 6c5e630952f7c1997fb0aa77e9b579a86c972449
+Purpose: force a fresh Cloudflare build from current fire-calculator-exact-live-clone.
 No application/runtime behavior is changed by this file.
