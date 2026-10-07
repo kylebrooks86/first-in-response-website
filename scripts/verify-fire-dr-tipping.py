@@ -73,7 +73,11 @@ for name in ['webhook','estimate']:
     for needle in [
         "expectedAmount+tipCents!==sessionAmount",
         "paymentType!==\"balance\"&&tipCents>0",
+        'const maxTipCents=Math.min(Number(estimate.totalCents),50000);',
+        'tip_outside_allowed_range',
         "'Tip',?,'paid'",
+        'tip_ledger_verification_failed',
+        'Number(tipRow.amountCents)!==tipCents',
         "type NOT IN ('Tip','Tip Refund')",
         '"tip_received"',
     ]:
