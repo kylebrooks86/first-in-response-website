@@ -32,13 +32,15 @@
   }
   function hydrate(finalPass=false){
     if(!pending())return false;
-    const raw=parse('fireEstimateDraft'),fields=raw?.fields;if(!fields)return false;
-    persistCustomerName(fields);
+    const raw=parse('fireEstimateDraft'),fields=raw?.fields;
     let applied=0;
-    for(const [live,dr] of Object.entries(map))if(Object.prototype.hasOwnProperty.call(fields,live)&&emit(dr,fields[live]))applied++;
-    hydrateInventory();
-    persistCustomerName(fields);
-    if(applied&&finalPass){
+    if(fields&&typeof fields==='object'){
+      persistCustomerName(fields);
+      for(const [live,dr] of Object.entries(map))if(Object.prototype.hasOwnProperty.call(fields,live)&&emit(dr,fields[live]))applied++;
+      hydrateInventory();
+      persistCustomerName(fields);
+    }else hydrateInventory();
+    if(finalPass&&localStorage.getItem(marker)){
       try{localStorage.setItem(hydrated,new Date().toISOString());localStorage.removeItem(marker)}catch{}
     }
     return applied>0;
