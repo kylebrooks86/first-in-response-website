@@ -58,6 +58,7 @@ python3 ../scripts/apply-fire-dr-customer-edit-flow.py
 python3 ../scripts/verify-fire-dr-customer-edit-flow.py
 python3 ../scripts/apply-fire-dr-tipping.py
 python3 ../scripts/verify-fire-dr-tipping.py
+python3 ../scripts/apply-fire-dr-invoice-edit-ui.py
 python3 ../scripts/apply-fire-dr-capture-identity.py
 python3 ../scripts/verify-fire-dr-capture-identity.py
 python3 ../scripts/verify-fire-dr-forward-sync.py
