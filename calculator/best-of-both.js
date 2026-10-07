@@ -96,6 +96,7 @@
       if(surfaceCard && !surfaceCard.querySelector('.field'))surfaceCard.remove();
     }
     let activePreset=null,applyingPreset=false;
+    const restoringSavedMix=()=>window.__fireRestoringSavedMix===true;
 
     const currentGrowth=()=>$('#growthSeg [data-growth].active')?.dataset.growth||'moderate';
     const presetStrength=(p,g=currentGrowth())=>p?.strengths?.[g]??0;
@@ -168,6 +169,7 @@
       const el=$(sel);if(el){el.addEventListener('input',refreshAmounts);el.addEventListener('change',refreshAmounts);}
     });
     Array.from(document.querySelectorAll('#growthSeg [data-growth]')).forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{
+      if(restoringSavedMix())return;
       if(activePreset&&surface?.value===activePreset.surface){
         const p=activePreset,result=applyPresetTarget(p,b.dataset.growth);
         if(!result.limited){
@@ -177,6 +179,7 @@
       }else setCustomSummary();
     },0)));
     surface?.addEventListener('change',()=>setTimeout(()=>{
+      if(restoringSavedMix())return;
       if(activePreset&&surface.value!==activePreset.surface)activePreset=null;
       if(!activePreset&&manualSurfaceSummary){
         const label=surface.selectedOptions?.[0]?.textContent||'Manual surface';
@@ -186,7 +189,7 @@
       refreshAmounts();
     },0));
     const markCustom=()=>{
-      if(applyingPreset)return;
+      if(applyingPreset||restoringSavedMix())return;
       if(!activePreset){clearPresetSelection();setCustomSummary();return;}
       const g=currentGrowth(),target=+($('#targetNum')?.value||0),ele=+($('#eleRate')?.value||0);
       if(Math.abs(target-presetStrength(activePreset,g))>.001||Math.abs(ele-activePreset.ele)>.001){
@@ -197,6 +200,7 @@
     $('#target')?.addEventListener('input',()=>setTimeout(markCustom,0));
     $('#eleRate')?.addEventListener('input',markCustom);
     const stockChanged=()=>setTimeout(()=>{
+      if(restoringSavedMix())return;
       if(activePreset){
         const p=activePreset,result=applyPresetTarget(p,currentGrowth());
         if(!result.limited)setSummary(p);
