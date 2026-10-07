@@ -7,6 +7,7 @@ tracked = [
     Path('app/globals.css'),
     Path('app/layout.tsx'),
     Path('app/dashboard.tsx'),
+    Path('app/customer-portal-nav.tsx'),
     Path('app/api/customers/route.ts'),
     Path('app/api/backup/route.ts'),
     Path('app/pay/[id]/pay-button.tsx'),
@@ -59,6 +60,7 @@ if missing:
 
 before = {str(path): digest(path) for path in tracked}; before_evidence_tree = evidence_tree_digest(); before_live_tree = live_evidence_tree_digest()
 for script_name in [
+    'apply-fire-dr-customer-nav-owner-settings.py',
     'apply-fire-dr-mobile-shell-fix.py',
     'apply-fire-dr-mobile-back-history.py',
     'apply-fire-dr-template-parity-fix.py',
