@@ -130,10 +130,17 @@ for needle in [
     'Tip cannot exceed the invoice total or $500.',
     'Recorded separately and does not change the invoice balance.',
     '?"Record tip":"Deposit recorded"',
-    'body:JSON.stringify({estimateId:estimate.id,amountCents,tipCents,method,reference})',
 ]:
     if needle not in text['owner_dashboard']:
         errors.append(f'owner Record payment/tip UI missing invariant: {needle}')
+
+
+owner_payment_payload = re.search(
+    r'body:JSON\.stringify\(\{estimateId:estimate\.id,([^}]*)\}\)',
+    text['owner_dashboard'],
+)
+if not owner_payment_payload or 'amountCents' not in owner_payment_payload.group(1) or 'tipCents' not in owner_payment_payload.group(1):
+    errors.append('owner Record payment/tip UI must send both amountCents and tipCents')
 
 for needle in [
     'const tipCents = Math.round(Number(body.tipCents) || 0);',
@@ -142,13 +149,19 @@ for needle in [
     'Tips can be recorded only after the job is completed.',
     'This job is already paid in full. Record the tip by itself instead.',
     'Put any extra amount in Tip received instead.',
-    'VALUES (?,?, \'Tip\',?,\'paid\',?,?)',
     'const results=await env.DB.batch([',
     "WHERE EXISTS (SELECT 1 FROM payments WHERE id=? AND estimate_id=? AND status='paid')",
     'if(!results[1]?.meta.changes)return Response.json({ error:"The invoice payment was not paired with its tip record.',
 ]:
     if needle not in text['payments']:
         errors.append(f'manual payment API missing tip invariant: {needle}')
+
+
+if not re.search(
+    r'INSERT INTO payments \([^)]*\) VALUES \(\?\?, \'Tip\',\?,\'paid\',[^)]*\)',
+    text['payments'],
+):
+    errors.append('manual payment API must insert a paid Tip ledger row with the supplied tip amount')
 
 if not re.search(r'["\']tip_received["\']', text['payments']):
     errors.append('manual payment API tip notification type is missing')
