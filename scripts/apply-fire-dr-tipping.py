@@ -117,4 +117,13 @@ replace_once(
     'backup refund ledger type verification',
 )
 
+
+dashboard=repo_root/'fire-app-dr/app/dashboard.tsx'
+replace_once(
+    dashboard,
+    'function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(totalCents:number)=>void}){',
+    'function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(totalCents:number,paidCents:number,billingExceptionOpen:boolean)=>void}){',
+    'invoice edit callback signature',
+)
+
 print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
