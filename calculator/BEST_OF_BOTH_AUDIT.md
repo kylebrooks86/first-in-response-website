@@ -46,6 +46,7 @@ Additional staging hardening in this batch:
 - Portable backup hydration now uses the explicit migration marker as its only pending-import signal, so ordinary saved estimate drafts are not repeatedly treated as imports. The final hydration pass also closes the migration marker even when a valid backup contains no estimate fields (for example calculator/rig/X-Jet-only data), preventing stale re-hydration on later loads.
 - Portable compatibility backups now preserve the active SH batch as normalized gallons plus the original preset/custom amount and unit. Restore reproduces preset batches when possible and restores custom batches in their original unit (for example 96 fl oz stays 96 fl oz instead of being flattened to 0.75 gal).
 - Saved custom dwell-timer state now reconstructs its dynamic `Custom — X min` option deterministically after reload instead of relying on module/listener timing. Suggested surface presets remain unchanged and restoring timer state does not auto-start a countdown.
+- Job Plan persistence now distinguishes synthetic restore events from genuine edits and generation-guards its delayed startup retries. Once the user edits a planning field (including Clear Estimate's planning reset), already-scheduled restores are invalidated so stale startup state cannot overwrite the newer job state.
 
 ### SH Mix
 
@@ -140,10 +141,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=51`
+- `full-v18.js?v=52`
 - `best-of-both.js?v=32`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-181`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-182`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
