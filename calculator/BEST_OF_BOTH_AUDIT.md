@@ -20,7 +20,9 @@ Secondary sections remain available through **🧰 Tools**:
 - 🛡️ Safety Guide
 - Install / Update App only when the browser exposes a real install prompt
 
-Field Tools no longer carries a second set of one-tap SH favorites. That duplicate launcher was consolidated into a smaller **Saved mixes** card that only saves/reuses mixes the owner actually chooses to keep. Field Tools is further condensed into **Jobsite reference**, **Records & chemicals**, and **App & data** disclosure groups, while the dwell timer and Saved mixes stay easy to reach. The Field Safety Card lives in Safety Guide instead of duplicating Field Tools. Saved mixes now preserves surface, dirtiness, batch size, final SH target, stock strength, and Elemonator rate; custom gallon batch sizes restore through the Custom path.
+Field Tools no longer carries a second set of one-tap SH favorites. That duplicate launcher was consolidated into a smaller **Saved mixes** card that only saves/reuses mixes the owner actually chooses to keep.
+
+Saved mixes now preserves the full reusable SH setup: surface, dirtiness, batch size, target SH %, actual stock strength, and Elemonator rate. Non-standard batch sizes reopen as Custom gallons instead of being lost. Field Tools is further condensed into **Jobsite reference**, **Records & chemicals**, and **App & data** disclosure groups, while the dwell timer and Saved mixes stay easy to reach. The Field Safety Card lives in Safety Guide instead of duplicating Field Tools. Saved mixes now preserves surface, dirtiness, batch size, final SH target, stock strength, and Elemonator rate; custom gallon batch sizes restore through the Custom path.
 
 Saved mixes preserve the full practical SH recipe state used to recreate the mix: surface, dirtiness, batch gallons, target SH %, actual stock SH %, and Elemonator rate. Older saved mixes that predate stock/surfactant fields remain reusable; missing Elemonator data falls back to the current surface-safe default instead of inheriting an unrelated value from the screen. Malformed legacy storage is ignored safely, custom batch sizes restore in gallons, and saved names are escaped before rendering. Saved mixes now preserve surface, dirtiness, batch size, final SH target, actual stock strength, and Elemonator rate; arbitrary custom batch sizes restore through the Custom batch path.
 
@@ -117,10 +119,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=27`
-- `best-of-both.js?v=29`
+- `full-v18.js?v=28`
+- `best-of-both.js?v=28`
 - `best-of-both.css?v=15`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-153`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-154`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
