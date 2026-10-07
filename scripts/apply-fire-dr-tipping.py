@@ -149,7 +149,6 @@ replace_once(
     const tipRow=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(`${session.id}:tip`).first<{estimateId:string;type:string;amountCents:number;status:string}>();
     if(!tipRow||tipRow.estimateId!==estimate.id||tipRow.type!=="Tip"||tipRow.status!=="paid"||Number(tipRow.amountCents)!==tipCents)return false;
   }
-  const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(estimate.id).first<{amount:number}>();
   const nextPaid=Number(refreshedPaid?.amount??0);''',
     'estimate success fresh tip reconciliation',
 )
@@ -218,8 +217,10 @@ replace_once(
 estimate_text=estimate_page.read_text()
 legacy_paid='SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status=\'paid\''
 safe_paid='SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status=\'paid\' AND type NOT IN (\'Tip\',\'Tip Refund\')'
-if legacy_paid in estimate_text:
-    estimate_page.write_text(estimate_text.replace(legacy_paid,safe_paid))
+legacy_paid_exact=legacy_paid + '").bind'
+safe_paid_exact=safe_paid + '").bind'
+if legacy_paid_exact in estimate_text:
+    estimate_page.write_text(estimate_text.replace(legacy_paid_exact,safe_paid_exact))
 
 notifications=repo_root/'fire-app-dr/app/api/notifications/route.ts'
 replace_once(
