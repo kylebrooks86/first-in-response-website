@@ -40,6 +40,12 @@ export function PayButton({
 
   const checkout = async () => {
     setLoading(true); setError("");
+    const maxTipCents = Math.min(Number(tipBaseCents ?? 0), 50000);
+    if (tipCents > maxTipCents) {
+      setError("Tip cannot exceed the invoice total or $500.");
+      setLoading(false);
+      return;
+    }
     try {
       const response = await fetch("/api/payments/checkout", {
         method: "POST",
@@ -76,7 +82,7 @@ export function PayButton({
       </div>
       {tipChoice==="custom" && <div className="mt-2">
         <label className="text-xs text-muted-foreground" htmlFor="fire-custom-tip">Custom tip amount</label>
-        <Input id="fire-custom-tip" inputMode="decimal" type="number" min="0" step="1" placeholder="$0" value={customTip} onChange={(event)=>setCustomTip(event.target.value)} />
+        <Input id="fire-custom-tip" inputMode="decimal" type="number" min="0" step="0.01" placeholder="$0.00" value={customTip} onChange={(event)=>setCustomTip(event.target.value)} />
       </div>}
       {tipCents>0 && <p className="mt-2 text-center text-sm">Tip: <strong>{currency(tipCents)}</strong> · Total card charge: <strong>{currency(totalCents)}</strong></p>}
     </section>}
