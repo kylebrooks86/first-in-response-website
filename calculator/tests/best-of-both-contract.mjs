@@ -17,6 +17,7 @@ const inputContract=read('v18-live-input-contract.js');
 const customerParity=read('v18-live-customer-parity.js');
 const backupHydration=read('v18-live-backup-hydration.js');
 const toolsState=read('v18-tools-state.js');
+const planningState=read('v18-live-planning-state.js');
 
 const fail=msg=>{console.error('BEST-OF-BOTH CONTRACT FAIL:',msg);process.exit(1)};
 const ok=(cond,msg)=>{if(!cond)fail(msg)};
