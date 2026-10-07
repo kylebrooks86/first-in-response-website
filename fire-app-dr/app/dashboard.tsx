@@ -1045,11 +1045,22 @@ export function Dashboard({userName,metrics,estimates}:{userName:string;metrics:
   const [estimateRefreshKey,setEstimateRefreshKey]=useState(0);
   const [estimateRows, setEstimateRows] = useState(estimates);
   const [liveMetrics, setLiveMetrics] = useState(metrics);
-  const previousTab = useRef("dashboard");
-  const currentTab = useRef("dashboard");
-  useEffect(() => { if (tab !== currentTab.current) { previousTab.current = currentTab.current; currentTab.current = tab; } }, [tab]);
+  const tabHistory = useRef<string[]>(["dashboard"]);
+  const historyBackInProgress = useRef(false);
+  useEffect(() => {
+    if (historyBackInProgress.current) { historyBackInProgress.current = false; return; }
+    const history=tabHistory.current;
+    if(history.at(-1)!==tab)history.push(tab);
+    if(history.length>20)history.splice(0,history.length-20);
+  }, [tab]);
   const goHome = () => { setTab("dashboard"); setMobileMenu(false); };
-  const goBack = () => { const target = previousTab.current || "dashboard"; setTab(target); setMobileMenu(false); };
+  const goBack = () => {
+    const history=tabHistory.current;
+    if(history.length>1)history.pop();
+    const target=history.at(-1)||"dashboard";
+    if(target!==tab){historyBackInProgress.current=true;setTab(target);}
+    setMobileMenu(false);
+  };
   const nav = useMemo(() => [
     ["dashboard", "Dashboard", House], ["contracts", "Contracts", PenLine], ["customers", "Customers", Users], ["estimates", "Estimates", ClipboardList], ["followups", "Follow-ups", Clock3], ["schedule", "Schedule", CalendarDays], ["invoices", "Invoices", Receipt], ["business", "Business", BriefcaseBusiness], ["payments", "Payments", CreditCard], ["settings", "Templates", Settings],
   ] as const, []);
