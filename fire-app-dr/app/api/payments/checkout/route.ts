@@ -48,8 +48,8 @@ export async function POST(request: Request) {
     const amount = paymentType === "deposit" ? Math.max(0, depositCents - paidCents) : Math.max(0, totalCents - paidCents);
     if(!Number.isSafeInteger(amount))return Response.json({error:"The amount due cannot be represented safely. Contact Kyle before paying."},{status:409});
     if (amount < 50) return Response.json({ error: "This estimate has no balance due." }, { status: 400 });
-    const maxTipCents = Math.min(amount, 50000);
-    if (tipCents > maxTipCents) return Response.json({ error: `Tip cannot exceed ${Math.min(100, Math.round((maxTipCents / amount) * 100))}% of the balance or $500.` }, { status: 400 });
+    const maxTipCents = Math.min(totalCents, 50000);
+    if (tipCents > maxTipCents) return Response.json({ error: `Tip cannot exceed the invoice total or $500.` }, { status: 400 });
     const chargeAmount = amount + tipCents;
     if (!Number.isSafeInteger(chargeAmount) || chargeAmount <= 0) return Response.json({ error: "The total card charge is outside FIRE's safe payment range." }, { status: 409 });
     const openSessions = await env.DB.prepare("SELECT id FROM payment_checkout_sessions WHERE estimate_id=? AND status='open'").bind(row.id).all<{id:string}>();
