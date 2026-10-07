@@ -131,6 +131,8 @@ const backupValidateAt=interactions.indexOf("const estimate=parsePayload('fireEs
 const backupWriteAt=interactions.indexOf("Object.entries(data.data).forEach");
 ok(backupValidateAt>=0&&backupWriteAt>backupValidateAt&&interactions.includes("const xjet=parsePayload('fireXjet')"),'portable v3 backup can write storage before core payload validation');
 ok(interactions.includes("k.startsWith('fire')&&typeof v==='string'"),'portable v3 restore can write unrelated local-storage keys');
+ok(interactions.includes("const withRestoreTransaction=fn=>")&&interactions.includes("restoreTxn.entries()].reverse()")&&interactions.includes("v===null?localStorage.removeItem(k):localStorage.setItem(k,v)"),'failed backup restore cannot roll touched storage back');
+ok(interactions.includes("withRestoreTransaction(()=>migrateLiveV3(data))")&&interactions.includes("withRestoreTransaction(()=>Object.entries(data.stores)")&&interactions.includes("else if(data.version===18){withRestoreTransaction"),'not all supported backup formats use transactional restore');
 
 ok(css.includes('body.fire-bob #chemicals .card')&&css.includes('body.fire-bob #index .card'),'LIVE Mixes / Index protection rules are missing');
 ok(css.includes('font-size:16px!important'),'best-of-both inputs no longer protect against iPhone focus zoom');
