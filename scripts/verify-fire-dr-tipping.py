@@ -156,6 +156,11 @@ if 'const tipRevenue=Math.max(0,safeSignedSumCents(payments.filter((item)=>item.
 if '<small>Tip revenue</small><strong>{money(tipRevenue)}</strong>' not in text['owner_dashboard']:
     errors.append('Payments summary must display separate Tip revenue')
 
+if 'const customerPaidTotal=Math.max(0,safeSignedSumCents(customerPayments.filter((payment)=>payment.type!=="Tip"&&payment.type!=="Tip Refund").map((payment)=>payment.amountCents)));' not in text['owner_dashboard']:
+    errors.append('customer profile Paid total must exclude Tip / Tip Refund rows')
+if '<strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":payment.amountCents<0?"Refund":`${paymentTypeLabel(payment.type)} payment`}</strong>' not in text['owner_dashboard']:
+    errors.append('customer payment history must label Tip and Tip refund explicitly')
+
 try:
     registry=json.loads(text['forward_sync'])
 except Exception as exc:
@@ -241,4 +246,4 @@ if errors:
     for error in errors: print('- '+error)
     raise SystemExit(1)
 print('DR_TIPPING_GUARD=PASS')
-print('Optional tipping is governed end-to-end: No tip default; 5/10/15/Custom final-card presets calculated from the full invoice total; card charge remains remaining balance plus tip; deposits cannot tip; manual Venmo/Cash App tips can be logged separately/tip-only; Tip/Tip Refund never change invoice math or overpayment reconciliation; Payment History labels, arithmetic separation, and LIVE forward-sync/runbook policy are protected.')
+print('Optional tipping is governed end-to-end: No tip default; 5/10/15/Custom final-card presets calculated from the full invoice total; card charge remains remaining balance plus tip; deposits cannot tip; manual Venmo/Cash App tips can be logged separately/tip-only; Tip/Tip Refund never change invoice math or overpayment reconciliation; Payment History labels, customer-profile paid-total separation, arithmetic separation, and LIVE forward-sync/runbook policy are protected.')
