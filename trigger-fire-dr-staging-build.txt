@@ -1,4 +1,4 @@
-Trigger Cloudflare DR staging build after owner-workflow guard alignment.
-Latest fixed branch head before trigger: a48e52862906c939b4a4dc308dc46f7269840482
-Purpose: validate dynamic Record payment/Record tip UI and processing-fee-aware backup schema through the remaining release gates.
+Trigger Cloudflare DR staging build after refund workflow tip-lock guard alignment.
+Latest fixed branch head before trigger: 5f509f14e595a449871841893b220d5ed20af426
+Purpose: validate strengthened payment-or-tip refund/overpayment locks through the remaining release gates.
 No application/runtime behavior is changed by this file.
