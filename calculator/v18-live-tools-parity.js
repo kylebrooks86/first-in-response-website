@@ -19,6 +19,8 @@
   };
   const saveFavorites=a=>{try{localStorage.setItem(favoritesKey,JSON.stringify(Array.isArray(a)?a.slice(-20):[]))}catch{}};
   const applyShFavorite=(raw={})=>{
+    const restoreToken=(window.__fireSavedMixRestoreToken||0)+1;
+    window.__fireSavedMixRestoreToken=restoreToken;
     window.__fireRestoringSavedMix=true;
     const s=$('#surface');
     const requestedSurface=typeof raw.surface==='string'?raw.surface:'house';
@@ -53,7 +55,7 @@
       b.dispatchEvent(new Event('change',{bubbles:true}));
     }
     selectView('mix');
-    setTimeout(()=>{window.__fireRestoringSavedMix=false},0);
+    setTimeout(()=>{if(window.__fireSavedMixRestoreToken===restoreToken)window.__fireRestoringSavedMix=false},0);
   };
   const renderSavedFavorites=wrap=>{
     const list=$('#fireSavedFavorites',wrap);if(!list)return;const data=savedFavorites();
