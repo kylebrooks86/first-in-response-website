@@ -185,6 +185,8 @@ for needle in [
     'Stripe card charge is only the remaining balance plus the selected tip',
     'Tip / Tip Refund separately',
     'The Payments summary shows net tip revenue separately',
+    'Customer-profile **Paid** totals exclude Tip / Tip Refund rows',
+    'customer payment history labels **Tip** and **Tip refund** explicitly',
     'Both Stripe and manual tips are capped at the lesser of the full invoice total or $500',
     'Both the Stripe webhook and the customer success-page fallback verify replayed invoice-payment and tip ledger rows',
     'tipping remains a `PENDING_LIVE_SYNC` forward-sync blocker',
