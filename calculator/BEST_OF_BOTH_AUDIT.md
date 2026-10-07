@@ -39,6 +39,7 @@ Additional staging hardening in this batch:
 - Mix History now logs the complete SH recipe (surface, Light/Medium/Heavy, batch, final SH target, stock strength and Elemonator rate) instead of only name/target/batch.
 - Reusing a newer Mix History entry restores those recipe fields under the same atomic restore guard as Saved Mixes; older history entries remain usable and simply fall back for fields they never stored.
 - Job Plan container size now follows the active SH batch size when that size is supported, preventing accidental 4-gal fill counts after choosing 1 / 2 / 5 gal in SH Mix. A deliberate Job Plan container selection becomes an override and is not subsequently replaced by SH batch changes.
+- A deliberate Job Plan container override now survives reload/restoration by recognizing the existing planning-state value before automatic SH-batch synchronization runs.
 
 ### SH Mix
 
@@ -133,10 +134,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=44`
+- `full-v18.js?v=45`
 - `best-of-both.js?v=32`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-174`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-175`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
