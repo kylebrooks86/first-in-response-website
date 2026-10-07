@@ -123,7 +123,7 @@ ok(parityCore.includes("let planContainerManual=false")&&parityCore.includes("ba
 ok(parityCore.includes("localStorage.getItem('fireV18LivePlanningState')")&&parityCore.includes("saved.planContainerManual===true"),'manual Job Plan container override does not survive reload');
 ok(planningState.includes("if(e?.target?.id==='planContainer')o.planContainerManual=true"),'Job Plan persistence does not record explicit manual-container provenance');
 ok(!parityCore.includes("saved.planContainer!==undefined"),'saved default Job Plan container can be falsely treated as a manual override');
-ok(planningState.includes("let restoring=false,userGeneration=0")&&planningState.includes("if(generation!==userGeneration)return false")&&planningState.includes("const onUserEdit=e=>{if(restoring)return;userGeneration++"),'delayed planning restores can overwrite a real user edit');
+ok(planningState.includes("let restoring=false,userGeneration=0")&&planningState.includes("if(generation!==userGeneration)return false")&&planningState.includes("const onUserEdit=e=>{if(restoring||window.__fireHydratingBackup===true)return;userGeneration++"),'delayed planning restores can overwrite a real user edit');
 ok(planningState.includes("const generation=userGeneration;restore(generation);setTimeout(()=>restore(generation),250);setTimeout(()=>restore(generation),900)"),'planning restore retries are not generation-guarded');
 ok(bob.includes("if(guide&&safety&&safety.parentElement===tools)guide.appendChild(safety)"),'Field Safety Card is duplicated inside Field Tools instead of Safety Guide');
 ok(interactions.includes("const prefixes=['fireV18','fireFieldCalculator','fireCalcTheme']"),'full offline backup no longer includes fireV18 Saved mixes storage');
