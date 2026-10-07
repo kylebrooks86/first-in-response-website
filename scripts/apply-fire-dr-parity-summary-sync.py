@@ -117,9 +117,13 @@ else:
         release_replacement + '\n' + forward_line,
         1,
     )
-migration_pattern = r'^- Database migrations: \\*\\*\\d+ contiguous \\(\\d{4}–\\d{4}\\)\\*\\*
+migration_pattern = r'^- Database migrations: \*\*\d+ contiguous \(\d{4}–\d{4}\)\*\*$'
+release, migration_count = re.subn(migration_pattern, '- Database migrations: **22 contiguous (0000–0021)**', release, count=1, flags=re.MULTILINE)
+if migration_count != 1:
+    raise SystemExit('DR_PARITY_SUMMARY_SYNC=FAIL: RELEASE_STATUS migration summary pattern not found exactly once')
 
-audit = audit_path.read_text()
+release_path.write_text(release)
+
 replacements = [
     (r'Evidence entries:\s*\*\*\d+\*\*', f'Evidence entries: **{len(entries)}**'),
     (
