@@ -41,6 +41,24 @@ def replace_once(path: Path, old: str, new: str, label: str):
         raise SystemExit(f'DR_BILLING_INTEGRITY_APPLY=FAIL: {label} source fragment not found')
     path.write_text(source.replace(old,new,1))
 
+pay_button=repo_root/'fire-app-dr/app/pay/[id]/pay-button.tsx'
+replace_once(
+    pay_button,
+    '''  const checkout = async () => {
+    setLoading(true); setError("");
+    try {''',
+    '''  const checkout = async () => {
+    setLoading(true); setError("");
+    const maxTipCents = Math.min(Number(tipBaseCents ?? 0), 50000);
+    if (tipCents > maxTipCents) {
+      setError("Tip cannot exceed the invoice total or $500.");
+      setLoading(false);
+      return;
+    }
+    try {''',
+    'pay button unified tip ceiling',
+)
+
 estimate_page=repo_root/'fire-app-dr/app/estimate/[token]/page.tsx'
 replace_once(
     estimate_page,
