@@ -62,6 +62,7 @@ function hydrateImportedLiveState(finalPass=false){
   if(finalPass){for(const [k,ok] of [['fireV18ImportedLiveFieldCalc',calcApplied],['fireV18ImportedLiveRig',rigApplied],['fireV18ImportedLiveXjet',xApplied]])if(ok)try{localStorage.removeItem(k)}catch{}}
   return applied;
 }
+window.__fireHydrateImportedLiveState=hydrateImportedLiveState;
 function fullBackup(){let exportBtn=$('#exportAll'),importBtn=$('#importAll'),file=$('#importFile'),status=$('#backupStatus');if(!exportBtn||!importBtn||!file)return;
   const stripListeners=el=>{const c=el.cloneNode(true);el.replaceWith(c);return c};
   exportBtn=stripListeners(exportBtn);importBtn=stripListeners(importBtn);file=stripListeners(file);
