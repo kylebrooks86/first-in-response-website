@@ -78,7 +78,7 @@
       set('fillPlan',txt);
     };
     let planContainerManual=false;
-    try{const saved=JSON.parse(localStorage.getItem('fireV18LivePlanningState')||'{}');planContainerManual=saved.planContainer!==undefined&&saved.planContainer!==null&&saved.planContainer!==''}catch{}
+    try{const saved=JSON.parse(localStorage.getItem('fireV18LivePlanningState')||'{}');planContainerManual=saved.planContainerManual===true}catch{}
     const plan=q('#planContainer'),batch=q('#batchPreset');
     plan?.addEventListener('change',()=>{planContainerManual=true;calc()});
     const syncBatch=()=>{if(planContainerManual||!plan||!batch)return;let gal=NaN;if(batch.value==='custom'){const amt=n('customBatch'),unit=q('#customUnit')?.value;gal=unit==='gal'?amt:unit==='floz'?amt/128:unit==='quart'?amt/4:unit==='liter'?amt/3.78541:NaN}else gal=parseFloat(batch.value);const match=[...plan.options].find(o=>Math.abs((+o.value||0)-gal)<.001);if(match){plan.value=match.value;calc()}};
