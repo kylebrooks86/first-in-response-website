@@ -20,7 +20,7 @@ No production/LIVE deployment was changed by this recovery release. Rendered par
 - Release evidence seal: **31/31 sealed files PASS**
 - Shared core: **73 files PASS**
 - Shared-core fingerprint: `7a1889d5f9c07483536630ebb8ba3b18d9e6746f874c641c2d5e9a6633f20896`
-- Database migrations: **21 contiguous (0000–0020)**
+- Database migrations: **22 contiguous (0000–0021)**
 - Strict rendered parity: **NOT_YET_FULLY_VERIFIED**
 - Evidence: **11/32 LIVE, 0/32 independent, 0 verified identical, 0 mismatches**
 - Owner-approved forward-sync blockers: **3**
