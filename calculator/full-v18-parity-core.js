@@ -77,7 +77,13 @@
       if(needed>0){txt=rem<.01?`${full} full ${cap}-gal fill${full===1?'':'s'}.`:`${full?full+' full '+cap+'-gal fill'+(full===1?'':'s')+'. ':''}Final fill: ${rem.toFixed(2)} gal.`}
       set('fillPlan',txt);
     };
-    ['area','coverage','reserve','planContainer','stockStrength','targetNum','eleRate'].forEach(id=>q('#'+id)?.addEventListener('input',calc));calc();
+    let planContainerManual=false;
+    const plan=q('#planContainer'),batch=q('#batchPreset');
+    plan?.addEventListener('change',()=>{planContainerManual=true;calc()});
+    const syncBatch=()=>{if(planContainerManual||!plan||!batch)return;let gal=NaN;if(batch.value==='custom'){const amt=n('customBatch'),unit=q('#customUnit')?.value;gal=unit==='gal'?amt:unit==='floz'?amt/128:unit==='quart'?amt/4:unit==='liter'?amt/3.78541:NaN}else gal=parseFloat(batch.value);const match=[...plan.options].find(o=>Math.abs((+o.value||0)-gal)<.001);if(match){plan.value=match.value;calc()}};
+    ['area','coverage','reserve','stockStrength','targetNum','eleRate'].forEach(id=>q('#'+id)?.addEventListener('input',calc));
+    batch?.addEventListener('change',syncBatch);q('#customBatch')?.addEventListener('input',syncBatch);q('#customUnit')?.addEventListener('change',syncBatch);
+    syncBatch();calc();
   };
   const apply=()=>{
     addStyle();
