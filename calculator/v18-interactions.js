@@ -17,26 +17,32 @@ const invMap={sh:'sh',elemonator:'ele',gutterzap:'gutter',bioclean:'bio',odoban:
 const normalizeInvUnit=u=>{const s=String(u||'').toLowerCase().replace(/\s+/g,'');return s.includes('oz')?'floz':'gal'};
 const toGal=(qty,unit)=>normalizeInvUnit(unit)==='floz'?(+qty||0)/128:(+qty||0);
 function migrateLiveV3(data){
-  if(data?.format!=='FIRE Field Calculator Backup'||Number(data?.version)!==3||Number(data?.appVersion)!==18||!data.data)throw new Error('Unsupported live backup');
-  Object.entries(data.data).forEach(([k,v])=>{if(typeof k==='string'&&typeof v==='string')localStorage.setItem(k,v)});
-  const estimate=parseString(data.data.fireEstimateDraft)||{},fields=estimate.fields||{};
+  if(data?.format!=='FIRE Field Calculator Backup'||Number(data?.version)!==3||Number(data?.appVersion)!==18||!data.data||typeof data.data!=='object'||Array.isArray(data.data))throw new Error('Unsupported live backup');
+  const parsePayload=(key,fallback={})=>{const raw=data.data[key];if(raw===undefined||raw===null)return fallback;const parsed=parseString(raw);if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('Invalid '+key+' payload');return parsed};
+  const estimate=parsePayload('fireEstimateDraft'),fields=estimate.fields||{};
+  if(fields&&typeof fields!=='object')throw new Error('Invalid estimate fields');
+  const inventory=parsePayload('fireInventory');
+  const calc=parsePayload('fireFieldCalc');
+  const rig=parsePayload('fireRig');
+  const xjet=parsePayload('fireXjet');
+  Object.entries(data.data).forEach(([k,v])=>{if(typeof k==='string'&&k.startsWith('fire')&&typeof v==='string')localStorage.setItem(k,v)});
   const parity=safeParse('fireV18ParityDraft',{}),full=safeParse('fireV18FullState',{}),planning=safeParse('fireV18LivePlanningState',{});
   for(const [live,dr] of Object.entries(liveServiceMap)){if(fields[live]!==undefined){parity[dr]=String(fields[live]??'');full[dr]=String(fields[live]??'')}}
   for(const [live,dr] of Object.entries(liveEstimateMap)){if(fields[live]!==undefined){parity[dr]=String(fields[live]??'');if(dr!=='estimateJobName')full[dr]=String(fields[live]??'')}}
   for(const [live,dr] of Object.entries(livePlanningMap)){if(fields[live]!==undefined){planning[dr]=String(fields[live]??'');if(['areaLen','areaWid','areaSides','areaSubtract','calArea','calMix'].includes(dr))full[dr]=String(fields[live]??'')}}
   saveJSON('fireV18ParityDraft',parity);saveJSON('fireV18FullState',full);saveJSON('fireV18LivePlanningState',planning);
-  const inventory=parseString(data.data.fireInventory)||{},specialty=safeParse('fireV18SpecialtyInventory',{});
+  const specialty=safeParse('fireV18SpecialtyInventory',{});
   for(const [live,dr] of Object.entries(invMap)){const x=inventory[live];if(!x)continue;specialty[dr]={amount:+x.qty||0,unit:normalizeInvUnit(x.unit)}}
   saveJSON('fireV18SpecialtyInventory',specialty);
   if(inventory.sh){full.invSH=String(toGal(inventory.sh.qty,inventory.sh.unit));}
   if(inventory.elemonator){full.invEle=String(toGal(inventory.elemonator.qty,inventory.elemonator.unit));}
   saveJSON('fireV18FullState',full);
-  const calc=parseString(data.data.fireFieldCalc)||{};
+  
   if(calc.coverage!==undefined)planning.coverage=String(calc.coverage);saveJSON('fireV18LivePlanningState',planning);
   const base=safeParse('fireV18ImportedLiveFieldCalc',{});Object.assign(base,calc);saveJSON('fireV18ImportedLiveFieldCalc',base);
-  const rig=parseString(data.data.fireRig)||{};saveJSON('fireV18ImportedLiveRig',rig);
+  saveJSON('fireV18ImportedLiveRig',rig);
   const tank=safeParse('fireV18EquipmentTankPlanner',{});if(rig.rigWaterTank!==undefined)tank.waterTankSize=String(rig.rigWaterTank);if(rig.rigShTank!==undefined)tank.shTankSize=String(rig.rigShTank);if(rig.rigSoapTank!==undefined)tank.soapTankSize=String(rig.rigSoapTank);saveJSON('fireV18EquipmentTankPlanner',tank);
-  const xjet=parseString(data.data.fireXjet)||{};saveJSON('fireV18ImportedLiveXjet',xjet);
+  saveJSON('fireV18ImportedLiveXjet',xjet);
   localStorage.setItem('fireV18LiveBackupMigratedAt',new Date().toISOString());
 }
 function hydrateImportedLiveState(){
