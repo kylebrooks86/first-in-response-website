@@ -63,10 +63,11 @@
         "Tip stored separately from invoice payment",
         "Tip and Tip Refund excluded from invoice paid/balance math",
         "Percentage presets are based on the full invoice total",
-        "Stripe card charge equals remaining balance plus tip"
+        "Stripe card charge equals remaining balance plus tip",
+        "Net tip revenue shown separately in Payments summary"
       ],
-      "pending_matrix_note": "Owner approved optional final-payment tipping with No tip selected by default plus 5% / 10% / 15% / Custom. Tips are final-balance-only and must remain separate from invoice paid/balance accounting. LIVE must receive the same flow before this state can be identical.",
-      "synced_matrix_note": "Optional final-payment tipping was brought into LIVE with No tip default, 5% / 10% / 15% / Custom, final-balance-only behavior, and separate tip accounting; LIVE/DR were deliberately reviewed on the same device/profile."
+      "pending_matrix_note": "Owner approved optional final-payment tipping with No tip selected by default plus 5% / 10% / 15% / Custom. Tips are final-balance-only, must remain separate from invoice paid/balance accounting, and net tip revenue must remain visible separately in Payments. LIVE must receive the same flow before this state can be identical.",
+      "synced_matrix_note": "Optional final-payment tipping was brought into LIVE with No tip default, 5% / 10% / 15% / Custom, final-balance-only behavior, separate tip accounting, and separate net tip revenue visibility; LIVE/DR were deliberately reviewed on the same device/profile."
     }
   ]
 }
