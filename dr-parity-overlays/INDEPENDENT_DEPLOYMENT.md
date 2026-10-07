@@ -27,7 +27,7 @@ The current preparation path requires:
 - expected SHA-256: `2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca`
 - package version: `1.0.0-rc.138`
 - FIRE release: `v138`
-- 21 canonical migrations, `0000` through `0020`
+- 22 canonical migrations, `0000` through `0021`
 
 If the archive hash or release identity does not match, preparation must stop.
 
@@ -47,7 +47,7 @@ bash scripts/deploy-fire-dr-staging.sh
 
 Do not manually substitute a plain Wrangler deploy command. The governed wrapper requires the current `origin/fire-calculator-exact-live-clone` commit, re-runs predeploy provenance, validates the independent Worker/D1/no-R2 target, applies remote migrations only to `fire-app-staging-db` with the independent config, re-runs provenance after migrations, and only then deploys the independent Worker with that same config.
 
-The preparation script verifies the current staging branch and sealed archive, restores persistent governance/evidence overlays, verifies v138 identity and the governed script inventory, applies the PIN/mobile/Templates/LIVE-evidence overlays, restores persistent independent evidence and deliberate comparison decisions, synchronizes parity summaries, verifies overlay idempotency plus owner/customer/service/restore/refund/evidence/parity guards, builds, validates the D1-only/no-R2 deployment config, stages the exact 21 migrations, fingerprints post-build artifacts and evidence state, self-tests predeploy provenance, then runs typecheck and reports the result honestly.
+The preparation script verifies the current staging branch and sealed archive, restores persistent governance/evidence overlays, verifies v138 identity and the governed script inventory, applies the PIN/mobile/Templates/LIVE-evidence overlays, restores persistent independent evidence and deliberate comparison decisions, synchronizes parity summaries, verifies overlay idempotency plus owner/customer/service/restore/refund/evidence/parity guards, builds, validates the D1-only/no-R2 deployment config, stages the exact 22 migrations, fingerprints post-build artifacts and evidence state, self-tests predeploy provenance, then runs typecheck and reports the result honestly.
 
 The preparation script runs the LIVE-evidence coverage/accountability guard so newly registered LIVE evidence cannot silently bypass DR parity coverage.
 
