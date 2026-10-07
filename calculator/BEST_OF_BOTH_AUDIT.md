@@ -119,10 +119,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=28`
-- `best-of-both.js?v=28`
+- `full-v18.js?v=29`
+- `best-of-both.js?v=29`
 - `best-of-both.css?v=15`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-154`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-155`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
@@ -157,6 +157,7 @@ The best-of-both contract specifically protects:
 - advanced Job Plan / Equipment open-state preservation
 - duplicate one-tap favorites staying out of Field Tools while Saved mixes remains available
 - Saved mixes full-setting restore behavior and automatic card creation
+- identical Saved mixes are deduplicated instead of stacking repeated copies
 - Saved mixes storage is covered by both full offline and portable backup paths
 - full Saved mix restore behavior, custom batch restoration, malformed-storage recovery, and legacy Saved mix migration
 - full Saved mixes restore behavior, including custom batch sizes, stock strength, and Elemonator rate
