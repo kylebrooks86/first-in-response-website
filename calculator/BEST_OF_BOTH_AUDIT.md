@@ -34,6 +34,8 @@ Additional staging hardening in this batch:
 - Chemical Inventory no longer hard-codes the SH row as 10%; it starts as **Stock SH** and updates the visible/accessibility label to the current stock strength, including 12.5%.
 - Portable backup now stores the actual fine-tuned final SH target and restores it after surface + dirtiness handlers run, preventing a custom target from being silently reset to the surface preset during hydration.
 - Dwell Timer manual minute changes now switch the Suggested check display to a synchronized **Custom — X min** state instead of leaving a stale surface-specific suggestion visible; the 3 / 5 / 10 / 15 quick buttons and suggestion dropdown resync each other.
+- Saved Mix application now runs behind an atomic restore guard so delayed preset/surface/stock listeners cannot reassert a preset while a saved custom recipe is being restored.
+- Overlapping Saved Mix taps use a generation token; an earlier restore cannot unlock the guard for a newer restore still in progress.
 
 ### SH Mix
 
@@ -128,10 +130,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=40`
-- `best-of-both.js?v=31`
+- `full-v18.js?v=42`
+- `best-of-both.js?v=32`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-170`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-172`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
