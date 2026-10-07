@@ -71,4 +71,24 @@ replace_once(
     'invoice post-write reconciliation',
 )
 
+
+refund=repo_root/'fire-app-dr/app/api/payments/refund/route.ts'
+replace_once(
+    refund,
+    '''  const [verifiedRequest,verifiedLedger]=await Promise.all([
+    env.DB.prepare("SELECT status,amount_cents AS amountCents FROM payment_refunds WHERE id=?").bind(row.id).first<{status:string;amountCents:number}>(),
+    env.DB.prepare("SELECT amount_cents AS amountCents FROM payments WHERE provider_id=? LIMIT 1").bind(refundPaymentProvider).first<{amountCents:number}>(),
+  ]);
+  if(verifiedRequest?.status!=="succeeded"||Number(verifiedRequest.amountCents)!==amount||Number(verifiedLedger?.amountCents)!==-amount)
+    return {ok:false,status:409,error:"Refund confirmation did not converge on one verified ledger entry. Refresh payment history before trying anything else."};''',
+    '''  const [verifiedRequest,verifiedLedger]=await Promise.all([
+    env.DB.prepare("SELECT status,amount_cents AS amountCents FROM payment_refunds WHERE id=?").bind(row.id).first<{status:string;amountCents:number}>(),
+    env.DB.prepare("SELECT type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(refundPaymentProvider).first<{type:string;amountCents:number;status:string}>(),
+  ]);
+  const expectedLedgerType=row.paymentType==="Tip"?"Tip Refund":"Refund";
+  if(verifiedRequest?.status!=="succeeded"||Number(verifiedRequest.amountCents)!==amount||verifiedLedger?.type!==expectedLedgerType||verifiedLedger?.status!=="paid"||Number(verifiedLedger?.amountCents)!==-amount)
+    return {ok:false,status:409,error:"Refund confirmation did not converge on one verified ledger entry. Refresh payment history before trying anything else."};''',
+    'refund ledger type verification',
+)
+
 print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
