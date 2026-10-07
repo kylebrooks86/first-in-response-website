@@ -149,6 +149,38 @@ replace_once(
     'estimate page passes tip base separately',
 )
 
+replace_once(
+    estimate_page,
+    'const prior=await env.DB.prepare("SELECT id FROM payments WHERE provider_id=? LIMIT 1").bind(session.id).first();',
+    'const prior=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(session.id).first<{estimateId:string;type:string;amountCents:number;status:string}>();',
+    'estimate success prior payment shape',
+)
+replace_once(
+    estimate_page,
+    '''  if(prior){
+    if(tipCents>0)await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+      SELECT ?,?,'Tip',?,'paid',?,?
+      WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
+      .bind(crypto.randomUUID(),estimate.id,tipCents,`${session.id}:tip`,new Date().toISOString(),`${session.id}:tip`).run();
+    await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();
+    return true;
+  }''',
+    '''  if(prior){
+    if(prior.estimateId!==estimate.id||prior.type!==paymentType||prior.status!=="paid"||Number(prior.amountCents)!==expectedAmount)return false;
+    if(tipCents>0){
+      await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+        SELECT ?,?,'Tip',?,'paid',?,?
+        WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
+        .bind(crypto.randomUUID(),estimate.id,tipCents,`${session.id}:tip`,new Date().toISOString(),`${session.id}:tip`).run();
+      const tipRow=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(`${session.id}:tip`).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+      if(!tipRow||tipRow.estimateId!==estimate.id||tipRow.type!=="Tip"||tipRow.status!=="paid"||Number(tipRow.amountCents)!==tipCents)return false;
+    }
+    await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();
+    return true;
+  }''',
+    'estimate success prior payment verification',
+)
+
 notifications=repo_root/'fire-app-dr/app/api/notifications/route.ts'
 replace_once(
     notifications,
