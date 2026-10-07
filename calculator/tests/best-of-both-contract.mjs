@@ -114,6 +114,7 @@ ok(parityCore.includes("moveOrder(tools,['Saved mixes'"),'Saved mixes is not ord
 ok(!bob.includes('oldFav?.remove()'),'best-of-both late layout can delete the Saved mixes card');
 ok(bob.includes("group('🧭 Jobsite reference'")&&bob.includes("group('🧪 Records & chemicals'")&&bob.includes("group('⚙️ App & data'"),'Field Tools compact helper groups are missing');
 ok(bob.includes("bob-tools-group[open]")&&bob.includes("wrap.open=openTitles.has(title)"),'Field Tools group open state is not preserved');
+ok(parityCore.includes("let planContainerManual=false")&&parityCore.includes("batch?.addEventListener('change',syncBatch)")&&parityCore.includes("if(planContainerManual||!plan||!batch)return"),'Job Plan container can drift from SH batch before a manual planning override');
 ok(bob.includes("if(guide&&safety&&safety.parentElement===tools)guide.appendChild(safety)"),'Field Safety Card is duplicated inside Field Tools instead of Safety Guide');
 ok(interactions.includes("const prefixes=['fireV18','fireFieldCalculator','fireCalcTheme']"),'full offline backup no longer includes fireV18 Saved mixes storage');
 ok(interactions.includes("const gal=parseFloat(d.batch)")&&interactions.includes("batch.value='custom'")&&interactions.includes("custom.value=String(gal)"),'mix history reuse cannot restore normalized or custom batch sizes');
