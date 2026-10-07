@@ -36,6 +36,8 @@ Additional staging hardening in this batch:
 - Dwell Timer manual minute changes now switch the Suggested check display to a synchronized **Custom — X min** state instead of leaving a stale surface-specific suggestion visible; the 3 / 5 / 10 / 15 quick buttons and suggestion dropdown resync each other.
 - Saved Mix application now runs behind an atomic restore guard so delayed preset/surface/stock listeners cannot reassert a preset while a saved custom recipe is being restored.
 - Overlapping Saved Mix taps use a generation token; an earlier restore cannot unlock the guard for a newer restore still in progress.
+- Mix History now logs the complete SH recipe (surface, Light/Medium/Heavy, batch, final SH target, stock strength and Elemonator rate) instead of only name/target/batch.
+- Reusing a newer Mix History entry restores those recipe fields under the same atomic restore guard as Saved Mixes; older history entries remain usable and simply fall back for fields they never stored.
 
 ### SH Mix
 
@@ -130,10 +132,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=42`
+- `full-v18.js?v=43`
 - `best-of-both.js?v=32`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-172`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-173`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
