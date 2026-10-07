@@ -26,14 +26,21 @@ async function confirmPayment(sessionId:string,estimate:{id:string;customerId:st
   const expectedCharge=Number(session.metadata?.expected_charge_cents??(expectedAmount+tipCents));
   if(!Number.isSafeInteger(sessionAmount)||sessionAmount<=0||!Number.isSafeInteger(expectedAmount)||expectedAmount<=0||!Number.isSafeInteger(tipCents)||tipCents<0||!Number.isSafeInteger(expectedCharge)||expectedCharge!==sessionAmount||expectedAmount+tipCents!==sessionAmount)return false;
   if(paymentType!=="balance"&&tipCents>0)return false;
+  const maxTipCents=Math.min(Number(estimate.totalCents),50000);
+  if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0||tipCents>maxTipCents)return false;
   const tracked=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payment_checkout_sessions WHERE id=? LIMIT 1").bind(session.id).first<{estimateId:string;type:string;amountCents:number;status:string}>();
   if(!tracked||tracked.estimateId!==estimate.id||tracked.type!==paymentType||!Number.isSafeInteger(Number(tracked.amountCents))||Number(tracked.amountCents)!==sessionAmount||!["open","paid"].includes(tracked.status))return false;
-  const prior=await env.DB.prepare("SELECT id FROM payments WHERE provider_id=? LIMIT 1").bind(session.id).first();
+  const prior=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(session.id).first<{estimateId:string;type:string;amountCents:number;status:string}>();
   if(prior){
-    if(tipCents>0)await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
-      SELECT ?,?,'Tip',?,'paid',?,?
-      WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
-      .bind(crypto.randomUUID(),estimate.id,tipCents,`${session.id}:tip`,new Date().toISOString(),`${session.id}:tip`).run();
+    if(prior.estimateId!==estimate.id||prior.type!==paymentType||prior.status!=="paid"||Number(prior.amountCents)!==expectedAmount)return false;
+    if(tipCents>0){
+      await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+        SELECT ?,?,'Tip',?,'paid',?,?
+        WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
+        .bind(crypto.randomUUID(),estimate.id,tipCents,`${session.id}:tip`,new Date().toISOString(),`${session.id}:tip`).run();
+      const tipRow=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(`${session.id}:tip`).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+      if(!tipRow||tipRow.estimateId!==estimate.id||tipRow.type!=="Tip"||tipRow.status!=="paid"||Number(tipRow.amountCents)!==tipCents)return false;
+    }
     await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();
     return true;
   }
