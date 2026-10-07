@@ -710,7 +710,7 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
     <div className="next-action"><Sparkles/><div><strong>Recommended next step</strong><p>{nextAction}</p></div></div>
 
     <div className="detail-actions">
-      <EditEstimateDialog estimate={estimate} onSaved={onChanged}/>{estimate.invoiceId&&<EditInvoiceDialog estimate={estimate} onSaved={(invoiceTotalCents)=>onChanged({...estimate,invoiceTotalCents})}/>}
+      <EditEstimateDialog estimate={estimate} onSaved={onChanged}/>{estimate.invoiceId&&<EditInvoiceDialog estimate={estimate} onSaved={(invoiceTotalCents,paidCents,billingExceptionOpen)=>onChanged({...estimate,invoiceTotalCents,paidCents,paymentOverageOpen:billingExceptionOpen?1:0})}/>}
       {estimate.customerId&&<MessageComposer
         customer={messageCustomer}
         estimate={estimate}
