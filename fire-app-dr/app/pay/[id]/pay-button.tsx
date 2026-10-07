@@ -12,19 +12,21 @@ export function PayButton({
   shareToken,
   paymentType = "deposit",
   label,
-  baseAmountCents,
+  dueAmountCents,
+  tipBaseCents,
 }: {
   shareToken:string;
   paymentType?: "deposit" | "balance";
   label?: string;
-  baseAmountCents?: number;
+  dueAmountCents?: number;
+  tipBaseCents?: number;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [tipChoice, setTipChoice] = useState<"0"|"5"|"10"|"15"|"custom">("0");
   const [customTip, setCustomTip] = useState("");
 
-  const allowTip = paymentType === "balance" && Number.isSafeInteger(baseAmountCents) && Number(baseAmountCents) > 0;
+  const allowTip = paymentType === "balance" && Number.isSafeInteger(dueAmountCents) && Number(dueAmountCents) > 0 && Number.isSafeInteger(tipBaseCents) && Number(tipBaseCents) > 0;
   const tipCents = useMemo(() => {
     if (!allowTip) return 0;
     if (tipChoice === "custom") {
@@ -32,9 +34,9 @@ export function PayButton({
       if (!Number.isFinite(dollars) || dollars <= 0) return 0;
       return Math.max(0, Math.round(dollars * 100));
     }
-    return Math.round(Number(baseAmountCents) * Number(tipChoice) / 100);
-  }, [allowTip, baseAmountCents, customTip, tipChoice]);
-  const totalCents = Number(baseAmountCents ?? 0) + tipCents;
+    return Math.round(Number(tipBaseCents) * Number(tipChoice) / 100);
+  }, [allowTip, customTip, tipBaseCents, tipChoice]);
+  const totalCents = Number(dueAmountCents ?? 0) + tipCents;
 
   const checkout = async () => {
     setLoading(true); setError("");
@@ -57,7 +59,7 @@ export function PayButton({
     {allowTip && <section className="rounded-xl border border-slate-700/70 bg-slate-950/20 p-3" aria-label="Optional tip">
       <div className="mb-2 flex items-center gap-2">
         <Heart className="h-4 w-4" />
-        <div><strong className="block text-sm">Add an optional tip</strong><span className="text-xs text-muted-foreground">Thank you for supporting FIRE. No tip is selected by default.</span></div>
+        <div><strong className="block text-sm">Add an optional tip</strong><span className="text-xs text-muted-foreground">No tip is selected by default. Percentage tips are based on the full invoice total.</span></div>
       </div>
       <div className="grid grid-cols-5 gap-1.5">
         {TIP_PRESETS.map((percent)=><button
