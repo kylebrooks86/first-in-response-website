@@ -494,6 +494,8 @@ diff --git a/fire-app-dr/app/api/payments/webhook/route.ts b/fire-app-dr/app/api
 +      SELECT ?,?,'Tip',?,'paid',?,?
 +      WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
 +      .bind(crypto.randomUUID(),estimateId,tipCents,`${session.id}:tip`,now,`${session.id}:tip`).run();
++    const tipRow=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(`${session.id}:tip`).first<{estimateId:string;type:string;amountCents:number;status:string}>();
++    if(!tipRow||tipRow.estimateId!==estimateId||tipRow.type!=="Tip"||tipRow.status!=="paid"||Number(tipRow.amountCents)!==tipCents)return {ok:false,reason:"tip_ledger_verification_failed"};
 +  }
 +  const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(estimateId).first<{amount:number}>();
    const nextPaid=Number(refreshedPaid?.amount??0);
