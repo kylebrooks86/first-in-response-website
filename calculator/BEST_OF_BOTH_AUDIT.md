@@ -49,6 +49,7 @@ Additional staging hardening in this batch:
 - Job Plan persistence now distinguishes synthetic restore events from genuine edits and generation-guards its delayed startup retries. Once the user edits a planning field (including Clear Estimate's planning reset), already-scheduled restores are invalidated so stale startup state cannot overwrite the newer job state.
 - Job Plan container persistence now stores explicit `planContainerManual` provenance only when the user genuinely changes that container. Merely saving another planning field no longer makes a saved/default container look manual, so untouched Job Plan containers continue following the active SH batch while deliberate overrides still survive reload.
 - Portable compatibility backup/restore now carries the explicit Job Plan container override provenance (`jobBatchSizeManual`) alongside `jobBatchSize`. Deliberate container choices therefore survive portable restores, while older backups without the flag safely fall back to automatic SH-batch following instead of guessing.
+- Native/offline backup restore now prevalidates the entire `stores` object before any write: it must be a non-array object, every value must be a string, and every key must remain inside the native export namespaces (`fireV18*`, `fireFieldCalculator*`, or `fireCalcTheme*`). Any invalid entry rejects the whole import instead of being silently skipped into an incomplete restore; transactional rollback remains in place for write-time failures.
 
 ### SH Mix
 
@@ -143,10 +144,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=54`
+- `full-v18.js?v=55`
 - `best-of-both.js?v=32`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-184`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-185`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
