@@ -1,4 +1,4 @@
-Trigger Cloudflare DR staging build after tipping patch repair.
-Latest fixed branch head before trigger: 6c5e630952f7c1997fb0aa77e9b579a86c972449
+Trigger Cloudflare DR staging build after drifted tipping targets were split from the patch.
+Latest fixed branch head before trigger: eb547b8447011ef16036b3d0cc7bc70cc741a62c
 Purpose: force a fresh Cloudflare build from current fire-calculator-exact-live-clone.
 No application/runtime behavior is changed by this file.
