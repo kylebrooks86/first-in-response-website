@@ -56,6 +56,7 @@ ok(bob.includes("const clearPresetSelection=()=>")&&bob.includes("activePreset=n
 ok(bob.includes("if(!activePreset){clearPresetSelection();setCustomSummary();return;}")&&bob.includes("activePreset=null;clearPresetSelection();setCustomSummary();"),'manual fine tuning can leave a stale selected preset checkmark');
 ok(bob.includes("$('#target')?.addEventListener('input',()=>setTimeout(markCustom,0))"),'SH range slider changes do not clear stale preset state');
 ok(bob.includes("preset.dataset.bobBatchBound")&&bob.includes("b.dataset.bobBatchBound"),'batch controls are not protected against duplicate late-layout event binding');
+ok(bob.includes("b.classList.toggle('active',quick&&b.dataset.batch===preset.value)"),'quick batch buttons can show stale selection after dropdown or Saved mix restore');
 ok(bob.includes("#job .bob-section-toggle[open] > summary strong"),'Job Plan open-state preservation is missing');
 ok(bob.includes("#equipment .bob-section-toggle[open] > summary strong"),'Equipment open-state preservation is missing');
 ok(bob.includes("const currentGrowth=()=>$('#growthSeg [data-growth].active')?.dataset.growth||'moderate'"),'global dirtiness source is missing');
