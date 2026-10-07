@@ -114,7 +114,20 @@ async function recordCheckoutPayment(session:StripeCheckoutSession) {
     SELECT ?,?,?,?,'paid',?,?
     WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)
   `).bind(crypto.randomUUID(),estimateId,paymentType,expectedAmount,session.id,now,session.id).run();
-  if (!inserted.meta.changes) return { ok:true, duplicate:true };
+  if (!inserted.meta.changes) {
+    const raced=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(session.id).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+    if(!raced||raced.estimateId!==estimateId||raced.type!==paymentType||raced.status!=="paid"||Number(raced.amountCents)!==expectedAmount)return {ok:false,reason:"payment_ledger_verification_failed"};
+    if(tipCents>0){
+      await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+        SELECT ?,?,'Tip',?,'paid',?,?
+        WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
+        .bind(crypto.randomUUID(),estimateId,tipCents,`${session.id}:tip`,now,`${session.id}:tip`).run();
+      const tipRow=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(`${session.id}:tip`).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+      if(!tipRow||tipRow.estimateId!==estimateId||tipRow.type!=="Tip"||tipRow.status!=="paid"||Number(tipRow.amountCents)!==tipCents)return {ok:false,reason:"tip_ledger_verification_failed"};
+    }
+    await env.DB.prepare("UPDATE payment_checkout_sessions SET status='paid' WHERE id=?").bind(session.id).run();
+    return {ok:true,duplicate:true};
+  }
 
   if (tipCents>0) {
     await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
