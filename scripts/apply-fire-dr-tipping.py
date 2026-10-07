@@ -105,6 +105,50 @@ replace_once(
     'estimate success insert race reconciliation',
 )
 
+replace_once(
+    estimate_page,
+    '''  const nextPaid=Number(refreshedPaid?.amount??0);''',
+    '''  if(tipCents>0){
+    await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
+      SELECT ?,?,'Tip',?,'paid',?,?
+      WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)`)
+      .bind(crypto.randomUUID(),estimate.id,tipCents,`${session.id}:tip`,now,`${session.id}:tip`).run();
+    const tipRow=await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(`${session.id}:tip`).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+    if(!tipRow||tipRow.estimateId!==estimate.id||tipRow.type!=="Tip"||tipRow.status!=="paid"||Number(tipRow.amountCents)!==tipCents)return false;
+  }
+  const refreshedPaid=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(estimate.id).first<{amount:number}>();
+  const nextPaid=Number(refreshedPaid?.amount??0);''',
+    'estimate success fresh tip reconciliation',
+)
+replace_once(
+    estimate_page,
+    '${currency(sessionAmount)} ${paymentType} received for ${estimate.service}.',
+    '${currency(expectedAmount)} ${paymentType} received for ${estimate.service}.',
+    'estimate payment notification excludes tip',
+)
+replace_once(
+    estimate_page,
+    '''  if(overpaymentCents>0){''',
+    '''  if(tipCents>0)followups.push(
+    env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)")
+      .bind(crypto.randomUUID(),"tip_received",`Tip received from ${estimate.customer}`,`${currency(tipCents)} tip received with the final card payment.`,estimate.customerId,estimate.id,now)
+  );
+  if(overpaymentCents>0){''',
+    'estimate tip notification',
+)
+replace_once(
+    estimate_page,
+    'SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status=\'paid\'',
+    'SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status=\'paid\' AND type NOT IN (\'Tip\',\'Tip Refund\')',
+    'estimate page paid total excludes tips',
+)
+replace_once(
+    estimate_page,
+    '<PayButton shareToken={token} paymentType="balance" label={`Pay ${currency(balance)} remaining balance securely`}/>',
+    '<PayButton shareToken={token} paymentType="balance" dueAmountCents={balance} tipBaseCents={billingTotalCents} label={`Pay ${currency(balance)} remaining balance securely`}/>',
+    'estimate page passes tip base separately',
+)
+
 notifications=repo_root/'fire-app-dr/app/api/notifications/route.ts'
 replace_once(
     notifications,
