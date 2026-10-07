@@ -18,6 +18,18 @@ new='''  const tabHistory = useRef<string[]>(["dashboard"]);
     if(history.at(-1)!==tab)history.push(tab);
     if(history.length>20)history.splice(0,history.length-20);
   }, [tab]);
+  useEffect(() => {
+    // Each top-level workspace opens at its beginning instead of inheriting
+    // the previous workspace's document scroll position.
+    const resetScroll = () => {
+      window.scrollTo({top:0,left:0,behavior:"auto"});
+      document.documentElement.scrollTop=0;
+      document.body.scrollTop=0;
+    };
+    resetScroll();
+    const frame=window.requestAnimationFrame(resetScroll);
+    return()=>window.cancelAnimationFrame(frame);
+  }, [tab]);
   const goHome = () => { setTab("dashboard"); setMobileMenu(false); };
   const goBack = () => {
     const history=tabHistory.current;
