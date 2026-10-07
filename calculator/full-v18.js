@@ -43,7 +43,7 @@
     await load('./v18-live-first-screen.js?v=6');
     await load('./v18-live-jobmath-parity.js?v=5');
     await load('./v18-live-jobmix-parity.js?v=1');
-    await load('./v18-live-planning-state.js?v=4');
+    await load('./v18-live-planning-state.js?v=5');
     await load('./v18-live-chemicals-parity.js?v=3');
     await load('./v18-live-index-parity.js?v=2');
     await load('./v18-live-guide-parity.js?v=4');
