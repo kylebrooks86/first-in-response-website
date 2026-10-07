@@ -127,6 +127,7 @@ ok(interactions.includes("window.__fireRestoringSavedMix=true")&&interactions.in
 ok(interactions.includes("calc.growth==='medium'?'moderate':calc.growth"),'portable backup restore can lose the Medium dirtiness setting');
 ok(portableBackup.includes("k?.startsWith('fire')"),'portable backup no longer captures Saved mixes storage');
 ok(portableBackup.includes("target:val('targetNum',prior.target||'1')"),'portable backup does not preserve the fine-tuned SH target');
+ok(portableBackup.includes("batchPreset=val('batchPreset'")&&portableBackup.includes("customBatch=val('customBatch'")&&portableBackup.includes("customUnit=val('customUnit'")&&portableBackup.includes("batch:String(batch)"),'portable backup does not preserve the active preset/custom batch');
 ok(interactions.includes("emit('targetNum',calc.target)")&&interactions.indexOf("emit('targetNum',calc.target)")>interactions.indexOf("s.dispatchEvent(new Event('change',{bubbles:true}))"),'portable restore can overwrite a custom SH target after restoring surface/dirtiness');
 const backupValidateAt=interactions.indexOf("const estimate=parsePayload('fireEstimateDraft')");
 const backupWriteAt=interactions.indexOf("Object.entries(data.data).forEach");
