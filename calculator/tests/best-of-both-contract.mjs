@@ -143,6 +143,8 @@ ok(interactions.includes("calcApplied=applied>calcBefore")&&interactions.include
 ok(interactions.includes("setTimeout(()=>hydrateImportedLiveState(false),500);setTimeout(()=>hydrateImportedLiveState(true),1400)"),'portable import helper hydration does not have a final consuming pass');
 ok(interactions.includes("window.__fireHydrateImportedLiveState=hydrateImportedLiveState"),'portable helper hydration is not available for coordinated final retry');
 ok(interactions.includes('let applied=0;')&&interactions.includes('applied++;return true')&&interactions.includes('const rigApplied=applied>rigBefore')&&interactions.includes('const xApplied=applied>xBefore'),'import helper success must count separately for rig and X-Jet');
+ok(interactions.includes("saveJSON('fireV18ImportedLiveFieldCalc',calc)")&&!interactions.includes('Object.assign(base,calc)'),'new backup must not inherit stale imported calculator helper values');
+ok(interactions.includes("Array.isArray(fields))throw new Error('Invalid estimate fields')"),'malformed estimate field arrays must be rejected');
 ok(interactions.includes("const priorHydrating=window.__fireHydratingBackup===true;window.__fireHydratingBackup=true")&&interactions.includes("window.__fireHydratingBackup=priorHydrating"),'portable hydration does not guard its synthetic events');
 ok(planningState.includes("if(restoring||window.__fireHydratingBackup===true)return"),'planning state can mistake backup hydration for a genuine user edit');
 ok(behavior.includes("if(window.__fireHydratingBackup!==true)autosave();updateSummaries()"),'global draft autosave can persist a partially hydrated backup state');
