@@ -135,6 +135,8 @@ ok(interactions.includes("calc.growth==='medium'?'moderate':calc.growth"),'porta
 ok(portableBackup.includes("k?.startsWith('fire')"),'portable backup no longer captures Saved mixes storage');
 ok(portableBackup.includes("target:val('targetNum',prior.target||'1')"),'portable backup does not preserve the fine-tuned SH target');
 ok(portableBackup.includes("batchPreset=val('batchPreset'")&&portableBackup.includes("customBatch=val('customBatch'")&&portableBackup.includes("customUnit=val('customUnit'")&&portableBackup.includes("batch:String(batch)"),'portable backup does not preserve the active preset/custom batch');
+ok(portableBackup.includes("fields.jobBatchSizeManual=planning.planContainerManual===true"),'portable backup does not preserve Job Plan container override provenance');
+ok(interactions.includes("if(fields.jobBatchSizeManual!==undefined)planning.planContainerManual="),'portable restore does not restore Job Plan container override provenance');
 ok(interactions.includes("emit('targetNum',calc.target)")&&interactions.indexOf("emit('targetNum',calc.target)")>interactions.indexOf("s.dispatchEvent(new Event('change',{bubbles:true}))"),'portable restore can overwrite a custom SH target after restoring surface/dirtiness');
 ok(interactions.includes("if(preset==='custom'&&calc.customBatch!==undefined)")&&interactions.includes("emit('customBatch',calc.customBatch)")&&interactions.includes("emit('customUnit',calc.customUnit||'gal')")&&interactions.includes("batch.dispatchEvent(new Event('change',{bubbles:true}))"),'portable restore cannot reproduce the active preset/custom batch');
 const backupValidateAt=interactions.indexOf("const estimate=parsePayload('fireEstimateDraft')");
