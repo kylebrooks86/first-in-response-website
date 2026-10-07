@@ -11,6 +11,7 @@
     "apply-fire-dr-live-evidence-overlay.py",
     "apply-fire-dr-mobile-shell-fix.py",
     "apply-fire-dr-mobile-back-history.py",
+    "apply-fire-dr-restore-relationship-integrity.py",
     "apply-fire-dr-parity-summary-sync.py",
     "apply-fire-dr-processing-fees.py",
     "apply-fire-dr-template-parity-fix.py",
