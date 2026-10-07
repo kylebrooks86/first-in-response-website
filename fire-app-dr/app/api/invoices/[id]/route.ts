@@ -122,8 +122,14 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
           WHERE e.id=? AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL)`)
           .bind(crypto.randomUUID(),"Review invoice overpayment",overpaymentBody,new Date().toISOString(),existing.estimateId)
       );
+    }else{
+      const resolvedAt=new Date().toISOString();
+      reconcileStatements.push(
+        env.DB.prepare("UPDATE notifications SET read_at=COALESCE(read_at,?),resolved_at=?,resolution_note='invoice_edit_reconciled' WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL")
+          .bind(resolvedAt,resolvedAt,existing.estimateId)
+      );
     }
     await env.DB.batch(reconcileStatements);
-    return Response.json({invoice:{id,subtotalCents,discountCents:appliedDiscountCents,discountType,discountValue,totalCents,status:reconciledStatus,dueAt,items:normalized},billingExceptionOpen:postOverpaymentCents>0});
+    return Response.json({invoice:{id,subtotalCents,discountCents:appliedDiscountCents,discountType,discountValue,totalCents,status:reconciledStatus,dueAt,items:normalized},paidCents:postPaidCents,billingExceptionOpen:postOverpaymentCents>0});
   }catch{return Response.json({error:"We couldn't update this invoice."},{status:500});}
 }
