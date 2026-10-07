@@ -52,9 +52,17 @@ replacements = [
     ),
 ]
 
-for old_fragment, new_fragment in replacements:
+for index, (old_fragment, new_fragment) in enumerate(replacements):
     if new_fragment in pay:
         continue
+    if index == 4:
+        final_payment_gate_present = (
+            'Number(row.pendingRefundCount??0)>0?<p className="pay-note">Refund processing.</p>' in pay
+            and 'Number(row.paymentOverageOpen??0)>0' in pay
+            and '!paymentReviewPending' in pay
+        )
+        if final_payment_gate_present:
+            continue
     if old_fragment not in pay:
         raise SystemExit(f'Expected customer-payment source fragment was not found; refusing to guess: {old_fragment[:90]}')
     pay = pay.replace(old_fragment, new_fragment, 1)
