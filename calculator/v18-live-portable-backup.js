@@ -19,6 +19,7 @@
   const estimateDraft=()=>{
     const prior=readJson('fireEstimateDraft',{}),fields={...(prior.fields||{})};
     for(const [liveId,drId] of Object.entries(liveEstimateMap))fields[liveId]=val(drId,fields[liveId]??defaultField(liveId));
+    const planning=readJson('fireV18LivePlanningState',{});fields.jobBatchSizeManual=planning.planContainerManual===true;
     return {savedAt:Date.now(),fields};
   };
   const fieldCalc=()=>{
