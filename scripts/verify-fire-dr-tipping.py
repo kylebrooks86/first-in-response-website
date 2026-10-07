@@ -69,19 +69,34 @@ for needle in [
 ]:
     if needle not in text['checkout']: errors.append(f'checkout missing tip invariant: {needle}')
 
-for name in ['webhook','estimate']:
-    for needle in [
-        "expectedAmount+tipCents!==sessionAmount",
-        "paymentType!==\"balance\"&&tipCents>0",
-        'const maxTipCents=Math.min(Number(estimate.totalCents),50000);',
-        'tip_outside_allowed_range',
-        "'Tip',?,'paid'",
-        'tip_ledger_verification_failed',
-        'Number(tipRow.amountCents)!==tipCents',
-        "type NOT IN ('Tip','Tip Refund')",
-        '"tip_received"',
-    ]:
-        if needle not in text[name]: errors.append(f'{name} missing tip accounting invariant: {needle}')
+for needle in [
+    "expectedAmount+tipCents!==sessionAmount",
+    "paymentType!==\"balance\"&&tipCents>0",
+    'const maxTipCents=Math.min(Number(estimate.totalCents),50000);',
+    'tip_outside_allowed_range',
+    "'Tip',?,'paid'",
+    'tip_ledger_verification_failed',
+    'payment_ledger_verification_failed',
+    'Number(tipRow.amountCents)!==tipCents',
+    'Number(prior.amountCents)!==expectedAmount',
+    'Number(raced.amountCents)!==expectedAmount',
+    "type NOT IN ('Tip','Tip Refund')",
+    '"tip_received"',
+]:
+    if needle not in text['webhook']: errors.append(f'webhook missing tip accounting invariant: {needle}')
+
+for needle in [
+    "expectedAmount+tipCents!==sessionAmount",
+    "paymentType!==\"balance\"&&tipCents>0",
+    'const maxTipCents=Math.min(Number(estimate.totalCents),50000);',
+    "'Tip',?,'paid'",
+    'Number(tipRow.amountCents)!==tipCents',
+    'Number(prior.amountCents)!==expectedAmount',
+    'Number(raced.amountCents)!==expectedAmount',
+    "type NOT IN ('Tip','Tip Refund')",
+    '"tip_received"',
+]:
+    if needle not in text['estimate']: errors.append(f'estimate success-page fallback missing tip accounting invariant: {needle}')
 
 for needle in [
     'CASE WHEN ?=\'Tip\' THEN \'Tip Refund\' ELSE \'Refund\' END',
