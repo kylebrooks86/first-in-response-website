@@ -89,6 +89,9 @@ checks = {
         '<Label>Payment method</Label>',
         '"Wave","Cash App","Venmo","Cash","Check","Card","ACH / bank","Other"',
         'Cash App {DEFAULT_CASH_APP_HANDLE} · Venmo {DEFAULT_VENMO_HANDLE}',
+        'const tabHistory = useRef<string[]>(["dashboard"]);',
+        'const historyBackInProgress = useRef(false);',
+        'if(history.length>1)history.pop();',
 
         # Job costs/profit and service-completion report already matched to LIVE.
         '<DialogTitle>Job costs and profit</DialogTitle>',
@@ -218,6 +221,9 @@ checks = {
         'String(existing.type)!==String(raw.type??"")',
         'String(existing.status)!==String(raw.status??"")',
         'const expectedLedgerType=String(payment.type??"")==="Tip"?"Tip Refund":"Refund";',
+        'const relationshipChecks=[',
+        'restoreAudit.relationshipIntegrityVerified=true;',
+        'relationshipIntegrityVerified:true',
     ],
     Path('app/api/invoices/[id]/route.ts'): [
         # Final-invoice edit race reconciliation.
