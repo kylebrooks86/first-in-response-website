@@ -471,14 +471,30 @@
     mini.addEventListener('click',()=>{$('.tab[data-view="tools"]')?.click();setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),100);});
     document.body.appendChild(mini);
 
-    const setMinutes=(n)=>{
+    let applyingSuggestedDwell=false;
+    const customPreset=()=>{
+      if(!preset)return null;
+      let opt=Array.from(preset.options).find(o=>o.dataset.bobCustomDwell==='1');
+      if(!opt){opt=document.createElement('option');opt.dataset.bobCustomDwell='1';opt.disabled=true;preset.appendChild(opt)}
+      opt.textContent='⏱️ Custom — '+min.value+' min';
+      opt.value='custom-'+min.value;
+      return opt;
+    };
+    const syncManualPreset=()=>{
+      if(!preset||applyingSuggestedDwell)return;
+      const opt=customPreset();if(opt)opt.selected=true;
+    };
+    const setMinutes=(n,{suggested=false}={})=>{
       if(!min)return;
+      applyingSuggestedDwell=suggested;
       min.value=Math.max(1,Math.min(120,Math.round(n)));
       fireInput(min);
-      $$('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value));
+      $('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value));
+      if(!suggested)syncManualPreset();
+      applyingSuggestedDwell=false;
     };
 
-    $$('#dwellQuick [data-dwell-min]').forEach(b=>b.addEventListener('click',()=>setMinutes(+b.dataset.dwellMin)));
+    $('#dwellQuick [data-dwell-min]').forEach(b=>b.addEventListener('click',()=>setMinutes(+b.dataset.dwellMin)));
     $('#timerMinus')?.addEventListener('click',()=>{
       if(typeof timerEndAt!=='undefined'&&timerEndAt){timerEndAt-=60000;timerTick();return;}
       setMinutes((+min.value||1)-1);
@@ -487,7 +503,7 @@
       if(typeof timerEndAt!=='undefined'&&timerEndAt){timerEndAt+=60000;timerTick();return;}
       setMinutes((+min.value||1)+1);
     });
-    min?.addEventListener('input',()=>$$('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value)));
+    min?.addEventListener('input',()=>{$('#dwellQuick [data-dwell-min]').forEach(b=>b.classList.toggle('active',+b.dataset.dwellMin===+min.value));syncManualPreset()});
 
     /* Keep suggested checks tied to the selected SH favorite without auto-starting. */
     const suggested={
@@ -506,8 +522,8 @@
         surface==='stucco'?'stucco':
         surface==='pavers'?'pavers':''
       ));
-      if(match)preset.value=match.value;
-      setMinutes(n);
+      if(match)match.selected=true;
+      setMinutes(n,{suggested:true});
     };
   }
 
