@@ -121,6 +121,8 @@ ok(bob.includes("group('🧭 Jobsite reference'")&&bob.includes("group('🧪 Rec
 ok(bob.includes("bob-tools-group[open]")&&bob.includes("wrap.open=openTitles.has(title)"),'Field Tools group open state is not preserved');
 ok(parityCore.includes("let planContainerManual=false")&&parityCore.includes("batch?.addEventListener('change',syncBatch)")&&parityCore.includes("if(planContainerManual||!plan||!batch)return"),'Job Plan container can drift from SH batch before a manual planning override');
 ok(parityCore.includes("localStorage.getItem('fireV18LivePlanningState')")&&parityCore.includes("saved.planContainer!==undefined"),'manual Job Plan container override does not survive reload');
+ok(planningState.includes("let restoring=false,userGeneration=0")&&planningState.includes("if(generation!==userGeneration)return false")&&planningState.includes("const onUserEdit=()=>{if(restoring)return;userGeneration++;save()}"),'delayed planning restores can overwrite a real user edit');
+ok(planningState.includes("const generation=userGeneration;restore(generation);setTimeout(()=>restore(generation),250);setTimeout(()=>restore(generation),900)"),'planning restore retries are not generation-guarded');
 ok(bob.includes("if(guide&&safety&&safety.parentElement===tools)guide.appendChild(safety)"),'Field Safety Card is duplicated inside Field Tools instead of Safety Guide');
 ok(interactions.includes("const prefixes=['fireV18','fireFieldCalculator','fireCalcTheme']"),'full offline backup no longer includes fireV18 Saved mixes storage');
 ok(interactions.includes("const gal=parseFloat(d.batch)")&&interactions.includes("batch.value='custom'")&&interactions.includes("custom.value=String(gal)"),'mix history reuse cannot restore normalized or custom batch sizes');
