@@ -71,7 +71,7 @@ for needle in [
 
 for needle in [
     "expectedAmount+tipCents!==sessionAmount",
-    "paymentType!==\"balance\"&&tipCents>0",
+    'paymentType !== "balance" && tipCents>0',
     'const maxTipCents=Math.min(Number(estimate.totalCents),50000);',
     'tip_outside_allowed_range',
     "'Tip',?,'paid'",
@@ -81,7 +81,7 @@ for needle in [
     'Number(prior.amountCents)!==expectedAmount',
     'Number(raced.amountCents)!==expectedAmount',
     "type NOT IN ('Tip','Tip Refund')",
-    '"tip_received"',
+    "tip_received",
 ]:
     if needle not in text['webhook']: errors.append(f'webhook missing tip accounting invariant: {needle}')
 
