@@ -86,8 +86,9 @@ async function recordCheckoutPayment(session:StripeCheckoutSession) {
     return { ok:false, reason:"untracked_or_stale_checkout" };
   }
 
-  const prior = await env.DB.prepare("SELECT id FROM payments WHERE provider_id=? LIMIT 1").bind(session.id).first();
+  const prior = await env.DB.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payments WHERE provider_id=? LIMIT 1").bind(session.id).first<{estimateId:string;type:string;amountCents:number;status:string}>();
   if (prior) {
+    if(prior.estimateId!==estimateId||prior.type!==paymentType||prior.status!=="paid"||Number(prior.amountCents)!==expectedAmount)return {ok:false,reason:"payment_ledger_verification_failed"};
     if (tipCents>0) {
       await env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
         SELECT ?,?,'Tip',?,'paid',?,?
