@@ -542,6 +542,21 @@ export async function POST(request: Request) {
       GROUP BY type,estimate_id HAVING COUNT(*)>1 LIMIT 1`).first<{type:string;estimateId:string;count:number}>();
     if(lifecycleDuplicate)return postWriteFailure(`Restore verification failed: duplicate lifecycle notification remains for ${lifecycleDuplicate.type}/${lifecycleDuplicate.estimateId}.`);
     restoreAudit.lifecycleNotificationUniquenessVerified=true;
+
+    const relationshipChecks=[
+      ["invoice",`SELECT inv.id FROM invoices inv LEFT JOIN estimates e ON e.id=inv.estimate_id LEFT JOIN customers c ON c.id=inv.customer_id WHERE e.id IS NULL OR c.id IS NULL LIMIT 1`],
+      ["payment",`SELECT p.id FROM payments p LEFT JOIN estimates e ON e.id=p.estimate_id WHERE e.id IS NULL LIMIT 1`],
+      ["refund",`SELECT r.id FROM payment_refunds r LEFT JOIN payments p ON p.id=r.payment_id LEFT JOIN estimates e ON e.id=r.estimate_id WHERE p.id IS NULL OR e.id IS NULL OR p.estimate_id<>r.estimate_id LIMIT 1`],
+      ["checkout",`SELECT pcs.id FROM payment_checkout_sessions pcs LEFT JOIN estimates e ON e.id=pcs.estimate_id WHERE e.id IS NULL LIMIT 1`],
+      ["invoice item",`SELECT ii.id FROM invoice_items ii LEFT JOIN invoices inv ON inv.id=ii.invoice_id WHERE inv.id IS NULL LIMIT 1`],
+      ["invoice revision",`SELECT ir.id FROM invoice_revisions ir LEFT JOIN invoices inv ON inv.id=ir.invoice_id WHERE inv.id IS NULL LIMIT 1`],
+      ["job report",`SELECT jr.id FROM job_reports jr LEFT JOIN estimates e ON e.id=jr.estimate_id LEFT JOIN customers c ON c.id=jr.customer_id WHERE e.id IS NULL OR c.id IS NULL OR e.customer_id<>jr.customer_id LIMIT 1`],
+    ] as const;
+    for(const [label,sql] of relationshipChecks){
+      const orphan=await env.DB.prepare(sql).first<{id:string}>();
+      if(orphan)return postWriteFailure(`Restore verification failed: orphaned ${label} relationship remains for ${orphan.id}.`);
+    }
+    restoreAudit.relationshipIntegrityVerified=true;
     restoreAudit.phase="complete";
 
     const photoMetadataSkipped = Array.isArray(backupTables.customer_photos) ? backupTables.customer_photos.length : 0;
@@ -549,6 +564,7 @@ export async function POST(request: Request) {
       restored: insertedRecords,
       verifiedRecords,
       lifecycleNotificationUniquenessVerified:true,
+      relationshipIntegrityVerified:true,
       duplicatesPreserved: Math.max(0,verificationPlans.length-insertedRecords),
       legacyLifecycleNotificationsSkipped:lifecycleNormalization.skipped,
       photoMetadataSkipped,
