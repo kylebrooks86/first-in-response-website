@@ -632,8 +632,8 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
       const payloadItems=items.map((item)=>({id:item.id,name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:Math.round(item.quantity*item.unitRateCents)}));
       if(dueMode==="date"&&!dueDate){setError("Choose an invoice due date or select Due on receipt.");setSaving(false);return;}
       const response=await fetch(`/api/invoices/${estimate.invoiceId}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({items:payloadItems,discountType:discountMode,discountValue:Math.round((Number(discountValue)||0)*100),dueAt:dueMode==="receipt"?"receipt":dueDate})});
-      const result=await response.json() as {invoice?:{totalCents?:number};error?:string};if(!response.ok||!result.invoice)throw new Error(result.error||"Invoice changes could not be saved.");
-      onSaved(Number(result.invoice.totalCents??total));setOpen(false);
+      const result=await response.json() as {invoice?:{totalCents?:number};paidCents?:number;billingExceptionOpen?:boolean;error?:string};if(!response.ok||!result.invoice)throw new Error(result.error||"Invoice changes could not be saved.");
+      onSaved(Number(result.invoice.totalCents??total),Number(result.paidCents??estimate.paidCents),Boolean(result.billingExceptionOpen));setOpen(false);
     }catch(saveError){setError(saveError instanceof Error?saveError.message:"Invoice changes could not be saved.");}finally{setSaving(false);}
   };
   return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><button type="button"><PenLine/> Edit invoice</button></DialogTrigger><DialogContent className="estimate-edit-dialog sm:max-w-[650px]"><DialogHeader><DialogTitle>Edit final invoice</DialogTitle></DialogHeader>
