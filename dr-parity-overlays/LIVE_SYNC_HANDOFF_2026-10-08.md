@@ -49,3 +49,19 @@ Static code guards in `scripts/verify-fire-dr-refund-stripe-workflows.py` check 
 
 ## Deferred user-facing polish
 DR customer invoice has clickable Cash App `$FIREExteriors` and Venmo `@FirstInResponseExteriors` cards; owner payment history displays amounts, shortened Stripe references, and Copy. These are observed DR improvements but not automatically approved for LIVE promotion. Audit LIVE and request scope approval before treating them as parity requirements.
+
+## Owner standing requirement — bidirectional exact parity (Oct 8, 2026)
+The LIVE and independent Doomsday FIRE Business Apps must look and function identically, with every subsequent feature addition, bug fix, styling adjustment, payment/refund change, invoice layout update, and customer workflow change carried to BOTH apps as a coordinated release. Separate data stores, secrets, Stripe modes, endpoint URLs, backups, and infrastructure must remain isolated for disaster recovery; identical behavior does NOT mean sharing live customer/payment data.
+
+Workflow for EVERY change:
+1. Create a single change specification covering BOTH apps, including desktop and iPhone, light and dark themes, customer and owner interfaces, invoice and payment surfaces, and data/Stripe behavior.
+2. Identify both versions' existing implementation and explicitly track any mismatch as OPEN; never silently assume that a feature present in one is present in the other.
+3. Implement in separate isolated staging candidates. Match layouts, wording, interactions, calculations, migrations, error states and refund/tip handling.
+4. Run automated behavior/regression tests against BOTH, and manual same-device side-by-side screenshot/function review where applicable.
+5. Preserve independent database/Stripe configurations; ensure customer/payment histories and existing links survive each migration.
+6. Block the declaration COMPLETE / IDENTICAL until BOTH versions are verified and the two deployment plans, backups and rollbacks are ready. Do not mark registry entries synced without its required evidence.
+7. Seek owner approval before either production change; coordinate rollout to minimize version skew and reopen parity tracking if one deployment fails or differs.
+
+Most recent Work report shared by owner: LIVE local candidate audited; Customer Command Center and Edit Existing Customer already implemented; four tipping/reconciliation gaps fixed and local suites passed. That candidate is NOT published and LIVE per-payment Stripe refund API/webhook parity was still listed as missing in that report. Owner subsequently said a follow-up Work task was done, but its exact code changes, sandbox and iPhone test outcomes and deployment state are NOT yet independently available here. Do not assume refund parity achieved or LIVE published.
+
+Current status of registry remains PENDING_LIVE_SYNC until same-device rendered and functional verification is provided; this standing requirement expands the change scope to both directions, not just DR -> LIVE.
