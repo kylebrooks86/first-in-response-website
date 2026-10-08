@@ -305,6 +305,20 @@ for needle in [
     if needle not in invoice_text:
         errors.append(f'customer invoice missing payment-availability explanation: {needle}')
 
+# Customer-facing manual payment cards must retain dynamic handles and stay
+# inside the completed-job, billing-safe invoice gate.
+for needle in [
+    'Other Payment Options',
+    'You can also pay manually using Cash App or Venmo.',
+    '{handles.cashApp}',
+    '{handles.venmo}',
+    'grid grid-cols-1 gap-3 sm:grid-cols-2',
+    'aria-label="Other payment options"',
+    'footer?.body||templateByKey("invoiceFooter").body',
+]:
+    if needle not in text['invoice']:
+        errors.append(f'customer invoice missing approved manual payment design: {needle}')
+
 # Any invoice/balance SUM over payments that lacks the Tip exclusion is suspect.
 billing_files=['dashboard','estimates','estimate_id','invoices','invoice_id','invoice','pay','estimate','customers','checkout','webhook','refund','payments','notifications']
 for name in billing_files:
