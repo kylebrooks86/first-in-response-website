@@ -366,14 +366,14 @@ replace_once(
         <h2 className="mb-1 text-lg font-bold tracking-tight text-slate-900">Other Payment Options</h2>
         <p className="mb-4 text-sm leading-relaxed text-slate-600">You can also pay manually using Cash App or Venmo. Please include your name in the payment note.</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="flex min-w-0 items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3">
+          <a href="https://cash.app/$FIREExteriors" target="_blank" rel="noopener noreferrer" aria-label="Open Cash App to pay $FIREExteriors" className="flex min-w-0 items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 transition hover:border-emerald-400 hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500">
             <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-3xl font-extrabold text-white">$</span>
-            <div className="min-w-0"><strong className="block text-base text-slate-900">Cash App</strong><span className="block break-all text-sm text-slate-700">{handles.cashApp}</span></div>
-          </div>
-          <div className="flex min-w-0 items-center gap-3 rounded-xl border border-blue-200 bg-blue-50/80 p-3">
+            <div className="min-w-0"><strong className="block text-base text-slate-900">Cash App ↗</strong><span className="block break-all text-sm text-slate-700">{handles.cashApp}</span></div>
+          </a>
+          <a href="https://venmo.com/u/FirstInResponseExteriors" target="_blank" rel="noopener noreferrer" aria-label="Open Venmo to pay @FirstInResponseExteriors" className="flex min-w-0 items-center gap-3 rounded-xl border border-blue-200 bg-blue-50/80 p-3 transition hover:border-blue-400 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
             <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-2xl font-extrabold italic text-white">V</span>
-            <div className="min-w-0"><strong className="block text-base text-slate-900">Venmo</strong><span className="block break-all text-sm text-slate-700">{handles.venmo}</span></div>
-          </div>
+            <div className="min-w-0"><strong className="block text-base text-slate-900">Venmo ↗</strong><span className="block break-all text-sm text-slate-700">{handles.venmo}</span></div>
+          </a>
         </div>
       </section>
     </div>}''',
