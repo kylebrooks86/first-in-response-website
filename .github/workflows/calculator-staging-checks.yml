@@ -34,6 +34,15 @@ jobs:
         run: node calculator/tests/backup-hydration-runtime.mjs
       - name: Imported helper simulated runtime
         run: node calculator/tests/imported-helper-runtime.mjs
+      - name: Package isolated staging candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-calculator-best-of-both-staging
+          path: |
+            calculator/
+            assets/recent-work/fire-logo-direct.png
+          retention-days: 14
+          if-no-files-found: error
       - name: Release status
         run: |
           echo "Code-level staging checks complete."
