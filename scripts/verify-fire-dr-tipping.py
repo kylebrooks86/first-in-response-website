@@ -195,6 +195,9 @@ if '<strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund"
     errors.append('customer payment history must label Tip and Tip refund explicitly')
 if '<span className="ml-2 inline-block font-bold tabular-nums text-slate-100">{money(payment.amountCents)}</span>' not in text['owner_dashboard']:
     errors.append('customer payment history must display payment and tip amounts directly')
+for needle in ['Ref …{payment.reference.slice(-12)}', 'aria-label="Copy full payment reference"', 'navigator.clipboard.writeText(payment.reference||"")']:
+    if needle not in text['owner_dashboard']:
+        errors.append(f'customer payment history missing mobile-safe reference control: {needle}')
 
 try:
     registry=json.loads(text['forward_sync'])
