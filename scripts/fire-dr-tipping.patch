@@ -681,7 +681,7 @@ diff --git a/fire-app-dr/app/pay/[id]/page.tsx b/fire-app-dr/app/pay/[id]/page.t
 diff --git a/fire-app-dr/app/pay/[id]/pay-button.tsx b/fire-app-dr/app/pay/[id]/pay-button.tsx
 --- a/fire-app-dr/app/pay/[id]/pay-button.tsx
 +++ b/fire-app-dr/app/pay/[id]/pay-button.tsx
-@@ -1,20 +1,87 @@
+@@ -1,20 +1,90 @@
  "use client";
  
 -import { useState } from "react";
