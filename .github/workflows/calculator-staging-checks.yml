@@ -78,6 +78,15 @@ jobs:
           FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
           FIRE_VISUAL_OUT: calculator/visual-parity
         run: node calculator/tests/offline-dr-acceptance.mjs
+      - name: External commit-pinned staging smoke
+        env:
+          FIRE_EXTERNAL_STAGING_URL: https://raw.githack.com/${{ github.repository }}/${{ github.sha }}/calculator/
+        run: node calculator/tests/staging-deployment-smoke.mjs "$FIRE_EXTERNAL_STAGING_URL"
+      - name: External mobile browser acceptance
+        env:
+          FIRE_STAGING_URL: https://raw.githack.com/${{ github.repository }}/${{ github.sha }}/calculator/
+          FIRE_VISUAL_OUT: calculator/visual-parity-external
+        run: node calculator/tests/offline-dr-acceptance.mjs
       - name: Package isolated staging candidate
         uses: actions/upload-artifact@v4
         with:
