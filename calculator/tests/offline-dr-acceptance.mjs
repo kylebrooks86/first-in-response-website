@@ -124,6 +124,9 @@ try{
   await offlineJob.locator('details').evaluateAll(ds=>ds.forEach(d=>d.open=true));
   await openRoute(page,'Field Tools',['#view-tools','#tools']);
   await openRoute(page,'Field Guide',['#view-guide','#guide']);
+  // Planning-state hydration is intentionally deferred after the shared core loads.
+  // Wait for its persisted area to reach the DOM before judging offline persistence.
+  await page.waitForFunction(()=>document.getElementById('area')?.value==='2500',{timeout:6000});
   const restored=await state(page);assertState(restored);
 
   await openRoute(page,'Field Tools',['#view-tools','#tools']);
