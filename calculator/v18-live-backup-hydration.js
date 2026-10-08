@@ -34,7 +34,7 @@
     if(!pending())return false;
     const raw=parse('fireEstimateDraft'),fields=raw?.fields;
     let applied=0;
-    if(fields&&typeof fields==='object'){
+    if(fields&&typeof fields==='object'&&!Array.isArray(fields)){
       persistCustomerName(fields);
       for(const [live,dr] of Object.entries(map))if(Object.prototype.hasOwnProperty.call(fields,live)&&emit(dr,fields[live]))applied++;
       hydrateInventory();
