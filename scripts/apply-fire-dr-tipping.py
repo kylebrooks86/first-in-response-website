@@ -334,6 +334,15 @@ replace_once(
     'customer payment history labels tips explicitly',
 )
 
+# Display the recorded amount alongside each customer payment-history label.
+# This is read-only presentation; no payment, tip, refund, or balance math changes.
+replace_once(
+    dashboard,
+    '<strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":payment.amountCents<0?"Refund":`${paymentTypeLabel(payment.type)} payment`}</strong>',
+    '<strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":payment.amountCents<0?"Refund":`${paymentTypeLabel(payment.type)} payment`}</strong><span className="ml-2 inline-block font-bold tabular-nums text-slate-100">{money(payment.amountCents)}</span>',
+    'customer payment history displays each payment and tip amount',
+)
+
 # Give the owner the same one-tap tip choices used on the customer checkout.
 # This remains inside the existing final-payment-only gate; recording a tip
 # still requires the explicit Save payment action.
