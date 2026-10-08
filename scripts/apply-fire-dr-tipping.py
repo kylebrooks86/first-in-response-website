@@ -42,28 +42,7 @@ else:
             raise SystemExit('DR_TIPPING_APPLY=FAIL: combined-source tipping verification failed.\n'+detail)
         print('DR_TIPPING_APPLY=PASS')
         print('Optional final-payment tipping behavior already satisfied in the combined post-overlay source.')
-        # Give the owner the same one-tap tip choices used on the customer checkout.
-# This remains inside the existing final-payment-only gate; recording a tip
-# still requires the explicit Save payment action.
-replace_once(
-    dashboard,
-    '<div><Label>Amount applied to invoice</Label><Input value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<div><Label>Tip received (optional)</Label><Input value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" placeholder="0.00"/><small className="payment-handle-note">Recorded separately and does not change the invoice balance.</small></div>}',
-    '<div><Label>Amount applied to invoice</Label><Input value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<div><Label>Tip received (optional)</Label><div className="grid grid-cols-5 gap-1.5" aria-label="Optional tip choices">{[0,5,10,15].map((percent)=><button key={percent} type="button" aria-pressed={Number(tip||0)===Math.round(normalized.totalCents*percent/100)/100} className={`rounded-lg border px-1 py-2 text-sm ${Number(tip||0)===Math.round(normalized.totalCents*percent/100)/100?"border-red-500 bg-red-500/15":"border-slate-600"}`} onClick={()=>setTip((Math.round(normalized.totalCents*percent/100)/100).toFixed(2))}>{percent===0?"No tip":`${percent}%`}</button>)}<button type="button" className="rounded-lg border border-slate-600 px-1 py-2 text-sm" onClick={()=>document.getElementById("fire-manual-tip")?.focus()}>Custom</button></div><Input id="fire-manual-tip" aria-label="Custom tip amount" value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" placeholder="0.00"/><small className="payment-handle-note">Recorded separately and does not change the invoice balance.</small></div>}',
-    'manual final-payment tip presets',
-)
-
-# Make the absent final card-payment button understandable to customers.
-# Do not weaken the completed-job, Stripe-ready or billing-review gates.
-invoice_page=repo_root/'fire-app-dr/app/invoice/[token]/page.tsx'
-replace_once(
-    invoice_page,
-    '{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" dueAmountCents={balance} tipBaseCents={totalCents} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}',
-    '{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" dueAmountCents={balance} tipBaseCents={totalCents} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus!=="completed"&&<p className="pay-note">Secure final-balance card payment becomes available after the job is marked completed.</p>}{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&!paymentsReady&&<p className="pay-note">Online card payment is currently unavailable. Please contact First In Response Exteriors to arrange payment.</p>}',
-    'explain final card-payment availability on customer invoice',
-)
-
-print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
-        raise SystemExit(0)
+                raise SystemExit(0)
 
 
 def replace_once(path: Path, old: str, new: str, label: str):
@@ -354,4 +333,25 @@ replace_once(
     'customer payment history labels tips explicitly',
 )
 
+# Give the owner the same one-tap tip choices used on the customer checkout.
+# This remains inside the existing final-payment-only gate; recording a tip
+# still requires the explicit Save payment action.
+replace_once(
+    dashboard,
+    '<div><Label>Amount applied to invoice</Label><Input value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<div><Label>Tip received (optional)</Label><Input value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" placeholder="0.00"/><small className="payment-handle-note">Recorded separately and does not change the invoice balance.</small></div>}',
+    '<div><Label>Amount applied to invoice</Label><Input value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<div><Label>Tip received (optional)</Label><div className="grid grid-cols-5 gap-1.5" aria-label="Optional tip choices">{[0,5,10,15].map((percent)=><button key={percent} type="button" aria-pressed={Number(tip||0)===Math.round(normalized.totalCents*percent/100)/100} className={`rounded-lg border px-1 py-2 text-sm ${Number(tip||0)===Math.round(normalized.totalCents*percent/100)/100?"border-red-500 bg-red-500/15":"border-slate-600"}`} onClick={()=>setTip((Math.round(normalized.totalCents*percent/100)/100).toFixed(2))}>{percent===0?"No tip":`${percent}%`}</button>)}<button type="button" className="rounded-lg border border-slate-600 px-1 py-2 text-sm" onClick={()=>document.getElementById("fire-manual-tip")?.focus()}>Custom</button></div><Input id="fire-manual-tip" aria-label="Custom tip amount" value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" placeholder="0.00"/><small className="payment-handle-note">Recorded separately and does not change the invoice balance.</small></div>}',
+    'manual final-payment tip presets',
+)
+
+# Make the absent final card-payment button understandable to customers.
+# Do not weaken the completed-job, Stripe-ready or billing-review gates.
+invoice_page=repo_root/'fire-app-dr/app/invoice/[token]/page.tsx'
+replace_once(
+    invoice_page,
+    '{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" dueAmountCents={balance} tipBaseCents={totalCents} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}',
+    '{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" dueAmountCents={balance} tipBaseCents={totalCents} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus!=="completed"&&<p className="pay-note">Secure final-balance card payment becomes available after the job is marked completed.</p>}{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&!paymentsReady&&<p className="pay-note">Online card payment is currently unavailable. Please contact First In Response Exteriors to arrange payment.</p>}',
+    'explain final card-payment availability on customer invoice',
+)
+
+print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
 print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
