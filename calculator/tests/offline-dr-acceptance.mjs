@@ -106,6 +106,13 @@ try{
   if(offlineState.online)throw new Error('Browser did not enter offline mode');
   if(!offlineState.controller)throw new Error('Offline reload lost service-worker control');
 
+  // Capture persisted planning state immediately after offline boot, before any route
+  // switches or UI actions can potentially overwrite it.
+  const offlinePlanningBoot=await page.evaluate(()=>({
+    area:document.getElementById('area')?.value??null,
+    planning:localStorage.getItem('fireV18LivePlanningState')?.slice(0,350)??null
+  }));
+  console.log('OFFLINE PLANNING BOOT',JSON.stringify(offlinePlanningBoot));
   await openRoute(page,'SH Mix',['#view-mix','#mix']);
   const target=page.locator('#targetNum');
   if(!await target.count())throw new Error('SH Mix target field missing offline');
@@ -135,7 +142,7 @@ try{
         planning:read('fireV18LivePlanningState')?.slice(0,500)??null,
         parity:read('fireV18ParityDraft')?.slice(0,250)??null,
         coreReady:!!window.__fireV18CoreReady,
-        loaderReady:!!window.__fireV18ModuleLoader};
+        loaderReady:!!window.__fireV18ModuleLoader,offlinePlanningBoot};
     });
     throw new Error('Offline planning hydration timeout: '+JSON.stringify(details),{cause:error});
   }
