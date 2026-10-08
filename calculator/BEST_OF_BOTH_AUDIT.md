@@ -150,10 +150,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=67`
+- `full-v18.js?v=68`
 - `best-of-both.js?v=34`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-198`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-199`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
@@ -221,3 +221,5 @@ Until then, keep status **STAGING CANDIDATE ONLY — NOT SYNCHRONIZED**.
 - Cache 197: backup hydration completion event now fires only after migration marker removal is verified; storage failure leaves migration pending rather than falsely notifying preset reconciliation. Exact-source contract passes (9 presets, 38 assets, 27 cached modules); browser runtime not yet tested.
 
 - Cache 198: live estimate hydration now rejects array-shaped `fields`, matching migration validation. Exact-source contract passes (9 presets, 38 assets, 27 cached modules). Browser runtime remains untested.
+
+- Cache 199: shared-core-ready event now schedules a final backup migration retry after initialization, rather than only a non-final retry. Exact-source contract passes (9 presets, 38 assets, 27 cached modules). Real browser restore still untested.
