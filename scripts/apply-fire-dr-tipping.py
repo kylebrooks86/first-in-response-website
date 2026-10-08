@@ -52,6 +52,16 @@ replace_once(
     'manual final-payment tip presets',
 )
 
+# Make the absent final card-payment button understandable to customers.
+# Do not weaken the completed-job, Stripe-ready or billing-review gates.
+invoice_page=repo_root/'fire-app-dr/app/invoice/[token]/page.tsx'
+replace_once(
+    invoice_page,
+    '{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" dueAmountCents={balance} tipBaseCents={totalCents} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}',
+    '{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" dueAmountCents={balance} tipBaseCents={totalCents} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus!=="completed"&&<p className="pay-note">Secure final-balance card payment becomes available after the job is marked completed.</p>}{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&!paymentsReady&&<p className="pay-note">Online card payment is currently unavailable. Please contact First In Response Exteriors to arrange payment.</p>}',
+    'explain final card-payment availability on customer invoice',
+)
+
 print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
         raise SystemExit(0)
 
