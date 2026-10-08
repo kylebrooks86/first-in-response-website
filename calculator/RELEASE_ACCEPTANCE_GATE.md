@@ -21,6 +21,8 @@ The branch contains `.github/workflows/calculator-staging-checks.yml`. It is sco
 - [x] Isolated served-build smoke test PASS inside GitHub Actions using a local HTTP staging server: generation 202 identity verified and 43 unique cached HTTP assets returned successfully.
 - [ ] Repeat the same smoke test against a **separate externally reachable staging URL** before physical iPhone acceptance. The Actions-local server proves served-build integrity but is not a persistent phone-accessible staging deployment. Two GitHub-file proxy candidates were evaluated and rejected because both returned HTTP 429 for candidate assets/service worker during CI; neither is approved as a release host.
 
+**Latest verified CI:** [run #37715041461](https://github.com/kylebrooks86/first-in-response-website/actions/runs/37715041461) at commit `bdf98b78763f08cf3dc3ef675556d7cc0e4d0cd3` **PASS**. Playwright Chromium browser acceptance confirmed service-worker-controlled offline reload, seven offline routes, changed SH Mix cost output, Job Plan area 2500 restoration, portable backup payload, and offline close/reopen persistence. The earlier area mismatch was resolved by waiting for the existing deferred hydration before asserting; calculator runtime was not changed. This is an automated desktop Chromium mobile-viewport simulation, **not physical iPhone Safari acceptance**. The currently configured workflow does **not** run external public-host acceptance or deploy a preview; its HTTP smoke is localhost-only.
+
 ## Stage B: staging identity — required before iPhone testing
 
 ### Automated mobile-browser acceptance now verified
