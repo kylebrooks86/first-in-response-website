@@ -23,6 +23,8 @@ checks = {
         '["payments", "Payments", CreditCard]',
         '["settings", "Templates", Settings]',
         'className="mobile-primary-actions"',
+        'aria-label="Open account settings"',
+        'setTab("settings"); setMobileMenu(false);',
         'className="mobile-back-button"',
         'className={`mobile-home-button ${tab==="dashboard"?"active":""}`}',
         'className="mobile-theme-button"',
@@ -130,10 +132,8 @@ checks = {
         'Refund processing',
     ],
     Path('app/customer-portal-nav.tsx'): [
-        'className="portal-floating-nav"',
-        'window.history.back()',
-        '<span>Back</span>',
-        '<span>Home</span>',
+        'export function CustomerPortalNav()',
+        'return null;',
     ],
     Path('app/api/estimates/[id]/route.ts'): [
         'if(!existing.acceptedAt||!existing.signedAt)',
@@ -218,5 +218,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_LIVE_PARITY_OVERLAY_GUARD=PASS')
-print('Protected: crisp fixed opaque standalone top shell with explicit search row and content clearance; owner nav/mobile controls/theme; estimate pricing/discount/minimum/deposit rules; LIVE-captured customer Payments/Invoices/Photos states; scheduling/deposit behavior; completion-to-invoice transition; Templates; customer estimate/payment/invoice portals including pending-refund and unresolved-overpayment payment suppression; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; portal navigation.')
+print('Protected: crisp fixed opaque standalone top shell with explicit search row and content clearance; owner nav/mobile controls/theme; estimate pricing/discount/minimum/deposit rules; LIVE-captured customer Payments/Invoices/Photos states; scheduling/deposit behavior; completion-to-invoice transition; Templates; customer estimate/payment/invoice portals including pending-refund and unresolved-overpayment payment suppression; accepted-estimate freeze; invoice editing/revisions; payment/refund safeguards; review suppression; customer portals without owner-only navigation.')
 print('General scroll/smoothness behavior is intentionally not modified or pinned by this guard.')
