@@ -1,0 +1,41 @@
+name: FIRE Calculator Staging Checks
+
+on:
+  push:
+    branches:
+      - fire-calculator-best-of-both
+    paths:
+      - 'calculator/**'
+      - '.github/workflows/calculator-staging-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  calculator-staging:
+    name: Validate isolated calculator staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          find calculator -maxdepth 1 -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+          find calculator/tests -maxdepth 1 -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check
+      - name: Best-of-both contract and offline manifest
+        run: node calculator/tests/best-of-both-contract.mjs
+      - name: Backup hydration simulated runtime
+        run: node calculator/tests/backup-hydration-runtime.mjs
+      - name: Imported helper simulated runtime
+        run: node calculator/tests/imported-helper-runtime.mjs
+      - name: Release status
+        run: |
+          echo "Code-level staging checks complete."
+          echo "Real-device acceptance and deployment verification are still required."
+          echo "STAGING CANDIDATE ONLY — NOT SYNCHRONIZED."
