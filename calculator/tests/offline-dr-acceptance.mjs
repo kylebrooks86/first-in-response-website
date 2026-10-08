@@ -105,7 +105,10 @@ try{
   const mixNeeded=await byId(page,'mixNeeded');
   const originalMix=(await mixNeeded.innerText()).trim();
   await setDom(await byId(page,'coverage'),200);
-  await page.waitForFunction(before=>document.querySelector('#mixNeeded')?.textContent?.trim()!==before,originalMix,{timeout:5000});
+  await page.waitForFunction(before=>document.querySelector('#mixNeeded')?.textContent?.trim()!==before,originalMix,{timeout:5000}).catch(async error=>{
+    const diagnostic=await page.evaluate(()=>({area:document.querySelector('#area')?.value,coverage:document.querySelector('#coverage')?.value,reserve:document.querySelector('#reserve')?.value,needed:document.querySelector('#mixNeeded')?.textContent,jobVisible:!!document.querySelector('#job')?.getClientRects().length,coreReady:!!window.__fireV18CoreReady}));
+    throw new Error('Job Plan coverage recalculation diagnostic: '+JSON.stringify(diagnostic),{cause:error});
+  });
   const adjustedMix=(await mixNeeded.innerText()).trim();
   await setDom(await byId(page,'reserve'),25);
   await page.waitForFunction(before=>document.querySelector('#mixNeeded')?.textContent?.trim()!==before,adjustedMix,{timeout:5000});
