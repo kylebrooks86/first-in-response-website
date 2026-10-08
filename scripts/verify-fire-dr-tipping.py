@@ -193,6 +193,8 @@ if 'const customerPaidTotal=Math.max(0,safeSignedSumCents(customerPayments.filte
     errors.append('customer profile Paid total must exclude Tip / Tip Refund rows')
 if '<strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":payment.amountCents<0?"Refund":`${paymentTypeLabel(payment.type)} payment`}</strong>' not in text['owner_dashboard']:
     errors.append('customer payment history must label Tip and Tip refund explicitly')
+if '<span className="ml-2 inline-block font-bold tabular-nums text-slate-100">{money(payment.amountCents)}</span>' not in text['owner_dashboard']:
+    errors.append('customer payment history must display payment and tip amounts directly')
 
 try:
     registry=json.loads(text['forward_sync'])
