@@ -425,3 +425,13 @@ body.fire-bob:not(.dark) #mix .metric strong,
 body.fire-bob:not(.dark) #mix .accord summary{color:#14212d!important}
 body.fire-bob:not(.dark) #mix .metric small,
 body.fire-bob:not(.dark) #mix .metric em{color:#526475!important}
+
+/* Single, crisp theme glyph: hide platform-dependent text glyph rendering. */
+body.fire-bob #themeBtn{
+  font-size:0!important;line-height:0!important;
+  background-repeat:no-repeat!important;background-position:center!important;background-size:23px 23px!important;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2317232c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20.985 12.486A9 9 0 0 1 11.514 3.015 9 9 0 1 0 20.985 12.486Z'/%3E%3C/svg%3E")!important
+}
+body.fire-bob.dark #themeBtn{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42'/%3E%3C/svg%3E")!important
+}
