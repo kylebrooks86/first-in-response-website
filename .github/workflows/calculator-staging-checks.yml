@@ -80,11 +80,11 @@ jobs:
         run: node calculator/tests/offline-dr-acceptance.mjs
       - name: External commit-pinned staging smoke
         env:
-          FIRE_EXTERNAL_STAGING_URL: https://raw.githack.com/${{ github.repository }}/${{ github.sha }}/calculator/
+          FIRE_EXTERNAL_STAGING_URL: https://rawcdn.githack.com/${{ github.repository }}/${{ github.sha }}/calculator/
         run: node calculator/tests/staging-deployment-smoke.mjs "$FIRE_EXTERNAL_STAGING_URL"
       - name: External mobile browser acceptance
         env:
-          FIRE_STAGING_URL: https://raw.githack.com/${{ github.repository }}/${{ github.sha }}/calculator/
+          FIRE_STAGING_URL: https://rawcdn.githack.com/${{ github.repository }}/${{ github.sha }}/calculator/
           FIRE_VISUAL_OUT: calculator/visual-parity-external
         run: node calculator/tests/offline-dr-acceptance.mjs
       - name: Package isolated staging candidate
