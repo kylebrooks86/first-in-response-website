@@ -126,7 +126,19 @@ try{
   await openRoute(page,'Field Guide',['#view-guide','#guide']);
   // Planning-state hydration is intentionally deferred after the shared core loads.
   // Wait for its persisted area to reach the DOM before judging offline persistence.
-  await page.waitForFunction(()=>document.getElementById('area')?.value==='2500',{timeout:6000});
+  try{
+    await page.waitForFunction(()=>document.getElementById('area')?.value==='2500',null,{timeout:12000});
+  }catch(error){
+    const details=await page.evaluate(()=>{
+      const read=key=>localStorage.getItem(key);
+      return {area:document.getElementById('area')?.value??null,
+        planning:read('fireV18LivePlanningState')?.slice(0,500)??null,
+        parity:read('fireV18ParityDraft')?.slice(0,250)??null,
+        coreReady:!!window.__fireV18CoreReady,
+        loaderReady:!!window.__fireV18ModuleLoader};
+    });
+    throw new Error('Offline planning hydration timeout: '+JSON.stringify(details),{cause:error});
+  }
   const restored=await state(page);assertState(restored);
 
   await openRoute(page,'Field Tools',['#view-tools','#tools']);
