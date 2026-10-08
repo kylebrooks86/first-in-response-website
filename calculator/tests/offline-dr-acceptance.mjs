@@ -14,8 +14,16 @@ async function clickVisible(page,text){
   return false
 }
 async function openRoute(page,label,roots){
+  const aliases={
+    'Job Math':['Job Math','Job Plan'],
+    'Chemicals':['Chemicals','Mixes'],
+    'Chemical Index':['Chemical Index','Index'],
+    'Equipment':['Equipment','Equipment / X-Jet'],
+    'Field Guide':['Field Guide','Safety Guide']
+  };
+  const labels=aliases[label]||[label];
   for(let i=0;i<24;i++){
-    await clickVisible(page,label).catch(()=>false);await sleep(100);
+    for(const text of labels)await clickVisible(page,text).catch(()=>false);await sleep(100);
     for(const s of roots){const e=page.locator(s);if(await e.count()&&await e.first().isVisible())return e.first()}
   }
   throw new Error(`Offline route failed: ${label}`)
@@ -78,8 +86,10 @@ try{
   });
   if(!cacheState.controller)throw new Error('Service worker never controlled DR page');
   if(!cacheState.keys.includes(expectedCache))throw new Error(`Expected current cache ${expectedCache} missing`);
-  if(!cacheState.assets.some(u=>u.includes('/calculator/full-v18.js?v=6')))throw new Error('Shared loader missing from offline cache');
-  if(!cacheState.assets.some(u=>u.includes('/calculator/v18-live-portable-backup.js?v=1')))throw new Error('Portable backup module missing from offline cache');
+  const expectedEntry=(swSource.match(/'(\.\/full-v18\.js\?v=\d+)'/)||[])[1];
+  const expectedPortable=(swSource.match(/'(\.\/v18-live-portable-backup\.js\?v=\d+)'/)||[])[1];
+  if(!expectedEntry||!cacheState.assets.some(u=>u.includes(expectedEntry.slice(1))))throw new Error('Shared loader missing from offline cache');
+  if(!expectedPortable||!cacheState.assets.some(u=>u.includes(expectedPortable.slice(1))))throw new Error('Portable backup module missing from offline cache');
 
   await ctx.setOffline(true);
   await page.reload({waitUntil:'domcontentloaded',timeout:20000});
