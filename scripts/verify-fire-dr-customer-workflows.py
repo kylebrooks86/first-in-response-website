@@ -90,11 +90,8 @@ checks = {
         '<CustomerPortalNav/>',
     ],
     Path('app/customer-portal-nav.tsx'): [
-        'aria-label="Customer document navigation"',
-        'className="portal-back"',
-        'onClick={()=>window.history.back()}',
-        '<ArrowLeft/> <span>Back</span>',
-        '<a href="/"><House/> <span>Home</span></a>',
+        'export function CustomerPortalNav()',
+        'return null;',
     ],
     Path('app/api/notifications/route.ts'): [
         'Notifications are temporarily unavailable.',
@@ -145,5 +142,5 @@ if missing:
     raise SystemExit(1)
 
 print('DR_CUSTOMER_WORKFLOW_PARITY_GUARD=PASS')
-print('Protected: LIVE-evidence signer-name confirmation; customer signature/photo-permission approval; change requests; estimate/payment/invoice not-found states; customer Back/Home navigation; payment-document summary/deposit/balance/success/full-paid states; pending-refund and unresolved-overpayment payment suppression; LIVE-captured invoice due-on-receipt and dated-due presentation; manual payment handles; invoice review/refund states; overpayment resolution safeguards; DR photo storage fail-closed behavior.')
+print('Protected: LIVE-evidence signer-name confirmation; customer signature/photo-permission approval; change requests; estimate/payment/invoice not-found states; customer portals without owner-only Back/Home navigation; payment-document summary/deposit/balance/success/full-paid states; pending-refund and unresolved-overpayment payment suppression; LIVE-captured invoice due-on-receipt and dated-due presentation; manual payment handles; invoice review/refund states; overpayment resolution safeguards; DR photo storage fail-closed behavior.')
 print('Rendered LIVE-vs-DR comparison is still required for strict visual parity.')
