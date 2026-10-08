@@ -32,6 +32,24 @@ This queue does not replace `PARITY_EVIDENCE_MANIFEST.json`. It orders the remai
 
 Owner-confirmed: V14 top shell is crisp and fixed; search occupies its own second row; the FIRE APP / Welcome block is clear below the header; Stride is acceptable; scrolling is accepted as good enough and frozen.
 
+## Owner Account — owner-confirmed functional parity (2026-10-08)
+
+- Owner menu row opens a dedicated Owner Account page, not Message Templates, in LIVE and independent DR.
+- KB header avatar opens the same Owner Account page.
+- Owner profile and FIRE business information are visible.
+- Light/dark preference works; Back/Home navigation remains available in the owner dashboard.
+- Message Templates remains in its own section.
+- Customer-facing documents do not expose owner-only floating Back/Home controls.
+- These are owner-confirmed on-device functional checks, **not** registered same-state LIVE/DR screenshot evidence; they do not close any of the 32 formal evidence gates.
+- Preserve the distinct LIVE and DOOMSDAY environment labels. Never direct LIVE production to the DR database or vice versa.
+
+## Outstanding owner-approved LIVE forward-sync (not yet verified)
+
+- Richer customer command center: Call / Text / Email / Maps / Stride / Earth / Zillow / property preview.
+- Edit existing customer: name, email, phone, service address, and lead source while preserving the same record and history.
+- Optional final-payment tipping: No tip default; 5/10/15/Custom; separate tip ledger; never alter invoice paid/balance math.
+- These remain `PENDING_LIVE_SYNC` in the governed registry until LIVE implementation and same-device functional/rendered verification are documented. Do not claim the new Owner Account confirmation proves these three unrelated features.
+
 ## Priority 2 — estimates and scheduling
 
 7. New estimate step 1 — customer details.
@@ -82,7 +100,7 @@ LIVE forward-sync acceptance criteria for this customer-profile exception:
 32. Change-request expanded state.
 33. Change-request sent confirmation.
 34. Invalid/expired/not-found estimate state.
-35. Customer Back / Home navigation.
+35. Customer documents do not expose owner-only Back / Home navigation (owner-confirmed in both apps).
 
 Functional contracts source-guarded: signature essentials, photo permission, contract acceptance, approval notification, pre-approval change requests, fail-closed invalid billing/service data.
 
