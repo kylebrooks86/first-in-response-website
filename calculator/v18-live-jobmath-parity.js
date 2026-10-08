@@ -66,6 +66,7 @@
   };
   const syncLivePlanMetrics=()=>{
     const plan=plannedMix(),cap=Math.max(.01,num('planContainer')||4),fills=plan.gallons>0?Math.ceil(plan.gallons/cap):0,left=Math.max(0,fills*cap-plan.gallons);
+    const neededEl=$('#mixNeeded');if(neededEl)neededEl.textContent=plan.gallons.toFixed(2)+' gal';
     const fillsEl=$('#fills');if(fillsEl){fillsEl.textContent=String(fills);const metric=fillsEl.closest('.metric');if(metric){const s=metric.querySelector('small');if(s)s.textContent='Batches / fills';const e=metric.querySelector('em');if(e)e.textContent=`${left.toFixed(2)} gal capacity left`}}
     const sh=$('#planSh');if(sh)sh.textContent=(plan.shGal*128).toFixed(1)+' fl oz';
     const measure=$('#jobMeasureCard');if(measure){const details=[...measure.querySelectorAll('details')];if(details[0])details[0].open=true;if(details[1])details[1].open=false}
