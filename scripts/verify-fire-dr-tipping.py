@@ -263,6 +263,23 @@ deposit_without_tip=[('deposit',10000)]
 if billing_paid(deposit_without_tip)!=10000:
     errors.append('accounting invariant failed: deposit without tip must still count normally toward invoice-paid cents')
 
+# Model mixed deposits, final balances, tips, partial refunds and full refunds.
+# This catches an accidental regression that makes a tipped job appear paid in
+# full when only the tip was collected or reopens a balance after a tip refund.
+ledger_scenarios = [
+    ("unpaid with tip only", 20000, [('Tip', 1000)], 20000),
+    ("deposit plus final tipped balance", 20000, [('deposit', 10000), ('balance', 10000), ('Tip', 2000)], 0),
+    ("final payment plus refunded tip", 20000, [('deposit', 10000), ('balance', 10000), ('Tip', 2000), ('Tip Refund', -2000)], 0),
+    ("partial invoice refund while keeping tip", 20000, [('deposit', 10000), ('balance', 10000), ('Tip', 2000), ('Refund', -3000)], 3000),
+    ("full invoice refund without tip refund", 20000, [('deposit', 10000), ('balance', 10000), ('Tip', 2000), ('Refund', -20000)], 20000),
+    ("full invoice and tip refund", 20000, [('deposit', 10000), ('balance', 10000), ('Tip', 2000), ('Refund', -20000), ('Tip Refund', -2000)], 20000),
+]
+for label, total, rows, expected_due in ledger_scenarios:
+    paid = billing_paid(rows)
+    due = max(0, total - paid)
+    if due != expected_due:
+        errors.append(f'accounting scenario {label}: expected balance {expected_due}, got {due}')
+
 # Any invoice/balance SUM over payments that lacks the Tip exclusion is suspect.
 billing_files=['dashboard','estimates','estimate_id','invoices','invoice_id','invoice','pay','estimate','customers','checkout','webhook','refund','payments','notifications']
 for name in billing_files:
