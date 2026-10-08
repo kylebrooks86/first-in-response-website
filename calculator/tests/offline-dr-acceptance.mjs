@@ -9,8 +9,12 @@ if(!expectedCache)throw new Error('Unable to read current service-worker cache n
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 async function clickVisible(page,text){
-  const q=page.getByText(text,{exact:true});
-  for(let i=0;i<await q.count();i++){const e=q.nth(i);if(await e.isVisible()){await e.evaluate(n=>n.click());return true}}
+  const aria=page.locator(`[aria-label="${text.replace(/"/g,'\\"')}"]`);
+  for(let i=0;i<await aria.count();i++){const e=aria.nth(i);if(await e.isVisible()){await e.evaluate(n=>n.click());return true}}
+  const exact=page.getByText(text,{exact:true});
+  for(let i=0;i<await exact.count();i++){const e=exact.nth(i);if(await e.isVisible()){await e.evaluate(n=>n.click());return true}}
+  const contains=page.getByText(text,{exact:false});
+  for(let i=0;i<await contains.count();i++){const e=contains.nth(i);if(await e.isVisible()){await e.evaluate(n=>n.click());return true}}
   return false
 }
 async function openRoute(page,label,roots){
