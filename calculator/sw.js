@@ -1,4 +1,4 @@
-const CACHE='fire-field-calculator-v18-best-of-both-211';
+const CACHE='fire-field-calculator-v18-best-of-both-212';
 const ASSETS=[
   './',
   './index.html',
@@ -46,14 +46,45 @@ const ASSETS=[
   './v18-live-input-contract.js?v=9',
   './best-of-both.js?v=37'
 ];
-self.addEventListener('install',e=>e.waitUntil((async()=>{
+// Safari rejects redirected Response objects returned by a service worker during navigation.
+// Reconstruct successful responses so cached navigation documents have no redirect chain.
+const cleanResponse=async response=>{
+  if(!response||!response.ok)return response;
+  if(!response.redirected&&response.type!=='opaqueredirect')return response;
+  return new Response(await response.blob(),{status:200,headers:response.headers});
+};
+self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
   await Promise.all(ASSETS.map(async url=>{
-    const response=await fetch(url,{cache:'reload'});
-    if(!response||!response.ok)throw new Error(`Failed to refresh ${url}`);
+    const response=await cleanResponse(await fetch(url,{cache:'reload'}));
+    if(!response||!response.ok)throw new Error('Failed to cache '+url);
     await cache.put(url,response);
   }));
   await self.skipWaiting();
 })()));
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('fire-field-calculator-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{if(res&&res.status===200){const copy=res.clone();caches.open(CACHE).then(c=>c.put(e.request,copy))}return res}).catch(()=>e.request.mode==='navigate'?caches.match('./index.html'):undefined)))});
+self.addEventListener('activate',event=>event.waitUntil((async()=>{
+  const keys=await caches.keys();
+  await Promise.all(keys.filter(key=>key.startsWith('fire-field-calculator-')&&key!==CACHE).map(key=>caches.delete(key)));
+  await self.clients.claim();
+})()));
+self.addEventListener('fetch',event=>{
+  if(event.request.method!=='GET')return;
+  event.respondWith((async()=>{
+    const cached=await caches.match(event.request);
+    if(cached)return cleanResponse(cached);
+    try{
+      const response=await cleanResponse(await fetch(event.request));
+      if(response&&response.ok){
+        const cache=await caches.open(CACHE);
+        event.waitUntil(cache.put(event.request,response.clone()));
+      }
+      return response;
+    }catch(error){
+      if(event.request.mode==='navigate'){
+        const fallback=await caches.match('./index.html');
+        if(fallback)return cleanResponse(fallback);
+      }
+      throw error;
+    }
+  })());
+});
