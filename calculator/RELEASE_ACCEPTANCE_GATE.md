@@ -19,9 +19,22 @@ The branch contains `.github/workflows/calculator-staging-checks.yml`. It is sco
 - [x] Syntax parsing of touched JavaScript modules
 - [x] Fresh GitHub Actions run: **68/68 formula** regression tests PASS and **13/13 best-of-both preset chemistry** tests PASS.
 - [x] Isolated served-build smoke test PASS inside GitHub Actions using a local HTTP staging server: generation 202 identity verified and 43 unique cached HTTP assets returned successfully.
-- [ ] Repeat the same smoke test against a **separate externally reachable staging URL** before physical iPhone acceptance. The Actions-local server proves served-build integrity but is not a persistent phone-accessible staging deployment.
+- [ ] Repeat the same smoke test against a **separate externally reachable staging URL** before physical iPhone acceptance. The Actions-local server proves served-build integrity but is not a persistent phone-accessible staging deployment. Two GitHub-file proxy candidates were evaluated and rejected because both returned HTTP 429 for candidate assets/service worker during CI; neither is approved as a release host.
 
 ## Stage B: staging identity — required before iPhone testing
+
+### Automated mobile-browser acceptance now verified
+
+- [x] Playwright mobile viewport (390×844) loads the Best-of-Both candidate under service-worker control.
+- [x] Offline reload works under cache generation 202.
+- [x] SH Mix remains functional offline and recalculates linked chemical cost.
+- [x] Equipment, Mixes/Chemicals, Index, Job Plan, Field Tools, and Safety Guide routes open offline.
+- [x] Job Plan state persists across offline reload.
+- [x] Portable backup v3 / appVersion 18 exports valid JSON offline.
+- [x] Close/reopen while still offline preserves state and calculator totals.
+- [x] No OpenAI/ChatGPT network requests or sign-in requirement were detected.
+
+Physical Safari/iPhone acceptance is still required because Chromium automation does not prove native iOS keyboard, safe-area, share sheet, or Safari/PWA presentation.
 
 - [ ] Open an actual preview built from `fire-calculator-best-of-both`; verify it is running generation **202** and `full-v18.js?v=71`.
 - [ ] Confirm URL, deployment SHA, source branch, and active service-worker cache are for this candidate, not the separate LIVE calculator and not a GitHub Pages production deployment.
