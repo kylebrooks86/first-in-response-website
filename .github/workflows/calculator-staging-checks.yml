@@ -50,6 +50,34 @@ jobs:
             sleep 0.25
           done
           node calculator/tests/staging-deployment-smoke.mjs http://127.0.0.1:4173/calculator/
+      - name: Cache Playwright Chromium
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: fire-best-of-both-playwright-${{ runner.os }}-1.55.0-chromium
+      - name: Install Playwright
+        run: npm install --no-save playwright@1.55.0
+      - name: Install Chromium system dependencies
+        run: npx playwright install-deps chromium
+      - name: Install Chromium browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - name: Start browser-acceptance staging server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory . >/tmp/fire-calculator-browser-http.log 2>&1 &
+          echo $! >/tmp/fire-calculator-browser-http.pid
+          for i in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:4173/calculator/index.html >/dev/null; then exit 0; fi
+            sleep 0.25
+          done
+          cat /tmp/fire-calculator-browser-http.log
+          exit 1
+      - name: Browser offline and persistence acceptance
+        env:
+          FIRE_STAGING_URL: http://127.0.0.1:4173/calculator/
+          FIRE_VISUAL_OUT: calculator/visual-parity
+        run: node calculator/tests/offline-dr-acceptance.mjs
       - name: Package isolated staging candidate
         uses: actions/upload-artifact@v4
         with:
