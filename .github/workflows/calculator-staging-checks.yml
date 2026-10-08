@@ -30,10 +30,26 @@ jobs:
           find calculator/tests -maxdepth 1 -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check
       - name: Best-of-both contract and offline manifest
         run: node calculator/tests/best-of-both-contract.mjs
+      - name: FIRE formula regression
+        run: node calculator/tests/formula-regression.js
+      - name: Best-of-both preset chemistry regression
+        run: node calculator/tests/best-of-both-preset-math.js
+      - name: Offline cache contract
+        run: node calculator/tests/offline-cache-contract.mjs
       - name: Backup hydration simulated runtime
         run: node calculator/tests/backup-hydration-runtime.mjs
       - name: Imported helper simulated runtime
         run: node calculator/tests/imported-helper-runtime.mjs
+      - name: Isolated served-build smoke test
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory . >/tmp/fire-calculator-staging-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
+          for i in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:4173/calculator/index.html >/dev/null; then break; fi
+            sleep 0.25
+          done
+          node calculator/tests/staging-deployment-smoke.mjs http://127.0.0.1:4173/calculator/
       - name: Package isolated staging candidate
         uses: actions/upload-artifact@v4
         with:
