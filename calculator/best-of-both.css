@@ -339,3 +339,46 @@ body.fire-bob .fire-empty-dash{
   body.fire-bob .fire-saved-fav>div:last-child{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
   body.fire-bob .fire-saved-fav button{width:100%!important;margin-left:0!important}
 }
+
+/* Staging acceptance: restore an accessible theme toggle and a readable light skin.
+   Scoped to the best-of-both staging class; never affects the live calculator. */
+body.fire-bob #themeBtn{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  flex:0 0 44px!important;width:44px!important;height:44px!important;min-width:44px!important;
+  border:1px solid #46525c!important;border-radius:12px!important;
+  background:#1c2831!important;color:#fff!important;font-size:23px!important;
+}
+body.fire-bob:not(.dark){
+  --bob-bg:#f3f6f8;--bob-panel:#fff;--bob-panel2:#f0f4f7;
+  --bob-line:#c7d2dc;--bob-text:#14212d;--bob-muted:#526475;
+  --bob-amber:#805000;--bob-blue:#005c99;
+}
+body.fire-bob:not(.dark) .topbar{background:#fff!important;border-bottom-color:#c7d2dc!important}
+body.fire-bob:not(.dark) .title strong{color:#14212d!important}
+body.fire-bob:not(.dark) .title span{color:#526475!important}
+body.fire-bob:not(.dark) #themeBtn{background:#e9eff4!important;color:#17232c!important;border-color:#aabac6!important}
+body.fire-bob:not(.dark) .tabswrap{background:rgba(243,246,248,.97)!important}
+body.fire-bob:not(.dark) .tabs{background:#e6ecf1!important;border-color:#c7d2dc!important}
+body.fire-bob:not(.dark) .tab{color:#3b4d5c!important}
+body.fire-bob:not(.dark) .tab.active{background:#fff!important;color:#14212d!important}
+body.fire-bob:not(.dark) .card,
+body.fire-bob:not(.dark) .bob-section-toggle{background:#fff!important;color:#14212d!important;border-color:#c7d2dc!important}
+body.fire-bob:not(.dark) .card h2,
+body.fire-bob:not(.dark) .card h3,
+body.fire-bob:not(.dark) .bob-section-toggle strong{color:#14212d!important}
+body.fire-bob:not(.dark) .kicker{color:#805000!important}
+body.fire-bob:not(.dark) .card label,
+body.fire-bob:not(.dark) .card p,
+body.fire-bob:not(.dark) .card small,
+body.fire-bob:not(.dark) .bob-section-toggle span{color:#3b4d5c!important}
+body.fire-bob:not(.dark) .bob-tools-sheet{background:#fff!important;color:#14212d!important;border-color:#c7d2dc!important}
+body.fire-bob:not(.dark) .bob-tools-sheet button{background:#eaf0f4!important;color:#14212d!important;border-color:#c7d2dc!important}
+body.fire-bob:not(.dark) input,
+body.fire-bob:not(.dark) select,
+body.fire-bob:not(.dark) textarea{background:#fff!important;color:#14212d!important;border-color:#aabac6!important}
+@media(max-width:560px){
+  body.fire-bob .toprow{gap:6px!important}
+  body.fire-bob .title{min-width:0!important;flex:1 1 auto!important}
+  body.fire-bob .title strong{font-size:clamp(14px,4.4vw,22px)!important}
+  body.fire-bob #themeBtn{flex-basis:42px!important;width:42px!important;min-width:42px!important}
+}
