@@ -111,7 +111,10 @@ try{
   });
   const adjustedMix=(await mixNeeded.innerText()).trim();
   await setDom(await byId(page,'reserve'),25);
-  await page.waitForFunction(before=>document.querySelector('#mixNeeded')?.textContent?.trim()!==before,adjustedMix,{timeout:5000});
+  await page.waitForFunction(before=>document.querySelector('#mixNeeded')?.textContent?.trim()!==before,adjustedMix,{timeout:5000}).catch(async error=>{
+    const diagnostic=await page.evaluate(()=>({area:document.querySelector('#area')?.value,coverage:document.querySelector('#coverage')?.value,reserve:document.querySelector('#reserve')?.value,needed:document.querySelector('#mixNeeded')?.textContent,fillCount:document.querySelector('#fills')?.textContent}));
+    throw new Error('Job Plan reserve recalculation diagnostic: '+JSON.stringify(diagnostic),{cause:error});
+  });
   await setDom(await byId(page,'coverage'),300);
   await setDom(await byId(page,'reserve'),15);
   await page.waitForFunction(()=>{try{const s=JSON.parse(localStorage.getItem('fireV18LivePlanningState')||'{}');return String(s.area||'')==='2500'}catch{return false}},{timeout:5000});
