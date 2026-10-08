@@ -47,6 +47,20 @@ patch=route.split('export async function PATCH(request: Request)',1)[1] if 'expo
 # A customer edit must never fall back to creating a new profile, bypass
 # owner authentication, or issue updates without a record-id predicate.
 if patch:
+    # The message alone is insufficient: verify the validation runs before the
+    # database lookup/write and that email shape, not just '@', is checked.
+    validation = patch.find('Customer details exceed allowed length.')
+    email_validation = patch.find('Enter a valid customer email.')
+    lookup = patch.find('SELECT id,created_at AS createdAt FROM customers')
+    update = patch.find('UPDATE customers SET')
+    if min(validation, email_validation, lookup, update) < 0 or not (validation < lookup and email_validation < lookup < update):
+        missing.append('app/api/customers/route.ts: validate input before customer database access')
+    if 'email.includes("@")' in patch or 'email.includes(" ")' in patch:
+        missing.append('app/api/customers/route.ts: weak email validation detected')
+    if 'email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)' not in patch:
+        missing.append('app/api/customers/route.ts: structured email validation missing')
+
+if patch:
     if 'if (!await authorized())' not in patch:
         missing.append('app/api/customers/route.ts: PATCH must require owner authentication')
     if 'INSERT INTO customers' in patch or 'DELETE FROM customers' in patch:
