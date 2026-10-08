@@ -26,7 +26,9 @@ async function openRoute(page,label,roots){
     'Field Guide':['Field Guide','Safety Guide']
   };
   const labels=aliases[label]||[label];
+  const secondary=['Equipment','Field Tools','Field Guide'].includes(label);
   for(let i=0;i<24;i++){
+    if(secondary)await clickVisible(page,'Tools').catch(()=>false);
     for(const text of labels)await clickVisible(page,text).catch(()=>false);await sleep(100);
     for(const s of roots){const e=page.locator(s);if(await e.count()&&await e.first().isVisible())return e.first()}
   }
