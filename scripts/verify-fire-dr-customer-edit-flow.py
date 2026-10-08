@@ -27,6 +27,8 @@ checks = {
         'SELECT id,created_at AS createdAt FROM customers WHERE id=? LIMIT 1',
         'UPDATE customers SET name=?,email=?,phone=?,address=?,lead_source=? WHERE id=?',
         'Customer not found.',
+        'Customer details exceed allowed length.',
+        'Enter a valid customer email.',
     ],
 }
 
