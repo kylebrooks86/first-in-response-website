@@ -83,7 +83,8 @@ try{
   await setDom(await byId(page,'svcHouse'),1234);
   await setDom(await byId(page,'fullDiscount'),10);
   await setDom(await byId(page,'area'),2500);
-  await sleep(500);
+  await page.waitForFunction(()=>{try{const s=JSON.parse(localStorage.getItem('fireV18LivePlanningState')||'{}');return String(s.area||'')==='2500'}catch{return false}},{timeout:5000});
+  await sleep(150);
 
   const cacheState=await page.evaluate(async()=>{
     const keys=await caches.keys();
