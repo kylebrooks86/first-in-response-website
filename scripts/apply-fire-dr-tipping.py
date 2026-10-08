@@ -42,7 +42,17 @@ else:
             raise SystemExit('DR_TIPPING_APPLY=FAIL: combined-source tipping verification failed.\n'+detail)
         print('DR_TIPPING_APPLY=PASS')
         print('Optional final-payment tipping behavior already satisfied in the combined post-overlay source.')
-        print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
+        # Give the owner the same one-tap tip choices used on the customer checkout.
+# This remains inside the existing final-payment-only gate; recording a tip
+# still requires the explicit Save payment action.
+replace_once(
+    dashboard,
+    '<div><Label>Amount applied to invoice</Label><Input value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<div><Label>Tip received (optional)</Label><Input value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" placeholder="0.00"/><small className="payment-handle-note">Recorded separately and does not change the invoice balance.</small></div>}',
+    '<div><Label>Amount applied to invoice</Label><Input value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<div><Label>Tip received (optional)</Label><div className="grid grid-cols-5 gap-1.5" aria-label="Optional tip choices">{[0,5,10,15].map((percent)=><button key={percent} type="button" aria-pressed={Number(tip||0)===Math.round(normalized.totalCents*percent/100)/100} className={`rounded-lg border px-1 py-2 text-sm ${Number(tip||0)===Math.round(normalized.totalCents*percent/100)/100?"border-red-500 bg-red-500/15":"border-slate-600"}`} onClick={()=>setTip((Math.round(normalized.totalCents*percent/100)/100).toFixed(2))}>{percent===0?"No tip":`${percent}%`}</button>)}<button type="button" className="rounded-lg border border-slate-600 px-1 py-2 text-sm" onClick={()=>document.getElementById("fire-manual-tip")?.focus()}>Custom</button></div><Input id="fire-manual-tip" aria-label="Custom tip amount" value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" placeholder="0.00"/><small className="payment-handle-note">Recorded separately and does not change the invoice balance.</small></div>}',
+    'manual final-payment tip presets',
+)
+
+print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
         raise SystemExit(0)
 
 
