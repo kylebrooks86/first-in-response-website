@@ -42,6 +42,21 @@ for path, needles in checks.items():
 
 route=Path('app/api/customers/route.ts').read_text() if Path('app/api/customers/route.ts').is_file() else ''
 patch=route.split('export async function PATCH(request: Request)',1)[1] if 'export async function PATCH(request: Request)' in route else ''
+# A customer edit must never fall back to creating a new profile, bypass
+# owner authentication, or issue updates without a record-id predicate.
+if patch:
+    if 'if (!await authorized())' not in patch:
+        missing.append('app/api/customers/route.ts: PATCH must require owner authentication')
+    if 'INSERT INTO customers' in patch or 'DELETE FROM customers' in patch:
+        missing.append('app/api/customers/route.ts: PATCH cannot insert/delete customer records')
+    if 'WHERE id=?' not in patch:
+        missing.append('app/api/customers/route.ts: PATCH requires an explicit customer-id predicate')
+    if 'const existing = await env.DB.prepare(' not in patch:
+        missing.append('app/api/customers/route.ts: PATCH must confirm that the original customer exists')
+    for protected in ('estimate_id','invoice_id','payment_id','contract_initials','signed_at'):
+        if protected in patch.lower():
+            missing.append(f'app/api/customers/route.ts: PATCH unexpectedly references historical field {protected}')
+
 for forbidden in ['UPDATE estimates','UPDATE invoices','UPDATE payments','UPDATE estimate_items','UPDATE payment_refunds']:
     if forbidden in patch:
         missing.append(f'app/api/customers/route.ts: customer PATCH must not rewrite historical financial/job records: {forbidden}')
