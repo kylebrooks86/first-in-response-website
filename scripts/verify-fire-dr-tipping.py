@@ -289,6 +289,18 @@ for needle in ['aria-label="Optional tip choices"', 'No tip', 'Custom', 'fire-ma
 if 'onClick={()=>setTip((Math.round(normalized.totalCents*percent/100)/100).toFixed(2))}' not in owner:
     errors.append('manual tip presets must calculate amounts from the full invoice total')
 
+# Customers must see why final card checkout is hidden without bypassing
+# completion or Stripe readiness conditions.
+invoice_text=text['invoice']
+for needle in [
+    'Secure final-balance card payment becomes available after the job is marked completed.',
+    'Online card payment is currently unavailable. Please contact First In Response Exteriors to arrange payment.',
+    'row.estimateStatus!=="completed"',
+    'row.estimateStatus==="completed"&&!paymentsReady',
+]:
+    if needle not in invoice_text:
+        errors.append(f'customer invoice missing payment-availability explanation: {needle}')
+
 # Any invoice/balance SUM over payments that lacks the Tip exclusion is suspect.
 billing_files=['dashboard','estimates','estimate_id','invoices','invoice_id','invoice','pay','estimate','customers','checkout','webhook','refund','payments','notifications']
 for name in billing_files:
