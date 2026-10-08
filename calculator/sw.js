@@ -1,4 +1,4 @@
-const CACHE='fire-field-calculator-v18-best-of-both-212';
+const CACHE='fire-field-calculator-v18-best-of-both-213';
 const ASSETS=[
   './index.html',
   './manifest.webmanifest',
