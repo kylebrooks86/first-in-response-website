@@ -12,7 +12,8 @@ The branch contains `.github/workflows/calculator-staging-checks.yml`. It is sco
 
 - [x] Nine Quick Presets and chemistry/source contract (recent run)
 - [x] Entry/loader/service-worker parity: 38 versioned assets, 27 loader modules, none missing from cache (recent run)
-- [ ] New source-file existence assertion for every offline-cache entry: committed into `tests/best-of-both-contract.mjs`; confirmation requires the next GitHub Actions run (not yet observed).
+- [x] Independent repository source-file verification: 44/44 unique service-worker-referenced files confirmed through direct staging-branch GitHub reads (including binary logo with base64). One transient lookup succeeded on retry.
+- [ ] New automated source-file existence assertion in `tests/best-of-both-contract.mjs` still awaits an observed CI execution.
 - [x] Portable backup synthetic hydration simulated runtime: 5/5
 - [x] Imported helper restoration simulated runtime: 6/6
 - [x] Syntax parsing of touched JavaScript modules
