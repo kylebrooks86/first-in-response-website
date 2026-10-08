@@ -13,6 +13,7 @@
 - [x] Syntax parsing of touched JavaScript modules
 - [ ] Re-run the older **68 formula** and **13 chemistry** regression suites from source in a runnable environment (historical results alone do not count as a fresh run)
 - [ ] Confirm every service-worker asset returns HTTP 200 from the **actual staging-hosted build** (repository existence alone is insufficient)
+  - Run `node calculator/tests/staging-deployment-smoke.mjs https://YOUR-VERIFIED-STAGING-HOST/calculator/` once there is a genuine separate staging deployment. This fails closed for known LIVE/production and unverified Pages hosts and checks generation 202, loader/module versions, and deployed assets.
 
 ## Stage B: staging identity — required before iPhone testing
 
