@@ -100,6 +100,8 @@ try{
   await setDom(await byId(page,'svcHouse'),1234);
   await setDom(await byId(page,'fullDiscount'),10);
   await setDom(await byId(page,'area'),2500);
+  // Wait for the asynchronous planning-state hydration to settle before testing dependent inputs.
+  await page.waitForFunction(()=>document.querySelector('#area')?.value==='2500'&&document.querySelector('#mixNeeded')?.textContent?.trim()!=='0.00 gal',{timeout:10000});
   // Job Plan: coverage and reserve must recalculate, then return to baseline
   // before the existing offline persistence assertions.
   const mixNeeded=await byId(page,'mixNeeded');
