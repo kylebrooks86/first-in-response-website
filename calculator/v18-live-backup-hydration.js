@@ -42,8 +42,11 @@
     }else hydrateInventory();
     if(finalPass&&localStorage.getItem(marker)){
       try{window.__fireHydrateImportedLiveState?.(true)}catch{}
-      try{localStorage.setItem(hydrated,new Date().toISOString());localStorage.removeItem(marker)}catch{}
-      window.dispatchEvent(new CustomEvent('fire-backup-hydration-complete'));
+      const pendingHelpers=['fireV18ImportedLiveFieldCalc','fireV18ImportedLiveRig','fireV18ImportedLiveXjet'].some(k=>{try{return localStorage.getItem(k)!==null&&Object.keys(parse(k)||{}).length>0}catch{return true}});
+      if(!pendingHelpers){
+        try{localStorage.setItem(hydrated,new Date().toISOString());localStorage.removeItem(marker)}catch{}
+        window.dispatchEvent(new CustomEvent('fire-backup-hydration-complete'));
+      }
     }
     return applied>0;
   }
