@@ -347,6 +347,23 @@
       b.addEventListener('click',()=>{const t=$('.tab[data-view="'+view+'"]'); if(t)t.click(); close();});
       sheet.appendChild(b);
     });
+    const settings=document.createElement('button');
+    settings.type='button';
+    settings.textContent='⚙️ Settings & Backup';
+    settings.setAttribute('aria-label','Open Settings and Backup');
+    settings.addEventListener('click',()=>{
+      const tab=$('.tab[data-view="tools"]');
+      if(tab)tab.click();
+      close();
+      requestAnimationFrame(()=>{
+        const heading=Array.from(document.querySelectorAll('#tools .bob-tools-group > summary strong'))
+          .find(el=>el.textContent.includes('App & data'));
+        const group=heading?.closest('details');
+        if(group){group.open=true;group.scrollIntoView({behavior:'smooth',block:'start'});}
+        else document.querySelector('#tools')?.scrollIntoView({behavior:'smooth',block:'start'});
+      });
+    });
+    sheet.appendChild(settings);
     placeInstall(sheet);
     btn.addEventListener('click',e=>{e.stopPropagation();const open=!sheet.classList.contains('open');sheet.classList.toggle('open',open);btn.setAttribute('aria-expanded',String(open))});
     sheet.addEventListener('click',e=>e.stopPropagation());
