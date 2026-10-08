@@ -280,6 +280,15 @@ for label, total, rows, expected_due in ledger_scenarios:
     if due != expected_due:
         errors.append(f'accounting scenario {label}: expected balance {expected_due}, got {due}')
 
+# Manual final-payment tip selection must be quick and must not be offered
+# on deposit-only records. Tip rows stay separate from invoice balance.
+owner = text['owner_dashboard']
+for needle in ['aria-label="Optional tip choices"', 'No tip', 'Custom', 'fire-manual-tip', 'normalized.status==="completed"', 'Recorded separately and does not change the invoice balance.']:
+    if needle not in owner:
+        errors.append(f'manual final-payment tipping missing: {needle}')
+if 'onClick={()=>setTip((Math.round(normalized.totalCents*percent/100)/100).toFixed(2))}' not in owner:
+    errors.append('manual tip presets must calculate amounts from the full invoice total')
+
 # Any invoice/balance SUM over payments that lacks the Tip exclusion is suspect.
 billing_files=['dashboard','estimates','estimate_id','invoices','invoice_id','invoice','pay','estimate','customers','checkout','webhook','refund','payments','notifications']
 for name in billing_files:
