@@ -135,6 +135,29 @@ for path, needles in checks.items():
             if needle not in folded:
                 missing.append(f'{path}: missing expected billing-resolution wording: {needle}')
 
+# Public-facing documents may import the shared component, but it must never
+# provide links back into the private owner dashboard, even after future overlays.
+public_nav = Path('app/customer-portal-nav.tsx').read_text() if Path('app/customer-portal-nav.tsx').exists() else ''
+for prohibited in ('window.history', 'history.back(', 'href="/dashboard"', "href='/dashboard'", 'setTab(', '<button', '<a ', '<Link'):
+    if prohibited in public_nav:
+        missing.append(f'app/customer-portal-nav.tsx: forbidden owner navigation found: {prohibited}')
+
+# Prevent a future owner-profile edit from silently redirecting the owner
+# shortcut back into the Message Templates tab.
+dashboard_path = Path('app/dashboard.tsx')
+if dashboard_path.exists():
+    dashboard = dashboard_path.read_text()
+    expected_owner = 'className="sidebar-foot" onClick={() => { setTab("owner-account"); setMobileMenu(false); }}'
+    expected_avatar = 'className="avatar-button" onClick={() => setTab("owner-account")}'
+    if expected_owner not in dashboard:
+        missing.append('app/dashboard.tsx: owner sidebar must open the dedicated owner-account tab')
+    if expected_avatar not in dashboard:
+        missing.append('app/dashboard.tsx: KB avatar must open the dedicated owner-account tab')
+    if 'tab === "settings" ? <SettingsView/>' not in dashboard:
+        missing.append('app/dashboard.tsx: Message Templates tab must remain separate')
+    if 'tab === "owner-account" ? <OwnerAccountView' not in dashboard:
+        missing.append('app/dashboard.tsx: dedicated Owner Account page is not rendered')
+
 if missing:
     print('DR_CUSTOMER_WORKFLOW_PARITY_GUARD=FAIL')
     for item in missing:
