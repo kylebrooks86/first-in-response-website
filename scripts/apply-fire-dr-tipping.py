@@ -354,4 +354,36 @@ replace_once(
     'explain final card-payment availability on customer invoice',
 )
 
+
+# Match the approved customer-facing manual payment cards while preserving
+# the dynamic configured handles, checkout gates, and invoice footer.
+replace_once(
+    invoice_page,
+    '{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&<p className="pay-note"><strong>Manual payment options:</strong> Cash App: {handles.cashApp} · Venmo: {handles.venmo}. Please include your name in the payment note.</p>}',
+    '''{billingStateSafe&&balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&<div className="my-5 space-y-4">
+      {paymentsReady&&row.estimateShareToken&&<div className="flex items-center gap-4 text-xs font-semibold uppercase tracking-widest text-slate-400"><span className="h-px flex-1 bg-slate-200"/><span>OR</span><span className="h-px flex-1 bg-slate-200"/></div>}
+      <section aria-label="Other payment options" className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm sm:p-5">
+        <h2 className="mb-1 text-lg font-bold tracking-tight text-slate-900">Other Payment Options</h2>
+        <p className="mb-4 text-sm leading-relaxed text-slate-600">You can also pay manually using Cash App or Venmo. Please include your name in the payment note.</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex min-w-0 items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3">
+            <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-3xl font-extrabold text-white">$</span>
+            <div className="min-w-0"><strong className="block text-base text-slate-900">Cash App</strong><span className="block break-all text-sm text-slate-700">{handles.cashApp}</span></div>
+          </div>
+          <div className="flex min-w-0 items-center gap-3 rounded-xl border border-blue-200 bg-blue-50/80 p-3">
+            <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-2xl font-extrabold italic text-white">V</span>
+            <div className="min-w-0"><strong className="block text-base text-slate-900">Venmo</strong><span className="block break-all text-sm text-slate-700">{handles.venmo}</span></div>
+          </div>
+        </div>
+      </section>
+    </div>}''',
+    'approved responsive Cash App and Venmo payment cards',
+)
+replace_once(
+    invoice_page,
+    '<p className="pay-note">{footer?.body||templateByKey("invoiceFooter").body}</p>',
+    '<div className="my-4 flex items-start gap-3 rounded-2xl bg-slate-100 p-4 text-slate-700"><span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500 text-xl font-bold text-white">i</span><p className="m-0 text-sm leading-relaxed">{footer?.body||templateByKey("invoiceFooter").body}</p></div>',
+    'approved customer invoice thank-you information card',
+)
+
 print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
