@@ -15,7 +15,7 @@ const forbidden=['fire-field-calculator-fir.kylebrooks8605.chatgpt.site','firsti
 if(forbidden.includes(base.hostname))throw Error('This URL is known production, LIVE, or unverified GitHub Pages, not an approved staging host');
 
 const expectedCache='fire-field-calculator-v18-best-of-both-211';
-const expectedEntry='./full-v18.js?v=71';
+const expectedEntry='./full-v18.js?v=72';
 const expectedHydration='./v18-live-backup-hydration.js?v=12';
 const expectedHelpers='./v18-interactions.js?v=21';
 const get=async u=>{
