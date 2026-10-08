@@ -55,5 +55,5 @@
   setTimeout(()=>hydrate(false),250);
   setTimeout(()=>hydrate(false),800);
   setTimeout(()=>hydrate(true),1800);
-  window.addEventListener('fire-v18-shared-core-ready',()=>{setTimeout(()=>hydrate(false),50);setTimeout(()=>hydrate(false),700)});
+  window.addEventListener('fire-v18-shared-core-ready',()=>{setTimeout(()=>hydrate(false),50);setTimeout(()=>hydrate(true),700)});
 })();
