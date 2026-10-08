@@ -26,7 +26,7 @@ checks = {
         'aria-label="Open owner account"',
         'setTab("owner-account"); setMobileMenu(false);',
         'function OwnerAccountView(',
-        'tab === "owner-account" ? <OwnerAccountView userName={userName}/>',
+        'tab === "owner-account" ? <OwnerAccountView userName={userName} theme={theme} onToggleTheme={toggleTheme}/>',
         'className="mobile-back-button"',
         'className={`mobile-home-button ${tab==="dashboard"?"active":""}`}',
         'className="mobile-theme-button"',
