@@ -71,6 +71,23 @@ try{
   page.setDefaultTimeout(5000);page.setDefaultNavigationTimeout(20000);
   await page.goto(STAGING,{waitUntil:'domcontentloaded',timeout:20000});
   await waitReady(page);
+  // Regression: theme initialization and toggling must never delete the moon icon.
+  const themeCheck=await page.evaluate(()=>{
+    const button=document.querySelector('#themeBtn');
+    if(!button)throw new Error('Theme toggle missing');
+    const moon=()=>button.querySelector('svg.bob-theme-moon');
+    const initialDark=document.body.classList.contains('dark');
+    if(initialDark)button.click();
+    const lightMoon=moon();
+    const lightVisible=!!lightMoon&&getComputedStyle(lightMoon).display!=='none'&&lightMoon.getBoundingClientRect().width>0;
+    button.click();
+    const darkMoonHidden=!!moon()&&getComputedStyle(moon()).display==='none';
+    button.click();
+    const lightAgain=!!moon()&&getComputedStyle(moon()).display!=='none';
+    if(initialDark)button.click();
+    return {lightVisible,darkMoonHidden,lightAgain,restoredDark:document.body.classList.contains('dark')===initialDark};
+  });
+  if(!Object.values(themeCheck).every(Boolean))throw new Error('Theme icon lifecycle regression: '+JSON.stringify(themeCheck));
   await page.evaluate(()=>navigator.serviceWorker.ready);
   if(!await page.evaluate(()=>!!navigator.serviceWorker.controller)){
     await page.reload({waitUntil:'domcontentloaded',timeout:20000});
