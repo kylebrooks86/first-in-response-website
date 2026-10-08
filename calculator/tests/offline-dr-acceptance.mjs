@@ -117,7 +117,10 @@ try{
   });
   await setDom(await byId(page,'coverage'),300);
   await setDom(await byId(page,'reserve'),15);
-  await page.waitForFunction(()=>{try{const s=JSON.parse(localStorage.getItem('fireV18LivePlanningState')||'{}');return String(s.area||'')==='2500'}catch{return false}},{timeout:5000});
+  await page.waitForFunction(()=>{try{const s=JSON.parse(localStorage.getItem('fireV18LivePlanningState')||'{}');return String(s.area||'')==='2500'}catch{return false}},{timeout:5000}).catch(async error=>{
+    const diagnostic=await page.evaluate(()=>({stored:localStorage.getItem('fireV18LivePlanningState'),area:document.querySelector('#area')?.value,coverage:document.querySelector('#coverage')?.value,reserve:document.querySelector('#reserve')?.value,ready:!!window.__fireV18CoreReady}));
+    throw new Error('Job Plan offline persistence diagnostic: '+JSON.stringify(diagnostic),{cause:error});
+  });
   await sleep(150);
 
   const cacheState=await page.evaluate(async()=>{
