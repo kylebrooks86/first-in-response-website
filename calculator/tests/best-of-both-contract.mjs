@@ -204,5 +204,12 @@ const bobCss=(index.match(/<link[^>]+href=["'](\.\/best-of-both\.css\?v=\d+)["']
 ok(entry,'versioned full-v18.js entry is missing');
 ok(bobJs&&bobCss,'versioned best-of-both assets are missing');
 for(const url of [entry,bobJs,bobCss,...loaderUrls])ok(swUrls.has(url),`offline cache missing current asset ${url}`);
+const cacheAssets=[...sw.matchAll(/['"](\.\.?\/[^'"]*)['"]/g)].map(m=>m[1]).filter(asset=>asset!=='./');
+for(const asset of cacheAssets){
+  const relative=asset.split('?')[0];
+  const full=path.resolve(root,relative);
+  ok(fs.existsSync(full)&&fs.statSync(full).isFile(),`service worker references a file missing from repository: ${asset}`);
+}
+
 
 console.log(`BEST-OF-BOTH CONTRACT PASS presets=${presets.length} loaderAssets=${loaderUrls.size} cache=${(sw.match(/const CACHE=['"]([^'"]+)['"]/)||[])[1]||'unknown'}`);
