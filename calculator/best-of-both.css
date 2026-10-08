@@ -521,3 +521,11 @@ body.fire-bob:not(.dark) #themeBtn::before{
 body.fire-bob:not(.dark) #themeBtn{
   background-image:none!important;
 }
+
+/* Real inline SVG bypasses Safari pseudo-element/background rendering issues. */
+body.fire-bob #themeBtn .bob-theme-moon{display:none!important}
+body.fire-bob:not(.dark) #themeBtn .bob-theme-moon{
+  display:block!important;width:23px!important;height:23px!important;
+  flex:none!important;color:#17232c!important;stroke:#17232c!important
+}
+body.fire-bob:not(.dark) #themeBtn::before{content:none!important;display:none!important}
