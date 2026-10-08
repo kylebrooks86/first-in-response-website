@@ -200,6 +200,13 @@ User-confirmed: mobile template selection/edit interaction works acceptably.
 94. Mark-all-read.
 95. Broader loading/empty/error states across owner routes.
 
+## Independent owner authentication — security review required
+
+- The DR sign-in endpoint currently includes a D1-backed attempt limit (five failed attempts per 15-minute window, followed by a 30-minute block), and signed HttpOnly/Secure/SameSite=Strict session cookies.
+- **Security gap:** the DR build overlay embeds a SHA-256 digest of a four-digit PIN in repository source. A short PIN with a public digest can be recovered offline regardless of server-side rate limiting. Do not treat the current DR PIN as strong protection for real customer/payment records.
+- Remediation requires an intentionally coordinated migration to a secret-managed, higher-entropy owner credential or stronger authentication, verified before removing the old path. Do not automatically lock the owner out, reveal the PIN, or switch the deployed sign-in verifier without owner approval and a tested recovery procedure.
+- This is a security finding, not a LIVE/DR visual parity exception; the independent DR app must protect records even when ChatGPT hosting is unavailable.
+
 ## Capability exception — photos in independent DR
 
 The current independent deployment is D1-only and intentionally has no R2 binding. The UI structure can be visually compared, but actual photo-file upload/archive/download cannot be called functionally identical to LIVE until a storage capability is provisioned and tested. The photo API must continue returning a clear unavailable error rather than pretending success.
