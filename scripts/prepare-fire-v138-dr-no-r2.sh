@@ -76,6 +76,10 @@ python3 ../scripts/apply-fire-dr-comparison-overlay.py
 python3 ../scripts/verify-fire-dr-comparison-integrity.py
 python3 ../scripts/apply-fire-dr-parity-summary-sync.py
 python3 ../scripts/verify-fire-dr-overlay-idempotency.py
+# Recheck financial/customer invariants after the overlay replay/idempotency
+# check as well, before declaring the prebuild parity gate successful.
+python3 ../scripts/verify-fire-dr-customer-edit-flow.py
+python3 ../scripts/verify-fire-dr-tipping.py
 python3 ../scripts/verify-fire-dr-live-parity-overlays.py
 python3 ../scripts/verify-fire-dr-owner-workflows.py
 python3 ../scripts/verify-fire-dr-live-service-catalog.py
