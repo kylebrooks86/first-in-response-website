@@ -42,9 +42,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.FIRE_STAGING_CF_ACCOUNT_ID }}
         run: |
           npx --yes wrangler@4 pages deploy /tmp/fire-calculator-preview --project-name="$CF_PROJECT" --branch=fire-calculator-best-of-both
-      - name: Verify externally reachable preview
+      - name: Verify externally reachable branch preview
         run: |
-          node calculator/tests/staging-deployment-smoke.mjs "https://fire-calculator-best-of-both-preview.pages.dev/calculator/"
+          node calculator/tests/staging-deployment-smoke.mjs "https://fire-calculator-best-of-both.fire-calculator-best-of-both-preview.pages.dev/calculator/"
       - name: Release guard
         run: |
           echo "Isolated preview only. Physical iPhone acceptance and owner approval are still required."
