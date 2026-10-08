@@ -70,6 +70,24 @@ checks = {
     ],
 }
 
+# Regression guard for replaying the same paid Stripe checkout: an existing
+# balance payment must be verified, not duplicated, and its matching tip must
+# be checked independently. The raced insert path must do the same.
+webhook = Path('app/api/payments/webhook/route.ts').read_text()
+for needle in [
+    'WHERE NOT EXISTS (SELECT 1 FROM payments WHERE provider_id=?)',
+    'if (prior) {',
+    'if (!inserted.meta.changes) {',
+    'return { ok:true, duplicate:true };',
+    'payment_ledger_verification_failed',
+    'tip_ledger_verification_failed',
+    'Number(prior.amountCents)!==expectedAmount',
+    'Number(raced.amountCents)!==expectedAmount',
+    'Number(tipRow.amountCents)!==tipCents',
+    '${session.id}:tip',
+]:
+    checks.setdefault(Path('app/api/payments/webhook/route.ts'), []).append(needle)
+
 missing=[]
 for path, needles in checks.items():
     if not path.exists():
