@@ -343,6 +343,15 @@ replace_once(
     'customer payment history displays each payment and tip amount',
 )
 
+# Keep long Stripe references readable and copyable on narrow customer profiles.
+# The full stored reference is unchanged; only its presentation is shortened.
+replace_once(
+    dashboard,
+    '{payment.amountCents>0&&payment.reference?` · ${payment.reference}`:""}',
+    '{payment.amountCents>0&&payment.reference&&<span className="inline-flex max-w-full flex-wrap items-center gap-1 align-middle"><span className="font-mono" title={payment.reference}> · Ref …{payment.reference.slice(-12)}</span><button type="button" className="rounded border border-slate-600 px-2 py-0.5 text-xs font-semibold" aria-label="Copy full payment reference" title="Copy full payment reference" onClick={()=>void navigator.clipboard.writeText(payment.reference||"").catch(()=>{})}>Copy</button></span>}',
+    'customer payment history short copyable Stripe reference',
+)
+
 # Give the owner the same one-tap tip choices used on the customer checkout.
 # This remains inside the existing final-payment-only gate; recording a tip
 # still requires the explicit Save payment action.
