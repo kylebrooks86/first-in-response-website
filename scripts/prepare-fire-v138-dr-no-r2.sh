@@ -57,12 +57,14 @@ python3 ../scripts/apply-fire-dr-mobile-back-history.py
 python3 ../scripts/apply-fire-dr-template-parity-fix.py
 python3 ../scripts/apply-fire-dr-live-evidence-fixes.py
 python3 ../scripts/apply-fire-dr-customer-edit-flow.py
-python3 ../scripts/verify-fire-dr-customer-edit-flow.py
 python3 ../scripts/apply-fire-dr-tipping.py
-python3 ../scripts/verify-fire-dr-tipping.py
 python3 ../scripts/apply-fire-dr-processing-fees.py
 python3 ../scripts/apply-fire-dr-invoice-edit-ui.py
 python3 ../scripts/apply-fire-dr-restore-relationship-integrity.py
+# Run financial and customer-edit guards AFTER all relevant overlays, so later
+# patches cannot silently undo a passing earlier check.
+python3 ../scripts/verify-fire-dr-customer-edit-flow.py
+python3 ../scripts/verify-fire-dr-tipping.py
 python3 ../scripts/apply-fire-dr-capture-identity.py
 python3 ../scripts/verify-fire-dr-capture-identity.py
 python3 ../scripts/verify-fire-dr-forward-sync.py
