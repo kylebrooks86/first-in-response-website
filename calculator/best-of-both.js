@@ -7,7 +7,9 @@
   const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
   const fireInput=(el)=>{ if(!el)return; el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); };
   function setTitle(){
-    document.body.classList.add('fire-bob','dark');
+    document.body.classList.add('fire-bob');
+    document.body.classList.toggle('dark',localStorage.getItem('fireCalcTheme')!=='light');
+    const themeButton=$('#themeBtn');if(themeButton)themeButton.textContent=document.body.classList.contains('dark')?'☀':'☾';
     const t=$('.title strong'); if(t)t.textContent='FIRE Field Calculator';
     const s=$('.title span'); if(s)s.textContent='Fast mixes. Safer jobs.';
     const stock=$('.stock'),stockVal=+($('#stockStrength')?.value||10); if(stock)stock.textContent='Stock SH '+stockVal.toFixed(stockVal%1?1:0)+'%';
