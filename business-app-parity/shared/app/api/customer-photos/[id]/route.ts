@@ -6,6 +6,7 @@ async function authorized(){ const user=await getChatGPTUser(); return Boolean(u
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return new Response("Unauthorized", { status: 401 });
+  if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable. Existing photo records have been preserved." }, { status: 503 });
   const { id } = await context.params;
   const row = await env.DB.prepare("SELECT object_key AS objectKey,content_type AS contentType FROM customer_photos WHERE id=?").bind(id).first<{objectKey:string;contentType:string}>();
   if (!row || !env.BUCKET) return new Response("Photo not found", { status: 404 });
@@ -16,6 +17,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable. Existing photo records have been preserved." }, { status: 503 });
   const { id } = await context.params;
   const row = await env.DB.prepare("SELECT object_key AS objectKey FROM customer_photos WHERE id=?").bind(id).first<{objectKey:string}>();
   if (!row) return Response.json({ error: "Photo not found." }, { status: 404 });

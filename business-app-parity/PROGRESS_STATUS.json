@@ -70,5 +70,32 @@
       "rollback/seal"
     ]
   },
-  "productionDeployed": false
+  "productionDeployed": false,
+  "batch2": {
+    "sourceFilesMatched": 118,
+    "sourceFilesChecked": 118,
+    "sharedSuiteRunsPassed": 21,
+    "sharedSuiteRunsTotal": 21,
+    "additionalSuiteRunsPassed": 3,
+    "additionalSuites": [
+      "LIVE Owner Account",
+      "Independent auth adapter",
+      "Parity gate negative fixtures"
+    ],
+    "typescriptTargetsPassed": 3,
+    "buildTargetsPassed": 3,
+    "newSharedFixesCompleted": 2,
+    "newSharedFixesTotal": 2,
+    "formallyIdenticalComparisons": 0,
+    "requiredEvidenceStates": 32,
+    "remoteSchemasVerified": 0,
+    "remoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessTotal": 10,
+    "productionReady": false,
+    "nwsPointsNetworkHTTP": 200,
+    "nwsFullForecastNetworkVerified": false,
+    "stripeSandboxReadOnlyVerified": true,
+    "sandboxEndToEndCandidateVerified": false
+  }
 }
