@@ -21,41 +21,45 @@ if new not in text:
         text = text.replace(old, new)
     else:
         raise SystemExit("DR_OWNER_ACCOUNT=FAIL: owner row anchor mismatch")
-
-avatar_old = 'onClick={() => setTab("settings")} aria-label="Open settings"'
-avatar_new = 'onClick={() => setTab("owner-account")} aria-label="Open owner account"'
-if avatar_new not in text:
-    if text.count(avatar_old) != 1:
-        raise SystemExit("DR_OWNER_ACCOUNT=FAIL: avatar anchor mismatch")
-    text = text.replace(avatar_old, avatar_new)
-
-view_old = 'tab === "settings" ? <SettingsView/> : <EmptyView tab={tab} onSaved={handleSaved} />'
-view_new = 'tab === "settings" ? <SettingsView/> : tab === "owner-account" ? <OwnerAccountView userName={userName}/> : <EmptyView tab={tab} onSaved={handleSaved} />'
-if view_new not in text:
-    if text.count(view_old) != 1:
-        raise SystemExit("DR_OWNER_ACCOUNT=FAIL: view anchor mismatch")
-    text = text.replace(view_old, view_new)
-
-component = '''function OwnerAccountView({userName}:{userName:string}) {
-  return <section className="owner-account-page" aria-label="Owner account">
-    <header><h1>Owner Account</h1><p>Account information for your FIRE Business App.</p></header>
-    <div className="record-card">
-      <div className="record-card-body">
-        <div className="owner-avatar">KB</div>
-        <h2>{userName || "Kyle Brooks"}</h2>
-        <p>Owner · First In Response Exteriors</p>
-        <p>Message Templates remain available separately from the main menu.</p>
-      </div>
-    </div>
-  </section>;
+text = text.replace('className="avatar-button" onClick={() => setTab("settings")} aria-label="Open settings"', 'className="avatar-button" onClick={() => setTab("owner-account")} aria-label="Open owner account"')
+anchor = ' : tab === "settings" ? <SettingsView/> : <EmptyView tab={tab} onSaved={handleSaved} />'
+replacement = ' : tab === "settings" ? <SettingsView/> : tab === "owner-account" ? <OwnerAccountView userName={userName} theme={theme} onToggleTheme={toggleTheme}/> : <EmptyView tab={tab} onSaved={handleSaved} />'
+if replacement not in text:
+    if text.count(anchor) != 1:
+        raise SystemExit("DR_OWNER_ACCOUNT=FAIL: tab renderer anchor mismatch")
+    text = text.replace(anchor, replacement)
+component = '''function OwnerAccountView({userName,theme,onToggleTheme}:{userName:string;theme:"light"|"dark";onToggleTheme:()=>void}) {
+  return <div className="dashboard-view" style={{maxWidth:760}}>
+    <section className="welcome-row"><div><p className="eyebrow">FIRE Business App</p><h1>Owner Account</h1><p>Profile, app preferences, and recovery environment.</p></div></section>
+    <section className="record-card" style={{padding:20,marginBottom:16}}>
+      <h2>Owner profile</h2>
+      <p><strong>{userName}</strong> · Owner</p>
+      <p>First In Response Exteriors</p>
+      <p>Phone: (918) 922-9366</p>
+      <p>Website: <a href="https://firstinresponseexteriors.com" target="_blank" rel="noopener noreferrer">firstinresponseexteriors.com</a></p>
+      <p style={{fontSize:13,opacity:.75}}>Profile details are informational. Editing account identity is not enabled here.</p>
+    </section>
+    <section className="record-card" style={{padding:20,marginBottom:16}}>
+      <h2>App preferences</h2>
+      <button type="button" className="brand-button" onClick={onToggleTheme}>Switch to {theme==="dark"?"light":"dark"} mode</button>
+    </section>
+    <section className="record-card" style={{padding:20,marginBottom:16}}>
+      <h2>Environment</h2>
+      <p><strong>DOOMSDAY · Independent staging</strong></p>
+      <p>This recovery app is separate from the LIVE Business App. Confirm the environment before entering real customer or payment data.</p>
+    </section>
+    <section className="record-card" style={{padding:20}}>
+      <h2>Security &amp; account management</h2>
+      <p>PIN changes and account security are not available on this page yet. No insecure shortcuts have been added.</p>
+    </section>
+  </div>;
 }
 
 '''
-anchor = 'export function Dashboard({userName,metrics,estimates}'
-if component not in text:
-    if text.count(anchor) != 1:
-        raise SystemExit("DR_OWNER_ACCOUNT=FAIL: component anchor mismatch")
-    text = text.replace(anchor, component + anchor)
+if 'function OwnerAccountView(' not in text:
+    anchor2 = 'export function Dashboard({userName,metrics,estimates}'
+    if text.count(anchor2) != 1:
+        raise SystemExit("DR_OWNER_ACCOUNT=FAIL: component insertion anchor mismatch")
+    text = text.replace(anchor2, component + anchor2)
 dashboard.write_text(text)
-print("DR_CUSTOMER_NAV_OWNER_SETTINGS=PASS")
-print("DR_OWNER_ACCOUNT=PASS")
+print("DR_CUSTOMER_NAV_OWNER_ACCOUNT=PASS")
