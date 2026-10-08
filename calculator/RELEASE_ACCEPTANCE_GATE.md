@@ -6,20 +6,20 @@
 
 ## Staging-only automated checks
 
-The branch contains `.github/workflows/calculator-staging-checks.yml`. It is scoped to calculator changes on `fire-calculator-best-of-both`, with read-only repository permissions, and runs Node syntax, contract/offline-manifest, and both simulated backup-runtime suites. It has **no deployment step**. On successful checks, it also packages the calculator folder and required logo into a **14-day downloadable staging artifact** named `fire-calculator-best-of-both-staging`. This artifact is **not an accessible web preview** and does not update GitHub Pages or the LIVE calculator. Workflow file creation is confirmed, but GitHub Actions execution status is **not yet verified**; do not treat its presence as a passing CI run.
+The branch contains `.github/workflows/calculator-staging-checks.yml`. It is scoped to calculator changes on `fire-calculator-best-of-both`, with read-only repository permissions, and runs Node syntax, contract/offline-manifest, and both simulated backup-runtime suites. It has **no deployment step**. On successful checks, it also packages the calculator folder and required logo into a **14-day downloadable staging artifact** named `fire-calculator-best-of-both-staging`. This artifact is **not an accessible web preview** and does not update GitHub Pages or the LIVE calculator. GitHub Actions execution is now verified on the best-of-both staging branch. Run #12 for commit `00ec421740976e4280a73e765ce32d0daa1c0af2` completed successfully, including syntax, contract/offline-manifest, 68/68 formula regression, 13/13 preset chemistry regression, 5/5 backup hydration, 6/6 imported-helper hydration, isolated served-build HTTP smoke, and artifact packaging.
 
 ## Stage A: verified code-level checks
 
 - [x] Nine Quick Presets and chemistry/source contract (recent run)
 - [x] Entry/loader/service-worker parity: 38 versioned assets, 27 loader modules, none missing from cache (recent run)
 - [x] Independent repository source-file verification: 44/44 unique service-worker-referenced files confirmed through direct staging-branch GitHub reads (including binary logo with base64). Re-verified on 2026-10-07 against staging cache generation 202; 0 missing.
-- [ ] New automated source-file existence assertion in `tests/best-of-both-contract.mjs` still awaits an observed CI execution. A documentation-only staging commit was used to trigger the existing push-scoped workflow without changing runtime calculator assets.
+- [x] New automated source-file existence assertion in `tests/best-of-both-contract.mjs` observed passing in GitHub Actions.
 - [x] Portable backup synthetic hydration simulated runtime: 5/5
 - [x] Imported helper restoration simulated runtime: 6/6
 - [x] Syntax parsing of touched JavaScript modules
-- [ ] Re-run the older **68 formula** and **13 chemistry** regression suites from source in a runnable environment (historical results alone do not count as a fresh run)
-- [ ] Confirm every service-worker asset returns HTTP 200 from the **actual staging-hosted build** (repository existence alone is insufficient)
-  - Run `node calculator/tests/staging-deployment-smoke.mjs https://YOUR-VERIFIED-STAGING-HOST/calculator/` once there is a genuine separate staging deployment. This fails closed for known LIVE/production and unverified Pages hosts and checks generation 202, loader/module versions, and deployed assets.
+- [x] Fresh GitHub Actions run: **68/68 formula** regression tests PASS and **13/13 best-of-both preset chemistry** tests PASS.
+- [x] Isolated served-build smoke test PASS inside GitHub Actions using a local HTTP staging server: generation 202 identity verified and 43 unique cached HTTP assets returned successfully.
+- [ ] Repeat the same smoke test against a **separate externally reachable staging URL** before physical iPhone acceptance. The Actions-local server proves served-build integrity but is not a persistent phone-accessible staging deployment.
 
 ## Stage B: staging identity — required before iPhone testing
 
