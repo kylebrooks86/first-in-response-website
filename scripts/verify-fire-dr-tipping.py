@@ -309,6 +309,11 @@ for needle in [
 # inside the completed-job, billing-safe invoice gate.
 for needle in [
     'Other Payment Options',
+    'href="https://cash.app/$FIREExteriors"',
+    'href="https://venmo.com/u/FirstInResponseExteriors"',
+    'target="_blank" rel="noopener noreferrer"',
+    'aria-label="Open Cash App to pay $FIREExteriors"',
+    'aria-label="Open Venmo to pay @FirstInResponseExteriors"',
     'You can also pay manually using Cash App or Venmo.',
     '{handles.cashApp}',
     '{handles.venmo}',
