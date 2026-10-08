@@ -62,6 +62,7 @@ let ctx,page;
 const openAiRequests=[];
 try{
   ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers:'allow'});
+  try{const stagingHost=new URL(STAGING).hostname;if(stagingHost==='raw.githack.com'||stagingHost==='rawcdn.githack.com')await ctx.addCookies([{name:'__Http-phish',value:'1',domain:stagingHost,path:'/'}]);}catch{}
   await ctx.addInitScript(()=>{
     window.__fireOfflineCopied=[];
     try{Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.__fireOfflineCopied.push(String(text));}}})}catch{}
