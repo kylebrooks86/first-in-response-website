@@ -4,6 +4,10 @@
 **Status:** NOT APPROVED — STAGING CANDIDATE ONLY — NOT SYNCHRONIZED  
 **Rule:** Never point production/LIVE to this branch without explicit owner approval. Do not change production while running this checklist.
 
+## Staging-only automated checks
+
+The branch contains `.github/workflows/calculator-staging-checks.yml`. It is scoped to calculator changes on `fire-calculator-best-of-both`, with read-only repository permissions, and runs Node syntax, contract/offline-manifest, and both simulated backup-runtime suites. It has **no deployment step**. Workflow file creation is confirmed, but GitHub Actions execution status is **not yet verified**; do not treat its presence as a passing CI run.
+
 ## Stage A: verified code-level checks
 
 - [x] Nine Quick Presets and chemistry/source contract (recent run)
