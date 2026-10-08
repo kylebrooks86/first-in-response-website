@@ -441,3 +441,62 @@ body.fire-bob.dark #themeBtn{
   background-size:22px 22px!important;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='4.2'/%3E%3Cpath d='M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.28 5.28l1.42 1.42m10.6 10.6 1.42 1.42M18.72 5.28 17.3 6.7M6.7 17.3l-1.42 1.42'/%3E%3C/svg%3E")!important
 }
+
+/* Light theme consistency: readable panels, controls and preserved LIVE Mixes/Index sections. */
+body.fire-bob:not(.dark) #chemicals .card,
+body.fire-bob:not(.dark) #index .card{
+  background:#fff!important;color:#14212d!important;border-color:#c7d2dc!important
+}
+body.fire-bob:not(.dark) #chemicals h2,
+body.fire-bob:not(.dark) #index h2,
+body.fire-bob:not(.dark) #chemicals h3,
+body.fire-bob:not(.dark) #index h3{color:#14212d!important}
+body.fire-bob:not(.dark) #chemicals .kicker,
+body.fire-bob:not(.dark) #index .kicker{color:#805000!important}
+body.fire-bob:not(.dark) #chemicals label,
+body.fire-bob:not(.dark) #index label{color:#344b5b!important}
+body.fire-bob:not(.dark) #chemicals input,
+body.fire-bob:not(.dark) #chemicals select,
+body.fire-bob:not(.dark) #chemicals textarea,
+body.fire-bob:not(.dark) #index input,
+body.fire-bob:not(.dark) #index select,
+body.fire-bob:not(.dark) #index textarea,
+body.fire-bob:not(.dark) #chemicals .chip,
+body.fire-bob:not(.dark) #index .chip{
+  background:#fff!important;color:#14212d!important;border-color:#aabac6!important
+}
+body.fire-bob:not(.dark) #chemicals .chip.active,
+body.fire-bob:not(.dark) #index .chip.active{
+  background:#173448!important;color:#fff!important;border-color:#005c99!important
+}
+body.fire-bob:not(.dark) .bob-preset-menu>summary::after{color:#344b5b!important}
+body.fire-bob:not(.dark) .bob-preset-check{color:#17603d!important}
+body.fire-bob:not(.dark) .bob-preset-option + .bob-preset-option{border-color:#d9e2e9!important}
+body.fire-bob:not(.dark) .bob-dirtiness-field,
+body.fire-bob:not(.dark) .bob-manual-surface,
+body.fire-bob:not(.dark) .bob-preset-note{border-color:#d3dde5!important}
+body.fire-bob:not(.dark) .bob-section-toggle>summary{color:#14212d!important}
+body.fire-bob:not(.dark) .bob-section-toggle>.card{border-top-color:#c7d2dc!important}
+body.fire-bob:not(.dark) .metric,
+body.fire-bob:not(.dark) .accord,
+body.fire-bob:not(.dark) .quoteBox,
+body.fire-bob:not(.dark) .fire-empty-dash{
+  background:#eef3f7!important;color:#14212d!important;border-color:#c7d2dc!important
+}
+body.fire-bob:not(.dark) .metric strong,
+body.fire-bob:not(.dark) .accord summary,
+body.fire-bob:not(.dark) .fire-saved-fav strong{color:#14212d!important}
+body.fire-bob:not(.dark) .metric small,
+body.fire-bob:not(.dark) .metric em,
+body.fire-bob:not(.dark) .fire-saved-fav small{color:#526475!important}
+body.fire-bob:not(.dark) .fire-saved-fav{color:#14212d!important;border-color:#c7d2dc!important}
+body.fire-bob:not(.dark) .fire-saved-fav button{
+  background:#eef3f7!important;color:#14212d!important;border-color:#aabac6!important
+}
+body.fire-bob:not(.dark) .note{background:#e8f4ed!important;color:#185336!important}
+body.fire-bob:not(.dark) .unit{color:#344b5b!important}
+body.fire-bob:not(.dark) .chip:not(.active){background:#eef3f7!important;color:#344b5b!important;border-color:#c7d2dc!important}
+body.fire-bob:not(.dark) .chip.active{background:#173448!important;color:#fff!important;border-color:#005c99!important}
+body.fire-bob:not(.dark) #growthSeg .chip.active{background:#98621b!important;color:#fff!important;border-color:#98621b!important}
+body.fire-bob #themeBtn::before,
+body.fire-bob #themeBtn::after{content:none!important;display:none!important}
