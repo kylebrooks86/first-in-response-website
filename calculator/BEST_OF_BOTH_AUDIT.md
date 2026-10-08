@@ -150,10 +150,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=63`
+- `full-v18.js?v=64`
 - `best-of-both.js?v=34`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-194`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-195`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
@@ -213,3 +213,5 @@ Until then, keep status **STAGING CANDIDATE ONLY — NOT SYNCHRONIZED**.
 - Cache 193: fixed shared boolean success tracking in portable helper hydration. A numeric count now independently detects calculator, rig, and X-Jet fields applied, so each helper is consumed according to its own success rather than the prior category's result. Contract and cache parity pass; no physical iPhone test performed.
 
 - Cache 194: live v3 migration now replaces its imported calculator helper with the current backup payload rather than merging old helper values; estimate `fields` must be a non-array object. Static contract passes: 9 presets, 38 assets, 27 cached modules; no browser/iPhone runtime testing claimed.
+
+- Cache 195: portable live helper hydration now releases its synthetic-event guard inside `finally`, including when a dispatched restore handler throws. Exact-source contract passes (9 presets, 38 assets, 27/27 cached modules); no physical iPhone runtime test claimed.
