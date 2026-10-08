@@ -150,7 +150,7 @@ try{
   const reopenedState=await state(page);assertState(reopenedState,'1000');
   const reopenedOffline=await page.evaluate(()=>({online:navigator.onLine,controller:!!navigator.serviceWorker.controller,title:document.title}));
   if(reopenedOffline.online||!reopenedOffline.controller)throw new Error('Closed/reopened DR page was not fully offline under service-worker control');
-  const reopenedTotal=await page.locator('#fullTotal').innerText();
+  const reopenedTotal=await page.locator('#fullTotal').textContent();
   if(!/\$198\.00/.test(reopenedTotal))throw new Error('Offline close/reopen math state failed: '+reopenedTotal);
   if(openAiRequests.length)throw new Error('Calculator attempted OpenAI/ChatGPT network requests: '+JSON.stringify(openAiRequests));
   const authText=(await page.locator('body').innerText()).toLowerCase();
