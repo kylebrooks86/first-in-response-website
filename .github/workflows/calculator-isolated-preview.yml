@@ -1,0 +1,51 @@
+name: FIRE Calculator Isolated Preview
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-isolated-preview:
+    if: github.ref == 'refs/heads/fire-calculator-best-of-both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CF_PROJECT: fire-calculator-best-of-both-preview
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify staging contract and formulas
+        run: |
+          node calculator/tests/best-of-both-contract.mjs
+          node calculator/tests/formula-regression.js
+          node calculator/tests/best-of-both-preset-math.js
+          node calculator/tests/offline-cache-contract.mjs
+      - name: Require isolated project credentials
+        env:
+          CF_TOKEN: ${{ secrets.FIRE_STAGING_CF_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.FIRE_STAGING_CF_ACCOUNT_ID }}
+        run: |
+          test -n "$CF_TOKEN" || { echo "Missing FIRE_STAGING_CF_API_TOKEN"; exit 1; }
+          test -n "$CF_ACCOUNT" || { echo "Missing FIRE_STAGING_CF_ACCOUNT_ID"; exit 1; }
+      - name: Prepare isolated calculator site
+        run: |
+          mkdir -p /tmp/fire-calculator-preview/calculator /tmp/fire-calculator-preview/assets/recent-work
+          cp -R calculator/. /tmp/fire-calculator-preview/calculator/
+          cp assets/recent-work/fire-logo-direct.png /tmp/fire-calculator-preview/assets/recent-work/
+      - name: Publish to separate Cloudflare Pages project only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.FIRE_STAGING_CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.FIRE_STAGING_CF_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4 pages deploy /tmp/fire-calculator-preview --project-name="$CF_PROJECT" --branch=fire-calculator-best-of-both
+      - name: Verify externally reachable preview
+        run: |
+          node calculator/tests/staging-deployment-smoke.mjs "https://fire-calculator-best-of-both-preview.pages.dev/calculator/"
+      - name: Release guard
+        run: |
+          echo "Isolated preview only. Physical iPhone acceptance and owner approval are still required."
+          echo "STAGING CANDIDATE ONLY — NOT SYNCHRONIZED."
