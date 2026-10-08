@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
-import {execFileSync} from 'node:child_process';
 import vm from 'node:vm';
 import ts from 'typescript';
 import React from 'react';
@@ -25,12 +24,10 @@ preset('Custom').props.onClick();tree=render();nodes(tree).find(n=>n.props?.id==
 tree=render();await nodes(tree).find(n=>typeof n.type==='function'&&n.props.onClick).props.onClick();assert.equal(posts.at(-1).tipCents,2345);assert.equal(window.location.href,'https://checkout.stripe.com/fixture');state[0]=false;
 tree=render();nodes(tree).find(n=>n.props?.id==='fire-custom-tip').props.onChange({target:{value:'-1'}});const count=posts.length;await nodes(render()).find(n=>typeof n.type==='function'&&n.props.onClick).props.onClick();assert.equal(posts.length,count);
 for(const overrides of [{paymentType:'deposit'},{dueAmountCents:0}])assert.equal(nodes(render(overrides)).some(n=>n.props?.['aria-label']==='Optional tip'),false);
-const source=readFileSync('app/dashboard.tsx','utf8'),baseline=execFileSync('git',['show','ea65cf9721b02e001635b19e9fbdc32dae7ef8e2:app/dashboard.tsx'],{encoding:'utf8'});const oldPaid="customerPayments.reduce((sum,payment)=>sum+payment.amountCents,0)";
-const newPaid="customerPayments.filter((payment)=>!['Tip','Tip Refund'].includes(payment.type)).reduce((sum,payment)=>sum+payment.amountCents,0)";
-// Refund UI is an approved addition; compare unrelated customer command/editor functions exactly.
-const approvedBaseline=execFileSync('git',['show','e78c4aca6ff253e964d5133b82fbb7a9329baa91:app/dashboard.tsx'],{encoding:'utf8'});
+const source=readFileSync('app/dashboard.tsx','utf8');
+const approvedBaseline=JSON.parse(readFileSync('scripts/fixtures/approved-customer-functions.json','utf8'));
 const functionBody=(text,name)=>{const start=text.indexOf('function '+name+'(');const end=text.indexOf('\nfunction ',start+1);return text.slice(start,end<0?undefined:end);};
-for(const name of ['EditCustomerDialog','PropertyPreview','OwnerAccountView'])if(approvedBaseline.includes('function '+name+'('))assert.equal(functionBody(source,name),functionBody(approvedBaseline,name));
+for(const name of ['EditCustomerDialog','PropertyPreview','OwnerAccountView'])if(approvedBaseline[name])assert.equal(functionBody(source,name),approvedBaseline[name]);
 
 const tipExpr=source.match(/const netTips=(.*?);const outstanding/)[1];
 assert.equal(vm.runInNewContext(tipExpr,{payments:[{type:'balance',amountCents:10000},{type:'Tip',amountCents:1000},{type:'Tip Refund',amountCents:-500}]}),500);
