@@ -28,6 +28,8 @@ const html=await get(new URL('index.html',base));
 const loader=await get(new URL(expectedEntry,base));
 for(const [condition,message] of [
   [sw.includes(expectedCache),'Wrong service-worker cache generation'],
+  [!sw.includes("  './',"),'Service worker must not precache redirect-prone directory navigation'],
+  [sw.includes("response.redirected"),'Service worker must reject redirected cached responses'],
   [sw.includes(expectedEntry),'Service worker has wrong entry version'],
   [sw.includes(expectedHydration),'Service worker has wrong hydration module'],
   [sw.includes(expectedHelpers),'Service worker has wrong imported-helper module'],
