@@ -43,9 +43,10 @@
       persistCustomerName(fields);
     }else hydrateInventory();
     if(finalPass&&localStorage.getItem(marker)){
-      try{window.__fireHydrateImportedLiveState?.(true)}catch{}
+      let helperRestoreSucceeded=true;
+      try{window.__fireHydrateImportedLiveState?.(true)}catch{helperRestoreSucceeded=false}
       const pendingHelpers=['fireV18ImportedLiveFieldCalc','fireV18ImportedLiveRig','fireV18ImportedLiveXjet'].some(k=>{try{return localStorage.getItem(k)!==null&&Object.keys(parse(k)||{}).length>0}catch{return true}});
-      if(!pendingHelpers){
+      if(helperRestoreSucceeded&&!pendingHelpers){
         let completed=false;
         try{localStorage.setItem(hydrated,new Date().toISOString());localStorage.removeItem(marker);completed=!localStorage.getItem(marker)}catch{}
         if(completed)window.dispatchEvent(new CustomEvent('fire-backup-hydration-complete'));
