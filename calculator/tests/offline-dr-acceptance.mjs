@@ -100,6 +100,17 @@ try{
   await setDom(await byId(page,'svcHouse'),1234);
   await setDom(await byId(page,'fullDiscount'),10);
   await setDom(await byId(page,'area'),2500);
+  // Job Plan: coverage and reserve must recalculate, then return to baseline
+  // before the existing offline persistence assertions.
+  const mixNeeded=await byId(page,'mixNeeded');
+  const originalMix=(await mixNeeded.innerText()).trim();
+  await setDom(await byId(page,'coverage'),200);
+  await page.waitForFunction(before=>document.querySelector('#mixNeeded')?.textContent?.trim()!==before,originalMix,{timeout:5000});
+  const adjustedMix=(await mixNeeded.innerText()).trim();
+  await setDom(await byId(page,'reserve'),25);
+  await page.waitForFunction(before=>document.querySelector('#mixNeeded')?.textContent?.trim()!==before,adjustedMix,{timeout:5000});
+  await setDom(await byId(page,'coverage'),300);
+  await setDom(await byId(page,'reserve'),15);
   await page.waitForFunction(()=>{try{const s=JSON.parse(localStorage.getItem('fireV18LivePlanningState')||'{}');return String(s.area||'')==='2500'}catch{return false}},{timeout:5000});
   await sleep(150);
 
