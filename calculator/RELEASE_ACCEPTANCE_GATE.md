@@ -6,7 +6,7 @@
 
 ## Staging-only automated checks
 
-The branch contains `.github/workflows/calculator-staging-checks.yml`. It is scoped to calculator changes on `fire-calculator-best-of-both`, with read-only repository permissions, and runs Node syntax, contract/offline-manifest, and both simulated backup-runtime suites. It has **no deployment step**. Workflow file creation is confirmed, but GitHub Actions execution status is **not yet verified**; do not treat its presence as a passing CI run.
+The branch contains `.github/workflows/calculator-staging-checks.yml`. It is scoped to calculator changes on `fire-calculator-best-of-both`, with read-only repository permissions, and runs Node syntax, contract/offline-manifest, and both simulated backup-runtime suites. It has **no deployment step**. On successful checks, it also packages the calculator folder and required logo into a **14-day downloadable staging artifact** named `fire-calculator-best-of-both-staging`. This artifact is **not an accessible web preview** and does not update GitHub Pages or the LIVE calculator. Workflow file creation is confirmed, but GitHub Actions execution status is **not yet verified**; do not treat its presence as a passing CI run.
 
 ## Stage A: verified code-level checks
 
