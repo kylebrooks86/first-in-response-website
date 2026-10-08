@@ -150,10 +150,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=68`
+- `full-v18.js?v=69`
 - `best-of-both.js?v=34`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-199`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-200`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
@@ -223,3 +223,5 @@ Until then, keep status **STAGING CANDIDATE ONLY — NOT SYNCHRONIZED**.
 - Cache 198: live estimate hydration now rejects array-shaped `fields`, matching migration validation. Exact-source contract passes (9 presets, 38 assets, 27 cached modules). Browser runtime remains untested.
 
 - Cache 199: shared-core-ready event now schedules a final backup migration retry after initialization, rather than only a non-final retry. Exact-source contract passes (9 presets, 38 assets, 27 cached modules). Real browser restore still untested.
+
+- Cache 200: estimate and inventory backup hydration now share the exception-safe synthetic input/change guard used by calculator helpers, suppressing draft autosave and planning user-edit generation during restoration. Exact-source contract passes (9 presets, 38 assets, 27 cached modules); browser runtime untested.
