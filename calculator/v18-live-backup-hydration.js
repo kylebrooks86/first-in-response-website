@@ -32,6 +32,8 @@
   }
   function hydrate(finalPass=false){
     if(!pending())return false;
+    const priorHydrating=window.__fireHydratingBackup===true;window.__fireHydratingBackup=true;
+    try{
     const raw=parse('fireEstimateDraft'),fields=raw?.fields;
     let applied=0;
     if(fields&&typeof fields==='object'&&!Array.isArray(fields)){
@@ -50,6 +52,7 @@
       }
     }
     return applied>0;
+    }finally{window.__fireHydratingBackup=priorHydrating;}
   }
   if(!pending())return;
   setTimeout(()=>hydrate(false),250);
