@@ -42,7 +42,8 @@ else:
             raise SystemExit('DR_TIPPING_APPLY=FAIL: combined-source tipping verification failed.\n'+detail)
         print('DR_TIPPING_APPLY=PASS')
         print('Optional final-payment tipping behavior already satisfied in the combined post-overlay source.')
-                raise SystemExit(0)
+        print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
+        raise SystemExit(0)
 
 
 def replace_once(path: Path, old: str, new: str, label: str):
@@ -353,5 +354,4 @@ replace_once(
     'explain final card-payment availability on customer invoice',
 )
 
-print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
 print('DR_BILLING_INTEGRITY_OVERLAY_APPLIED')
