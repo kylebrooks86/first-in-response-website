@@ -382,3 +382,46 @@ body.fire-bob:not(.dark) textarea{background:#fff!important;color:#14212d!import
   body.fire-bob .title strong{font-size:clamp(14px,4.4vw,22px)!important}
   body.fire-bob #themeBtn{flex-basis:42px!important;width:42px!important;min-width:42px!important}
 }
+
+/* Staging iPhone review: contrast and sticky-navigation polish.
+   Only SH Mix and app controls; preserve LIVE-derived Mixes/Index layout. */
+body.fire-bob #tools .bob-tools-group,
+body.fire-bob #tools .bob-tools-group .card{scroll-margin-top:calc(175px + env(safe-area-inset-top))}
+body.fire-bob .bob-tools-sheet{scroll-margin-top:calc(145px + env(safe-area-inset-top))}
+body.fire-bob.dark #batchChips .chip:not(.active){
+  background:#1a2630!important;color:#e6edf3!important;border-color:#4b5d6b!important
+}
+body.fire-bob.dark #batchChips .chip.active{
+  background:#123148!important;color:#a9ddff!important;border-color:#57b9ff!important
+}
+body.fire-bob:not(.dark) #mix .bob-preset-menu,
+body.fire-bob:not(.dark) #mix .bob-preset-menu>summary,
+body.fire-bob:not(.dark) #mix .bob-preset-options{
+  background:#fff!important;color:#14212d!important;border-color:#b6c5d0!important
+}
+body.fire-bob:not(.dark) #mix .bob-preset-summary-copy strong,
+body.fire-bob:not(.dark) #mix .bob-preset-option-copy strong{color:#14212d!important}
+body.fire-bob:not(.dark) #mix .bob-preset-summary-copy small,
+body.fire-bob:not(.dark) #mix .bob-preset-option-copy small,
+body.fire-bob:not(.dark) #mix .bob-preset-note>summary{color:#526475!important}
+body.fire-bob:not(.dark) #mix .bob-preset-option{background:#fff!important;color:#14212d!important}
+body.fire-bob:not(.dark) #mix .bob-preset-option.selected{background:#e8f2ed!important}
+body.fire-bob:not(.dark) #mix #growthSeg .chip{background:#eef2f5!important;color:#334656!important;border-color:#c7d2dc!important}
+body.fire-bob:not(.dark) #mix #growthSeg .chip.active{background:#98621b!important;color:#fff!important;border-color:#98621b!important}
+body.fire-bob:not(.dark) #mix #batchChips .chip{background:#fff!important;color:#354b5c!important;border-color:#b6c5d0!important}
+body.fire-bob:not(.dark) #mix #batchChips .chip.active{background:#173448!important;color:#fff!important;border-color:#005c99!important}
+body.fire-bob:not(.dark) #mix .bob-preset-note,
+body.fire-bob:not(.dark) #mix .bob-stock-extra,
+body.fire-bob:not(.dark) #mix .bob-batch-more{border-color:#c7d2dc!important}
+body.fire-bob:not(.dark) #mix .bob-dirtiness-field label,
+body.fire-bob:not(.dark) #mix .bob-manual-surface-body label{color:#344b5b!important}
+body.fire-bob:not(.dark) #mix .bob-batch-more>summary,
+body.fire-bob:not(.dark) #mix .bob-recipe-fine>summary,
+body.fire-bob:not(.dark) #mix .bob-other-stock>summary{color:#344b5b!important}
+body.fire-bob:not(.dark) #mix .metric,
+body.fire-bob:not(.dark) #mix .accord,
+body.fire-bob:not(.dark) #mix .quoteBox{background:#eef3f7!important;color:#14212d!important;border-color:#c7d2dc!important}
+body.fire-bob:not(.dark) #mix .metric strong,
+body.fire-bob:not(.dark) #mix .accord summary{color:#14212d!important}
+body.fire-bob:not(.dark) #mix .metric small,
+body.fire-bob:not(.dark) #mix .metric em{color:#526475!important}
