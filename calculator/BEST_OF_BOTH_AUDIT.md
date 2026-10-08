@@ -150,10 +150,10 @@ Deliberately custom user rates are preserved.
 ## Current automated/source-level evidence
 
 Current asset generation at this audit:
-- `full-v18.js?v=70`
+- `full-v18.js?v=71`
 - `best-of-both.js?v=34`
 - `best-of-both.css?v=17`
-- service-worker cache: `fire-field-calculator-v18-best-of-both-201`
+- service-worker cache: `fire-field-calculator-v18-best-of-both-202`
 
 Regression evidence:
 - **68/68 formula regression tests pass**
@@ -227,3 +227,5 @@ Until then, keep status **STAGING CANDIDATE ONLY — NOT SYNCHRONIZED**.
 - Cache 200: estimate and inventory backup hydration now share the exception-safe synthetic input/change guard used by calculator helpers, suppressing draft autosave and planning user-edit generation during restoration. Exact-source contract passes (9 presets, 38 assets, 27 cached modules); browser runtime untested.
 
 - Cache 201: imported helper hydration errors now block migration finalization even when no helper payload remains. Added `tests/backup-hydration-runtime.mjs` with five executable simulated DOM/storage scenarios (success, helper error, pending helper, storage failure, synthetic input failure); all five passed in an in-memory JavaScript harness. Static contract passes (9 presets, 38 assets, 27 cached modules). No actual iPhone Safari test.
+
+- Cache 202: portable helper hydration now counts restored growth-only, surface-only, and batch-only settings toward successful application so pending backup helpers can clear. Added `tests/imported-helper-runtime.mjs` (6 simulated runtime cases) and a contract assertion preventing accidental helper counter references in saved-mix logic. Both runtime suites pass 11/11 cases; source contract passes 9 presets, 38 assets, 27 cached modules. No real iPhone Safari run.
