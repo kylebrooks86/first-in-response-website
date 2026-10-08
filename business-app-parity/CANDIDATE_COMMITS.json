@@ -1,0 +1,10 @@
+{
+  "localCandidates": {
+    "live": "6e0c3dc105d3b378392573c7918eb2df9c7b46db",
+    "doomsday": "309aeed49579d0c4a6f816b533fa6a0c433949b2",
+    "staging": "5d2c781992f0b2b172bdd6bdc98d3c0773e9030c"
+  },
+  "githubBase": "e516af3ce93368450cd3d02906d117116d090f3e",
+  "productionReady": false,
+  "deployed": false
+}

@@ -1,0 +1,284 @@
+[
+  {
+    "path": "app/api/app-version/route.ts",
+    "liveSHA256": "e4338eca1814008d140b7f41b188ed74e19a3637004f29bc3cba744e2d8b86b1",
+    "drReferenceSHA256": null,
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/auth/login/route.ts",
+    "liveSHA256": null,
+    "drReferenceSHA256": "0cacf3674115e3833852b4312badad28b3ca86b9cc116ba9cee62eba1252f889",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/auth/logout/route.ts",
+    "liveSHA256": null,
+    "drReferenceSHA256": "f92fbf30080ab4d9b1b8e1d46d15da71e4b2ab3bb7e002508dac83c4899cb99b",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/backup/photos/route.ts",
+    "liveSHA256": "aa10e3cfbdb5c4451cc6488c1a25a303703088d58f8606ead2f5a23181cd70ac",
+    "drReferenceSHA256": "a754107556944f2de6472157be6dfbc3e3ae778ad954a2247d76cf5f2ed67f0b",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/backup/route.ts",
+    "liveSHA256": "4856e9650710dc4608d5abbcba9a0e68968064efec7a61f51ef867048b936c22",
+    "drReferenceSHA256": "fcbb9386c0220d434fffcf209856e561ee9e106c29795a1690b6260dccc4f5c6",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/customer-messages/route.ts",
+    "liveSHA256": "98c2bf81be53442700c081c35d9f2f81ced5f3de986a063cd4d97a9ec390a15b",
+    "drReferenceSHA256": "73296272c6f2f8fdf1dd4bc1dcaed257bbeb5ea44e9f9f88251a1594b7827c96",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/customer-notes/route.ts",
+    "liveSHA256": "acf9ab33483185809358f8494f8265a78e20d636439cf6846506a4873c7011de",
+    "drReferenceSHA256": "72af3c245b79738cdef7af8c3ec4dd0e712bbb964a1490208e3a09bfc622dc9a",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/customer-photos/[id]/route.ts",
+    "liveSHA256": "c6ebe09102694f6dd19536dcfaf5f5a3407e93ea2cb6b9ab786e9d1fbcb3334e",
+    "drReferenceSHA256": "27221a0f0bf74b8f08593ae9a326145712a20acea502226e56561d704a05d88a",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/customer-photos/route.ts",
+    "liveSHA256": "8d7de5bb1694115f04bd024179ffda6138766077e73698ae1e413a9c012c8524",
+    "drReferenceSHA256": "14dfd2ac06da4a570a92d1b70587e0672613e1323650ae0f50e3581bd0509494",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/customers/route.ts",
+    "liveSHA256": "76039c63b9e8e7104ba159dd1b54e2832997886acd288da3d1479bcb029bb1ef",
+    "drReferenceSHA256": "ee196a054ac745067fd9fa03293274a09d8ebb28718be6835b5412c607f58317",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/dashboard-summary/route.ts",
+    "liveSHA256": "8eea5ba6176470e81116ec8207aeb141df1ca4bb0c1f8fb747cf23d3cb9bc124",
+    "drReferenceSHA256": "fee36b0e8fc967bc20c9e5d747837d5a9bdb971a8c30a5ab2d34f4b426ea44ec",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/estimates/[id]/route.ts",
+    "liveSHA256": "a742b619461585b35af305f6b020d092e49d777e23d7d478d7e9e9f19ec15ea7",
+    "drReferenceSHA256": "c677ac748dc4b1e33de554dc32390fee86b94e3fd564a2ef6e6c23adceaafd04",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/estimates/[id]/share/route.ts",
+    "liveSHA256": "8193fd4a9f7f21ace9c254bdcba89cb91b9d93044fe2ebd03f51c655448eff3a",
+    "drReferenceSHA256": "338dc7044700514837b5f6d533130d69d128f3f4f1f9196e37998a032a79d7ac",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/estimates/route.ts",
+    "liveSHA256": "409b3ce3697f69cbbe1a0cc51fb55792bd708f56e4635c6303f400f1470cd760",
+    "drReferenceSHA256": "a9cc9d1af9d71c636f959af931492952ef1a607abfe755022763724bb8f0bb22",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/expenses/route.ts",
+    "liveSHA256": "a36f59adb8122d43134faf2178f533eb2c00b6bb7f9b1c45fe7fc01aa31703ed",
+    "drReferenceSHA256": "647b37cad8a78916c96745545607aeb63d3658d4eee5f980b68c353435d70be7",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/invoices/[id]/route.ts",
+    "liveSHA256": "57e0950c56a59a04981b6f30fe9fb4c808f7ea0eed70e937187468f64c2413ff",
+    "drReferenceSHA256": "cfc880a0feb041cd8f9ab01b1ed65acda7abe0edd4760ce5b2a5b218501a804b",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/invoices/[id]/share/route.ts",
+    "liveSHA256": "29973b9d453d9d22a31fa49bb21db48e5fe9b35fc33ba885e3efe66f38f67fb2",
+    "drReferenceSHA256": "5fc6d3fb4598dffad44cdf81e685565b45a1eedaba203d44319e5fc9240bc22b",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/invoices/route.ts",
+    "liveSHA256": "2dec099dc4ce9611c904f3a61df57c813d2b7f566be3a8f36023013d6feaf8c9",
+    "drReferenceSHA256": "f92163ea48f39158fdf3489743c12fa8bb4c6fe16940bbf086945b2de3748db0",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/job-reports/route.ts",
+    "liveSHA256": "5ae6037ec6203786b1da7622faa1a602515929b3d588b13b54f855bacf7bf260",
+    "drReferenceSHA256": "42e4d01b8da7bca5c5c658902eccedc0885f68afe157d91cbb3cdab7c08e0421",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/message-templates/route.ts",
+    "liveSHA256": "33bec93664704124ebb122f9090f705301964f0c5897ea0df0e08671d8a113c6",
+    "drReferenceSHA256": "d9d93e2c15bd3c0a7f5c7dab05fb6707b49649352492183e307e2138b4c682e1",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/notifications/route.ts",
+    "liveSHA256": "ffb55c99f77abd60963487a94a6fb6750a093bcffc5a18598594a31981b35cbf",
+    "drReferenceSHA256": "010c7d44bb0096760ab67d8c9ae6dfbc3dde048a0d0590f2b3c3223383a6feb8",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/payments/checkout/route.ts",
+    "liveSHA256": "d3dd4cf10043ac5892bb3860dfcc6268e8d66ed42b5301c52ea6f815a22e5db9",
+    "drReferenceSHA256": "9016a6b3a37ae5336a6d6bc53955e738e27f4df03fe9b2c4f1551ac292b9a222",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/payments/refund/route.ts",
+    "liveSHA256": null,
+    "drReferenceSHA256": "9b0ce7a4f9e220c74906ab4e2e685d7a57a2cddf435fb3296ea2fc279422a4a8",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/payments/route.ts",
+    "liveSHA256": "39e75def581803b9d3cb5110bb1744dd899fc3451107b6406ac0a2aca263e71b",
+    "drReferenceSHA256": "39005196d6600acb37de6ca281bbfff71fd205aceba1f4bd3f1717838e3f0977",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/payments/webhook/route.ts",
+    "liveSHA256": "885ae924af7f0b445fc350505687101d642b77be5abc9a6732cb307c184b9ef9",
+    "drReferenceSHA256": "3b28473e5808dd90a9a1445ce4ede75f707dc2e535de0860536cacd843d1e8b1",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/public/estimates/[token]/accept/route.ts",
+    "liveSHA256": "f9733a062a996af4f69046296265827e8fa7a15084663711eece6d11dc24384f",
+    "drReferenceSHA256": "8f1c907e14fbfd4c4f3c3c1eaad1737bee2d997a1351e47040507befbe0dd688",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/api/tasks/route.ts",
+    "liveSHA256": "6c71f0a23344ab2939c45d2cbcf29dced3a3c4adcfaceddfc71b9c96c6656a5d",
+    "drReferenceSHA256": "d4125d6e335e13f6ca03893a8af3d1af69c6e5544ff7fad0211ca8104bc11afe",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/chatgpt-auth.ts",
+    "liveSHA256": "6a1886a2f410b48f45e309be80c4331fc516077608091066164e8995f412d8ed",
+    "drReferenceSHA256": null,
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/customer-portal-nav.tsx",
+    "liveSHA256": null,
+    "drReferenceSHA256": "9b6d407593d074c2a44e0be376f0f42351b02d13b9e74d0ce6dbff4c1a0f211a",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/dashboard.tsx",
+    "liveSHA256": "22d715e6bf80a669c49693b6f24e763cc56087b83f13b0a58eba4988bccb4560",
+    "drReferenceSHA256": "cef41c855c0f90e2c7b873aee0a4da3106363d603585cb3a4e87e3211c6275d4",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/estimate/[token]/accept-button.tsx",
+    "liveSHA256": "632d22284a56910a67d27384dd0d6bf03c6346818ce4030bcba162f264beda3d",
+    "drReferenceSHA256": "3b00fa30ccaa07ac1678768edf6a341a744ce64b0033d3bc92e9fb5af77daa7a",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/estimate/[token]/page.tsx",
+    "liveSHA256": "f28de6b198ee5abb7b6d318027ce8979e611b1d0d648cd02422c0834cf6f4a52",
+    "drReferenceSHA256": "952ca7dd891fa0766724d17c150a2f1f8159a02a68e00e5c42026f8a3fad67b4",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/globals.css",
+    "liveSHA256": "675a712feb782ae0d019fef9b8be351dc56012f12ac20197853eb36e763275f8",
+    "drReferenceSHA256": "c65ddea16a20aa28c050183cea862851a0849a5d4317a283ba994376517dd1db",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/invoice/[token]/page.tsx",
+    "liveSHA256": "3e8c02ace17a4b19007b49069b293ca69d79d57d040cf217d0bb79fb75b71520",
+    "drReferenceSHA256": "3450d4f1fd20875d642fa71344591ff4b722f3dffac0eee174f240212592a3b4",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/layout.tsx",
+    "liveSHA256": "8710568228fb94e775a9c669b4acee95d62e49fea9c631aa631a73c7161ea3aa",
+    "drReferenceSHA256": "318c2d6c4f2930116c9ec9e697e161273d458aa5be87c8e5867ab15407cc5c27",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/login/page.tsx",
+    "liveSHA256": null,
+    "drReferenceSHA256": "00256f4b9dce562ccd38d3f247bcb877121591fb3c83eb3bd1e081aefbe7b2bb",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/manifest.ts",
+    "liveSHA256": "3c1d6f22efaec04e576f8d8c62be8483017d0990be650abffbae65efad1e1d07",
+    "drReferenceSHA256": "d332e322f3faf586d6bc4abddf00ea4a58215f1ba0fbe9a71fec0a5b4e02bf24",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/owner-account.tsx",
+    "liveSHA256": "211a3eb315cf1eebe4e59109891ee73bd4d3362a9de1d94c104052dd8bb85f9c",
+    "drReferenceSHA256": null,
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/owner-auth.ts",
+    "liveSHA256": null,
+    "drReferenceSHA256": "90f4a532492daa8faf858d4667c0c085f04e5426a09643c8630220a44c65ae15",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/page.tsx",
+    "liveSHA256": "a64114383dc0254b6490d82287a484831c7bc65cc40cced5c4fed1f42ff23c1c",
+    "drReferenceSHA256": "1f285fb52b30d9e173a556a5d8f05335914a2da579e5b22ca7cc24cb3e008cc7",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/pay/[id]/page.tsx",
+    "liveSHA256": "770ecb0ef0857e7509cdd0d6ade5e0e382759d4f7229c07a0daf3f311fcf7d59",
+    "drReferenceSHA256": "7a1a1f692e4a7ce6fe2d3709a879798da3690ef644a4059e9b8e3e1b1ee9c9f3",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "app/pay/[id]/pay-button.tsx",
+    "liveSHA256": "69f2b6b5573cd43f4a3fda282f6fb9d86b5b618e0c567b13d3cbe7a91f4d1584",
+    "drReferenceSHA256": "478f90e929d5f111744c562ba139b7f97ff65451ac4f94f0acb502f7ac5c303f",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "components/portal-navigation.tsx",
+    "liveSHA256": "152860b54ee13bbe3453d2cab9d53650c69bc6574c3a442d487325edb3bf2f47",
+    "drReferenceSHA256": null,
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "db/schema.ts",
+    "liveSHA256": "11dc2570397d7050f39297631ccdf125339fd335f710b0072816d3a17b38a889",
+    "drReferenceSHA256": "62f81888f173c934305211605b2d4f9c459dd66bdd1e5fa421f7d6b498aa5fcb",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "lib/app-version.ts",
+    "liveSHA256": "a100ca522486fce04a8e3e734836765ab145a6b3fde763966ff2befc4b8a965b",
+    "drReferenceSHA256": null,
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "lib/fire-templates.ts",
+    "liveSHA256": "0b500df4bf9b320e9bc62c0d1c6558679b8c590f80f9f7dfa0e83409ced2b97b",
+    "drReferenceSHA256": "3bc9b1bc75b78fe7c0e3e1d58ba654b99f1dbdf5d2c628291758284cf16a6239",
+    "status": "source difference; deployed Doomsday identity unverified"
+  },
+  {
+    "path": "lib/stripe-payments.ts",
+    "liveSHA256": "3c65fc8f4aa02412731e8b5f1e989e644bec4bfbb7fae04499996211b4265a77",
+    "drReferenceSHA256": null,
+    "status": "source difference; deployed Doomsday identity unverified"
+  }
+]

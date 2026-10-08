@@ -1,0 +1,74 @@
+{
+  "scope": "FIRE Business App only",
+  "asOf": "2026-10-08",
+  "sourceComparison": {
+    "passed": 113,
+    "total": 113,
+    "percent": 100,
+    "meaning": "shared candidate hashes, not deployed equivalence"
+  },
+  "implementationBatch": {
+    "completed": 4,
+    "total": 4,
+    "percent": 100,
+    "scope": [
+      "provider uniqueness",
+      "refund ledger integrity",
+      "public collection/notification guards",
+      "restore pre-write guards"
+    ]
+  },
+  "automatedSuites": {
+    "passed": 19,
+    "total": 19,
+    "percent": 100,
+    "mockedStripe": true
+  },
+  "liveFunctionalParity": {
+    "verifiedComparisons": 0,
+    "requiredEvidenceStates": 32,
+    "percent": 0
+  },
+  "doomsdayFunctionalParity": {
+    "verifiedComparisons": 0,
+    "requiredEvidenceStates": 32,
+    "percent": 0
+  },
+  "visualParity": {
+    "verified": 0,
+    "total": 32,
+    "percent": 0,
+    "savedLiveCaptures": 11,
+    "savedIndependentCaptures": 0,
+    "additionalUnsealedDesktopCapture": 1
+  },
+  "databaseStripeSafety": {
+    "localTargetMigrationTestsPassed": 3,
+    "totalLocalTargets": 3,
+    "remoteJournalsVerified": 0,
+    "totalRemoteTargets": 3,
+    "remotePercent": 0,
+    "sandboxEndToEndVerified": false
+  },
+  "productionReadiness": {
+    "gatesPassed": 3,
+    "totalGates": 10,
+    "percent": 30,
+    "ready": false,
+    "passed": [
+      "shared source",
+      "isolated regression",
+      "target compilations"
+    ],
+    "pending": [
+      "deployed identities",
+      "remote schema/journals",
+      "auth adapter",
+      "photo storage",
+      "mobile evidence",
+      "sandbox integration",
+      "rollback/seal"
+    ]
+  },
+  "productionDeployed": false
+}

@@ -1,0 +1,27 @@
+{
+  "scope": "FIRE Business App only; Business Command Center excluded",
+  "productionApprovalRequired": true,
+  "paidServicesAllowed": false,
+  "targets": [
+    {
+      "name": "LIVE",
+      "url": "https://fire-app.kylebrooks8605.chatgpt.site",
+      "nativeVersion": 61,
+      "sourceCommit": "896b5e4125cb89da729993d1f37127e3b930c79d",
+      "runtimeVersion": "105"
+    },
+    {
+      "name": "Refund staging",
+      "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+      "nativeVersion": 3,
+      "sourceCommit": "f7ed28a5d13ada738f5663e4f55a45c5d794c21e",
+      "runtimeVersion": "refund-staging-ebc670f"
+    },
+    {
+      "name": "Doomsday",
+      "url": "https://fire-app-independent-staging.kyle-bfc.workers.dev",
+      "referenceCommit": "e516af3ce93368450cd3d02906d117116d090f3e",
+      "deployedCommitVerified": false
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "sharedFilesChecked": 113,
+  "roots": [
+    "/workspace/scratch/f383844b5d3a/parity-live-candidate",
+    "/workspace/scratch/f383844b5d3a/parity-dr-candidate",
+    "/workspace/scratch/f383844b5d3a/parity-staging-candidate"
+  ],
+  "adaptersRequiringSeparateVerification": [
+    "app/page.tsx",
+    "app/layout.tsx",
+    "app/chatgpt-auth.ts",
+    "app/owner-auth.ts",
+    "app/login/page.tsx",
+    "app/api/auth/login/route.ts",
+    "app/api/auth/logout/route.ts",
+    "app/api/app-version/route.ts",
+    "app/api/staging-fixtures/route.ts"
+  ],
+  "differences": [],
+  "sharedSourceParity": true,
+  "productionReady": false
+}

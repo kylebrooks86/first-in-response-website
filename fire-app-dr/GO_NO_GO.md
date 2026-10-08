@@ -39,7 +39,7 @@ The structured forward-sync registry tracks owner-approved user-facing blockers 
 
 - the staging Worker and D1 are isolated from production;
 - the sealed v138 archive SHA-256 check passes;
-- all 21 migrations (`0000` through `0020`) are applied to the isolated D1 in order;
+- all 22 migrations (`0000` through `0021`) are applied to the isolated D1 in order;
 - the production build succeeds;
 - all eight DR parity/governance guards pass;
 - owner PIN login and session behavior work;

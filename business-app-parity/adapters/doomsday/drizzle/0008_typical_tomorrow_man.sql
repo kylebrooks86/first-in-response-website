@@ -1,0 +1,1 @@
+ALTER TABLE `estimate_items` ADD `description` text DEFAULT '' NOT NULL;
