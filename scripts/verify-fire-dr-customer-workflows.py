@@ -104,6 +104,30 @@ checks = {
         'That photo is larger than 15 MB. Choose a smaller image.',
         'await env.BUCKET.delete(objectKey);',
     ],
+    # DR owner sign-in must remain fail-closed and rate-limited; customer-facing
+    # routes must not accidentally become a path into owner records.
+    Path('app/api/auth/login/route.ts'): [
+        'const MAX_ATTEMPTS = 5;',
+        'const BLOCK_SECONDS = 30 * 60;',
+        'auth_rate_limits',
+        'if (status.blocked)',
+        'await recordFailure(key)',
+        'await clearFailures(key)',
+        'Sign-in protection is temporarily unavailable.',
+        'cache-control',
+    ],
+    Path('app/owner-auth.ts'): [
+        'export async function requireOwnerUser(',
+        'export async function independentSessionCookie()',
+        'HttpOnly; Secure; SameSite=Strict',
+        'if (!await sessionIsValid(',
+        'constantTimeEqual(',
+    ],
+    Path('app/login/page.tsx'): [
+        'Enter your 4-digit PIN to access business records.',
+        'inputMode="numeric"',
+        'maxLength={4}',
+    ],
     Path('lib/payment-methods.ts'): [
         'export const DEFAULT_CASH_APP_HANDLE = "$FIREExteriors";',
         'export const DEFAULT_VENMO_HANDLE = "@FirstInResponseExteriors";',
