@@ -3622,5 +3622,20 @@
     "builds": "BLOCKED_DEPENDENCIES; not run. No network install or paid operation attempted.",
     "evidenceFile": "LOCAL_CUSTOMER_STORE_EVIDENCE.json",
     "productionReadinessPercent": 30
+  },
+  "localCustomerStoreCompilationBatch": {
+    "parent": "344d71e7455b02f2250aca084d9c768e876c6596",
+    "evidenceFile": "LOCAL_CUSTOMER_STORE_COMPILATION_EVIDENCE.json",
+    "frozenInstallFixed": true,
+    "dependencyVersionsChanged": false,
+    "typescriptPassed": 3,
+    "typescriptRequired": 3,
+    "buildsPassed": 3,
+    "buildsRequired": 3,
+    "simulatedChecksPassed": 60,
+    "simulatedChecksRequired": 60,
+    "realIndexedDBVerified": false,
+    "uiActivated": false,
+    "productionReadinessPercent": 30
   }
 }
