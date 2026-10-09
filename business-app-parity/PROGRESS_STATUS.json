@@ -622,5 +622,47 @@
     "productionReadinessRequired": 10,
     "productionReady": false,
     "deployed": false
+  },
+  "paymentBalanceLabelsBatch": {
+    "parent": "bbcdf32d95ff6aaa2b43d866db95ebfdc0aba547",
+    "evidenceFile": "PAYMENT_BALANCE_LABELS_EVIDENCE.json",
+    "candidateSnapshotCommits": {
+      "live": "74a14f9fd1ce3709aa75d2e0ad31ee868a7037d5",
+      "doomsday": "8ba0de2e91694b093a7a607728a56dc717fc3262",
+      "staging": "1d454a696016f0bf90f9ecb5637fa89a9bd4f61c"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/payment-balance-labels-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/payment-balance-labels-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/payment-balance-labels-staging"
+    },
+    "textReplacementsVerified": 5,
+    "runtimeLogicChanged": false,
+    "presentationChanged": true,
+    "suiteRunsPassed": 6,
+    "suiteRunsTotal": 6,
+    "suiteNames": [
+      "test-customer-invoice-balances.mjs",
+      "test-payment-mobile-ui.mjs"
+    ],
+    "balanceAssertionsPassed": 468,
+    "balanceAssertionsTotal": 468,
+    "mobileStructuralChecksPassed": 33,
+    "mobileStructuralChecksTotal": 33,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "buildCompletionVerifiedInLogs": true,
+    "typescriptRerun": false,
+    "reasonNoTypeScriptRerun": "Exactly five JSX text replacements; no logic, types, API or CSS changes. Prior TypeScript 3/3 preserved.",
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false
   }
 }
