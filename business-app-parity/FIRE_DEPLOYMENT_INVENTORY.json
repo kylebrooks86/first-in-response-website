@@ -74,14 +74,16 @@
       "url": "https://fire-app-independent-staging.kyle-bfc.workers.dev",
       "referenceCommit": "e516af3ce93368450cd3d02906d117116d090f3e",
       "deployedCommitVerified": false,
-      "identityStatus": "Owner observed active Cloudflare version and source link; GitHub confirms branch/reference Business App build path. Runtime artifact identity remains unsealed.",
+      "identityStatus": "Owner captured full active version UUID, bound D1 UUID and current build configuration; historical sealed-v138 build path confirmed. Active artifact/runtime identity and cross-target isolation remain unsealed.",
       "workerName": "fire-app-independent-staging",
       "ownerObservedCloudflareVersionPrefix": "61fa32a3",
       "ownerObservedTrafficPercent": 100,
       "ownerObservedD1Binding": {
         "binding": "DB",
         "databaseName": "fire-app-staging-db",
-        "immutableUuidVerified": false
+        "immutableUuidVerified": true,
+        "databaseUuid": "afb2c05a-d794-4a9a-b580-924ce01c26ad",
+        "verificationProvenance": "Owner copied bound database URL after production binding screenshot; isolation from other targets not verified"
       },
       "githubDeploymentLinkCommit": "a1cdb94be76b0ded16b213b84616e741651e140d",
       "githubDeploymentLinkBranch": "fire-calculator-exact-live-clone",
@@ -109,7 +111,24 @@
       "candidateMigrationGap": [
         "0022_stripe_provider_uniqueness.sql"
       ],
-      "latestEvidenceFile": "DOOMSDAY_CLOUDFLARE_RECONCILIATION_EVIDENCE.json"
+      "latestEvidenceFile": "DOOMSDAY_BUILD_BINDING_OWNER_EVIDENCE.json",
+      "ownerObservedCloudflareVersionUuid": "61fa32a3-3461-469d-9245-a9df6dd3f036",
+      "ownerObservedBuildConfiguration": {
+        "repository": "kylebrooks86/first-in-response-website",
+        "productionBranch": "fire-calculator-exact-live-clone",
+        "rootDirectory": "/",
+        "buildCommand": "git fetch origin fire-calculator-exact-live-clone && git checkout fire-calculator-exact-live-clone && bash scripts/prepare-fire-v138-dr-no-r2.sh",
+        "deployCommand": "bash scripts/deploy-fire-dr-staging.sh",
+        "buildsEnabled": true,
+        "includeWatchPaths": [
+          "*"
+        ],
+        "evidence": [
+          "IMG_1606.png",
+          "IMG_1607.png",
+          "Owner copied full build command"
+        ]
+      }
     }
   ],
   "asOf": "2026-10-09",

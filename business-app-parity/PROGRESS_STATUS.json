@@ -3515,5 +3515,25 @@
     "remoteDatabaseWrites": false,
     "stripeCalls": false,
     "paidServicesUsed": false
+  },
+  "doomsdayOwnerBuildBindingCheckpoint": {
+    "evidenceFile": "DOOMSDAY_BUILD_BINDING_OWNER_EVIDENCE.json",
+    "activeVersionUuid": "61fa32a3-3461-469d-9245-a9df6dd3f036",
+    "databaseUuid": "afb2c05a-d794-4a9a-b580-924ce01c26ad",
+    "configuredBuildBranch": "fire-calculator-exact-live-clone",
+    "configuredBuildsCurrentParityCandidate": false,
+    "ownerEvidenceGapsResolved": [
+      "full Worker version UUID",
+      "bound database UUID",
+      "current build command/root/deploy command"
+    ],
+    "gateNotYetResolved": "Configured build settings plus metadata source link do not seal active built artifact or runtime behavior.",
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "appSourceChanged": false,
+    "commandsExecuted": false,
+    "applicationTestsAndBuilds": "Not rerun: evidence-only checkpoint. Prior verified runtime/preflight tests preserved.",
+    "priorReviewManifest": "RELEASE_BLOCKER_REVIEW_MANIFEST.json preserved unchanged; expected stale after inventory/progress evidence update."
   }
 }
