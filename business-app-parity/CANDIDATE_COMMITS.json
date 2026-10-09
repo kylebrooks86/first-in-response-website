@@ -26,5 +26,10 @@
     "live": "16228a4b619570a924345a089da8f1e47dce40d2",
     "doomsday": "217478020ee6103495b1f078d994625a11110984",
     "staging": "1cc2cf2ae7e376e32e9940bfc5b14d14fc673591"
+  },
+  "publicTipLayoutBatchCandidateCommits": {
+    "live": "8324fc877112686ccdefa9baabad32f3c06627a7",
+    "doomsday": "3e68722538cab64bbc662361c6cc0c15d5cee4d1",
+    "staging": "4b5740cfcf2e74e80b2bff774eb6d79a870a69d5"
   }
 }

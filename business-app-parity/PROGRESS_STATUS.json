@@ -173,5 +173,38 @@
     "requiredMobileComparisons": 32,
     "sandboxEndToEndVerified": false,
     "productionReady": false
+  },
+  "publicTipLayoutBatch": {
+    "parent": "a610baab8fae6a8bbe094273ee592e1ba91c3fd7",
+    "implementationItemsCompleted": 2,
+    "implementationItemsTotal": 2,
+    "newChecksPerTarget": 16,
+    "newCheckExecutionsPassed": 48,
+    "newCheckExecutionsTotal": 48,
+    "suiteRunsPassed": 9,
+    "suiteRunsTotal": 9,
+    "suiteNames": [
+      "test-public-tip-layout.mjs",
+      "test-final-tip-ui.mjs",
+      "test-payment-mobile-ui.mjs"
+    ],
+    "sourceFilesMatched": 118,
+    "sourceFilesChecked": 118,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "typescriptRerun": false,
+    "reasonNoTypeScriptRerun": "CSS-only runtime change; prior TypeScript 3/3 preserved",
+    "photoRecoveryTestsRerun": false,
+    "browserAvailable": true,
+    "existingStagingVersion": 3,
+    "desktopBaselineCaptured": true,
+    "newCandidateRendered": false,
+    "mobileViewportControlAvailable": false,
+    "remoteSchemasVerified": 0,
+    "remoteSchemasRequired": 3,
+    "formalMobileComparisonsVerified": 0,
+    "requiredMobileComparisons": 32,
+    "sandboxEndToEndVerified": false,
+    "productionReady": false
   }
 }

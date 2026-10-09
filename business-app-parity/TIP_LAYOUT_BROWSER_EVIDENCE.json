@@ -1,0 +1,37 @@
+{
+  "observedAtUTC": "2026-10-09",
+  "localDateChicago": "2026-10-08",
+  "environment": "existing refund staging",
+  "siteId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+  "siteVersion": 3,
+  "sourceCommitVerified": false,
+  "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site/invoice/qa-mobile-layout-invoice-staging-only",
+  "viewportCSS": {
+    "width": 1363,
+    "height": 936
+  },
+  "screenshot": {
+    "path": "evidence/fire-tip-baseline-20261009.jpg",
+    "width": 1348,
+    "height": 926,
+    "sha256": "6bf63c5808ecababe9a001774ab5a9bf62d62efe931d70acee15bf2e86f10c38"
+  },
+  "observations": {
+    "tipColumns": "311px 311px",
+    "customColumn": "1 / -1",
+    "documentWideHorizontalOverflow": false,
+    "noTipRestored": true,
+    "customInputFontSize": "16px",
+    "customInputMode": "decimal",
+    "customTipDisplayed": 750,
+    "cardChargeDisplayed": 10750,
+    "invoicePrincipalDisplayed": 10000,
+    "cashAppHref": "https://cash.app/$FIREExteriors",
+    "venmoHref": "https://venmo.com/FirstInResponseExteriors"
+  },
+  "payClicked": false,
+  "checkoutRequestsCreated": false,
+  "mobileEmulationAvailable": false,
+  "candidateRenderingVerified": false,
+  "formalParityComparison": false
+}

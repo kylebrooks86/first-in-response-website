@@ -15,3 +15,5 @@ Resume-batch verification: `node scripts/test-webhook-boundary.mjs` and `node sc
 Photo recovery CLI: run `node scripts/test-photo-restore-safety.mjs` for isolated tests. Remote apply is blocked unless both `--confirm-bucket` and `--confirm-database` exactly match the supplied target config; this guard is not production authorization. Metadata/verification failures preserve uploaded bytes for inspection. See PHOTO_RECOVERY_BATCH_HANDOFF.md for tested behavior and remaining storage/concurrency limits.
 
 Latest bounded Payments layout candidate batch: see [PAYMENTS_MOBILE_BATCH_HANDOFF.md](PAYMENTS_MOBILE_BATCH_HANDOFF.md). Candidate-only verification; no deployed/mobile parity claim.
+
+Latest public tip-card parity batch: [PUBLIC_TIP_LAYOUT_HANDOFF.md](PUBLIC_TIP_LAYOUT_HANDOFF.md), with the read-only hosted reference in TIP_LAYOUT_BROWSER_EVIDENCE.json.
