@@ -425,5 +425,29 @@
     "productionReady": false,
     "deployed": false,
     "evidenceFile": "INDEPENDENT_AUTH_VALIDATION_EVIDENCE.json"
+  },
+  "localDoomsdayBuildBatch": {
+    "parent": "2da38b0eec6d3f1faebe59b453ad7aa2188e608e",
+    "candidatePath": "/workspace/scratch/a307f8c9f987/doomsday-local-bridge",
+    "candidateSnapshotCommit": "a62478bcfc901db361e92a5b39cc3c800f711eda",
+    "preparationSafetyTestsPassed": 5,
+    "preparationSafetyTestsTotal": 5,
+    "authAssertionsPassed": 21,
+    "authAssertionsTotal": 21,
+    "typescriptTargetsPassed": 1,
+    "typescriptTargetsChecked": 1,
+    "buildTargetsPassed": 1,
+    "buildTargetsChecked": 1,
+    "generatedConfigVerified": true,
+    "sharedFilesMatched": 118,
+    "sharedFilesChecked": 118,
+    "realResourcesConnected": false,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "evidenceFile": "LOCAL_DOOMSDAY_BUILD_EVIDENCE.json"
   }
 }

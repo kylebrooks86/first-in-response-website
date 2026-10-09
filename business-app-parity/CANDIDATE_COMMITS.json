@@ -46,5 +46,6 @@
     "live": "dc3fff7124adf78df439cc2ee1dda6033dcde47d",
     "doomsday": "c227120ac685160adeda26be80cd742a34b70f70",
     "staging": "9288aba275a6c879f5f23909e16c09c056221ea3"
-  }
+  },
+  "localDoomsdayBuildBridgeCommit": "a62478bcfc901db361e92a5b39cc3c800f711eda"
 }
