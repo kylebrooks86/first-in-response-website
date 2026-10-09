@@ -103,6 +103,77 @@ try{
   await check('old exact retry after restart never rewinds later edits',async()=>{
     const result=await p.evaluate(async()=>{const receipt=await store.save(customer,'create',0);return {receipt,current:await store.exportSnapshot()};});assert.equal(result.receipt.revision,1);assert.equal(result.current.customers.find(c=>c.id==='synthetic-1').revision,3);
   });
+  await check('read by ID returns latest revision; missing ID is explicitly null',async()=>{
+    const result=await p.evaluate(async()=>({found:await store.getCustomer('synthetic-1'),missing:await store.getCustomer('missing')}));
+    assert.equal(result.found.revision,3);assert.equal(result.missing,null);
+  });
+  await check('list is complete and detached from persisted records',async()=>{
+    const result=await p.evaluate(async()=>{const rows=await store.listCustomers();rows[0].name='Mutation';return {count:rows.length,stored:await store.listCustomers()};});
+    assert.equal(result.count,3);assert.ok(result.stored.every(r=>r.name!=='Mutation'));
+  });
+  await check('retrieval is account and target isolated',async()=>{
+    assert.deepEqual(await p.evaluate(async()=>{const other=await api.openLocalCustomerStore('other-owner','synthetic-target');const result=[await other.getCustomer('synthetic-1'),(await other.listCustomers()).length];other.close();return result;}),[null,0]);
+  });
+  await check('retrieval works with browser networking offline',async()=>{
+    await context.setOffline(true);assert.equal(await p.evaluate(async()=> (await store.getCustomer('offline-created')).name),'Synthetic Customer');assert.equal(await p.evaluate(async()=> (await store.listCustomers()).length),3);await context.setOffline(false);
+  });
+  await check('native read abort rejects rather than returning missing/zero data',async()=>{
+    const result=await p.evaluate(async()=>{const original=IDBObjectStore.prototype.get;
+      IDBObjectStore.prototype.get=function(...args){const req=original.apply(this,args);req.addEventListener('success',()=>req.transaction.abort());return req;};
+      try{await store.getCustomer('synthetic-1');return false;}catch{return true;}finally{IDBObjectStore.prototype.get=original;}
+    });assert.equal(result,true);
+  });
+  await check('native list abort rejects and preserves data',async()=>{
+    const result=await p.evaluate(async()=>{const original=IDBObjectStore.prototype.getAll;
+      IDBObjectStore.prototype.getAll=function(...args){const req=original.apply(this,args);req.addEventListener('success',()=>req.transaction.abort());return req;};
+      try{await store.listCustomers();return false;}catch{return true;}finally{IDBObjectStore.prototype.getAll=original;}
+    });assert.equal(result,true);assert.equal(await p.evaluate(async()=> (await store.listCustomers()).length),3);
+  });
+  await check('repeated valid preflight is detached and does not change native records',async()=>{
+    const result=await p.evaluate(async()=>{const before=await store.exportSnapshot();const one=api.validateLocalCustomerExport(before,store.namespace);const two=api.validateLocalCustomerExport(before,store.namespace);one.customers[0].name='Changed';return {same:JSON.stringify(two)===JSON.stringify(before),unchanged:JSON.stringify(await store.exportSnapshot())===JSON.stringify(before)};});assert.deepEqual(result,{same:true,unchanged:true});
+  });
+  const invalidFixtures=[
+    ['null root',v=>null],['wrong format',v=>({...v,format:'production'})],['future version',v=>({...v,version:2})],
+    ['string version',v=>({...v,version:'1'})],['other namespace',v=>({...v,namespace:'fire-local-customers:v1:other:target'})],
+    ['unknown root field',v=>({...v,secret:'no'})],['missing collection',v=>{delete v.customers;return v;}],
+    ['malformed customers',v=>({...v,customers:{}})],['malformed operations',v=>({...v,pendingOperations:null})],
+    ['duplicate customers',v=>({...v,customers:[...v.customers,v.customers[0]]})],
+    ['duplicate operations',v=>({...v,pendingOperations:[...v.pendingOperations,v.pendingOperations[0]]})],
+    ['bad customer ID',v=>{v.customers[0].id='bad:id';return v;}],['empty name',v=>{v.customers[0].name='';return v;}],
+    ['unknown customer field',v=>{v.customers[0].unexpected=true;return v;}],['missing customer field',v=>{delete v.customers[0].email;return v;}],
+    ['zero revision',v=>{v.customers[0].revision=0;return v;}],['fractional revision',v=>{v.customers[0].revision=1.5;return v;}],
+    ['unsafe revision',v=>{v.customers[0].revision=Number.MAX_SAFE_INTEGER+1;return v;}],
+    ['bad timestamp',v=>{v.customers[0].updatedAt='yesterday';return v;}],['unknown operation field',v=>{v.pendingOperations[0].extra=1;return v;}],
+    ['bad operation ID',v=>{v.pendingOperations[0].id='';return v;}],['financial operation forbidden',v=>{v.pendingOperations[0].kind='stripe-refund';return v;}],
+    ['negative expected revision',v=>{v.pendingOperations[0].expectedRevision=-1;return v;}],
+    ['wrong expected revision',v=>{v.pendingOperations[0].expectedRevision=500;return v;}],
+    ['missing customer relationship',v=>{v.customers=v.customers.slice(1);return v;}],
+    ['mismatched operation input',v=>{v.pendingOperations[0].input.name='Wrong';return v;}],
+    ['extra operation input field',v=>{v.pendingOperations[0].input.extra=1;return v;}],
+    ['missing history',v=>{v.pendingOperations.pop();return v;}],
+    ['duplicate history revision',v=>{const op=structuredClone(v.pendingOperations[0]);op.id='duplicate-revision';v.pendingOperations.push(op);return v;}],
+    ['current/history payload mismatch',v=>{v.customers[0].name='Wrong';return v;}],
+    ['oversized customers',v=>({...v,customers:Array(10001).fill(v.customers[0])})],
+  ];
+  for(const [name,mutate] of invalidFixtures){
+    await check(`backup rejects ${name} without writes`,async()=>{
+      const backup=await p.evaluate(()=>store.exportSnapshot());const bad=mutate(structuredClone(backup));
+      const result=await p.evaluate(async bad=>{const before=await store.exportSnapshot();let rejected=false;try{api.validateLocalCustomerExport(bad,store.namespace);}catch{rejected=true;}return {rejected,unchanged:JSON.stringify(await store.exportSnapshot())===JSON.stringify(before)};},bad);assert.deepEqual(result,{rejected:true,unchanged:true});
+    });
+  }
+  await check('empty same-namespace backup is valid but has no restoration side effects',async()=>{
+    const result=await p.evaluate(async()=>{const empty=api.validateLocalCustomerExport({format:'fire-local-customers',version:1,namespace:store.namespace,customers:[],pendingOperations:[]},store.namespace);return {empty:empty.customers.length,current:(await store.listCustomers()).length};});assert.deepEqual(result,{empty:0,current:3});
+  });
+  await check('invalid read ID rejects before touching native records',async()=>{
+    assert.equal(await p.evaluate(()=>{try{store.getCustomer('bad:id');return false;}catch{return true;}}),true);
+  });
+  await check('malformed native row fails closed during retrieval',async()=>{
+    const result=await p.evaluate(async()=>{
+      const db=await new Promise((resolve,reject)=>{const r=indexedDB.open(store.namespace,1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+      await new Promise((resolve,reject)=>{const tx=db.transaction('customers','readwrite');tx.objectStore('customers').put({id:'corrupt-row',name:'Bad'});tx.oncomplete=resolve;tx.onabort=reject;});db.close();
+      let get=false,list=false;try{await store.getCustomer('corrupt-row');}catch{get=true;}try{await store.listCustomers();}catch{list=true;}return {get,list};
+    });assert.deepEqual(result,{get:true,list:true});
+  });
   await check('version change closes connection and future schema is refused',async()=>{
     const result=await p.evaluate(async()=>{
       const db=await new Promise((resolve,reject)=>{const r=indexedDB.open(store.namespace,2);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});db.close();

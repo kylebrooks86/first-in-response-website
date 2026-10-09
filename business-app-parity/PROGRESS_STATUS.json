@@ -3651,5 +3651,32 @@
     "appOfflineColdLaunchVerified": false,
     "uiActivated": false,
     "productionReadinessPercent": 30
+  },
+  "localCustomerRetrievalValidationBatch": {
+    "parent": "6a7b4cb861e61085b0e94c97dd35677f398cbf78",
+    "status": "VERIFIED_DEVELOPMENT_ONLY",
+    "evidence": "LOCAL_CUSTOMER_RETRIEVAL_VALIDATION_EVIDENCE.json",
+    "handoff": "LOCAL_CUSTOMER_RETRIEVAL_VALIDATION_HANDOFF.md",
+    "nativeBrowserChecks": {
+      "passed": 168,
+      "total": 168
+    },
+    "typechecks": {
+      "passed": 3,
+      "total": 3
+    },
+    "builds": {
+      "passed": 3,
+      "total": 3
+    },
+    "sharedSourceFiles": 120,
+    "restoreImplemented": false,
+    "realRecordsActivated": false,
+    "productionReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30,
+      "ready": false
+    }
   }
 }

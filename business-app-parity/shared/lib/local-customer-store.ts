@@ -34,6 +34,74 @@ function validate(input: LocalCustomerInput): LocalCustomerInput {
   return Object.fromEntries(fields.map(field => [field, input[field]])) as LocalCustomerInput;
 }
 
+function objectWithKeys(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || ![Object.prototype, null].includes(Object.getPrototypeOf(value))
+    || Object.keys(value).length !== keys.length || keys.some(key => !Object.hasOwn(value, key))) {
+    throw new Error(`Invalid ${label} fields.`);
+  }
+  return value as Record<string, unknown>;
+}
+function customerRecord(value: unknown): LocalCustomer {
+  const row = objectWithKeys(value, ["id", "name", "email", "phone", "address", "leadSource", "revision", "updatedAt"], "customer record");
+  const input = validate({ id: row.id, name: row.name, email: row.email, phone: row.phone,
+    address: row.address, leadSource: row.leadSource } as LocalCustomerInput);
+  if (!Number.isSafeInteger(row.revision) || (row.revision as number) < 1) throw new Error("Invalid customer revision.");
+  if (typeof row.updatedAt !== "string" || !Number.isFinite(Date.parse(row.updatedAt))
+    || new Date(row.updatedAt).toISOString() !== row.updatedAt) throw new Error("Invalid customer timestamp.");
+  return { ...input, revision: row.revision as number, updatedAt: row.updatedAt };
+}
+
+/** Pure preflight only. This customer-only format is not the production records backup. */
+export function validateLocalCustomerExport(value: unknown, expectedNamespace: string): LocalCustomerExport {
+  if (typeof expectedNamespace !== "string" || !/^fire-local-customers:v1:[A-Za-z0-9_-]{1,128}:[A-Za-z0-9_-]{1,128}$/.test(expectedNamespace)) {
+    throw new Error("Invalid expected namespace.");
+  }
+  const root = objectWithKeys(value, ["format", "version", "namespace", "customers", "pendingOperations"], "export");
+  if (root.format !== "fire-local-customers" || root.version !== 1) throw new Error("Unsupported customer export format/version.");
+  if (root.namespace !== expectedNamespace) throw new Error("Customer export belongs to a different account or target.");
+  if (!Array.isArray(root.customers) || !Array.isArray(root.pendingOperations)
+    || root.customers.length > 10000 || root.pendingOperations.length > 100000) throw new Error("Invalid or oversized customer collections.");
+  const customers: LocalCustomer[] = [];
+  const records = new Map<string, LocalCustomer>();
+  for (const value of root.customers) {
+    const row = customerRecord(value);
+    if (records.has(row.id)) throw new Error("Duplicate customer ID.");
+    records.set(row.id, row); customers.push(row);
+  }
+  const operations: LocalCustomerOperation[] = [];
+  const ids = new Set<string>();
+  const histories = new Map<string, Map<number, LocalCustomer>>();
+  for (const value of root.pendingOperations) {
+    const op = objectWithKeys(value, ["id", "kind", "expectedRevision", "customer", "input"], "operation");
+    const id = token(op.id as string, "operation ID");
+    if (ids.has(id)) throw new Error("Duplicate operation ID.");
+    ids.add(id);
+    if (op.kind !== "customer-upsert" || !Number.isSafeInteger(op.expectedRevision)
+      || (op.expectedRevision as number) < 0 || op.expectedRevision === Number.MAX_SAFE_INTEGER) throw new Error("Invalid operation kind/revision.");
+    const row = customerRecord(op.customer);
+    const inputRow = objectWithKeys(op.input, ["id", "name", "email", "phone", "address", "leadSource"], "operation input");
+    const input = validate(inputRow as LocalCustomerInput);
+    const current = records.get(row.id);
+    if (!current || row.revision !== (op.expectedRevision as number) + 1 || row.revision > current.revision
+      || ["id", "name", "email", "phone", "address", "leadSource"].some(key => row[key as keyof LocalCustomer] !== input[key as keyof LocalCustomerInput])) {
+      throw new Error("Invalid operation customer reference or payload.");
+    }
+    const history = histories.get(row.id) ?? new Map<number, LocalCustomer>();
+    if (history.has(row.revision)) throw new Error("Duplicate customer revision in operations.");
+    history.set(row.revision, row); histories.set(row.id, history);
+    operations.push({ id, kind: "customer-upsert", expectedRevision: op.expectedRevision as number, customer: row, input });
+  }
+  // Version 1 retains every local operation. Missing history must not be silently restored.
+  for (const current of customers) {
+    const history = histories.get(current.id);
+    if (!history || history.size !== current.revision
+      || [...history.keys()].sort((a, b) => a - b).some((revision, index) => revision !== index + 1)
+      || JSON.stringify(history.get(current.revision)) !== JSON.stringify(current)) throw new Error("Incomplete or inconsistent customer operation history.");
+  }
+  return { format: "fire-local-customers", version: 1, namespace: expectedNamespace, customers, pendingOperations: operations };
+}
+
 export async function openLocalCustomerStore(
   accountId: string, targetId: string, factory: IDBFactory | undefined = globalThis.indexedDB,
 ) {
@@ -68,6 +136,32 @@ export async function openLocalCustomerStore(
   return {
     namespace,
     close: () => db.close(),
+    getCustomer(id: string): Promise<LocalCustomer | null> {
+      token(id, "customer ID");
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("customers", "readonly");
+        const request = tx.objectStore("customers").get(id);
+        tx.onabort = () => reject(tx.error ?? new Error("Local customer read failed."));
+        tx.oncomplete = () => {
+          try {
+            const row = request.result === undefined ? null : customerRecord(request.result);
+            if (row && row.id !== id) throw new Error("Local customer identity mismatch.");
+            resolve(row);
+          } catch (error) { reject(error); }
+        };
+      });
+    },
+    listCustomers(): Promise<LocalCustomer[]> {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("customers", "readonly");
+        const request = tx.objectStore("customers").getAll();
+        tx.onabort = () => reject(tx.error ?? new Error("Local customer list failed."));
+        tx.oncomplete = () => {
+          try { resolve((request.result as unknown[]).map(customerRecord)); }
+          catch (error) { reject(error); }
+        };
+      });
+    },
     save(input: LocalCustomerInput, operationId: string, expectedRevision: number): Promise<LocalCustomer> {
       // Snapshot caller input before scheduling any database work.
       const customer = validate(input);
