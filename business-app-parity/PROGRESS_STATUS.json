@@ -511,5 +511,28 @@
     "productionReady": false,
     "deployed": false,
     "evidenceFile": "CANDIDATE_DB_PREFLIGHT_EVIDENCE.json"
+  },
+  "overallProgressReporting": {
+    "metric": "overall verified release readiness",
+    "passed": 3,
+    "total": 10,
+    "percent": 30,
+    "includeInEveryUpdate": true,
+    "meaning": "verified production release gates; not effort or estimated time remaining"
+  },
+  "candidateReleaseManifestBatch": {
+    "parent": "b4a14c9bff3f8e44dd9106c08c5008cf37458fc4",
+    "manifestFile": "CANDIDATE_RELEASE_MANIFEST.json",
+    "manifestTestsPassed": 5,
+    "manifestTestsTotal": 5,
+    "sharedApplicationFilesMatched": 118,
+    "migrationCounts": {
+      "live": 21,
+      "doomsday": 23,
+      "staging": 21
+    },
+    "runtimeChanged": false,
+    "deployed": false,
+    "productionReady": false
   }
 }
