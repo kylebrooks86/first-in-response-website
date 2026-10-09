@@ -3637,5 +3637,19 @@
     "realIndexedDBVerified": false,
     "uiActivated": false,
     "productionReadinessPercent": 30
+  },
+  "localCustomerStoreBrowserBatch": {
+    "parent": "7df0dbd4259855c67942421ecc279e99ebe633b9",
+    "evidenceFile": "LOCAL_CUSTOMER_STORE_BROWSER_EVIDENCE.json",
+    "nativeIndexedDBChecksPassed": 45,
+    "nativeIndexedDBChecksRequired": 45,
+    "targetSuitesPassed": 3,
+    "targetSuitesRequired": 3,
+    "negativeControlDetected": true,
+    "realIndexedDBVerified": true,
+    "iPhoneVerified": false,
+    "appOfflineColdLaunchVerified": false,
+    "uiActivated": false,
+    "productionReadinessPercent": 30
   }
 }
