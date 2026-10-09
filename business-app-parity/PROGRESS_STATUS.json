@@ -3605,5 +3605,22 @@
     "productionReadinessRequired": 10,
     "productionReady": false,
     "testsAndBuilds": "Documentation/source audit only; content and hash checks, previous runtime tests/builds preserved."
+  },
+  "localCustomerStoreFoundationBatch": {
+    "parent": "773d4a528e5929302b0914677e1e6628a9a1703d",
+    "suiteRunsPassed": 3,
+    "suiteRunsTotal": 3,
+    "checksPassed": 60,
+    "checksTotal": 60,
+    "sharedFilesMatched": 120,
+    "sharedFilesChecked": 120,
+    "realIndexedDBVerified": false,
+    "iPhoneVerified": false,
+    "uiActivated": false,
+    "offlineAppImplemented": false,
+    "typechecks": "BLOCKED: previous node_modules symlink target /workspace/sites/fire-live-refund-staging/node_modules is absent; no TypeScript compiler available. Node strips types but does not check them.",
+    "builds": "BLOCKED_DEPENDENCIES; not run. No network install or paid operation attempted.",
+    "evidenceFile": "LOCAL_CUSTOMER_STORE_EVIDENCE.json",
+    "productionReadinessPercent": 30
   }
 }
