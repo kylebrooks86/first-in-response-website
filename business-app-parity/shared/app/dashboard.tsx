@@ -685,16 +685,20 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
   const [revisions,setRevisions]=useState<InvoiceRevisionRow[]>([]);
   const [expandedRevisionId,setExpandedRevisionId]=useState<string|null>(null);
   const [loading,setLoading]=useState(false);const [saving,setSaving]=useState(false);const [error,setError]=useState("");
+  const loadRequest=useRef(0);
+  useEffect(()=>()=>{loadRequest.current++;},[]);
   const subtotal=items.reduce((sum,item)=>sum+Math.round((Number(item.quantity)||0)*(Number(item.unitRateCents)||0)),0);
   const invoiceDiscount=(()=>{if(discountMode==="percent"){const percent=Math.min(50,Math.max(0,Number(discountValue)||0));return Math.round(subtotal*(percent/100));}return Math.min(subtotal,Math.max(0,Math.round((Number(discountValue)||0)*100)));})();
   const total=subtotal>0?Math.max(15000,subtotal-invoiceDiscount):0;
   const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?{...item,...patch}:item));
   const addService=()=>setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);
   const hydrate=async()=>{
+    const request=++loadRequest.current;
     if(!estimate.invoiceId)return;
     setLoading(true);setError("");
     try{
       const response=await fetch(`/api/invoices/${estimate.invoiceId}`);const result=await response.json() as {invoice?:{discountType?:DiscountMode;discountValue?:number;dueAt?:string|null;createdAt?:string;items?:EstimateItemRow[];revisions?:InvoiceRevisionRow[]};error?:string};
+      if(request!==loadRequest.current)return;
       if(!response.ok||!result.invoice)throw new Error(result.error||"Invoice could not be loaded.");
       const source=result.invoice.items??[];
       setItems(source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Math.max(1,Number(item.quantity)||1);return {id:item.id,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",unitRateCents:qty?Math.round(Number(item.totalCents)/qty):Number(svc?.rate||0)};}));
@@ -702,9 +706,9 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
       const rawDue=String(result.invoice.dueAt||"");const dueDay=rawDue?rawDue.slice(0,10):"";const createdDay=String(result.invoice.createdAt||"").slice(0,10);if(!rawDue||(createdDay&&dueDay===createdDay)){setDueMode("receipt");setDueDate("");}else{setDueMode("date");setDueDate(dueDay);}
       setRevisions((result.invoice.revisions??[]).map((revision)=>({...revision,subtotalCents:Number(revision.subtotalCents||0),totalCents:Number(revision.totalCents||0),discountCents:Number(revision.discountCents||0),discountValue:Number(revision.discountValue||0),discountType:revision.discountType==="percent"?"percent":"dollar",items:Array.isArray(revision.items)?revision.items:[]})));
       setExpandedRevisionId(null);
-    }catch(loadError){setError(loadError instanceof Error?loadError.message:"Invoice could not be loaded.");}finally{setLoading(false);}
+    }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Invoice could not be loaded.");}finally{if(request===loadRequest.current)setLoading(false);}
   };
-  const setOpenSafe=(value:boolean)=>{setOpen(value);if(value)void hydrate();};
+  const setOpenSafe=(value:boolean)=>{if(!value){loadRequest.current++;setLoading(false);}setOpen(value);if(value)void hydrate();};
   const save=async()=>{
     if(!estimate.invoiceId)return;
     if(!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isFinite(item.unitRateCents)||item.unitRateCents<0)){setError("Every invoice service needs a service, quantity, and valid price.");return;}

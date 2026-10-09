@@ -2404,5 +2404,159 @@
     },
     "testLimits": "Local tooling tests, disposable SQLite schemas, saved native metadata and local Git snapshot hashes only. No app source changes, hosted/mobile/sandbox checks or application build reruns. Evidence pointers seal saved results, not independent proof of test execution or deployed identity.",
     "nextBatch": "Resolve one accessible remaining release gate through read-only target/resource isolation evidence; if access remains blocked, verify one bounded candidate workflow without deploying."
+  },
+  "invoiceEditorRecoveryBatch": {
+    "parent": "ba6a9493965baa700d18eb8df11d9564b9bf430b",
+    "asOf": "2026-10-09",
+    "scope": "FIRE Business App invoice editor confirmed stale-response recovery only",
+    "candidateSnapshotCommits": {
+      "live": "035b3c01b33cac3cc527e08ec281f7a186680119",
+      "doomsday": "67a7f58ae599572929c741306f9c674207ada958",
+      "staging": "d020149c38d962461298b035f8db623daafad3e4"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/invoice-editor-recovery-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/invoice-editor-recovery-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/invoice-editor-recovery-staging"
+    },
+    "newChecksPerTarget": 84,
+    "newChecksPassed": 252,
+    "newChecksTotal": 252,
+    "invoiceUIChecksPassed": 42,
+    "invoiceUIChecksTotal": 42,
+    "suiteRunsPassed": 9,
+    "suiteRunsTotal": 9,
+    "suiteNames": [
+      "test-invoice-editor-recovery.mjs",
+      "test-invoice-revision-mobile.mjs",
+      "test-processing-fees.mjs"
+    ],
+    "resultsByTarget": {
+      "live": {
+        "recovery": {
+          "exitCode": 0,
+          "result": "PASS 84/84: actual invoice editor overlapping loads, delayed JSON, close/reopen, failure retry and unmount guards; synthetic reads only.",
+          "logSha256": "e942836928db4fbf39b5c7f00e4a5e2f5b02583c27010238fedb605caab24bc3"
+        },
+        "ui": {
+          "exitCode": 0,
+          "result": "PASS: 14/14 actual revision-handler/static-render/CSS checks; synthetic invoice PATCH only; no browser layout, real network or deployed verification.",
+          "logSha256": "b6a5371b9e5371cc46367176a919e969f0c9e6caf67ad7ed336f546219ddf276"
+        },
+        "finance": {
+          "exitCode": 0,
+          "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+          "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "37e8179b435e9e69496f3720859e6726dcc4060547cef5b39961492f07693116"
+      },
+      "doomsday": {
+        "recovery": {
+          "exitCode": 0,
+          "result": "PASS 84/84: actual invoice editor overlapping loads, delayed JSON, close/reopen, failure retry and unmount guards; synthetic reads only.",
+          "logSha256": "e942836928db4fbf39b5c7f00e4a5e2f5b02583c27010238fedb605caab24bc3"
+        },
+        "ui": {
+          "exitCode": 0,
+          "result": "PASS: 14/14 actual revision-handler/static-render/CSS checks; synthetic invoice PATCH only; no browser layout, real network or deployed verification.",
+          "logSha256": "b6a5371b9e5371cc46367176a919e969f0c9e6caf67ad7ed336f546219ddf276"
+        },
+        "finance": {
+          "exitCode": 0,
+          "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+          "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "f9ca516195d02235cbb6ca2af9e9de71fbe95629a7e0d2f10f1b98163021866b"
+      },
+      "staging": {
+        "recovery": {
+          "exitCode": 0,
+          "result": "PASS 84/84: actual invoice editor overlapping loads, delayed JSON, close/reopen, failure retry and unmount guards; synthetic reads only.",
+          "logSha256": "e942836928db4fbf39b5c7f00e4a5e2f5b02583c27010238fedb605caab24bc3"
+        },
+        "ui": {
+          "exitCode": 0,
+          "result": "PASS: 14/14 actual revision-handler/static-render/CSS checks; synthetic invoice PATCH only; no browser layout, real network or deployed verification.",
+          "logSha256": "b6a5371b9e5371cc46367176a919e969f0c9e6caf67ad7ed336f546219ddf276"
+        },
+        "finance": {
+          "exitCode": 0,
+          "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+          "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "411c210defdaf6832abefff797f653d04bf264f353bbd4941cf5193ea5359a37"
+      }
+    },
+    "negativeControls": {
+      "priorEditorFailsStaleResponseRegression": true
+    },
+    "unchangedInvoiceHandlerBodiesPassed": 3,
+    "unchangedInvoiceHandlerBodiesTotal": 3,
+    "handlerNames": [
+      "updateItem",
+      "addService",
+      "save"
+    ],
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "sourceParity": {
+      "sharedFilesChecked": 119,
+      "roots": [
+        "/workspace/scratch/a307f8c9f987/invoice-editor-recovery-live",
+        "/workspace/scratch/a307f8c9f987/invoice-editor-recovery-doomsday",
+        "/workspace/scratch/a307f8c9f987/invoice-editor-recovery-staging"
+      ],
+      "adaptersRequiringSeparateVerification": [
+        "app/page.tsx",
+        "app/layout.tsx",
+        "app/chatgpt-auth.ts",
+        "app/owner-auth.ts",
+        "app/login/page.tsx",
+        "app/api/auth/login/route.ts",
+        "app/api/auth/logout/route.ts",
+        "app/api/app-version/route.ts",
+        "app/api/staging-fixtures/route.ts"
+      ],
+      "differences": [],
+      "sharedSourceParity": true,
+      "productionReady": false
+    },
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "realMobileEvidenceCaptured": false,
+    "remoteDatabaseWrites": false,
+    "stripeCalls": false,
+    "paidServicesUsed": false,
+    "cost": 0,
+    "changedFilesSha256": {
+      "shared/app/dashboard.tsx": "cbe4d9f301e1c0038ed2d2dd1143bc41a9e796752b7917fbb95febe0a0f94781",
+      "shared/scripts/test-invoice-revision-mobile.mjs": "72f313bdd2b11e65a6b07e5ad30fa03baaa63b59d24d8f34d649eb50e07f090f",
+      "shared/scripts/test-invoice-editor-recovery.mjs": "58cb44b3df031bc47c13f909482a0a5a2af248c05c8c95b1510087b59110fdc5"
+    },
+    "behavior": [
+      "Invoice editor hydrate increments a request generation and rejects stale results after JSON parsing; catch/finally only update the current generation.",
+      "Close and unmount invalidate pending loads; close clears loading and reopen starts a fresh read. Invoice editing and save arithmetic/payload handlers remain byte-identical."
+    ],
+    "testLimits": "Actual invoice function/hooks/handlers with deferred synthetic reads and revision UI mocked PATCH, parsed CSS, local builds only. No browser/mobile visual, deployed identity, cloud records or Stripe delivery proof.",
+    "releaseGateAccessCheck": "Tool capabilities still expose saved metadata and table/column names, not D1 resource IDs, complete SQL schema/indexes or migration journals. No repeated blocked endpoint probes, database-row reads or secret inspection. No gate advanced.",
+    "preservedTests": "Earlier Business and six list-loader checks, records recovery results and historical source/evidence snapshots preserved; unrelated unchanged suites not rerun.",
+    "reviewManifestFile": "INVOICE_EDITOR_REVIEW_MANIFEST.json",
+    "reviewEvidenceFile": "INVOICE_EDITOR_REVIEW_EVIDENCE.json"
   }
 }
