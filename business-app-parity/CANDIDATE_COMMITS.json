@@ -11,5 +11,10 @@
     "parity-live-candidate": "c9d0e61741aaed49e4df756782db4e1932a962e3",
     "parity-dr-candidate": "879df629c830ff1e95f2dbdeaf21b974116dda3f",
     "parity-staging-candidate": "f604bdc05eeb4005e4bfa69c52ab40b5c8eaec25"
+  },
+  "resumeBatchCandidateCommits": {
+    "live": "8d113314b5a14e0dd63cb73e6f52397eb1c1df6d",
+    "doomsday": "73293f0743e47da61d2b4e76be79bfd9bc2803db",
+    "staging": "5d8ca1be99aacbce701f3f80fea4ce32df30a97b"
   }
 }

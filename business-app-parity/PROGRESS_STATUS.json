@@ -2,8 +2,8 @@
   "scope": "FIRE Business App only",
   "asOf": "2026-10-08",
   "sourceComparison": {
-    "passed": 113,
-    "total": 113,
+    "passed": 118,
+    "total": 118,
     "percent": 100,
     "meaning": "shared candidate hashes, not deployed equivalence"
   },
@@ -97,5 +97,28 @@
     "nwsFullForecastNetworkVerified": false,
     "stripeSandboxReadOnlyVerified": true,
     "sandboxEndToEndCandidateVerified": false
+  },
+  "resumeBatch": {
+    "parent": "3783f62",
+    "newSuiteRunsPassed": 6,
+    "newSuiteRunsTotal": 6,
+    "affectedRegressionRunsPassed": 6,
+    "affectedRegressionRunsTotal": 6,
+    "typescriptTargetsPassed": 3,
+    "buildTargetsPassed": 3,
+    "remoteSchemasVerified": 0,
+    "remoteSchemasRequired": 3,
+    "formalMobileComparisonsVerified": 0,
+    "formalMobileComparisonsRequired": 32,
+    "sandboxV2DestinationReadOnlyVerified": true,
+    "sandboxEndToEndCandidateVerified": false,
+    "stagingBrowserChecks": [
+      "No tip default 100.00",
+      "15 percent tip 15.00 total 115.00 principal 100.00",
+      "Custom tip 7.50 total 107.50",
+      "No tip restored",
+      "Cash App and Venmo business link hrefs"
+    ],
+    "productionReady": false
   }
 }

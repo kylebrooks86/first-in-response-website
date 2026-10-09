@@ -57,6 +57,9 @@ export async function POST(request:Request) {
   let event:StripeEvent;
   try { event = JSON.parse(rawBody) as StripeEvent; }
   catch { return Response.json({ error:"Invalid webhook payload." }, { status:400 }); }
+  if (!event || typeof event !== "object" || Array.isArray(event)) {
+    return Response.json({ error:"Invalid webhook payload." }, { status:400 });
+  }
 
   if(runtime.FIRE_ENV==="staging"&&event.livemode!==false)return Response.json({error:"Staging rejects live Stripe events."},{status:400});
   if(["refund.created","refund.updated"].includes(event.type??"")){
