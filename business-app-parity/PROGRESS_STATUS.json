@@ -588,5 +588,39 @@
     "productionReadinessRequired": 10,
     "productionReady": false,
     "deployed": false
+  },
+  "customerInvoiceBalancesBatch": {
+    "parent": "62afb700fdecf117a8dae7c8118468a8ea026f2a",
+    "evidenceFile": "CUSTOMER_INVOICE_BALANCES_EVIDENCE.json",
+    "candidateSnapshotCommits": {
+      "live": "57dc8ead100c18416aa232911ca7dd3478f7d329",
+      "doomsday": "b196178281e2653760a7a45fb0369259f4e49dc7",
+      "staging": "2df35d74f9b5d50c8f21854eafba2e7504d199a5"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/customer-invoice-balance-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/customer-invoice-balance-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/customer-invoice-balance-staging"
+    },
+    "checksPerTarget": 156,
+    "checksPassed": 468,
+    "checksTotal": 468,
+    "suiteRunsPassed": 3,
+    "suiteRunsTotal": 3,
+    "negativeControlsRejected": 2,
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "runtimeChanged": false,
+    "typescriptRerun": false,
+    "buildsRerun": false,
+    "reasonChecksNotRerun": "Test-only change; runtime identical to prior 62afb70 with TypeScript and completed builds 3/3.",
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false
   }
 }

@@ -62,5 +62,10 @@
     "live": "d7404b2d57930606e66bc97fececbbfecce17476",
     "doomsday": "51efb0873766e79bba94cfa023760310ea1fa385",
     "staging": "3aaf968f7188c893dd894fbb067a4a9dc74a34bb"
+  },
+  "customerInvoiceBalanceCandidateCommits": {
+    "live": "57dc8ead100c18416aa232911ca7dd3478f7d329",
+    "doomsday": "b196178281e2653760a7a45fb0369259f4e49dc7",
+    "staging": "2df35d74f9b5d50c8f21854eafba2e7504d199a5"
   }
 }
