@@ -706,5 +706,46 @@
     "productionReadinessRequired": 10,
     "productionReady": false,
     "deployed": false
+  },
+  "depositInvoiceDueBatch": {
+    "parent": "6bf172a61446e710751a45e6a7923fe819ee6c3e",
+    "evidenceFile": "DEPOSIT_INVOICE_DUE_EVIDENCE.json",
+    "candidateSnapshotCommits": {
+      "live": "808c64023c804cf4d2a223ce3534853e2e84f171",
+      "doomsday": "34726c190e385a7505387ba18bc695dbea4d8943",
+      "staging": "65b22b7ef146e9095718a5d7e9fccb7ba5f23bb2"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/deposit-invoice-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/deposit-invoice-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/deposit-invoice-staging"
+    },
+    "newChecksPerTarget": 130,
+    "newChecksPassed": 390,
+    "newChecksTotal": 390,
+    "suiteRunsPassed": 12,
+    "suiteRunsTotal": 12,
+    "suiteNames": [
+      "test-deposit-invoice-due.mjs",
+      "test-dashboard-balance-consistency.mjs",
+      "test-customer-invoice-balances.mjs",
+      "test-processing-fees.mjs"
+    ],
+    "negativeControlsRejected": 3,
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "buildCompletionVerifiedInLogs": true,
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false
   }
 }

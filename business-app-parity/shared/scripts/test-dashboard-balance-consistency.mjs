@@ -28,7 +28,7 @@ try {
   [{status:'declined'},0,0],
   [{status:'approved'},5000,0],
   [{status:'scheduled',payments:[['deposit',2000],['Tip',3000]]},3000,0],
-  [{status:'approved',invoice:8000,payments:[['deposit',2000]]},6000,0],
+  [{status:'approved',invoice:8000,payments:[['deposit',2000]]},3000,0],
   [{},10000,0],
   [{invoice:8000,payments:[['balance',6000],['Tip',3000],['Refund',-1000],['Tip Refund',-500]]},3000,0],
   [{payments:[['balance',15000]]},0,0],
