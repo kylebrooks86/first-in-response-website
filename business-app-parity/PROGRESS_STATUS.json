@@ -952,5 +952,60 @@
     ],
     "testLimits": "Actual invoice component/hooks/effect/retry/payment-refresh handlers with mocked GET responses; existing balance/deposit suites use synthetic SQLite. No hosted/mobile/Stripe integration proof.",
     "priorManifest": "PAYMENT_LOAD_CANDIDATE_MANIFEST.json retained as historical; this newer invoice source and review inputs are not sealed by that manifest."
+  },
+  "estimateLoadErrorsBatch": {
+    "parent": "107b53eb17e3bafd1d4383f0e8e3837ff70bc08f",
+    "asOf": "2026-10-09",
+    "scope": "FIRE Business App isolated candidates only",
+    "candidateSnapshotCommits": {
+      "live": "da85e2e3228dfc94a11674f84df85d9efae526d4",
+      "doomsday": "c70ebdd1deb2384684d676906fd6d478b8cb29dd",
+      "staging": "5a6a22f951a2bae6f427fa3e02311239a570c714"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/estimate-load-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/estimate-load-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/estimate-load-staging"
+    },
+    "newChecksPerTarget": 532,
+    "newChecksPassed": 1596,
+    "newChecksTotal": 1596,
+    "suiteRunsPassed": 9,
+    "suiteRunsTotal": 9,
+    "suiteNames": [
+      "test-estimate-load-errors.mjs",
+      "test-customer-invoice-balances.mjs",
+      "test-deposit-invoice-due.mjs"
+    ],
+    "negativeControlPriorComponentRejected": true,
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "realMobileEvidenceCaptured": false,
+    "remoteDatabaseWrites": false,
+    "stripeMutations": false,
+    "changedFilesSha256": {
+      "shared/app/dashboard.tsx": "c562f4f5482b62de788019e86cd571939a26b368b3eb066b4c38f3a2442b3b20",
+      "shared/scripts/test-estimate-load-errors.mjs": "a90eaee846fcfd10218b0a82dede141f651652f049a583513586196588d548a3"
+    },
+    "behavior": [
+      "Estimate HTTP and collection validation before replacing rows.",
+      "Accessible error with Retry in both pipeline/list views; preserve rows while hiding stale cards/editor.",
+      "Clear selection on reload; focus target opens only after a successful load.",
+      "All seven pipeline stages, revised invoice amounts, search/filter and create/change/close callbacks retained."
+    ],
+    "testLimits": "Actual component/hooks/effect/retry/focus handlers using mocked reads and timer; existing financial suites use synthetic SQLite. No actual hosted/mobile integration proof.",
+    "priorManifest": "Prior review manifests remain historical and do not seal newer source/review inputs."
   }
 }
