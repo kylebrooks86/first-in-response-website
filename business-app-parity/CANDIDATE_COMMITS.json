@@ -127,5 +127,16 @@
     "live": "94a332e50e3ad7552630c877051072f5d02ebfeb",
     "doomsday": "2dd8bf0d94449ef6d39a10adb4d05de652a69103",
     "staging": "fbc53a361fcc98a418f5ddb780675d2c9147cb58"
-  }
+  },
+  "businessMobileAccessibilityCandidateCommits": {
+    "live": "e0815a0ddfe21a6d680ae487aaf7b1546a94c42c",
+    "doomsday": "2a8ba202a34b52658d5d4eaf3c3b8748e8456dd0",
+    "staging": "422a8db892078c8c043687df915464165d9b500e"
+  },
+  "latestVerifiedCandidateCommits": {
+    "live": "e0815a0ddfe21a6d680ae487aaf7b1546a94c42c",
+    "doomsday": "2a8ba202a34b52658d5d4eaf3c3b8748e8456dd0",
+    "staging": "422a8db892078c8c043687df915464165d9b500e"
+  },
+  "latestVerifiedCandidateEvidence": "BUSINESS_MOBILE_ACCESSIBILITY_EVIDENCE.json"
 }

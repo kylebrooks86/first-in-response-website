@@ -600,3 +600,13 @@ html,body{max-width:100%;overflow-x:clip}
   .invoice-revision-summary>span{flex:1 1 160px}
   .revision-item-list>div{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Business controls retain names and usable touch targets on narrow screens. */
+.business-field{display:grid;gap:7px;min-width:0}
+.business-field [data-slot="select-trigger"]{width:100%;min-width:0;max-width:100%}
+.business-field [data-slot="label"]{line-height:1.4}
+.task-list button>span:last-child{min-width:0;overflow-wrap:anywhere}
+@media(max-width:760px){
+  .business-field input,.business-field textarea,.business-field [data-slot="select-trigger"],.task-list>button{min-height:44px}
+  .business-field input,.business-field textarea{font-size:16px}
+}

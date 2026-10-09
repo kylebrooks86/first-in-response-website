@@ -2062,5 +2062,161 @@
     "cost": 0,
     "historicalManifest": "CANDIDATE_RELEASE_MANIFEST.json preserved unchanged; expected stale verification failure after intervening source/evidence changes.",
     "manifestHashLocation": "Separate evidence file; progress input is finalized before generating the manifest to avoid a circular hash."
+  },
+  "businessMobileAccessibilityBatch": {
+    "parent": "a333c0fc548dead529bd5f81338fb98e209f65bb",
+    "asOf": "2026-10-09",
+    "scope": "FIRE Business App shared Business screen mobile controls/accessibility only",
+    "candidateSnapshotCommits": {
+      "live": "e0815a0ddfe21a6d680ae487aaf7b1546a94c42c",
+      "doomsday": "2a8ba202a34b52658d5d4eaf3c3b8748e8456dd0",
+      "staging": "422a8db892078c8c043687df915464165d9b500e"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/business-mobile-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/business-mobile-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/business-mobile-staging"
+    },
+    "newChecksPerTarget": 69,
+    "newChecksPassed": 207,
+    "newChecksTotal": 207,
+    "suiteRunsPassed": 9,
+    "suiteRunsTotal": 9,
+    "suiteNames": [
+      "test-business-mobile-accessibility.mjs",
+      "test-loader-recovery.mjs",
+      "test-payment-mobile-ui.mjs"
+    ],
+    "resultsByTarget": {
+      "live": {
+        "ui": {
+          "exitCode": 0,
+          "result": "PASS 69/69: actual Business fields retain visible associated labels, date/decimal entry, select/change/submit behavior, task pressed/busy/rollback states, and narrow-screen sizing/wrapping declarations. Synthetic handlers and structural CSS only; no browser/iPhone or remote writes.",
+          "logSha256": "e36ff2d1996b38aa276e0e4401788bb0bbd57b3343cf418312e0ac67b73265a1"
+        },
+        "load": {
+          "exitCode": 0,
+          "result": "PASS 961/961: actual Business loading/retry/year filtering and all six loaders overlap/error/unmount races; synthetic reads only.",
+          "logSha256": "c614a069335650b6ae9deb1fe5f515112185bf48196bb8043557952991634a8e"
+        },
+        "payments": {
+          "exitCode": 0,
+          "result": "PASS: 11/11 component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.",
+          "logSha256": "0e15ac74ef834c7a21af6155612aecaf807287f3799adee0a808baa799160a35"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "6b2499194779ebbfb01a8473587bfba82c8816e89359a0f68037f7272f3a7d06"
+      },
+      "doomsday": {
+        "ui": {
+          "exitCode": 0,
+          "result": "PASS 69/69: actual Business fields retain visible associated labels, date/decimal entry, select/change/submit behavior, task pressed/busy/rollback states, and narrow-screen sizing/wrapping declarations. Synthetic handlers and structural CSS only; no browser/iPhone or remote writes.",
+          "logSha256": "e36ff2d1996b38aa276e0e4401788bb0bbd57b3343cf418312e0ac67b73265a1"
+        },
+        "load": {
+          "exitCode": 0,
+          "result": "PASS 961/961: actual Business loading/retry/year filtering and all six loaders overlap/error/unmount races; synthetic reads only.",
+          "logSha256": "c614a069335650b6ae9deb1fe5f515112185bf48196bb8043557952991634a8e"
+        },
+        "payments": {
+          "exitCode": 0,
+          "result": "PASS: 11/11 component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.",
+          "logSha256": "0e15ac74ef834c7a21af6155612aecaf807287f3799adee0a808baa799160a35"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "3025d35dfdf978104ff43521be24d266f7628795d9db7b94631dd7ac8d9d6ae8"
+      },
+      "staging": {
+        "ui": {
+          "exitCode": 0,
+          "result": "PASS 69/69: actual Business fields retain visible associated labels, date/decimal entry, select/change/submit behavior, task pressed/busy/rollback states, and narrow-screen sizing/wrapping declarations. Synthetic handlers and structural CSS only; no browser/iPhone or remote writes.",
+          "logSha256": "e36ff2d1996b38aa276e0e4401788bb0bbd57b3343cf418312e0ac67b73265a1"
+        },
+        "load": {
+          "exitCode": 0,
+          "result": "PASS 961/961: actual Business loading/retry/year filtering and all six loaders overlap/error/unmount races; synthetic reads only.",
+          "logSha256": "c614a069335650b6ae9deb1fe5f515112185bf48196bb8043557952991634a8e"
+        },
+        "payments": {
+          "exitCode": 0,
+          "result": "PASS: 11/11 component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.",
+          "logSha256": "0e15ac74ef834c7a21af6155612aecaf807287f3799adee0a808baa799160a35"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "ecbb0f08bb356c768bc0b8e0a58a508ec003388b020092e45dcf3820f59c01b3"
+      }
+    },
+    "negativeControls": {
+      "priorUnlabelledViewRejected": true,
+      "priorMobileSizingRejected": true
+    },
+    "unchangedBusinessHandlerBodiesPassed": 6,
+    "unchangedBusinessHandlerBodiesTotal": 6,
+    "handlerNames": [
+      "load",
+      "addTask",
+      "toggleTask",
+      "addExpense",
+      "chooseBackup",
+      "restoreBackup"
+    ],
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "sourceParity": {
+      "sharedFilesChecked": 119,
+      "roots": [
+        "/workspace/scratch/a307f8c9f987/business-mobile-live",
+        "/workspace/scratch/a307f8c9f987/business-mobile-doomsday",
+        "/workspace/scratch/a307f8c9f987/business-mobile-staging"
+      ],
+      "adaptersRequiringSeparateVerification": [
+        "app/page.tsx",
+        "app/layout.tsx",
+        "app/chatgpt-auth.ts",
+        "app/owner-auth.ts",
+        "app/login/page.tsx",
+        "app/api/auth/login/route.ts",
+        "app/api/auth/logout/route.ts",
+        "app/api/app-version/route.ts",
+        "app/api/staging-fixtures/route.ts"
+      ],
+      "differences": [],
+      "sharedSourceParity": true,
+      "productionReady": false
+    },
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "realMobileEvidenceCaptured": false,
+    "remoteDatabaseWrites": false,
+    "stripeCalls": false,
+    "paidServicesUsed": false,
+    "cost": 0,
+    "changedFilesSha256": {
+      "shared/app/dashboard.tsx": "3af8976095ce6bc55618337abab28dbbbcc2a3c97ddad678ffc2cc7cc362c268",
+      "shared/app/globals.css": "423acb337df71374c178a7d7c030d256a026d257096a40e0aee7788e11063db4",
+      "shared/scripts/test-business-mobile-accessibility.mjs": "12e99143dbf0562c9f3cfebc4a6048db26ca99f11e2d5f3c7b322512a332c598"
+    },
+    "behavior": [
+      "Eight task/expense controls have persistent visible associated labels; three select triggers explicitly reference label IDs.",
+      "Task toggle retains a stable accessible action name and exposes completion/working state with aria-pressed and aria-busy, preserving optimism and rollback.",
+      "Business inputs, selectors and task buttons declare 44px minimum touch height at widths up to 760px, with 16px input/textarea text.",
+      "Business selectors fill the available field width; long task text declares wrapping rather than widening its row."
+    ],
+    "testLimits": "Actual Business function/hooks/handlers with synthetic GET/POST/PATCH responses; labels and associations checked in component structure; CSS declarations checked. No browser screenshot, computed layout, screen-reader session, iPhone, cloud database or real Stripe call. Viewport fit/visual matching remains unverified.",
+    "historicalManifests": "Historical manifests preserved. RELIABILITY_RELEASE_REVIEW_MANIFEST.json is expected stale after this UI change; it does not seal the new candidate source or snapshot references. A future review must bind this verified batch rather than overwrite historical reliability evidence.",
+    "preservedTests": "Previous backup/refund financial evidence preserved; no data-handler change and no unrelated 42-suite rerun. Latest load recovery suite rechecked at 961/961 per target and existing Payments structural suite at 11/11 per target."
   }
 }
