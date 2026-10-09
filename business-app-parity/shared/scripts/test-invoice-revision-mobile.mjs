@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import vm from 'node:vm';
+import ts from 'typescript';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+const require=createRequire(import.meta.url);
+const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss');
+const source=readFileSync('app/dashboard.tsx','utf8');
+const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='EditInvoiceDialog');
+assert.ok(fn);
+const revisions=Array.from({length:6},(_,i)=>({id:`synthetic-revision-${i}`,subtotalCents:20000,discountCents:2000,discountType:'percent',discountValue:1000,totalCents:18000,status:'sent',dueAt:null,createdAt:'2026-10-09T00:00:00Z',items:[{id:'synthetic-service',name:'LongService'.repeat(30),description:'LongDescription'.repeat(30),quantity:2,unit:'sq ft',totalCents:20000}]}));
+const state=[];state[6]=revisions;state[7]=null;let cursor=0,requests=0;
+const fragment=({children})=>React.createElement(React.Fragment,null,children);
+const context={exports:{},require,services:[],money:c=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(c/100),dateTime:value=>value,useState(initial){const index=cursor++;if(!(index in state))state[index]=initial;return [state[index],value=>state[index]=typeof value==='function'?value(state[index]):value];},fetch(){requests++;throw Error('No request allowed in revision review test');},Dialog:fragment,DialogTrigger:fragment,DialogContent:fragment,DialogHeader:fragment,DialogTitle:fragment,Label:fragment,Select:fragment,SelectTrigger:fragment,SelectValue:fragment,SelectContent:fragment,SelectItem:fragment,Input:props=>React.createElement('input',props),Textarea:props=>React.createElement('textarea',props),Button:({children,variant,...props})=>React.createElement('button',props,children),PenLine:()=>null,Trash2:()=>null,Plus:()=>null,ChevronRight:()=>null};
+vm.runInNewContext(ts.transpileModule(fn.getText(ast)+'\nexports.EditInvoiceDialog=EditInvoiceDialog;',{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
+const render=()=>{cursor=0;return context.exports.EditInvoiceDialog({estimate:{invoiceId:'synthetic-invoice',paidCents:5000},onSaved(){throw Error('Review must not save');}});};
+function nodes(tree){const result=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;result.push(n);walk(n.props?.children);}walk(tree);return result;}
+const summaries=()=>nodes(render()).filter(n=>n.props?.className==='invoice-revision-summary');
+let checks=0;const check=(label,run)=>{run();checks++;console.log('PASS: '+label);};
+check('History retains the existing five-revision limit and collapsed state',()=>{assert.equal(summaries().length,5);assert.ok(summaries().every(n=>n.props['aria-expanded']===false));assert.ok(!renderToStaticMarkup(render()).includes('revision-item-list'));});
+check('Actual revision handler opens long service text, original money and discount details',()=>{summaries()[0].props.onClick();assert.equal(summaries()[0].props['aria-expanded'],true);const html=renderToStaticMarkup(render());for(const text of [revisions[0].items[0].name,revisions[0].items[0].description,'$200.00','$20.00','$180.00','10%','Due on receipt'])assert.ok(html.includes(text));});
+check('Opening another revision collapses the previous revision',()=>{summaries()[1].props.onClick();assert.equal(summaries()[0].props['aria-expanded'],false);assert.equal(summaries()[1].props['aria-expanded'],true);assert.equal(nodes(render()).filter(n=>n.props?.className==='invoice-revision-details').length,1);});
+check('Same revision closes without network or save operations',()=>{summaries()[1].props.onClick();assert.ok(summaries().every(n=>!n.props['aria-expanded']));assert.equal(requests,0);});
+const rules=[];postcss.parse(readFileSync('app/globals.css','utf8')).walkRules(r=>rules.push(r));
+function value(selector,property,width){let found;for(const rule of rules){if(!rule.selector.split(',').map(s=>s.trim()).includes(selector))continue;if(rule.parent.type==='atrule'){const m=rule.parent.params.match(/^\(max-width:(\d+)px\)$/);if(!m||width>Number(m[1]))continue;}for(const node of rule.nodes)if(node.prop===property)found=node.value;}return found;}
+check('320/375/390/430/760px revision rows stack long labels and keep summary controls accessible',()=>{for(const width of [320,375,390,430,760]){assert.equal(value('.revision-item-list>div','grid-template-columns',width),'minmax(0,1fr)');assert.equal(value('.invoice-revision-summary','flex-wrap',width),'wrap');assert.equal(value('.invoice-revision-summary','min-height',width),'44px');}});
+check('Desktop retains separate service and quantity/amount columns',()=>{for(const width of [761,1363])assert.equal(value('.revision-item-list>div','grid-template-columns',width),'minmax(0,1fr) auto');});
+check('Long details can shrink and wrap while totals and chevrons remain unbroken',()=>{for(const width of [320,1363]){assert.equal(value('.invoice-revision-summary>span','min-width',width),'0');assert.equal(value('.revision-item-list>div>span','overflow-wrap',width),'anywhere');assert.equal(value('.revision-item-list>div>small','min-width',width),'0');assert.equal(value('.revision-totals strong','white-space',width),'nowrap');assert.equal(value('.revision-chevron','flex-shrink',width),'0');}});
+console.log(`PASS: ${checks}/${checks} actual revision-handler/static-render/CSS checks; no browser layout, network or deployed verification.`);

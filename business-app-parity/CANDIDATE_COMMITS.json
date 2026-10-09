@@ -36,5 +36,10 @@
     "live": "13fb0f4d2d5636aa9f4c0c16a78234edcb68f99a",
     "doomsday": "2254c860ce3a71c103468bb5cd997092a04975be",
     "staging": "1ce15cff1dea0f3059eaff005926da3cb8734254"
+  },
+  "invoiceRevisionMobileBatchCandidateCommits": {
+    "live": "cb345fca76c7b54e91eb18d78396eaa1d35954cf",
+    "doomsday": "85e7eda6478050cd203fbb4b22b883f4a3715a48",
+    "staging": "715e05afae2617cb7104a79138ff4f03810c2cf2"
   }
 }

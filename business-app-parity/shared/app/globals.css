@@ -578,3 +578,17 @@ html,body{max-width:100%;overflow-x:clip}
   .customer-payment-amount{grid-column:1;grid-row:2}
   .customer-payment-record>.payment-refund-action{grid-column:1;grid-row:3}
 }
+
+/* Revision history must preserve long service text inside the invoice editor. */
+.invoice-revision-summary{min-height:44px}
+.invoice-revision-summary>span{min-width:0;overflow-wrap:anywhere}
+.revision-chevron{flex-shrink:0}
+.revision-item-list>div{display:grid;grid-template-columns:minmax(0,1fr) auto}
+.revision-item-list>div>span,.revision-item-list>div>small{min-width:0;overflow-wrap:anywhere}
+.revision-totals span{min-width:0;overflow-wrap:anywhere}
+.revision-totals strong{flex-shrink:0;white-space:nowrap}
+@media(max-width:760px){
+  .invoice-revision-summary{flex-wrap:wrap;align-items:flex-start}
+  .invoice-revision-summary>span{flex:1 1 160px}
+  .revision-item-list>div{grid-template-columns:minmax(0,1fr)}
+}
