@@ -13,3 +13,5 @@ The existing governed DR deployment scripts remain authoritative and unchanged. 
 Resume-batch verification: `node scripts/test-webhook-boundary.mjs` and `node scripts/test-local-schema-audit.mjs` from each materialized candidate. For a permitted local SQLite export, use `node scripts/audit-local-schema.mjs /absolute/export.sqlite /absolute/candidate`; this opens read-only and reports journal uncertainty separately. See RESUME_BATCH_HANDOFF.md for current remote blockers and completed browser checks.
 
 Photo recovery CLI: run `node scripts/test-photo-restore-safety.mjs` for isolated tests. Remote apply is blocked unless both `--confirm-bucket` and `--confirm-database` exactly match the supplied target config; this guard is not production authorization. Metadata/verification failures preserve uploaded bytes for inspection. See PHOTO_RECOVERY_BATCH_HANDOFF.md for tested behavior and remaining storage/concurrency limits.
+
+Latest bounded Payments layout candidate batch: see [PAYMENTS_MOBILE_BATCH_HANDOFF.md](PAYMENTS_MOBILE_BATCH_HANDOFF.md). Candidate-only verification; no deployed/mobile parity claim.

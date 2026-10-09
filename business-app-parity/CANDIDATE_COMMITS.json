@@ -21,5 +21,10 @@
     "live": "55e0380f01a3770e114f90260efada77c2a45470",
     "doomsday": "7a75ce4ef13aa0a2905889980603a29379eb21d4",
     "staging": "a130a2befe0c09257e07f242a4b207fd008c3835"
+  },
+  "paymentsMobileBatchCandidateCommits": {
+    "live": "16228a4b619570a924345a089da8f1e47dce40d2",
+    "doomsday": "217478020ee6103495b1f078d994625a11110984",
+    "staging": "1cc2cf2ae7e376e32e9940bfc5b14d14fc673591"
   }
 }

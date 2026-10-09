@@ -558,3 +558,18 @@ html,body{max-width:100%;overflow-x:clip}
 .invoice-portal .final-tip-options{grid-template-columns:repeat(5,minmax(0,1fr))}
 .invoice-portal .final-tip-options button:last-child{grid-column:auto;min-height:62px}
 }
+
+/* Payment history uses explicit action rows so refund controls cannot occupy the icon column. */
+.payment-history>article>div{min-width:0;overflow-wrap:anywhere}
+.payment-history-amount{grid-column:3;grid-row:1;white-space:nowrap}
+.payment-history>article>.payment-refund-action{grid-column:2 / -1;justify-self:stretch;min-height:44px}
+.processing-report-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
+.processing-report-scroll:focus-visible{outline:2px solid currentColor;outline-offset:-2px}
+.processing-report-table{width:100%;min-width:400px;border-collapse:collapse}
+.processing-report-table th,.processing-report-table td{padding:8px;text-align:right;white-space:nowrap}
+.processing-report-table th:first-child{text-align:left}
+@media(max-width:760px){
+  .payment-history>article{grid-template-columns:36px minmax(0,1fr)}
+  .payment-history-amount{grid-column:2;grid-row:2}
+  .payment-history>article>.payment-refund-action{grid-column:2;grid-row:3}
+}
