@@ -11,7 +11,7 @@ let state=[],cursor=0,effect,requests=[],responder;
 const Button=()=>null,RecordPayment=()=>null,Receipt=()=>null,ExternalLink=()=>null;
 const context={exports:{},require,Error,Array,Button,RecordPayment,Receipt,ExternalLink,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],value=>{state[i]=typeof value==='function'?value(state[i]):value;}];},
- useEffect(fn){effect=fn;},fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,
+ useRef:initial=>({current:initial}),useEffect(fn){effect=fn;},fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,
 };
 vm.runInNewContext(ts.transpileModule(view.getText(ast)+'\nexports.view=InvoicesView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
 function render(searchQuery=''){cursor=0;return context.exports.view({searchQuery});}

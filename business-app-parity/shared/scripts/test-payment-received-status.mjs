@@ -19,7 +19,7 @@ const view=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.
 let state=[],cursor=0;
 const stub=()=>null;
 const ui=load(declarations.map(node=>node.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.PaymentsView=PaymentsView;',{
- require,useState:initial=>[state[cursor++]??initial,()=>{}],useEffect(){},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s.charAt(0).toUpperCase()+s.slice(1),ProcessingReport:stub,ProcessingDetails:stub,RefundPayment:stub,RecordPayment:stub,CircleDollarSign:stub,CheckCircle2:stub,CreditCard:stub,
+ require,useState:initial=>[state[cursor++]??initial,()=>{}],useRef:initial=>({current:initial}),useEffect(){},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s.charAt(0).toUpperCase()+s.slice(1),ProcessingReport:stub,ProcessingDetails:stub,RefundPayment:stub,RecordPayment:stub,CircleDollarSign:stub,CheckCircle2:stub,CreditCard:stub,
 });
 function nodes(tree){const result=[];function walk(node){if(Array.isArray(node))return node.forEach(walk);if(!node||typeof node!=='object')return;result.push(node);walk(node.props?.children);}walk(tree);return result;}
 let checks=0;function equal(actual,expected){assert.equal(actual,expected);checks++;}

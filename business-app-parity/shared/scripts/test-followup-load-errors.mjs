@@ -12,7 +12,7 @@ let state=[],cursor=0,effect,requests=[],responder;
 const stubs=Object.fromEntries(['Button','MessageComposer','Clock3','Star','CalendarDays','CheckCircle2'].map(name=>[name,()=>null]));
 const context={exports:{},require,Error,Array,...stubs,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},
- useEffect(fn){effect=fn;},useCurrentTime:()=>Date.parse('2026-10-09T12:00:00Z'),fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),
+ useRef:initial=>({current:initial}),useEffect(fn){effect=fn;},useCurrentTime:()=>Date.parse('2026-10-09T12:00:00Z'),fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),
 };
 vm.runInNewContext(ts.transpileModule(helpers.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=FollowUpsView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
 function render(searchQuery=''){cursor=0;return context.exports.view({searchQuery});}

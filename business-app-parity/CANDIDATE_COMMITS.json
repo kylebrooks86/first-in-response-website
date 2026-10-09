@@ -122,5 +122,10 @@
     "live": "a7ac8ad66572bb64b29311d803b245a535cc8274",
     "doomsday": "fb828b52546f9f6aa9f445abd5aaabe50a01cdc4",
     "staging": "666119a06da55fc5c43c87c6c90982c3fa9e1677"
+  },
+  "reliabilityRecoveryCandidateCommits": {
+    "live": "94a332e50e3ad7552630c877051072f5d02ebfeb",
+    "doomsday": "2dd8bf0d94449ef6d39a10adb4d05de652a69103",
+    "staging": "fbc53a361fcc98a418f5ddb780675d2c9147cb58"
   }
 }

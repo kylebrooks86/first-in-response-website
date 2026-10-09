@@ -10,7 +10,7 @@ let state=[],cursor=0,effect,requests=[],responder;
 const stubs=Object.fromEntries(['Button','EstimateDetail','PenLine','MessageSquareText','Clock3','ChevronRight'].map(name=>[name,()=>null]));
 const context={exports:{},require,Error,Array,...stubs,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},
- useEffect(fn){effect=fn;},fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),
+ useRef:initial=>({current:initial}),useEffect(fn){effect=fn;},fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),
 };
 vm.runInNewContext(ts.transpileModule(view.getText(ast)+'\nexports.view=ContractsView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
 function render(searchQuery=''){cursor=0;return context.exports.view({searchQuery});}

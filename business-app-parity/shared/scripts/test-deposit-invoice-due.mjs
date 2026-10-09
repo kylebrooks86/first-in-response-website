@@ -20,7 +20,7 @@ const helper=ast.statements.find(n=>ts.isVariableStatement(n)&&n.declarationList
 const {amountDueNow}=load('export '+helper.getText(ast),{});
 const invoiceView=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='InvoicesView');
 let invoiceRows=[],cursor=0;const RecordPayment=()=>null;
-const invoiceUI=load('export '+invoiceView.getText(ast),{'react/jsx-runtime':jsx},{useState:()=>[cursor++===0?invoiceRows:false,()=>{}],useEffect(){},RecordPayment,Receipt:()=>null,ExternalLink:()=>null,money:c=>String(c),statusLabel:s=>s});
+const invoiceUI=load('export '+invoiceView.getText(ast),{'react/jsx-runtime':jsx},{useState:()=>[cursor++===0?invoiceRows:false,()=>{}],useRef:initial=>({current:initial}),useEffect(){},RecordPayment,Receipt:()=>null,ExternalLink:()=>null,money:c=>String(c),statusLabel:s=>s});
 function nodes(tree){const result=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;result.push(n);walk(n.props?.children);}walk(tree);return result;}
 let checks=0;function equal(a,b){assert.equal(a,b);checks++;}
 function seed({status='approved',invoice=8000,deposit=5000,ledger=[['deposit',2000],['Tip',1000]]}){

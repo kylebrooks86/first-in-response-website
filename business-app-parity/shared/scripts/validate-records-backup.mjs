@@ -1,3 +1,4 @@
+import { assertBackupIntegrity } from "./records-backup-integrity.mjs";
 import { readFile, stat } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 
@@ -26,7 +27,7 @@ if (payload?.format === "fire-app-records-backup" && payload?.version === 1 && p
   throw new Error("This is not a valid or complete FIRE App records backup.");
 }
 const required = ["customers","estimates","customer_notes","invoices","estimate_items","payments","customer_messages","notifications","message_templates","estimate_change_requests","tasks","expenses","job_reports"];
-const optionalRecoveryTables = ["invoice_items", "invoice_revisions", "payment_checkout_sessions"];
+const optionalRecoveryTables = ["invoice_items", "invoice_revisions", "payment_checkout_sessions", "payment_refunds"];
 for (const table of required) if (!Array.isArray(tables[table])) throw new Error(`Backup is missing ${table}.`);
 for (const table of optionalRecoveryTables) if (tables[table] !== undefined && !Array.isArray(tables[table])) throw new Error(`Backup ${table} must be an array when present.`);
 const criticalFields = {
@@ -46,5 +47,6 @@ if(kind==="app-export"){
     }
   }
 }
+assertBackupIntegrity(tables);
 const counts = Object.fromEntries(Object.entries(tables).filter(([, rows]) => Array.isArray(rows)).map(([name, rows]) => [name, rows.length]));
 console.log(JSON.stringify({file: basename(path), valid: true, kind, rows: Object.values(counts).reduce((a,b)=>a+b,0), counts}, null, 2));

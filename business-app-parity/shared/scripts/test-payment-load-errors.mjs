@@ -13,7 +13,7 @@ let state=[],cursor=0,effect,requests=[],responder;
 const stub=()=>null;
 const context={exports:{},require,Error,Array,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},
- useEffect(fn){effect=fn;},fetch:async url=>{requests.push(url);return responder(url);},
+ useRef:initial=>({current:initial}),useEffect(fn){effect=fn;},fetch:async url=>{requests.push(url);return responder(url);},
  money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,Button:stub,ProcessingReport:stub,ProcessingDetails:stub,RefundPayment:stub,RecordPayment:stub,CircleDollarSign:stub,CheckCircle2:stub,CreditCard:stub,
 };
 vm.runInNewContext(ts.transpileModule(declarations.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=PaymentsView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);

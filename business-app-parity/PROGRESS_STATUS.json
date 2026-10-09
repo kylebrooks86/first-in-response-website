@@ -1171,5 +1171,657 @@
     ],
     "testLimits": "Actual ContractsView/hooks/load/retry/detail-refresh with mocked GET; existing financial regression uses synthetic SQLite. No hosted/mobile/signature integration proof.",
     "priorManifest": "Historical review manifests preserved and do not seal newer source/review inputs."
+  },
+  "reliabilityRecoveryBatch": {
+    "parent": "0f22954d5a455e8a379d9f90580cf170ada2febd",
+    "asOf": "2026-10-09",
+    "scope": "FIRE Business App isolated development candidates only",
+    "candidateSnapshotCommits": {
+      "live": "94a332e50e3ad7552630c877051072f5d02ebfeb",
+      "doomsday": "2dd8bf0d94449ef6d39a10adb4d05de652a69103",
+      "staging": "fbc53a361fcc98a418f5ddb780675d2c9147cb58"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/reliability-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/reliability-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/reliability-staging"
+    },
+    "newChecksPerTarget": 1061,
+    "newChecksPassed": 3183,
+    "newChecksTotal": 3183,
+    "suiteRunsPassed": 42,
+    "suiteRunsTotal": 42,
+    "suiteNames": [
+      "test-loader-recovery.mjs",
+      "test-records-recovery.mjs",
+      "test-estimate-load-errors.mjs",
+      "test-invoice-load-errors.mjs",
+      "test-agreement-load-errors.mjs",
+      "test-followup-load-errors.mjs",
+      "test-payment-load-errors.mjs",
+      "test-payment-received-status.mjs",
+      "test-deposit-invoice-due.mjs",
+      "test-payment-mobile-ui.mjs",
+      "test-customer-invoice-balances.mjs",
+      "test-dashboard-balance-consistency.mjs",
+      "test-processing-fees.mjs",
+      "test-stripe-refunds.mjs"
+    ],
+    "resultsByTarget": {
+      "live": [
+        {
+          "suite": "test-loader-recovery.mjs",
+          "exitCode": 0,
+          "result": "PASS 961/961: actual Business loading/retry/year filtering and all six loaders overlap/error/unmount races; synthetic reads only.",
+          "checksPassed": 961,
+          "checksTotal": 961,
+          "stdoutSha256": "c614a069335650b6ae9deb1fe5f515112185bf48196bb8043557952991634a8e",
+          "stdoutBytes": 130,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-records-recovery.mjs",
+          "exitCode": 0,
+          "result": "PASS 100/100: actual in-app synthetic backup \u2192 standalone validator \u2192 local restore \u2192 re-export verification; partial/tip/failed/pending refunds, ownership/reservation/ledger corruption, duplicate input/target records, pre-write failures, interrupted-prefix retry, older verified backups. No network, Stripe, or remote writes.",
+          "checksPassed": 100,
+          "checksTotal": 100,
+          "stdoutSha256": "67be404f592ac91c1ccf2fb1740acb1c57c2c9b6941a8e051c96ca7620e3a295",
+          "stdoutBytes": 333,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-estimate-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 532/532: actual estimate load/error/retry and focus handlers cover both views and populated/empty failures, hide stale cards/editor, recover cleanly, retain pipeline stages, revised amounts, search/filter, creation and detail callbacks. Mocked reads only.",
+          "checksPassed": 532,
+          "checksTotal": 532,
+          "stdoutSha256": "2e47696858fbb9f840c1c85844907ab0a03f31d3842f196868e957cb929c98a2",
+          "stdoutBytes": 261,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-invoice-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 263/263: actual invoice load/error/retry and payment-refresh handlers cover HTTP/network/JSON/malformed failures, preserve old records, hide stale payment actions, recover loaded invoices, distinguish search misses from no invoices, and retain zero totals and invoice links. Mocked reads only.",
+          "checksPassed": 263,
+          "checksTotal": 263,
+          "stdoutSha256": "94fede0d301f8abf9d64f91bdd882cc4b8633e1ce14685d4bb02c7e458677a7a",
+          "stdoutBytes": 299,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-agreement-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 276/276: actual Agreements load/error/retry and detail-refresh handlers distinguish failures/search misses/empty records, preserve signatures and change-request counts, hide stale counters/editor, recover records and retain awaiting exclusions. Mocked reads only.",
+          "checksPassed": 276,
+          "checksTotal": 276,
+          "stdoutSha256": "600b236a5ef93c692a227f590b3ecfd8511886e261884b1a6cc2a4d14eb4b4f9",
+          "stdoutBytes": 269,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-followup-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 316/316: actual follow-up load/error/retry handlers distinguish failed reads from no actions, retain records, restore recommendations, and preserve billing exception/reminder priorities, appointment timing, review/recurrence suppression, revised totals and message-draft props. Mocked reads only; no message prepared or sent.",
+          "checksPassed": 316,
+          "checksTotal": 316,
+          "stdoutSha256": "a5ea73f779e65e0145bd31ffa1c59227cac87c0065c307c03b0258fe82c30758",
+          "stdoutBytes": 331,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-payment-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 275/275: actual Payments load/error/retry handlers cover HTTP, network, JSON and malformed collection failures; hide misleading summaries/actions, retain prior records, recover cleanly and convert successful numeric fields. Mocked reads only.",
+          "checksPassed": 275,
+          "checksTotal": 275,
+          "stdoutSha256": "21bf6c7d084e4f26a7f31f6dd40962f89296a656d683079db61e6f1ed3f38235",
+          "stdoutBytes": 248,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-payment-received-status.mjs",
+          "exitCode": 0,
+          "result": "PASS 98/98: actual Payments GET and component exclude pending/failed/unknown amounts and fees from received summaries, preserve paid refunds and tip refunds, retain every history entry with status, and hide non-paid refund/net-received controls. Synthetic SQLite/component checks only.",
+          "checksPassed": 98,
+          "checksTotal": 98,
+          "stdoutSha256": "30a52a425829d4afda993315892d547fbc4f0ae639ad4c02b70fe3f46989672e",
+          "stdoutBytes": 286,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-deposit-invoice-due.mjs",
+          "exitCode": 0,
+          "result": "PASS 130/130: actual UI helper, dashboard queries and manual POST agree on deposit until completion, revised final invoice after completion, refunds, tips, unpaid entries and waived deposit. Excess amounts rejected without ledger writes. Invoice creation before completion and billed-job backward transitions blocked. Synthetic SQLite only.",
+          "checksPassed": 130,
+          "checksTotal": 130,
+          "stdoutSha256": "8a725c41b801f3c11e8254763829bff40088ebd10a719d0d498d6386b4eeee5a",
+          "stdoutBytes": 341,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-payment-mobile-ui.mjs",
+          "exitCode": 0,
+          "result": "PASS: 11/11 component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.",
+          "checksPassed": 11,
+          "checksTotal": 11,
+          "stdoutSha256": "0e15ac74ef834c7a21af6155612aecaf807287f3799adee0a808baa799160a35",
+          "stdoutBytes": 1010,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-customer-invoice-balances.mjs",
+          "exitCode": 0,
+          "result": "PASS 156/156: actual customer/invoice/estimate routes and UI helpers preserve revised/zero invoice totals, principal versus tips/refunds, pending/failed exclusion, overpayment floor, per-job balances, customer isolation and owner access. Synthetic SQLite only.",
+          "checksPassed": 156,
+          "checksTotal": 156,
+          "stdoutSha256": "c3590f40029f0b657411e9cf480c49079238200d78d16cb95b6d5912244b366e",
+          "stdoutBytes": 261,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-dashboard-balance-consistency.mjs",
+          "exitCode": 0,
+          "result": "PASS 69/69: initial page and refreshed API agree for draft/sent/declined, deposit due, revised invoice, principal/tip/refund, overpayment, pending/failed payment and full refund; owner access preserved. Synthetic SQLite only.",
+          "checksPassed": 69,
+          "checksTotal": 69,
+          "stdoutSha256": "1b515e7c81375f058de3cb786f00821b88e5a806b64227810e01317939b482e8",
+          "stdoutBytes": 226,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-processing-fees.mjs",
+          "exitCode": 0,
+          "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+          "checksPassed": null,
+          "checksTotal": null,
+          "stdoutSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443",
+          "stdoutBytes": 228,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-stripe-refunds.mjs",
+          "exitCode": 0,
+          "result": "PASS: partial per-payment Stripe refunds; repeat API requests; duplicate/signed webhooks; altered amount/provider rejection; pending-to-success reconciliation; Stripe 500 and lost-response retries reuse idempotency key; atomic rollback/recovery; concurrent limits; tip separation; manual refund confirmation and fee preservation; imported external refunds; backup/restore and legacy backup compatibility. Only in-memory SQLite and mocked Stripe used.",
+          "checksPassed": null,
+          "checksTotal": null,
+          "stdoutSha256": "f4a7f4a00502321560b49492ce661c537b275fbc2a957e33696ec75823ee65c4",
+          "stdoutBytes": 451,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        }
+      ],
+      "doomsday": [
+        {
+          "suite": "test-loader-recovery.mjs",
+          "exitCode": 0,
+          "result": "PASS 961/961: actual Business loading/retry/year filtering and all six loaders overlap/error/unmount races; synthetic reads only.",
+          "checksPassed": 961,
+          "checksTotal": 961,
+          "stdoutSha256": "c614a069335650b6ae9deb1fe5f515112185bf48196bb8043557952991634a8e",
+          "stdoutBytes": 130,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-records-recovery.mjs",
+          "exitCode": 0,
+          "result": "PASS 100/100: actual in-app synthetic backup \u2192 standalone validator \u2192 local restore \u2192 re-export verification; partial/tip/failed/pending refunds, ownership/reservation/ledger corruption, duplicate input/target records, pre-write failures, interrupted-prefix retry, older verified backups. No network, Stripe, or remote writes.",
+          "checksPassed": 100,
+          "checksTotal": 100,
+          "stdoutSha256": "67be404f592ac91c1ccf2fb1740acb1c57c2c9b6941a8e051c96ca7620e3a295",
+          "stdoutBytes": 333,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-estimate-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 532/532: actual estimate load/error/retry and focus handlers cover both views and populated/empty failures, hide stale cards/editor, recover cleanly, retain pipeline stages, revised amounts, search/filter, creation and detail callbacks. Mocked reads only.",
+          "checksPassed": 532,
+          "checksTotal": 532,
+          "stdoutSha256": "2e47696858fbb9f840c1c85844907ab0a03f31d3842f196868e957cb929c98a2",
+          "stdoutBytes": 261,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-invoice-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 263/263: actual invoice load/error/retry and payment-refresh handlers cover HTTP/network/JSON/malformed failures, preserve old records, hide stale payment actions, recover loaded invoices, distinguish search misses from no invoices, and retain zero totals and invoice links. Mocked reads only.",
+          "checksPassed": 263,
+          "checksTotal": 263,
+          "stdoutSha256": "94fede0d301f8abf9d64f91bdd882cc4b8633e1ce14685d4bb02c7e458677a7a",
+          "stdoutBytes": 299,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-agreement-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 276/276: actual Agreements load/error/retry and detail-refresh handlers distinguish failures/search misses/empty records, preserve signatures and change-request counts, hide stale counters/editor, recover records and retain awaiting exclusions. Mocked reads only.",
+          "checksPassed": 276,
+          "checksTotal": 276,
+          "stdoutSha256": "600b236a5ef93c692a227f590b3ecfd8511886e261884b1a6cc2a4d14eb4b4f9",
+          "stdoutBytes": 269,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-followup-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 316/316: actual follow-up load/error/retry handlers distinguish failed reads from no actions, retain records, restore recommendations, and preserve billing exception/reminder priorities, appointment timing, review/recurrence suppression, revised totals and message-draft props. Mocked reads only; no message prepared or sent.",
+          "checksPassed": 316,
+          "checksTotal": 316,
+          "stdoutSha256": "a5ea73f779e65e0145bd31ffa1c59227cac87c0065c307c03b0258fe82c30758",
+          "stdoutBytes": 331,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-payment-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 275/275: actual Payments load/error/retry handlers cover HTTP, network, JSON and malformed collection failures; hide misleading summaries/actions, retain prior records, recover cleanly and convert successful numeric fields. Mocked reads only.",
+          "checksPassed": 275,
+          "checksTotal": 275,
+          "stdoutSha256": "21bf6c7d084e4f26a7f31f6dd40962f89296a656d683079db61e6f1ed3f38235",
+          "stdoutBytes": 248,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-payment-received-status.mjs",
+          "exitCode": 0,
+          "result": "PASS 98/98: actual Payments GET and component exclude pending/failed/unknown amounts and fees from received summaries, preserve paid refunds and tip refunds, retain every history entry with status, and hide non-paid refund/net-received controls. Synthetic SQLite/component checks only.",
+          "checksPassed": 98,
+          "checksTotal": 98,
+          "stdoutSha256": "30a52a425829d4afda993315892d547fbc4f0ae639ad4c02b70fe3f46989672e",
+          "stdoutBytes": 286,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-deposit-invoice-due.mjs",
+          "exitCode": 0,
+          "result": "PASS 130/130: actual UI helper, dashboard queries and manual POST agree on deposit until completion, revised final invoice after completion, refunds, tips, unpaid entries and waived deposit. Excess amounts rejected without ledger writes. Invoice creation before completion and billed-job backward transitions blocked. Synthetic SQLite only.",
+          "checksPassed": 130,
+          "checksTotal": 130,
+          "stdoutSha256": "8a725c41b801f3c11e8254763829bff40088ebd10a719d0d498d6386b4eeee5a",
+          "stdoutBytes": 341,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-payment-mobile-ui.mjs",
+          "exitCode": 0,
+          "result": "PASS: 11/11 component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.",
+          "checksPassed": 11,
+          "checksTotal": 11,
+          "stdoutSha256": "0e15ac74ef834c7a21af6155612aecaf807287f3799adee0a808baa799160a35",
+          "stdoutBytes": 1010,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-customer-invoice-balances.mjs",
+          "exitCode": 0,
+          "result": "PASS 156/156: actual customer/invoice/estimate routes and UI helpers preserve revised/zero invoice totals, principal versus tips/refunds, pending/failed exclusion, overpayment floor, per-job balances, customer isolation and owner access. Synthetic SQLite only.",
+          "checksPassed": 156,
+          "checksTotal": 156,
+          "stdoutSha256": "c3590f40029f0b657411e9cf480c49079238200d78d16cb95b6d5912244b366e",
+          "stdoutBytes": 261,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-dashboard-balance-consistency.mjs",
+          "exitCode": 0,
+          "result": "PASS 69/69: initial page and refreshed API agree for draft/sent/declined, deposit due, revised invoice, principal/tip/refund, overpayment, pending/failed payment and full refund; owner access preserved. Synthetic SQLite only.",
+          "checksPassed": 69,
+          "checksTotal": 69,
+          "stdoutSha256": "1b515e7c81375f058de3cb786f00821b88e5a806b64227810e01317939b482e8",
+          "stdoutBytes": 226,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-processing-fees.mjs",
+          "exitCode": 0,
+          "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+          "checksPassed": null,
+          "checksTotal": null,
+          "stdoutSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443",
+          "stdoutBytes": 228,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-stripe-refunds.mjs",
+          "exitCode": 0,
+          "result": "PASS: partial per-payment Stripe refunds; repeat API requests; duplicate/signed webhooks; altered amount/provider rejection; pending-to-success reconciliation; Stripe 500 and lost-response retries reuse idempotency key; atomic rollback/recovery; concurrent limits; tip separation; manual refund confirmation and fee preservation; imported external refunds; backup/restore and legacy backup compatibility. Only in-memory SQLite and mocked Stripe used.",
+          "checksPassed": null,
+          "checksTotal": null,
+          "stdoutSha256": "f4a7f4a00502321560b49492ce661c537b275fbc2a957e33696ec75823ee65c4",
+          "stdoutBytes": 451,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        }
+      ],
+      "staging": [
+        {
+          "suite": "test-loader-recovery.mjs",
+          "exitCode": 0,
+          "result": "PASS 961/961: actual Business loading/retry/year filtering and all six loaders overlap/error/unmount races; synthetic reads only.",
+          "checksPassed": 961,
+          "checksTotal": 961,
+          "stdoutSha256": "c614a069335650b6ae9deb1fe5f515112185bf48196bb8043557952991634a8e",
+          "stdoutBytes": 130,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-records-recovery.mjs",
+          "exitCode": 0,
+          "result": "PASS 100/100: actual in-app synthetic backup \u2192 standalone validator \u2192 local restore \u2192 re-export verification; partial/tip/failed/pending refunds, ownership/reservation/ledger corruption, duplicate input/target records, pre-write failures, interrupted-prefix retry, older verified backups. No network, Stripe, or remote writes.",
+          "checksPassed": 100,
+          "checksTotal": 100,
+          "stdoutSha256": "67be404f592ac91c1ccf2fb1740acb1c57c2c9b6941a8e051c96ca7620e3a295",
+          "stdoutBytes": 333,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-estimate-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 532/532: actual estimate load/error/retry and focus handlers cover both views and populated/empty failures, hide stale cards/editor, recover cleanly, retain pipeline stages, revised amounts, search/filter, creation and detail callbacks. Mocked reads only.",
+          "checksPassed": 532,
+          "checksTotal": 532,
+          "stdoutSha256": "2e47696858fbb9f840c1c85844907ab0a03f31d3842f196868e957cb929c98a2",
+          "stdoutBytes": 261,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-invoice-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 263/263: actual invoice load/error/retry and payment-refresh handlers cover HTTP/network/JSON/malformed failures, preserve old records, hide stale payment actions, recover loaded invoices, distinguish search misses from no invoices, and retain zero totals and invoice links. Mocked reads only.",
+          "checksPassed": 263,
+          "checksTotal": 263,
+          "stdoutSha256": "94fede0d301f8abf9d64f91bdd882cc4b8633e1ce14685d4bb02c7e458677a7a",
+          "stdoutBytes": 299,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-agreement-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 276/276: actual Agreements load/error/retry and detail-refresh handlers distinguish failures/search misses/empty records, preserve signatures and change-request counts, hide stale counters/editor, recover records and retain awaiting exclusions. Mocked reads only.",
+          "checksPassed": 276,
+          "checksTotal": 276,
+          "stdoutSha256": "600b236a5ef93c692a227f590b3ecfd8511886e261884b1a6cc2a4d14eb4b4f9",
+          "stdoutBytes": 269,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-followup-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 316/316: actual follow-up load/error/retry handlers distinguish failed reads from no actions, retain records, restore recommendations, and preserve billing exception/reminder priorities, appointment timing, review/recurrence suppression, revised totals and message-draft props. Mocked reads only; no message prepared or sent.",
+          "checksPassed": 316,
+          "checksTotal": 316,
+          "stdoutSha256": "a5ea73f779e65e0145bd31ffa1c59227cac87c0065c307c03b0258fe82c30758",
+          "stdoutBytes": 331,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-payment-load-errors.mjs",
+          "exitCode": 0,
+          "result": "PASS 275/275: actual Payments load/error/retry handlers cover HTTP, network, JSON and malformed collection failures; hide misleading summaries/actions, retain prior records, recover cleanly and convert successful numeric fields. Mocked reads only.",
+          "checksPassed": 275,
+          "checksTotal": 275,
+          "stdoutSha256": "21bf6c7d084e4f26a7f31f6dd40962f89296a656d683079db61e6f1ed3f38235",
+          "stdoutBytes": 248,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-payment-received-status.mjs",
+          "exitCode": 0,
+          "result": "PASS 98/98: actual Payments GET and component exclude pending/failed/unknown amounts and fees from received summaries, preserve paid refunds and tip refunds, retain every history entry with status, and hide non-paid refund/net-received controls. Synthetic SQLite/component checks only.",
+          "checksPassed": 98,
+          "checksTotal": 98,
+          "stdoutSha256": "30a52a425829d4afda993315892d547fbc4f0ae639ad4c02b70fe3f46989672e",
+          "stdoutBytes": 286,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-deposit-invoice-due.mjs",
+          "exitCode": 0,
+          "result": "PASS 130/130: actual UI helper, dashboard queries and manual POST agree on deposit until completion, revised final invoice after completion, refunds, tips, unpaid entries and waived deposit. Excess amounts rejected without ledger writes. Invoice creation before completion and billed-job backward transitions blocked. Synthetic SQLite only.",
+          "checksPassed": 130,
+          "checksTotal": 130,
+          "stdoutSha256": "8a725c41b801f3c11e8254763829bff40088ebd10a719d0d498d6386b4eeee5a",
+          "stdoutBytes": 341,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-payment-mobile-ui.mjs",
+          "exitCode": 0,
+          "result": "PASS: 11/11 component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.",
+          "checksPassed": 11,
+          "checksTotal": 11,
+          "stdoutSha256": "0e15ac74ef834c7a21af6155612aecaf807287f3799adee0a808baa799160a35",
+          "stdoutBytes": 1010,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-customer-invoice-balances.mjs",
+          "exitCode": 0,
+          "result": "PASS 156/156: actual customer/invoice/estimate routes and UI helpers preserve revised/zero invoice totals, principal versus tips/refunds, pending/failed exclusion, overpayment floor, per-job balances, customer isolation and owner access. Synthetic SQLite only.",
+          "checksPassed": 156,
+          "checksTotal": 156,
+          "stdoutSha256": "c3590f40029f0b657411e9cf480c49079238200d78d16cb95b6d5912244b366e",
+          "stdoutBytes": 261,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-dashboard-balance-consistency.mjs",
+          "exitCode": 0,
+          "result": "PASS 69/69: initial page and refreshed API agree for draft/sent/declined, deposit due, revised invoice, principal/tip/refund, overpayment, pending/failed payment and full refund; owner access preserved. Synthetic SQLite only.",
+          "checksPassed": 69,
+          "checksTotal": 69,
+          "stdoutSha256": "1b515e7c81375f058de3cb786f00821b88e5a806b64227810e01317939b482e8",
+          "stdoutBytes": 226,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-processing-fees.mjs",
+          "exitCode": 0,
+          "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+          "checksPassed": null,
+          "checksTotal": null,
+          "stdoutSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443",
+          "stdoutBytes": 228,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        },
+        {
+          "suite": "test-stripe-refunds.mjs",
+          "exitCode": 0,
+          "result": "PASS: partial per-payment Stripe refunds; repeat API requests; duplicate/signed webhooks; altered amount/provider rejection; pending-to-success reconciliation; Stripe 500 and lost-response retries reuse idempotency key; atomic rollback/recovery; concurrent limits; tip separation; manual refund confirmation and fee preservation; imported external refunds; backup/restore and legacy backup compatibility. Only in-memory SQLite and mocked Stripe used.",
+          "checksPassed": null,
+          "checksTotal": null,
+          "stdoutSha256": "f4a7f4a00502321560b49492ce661c537b275fbc2a957e33696ec75823ee65c4",
+          "stdoutBytes": 451,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrBytes": 0
+        }
+      ]
+    },
+    "negativeControls": {
+      "EstimatesView": {
+        "rejected": true,
+        "assertion": "AssertionError [ERR_ASSERTION]: EstimatesView: stale response changed current state"
+      },
+      "InvoicesView": {
+        "rejected": true,
+        "assertion": "AssertionError [ERR_ASSERTION]: InvoicesView: stale response changed current state"
+      },
+      "ContractsView": {
+        "rejected": true,
+        "assertion": "AssertionError [ERR_ASSERTION]: ContractsView: stale response changed current state"
+      },
+      "FollowUpsView": {
+        "rejected": true,
+        "assertion": "AssertionError [ERR_ASSERTION]: FollowUpsView: stale response changed current state"
+      },
+      "PaymentsView": {
+        "rejected": true,
+        "assertion": "AssertionError [ERR_ASSERTION]: PaymentsView: stale response changed current state"
+      },
+      "BusinessView": {
+        "rejected": true
+      },
+      "monthOnly": {
+        "rejected": true
+      }
+    },
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "builds": {
+      "live": {
+        "exitCode": 0,
+        "completed": true,
+        "logSha256": "8fa1120a169e510e78b80e72415eb64afa42dc9d84e7546a52695399a3427ac4",
+        "typescriptExitCode": 0
+      },
+      "doomsday": {
+        "exitCode": 0,
+        "completed": true,
+        "logSha256": "85c504bb876287f3b20c5626d9a1c3d4b171f2a819604c4454b2a89fe6336f5a",
+        "typescriptExitCode": 0
+      },
+      "staging": {
+        "exitCode": 0,
+        "completed": true,
+        "logSha256": "6f0a6c92bc932fae3689b177be74ecbcbc0855f32c99ecf408fde98258d1a4f7",
+        "typescriptExitCode": 0
+      }
+    },
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "sourceParity": {
+      "sharedFilesChecked": 119,
+      "roots": [
+        "/workspace/scratch/a307f8c9f987/reliability-live",
+        "/workspace/scratch/a307f8c9f987/reliability-doomsday",
+        "/workspace/scratch/a307f8c9f987/reliability-staging"
+      ],
+      "adaptersRequiringSeparateVerification": [
+        "app/page.tsx",
+        "app/layout.tsx",
+        "app/chatgpt-auth.ts",
+        "app/owner-auth.ts",
+        "app/login/page.tsx",
+        "app/api/auth/login/route.ts",
+        "app/api/auth/logout/route.ts",
+        "app/api/app-version/route.ts",
+        "app/api/staging-fixtures/route.ts"
+      ],
+      "differences": [],
+      "sharedSourceParity": true,
+      "productionReady": false
+    },
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "releaseReadiness": {
+      "gatesPassed": 3,
+      "totalGates": 10,
+      "percent": 30,
+      "ready": false,
+      "passed": [
+        "shared source",
+        "isolated regression",
+        "target compilations"
+      ],
+      "pending": [
+        "deployed identities",
+        "remote schema/journals",
+        "auth adapter",
+        "photo storage",
+        "mobile evidence",
+        "sandbox integration",
+        "rollback/seal"
+      ]
+    },
+    "deployed": false,
+    "realMobileEvidenceCaptured": false,
+    "remoteDatabaseWrites": false,
+    "remoteMigrations": false,
+    "stripeNetworkCalls": false,
+    "paidServicesUsed": false,
+    "cost": 0,
+    "changedFilesSha256": {
+      "shared/app/dashboard.tsx": "47767b97d3322c4328c2b927f86a29311fd7fe5efdd0b819f1c1f679cf413bd5",
+      "shared/scripts/restore-records-backup.mjs": "be0414268435a10e7eeabe3014933ac80566216445ddeb0371bbb07ee7da9aa6",
+      "shared/scripts/test-agreement-load-errors.mjs": "16bb85274d0510ba19896bade3d85f8013ea52adeaf96f3cc67b2a7a0aa7198e",
+      "shared/scripts/test-deposit-invoice-due.mjs": "3fb9ce4b50ccf4b35619da64d9a82d708c1ea00a7a6c20a6e6b65e86830522ba",
+      "shared/scripts/test-estimate-load-errors.mjs": "44676eccfc7b49b0f4d3b713c437ab3638439c9d9a2796e0863203dc4fd9c345",
+      "shared/scripts/test-followup-load-errors.mjs": "64c472a8d8d10827dee5dc5181ee54e1e2807c924f67116c6e7e707e0c0dce78",
+      "shared/scripts/test-invoice-load-errors.mjs": "51358c89bdefc966ba55c4e4d16c3462bff960a1859826efc460a2d405b55448",
+      "shared/scripts/test-payment-load-errors.mjs": "4a09d1f215cf70d89abfc4658ba63a18cf739c109250614bae906ad9e8605f1f",
+      "shared/scripts/test-payment-mobile-ui.mjs": "cbfce78c5bbbae9340bc4c6fdb670cf4fb76f8236a17e03ae27d6d21e19aa383",
+      "shared/scripts/test-payment-received-status.mjs": "6c00052ed2d6a9598b510fd68701a2b61d521a4b74641ec1caba8994479f939d",
+      "shared/scripts/validate-records-backup.mjs": "c3d8ba57d7e7056eb93e96bf90768b6a71aee414cc5dd260f4408fd7cc025c10",
+      "shared/scripts/records-backup-integrity.mjs": "77ac5ed90c2be255e56c85ba1a18f08ab8aef93059295501a7ecc602a6b2edc0",
+      "shared/scripts/test-loader-recovery.mjs": "75260208297e4842fb34bfde9b2c49dff5bd5d1e9b1d30d6d258a21442aae762",
+      "shared/scripts/test-records-recovery.mjs": "61aa5f3bb2780e178bead253dc3ff20c9ce3b7013037c3c7f5f81911a0df2e0f"
+    },
+    "behavior": [
+      "Business loads all four collections as one validated result, retains prior records on failure, hides counters/forms during loading or error and offers retry.",
+      "Business rejects malformed records, unsafe/negative/blank/boolean expense amounts and invalid dates before totals can be shown.",
+      "Monthly expense totals match both local-calendar month and year; same-month prior-year regression covered.",
+      "Confirmed stale-response races in Estimates, Invoices, Agreements, Follow-ups and Payments fixed; only latest request may commit rows, error or loading state. Unmount invalidates reads.",
+      "Standalone validator and merge-only restore accept optional payment_refunds, validate ownership/reservations/succeeded ledger semantics, reject duplicate identities and check preserved target refund reservations before writing.",
+      "Restore verifies inserted field values and final relationships/refund ledger; interrupted-prefix retry restores missing requests without duplicates or overwriting preserved records.",
+      "Verified older snapshots remain accepted without optional refund metadata, including historic refund ledger entries. No refund request metadata is fabricated."
+    ],
+    "testLimits": "Actual component functions/hooks with mocked GET; actual in-app backup GET \u2192 standalone CLI with a local-only mocked Wrangler backed by temporary SQLite \u2192 in-app GET verification. Test schema is created only in disposable fixtures. No cloud database/resource access or real Stripe requests. Financial suites mock Stripe in memory. No hosted/mobile/sandbox integration proof.",
+    "recoveryLimits": "Run operational restores against a quiescent, fully compatible schema; this batch does not prove cloud concurrency or authorize restore execution. Existing records win; immutable conflicts fail for review. Photo files require a separate archive and are not restored by the records CLI. Older backups without refund metadata retain the in-app compatibility rule, so ownership/ledger-to-request checks cannot be reconstructed for omitted requests.",
+    "verificationSequence": "Fourteen suites per target passed; final Business amount guard was subsequently rechecked through loader suite, TypeScript and builds on all targets. The final legacy-ledger compatibility regression reran the records recovery suite on all targets. Unchanged suites were not repeated.",
+    "commands": [
+      "node scripts/test-<suite>.mjs (14 named suites \u00d7 3 candidates)",
+      "node node_modules/typescript/bin/tsc --noEmit (each candidate)",
+      "npm run build (each candidate)",
+      "node scripts/check-app-parity.mjs <live candidate> <doomsday candidate> <staging candidate>"
+    ],
+    "priorManifest": "Historical manifests, evidence and rollback copies preserved; none seals the new source. No release/deployment approval implied.",
+    "overnightRuns": "Stopped; this handoff does not restart automations or background work."
   }
 }

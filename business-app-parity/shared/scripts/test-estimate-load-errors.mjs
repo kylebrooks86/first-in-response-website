@@ -12,7 +12,7 @@ let state=[],cursor=0,effects=[],requests=[],responder,saved=[];
 const stubs=Object.fromEntries(['Button','EstimateDetail','NewEstimate','SquareKanban','List','Star','CalendarDays','ClipboardList','ChevronRight'].map(name=>[name,()=>null]));
 const context={exports:{},require,Error,Array,...stubs,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},
- useEffect(fn){effects.push(fn);},fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,dateTime:s=>s,
+ useRef:initial=>({current:initial}),useEffect(fn){effects.push(fn);},fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,dateTime:s=>s,
  window:{setTimeout(fn){fn();return 1;},clearTimeout(){}},
 };
 vm.runInNewContext(ts.transpileModule(helpers.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=EstimatesView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);

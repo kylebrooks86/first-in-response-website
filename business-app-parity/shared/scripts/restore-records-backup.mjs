@@ -1,3 +1,4 @@
+import { assertBackupIntegrity } from "./records-backup-integrity.mjs";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, resolve } from "node:path";
@@ -13,6 +14,7 @@ const TABLES = [
   ["payment_checkout_sessions", ["id", "estimate_id", "type", "amount_cents", "status", "created_at", "expired_at"]],
   ["estimate_items", ["id", "estimate_id", "name", "description", "quantity", "unit", "total_cents"]],
   ["payments", ["id", "estimate_id", "type", "amount_cents", "status", "provider_id", "created_at", "processing_fee_cents", "gross_received_cents", "bundled_tip_cents", "processing_method"]],
+  ["payment_refunds", ["id", "payment_id", "estimate_id", "amount_cents", "mode", "status", "provider_refund_id", "note", "created_at", "completed_at"]],
   ["customer_messages", ["id", "customer_id", "estimate_id", "channel", "template", "body", "created_at"]],
   ["notifications", ["id", "type", "title", "body", "customer_id", "estimate_id", "read_at", "resolved_at", "resolution_note", "created_at"]],
   ["message_templates", ["key", "subject", "body", "updated_at"]],
@@ -84,11 +86,12 @@ if (payload?.format === "fire-app-records-backup" && payload?.version === 1 && p
 }
 if (!backupTables) throw new Error("This is not a valid or complete FIRE App records backup.");
 
+assertBackupIntegrity(backupTables);
 const restoredAt = new Date().toISOString();
 const plans = [];
 for (const [table, columns] of TABLES) {
   const rows = backupTables[table];
-  if (!Array.isArray(rows)) { if (table === "invoice_items" || table === "invoice_revisions" || table === "payment_checkout_sessions") continue; throw new Error(`The backup is missing the ${table} records.`); }
+  if (!Array.isArray(rows)) { if (table === "invoice_items" || table === "invoice_revisions" || table === "payment_checkout_sessions" || table === "payment_refunds") continue; throw new Error(`The backup is missing the ${table} records.`); }
   for (const candidate of rows) {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error(`The ${table} backup contains an invalid record.`);
     const values = columns.map((column) => {
@@ -120,11 +123,34 @@ if (plans.length > 5_000) throw new Error("This backup contains more than 5,000 
 const existingByTable = new Map();
 for (const [table] of TABLES) {
   const identityColumn = table === "message_templates" ? "key" : "id";
-  const result = run(["d1", "execute", "DB", "--config", absoluteConfig, ...modeArgs, "--json", "--command", `SELECT ${identityColumn} AS identity FROM ${table}`]);
+  const result = run(["d1", "execute", "DB", "--config", absoluteConfig, ...modeArgs, "--json", "--command", `SELECT * FROM ${table}`]);
   if (result.status !== 0) fail(result, `Could not inspect target table ${table}.`);
   const parsed = JSON.parse(result.stdout);
-  existingByTable.set(table, new Set((parsed[0]?.results || []).map((row) => String(row.identity))));
+  if (!Array.isArray(parsed[0]?.results)) throw new Error(`Could not read target table ${table}.`);
+  existingByTable.set(table, new Map(parsed[0].results.map(row=>[String(row[identityColumn]),row])));
 }
+// Never replace existing records; reject immutable financial/ownership conflicts.
+const immutable = {
+ customers:["id"], estimates:["customer_id","total_cents","deposit_cents","share_token"],
+ invoices:["estimate_id","customer_id","total_cents","share_token"],
+ payments:["estimate_id","type","amount_cents","status","provider_id","processing_fee_cents","gross_received_cents","bundled_tip_cents","processing_method"],
+ payment_refunds:["payment_id","estimate_id","amount_cents","mode"],
+};
+const normalize=value=>value==null?null:value;
+for(const plan of plans){
+ const existing=existingByTable.get(plan.table).get(plan.identity);
+ if(!existing)continue;
+ const source=backupTables[plan.table].find(row=>row[plan.identityColumn]===plan.identity);
+ if(plan.table==="payment_refunds"&&source.provider_refund_id!=null&&existing.provider_refund_id!=null&&source.provider_refund_id!==existing.provider_refund_id)throw new Error(`Existing refund provider conflicts with backup record ${plan.identity}.`);
+ const fields=new Set([...(immutable[plan.table]||[]),...plan.columns.filter(column=>column.endsWith("_id")&&column!=="provider_refund_id")]);
+ for(const column of fields)if(source[column]!==undefined&&normalize(source[column])!==normalize(existing[column]))throw new Error(`Existing ${plan.table}.${column} conflicts with backup record ${plan.identity}. No records changed.`);
+}
+function mergedTables(){
+ return Object.fromEntries(TABLES.filter(([table])=>table!=="payment_refunds"||backupTables.payment_refunds!==undefined||existingByTable.get(table).size>0).map(([table])=>[table,[...existingByTable.get(table).values(),...plans.filter(plan=>plan.table===table&&!existingByTable.get(table).has(plan.identity)).map(plan=>Object.fromEntries(plan.columns.map((column,i)=>[column,plan.values[i]??null])))]]));
+}
+// Include preserved target reservations/ledger rows, and incomplete prior writes,
+// when checking the complete recovery result before making any new writes.
+assertBackupIntegrity(mergedTables());
 const missing = plans.filter((plan) => !existingByTable.get(plan.table).has(plan.identity));
 const byTable = Object.fromEntries(TABLES.map(([table]) => {
   const restore = missing.filter((plan) => plan.table === table).length;
@@ -170,6 +196,15 @@ try {
     }
   }
   if (verified !== missing.length) throw new Error(`Restore verification failed: expected ${missing.length} records but verified ${verified}.`);
+  const finalTables={};
+  for(const [table] of TABLES){
+    const read=run(["d1","execute","DB","--config",absoluteConfig,...modeArgs,"--json","--command",`SELECT * FROM ${table}`]);
+    if(read.status!==0)fail(read,`Could not verify final ${table} relationships.`);
+    const rows=JSON.parse(read.stdout)[0]?.results;
+    if(!Array.isArray(rows))throw new Error(`Invalid final ${table} results.`);
+    if(table!=="payment_refunds"||backupTables.payment_refunds!==undefined||rows.length)finalTables[table]=rows;
+  }
+  assertBackupIntegrity(finalTables);
   console.log(JSON.stringify({ restoredAndVerified: verified, fieldValuesVerified: true, existingRecordsPreserved: plans.length - missing.length }, null, 2));
 } finally {
   await rm(work, { recursive: true, force: true });
