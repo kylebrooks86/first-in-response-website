@@ -241,5 +241,27 @@
     "stagingUpdateReady": false,
     "productionChanged": false,
     "applicationTestsRerun": false
+  },
+  "stagingColumnsBatch": {
+    "parent": "664fc407a9adc655a11d094f1c21ec66c1a9be93",
+    "evidenceFile": "STAGING_COLUMNS_EVIDENCE.json",
+    "tablesMatched": 19,
+    "tablesChecked": 19,
+    "tableNameColumnParityPercent": 100,
+    "columnNamesMatched": 163,
+    "columnNamesChecked": 163,
+    "checkerTestsPassed": 9,
+    "checkerTestsTotal": 9,
+    "columnTypesVerified": false,
+    "indexesVerified": false,
+    "migrationJournalVerified": false,
+    "resourceIsolationVerified": false,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessTotal": 10,
+    "productionReady": false,
+    "deployed": false,
+    "unchangedApplicationTestsRerun": false
   }
 }
