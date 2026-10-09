@@ -222,5 +222,24 @@
     "priorInterruptedSaveFilesVerified": 8,
     "priorCheckpoint": "4772d055495a35deb462f034f36c03567eef2a8c",
     "productionChanged": false
+  },
+  "stagingPreflightBatch": {
+    "parent": "af756f6d5d853468aa48b21d651e9c9d341af626",
+    "evidenceFile": "STAGING_PREFLIGHT_EVIDENCE.json",
+    "checksVerified": 3,
+    "checksRequired": 8,
+    "percent": 37.5,
+    "scope": "staging release preflight, not overall production readiness",
+    "stagingPublishedVersionVerified": 3,
+    "environmentRevisionVerified": 2,
+    "d1OverviewTableNames": 19,
+    "remoteSchemasVerified": 0,
+    "remoteSchemasRequired": 3,
+    "doomsdayIdentityEndpointHTTP": 404,
+    "sandboxCredentialsVerified": false,
+    "sandboxRoutingRechecked": false,
+    "stagingUpdateReady": false,
+    "productionChanged": false,
+    "applicationTestsRerun": false
   }
 }
