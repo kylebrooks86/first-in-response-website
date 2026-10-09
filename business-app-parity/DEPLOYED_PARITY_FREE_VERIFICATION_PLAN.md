@@ -48,3 +48,7 @@ Mark PASS only after same-state rendering and function are both examined. For DI
 
 ## Next bounded work batch
 Obtain comparable, authenticated **read-only iPhone-viewport** owner dashboard screenshots for both deployed staging versions. If either is inaccessible, record that as a blocker and advance a static source-level UI comparison without declaring deployed parity. Do not waste time retrying blocked endpoints or use paid tools.
+
+## October 9 owner Cloudflare reconciliation
+
+Doomsday Worker/version-prefix/DB-name relationship, 19 tables, payments/refund column counts, three refund application indexes, clean duplicate-provider/FK checks and journal 0000–0021 are now supplied as independently verified owner observations. These supersede the earlier lack of Doomsday observations within this scope. Full SQL definitions, actual immutable resource UUID and full runtime/artifact identity remain unverified; 0022 and its unique partial payments index are confirmed pending. No complete-schema or deployed-parity gate advanced. GitHub a1cdb94 is a documentation-only commit on the named branch; build runbook selects Business App fire-app-dr plus overlays, not current coordinated candidates. See DOOMSDAY_CLOUDFLARE_RECONCILIATION_EVIDENCE.json and DOOMSDAY_0022_MIGRATION_PLAN.md. Never run historical combined deploy wrappers to inspect or apply this plan. Official readiness remains 3/10 (30%), NOT READY.

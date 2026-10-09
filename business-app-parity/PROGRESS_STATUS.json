@@ -2558,5 +2558,97 @@
     "preservedTests": "Earlier Business and six list-loader checks, records recovery results and historical source/evidence snapshots preserved; unrelated unchanged suites not rerun.",
     "reviewManifestFile": "INVOICE_EDITOR_REVIEW_MANIFEST.json",
     "reviewEvidenceFile": "INVOICE_EDITOR_REVIEW_EVIDENCE.json"
+  },
+  "doomsdayCloudflareReconciliationBatch": {
+    "asOf": "2026-10-09",
+    "parent": "5f5c48ef4c0f7c77d1f88fae5cbec8314cd80f83",
+    "scope": "Doomsday owner evidence reconciliation, read-only GitHub source investigation, non-executing migration plan and local preflight improvement",
+    "ownerVerifiedCloudflareFindings": {
+      "provenance": "Owner's independently verified findings supplied in this turn; not new direct Cloudflare access by this session",
+      "worker": "fire-app-independent-staging",
+      "activeVersionPrefix": "61fa32a3",
+      "trafficPercent": 100,
+      "binding": "DB",
+      "databaseName": "fire-app-staging-db",
+      "applicationTables": 19,
+      "paymentsColumns": 11,
+      "paymentRefundsColumns": 10,
+      "paymentRefundsApplicationIndexes": 3,
+      "duplicateStripeProviderGroups": 0,
+      "foreignKeyViolations": 0,
+      "migrationJournalRange": "0000\u20130021",
+      "candidateMigration0022Applied": false,
+      "candidate0022IndexApplied": false,
+      "fullWorkerVersionUuidObserved": false,
+      "immutableDatabaseUuidObserved": false,
+      "completeSchemaSqlCaptured": false
+    },
+    "githubSourceRelationship": {
+      "repository": "kylebrooks86/first-in-response-website",
+      "branch": "fire-calculator-exact-live-clone",
+      "branchHead": "a1cdb94be76b0ded16b213b84616e741651e140d",
+      "commit": "a1cdb94be76b0ded16b213b84616e741651e140d",
+      "parent": "e516af3ce93368450cd3d02906d117116d090f3e",
+      "commitMessage": "Enforce zero-cost exact parity across every FIRE Business App version",
+      "changedFiles": [
+        {
+          "path": "dr-parity-overlays/LIVE_SYNC_HANDOFF_2026-10-08.md",
+          "additions": 11,
+          "deletions": 0
+        }
+      ],
+      "documentationOnly": true,
+      "githubCommitUrl": "https://github.com/kylebrooks86/first-in-response-website/commit/a1cdb94be76b0ded16b213b84616e741651e140d"
+    },
+    "suiteRunsPassed": 3,
+    "suiteRunsTotal": 3,
+    "newChecksPassed": 27,
+    "newChecksTotal": 27,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "publicationAuthorized": false,
+    "deployed": false,
+    "remoteDatabaseWrites": false,
+    "stripeCalls": false,
+    "cost": 0,
+    "planFile": "DOOMSDAY_0022_MIGRATION_PLAN.md",
+    "meaningfulImprovement": "Read-only SQL preflight rejects cumulative pending+succeeded refund reservations above the original paid amount, with failed/canceled requests excluded.",
+    "builds": "Not rerun: no application/TypeScript/dependency/migration source changed; only local SQL preflight/test and review documentation.",
+    "remainingBlockers": [
+      "Full deployed artifact/source identity and build settings",
+      "Actual immutable D1 UUID/isolation and full schema SQL",
+      "Doomsday 0022 pending; migration approval/backup/quiescence required",
+      "LIVE missing refund table in prior observed inventory; other complete target schema gates open",
+      "Auth/photo/mobile/sandbox/rollback seals"
+    ],
+    "singleMostUsefulNextStep": "Read-only capture of full active version/build-root/source/runtime identity plus immutable DB UUID for 61fa32a3; no migration yet.",
+    "referenceSourceComparison": {
+      "app/dashboard.tsx": {
+        "exists": true,
+        "referenceSha256": "e3333df87a091f85a49941d248d04021d15d823b27763dd4dc62e9ddc84d12ee",
+        "candidateSha256": "cbe4d9f301e1c0038ed2d2dd1143bc41a9e796752b7917fbb95febe0a0f94781",
+        "matches": false
+      },
+      "app/api/app-version/route.ts": {
+        "exists": false,
+        "referenceSha256": null,
+        "candidateSha256": "e4338eca1814008d140b7f41b188ed74e19a3637004f29bc3cba744e2d8b86b1",
+        "matches": false
+      },
+      "package.json": {
+        "exists": true,
+        "referenceSha256": "9edad0336cb277ba68a4fa232e272737d3ff8fa230fdf3ac3c84af9644c3e2b2",
+        "candidateSha256": "4f6c2790297197729de0f4557b1fdf37e8e7868c232e75f13ab92e615ce3e03b",
+        "matches": false
+      }
+    },
+    "changedFilesSha256": {
+      "shared/scripts/stripe-ledger-preflight.sql": "45640ec04d2a25685024a2402f9a39f7e5ff9ee3e5fb2c5a97a096a4794d2e20",
+      "shared/scripts/test-stripe-provider-migration.mjs": "293310ff26560cbc5011e49b3b19cea70fe201340bc6bc5bc6c0c7a5e1d57126",
+      "DOOMSDAY_0022_MIGRATION_PLAN.md": "ed4feba043c6be4d9445c163e8e9cd17e3c61fc017104c1ba916427d1958f9b6"
+    },
+    "referenceMigrationFilesMatched": 22,
+    "referenceMigrationFilesChecked": 22
   }
 }

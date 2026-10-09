@@ -1,0 +1,249 @@
+{
+  "asOf": "2026-10-09",
+  "parent": "5f5c48ef4c0f7c77d1f88fae5cbec8314cd80f83",
+  "scope": "Doomsday owner evidence reconciliation, read-only GitHub source investigation, non-executing migration plan and local preflight improvement",
+  "ownerVerifiedCloudflareFindings": {
+    "provenance": "Owner's independently verified findings supplied in this turn; not new direct Cloudflare access by this session",
+    "worker": "fire-app-independent-staging",
+    "activeVersionPrefix": "61fa32a3",
+    "trafficPercent": 100,
+    "binding": "DB",
+    "databaseName": "fire-app-staging-db",
+    "applicationTables": 19,
+    "paymentsColumns": 11,
+    "paymentRefundsColumns": 10,
+    "paymentRefundsApplicationIndexes": 3,
+    "duplicateStripeProviderGroups": 0,
+    "foreignKeyViolations": 0,
+    "migrationJournalRange": "0000\u20130021",
+    "candidateMigration0022Applied": false,
+    "candidate0022IndexApplied": false,
+    "fullWorkerVersionUuidObserved": false,
+    "immutableDatabaseUuidObserved": false,
+    "completeSchemaSqlCaptured": false
+  },
+  "githubSourceRelationship": {
+    "repository": "kylebrooks86/first-in-response-website",
+    "branch": "fire-calculator-exact-live-clone",
+    "branchHead": "a1cdb94be76b0ded16b213b84616e741651e140d",
+    "commit": "a1cdb94be76b0ded16b213b84616e741651e140d",
+    "parent": "e516af3ce93368450cd3d02906d117116d090f3e",
+    "commitMessage": "Enforce zero-cost exact parity across every FIRE Business App version",
+    "changedFiles": [
+      {
+        "path": "dr-parity-overlays/LIVE_SYNC_HANDOFF_2026-10-08.md",
+        "additions": 11,
+        "deletions": 0
+      }
+    ],
+    "documentationOnly": true,
+    "githubCommitUrl": "https://github.com/kylebrooks86/first-in-response-website/commit/a1cdb94be76b0ded16b213b84616e741651e140d"
+  },
+  "targetedSuiteResults": {
+    "live": {
+      "exitCode": 0,
+      "result": "PASS: Two individually valid pending partial refunds block aggregate over-reservation\nPASS: Failed refund releases its reservation\nPASS: Canceled refund does not reserve funds\nPASS: Succeeded partial refund still reserves the original funds\nPASS: Exactly the original paid amount is allowed\nPASS: Succeeded refund without a matching ledger blocks preflight\nPASS: Matching negative refund ledger satisfies succeeded-refund check\nPASS: Refund ownership mismatch blocks preflight\nPASS: All preflight queries are read-only and leave fixture rows unchanged\nPASS 9/9: cumulative refund reservation/ownership/ledger preflight checks on disposable SQLite only.\nPASS: collision preflight detects history; migration aborts without changing rows; clean upgrade enforces principal/tip/refund uniqueness; unrelated manual references remain compatible."
+    },
+    "doomsday": {
+      "exitCode": 0,
+      "result": "PASS: Two individually valid pending partial refunds block aggregate over-reservation\nPASS: Failed refund releases its reservation\nPASS: Canceled refund does not reserve funds\nPASS: Succeeded partial refund still reserves the original funds\nPASS: Exactly the original paid amount is allowed\nPASS: Succeeded refund without a matching ledger blocks preflight\nPASS: Matching negative refund ledger satisfies succeeded-refund check\nPASS: Refund ownership mismatch blocks preflight\nPASS: All preflight queries are read-only and leave fixture rows unchanged\nPASS 9/9: cumulative refund reservation/ownership/ledger preflight checks on disposable SQLite only.\nPASS: collision preflight detects history; migration aborts without changing rows; clean upgrade enforces principal/tip/refund uniqueness; unrelated manual references remain compatible."
+    },
+    "staging": {
+      "exitCode": 0,
+      "result": "PASS: Two individually valid pending partial refunds block aggregate over-reservation\nPASS: Failed refund releases its reservation\nPASS: Canceled refund does not reserve funds\nPASS: Succeeded partial refund still reserves the original funds\nPASS: Exactly the original paid amount is allowed\nPASS: Succeeded refund without a matching ledger blocks preflight\nPASS: Matching negative refund ledger satisfies succeeded-refund check\nPASS: Refund ownership mismatch blocks preflight\nPASS: All preflight queries are read-only and leave fixture rows unchanged\nPASS 9/9: cumulative refund reservation/ownership/ledger preflight checks on disposable SQLite only.\nPASS: collision preflight detects history; migration aborts without changing rows; clean upgrade enforces principal/tip/refund uniqueness; unrelated manual references remain compatible."
+    }
+  },
+  "suiteRunsPassed": 3,
+  "suiteRunsTotal": 3,
+  "newChecksPassed": 27,
+  "newChecksTotal": 27,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "publicationAuthorized": false,
+  "deployed": false,
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "cost": 0,
+  "planFile": "DOOMSDAY_0022_MIGRATION_PLAN.md",
+  "meaningfulImprovement": "Read-only SQL preflight rejects cumulative pending+succeeded refund reservations above the original paid amount, with failed/canceled requests excluded.",
+  "builds": "Not rerun: no application/TypeScript/dependency/migration source changed; only local SQL preflight/test and review documentation.",
+  "remainingBlockers": [
+    "Full deployed artifact/source identity and build settings",
+    "Actual immutable D1 UUID/isolation and full schema SQL",
+    "Doomsday 0022 pending; migration approval/backup/quiescence required",
+    "LIVE missing refund table in prior observed inventory; other complete target schema gates open",
+    "Auth/photo/mobile/sandbox/rollback seals"
+  ],
+  "singleMostUsefulNextStep": "Read-only capture of full active version/build-root/source/runtime identity plus immutable DB UUID for 61fa32a3; no migration yet.",
+  "referenceSourceComparison": {
+    "app/dashboard.tsx": {
+      "exists": true,
+      "referenceSha256": "e3333df87a091f85a49941d248d04021d15d823b27763dd4dc62e9ddc84d12ee",
+      "candidateSha256": "cbe4d9f301e1c0038ed2d2dd1143bc41a9e796752b7917fbb95febe0a0f94781",
+      "matches": false
+    },
+    "app/api/app-version/route.ts": {
+      "exists": false,
+      "referenceSha256": null,
+      "candidateSha256": "e4338eca1814008d140b7f41b188ed74e19a3637004f29bc3cba744e2d8b86b1",
+      "matches": false
+    },
+    "package.json": {
+      "exists": true,
+      "referenceSha256": "9edad0336cb277ba68a4fa232e272737d3ff8fa230fdf3ac3c84af9644c3e2b2",
+      "candidateSha256": "4f6c2790297197729de0f4557b1fdf37e8e7868c232e75f13ab92e615ce3e03b",
+      "matches": false
+    }
+  },
+  "referenceMigrationComparison": {
+    "checked": 22,
+    "matched": 22,
+    "files": [
+      {
+        "sourcePath": "fire-app-dr/drizzle/0000_wise_namora.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0000_wise_namora.sql",
+        "referenceSha256": "bf81df36056d1e29ca3ca96bb10f6b85975fa7adf61cb501614d9ff4aa5b6050",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0001_elite_cammi.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0001_elite_cammi.sql",
+        "referenceSha256": "a6e4c3e4754da037435ecde79e7e34e98b86d2cf9d7e36cc4825e38b377ede8b",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0002_tearful_ink.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0002_tearful_ink.sql",
+        "referenceSha256": "a52c142f08627a2119473df06bbaf172db26fdafbdae4f68f6e6f6901e530c09",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0003_absent_dracula.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0003_absent_dracula.sql",
+        "referenceSha256": "65b77216eed043fdf10f209a2a94ac07074f993685de710d7836ba11627814f0",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0004_volatile_fenris.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0004_volatile_fenris.sql",
+        "referenceSha256": "7a8ac944ba7ade961e8905c0a0353ab3148e627ae1074b22a43f450bfa71d45b",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0005_unknown_king_cobra.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0005_unknown_king_cobra.sql",
+        "referenceSha256": "23fa54825c71a703a3463462966dd987d0f8440be11ad419153ef6894d0de8d0",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0006_open_solo.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0006_open_solo.sql",
+        "referenceSha256": "ea02ee90b6740ea946f0095282e54c93b175803acf493684cd5044d98ad70bde",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0007_open_bloodaxe.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0007_open_bloodaxe.sql",
+        "referenceSha256": "edcef02c0ffdb45f545c48ec214ea5424d13f8aa2927dc3c3fb1fdfc0141abda",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0008_typical_tomorrow_man.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0008_typical_tomorrow_man.sql",
+        "referenceSha256": "73d544641f0a31a3b2b3bc86bb23acd20c1c65b5a9e91768c5275d24aa355d1e",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0009_spicy_micromax.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0009_spicy_micromax.sql",
+        "referenceSha256": "573811bd67d3494f12b5c1f4abad4cfac9b5f212a347c97d10b742b9b8005cfa",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0010_discount_mode.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0010_discount_mode.sql",
+        "referenceSha256": "f634f637ba996ef667ec7e6481208c1e2c29c98dc8f53ef6c82d55a5b6e48c95",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0011_editable_invoices.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0011_editable_invoices.sql",
+        "referenceSha256": "960ec64daf36eab7b8a2c1d9e4fa5577d3edf8591b58172feed8612ea5909412",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0012_invoice_revisions.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0012_invoice_revisions.sql",
+        "referenceSha256": "d9f248e3071d3b1bc23aca77d65db597239efd9adf4365338739856c506f90f3",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0013_checkout_sessions.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0013_checkout_sessions.sql",
+        "referenceSha256": "84d7b9a8d41cd44ef892c73f215503473d803a6ff59483dcda99ac3116ad522e",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0014_notification_resolution.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0014_notification_resolution.sql",
+        "referenceSha256": "2c8fe6c5c7b7e1167f252e5fbc23c8624a23c2b1fa67382449235dd5d43d3f1e",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0015_single_open_checkout.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0015_single_open_checkout.sql",
+        "referenceSha256": "2af3dfb175f3e376bf4a3cc2f34736dd9b766b79995fb2b6e14b0e481d903fe4",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0016_notification_resolution_note.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0016_notification_resolution_note.sql",
+        "referenceSha256": "8aae84afa39975cc4f5a0a40e2e2f6ce5b7955b7b77b70c15a86b50e225e49fb",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0017_one_invoice_per_estimate.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0017_one_invoice_per_estimate.sql",
+        "referenceSha256": "5dcb11fd59ffd11cd648a33ec2a4415d9d8396bb4109820392908a1163179c37",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0018_payment_refunds.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0018_payment_refunds.sql",
+        "referenceSha256": "14285c7d39d19af3b4b66ab205a560ca880044327802a135f2a3fccdfd352b70",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0019_refund_ledger_unique.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0019_refund_ledger_unique.sql",
+        "referenceSha256": "b02ac31c9de684467154555db9f67d88b11f0946933ca01ab85c0c5261895df4",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0020_notification_lifecycle_unique.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0020_notification_lifecycle_unique.sql",
+        "referenceSha256": "a61178146bb0f308c813fe9d60f8185f3790d22f9b56c7c7270350ba117a0beb",
+        "matches": true
+      },
+      {
+        "sourcePath": "fire-app-dr/drizzle/0021_manual_processing_fees.sql",
+        "candidatePath": "business-app-parity/adapters/doomsday/drizzle/0021_manual_processing_fees.sql",
+        "referenceSha256": "9bb083e6d3c7b275e9573034d41141fdb6d7d135ce9d63c4768542d01ee154d2",
+        "matches": true
+      }
+    ]
+  },
+  "changedFilesSha256": {
+    "shared/scripts/stripe-ledger-preflight.sql": "45640ec04d2a25685024a2402f9a39f7e5ff9ee3e5fb2c5a97a096a4794d2e20",
+    "shared/scripts/test-stripe-provider-migration.mjs": "293310ff26560cbc5011e49b3b19cea70fe201340bc6bc5bc6c0c7a5e1d57126",
+    "DOOMSDAY_0022_MIGRATION_PLAN.md": "ed4feba043c6be4d9445c163e8e9cd17e3c61fc017104c1ba916427d1958f9b6"
+  },
+  "historicalReviewManifest": {
+    "file": "INVOICE_EDITOR_REVIEW_MANIFEST.json",
+    "preservedSha256": "2e3ee4e8f8dec208e362bf5f651861f6c3a7c2b6feee056a021fb33b6147290b",
+    "expectedStaleAfterReviewInputsAndPreflightChange": true,
+    "verifyExitCode": 1,
+    "message": "Candidate source, adapters, migration history or review inputs changed; regenerate and review."
+  }
+}

@@ -74,12 +74,48 @@
       "url": "https://fire-app-independent-staging.kyle-bfc.workers.dev",
       "referenceCommit": "e516af3ce93368450cd3d02906d117116d090f3e",
       "deployedCommitVerified": false,
-      "identityStatus": "Blocked independent deployment metadata; reference commit is historical, not verified deployed source."
+      "identityStatus": "Owner observed active Cloudflare version and source link; GitHub confirms branch/reference Business App build path. Runtime artifact identity remains unsealed.",
+      "workerName": "fire-app-independent-staging",
+      "ownerObservedCloudflareVersionPrefix": "61fa32a3",
+      "ownerObservedTrafficPercent": 100,
+      "ownerObservedD1Binding": {
+        "binding": "DB",
+        "databaseName": "fire-app-staging-db",
+        "immutableUuidVerified": false
+      },
+      "githubDeploymentLinkCommit": "a1cdb94be76b0ded16b213b84616e741651e140d",
+      "githubDeploymentLinkBranch": "fire-calculator-exact-live-clone",
+      "githubReferenceVerified": true,
+      "ownerObservedSchemaSummary": {
+        "provenance": "Owner's independently verified findings supplied in this turn; not new direct Cloudflare access by this session",
+        "worker": "fire-app-independent-staging",
+        "activeVersionPrefix": "61fa32a3",
+        "trafficPercent": 100,
+        "binding": "DB",
+        "databaseName": "fire-app-staging-db",
+        "applicationTables": 19,
+        "paymentsColumns": 11,
+        "paymentRefundsColumns": 10,
+        "paymentRefundsApplicationIndexes": 3,
+        "duplicateStripeProviderGroups": 0,
+        "foreignKeyViolations": 0,
+        "migrationJournalRange": "0000\u20130021",
+        "candidateMigration0022Applied": false,
+        "candidate0022IndexApplied": false,
+        "fullWorkerVersionUuidObserved": false,
+        "immutableDatabaseUuidObserved": false,
+        "completeSchemaSqlCaptured": false
+      },
+      "candidateMigrationGap": [
+        "0022_stripe_provider_uniqueness.sql"
+      ],
+      "latestEvidenceFile": "DOOMSDAY_CLOUDFLARE_RECONCILIATION_EVIDENCE.json"
     }
   ],
   "asOf": "2026-10-09",
   "metadataCapturedAt": "2026-10-09T08:59:38.570Z",
-  "latestDevelopmentCommit": "857630e20c7cc79203b76971d32ae569976588f7",
+  "latestDevelopmentCommit": "5f5c48ef4c0f7c77d1f88fae5cbec8314cd80f83",
   "candidatePublished": false,
-  "nativeMetadataScope": "Native site metadata identifies the saved source and successful latest publish attempt for that version; a runtime build/routing identity seal is not established. Table names are complete within the returned projection, but types, constraints, indexes, journals and independent D1 resource IDs/isolation are unavailable."
+  "nativeMetadataScope": "Native site metadata identifies the saved source and successful latest publish attempt for that version; a runtime build/routing identity seal is not established. Table names are complete within the returned projection, but types, constraints, indexes, journals and independent D1 resource IDs/isolation are unavailable.",
+  "latestIndependentEvidenceAsOf": "2026-10-09"
 }

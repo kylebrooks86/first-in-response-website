@@ -23,4 +23,22 @@ for(const [id,provider,type,amount] of [['d','cs_collision','balance',10000],['t
 }
 insert('manual-a','manual-reference','Cash App');insert('manual-b','manual-reference','Cash App');
 assert.equal(db.prepare("SELECT COUNT(*) n FROM payments WHERE provider_id='manual-reference'").get().n,2);
+// Exercise every read-only preflight query against partial refund reservations.
+let checks=0;const check=(label,run)=>{run();checks++;console.log('PASS: '+label);};
+const queries=readFileSync(root+'/scripts/stripe-ledger-preflight.sql','utf8').split(';').map(s=>s.replace(/--[^\n]*/g,'').trim()).filter(Boolean);
+assert.equal(queries.length,4);
+const reserveQuery=queries[3];
+insert('reserve-base','cs_reserve');
+const refund=(id,amount,status)=>db.prepare("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,status,created_at,mode) VALUES(?,'reserve-base','e',?,?, 'now','manual')").run(id,amount,status);
+refund('partial-a',6000,'pending');refund('partial-b',5000,'pending');
+check('Two individually valid pending partial refunds block aggregate over-reservation',()=>{const rows=db.prepare(reserveQuery).all();assert.equal(rows.length,1);assert.equal(rows[0].payment_id,'reserve-base');assert.equal(rows[0].reserved_cents,11000);assert.equal(rows[0].original_cents,10000);});
+check('Failed refund releases its reservation',()=>{db.prepare("UPDATE payment_refunds SET status='failed' WHERE id='partial-b'").run();assert.equal(db.prepare(reserveQuery).all().length,0);});
+check('Canceled refund does not reserve funds',()=>{db.prepare("UPDATE payment_refunds SET status='canceled' WHERE id='partial-b'").run();assert.equal(db.prepare(reserveQuery).all().length,0);});
+check('Succeeded partial refund still reserves the original funds',()=>{db.prepare("UPDATE payment_refunds SET status='succeeded' WHERE id='partial-b'").run();assert.equal(db.prepare(reserveQuery).all()[0].reserved_cents,11000);});
+check('Exactly the original paid amount is allowed',()=>{db.prepare("UPDATE payment_refunds SET amount_cents=4000 WHERE id='partial-b'").run();assert.equal(db.prepare(reserveQuery).all().length,0);});
+check('Succeeded refund without a matching ledger blocks preflight',()=>{assert.ok(db.prepare(queries[2]).all().some(r=>r.refund_id==='partial-b'));});
+check('Matching negative refund ledger satisfies succeeded-refund check',()=>{insert('partial-b-ledger','refund:reserve-base:partial-b','Refund',-4000);assert.ok(!db.prepare(queries[2]).all().some(r=>r.refund_id==='partial-b'));});
+check('Refund ownership mismatch blocks preflight',()=>{db.exec("INSERT INTO estimates(id,customer_id,subtotal_cents,total_cents,deposit_cents,created_at) VALUES('other','c',10000,10000,5000,'now')");db.prepare("UPDATE payment_refunds SET estimate_id='other' WHERE id='partial-a'").run();assert.ok(db.prepare(queries[1]).all().some(r=>r.refund_id==='partial-a'));});
+check('All preflight queries are read-only and leave fixture rows unchanged',()=>{const before=JSON.stringify({payments:db.prepare('SELECT * FROM payments ORDER BY id').all(),refunds:db.prepare('SELECT * FROM payment_refunds ORDER BY id').all()});for(const query of queries){assert.match(query,/^SELECT\b/);db.prepare(query).all();}const after=JSON.stringify({payments:db.prepare('SELECT * FROM payments ORDER BY id').all(),refunds:db.prepare('SELECT * FROM payment_refunds ORDER BY id').all()});assert.equal(after,before);});
+console.log(`PASS ${checks}/${checks}: cumulative refund reservation/ownership/ledger preflight checks on disposable SQLite only.`);
 console.log('PASS: collision preflight detects history; migration aborts without changing rows; clean upgrade enforces principal/tip/refund uniqueness; unrelated manual references remain compatible.');
