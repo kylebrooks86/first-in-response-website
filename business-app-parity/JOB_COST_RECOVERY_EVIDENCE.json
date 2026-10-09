@@ -1,0 +1,136 @@
+{
+  "parent": "bd7b02771cfd106b4315d552a2106df43ee2f5ec",
+  "asOf": "2026-10-09",
+  "scope": "FIRE Business App JobCost expense loading, retry, stale response and cost/profit reliability",
+  "candidateSnapshotCommits": {
+    "live": "8b431b3145fddcc523ae9cf3cef3c8582feb7b67",
+    "doomsday": "a44aac665e6af6170c743125198376c6a98feea0",
+    "staging": "7786b45ddb34e8e847a685a3e5d93466341bbb46"
+  },
+  "candidatePaths": {
+    "live": "/workspace/scratch/a307f8c9f987/job-cost-recovery-live",
+    "doomsday": "/workspace/scratch/a307f8c9f987/job-cost-recovery-doomsday",
+    "staging": "/workspace/scratch/a307f8c9f987/job-cost-recovery-staging"
+  },
+  "newChecksPerTarget": 460,
+  "newChecksPassed": 1380,
+  "newChecksTotal": 1380,
+  "suiteRunsPassed": 9,
+  "suiteRunsTotal": 9,
+  "suiteNames": [
+    "test-job-cost-recovery.mjs",
+    "test-job-report-recovery.mjs",
+    "test-processing-fees.mjs"
+  ],
+  "resultsByTarget": {
+    "live": {
+      "cost": {
+        "exitCode": 0,
+        "result": "PASS 460/460: actual JobCost load/hooks/JSX guard stale/closed/old refresh reads, pending/error totals, malformed expenses, numeric safety, job filtering and retry; synthetic GET only.",
+        "logSha256": "b3bc285d4aaa30dbc28d0dcf0478fbc3bebe4c3cc05eac6b3e7d788de8b8a82e"
+      },
+      "report": {
+        "exitCode": 0,
+        "result": "PASS 338/338: actual JobReport hooks/JSX cover stale close/reopen and delayed JSON, unmount, HTTP/network/collection/checklist/ownership failures, retry and empty-report reset; synthetic GET only.",
+        "logSha256": "71dabb8ea875334de149797911e720f8febd7d17160b85983070b449a967c581"
+      },
+      "fees": {
+        "exitCode": 0,
+        "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+        "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+      },
+      "typescriptExitCode": 0,
+      "buildExitCode": 0,
+      "buildLogSha256": "35e9e186c62720815b6dbdbc29f3a9bdedd6ec8d80d0fbee1d1d5f870dad7c77"
+    },
+    "doomsday": {
+      "cost": {
+        "exitCode": 0,
+        "result": "PASS 460/460: actual JobCost load/hooks/JSX guard stale/closed/old refresh reads, pending/error totals, malformed expenses, numeric safety, job filtering and retry; synthetic GET only.",
+        "logSha256": "b3bc285d4aaa30dbc28d0dcf0478fbc3bebe4c3cc05eac6b3e7d788de8b8a82e"
+      },
+      "report": {
+        "exitCode": 0,
+        "result": "PASS 338/338: actual JobReport hooks/JSX cover stale close/reopen and delayed JSON, unmount, HTTP/network/collection/checklist/ownership failures, retry and empty-report reset; synthetic GET only.",
+        "logSha256": "71dabb8ea875334de149797911e720f8febd7d17160b85983070b449a967c581"
+      },
+      "fees": {
+        "exitCode": 0,
+        "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+        "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+      },
+      "typescriptExitCode": 0,
+      "buildExitCode": 0,
+      "buildLogSha256": "e401c779f23b2041a1a218c0e3d5978166ec1d5c5b3c1e6471f45ff09e3c5548"
+    },
+    "staging": {
+      "cost": {
+        "exitCode": 0,
+        "result": "PASS 460/460: actual JobCost load/hooks/JSX guard stale/closed/old refresh reads, pending/error totals, malformed expenses, numeric safety, job filtering and retry; synthetic GET only.",
+        "logSha256": "b3bc285d4aaa30dbc28d0dcf0478fbc3bebe4c3cc05eac6b3e7d788de8b8a82e"
+      },
+      "report": {
+        "exitCode": 0,
+        "result": "PASS 338/338: actual JobReport hooks/JSX cover stale close/reopen and delayed JSON, unmount, HTTP/network/collection/checklist/ownership failures, retry and empty-report reset; synthetic GET only.",
+        "logSha256": "71dabb8ea875334de149797911e720f8febd7d17160b85983070b449a967c581"
+      },
+      "fees": {
+        "exitCode": 0,
+        "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+        "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+      },
+      "typescriptExitCode": 0,
+      "buildExitCode": 0,
+      "buildLogSha256": "2542de79b8e661b973b4317d2feb75d97f9cc9b47f19b64df9e6a4263bbebe84"
+    }
+  },
+  "negativeControls": {
+    "parentFailsLoadingTotalsRegression": true
+  },
+  "unchangedWriteHandlerBodiesPassed": 1,
+  "unchangedWriteHandlerBodiesTotal": 1,
+  "typescriptTargetsPassed": 3,
+  "typescriptTargetsTotal": 3,
+  "buildTargetsPassed": 3,
+  "buildTargetsTotal": 3,
+  "sourceParity": {
+    "sharedFilesChecked": 119,
+    "roots": [
+      "/workspace/scratch/a307f8c9f987/job-cost-recovery-live",
+      "/workspace/scratch/a307f8c9f987/job-cost-recovery-doomsday",
+      "/workspace/scratch/a307f8c9f987/job-cost-recovery-staging"
+    ],
+    "adaptersRequiringSeparateVerification": [
+      "app/page.tsx",
+      "app/layout.tsx",
+      "app/chatgpt-auth.ts",
+      "app/owner-auth.ts",
+      "app/login/page.tsx",
+      "app/api/auth/login/route.ts",
+      "app/api/auth/logout/route.ts",
+      "app/api/app-version/route.ts",
+      "app/api/staging-fixtures/route.ts"
+    ],
+    "differences": [],
+    "sharedSourceParity": true,
+    "productionReady": false
+  },
+  "productionReady": false,
+  "deployed": false,
+  "realMobileEvidenceCaptured": false,
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "paidServicesUsed": false,
+  "changedFilesSha256": {
+    "shared/app/dashboard.tsx": "df93bb3c0df59fbe615bd54f85eb3318c69c68bebde4fec1c0a8fb14340ae30b",
+    "shared/scripts/test-job-cost-recovery.mjs": "c7757619ae4fc6369ea517cd356a2ae8385af5dd28f653449dac9c2c9e62c4f8"
+  },
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "testLimits": "Actual extracted JobCost load/hooks/JSX synthetic GET tests, not browser/React lifecycle or hosted/mobile integration. Financial API regressions use local synthetic SQLite only.",
+  "behavior": [
+    "Close/unmount/estimate changes invalidate pending expense reads; only latest generation can commit. Old-job refresh callbacks cannot load a different current job.",
+    "HTTP, network, malformed JSON/collections/records and invalid or unsafe expense amounts require retry. Preserve last-good records internally; hide cost/profit totals, empty-state claims and cost entry during failed or unknown reads.",
+    "Successful reads filter by job ID and validate safe sums; only successful empty results show zero costs. Expense POST handler unchanged."
+  ]
+}

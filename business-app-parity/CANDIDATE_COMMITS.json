@@ -134,11 +134,11 @@
     "staging": "422a8db892078c8c043687df915464165d9b500e"
   },
   "latestVerifiedCandidateCommits": {
-    "live": "2b1180d68aa6ebff99aa412fe4209226583db249",
-    "doomsday": "898b569a878957dfe28e3032c24185895b9fbbf3",
-    "staging": "463c6c2249127891ccee1d613da5e1bd169244ed"
+    "live": "8b431b3145fddcc523ae9cf3cef3c8582feb7b67",
+    "doomsday": "a44aac665e6af6170c743125198376c6a98feea0",
+    "staging": "7786b45ddb34e8e847a685a3e5d93466341bbb46"
   },
-  "latestVerifiedCandidateEvidence": "JOB_REPORT_RECOVERY_EVIDENCE.json",
+  "latestVerifiedCandidateEvidence": "JOB_COST_RECOVERY_EVIDENCE.json",
   "invoiceFieldsAccessibilityCandidateCommits": {
     "live": "d72a54d3211602b8cd8d14ea4784ea8bdbd59abc",
     "doomsday": "3ad783d2d7218eb3a2c2cface5838850f5f40974",
@@ -163,5 +163,10 @@
     "live": "2b1180d68aa6ebff99aa412fe4209226583db249",
     "doomsday": "898b569a878957dfe28e3032c24185895b9fbbf3",
     "staging": "463c6c2249127891ccee1d613da5e1bd169244ed"
+  },
+  "jobCostRecoveryCandidateCommits": {
+    "live": "8b431b3145fddcc523ae9cf3cef3c8582feb7b67",
+    "doomsday": "a44aac665e6af6170c743125198376c6a98feea0",
+    "staging": "7786b45ddb34e8e847a685a3e5d93466341bbb46"
   }
 }
