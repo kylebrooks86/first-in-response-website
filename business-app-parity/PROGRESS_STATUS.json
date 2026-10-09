@@ -3535,5 +3535,22 @@
     "commandsExecuted": false,
     "applicationTestsAndBuilds": "Not rerun: evidence-only checkpoint. Prior verified runtime/preflight tests preserved.",
     "priorReviewManifest": "RELEASE_BLOCKER_REVIEW_MANIFEST.json preserved unchanged; expected stale after inventory/progress evidence update."
+  },
+  "doomsdayActiveBuildLogCheckpoint": {
+    "evidenceFile": "DOOMSDAY_ACTIVE_BUILD_LOG_EVIDENCE.json",
+    "sourceCommit": "a1cdb94be76b0ded16b213b84616e741651e140d",
+    "activeVersionUuid": "61fa32a3-3461-469d-9245-a9df6dd3f036",
+    "sourceToVersionAssociationResolved": true,
+    "historicalTypecheckExitCode": 2,
+    "historicalFailedTypecheckAllowedDeployment": true,
+    "currentReleaseGuardExactFailureCodeRejectedTargets": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "applicationSourceChanged": false,
+    "deploymentPerformedThisBatch": false,
+    "remoteDatabaseWritesThisBatch": false,
+    "priorEvidencePreserved": true,
+    "priorReviewManifest": "Preserved unchanged; expected stale after inventory/progress updates. Latest verified candidate snapshots and runtime test evidence retained."
   }
 }

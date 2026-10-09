@@ -1,0 +1,74 @@
+{
+  "asOf": "2026-10-09",
+  "parent": "344797eb24dae16bc8fb8755ca5eaa45cec0b4c7",
+  "provenance": "Owner pasted historical Cloudflare build log on 2026-10-09 at 13:05 America/Chicago; not a newly executed build or direct API fetch.",
+  "scope": "FIRE Business App historical active deployment lineage and development release typecheck guard verification",
+  "worker": "fire-app-independent-staging",
+  "deployedVersionUuid": "61fa32a3-3461-469d-9245-a9df6dd3f036",
+  "sourceBranch": "fire-calculator-exact-live-clone",
+  "sourceCommit": "a1cdb94be76b0ded16b213b84616e741651e140d",
+  "archiveSha256": "2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca",
+  "captureId": "3c5ac73d57b01602429b699e",
+  "databaseName": "fire-app-staging-db",
+  "databaseUuid": "afb2c05a-d794-4a9a-b580-924ce01c26ad",
+  "historicalBuildResult": "PASS",
+  "historicalTypecheckExitCode": 2,
+  "historicalTypecheckStatus": "FAIL_NONBLOCKING",
+  "historicalDeployResult": "PASS",
+  "historicalMigrationResult": "No migrations to apply; 22 staged migrations 0000 through 0021. Does not imply candidate 0022 applied.",
+  "historicalLogExcerpt": [
+    "2026-10-09T03:24:00.069Z DR_SOURCE_BRANCH=PASS (fire-calculator-exact-live-clone @ a1cdb94be76b0ded16b213b84616e741651e140d)",
+    "2026-10-09T03:24:00.074Z v138 archive SHA256: 2f17f220ba08abd893a89bfc8e4fe7df870e692557723a475e859a44ff8382ca",
+    "2026-10-09T03:24:02.218Z Capture identity 3c5ac73d57b01602429b699e bound to staging source commit a1cdb94be76b0ded16b213b84616e741651e140d.",
+    "2026-10-09T03:24:04.659Z EVIDENCE_GATE=NOT_YET_FULLY_VERIFIED",
+    "2026-10-09T03:24:04.659Z Parity remains staging-only with 86 unresolved evidence/comparison/forward-sync blocker(s); release-facing documents remain conservatively labeled.",
+    "2026-10-09T03:24:41.036Z TYPECHECK_STATUS=FAIL_NONBLOCKING (exit 2)",
+    "2026-10-09T03:24:44.010Z No migrations to apply!",
+    "2026-10-09T03:24:59.330Z Current Version ID: 61fa32a3-3461-469d-9245-a9df6dd3f036",
+    "2026-10-09T03:24:59.389Z DR_STAGING_DEPLOY=PASS",
+    "2026-10-09T03:24:59.389Z D1: fire-app-staging-db (afb2c05a-d794-4a9a-b580-924ce01c26ad)",
+    "2026-10-09T03:24:59.777Z Success! Build completed."
+  ],
+  "historicalTypecheckFailureCategories": [
+    "DB and BUCKET possibly undefined",
+    "Implicit any in backup rows",
+    "Missing relationshipIntegrityVerified property on restore audit type"
+  ],
+  "ownerRuntimeRequestObservation": {
+    "path": "/api/dr-capture-identity",
+    "status": 401,
+    "scriptVersionUuid": "61fa32a3-3461-469d-9245-a9df6dd3f036",
+    "provenance": "Earlier owner-pasted Worker request event; no authenticated response body"
+  },
+  "lineageStatus": "Owner build log directly links checked-out full source SHA and archive hash to active Worker version UUID and D1 binding. Historical source-to-version association resolved.",
+  "limits": [
+    "No independently retrieved deployable artifact digest",
+    "No authenticated runtime identity response",
+    "No current parity candidate deployment",
+    "No new remote schema capture",
+    "Historical guards are source checks, not rendered or functional parity"
+  ],
+  "developmentReleaseGuard": {
+    "file": "candidate_release_manifest.py",
+    "requiresAllTargetsTypecheckExitZero": true,
+    "existingRegressionTestsPassed": 1,
+    "exactExit2RejectionChecksPassed": 3,
+    "exactExit2RejectionChecksTotal": 3,
+    "targets": [
+      "live",
+      "doomsday",
+      "staging"
+    ],
+    "fixtureScope": "Temporary synthetic manifests; successful build and claimed 3/3 aggregate counts must not override failed per-target typecheck"
+  },
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "applicationSourceChanged": false,
+  "legacyScriptsChanged": false,
+  "deploymentPerformedThisBatch": false,
+  "remoteDatabaseWritesThisBatch": false,
+  "stripeCallsThisBatch": false,
+  "paidServicesUsed": false,
+  "redaction": "Only relevant non-secret log excerpts retained. Environment secret binding output and client/IP/TLS request metadata omitted."
+}

@@ -74,7 +74,7 @@
       "url": "https://fire-app-independent-staging.kyle-bfc.workers.dev",
       "referenceCommit": "e516af3ce93368450cd3d02906d117116d090f3e",
       "deployedCommitVerified": false,
-      "identityStatus": "Owner captured full active version UUID, bound D1 UUID and current build configuration; historical sealed-v138 build path confirmed. Active artifact/runtime identity and cross-target isolation remain unsealed.",
+      "identityStatus": "Owner historical build log links source a1cdb94 and sealed-v138 archive to active full Worker version and D1 UUID. Artifact digest/runtime response, cross-target isolation and deployed parity remain unverified.",
       "workerName": "fire-app-independent-staging",
       "ownerObservedCloudflareVersionPrefix": "61fa32a3",
       "ownerObservedTrafficPercent": 100,
@@ -111,7 +111,7 @@
       "candidateMigrationGap": [
         "0022_stripe_provider_uniqueness.sql"
       ],
-      "latestEvidenceFile": "DOOMSDAY_BUILD_BINDING_OWNER_EVIDENCE.json",
+      "latestEvidenceFile": "DOOMSDAY_ACTIVE_BUILD_LOG_EVIDENCE.json",
       "ownerObservedCloudflareVersionUuid": "61fa32a3-3461-469d-9245-a9df6dd3f036",
       "ownerObservedBuildConfiguration": {
         "repository": "kylebrooks86/first-in-response-website",
@@ -128,7 +128,11 @@
           "IMG_1607.png",
           "Owner copied full build command"
         ]
-      }
+      },
+      "ownerObservedBuildLogSourceCommit": "a1cdb94be76b0ded16b213b84616e741651e140d",
+      "ownerObservedBuildLogCaptureId": "3c5ac73d57b01602429b699e",
+      "ownerObservedHistoricalTypecheckStatus": "FAIL_NONBLOCKING",
+      "historicalSourceToVersionLinked": true
     }
   ],
   "asOf": "2026-10-09",
