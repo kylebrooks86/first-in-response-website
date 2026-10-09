@@ -534,5 +534,20 @@
     "runtimeChanged": false,
     "deployed": false,
     "productionReady": false
+  },
+  "customerNavigationDesktopBatch": {
+    "parent": "ed45f5ec2b005eb1a2ac767a3209c2f809f791b8",
+    "evidenceFile": "CUSTOMER_NAVIGATION_DESKTOP_EVIDENCE.json",
+    "navigationObservationsCompleted": 8,
+    "navigationObservationsRequired": 8,
+    "scope": "four desktop navigation steps per target; not formal parity states",
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "realMobileEvidenceCaptured": false,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "runtimeChanged": false,
+    "deployed": false
   }
 }

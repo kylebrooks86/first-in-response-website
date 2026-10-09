@@ -1,0 +1,107 @@
+{
+  "scope": "authenticated deployed desktop customer navigation only; no formal parity pass",
+  "asOf": "2026-10-09",
+  "parent": "ed45f5ec2b005eb1a2ac767a3209c2f809f791b8",
+  "targets": {
+    "staging": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site/",
+    "doomsday": "https://fire-app-independent-staging.kyle-bfc.workers.dev/"
+  },
+  "viewport": {
+    "width": 1363,
+    "height": 936
+  },
+  "theme": "light",
+  "authenticatedWithoutNewCredentialEntry": true,
+  "stepsPerTarget": [
+    {
+      "action": "Customers sidebar",
+      "result": "customer list visible"
+    },
+    {
+      "action": "existing customer row",
+      "result": "profile visible"
+    },
+    {
+      "action": "All customers",
+      "result": "customer list restored"
+    },
+    {
+      "action": "Dashboard sidebar",
+      "result": "owner dashboard restored"
+    }
+  ],
+  "navigationObservationsCompleted": 8,
+  "navigationObservationsRequired": 8,
+  "meaning": "individual desktop route observations; not eight identical parity states",
+  "commonProfileControlsObserved": [
+    "All customers",
+    "Edit customer",
+    "Message",
+    "New estimate",
+    "Continue current job",
+    "Google Maps",
+    "Open Stride",
+    "Google Earth",
+    "Zillow",
+    "Property preview",
+    "Estimates",
+    "Payments",
+    "Invoices",
+    "Photos",
+    "Messages",
+    "Notes"
+  ],
+  "controlsPresenceIsNotFunctionVerification": true,
+  "dataDependentDifferences": [
+    "contact availability differs",
+    "job date and amount differ",
+    "independent records are not matching synthetic fixtures"
+  ],
+  "retainedDeploymentDifferences": [
+    "Doomsday has no Insights navigation",
+    "Doomsday has no dashboard weather panel"
+  ],
+  "followUpObservation": {
+    "issue": "Doomsday initial and returned dashboard outstanding values differed within this session",
+    "classification": "needs reproduction; potentially initial-load versus refreshed calculation; no database mutation performed",
+    "candidateServerExcludesTips": true,
+    "savedLegacyServerExcludesTips": false,
+    "legacySourceIsNotActualDeploymentProof": true,
+    "newRuntimePatchMade": false
+  },
+  "screenshot": {
+    "path": "business-app-parity/evidence/fire-stage-customer-profile-20261009.jpg",
+    "sha256": "6210a86b59f4e84469b9aa5179efc4a64ff738a23388441f5d65f41a64ea750e",
+    "bytes": 163556,
+    "dimensions": [
+      1348,
+      926
+    ],
+    "syntheticStageRecord": true
+  },
+  "privacy": "No Doomsday profile screenshot/raw contacts, address or financial rows saved to repository; test label alone does not prove record is synthetic",
+  "limits": [
+    "Desktop only; API has no supported viewport resize",
+    "Dedicated mobile Back/Home controls not tested",
+    "Light theme only",
+    "No matched synthetic fixtures",
+    "Doomsday deployed commit remains unverified",
+    "Contact/navigation external links not activated",
+    "Edit, message, payment, refund, restore and checkout actions not submitted",
+    "LIVE production not compared"
+  ],
+  "formalParityPassed": 0,
+  "formalParityRequired": 32,
+  "completeRemoteSchemasVerified": 0,
+  "completeRemoteSchemasRequired": 3,
+  "overallVerifiedReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "productionReady": false,
+  "deployed": false,
+  "runtimeChanged": false,
+  "databaseOrStripeWrites": false,
+  "applicationTestsRerun": false
+}
