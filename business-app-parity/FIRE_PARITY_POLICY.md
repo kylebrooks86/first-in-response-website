@@ -7,3 +7,19 @@ Apply every approved feature and fix to isolated candidates for every active tar
 Never overwrite independent databases, customer/financial records, Stripe configuration, authentication, or migration history to achieve parity. Authentication, environment labels, hosting bindings, and target-specific migration histories are explicit deployment adapters; they must preserve existing security and reach an equivalent final schema. Preserve historical rollback copies unchanged. Do not purchase, subscribe to, or activate paid services.
 
 Production publication requires the owner’s explicit approval of exact candidate commits, database migrations, test results, and rollback plan. Staging must use synthetic records and sandbox Stripe only. Do not process real test payments. A release is blocked while any deployed identity, schema compatibility, security adapter, storage capability, or mobile workflow remains unverified.
+
+## Development batches — permanent workflow
+
+Target approximately 15–25 minutes per self-contained batch. This is a planning target, not a reason to pad small work or abandon a safe checkpoint. Choose one bounded outcome and reserve time for verification, saving, and handoff. At the start, check the remote development branch and local changes; resume the latest verified checkpoint without repeating completed audits or unchanged passing tests unnecessarily.
+
+Prioritize functional parity, Stripe sandbox integration, database safety, and mobile visual matching across isolated LIVE, Doomsday and staging candidates. Work chat alone modifies shared branches/staging candidates; the separate regular chat performs independent read-only quality control.
+
+At every batch end:
+
+1. Run relevant tests for the changed behavior, inspect results, and distinguish local/mock results from deployed integration or iPhone evidence. Documentation-only changes require content/diff checks, not unrelated application test reruns.
+2. Save safe completed changes to work/fire-business-app-parity-2026-10-08, checking the current remote head before updating it. Never overwrite newer remote work.
+3. Preserve unfinished work separately and document its exact location, blockers, and pending checks; never represent unverified work as release-ready.
+4. Report concise status bars with numerators, denominators, accurate percentages, and clearly defined scopes. Keep source parity, tests, deployed functionality, mobile parity, and production readiness separate.
+5. State the next bounded batch and any necessary owner intervention. Stop cleanly after the handoff; do not automatically begin another long operation or imply background work continues.
+
+If an interactive approval expires, preserve the checkpoint and report the exact blocked action. Do not wait repeatedly or infer authorization. Existing LIVE and Doomsday deployments, independent databases, Stripe settings/secrets, records and rollback copies remain untouched. No paid resources, production deployment, or database migration without explicit owner authorization.
