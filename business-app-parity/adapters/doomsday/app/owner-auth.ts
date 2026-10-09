@@ -52,7 +52,9 @@ function cookieValue(cookieHeader: string | null) {
 }
 
 async function sessionIsValid(value: string) {
-  const [version, expiresText, signature] = value.split(".");
+  const parts = value.split(".");
+  if (parts.length !== 3) return false;
+  const [version, expiresText, signature] = parts;
   if (version !== "v1" || !expiresText || !signature) return false;
   const expires = Number(expiresText);
   if (!Number.isSafeInteger(expires) || expires <= Math.floor(Date.now() / 1000)) return false;

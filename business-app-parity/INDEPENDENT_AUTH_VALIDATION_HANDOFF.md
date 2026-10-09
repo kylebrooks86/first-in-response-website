@@ -1,0 +1,13 @@
+# Independent authentication candidate — October 9, 2026
+
+Resumed 80dc57c9db00a718b4726c1688a9c1f959e7326d with clean checkout and matching remote development head. Work chat handles code/branch changes; regular chat can review screenshots read-only without duplicating the same investigation.
+
+The candidate's configured-hash verifier already supports a four-digit credential, verified with synthetic-only values. No deployed PIN or hash was read, copied or changed. Deployed hash configuration is still unverified; candidate login wording/input currently describes an owner password, whereas deployed Doomsday uses a four-digit PIN. Do not claim login-flow parity yet.
+
+Fixed a candidate session parser bug: it previously accepted a valid signed cookie followed by extra dot-separated segments because destructuring ignored the tail. It now requires exactly three segments. Valid sessions, expiry/signatures, signing-secret requirements, secure cookie attributes, existing credential algorithm, redirects, logout and rate-limit implementation are preserved. Only the independent auth adapter changes; LIVE/staging authentication adapters remain separate.
+
+Expanded the shared independent-adapter test with three malformed cookie tails and synthetic correct/wrong four-digit credentials. Pre-fix parser fails the new regression (negative control); fixed parser passes all 21 assertions. Doomsday TypeScript and production build each pass 1/1, with Build complete confirmed in the log. Three newly materialized candidates have identical shared source 118/118. Unchanged LIVE/staging builds, financial suites and photo recovery suites were not rerun. Snapshot commits/paths/hashes are in INDEPENDENT_AUTH_VALIDATION_EVIDENCE.json and CANDIDATE_COMMITS.json; local snapshot commits are not deployed identities.
+
+No production/staging deploy, remote migration, secret/auth configuration update, database/Stripe operation, or paid service. Historical legacy DR source and sealed rollback archive remain unchanged. Formal deployed/mobile parity 0/32 (0%), complete remote schemas 0/3 (0%), readiness 3/10 (30%), NOT READY.
+
+Next bounded batch: prepare a local-only candidate build bridge that uses current shared source while retaining the independent authentication and hosting contracts. Resolve PIN input/label compatibility with configured secrets, without embedding the existing deployed credential hash. Keep legacy publish path intact and do not run its automatic remote migrations. Remote auth schema, configuration, deployment identity, mobile rendering and owner approval remain required before publication. Stop after the development-branch save.

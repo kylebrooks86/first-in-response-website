@@ -397,5 +397,33 @@
     "runtimeChanged": false,
     "deployed": false,
     "applicationTestsRerun": false
+  },
+  "independentAuthValidationBatch": {
+    "parent": "80dc57c9db00a718b4726c1688a9c1f959e7326d",
+    "candidateSnapshotCommits": {
+      "live": "dc3fff7124adf78df439cc2ee1dda6033dcde47d",
+      "doomsday": "c227120ac685160adeda26be80cd742a34b70f70",
+      "staging": "9288aba275a6c879f5f23909e16c09c056221ea3"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/auth-adapter-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/auth-adapter-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/auth-adapter-staging"
+    },
+    "authAssertionsPassed": 21,
+    "authAssertionsTotal": 21,
+    "sharedFilesMatched": 118,
+    "sharedFilesChecked": 118,
+    "typescriptTargetsPassed": 1,
+    "typescriptTargetsChecked": 1,
+    "buildTargetsPassed": 1,
+    "buildTargetsChecked": 1,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "evidenceFile": "INDEPENDENT_AUTH_VALIDATION_EVIDENCE.json"
   }
 }

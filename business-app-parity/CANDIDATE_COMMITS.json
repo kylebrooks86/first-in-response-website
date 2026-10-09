@@ -41,5 +41,10 @@
     "live": "cb345fca76c7b54e91eb18d78396eaa1d35954cf",
     "doomsday": "85e7eda6478050cd203fbb4b22b883f4a3715a48",
     "staging": "715e05afae2617cb7104a79138ff4f03810c2cf2"
+  },
+  "independentAuthValidationCandidateCommits": {
+    "live": "dc3fff7124adf78df439cc2ee1dda6033dcde47d",
+    "doomsday": "c227120ac685160adeda26be80cd742a34b70f70",
+    "staging": "9288aba275a6c879f5f23909e16c09c056221ea3"
   }
 }
