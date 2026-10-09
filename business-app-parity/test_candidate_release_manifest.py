@@ -1,5 +1,6 @@
 import copy
 import json
+import hashlib
 from pathlib import Path
 import tempfile
 import unittest
@@ -79,6 +80,96 @@ class CandidateManifest(unittest.TestCase):
         directory.mkdir()
         (directory / "dashboard.tsx").write_text("drifted dashboard")
         with self.assertRaisesRegex(ValueError, "differs"):
+            self.manifest()
+
+
+    def add_reliability_evidence(self):
+        snapshots = {target: str(index) * 40 for index, target in enumerate(["live", "doomsday", "staging"], 1)}
+        (self.root / "CANDIDATE_COMMITS.json").write_text(json.dumps({"reliabilityRecoveryCandidateCommits": snapshots}))
+        digest = hashlib.sha256((self.root / "shared/app/dashboard.tsx").read_bytes()).hexdigest()
+        (self.root / "RELIABILITY_RECOVERY_EVIDENCE.json").write_text(json.dumps({
+            "candidateSnapshotCommits": snapshots, "changedFilesSha256": {"shared/app/dashboard.tsx": digest}}))
+        return snapshots
+
+    def add_native_evidence(self):
+        overview = {"project_id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61", "bindings": ["DB"],
+            "selected_binding_name": "DB", "tables": [], "model_projection": {
+                "omitted_bindings": 0, "omitted_tables": 0, "truncated": False,
+                "omitted_project_id": False, "omitted_selected_binding": False}}
+        # A forged stored success summary must not override actual table names.
+        (self.root / "DEPLOYED_IDENTITY_TABLE_EVIDENCE.json").write_text(json.dumps({
+            "live": {"tableOverview": overview}, "tableComparisons": {"live": {"tableNamesMatch": True}}}))
+
+    def test_exact_latest_snapshot_references(self):
+        snapshots = self.add_reliability_evidence()
+        result = self.manifest()
+        for target in snapshots:
+            self.assertEqual(result["targets"][target]["candidateSnapshotCommitReference"], snapshots[target])
+        self.assertIn("RELIABILITY_RECOVERY_EVIDENCE.json", result["inputFilesSha256"])
+
+    def test_wrong_and_incomplete_snapshot_references(self):
+        for snapshots in [{"live": "1" * 40}, {t: "not-a-commit" for t in ["live", "doomsday", "staging"]}]:
+            (self.root / "CANDIDATE_COMMITS.json").write_text(json.dumps({"reliabilityRecoveryCandidateCommits": snapshots}))
+            with self.assertRaisesRegex(ValueError, "all three exact"):
+                self.manifest()
+
+    def test_snapshot_evidence_mismatch(self):
+        self.add_reliability_evidence()
+        path = self.root / "CANDIDATE_COMMITS.json"
+        commits = json.loads(path.read_text())
+        commits["reliabilityRecoveryCandidateCommits"]["live"] = "f" * 40
+        path.write_text(json.dumps(commits))
+        with self.assertRaisesRegex(ValueError, "conflict"):
+            self.manifest()
+
+    def test_reliability_source_drift(self):
+        self.add_reliability_evidence()
+        (self.root / "shared/app/dashboard.tsx").write_text("unverified new behavior")
+        with self.assertRaisesRegex(ValueError, "source has changed"):
+            self.manifest()
+
+    def test_reliability_evidence_drift(self):
+        self.add_reliability_evidence()
+        manifest = self.manifest()
+        path = self.root / "RELIABILITY_RECOVERY_EVIDENCE.json"
+        data = json.loads(path.read_text())
+        data["checksPassed"] = "altered result"
+        path.write_text(json.dumps(data))
+        with self.assertRaises(ValueError):
+            verify_manifest(self.root, manifest)
+
+    def test_native_blocker_recomputed_from_observed_names(self):
+        self.add_native_evidence()
+        result = self.manifest()
+        live = result["targets"]["live"]["nativeTablePreflight"]
+        self.assertFalse(live["tableNamesMatch"])
+        self.assertEqual(live["missingTables"], ["fixture"])
+        self.assertFalse(result["productionReady"])
+        self.assertFalse(result["targets"]["doomsday"]["nativeTablePreflight"]["observed"])
+        manifest = result
+        path = self.root / "DEPLOYED_IDENTITY_TABLE_EVIDENCE.json"
+        data = json.loads(path.read_text())
+        data["live"]["tableOverview"]["tables"] = ["fixture"]
+        path.write_text(json.dumps(data))
+        self.assertTrue(self.manifest()["targets"]["live"]["nativeTablePreflight"]["tableNamesMatch"])
+        self.assertFalse(self.manifest()["productionReady"])
+        with self.assertRaises(ValueError):
+            verify_manifest(self.root, manifest)
+
+    def test_unsafe_reliability_path_and_boolean_counts(self):
+        self.add_reliability_evidence()
+        path = self.root / "RELIABILITY_RECOVERY_EVIDENCE.json"
+        data = json.loads(path.read_text())
+        data["changedFilesSha256"] = {"shared/../../secret": "anything"}
+        path.write_text(json.dumps(data))
+        with self.assertRaisesRegex(ValueError, "Invalid reliability"):
+            self.manifest()
+        path.unlink()
+        path = self.root / "PROGRESS_STATUS.json"
+        data = json.loads(path.read_text())
+        data["productionReadiness"].update(gatesPassed=True, percent=10)
+        path.write_text(json.dumps(data))
+        with self.assertRaisesRegex(ValueError, "counts"):
             self.manifest()
 
 

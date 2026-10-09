@@ -4,6 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import sqlite3
+import importlib.util
 
 ROOT = Path(__file__).resolve().parent
 TARGETS = ("live", "doomsday", "staging")
@@ -32,6 +34,23 @@ def fingerprint(files):
     return hashlib.sha256(json.dumps(files, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
+def native_table_preflight(root, target, migrations, evidence):
+    if target == "doomsday" or evidence is None:
+        return {"observed": False, "tableNamesMatch": None,
+                "reason": "Independent metadata unavailable" if target == "doomsday" else "No native table evidence",
+                "completeRemoteSchemaVerified": False, "productionReady": False}
+    spec = importlib.util.spec_from_file_location("native_table_inventory", ROOT / "check-deployed-table-inventory.py")
+    inspector = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(inspector)
+    with sqlite3.connect(":memory:") as fixture:
+        for name in sorted(migrations):
+            fixture.executescript((root / "adapters" / target / name).read_text())
+        expected = [row[0] for row in fixture.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+    report = inspector.compare(evidence.get(target, {}).get("tableOverview"), target, expected)
+    return {"observed": True, **report}
+
+
 def build_manifest(root, checkpoint):
     root = Path(root)
     if not re.fullmatch(r"[0-9a-f]{40}", checkpoint):
@@ -39,10 +58,28 @@ def build_manifest(root, checkpoint):
     progress = json.loads((root / "PROGRESS_STATUS.json").read_text())
     readiness = progress["productionReadiness"]
     passed, total = readiness["gatesPassed"], readiness["totalGates"]
-    if not isinstance(passed, int) or not isinstance(total, int) or total <= 0 or not 0 <= passed <= total:
+    if type(passed) is not int or type(total) is not int or total <= 0 or not 0 <= passed <= total:
         raise ValueError("Invalid verified readiness counts.")
     if readiness["percent"] != passed / total * 100:
         raise ValueError("Readiness percentage does not match its counts.")
+    commits = json.loads((root / "CANDIDATE_COMMITS.json").read_text())
+    snapshots = commits.get("reliabilityRecoveryCandidateCommits")
+    if snapshots is not None and (not isinstance(snapshots, dict) or set(snapshots) != set(TARGETS)
+            or any(not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{40}", value) for value in snapshots.values())):
+        raise ValueError("Latest candidate snapshot references must identify all three exact commits.")
+    reliability_path = root / "RELIABILITY_RECOVERY_EVIDENCE.json"
+    if reliability_path.exists():
+        reliability = json.loads(reliability_path.read_text())
+        if snapshots != reliability.get("candidateSnapshotCommits"):
+            raise ValueError("Latest candidate snapshot references conflict with verified reliability evidence.")
+        for name, digest in reliability["changedFilesSha256"].items():
+            relative = Path(name)
+            if not name.startswith("shared/") or relative.is_absolute() or ".." in relative.parts:
+                raise ValueError("Invalid reliability evidence source path.")
+            if sha(root / relative) != digest:
+                raise ValueError("Verified reliability source has changed; reverify the affected behavior.")
+    native_path = root / "DEPLOYED_IDENTITY_TABLE_EVIDENCE.json"
+    native = json.loads(native_path.read_text()) if native_path.exists() else None
     shared = inventory(root / "shared")
     if not shared:
         raise ValueError("Shared candidate is empty.")
@@ -70,6 +107,9 @@ def build_manifest(root, checkpoint):
         if not numbers or numbers != list(range(len(numbers))):
             raise ValueError("Migration sequence is missing, duplicated or noncontiguous.")
         targets[target] = {
+            "candidateSnapshotCommitReference": snapshots.get(target) if snapshots else None,
+            "snapshotReferenceMeaning": "Verified batch reference; source hashes below are the current review inputs, not a deployed commit.",
+            "nativeTablePreflight": native_table_preflight(root, target, migrations, native),
             "adapterFilesSha256": adapter,
             "absentFiles": absent,
             "materializedFilesSha256": merged,
@@ -96,7 +136,12 @@ def build_manifest(root, checkpoint):
         "productionReady": False,
         "publicationAuthorized": False,
         "deployed": False,
-        "inputFilesSha256": {name: sha(root / name) for name in ["PROGRESS_STATUS.json", "CANDIDATE_COMMITS.json", "FIRE_DEPLOYMENT_INVENTORY.json"]},
+        "inputFilesSha256": {name: sha(root / name) for name in [
+            "PROGRESS_STATUS.json", "CANDIDATE_COMMITS.json", "FIRE_DEPLOYMENT_INVENTORY.json",
+            "RELIABILITY_RECOVERY_EVIDENCE.json", "DEPLOYED_IDENTITY_TABLE_EVIDENCE.json",
+            "candidate_release_manifest.py", "test_candidate_release_manifest.py",
+            "check-deployed-table-inventory.py", "test-deployed-table-inventory.py",
+        ] if (root / name).exists()},
     }
 
 

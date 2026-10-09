@@ -2023,5 +2023,44 @@
       "check-deployed-table-inventory.py": "8380e4c1a434d41b3c8afa07cf7251ae8afab0947380f999e22add4c37cbbf1e",
       "test-deployed-table-inventory.py": "e80cb615a826a54f6f1b6ba4f3a61ad65f475d7616bc7a2d5fcc8f9d608a3a47"
     }
+  },
+  "releaseReviewRefreshBatch": {
+    "asOf": "2026-10-09",
+    "parent": "7bd3755678d5ede2acaca3952b2b8931bbb17904",
+    "scope": "Local coordinated FIRE release review; no publication",
+    "manifestFile": "RELIABILITY_RELEASE_REVIEW_MANIFEST.json",
+    "evidenceFile": "RELIABILITY_RELEASE_REVIEW_EVIDENCE.json",
+    "candidateSnapshotReferences": {
+      "live": "94a332e50e3ad7552630c877051072f5d02ebfeb",
+      "doomsday": "2dd8bf0d94449ef6d39a10adb4d05de652a69103",
+      "staging": "fbc53a361fcc98a418f5ddb780675d2c9147cb58"
+    },
+    "manifestTestsPassed": 12,
+    "manifestTestsTotal": 12,
+    "tableInspectorTestsPassed": 14,
+    "tableInspectorTestsTotal": 14,
+    "sharedApplicationFilesMatched": 119,
+    "migrationFileCounts": {
+      "live": 21,
+      "doomsday": 23,
+      "staging": 21
+    },
+    "liveObservedMissingTables": [
+      "payment_refunds"
+    ],
+    "nativeTableEvidenceMeaning": "Recomputed names only; complete schema/resource/journal and runtime identity remain unverified.",
+    "overallVerifiedReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "productionReady": false,
+    "publicationAuthorized": false,
+    "deployed": false,
+    "remoteDatabaseWrites": false,
+    "stripeCalls": false,
+    "cost": 0,
+    "historicalManifest": "CANDIDATE_RELEASE_MANIFEST.json preserved unchanged; expected stale verification failure after intervening source/evidence changes.",
+    "manifestHashLocation": "Separate evidence file; progress input is finalized before generating the manifest to avoid a circular hash."
   }
 }
