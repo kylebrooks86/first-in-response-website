@@ -1062,5 +1062,60 @@
     ],
     "testLimits": "Actual ScheduleView component/hooks/load/retry/change callbacks with mocked GET and fixed time; existing financial regression uses synthetic SQLite. No hosted/mobile/weather-network proof.",
     "priorManifest": "Previous review manifests retained as historical; newer source/review inputs are not sealed."
+  },
+  "followupLoadErrorsBatch": {
+    "parent": "f544a68c447e3e6884f5fd4d610821ac376c226d",
+    "asOf": "2026-10-09",
+    "scope": "FIRE Business App isolated candidates only",
+    "candidateSnapshotCommits": {
+      "live": "acd2c1c50c862e03503a2b520ca53d5e2876b384",
+      "doomsday": "164ec6d35ec3aed1b9e37de6dbb139109289bb28",
+      "staging": "55ec6a7b6f903b7961ec9fc7a5ca6e5e2ca4b073"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/followup-load-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/followup-load-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/followup-load-staging"
+    },
+    "newChecksPerTarget": 316,
+    "newChecksPassed": 948,
+    "newChecksTotal": 948,
+    "suiteRunsPassed": 6,
+    "suiteRunsTotal": 6,
+    "suiteNames": [
+      "test-followup-load-errors.mjs",
+      "test-customer-invoice-balances.mjs"
+    ],
+    "negativeControlPriorComponentRejected": true,
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "realMobileEvidenceCaptured": false,
+    "remoteDatabaseWrites": false,
+    "stripeMutations": false,
+    "messagesSent": false,
+    "changedFilesSha256": {
+      "shared/app/dashboard.tsx": "b26e93700bfdf237c253dfae63638a18196a2a1214c69b22689d17cdc603d126",
+      "shared/scripts/test-followup-load-errors.mjs": "57f93fdc5ecf77d7e15f771f83174923a228c0a36b512fb8a81d88b7116e005a"
+    },
+    "behavior": [
+      "Follow-ups validates HTTP status and collection before replacing records.",
+      "Read failures show accessible error with Retry; hide zero/stale action counts and message-draft controls while preserving records.",
+      "Successful retry restores recommendations and valid empty results still show caught-up state.",
+      "Reminder priority, billing exceptions, appointments, review/recurrence suppression and revised totals preserved."
+    ],
+    "testLimits": "Actual FollowUpsView hooks/load/retry with mocked GET and fixed time; MessageComposer props inspected only, no preparation/sending. Existing financial suite uses synthetic SQLite. No hosted/mobile integration evidence.",
+    "priorManifest": "Historical manifests retained; they do not seal newer source/review inputs."
   }
 }

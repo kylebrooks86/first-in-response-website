@@ -1050,7 +1050,19 @@ function ContractsView({searchQuery}:{searchQuery:string}){
 function FollowUpsView({searchQuery}:{searchQuery:string}){
   const [rows,setRows]=useState<EstimateRow[]>([]);
   const [loading,setLoading]=useState(true);
-  useEffect(()=>{void (async()=>{try{const response=await fetch("/api/estimates");const result=await response.json() as {estimates?:EstimateRow[]};setRows((result.estimates??[]).map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)})));}finally{setLoading(false);}})();},[]);
+  const [error,setError]=useState("");
+  const load=async()=>{
+    setLoading(true);setError("");
+    try{
+      const response=await fetch("/api/estimates");
+      const result=await response.json() as {estimates?:EstimateRow[];error?:string};
+      if(!response.ok)throw new Error(result.error||"Customer follow-ups could not be loaded.");
+      if(!Array.isArray(result.estimates))throw new Error("Follow-up records could not be read. Try again.");
+      setRows(result.estimates.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)})));
+    }catch(loadError){setError(loadError instanceof Error?loadError.message:"Customer follow-ups could not be loaded.");}
+    finally{setLoading(false);}
+  };
+  useEffect(()=>{void load();},[]);
   const now=useCurrentTime();
   const actions=rows.flatMap((estimate)=>{
     const ageDays=Math.max(0,Math.floor((now-new Date(estimate.createdAt).getTime())/86400000));
@@ -1069,8 +1081,8 @@ function FollowUpsView({searchQuery}:{searchQuery:string}){
     return items;
   }).filter((item)=>[item.estimate.customer,item.estimate.service,item.reason].join(" ").toLowerCase().includes(searchQuery.toLowerCase())).sort((a,b)=>b.priority-a.priority);
   return <div className="workspace-view"><section className="workspace-head"><div><p className="eyebrow">Start workflow</p><h1>Follow-ups</h1><p>Customers who need a reminder, confirmation, review request, or payment follow-up.</p></div></section>
-    <div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>recommended actions</small></div></span><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>Messages open prefilled and editable. Your phone still lets you review and tap Send.</p></div>
-    {loading?<div className="customers-state">Checking customer follow-ups…</div>:actions.length?<section className="followup-list">{actions.map(({estimate,template,reason,kind})=>{const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};return <article className={`followup-card ${kind}`} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><p>{reason}</p><small>{estimate.service} · {money(billingBalanceCents(estimate))}</small></div><MessageComposer customer={customer} estimate={estimate} initialTemplate={template} triggerLabel="Prepare message"/></article>;})}</section>:<div className="customers-state"><CheckCircle2/><strong>You’re caught up</strong><p>No customer follow-ups are recommended right now.</p></div>}
+    {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>recommended actions</small></div></span><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>Messages open prefilled and editable. Your phone still lets you review and tap Send.</p></div>}
+    {loading?<div className="customers-state">Checking customer follow-ups…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:actions.length?<section className="followup-list">{actions.map(({estimate,template,reason,kind})=>{const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};return <article className={`followup-card ${kind}`} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><p>{reason}</p><small>{estimate.service} · {money(billingBalanceCents(estimate))}</small></div><MessageComposer customer={customer} estimate={estimate} initialTemplate={template} triggerLabel="Prepare message"/></article>;})}</section>:<div className="customers-state"><CheckCircle2/><strong>You’re caught up</strong><p>No customer follow-ups are recommended right now.</p></div>}
   </div>;
 }
 
