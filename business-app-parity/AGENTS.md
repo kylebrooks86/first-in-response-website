@@ -10,9 +10,11 @@ Production publication requires the owner’s explicit approval of exact candida
 
 ## Development batches — permanent workflow
 
-Target approximately 15–25 minutes per self-contained batch. This is a planning target, not a reason to pad small work or abandon a safe checkpoint. Choose one bounded outcome and reserve time for verification, saving, and handoff. At the start, check the remote development branch and local changes; resume the latest verified checkpoint without repeating completed audits or unchanged passing tests unnecessarily.
+Target approximately 10–15 minutes per self-contained batch, focusing on one meaningful task. This is a planning target, not a reason to pad small work or abandon a safe checkpoint. Choose one bounded outcome and reserve time for verification, saving, and handoff. At the start, check the remote development branch and local changes; resume the latest verified checkpoint without repeating completed audits or unchanged passing tests unnecessarily.
 
 Prioritize functional parity, Stripe sandbox integration, database safety, and mobile visual matching across isolated LIVE, Doomsday and staging candidates. Work chat alone modifies shared branches/staging candidates; the separate regular chat performs independent read-only quality control.
+
+During active work, provide brief progress updates approximately every 3–5 minutes whenever tools allow. State the verified finding, current task and next check; do not treat a progress update as the end of the batch. Avoid long blocking operations that prevent communication.
 
 At every batch end:
 

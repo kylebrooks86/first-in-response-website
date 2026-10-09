@@ -206,5 +206,21 @@
     "requiredMobileComparisons": 32,
     "sandboxEndToEndVerified": false,
     "productionReady": false
+  },
+  "workflowBatchPolicy": {
+    "targetMinutes": [
+      10,
+      15
+    ],
+    "meaningfulTasksPerBatch": 1,
+    "progressUpdateMinutes": [
+      3,
+      5
+    ],
+    "verifiedPolicyFiles": 2,
+    "requiredPolicyFiles": 2,
+    "priorInterruptedSaveFilesVerified": 8,
+    "priorCheckpoint": "4772d055495a35deb462f034f36c03567eef2a8c",
+    "productionChanged": false
   }
 }
