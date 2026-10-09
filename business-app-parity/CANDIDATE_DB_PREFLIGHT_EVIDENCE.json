@@ -1,0 +1,71 @@
+{
+  "scope": "read-only local candidate database contract preflight; no remote schema equivalence claim",
+  "asOf": "2026-10-09",
+  "parent": "b9edf60da30ec9e628fb83c3aa970bd9de96a3e1",
+  "candidateSnapshotCommits": {
+    "live": "572c333ce87f74474a1d223a8fcbdfca38d38e4f",
+    "doomsday": "021847097d91178b0266be50d2d650ace1603519",
+    "staging": "8eec0c6c80b363879d1e208d8744636fb149ee3a"
+  },
+  "candidatePaths": {
+    "live": "/workspace/scratch/a307f8c9f987/db-preflight-live",
+    "doomsday": "/workspace/scratch/a307f8c9f987/db-preflight-doomsday",
+    "staging": "/workspace/scratch/a307f8c9f987/db-preflight-staging"
+  },
+  "migrationFilesPerTarget": {
+    "live": 21,
+    "doomsday": 23,
+    "staging": 21
+  },
+  "newChecksPerTarget": 32,
+  "newCheckExecutionsPassed": 96,
+  "newCheckExecutionsTotal": 96,
+  "suiteRunsPassed": 6,
+  "suiteRunsTotal": 6,
+  "suiteNames": [
+    "test-candidate-db-preflight.mjs",
+    "test-local-schema-audit.mjs"
+  ],
+  "localContracts": [
+    "required financial columns and index predicates",
+    "auth key single-column primary key with non-null TEXT; integer non-null counters",
+    "counts for provider collisions, invalid refund links, missing/invalid succeeded-refund ledger rows",
+    "exact expected migration filename journal with missing/unexpected/duplicate detection"
+  ],
+  "journalFixtures": "simulated records in disposable databases, not actual migration application journals",
+  "testsCover": [
+    "auth missing table, invalid key, composite key, wrong type and nullable counter",
+    "unknown/duplicate migration journal",
+    "duplicate Stripe provider IDs",
+    "refund amount larger than payment",
+    "successful refund without ledger entry and recovery after correct synthetic ledger",
+    "unavailable refund table",
+    "clean and failing CLI paths preserve SQLite file bytes"
+  ],
+  "cliBehaviorChange": "exit 0 only when all inspected local contracts, ledger counts and journal filename checks are clear; missing journal now exits 1 even when financial schema is compatible",
+  "privacy": "CLI reports anomaly counts only; no customer/payment identifiers or financial rows",
+  "toolHashes": {
+    "business-app-parity/shared/scripts/audit-local-schema.mjs": "9998f9a50cad31a40e3a1a86f943f030d814438fff62a3562453297746eac5ba",
+    "business-app-parity/shared/scripts/test-candidate-db-preflight.mjs": "eb3103f59cf9f886caf348e1b674f2761a674542b78ec3f07fc6b355cf136a9c",
+    "business-app-parity/READ_ONLY_CLOUDFLARE_SCHEMA.sql": "84bdbb808b430fa81f059219aacaec7445a5e79117413d1898ad0b48b03d7ce7"
+  },
+  "limits": [
+    "Contract subset only: not all database types/constraints/indexes inspected",
+    "Journal filenames do not verify applied migration bytes/timestamps or resource identity",
+    "Synthetic fixtures are not real customer-ledger validation",
+    "Remote D1/schema/Stripe resources not accessed",
+    "Missing journal, inaccessible tables or any anomaly fails closed; no automatic deduplication or migration",
+    "Current independent 23-file history must not be run through old governed 22-file deployment path"
+  ],
+  "runtimeApplicationChanged": false,
+  "applicationBuildsRerun": false,
+  "formalParityPassed": 0,
+  "formalParityRequired": 32,
+  "completeRemoteSchemasVerified": 0,
+  "completeRemoteSchemasRequired": 3,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10,
+  "productionReady": false,
+  "deployed": false,
+  "remoteDatabaseOrStripeWrites": false
+}

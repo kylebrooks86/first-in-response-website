@@ -40,9 +40,36 @@ export function inspectSchema(db, root) {
   }
   return {schemaCompatible:missingColumns.length===0&&invalidIndexes.length===0,missingColumns,invalidIndexes,journal,productionReady:false,scope:'local read-only SQLite inspection; remote identity and customer ledger not verified'};
 }
+export function inspectCandidatePreflight(db, root) {
+  const schema=inspectSchema(db,root);
+  const authColumns=db.prepare("SELECT name,type,\"notnull\",pk FROM pragma_table_info('auth_rate_limits')").all();
+  const requiredAuth={key:'TEXT',attempts:'INTEGER',window_started_at:'INTEGER',blocked_until:'INTEGER'};
+  const invalidAuthColumns=[];
+  for(const [name,type] of Object.entries(requiredAuth)) {
+    const column=authColumns.find(item=>item.name===name);
+    if(!column||column.type.toUpperCase()!==type||column.notnull!==1||(name==='key'&&column.pk!==1))invalidAuthColumns.push(name);
+  }
+  // The login UPSERT targets key alone, so a composite primary key is incompatible.
+  if(authColumns.filter(column=>column.pk>0).length!==1&&!invalidAuthColumns.includes('key'))invalidAuthColumns.push('key');
+  const names=['providerCollisions','invalidRefundLinks','invalidSucceededRefundLedgers'];
+  const statements=readFileSync(resolve(root,'scripts/stripe-ledger-preflight.sql'),'utf8')
+    .replace(/--[^\n]*/g,'').split(';').map(value=>value.trim()).filter(Boolean);
+  if(statements.length!==names.length||statements.some(sql=>!/^SELECT\s/i.test(sql)))throw Error('Unexpected read-only ledger preflight query set.');
+  const ledgerChecks=statements.map((sql,index)=>{
+    try{return {name:names[index],status:'observed',anomalyCount:Number(db.prepare(`SELECT COUNT(*) AS count FROM (${sql})`).get().count)};}
+    catch{return {name:names[index],status:'unavailable',anomalyCount:null};}
+  });
+  const journalCompatible=schema.journal.status==='observed'&&['missing','unexpected','duplicateNames'].every(key=>schema.journal[key].length===0);
+  const authSchemaCompatible=invalidAuthColumns.length===0;
+  const ledgerClear=ledgerChecks.every(check=>check.status==='observed'&&check.anomalyCount===0);
+  return {...schema,authSchemaCompatible,invalidAuthColumns,ledgerChecks,journalCompatible,
+    candidatePreflightClear:schema.schemaCompatible&&authSchemaCompatible&&ledgerClear&&journalCompatible,
+    remoteVerified:false,productionReady:false,
+    scope:'local read-only candidate schema/auth/ledger/journal preflight; no deployment, resource isolation or remote verification'};
+}
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
   const [filename,root]=process.argv.slice(2);
   if(!filename||!root)throw Error('Usage: node scripts/audit-local-schema.mjs LOCAL_SQLITE_FILE CANDIDATE_ROOT');
   const db=new DatabaseSync(resolve(filename),{readOnly:true});
-  try {const report=inspectSchema(db,resolve(root));console.log(JSON.stringify(report,null,2));process.exitCode=report.schemaCompatible?0:1;}finally{db.close();}
+  try {const report=inspectCandidatePreflight(db,resolve(root));console.log(JSON.stringify(report,null,2));process.exitCode=report.candidatePreflightClear?0:1;}finally{db.close();}
 }

@@ -479,5 +479,37 @@
     "productionReadinessRequired": 10,
     "productionReady": false,
     "deployed": false
+  },
+  "candidateDbPreflightBatch": {
+    "parent": "b9edf60da30ec9e628fb83c3aa970bd9de96a3e1",
+    "candidateSnapshotCommits": {
+      "live": "572c333ce87f74474a1d223a8fcbdfca38d38e4f",
+      "doomsday": "021847097d91178b0266be50d2d650ace1603519",
+      "staging": "8eec0c6c80b363879d1e208d8744636fb149ee3a"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/db-preflight-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/db-preflight-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/db-preflight-staging"
+    },
+    "migrationFilesPerTarget": {
+      "live": 21,
+      "doomsday": 23,
+      "staging": 21
+    },
+    "newChecksPerTarget": 32,
+    "newCheckExecutionsPassed": 96,
+    "newCheckExecutionsTotal": 96,
+    "suiteRunsPassed": 6,
+    "suiteRunsTotal": 6,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "evidenceFile": "CANDIDATE_DB_PREFLIGHT_EVIDENCE.json"
   }
 }
