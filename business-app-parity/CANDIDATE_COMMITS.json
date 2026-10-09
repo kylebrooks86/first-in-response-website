@@ -134,11 +134,11 @@
     "staging": "422a8db892078c8c043687df915464165d9b500e"
   },
   "latestVerifiedCandidateCommits": {
-    "live": "035b3c01b33cac3cc527e08ec281f7a186680119",
-    "doomsday": "67a7f58ae599572929c741306f9c674207ada958",
-    "staging": "d020149c38d962461298b035f8db623daafad3e4"
+    "live": "a73ffcced60b62dfe4614d4688e3a8cf131b1dd1",
+    "doomsday": "331545656f314bb9aba66ebdee3384a8e21e6b3b",
+    "staging": "ed71622b49a025bcfe4fb647fdf85f28c76aa2fd"
   },
-  "latestVerifiedCandidateEvidence": "INVOICE_EDITOR_RECOVERY_EVIDENCE.json",
+  "latestVerifiedCandidateEvidence": "ESTIMATE_DETAIL_RECOVERY_EVIDENCE.json",
   "invoiceFieldsAccessibilityCandidateCommits": {
     "live": "d72a54d3211602b8cd8d14ea4784ea8bdbd59abc",
     "doomsday": "3ad783d2d7218eb3a2c2cface5838850f5f40974",
@@ -148,5 +148,10 @@
     "live": "035b3c01b33cac3cc527e08ec281f7a186680119",
     "doomsday": "67a7f58ae599572929c741306f9c674207ada958",
     "staging": "d020149c38d962461298b035f8db623daafad3e4"
+  },
+  "estimateDetailRecoveryCandidateCommits": {
+    "live": "a73ffcced60b62dfe4614d4688e3a8cf131b1dd1",
+    "doomsday": "331545656f314bb9aba66ebdee3384a8e21e6b3b",
+    "staging": "ed71622b49a025bcfe4fb647fdf85f28c76aa2fd"
   }
 }

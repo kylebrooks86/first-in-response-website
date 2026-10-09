@@ -745,10 +745,13 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
   const [checkingCloseout,setCheckingCloseout]=useState(false);
   const [refundAmount,setRefundAmount]=useState("");
   useEffect(() => {
+    let active=true;
+    setReportComplete(false);
     if (!estimate?.scheduledAt) setSchedule("");
     else { const date = new Date(estimate.scheduledAt); setSchedule(new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16)); }
-    if(!estimate?.id){setReportComplete(false);return;}
-    void (async()=>{try{const response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`);const result=await response.json() as {reports?:JobReportRow[]};setReportComplete(result.reports?.[0]?.status==="completed");}catch{setReportComplete(false);}})();
+    if(!estimate?.id)return ()=>{active=false;};
+    void (async()=>{try{const response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`);const result=await response.json() as {reports?:JobReportRow[]};if(active)setReportComplete(response.ok&&Array.isArray(result?.reports)&&result.reports[0]?.status==="completed");}catch{if(active)setReportComplete(false);}})();
+    return ()=>{active=false;};
   }, [estimate]);
   if (!estimate) return null;
   const update = async (body: Record<string, unknown>) => {
