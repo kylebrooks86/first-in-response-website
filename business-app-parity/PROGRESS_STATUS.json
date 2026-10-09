@@ -2218,5 +2218,146 @@
     "testLimits": "Actual Business function/hooks/handlers with synthetic GET/POST/PATCH responses; labels and associations checked in component structure; CSS declarations checked. No browser screenshot, computed layout, screen-reader session, iPhone, cloud database or real Stripe call. Viewport fit/visual matching remains unverified.",
     "historicalManifests": "Historical manifests preserved. RELIABILITY_RELEASE_REVIEW_MANIFEST.json is expected stale after this UI change; it does not seal the new candidate source or snapshot references. A future review must bind this verified batch rather than overwrite historical reliability evidence.",
     "preservedTests": "Previous backup/refund financial evidence preserved; no data-handler change and no unrelated 42-suite rerun. Latest load recovery suite rechecked at 961/961 per target and existing Payments structural suite at 11/11 per target."
+  },
+  "invoiceFieldsAccessibilityBatch": {
+    "parent": "c0d6b1d04d67f38664b513da831dbc92dc9a61bf",
+    "asOf": "2026-10-09",
+    "scope": "FIRE Business App invoice editor linked field labels, selected modes and mobile controls only",
+    "candidateSnapshotCommits": {
+      "live": "d72a54d3211602b8cd8d14ea4784ea8bdbd59abc",
+      "doomsday": "3ad783d2d7218eb3a2c2cface5838850f5f40974",
+      "staging": "d11d5100fa0f80708b93fb4bf6a7418b0734cb78"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/invoice-mobile-fields-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/invoice-mobile-fields-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/invoice-mobile-fields-staging"
+    },
+    "checksPerTarget": 14,
+    "checksPassed": 42,
+    "checksTotal": 42,
+    "newChecksPerTarget": 7,
+    "newChecksPassed": 21,
+    "newChecksTotal": 21,
+    "suiteRunsPassed": 6,
+    "suiteRunsTotal": 6,
+    "suiteNames": [
+      "test-invoice-revision-mobile.mjs",
+      "test-processing-fees.mjs"
+    ],
+    "resultsByTarget": {
+      "live": {
+        "ui": {
+          "exitCode": 0,
+          "result": "PASS: 14/14 actual revision-handler/static-render/CSS checks; synthetic invoice PATCH only; no browser layout, real network or deployed verification.",
+          "logSha256": "b6a5371b9e5371cc46367176a919e969f0c9e6caf67ad7ed336f546219ddf276"
+        },
+        "finance": {
+          "exitCode": 0,
+          "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+          "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "e57e3653d570188c66ac566765b46cd980e04ff0d45f7a99cdbfd750e5239257"
+      },
+      "doomsday": {
+        "ui": {
+          "exitCode": 0,
+          "result": "PASS: 14/14 actual revision-handler/static-render/CSS checks; synthetic invoice PATCH only; no browser layout, real network or deployed verification.",
+          "logSha256": "b6a5371b9e5371cc46367176a919e969f0c9e6caf67ad7ed336f546219ddf276"
+        },
+        "finance": {
+          "exitCode": 0,
+          "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+          "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "66bd14d8a194436a6aca9dea546756079cfb2e6c4bdd1c73525a01c4461c137b"
+      },
+      "staging": {
+        "ui": {
+          "exitCode": 0,
+          "result": "PASS: 14/14 actual revision-handler/static-render/CSS checks; synthetic invoice PATCH only; no browser layout, real network or deployed verification.",
+          "logSha256": "b6a5371b9e5371cc46367176a919e969f0c9e6caf67ad7ed336f546219ddf276"
+        },
+        "finance": {
+          "exitCode": 0,
+          "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+          "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "e899b37c0b54374c2609707279a75357f88f1500ca74f515e82d65d19ecfdef2"
+      }
+    },
+    "negativeControls": {
+      "priorUnassociatedLabelsRejected": true,
+      "priorMobileCSSRejected": true
+    },
+    "unchangedInvoiceHandlerBodiesPassed": 5,
+    "unchangedInvoiceHandlerBodiesTotal": 5,
+    "handlerNames": [
+      "updateItem",
+      "addService",
+      "hydrate",
+      "setOpenSafe",
+      "save"
+    ],
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "sourceParity": {
+      "sharedFilesChecked": 119,
+      "roots": [
+        "/workspace/scratch/a307f8c9f987/invoice-mobile-fields-live",
+        "/workspace/scratch/a307f8c9f987/invoice-mobile-fields-doomsday",
+        "/workspace/scratch/a307f8c9f987/invoice-mobile-fields-staging"
+      ],
+      "adaptersRequiringSeparateVerification": [
+        "app/page.tsx",
+        "app/layout.tsx",
+        "app/chatgpt-auth.ts",
+        "app/owner-auth.ts",
+        "app/login/page.tsx",
+        "app/api/auth/login/route.ts",
+        "app/api/auth/logout/route.ts",
+        "app/api/app-version/route.ts",
+        "app/api/staging-fixtures/route.ts"
+      ],
+      "differences": [],
+      "sharedSourceParity": true,
+      "productionReady": false
+    },
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "realMobileEvidenceCaptured": false,
+    "remoteDatabaseWrites": false,
+    "stripeCalls": false,
+    "paidServicesUsed": false,
+    "cost": 0,
+    "changedFilesSha256": {
+      "shared/app/dashboard.tsx": "8112b27da779bebc5cafbb0081d66d5e6b3eecd75369df2ea6a5ccf67e7eef66",
+      "shared/app/globals.css": "d20d722b17dc72f344bc13f74d1e0761cf4db27cbdfd44a8f6e1159031f10d18",
+      "shared/scripts/test-invoice-revision-mobile.mjs": "13ae569c04626a115de2349d57088fabf108f75d87754d829ecd47ebc94a6093"
+    },
+    "behavior": [
+      "Repeated service selectors, descriptions, quantities and rates have unique invoice/line control IDs associated with visible labels. Discount input is associated; due date references its visible label.",
+      "Due and discount mode buttons expose selected state through aria-pressed.",
+      "Scoped mobile input, textarea, actual Radix select trigger, mode and remove controls declare 44px touch heights; text inputs declare 16px font size. Select fills field width."
+    ],
+    "testLimits": "Actual invoice component handlers/hooks in a VM, static JSX/markup, parsed CSS and synthetic PATCH only. No computed browser layout, screen-reader session, iPhone, hosted integration, remote database or real Stripe call.",
+    "historicalManifests": "Preserved historical review manifests remain stale for latest UI source and snapshots. A fresh review must consume the latest verified evidence; none of these candidates are sealed for publication.",
+    "preservedTests": "Previous reliability/recovery results retained. Unchanged loader and backup scripts were not rerun. Existing processing-fee/invoice financial regression rerun in all three candidates."
   }
 }

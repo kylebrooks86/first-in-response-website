@@ -1,0 +1,13 @@
+# Invoice editor field accessibility — 2026-10-09
+
+Parent c0d6b1d04d67f38664b513da831dbc92dc9a61bf; clean checkout and matching remote head verified before editing. FIRE Business App only.
+
+Confirmed invoice labels had no control associations. The mobile selector rule used .select-trigger while Radix emits data-slot="select-trigger". Scoped the invoice editor and linked repeated service/description/quantity/rate labels to unique invoice-and-line IDs, associated final discount and due-date labels, and exposed selected due/discount modes with aria-pressed. Added 44px mobile touch minimums, 16px input text and full-width actual Radix selector styling. No calculations, API payloads or invoice handler bodies changed: five bodies byte-identical to the parent.
+
+Local results: expanded invoice suite 14/14 per target, 42/42 overall (seven new checks per target, 21/21 new). Actual field callbacks, mode selection, synthetic invoice PATCH and prior revision expansion/collapse covered. Processing-fee/invoice/backup financial suite passed on all three targets: six selected suite runs passed out of six. Prior labels and CSS each rejected by the new behavioral assertions. TypeScript 3/3, framework builds 3/3, shared app source 119/119; changed script separately byte-identical. See INVOICE_FIELDS_ACCESSIBILITY_EVIDENCE.json for exact logs/hashes and candidate commits. Latest verified pointers updated; historical snapshots/evidence retained.
+
+Tests use mocked hooks, static JSX/markup and parsed CSS. They do not verify computed mobile layout, iPhone light/dark visuals, screen-reader use or hosted integration. Real Stripe, remote records, migrations, deployments and paid services were untouched. Cost $0. Historical review manifests remain preserved and stale for current UI source; a future fresh manifest must bind latest verified evidence.
+
+Overall verified release readiness remains 3/10 (30%), NOT READY. Formal deployed/mobile comparisons 0/32; full remote schema/journal verification 0/3. LIVE lacks the candidate-required payment_refunds table by read-only inventory; no migration authorized. Remaining identity, schema/isolation, secure auth/photo recovery, mobile/sandbox and rollback/seal gates require evidence before publication.
+
+Next bounded batch: update release-review tooling to bind the latest verified candidate/evidence pointers while preserving historical reliability provenance, then test stale/mismatched evidence rejection. No owner action needed for local work. Independent QC is read-only: inspect associations, selected-state props, scoped CSS and unchanged handler bodies. No branch/deployment/database/Stripe writes from the QC chat. Stop after verified development-branch save.

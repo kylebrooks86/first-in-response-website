@@ -134,9 +134,14 @@
     "staging": "422a8db892078c8c043687df915464165d9b500e"
   },
   "latestVerifiedCandidateCommits": {
-    "live": "e0815a0ddfe21a6d680ae487aaf7b1546a94c42c",
-    "doomsday": "2a8ba202a34b52658d5d4eaf3c3b8748e8456dd0",
-    "staging": "422a8db892078c8c043687df915464165d9b500e"
+    "live": "d72a54d3211602b8cd8d14ea4784ea8bdbd59abc",
+    "doomsday": "3ad783d2d7218eb3a2c2cface5838850f5f40974",
+    "staging": "d11d5100fa0f80708b93fb4bf6a7418b0734cb78"
   },
-  "latestVerifiedCandidateEvidence": "BUSINESS_MOBILE_ACCESSIBILITY_EVIDENCE.json"
+  "latestVerifiedCandidateEvidence": "INVOICE_FIELDS_ACCESSIBILITY_EVIDENCE.json",
+  "invoiceFieldsAccessibilityCandidateCommits": {
+    "live": "d72a54d3211602b8cd8d14ea4784ea8bdbd59abc",
+    "doomsday": "3ad783d2d7218eb3a2c2cface5838850f5f40974",
+    "staging": "d11d5100fa0f80708b93fb4bf6a7418b0734cb78"
+  }
 }

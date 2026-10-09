@@ -610,3 +610,11 @@ html,body{max-width:100%;overflow-x:clip}
   .business-field input,.business-field textarea,.business-field [data-slot="select-trigger"],.task-list>button{min-height:44px}
   .business-field input,.business-field textarea{font-size:16px}
 }
+
+/* Invoice editing controls: shared candidate accessibility and mobile sizing. */
+.invoice-edit-fields [data-slot="select-trigger"]{width:100%;min-width:0;max-width:100%}
+@media(max-width:760px){
+.invoice-edit-fields input,.invoice-edit-fields textarea,.invoice-edit-fields [data-slot="select-trigger"],.invoice-edit-fields .discount-mode-row button,.invoice-edit-fields .estimate-edit-service>header>button{min-height:44px}
+.invoice-edit-fields .estimate-edit-service>header>button{min-width:44px}
+.invoice-edit-fields input,.invoice-edit-fields textarea{font-size:16px}
+}
