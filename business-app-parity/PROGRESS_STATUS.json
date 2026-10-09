@@ -357,5 +357,25 @@
     "deployed": false,
     "evidenceFile": "INVOICE_REVISION_MOBILE_EVIDENCE.json",
     "preservedNewerRemoteCommit": "af67d5af1142399a89df5897c1dfd77180adae7a"
+  },
+  "deployedDashboardDesktopBatch": {
+    "parent": "ecc8f378f75d2a3e92296472ef26ad81e495db4e",
+    "evidenceFile": "DEPLOYED_DASHBOARD_DESKTOP_EVIDENCE.json",
+    "authenticatedTargetsObserved": 2,
+    "targetCapturesRequired": 2,
+    "desktopCapturesSaved": 2,
+    "captureCompletionPercent": 100,
+    "scope": "desktop light dashboard captures only; not parity acceptance",
+    "observedSharedFeatureDifferences": 2,
+    "candidateAlreadyContainsObservedFeatures": true,
+    "formalComparisonsPassed": 0,
+    "formalComparisonsRequired": 32,
+    "realMobileEvidenceCaptured": false,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "runtimeChanged": false,
+    "deployed": false,
+    "applicationTestsRerun": false
   }
 }
