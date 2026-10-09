@@ -30,7 +30,7 @@ const functionBody=(text,name)=>{const start=text.indexOf('function '+name+'(');
 for(const name of ['EditCustomerDialog','PropertyPreview','OwnerAccountView'])if(approvedBaseline[name])assert.equal(functionBody(source,name),approvedBaseline[name]);
 
 const tipExpr=source.match(/const netTips=(.*?);const outstanding/)[1];
-assert.equal(vm.runInNewContext(tipExpr,{payments:[{type:'balance',amountCents:10000},{type:'Tip',amountCents:1000},{type:'Tip Refund',amountCents:-500}]}),500);
+assert.equal(vm.runInNewContext(tipExpr,{receivedPayments:[{type:'balance',amountCents:10000},{type:'Tip',amountCents:1000},{type:'Tip Refund',amountCents:-500}]}),500);
 const paidExpr=source.match(/const customerPaidTotal=(.*);/)[1];
 assert.equal(vm.runInNewContext(paidExpr,{customerPayments:[{type:'balance',amountCents:10000},{type:'Refund',amountCents:-2000},{type:'Tip',amountCents:1000},{type:'Tip Refund',amountCents:-500}]}),8000);
 // Execute actual contact-link expressions with an address that requires encoding.

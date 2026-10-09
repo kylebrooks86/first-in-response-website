@@ -764,5 +764,46 @@
     "runtimeChanged": false,
     "deployed": false,
     "applicationTestsRerun": false
+  },
+  "manualTipPresetsBatch": {
+    "parent": "5c2e3a42accc55a097b0316d21e9ae1ba9ae3afe",
+    "evidenceFile": "MANUAL_TIP_PRESETS_EVIDENCE.json",
+    "candidateSnapshotCommits": {
+      "live": "147257e7eeff7001212d40f45b8f8f20e2c07410",
+      "doomsday": "516f5fd1996488c4033fd5f619f4b8e045f82183",
+      "staging": "4feee7c3bd7b7e93024b0c7f39d83063fd5256cd"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/manual-tip-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/manual-tip-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/manual-tip-staging"
+    },
+    "newChecksPerTarget": 54,
+    "newChecksPassed": 162,
+    "newChecksTotal": 162,
+    "suiteRunsPassed": 12,
+    "suiteRunsTotal": 12,
+    "suiteNames": [
+      "test-manual-tip-presets.mjs",
+      "test-final-tip-ui.mjs",
+      "test-payment-mobile-ui.mjs",
+      "test-processing-fees.mjs"
+    ],
+    "negativeControlPriorDialogRejected": true,
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "buildCompletionVerifiedInLogs": true,
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false
   }
 }

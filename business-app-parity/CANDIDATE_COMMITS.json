@@ -82,5 +82,10 @@
     "live": "808c64023c804cf4d2a223ce3534853e2e84f171",
     "doomsday": "34726c190e385a7505387ba18bc695dbea4d8943",
     "staging": "65b22b7ef146e9095718a5d7e9fccb7ba5f23bb2"
+  },
+  "manualTipPresetsCandidateCommits": {
+    "live": "147257e7eeff7001212d40f45b8f8f20e2c07410",
+    "doomsday": "516f5fd1996488c4033fd5f619f4b8e045f82183",
+    "staging": "4feee7c3bd7b7e93024b0c7f39d83063fd5256cd"
   }
 }
