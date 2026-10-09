@@ -2359,5 +2359,50 @@
     "testLimits": "Actual invoice component handlers/hooks in a VM, static JSX/markup, parsed CSS and synthetic PATCH only. No computed browser layout, screen-reader session, iPhone, hosted integration, remote database or real Stripe call.",
     "historicalManifests": "Preserved historical review manifests remain stale for latest UI source and snapshots. A fresh review must consume the latest verified evidence; none of these candidates are sealed for publication.",
     "preservedTests": "Previous reliability/recovery results retained. Unchanged loader and backup scripts were not rerun. Existing processing-fee/invoice financial regression rerun in all three candidates."
+  },
+  "latestCandidateReviewBatch": {
+    "asOf": "2026-10-09",
+    "parent": "8bf2121929971feec740a62e364e85cdde37f227",
+    "scope": "Local release review tooling only; app and deployment adapters unchanged",
+    "manifestFile": "LATEST_CANDIDATE_REVIEW_MANIFEST_20261009.json",
+    "evidenceFile": "LATEST_CANDIDATE_REVIEW_EVIDENCE.json",
+    "manifestTestsPassed": 22,
+    "manifestTestsTotal": 22,
+    "tableInspectorTestsPassed": 14,
+    "tableInspectorTestsTotal": 14,
+    "candidateSnapshotsMatched": 3,
+    "candidateSnapshotsRequired": 3,
+    "snapshotFilesCheckedByTarget": {
+      "live": 213,
+      "doomsday": 218,
+      "staging": 214
+    },
+    "sharedApplicationFilesMatched": 119,
+    "historicalFilesPreserved": [
+      "CANDIDATE_RELEASE_MANIFEST.json",
+      "RELIABILITY_RELEASE_REVIEW_MANIFEST.json",
+      "RELIABILITY_RECOVERY_EVIDENCE.json",
+      "BUSINESS_MOBILE_ACCESSIBILITY_EVIDENCE.json",
+      "INVOICE_FIELDS_ACCESSIBILITY_EVIDENCE.json",
+      "CANDIDATE_COMMITS.json"
+    ],
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReady": false,
+    "publicationAuthorized": false,
+    "deployed": false,
+    "remoteDatabaseWrites": false,
+    "stripeCalls": false,
+    "cost": 0,
+    "toolHashes": {
+      "candidate_release_manifest.py": "3666c8f3058e6499f8d50ea256e063b9677c6298b4991cdbf2b177eb769fb578",
+      "test_candidate_release_manifest.py": "970e47b09b99e18646a1ee4e397aecfae4a248144355e3f46c58b9c153bf87a8"
+    },
+    "testLimits": "Local tooling tests, disposable SQLite schemas, saved native metadata and local Git snapshot hashes only. No app source changes, hosted/mobile/sandbox checks or application build reruns. Evidence pointers seal saved results, not independent proof of test execution or deployed identity.",
+    "nextBatch": "Resolve one accessible remaining release gate through read-only target/resource isolation evidence; if access remains blocked, verify one bounded candidate workflow without deploying."
   }
 }

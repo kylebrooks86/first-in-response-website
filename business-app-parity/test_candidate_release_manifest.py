@@ -172,6 +172,157 @@ class CandidateManifest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "counts"):
             self.manifest()
 
+    def add_latest_evidence(self):
+        self.add_reliability_evidence()
+        snapshots = {target: str(index) * 40 for index, target in enumerate(["live", "doomsday", "staging"], 4)}
+        source = self.root / "shared/app/dashboard.tsx"
+        source.write_text("verified newer invoice presentation")
+        commits = json.loads((self.root / "CANDIDATE_COMMITS.json").read_text())
+        commits.update(latestVerifiedCandidateCommits=snapshots,
+                       latestVerifiedCandidateEvidence="LATEST_UI_EVIDENCE.json")
+        (self.root / "CANDIDATE_COMMITS.json").write_text(json.dumps(commits))
+        evidence = {"candidateSnapshotCommits": snapshots,
+            "changedFilesSha256": {"shared/app/dashboard.tsx": hashlib.sha256(source.read_bytes()).hexdigest()},
+            "suiteRunsPassed": 3, "suiteRunsTotal": 3,
+            "typescriptTargetsPassed": 3, "typescriptTargetsTotal": 3,
+            "buildTargetsPassed": 3, "buildTargetsTotal": 3,
+            "resultsByTarget": {target: {"ui": {"exitCode": 0}, "typescriptExitCode": 0, "buildExitCode": 0}
+                                for target in snapshots}, "productionReady": False, "deployed": False}
+        self.write_latest(evidence)
+        return evidence
+
+    def write_latest(self, evidence):
+        (self.root / "LATEST_UI_EVIDENCE.json").write_text(json.dumps(evidence))
+
+    def test_latest_snapshot_and_historical_provenance(self):
+        evidence = self.add_latest_evidence()
+        before = (self.root / "RELIABILITY_RECOVERY_EVIDENCE.json").read_bytes()
+        manifest = self.manifest()
+        for target, commit in evidence["candidateSnapshotCommits"].items():
+            self.assertEqual(manifest["targets"][target]["candidateSnapshotCommitReference"], commit)
+        provenance = manifest["verifiedCandidateEvidence"]
+        self.assertEqual(provenance["latestEvidenceFile"], "LATEST_UI_EVIDENCE.json")
+        self.assertIn("shared/app/dashboard.tsx", provenance["historicalReliabilitySourcesSuperseded"])
+        self.assertIn("LATEST_UI_EVIDENCE.json", manifest["inputFilesSha256"])
+        self.assertTrue(verify_manifest(self.root, manifest))
+        self.assertEqual(before, (self.root / "RELIABILITY_RECOVERY_EVIDENCE.json").read_bytes())
+        self.assertFalse(manifest["productionReady"])
+
+    def test_latest_partial_pointer_pair_rejected(self):
+        self.add_latest_evidence()
+        path = self.root / "CANDIDATE_COMMITS.json"
+        original = json.loads(path.read_text())
+        for key in ["latestVerifiedCandidateCommits", "latestVerifiedCandidateEvidence"]:
+            with self.subTest(key=key):
+                data = copy.deepcopy(original)
+                del data[key]
+                path.write_text(json.dumps(data))
+                with self.assertRaisesRegex(ValueError, "together"):
+                    self.manifest()
+
+    def test_latest_unsafe_and_missing_evidence_rejected(self):
+        self.add_latest_evidence()
+        path = self.root / "CANDIDATE_COMMITS.json"
+        data = json.loads(path.read_text())
+        for value in ["../LATEST_UI_EVIDENCE.json", "/tmp/OTHER_EVIDENCE.json", "shared/LATEST_UI_EVIDENCE.json", None]:
+            with self.subTest(value=value):
+                data["latestVerifiedCandidateEvidence"] = value
+                path.write_text(json.dumps(data))
+                with self.assertRaisesRegex(ValueError, "pointer"):
+                    self.manifest()
+        data["latestVerifiedCandidateEvidence"] = "MISSING_EVIDENCE.json"
+        path.write_text(json.dumps(data))
+        with self.assertRaises(FileNotFoundError):
+            self.manifest()
+
+    def test_latest_wrong_snapshot_and_source_rejected(self):
+        evidence = self.add_latest_evidence()
+        evidence["candidateSnapshotCommits"]["live"] = "f" * 40
+        self.write_latest(evidence)
+        with self.assertRaisesRegex(ValueError, "conflict"):
+            self.manifest()
+        self.add_latest_evidence()
+        (self.root / "shared/app/dashboard.tsx").write_text("unverified changes")
+        with self.assertRaisesRegex(ValueError, "latest source has changed"):
+            self.manifest()
+
+    def test_latest_incomplete_or_boolean_counts_rejected(self):
+        evidence = self.add_latest_evidence()
+        for key, value in [("suiteRunsPassed", 2), ("buildTargetsPassed", True),
+                           ("typescriptTargetsTotal", 2), ("suiteRunsTotal", 0)]:
+            with self.subTest(key=key):
+                data = copy.deepcopy(evidence)
+                data[key] = value
+                self.write_latest(data)
+                with self.assertRaisesRegex(ValueError, "counts|three target"):
+                    self.manifest()
+
+    def test_latest_failed_and_missing_target_results_rejected(self):
+        evidence = self.add_latest_evidence()
+        for key in ["buildExitCode", "typescriptExitCode", "ui"]:
+            for value in [1, False]:
+                with self.subTest(key=key, value=value):
+                    data = copy.deepcopy(evidence)
+                    data["resultsByTarget"]["staging"][key] = {"exitCode": value} if key == "ui" else value
+                    self.write_latest(data)
+                    with self.assertRaisesRegex(ValueError, "failed"):
+                        self.manifest()
+        del evidence["resultsByTarget"]["doomsday"]
+        self.write_latest(evidence)
+        with self.assertRaisesRegex(ValueError, "missing target"):
+            self.manifest()
+
+    def test_latest_suite_counts_and_claims_rejected(self):
+        evidence = self.add_latest_evidence()
+        data = copy.deepcopy(evidence)
+        data.update(suiteRunsPassed=6, suiteRunsTotal=6)
+        self.write_latest(data)
+        with self.assertRaisesRegex(ValueError, "suite counts"):
+            self.manifest()
+        for key in ["productionReady", "deployed"]:
+            data = copy.deepcopy(evidence)
+            data[key] = True
+            self.write_latest(data)
+            with self.assertRaisesRegex(ValueError, "must not claim"):
+                self.manifest()
+
+    def test_latest_evidence_mutation_invalidates_review(self):
+        evidence = self.add_latest_evidence()
+        manifest = self.manifest()
+        evidence["reviewNote"] = "Changed evidence"
+        self.write_latest(evidence)
+        with self.assertRaises(ValueError):
+            verify_manifest(self.root, manifest)
+
+    def test_latest_does_not_cover_unrelated_reliability_drift(self):
+        self.add_latest_evidence()
+        path = self.root / "shared/app/another.tsx"
+        path.write_text("verified recovery helper")
+        evidence_path = self.root / "RELIABILITY_RECOVERY_EVIDENCE.json"
+        data = json.loads(evidence_path.read_text())
+        data["changedFilesSha256"]["shared/app/another.tsx"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        evidence_path.write_text(json.dumps(data))
+        self.manifest()
+        path.write_text("unverified helper")
+        with self.assertRaisesRegex(ValueError, "reliability source has changed"):
+            self.manifest()
+
+    def test_latest_unsafe_hashes_and_evidence_symlink_rejected(self):
+        evidence = self.add_latest_evidence()
+        for name, digest in [("shared/../outside", "a" * 64), ("shared/app/dashboard.tsx", "bad")]:
+            data = copy.deepcopy(evidence)
+            data["changedFilesSha256"] = {name: digest}
+            self.write_latest(data)
+            with self.assertRaisesRegex(ValueError, "Invalid latest"):
+                self.manifest()
+        self.write_latest(evidence)
+        path = self.root / "LATEST_UI_EVIDENCE.json"
+        path.rename(self.root / "ORIGINAL_EVIDENCE.json")
+        path.symlink_to(self.root / "ORIGINAL_EVIDENCE.json")
+        with self.assertRaisesRegex(ValueError, "symlinks"):
+            self.manifest()
+
+
 
 if __name__ == "__main__":
     unittest.main()
