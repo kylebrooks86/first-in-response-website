@@ -805,5 +805,42 @@
     "productionReadinessRequired": 10,
     "productionReady": false,
     "deployed": false
+  },
+  "manualTipThemeBatch": {
+    "parent": "a13850dc46523024a9571955ed2c6723aebaa8ef",
+    "candidateSnapshotCommits": {
+      "live": "a4d56971ce8776cae90b5cb2a7078ad07723fa57",
+      "doomsday": "b48adf3496f194099906f911831c9efdbb24cf37",
+      "staging": "036503b02dbe1f8f6b7ec2f51771f0947595e2d2"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/tip-theme-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/tip-theme-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/tip-theme-staging"
+    },
+    "suiteRunsPassed": 9,
+    "suiteRunsTotal": 9,
+    "manualTipChecksPassed": 162,
+    "manualTipChecksTotal": 162,
+    "mobileStructuralChecksPassed": 33,
+    "mobileStructuralChecksTotal": 33,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "contrastRatios": {
+      "cardText": 14.23,
+      "helpText": 8.4,
+      "buttonText": 12.46,
+      "selectedText": 7.94
+    },
+    "contrastMethod": "WCAG relative luminance of specified CSS colors; not rendered screenshot evidence",
+    "touchTargetsPreserved": "Preset minimum height 62px; full-width Custom 58px; two flexible columns",
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "realMobileEvidenceCaptured": false,
+    "changedStylesSha256": "c88671700c262cad755e75c0745b10603002c44731d5ae8ced4dbf02b0feb7fb"
   }
 }

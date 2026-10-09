@@ -528,6 +528,14 @@ html,body{max-width:100%;overflow-x:clip}
 .final-tip-options button span{font-size:12px;font-weight:400}
 .final-tip-options button:last-child{grid-column:1 / -1;min-height:58px}
 .final-tip-options button[aria-pressed="true"]{border-color:#e12933;background:#fff4f4;color:#bc1721}
+/* Keep optional tip cards readable in the owner's dark appearance. */
+[data-theme="dark"] .final-tip-selector{border-color:#2a3d54;background:#111f31;color:#e8eef6}
+[data-theme="dark"] .final-tip-heading strong{color:#e8eef6}
+[data-theme="dark"] .final-tip-heading span,[data-theme="dark"] .final-tip-selector .payment-handle-note{color:#a9bad0}
+[data-theme="dark"] .final-tip-heading>svg{background:#341a22;color:#ff9ba1}
+[data-theme="dark"] .final-tip-options button{border-color:#30445b;background:#182a40;color:#e8eef6}
+[data-theme="dark"] .final-tip-options button[aria-pressed="true"]{border-color:#f0444d;background:#341a22;color:#ff9ba1}
+[data-theme="dark"] .final-tip-selector button:focus-visible{outline-color:#ff9ba1}
 .invoice-checkout-button{border-radius:16px!important;white-space:normal;height:auto!important;min-height:44px;padding:12px!important;line-height:1.35;font-size:15px!important}
 .invoice-stripe-note{text-align:center;font-size:12px;color:#536174;margin:16px 0 0}
 .invoice-payment-divider{display:flex;align-items:center;gap:16px;margin:22px 0;color:#94a3b8;font-size:12px;font-weight:650;letter-spacing:.08em}
