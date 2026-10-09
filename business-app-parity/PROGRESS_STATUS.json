@@ -3591,5 +3591,19 @@
     "productionReadinessRequired": 10,
     "productionReady": false,
     "deployed": false
+  },
+  "offlineFirstSpecificationBatch": {
+    "parent": "53984f88cf2152cfc52d727adb82e810b3279927",
+    "evidenceFile": "OFFLINE_FIRST_AUDIT_EVIDENCE.json",
+    "planFile": "OFFLINE_FIRST_IMPLEMENTATION_PLAN.md",
+    "serverDependentColdLaunchConfirmed": true,
+    "localRecordStorePresent": false,
+    "offlineSupportVerified": false,
+    "runtimeChanged": false,
+    "firstImplementationUnit": "Isolated synthetic local customer repository and transactional outbox; no runtime activation or payment actions",
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "testsAndBuilds": "Documentation/source audit only; content and hash checks, previous runtime tests/builds preserved."
   }
 }

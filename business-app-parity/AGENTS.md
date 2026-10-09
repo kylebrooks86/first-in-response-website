@@ -25,3 +25,7 @@ At every batch end:
 5. State the next bounded batch and any necessary owner intervention. Stop cleanly after the handoff; do not automatically begin another long operation or imply background work continues.
 
 If an interactive approval expires, preserve the checkpoint and report the exact blocked action. Do not wait repeatedly or infer authorization. Existing LIVE and Doomsday deployments, independent databases, Stripe settings/secrets, records and rollback copies remain untouched. No paid resources, production deployment, or database migration without explicit owner authorization.
+
+## Offline-first owner requirement
+
+The Business App must progressively support everyday work from an installed iPhone Home Screen app in airplane mode, preserving newer features and the original app's scrolling/polish. Connected services may require internet. Home Screen installation, source guards and mocked storage tests alone do not prove offline support. Follow OFFLINE_FIRST_IMPLEMENTATION_PLAN.md; current source findings are recorded in OFFLINE_FIRST_AUDIT_EVIDENCE.json. Preserve account/target isolation, owner-controlled records/photo backups, financial integrity and safe conflict/recovery handling. Never queue automatic Stripe charges/refunds. Additional spending remains USD 0. Do not claim permanent independence from hosting or browser-storage loss without clean-device recovery evidence. Apply approved shared improvements to every isolated target before release. No deployed app or database change is authorized by this requirement alone.
