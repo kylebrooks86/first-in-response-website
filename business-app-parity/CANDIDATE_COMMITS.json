@@ -97,5 +97,10 @@
     "live": "489260547da1024b76e2df3d01d8ac7900deca6d",
     "doomsday": "c77514ed8c48e796f750f7fc9998dc086db4e5e0",
     "staging": "4a319ec4087dc8d31fd65a0a67e286aff4de0a8a"
+  },
+  "invoiceLoadErrorsCandidateCommits": {
+    "live": "11d82f298a093769ba2b7157b4e312e97efb8b04",
+    "doomsday": "62df6e90f7f210c8e9fccd68db85e8239d1b55f7",
+    "staging": "e4b01da88d4fc67560a0353bb158665ff55786fe"
   }
 }

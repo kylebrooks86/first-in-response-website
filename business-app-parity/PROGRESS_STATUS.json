@@ -897,5 +897,60 @@
       "Existing state is preserved on failed refresh; retry calls both GET endpoints and recovers. Financial calculations and write handlers unchanged."
     ],
     "testLimits": "Actual Payments component/hooks/effect/retry handler with mocked GET responses; existing payment-status suite uses synthetic SQLite. No hosted/mobile/Stripe integration evidence."
+  },
+  "invoiceLoadErrorsBatch": {
+    "parent": "e718182feb4e94cf4b786873456eb7798fb66c89",
+    "asOf": "2026-10-09",
+    "scope": "FIRE Business App isolated candidates only",
+    "candidateSnapshotCommits": {
+      "live": "11d82f298a093769ba2b7157b4e312e97efb8b04",
+      "doomsday": "62df6e90f7f210c8e9fccd68db85e8239d1b55f7",
+      "staging": "e4b01da88d4fc67560a0353bb158665ff55786fe"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/invoice-load-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/invoice-load-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/invoice-load-staging"
+    },
+    "newChecksPerTarget": 263,
+    "newChecksPassed": 789,
+    "newChecksTotal": 789,
+    "suiteRunsPassed": 9,
+    "suiteRunsTotal": 9,
+    "suiteNames": [
+      "test-invoice-load-errors.mjs",
+      "test-deposit-invoice-due.mjs",
+      "test-customer-invoice-balances.mjs"
+    ],
+    "negativeControlPriorComponentRejected": true,
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "realMobileEvidenceCaptured": false,
+    "remoteDatabaseWrites": false,
+    "stripeMutations": false,
+    "changedFilesSha256": {
+      "shared/app/dashboard.tsx": "a4e82e0da9eddda0ac7ee512bc216cc6b1283a14d21a9b3d814d780dbf89c8e7",
+      "shared/scripts/test-invoice-load-errors.mjs": "6156446f2d4cd453eb0d9811cc1f11ce29db4afce473a92042a23da3710e08b5"
+    },
+    "behavior": [
+      "Check invoice HTTP status and require valid collection before replacing state.",
+      "Display accessible error with Try again; preserve prior records and hide stale payment actions while reads fail.",
+      "Successful retry restores invoice links, deposit/status/payment props and numeric conversions.",
+      "Differentiate search miss from genuinely empty invoice records."
+    ],
+    "testLimits": "Actual invoice component/hooks/effect/retry/payment-refresh handlers with mocked GET responses; existing balance/deposit suites use synthetic SQLite. No hosted/mobile/Stripe integration proof.",
+    "priorManifest": "PAYMENT_LOAD_CANDIDATE_MANIFEST.json retained as historical; this newer invoice source and review inputs are not sealed by that manifest."
   }
 }
