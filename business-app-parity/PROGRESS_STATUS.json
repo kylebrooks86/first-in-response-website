@@ -1823,5 +1823,205 @@
     ],
     "priorManifest": "Historical manifests, evidence and rollback copies preserved; none seals the new source. No release/deployment approval implied.",
     "overnightRuns": "Stopped; this handoff does not restart automations or background work."
+  },
+  "deployedIdentityTableBatch": {
+    "parent": "857630e20c7cc79203b76971d32ae569976588f7",
+    "capturedAt": "2026-10-09T08:59:38.570Z",
+    "live": {
+      "site": {
+        "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "url": "https://fire-app.kylebrooks8605.chatgpt.site",
+        "latestSavedVersion": 61,
+        "status": "active"
+      },
+      "version": {
+        "id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61~appgver_394435b33f14819180fdcd8a4a82246e",
+        "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "number": 61,
+        "sourceCommit": "896b5e4125cb89da729993d1f37127e3b930c79d",
+        "deploymentId": "appgdep_6ac6f067e2548191aaf38c28d25c54f5",
+        "archiveHash": "sha256:ae2c9814fd1a240611519530c0392dedc7e9dbcc75995ee0fc9025671eeb4bd2"
+      },
+      "publication": {
+        "id": "appgdep_6ac6f067e2548191aaf38c28d25c54f5",
+        "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "versionId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61~appgver_394435b33f14819180fdcd8a4a82246e",
+        "status": "succeeded",
+        "url": "https://fire-app.kylebrooks8605.chatgpt.site",
+        "envRevision": 9,
+        "updatedAt": "2026-10-08T01:23:39.590116+00:00"
+      },
+      "tableOverview": {
+        "project_id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "bindings": [
+          "DB"
+        ],
+        "selected_binding_name": "DB",
+        "tables": [
+          "auth_rate_limits",
+          "customer_messages",
+          "customer_notes",
+          "customer_photos",
+          "customers",
+          "estimate_change_requests",
+          "estimate_items",
+          "estimates",
+          "expenses",
+          "invoice_items",
+          "invoice_revisions",
+          "invoices",
+          "job_reports",
+          "message_templates",
+          "notifications",
+          "payment_checkout_sessions",
+          "payments",
+          "tasks"
+        ],
+        "model_projection": {
+          "truncated": false,
+          "omitted_project_id": false,
+          "omitted_selected_binding": false,
+          "omitted_bindings": 0,
+          "omitted_tables": 0
+        }
+      }
+    },
+    "staging": {
+      "site": {
+        "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+        "latestSavedVersion": 3,
+        "status": "active"
+      },
+      "version": {
+        "id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+        "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "number": 3,
+        "sourceCommit": "f7ed28a5d13ada738f5663e4f55a45c5d794c21e",
+        "deploymentId": "appgdep_6ac7f3e8903481919a5883a2750ccbb8",
+        "archiveHash": "sha256:50eb9f629151d863296a59f24d58eec2f9d40e454fbd1829c9bf2e4fc91cbe38"
+      },
+      "publication": {
+        "id": "appgdep_6ac7f3e8903481919a5883a2750ccbb8",
+        "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "versionId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+        "status": "succeeded",
+        "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+        "envRevision": 2,
+        "updatedAt": "2026-10-08T19:50:54.872235+00:00"
+      },
+      "tableOverview": {
+        "project_id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "bindings": [
+          "DB"
+        ],
+        "selected_binding_name": "DB",
+        "tables": [
+          "auth_rate_limits",
+          "customer_messages",
+          "customer_notes",
+          "customer_photos",
+          "customers",
+          "estimate_change_requests",
+          "estimate_items",
+          "estimates",
+          "expenses",
+          "invoice_items",
+          "invoice_revisions",
+          "invoices",
+          "job_reports",
+          "message_templates",
+          "notifications",
+          "payment_checkout_sessions",
+          "payment_refunds",
+          "payments",
+          "tasks"
+        ],
+        "model_projection": {
+          "truncated": false,
+          "omitted_project_id": false,
+          "omitted_selected_binding": false,
+          "omitted_bindings": 0,
+          "omitted_tables": 0
+        }
+      }
+    },
+    "tableComparisons": {
+      "live": {
+        "target": "live",
+        "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "binding": "DB",
+        "tableNamesMatch": false,
+        "matchedTableNames": 18,
+        "candidateTableCount": 19,
+        "observedTableCount": 18,
+        "missingTables": [
+          "payment_refunds"
+        ],
+        "unexpectedTables": [],
+        "problems": [
+          "missing table: payment_refunds"
+        ],
+        "completeRemoteSchemaVerified": false,
+        "resourceIsolationVerified": false,
+        "migrationJournalVerified": false,
+        "productionReady": false
+      },
+      "staging": {
+        "target": "staging",
+        "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "binding": "DB",
+        "tableNamesMatch": true,
+        "matchedTableNames": 19,
+        "candidateTableCount": 19,
+        "observedTableCount": 19,
+        "missingTables": [],
+        "unexpectedTables": [],
+        "problems": [],
+        "completeRemoteSchemaVerified": false,
+        "resourceIsolationVerified": false,
+        "migrationJournalVerified": false,
+        "productionReady": false
+      }
+    },
+    "doomsday": {
+      "url": "https://fire-app-independent-staging.kyle-bfc.workers.dev",
+      "nativeSitesProjectId": null,
+      "deployedCommitVerified": false,
+      "status": "BLOCKED_METADATA_ACCESS",
+      "reason": "No independent Cloudflare deployment/schema connector exposed. Previously blocked runtime identity endpoint not retried; historical reference commit is not a deployed identity."
+    },
+    "scope": "FIRE Business App read-only deployment metadata and table names only",
+    "nativeSavedVersionPublicationsVerified": 2,
+    "targetCount": 3,
+    "tableOverviewsObserved": 2,
+    "tableOverviewsExpected": 3,
+    "fullRemoteSchemasVerified": 0,
+    "fullRemoteSchemasExpected": 3,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "overallReleaseGatesPassed": 3,
+    "overallReleaseGatesTotal": 10,
+    "overallVerifiedReadinessPercent": 30,
+    "productionReady": false,
+    "candidatePublished": false,
+    "remoteDatabaseWrites": false,
+    "customerOrPaymentRowsRead": false,
+    "stripeCalls": false,
+    "paidServicesUsed": false,
+    "cost": 0,
+    "metadataLimits": "Native site metadata identifies the saved source and successful latest publish attempt for that version; a runtime build/routing identity seal is not established. Table names are complete within the returned projection, but types, constraints, indexes, journals and independent D1 resource IDs/isolation are unavailable.",
+    "method": "Native Sites read-only site inventory, get-site, saved versions, deployment status and database overview. Only selected FIRE Business App metadata retained. No signed asset URLs, credentials, runtime variables or records persisted.",
+    "unchangedVerification": "Application runtime, adapters, migrations, candidate snapshots, 3183/3183 new reliability checks and 42/42 suite results remain unchanged; unrelated app tests/builds not repeated.",
+    "checks": [
+      "LIVE names correctly exit 1 for missing payment_refunds",
+      "staging names correctly exit 0 but productionReady remains false",
+      "14/14 inspector regression tests",
+      "evidence/inventory/source consistency and git diff --check"
+    ],
+    "changedToolHashes": {
+      "check-deployed-table-inventory.py": "8380e4c1a434d41b3c8afa07cf7251ae8afab0947380f999e22add4c37cbbf1e",
+      "test-deployed-table-inventory.py": "e80cb615a826a54f6f1b6ba4f3a61ad65f475d7616bc7a2d5fcc8f9d608a3a47"
+    }
   }
 }

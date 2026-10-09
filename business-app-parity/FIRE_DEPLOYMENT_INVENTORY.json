@@ -8,20 +8,78 @@
       "url": "https://fire-app.kylebrooks8605.chatgpt.site",
       "nativeVersion": 61,
       "sourceCommit": "896b5e4125cb89da729993d1f37127e3b930c79d",
-      "runtimeVersion": "105"
+      "runtimeVersion": "105",
+      "nativeProjectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+      "nativeVersionId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61~appgver_394435b33f14819180fdcd8a4a82246e",
+      "nativeDeploymentId": "appgdep_6ac6f067e2548191aaf38c28d25c54f5",
+      "nativePublishStatus": "succeeded",
+      "nativeArchiveHash": "sha256:ae2c9814fd1a240611519530c0392dedc7e9dbcc75995ee0fc9025671eeb4bd2",
+      "nativeEnvironmentRevision": 9,
+      "nativePublicationUpdatedAt": "2026-10-08T01:23:39.590116+00:00",
+      "candidateTableComparison": {
+        "target": "live",
+        "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "binding": "DB",
+        "tableNamesMatch": false,
+        "matchedTableNames": 18,
+        "candidateTableCount": 19,
+        "observedTableCount": 18,
+        "missingTables": [
+          "payment_refunds"
+        ],
+        "unexpectedTables": [],
+        "problems": [
+          "missing table: payment_refunds"
+        ],
+        "completeRemoteSchemaVerified": false,
+        "resourceIsolationVerified": false,
+        "migrationJournalVerified": false,
+        "productionReady": false
+      },
+      "runtimeVersionObservation": "Historical value preserved; no runtime endpoint refresh in this batch."
     },
     {
       "name": "Refund staging",
       "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
       "nativeVersion": 3,
       "sourceCommit": "f7ed28a5d13ada738f5663e4f55a45c5d794c21e",
-      "runtimeVersion": "refund-staging-ebc670f"
+      "runtimeVersion": "refund-staging-ebc670f",
+      "nativeProjectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+      "nativeVersionId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+      "nativeDeploymentId": "appgdep_6ac7f3e8903481919a5883a2750ccbb8",
+      "nativePublishStatus": "succeeded",
+      "nativeArchiveHash": "sha256:50eb9f629151d863296a59f24d58eec2f9d40e454fbd1829c9bf2e4fc91cbe38",
+      "nativeEnvironmentRevision": 2,
+      "nativePublicationUpdatedAt": "2026-10-08T19:50:54.872235+00:00",
+      "candidateTableComparison": {
+        "target": "staging",
+        "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "binding": "DB",
+        "tableNamesMatch": true,
+        "matchedTableNames": 19,
+        "candidateTableCount": 19,
+        "observedTableCount": 19,
+        "missingTables": [],
+        "unexpectedTables": [],
+        "problems": [],
+        "completeRemoteSchemaVerified": false,
+        "resourceIsolationVerified": false,
+        "migrationJournalVerified": false,
+        "productionReady": false
+      },
+      "runtimeVersionObservation": "Historical value preserved; no runtime endpoint refresh in this batch."
     },
     {
       "name": "Doomsday",
       "url": "https://fire-app-independent-staging.kyle-bfc.workers.dev",
       "referenceCommit": "e516af3ce93368450cd3d02906d117116d090f3e",
-      "deployedCommitVerified": false
+      "deployedCommitVerified": false,
+      "identityStatus": "Blocked independent deployment metadata; reference commit is historical, not verified deployed source."
     }
-  ]
+  ],
+  "asOf": "2026-10-09",
+  "metadataCapturedAt": "2026-10-09T08:59:38.570Z",
+  "latestDevelopmentCommit": "857630e20c7cc79203b76971d32ae569976588f7",
+  "candidatePublished": false,
+  "nativeMetadataScope": "Native site metadata identifies the saved source and successful latest publish attempt for that version; a runtime build/routing identity seal is not established. Table names are complete within the returned projection, but types, constraints, indexes, journals and independent D1 resource IDs/isolation are unavailable."
 }

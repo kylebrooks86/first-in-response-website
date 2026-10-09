@@ -4,12 +4,20 @@ Status: NOT VERIFIED; read-only procedure for LIVE, Doomsday, and staging.
 This is a verification plan, not permission to deploy or mutate billing records.
 
 ## Current grounded checkpoint
-- Isolated LIVE/DR/staging *candidates* have 118/118 common source file hashes matched per PROGRESS_STATUS.json; this is NOT deployed equivalence.
+- Isolated LIVE/DR/staging *candidates* have 119/119 common source file hashes matched per PROGRESS_STATUS.json; this is NOT deployed equivalence.
 - Formal deployed/mobile comparisons: 0/32. Production readiness: 3/10 gates.
 - LIVE refund staging: https://fire-live-refund-staging.kylebrooks8605.chatgpt.site (recorded published v3; candidate not verified published).
 - Independent Doomsday staging: https://fire-app-independent-staging.kyle-bfc.workers.dev (read-only public GET not reliably accessible in the available free checking environment).
 - Prior read-only staging checks show 19 table names and 163 column names, but DO NOT verify types/indexes/journals, resource isolation, sandbox credentials, or remote migration safety.
 - One earlier completed DR sandbox Stripe checkout USD 484 (principal 440 + tip 44) and succeeded refund USD 100 has been independently confirmed, but does not establish LIVE staging Stripe connection or event replay safety.
+
+## Current native metadata and table blocker — 2026-10-09
+
+Read-only native metadata confirms saved LIVE version 61/source `896b5e4125cb89da729993d1f37127e3b930c79d` and refund staging version 3/source `f7ed28a5d13ada738f5663e4f55a45c5d794c21e`; their recorded latest publish attempts succeeded. This does not seal runtime build/routing identity. Current development reliability changes are saved at `857630e20c7cc79203b76971d32ae569976588f7` and were not published.
+
+LIVE's complete DB table-name projection contains **18/19 candidate-required tables**, missing **`payment_refunds`**. Staging matches **19/19 table names**. The new `check-deployed-table-inventory.py` exits 1 for LIVE and 0 for staging; both reports keep complete schema/resource isolation/journal/production readiness false. Exact native IDs and metadata are in `DEPLOYED_IDENTITY_TABLE_EVIDENCE.json`. No customer/financial rows were read.
+
+Treat the missing LIVE refund table as a confirmed candidate-promotion blocker; do not infer that current legacy LIVE behavior is broken or run a migration. Independent Doomsday identity remains blocked, and no exposed tool supports its Cloudflare deployment/schema metadata. Prior blocked endpoints and completed staging column reads were not repeated. Readiness stays 3/10 (30%).
 
 ## Free, safe capture procedure
 Use an existing free ChatGPT Work browser or self-hosted browser session already available; never require TinyFish paid credits, subscriptions, external test vendors, or real Stripe charges. If the browser cannot visit an authenticated page, mark BLOCKED_ACCESS rather than invent screenshots.
