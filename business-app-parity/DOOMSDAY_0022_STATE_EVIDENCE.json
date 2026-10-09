@@ -1,0 +1,57 @@
+{
+  "asOf": "2026-10-09",
+  "parent": "94a612070b25c216d6b89c432f1749c6ed042b5f",
+  "scope": "Non-executing Doomsday migration 0022 reconciliation and interrupted recovery metadata diagnostic",
+  "knownRemoteEvidence": {
+    "workerVersionUuid": "61fa32a3-3461-469d-9245-a9df6dd3f036",
+    "databaseUuid": "afb2c05a-d794-4a9a-b580-924ce01c26ad",
+    "historicalBuildSource": "a1cdb94be76b0ded16b213b84616e741651e140d",
+    "journal": "Owner observed 0000\u20130021; historical build staged these 22 and reported no migrations to apply",
+    "candidate0022Applied": false,
+    "fullSchemaDefinitionsAvailable": false,
+    "provenance": "Preserved owner observations and active-build log; no new remote query"
+  },
+  "diagnosticFile": "DOOMSDAY_0022_STATE_READ_ONLY.sql",
+  "diagnosticMigrationScope": "Doomsday 0022 only; LIVE/staging corresponding index migration is 0020",
+  "migrationSha256": "8a6d4f8485f19a5d4a50a54038d4b5e071eef2d7d07c02bda53cfd1ccbcf5710",
+  "targetedTests": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python -m unittest test_doomsday_0022_state -v",
+    "exitCode": 0,
+    "testsPassed": 3,
+    "testsTotal": 3,
+    "recoveryStateFixtureCasesPassed": 30,
+    "recoveryStateFixtureCasesTotal": 30,
+    "missingSchemaCasesPassed": 2,
+    "missingSchemaCasesTotal": 2,
+    "cases": [
+      "both absent",
+      "both present requiring exact definition review",
+      "index without journal",
+      "journal without index",
+      "duplicate journal",
+      "unexpected journal name",
+      "nonunique index",
+      "wrong indexed column",
+      "nonpartial index",
+      "wrong predicate kept unverified"
+    ],
+    "fixtureTargets": [
+      "live",
+      "doomsday",
+      "staging"
+    ],
+    "readOnlyVerification": "Query executed under SQLite query_only; iterdump and total_changes unchanged for each of 30 cases",
+    "limits": "Synthetic local fixtures only; no live/remote validation or migration approval"
+  },
+  "applicationSourceChanged": false,
+  "adaptersOrMigrationsChanged": false,
+  "legacyScriptsChanged": false,
+  "remoteDatabaseWrites": false,
+  "remoteQueries": false,
+  "deployed": false,
+  "stripeCalls": false,
+  "paidServicesUsed": false,
+  "productionReady": false,
+  "productionReadinessPassed": 3,
+  "productionReadinessRequired": 10
+}
