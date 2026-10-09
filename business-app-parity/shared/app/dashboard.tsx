@@ -852,23 +852,37 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
   const [savingNote, setSavingNote] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const loadRequest=useRef(0);
   const load = async () => {
+    const request=++loadRequest.current;
     setLoading(true); setError("");
     try {
       const response = await fetch("/api/customers");
       const result = await response.json() as { customers?: CustomerRow[]; estimates?: CustomerEstimate[]; notes?:CustomerNote[]; invoices?:InvoiceRow[]; photos?:CustomerPhoto[]; messages?:CustomerMessage[]; payments?:PaymentRow[]; error?: string };
-      if (!response.ok) throw new Error(result.error || "Customer records could not be loaded.");
-      setCustomers((result.customers ?? []).map((item) => ({ ...item, estimateCount: Number(item.estimateCount), estimateTotal: Number(item.estimateTotal), paidTotal: Number(item.paidTotal) })));
-      setEstimates((result.estimates ?? []).map((item) => ({ ...item, totalCents: Number(item.totalCents), depositCents: Number(item.depositCents), paidCents: Number(item.paidCents) })));
-      setNotes(result.notes ?? []);
-      setInvoices((result.invoices ?? []).map((item)=>({...item,totalCents:Number(item.totalCents)})));
-      setPhotos((result.photos??[]).map((item)=>({...item,sizeBytes:Number(item.sizeBytes)})));
-      setMessages(result.messages??[]);
-      setPayments((result.payments??[]).map((item)=>({...item,amountCents:Number(item.amountCents)})));
-    } catch (loadError) { setError(loadError instanceof Error ? loadError.message : "Customer records could not be loaded."); }
-    finally { setLoading(false); }
+      if(request!==loadRequest.current)return;
+      if (!response.ok) throw new Error(result?.error || "Customer records could not be loaded.");
+      const keys=["customers","estimates","notes","invoices","photos","messages","payments"] as const;
+      if(!result||keys.some((key)=>!Array.isArray(result[key])||result[key]!.some((row)=>!row||typeof row!=="object"||Array.isArray(row)||typeof row.id!=="string"||!row.id)))throw new Error("Customer records could not be read. Try again.");
+      if(result.customers!.some((row)=>typeof row.name!=="string"))throw new Error("Customer names could not be read. Try again.");
+      const asNumber=(value:unknown)=>{if((typeof value!=="number"&&typeof value!=="string")||(typeof value==="string"&&!value.trim())||!Number.isFinite(Number(value)))throw new Error("Customer amounts could not be read. Try again.");return Number(value);};
+      const nextCustomers=(result.customers ?? []).map((item) => ({ ...item, estimateCount: asNumber(item.estimateCount), estimateTotal: asNumber(item.estimateTotal), paidTotal: asNumber(item.paidTotal) }));
+      const nextEstimates=(result.estimates ?? []).map((item) => ({ ...item, totalCents: asNumber(item.totalCents), depositCents: asNumber(item.depositCents), paidCents: asNumber(item.paidCents) }));
+      const nextNotes=result.notes ?? [];
+      const nextInvoices=(result.invoices ?? []).map((item)=>({...item,totalCents:asNumber(item.totalCents)}));
+      const nextPhotos=(result.photos??[]).map((item)=>({...item,sizeBytes:asNumber(item.sizeBytes)}));
+      const nextMessages=result.messages??[];
+      const nextPayments=(result.payments??[]).map((item)=>({...item,amountCents:asNumber(item.amountCents)}));
+      setCustomers(nextCustomers);
+      setEstimates(nextEstimates);
+      setNotes(nextNotes);
+      setInvoices(nextInvoices);
+      setPhotos(nextPhotos);
+      setMessages(nextMessages);
+      setPayments(nextPayments);
+    } catch (loadError) { if(request===loadRequest.current)setError(loadError instanceof Error ? loadError.message : "Customer records could not be loaded."); }
+    finally { if(request===loadRequest.current)setLoading(false); }
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); return()=>{loadRequest.current++;}; }, []);
   const selected = customers.find((customer) => customer.id === selectedId) ?? null;
   const customerEstimates = estimates.filter((estimate) => estimate.customerId === selectedId);
   const customerNotes = notes.filter((note)=>note.customerId === selectedId);
@@ -890,6 +904,10 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
       if (response.ok && result.note) { setNotes((current)=>[result.note!,...current]); setNoteText(""); }
     } finally { setSavingNote(false); }
   };
+  if(loading||error)return <div className="customers-view">
+    {selected&&<button className="back-link" onClick={()=>{setSelectedId(null);setSection("estimates");}}>← All customers</button>}
+    {loading?<div className="customers-state" role="status">Loading customers…</div>:<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>}
+  </div>;
   if (selected) return <div className="customers-view">
     <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={()=>{ setActiveEstimate(null); void load(); }} />
     <button className="back-link" onClick={() => { setSelectedId(null); setSection("estimates"); }}>← All customers</button>

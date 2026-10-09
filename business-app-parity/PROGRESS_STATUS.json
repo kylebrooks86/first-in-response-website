@@ -2805,5 +2805,155 @@
     "preservedTests": "Previous Business/list/recovery/preflight tests retained without reruns; unchanged write handler bodies and all migrations/adapters preserved.",
     "reviewManifestFile": "ESTIMATE_DETAIL_REVIEW_MANIFEST.json",
     "reviewEvidenceFile": "ESTIMATE_DETAIL_REVIEW_EVIDENCE.json"
+  },
+  "customerLoadRecoveryBatch": {
+    "parent": "447c2661b00738bccb80d382a28ddc9db836ce3a",
+    "asOf": "2026-10-09",
+    "scope": "FIRE Business App CustomersView atomic loading, stale response/retry and profile failure gating",
+    "candidateSnapshotCommits": {
+      "live": "fc545602e4dceee2781c635e4304e4bfab70de8d",
+      "doomsday": "bf6d62c314bcfd7e640f8e16237f2410614f1de5",
+      "staging": "6940453b02ad1ba7d966f67d114cc4736a212a04"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/customer-load-recovery-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/customer-load-recovery-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/customer-load-recovery-staging"
+    },
+    "newChecksPerTarget": 1460,
+    "newChecksPassed": 4380,
+    "newChecksTotal": 4380,
+    "suiteRunsPassed": 9,
+    "suiteRunsTotal": 9,
+    "suiteNames": [
+      "test-customer-load-recovery.mjs",
+      "test-customer-invoice-balances.mjs",
+      "test-payment-mobile-ui.mjs"
+    ],
+    "resultsByTarget": {
+      "live": {
+        "customer": {
+          "exitCode": 0,
+          "result": "PASS 1460/1460: actual CustomersView load/retry/profile gating, atomic collections, stale/error/unmount responses; synthetic GET only.",
+          "logSha256": "e9a87f691950e153787015acfe2f696b3154e6b487d17196ccb713775879300d"
+        },
+        "balances": {
+          "exitCode": 0,
+          "result": "PASS 156/156: actual customer/invoice/estimate routes and UI helpers preserve revised/zero invoice totals, principal versus tips/refunds, pending/failed exclusion, overpayment floor, per-job balances, customer isolation and owner access. Synthetic SQLite only.",
+          "logSha256": "c3590f40029f0b657411e9cf480c49079238200d78d16cb95b6d5912244b366e"
+        },
+        "mobile": {
+          "exitCode": 0,
+          "result": "PASS: 11/11 component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.",
+          "logSha256": "0e15ac74ef834c7a21af6155612aecaf807287f3799adee0a808baa799160a35"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "e408f047ab802b4b974ade88094d3b2cb67797299a331a58841646ced0d2c415"
+      },
+      "doomsday": {
+        "customer": {
+          "exitCode": 0,
+          "result": "PASS 1460/1460: actual CustomersView load/retry/profile gating, atomic collections, stale/error/unmount responses; synthetic GET only.",
+          "logSha256": "e9a87f691950e153787015acfe2f696b3154e6b487d17196ccb713775879300d"
+        },
+        "balances": {
+          "exitCode": 0,
+          "result": "PASS 156/156: actual customer/invoice/estimate routes and UI helpers preserve revised/zero invoice totals, principal versus tips/refunds, pending/failed exclusion, overpayment floor, per-job balances, customer isolation and owner access. Synthetic SQLite only.",
+          "logSha256": "c3590f40029f0b657411e9cf480c49079238200d78d16cb95b6d5912244b366e"
+        },
+        "mobile": {
+          "exitCode": 0,
+          "result": "PASS: 11/11 component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.",
+          "logSha256": "0e15ac74ef834c7a21af6155612aecaf807287f3799adee0a808baa799160a35"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "0cfe6883d1c19b7a8ea34ffb24e80f124968b18c895e2415aef3c63720e6da2f"
+      },
+      "staging": {
+        "customer": {
+          "exitCode": 0,
+          "result": "PASS 1460/1460: actual CustomersView load/retry/profile gating, atomic collections, stale/error/unmount responses; synthetic GET only.",
+          "logSha256": "e9a87f691950e153787015acfe2f696b3154e6b487d17196ccb713775879300d"
+        },
+        "balances": {
+          "exitCode": 0,
+          "result": "PASS 156/156: actual customer/invoice/estimate routes and UI helpers preserve revised/zero invoice totals, principal versus tips/refunds, pending/failed exclusion, overpayment floor, per-job balances, customer isolation and owner access. Synthetic SQLite only.",
+          "logSha256": "c3590f40029f0b657411e9cf480c49079238200d78d16cb95b6d5912244b366e"
+        },
+        "mobile": {
+          "exitCode": 0,
+          "result": "PASS: 11/11 component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.",
+          "logSha256": "0e15ac74ef834c7a21af6155612aecaf807287f3799adee0a808baa799160a35"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "0b985d32c79eb2265427b26e52d2277c98a31452bdef76acf3c90fd53d30680b"
+      }
+    },
+    "negativeControls": {
+      "priorLoaderFailsStaleResponseRegression": true
+    },
+    "unchangedWriteCallbackBodiesPassed": 2,
+    "unchangedWriteCallbackBodiesTotal": 2,
+    "handlerNames": [
+      "handleEstimateSaved",
+      "saveNote"
+    ],
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "sourceParity": {
+      "sharedFilesChecked": 119,
+      "roots": [
+        "/workspace/scratch/a307f8c9f987/customer-load-recovery-live",
+        "/workspace/scratch/a307f8c9f987/customer-load-recovery-doomsday",
+        "/workspace/scratch/a307f8c9f987/customer-load-recovery-staging"
+      ],
+      "adaptersRequiringSeparateVerification": [
+        "app/page.tsx",
+        "app/layout.tsx",
+        "app/chatgpt-auth.ts",
+        "app/owner-auth.ts",
+        "app/login/page.tsx",
+        "app/api/auth/login/route.ts",
+        "app/api/auth/logout/route.ts",
+        "app/api/app-version/route.ts",
+        "app/api/staging-fixtures/route.ts"
+      ],
+      "differences": [],
+      "sharedSourceParity": true,
+      "productionReady": false
+    },
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "realMobileEvidenceCaptured": false,
+    "remoteDatabaseWrites": false,
+    "stripeCalls": false,
+    "paidServicesUsed": false,
+    "cost": 0,
+    "changedFilesSha256": {
+      "shared/app/dashboard.tsx": "05c53fefbe17af79fc2ccb00f59e5944024ca6a4c403cb558bb994e9474197af",
+      "shared/scripts/test-customer-load-recovery.mjs": "c38919e6ceb6eebda76a98b1a1f312389d91218f850074a72f12051e34d1929b"
+    },
+    "behavior": [
+      "Only latest load generation can commit data/error/loading; unmount invalidates reads.",
+      "All seven collections and basic records/IDs/names/converted numbers validate and normalize before any state commit. Failure preserves all last-good data.",
+      "Loading/error screen applies before selected profile or customer list, hiding stale totals/actions while retaining selected ID and providing retry/back navigation."
+    ],
+    "testLimits": "Actual CustomersView function/hooks with synthetic GET, array/record/number failures and retry; profile/list JSX gating checked structurally. Existing balance API tests use local SQLite. No browser/mobile, hosted integration, remote database or Stripe calls.",
+    "preservedTests": "Customer write callbacks, financial helper formulas/API, CSS, all adapters/migrations and Doomsday plan/evidence unchanged. Unrelated prior loader/recovery tests not rerun.",
+    "reviewManifestFile": "CUSTOMER_LOAD_REVIEW_MANIFEST.json",
+    "reviewEvidenceFile": "CUSTOMER_LOAD_REVIEW_EVIDENCE.json"
   }
 }
