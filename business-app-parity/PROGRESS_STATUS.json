@@ -377,5 +377,25 @@
     "runtimeChanged": false,
     "deployed": false,
     "applicationTestsRerun": false
+  },
+  "doomsdayBuildDriftBatch": {
+    "parent": "40c2de5922a5d5777706292b2baefd8a628eb9be",
+    "evidenceFile": "DOOMSDAY_BUILD_DRIFT_EVIDENCE.json",
+    "savedBuildCandidateConsumptionGapVerified": true,
+    "featureDifferencesTracedToLegacySource": 2,
+    "featuresInspected": 2,
+    "actualDeployedCommitVerified": false,
+    "identityAccessResult": "ERR_BLOCKED_BY_CLIENT",
+    "sourceIsNotDeploymentProof": true,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "remoteSchemasVerified": 0,
+    "remoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "runtimeChanged": false,
+    "deployed": false,
+    "applicationTestsRerun": false
   }
 }
