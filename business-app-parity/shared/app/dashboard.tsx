@@ -3,7 +3,7 @@
 import { OwnerAccountView } from "./owner-account";
 import { summarizeProcessing } from "../lib/processing-fees";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   BarChart3,
@@ -1306,7 +1306,14 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE"}:{envir
   const [liveMetrics, setLiveMetrics] = useState(metrics);
   const previousTab = useRef("dashboard");
   const currentTab = useRef("dashboard");
-  useEffect(() => { if (tab !== currentTab.current) { previousTab.current = currentTab.current; currentTab.current = tab; } }, [tab]);
+  useLayoutEffect(() => {
+    if (tab === currentTab.current) return;
+    previousTab.current = currentTab.current;
+    currentTab.current = tab;
+    // Reset the document after the new section commits, before it paints.
+    // Same-section edits, retries, menus and modal updates keep their position.
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [tab]);
   const goHome = () => { setTab("dashboard"); setMobileMenu(false); };
   const goBack = () => { const target = previousTab.current || "dashboard"; setTab(target); setMobileMenu(false); };
   const nav = useMemo(() => [

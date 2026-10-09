@@ -134,11 +134,11 @@
     "staging": "422a8db892078c8c043687df915464165d9b500e"
   },
   "latestVerifiedCandidateCommits": {
-    "live": "8b431b3145fddcc523ae9cf3cef3c8582feb7b67",
-    "doomsday": "a44aac665e6af6170c743125198376c6a98feea0",
-    "staging": "7786b45ddb34e8e847a685a3e5d93466341bbb46"
+    "live": "93b7b2ebe74cdcedd82f492441de0f7e4ae25bc0",
+    "doomsday": "ffbd3c4b88568f28c28d1ba5f9dbe40575f701d6",
+    "staging": "557ac637a72b99018fac1449833128acd1e56671"
   },
-  "latestVerifiedCandidateEvidence": "JOB_COST_RECOVERY_EVIDENCE.json",
+  "latestVerifiedCandidateEvidence": "SECTION_NAVIGATION_EVIDENCE.json",
   "invoiceFieldsAccessibilityCandidateCommits": {
     "live": "d72a54d3211602b8cd8d14ea4784ea8bdbd59abc",
     "doomsday": "3ad783d2d7218eb3a2c2cface5838850f5f40974",
@@ -174,5 +174,10 @@
     "doomsday": "d2708541c27df832b22ce2525d0c23658f694dcc",
     "staging": "a959578358752e80b34590eaf1a9e2f4410b42e8"
   },
-  "releasePreflightCandidateEvidence": "RELEASE_BLOCKER_CHECKPOINT_EVIDENCE.json"
+  "releasePreflightCandidateEvidence": "RELEASE_BLOCKER_CHECKPOINT_EVIDENCE.json",
+  "sectionNavigationCandidateCommits": {
+    "live": "93b7b2ebe74cdcedd82f492441de0f7e4ae25bc0",
+    "doomsday": "ffbd3c4b88568f28c28d1ba5f9dbe40575f701d6",
+    "staging": "557ac637a72b99018fac1449833128acd1e56671"
+  }
 }

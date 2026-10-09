@@ -3570,5 +3570,26 @@
     "productionReadinessRequired": 10,
     "productionReady": false,
     "applicationTestsAndBuilds": "Not rerun; no application/adapters/migrations changed. Prior verified evidence retained."
+  },
+  "sectionNavigationBatch": {
+    "evidenceFile": "SECTION_NAVIGATION_EVIDENCE.json",
+    "newChecksPassed": 426,
+    "newChecksTotal": 426,
+    "suiteRunsPassed": 9,
+    "suiteRunsTotal": 9,
+    "typescriptTargetsPassed": 3,
+    "buildTargetsPassed": 3,
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "confirmedIssue": "The shared tab transition updated Back history only and never reset document scroll. All main-section callers use setTab, leaving the previous section scroll position in the same document.",
+    "shakingCauseConfirmed": false,
+    "actualIphoneVerified": false,
+    "tipsDeferred": true,
+    "homeScreenBenchmark": true,
+    "offlineSupportVerified": false,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false
   }
 }
