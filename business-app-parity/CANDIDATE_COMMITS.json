@@ -107,5 +107,10 @@
     "live": "da85e2e3228dfc94a11674f84df85d9efae526d4",
     "doomsday": "c70ebdd1deb2384684d676906fd6d478b8cb29dd",
     "staging": "5a6a22f951a2bae6f427fa3e02311239a570c714"
+  },
+  "scheduleLoadErrorsCandidateCommits": {
+    "live": "bdafc7470976ab566e56a0d1d89cf911d5fcada9",
+    "doomsday": "7a36d51f62a975eb04264270a060a0176ca598e7",
+    "staging": "e10586e8bbe7cb6b9f5e863ef8b4df0f29ef30c9"
   }
 }

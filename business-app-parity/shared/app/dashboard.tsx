@@ -989,7 +989,18 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
   const [rows,setRows]=useState<EstimateRow[]>([]);
   const [selected,setSelected]=useState<EstimateRow|null>(null);
   const [loading,setLoading]=useState(true);
-  const load=async()=>{setLoading(true);try{const response=await fetch("/api/estimates");const result=await response.json() as {estimates?:EstimateRow[]};setRows((result.estimates??[]).map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)})));}finally{setLoading(false);}};
+  const [error,setError]=useState("");
+  const load=async()=>{
+    setLoading(true);setError("");setSelected(null);
+    try{
+      const response=await fetch("/api/estimates");
+      const result=await response.json() as {estimates?:EstimateRow[];error?:string};
+      if(!response.ok)throw new Error(result.error||"Schedule could not be loaded.");
+      if(!Array.isArray(result.estimates))throw new Error("Schedule records could not be read. Try again.");
+      setRows(result.estimates.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)})));
+    }catch(loadError){setError(loadError instanceof Error?loadError.message:"Schedule could not be loaded.");}
+    finally{setLoading(false);}
+  };
   useEffect(()=>{void load();},[]);
   const matches=(row:EstimateRow)=>[row.customer,row.service,row.address].join(" ").toLowerCase().includes(searchQuery.toLowerCase());
   const now=useCurrentTime();
@@ -1001,8 +1012,8 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
   const routeJobs=routeDate?upcomingWithAddress.filter((row)=>{const date=new Date(row.scheduledAt!);return date.getFullYear()===routeDate.getFullYear()&&date.getMonth()===routeDate.getMonth()&&date.getDate()===routeDate.getDate();}).slice(0,8):[];
   const routeUrl=routeJobs.length?`https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate&destination=${encodeURIComponent(routeJobs.at(-1)!.address||"")}${routeJobs.length>1?`&waypoints=${routeJobs.slice(0,-1).map((job)=>encodeURIComponent(job.address||"")).join("%7C")}`:""}`:"";
   const routeLabel=routeDate&&routeDate.toDateString()===new Date().toDateString()?"Route today":routeDate?`Route ${routeDate.toLocaleDateString("en-US",{weekday:"short"})}`:"Route next jobs";
-  return <div className="workspace-view"><EstimateDetail estimate={selected} onClose={()=>setSelected(null)} onChanged={(estimate)=>{setRows((current)=>current.map((row)=>row.id===estimate.id?estimate:row));setSelected(estimate);}}/><section className="workspace-head"><div><p className="eyebrow">Jobs</p><h1>Schedule</h1><p>Upcoming work, customer details, and one-tap directions.</p></div>{routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noreferrer"><Navigation/> {routeLabel}<small>{routeJobs.length} stop{routeJobs.length===1?"":"s"}</small></a>}</section><ScheduleWeather nextJobAt={upcoming[0]?.scheduledAt}/>
-    {loading?<div className="customers-state">Loading schedule…</div>:<>
+  return <div className="workspace-view"><EstimateDetail estimate={loading||error?null:selected} onClose={()=>setSelected(null)} onChanged={(estimate)=>{setRows((current)=>current.map((row)=>row.id===estimate.id?estimate:row));setSelected(estimate);}}/><section className="workspace-head"><div><p className="eyebrow">Jobs</p><h1>Schedule</h1><p>Upcoming work, customer details, and one-tap directions.</p></div>{!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noreferrer"><Navigation/> {routeLabel}<small>{routeJobs.length} stop{routeJobs.length===1?"":"s"}</small></a>}</section><ScheduleWeather nextJobAt={!loading&&!error?upcoming[0]?.scheduledAt:undefined}/>
+    {loading?<div className="customers-state">Loading schedule…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:<>
       {needsAttention.length>0&&<section className="needs-attention"><header><div><h2>Needs attention</h2><p>Past job dates that still need to be completed, rescheduled, or paid.</p></div><b>{needsAttention.length}</b></header>{needsAttention.map((job)=><button key={job.id} onClick={()=>setSelected(job)}><Clock3/><span><strong>{job.customer}</strong><small>{job.service} · was scheduled {dateTime(job.scheduledAt!)}</small><b>{money(billingBalanceCents(job))} due</b></span><ChevronRight/></button>)}</section>}
       <section className="schedule-board"><header><h2>Upcoming jobs</h2><span>{upcoming.length}</span></header>{upcoming.length?upcoming.map((job)=><button className="schedule-job" key={job.id} onClick={()=>setSelected(job)}><span className="schedule-date"><b>{new Date(job.scheduledAt!).getDate()}</b><small>{new Date(job.scheduledAt!).toLocaleString("en-US",{month:"short"}).toUpperCase()}</small></span><span><strong>{job.customer}</strong><small>{job.service} · {new Date(job.scheduledAt!).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}</small><em>{job.address||"No address saved"}</em></span><strong>{money(resolvedBillingTotalCents(job))}</strong><ChevronRight/></button>):<div className="record-empty"><CalendarDays/><strong>No upcoming jobs</strong><p>Open an approved estimate and save a job date.</p></div>}</section>
     </>}

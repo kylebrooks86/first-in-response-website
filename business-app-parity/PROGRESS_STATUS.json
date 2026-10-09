@@ -1007,5 +1007,60 @@
     ],
     "testLimits": "Actual component/hooks/effect/retry/focus handlers using mocked reads and timer; existing financial suites use synthetic SQLite. No actual hosted/mobile integration proof.",
     "priorManifest": "Prior review manifests remain historical and do not seal newer source/review inputs."
+  },
+  "scheduleLoadErrorsBatch": {
+    "parent": "26a96a1c205b472db779d0197947d18df2f35aae",
+    "asOf": "2026-10-09",
+    "scope": "FIRE Business App isolated candidates only",
+    "candidateSnapshotCommits": {
+      "live": "bdafc7470976ab566e56a0d1d89cf911d5fcada9",
+      "doomsday": "7a36d51f62a975eb04264270a060a0176ca598e7",
+      "staging": "e10586e8bbe7cb6b9f5e863ef8b4df0f29ef30c9"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/schedule-load-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/schedule-load-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/schedule-load-staging"
+    },
+    "newChecksPerTarget": 300,
+    "newChecksPassed": 900,
+    "newChecksTotal": 900,
+    "suiteRunsPassed": 9,
+    "suiteRunsTotal": 9,
+    "suiteNames": [
+      "test-schedule-load-errors.mjs",
+      "test-estimate-load-errors.mjs",
+      "test-customer-invoice-balances.mjs"
+    ],
+    "negativeControlPriorComponentRejected": true,
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "realMobileEvidenceCaptured": false,
+    "remoteDatabaseWrites": false,
+    "stripeMutations": false,
+    "changedFilesSha256": {
+      "shared/app/dashboard.tsx": "2d9d27e250639a0ec20a10fb1c315fa512fe9a18650ef1c274ee3603e9ee1222",
+      "shared/scripts/test-schedule-load-errors.mjs": "0fad237a04920f5fbfaf1e78ff07b428db3f98cd0b0a98e360ffe0a590a2a4a2"
+    },
+    "behavior": [
+      "Schedule checks HTTP status and requires the estimate collection before replacing rows.",
+      "Caught failures show accessible error with Retry; previous records retained in state.",
+      "Stale job editor, route directions, overdue/upcoming cards and forecast job target hidden during loading/error; general weather remains visible.",
+      "Successful retry restores sorted jobs, same-day route addresses, revised overdue balances and edit callbacks."
+    ],
+    "testLimits": "Actual ScheduleView component/hooks/load/retry/change callbacks with mocked GET and fixed time; existing financial regression uses synthetic SQLite. No hosted/mobile/weather-network proof.",
+    "priorManifest": "Previous review manifests retained as historical; newer source/review inputs are not sealed."
   }
 }
