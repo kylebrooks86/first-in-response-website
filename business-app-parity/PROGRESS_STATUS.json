@@ -2955,5 +2955,141 @@
     "preservedTests": "Customer write callbacks, financial helper formulas/API, CSS, all adapters/migrations and Doomsday plan/evidence unchanged. Unrelated prior loader/recovery tests not rerun.",
     "reviewManifestFile": "CUSTOMER_LOAD_REVIEW_MANIFEST.json",
     "reviewEvidenceFile": "CUSTOMER_LOAD_REVIEW_EVIDENCE.json"
+  },
+  "jobReportRecoveryBatch": {
+    "parent": "d225cbdcff6d075ce4422465fccfa184bc42629c",
+    "asOf": "2026-10-09",
+    "scope": "FIRE Business App JobReport saved editor loading, retry and close/reopen recovery",
+    "candidateSnapshotCommits": {
+      "live": "2b1180d68aa6ebff99aa412fe4209226583db249",
+      "doomsday": "898b569a878957dfe28e3032c24185895b9fbbf3",
+      "staging": "463c6c2249127891ccee1d613da5e1bd169244ed"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/job-report-recovery-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/job-report-recovery-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/job-report-recovery-staging"
+    },
+    "newChecksPerTarget": 338,
+    "newChecksPassed": 1014,
+    "newChecksTotal": 1014,
+    "suiteRunsPassed": 9,
+    "suiteRunsTotal": 9,
+    "suiteNames": [
+      "test-job-report-recovery.mjs",
+      "test-estimate-detail-recovery.mjs",
+      "test-processing-fees.mjs"
+    ],
+    "resultsByTarget": {
+      "live": {
+        "report": {
+          "exitCode": 0,
+          "result": "PASS 338/338: actual JobReport hooks/JSX cover stale close/reopen and delayed JSON, unmount, HTTP/network/collection/checklist/ownership failures, retry and empty-report reset; synthetic GET only.",
+          "logSha256": "71dabb8ea875334de149797911e720f8febd7d17160b85983070b449a967c581"
+        },
+        "estimate": {
+          "exitCode": 0,
+          "result": "PASS 70/70: actual estimate-detail effect/button state guards report loads across estimate switches, pending reads, close/unmount, failed/malformed responses and retry; synthetic reads only.",
+          "logSha256": "e61ebf90d2131ce1857672b22db8550f014dd6563efcbcdada53be6544e0190b"
+        },
+        "fees": {
+          "exitCode": 0,
+          "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+          "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "65596413363967649ea15febd6c65e4e0d4598fd18f62d13349210642d37a722"
+      },
+      "doomsday": {
+        "report": {
+          "exitCode": 0,
+          "result": "PASS 338/338: actual JobReport hooks/JSX cover stale close/reopen and delayed JSON, unmount, HTTP/network/collection/checklist/ownership failures, retry and empty-report reset; synthetic GET only.",
+          "logSha256": "71dabb8ea875334de149797911e720f8febd7d17160b85983070b449a967c581"
+        },
+        "estimate": {
+          "exitCode": 0,
+          "result": "PASS 70/70: actual estimate-detail effect/button state guards report loads across estimate switches, pending reads, close/unmount, failed/malformed responses and retry; synthetic reads only.",
+          "logSha256": "e61ebf90d2131ce1857672b22db8550f014dd6563efcbcdada53be6544e0190b"
+        },
+        "fees": {
+          "exitCode": 0,
+          "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+          "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "0d5575da3f66531962fb45c8285b6f10125d9ec2b3d8d9f3e04c219b2d2c4cc6"
+      },
+      "staging": {
+        "report": {
+          "exitCode": 0,
+          "result": "PASS 338/338: actual JobReport hooks/JSX cover stale close/reopen and delayed JSON, unmount, HTTP/network/collection/checklist/ownership failures, retry and empty-report reset; synthetic GET only.",
+          "logSha256": "71dabb8ea875334de149797911e720f8febd7d17160b85983070b449a967c581"
+        },
+        "estimate": {
+          "exitCode": 0,
+          "result": "PASS 70/70: actual estimate-detail effect/button state guards report loads across estimate switches, pending reads, close/unmount, failed/malformed responses and retry; synthetic reads only.",
+          "logSha256": "e61ebf90d2131ce1857672b22db8550f014dd6563efcbcdada53be6544e0190b"
+        },
+        "fees": {
+          "exitCode": 0,
+          "result": "PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees, orphan relationships and target conflicts rejected without writes.",
+          "logSha256": "f00bc3c10d18f25a795a915beba0aad0edbf4816c726aa2e819eb23fbbb42443"
+        },
+        "typescriptExitCode": 0,
+        "buildExitCode": 0,
+        "buildLogSha256": "16942bdc2c4824422386df61b5fbf2abe98b62573fda2e9f9454af45bebb047e"
+      }
+    },
+    "negativeControls": {
+      "parentFailsLoadingEditorRegression": true
+    },
+    "unchangedWriteHandlerBodiesPassed": 1,
+    "unchangedWriteHandlerBodiesTotal": 1,
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "sourceParity": {
+      "sharedFilesChecked": 119,
+      "roots": [
+        "/workspace/scratch/a307f8c9f987/job-report-recovery-live",
+        "/workspace/scratch/a307f8c9f987/job-report-recovery-doomsday",
+        "/workspace/scratch/a307f8c9f987/job-report-recovery-staging"
+      ],
+      "adaptersRequiringSeparateVerification": [
+        "app/page.tsx",
+        "app/layout.tsx",
+        "app/chatgpt-auth.ts",
+        "app/owner-auth.ts",
+        "app/login/page.tsx",
+        "app/api/auth/login/route.ts",
+        "app/api/auth/logout/route.ts",
+        "app/api/app-version/route.ts",
+        "app/api/staging-fixtures/route.ts"
+      ],
+      "differences": [],
+      "sharedSourceParity": true,
+      "productionReady": false
+    },
+    "productionReady": false,
+    "deployed": false,
+    "realMobileEvidenceCaptured": false,
+    "remoteDatabaseWrites": false,
+    "stripeCalls": false,
+    "paidServicesUsed": false,
+    "changedFilesSha256": {
+      "shared/app/dashboard.tsx": "f1555d34f71886ed3abe8fdcf665fb5529a06ca5bae3a00f640486be0fb1e17f",
+      "shared/scripts/test-job-report-recovery.mjs": "5e88fa3db15163ab187758535298f857457f0f0b355ba0ed68b1982d7840a806"
+    },
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "testLimits": "Actual extracted JobReport hook/JSX synthetic GET tests, not browser/React lifecycle or hosted/mobile integration. Financial API regressions use local synthetic SQLite only.",
+    "behavior": [
+      "Close/unmount/estimate changes invalidate old report reads; only current request commits state.",
+      "HTTP, malformed JSON/collections/checklists, mismatched ownership and invalid text fields require retry before editing/saving.",
+      "Successful empty collection clears previous form fields. Report POST handler unchanged."
+    ]
   }
 }
