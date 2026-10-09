@@ -57,5 +57,10 @@
     "live": "572c333ce87f74474a1d223a8fcbdfca38d38e4f",
     "doomsday": "021847097d91178b0266be50d2d650ace1603519",
     "staging": "8eec0c6c80b363879d1e208d8744636fb149ee3a"
+  },
+  "dashboardBalanceConsistencyCandidateCommits": {
+    "live": "d7404b2d57930606e66bc97fececbbfecce17476",
+    "doomsday": "51efb0873766e79bba94cfa023760310ea1fa385",
+    "staging": "3aaf968f7188c893dd894fbb067a4a9dc74a34bb"
   }
 }
