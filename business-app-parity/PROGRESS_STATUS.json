@@ -747,5 +747,22 @@
     "productionReadinessRequired": 10,
     "productionReady": false,
     "deployed": false
+  },
+  "deployedPaymentsDesktopBatch": {
+    "parent": "daa194b01c16bb1d0dc0b51f7b5862f45d872514",
+    "evidenceFile": "DEPLOYED_PAYMENTS_DESKTOP_EVIDENCE.json",
+    "navigationDialogObservationsCompleted": 12,
+    "navigationDialogObservationsRequired": 12,
+    "scope": "five desktop navigation/dialog observations per target plus two staging deposit observations; not formal parity acceptance",
+    "observedTargetDifferences": 2,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "realMobileEvidenceCaptured": false,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "runtimeChanged": false,
+    "deployed": false,
+    "applicationTestsRerun": false
   }
 }
