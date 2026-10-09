@@ -47,5 +47,10 @@
     "doomsday": "c227120ac685160adeda26be80cd742a34b70f70",
     "staging": "9288aba275a6c879f5f23909e16c09c056221ea3"
   },
-  "localDoomsdayBuildBridgeCommit": "a62478bcfc901db361e92a5b39cc3c800f711eda"
+  "localDoomsdayBuildBridgeCommit": "a62478bcfc901db361e92a5b39cc3c800f711eda",
+  "independentPinFlowCandidateCommits": {
+    "live": "cf047c42e74918011699f196c53272f724255fe5",
+    "doomsday": "7b331886313f736bee704a0b04d4e7782cdc4539",
+    "staging": "c9ca5d5b2350db607e1ef031745d44b96f6713d5"
+  }
 }

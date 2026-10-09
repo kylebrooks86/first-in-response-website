@@ -449,5 +449,35 @@
     "productionReady": false,
     "deployed": false,
     "evidenceFile": "LOCAL_DOOMSDAY_BUILD_EVIDENCE.json"
+  },
+  "independentPinFlowBatch": {
+    "parent": "7d57ab602262a1e40468ae0ee55e20a7436af497",
+    "evidenceFile": "INDEPENDENT_PIN_FLOW_EVIDENCE.json",
+    "candidateSnapshotCommits": {
+      "live": "cf047c42e74918011699f196c53272f724255fe5",
+      "doomsday": "7b331886313f736bee704a0b04d4e7782cdc4539",
+      "staging": "c9ca5d5b2350db607e1ef031745d44b96f6713d5"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/pin-login-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/pin-login-final",
+      "staging": "/workspace/scratch/a307f8c9f987/pin-login-staging"
+    },
+    "pinFlowAssertionsPassed": 48,
+    "pinFlowAssertionsTotal": 48,
+    "priorSessionAssertionsPassed": 21,
+    "priorSessionAssertionsTotal": 21,
+    "typescriptTargetsPassed": 1,
+    "typescriptTargetsChecked": 1,
+    "buildTargetsPassed": 1,
+    "buildTargetsChecked": 1,
+    "sharedFilesMatched": 118,
+    "sharedFilesChecked": 118,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false
   }
 }
