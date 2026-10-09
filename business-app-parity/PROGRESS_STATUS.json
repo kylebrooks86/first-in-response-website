@@ -1117,5 +1117,59 @@
     ],
     "testLimits": "Actual FollowUpsView hooks/load/retry with mocked GET and fixed time; MessageComposer props inspected only, no preparation/sending. Existing financial suite uses synthetic SQLite. No hosted/mobile integration evidence.",
     "priorManifest": "Historical manifests retained; they do not seal newer source/review inputs."
+  },
+  "agreementLoadErrorsBatch": {
+    "parent": "893cbb3370da0fc6c95e94c541001656ac7874af",
+    "asOf": "2026-10-09",
+    "scope": "FIRE Business App isolated candidates only",
+    "candidateSnapshotCommits": {
+      "live": "a7ac8ad66572bb64b29311d803b245a535cc8274",
+      "doomsday": "fb828b52546f9f6aa9f445abd5aaabe50a01cdc4",
+      "staging": "666119a06da55fc5c43c87c6c90982c3fa9e1677"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/agreement-load-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/agreement-load-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/agreement-load-staging"
+    },
+    "newChecksPerTarget": 276,
+    "newChecksPassed": 828,
+    "newChecksTotal": 828,
+    "suiteRunsPassed": 6,
+    "suiteRunsTotal": 6,
+    "suiteNames": [
+      "test-agreement-load-errors.mjs",
+      "test-customer-invoice-balances.mjs"
+    ],
+    "negativeControlPriorComponentRejected": true,
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "realMobileEvidenceCaptured": false,
+    "remoteDatabaseWrites": false,
+    "stripeMutations": false,
+    "changedFilesSha256": {
+      "shared/app/dashboard.tsx": "6982d18f7485c99b825a2c64574e3dae766dcdcdd80e546eaa9fe8c6965ba4a9",
+      "shared/scripts/test-agreement-load-errors.mjs": "5a2a37285da676ab22fdaa62d38392def41db88b9fe3407ef90b3de0a5044f1b"
+    },
+    "behavior": [
+      "Agreements checks HTTP status and collection before replacing records.",
+      "Read failures display accessible alert with Retry and preserve existing rows; signed/awaiting/change counters and stale editor hidden on loading/error.",
+      "Detail refresh re-enters loading, clears selection and reloads current signature/change-request state.",
+      "Search miss says No matching agreements, while valid empty data says No agreements yet."
+    ],
+    "testLimits": "Actual ContractsView/hooks/load/retry/detail-refresh with mocked GET; existing financial regression uses synthetic SQLite. No hosted/mobile/signature integration proof.",
+    "priorManifest": "Historical review manifests preserved and do not seal newer source/review inputs."
   }
 }
