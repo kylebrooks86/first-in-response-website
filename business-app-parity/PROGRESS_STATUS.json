@@ -664,5 +664,47 @@
     "productionReadinessRequired": 10,
     "productionReady": false,
     "deployed": false
+  },
+  "paymentReceivedStatusBatch": {
+    "parent": "24708d37eba591401045cfeb0784d86a8b13cf15",
+    "evidenceFile": "PAYMENT_RECEIVED_STATUS_EVIDENCE.json",
+    "candidateSnapshotCommits": {
+      "live": "5290ffeffc7446629375210ab006e7f11a0f9772",
+      "doomsday": "76f3e5d950509a253f4547ecd44bf787d66a2c1b",
+      "staging": "ab76755b1e87d09fc81d696d3622cee0ccd80fa4"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/payment-status-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/payment-status-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/payment-status-staging"
+    },
+    "newChecksPerTarget": 98,
+    "newChecksPassed": 294,
+    "newChecksTotal": 294,
+    "suiteRunsPassed": 9,
+    "suiteRunsTotal": 9,
+    "suiteNames": [
+      "test-payment-received-status.mjs",
+      "test-payment-mobile-ui.mjs",
+      "test-processing-fees.mjs"
+    ],
+    "priorMobileStructuralChecksPassed": 33,
+    "priorMobileStructuralChecksTotal": 33,
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "buildCompletionVerifiedInLogs": true,
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "negativeControlPreFixRejected": true,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false
   }
 }
