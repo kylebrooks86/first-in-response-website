@@ -14,7 +14,7 @@ const remote = has("--remote");
 const persistTo = valueAfter("--persist-to") || ".wrangler/state";
 
 if (!archive || local === remote) {
-  console.error("Usage: npm run restore:photos -- --archive <zip> (--local | --remote) [--config <path>] [--persist-to <path>] [--apply] [--confirm-bucket <name>]");
+  console.error("Usage: node scripts/restore-photo-archive.mjs --archive <zip> (--local | --remote) [--config <path>] [--persist-to <path>] [--apply] [--confirm-bucket <name>] [--confirm-database <id>]");
   process.exit(1);
 }
 
@@ -29,8 +29,8 @@ if (!bucket || !database?.database_id || database.database_id === "00000000-0000
   console.error("The independent Wrangler configuration must contain non-placeholder DB and BUCKET resources.");
   process.exit(1);
 }
-if (remote && apply && valueAfter("--confirm-bucket") !== bucket) {
-  console.error(`Remote apply requires --confirm-bucket ${bucket}`);
+if (remote && apply && (valueAfter("--confirm-bucket") !== bucket || valueAfter("--confirm-database") !== database.database_id)) {
+  console.error(`Remote apply requires --confirm-bucket ${bucket} and --confirm-database ${database.database_id}`);
   process.exit(1);
 }
 
@@ -70,6 +70,8 @@ if (!archiveStat?.isFile()) throw new Error(`Photo archive not found: ${absolute
 const listResult = unzip(["-Z1", absoluteArchive]);
 if (listResult.status !== 0) fail(listResult, "The ZIP archive could not be listed.");
 const entries = String(listResult.stdout).split(/\r?\n/).filter(Boolean);
+if (new Set(entries).size !== entries.length) throw new Error("The ZIP archive contains duplicate entry names.");
+if (entries.some((entry) => entry.startsWith("/") || entry.includes("\\") || entry.split("/").includes(".."))) throw new Error("The ZIP archive contains unsafe entry names.");
 if (!entries.includes("manifest.json")) throw new Error("The ZIP archive does not contain manifest.json.");
 
 const manifestResult = unzip(["-p", absoluteArchive, "manifest.json"]);
@@ -81,16 +83,22 @@ if (manifest?.format !== "fire-app-photo-archive" || manifest?.version !== 1 || 
 const rawMissingPhotoIds=Array.isArray(manifest.missingPhotoIds)?manifest.missingPhotoIds.map((value)=>String(value)):[];
 const missingPhotoIds=new Set(rawMissingPhotoIds);
 const manifestPhotoIds=new Set(manifest.photos.map((candidate)=>String(candidate?.id||"")));
+if(manifestPhotoIds.size!==manifest.photos.length)throw new Error("Photo archive contains duplicate photo IDs.");
+const manifestObjectKeys=new Set(manifest.photos.map((candidate)=>String(candidate?.objectKey||"")));
+if(manifestObjectKeys.size!==manifest.photos.length)throw new Error("Photo archive contains duplicate object keys.");
 if(missingPhotoIds.size!==rawMissingPhotoIds.length||[...missingPhotoIds].some((id)=>!manifestPhotoIds.has(id)))
   throw new Error("Photo archive missing-photo metadata is inconsistent.");
 if(!Number.isSafeInteger(Number(manifest.photoCount))||Number(manifest.photoCount)!==manifest.photos.length-missingPhotoIds.size)
   throw new Error("Photo archive manifest counts are inconsistent.");
 
-const stateResult = run(["d1", "execute", "DB", "--config", absoluteConfig, ...modeArgs, "--json", "--command", "SELECT id FROM customers; SELECT id,object_key AS objectKey FROM customer_photos"]);
+const stateResult = run(["d1", "execute", "DB", "--config", absoluteConfig, ...modeArgs, "--json", "--command", "SELECT id FROM customers; SELECT id,customer_id AS customerId,object_key AS objectKey,size_bytes AS sizeBytes FROM customer_photos"]);
 if (stateResult.status !== 0) fail(stateResult, "Could not inspect the target FIRE database.");
 const state = JSON.parse(stateResult.stdout);
+if (!Array.isArray(state) || state.length !== 2 || state.some((result) => !Array.isArray(result?.results) || result.success === false)) {
+  throw new Error("Target database inspection returned incomplete results. No restore attempted.");
+}
 const customerIds = new Set((state[0]?.results || []).map((row) => String(row.id)));
-const existingPhotos = new Map((state[1]?.results || []).map((row) => [String(row.id), String(row.objectKey)]));
+const existingPhotos = new Map(state[1].results.map((row) => [String(row.id), row]));
 const plans = [];
 
 for (const candidate of manifest.photos) {
@@ -106,7 +114,12 @@ for (const candidate of manifest.photos) {
   if (!photo.objectKey.startsWith(`customers/${photo.customerId}/${photo.id}.`) || photo.objectKey.includes("..")) throw new Error(`Photo ${photo.id} has an unsafe object key.`);
   if (missingPhotoIds.has(photo.id)) { plans.push({ photo, action: "skip_missing_archive_object" }); continue; }
   if (!customerIds.has(photo.customerId)) { plans.push({ photo, action: "skip_missing_customer" }); continue; }
-  if (existingPhotos.has(photo.id)) { plans.push({ photo, action: "skip_existing_record" }); continue; }
+  const existingPhoto = existingPhotos.get(photo.id);
+  if (existingPhoto && (String(existingPhoto.customerId)!==photo.customerId || String(existingPhoto.objectKey)!==photo.objectKey || Number(existingPhoto.sizeBytes)!==photo.sizeBytes)) {
+    plans.push({ photo, action: "skip_existing_record_conflict" }); continue;
+  }
+  // A matching metadata row may survive loss of its object. Permit recovery of
+  // missing bytes; INSERT OR IGNORE below still preserves the existing record.
   const prefix = `photos/${photo.customerId}/${photo.id}-`;
   const matches = entries.filter((entry) => entry.startsWith(prefix));
   if (matches.length !== 1) throw new Error(`Photo ${photo.id} must have exactly one matching file in the archive.`);
@@ -144,19 +157,18 @@ try {
     const insert = `INSERT OR IGNORE INTO customer_photos (id,customer_id,category,caption,filename,content_type,size_bytes,object_key,created_at) VALUES (${sql(photo.id)},${sql(photo.customerId)},${sql(photo.category)},${sql(photo.caption)},${sql(photo.filename)},${sql(photo.contentType)},${sql(photo.sizeBytes)},${sql(photo.objectKey)},${sql(photo.createdAt)})`;
     const databaseWrite = run(["d1", "execute", "DB", "--config", absoluteConfig, ...modeArgs, "--yes", "--command", insert]);
     if (databaseWrite.status !== 0) {
-      run(["r2","object","delete",`${bucket}/${photo.objectKey}`,"--config",absoluteConfig,...modeArgs]);
-      fail(databaseWrite, `Photo ${photo.id} database metadata could not be restored; the just-uploaded object was removed.`);
+      // A CLI/network failure does not prove the INSERT failed to commit.
+      // Preserve the uploaded bytes until the owner verifies the target state.
+      fail(databaseWrite, `Photo ${photo.id} database metadata could not be confirmed. Uploaded object preserved; inspect the target before retrying.`);
     }
     const verifyRecord=run(["d1","execute","DB","--config",absoluteConfig,...modeArgs,"--json","--command",`SELECT customer_id AS customerId,object_key AS objectKey,size_bytes AS sizeBytes FROM customer_photos WHERE id=${sql(photo.id)} LIMIT 1`]);
     if(verifyRecord.status!==0){
-      run(["r2","object","delete",`${bucket}/${photo.objectKey}`,"--config",absoluteConfig,...modeArgs]);
-      fail(verifyRecord,`Photo ${photo.id} metadata verification failed; the just-uploaded object was removed.`);
+      fail(verifyRecord,`Photo ${photo.id} metadata verification failed. Uploaded object preserved; inspect the target before retrying.`);
     }
     const verifiedRows=JSON.parse(verifyRecord.stdout)[0]?.results||[];
     const verified=verifiedRows[0];
     if(!verified||String(verified.customerId)!==photo.customerId||String(verified.objectKey)!==photo.objectKey||Number(verified.sizeBytes)!==photo.sizeBytes){
-      run(["r2","object","delete",`${bucket}/${photo.objectKey}`,"--config",absoluteConfig,...modeArgs]);
-      throw new Error(`Photo ${photo.id} metadata does not match the archive; the just-uploaded object was removed.`);
+      throw new Error(`Photo ${photo.id} metadata does not match the archive. Uploaded object preserved; inspect the target before retrying.`);
     }
     restored += 1;
     console.log(`Restored and verified ${photo.id} (${photo.filename}).`);

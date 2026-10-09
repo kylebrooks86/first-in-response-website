@@ -120,5 +120,27 @@
       "Cash App and Venmo business link hrefs"
     ],
     "productionReady": false
+  },
+  "photoRecoveryBatch": {
+    "parent": "671f52a",
+    "suiteRunsPassed": 3,
+    "suiteRunsTotal": 3,
+    "casesPerTarget": 19,
+    "caseExecutionsPassed": 57,
+    "caseExecutionsTotal": 57,
+    "syntaxChecksPassed": 3,
+    "syntaxChecksTotal": 3,
+    "recoveryFilesMatched": 2,
+    "recoveryFilesChecked": 2,
+    "sha256": {
+      "restore-photo-archive.mjs": "68eecb853e72de835ac261089ddda56cca77f751045837b77527685c101c13b8",
+      "test-photo-restore-safety.mjs": "5f6608350a686ce0eb1db796a05ea398967431c4f0684fb34549e1ac145ef9ed"
+    },
+    "remoteObjectRecoveryVerified": false,
+    "remoteSchemasVerified": 0,
+    "requiredRemoteSchemas": 3,
+    "formalMobileComparisonsVerified": 0,
+    "requiredMobileComparisons": 32,
+    "productionReady": false
   }
 }

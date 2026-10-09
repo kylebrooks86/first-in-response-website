@@ -16,5 +16,10 @@
     "live": "8d113314b5a14e0dd63cb73e6f52397eb1c1df6d",
     "doomsday": "73293f0743e47da61d2b4e76be79bfd9bc2803db",
     "staging": "5d8ca1be99aacbce701f3f80fea4ce32df30a97b"
+  },
+  "photoRecoveryBatchCandidateCommits": {
+    "live": "55e0380f01a3770e114f90260efada77c2a45470",
+    "doomsday": "7a75ce4ef13aa0a2905889980603a29379eb21d4",
+    "staging": "a130a2befe0c09257e07f242a4b207fd008c3835"
   }
 }
