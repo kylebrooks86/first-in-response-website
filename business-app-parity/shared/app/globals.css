@@ -567,3 +567,14 @@ html,body{max-width:100%;overflow-x:clip}
   .payment-history-amount{grid-column:2;grid-row:2}
   .payment-history>article>.payment-refund-action{grid-column:2;grid-row:3}
 }
+
+/* Keep customer-profile payment details, money and refund actions readable. */
+.customer-record.customer-payment-record{display:grid;grid-template-columns:minmax(0,1fr) auto}
+.customer-payment-record>div{min-width:0;overflow-wrap:anywhere}
+.customer-payment-amount{grid-column:2;grid-row:1;white-space:nowrap}
+.customer-payment-record>.payment-refund-action{grid-column:1 / -1;justify-self:stretch;min-height:44px}
+@media(max-width:760px){
+  .customer-record.customer-payment-record{grid-template-columns:minmax(0,1fr);gap:10px}
+  .customer-payment-amount{grid-column:1;grid-row:2}
+  .customer-payment-record>.payment-refund-action{grid-column:1;grid-row:3}
+}

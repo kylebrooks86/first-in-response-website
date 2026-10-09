@@ -1,0 +1,44 @@
+{
+  "parent": "8d3ad662d9bf3625bdfd2354020de5225f5afb74",
+  "scope": "isolated FIRE Business App candidate customer-profile payment rows",
+  "candidateSnapshotCommits": {
+    "live": "13fb0f4d2d5636aa9f4c0c16a78234edcb68f99a",
+    "doomsday": "2254c860ce3a71c103468bb5cd997092a04975be",
+    "staging": "1ce15cff1dea0f3059eaff005926da3cb8734254"
+  },
+  "candidatePaths": {
+    "live": "/workspace/scratch/a307f8c9f987/customer-payment-live",
+    "doomsday": "/workspace/scratch/a307f8c9f987/customer-payment-doomsday",
+    "staging": "/workspace/scratch/a307f8c9f987/customer-payment-staging"
+  },
+  "changedFilesSha256": {
+    "app/dashboard.tsx": "1c659cb55605b5ce13b212377570901b2a6b814e9da16afee26f4ae5002a6797",
+    "app/globals.css": "e3073d3fc2a12f622e4686cdb5c3beb8dc0be9dee840ac656495aba332043782",
+    "scripts/test-payment-mobile-ui.mjs": "250c037461aec22aae6c29dc4257b1b8b323aa9471dd9b887d5e5dd4add34803"
+  },
+  "sharedFilesMatched": 118,
+  "sharedFilesChecked": 118,
+  "selectedSuiteRunsPassed": 6,
+  "selectedSuiteRunsTotal": 6,
+  "paymentMobileChecksPerTarget": 11,
+  "paymentMobileCheckExecutionsPassed": 33,
+  "paymentMobileCheckExecutionsTotal": 33,
+  "suiteNames": [
+    "test-payment-mobile-ui.mjs",
+    "test-final-tip-ui.mjs"
+  ],
+  "typescriptTargetsPassed": 3,
+  "typescriptTargetsTotal": 3,
+  "buildTargetsPassed": 3,
+  "buildTargetsTotal": 3,
+  "newProfileChecksPerTarget": 2,
+  "newProfileCheckExecutionsPassed": 6,
+  "newProfileCheckExecutionsTotal": 6,
+  "candidateRendered": false,
+  "realMobileEvidenceCaptured": false,
+  "remoteSchemasVerified": 0,
+  "productionReadinessPassed": 3,
+  "productionReadinessTotal": 10,
+  "productionReady": false,
+  "deployed": false
+}

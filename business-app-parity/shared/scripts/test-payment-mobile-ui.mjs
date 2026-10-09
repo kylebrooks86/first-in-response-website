@@ -64,4 +64,29 @@ check('Responsive stylesheet confines table overflow and places amount/action be
  assert.equal(value(rule('.processing-report-scroll'),'overflow-x'),'auto');
  assert.equal(value(rule('.payment-history>article>div'),'overflow-wrap'),'anywhere');
 });
+check('Customer-profile payment rows explicitly separate amount and retain refund callbacks',()=>{
+ const customer=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='CustomersView');
+ const articles=[];function walk(node){if(ts.isJsxElement(node)&&node.openingElement.tagName.getText(ast)==='article'&&node.openingElement.attributes.properties.some(a=>a.name?.text==='className'&&a.initializer?.text==='customer-record customer-payment-record'))articles.push(node);ts.forEachChild(node,walk);}walk(customer);
+ assert.equal(articles.length,1);
+ const row=articles[0].getText(ast);
+ assert.match(row,/<strong className="customer-payment-amount">\{money\(payment.amountCents\)\}<\/strong>/);
+ assert.match(row,/<RefundPayment payment=\{payment\} onRefunded=\{\(\)=>void load\(\)\}\/>/);
+ assert.match(row,/<ProcessingDetails payment=\{payment\}\/>/);
+ assert.match(row,/Copy full payment reference/);
+});
+check('Customer-profile payment layout wraps details and provides a full-row 44px refund control',()=>{
+ const rules=[];postcss.parse(readFileSync('app/globals.css','utf8')).walkRules(r=>rules.push(r));
+ const rule=(selector,mobile=false)=>rules.findLast(r=>r.selector===selector&&(r.parent.type==='atrule')===mobile);
+ const value=(r,key)=>r?.nodes.find(n=>n.prop===key)?.value;
+ assert.equal(value(rule('.customer-record.customer-payment-record'),'display'),'grid');
+ assert.equal(value(rule('.customer-record.customer-payment-record'),'grid-template-columns'),'minmax(0,1fr) auto');
+ assert.equal(value(rule('.customer-payment-record>div'),'min-width'),'0');
+ assert.equal(value(rule('.customer-payment-record>div'),'overflow-wrap'),'anywhere');
+ assert.equal(value(rule('.customer-payment-amount'),'white-space'),'nowrap');
+ assert.equal(value(rule('.customer-payment-record>.payment-refund-action'),'grid-column'),'1 / -1');
+ assert.equal(value(rule('.customer-payment-record>.payment-refund-action'),'min-height'),'44px');
+ assert.equal(value(rule('.customer-record.customer-payment-record',true),'grid-template-columns'),'minmax(0,1fr)');
+ assert.equal(value(rule('.customer-payment-amount',true),'grid-row'),'2');
+ assert.equal(value(rule('.customer-payment-record>.payment-refund-action',true),'grid-row'),'3');
+});
 console.log(`PASS: ${cases}/${cases} component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.`);
