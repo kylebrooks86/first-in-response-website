@@ -37,11 +37,20 @@ try {
  db.exec("UPDATE payment_refunds SET amount_cents=50,status='succeeded' WHERE id='synthetic-refund'");
  report=inspectCandidatePreflight(db,root);equal(report.ledgerChecks[1].anomalyCount,0);equal(report.ledgerChecks[2].anomalyCount,1);equal(report.candidatePreflightClear,false);
  db.exec("INSERT INTO payments(id,estimate_id,type,amount_cents,status,provider_id,created_at) VALUES('synthetic-refund-ledger','synthetic-estimate','Refund',-50,'paid','refund:synthetic-a:synthetic-refund','now')");equal(inspectCandidatePreflight(db,root).ledgerChecks[2].anomalyCount,0);equal(inspectCandidatePreflight(db,root).candidatePreflightClear,true);
+ // Multiple valid partial requests must also be safe in aggregate.
+ equal(report.ledgerChecks.length,4);equal(report.ledgerChecks[3].name,'overReservedRefundPayments');
+ db.exec("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,created_at) VALUES('synthetic-partial','synthetic-a','synthetic-estimate',60,'original','pending','now')");
+ report=inspectCandidatePreflight(db,root);equal(report.ledgerChecks[1].anomalyCount,0);equal(report.ledgerChecks[2].anomalyCount,0);equal(report.ledgerChecks[3].anomalyCount,1);equal(report.candidatePreflightClear,false);
+ for(const status of ['failed','canceled']){db.prepare("UPDATE payment_refunds SET status=? WHERE id='synthetic-partial'").run(status);report=inspectCandidatePreflight(db,root);equal(report.ledgerChecks[3].anomalyCount,0);equal(report.candidatePreflightClear,true);}
+ db.exec("UPDATE payment_refunds SET amount_cents=50,status='pending' WHERE id='synthetic-partial'");report=inspectCandidatePreflight(db,root);equal(report.ledgerChecks[3].anomalyCount,0);equal(report.candidatePreflightClear,true);
+ db.exec("UPDATE payment_refunds SET amount_cents=60,status='succeeded' WHERE id='synthetic-partial'; INSERT INTO payments(id,estimate_id,type,amount_cents,status,provider_id,created_at) VALUES('synthetic-partial-ledger','synthetic-estimate','Refund',-60,'paid','refund:synthetic-a:synthetic-partial','now')");report=inspectCandidatePreflight(db,root);equal(report.ledgerChecks[2].anomalyCount,0);equal(report.ledgerChecks[3].anomalyCount,1);equal(report.candidatePreflightClear,false);
+ const reservedBefore=readFileSync(filename),reservedRun=spawnSync(process.execPath,[join(root,'scripts/audit-local-schema.mjs'),filename,root],{encoding:'utf8'});equal(reservedRun.status,1);equal(JSON.parse(reservedRun.stdout).ledgerChecks[3].anomalyCount,1);assert.deepEqual(readFileSync(filename),reservedBefore);checks++;
+ db.exec("UPDATE payment_refunds SET amount_cents=50 WHERE id='synthetic-partial'; UPDATE payments SET amount_cents=-50 WHERE id='synthetic-partial-ledger'");equal(inspectCandidatePreflight(db,root).candidatePreflightClear,true);
  const cleanBefore=readFileSync(filename);const cleanRun=spawnSync(process.execPath,[join(root,'scripts/audit-local-schema.mjs'),filename,root],{encoding:'utf8'});
  equal(cleanRun.status,0);equal(JSON.parse(cleanRun.stdout).productionReady,false);assert.deepEqual(readFileSync(filename),cleanBefore);checks++;
  db.exec('DROP TABLE payment_refunds;');report=inspectCandidatePreflight(db,root);equal(report.ledgerChecks[1].status,'unavailable');equal(report.candidatePreflightClear,false);
  db.close();const before=readFileSync(filename);
  const run=spawnSync(process.execPath,[join(root,'scripts/audit-local-schema.mjs'),filename,root],{encoding:'utf8'});
  equal(run.status,1);equal(JSON.parse(run.stdout).remoteVerified,false);assert.deepEqual(readFileSync(filename),before);checks++;
- console.log(`PASS ${checks}/${checks}: auth table types/nullability/key, journal uncertainty/duplicates, provider collision counts, missing ledger tables and byte-for-byte read-only CLI; ${files.length} disposable target migrations.`);
+ console.log(`PASS ${checks}/${checks}: auth table types/nullability/key, journal uncertainty/duplicates, provider collisions, cumulative pending/succeeded refund reservations, failed/canceled release, exact boundary, missing ledger tables and byte-for-byte read-only CLI; ${files.length} disposable target migrations.`);
 } finally {try{db.close();}catch{}rmSync(temp,{recursive:true,force:true});}

@@ -168,5 +168,11 @@
     "live": "8b431b3145fddcc523ae9cf3cef3c8582feb7b67",
     "doomsday": "a44aac665e6af6170c743125198376c6a98feea0",
     "staging": "7786b45ddb34e8e847a685a3e5d93466341bbb46"
-  }
+  },
+  "releasePreflightCandidateCommits": {
+    "live": "2cf28b3ee8b73805a704a4a88bfa60647c78f830",
+    "doomsday": "d2708541c27df832b22ce2525d0c23658f694dcc",
+    "staging": "a959578358752e80b34590eaf1a9e2f4410b42e8"
+  },
+  "releasePreflightCandidateEvidence": "RELEASE_BLOCKER_CHECKPOINT_EVIDENCE.json"
 }

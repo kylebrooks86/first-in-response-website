@@ -51,7 +51,7 @@ export function inspectCandidatePreflight(db, root) {
   }
   // The login UPSERT targets key alone, so a composite primary key is incompatible.
   if(authColumns.filter(column=>column.pk>0).length!==1&&!invalidAuthColumns.includes('key'))invalidAuthColumns.push('key');
-  const names=['providerCollisions','invalidRefundLinks','invalidSucceededRefundLedgers'];
+  const names=['providerCollisions','invalidRefundLinks','invalidSucceededRefundLedgers','overReservedRefundPayments'];
   const statements=readFileSync(resolve(root,'scripts/stripe-ledger-preflight.sql'),'utf8')
     .replace(/--[^\n]*/g,'').split(';').map(value=>value.trim()).filter(Boolean);
   if(statements.length!==names.length||statements.some(sql=>!/^SELECT\s/i.test(sql)))throw Error('Unexpected read-only ledger preflight query set.');

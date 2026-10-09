@@ -113,9 +113,11 @@
     }
   ],
   "asOf": "2026-10-09",
-  "metadataCapturedAt": "2026-10-09T08:59:38.570Z",
-  "latestDevelopmentCommit": "5f5c48ef4c0f7c77d1f88fae5cbec8314cd80f83",
+  "metadataCapturedAt": "2026-10-09T17:18:49.374Z",
+  "latestDevelopmentCommit": "fd0acba588e7d6f9cff4fdac64461c0355c580a1",
   "candidatePublished": false,
   "nativeMetadataScope": "Native site metadata identifies the saved source and successful latest publish attempt for that version; a runtime build/routing identity seal is not established. Table names are complete within the returned projection, but types, constraints, indexes, journals and independent D1 resource IDs/isolation are unavailable.",
-  "latestIndependentEvidenceAsOf": "2026-10-09"
+  "latestIndependentEvidenceAsOf": "2026-10-09",
+  "latestDevelopmentCommitScope": "Verified app checkpoint before this release-tooling-only batch",
+  "latestReadOnlyCheckpointEvidence": "RELEASE_BLOCKER_CHECKPOINT_EVIDENCE.json"
 }
