@@ -842,5 +842,60 @@
     "deployed": false,
     "realMobileEvidenceCaptured": false,
     "changedStylesSha256": "c88671700c262cad755e75c0745b10603002c44731d5ae8ced4dbf02b0feb7fb"
+  },
+  "paymentLoadErrorsBatch": {
+    "parent": "0da9627eac38c2c1414161ec0f930b09f02c0894",
+    "asOf": "2026-10-09",
+    "scope": "FIRE Business App isolated candidates only",
+    "candidateSnapshotCommits": {
+      "live": "489260547da1024b76e2df3d01d8ac7900deca6d",
+      "doomsday": "c77514ed8c48e796f750f7fc9998dc086db4e5e0",
+      "staging": "4a319ec4087dc8d31fd65a0a67e286aff4de0a8a"
+    },
+    "candidatePaths": {
+      "live": "/workspace/scratch/a307f8c9f987/payment-load-live",
+      "doomsday": "/workspace/scratch/a307f8c9f987/payment-load-doomsday",
+      "staging": "/workspace/scratch/a307f8c9f987/payment-load-staging"
+    },
+    "newChecksPerTarget": 275,
+    "newChecksPassed": 825,
+    "newChecksTotal": 825,
+    "suiteRunsPassed": 12,
+    "suiteRunsTotal": 12,
+    "suiteNames": [
+      "test-payment-load-errors.mjs",
+      "test-payment-received-status.mjs",
+      "test-payment-mobile-ui.mjs",
+      "test-public-tip-layout.mjs"
+    ],
+    "negativeControlPriorComponentRejected": true,
+    "typescriptTargetsPassed": 3,
+    "typescriptTargetsTotal": 3,
+    "buildTargetsPassed": 3,
+    "buildTargetsTotal": 3,
+    "sharedFilesMatched": 119,
+    "sharedFilesChecked": 119,
+    "formalParityPassed": 0,
+    "formalParityRequired": 32,
+    "completeRemoteSchemasVerified": 0,
+    "completeRemoteSchemasRequired": 3,
+    "productionReadinessPassed": 3,
+    "productionReadinessRequired": 10,
+    "productionReady": false,
+    "deployed": false,
+    "realMobileEvidenceCaptured": false,
+    "remoteDatabaseWrites": false,
+    "stripeMutations": false,
+    "changedFilesSha256": {
+      "shared/app/dashboard.tsx": "67283f477f672e73a70d9ec8a19c625c95598ebb1e830f620bf1cc053f631767",
+      "shared/scripts/test-payment-load-errors.mjs": "b22e035b77bbb70c3bdbb0ffba55c248984a49bf681a0aadfa0a9f2863ae6489"
+    },
+    "behavior": [
+      "Payments checks both HTTP response statuses and requires both collections before replacing records.",
+      "Caught network/JSON/server failures display an accessible error with Retry.",
+      "Financial metrics, fee report and record/refund controls are hidden while loading or after a failed read; valid empty responses still show zero/empty state.",
+      "Existing state is preserved on failed refresh; retry calls both GET endpoints and recovers. Financial calculations and write handlers unchanged."
+    ],
+    "testLimits": "Actual Payments component/hooks/effect/retry handler with mocked GET responses; existing payment-status suite uses synthetic SQLite. No hosted/mobile/Stripe integration evidence."
   }
 }

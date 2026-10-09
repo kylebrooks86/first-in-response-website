@@ -92,5 +92,10 @@
     "live": "a4d56971ce8776cae90b5cb2a7078ad07723fa57",
     "doomsday": "b48adf3496f194099906f911831c9efdbb24cf37",
     "staging": "036503b02dbe1f8f6b7ec2f51771f0947595e2d2"
+  },
+  "paymentLoadErrorsCandidateCommits": {
+    "live": "489260547da1024b76e2df3d01d8ac7900deca6d",
+    "doomsday": "c77514ed8c48e796f750f7fc9998dc086db4e5e0",
+    "staging": "4a319ec4087dc8d31fd65a0a67e286aff4de0a8a"
   }
 }
