@@ -158,7 +158,7 @@ try{
   for(const [name,mutate] of invalidFixtures){
     await check(`backup rejects ${name} without writes`,async()=>{
       const backup=await p.evaluate(()=>store.exportSnapshot());const bad=mutate(structuredClone(backup));
-      const result=await p.evaluate(async bad=>{const before=await store.exportSnapshot();let rejected=false;try{api.validateLocalCustomerExport(bad,store.namespace);}catch{rejected=true;}return {rejected,unchanged:JSON.stringify(await store.exportSnapshot())===JSON.stringify(before)};},bad);assert.deepEqual(result,{rejected:true,unchanged:true});
+      const result=await p.evaluate(async bad=>{const before=await store.exportSnapshot();let rejected=false;try{await store.restoreSnapshot(bad);}catch{rejected=true;}return {rejected,unchanged:JSON.stringify(await store.exportSnapshot())===JSON.stringify(before)};},bad);assert.deepEqual(result,{rejected:true,unchanged:true});
     });
   }
   await check('empty same-namespace backup is valid but has no restoration side effects',async()=>{
@@ -166,6 +166,65 @@ try{
   });
   await check('invalid read ID rejects before touching native records',async()=>{
     assert.equal(await p.evaluate(()=>{try{store.getCustomer('bad:id');return false;}catch{return true;}}),true);
+  });
+  // Recovery fixtures remain synthetic and customer-only; no UI activation.
+  await p.evaluate(()=>{
+    window.importFixture=(prefix='restore')=>{
+      const customers=['a','b'].map(letter=>({...customer,id:`${prefix}-${letter}`,revision:1,updatedAt:'2026-10-09T00:00:00.000Z'}));
+      return {format:'fire-local-customers',version:1,namespace:store.namespace,customers,pendingOperations:customers.map(row=>{
+        const {revision,updatedAt,...input}=row;return {id:`${row.id}-op`,kind:'customer-upsert',expectedRevision:0,customer:row,input};
+      })};
+    };
+  });
+  await check('native abort after first import write rolls back the entire import',async()=>{
+    const result=await p.evaluate(async()=>{const before=await store.exportSnapshot();const original=IDBObjectStore.prototype.add;let writes=0;
+      IDBObjectStore.prototype.add=function(...args){const req=original.apply(this,args);if(this.name==='customers' && ++writes===1)req.addEventListener('success',()=>req.transaction.abort());return req;};
+      let rejected=false;try{await store.restoreSnapshot(importFixture());}catch{rejected=true;}finally{IDBObjectStore.prototype.add=original;}
+      return {rejected,unchanged:JSON.stringify(await store.exportSnapshot())===JSON.stringify(before)};
+    });assert.deepEqual(result,{rejected:true,unchanged:true});
+  });
+  await check('quota fault during operation import rolls back customer additions',async()=>{
+    const result=await p.evaluate(async()=>{const before=await store.exportSnapshot();const original=IDBObjectStore.prototype.add;
+      IDBObjectStore.prototype.add=function(...args){if(this.name==='operations')throw new DOMException('Synthetic import quota','QuotaExceededError');return original.apply(this,args);};
+      let error;try{await store.restoreSnapshot(importFixture());}catch(e){error=e.name;}finally{IDBObjectStore.prototype.add=original;}
+      return {error,unchanged:JSON.stringify(await store.exportSnapshot())===JSON.stringify(before)};
+    });assert.deepEqual(result,{error:'QuotaExceededError',unchanged:true});
+  });
+  await check('offline retry restores all records and receipts while preserving existing records',async()=>{
+    await context.setOffline(true);
+    const result=await p.evaluate(async()=>{const before=await store.exportSnapshot();const restored=await store.restoreSnapshot(importFixture());const after=api.validateLocalCustomerExport(await store.exportSnapshot(),store.namespace);return {restored,count:after.customers.length,unchanged:before.customers.every(row=>JSON.stringify(after.customers.find(c=>c.id===row.id))===JSON.stringify(row)),operations:after.pendingOperations.length};});
+    await context.setOffline(false);assert.deepEqual(result,{restored:{insertedCustomers:2,insertedOperations:2},count:5,unchanged:true,operations:7});
+  });
+  await check('repeated import is an exact no-op',async()=>{
+    const result=await p.evaluate(async()=>{const before=await store.exportSnapshot();const counts=await store.restoreSnapshot(importFixture());return {counts,unchanged:JSON.stringify(await store.exportSnapshot())===JSON.stringify(before)};});assert.deepEqual(result,{counts:{insertedCustomers:0,insertedOperations:0},unchanged:true});
+  });
+  await check('empty import preserves existing records',async()=>{
+    assert.deepEqual(await p.evaluate(()=>store.restoreSnapshot({format:'fire-local-customers',version:1,namespace:store.namespace,customers:[],pendingOperations:[]})),{insertedCustomers:0,insertedOperations:0});assert.equal(await p.evaluate(async()=>(await store.listCustomers()).length),5);
+  });
+  await check('valid conflicting customer prevents even unrelated new additions',async()=>{
+    const result=await p.evaluate(async()=>{const before=await store.exportSnapshot();const archive=importFixture('conflict');const old=structuredClone(before.customers.find(c=>c.id==='restore-a'));old.name='Conflicting';const {revision,updatedAt,...input}=old;archive.customers.push(old);archive.pendingOperations.push({id:'conflicting-op',kind:'customer-upsert',expectedRevision:0,customer:old,input});let rejected=false;try{await store.restoreSnapshot(archive);}catch{rejected=true;}return {rejected,unchanged:JSON.stringify(await store.exportSnapshot())===JSON.stringify(before)};});assert.deepEqual(result,{rejected:true,unchanged:true});
+  });
+  await check('operation ID collision prevents the entire valid import',async()=>{
+    const result=await p.evaluate(async()=>{const before=await store.exportSnapshot();const archive=importFixture('collision');archive.pendingOperations[0].id='create';let rejected=false;try{await store.restoreSnapshot(archive);}catch{rejected=true;}return {rejected,unchanged:JSON.stringify(await store.exportSnapshot())===JSON.stringify(before)};});assert.deepEqual(result,{rejected:true,unchanged:true});
+  });
+  await check('duplicate revision under a new operation ID fails closed',async()=>{
+    const result=await p.evaluate(async()=>{const before=await store.exportSnapshot();const archive=importFixture();archive.pendingOperations[0].id='renamed-receipt';let rejected=false;try{await store.restoreSnapshot(archive);}catch{rejected=true;}return {rejected,unchanged:JSON.stringify(await store.exportSnapshot())===JSON.stringify(before)};});assert.deepEqual(result,{rejected:true,unchanged:true});
+  });
+  await check('caller mutation cannot change scheduled restoration',async()=>{
+    const result=await p.evaluate(async()=>{const archive=importFixture('detached-import');const promise=store.restoreSnapshot(archive);archive.customers[0].name='Mutated';archive.pendingOperations.length=0;await promise;return (await store.getCustomer('detached-import-a')).name;});assert.equal(result,'Synthetic Customer');
+  });
+  const recoveryTab=await page();
+  await check('two tabs serialize repeated restore with only one insertion',async()=>{
+    const archive=await p.evaluate(()=>importFixture('parallel-import'));
+    const results=await Promise.all([p,recoveryTab].map(tab=>tab.evaluate(archive=>store.restoreSnapshot(archive),archive)));
+    assert.deepEqual(results.map(r=>r.insertedCustomers).sort(),[0,2]);assert.deepEqual(results.map(r=>r.insertedOperations).sort(),[0,2]);
+  });
+  await check('newer edits are not rewound by old backup',async()=>{
+    const result=await p.evaluate(async()=>{const archive=importFixture();const {revision,updatedAt,...input}=await store.getCustomer('restore-a');await store.save({...input,name:'Newer retained'},'post-restore-edit',revision);const before=await store.exportSnapshot();let rejected=false;try{await store.restoreSnapshot(archive);}catch{rejected=true;}return {rejected,unchanged:JSON.stringify(await store.exportSnapshot())===JSON.stringify(before)};});assert.deepEqual(result,{rejected:true,unchanged:true});
+  });
+  await recoveryTab.close();
+  await check('restore into empty same-namespace database recovers full revision history',async()=>{
+    const result=await p.evaluate(async()=>{const source=await api.openLocalCustomerStore('synthetic-recovery','target');await source.save(customer,'recover-create',0);await source.save({...customer,name:'Recovered revision'},'recover-edit',1);const archive=await source.exportSnapshot();source.close();await new Promise((resolve,reject)=>{const req=indexedDB.deleteDatabase(archive.namespace);req.onsuccess=resolve;req.onerror=()=>reject(req.error);});const target=await api.openLocalCustomerStore('synthetic-recovery','target');const counts=await target.restoreSnapshot(archive);const restored=await target.getCustomer(customer.id);const history=await target.exportSnapshot();target.close();return {counts,revision:restored.revision,name:restored.name,operations:history.pendingOperations.length};});assert.deepEqual(result,{counts:{insertedCustomers:1,insertedOperations:2},revision:2,name:'Recovered revision',operations:2});
   });
   await check('malformed native row fails closed during retrieval',async()=>{
     const result=await p.evaluate(async()=>{

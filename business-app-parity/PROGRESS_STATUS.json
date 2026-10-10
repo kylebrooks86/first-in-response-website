@@ -3678,5 +3678,32 @@
       "percent": 30,
       "ready": false
     }
+  },
+  "localCustomerAtomicRestoreBatch": {
+    "parent": "5aa9f4545b256cdaf435d69cae9ccad56ead0982",
+    "status": "VERIFIED_DEVELOPMENT_ONLY",
+    "evidence": "LOCAL_CUSTOMER_ATOMIC_RESTORE_EVIDENCE.json",
+    "handoff": "LOCAL_CUSTOMER_ATOMIC_RESTORE_HANDOFF.md",
+    "nativeBrowserChecks": {
+      "passed": 204,
+      "total": 204
+    },
+    "typechecks": {
+      "passed": 3,
+      "total": 3
+    },
+    "builds": {
+      "passed": 3,
+      "total": 3
+    },
+    "sharedSourceFiles": 120,
+    "syntheticAtomicRestoreImplemented": true,
+    "realRecordsActivated": false,
+    "productionReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30,
+      "ready": false
+    }
   }
 }

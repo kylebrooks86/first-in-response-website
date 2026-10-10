@@ -205,6 +205,48 @@ export async function openLocalCustomerStore(
         };
       });
     },
+    /** Inactive customer-only recovery: add missing records, never replace existing data. */
+    restoreSnapshot(value: unknown): Promise<{ insertedCustomers: number; insertedOperations: number }> {
+      // Validate and detach before scheduling work; caller mutations cannot change this import.
+      const incoming = validateLocalCustomerExport(value, namespace);
+      return new Promise((resolve, reject) => {
+        let failure: unknown;
+        let result: { insertedCustomers: number; insertedOperations: number } | undefined;
+        const tx = db.transaction(["customers", "operations"], "readwrite");
+        tx.onabort = () => reject(failure ?? tx.error ?? new Error("Local restore aborted; no import changes committed."));
+        tx.oncomplete = () => result ? resolve(result) : reject(new Error("Local restore produced no committed result."));
+        const records = tx.objectStore("customers"), operations = tx.objectStore("operations");
+        const customerRead = records.getAll(), operationRead = operations.getAll();
+        let reads = 0;
+        const merge = () => {
+          if (++reads !== 2) return;
+          try {
+            // Read, conflict-check and write inside the same transaction, including other tabs.
+            const current = validateLocalCustomerExport({ format: "fire-local-customers", version: 1, namespace,
+              customers: customerRead.result, pendingOperations: operationRead.result }, namespace);
+            const customers = new Map(current.customers.map(row => [row.id, row]));
+            const receipts = new Map(current.pendingOperations.map(op => [op.id, op]));
+            const newCustomers: LocalCustomer[] = [], newOperations: LocalCustomerOperation[] = [];
+            for (const row of incoming.customers) {
+              const old = customers.get(row.id);
+              if (old && JSON.stringify(old) !== JSON.stringify(row)) throw new Error("Restore customer conflict; existing records preserved.");
+              if (!old) { customers.set(row.id, row); newCustomers.push(row); }
+            }
+            for (const op of incoming.pendingOperations) {
+              const old = receipts.get(op.id);
+              if (old && JSON.stringify(old) !== JSON.stringify(op)) throw new Error("Restore operation conflict; existing records preserved.");
+              if (!old) { receipts.set(op.id, op); newOperations.push(op); }
+            }
+            // Different operation IDs for an existing revision are conflicts too.
+            validateLocalCustomerExport({ ...incoming, customers: [...customers.values()], pendingOperations: [...receipts.values()] }, namespace);
+            for (const row of newCustomers) records.add(row);
+            for (const op of newOperations) operations.add(op);
+            result = { insertedCustomers: newCustomers.length, insertedOperations: newOperations.length };
+          } catch (error) { failure = error; tx.abort(); }
+        };
+        customerRead.onsuccess = merge; operationRead.onsuccess = merge;
+      });
+    },
     exportSnapshot(): Promise<LocalCustomerExport> {
       return new Promise((resolve, reject) => {
         const tx = db.transaction(["customers", "operations"], "readonly");

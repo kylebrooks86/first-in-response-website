@@ -1,0 +1,143 @@
+{
+  "parent": "5aa9f4545b256cdaf435d69cae9ccad56ead0982",
+  "scope": "Inactive synthetic customer-only atomic restore; no UI activation",
+  "method": "restoreSnapshot(unknown)",
+  "policy": "Validate/detach incoming backup before transaction. Read and validate current records/history, reject all changed customer/operation IDs and duplicate revisions, validate merged history, then add missing records in a single native readwrite transaction. Never overwrite or delete. Resolve only on transaction completion.",
+  "targets": {
+    "live": {
+      "exitCode": 0,
+      "result": {
+        "passed": 68,
+        "total": 68,
+        "browser": "153.0.8010.0",
+        "realIndexedDB": true,
+        "syntheticOnly": true,
+        "quotaFaultInjected": true,
+        "physicalQuotaExhaustionTested": false,
+        "appOfflineColdLaunchTested": false,
+        "iPhoneTested": false
+      },
+      "browserLogSha256": "b6fd8e95be759b33dc65f617e76b76f52e188f84fdce1616772eaf73a72e6251",
+      "buildLogSha256": "5b8c90033176d6d8a85538168bd8df0839b99340c6c2af7b86bdab555ab13958"
+    },
+    "staging": {
+      "exitCode": 0,
+      "result": {
+        "passed": 68,
+        "total": 68,
+        "browser": "153.0.8010.0",
+        "realIndexedDB": true,
+        "syntheticOnly": true,
+        "quotaFaultInjected": true,
+        "physicalQuotaExhaustionTested": false,
+        "appOfflineColdLaunchTested": false,
+        "iPhoneTested": false
+      },
+      "browserLogSha256": "b6fd8e95be759b33dc65f617e76b76f52e188f84fdce1616772eaf73a72e6251",
+      "buildLogSha256": "aa0ed3dd8d6a01e2343fff3a820b42b3ffa51d851c133a1cf81183916e4f832f"
+    },
+    "doomsday": {
+      "exitCode": 0,
+      "result": {
+        "passed": 68,
+        "total": 68,
+        "browser": "153.0.8010.0",
+        "realIndexedDB": true,
+        "syntheticOnly": true,
+        "quotaFaultInjected": true,
+        "physicalQuotaExhaustionTested": false,
+        "appOfflineColdLaunchTested": false,
+        "iPhoneTested": false
+      },
+      "browserLogSha256": "b6fd8e95be759b33dc65f617e76b76f52e188f84fdce1616772eaf73a72e6251",
+      "buildLogSha256": "7d8e4cbe20ede857d4b525d86a45a21189a0ee2d1f727c74c58e05b5e0913b18"
+    }
+  },
+  "checksPassed": 204,
+  "checksTotal": 204,
+  "newRestoreChecksPerTarget": 12,
+  "invalidBackupFixturesPerTarget": 31,
+  "invalidFixturesNowExerciseRestore": true,
+  "typechecks": {
+    "passed": 3,
+    "total": 3
+  },
+  "builds": {
+    "passed": 3,
+    "total": 3
+  },
+  "sharedSourceParity": {
+    "sharedFilesChecked": 120,
+    "roots": [
+      "/workspace/scratch/a307f8c9f987/offline-browser-live",
+      "/workspace/scratch/a307f8c9f987/offline-browser-staging",
+      "/workspace/scratch/a307f8c9f987/customer-restore-doomsday"
+    ],
+    "adaptersRequiringSeparateVerification": [
+      "app/page.tsx",
+      "app/layout.tsx",
+      "app/chatgpt-auth.ts",
+      "app/owner-auth.ts",
+      "app/login/page.tsx",
+      "app/api/auth/login/route.ts",
+      "app/api/auth/logout/route.ts",
+      "app/api/app-version/route.ts",
+      "app/api/staging-fixtures/route.ts"
+    ],
+    "differences": [],
+    "sharedSourceParity": true,
+    "productionReady": false
+  },
+  "standaloneStrictModuleTypecheck": "PASS",
+  "doomsdayLocalBuildProvenance": "PASS",
+  "wranglerConfigSha256": "35dacb782376f920b2a8fe64a17bc030e6b78d7b96b1589d16e462e068bb4419",
+  "negativeControl": {
+    "mutation": "Scratch-only resolve restore before transaction complete",
+    "exitCode": 1,
+    "detectedBy": "Native abort after first import write must reject restoration",
+    "logSha256": "af6c0574099ee248c825bd5f19936602c0ce65b7413e5e7210c4463c73765a11"
+  },
+  "failures": [],
+  "faultInjection": [
+    "Native transaction abort after first customer add succeeds",
+    "Synchronous injected QuotaExceededError during operations.add; not physical quota exhaustion"
+  ],
+  "verified": [
+    "offline restoration into synthetic native IndexedDB",
+    "invalid imports leave existing data byte-for-byte unchanged",
+    "interrupted imports roll back both customer and operation stores",
+    "retry after failure restores all records atomically",
+    "exact repeat and empty import are no-ops",
+    "customer conflicts, operation collisions and duplicate revision receipts reject whole import",
+    "caller mutations do not alter scheduled import",
+    "two tabs serialize exact repeated imports with one insertion",
+    "newer edits are not rewound",
+    "same-namespace empty synthetic database recovers full revision history"
+  ],
+  "limitations": [
+    "Restore rejects even valid older/different snapshots for existing IDs; no force overwrite or conflict UI",
+    "V1 needs complete local operation history; no pruning or financial synchronization",
+    "No physical disk quota exhaustion, process crash/power-loss or eviction recovery tested",
+    "No Safari/iPhone or installed Home Screen offline cold launch verified",
+    "No local unlock/encryption or real-record activation",
+    "No estimates/invoices/photos recovery; customer-only format",
+    "Whole-screen scrolling shake unresolved; navigation reset remains undeployed"
+  ],
+  "uiActivated": false,
+  "realBusinessRecordsUsed": false,
+  "deployed": false,
+  "remoteDatabaseWrites": false,
+  "migrations": false,
+  "stripeCalls": false,
+  "paidOperations": false,
+  "productionReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30,
+    "ready": false
+  },
+  "changedFilesSha256": {
+    "shared/lib/local-customer-store.ts": "5bcbda94c8c08f384e726ffba91d83cece9167885a51df132f50328ffea3ee0c",
+    "shared/scripts/test-local-customer-store-browser.mjs": "2b9282a8cb9f88a62fc7ff0581c5574889ea1c5ea74168780f8a136c12d66fc8"
+  }
+}
