@@ -152,6 +152,67 @@ try {
     const result=await p.evaluate(async()=>{const s=await vault.unlock(phrase);const rows=s.listCustomers();return {count:rows.length,revision:s.getCustomer(customer.id).revision,operations:s.exportSnapshot().pendingOperations.length};});assert.deepEqual(result,{count:3,revision:4,operations:6});
   });
   await context.setOffline(false);
+  const peer=await page();
+  for(const tab of [p,peer])await tab.evaluate(async()=>{
+    window.vault.close();window.vault=await vaultApi.openLocalCustomerVault('lock-owner','lock-target');
+    window.lockArchive={...archive,namespace:api.localCustomerDatabaseName('lock-owner','lock-target')};
+    try{await vault.initialize(lockArchive,phrase);}catch{}
+    window.lockSession=await vault.unlock(phrase);
+  });
+  await check('cross-tab vault lock revokes all peer reads and writes',async()=>{
+    const before=await peer.evaluate(async()=>JSON.stringify(await rawVault()));await p.evaluate(()=>vault.lock());
+    await peer.waitForFunction(()=>{try{lockSession.listCustomers();return false;}catch{return true;}});
+    assert.equal(await peer.evaluate(async()=>{let blocked=0;for(const read of [()=>lockSession.getCustomer(customer.id),()=>lockSession.listCustomers(),()=>lockSession.exportSnapshot()])try{read();}catch{blocked++;}try{await lockSession.saveCustomer(customer,'revoked-write',1,phrase);}catch{blocked++;}return blocked;}),4);
+    assert.equal(await peer.evaluate(async()=>JSON.stringify(await rawVault())),before);
+  });
+  await check('token check blocks reads before any queued lock notification',async()=>{
+    assert.equal(await peer.evaluate(async()=>{window.lockSession=await vault.unlock(phrase);localStorage.setItem(vault.namespace+':lock',crypto.randomUUID());try{lockSession.listCustomers();return false;}catch{return true;}}),true);
+  });
+  await check('cross-tab session lock is scoped to its account and target',async()=>{
+    assert.equal(await peer.evaluate(async()=>{const isolated=await vaultApi.openLocalCustomerVault('unrelated-owner','lock-target');const data={...archive,namespace:api.localCustomerDatabaseName('unrelated-owner','lock-target')};await isolated.initialize(data,phrase);window.unrelated=isolated;window.unrelatedSession=await isolated.unlock(phrase);window.lockSession=await vault.unlock(phrase);lockSession.lock();return unrelatedSession.getCustomer(customer.id).revision;}),1);
+    await p.evaluate(async()=>{window.lockSession=await vault.unlock(phrase);});await peer.evaluate(()=>lockSession.lock());
+    await p.waitForFunction(()=>{try{lockSession.listCustomers();return false;}catch{return true;}});
+  });
+  await check('remote lock prevents late unlock during native key derivation',async()=>{
+    await peer.evaluate(()=>{const original=SubtleCrypto.prototype.deriveKey;window.cryptoOriginal=original;window.started=false;window.cryptoGate=new Promise(resolve=>{window.releaseCrypto=resolve;});SubtleCrypto.prototype.deriveKey=async function(...args){window.started=true;await cryptoGate;return original.apply(this,args);};window.lateUnlock=vault.unlock(phrase).then(()=>false,()=>true);});
+    await peer.waitForFunction(()=>window.started);await p.evaluate(()=>vault.lock());
+    assert.equal(await peer.evaluate(async()=>{releaseCrypto();try{return await lateUnlock;}finally{SubtleCrypto.prototype.deriveKey=cryptoOriginal;}}),true);
+  });
+  await check('remote lock during encryption cancels replacement and preserves bytes',async()=>{
+    const before=await peer.evaluate(async()=>JSON.stringify(await rawVault()));
+    await peer.evaluate(async()=>{window.lockSession=await vault.unlock(phrase);const original=SubtleCrypto.prototype.encrypt;window.cryptoOriginal=original;window.started=false;window.cryptoGate=new Promise(resolve=>{window.releaseCrypto=resolve;});SubtleCrypto.prototype.encrypt=async function(...args){window.started=true;await cryptoGate;return original.apply(this,args);};window.lateSave=lockSession.saveCustomer({...customer,name:'Remote locked'},'remote-encrypt',1,phrase).then(()=>false,()=>true);});
+    await peer.waitForFunction(()=>window.started);await p.evaluate(()=>vault.lock());
+    assert.equal(await peer.evaluate(async()=>{releaseCrypto();try{return await lateSave;}finally{SubtleCrypto.prototype.encrypt=cryptoOriginal;}}),true);
+    assert.equal(await peer.evaluate(async()=>JSON.stringify(await rawVault())),before);
+  });
+  await check('remote lock aborts a native pending write after put success',async()=>{
+    const before=await peer.evaluate(async()=>JSON.stringify(await rawVault()));
+    await peer.evaluate(async()=>{window.lockSession=await vault.unlock(phrase);const original=IDBObjectStore.prototype.put;window.originalPut=original;window.putReached=false;IDBObjectStore.prototype.put=function(...args){const req=original.apply(this,args);req.addEventListener('success',()=>{window.putReached=true;const keepAlive=()=>{try{const r=req.transaction.objectStore('sealed').get('snapshot');r.onsuccess=keepAlive;}catch{}};keepAlive();});return req;};window.pendingSave=lockSession.saveCustomer({...customer,name:'Pending locked'},'remote-pending',1,phrase).then(()=>false,()=>true);});
+    await peer.waitForFunction(()=>window.putReached);await p.evaluate(()=>vault.lock());
+    assert.equal(await peer.evaluate(async()=>{try{return await pendingSave;}finally{IDBObjectStore.prototype.put=originalPut;}}),true);
+    assert.equal(await peer.evaluate(async()=>JSON.stringify(await rawVault())),before);
+  });
+  await check('lock after commit rejects acknowledgment but preserves operation receipt',async()=>{
+    assert.equal(await peer.evaluate(async()=>{window.lockSession=await vault.unlock(phrase);const original=IDBDatabase.prototype.transaction;IDBDatabase.prototype.transaction=function(...args){const tx=original.apply(this,args);if(args[1]==='readwrite')tx.addEventListener('complete',()=>vault.lock(),{once:true});return tx;};let rejected=false;try{await lockSession.saveCustomer({...customer,name:'Committed before lock'},'ambiguous-edit',1,phrase);}catch{rejected=true;}finally{IDBDatabase.prototype.transaction=original;}window.recoveredSession=await vault.unlock(phrase);const receipt=recoveredSession.exportSnapshot().pendingOperations.find(op=>op.id==='ambiguous-edit');return rejected&&receipt.customer.revision===2&&recoveredSession.getCustomer(customer.id).name==='Committed before lock';}),true);
+  });
+  await check('verified ambiguous-save retry never duplicates or rewinds records',async()=>{
+    assert.equal(await peer.evaluate(async()=>{const before=JSON.stringify(await rawVault());const recovered=await recoveredSession.saveCustomer({...customer,name:'Committed before lock'},'ambiguous-edit',1,phrase);if(recovered.revision!==2||JSON.stringify(await rawVault())!==before)return false;await recoveredSession.saveCustomer({...customer,name:'Retained after recovery'},'post-recovery-edit',2,phrase);const newer=JSON.stringify(await rawVault());const old=await recoveredSession.saveCustomer({...customer,name:'Committed before lock'},'ambiguous-edit',1,phrase);const exportData=recoveredSession.exportSnapshot();return old.revision===2&&recoveredSession.getCustomer(customer.id).revision===3&&exportData.customers.length===1&&exportData.pendingOperations.length===3&&JSON.stringify(await rawVault())===newer;}),true);
+  });
+  await check('same-document handles observe session lock synchronously',async()=>{
+    assert.equal(await peer.evaluate(async()=>{const second=await vaultApi.openLocalCustomerVault('lock-owner','lock-target');const firstSession=await vault.unlock(phrase),secondSession=await second.unlock(phrase);firstSession.lock();try{secondSession.listCustomers();return false;}catch{return true;}finally{second.close();}}),true);
+  });
+  await check('delayed notification cannot revoke a newly unlocked session',async()=>{
+    assert.equal(await peer.evaluate(async()=>{window.freshSession=await vault.unlock(phrase);const c=new BroadcastChannel(vault.namespace+':lock');c.postMessage('locked');await new Promise(resolve=>setTimeout(resolve,30));c.close();return freshSession.getCustomer(customer.id).revision;}),3);
+  });
+  await check('storage coordination remains safe without BroadcastChannel',async()=>{
+    await peer.evaluate(async()=>{const original=window.BroadcastChannel;window.BroadcastChannel=class{constructor(){throw new Error('Unavailable broadcast');}};try{window.fallbackVault=await vaultApi.openLocalCustomerVault('lock-owner','lock-target');window.fallbackSession=await fallbackVault.unlock(phrase);}finally{window.BroadcastChannel=original;}});
+    await p.evaluate(()=>vault.lock());await peer.waitForFunction(()=>{try{fallbackSession.listCustomers();return false;}catch{return true;}});await peer.evaluate(()=>fallbackVault.close());
+  });
+  await check('unavailable coordination storage fails closed before vault use',async()=>{
+    assert.equal(await p.evaluate(async()=>{try{await vaultApi.openLocalCustomerVault('blocked-owner','blocked-target',indexedDB,crypto,{setItem(){throw new DOMException('Injected unavailable storage','SecurityError');}});return false;}catch{return true;}}),true);
+  });
+  await peer.evaluate(()=>{unrelated.close();vault.close();});await peer.close();
+  await p.evaluate(async()=>{vault.close();window.vault=await vaultApi.openLocalCustomerVault('synthetic-owner','synthetic-target');});
   await check('ciphertext tampering fails closed without replacing stored snapshot',async()=>{
     const result=await p.evaluate(async()=>{const db=await new Promise(resolve=>{const r=indexedDB.open(vault.namespace,1);r.onsuccess=()=>resolve(r.result);});await new Promise((resolve,reject)=>{const tx=db.transaction('sealed','readwrite');const store=tx.objectStore('sealed');const req=store.get('snapshot');req.onsuccess=()=>{const row=req.result;row.envelope.ciphertext=(row.envelope.ciphertext[0]==='0'?'1':'0')+row.envelope.ciphertext.slice(1);store.put(row);};tx.oncomplete=resolve;tx.onabort=reject;});db.close();const before=JSON.stringify(await rawVault());try{await vault.unlock(phrase);return false;}catch{return JSON.stringify(await rawVault())===before;}});assert.equal(result,true);
   });

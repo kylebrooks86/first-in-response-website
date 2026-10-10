@@ -3,10 +3,19 @@ import { localCustomerDatabaseName, validateLocalCustomerExport, type LocalCusto
 import { protectLocalCustomerBackup, recoverLocalCustomerBackup } from './local-customer-backup';
 
 export async function openLocalCustomerVault(account: string, target: string,
-  factory: IDBFactory | undefined = globalThis.indexedDB, provider: Crypto | undefined = globalThis.crypto) {
+  factory: IDBFactory | undefined = globalThis.indexedDB, provider: Crypto | undefined = globalThis.crypto,
+  coordinationStorage: Storage | undefined = globalThis.localStorage) {
   const customerNamespace = localCustomerDatabaseName(account, target);
   const namespace = customerNamespace.replace('fire-local-customers:v1:', 'fire-local-customer-vault:v1:');
   if (!factory) throw new Error('Encrypted local storage unavailable.');
+  // This contains only an opaque revocation token, never customer data or keys.
+  // Synchronous token checks close the gap before queued cross-tab events arrive.
+  const lockKey = `${namespace}:lock`;
+  if (!coordinationStorage) throw new Error('Cross-tab lock storage unavailable.');
+  const probeKey = `${lockKey}:probe:${globalThis.crypto.randomUUID()}`;
+  try { coordinationStorage.setItem(probeKey, '1'); coordinationStorage.removeItem(probeKey); }
+  catch { throw new Error('Cross-tab lock storage unavailable; preserve data.'); }
+  let observedLock = coordinationStorage.getItem(lockKey);
   const db = await new Promise<IDBDatabase>((resolve, reject) => {
     let abandoned = false;
     const request = factory.open(namespace, 1);
@@ -23,18 +32,48 @@ export async function openLocalCustomerVault(account: string, target: string,
       resolve(connection);
     };
   });
-  let generation = 0, closed = false;
+  let generation = 0, closed = false, coordinationFailed = false;
   const sessions = new Set<() => void>();
   const initializations = new Set<IDBTransaction>();
-  function lock() {
+  function revokeLocal() {
     generation++;
     for (const revoke of sessions) revoke();
     sessions.clear();
     for (const tx of initializations) { try { tx.abort(); } catch { /* Already complete; never erase committed data. */ } }
   }
-  function close() { lock(); closed = true; db.close(); }
+  function synchronizeLock() {
+    try {
+      const token = coordinationStorage!.getItem(lockKey);
+      if (token !== observedLock) { observedLock = token; revokeLocal(); }
+    } catch { coordinationFailed = true; revokeLocal(); }
+  }
+  const storageListener = (event: StorageEvent) => {
+    if (event.key === lockKey || event.key === null) synchronizeLock();
+  };
+  globalThis.addEventListener?.('storage', storageListener);
+  let channel: BroadcastChannel | undefined;
+  try {
+    channel = new BroadcastChannel(lockKey);
+    channel.onmessage = synchronizeLock;
+  } catch { /* Storage events and synchronous checks remain authoritative. */ }
+  function lock() {
+    revokeLocal();
+    try {
+      observedLock = globalThis.crypto.randomUUID();
+      coordinationStorage!.setItem(lockKey, observedLock);
+    } catch {
+      coordinationFailed = true;
+      throw new Error('Cross-tab lock failed; close other app windows before continuing.');
+    }
+    channel?.postMessage('locked');
+  }
+  function close() {
+    revokeLocal(); closed = true; db.close(); channel?.close();
+    globalThis.removeEventListener?.('storage', storageListener);
+  }
   function check(epoch: number) {
-    if (closed || epoch !== generation) throw new Error('Vault locked or closed; unlock again.');
+    synchronizeLock();
+    if (closed || coordinationFailed || epoch !== generation) throw new Error('Vault locked or closed; unlock again.');
   }
   db.onversionchange = close;
   return {
@@ -42,6 +81,7 @@ export async function openLocalCustomerVault(account: string, target: string,
     lock,
     close,
     async initialize(value: unknown, phrase: string): Promise<void> {
+      synchronizeLock();
       const epoch = generation; check(epoch);
       // Encryption/validation completes before any write transaction is opened.
       const envelope = await protectLocalCustomerBackup(value, customerNamespace, phrase, provider);
@@ -56,6 +96,7 @@ export async function openLocalCustomerVault(account: string, target: string,
       });
     },
     async unlock(phrase: string) {
+      synchronizeLock();
       const epoch = generation; check(epoch);
       const sealed = await new Promise<unknown>((resolve, reject) => {
         const tx = db.transaction('sealed', 'readonly');
@@ -82,7 +123,7 @@ export async function openLocalCustomerVault(account: string, target: string,
         return snapshot;
       }
       return {
-        lock: revoke,
+        lock,
         async saveCustomer(input: LocalCustomerInput, operationId: string, expectedRevision: number, recoveryPhrase: string): Promise<LocalCustomer> {
           const archive = structuredClone(current());
           const expectedIdentity = sealedIdentity;
