@@ -3730,5 +3730,21 @@
       "total": 10,
       "percent": 30
     }
+  },
+  "localCustomerEncryptedRecoveryBrowserBatch": {
+    "parent": "9cc28d390234e12fb1432422ddd86e963a62f3de",
+    "status": "VERIFIED_SYNTHETIC_BROWSER_ONLY",
+    "evidence": "LOCAL_CUSTOMER_ENCRYPTED_RECOVERY_BROWSER_EVIDENCE.json",
+    "handoff": "LOCAL_CUSTOMER_ENCRYPTED_RECOVERY_BROWSER_HANDOFF.md",
+    "checks": {
+      "passed": 60,
+      "total": 60
+    },
+    "realRecordsActivated": false,
+    "productionReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    }
   }
 }
