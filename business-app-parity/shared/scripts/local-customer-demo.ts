@@ -26,7 +26,11 @@ void (async () => {
       worker.addEventListener('statechange', state); state();
     });
     indicator.textContent = 'Offline shell ready on this browser. Storage can still be cleared or evicted.';
-  } catch { indicator.textContent = 'Offline shell unavailable. Keep this demo online until installation succeeds.'; }
+  } catch {
+    indicator.textContent = 'Offline shell unavailable. Keep this demo online until installation succeeds.';
+    element<HTMLElement>('recovery-message').textContent = 'Offline installation did not finish. Reconnect and retry loading this demo. Existing encrypted records are not deleted.';
+    element<HTMLElement>('recovery').hidden = false;
+  }
 })();
 const vault = await openLocalCustomerVault(account, target);
 let session: Awaited<ReturnType<typeof vault.unlock>> | undefined;

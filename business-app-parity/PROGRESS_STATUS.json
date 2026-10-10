@@ -4136,5 +4136,80 @@
       "percent": 30
     },
     "nextBatch": "Add clear missing-module recovery UI and verify initial-install failure/retry before preparing installable synthetic-only iPhone PWA packaging."
+  },
+  "localCustomerRecoveryUI": {
+    "asOf": "2026-10-10",
+    "baseCommit": "d6b62600e9e49ad7d95a55ee6b9a8cd8b96d9f24",
+    "newerRemoteCommitFound": false,
+    "scope": "Localhost synthetic customer demonstration only",
+    "changes": [
+      "HTML-owned dynamic-import bootstrap catches unavailable demo and dependency modules without relying on those modules",
+      "Customer form fieldsets and lock controls remain disabled until module initialization succeeds",
+      "Visible generic recovery alert and explicit reload button; failures hide customer data and clear phrase fields",
+      "First-install worker failure shows retry instructions while indicating offline installation is unavailable; online synthetic vault functionality remains usable"
+    ],
+    "cachePolicy": "Existing five static assets only; no API/customer-response/Stripe caching. Vault source and schema unchanged.",
+    "browserChecks": {
+      "passed": 138,
+      "total": 138,
+      "recoveryUIPerCandidate": 11,
+      "shellLifecyclePerCandidate": 11,
+      "coldLaunchPerCandidate": 11,
+      "screenRegressionPerCandidate": 13,
+      "nativeChromium": true,
+      "nativeIndexedDB": true,
+      "nativeWebCrypto": true,
+      "firstInstallFailure": "Injected second Cache.prototype.put rejection before any active worker exists",
+      "databasePreservation": "Exact native encrypted object-store snapshot comparisons across failed loads and retries",
+      "modulesRemoved": [
+        "demo.js",
+        "vault.js"
+      ],
+      "offlineColdLaunch": "Two complete browser restarts per candidate with server stopped and network disabled before navigating original URL",
+      "backgroundIdleChecks": "Simulated events/deadline; not real iPhone lifecycle"
+    },
+    "typeScript": {
+      "passed": 3,
+      "total": 3,
+      "standaloneDemoStrict": true
+    },
+    "builds": {
+      "passed": 3,
+      "total": 3
+    },
+    "sourceParity": {
+      "sharedFiles": 122,
+      "differences": 0,
+      "demoHashes": {
+        "local-customer-demo.html": "4f6c4c7aefcfcb835fe7f5f571ea401d03c78ad0771271e5d757b5dfdda3ab6b",
+        "local-customer-demo.ts": "a5b22d5ff7971d21af763788847737ac160cd43c76b35db0bab050fb2a8e5695",
+        "local-customer-demo-server.mjs": "9c47d451c34b1f5cf4673ecd03754f1925214f09d05e51ffa608c18806bfb7e7",
+        "local-customer-demo-worker.js": "b7fc1833e9916fb7cd8d54e98e1db192ee9b2e684d04ec4264fd9ac552e1ad46",
+        "test-local-customer-demo-recovery-ui-browser.mjs": "8798f7d4a790dcca54879490c8c745235852f18185b7631fa8b25ca960c50d63",
+        "test-local-customer-demo-shell-browser.mjs": "f1c52e223d25430500c89ddc96e383f8b081800458bca5c7ddb83c3692903b5c",
+        "test-local-customer-demo-cold-browser.mjs": "a2e9562f19b7fc01017aef4b4f202e576c51020289e2759249c9fd7b9ca018cc",
+        "test-local-customer-demo-browser.mjs": "c782793603d3100e7a5403e8782aae2727f4343de9c6707177f9119ece93da01"
+      }
+    },
+    "failures": [],
+    "initialRemoteLookup": "Transient GitHub read disconnect; one retry succeeded and matched the checkpoint.",
+    "limitations": [
+      "Synthetic localhost demo only; no shareable iPhone installation URL yet",
+      "iPhone Safari/Home Screen cold launch and airplane-mode use unverified",
+      "No full Business App offline shell or real customer activation",
+      "No real storage eviction/quota exhaustion, abrupt OS crash or clean-device recovery",
+      "No iPhone visual comparison or resolution of existing whole-app scroll shaking",
+      "Existing complete encrypted backup/restore suite unchanged and not rerun this batch"
+    ],
+    "productionDeployments": 0,
+    "productionDatabaseChanges": 0,
+    "stripeActions": 0,
+    "additionalSpendingUSD": 0,
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "recommendedNextBatch": "Prepare isolated synthetic-only PWA manifest/icons and local packaging plus a concrete iPhone test plan; no deployment."
   }
 }

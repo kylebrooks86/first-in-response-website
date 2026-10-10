@@ -15,7 +15,7 @@ export async function startCustomerDemo(port=0,{testRevision=''}={}){
  }
  const scope='/synthetic-customer-demo/';
  for(const [url,code] of [...modules]){modules.delete(url);modules.set(scope+url.slice(1),code.replaceAll("'/store.js'","'"+scope+"store.js'").replaceAll("'/backup.js'","'"+scope+"backup.js'").replaceAll("'/vault.js'","'"+scope+"vault.js'"));}
- const html=readFileSync(new URL('./local-customer-demo.html',import.meta.url),'utf8').replace('src="/demo.js"','src="'+scope+'demo.js"');
+ const html=readFileSync(new URL('./local-customer-demo.html',import.meta.url),'utf8');
  const template=readFileSync(new URL('./local-customer-demo-worker.js',import.meta.url),'utf8');
  const version=createHash('sha256').update(html+JSON.stringify([...modules])+template+testRevision).digest('hex').slice(0,24);
  const worker=template.replace('__CACHE_NAME__','fire-synthetic-customer-shell:'+version).replace('__ASSET_LIST__',JSON.stringify([scope,...modules.keys()]));
