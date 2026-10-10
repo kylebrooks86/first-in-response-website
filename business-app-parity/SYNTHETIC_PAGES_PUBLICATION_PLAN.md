@@ -44,11 +44,11 @@ Expected MIME: HTML text/html; modules and worker text/javascript; manifest appl
 ## Remaining approval and capability blockers
 
 - Owner has not approved publication. Exact hostname availability/account quota and remote headers/TLS remain unverified.
-- Synthetic demo has no user-facing encrypted backup export/import-verification controls. The requested backup/recovery step is BLOCKED until a separate fully tested synthetic-only UI is completed. No export/restore success may be claimed from library tests alone.
+- Synthetic encrypted download, read-only actual-file verification and atomic empty-vault recovery controls now exist and have native Chromium evidence. iPhone Files/download and recovery behavior are still UNVERIFIED; no existing vault can be overwritten.
 - iPhone standalone storage, offline restart, background locking, download/file picker, WebCrypto timing, installed-app worker upgrades and mobile rendering remain UNVERIFIED.
 - No full Business App offline claim, permanent browser durability, clean-device recovery or resolved scrolling-shake claim.
 
-Official readiness remains 3/10 (30%). Recommended next bounded batch: synthetic encrypted backup download and non-destructive file verification/recovery UI, tested offline in Chromium, before publication approval and iPhone recovery testing.
+Official readiness remains 3/10 (30%). Recommended next step: owner review and explicit approval for this exact synthetic-only destination/package; then verify account eligibility, assigned origin and hosted TLS/headers before actual iPhone testing. Stop if the destination changes or free eligibility fails.
 
 Sources reviewed 2026-10-10:
 https://developers.cloudflare.com/pages/functions/pricing/

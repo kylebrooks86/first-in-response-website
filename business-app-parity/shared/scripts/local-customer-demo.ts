@@ -1,6 +1,7 @@
 /** Local-only, fixed synthetic customer demonstration. Never imported by app routes. */
 import { openLocalCustomerVault } from '../lib/local-customer-vault';
-import { localCustomerDatabaseName, type LocalCustomerInput } from '../lib/local-customer-store';
+import { protectLocalCustomerBackup, recoverLocalCustomerBackup } from '../lib/local-customer-backup';
+import { localCustomerDatabaseName, type LocalCustomerExport, type LocalCustomerInput } from '../lib/local-customer-store';
 
 const account = 'synthetic-demo-owner', target = 'synthetic-demo-target';
 const input: LocalCustomerInput = { id: 'synthetic-demo-1', name: 'Synthetic Customer', email: 'demo@example.invalid', phone: '', address: 'Synthetic location', leadSource: 'synthetic' };
@@ -39,7 +40,11 @@ let uncertainOperation: string | undefined;
 function clear() {
   generation++; session = undefined; busy = false;
   records.hidden = true; customer.textContent = ''; names.value = 'Synthetic Customer';
-  phrase.value = ''; savePhrase.value = ''; status.textContent = 'Locked — unlock to retrieve synthetic records.';
+  phrase.value = ''; savePhrase.value = '';
+  element<HTMLInputElement>('backup-phrase').value = ''; element<HTMLInputElement>('archive-phrase').value = '';
+  element<HTMLInputElement>('archive-file').value = ''; element<HTMLInputElement>('restore-empty').checked = false;
+  element<HTMLElement>('backup-result').textContent = '';
+  status.textContent = 'Locked — unlock to retrieve synthetic records.';
   element<HTMLButtonElement>('save').disabled = false;
   element<HTMLButtonElement>('unlock').disabled = false;
 }
@@ -91,6 +96,67 @@ element<HTMLFormElement>('edit-form').addEventListener('submit', async event => 
     uncertainOperation = undefined; render(); status.textContent = 'Encrypted synthetic edit saved on this device.';
   } catch (error) { if (epoch === generation) report(error); }
   finally { if (epoch === generation) { busy = false; element<HTMLButtonElement>('save').disabled = false; } }
+});
+// Customer-only synthetic archive controls. No production import or automatic replay.
+const backupResult = element<HTMLElement>('backup-result');
+const archiveFile = element<HTMLInputElement>('archive-file');
+const archivePhrase = element<HTMLInputElement>('archive-phrase');
+const backupPhrase = element<HTMLInputElement>('backup-phrase');
+const namespace = localCustomerDatabaseName(account, target);
+function syntheticArchive(archive: LocalCustomerExport) {
+  const fixture = (row: LocalCustomerInput) => row.id === input.id && allowedNames.has(row.name)
+    && (['email', 'phone', 'address', 'leadSource'] as const).every(key => row[key] === input[key]);
+  if (archive.customers.length !== 1 || !fixture(archive.customers[0])
+    || archive.pendingOperations.some(op => !op.id.startsWith('synthetic-demo-') || !fixture(op.input) || !fixture(op.customer))) {
+    throw new Error('Synthetic archive only.');
+  }
+  return archive;
+}
+async function readArchive(file: File | undefined, supplied: string) {
+  if (!file || !file.size || file.size > 2 * 1024 * 1024) throw new Error('Select one bounded synthetic archive.');
+  return syntheticArchive(await recoverLocalCustomerBackup(JSON.parse(await file.text()), namespace, supplied));
+}
+element<HTMLFormElement>('backup-form').addEventListener('submit', async event => {
+  event.preventDefault(); if (busy || !session) return;
+  const active = session, epoch = generation, supplied = backupPhrase.value;
+  backupPhrase.value = ''; busy = true; backupResult.textContent = '';
+  try {
+    const snapshot = syntheticArchive(active.exportSnapshot());
+    const envelope = await protectLocalCustomerBackup(snapshot, namespace, supplied);
+    if (epoch !== generation || active !== session) return;
+    active.exportSnapshot(); // Revalidate cross-tab/lifecycle revocation after encryption.
+    const serialized = JSON.stringify(envelope);
+    if (serialized.length > 2 * 1024 * 1024) throw new Error('Synthetic backup exceeds screen import limit.');
+    const url = URL.createObjectURL(new Blob([serialized], { type: 'application/json' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'fire-synthetic-customer-backup.json';
+    records.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    backupResult.textContent = 'Encrypted download requested. Select the saved file below to verify it; download alone is not recovery.';
+  } catch { if (epoch === generation) backupResult.textContent = 'Backup export failed. No records changed.'; }
+  finally { if (epoch === generation) busy = false; }
+});
+element<HTMLFormElement>('archive-form').addEventListener('submit', async event => {
+  event.preventDefault(); if (busy) return;
+  const epoch = generation, supplied = archivePhrase.value, file = archiveFile.files?.length === 1 ? archiveFile.files[0] : undefined;
+  const restoring = (event as SubmitEvent).submitter?.id === 'restore-backup';
+  const confirmed = element<HTMLInputElement>('restore-empty').checked;
+  archivePhrase.value = ''; busy = true; backupResult.textContent = '';
+  try {
+    if (restoring && !confirmed) throw new Error('Explicit empty-vault confirmation required.');
+    const archive = await readArchive(file, supplied);
+    if (epoch !== generation) return;
+    if (restoring) {
+      // initialize uses an atomic add, never put: existing vaults cannot be overwritten.
+      await vault.initialize(archive, supplied);
+      if (epoch !== generation) return;
+      archiveFile.value = ''; element<HTMLInputElement>('restore-empty').checked = false;
+      backupResult.textContent = 'Recovered into an empty synthetic vault. Unlock above to inspect saved records. Nothing was replayed.';
+    } else {
+      backupResult.textContent = `Backup verified: synthetic customer revision ${archive.customers[0].revision}; ${archive.pendingOperations.length} operation receipts. No records changed.`;
+    }
+  } catch { if (epoch === generation) backupResult.textContent = restoring
+    ? 'Recovery failed or vault already exists. Existing records preserved; unlock and inspect before retrying.'
+    : 'Backup verification failed. Check the file and test phrase. No records changed.'; }
+  finally { if (epoch === generation) busy = false; }
 });
 element<HTMLButtonElement>('lock').addEventListener('click', () => { try { vault.lock(); } catch { clear(); status.textContent = 'Lock coordination failed. Close other demo windows.'; } });
 window.addEventListener('pagehide', () => { clear(); });

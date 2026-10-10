@@ -4389,5 +4389,107 @@
       "percent": 30
     },
     "recommendedNextBatch": "Add and test synthetic encrypted backup download plus non-destructive file verification/recovery UI before requesting publication approval."
+  },
+  "syntheticBackupUI": {
+    "asOf": "2026-10-10",
+    "baseCommit": "523f634e6ab73d141635a6d31bd235ef7ff2cf48",
+    "newerRemoteCommitFound": false,
+    "scope": "Synthetic customer demo only; no app routes/vault libraries changed",
+    "changes": [
+      "Encrypted actual-file download while offline",
+      "Read-only file decryption and strict namespace/schema/synthetic-field validation",
+      "Explicit-confirmation atomic recovery using existing initialize add into empty vault only",
+      "Generic failure messages, phrase/file/result clearing and stale completion suppression on lock",
+      "2 MiB import/export screen limit",
+      "Updated iPhone Files/recovery plan and 13-file Pages publication receipt"
+    ],
+    "browserChecks": {
+      "passed": 180,
+      "total": 180,
+      "perCandidate": {
+        "backupUI": 16,
+        "screen": 13,
+        "missingModuleRecovery": 11,
+        "twoRestartColdLaunch": 11,
+        "PagesHTTPSLab": 9
+      },
+      "targetedRerunAfterDOMTypeFix": {
+        "passed": 75,
+        "total": 75
+      },
+      "actualDownloadedFileVerified": true,
+      "offlineExportVerifyRecover": true,
+      "separateEmptyBrowserContextRecovered": true,
+      "sourceVaultByteSnapshotPreserved": true,
+      "repeatedImportRejected": true,
+      "foreignNamespaceAndNonSyntheticRejected": true,
+      "interruptedNativeIndexedDBAddAborted": true,
+      "lockDuringEncryptAndDecrypt": true,
+      "nativeIndexedDB": true,
+      "nativeWebCrypto": true,
+      "iPhoneFilesTested": false,
+      "visibilityEventsSimulated": true
+    },
+    "typeScript": {
+      "finalPassed": 3,
+      "total": 3,
+      "initialFailures": 3,
+      "correctedIssue": "Cloudflare DOM type overlap on document.body.append; attach download link to explicitly typed records HTMLElement using appendChild"
+    },
+    "builds": {
+      "passed": 3,
+      "total": 3
+    },
+    "sourceParity": {
+      "sharedFiles": 112,
+      "differences": 0,
+      "excludedUnchangedDeploymentAdapters": [
+        "app/page.tsx",
+        "app/chatgpt-auth.ts"
+      ],
+      "demoArtworkHashes": {
+        "scripts/local-customer-demo.html": "caedc936f4567b19d264d4bcef65bbb08af44557ec07f495b221f88f7b5c6edc",
+        "scripts/test-local-customer-demo-recovery-ui-browser.mjs": "8798f7d4a790dcca54879490c8c745235852f18185b7631fa8b25ca960c50d63",
+        "scripts/test-local-customer-pages-browser.mjs": "bfc0ca9ab7d3da5ce1759375756f43fd4aa3a406f2c841b9e5de5655cea3795c",
+        "scripts/test-local-customer-demo-shell-browser.mjs": "f1c52e223d25430500c89ddc96e383f8b081800458bca5c7ddb83c3692903b5c",
+        "scripts/export-local-customer-demo.mjs": "b11bcee695e0bca0e273798a82183b60845d702a1727857a2d60bd90ba49b28f",
+        "scripts/local-customer-demo.ts": "f173fdc0a2493d3785066cec51e6d719b339259e499faad9951239471ae0116a",
+        "scripts/test-local-customer-demo-cold-browser.mjs": "e694a773ba0a8a2776ed91be39642644a6a24a1beb6a501bd0d9f9c2605747b6",
+        "scripts/test-local-customer-demo-package.mjs": "c8a1cf8fbac20660f8071ad816f2b21c63137d15de0b96c0f142d40d6ae1d1b0",
+        "scripts/test-local-customer-demo-backup-ui-browser.mjs": "4d82121a8484f325bdc98bc2746d3ffc31f539e41027b700a19f8a4c7e55ecc4",
+        "scripts/test-local-customer-demo-browser.mjs": "c782793603d3100e7a5403e8782aae2727f4343de9c6707177f9119ece93da01",
+        "scripts/local-customer-demo-assets.mjs": "2a5a1f4300ea9e5650ab5c0e585e5c1fc8865ff35b03efc8b8c4e9e7f2cb58de",
+        "scripts/prepare-local-customer-pages.mjs": "6e5a5ee366026ad7515dd9a7bc80269f1150abec1ed43c15fe22af179c9926b6",
+        "scripts/local-customer-demo-server.mjs": "8b6fbe6c033ee9fa7b64d1b0105bada9d630eefd026c9ef04384f42ffebdef0c",
+        "scripts/local-customer-demo-worker.js": "b7fc1833e9916fb7cd8d54e98e1db192ee9b2e684d04ec4264fd9ac552e1ad46",
+        "scripts/local-customer-demo-package-server.mjs": "ed589817744f52e5a6e69bb58d8958d9b8b8c14d12f6fa876e0981cc51b6d063",
+        "public/fire-app-home-v2.png": "fcbb211e73f9014a615dbaf7c279bffb1880413a3b3bb4b82eee8880d38d93ea",
+        "public/fire-app-home-512-v2.png": "81fe4d599db8af72b6bb4b6ea6f7eb0889f392c1cc589a41a49ea093350869e8"
+      }
+    },
+    "proposedURL": "https://fire-synthetic-offline-test-bfc00939.pages.dev/synthetic-customer-demo/",
+    "shellVersion": "b9cbe0f7beff59d57f092c55",
+    "publicationAuthorized": false,
+    "hostnameAvailabilityVerified": false,
+    "actualHostedTLSHeadersVerified": false,
+    "limitations": [
+      "Actual iPhone Home Screen cold launch, Files download/picker and empty-device recovery unverified",
+      "HTTPS lab uses local-only proxy and temporary certificate bypass, not Cloudflare publication",
+      "Browser storage durability and abrupt OS termination unverified",
+      "Recovery deliberately refuses every existing vault; no merge or overwrite feature",
+      "2 MiB customer-only synthetic archives; no production backups or records",
+      "Full Business App offline operation and original-app scroll-shaking fix remain pending",
+      "Existing core full vault/backup suites unchanged; targeted UI/regression suites used this batch"
+    ],
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "productionDeployments": 0,
+    "productionDatabaseChanges": 0,
+    "stripeActions": 0,
+    "additionalSpendingUSD": 0,
+    "recommendedNextStep": "Owner approval of exact synthetic-only Pages destination and current commit/package; then verify account/free eligibility and hosted TLS/headers before iPhone testing. Stop if hostname changes or costs arise."
   }
 }

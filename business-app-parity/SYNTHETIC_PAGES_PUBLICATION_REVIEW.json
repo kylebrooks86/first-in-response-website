@@ -4,7 +4,7 @@
   "origin": "https://fire-synthetic-offline-test-bfc00939.pages.dev",
   "project": "fire-synthetic-offline-test-bfc00939",
   "scope": "/synthetic-customer-demo/",
-  "version": "df76cfe7e1a8686f883efadc",
+  "version": "b9cbe0f7beff59d57f092c55",
   "uploadDirectory": "upload",
   "staticOnly": true,
   "bindings": [],
@@ -13,8 +13,8 @@
   "files": [
     {
       "file": "synthetic-customer-demo/index.html",
-      "sha256": "ce96bbc215978ca8a9efadd4fbd3848e079cddbb4f204b624b15ddabd34c632b",
-      "bytes": 3421
+      "sha256": "caedc936f4567b19d264d4bcef65bbb08af44557ec07f495b221f88f7b5c6edc",
+      "bytes": 4774
     },
     {
       "file": "synthetic-customer-demo/store.js",
@@ -33,8 +33,8 @@
     },
     {
       "file": "synthetic-customer-demo/demo.js",
-      "sha256": "8ff0b6669bcadc459c90a6aec65882e66c8d34ac2318737304149a26bfa89952",
-      "bytes": 6995
+      "sha256": "93966ed34241067dec04e8fc98624ca2a5f8cdf3c3cc8b6f866b5dd710e8c8a5",
+      "bytes": 11828
     },
     {
       "file": "synthetic-customer-demo/manifest.webmanifest",
@@ -53,12 +53,12 @@
     },
     {
       "file": "synthetic-customer-demo/worker.js",
-      "sha256": "e582942bbfdf090f195f1ed89e85e5d5946a27876ac4948f91f6909a32912db5",
+      "sha256": "d07dd58a7160f832d9211d825a8721a673c45ce1b42d9115130185736dab8d4d",
       "bytes": 3043
     },
     {
       "file": "_headers",
-      "sha256": "54d69970555bdb5ea81ff31ad69c0100a2818862dcb99c7fcc16bdfaafd898aa",
+      "sha256": "1b808fb4069f855d58cecf2e95418d42a06c8246d8c092534d0be91c60861081",
       "bytes": 1329
     },
     {
