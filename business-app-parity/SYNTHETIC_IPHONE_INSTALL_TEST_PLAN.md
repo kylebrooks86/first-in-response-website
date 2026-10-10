@@ -1,29 +1,25 @@
-# Synthetic FIRE Demo iPhone installation test plan
+# FIRE Demo iPhone test — after approved publication
 
-Status: UNVERIFIED. No approved HTTPS test URL exists for this package. No publication or production change is authorized. Official release readiness remains 3/10 (30%).
+Proposed URL (NOT yet active/reserved): https://fire-synthetic-offline-test-bfc00939.pages.dev/synthetic-customer-demo/
+No publication authorized. Exact destination/valid TLS/headers must pass the separate publication review first. Official readiness: 3/10 (30%).
 
-The exported package runs on localhost on a computer. That address is not an iPhone test URL. The current demo registration guard deliberately accepts localhost/127.0.0.1 only; an exact separate synthetic HTTPS origin must be reviewed and approved before adding it. Do not broaden the guard to production origins. Scope remains `/synthetic-customer-demo/`.
+1. Online, open the approved exact URL in Safari. Share → Add to Home Screen → turn ON Open as Web App → Add. Name it FIRE Demo; keep your existing Business App icon.
+2. Open that new Home Screen icon while still online. Wait for Offline shell ready. Initialize the synthetic vault with a disposable phrase of at least 16 characters. Keep that phrase privately; never use a real business password. Initialize inside the installed app, not just a Safari tab; storage continuity across contexts must be tested rather than assumed.
+3. The demo creates Synthetic Customer / Revision 1. Select Synthetic Updated, re-enter the test phrase for save, and confirm Revision 2.
+4. Lock, then swipe the FIRE Demo app away in the app switcher. Turn on Airplane Mode and explicitly turn Wi-Fi OFF.
+5. Tap the FIRE Demo Home Screen icon. Unlock and confirm Synthetic Updated / Revision 2.
+6. While offline, select Synthetic Recovery and save with the test phrase. Confirm Revision 3.
+7. Lock, close completely again, reopen while still offline and unlock. Confirm Synthetic Recovery / Revision 3. Record both launch results and any error text.
+8. Check lock behavior after backgrounding and idle; check small-screen/keyboard scrolling against the original saved app. Do not modify or remove the original app.
+9. BACKUP TEST IS CURRENTLY BLOCKED: no export/import controls exist in this demo. After a separately tested backup UI is added, export the encrypted synthetic archive offline to On My iPhone in Files (not an online-only folder); reopen/read that actual file, decrypt/strictly validate it with the disposable phrase, and verify namespace, customer ID/name/revision and operation receipts. Then recover it into an explicitly empty synthetic vault/profile and verify Revision 3 without modifying the original vault. Wrong phrase/corrupt file must fail without altering existing records. Do not clear the only working vault to create a recovery target. Download alone is NOT verified recovery.
 
-## Required preparation in a later approved batch
+## What to report
 
-Review a separate existing/free synthetic HTTPS origin, its static MIME types and service-worker scope. Record the exact source commit and shell version. Preserve production apps, databases and authentication. Never upload business records, vault exports or passphrases. Do not present the package as already deployable or installed on an iPhone.
+Exact URL, commit/shell version, iPhone model and iOS/Safari version, installed-app context, light/dark theme, network state, revisions before/after both launches, actual backup file readability and recovery result, lock/errors/reload observations, screenshot or video without passphrases. Mark each step PASS/DIFFERENT/UNVERIFIED/BLOCKED; keep step 9 BLOCKED until controls exist and recovery succeeds.
 
-## Actual iPhone procedure, after the test origin is approved and available
+## Chromium evidence does not replace these iPhone checks
 
-1. Record iPhone model, iOS/Safari version, approved URL, source commit, shell version, viewport and theme. Open the synthetic URL in Safari online and check the FIRE Demo label and offline-shell ready message.
-2. Use Safari Share → Add to Home Screen. Enable Open as Web App when offered. Open the new Home Screen app online. Initialize the synthetic vault in that installed app context; do not assume browser-tab storage transfers to the installed app.
-3. Use a synthetic passphrase kept privately. Create the preset customer, edit it to Synthetic Updated and verify Revision 2. Lock the vault and close the installed app fully.
-4. Enable airplane mode and explicitly turn Wi-Fi off. Reopen the original Home Screen icon, unlock and verify Synthetic Updated / Revision 2. Edit to Synthetic Recovery / Revision 3, lock and close fully.
-5. Reopen while still offline, unlock and verify Synthetic Recovery / Revision 3. Record PASS only if both launches and the persisted edit succeed. Record errors and exact reproduction steps otherwise.
-6. Test background/idle locking, manual locking and existing mobile navigation without changing synthetic data during inspection. Compare scrolling with the original saved app. Desktop Chromium evidence does not resolve iPhone whole-screen shaking.
+Safari/Home Screen storage context, worker activation/cold relaunch after force-close, WebCrypto latency, IndexedDB interruption on suspension, cross-window/idle/background revocation, keyboard/viewport scroll behavior, file download and Files picker support, iCloud-vs-local file availability, storage eviction and installed worker update timing all require actual device evidence. WebKit documents best-effort storage and possible eviction; no permanent durability promise. Do not clear site data to test missing assets because that can erase records. Keep independent recoverable backups before real customer activation.
 
-Do not clear browser/site storage to test missing assets: that can erase the vault. Controlled asset-removal testing belongs in an isolated automated profile. Clean-device backup recovery and durable storage remain separate pending release gates; the demonstration does not yet expose an encrypted backup/restore screen.
-
-## Evidence to return
-
-Matching URL/build/shell version, installed-app context, device/iOS, network state, customer preset and revision before/after both launches, lock behavior, screenshots or video plus functional observations, errors/reload behavior and PASS/DIFFERENT/UNVERIFIED/BLOCKED status. Keep passphrases and customer data out of screenshots and reports.
-
-Apple installation reference: https://support.apple.com/guide/iphone/iphea86e5236/ios
-Service-worker secure-context reference: https://www.w3.org/TR/service-workers/
-
-No Safari/Home Screen test has been performed in this batch. No full-app offline, permanent-storage, hosting independence or production parity claim is made.
+Apple installation: https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/ios
+WebKit storage: https://webkit.org/blog/14403/updates-to-storage-policy/

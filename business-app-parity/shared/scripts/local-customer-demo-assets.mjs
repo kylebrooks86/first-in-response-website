@@ -4,7 +4,9 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require=createRequire(import.meta.url),ts=require('typescript');
-export function buildCustomerDemoAssets({testRevision=''}={}){
+export const SYNTHETIC_PAGES_ORIGIN='https://fire-synthetic-offline-test-bfc00939.pages.dev';
+export function buildCustomerDemoAssets({testRevision='',deploymentOrigin=null}={}){
+ if(deploymentOrigin!==null&&deploymentOrigin!==SYNTHETIC_PAGES_ORIGIN)throw new Error('Unreviewed synthetic deployment origin');
  // Local test harness only: vary worker bytes without changing business/vault source.
  if (!/^[a-z0-9-]{0,64}$/.test(testRevision)) throw new Error('Invalid synthetic test revision');
  const modules=new Map();
@@ -14,6 +16,11 @@ export function buildCustomerDemoAssets({testRevision=''}={}){
  }
  const scope='/synthetic-customer-demo/';
  for(const [url,code] of [...modules]){modules.delete(url);modules.set(scope+url.slice(1),code.replaceAll("'/store.js'","'"+scope+"store.js'").replaceAll("'/backup.js'","'"+scope+"backup.js'").replaceAll("'/vault.js'","'"+scope+"vault.js'"));}
+ if(deploymentOrigin){
+  const path=scope+'demo.js',guard="!['127.0.0.1', 'localhost'].includes(location.hostname)",code=modules.get(path);
+  if(code.split(guard).length!==2)throw new Error('Synthetic origin guard changed; review before packaging');
+  modules.set(path,code.replace(guard,'location.origin !== '+JSON.stringify(deploymentOrigin)));
+ }
  const html=readFileSync(new URL('./local-customer-demo.html',import.meta.url),'utf8');
  const template=readFileSync(new URL('./local-customer-demo-worker.js',import.meta.url),'utf8');
  const assets=new Map([[scope,{body:Buffer.from(html),type:'text/html'}],...Array.from(modules,([path,body])=>[path,{body:Buffer.from(body),type:'text/javascript'}])]);
