@@ -4062,5 +4062,79 @@
       "percent": 30
     },
     "nextBatch": "Test obsolete active-worker updates, failed install retention and missing JavaScript repair before arranging iPhone synthetic-only Home Screen verification."
+  },
+  "localCustomerShellRecovery": {
+    "asOf": "2026-10-10",
+    "baseCommit": "b48913acfa783dc2dcf7655fb83f547a189b8d1a",
+    "newerRemoteCommitFound": false,
+    "scope": "Localhost synthetic demo shell recovery only",
+    "fixed": "Sequential static-cache writes now delete a partially written candidate cache when installation fails, preserving active content-version cache.",
+    "testServerChange": "Optional validated synthetic testRevision changes worker/cache bytes for native upgrade tests; default server behavior remains isolated.",
+    "browserTests": {
+      "passed": 105,
+      "total": 105,
+      "shellRecoveryPerCandidate": 11,
+      "coldLaunchPerCandidate": 11,
+      "screenRegressionPerCandidate": 13,
+      "nativeChromium": true,
+      "nativeIndexedDB": true,
+      "nativeWebCrypto": true,
+      "partialCacheWriteFailure": "Injected Cache.prototype.put rejection after one successful native write",
+      "interruptedDownload": "Local server destroys vault.js fetch connection during new worker installation",
+      "workerUpgrade": "Real installing/redundant/waiting/activated lifecycle with two existing controlled clients",
+      "missingJavaScript": "Native offline 503, online repair, and rejection of unmarked response",
+      "coldLaunch": "Two complete browser restarts per candidate, networking disabled before original URL navigation and localhost server stopped"
+    },
+    "typeScript": {
+      "passed": 3,
+      "total": 3
+    },
+    "builds": {
+      "passed": 3,
+      "total": 3
+    },
+    "syntaxChecks": {
+      "passed": 3,
+      "total": 3
+    },
+    "sourceParity": {
+      "sharedFiles": 122,
+      "differences": 0,
+      "demoScriptHashes": {
+        "local-customer-demo-server.mjs": "641e04fdaec68088b655db58cc73c4e14032801ce7b29d25b87da4cfb8d3749e",
+        "local-customer-demo-worker.js": "b7fc1833e9916fb7cd8d54e98e1db192ee9b2e684d04ec4264fd9ac552e1ad46",
+        "local-customer-demo.ts": "37bae8c007aa6bead673005f98e6ff84db2da455e222d151732d717359d4d25c",
+        "local-customer-demo.html": "2a4987a00514fe173c8a14cfd33274c01f24c148ae21bad8220d9100a4787c29",
+        "test-local-customer-demo-shell-browser.mjs": "f1c52e223d25430500c89ddc96e383f8b081800458bca5c7ddb83c3692903b5c",
+        "test-local-customer-demo-cold-browser.mjs": "a2e9562f19b7fc01017aef4b4f202e576c51020289e2759249c9fd7b9ca018cc",
+        "test-local-customer-demo-browser.mjs": "c782793603d3100e7a5403e8782aae2727f4343de9c6707177f9119ece93da01"
+      }
+    },
+    "preserved": [
+      "encrypted vault and backup/restore source",
+      "revision and operation-receipt protections",
+      "cross-tab and lifecycle locks",
+      "existing navigation reset",
+      "production UI and original scrolling behavior"
+    ],
+    "limitations": [
+      "iPhone Safari/Home Screen installation and airplane-mode launch unverified",
+      "No real customer records enabled",
+      "No full Business App offline shell",
+      "Real storage quota exhaustion, cache deletion failure, OS termination and eviction not simulated",
+      "Missing module currently reports an error through the module fetch; a polished visible recovery screen remains pending",
+      "Initial-install failure without any previous shell not covered by the new update-failure cases",
+      "Full encrypted backup/restore suite unchanged and not rerun in this shell-only batch"
+    ],
+    "productionDeployments": 0,
+    "productionDatabaseChanges": 0,
+    "stripeActions": 0,
+    "additionalSpendingUSD": 0,
+    "readiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "nextBatch": "Add clear missing-module recovery UI and verify initial-install failure/retry before preparing installable synthetic-only iPhone PWA packaging."
   }
 }

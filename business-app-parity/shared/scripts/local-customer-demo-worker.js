@@ -18,7 +18,14 @@ self.addEventListener('install', event => {
     const responses = [];
     for (const path of ASSETS) responses.push(await staticResponse(path));
     const cache = await caches.open(CACHE);
-    await Promise.all(ASSETS.map((path, i) => cache.put(path, responses[i])));
+    try {
+      for (let i = 0; i < ASSETS.length; i++) await cache.put(ASSETS[i], responses[i]);
+    } catch (error) {
+      // Failed installation must not retain a partially written candidate shell.
+      // The active worker uses its own content-derived cache version.
+      await caches.delete(CACHE);
+      throw error;
+    }
   })());
 });
 self.addEventListener('activate', event => {
