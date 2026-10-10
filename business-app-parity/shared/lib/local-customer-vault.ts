@@ -34,6 +34,7 @@ export async function openLocalCustomerVault(account: string, target: string,
   });
   let generation = 0, closed = false, coordinationFailed = false;
   const sessions = new Set<() => void>();
+  const lockListeners = new Set<() => void>();
   const initializations = new Set<IDBTransaction>();
   let lifecycleCheck = () => {};
   let lifecycleStart = () => {};
@@ -43,6 +44,7 @@ export async function openLocalCustomerVault(account: string, target: string,
     for (const revoke of sessions) revoke();
     sessions.clear();
     for (const tx of initializations) { try { tx.abort(); } catch { /* Already complete; never erase committed data. */ } }
+    for (const listener of lockListeners) { try { listener(); } catch { /* A UI callback cannot prevent revocation. */ } }
   }
   function synchronizeLock() {
     try {
@@ -73,6 +75,7 @@ export async function openLocalCustomerVault(account: string, target: string,
   function close() {
     revokeLocal(); closed = true; db.close(); channel?.close();
     lifecycleDispose?.();
+    lockListeners.clear();
     globalThis.removeEventListener?.('storage', storageListener);
   }
   function check(epoch: number) {
@@ -85,6 +88,11 @@ export async function openLocalCustomerVault(account: string, target: string,
     namespace,
     lock,
     close,
+    onLock(listener: () => void) {
+      if (closed || typeof listener !== 'function') throw new Error('Invalid lock listener or closed vault.');
+      lockListeners.add(listener);
+      return () => { lockListeners.delete(listener); };
+    },
     // Opt-in foundation only: no deployed UI currently opens this vault.
     enableAutoLock(idleMs = 300_000) {
       if (closed || lifecycleDispose || !globalThis.document

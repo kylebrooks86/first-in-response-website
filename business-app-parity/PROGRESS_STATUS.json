@@ -3939,5 +3939,65 @@
     "evidence": "LOCAL_CUSTOMER_VAULT_LIFECYCLE_EVIDENCE.json",
     "handoff": "LOCAL_CUSTOMER_VAULT_LIFECYCLE_HANDOFF.md",
     "negativeControlDetected": true
+  },
+  "localCustomerDemoBatch": {
+    "parent": "c87570d68aaf448f5684422e1afeb2eed7cac912",
+    "status": "VERIFIED_LOCAL_SYNTHETIC_CUSTOMER_SCREEN",
+    "screenChecks": {
+      "passed": 39,
+      "total": 39,
+      "perTarget": 13
+    },
+    "vaultChecks": {
+      "passed": 174,
+      "total": 174,
+      "perTarget": 58
+    },
+    "typechecks": {
+      "passed": 3,
+      "total": 3
+    },
+    "builds": {
+      "passed": 3,
+      "total": 3
+    },
+    "sharedAppSourceFilesMatched": 122,
+    "standaloneStrictDemoTypecheck": true,
+    "doomsdayBuildProvenanceVerified": true,
+    "resolvedIssue": "Full target TypeScript exposed conflicting Workers/DOM HTMLElement remove signatures in the generic helper constraint. Helper now checks that the fixed markup element exists and casts the requested DOM type without imposing the conflicting superclass constraint. Full target typechecks/builds and screen suites passed afterward.",
+    "capabilities": [
+      "Localhost-only fixed synthetic fixture; no real-customer inputs or business routes",
+      "Offline form edit and retrieval after screen loads",
+      "Encrypted vault lock notifications clear rendered record/name selection and phrase fields",
+      "Cross-tab, simulated background and idle locks clear visible data",
+      "Late encryption completion cannot repopulate locked screen",
+      "Committed ambiguous save receipt checked after unlock with no automatic replay",
+      "Mobile 390x844 width check and 48px control minimums"
+    ],
+    "limits": [
+      "Not deployed or available on the user's iPhone",
+      "Local demo shell loads online; no service worker, installed-PWA offline cold launch or independent hosting claim",
+      "Visibility and idle events simulated; native IDB/WebCrypto/browser clicks real",
+      "Fixed public phrase is exclusively a synthetic demo fixture, not production authentication",
+      "Pending operation ID retained only in page memory; no automated replay or durable resumable UI request after reload",
+      "No owner/customer real-record activation, migration or production design change",
+      "Previously copied plaintext cannot be reliably erased",
+      "Actual iPhone/Safari, eviction, sudden power loss and scrolling shaking unresolved; existing navigation reset preserved"
+    ],
+    "deployed": false,
+    "remoteDatabaseWrites": false,
+    "stripeCalls": false,
+    "paidServicesUsed": false,
+    "realRecordsActivated": false,
+    "productionReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30,
+      "ready": false
+    },
+    "asOf": "2026-10-10T03:41:46.639730+00:00",
+    "demoAndHarnessFilesMatchedAcrossTargets": 6,
+    "evidence": "LOCAL_CUSTOMER_DEMO_EVIDENCE.json",
+    "handoff": "LOCAL_CUSTOMER_DEMO_HANDOFF.md"
   }
 }

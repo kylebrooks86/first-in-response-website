@@ -259,6 +259,12 @@ try {
   await check('ciphertext tampering fails closed without replacing stored snapshot',async()=>{
     const result=await p.evaluate(async()=>{const db=await new Promise(resolve=>{const r=indexedDB.open(vault.namespace,1);r.onsuccess=()=>resolve(r.result);});await new Promise((resolve,reject)=>{const tx=db.transaction('sealed','readwrite');const store=tx.objectStore('sealed');const req=store.get('snapshot');req.onsuccess=()=>{const row=req.result;row.envelope.ciphertext=(row.envelope.ciphertext[0]==='0'?'1':'0')+row.envelope.ciphertext.slice(1);store.put(row);};tx.oncomplete=resolve;tx.onabort=reject;});db.close();const before=JSON.stringify(await rawVault());try{await vault.unlock(phrase);return false;}catch{return JSON.stringify(await rawVault())===before;}});assert.equal(result,true);
   });
+  await check('throwing lock observer cannot prevent session revocation',async()=>{
+    assert.equal(await p.evaluate(async()=>{const v=await vaultApi.openLocalCustomerVault('lifecycle-owner','lifecycle-target');const s=await v.unlock(phrase);const stop=v.onLock(()=>{throw new Error('Injected UI callback');});v.lock();let blocked=false;try{s.listCustomers();}catch{blocked=true;}stop();v.close();return blocked;}),true);
+  });
+  await check('unsubscribed lock observer is never called',async()=>{
+    assert.equal(await p.evaluate(()=>{let calls=0;const stop=vault.onLock(()=>calls++);stop();vault.lock();return calls;}),0);
+  });
   await check('close revokes access and prevents reopening through stale handle',async()=>{
     assert.equal(await p.evaluate(async()=>{vault.close();try{await vault.unlock(phrase);return false;}catch{return true;}}),true);
   });
