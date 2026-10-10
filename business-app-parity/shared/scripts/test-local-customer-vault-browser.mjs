@@ -1,0 +1,114 @@
+// Real Chromium IndexedDB integration; synthetic disposable profile, localhost only.
+// Optional FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE and FIRE_BROWSER_TEST_EXECUTABLE select local tools.
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {readFileSync, mkdtempSync, rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {createServer} from 'node:http';
+const require=createRequire(import.meta.url);
+const ts=require('typescript');
+const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE || 'playwright');
+const modules = new Map();
+for (const [url, file] of [['/store.js','local-customer-store'],['/backup.js','local-customer-backup'],['/vault.js','local-customer-vault']]) {
+  const source=readFileSync(new URL(`../lib/${file}.ts`,import.meta.url),'utf8');
+  modules.set(url,ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace("'./local-customer-store'", "'/store.js'").replace("'./local-customer-backup'", "'/backup.js'"));
+}
+const server=createServer((req,res)=>{
+  if(modules.has(req.url)){res.setHeader('Content-Type','application/javascript');res.end(modules.get(req.url));}
+  else if(req.url==='/'){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Synthetic encrypted recovery test</title>');}
+  else {res.statusCode=404;res.end();}
+});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+const origin=`http://127.0.0.1:${server.address().port}`;
+const profile=mkdtempSync(join(tmpdir(),'fire-customer-idb-'));
+let context,passed=0;const remoteRequests=[];
+async function launch(){
+  context=await chromium.launchPersistentContext(profile,{
+    executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE || undefined,
+    headless:true,args:['--no-sandbox','--disable-gpu'],
+  });
+  await context.route('**/*',route=>{
+    if(new URL(route.request().url()).origin!==origin){remoteRequests.push(route.request().url());return route.abort();}
+    return route.continue();
+  });
+}
+async function page(){
+  const p=await context.newPage();await p.goto(origin);
+  await p.evaluate(async()=>{
+    window.api=await import('/store.js'); window.backups=await import('/backup.js'); window.phrase='synthetic browser recovery phrase only';
+    window.customer={id:'synthetic-1',name:'Synthetic Customer',email:'test@example.invalid',phone:'',address:'Synthetic',leadSource:'test'};
+    window.vaultApi=await import('/vault.js'); window.vault=await vaultApi.openLocalCustomerVault('synthetic-owner','synthetic-target'); const row={...customer,revision:1,updatedAt:'2026-10-10T00:00:00.000Z'}; window.archive={format:'fire-local-customers',version:1,namespace:api.localCustomerDatabaseName('synthetic-owner','synthetic-target'),customers:[row],pendingOperations:[{id:'synthetic-operation',kind:'customer-upsert',expectedRevision:0,customer:row,input:customer}]}; window.rawVault=async()=>{const db=await new Promise((resolve,reject)=>{const r=indexedDB.open(vault.namespace,1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);}); const rows=await new Promise((resolve,reject)=>{const tx=db.transaction('sealed');const req=tx.objectStore('sealed').getAll();tx.oncomplete=()=>resolve(req.result);tx.onabort=()=>reject(tx.error);});db.close();return rows;};
+  });return p;
+}
+async function check(name,fn){await fn();passed++;console.log(`PASS: ${name}`);}
+process.exitCode=1;
+try {
+  await launch();let p=await page();const version=context.browser()?.version() ?? await p.evaluate(()=>navigator.userAgent);
+  await check('uninitialized vault fails closed instead of returning empty business data',async()=>{
+    assert.equal(await p.evaluate(async()=>{try{await vault.unlock(phrase);return false;}catch{return (await rawVault()).length===0;}}),true);
+  });
+  await check('invalid customer archive fails before storage writes',async()=>{
+    assert.equal(await p.evaluate(async()=>{try{await vault.initialize({...archive,customers:[]},phrase);return false;}catch{return (await rawVault()).length===0;}}),true);
+  });
+  await check('weak passphrase cannot initialize vault',async()=>{
+    assert.equal(await p.evaluate(async()=>{try{await vault.initialize(archive,'short');return false;}catch{return (await rawVault()).length===0;}}),true);
+  });
+  await check('wrong namespace cannot initialize vault',async()=>{
+    assert.equal(await p.evaluate(async()=>{try{await vault.initialize({...archive,namespace:'fire-local-customers:v1:other:target'},phrase);return false;}catch{return (await rawVault()).length===0;}}),true);
+  });
+  await check('interrupted native initialization commits no encrypted snapshot',async()=>{
+    assert.equal(await p.evaluate(async()=>{const original=IDBObjectStore.prototype.add;IDBObjectStore.prototype.add=function(...args){const req=original.apply(this,args);req.addEventListener('success',()=>req.transaction.abort());return req;};let rejected=false;try{await vault.initialize(archive,phrase);}catch{rejected=true;}finally{IDBObjectStore.prototype.add=original;}return rejected&&(await rawVault()).length===0;}),true);
+  });
+  await check('quota fault preserves uninitialized state',async()=>{
+    assert.equal(await p.evaluate(async()=>{const original=IDBObjectStore.prototype.add;IDBObjectStore.prototype.add=function(){throw new DOMException('Injected quota','QuotaExceededError');};let rejected=false;try{await vault.initialize(archive,phrase);}catch{rejected=true;}finally{IDBObjectStore.prototype.add=original;}return rejected&&(await rawVault()).length===0;}),true);
+  });
+  await check('locking during asynchronous encryption prevents initialization',async()=>{
+    assert.equal(await p.evaluate(async()=>{const pending=vault.initialize(archive,phrase);vault.lock();let rejected=false;try{await pending;}catch{rejected=true;}return rejected&&(await rawVault()).length===0;}),true);
+  });
+  await check('retry commits only encrypted customer snapshot',async()=>{
+    const rows=await p.evaluate(async()=>{await vault.initialize(archive,phrase);return rawVault();});assert.equal(rows.length,1);assert.equal(rows[0].id,'snapshot');
+    const text=JSON.stringify(rows);for(const plaintext of ['Synthetic Customer','test@example.invalid','synthetic-operation','synthetic browser recovery phrase only'])assert.ok(!text.includes(plaintext));
+  });
+  await check('unlock exposes validated detached records only to its session',async()=>{
+    const result=await p.evaluate(async()=>{window.session=await vault.unlock(phrase);const rows=session.listCustomers();rows[0].name='Mutated';return {name:session.getCustomer('synthetic-1').name,revision:session.getCustomer('synthetic-1').revision,missing:session.getCustomer('missing'),records:session.exportSnapshot().customers.length};});assert.deepEqual(result,{name:'Synthetic Customer',revision:1,missing:null,records:1});
+  });
+  await check('wrong passphrase rejects and preserves encrypted bytes',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());try{await vault.unlock('wrong synthetic recovery phrase');return false;}catch{return JSON.stringify(await rawVault())===before;}}),true);
+  });
+  await check('reinitialization cannot overwrite existing snapshot',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());try{await vault.initialize(archive,'different valid recovery phrase');return false;}catch{return JSON.stringify(await rawVault())===before;}}),true);
+  });
+  await check('explicit session lock blocks all future getters and export',async()=>{
+    assert.equal(await p.evaluate(()=>{session.lock();let failures=0;for(const read of [()=>session.getCustomer('synthetic-1'),()=>session.listCustomers(),()=>session.exportSnapshot()])try{read();}catch{failures++;}return failures;}),3);
+  });
+  await check('vault lock revokes every outstanding session',async()=>{
+    assert.equal(await p.evaluate(async()=>{const one=await vault.unlock(phrase),two=await vault.unlock(phrase);vault.lock();let failures=0;for(const s of [one,two])try{s.listCustomers();}catch{failures++;}return failures;}),2);
+  });
+  await check('lock during key derivation cannot publish a late unlocked session',async()=>{
+    assert.equal(await p.evaluate(async()=>{const original=SubtleCrypto.prototype.deriveKey;let started,release;const reached=new Promise(resolve=>{started=resolve;});const gate=new Promise(resolve=>{release=resolve;});SubtleCrypto.prototype.deriveKey=async function(...args){started();await gate;return original.apply(this,args);};try{const pending=vault.unlock(phrase);await reached;vault.lock();release();try{await pending;return false;}catch{return true;}}finally{SubtleCrypto.prototype.deriveKey=original;}}),true);
+  });
+  await check('account and target remain isolated',async()=>{
+    assert.deepEqual(await p.evaluate(async()=>{const result=[];for(const [account,target] of [['other','synthetic-target'],['synthetic-owner','other']]){const isolated=await vaultApi.openLocalCustomerVault(account,target);try{await isolated.unlock(phrase);result.push(false);}catch{result.push(true);}isolated.close();}return result;}),[true,true]);
+  });
+  await check('two-tab initialization race has one winner without overwrite',async()=>{
+    const other=await page();const results=await Promise.all([p,other].map(tab=>tab.evaluate(async()=>{const v=await vaultApi.openLocalCustomerVault('race-owner','race-target');const backup={...archive,namespace:api.localCustomerDatabaseName('race-owner','race-target')};try{await v.initialize(backup,phrase);return true;}catch{return false;}finally{v.close();}})));assert.equal(results.filter(Boolean).length,1);await other.close();
+  });
+  await context.setOffline(true);
+  await check('unlock and read work offline with a locked vault',async()=>{
+    assert.equal(await p.evaluate(async()=>{const s=await vault.unlock(phrase);const name=s.getCustomer('synthetic-1').name;s.lock();return name;}),'Synthetic Customer');
+  });
+  await context.setOffline(false);await context.close();context=null;await launch();p=await page();await context.setOffline(true);
+  await check('graceful browser restart retains encrypted storage and offline unlock',async()=>{
+    assert.equal(await p.evaluate(async()=>{const s=await vault.unlock(phrase);const name=s.listCustomers()[0].name;s.lock();return name;}),'Synthetic Customer');assert.equal((await p.evaluate(()=>rawVault())).length,1);
+  });
+  await context.setOffline(false);
+  await check('ciphertext tampering fails closed without replacing stored snapshot',async()=>{
+    const result=await p.evaluate(async()=>{const db=await new Promise(resolve=>{const r=indexedDB.open(vault.namespace,1);r.onsuccess=()=>resolve(r.result);});await new Promise((resolve,reject)=>{const tx=db.transaction('sealed','readwrite');const store=tx.objectStore('sealed');const req=store.get('snapshot');req.onsuccess=()=>{const row=req.result;row.envelope.ciphertext=(row.envelope.ciphertext[0]==='0'?'1':'0')+row.envelope.ciphertext.slice(1);store.put(row);};tx.oncomplete=resolve;tx.onabort=reject;});db.close();const before=JSON.stringify(await rawVault());try{await vault.unlock(phrase);return false;}catch{return JSON.stringify(await rawVault())===before;}});assert.equal(result,true);
+  });
+  await check('close revokes access and prevents reopening through stale handle',async()=>{
+    assert.equal(await p.evaluate(async()=>{vault.close();try{await vault.unlock(phrase);return false;}catch{return true;}}),true);
+  });
+  await check('no external app, database or Stripe requests',async()=>assert.deepEqual(remoteRequests,[]));
+  console.log(JSON.stringify({passed,total:passed,browser:version,nativeWebCrypto:true,realIndexedDB:true,syntheticOnly:true,encryptedAtRestSnapshotTested:true,appOfflineColdLaunchTested:false,iPhoneTested:false}));process.exitCode=0;
+}finally{await context?.close();await new Promise(resolve=>server.close(resolve));rmSync(profile,{recursive:true,force:true});}

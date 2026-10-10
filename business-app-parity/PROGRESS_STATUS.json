@@ -3746,5 +3746,30 @@
       "total": 10,
       "percent": 30
     }
+  },
+  "localCustomerVaultBatch": {
+    "parent": "9b3afd6d30502827c285982b2844914b0d176ea5",
+    "status": "VERIFIED_INACTIVE_SYNTHETIC_VAULT",
+    "evidence": "LOCAL_CUSTOMER_VAULT_EVIDENCE.json",
+    "handoff": "LOCAL_CUSTOMER_VAULT_HANDOFF.md",
+    "nativeBrowserChecks": {
+      "passed": 63,
+      "total": 63
+    },
+    "typechecks": {
+      "passed": 3,
+      "total": 3
+    },
+    "builds": {
+      "passed": 3,
+      "total": 3
+    },
+    "sharedSourceFiles": 122,
+    "realRecordsActivated": false,
+    "productionReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    }
   }
 }
