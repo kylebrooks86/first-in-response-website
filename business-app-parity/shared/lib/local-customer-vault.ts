@@ -35,6 +35,9 @@ export async function openLocalCustomerVault(account: string, target: string,
   let generation = 0, closed = false, coordinationFailed = false;
   const sessions = new Set<() => void>();
   const initializations = new Set<IDBTransaction>();
+  let lifecycleCheck = () => {};
+  let lifecycleStart = () => {};
+  let lifecycleDispose: (() => void) | undefined;
   function revokeLocal() {
     generation++;
     for (const revoke of sessions) revoke();
@@ -69,9 +72,11 @@ export async function openLocalCustomerVault(account: string, target: string,
   }
   function close() {
     revokeLocal(); closed = true; db.close(); channel?.close();
+    lifecycleDispose?.();
     globalThis.removeEventListener?.('storage', storageListener);
   }
   function check(epoch: number) {
+    lifecycleCheck();
     synchronizeLock();
     if (closed || coordinationFailed || epoch !== generation) throw new Error('Vault locked or closed; unlock again.');
   }
@@ -80,6 +85,50 @@ export async function openLocalCustomerVault(account: string, target: string,
     namespace,
     lock,
     close,
+    // Opt-in foundation only: no deployed UI currently opens this vault.
+    enableAutoLock(idleMs = 300_000) {
+      if (closed || lifecycleDispose || !globalThis.document
+        || !Number.isSafeInteger(idleMs) || idleMs < 50 || idleMs > 86_400_000) throw new Error('Invalid or already enabled vault lifecycle policy.');
+      let expired = false, away = false;
+      let deadline = performance.now() + idleMs;
+      let timer: ReturnType<typeof setTimeout>;
+      function enforce() {
+        if (!expired && (document.hidden || away || performance.now() >= deadline)) {
+          expired = true; clearTimeout(timer); lock();
+        }
+      }
+      function schedule() {
+        clearTimeout(timer);
+        timer = setTimeout(() => { try { enforce(); if (!expired) schedule(); } catch { /* Lock failure already makes this handle fail closed. */ } }, Math.max(0, deadline - performance.now()));
+      }
+      lifecycleCheck = enforce;
+      lifecycleStart = () => {
+        enforce();
+        if (document.hidden || away) throw new Error('Vault cannot unlock in the background.');
+        if (expired) { expired = false; deadline = performance.now() + idleMs; schedule(); }
+      };
+      const visibility = () => { try { enforce(); } catch { /* Fail closed. */ } };
+      const hide = () => { away = true; visibility(); };
+      const show = () => { away = false; visibility(); }; // Never automatically unlock on return.
+      const activity = (event: Event) => {
+        visibility();
+        if (!event.isTrusted || expired || document.hidden || away) return;
+        deadline = performance.now() + idleMs; schedule();
+      };
+      document.addEventListener('visibilitychange', visibility);
+      globalThis.addEventListener('pagehide', hide);
+      globalThis.addEventListener('pageshow', show);
+      for (const event of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(event, activity, { passive: true });
+      lifecycleDispose = () => {
+        clearTimeout(timer);
+        document.removeEventListener('visibilitychange', visibility);
+        globalThis.removeEventListener('pagehide', hide);
+        globalThis.removeEventListener('pageshow', show);
+        for (const event of ['pointerdown', 'keydown', 'touchstart']) document.removeEventListener(event, activity);
+        lifecycleCheck = () => {}; lifecycleStart = () => {};
+      };
+      schedule(); visibility();
+    },
     async initialize(value: unknown, phrase: string): Promise<void> {
       synchronizeLock();
       const epoch = generation; check(epoch);
@@ -96,6 +145,7 @@ export async function openLocalCustomerVault(account: string, target: string,
       });
     },
     async unlock(phrase: string) {
+      lifecycleStart();
       synchronizeLock();
       const epoch = generation; check(epoch);
       const sealed = await new Promise<unknown>((resolve, reject) => {

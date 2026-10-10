@@ -211,6 +211,49 @@ try {
   await check('unavailable coordination storage fails closed before vault use',async()=>{
     assert.equal(await p.evaluate(async()=>{try{await vaultApi.openLocalCustomerVault('blocked-owner','blocked-target',indexedDB,crypto,{setItem(){throw new DOMException('Injected unavailable storage','SecurityError');}});return false;}catch{return true;}}),true);
   });
+  async function lifecyclePage(){const tab=await page();await tab.evaluate(async()=>{vault.close();window.vault=await vaultApi.openLocalCustomerVault('lifecycle-owner','lifecycle-target');try{await vault.initialize({...archive,namespace:api.localCustomerDatabaseName('lifecycle-owner','lifecycle-target')},phrase);}catch{}window.lifeSession=await vault.unlock(phrase);});return tab;}
+  let life=await lifecyclePage();
+  await check('invalid lifecycle policy rejects without revoking valid access',async()=>{
+    assert.equal(await life.evaluate(()=>{let rejected=0;for(const ms of [0,NaN,49,86400001])try{vault.enableAutoLock(ms);}catch{rejected++;}return rejected===4&&lifeSession.getCustomer(customer.id).revision===1;}),true);
+  });
+  await check('idle deadline blocks access before a delayed timer can run',async()=>{
+    assert.equal(await life.evaluate(()=>{vault.enableAutoLock(500);const until=performance.now()+650;while(performance.now()<until){}try{lifeSession.listCustomers();return false;}catch{return true;}}),true);
+  });
+  await check('explicit unlock recovers access after idle lock without altering ciphertext',async()=>{
+    assert.equal(await life.evaluate(async()=>{const before=JSON.stringify(await rawVault());window.lifeSession=await vault.unlock(phrase);return lifeSession.getCustomer(customer.id).revision===1&&JSON.stringify(await rawVault())===before;}),true);
+  });
+  await life.close();life=await lifecyclePage();
+  await check('untrusted scripted activity cannot extend an idle session',async()=>{
+    assert.equal(await life.evaluate(()=>{vault.enableAutoLock(50);const until=performance.now()+80;while(performance.now()<until){document.dispatchEvent(new Event('pointerdown'));}try{lifeSession.listCustomers();return false;}catch{return true;}}),true);
+  });
+  await life.close();life=await lifecyclePage();
+  await check('trusted browser input extends idle deadline only while unlocked',async()=>{
+    await life.evaluate(()=>{document.body.innerHTML='<button id="activity">Synthetic activity</button>';vault.enableAutoLock(600);});
+    await new Promise(resolve=>setTimeout(resolve,350));await life.click('#activity');await new Promise(resolve=>setTimeout(resolve,350));
+    assert.equal(await life.evaluate(()=>lifeSession.getCustomer(customer.id).revision),1);
+    await life.waitForFunction(()=>{try{lifeSession.listCustomers();return false;}catch{return true;}});
+    await life.click('#activity');assert.equal(await life.evaluate(()=>{try{lifeSession.listCustomers();return false;}catch{return true;}}),true);
+  });
+  await life.close();life=await lifecyclePage();
+  await check('simulated visibility loss locks and rejects background unlock',async()=>{
+    assert.equal(await life.evaluate(async()=>{vault.enableAutoLock();Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));let blocked=0;try{lifeSession.listCustomers();}catch{blocked++;}try{await vault.unlock(phrase);}catch{blocked++;}delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));try{lifeSession.listCustomers();}catch{blocked++;}return blocked===3;}),true);
+  });
+  await life.close();life=await lifecyclePage();
+  await check('pagehide locks across tabs and pageshow never resurrects old sessions',async()=>{
+    const second=await lifecyclePage();await life.evaluate(()=>{vault.enableAutoLock();window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}));});
+    await second.waitForFunction(()=>{try{lifeSession.listCustomers();return false;}catch{return true;}});
+    assert.equal(await life.evaluate(async()=>{let blocked=false;try{await vault.unlock(phrase);}catch{blocked=true;}window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}));try{lifeSession.listCustomers();return false;}catch{}const fresh=await vault.unlock(phrase);return blocked&&fresh.getCustomer(customer.id).revision===1;}),true);await second.close();
+  });
+  await life.close();life=await lifecyclePage();
+  await check('backgrounding during native encryption preserves stored ciphertext',async()=>{
+    assert.equal(await life.evaluate(async()=>{vault.enableAutoLock();const before=JSON.stringify(await rawVault());const original=SubtleCrypto.prototype.encrypt;let reached,release;const started=new Promise(resolve=>{reached=resolve;}),gate=new Promise(resolve=>{release=resolve;});SubtleCrypto.prototype.encrypt=async function(...args){reached();await gate;return original.apply(this,args);};try{const pending=lifeSession.saveCustomer({...customer,name:'Background blocked'},'background-save',1,phrase);await started;window.dispatchEvent(new PageTransitionEvent('pagehide'));release();try{await pending;return false;}catch{return JSON.stringify(await rawVault())===before;}}finally{SubtleCrypto.prototype.encrypt=original;}}),true);
+  });
+  await life.close();life=await lifecyclePage();
+  await check('close removes lifecycle listeners and cannot lock another handle later',async()=>{
+    const second=await lifecyclePage();await life.evaluate(()=>{vault.enableAutoLock(50);vault.close();window.dispatchEvent(new PageTransitionEvent('pagehide'));});
+    await new Promise(resolve=>setTimeout(resolve,100));assert.equal(await second.evaluate(()=>lifeSession.getCustomer(customer.id).revision),1);await second.close();
+  });
+  await life.close();
   await peer.evaluate(()=>{unrelated.close();vault.close();});await peer.close();
   await p.evaluate(async()=>{vault.close();window.vault=await vaultApi.openLocalCustomerVault('synthetic-owner','synthetic-target');});
   await check('ciphertext tampering fails closed without replacing stored snapshot',async()=>{
