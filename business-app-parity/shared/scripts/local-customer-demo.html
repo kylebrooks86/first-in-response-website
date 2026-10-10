@@ -2,8 +2,9 @@
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>FIRE synthetic offline customers</title>
 <style>body{font:17px system-ui;margin:auto;padding:24px;max-width:620px;background:#111827;color:#f9fafb}button,select,input{font:inherit;min-height:48px;padding:10px;margin:6px 0;width:100%;box-sizing:border-box;border-radius:8px}button{background:#b91c1c;color:white;border:0}button:disabled{opacity:.5}label{display:block;margin-top:14px}section{margin-top:24px}p{line-height:1.5}:focus-visible{outline:3px solid #fbbf24}[hidden]{display:none!important}</style>
 <h1>Offline customer demo</h1><p>Synthetic records only. This local test screen cannot enter real customer details. It does not activate the Business App or prove offline Home Screen launch.</p>
-<p>Test recovery phrase: <code>synthetic demo recovery phrase only</code></p>
+<p>Use a test recovery phrase of at least 16 characters. Never enter a real business phrase.</p>
 <form id="unlock-form"><label for="phrase">Test recovery phrase</label><input id="phrase" type="password" autocomplete="off" required><button id="unlock">Unlock synthetic vault</button></form>
+<p id="offline-shell" role="status">Offline shell not installed yet.</p>
 <p id="status" role="status" aria-live="polite">Locked</p>
 <section id="records" hidden><h2>Synthetic customer</h2><p id="customer"></p><form id="edit-form"><label for="name">Synthetic name preset</label><select id="name"><option>Synthetic Customer</option><option>Synthetic Updated</option><option>Synthetic Recovery</option></select><label for="save-phrase">Test recovery phrase for save</label><input id="save-phrase" type="password" autocomplete="off" required><button id="save">Save offline edit</button></form><button id="lock" type="button">Lock and clear screen</button></section>
 <script type="module" src="/demo.js"></script></html>

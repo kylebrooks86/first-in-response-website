@@ -3999,5 +3999,68 @@
     "demoAndHarnessFilesMatchedAcrossTargets": 6,
     "evidence": "LOCAL_CUSTOMER_DEMO_EVIDENCE.json",
     "handoff": "LOCAL_CUSTOMER_DEMO_HANDOFF.md"
+  },
+  "localCustomerColdLaunch": {
+    "baseCommit": "492090db8e42c8be3a0df0002787e6ef996ff044",
+    "newerRemoteCommitFound": false,
+    "scope": "Localhost synthetic customer demonstration only",
+    "staticAssetsCached": 5,
+    "serviceWorkerScope": "/synthetic-customer-demo/",
+    "nativeChromiumColdLaunch": {
+      "passed": 33,
+      "total": 33,
+      "perCandidate": 11,
+      "completeProcessRestartsPerCandidate": 2,
+      "networkDisabledBeforeNavigation": true,
+      "serverStoppedBeforeOfflineLaunch": true,
+      "persistentProfile": true,
+      "nativeIndexedDB": true,
+      "nativeWebCrypto": true
+    },
+    "screenRegression": {
+      "passed": 39,
+      "total": 39,
+      "perCandidate": 13,
+      "backgroundEventsSimulated": true
+    },
+    "typeScript": {
+      "passed": 3,
+      "total": 3,
+      "standaloneDemoStrictCheck": true
+    },
+    "builds": {
+      "passed": 3,
+      "total": 3
+    },
+    "sharedSourceParity": {
+      "passed": 122,
+      "total": 122,
+      "scriptHashes": {
+        "local-customer-demo.ts": "37bae8c007aa6bead673005f98e6ff84db2da455e222d151732d717359d4d25c",
+        "local-customer-demo.html": "2a4987a00514fe173c8a14cfd33274c01f24c148ae21bad8220d9100a4787c29",
+        "local-customer-demo-server.mjs": "1f8159e153fb7a81dae0023db5a50a11b5f09a7b8b120825ce36e3786d0b1c35",
+        "local-customer-demo-worker.js": "02dde5a0cabb7b98742c64a6c1f91cfa0de7a42c3a9612b39e038b8b94ad59ee",
+        "test-local-customer-demo-cold-browser.mjs": "a2e9562f19b7fc01017aef4b4f202e576c51020289e2759249c9fd7b9ca018cc"
+      }
+    },
+    "initialFailure": "Installation stalled while response bodies remained unconsumed; static responses are now fully buffered before fetching the next asset. Final browser runs passed.",
+    "preserved": "Vault source, encrypted backup/restore, revision protection, cross-tab/lifecycle locking, receipt recovery, production application UI and navigation unchanged.",
+    "notVerified": [
+      "iPhone Safari/Home Screen installation and airplane-mode launch",
+      "Actual obsolete service-worker upgrade with an old active client",
+      "Missing JavaScript asset repair and interrupted shell installation",
+      "Sudden OS/process crash, storage eviction or clean-device recovery",
+      "Full Business App offline operation and existing scrolling shake"
+    ],
+    "noDeployments": true,
+    "noDatabaseMigrations": true,
+    "noStripeActions": true,
+    "additionalSpendingUSD": 0,
+    "releaseReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "nextBatch": "Test obsolete active-worker updates, failed install retention and missing JavaScript repair before arranging iPhone synthetic-only Home Screen verification."
   }
 }

@@ -3,7 +3,6 @@ import { openLocalCustomerVault } from '../lib/local-customer-vault';
 import { localCustomerDatabaseName, type LocalCustomerInput } from '../lib/local-customer-store';
 
 const account = 'synthetic-demo-owner', target = 'synthetic-demo-target';
-const fixedPhrase = 'synthetic demo recovery phrase only';
 const input: LocalCustomerInput = { id: 'synthetic-demo-1', name: 'Synthetic Customer', email: 'demo@example.invalid', phone: '', address: 'Synthetic location', leadSource: 'synthetic' };
 const allowedNames = new Set(['Synthetic Customer', 'Synthetic Updated', 'Synthetic Recovery']);
 function element<T>(id: string): T {
@@ -14,6 +13,21 @@ function element<T>(id: string): T {
 const records = element<HTMLElement>('records'), status = element<HTMLElement>('status');
 const phrase = element<HTMLInputElement>('phrase'), savePhrase = element<HTMLInputElement>('save-phrase');
 const names = element<HTMLSelectElement>('name'), customer = element<HTMLElement>('customer');
+// Registration is confined to the isolated demo directory on localhost.
+void (async () => {
+  const indicator = element<HTMLElement>('offline-shell');
+  try {
+    if (!['127.0.0.1', 'localhost'].includes(location.hostname) || location.pathname !== '/synthetic-customer-demo/') throw new Error('Not isolated demo');
+    const registration = await navigator.serviceWorker.register('./worker.js', { scope: './', updateViaCache: 'none' });
+    if (!registration.active) await new Promise<void>((resolve, reject) => {
+      const worker = registration.installing || registration.waiting;
+      if (!worker) { reject(new Error('No shell worker')); return; }
+      const state = () => { if (worker.state === 'activated') resolve(); else if (worker.state === 'redundant') reject(new Error('Shell installation failed')); };
+      worker.addEventListener('statechange', state); state();
+    });
+    indicator.textContent = 'Offline shell ready on this browser. Storage can still be cleared or evicted.';
+  } catch { indicator.textContent = 'Offline shell unavailable. Keep this demo online until installation succeeds.'; }
+})();
 const vault = await openLocalCustomerVault(account, target);
 let session: Awaited<ReturnType<typeof vault.unlock>> | undefined;
 let generation = 0, busy = false;
@@ -44,7 +58,6 @@ element<HTMLFormElement>('unlock-form').addEventListener('submit', async event =
   let epoch = generation; const supplied = phrase.value; phrase.value = ''; busy = true;
   element<HTMLButtonElement>('unlock').disabled = true;
   try {
-    if (supplied !== fixedPhrase) throw new Error('Synthetic phrase mismatch.');
     let unlocked: Awaited<ReturnType<typeof vault.unlock>>;
     try { const pending = vault.unlock(supplied); epoch = generation; unlocked = await pending; }
     catch (error) {
