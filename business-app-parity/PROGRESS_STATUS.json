@@ -4491,5 +4491,96 @@
     "stripeActions": 0,
     "additionalSpendingUSD": 0,
     "recommendedNextStep": "Owner approval of exact synthetic-only Pages destination and current commit/package; then verify account/free eligibility and hosted TLS/headers before iPhone testing. Stop if hostname changes or costs arise."
+  },
+  "syntheticFinalPublicationReview": {
+    "asOf": "2026-10-10",
+    "sourceCommit": "5279d071ec8651c0ba5e963b4aa0d3bb4c84ccc7",
+    "newerRemoteCommitFound": false,
+    "scope": "Documentation-only final synthetic publication approval review",
+    "publicationAuthorized": false,
+    "proposedURL": "https://fire-synthetic-offline-test-bfc00939.pages.dev/synthetic-customer-demo/",
+    "accountId": "bfc00939cfb2f8dfd8581a7a7f5f1307",
+    "shellVersion": "b9cbe0f7beff59d57f092c55",
+    "receiptSha256": "e419f619a6dc66304a8255225a572f3dfb1c360fe6a6815787fa34357b3b5d91",
+    "uploadFiles": 13,
+    "uploadBytes": 271580,
+    "freshPackageComparison": {
+      "candidates": 3,
+      "receiptsMatched": 3,
+      "fileHashesAndSizesPassed": 39,
+      "total": 39,
+      "inventoryMatched": true,
+      "typescriptVersion": "5.9.3"
+    },
+    "sharedSourceParity": {
+      "filesChecked": 122,
+      "differences": 0,
+      "candidateCount": 3,
+      "deployedParityProved": false
+    },
+    "packageReview": {
+      "exactOriginGuard": true,
+      "directoryScope": "/synthetic-customer-demo/",
+      "cacheEntries": 8,
+      "getOnlySameOriginNoQuery": true,
+      "cspBootstrapHashMatches": true,
+      "headerLengthsWithinLimits": true,
+      "manifestIdentityMatches": true,
+      "onlyStaticInventory": true,
+      "credentialPatternFindings": 0,
+      "embeddedSavedRecords": false,
+      "functions": [],
+      "bindings": [],
+      "stripeConnections": [],
+      "additionalNetworkMechanismsFound": false,
+      "cors": "No local CORS declaration; provider documents default *, actual headers UNVERIFIED"
+    },
+    "accountReview": {
+      "status": "UNVERIFIED",
+      "reason": "No account API exposed; browser dashboard redirected to https://dash.cloudflare.com/login; no authenticated account state, login or account mutation attempted"
+    },
+    "hostnameReview": {
+      "status": "UNVERIFIED",
+      "reason": "No creation or reservation attempted; bounded public HEAD returned proxy HTTP/2 502 from mitmproxy, not Cloudflare evidence",
+      "assignedHostnameVerified": false
+    },
+    "freeEligibility": {
+      "providerStaticRequestsDocumentedFree": true,
+      "accountQuotaAndEligibility": "UNVERIFIED",
+      "paidFallbackAllowed": false
+    },
+    "hostedTLSHeadersVerified": false,
+    "iphoneVerified": false,
+    "unchangedSuitesRerun": false,
+    "priorEvidence": {
+      "browserChecks": "180/180",
+      "correctedTargetedRerun": "75/75",
+      "typescript": "3/3",
+      "builds": "3/3",
+      "httpsLab": "Local proxy and temporary certificate bypass; not actual Cloudflare"
+    },
+    "conditionalApprovalPlan": "SYNTHETIC_FINAL_PUBLICATION_APPROVAL.md",
+    "stopConditions": [
+      "Account/free/identity checks unavailable or fail",
+      "Different assigned hostname or collision",
+      "Receipt/hash/inventory mismatch",
+      "Paid service or upgrade required",
+      "Hosted acceptance fails"
+    ],
+    "originalAppScrollBenchmarkPreserved": true,
+    "navigationScrollResetPreserved": true,
+    "wholeScreenShakingResolved": false,
+    "createdResources": 0,
+    "reservedHostnames": 0,
+    "deployments": 0,
+    "productionDatabaseChanges": 0,
+    "stripeActions": 0,
+    "additionalSpendingUSD": 0,
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "nextBatch": "After explicit conditional owner approval: authenticated eligibility check, exact-host create-only check and synthetic publication, then real hosted acceptance. Stop on blocked access or mismatch."
   }
 }

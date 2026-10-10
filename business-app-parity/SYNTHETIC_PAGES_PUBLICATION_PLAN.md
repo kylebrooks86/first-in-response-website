@@ -30,7 +30,7 @@ Manifest id/start_url/scope: `/synthetic-customer-demo/`; display standalone; ti
 
 Worker interception remains GET-only, same-origin, no query, eight static allowlisted paths. It does not cache customer/API/Stripe responses. Encrypted records stay in IndexedDB. Browser origin and scope boundaries prevent this project from controlling existing FIRE apps on other hostnames. No root worker or widened Service-Worker-Allowed header is emitted. No custom production domain or routes may be added.
 
-Expected MIME: HTML text/html; modules and worker text/javascript; manifest application/manifest+json; icons image/png. Per-asset marker X-Fire-Synthetic-Asset:1 is required by installation; worker lacks that marker. No-store, nosniff, DENY framing, no-referrer and noindex headers; CSP restricts scripts to self plus the exact inline-bootstrap SHA256, worker/connect/manifest/images to self, forbids frames/forms/base/object. There is no CORS permission or backend. Top-level 404 prevents Pages SPA fallback for nonexistent APIs. Root only redirects to the demo scope. Actual Pages headers, redirects, methods and valid TLS MUST be checked after approval/publication; local emulation is not hosted verification.
+Expected MIME: HTML text/html; modules and worker text/javascript; manifest application/manifest+json; icons image/png. Per-asset marker X-Fire-Synthetic-Asset:1 is required by installation; worker lacks that marker. No-store, nosniff, DENY framing, no-referrer and noindex headers; CSP restricts scripts to self plus the exact inline-bootstrap SHA256, worker/connect/manifest/images to self, forbids frames/forms/base/object. The package declares no CORS rule or backend. Cloudflare documents a default Access-Control-Allow-Origin: * on static responses; actual hosted CORS must be recorded and does not widen service-worker control or expose IndexedDB. Top-level 404 prevents Pages SPA fallback for nonexistent APIs. Root only redirects to the demo scope. Actual Pages headers, redirects, methods and valid TLS MUST be checked after approval/publication; local emulation is not hosted verification.
 
 ## Publication procedure — only after explicit approval
 
@@ -59,3 +59,7 @@ https://developers.cloudflare.com/pages/platform/limits/
 https://www.w3.org/TR/service-workers/
 https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/ios
 https://webkit.org/blog/14403/updates-to-storage-policy/
+
+## Final read-only review checkpoint
+
+See SYNTHETIC_FINAL_PUBLICATION_APPROVAL.md and SYNTHETIC_FINAL_PUBLICATION_EVIDENCE.json for the pinned source/package, regenerated hash comparisons, sign-in access limit, conditional create-only hostname check and concrete approval request. Account/free quota, hostname assignment, real TLS/headers and iPhone tests remain UNVERIFIED. Publication remains unauthorized.
