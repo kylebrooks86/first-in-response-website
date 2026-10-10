@@ -103,6 +103,55 @@ try {
     assert.equal(await p.evaluate(async()=>{const s=await vault.unlock(phrase);const name=s.listCustomers()[0].name;s.lock();return name;}),'Synthetic Customer');assert.equal((await p.evaluate(()=>rawVault())).length,1);
   });
   await context.setOffline(false);
+  await p.evaluate(async()=>{window.editor=await vault.unlock(phrase);});
+  await check('wrong phrase cannot rewrite encrypted customer data',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());try{await editor.saveCustomer({...customer,name:'Wrong'},'wrong-phrase-edit',1,'incorrect recovery phrase');return false;}catch{return JSON.stringify(await rawVault())===before&&editor.getCustomer(customer.id).revision===1;}}),true);
+  });
+  await check('invalid fields and stale customer revision reject without writes',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());let failures=0;for(const [input,op,rev] of [[{...customer,extra:true},'extra',1],[{...customer,name:''},'empty',1],[customer,'bad:id',1],[customer,'bad-rev',0]])try{await editor.saveCustomer(input,op,rev,phrase);}catch{failures++;}return failures===4&&JSON.stringify(await rawVault())===before;}),true);
+  });
+  await check('aborted native ciphertext replacement preserves disk and session revision',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());const original=IDBObjectStore.prototype.put;IDBObjectStore.prototype.put=function(...args){const req=original.apply(this,args);req.addEventListener('success',()=>req.transaction.abort());return req;};let rejected=false;try{await editor.saveCustomer({...customer,name:'Interrupted'},'interrupted-edit',1,phrase);}catch{rejected=true;}finally{IDBObjectStore.prototype.put=original;}return rejected&&JSON.stringify(await rawVault())===before&&editor.getCustomer(customer.id).revision===1;}),true);
+  });
+  await check('quota failure preserves prior encrypted snapshot',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());const original=IDBObjectStore.prototype.put;IDBObjectStore.prototype.put=function(){throw new DOMException('Injected quota','QuotaExceededError');};let rejected=false;try{await editor.saveCustomer({...customer,name:'Quota'},'quota-edit',1,phrase);}catch{rejected=true;}finally{IDBObjectStore.prototype.put=original;}return rejected&&JSON.stringify(await rawVault())===before;}),true);
+  });
+  await check('session lock during encryption cancels pending replacement',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());const original=SubtleCrypto.prototype.encrypt;let reached,release;const started=new Promise(resolve=>{reached=resolve;}),gate=new Promise(resolve=>{release=resolve;});SubtleCrypto.prototype.encrypt=async function(...args){reached();await gate;return original.apply(this,args);};try{const pending=editor.saveCustomer({...customer,name:'Locked'},'locked-edit',1,phrase);await started;editor.lock();release();try{await pending;return false;}catch{return JSON.stringify(await rawVault())===before;}}finally{SubtleCrypto.prototype.encrypt=original;}}),true);
+  });
+  await p.evaluate(async()=>{window.editor=await vault.unlock(phrase);});
+  await context.setOffline(true);
+  await check('offline successful edit advances customer/history only after commit',async()=>{
+    const result=await p.evaluate(async()=>{const saved=await editor.saveCustomer({...customer,name:'Edited offline'},'committed-edit',1,phrase);return {saved:saved.name,revision:editor.getCustomer(customer.id).revision,operations:editor.exportSnapshot().pendingOperations.length};});assert.deepEqual(result,{saved:'Edited offline',revision:2,operations:2});
+  });
+  await check('exact duplicate write retry leaves ciphertext unchanged',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());const result=await editor.saveCustomer({...customer,name:'Edited offline'},'committed-edit',1,phrase);return result.revision===2&&JSON.stringify(await rawVault())===before;}),true);
+  });
+  await check('operation ID cannot be reused for a different encrypted change',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());try{await editor.saveCustomer({...customer,name:'Different'},'committed-edit',1,phrase);return false;}catch{return JSON.stringify(await rawVault())===before;}}),true);
+  });
+  await check('old operation retry never rewinds newer encrypted edits',async()=>{
+    assert.equal(await p.evaluate(async()=>{await editor.saveCustomer({...customer,name:'Newer retained'},'newer-edit',2,phrase);const before=JSON.stringify(await rawVault());const old=await editor.saveCustomer({...customer,name:'Edited offline'},'committed-edit',1,phrase);return old.revision===2&&editor.getCustomer(customer.id).revision===3&&JSON.stringify(await rawVault())===before;}),true);
+  });
+  await check('caller mutation cannot alter a scheduled encrypted customer create',async()=>{
+    assert.equal(await p.evaluate(async()=>{const input={...customer,id:'created-encrypted'};const pending=editor.saveCustomer(input,'encrypted-create',0,phrase);input.name='Mutated';return (await pending).name;}),'Synthetic Customer');
+  });
+  await context.setOffline(false);
+  await check('two-tab edits compare-and-swap with exactly one winner',async()=>{
+    const other=await page();for(const tab of [p,other])await tab.evaluate(async()=>{window.raceEditor=await vault.unlock(phrase);});
+    const results=await Promise.all([p,other].map((tab,i)=>tab.evaluate(async i=>{try{await raceEditor.saveCustomer({...customer,name:`Race ${i}`},`race-edit-${i}`,3,phrase);return 'saved';}catch(e){return e.message;}},i)));assert.equal(results.filter(r=>r==='saved').length,1);assert.equal(results.filter(r=>/snapshot changed/.test(r)).length,1);await other.close();
+  });
+  await check('stale encrypted snapshot cannot lose unrelated newer customers',async()=>{
+    assert.equal(await p.evaluate(async()=>{const stale=await vault.unlock(phrase),writer=await vault.unlock(phrase);await writer.saveCustomer({...customer,id:'newer-customer'},'newer-create',0,phrase);const before=JSON.stringify(await rawVault());let rejected=false;try{await stale.saveCustomer({...customer,id:'stale-customer'},'stale-create',0,phrase);}catch{rejected=true;}return rejected&&JSON.stringify(await rawVault())===before;}),true);
+  });
+  await check('raw persisted edits remain ciphertext without customer plaintext',async()=>{
+    const text=JSON.stringify(await p.evaluate(()=>rawVault()));for(const secret of ['Edited offline','Newer retained','newer-customer','created-encrypted','test@example.invalid'])assert.ok(!text.includes(secret));
+  });
+  await context.close();context=null;await launch();p=await page();await context.setOffline(true);
+  await check('encrypted edits and operation history survive graceful restart',async()=>{
+    const result=await p.evaluate(async()=>{const s=await vault.unlock(phrase);const rows=s.listCustomers();return {count:rows.length,revision:s.getCustomer(customer.id).revision,operations:s.exportSnapshot().pendingOperations.length};});assert.deepEqual(result,{count:3,revision:4,operations:6});
+  });
+  await context.setOffline(false);
   await check('ciphertext tampering fails closed without replacing stored snapshot',async()=>{
     const result=await p.evaluate(async()=>{const db=await new Promise(resolve=>{const r=indexedDB.open(vault.namespace,1);r.onsuccess=()=>resolve(r.result);});await new Promise((resolve,reject)=>{const tx=db.transaction('sealed','readwrite');const store=tx.objectStore('sealed');const req=store.get('snapshot');req.onsuccess=()=>{const row=req.result;row.envelope.ciphertext=(row.envelope.ciphertext[0]==='0'?'1':'0')+row.envelope.ciphertext.slice(1);store.put(row);};tx.oncomplete=resolve;tx.onabort=reject;});db.close();const before=JSON.stringify(await rawVault());try{await vault.unlock(phrase);return false;}catch{return JSON.stringify(await rawVault())===before;}});assert.equal(result,true);
   });

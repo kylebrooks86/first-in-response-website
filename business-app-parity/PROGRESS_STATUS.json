@@ -3771,5 +3771,59 @@
       "total": 10,
       "percent": 30
     }
+  },
+  "localCustomerVaultUpdatesBatch": {
+    "parent": "d0ec60a11e63afe15f296eff76706cfaf39a37d2",
+    "status": "VERIFIED_INACTIVE_SYNTHETIC_ENCRYPTED_UPDATES",
+    "nativeBrowserChecks": {
+      "passed": 105,
+      "total": 105,
+      "perTarget": 35
+    },
+    "typechecks": {
+      "passed": 3,
+      "total": 3
+    },
+    "builds": {
+      "passed": 3,
+      "total": 3
+    },
+    "standaloneStrictTypecheck": true,
+    "sharedFilesMatched": 122,
+    "negativeControl": {
+      "exitCode": 1,
+      "mutation": "Omit atomic sealed-row identity comparison",
+      "failure": "Two concurrent edits succeed instead of exactly one: 2 !== 1"
+    },
+    "capabilities": [
+      "Offline synthetic customer create/edit inside an unlocked encrypted vault",
+      "Customer revision checks",
+      "Atomic ciphertext compare-and-swap inside native IndexedDB readwrite transaction",
+      "Operation receipt retry without rewind",
+      "Aborted/quota-failed writes preserve ciphertext and session snapshot",
+      "Lock during encryption prevents pending save",
+      "Encrypted edits survive graceful browser restart"
+    ],
+    "limits": [
+      "Inactive foundation; no real-record UI integration or plaintext migration",
+      "Whole snapshot encrypted per new operation; phrase supplied per write; iPhone cost unmeasured",
+      "Stale sessions must unlock again; no cross-tab logout or idle/background lifecycle integration",
+      "Lock after native commit can reject acknowledgement while data is committed: unlock and inspect operation receipt before retry",
+      "No installed-PWA offline cold-launch, Safari/iPhone, eviction, power-loss or permanent storage durability proof",
+      "Navigation reset preserved; whole-screen shaking remains unresolved"
+    ],
+    "deployed": false,
+    "remoteDatabaseWrites": false,
+    "stripeCalls": false,
+    "paidServicesUsed": false,
+    "realRecordsActivated": false,
+    "productionReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30,
+      "ready": false
+    },
+    "evidence": "LOCAL_CUSTOMER_VAULT_UPDATES_EVIDENCE.json",
+    "handoff": "LOCAL_CUSTOMER_VAULT_UPDATES_HANDOFF.md"
   }
 }
