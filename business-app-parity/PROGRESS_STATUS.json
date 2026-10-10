@@ -3705,5 +3705,30 @@
       "percent": 30,
       "ready": false
     }
+  },
+  "localCustomerProtectedBackupBatch": {
+    "parent": "b22e51c97fb8ab52da43804b34ebb8ec5e9f89ed",
+    "status": "VERIFIED_NODE_DEVELOPMENT_ONLY",
+    "evidence": "LOCAL_CUSTOMER_PROTECTED_BACKUP_EVIDENCE.json",
+    "handoff": "LOCAL_CUSTOMER_PROTECTED_BACKUP_HANDOFF.md",
+    "checks": {
+      "passed": 66,
+      "total": 66
+    },
+    "typechecks": {
+      "passed": 3,
+      "total": 3
+    },
+    "builds": {
+      "passed": 3,
+      "total": 3
+    },
+    "browserVerified": false,
+    "realRecordsActivated": false,
+    "productionReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    }
   }
 }
