@@ -1,6 +1,6 @@
 {
   "scope": "FIRE Business App only",
-  "asOf": "2026-10-09",
+  "asOf": "2026-10-10",
   "sourceComparison": {
     "passed": 119,
     "total": 119,
@@ -4582,5 +4582,50 @@
       "percent": 30
     },
     "nextBatch": "After explicit conditional owner approval: authenticated eligibility check, exact-host create-only check and synthetic publication, then real hosted acceptance. Stop on blocked access or mismatch."
+  },
+  "syntheticOwnerIPhoneQABatch": {
+    "asOf": "2026-10-10",
+    "baseDevelopmentCheckpoint": "e5caabf1a48714bc9b928758b1b299a49780acec",
+    "sourceCommit": "5279d071ec8651c0ba5e963b4aa0d3bb4c84ccc7",
+    "shellVersion": "b9cbe0f7beff59d57f092c55",
+    "ownerReportedDeviceTests": {
+      "passed": 13,
+      "total": 13,
+      "percent": 100,
+      "independentlyObserved": 0
+    },
+    "evidence": "SYNTHETIC_IPHONE_OWNER_QA_EVIDENCE.json",
+    "recoveryPlan": "SYNTHETIC_IPHONE_RECOVERY_HANDOFF.md",
+    "hostedEvidence": "SYNTHETIC_HOSTED_READ_ONLY_EVIDENCE.json",
+    "milestones": {
+      "syntheticOfflineColdLaunchAndPersistence": "PASS_OWNER_REPORTED",
+      "offlineExportAndActualSavedFileVerification": "PASS_OWNER_REPORTED",
+      "endToEndEmptyVaultRecovery": "PENDING_REAL_DEVICE",
+      "fullBusinessAppOffline": "NOT_COMPLETE"
+    },
+    "backgroundLock": "Expected lifecycle revocation; owner reports saved records retained",
+    "scrolling": "Unresolved; source inspection and bounded diagnostic plan saved",
+    "appSourceChanged": false,
+    "unchangedSuitesRerun": false,
+    "productionDeployments": 0,
+    "productionDatabaseChanges": 0,
+    "stripeActions": 0,
+    "additionalSpendingUSD": 0,
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "nextBatch": "Shared customer repository/UI adapter boundary in all isolated candidates; device recovery can proceed separately with original vault preserved",
+    "independentHostedFiles": {
+      "passed": 11,
+      "total": 11,
+      "headersResponsesPassed": 11
+    },
+    "sharedSourceParity": {
+      "files": 122,
+      "candidateCount": 3,
+      "differences": 0
+    }
   }
 }

@@ -1,0 +1,140 @@
+{
+  "asOf": "2026-10-10",
+  "baseDevelopmentCheckpoint": "e5caabf1a48714bc9b928758b1b299a49780acec",
+  "newerRemoteCommitFound": false,
+  "expectedURL": "https://fire-synthetic-offline-test-bfc00939.pages.dev/synthetic-customer-demo/",
+  "approvedPackageSourceCommit": "5279d071ec8651c0ba5e963b4aa0d3bb4c84ccc7",
+  "approvedShellVersion": "b9cbe0f7beff59d57f092c55",
+  "evidenceClass": "OWNER_REPORTED_REAL_IPHONE; not independently observed or automated device verification",
+  "deviceModel": "NOT_REPORTED",
+  "iOSVersion": "NOT_REPORTED",
+  "testedShellVersionObservedOnDevice": "NOT_REPORTED; expected identity independently compared via public asset hashes in separate evidence",
+  "ownerReportedResults": [
+    {
+      "id": 1,
+      "test": "Cloudflare Pages deployment completed",
+      "status": "PASS_OWNER_REPORTED"
+    },
+    {
+      "id": 2,
+      "test": "Synthetic demonstration loaded on iPhone",
+      "status": "PASS_OWNER_REPORTED"
+    },
+    {
+      "id": 3,
+      "test": "Separate Home Screen installation opened",
+      "status": "PASS_OWNER_REPORTED"
+    },
+    {
+      "id": 4,
+      "test": "Synthetic encrypted customer vault unlocked",
+      "status": "PASS_OWNER_REPORTED"
+    },
+    {
+      "id": 5,
+      "test": "Saved edit advanced Revision 1 to Revision 2",
+      "status": "PASS_OWNER_REPORTED"
+    },
+    {
+      "id": 6,
+      "test": "Closed/reopened: Revision 2 preserved",
+      "status": "PASS_OWNER_REPORTED"
+    },
+    {
+      "id": 7,
+      "test": "Airplane Mode with Wi-Fi off: force-closed and cold-reopened offline",
+      "status": "PASS_OWNER_REPORTED"
+    },
+    {
+      "id": 8,
+      "test": "Unlocked offline: Revision 2 preserved",
+      "status": "PASS_OWNER_REPORTED"
+    },
+    {
+      "id": 9,
+      "test": "Entirely offline edit advanced to Revision 3",
+      "status": "PASS_OWNER_REPORTED"
+    },
+    {
+      "id": 10,
+      "test": "Closed/reopened offline: Revision 3 preserved",
+      "status": "PASS_OWNER_REPORTED"
+    },
+    {
+      "id": 11,
+      "test": "Encrypted synthetic JSON backup exported in Airplane Mode",
+      "status": "PASS_OWNER_REPORTED"
+    },
+    {
+      "id": 12,
+      "test": "Exported file confirmed in iPhone Files",
+      "status": "PASS_OWNER_REPORTED"
+    },
+    {
+      "id": 13,
+      "test": "Actual saved file selected and verified offline: Backup verified: synthetic customer revision 3",
+      "status": "PASS_OWNER_REPORTED"
+    }
+  ],
+  "ownerReportedPassed": 13,
+  "ownerReportedTotal": 13,
+  "independentlyObservedDeviceTests": 0,
+  "backgroundLockObservation": "Sometimes returns locked after leaving; Revision 3 persists after unlocking. Consistent with hidden/pagehide/idle auto-lock; exact triggering event not observed.",
+  "milestones": {
+    "syntheticOfflineColdLaunchAndPersistence": "PASS_OWNER_REPORTED",
+    "offlineExportAndActualSavedFileVerification": "PASS_OWNER_REPORTED",
+    "endToEndEmptyVaultRecovery": "PENDING_REAL_DEVICE",
+    "fullBusinessAppOffline": "NOT_COMPLETE"
+  },
+  "remainingDeviceTests": [
+    "Offline restore to genuinely unused second-device vault before any Unlock initialization",
+    "Offline unlock recovered Revision 3 and close/reopen persistence",
+    "Repeat restore refusal with recovered Revision 3 unchanged",
+    "Wrong-phrase verification failure with records unchanged",
+    "Record Files/background lock behavior and device/iOS/shell identity",
+    "Original-app scrolling comparison; shaking unresolved"
+  ],
+  "safeRecoveryPlan": "SYNTHETIC_IPHONE_RECOVERY_HANDOFF.md",
+  "independentHostedEvidence": "SYNTHETIC_HOSTED_READ_ONLY_EVIDENCE.json",
+  "sourceReview": {
+    "emptyVaultAtomicAdd": true,
+    "existingVaultOverwriteAllowed": false,
+    "explicitConfirmation": true,
+    "namespaceAndSyntheticValidation": true,
+    "maxFileBytes": 2097152,
+    "lockInvalidatesPendingWork": true,
+    "unlockOnEmptyVaultCreatesRevision1": true,
+    "recoveryReplaysRemoteOperations": false
+  },
+  "noSourceOrScopeChange": true,
+  "unchangedSuitesRerun": false,
+  "productionDeployments": 0,
+  "productionDatabaseChanges": 0,
+  "stripeActions": 0,
+  "additionalSpendingUSD": 0,
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "batchValidation": {
+    "checkpointJSONParsed": true,
+    "diffWhitespaceChecked": true,
+    "hostedFileHashes": {
+      "passed": 11,
+      "total": 11
+    },
+    "hostedHeaderResponses": {
+      "passed": 11,
+      "total": 11
+    },
+    "sharedSourceParity": {
+      "files": 122,
+      "candidateCount": 3,
+      "differences": 0,
+      "gate": "scripts/check-app-parity.mjs",
+      "deploymentAdaptersAndIndependentMigrationHistoriesPreserved": true
+    },
+    "unchangedBrowserTypeScriptBuildSuitesRerun": false
+  }
+}
