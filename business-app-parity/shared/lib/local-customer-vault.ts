@@ -137,6 +137,21 @@ export async function openLocalCustomerVault(account: string, target: string,
       };
       schedule(); visibility();
     },
+    // Reads only key presence: no decryption, unlock, seed, update or deletion.
+    // A preflight result is advisory; initialize's atomic add is still authoritative.
+    async hasStoredSnapshot(): Promise<boolean> {
+      synchronizeLock();
+      const epoch = generation; check(epoch);
+      return await new Promise<boolean>((resolve, reject) => {
+        const tx = db.transaction('sealed', 'readonly');
+        const request = tx.objectStore('sealed').getKey('snapshot');
+        tx.oncomplete = () => {
+          try { check(epoch); resolve(request.result !== undefined); }
+          catch (error) { reject(error); }
+        };
+        tx.onabort = () => reject(tx.error ?? new Error('Vault status unavailable; preserve data.'));
+      });
+    },
     async initialize(value: unknown, phrase: string): Promise<void> {
       synchronizeLock();
       const epoch = generation; check(epoch);

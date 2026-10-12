@@ -1,6 +1,6 @@
 /** Local-only, fixed synthetic customer demonstration. Never imported by app routes. */
 import { openLocalCustomerVault } from '../lib/local-customer-vault';
-import { protectLocalCustomerBackup, recoverLocalCustomerBackup } from '../lib/local-customer-backup';
+import { LocalCustomerBackupError, protectLocalCustomerBackup, recoverLocalCustomerBackup } from '../lib/local-customer-backup';
 import { localCustomerDatabaseName, type LocalCustomerExport, type LocalCustomerInput } from '../lib/local-customer-store';
 
 const account = 'synthetic-demo-owner', target = 'synthetic-demo-target';
@@ -44,6 +44,7 @@ function clear() {
   element<HTMLInputElement>('backup-phrase').value = ''; element<HTMLInputElement>('archive-phrase').value = '';
   element<HTMLInputElement>('archive-file').value = ''; element<HTMLInputElement>('restore-empty').checked = false;
   element<HTMLElement>('backup-result').textContent = '';
+  element<HTMLElement>('vault-presence').textContent = 'Stored-vault status not checked. Locked does not mean empty.';
   status.textContent = 'Locked — unlock to retrieve synthetic records.';
   element<HTMLButtonElement>('save').disabled = false;
   element<HTMLButtonElement>('unlock').disabled = false;
@@ -108,13 +109,28 @@ function syntheticArchive(archive: LocalCustomerExport) {
     && (['email', 'phone', 'address', 'leadSource'] as const).every(key => row[key] === input[key]);
   if (archive.customers.length !== 1 || !fixture(archive.customers[0])
     || archive.pendingOperations.some(op => !op.id.startsWith('synthetic-demo-') || !fixture(op.input) || !fixture(op.customer))) {
-    throw new Error('Synthetic archive only.');
+    throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'Synthetic archive only.');
   }
   return archive;
 }
+function archiveDiagnostic(error: unknown): string {
+  if (error instanceof LocalCustomerBackupError) {
+    switch (error.code) {
+      case 'INVALID_ARCHIVE': return 'Invalid backup: use a supported synthetic customer JSON file for this demo. No records changed.';
+      case 'INVALID_PHRASE': return 'Invalid phrase length: enter the exact backup phrase (16–1024 characters). No records changed.';
+      case 'AUTHENTICATION_FAILED': return 'Incorrect backup phrase or altered encrypted file; these cannot be distinguished. No records changed.';
+      case 'CRYPTO_UNAVAILABLE': return 'Local cryptography unavailable. Keep the vault and backup intact.';
+    }
+  }
+  return 'File read or local cryptography failed. Keep the vault and backup intact; reselect a locally saved file.';
+}
 async function readArchive(file: File | undefined, supplied: string) {
-  if (!file || !file.size || file.size > 2 * 1024 * 1024) throw new Error('Select one bounded synthetic archive.');
-  return syntheticArchive(await recoverLocalCustomerBackup(JSON.parse(await file.text()), namespace, supplied));
+  if (!file || !file.size || file.size > 2 * 1024 * 1024) throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'Select one bounded synthetic archive.');
+  const text = await file.text();
+  let envelope: unknown;
+  try { envelope = JSON.parse(text); }
+  catch { throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'Invalid JSON file.'); }
+  return syntheticArchive(await recoverLocalCustomerBackup(envelope, namespace, supplied));
 }
 element<HTMLFormElement>('backup-form').addEventListener('submit', async event => {
   event.preventDefault(); if (busy || !session) return;
@@ -134,18 +150,43 @@ element<HTMLFormElement>('backup-form').addEventListener('submit', async event =
   } catch { if (epoch === generation) backupResult.textContent = 'Backup export failed. No records changed.'; }
   finally { if (epoch === generation) busy = false; }
 });
+element<HTMLButtonElement>('check-vault').addEventListener('click', async () => {
+  if (busy) return;
+  const epoch = generation; busy = true;
+  const indicator = element<HTMLElement>('vault-presence');
+  try {
+    const exists = await vault.hasStoredSnapshot();
+    if (epoch !== generation) return;
+    indicator.textContent = exists
+      ? 'Stored vault exists on this device. Recovery is blocked; no records changed. Keep this vault.'
+      : 'No stored vault snapshot found on this device. Recover before Unlock; no records changed.';
+  } catch { if (epoch === generation) indicator.textContent = 'Stored-vault status unavailable. Do not clear data or assume this vault is empty.'; }
+  finally { if (epoch === generation) busy = false; }
+});
 element<HTMLFormElement>('archive-form').addEventListener('submit', async event => {
   event.preventDefault(); if (busy) return;
   const epoch = generation, supplied = archivePhrase.value, file = archiveFile.files?.length === 1 ? archiveFile.files[0] : undefined;
   const restoring = (event as SubmitEvent).submitter?.id === 'restore-backup';
   const confirmed = element<HTMLInputElement>('restore-empty').checked;
   archivePhrase.value = ''; busy = true; backupResult.textContent = '';
+  let phase: 'confirmation' | 'status' | 'archive' | 'commit' = 'confirmation';
   try {
     if (restoring && !confirmed) throw new Error('Explicit empty-vault confirmation required.');
+    if (restoring) {
+      phase = 'status';
+      const exists = await vault.hasStoredSnapshot();
+      if (epoch !== generation) return;
+      if (exists) {
+        backupResult.textContent = 'Recovery blocked: vault already exists on this device. Existing records preserved; do not clear data.';
+        return;
+      }
+    }
+    phase = 'archive';
     const archive = await readArchive(file, supplied);
     if (epoch !== generation) return;
     if (restoring) {
       // initialize uses an atomic add, never put: existing vaults cannot be overwritten.
+      phase = 'commit';
       await vault.initialize(archive, supplied);
       if (epoch !== generation) return;
       archiveFile.value = ''; element<HTMLInputElement>('restore-empty').checked = false;
@@ -153,9 +194,14 @@ element<HTMLFormElement>('archive-form').addEventListener('submit', async event 
     } else {
       backupResult.textContent = `Backup verified: synthetic customer revision ${archive.customers[0].revision}; ${archive.pendingOperations.length} operation receipts. No records changed.`;
     }
-  } catch { if (epoch === generation) backupResult.textContent = restoring
-    ? 'Recovery failed or vault already exists. Existing records preserved; unlock and inspect before retrying.'
-    : 'Backup verification failed. Check the file and test phrase. No records changed.'; }
+  } catch (error) { if (epoch === generation) backupResult.textContent = restoring
+    ? ({
+      confirmation: 'Recovery failed: check the empty-vault confirmation. No records changed.',
+      status: 'Recovery failed: stored-vault status unavailable. Do not clear data or assume this vault is empty.',
+      archive: 'Recovery failed: backup verification failed. ' + archiveDiagnostic(error),
+      commit: 'Recovery failed: file verified, but storage commit did not complete. Check stored-vault status before retrying; existing records preserved.'
+    }[phase])
+    : 'Backup verification failed. ' + archiveDiagnostic(error); }
   finally { if (epoch === generation) busy = false; }
 });
 element<HTMLButtonElement>('lock').addEventListener('click', () => { try { vault.lock(); } catch { clear(); status.textContent = 'Lock coordination failed. Close other demo windows.'; } });

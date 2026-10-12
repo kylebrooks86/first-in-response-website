@@ -4660,5 +4660,47 @@
       "percent": 30
     },
     "nextBatch": "Restore browser runtime and validate diagnostic draft before any new package/publication or device recovery instructions"
+  },
+  "syntheticRecoveryDiagnosticBatch": {
+    "asOf": "2026-10-12",
+    "baseDevelopmentCheckpoint": "eccae8eabfaffc1efac3a1f6ae3c4c4813047ab9",
+    "evidence": "SYNTHETIC_RECOVERY_DIAGNOSTIC_EVIDENCE.json",
+    "handoff": "SYNTHETIC_RECOVERY_DIAGNOSTIC_HANDOFF.md",
+    "draftPromotedToSharedSource": true,
+    "finalBrowserChecks": {
+      "passed": 147,
+      "total": 147
+    },
+    "nativeNodeCrypto": {
+      "passed": 22,
+      "total": 22
+    },
+    "focusedTypeScript": {
+      "passed": 3,
+      "total": 3,
+      "version": "5.9.3",
+      "scope": "Demo/vault/backup dependency graph; not full app compilation"
+    },
+    "localSyntheticPagesBuilds": {
+      "passed": 3,
+      "total": 3,
+      "fullBusinessAppBuilds": false
+    },
+    "sharedSourceParity": {
+      "files": 122,
+      "candidateCount": 3,
+      "differences": 0
+    },
+    "newUnpublishedShell": "25ee996f7e1a41f47d3e58f2",
+    "publishedShellUnchanged": "b9cbe0f7beff59d57f092c55",
+    "publicationAuthorized": false,
+    "iPadRootCause": "UNVERIFIED",
+    "noFurtherDeviceActionsNow": true,
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "nextBatch": "Exact new-package publication review/approval handoff; no production change or device restoration yet"
   }
 }

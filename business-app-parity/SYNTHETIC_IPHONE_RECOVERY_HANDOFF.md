@@ -32,3 +32,7 @@ Next development batch: a shared customer repository boundary for the existing C
 ## 2026-10-12 iPad update — stop further restore attempts
 
 Owner supplied screen photos confirming offline backup verification at Revision 3 with 3 operation receipts. Recovery repeatedly showed the generic failure/existing-vault message. Owner is unsure whether the iPad was unlocked previously. Following diagnostic Unlock, the iPad shows Revision 1; this cannot establish whether the vault existed before that tap because Unlock auto-seeds an empty vault. Do not mark recovery or overwrite-protection as a device pass. Do not erase the iPad vault to manufacture emptiness; retain iPhone Revision 3 and backup. No further device action is needed until the candidate-only read-only status draft is browser-validated and separately reviewed for publication. See SYNTHETIC_IPAD_RECOVERY_INVESTIGATION.json.
+
+## Diagnostic source verified, not published
+
+See SYNTHETIC_RECOVERY_DIAGNOSTIC_EVIDENCE.json and SYNTHETIC_RECOVERY_DIAGNOSTIC_HANDOFF.md for the subsequent verified source and conditional future read-only test. No further device attempts now; historical generic failure does not prove occupancy. Current published demo is unchanged.
