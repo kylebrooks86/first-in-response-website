@@ -4702,5 +4702,27 @@
       "percent": 30
     },
     "nextBatch": "Exact new-package publication review/approval handoff; no production change or device restoration yet"
+  },
+  "syntheticDiagnosticPublicationReview": {
+    "asOf": "2026-10-12",
+    "sourceCommit": "ea3f2948d1644bcdd18713af4b6d51440b48bebe",
+    "shellVersion": "25ee996f7e1a41f47d3e58f2",
+    "review": "SYNTHETIC_DIAGNOSTIC_PUBLICATION_REVIEW.json",
+    "approvalPlan": "SYNTHETIC_DIAGNOSTIC_PUBLICATION_APPROVAL.md",
+    "freshPinnedFileHashes": "13/13",
+    "ZIPExtractedFileHashes": "13/13",
+    "rollbackZIPFileHashes": "13/13",
+    "zipFilename": "FIRE_Synthetic_Diagnostics_25ee996f_Review_Only.zip",
+    "zipSha256": "4548404a625eddd3c1024aee67a02c6adbed7c3dfdcf49ed74dc4d840dc89776",
+    "accountEligibilityBindingsRollbackId": "UNVERIFIED; pre-upload conditions",
+    "newPackageDeployed": false,
+    "publicationAuthorized": false,
+    "deviceActionsPerformed": 0,
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "nextStep": "Owner conditional approval of exact ZIP for manual update to existing synthetic project plus read-only iPad diagnostics; stop on failed preconditions"
   }
 }
