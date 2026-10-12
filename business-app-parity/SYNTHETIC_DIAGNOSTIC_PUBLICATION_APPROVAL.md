@@ -33,3 +33,7 @@ Cloudflare documents rollback to a previous successful production deployment via
 First verify newly hosted file hashes/headers and exact URL. Confirm the installed iPad is running the new diagnostic shell; served assets alone do not prove the cached worker updated. Tap **Check stored-vault status without changes** only, and record the result. Current Revision 1 should mean occupied; an unavailable result must not be called empty. This cannot reconstruct the pre-attempt state or prove earlier occupied-vault rejection. No further recovery attempt on either device is authorized. A future genuinely empty-device restore test needs a separate plan and approval; no clearing a working vault to manufacture emptiness.
 
 Sources: https://developers.cloudflare.com/pages/get-started/direct-upload/ ; https://developers.cloudflare.com/pages/configuration/rollbacks/
+
+## Owner conditional approval received
+
+2026-10-12: owner accepted the exact recommended manual-publication/read-only plan. No second approval is needed for that same scope. Free eligibility, account isolation and prior successful-deployment/rollback identification remain pre-upload conditions. Agent deployment and device restoration are not authorized. No upload/deployment or device action performed by this recording batch.

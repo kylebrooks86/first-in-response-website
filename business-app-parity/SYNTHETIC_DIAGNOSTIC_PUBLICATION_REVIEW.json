@@ -118,7 +118,7 @@
     "accountRollbackAction": "UNVERIFIED; owner must identify and preserve old successful deployment before upload",
     "browserWorkerRollbackNotImmediate": true
   },
-  "publicationAuthorized": false,
+  "publicationAuthorized": true,
   "publishedByThisBatch": false,
   "accountQuotaAndBilling": "UNVERIFIED via authenticated account; stop on paid requirement",
   "actualUpdatedCloudflareTLSHeaders": "UNVERIFIED; new package not published",
@@ -380,5 +380,14 @@
     "library_file_id": "libfile_13ba71e8fea481918cea72379b8261a2",
     "filename": "FIRE_Synthetic_Diagnostics_25ee996f_Review_Only.zip",
     "saved": true
+  },
+  "ownerConditionalApproval": {
+    "asOf": "2026-10-12",
+    "ownerResponse": "yes whatever you recommend. let's get this app done bro",
+    "scope": "Owner-manual publication of exact reviewed ZIP to existing synthetic project, conditional on free eligibility and usable previous-deployment rollback; hosted acceptance and read-only iPad status only",
+    "agentDeploymentAuthorized": false,
+    "deviceRestorationAuthorized": false,
+    "preconditionsStillRequired": true,
+    "approvalReviewCommit": "87f93cd6f81f5bd9fb46b886971e5db0563a5ff0"
   }
 }

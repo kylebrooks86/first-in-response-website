@@ -4716,13 +4716,14 @@
     "zipSha256": "4548404a625eddd3c1024aee67a02c6adbed7c3dfdcf49ed74dc4d840dc89776",
     "accountEligibilityBindingsRollbackId": "UNVERIFIED; pre-upload conditions",
     "newPackageDeployed": false,
-    "publicationAuthorized": false,
+    "publicationAuthorized": true,
     "deviceActionsPerformed": 0,
     "officialReadiness": {
       "passed": 3,
       "total": 10,
       "percent": 30
     },
-    "nextStep": "Owner conditional approval of exact ZIP for manual update to existing synthetic project plus read-only iPad diagnostics; stop on failed preconditions"
+    "nextStep": "Owner opens existing synthetic Cloudflare project Deployments, identifies old successful deployment and rollback, confirms no paid upgrade; manual upload after conditions pass",
+    "ownerApproval": "2026-10-12; manual-only, exact ZIP, conditional free/rollback preflight; no device restore"
   }
 }
