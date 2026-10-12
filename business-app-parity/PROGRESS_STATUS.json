@@ -1,6 +1,6 @@
 {
   "scope": "FIRE Business App only",
-  "asOf": "2026-10-10",
+  "asOf": "2026-10-12",
   "sourceComparison": {
     "passed": 119,
     "total": 119,
@@ -4627,5 +4627,38 @@
       "candidateCount": 3,
       "differences": 0
     }
+  },
+  "syntheticIPadRecoveryInvestigation": {
+    "asOf": "2026-10-12",
+    "baseDevelopmentCheckpoint": "1fedf1c5fe544d107150733732261bff62b526ab",
+    "evidence": "SYNTHETIC_IPAD_RECOVERY_INVESTIGATION.json",
+    "ownerReportedSavedFileVerification": "PASS Revision 3 / 3 receipts",
+    "ownerReportedRestoration": "FAILED_OR_BLOCKED; reason unverified",
+    "iPadRevisionAfterUnlock": 1,
+    "priorVaultPresence": "UNKNOWN",
+    "draftPatch": "drafts/recovery-status-2026-10-12/candidate-only.patch",
+    "draftPromoted": false,
+    "verifiedSourcesAndCandidatesPreserved": true,
+    "validation": {
+      "focusedTypeScript": {
+        "passed": 3,
+        "total": 3,
+        "scope": "changed demo/vault dependency graph, TypeScript 5.9.3; not full app typecheck"
+      },
+      "browserTests": {
+        "executedChecks": 0,
+        "status": "BLOCKED_RUNTIME",
+        "reason": "Default Playwright executable absent; installation downloads were invalid ZIPs; available fallback executable SIGSEGV before checks",
+        "notApplicationTestFailures": true
+      },
+      "fullAppBuilds": "NOT_RUN: dependencies unavailable; draft not promoted",
+      "unchangedSuitesRerun": false
+    },
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "nextBatch": "Restore browser runtime and validate diagnostic draft before any new package/publication or device recovery instructions"
   }
 }

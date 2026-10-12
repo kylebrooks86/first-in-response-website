@@ -1,0 +1,71 @@
+{
+  "asOf": "2026-10-12",
+  "baseDevelopmentCheckpoint": "1fedf1c5fe544d107150733732261bff62b526ab",
+  "scope": "Owner iPad recovery investigation; inactive candidate-only diagnostic draft",
+  "ownerEvidence": {
+    "device": "iPad; model/iPadOS not supplied",
+    "classification": "OWNER_REPORTED_REAL_DEVICE with supplied screen photos; not automated independent device execution",
+    "offlineFileVerification": "PASS: screen shows synthetic customer revision 3; 3 operation receipts; no records changed",
+    "restoreAttempts": "FAILED_OR_BLOCKED: screen shows Recovery failed or vault already exists; repeated after reopening",
+    "phraseReentry": "Owner believes re-entered; later verification successful",
+    "priorIPadUnlock": "UNKNOWN",
+    "revisionAfterDiagnosticUnlock": 1,
+    "revision1BeforeDiagnosticUnlock": "UNKNOWN: Unlock auto-seeds an empty vault",
+    "rootCause": "UNVERIFIED: existing vault, lifecycle/storage failure or input issue not distinguished by old UI",
+    "restoreSuccess": "NOT_VERIFIED",
+    "originalIPhoneRevision3": "Preservation instructed; no new owner recheck supplied"
+  },
+  "draft": {
+    "path": "drafts/recovery-status-2026-10-12/candidate-only.patch",
+    "features": [
+      "Read-only getKey snapshot-presence check without decrypt/unlock/seed/delete",
+      "Explicit empty/exists/unavailable status; lock clears stale status",
+      "Recovery stage-specific errors; empty preflight advisory, atomic add retained",
+      "Explain auto-seeding on Unlock and phrase clearing after attempts"
+    ],
+    "browserChecksAdded": 4,
+    "targetedSuitePlannedPerCandidate": 20,
+    "notPublished": true,
+    "notAppliedToVerifiedSharedSource": true,
+    "candidatesRestoredToVerifiedSource": true
+  },
+  "validation": {
+    "focusedTypeScript": {
+      "passed": 3,
+      "total": 3,
+      "scope": "changed demo/vault dependency graph, TypeScript 5.9.3; not full app typecheck"
+    },
+    "browserTests": {
+      "executedChecks": 0,
+      "status": "BLOCKED_RUNTIME",
+      "reason": "Default Playwright executable absent; installation downloads were invalid ZIPs; available fallback executable SIGSEGV before checks",
+      "notApplicationTestFailures": true
+    },
+    "fullAppBuilds": "NOT_RUN: dependencies unavailable; draft not promoted",
+    "unchangedSuitesRerun": false,
+    "restoredSharedSourceParity": {
+      "files": 122,
+      "candidateCount": 3,
+      "differences": 0
+    },
+    "draftPatchAppliesCleanly": true,
+    "jsonAndWhitespaceChecks": true
+  },
+  "remaining": [
+    "Native browser empty/existing/read-failure/lock-race status tests plus 20-check backup UI suite in all candidates",
+    "Affected module-loading/header/CSP/package acceptance after UI change",
+    "Full relevant compilation/build environment restoration before promotion",
+    "New synthetic package exact shell/hash review and separate publication approval; current published package unchanged",
+    "Actual empty-device offline restore, restored cold relaunch and refused repeat overwrite",
+    "Whole-screen shaking unresolved"
+  ],
+  "productionDeployments": 0,
+  "productionDatabaseChanges": 0,
+  "stripeActions": 0,
+  "additionalSpendingUSD": 0,
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  }
+}
