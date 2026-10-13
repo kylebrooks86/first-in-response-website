@@ -5484,5 +5484,277 @@
     },
     "evidence": "PORTABLE_CUSTOMER_CONTROLS_EVIDENCE.json",
     "handoff": "PORTABLE_CUSTOMER_CONTROLS_HANDOFF.md"
+  },
+  "portableDestinationPreflightBatch": {
+    "date": "2026-10-13",
+    "baseCommit": "6100cec4bd7f32c9dbfbab19830aa90be7abf521",
+    "scope": "Candidate locked portable bundle verification and read-only any-row destination preflight",
+    "checks": {
+      "browser": {
+        "passed": 423,
+        "total": 423,
+        "suites": {
+          "framework": 87,
+          "repository": 105,
+          "view": 93,
+          "controller": 60,
+          "portable": 78
+        }
+      },
+      "financialSyntheticSQLite": {
+        "passed": 207,
+        "total": 207
+      },
+      "typeScript": {
+        "passed": 3,
+        "total": 3
+      },
+      "sharedSourceParity": {
+        "passed": 131,
+        "total": 131,
+        "differences": 0
+      },
+      "finalFailures": 0,
+      "fullBuilds": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "behavior": [
+      "Preflight verifies actual encrypted bundle/account/target while the repository remains locked.",
+      "Readonly transaction counts all sealed rows; snapshot, orphan archive and unknown rows all block recovery.",
+      "Typed occupied-destination errors distinguish successful file verification with blocked recovery from incorrect phrase/altered file and invalid format/target.",
+      "Occupied and genuinely empty authenticated-browser checks preserve records; empty result is advisory, not recovery authorization.",
+      "No unlock, seed, overwrite, retry or recovery occurs through the new preflight controls."
+    ],
+    "recoveryUiActivated": false,
+    "resolutionSaveUiActivated": false,
+    "physicalDeviceRecovery": false,
+    "productionChanged": false,
+    "cssChanged": false,
+    "nextPriority": "Integrate deliberate candidate-only atomic recovery and archive-complete UI round-trip; resolution-save remains disabled until verified.",
+    "officialReleaseReadiness": {
+      "passedGates": 3,
+      "totalGates": 10,
+      "percent": 30
+    },
+    "evidence": "PORTABLE_DESTINATION_PREFLIGHT_EVIDENCE.json"
+  },
+  "gate4ReadOnlyReconciliationBatch": {
+    "date": "2026-10-13",
+    "baseCommit": "6100cec4bd7f32c9dbfbab19830aa90be7abf521",
+    "scope": "Read-only Gate 4 reconciliation plus candidate portable recovery preflight",
+    "ownerReport": {
+      "name": "GATE4_EVIDENCE_RECONCILIATION_2026-10-13.md",
+      "libraryFileId": "libfile_0c0b1e0f2dd0819185c40f9b4b7e1672",
+      "provenance": "Owner-provided runtime screenshots summarized by regular Chat; not a newly authenticated runtime read in Work",
+      "worker": "fire-app-independent-staging",
+      "versionUuid": "61fa32a3-3461-469d-9245-a9df6dd3f036",
+      "databaseUuid": "afb2c05a-d794-4a9a-b580-924ce01c26ad",
+      "databaseName": "fire-app-staging-db",
+      "binding": "DB",
+      "release": "v138",
+      "packageVersion": "1.0.0-rc.138",
+      "runtimeSourceCommitAsTranscribed": "a1cdb94be76b0ded16b213b84616741651e14d0d",
+      "preservedBuildLogSourceCommit": "a1cdb94be76b0ded16b213b84616e741651e140d",
+      "sourceTranscriptionMatches": false
+    },
+    "freshSitesMetadata": [
+      {
+        "project_id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "site": {
+          "id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+          "title": "FIRE App",
+          "status": "active",
+          "current_live_url": "https://fire-app.kylebrooks8605.chatgpt.site",
+          "latest_version_number": 61,
+          "updated_at": "2026-10-08T01:23:39.747570+00:00"
+        },
+        "savedVersion": {
+          "id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61~appgver_394435b33f14819180fdcd8a4a82246e",
+          "version_number": 61,
+          "source": {
+            "commit_sha": "896b5e4125cb89da729993d1f37127e3b930c79d"
+          },
+          "archive": {
+            "content_hash": "sha256:ae2c9814fd1a240611519530c0392dedc7e9dbcc75995ee0fc9025671eeb4bd2",
+            "file_count": 163
+          }
+        },
+        "deployment": {
+          "id": "appgdep_6ac6f067e2548191aaf38c28d25c54f5",
+          "project_id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+          "title": "FIRE App",
+          "version_id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61~appgver_394435b33f14819180fdcd8a4a82246e",
+          "type": "publish",
+          "status": "succeeded",
+          "url": "https://fire-app.kylebrooks8605.chatgpt.site",
+          "has_mcp": false,
+          "screenshot_asset_pointer": "sediment://file_00000000c4c881f89b36d60fadb580ab",
+          "provider_deployment_id": "site---6aaf416f82c88191a292fa2e13a9ea61",
+          "failure_message": null,
+          "env_set_revision": 9,
+          "updated_at": "2026-10-08T01:23:39.590116+00:00"
+        },
+        "databaseOverview": {
+          "project_id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+          "bindings": [
+            "DB"
+          ],
+          "selected_binding_name": "DB",
+          "tables": [
+            "auth_rate_limits",
+            "customer_messages",
+            "customer_notes",
+            "customer_photos",
+            "customers",
+            "estimate_change_requests",
+            "estimate_items",
+            "estimates",
+            "expenses",
+            "invoice_items",
+            "invoice_revisions",
+            "invoices",
+            "job_reports",
+            "message_templates",
+            "notifications",
+            "payment_checkout_sessions",
+            "payments",
+            "tasks"
+          ],
+          "model_projection": {
+            "truncated": false,
+            "omitted_project_id": false,
+            "omitted_selected_binding": false,
+            "omitted_bindings": 0,
+            "omitted_tables": 0
+          }
+        },
+        "databaseUuid": null,
+        "resourceIsolationVerified": false,
+        "runtimeRoutingSealVerified": false
+      },
+      {
+        "project_id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "site": {
+          "id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+          "title": "FIRE LIVE \u2014 Isolated Refund Staging",
+          "status": "active",
+          "current_live_url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+          "latest_version_number": 3,
+          "updated_at": "2026-10-08T19:50:54.931582+00:00"
+        },
+        "savedVersion": {
+          "id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+          "version_number": 3,
+          "source": {
+            "commit_sha": "f7ed28a5d13ada738f5663e4f55a45c5d794c21e"
+          },
+          "archive": {
+            "content_hash": "sha256:50eb9f629151d863296a59f24d58eec2f9d40e454fbd1829c9bf2e4fc91cbe38",
+            "file_count": 169
+          }
+        },
+        "deployment": {
+          "id": "appgdep_6ac7f3e8903481919a5883a2750ccbb8",
+          "project_id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+          "title": "FIRE LIVE \u2014 Isolated Refund Staging",
+          "version_id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+          "type": "publish",
+          "status": "succeeded",
+          "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+          "has_mcp": false,
+          "screenshot_asset_pointer": "sediment://file_0000000084448230813b47c0c1a66cfa",
+          "provider_deployment_id": "site---6ac7e8e358dc81918d0a47c4034c4a41",
+          "failure_message": null,
+          "env_set_revision": 2,
+          "updated_at": "2026-10-08T19:50:54.872235+00:00"
+        },
+        "databaseOverview": {
+          "project_id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+          "bindings": [
+            "DB"
+          ],
+          "selected_binding_name": "DB",
+          "tables": [
+            "auth_rate_limits",
+            "customer_messages",
+            "customer_notes",
+            "customer_photos",
+            "customers",
+            "estimate_change_requests",
+            "estimate_items",
+            "estimates",
+            "expenses",
+            "invoice_items",
+            "invoice_revisions",
+            "invoices",
+            "job_reports",
+            "message_templates",
+            "notifications",
+            "payment_checkout_sessions",
+            "payment_refunds",
+            "payments",
+            "tasks"
+          ],
+          "model_projection": {
+            "truncated": false,
+            "omitted_project_id": false,
+            "omitted_selected_binding": false,
+            "omitted_bindings": 0,
+            "omitted_tables": 0
+          }
+        },
+        "databaseUuid": null,
+        "resourceIsolationVerified": false,
+        "runtimeRoutingSealVerified": false
+      }
+    ],
+    "zeroTableAssessment": {
+      "observedLiveTableCount": 18,
+      "observedRefundStagingTableCount": 19,
+      "projectionOmissions": 0,
+      "doomsdayHistoricalOwnerTableCount": 19,
+      "doomsdayFreshRemoteSchemaRead": false,
+      "zeroTableReportConfirmed": false,
+      "conclusion": "Current read-only Sites overviews show non-empty DB bindings for LIVE and refund staging. The Doomsday zero-table dashboard report conflicts with historical owner observations but cannot be resolved without a current read of the exact bound UUID. A dashboard reading alone is not proof of deletion, missing migrations, or an empty bound runtime database.",
+      "possibleCausesUnproven": [
+        "Different selected database or account/context",
+        "Dashboard visibility/loading issue",
+        "Actual schema change in the selected resource"
+      ],
+      "noDestructiveRemedyRecommended": true
+    },
+    "gate4": {
+      "passed": false,
+      "immutableSiteDatabaseUuidsAvailable": false,
+      "crossTargetIsolationVerified": false,
+      "liveAndRefundStagingSavedPublicationRefreshed": true,
+      "currentRuntimeRoutingSealsVerified": false,
+      "doomsdayAuthenticatedCaptureAcceptedAsOwnerEvidence": true,
+      "doomsdaySourceVersionSealBlockedByTranscriptionMismatch": true
+    },
+    "gate5": {
+      "passed": false,
+      "liveMissingTable": "payment_refunds",
+      "refundStagingTableNames": 19,
+      "completeSchemaConstraintsIndexesJournalVerified": false,
+      "doomsdayMigrationGap": "0022_stripe_provider_uniqueness.sql"
+    },
+    "nextReadOnlyEvidence": "Resolve the Doomsday sourceCommit transcription using retained original capture and exact bound UUID schema read. Obtain LIVE/refund-staging immutable D1 resource identifiers and authenticated runtime release seals through provider-supported introspection; current Sites metadata APIs omit these identifiers. No personal Cloudflare account resource is substituted for a Sites project database.",
+    "safety": {
+      "remoteWrites": false,
+      "deployments": false,
+      "migrations": false,
+      "stripeActions": false,
+      "customerRowsRead": false,
+      "paidServices": false,
+      "physicalDeviceRecovery": false
+    },
+    "officialReleaseReadiness": {
+      "passedGates": 3,
+      "totalGates": 10,
+      "percent": 30
+    }
   }
 }

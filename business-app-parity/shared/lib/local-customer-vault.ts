@@ -2,6 +2,11 @@
 import { localCustomerDatabaseName, validateLocalCustomerExport, type LocalCustomerExport, type LocalCustomerInput, type LocalCustomer } from './local-customer-store';
 import { protectLocalCustomerBackup, recoverLocalCustomerBackup, protectLocalCustomerResolutionArchive, recoverLocalCustomerResolutionArchive, validateLocalCustomerResolutionArchive, type LocalCustomerResolutionArchive, protectLocalCustomerPortableBundle, verifyLocalCustomerPortableBundle, type LocalCustomerPortableBundle } from './local-customer-backup';
 
+export class LocalCustomerDestinationOccupiedError extends Error {
+  readonly code = 'DESTINATION_OCCUPIED';
+  constructor() { super('Destination contains stored data; recovery refused.'); this.name = 'LocalCustomerDestinationOccupiedError'; }
+}
+
 export async function openLocalCustomerVault(account: string, target: string,
   factory: IDBFactory | undefined = globalThis.indexedDB, provider: Crypto | undefined = globalThis.crypto,
   coordinationStorage: Storage | undefined = globalThis.localStorage) {
@@ -152,7 +157,7 @@ export async function openLocalCustomerVault(account: string, target: string,
         tx.onabort = () => reject(tx.error ?? new Error('Vault status unavailable; preserve data.'));
       });
     },
-    /** Advisory preflight only. No recovery method or storage writes are enabled. */
+    /** Advisory read-only preflight. Atomic recovery must check occupancy again. */
     async inspectPortableBundleDestination(envelope: unknown, phrase: string) {
       synchronizeLock(); const epoch = generation; check(epoch);
       const bundle = await verifyLocalCustomerPortableBundle(envelope, customerNamespace, phrase, provider); check(epoch);
@@ -161,7 +166,7 @@ export async function openLocalCustomerVault(account: string, target: string,
         tx.oncomplete = () => resolve(request.result !== 0); tx.onabort = () => reject(tx.error ?? new Error('Destination inspection failed.'));
       });
       check(epoch);
-      if (occupied) throw new Error('Destination contains stored data; bundle recovery rejected.');
+      if (occupied) throw new LocalCustomerDestinationOccupiedError();
       return { destinationEmpty: true, customerCount: bundle.snapshot.customers.length,
         resolutionArchiveCount: bundle.resolutions.length, recoveryPerformed: false as const };
     },
@@ -186,7 +191,7 @@ export async function openLocalCustomerVault(account: string, target: string,
         request.onsuccess = () => { try {
           check(epoch);
           // Any row, including unknown or archive-only data, makes this destination occupied.
-          if (request.result) throw new Error('Destination contains stored data; recovery refused.');
+          if (request.result) throw new LocalCustomerDestinationOccupiedError();
           for (const row of rows) store.add(row); // No put, deletion, merge or retry; all additions commit together.
         } catch (error) { abort(error); } };
       });

@@ -122,6 +122,28 @@ try{
   await p.getByRole('button',{name:'Lock local contacts',exact:true}).click();await p.waitForTimeout(1000);
   assert.deepEqual(downloads,[]);assert.equal(await p.getByRole('region',{name:'Portable encrypted customer backup'}).count(),0);p.off('download',listener);await unlock();
  });
+ async function destinationCheck(page,buffer,testPhrase){
+  await page.getByLabel('Portable JSON file for destination check',{exact:true}).setInputFiles({name:'synthetic-bundle.json',mimeType:'application/json',buffer});
+  await page.getByLabel('Test phrase for destination check',{exact:true}).fill(testPhrase);await page.getByRole('button',{name:'Verify file and check destination without changes',exact:true}).click();
+  await page.waitForFunction(()=>!document.querySelector('[data-destination-status]')?.textContent.includes('Verifying file and reading'));
+ }
+ await check('locked occupied destination preflight blocks recovery without unlocking',async()=>{
+  await p.getByRole('button',{name:'Lock local contacts',exact:true}).click();await destinationCheck(p,portableFile,phrase);
+  assert.match(await p.locator('[data-destination-status]').innerText(),/destination contains stored vault data/);assert.equal(await p.locator('[data-customer-id]').count(),0);
+  assert.equal(await p.getByLabel('Test phrase for destination check',{exact:true}).inputValue(),'');assert.equal(await p.getByLabel('Portable JSON file for destination check',{exact:true}).inputValue(),'');
+ });
+ await check('locked destination check distinguishes failed file authentication',async()=>{
+  await destinationCheck(p,portableFile,'incorrect synthetic destination phrase');assert.match(await p.locator('[data-destination-status]').innerText(),/incorrect phrase or altered encrypted file/);assert.equal(await p.locator('[data-customer-id]').count(),0);await unlock();assert.match(await p.locator('[data-customer-id]').innerText(),/Revision 2/);
+ });
+ await check('genuinely empty authenticated browser preflight performs no restoration',async()=>{
+  const isolated=await context.browser().newContext();try{
+   await isolated.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){remote.push(r.request().url());return r.abort();}return r.continue();});
+   if(deployment==='doomsday')await isolated.addCookies(await context.cookies());else await isolated.setExtraHTTPHeaders({'oai-authenticated-user-id':'synthetic-framework-owner','oai-authenticated-user-email':'kylebrooks8605@gmail.com'});
+   const q=await isolated.newPage();await q.goto(origin+path);await q.getByLabel('New test phrase',{exact:true}).waitFor();
+   await destinationCheck(q,portableFile,phrase);assert.match(await q.locator('[data-destination-status]').innerText(),/No stored destination rows found/);assert.match(await q.locator('[data-destination-status]').innerText(),/no records were restored/);
+   const rows=await q.evaluate(async()=>{const result=[];for(const info of await indexedDB.databases()){if(!info.name.startsWith('fire-local-customer-vault:'))continue;result.push(await new Promise((resolve,reject)=>{const request=indexedDB.open(info.name);request.onsuccess=()=>{const db=request.result,tx=db.transaction('sealed','readonly'),read=tx.objectStore('sealed').count();tx.oncomplete=()=>{db.close();resolve(read.result);};tx.onabort=()=>reject(tx.error);};request.onerror=()=>reject(request.error);}));}return result;});assert.deepEqual(rows,[0]);assert.equal(await q.locator('[data-customer-id]').count(),0);
+  }finally{await isolated.close();}
+ });
  await check('actual page lifecycle locks and never automatically unlocks',async()=>{await p.evaluate(()=>dispatchEvent(new Event('pagehide')));await p.waitForFunction(()=>!document.querySelector('[data-customer-id]'));assert.equal(await p.getByRole('region',{name:'Stored local receipt report'}).count(),0);assert.equal(await p.getByRole('region',{name:'Stored customer and draft comparison'}).count(),0);await p.evaluate(()=>dispatchEvent(new Event('pageshow')));assert.equal(await p.locator('[data-customer-id]').count(),0);await unlock();});
  await check('actual route reload preserves encrypted contact and receipts',async()=>{await p.reload();await p.getByRole('button',{name:'Unlock local contacts',exact:true}).waitFor();await unlock();assert.match(await p.locator('.customer-workspace').innerText(),/Synthetic Framework Offline/);assert.match(await p.locator('.customer-workspace').innerText(),/2 local operation receipts/);});
  await check('Home loads actual app with empty synthetic D1 and exposes gated Customers entry',async()=>{await p.setViewportSize({width:1280,height:900});await p.getByRole('link',{name:'FIRE · Home',exact:true}).click();await p.getByRole('button',{name:'Customers',exact:true}).first().click();await p.getByRole('link',{name:'Offline Customers · synthetic development'}).waitFor({timeout:5000});assert.equal(await p.locator('[data-customer-id]').count(),0);});

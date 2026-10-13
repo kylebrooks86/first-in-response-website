@@ -98,6 +98,15 @@ export function createLocalCustomerRepository(vault: Vault) {
         throw new LocalCustomerRepositoryError('SAVE_FAILED');
       } finally { if (epoch === generation) busy = false; }
     },
+    async inspectPortableDestination(envelope: unknown, phrase: string) {
+      const epoch = start();
+      try {
+        if (phase !== 'locked' || session) throw new LocalCustomerRepositoryError('BUSY');
+        const result = await vault.inspectPortableBundleDestination(structuredClone(envelope), phrase);
+        if (epoch !== generation || read().status !== 'locked') throw new LocalCustomerRepositoryError('INTERRUPTED');
+        return result;
+      } finally { if (epoch === generation) busy = false; }
+    },
     async exportPortableBackup(phrase: string) {
       const epoch = start();
       try {

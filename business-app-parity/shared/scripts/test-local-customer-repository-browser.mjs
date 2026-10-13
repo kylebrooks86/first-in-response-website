@@ -153,6 +153,12 @@ try {
   await check('locked repository refuses portable operations',async()=>{
     assert.equal(await p.evaluate(async()=>{let rejected=0;for(const run of [()=>repo.exportPortableBackup(phrase),()=>repo.verifyPortableBackup(bundle,phrase)])try{await run();}catch(e){if(e.code==='LOCKED')rejected++;}return rejected===2;}),true);
   });
+  await check('locked portable preflight rejects occupied storage without writes',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=await raw();try{await repo.inspectPortableDestination(bundle,phrase);return false;}catch(e){return e.code==='DESTINATION_OCCUPIED'&&before===await raw()&&repo.read().status==='locked';}}),true);
+  });
+  await check('lock during destination preflight prevents a late result',async()=>{
+    assert.equal(await p.evaluate(async()=>{const pending=repo.inspectPortableDestination(bundle,phrase);repo.lock();try{await pending;return false;}catch{return repo.read().customers===null;}}),true);
+  });
   await check('all requests stayed inside synthetic localhost origin', async () => assert.deepEqual(remote, []));
   console.log(JSON.stringify({ passed, total: passed, browserVersion: version, nativeIndexedDB: true, nativeWebCrypto: true,
     syntheticOnly: true, uiActivated: false, serverSync: false, iPhoneTested: false })); process.exitCode = 0;

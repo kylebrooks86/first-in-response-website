@@ -53,6 +53,41 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
         try { await repository.unlock(supplied); }
         catch { if (!disposed) { render(); const s = root.querySelector<HTMLElement>('[data-save-status]'); if (s) s.textContent = 'Unlock did not complete. Check your phrase; no new vault was created.'; } }
       });
+      if (state.status === 'locked') {
+        const preflight = element('form'); preflight.setAttribute('aria-label', 'Portable recovery preflight');
+        append(preflight, element('h2', 'Check portable recovery destination'), element('p', 'Locked does not mean empty. This check verifies the portable file and reads all stored vault rows. It never unlocks or restores records. An empty result is advisory; recovery must check again atomically.'));
+        const fileLabel = element('label', 'Portable JSON file for destination check'), file = element('input');
+        file.type = 'file'; file.accept = '.json,application/json'; file.required = true; append(fileLabel, file); append(preflight, fileLabel);
+        const checkPhrase = phraseField(preflight, 'Test phrase for destination check');
+        const checkButton = element('button', 'Verify file and check destination without changes'); checkButton.type = 'submit';
+        const report = element('p', 'Recovery is disabled. Preserve the current vault and original backup.'); report.setAttribute('role', 'status'); report.dataset.destinationStatus = '';
+        append(preflight, checkButton, report); append(root, preflight);
+        preflight.addEventListener('submit', async event => {
+          event.preventDefault(); const supplied = checkPhrase.value, selected = file.files?.[0]; checkPhrase.value = ''; file.value = '';
+          if (disposed || rendered !== renderGeneration || backupBusy || !selected || repository.read().status !== 'locked') return;
+          const epoch = generation; backupBusy = true; checkButton.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = true;
+          report.textContent = 'Verifying file and reading destination status…';
+          try {
+            if (selected.size > 34 * 1024 * 1024) throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'Oversized file.');
+            let envelope: unknown; try { envelope = JSON.parse(await selected.text()); } catch { throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'Invalid JSON.'); }
+            if (disposed || epoch !== generation || rendered !== renderGeneration || repository.read().status !== 'locked') return;
+            const result = await repository.inspectPortableDestination(envelope, supplied);
+            if (disposed || epoch !== generation || rendered !== renderGeneration || repository.read().status !== 'locked') return;
+            report.textContent = `Portable bundle verified: ${result.customerCount} customers and ${result.resolutionArchiveCount} resolution draft archives. No stored destination rows found at this check. Verification only; recovery remains disabled and no records were restored.`;
+          } catch (error) {
+            if (disposed || epoch !== generation || rendered !== renderGeneration) return;
+            report.textContent = error instanceof Error && 'code' in error && error.code === 'DESTINATION_OCCUPIED'
+              ? 'Portable bundle verified, but this destination contains stored vault data. Recovery is blocked; no records changed. Keep this vault.'
+              : error instanceof LocalCustomerBackupError && error.code === 'AUTHENTICATION_FAILED'
+              ? 'Verification failed: incorrect phrase or altered encrypted file. No recovery was attempted.'
+              : error instanceof LocalCustomerBackupError && error.code === 'INVALID_ARCHIVE'
+              ? 'Invalid portable file or incorrect account/app target. No recovery was attempted.'
+              : 'Destination check did not complete. Storage or access may be unavailable. Preserve the vault and backup; no automatic retry.';
+          } finally {
+            if (!disposed && epoch === generation && rendered === renderGeneration) { backupBusy = false; checkButton.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = false; }
+          }
+        });
+      }
       return;
     }
     status.textContent = message || (state.saveState === 'saving' ? 'Saving encrypted contacts…'
