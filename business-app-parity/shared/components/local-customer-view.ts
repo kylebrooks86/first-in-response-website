@@ -60,12 +60,47 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
         file.type = 'file'; file.accept = '.json,application/json'; file.required = true; append(fileLabel, file); append(preflight, fileLabel);
         const checkPhrase = phraseField(preflight, 'Test phrase for destination check');
         const checkButton = element('button', 'Verify file and check destination without changes'); checkButton.type = 'submit';
-        const report = element('p', 'Recovery is disabled. Preserve the current vault and original backup.'); report.setAttribute('role', 'status'); report.dataset.destinationStatus = '';
+        const report = element('p', 'Verify the file and destination before deliberate recovery. Preserve the current vault and original backup.'); report.setAttribute('role', 'status'); report.dataset.destinationStatus = '';
         append(preflight, checkButton, report); append(root, preflight);
+        let checkedEnvelope: unknown;
+        const recovery = element('form'); recovery.setAttribute('aria-label', 'Deliberate portable recovery'); recovery.hidden = true;
+        append(recovery, element('h2', 'Recover into an empty candidate vault'), element('p', 'This deliberate action adds the verified saved snapshot and archives only if the vault is still empty. It never overwrites. Completion stays locked. Keep the original backup.'));
+        const recoveryPhrase = phraseField(recovery, 'Re-enter test phrase for deliberate recovery');
+        const confirmationLabel = element('label', 'I approve recovery into this empty synthetic candidate vault.'), confirmation = element('input');
+        confirmation.type = 'checkbox'; confirmation.required = true; append(confirmationLabel, confirmation); append(recovery, confirmationLabel);
+        const recoverButton = element('button', 'Recover verified bundle only if destination is empty'); recoverButton.type = 'submit'; recoverButton.disabled = true;
+        confirmation.addEventListener('change', () => { recoverButton.disabled = !confirmation.checked || backupBusy || !checkedEnvelope; });
+        append(recovery, recoverButton); append(root, recovery);
+        const interrupt = button('Lock and stop pending recovery', () => repository.lock()); append(root, interrupt);
+        recovery.addEventListener('submit', async event => {
+          event.preventDefault(); const supplied = recoveryPhrase.value, approved = confirmation.checked, envelope = checkedEnvelope;
+          recoveryPhrase.value = ''; confirmation.checked = false; checkedEnvelope = undefined;
+          if (disposed || rendered !== renderGeneration || backupBusy || !approved || !envelope || repository.read().status !== 'locked') return;
+          const epoch = generation; backupBusy = true; recoverButton.disabled = recoveryPhrase.disabled = confirmation.disabled = checkButton.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = true;
+          report.textContent = 'Recovering verified bundle with an atomic empty-destination check…';
+          try {
+            const result = await repository.recoverPortableBackup(envelope, supplied, true);
+            if (disposed || epoch !== generation || rendered !== renderGeneration || repository.read().status !== 'locked') return;
+            report.textContent = `Recovered ${result.customerCount} customers and ${result.resolutionArchiveCount} resolution draft archives. Vault remains locked. Unlock explicitly to inspect, then export and verify a new bundle. Keep the original backup.`;
+            root.dispatchEvent(new CustomEvent('fire-local-vault-recovered', { bubbles: true }));
+          } catch (error) {
+            if (disposed || epoch !== generation || rendered !== renderGeneration) return;
+            report.textContent = error instanceof Error && 'code' in error && error.code === 'DESTINATION_OCCUPIED'
+              ? 'Recovery blocked: destination now contains stored data. No records were overwritten. Keep this vault.'
+              : error instanceof LocalCustomerBackupError && error.code === 'AUTHENTICATION_FAILED'
+              ? 'Recovery rejected: incorrect phrase or altered encrypted file. No automatic retry.'
+              : 'Recovery did not complete normally. Inspect stored-vault status before another attempt; a committed result may already exist. No automatic retry or overwrite.';
+          } finally {
+            if (!disposed && epoch === generation && rendered === renderGeneration) {
+              backupBusy = false; recovery.hidden = true; checkButton.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = false;
+              recoveryPhrase.disabled = confirmation.disabled = false;
+            }
+          }
+        });
         preflight.addEventListener('submit', async event => {
           event.preventDefault(); const supplied = checkPhrase.value, selected = file.files?.[0]; checkPhrase.value = ''; file.value = '';
           if (disposed || rendered !== renderGeneration || backupBusy || !selected || repository.read().status !== 'locked') return;
-          const epoch = generation; backupBusy = true; checkButton.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = true;
+          const epoch = generation; checkedEnvelope = undefined; recovery.hidden = true; recoverButton.disabled = true; confirmation.checked = false; recoveryPhrase.value = ''; backupBusy = true; checkButton.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = true;
           report.textContent = 'Verifying file and reading destination status…';
           try {
             if (selected.size > 34 * 1024 * 1024) throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'Oversized file.');
@@ -73,7 +108,8 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
             if (disposed || epoch !== generation || rendered !== renderGeneration || repository.read().status !== 'locked') return;
             const result = await repository.inspectPortableDestination(envelope, supplied);
             if (disposed || epoch !== generation || rendered !== renderGeneration || repository.read().status !== 'locked') return;
-            report.textContent = `Portable bundle verified: ${result.customerCount} customers and ${result.resolutionArchiveCount} resolution draft archives. No stored destination rows found at this check. Verification only; recovery remains disabled and no records were restored.`;
+            checkedEnvelope = structuredClone(envelope); recovery.hidden = false;
+            report.textContent = `Portable bundle verified: ${result.customerCount} customers and ${result.resolutionArchiveCount} resolution draft archives. No stored destination rows found at this check. Verification only; no records were restored. Review the deliberate recovery confirmation below.`;
           } catch (error) {
             if (disposed || epoch !== generation || rendered !== renderGeneration) return;
             report.textContent = error instanceof Error && 'code' in error && error.code === 'DESTINATION_OCCUPIED'
@@ -97,7 +133,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
     append(root, pending, button('Lock local contacts', () => { repository.lock(); }));
     const backup = element('section'); backup.setAttribute('aria-label', 'Portable encrypted customer backup');
     append(backup, element('h2', 'Encrypted customer backup'), element('p', 'Includes saved contacts, revisions, receipts and stored resolution draft archives. A current unsaved edit is not yet archived and is not included. Export and verification never save or discard it. Keep the original backup.'));
-    const backupStatus = element('p', backupBusy ? 'Processing encrypted backup…' : backupMessage || 'Verify a downloaded portable bundle without changing records. Recovery controls remain disabled.');
+    const backupStatus = element('p', backupBusy ? 'Processing encrypted backup…' : backupMessage || 'Verify a downloaded portable bundle without changing records. Recovery requires a locked, empty destination and explicit confirmation.');
     backupStatus.setAttribute('role', 'status'); backupStatus.dataset.backupStatus = ''; append(backup, backupStatus);
     const exportForm = element('form'); exportForm.setAttribute('aria-label', 'Export portable backup');
     const exportPhrase = phraseField(exportForm, 'Test phrase for portable backup');

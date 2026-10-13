@@ -159,6 +159,9 @@ try {
   await check('lock during destination preflight prevents a late result',async()=>{
     assert.equal(await p.evaluate(async()=>{const pending=repo.inspectPortableDestination(bundle,phrase);repo.lock();try{await pending;return false;}catch{return repo.read().customers===null;}}),true);
   });
+  await check('repository requires deliberate recovery confirmation and never overwrites occupied vault',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=await raw();let rejected=0;for(const confirmed of [false,true])try{await repo.recoverPortableBackup(bundle,phrase,confirmed);}catch{rejected++;}return rejected===2&&before===await raw()&&repo.read().status==='locked';}),true);
+  });
   await check('all requests stayed inside synthetic localhost origin', async () => assert.deepEqual(remote, []));
   console.log(JSON.stringify({ passed, total: passed, browserVersion: version, nativeIndexedDB: true, nativeWebCrypto: true,
     syntheticOnly: true, uiActivated: false, serverSync: false, iPhoneTested: false })); process.exitCode = 0;

@@ -70,6 +70,17 @@ export function createSyntheticCustomerController(root: HTMLElement, options: {
         unlock: phrase => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.unlock(phrase); },
         save: (...args) => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.save(...args); },
         inspectStored: phrase => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.inspectStored(phrase); },
+        recoverPortableBackup: async (envelope, phrase, confirmed) => {
+          if (!guard(captured)) throw new Error('Access changed.');
+          try {
+            const result = await raw.recoverPortableBackup(envelope, phrase, confirmed);
+            if (!guard(captured)) throw new Error('Access changed.');
+            return result;
+          } catch (error) {
+            if (!guard(captured)) throw new Error('Access changed.');
+            throw error;
+          }
+        },
         inspectPortableDestination: async (envelope, phrase) => {
           if (!guard(captured)) throw new Error('Access changed.');
           const result = await raw.inspectPortableDestination(envelope, phrase);

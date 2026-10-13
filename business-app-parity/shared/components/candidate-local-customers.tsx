@@ -17,6 +17,9 @@ export function CandidateLocalCustomers({ identity }: { identity: LocalCustomerI
     if (!identity || !identity.accountId.startsWith('synthetic-') || !identity.targetId.startsWith('synthetic-') || !root.current) { setStatus('Local contacts locked. Verified candidate identity required.'); return; }
     const active = createSyntheticCustomerController(root.current, { targetId: identity.targetId, readIdentity: () => current.current });
     controller.current = active; void active.activate();
+    const workspace = root.current;
+    const recovered = () => { if (epoch === generation.current) { setOccupied(true); setStatus('Synthetic bundle recovered. Vault stays locked; unlock below to inspect.'); } };
+    workspace.addEventListener('fire-local-vault-recovered', recovered);
     void (async () => {
       let vault: Awaited<ReturnType<typeof openLocalCustomerVault>> | undefined;
       try {
@@ -27,7 +30,7 @@ export function CandidateLocalCustomers({ identity }: { identity: LocalCustomerI
       } catch { if (epoch === generation.current) setStatus('Storage unavailable. Preserve your vault and backup.'); }
       finally { vault?.close(); }
     })();
-    return () => { generation.current++; initializer.current?.close(); initializer.current = null; active.dispose(); controller.current = null; };
+    return () => { workspace.removeEventListener('fire-local-vault-recovered', recovered); generation.current++; initializer.current?.close(); initializer.current = null; active.dispose(); controller.current = null; };
   }, [identity?.accountId, identity?.targetId]);
   async function createFixture(event: React.FormEvent) {
     event.preventDefault(); const supplied = phrase; setPhrase('');

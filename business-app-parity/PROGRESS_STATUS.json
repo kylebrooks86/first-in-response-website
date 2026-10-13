@@ -5756,5 +5756,73 @@
       "totalGates": 10,
       "percent": 30
     }
+  },
+  "deliberatePortableRecoveryBatch": {
+    "date": "2026-10-13",
+    "baseCommit": "d96ebc5b2556680eee83e54aa0b0148e08b0fb78",
+    "scope": "Candidate-only deliberate portable encrypted customer recovery UI",
+    "checks": {
+      "browser": {
+        "passed": 444,
+        "total": 444,
+        "suites": {
+          "framework": 90,
+          "repository": 108,
+          "portable": 90,
+          "view": 93,
+          "controller": 63
+        }
+      },
+      "financialSyntheticSQLite": {
+        "passed": 207,
+        "total": 207
+      },
+      "fullBuilds": {
+        "passed": 3,
+        "total": 3
+      },
+      "typeScript": {
+        "passed": 3,
+        "total": 3
+      },
+      "sharedSourceParity": {
+        "passed": 131,
+        "total": 131,
+        "differences": 0
+      },
+      "finalFailures": 0
+    },
+    "behavior": [
+      "Recovery controls appear only after file/account/target validation and an empty read-only preflight.",
+      "Fresh phrase and explicit checkbox approval are required; the encrypted verified envelope and approval are consumed after each attempt.",
+      "Vault revalidates and checks any-row occupancy inside one atomic add-only IndexedDB transaction.",
+      "Successful recovery stays locked; the candidate initialization panel updates to prevent offering a new empty fixture over recovered data.",
+      "Owner must unlock deliberately, inspect recovered records and export/verify a new bundle.",
+      "UI round trip preserves original unsaved resolution draft, reviewed snapshot revision history and operation receipts.",
+      "Wrong phrase, occupied-after-preflight, native quota failure, lock and logout interruption do not overwrite or automatically retry.",
+      "Ambiguous failures ask for inspection; they do not falsely promise that no commit could have occurred."
+    ],
+    "activation": {
+      "candidatePortableRecoveryUi": true,
+      "resolutionSaveUi": false,
+      "production": false,
+      "physicalDeviceRecovery": false,
+      "paidServices": false,
+      "cssChanges": false,
+      "deployedParityClaimed": false
+    },
+    "remainingBlockers": [
+      "Original normal-backup crypto APIs remain intact, but these controls accept portable bundles only; complete legacy-format dispatch/acceptance in the guarded recovery UI before calling the whole recovery workflow complete.",
+      "Deliberate resolution-save UI remains disabled pending the remaining compatibility and integrated workflow review.",
+      "Native Safari, installed-app and deployed acceptance remain unverified; Gate 4 resource UUID/routing/source-evidence blockers remain open."
+    ],
+    "nextPriority": "Finish backward-compatible original-format verification/recovery dispatch through the same guarded candidate UI, then review explicit resolution-save activation.",
+    "officialReleaseReadiness": {
+      "passedGates": 3,
+      "totalGates": 10,
+      "percent": 30
+    },
+    "evidence": "DELIBERATE_PORTABLE_RECOVERY_EVIDENCE.json",
+    "handoff": "DELIBERATE_PORTABLE_RECOVERY_HANDOFF.md"
   }
 }

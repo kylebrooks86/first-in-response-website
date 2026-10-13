@@ -98,6 +98,16 @@ export function createLocalCustomerRepository(vault: Vault) {
         throw new LocalCustomerRepositoryError('SAVE_FAILED');
       } finally { if (epoch === generation) busy = false; }
     },
+    async recoverPortableBackup(envelope: unknown, phrase: string, confirmed: boolean) {
+      const epoch = start();
+      try {
+        if (phase !== 'locked' || session) throw new LocalCustomerRepositoryError('BUSY');
+        if (confirmed !== true) throw new Error('Explicit recovery confirmation required.');
+        const result = await vault.recoverPortableBundleIntoEmptyVault(structuredClone(envelope), phrase);
+        if (epoch !== generation || read().status !== 'locked') throw new LocalCustomerRepositoryError('INTERRUPTED');
+        return result; // Recovery stays locked; no automatic unlock or retry.
+      } finally { if (epoch === generation) busy = false; }
+    },
     async inspectPortableDestination(envelope: unknown, phrase: string) {
       const epoch = start();
       try {
