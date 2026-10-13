@@ -4829,5 +4829,35 @@
       "total": 10,
       "percent": 30
     }
+  },
+  "syntheticCustomerScreenBatch": {
+    "baseCheckpoint": "27dd5b67f4319b70a5272e31ec8039e0d2bf3585",
+    "evidence": "SYNTHETIC_CUSTOMER_SCREEN_EVIDENCE.json",
+    "handoff": "SYNTHETIC_CUSTOMER_SCREEN_HANDOFF.md",
+    "browserChecks": {
+      "passed": 66,
+      "total": 66
+    },
+    "focusedTypeScript": {
+      "passed": 3,
+      "total": 3
+    },
+    "runtimeSourceParity": {
+      "files": 125,
+      "differences": 0,
+      "candidateCount": 3
+    },
+    "previewFileParity": {
+      "files": 5,
+      "candidateCount": 3,
+      "differences": 0
+    },
+    "runtimeActivated": false,
+    "nextTask": "Resolve local full-app build dependency availability and verify explicit server-side account/target mapping before candidate Customers route integration",
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    }
   }
 }
