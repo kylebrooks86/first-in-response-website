@@ -618,3 +618,5 @@ html,body{max-width:100%;overflow-x:clip}
 .invoice-edit-fields .estimate-edit-service>header>button{min-width:44px}
 .invoice-edit-fields input,.invoice-edit-fields textarea{font-size:16px}
 }
+
+.app-shell[data-app-ready="false"] button:disabled{cursor:wait;opacity:.55}.app-loading-status{margin:16px 24px;color:var(--foreground);font-size:14px}

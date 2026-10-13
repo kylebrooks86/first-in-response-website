@@ -4969,5 +4969,46 @@
       "total": 10,
       "percent": 30
     }
+  },
+  "navigationReadinessBatch": {
+    "baseCheckpoint": "cd59fbc181a8521ee6ecbc951418fabf675db44b",
+    "evidence": "NAVIGATION_READINESS_EVIDENCE.json",
+    "handoff": "NAVIGATION_READINESS_HANDOFF.md",
+    "navigationChecks": {
+      "passed": 24,
+      "total": 24
+    },
+    "offlineRegression": {
+      "passed": 39,
+      "total": 39,
+      "navigationRetryLoopRemoved": true
+    },
+    "fullBuilds": {
+      "passed": 3,
+      "total": 3
+    },
+    "fullTypechecks": {
+      "passed": 3,
+      "total": 3
+    },
+    "financialRegression": {
+      "passed": 207,
+      "total": 207
+    },
+    "sourceParity": {
+      "files": 129,
+      "differences": 0,
+      "candidateCount": 3
+    },
+    "localFirstClickNavigationVerified": true,
+    "localMobileWidthMenuVerified": true,
+    "physicalIPhoneVerified": false,
+    "wholeScreenShaking": "UNRESOLVED",
+    "nextTask": "Collect repeatable stationary-bottom layout/scroll evidence with synthetic long Customers content; fix only a confirmed shared cause of shaking and preserve device vaults",
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    }
   }
 }
