@@ -5038,5 +5038,53 @@
       "total": 10,
       "percent": 30
     }
+  },
+  "candidateLayoutTraceBatch": {
+    "baseCheckpoint": "0aafe3250d379720c26d95394e00bea13593afe1",
+    "scope": "Isolated candidates, synthetic sessions and disposable local D1 only",
+    "browserChecks": {
+      "passed": 105,
+      "total": 105
+    },
+    "captureLifecycleChecks": {
+      "passed": 18,
+      "total": 18
+    },
+    "diagnosticControlViewportChecks": {
+      "passed": 18,
+      "total": 18
+    },
+    "bottomScrollCases": {
+      "passed": 54,
+      "total": 54
+    },
+    "fullBuilds": {
+      "passed": 3,
+      "total": 3
+    },
+    "fullTypechecks": {
+      "passed": 3,
+      "total": 3
+    },
+    "financialRegression": {
+      "passed": 207,
+      "total": 207
+    },
+    "sourceParity": {
+      "files": 131,
+      "differences": 0,
+      "candidateCount": 3
+    },
+    "productionActivated": false,
+    "physicalSafariTested": false,
+    "wholeScreenShaking": "UNRESOLVED",
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "evidence": "LAYOUT_TRACE_EVIDENCE.json",
+    "handoff": "LAYOUT_TRACE_HANDOFF.md",
+    "nextTask": "Review offline Customers pending-save/conflict reporting; trace remains available for a future approved Safari reproduction"
   }
 }
