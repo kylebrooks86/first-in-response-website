@@ -1,6 +1,6 @@
 {
   "scope": "FIRE Business App only",
-  "asOf": "2026-10-12",
+  "asOf": "2026-10-13",
   "sourceComparison": {
     "passed": 119,
     "total": 119,
@@ -4770,6 +4770,33 @@
     "publishedDemoChanged": false,
     "wholeScreenShaking": "UNRESOLVED",
     "nextTask": "Separate isolated contacts-only view with explicit owner unlock/local pending-save status, followed by reviewed account/target adapter before Customers runtime activation",
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    }
+  },
+  "localCustomerViewBatch": {
+    "baseCheckpoint": "b3aaf1831b3fc07f0663342dfa725b796e1277a2",
+    "evidence": "LOCAL_CUSTOMER_VIEW_EVIDENCE.json",
+    "handoff": "LOCAL_CUSTOMER_VIEW_HANDOFF.md",
+    "browserChecks": {
+      "passed": 45,
+      "total": 45
+    },
+    "focusedTypeScript": {
+      "passed": 3,
+      "total": 3
+    },
+    "sourceParity": {
+      "files": 124,
+      "differences": 0,
+      "candidateCount": 3,
+      "deployedParityProven": false
+    },
+    "runtimeActivated": false,
+    "publishedDemoChanged": false,
+    "nextTask": "Review account/target identity and lock lifecycle adapter before enabling contacts-only local Customers workflow in isolated app candidates",
     "officialReadiness": {
       "passed": 3,
       "total": 10,
