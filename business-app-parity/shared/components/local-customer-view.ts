@@ -1,11 +1,13 @@
 /** Isolated synthetic Customers UI; opt-in DOM mount, mounted only by explicitly gated development routes. */
 import type { createLocalCustomerRepository } from '../lib/local-customer-repository';
-import type { LocalCustomerInput } from '../lib/local-customer-store';
+import type { LocalCustomer, LocalCustomerInput } from '../lib/local-customer-store';
 type Repository = ReturnType<typeof createLocalCustomerRepository>;
+type Comparison = { stored: LocalCustomer | null; draft: LocalCustomerInput; attempted?: LocalCustomerInput; expectedRevision: number };
 type Draft = { input: LocalCustomerInput; expectedRevision: number; attempt?: { operationId: string; input: LocalCustomerInput } };
 
 export function mountSyntheticCustomerView(root: HTMLElement, repository: Repository) {
   let draft: Draft | undefined, disposed = false, generation = 0, renderGeneration = 0, message = '', inspecting = false;
+  let comparison: Comparison | undefined;
   let inspection: Awaited<ReturnType<Repository['inspectStored']>> | undefined;
   function element<K extends keyof HTMLElementTagNameMap>(tag: K, text = '') {
     const node = document.createElement(tag); node.textContent = text; return node;
@@ -25,7 +27,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
     if (disposed) return;
     const rendered = ++renderGeneration;
     if (['locked', 'unavailable', 'closed'].includes(state.status)) {
-      generation++; draft = undefined; message = ''; inspection = undefined; inspecting = false;
+      generation++; draft = undefined; message = ''; inspection = undefined; comparison = undefined; inspecting = false;
     }
     wipeInputs(); root.replaceChildren(); root.dataset.localCustomerState = state.status;
     const header = element('header'); header.className = 'customers-head';
@@ -76,15 +78,43 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
           : 'No receipt for this attempt in the inspected snapshot. Draft retained; retry remains blocked.';
         append(report, element('p', result));
       }
+      if (draft) append(report, button('Review stored record against draft', () => {
+        if (disposed || rendered !== renderGeneration || inspecting || repository.read().status !== 'ready') return;
+        const stored = inspection!.customers.find(row => row.id === draft!.input.id) ?? null;
+        comparison = { stored: structuredClone(stored), draft: structuredClone(draft!.input),
+          attempted: draft!.attempt ? structuredClone(draft!.attempt.input) : undefined, expectedRevision: draft!.expectedRevision };
+        render();
+      }));
+      const notice = element('p', 'Review is read-only. Storage may change after inspection; inspect again for a newer snapshot.');
+      notice.dataset.comparisonNotice = ''; append(report, notice);
       const receipts = element('ul'); receipts.setAttribute('aria-label', 'Stored operation receipts');
       if (inspection.operations.length > 50) append(report, element('p', 'Showing the last 50 retained receipts.'));
       for (const op of inspection.operations.slice(-50)) append(receipts, element('li', `${op.id} · ${op.customer.name} · revision ${op.customer.revision} · ${op.customer.updatedAt}`));
       append(report, receipts); append(root, report);
     }
+    if (comparison && inspection && draft) {
+      const review = element('section'); review.className = 'customer-comparison'; review.setAttribute('aria-label', 'Stored customer and draft comparison');
+      append(review, element('h2', 'Stored customer and retained draft'), element('p', `Draft expects revision ${comparison.expectedRevision}. ${comparison.stored ? `Inspected stored revision ${comparison.stored.revision}.` : 'No stored record in this inspected snapshot.'}`),
+        element('p', 'No values are applied. Review does not merge, discard, overwrite or retry. A matching value is not server acknowledgement.'));
+      let differences = 0;
+      for (const [key, title] of [['name', 'Name'], ['email', 'Email'], ['phone', 'Phone'], ['address', 'Address'], ['leadSource', 'Lead source']] as const) {
+        const row = element('section'); row.dataset.comparisonField = key;
+        const matches = comparison.stored !== null && comparison.stored[key] === comparison.draft[key];
+        if (!matches) differences++;
+        append(row, element('h3', title), element('p', comparison.stored === null ? 'No stored value to compare' : matches ? 'Current draft matches stored value' : 'Current draft differs from stored value'));
+        const values = element('dl');
+        for (const [label, value] of [['Stored at inspection', comparison.stored?.[key] ?? null], ['Attempted save', comparison.attempted?.[key] ?? null], ['Current retained draft', comparison.draft[key]]] as const) {
+          const pair = element('div'); append(pair, element('dt', label), element('dd', value === null ? label === 'Attempted save' ? 'No save attempt' : 'No stored record' : value === '' ? '(blank)' : value)); append(values, pair);
+        }
+        append(row, values); append(review, row);
+      }
+      const summary = element('p', comparison.stored === null ? 'Stored record absent at inspection. All draft values remain retained.' : `${differences} of 5 current draft fields differ from the inspected stored record.`);
+      summary.setAttribute('role', 'status'); summary.dataset.comparisonSummary = ''; append(review, summary); append(root, review);
+    }
     inspectionForm.addEventListener('submit', async event => {
       event.preventDefault(); const supplied = inspectionPhrase.value; inspectionPhrase.value = '';
       if (disposed || rendered !== renderGeneration || inspecting || state.saveState === 'saving') return;
-      const epoch = generation; inspecting = true; inspection = undefined; message = ''; render();
+      const epoch = generation; inspecting = true; inspection = undefined; comparison = undefined; message = ''; render();
       try {
         const stored = await repository.inspectStored(supplied);
         if (disposed || epoch !== generation) return;
@@ -100,25 +130,25 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
       append(row, element('strong', customer.name), element('p', `${customer.email} · ${customer.address}`), element('p', `Revision ${customer.revision}`));
       const edit = button(`Edit ${customer.name}`, () => {
         draft = { input: { id: customer.id, name: customer.name, email: customer.email, phone: customer.phone,
-          address: customer.address, leadSource: customer.leadSource }, expectedRevision: customer.revision }; message = ''; inspection = undefined; render();
+          address: customer.address, leadSource: customer.leadSource }, expectedRevision: customer.revision }; message = ''; inspection = undefined; comparison = undefined; render();
       }); edit.disabled = inspecting || state.saveState === 'saving' || state.saveState === 'needs-inspection'; append(row, edit); append(list, row);
     }
     append(root, list);
     if (state.customers.length === 0) append(root, element('p', 'No local contacts in this unlocked vault.'));
     const add = button('Add synthetic customer', () => {
       draft = { input: { id: crypto.randomUUID(), name: 'Synthetic Customer', email: 'test@example.invalid', phone: '', address: 'Synthetic address', leadSource: 'Synthetic' }, expectedRevision: 0 };
-      message = ''; inspection = undefined; render();
+      message = ''; inspection = undefined; comparison = undefined; render();
     }); add.disabled = inspecting || state.saveState === 'saving' || state.saveState === 'needs-inspection'; append(root, add);
     if (!draft) return;
     const capturedDraft = draft, form = element('form'); form.setAttribute('aria-label', 'Local customer editor');
     for (const [key, title] of [['name', 'Name'], ['email', 'Email'], ['phone', 'Phone'], ['address', 'Address'], ['leadSource', 'Lead source']] as const) {
       const label = element('label', title), field = element('input'); field.name = key; field.value = capturedDraft.input[key];
       field.maxLength = 4096; field.required = key === 'name'; field.disabled = inspecting || state.saveState === 'saving';
-      field.addEventListener('input', () => { capturedDraft.input[key] = field.value; }); append(label, field); append(form, label);
+      field.addEventListener('input', () => { capturedDraft.input[key] = field.value; if (comparison) { comparison = undefined; root.querySelector('[aria-label="Stored customer and draft comparison"]')?.remove(); const notice = root.querySelector<HTMLElement>('[data-comparison-notice]'); if (notice) notice.textContent = 'Draft changed. Review again to compare the current values; nothing was saved.'; } }); append(label, field); append(form, label);
     }
     const phrase = phraseField(form, 'Test phrase for this local save'); phrase.disabled = inspecting || state.saveState === 'saving';
     const save = element('button', 'Save locally'); save.type = 'submit'; save.disabled = inspecting || state.saveState === 'saving' || state.saveState === 'needs-inspection'; append(form, save);
-    const cancel = button('Cancel edit', () => { draft = undefined; message = ''; inspection = undefined; render(); });
+    const cancel = button('Cancel edit', () => { draft = undefined; message = ''; inspection = undefined; comparison = undefined; render(); });
     cancel.disabled = inspecting || state.saveState === 'saving'; append(form, cancel); append(root, form);
     form.addEventListener('submit', async event => {
       event.preventDefault(); const supplied = phrase.value; phrase.value = '';
@@ -128,7 +158,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
         || input.phone !== '' || !input.address.startsWith('Synthetic') || input.leadSource !== 'Synthetic') {
         message = 'Synthetic data only: use a Synthetic name/address, example.invalid email, blank phone and Synthetic lead source.'; render(); return;
       }
-      message = ''; inspection = undefined;
+      message = ''; inspection = undefined; comparison = undefined;
       capturedDraft.attempt = { operationId: crypto.randomUUID(), input };
       try {
         await repository.save(input, capturedDraft.attempt.operationId, capturedDraft.expectedRevision, supplied);
@@ -145,7 +175,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
     refresh: () => render(),
     dispose() {
       if (disposed) return;
-      repository.dispose(); disposed = true; generation++; draft = undefined; message = ''; inspection = undefined; inspecting = false;
+      repository.dispose(); disposed = true; generation++; draft = undefined; message = ''; inspection = undefined; comparison = undefined; inspecting = false;
       unsubscribe(); wipeInputs(); root.replaceChildren(); delete root.dataset.localCustomerState;
     },
   };

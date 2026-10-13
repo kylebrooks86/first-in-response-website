@@ -36,3 +36,5 @@ html[data-theme=dark] .fire-synthetic-preview:not([data-theme=light]),.fire-synt
 @media(prefers-reduced-motion:reduce){.fire-synthetic-preview *{scroll-behavior:auto!important}}
 
 .fire-synthetic-preview .candidate-topbar{flex-wrap:wrap}
+
+.fire-synthetic-preview .customer-comparison{margin-top:20px;border:1px solid var(--border);border-radius:12px;padding:16px;overflow-wrap:anywhere}.fire-synthetic-preview .customer-comparison>section{border-top:1px solid var(--border);padding-top:12px;margin-top:12px}.fire-synthetic-preview .customer-comparison h3{margin:0;font-size:16px}.fire-synthetic-preview .customer-comparison dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0}.fire-synthetic-preview .customer-comparison dt{font-size:12px;font-weight:700;color:var(--muted)}.fire-synthetic-preview .customer-comparison dd{margin:4px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}@media(max-width:600px){.fire-synthetic-preview .customer-comparison dl{grid-template-columns:1fr}}
