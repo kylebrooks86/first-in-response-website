@@ -1,6 +1,6 @@
 /** Inactive encrypted snapshot foundation; no UI, plaintext migration or automatic sync. */
 import { localCustomerDatabaseName, validateLocalCustomerExport, type LocalCustomerExport, type LocalCustomerInput, type LocalCustomer } from './local-customer-store';
-import { protectLocalCustomerBackup, recoverLocalCustomerBackup } from './local-customer-backup';
+import { protectLocalCustomerBackup, recoverLocalCustomerBackup, protectLocalCustomerResolutionArchive, recoverLocalCustomerResolutionArchive, validateLocalCustomerResolutionArchive, type LocalCustomerResolutionArchive } from './local-customer-backup';
 
 export async function openLocalCustomerVault(account: string, target: string,
   factory: IDBFactory | undefined = globalThis.indexedDB, provider: Crypto | undefined = globalThis.crypto,
@@ -249,6 +249,57 @@ export async function openLocalCustomerVault(account: string, target: string,
               } catch (error) { failure = error; tx.abort(); }
             };
           });
+        },
+        async saveReviewedResolution(value: LocalCustomerResolutionArchive, phrase: string): Promise<LocalCustomer> {
+          current();
+          const resolution = validateLocalCustomerResolutionArchive(value, customerNamespace);
+          const sealed = await new Promise<unknown>((resolve, reject) => {
+            const tx = db.transaction('sealed', 'readonly'), request = tx.objectStore('sealed').get('snapshot');
+            tx.oncomplete = () => resolve(request.result); tx.onabort = () => reject(tx.error ?? new Error('Resolution read aborted.'));
+          });
+          current();
+          if (!sealed || typeof sealed !== 'object' || Array.isArray(sealed)) throw new Error('Stored snapshot unavailable.');
+          const row = sealed as Record<string, unknown>;
+          if (Object.keys(row).length !== 3 || row.id !== 'snapshot' || row.version !== 1 || !Object.hasOwn(row, 'envelope')) throw new Error('Invalid stored snapshot.');
+          const expectedIdentity = JSON.stringify(sealed);
+          const archive = await recoverLocalCustomerBackup(row.envelope, customerNamespace, phrase, provider); current();
+          if (JSON.stringify(archive) !== JSON.stringify(resolution.reviewedSnapshot)) throw new Error('Stored snapshot changed after review.');
+          if (archive.pendingOperations.some(op => op.id === resolution.operationId)) throw new Error('Resolution operation already exists; inspect before retry.');
+          const previous = archive.customers.find(customer => customer.id === resolution.proposed.id), revision = previous?.revision ?? 0;
+          if (revision === Number.MAX_SAFE_INTEGER) throw new Error('Revision limit reached.');
+          const result = { ...resolution.proposed, revision: revision + 1, updatedAt: new Date().toISOString() };
+          archive.customers = archive.customers.filter(customer => customer.id !== result.id).concat(result);
+          archive.pendingOperations.push({ id: resolution.operationId, kind: 'customer-upsert', expectedRevision: revision, customer: result, input: resolution.proposed });
+          validateLocalCustomerExport(archive, customerNamespace);
+          const replacement = { id: 'snapshot', version: 1, envelope: await protectLocalCustomerBackup(archive, customerNamespace, phrase, provider) };
+          const retained = { id: `resolution-${resolution.operationId}`, version: 1,
+            envelope: await protectLocalCustomerResolutionArchive(resolution, customerNamespace, phrase, provider) };
+          current();
+          return new Promise<LocalCustomer>((resolve, reject) => {
+            let failure: unknown; const tx = db.transaction('sealed', 'readwrite');
+            initializations.add(tx); pendingWrites.add(tx);
+            const finish = () => { initializations.delete(tx); pendingWrites.delete(tx); };
+            tx.onabort = () => { finish(); reject(failure ?? tx.error ?? new Error('Resolution transaction aborted.')); };
+            tx.oncomplete = () => { finish(); try { current(); snapshot = archive; sealedIdentity = JSON.stringify(replacement); resolve(structuredClone(result)); } catch (error) { reject(error); } };
+            const store = tx.objectStore('sealed'), request = store.get('snapshot');
+            request.onsuccess = () => { try { current(); if (JSON.stringify(request.result) !== expectedIdentity) throw new Error('Encrypted snapshot changed before commit.');
+              store.add(retained); store.put(replacement);
+            } catch (error) { failure = error; tx.abort(); } };
+          });
+        },
+        async inspectResolutionArchive(operationId: string, phrase: string): Promise<LocalCustomerResolutionArchive> {
+          current(); if (typeof operationId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(operationId)) throw new Error('Invalid resolution ID.');
+          const row = await new Promise<unknown>((resolve, reject) => {
+            const tx = db.transaction('sealed', 'readonly'), request = tx.objectStore('sealed').get(`resolution-${operationId}`);
+            tx.oncomplete = () => resolve(request.result); tx.onabort = () => reject(tx.error ?? new Error('Resolution archive read aborted.'));
+          });
+          current();
+          if (!row || typeof row !== 'object' || Array.isArray(row)) throw new Error('Resolution archive unavailable.');
+          const sealed = row as Record<string, unknown>;
+          if (Object.keys(sealed).length !== 3 || sealed.id !== `resolution-${operationId}` || sealed.version !== 1 || !Object.hasOwn(sealed, 'envelope')) throw new Error('Invalid resolution archive row.');
+          const result = await recoverLocalCustomerResolutionArchive(sealed.envelope, customerNamespace, phrase, provider); current();
+          if (result.operationId !== operationId) throw new Error('Resolution archive identity mismatch.');
+          return structuredClone(result);
         },
         async inspectStoredSnapshot(phrase: string): Promise<LocalCustomerExport> {
           current(); // Never inspect a locked or revoked session.

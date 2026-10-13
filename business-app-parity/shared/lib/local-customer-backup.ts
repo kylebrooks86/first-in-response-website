@@ -1,5 +1,5 @@
 /** Inactive customer archive protection. Does not encrypt IndexedDB or unlock the app. */
-import { validateLocalCustomerExport, type LocalCustomerExport } from './local-customer-store';
+import { validateLocalCustomerExport, type LocalCustomerInput, type LocalCustomerExport } from './local-customer-store';
 export class LocalCustomerBackupError extends Error {
   constructor(readonly code: 'INVALID_ARCHIVE' | 'INVALID_PHRASE' | 'AUTHENTICATION_FAILED' | 'CRYPTO_UNAVAILABLE', message: string) {
     super(message); this.name = 'LocalCustomerBackupError';
@@ -34,9 +34,8 @@ async function key(api: Crypto, phrase: string, salt: Uint8Array<ArrayBuffer>, u
   } finally { materialBytes.fill(0); }
 }
 const associatedData = encoder.encode(`${FORMAT}:v1:PBKDF2-SHA256:${ITERATIONS}:AES-256-GCM`);
-export async function protectLocalCustomerBackup(value: unknown, namespace: string, phrase: string,
+async function protectArchive(archive: unknown, phrase: string,
   provider: Crypto | undefined = globalThis.crypto): Promise<Envelope> {
-  const archive = validateLocalCustomerExport(value, namespace);
   const plaintext = encoder.encode(JSON.stringify(archive));
   try {
     if (plaintext.length > MAX_BYTES) throw new Error('Customer archive exceeds protection size limit.');
@@ -48,8 +47,8 @@ export async function protectLocalCustomerBackup(value: unknown, namespace: stri
     return { format: FORMAT, version: 1, salt: hex(salt), iv: hex(iv), ciphertext: hex(new Uint8Array(encrypted)) };
   } finally { plaintext.fill(0); }
 }
-export async function recoverLocalCustomerBackup(value: unknown, namespace: string, phrase: string,
-  provider: Crypto | undefined = globalThis.crypto): Promise<LocalCustomerExport> {
+async function recoverArchive<T>(value: unknown, phrase: string,
+  validate: (value: unknown) => T, provider: Crypto | undefined = globalThis.crypto): Promise<T> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'Invalid encrypted archive.');
   const envelope = value as Record<string, unknown>;
   const fields = ['format', 'version', 'salt', 'iv', 'ciphertext'];
@@ -71,9 +70,45 @@ export async function recoverLocalCustomerBackup(value: unknown, namespace: stri
       throw new LocalCustomerBackupError('AUTHENTICATION_FAILED', 'Backup could not be recovered; incorrect phrase or altered archive. No records changed.');
     }
     try {
-      return validateLocalCustomerExport(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext)), namespace);
+      return validate(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext)));
     } catch {
       throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'Backup could not be recovered; invalid contents or account/target. No records changed.');
     }
   } finally { plaintext?.fill(0); }
+}
+
+export async function protectLocalCustomerBackup(value: unknown, namespace: string, phrase: string, provider: Crypto | undefined = globalThis.crypto) {
+  return protectArchive(validateLocalCustomerExport(value, namespace), phrase, provider);
+}
+export async function recoverLocalCustomerBackup(value: unknown, namespace: string, phrase: string, provider: Crypto | undefined = globalThis.crypto) {
+  return recoverArchive(value, phrase, payload => validateLocalCustomerExport(payload, namespace), provider);
+}
+export type LocalCustomerResolutionArchive = { format: 'fire-local-customer-resolution'; version: 1; namespace: string;
+  operationId: string; originalDraft: LocalCustomerInput; originalExpectedRevision: number; reviewedSnapshot: LocalCustomerExport; proposed: LocalCustomerInput };
+export function validateLocalCustomerResolutionArchive(value: unknown, namespace: string): LocalCustomerResolutionArchive {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid resolution archive.');
+  const row = value as Record<string, unknown>;
+  const fields = ['format', 'version', 'namespace', 'operationId', 'originalDraft', 'originalExpectedRevision', 'reviewedSnapshot', 'proposed'];
+  if (Object.keys(row).length !== fields.length || fields.some(key => !Object.hasOwn(row, key))
+    || row.format !== 'fire-local-customer-resolution' || row.version !== 1 || row.namespace !== namespace
+    || typeof row.operationId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(row.operationId)
+    || !Number.isSafeInteger(row.originalExpectedRevision) || (row.originalExpectedRevision as number) < 0
+    || row.originalExpectedRevision === Number.MAX_SAFE_INTEGER) throw new Error('Invalid resolution metadata.');
+  const reviewedSnapshot = validateLocalCustomerExport(row.reviewedSnapshot, namespace);
+  function input(value: unknown): LocalCustomerInput {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid resolution contact.');
+    const contact = value as LocalCustomerInput, customer = { ...contact, revision: 1, updatedAt: '2000-01-01T00:00:00.000Z' };
+    return validateLocalCustomerExport({ format: 'fire-local-customers', version: 1, namespace, customers: [customer],
+      pendingOperations: [{ id: 'validation-only', kind: 'customer-upsert', expectedRevision: 0, customer, input: contact }] }, namespace).pendingOperations[0].input;
+  }
+  const originalDraft = input(row.originalDraft), proposed = input(row.proposed);
+  if (originalDraft.id !== proposed.id) throw new Error('Resolution customer identity mismatch.');
+  return { format: 'fire-local-customer-resolution', version: 1, namespace, operationId: row.operationId,
+    originalDraft, originalExpectedRevision: row.originalExpectedRevision as number, reviewedSnapshot, proposed };
+}
+export async function protectLocalCustomerResolutionArchive(value: unknown, namespace: string, phrase: string, provider: Crypto | undefined = globalThis.crypto) {
+  return protectArchive(validateLocalCustomerResolutionArchive(value, namespace), phrase, provider);
+}
+export async function recoverLocalCustomerResolutionArchive(value: unknown, namespace: string, phrase: string, provider: Crypto | undefined = globalThis.crypto) {
+  return recoverArchive(value, phrase, payload => validateLocalCustomerResolutionArchive(payload, namespace), provider);
 }

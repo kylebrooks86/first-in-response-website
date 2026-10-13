@@ -5272,5 +5272,73 @@
     "evidence": "CUSTOMER_RESOLUTION_PROPOSAL_EVIDENCE.json",
     "handoff": "CUSTOMER_RESOLUTION_PROPOSAL_HANDOFF.md",
     "nextTask": "Design guarded deliberate reconciliation commit with atomic encrypted-snapshot identity verification and preservation of stored history and unsaved draft versions"
+  },
+  "guardedCustomerResolutionBatch": {
+    "baseCheckpoint": "2ed5744dd043b6f2be212376689876c5ea03a2a9",
+    "scope": "Dormant vault foundation; only synthetic fixtures invoke new save method",
+    "browserChecks": {
+      "passed": 276,
+      "total": 276
+    },
+    "backupFormatChecks": {
+      "passed": 66,
+      "total": 66
+    },
+    "suiteTotals": {
+      "resolution": {
+        "passed": 42,
+        "total": 42
+      },
+      "vault": {
+        "passed": 174,
+        "total": 174
+      },
+      "framework": {
+        "passed": 60,
+        "total": 60
+      },
+      "backup": {
+        "passed": 66,
+        "total": 66
+      }
+    },
+    "fullBuilds": {
+      "passed": 3,
+      "total": 3
+    },
+    "fullTypechecks": {
+      "passed": 3,
+      "total": 3
+    },
+    "financialRegression": {
+      "passed": 207,
+      "total": 207
+    },
+    "sourceParity": {
+      "files": 131,
+      "differences": 0,
+      "candidateCount": 3
+    },
+    "originalDraftAndReviewEncrypted": true,
+    "atomicDraftArchiveAndSnapshotCommit": true,
+    "nativeCompetingWriteRejected": true,
+    "resolutionUiActivated": false,
+    "normalBackupIncludesResolutionArchives": false,
+    "automaticRetryEnabled": false,
+    "productionActivated": false,
+    "physicalSafariTested": false,
+    "wholeScreenShaking": "UNRESOLVED",
+    "blockers": [
+      "Normal customer backup/export does not include auxiliary resolution rows; verify a portable bundle before activating UI.",
+      "Repository/controller failure-state integration and explicit confirmation remain pending."
+    ],
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "evidence": "GUARDED_CUSTOMER_RESOLUTION_EVIDENCE.json",
+    "handoff": "GUARDED_CUSTOMER_RESOLUTION_HANDOFF.md",
+    "nextTask": "Portable encrypted bundle for snapshot and original resolution archives; empty-destination-only synthetic recovery before UI activation"
   }
 }
