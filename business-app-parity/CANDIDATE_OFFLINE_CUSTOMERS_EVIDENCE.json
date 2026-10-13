@@ -1,0 +1,216 @@
+{
+  "asOf": "2026-10-13 UTC",
+  "baseCheckpoint": "c8cdc76de902236a66480c1f4a74725bb77b3d70",
+  "scope": "Candidate-only app Customers entry and authenticated development route with actual React panel",
+  "route": "/development/local-customers",
+  "enablement": {
+    "runtimeRequired": "development",
+    "flag": "FIRE_LOCAL_CUSTOMERS_CANDIDATE=synthetic-only",
+    "productionEnabledEvenWithFlag": false,
+    "flagSetInProductionResources": false,
+    "defaultEnabled": false
+  },
+  "results": {
+    "live": {
+      "browser": {
+        "passed": 18,
+        "total": 18,
+        "checks": [
+          "production page remains disabled even with synthetic flag",
+          "development page requires explicit synthetic flag",
+          "actual route refuses missing synthetic session",
+          "actual route refuses non-owner fixture",
+          "actual route supplies synthetic server-scoped descriptor",
+          "unsigned browser session cannot enter fixture screen",
+          "React candidate screen mounts locked without automatically seeding",
+          "explicit test-vault creation clears phrase and preserves locked state",
+          "candidate creates synthetic customer and reports local pending save",
+          "candidate edits loaded contacts offline and increments revision",
+          "explicit lock removes contact plaintext and draft",
+          "reload retains encrypted local contact and receipt history",
+          "React identity change unmounts old controller and separates account storage",
+          "320px light candidate layout fits viewport",
+          "320px dark candidate layout fits viewport",
+          "candidate light theme remains light under a dark host page",
+          "logout fixture revokes local plaintext",
+          "online/financial routes untouched and no outside network or runtime errors"
+        ],
+        "identity": {
+          "accountId": "synthetic-fire-owner-account-v1",
+          "targetId": "synthetic-fire-live-v1"
+        },
+        "browserVersion": "153.0.8010.0",
+        "actualReactPanel": true,
+        "actualServerPageWithAuthStub": true,
+        "syntheticSignedSessionFixture": true,
+        "realAuthTested": false,
+        "fullAppRuntimeTested": false,
+        "productionActivated": false
+      },
+      "fullBuildPassed": true,
+      "fullTypecheckPassed": true,
+      "financialRegression": {
+        "passed": 69,
+        "total": 69,
+        "syntheticSQLiteOnly": true
+      },
+      "buildLogSHA256": "1368fb30efb8437bc42fff4b95270e12d91b7b41cc4933f3bdc8a6bba349b08b"
+    },
+    "doomsday": {
+      "browser": {
+        "passed": 18,
+        "total": 18,
+        "checks": [
+          "production page remains disabled even with synthetic flag",
+          "development page requires explicit synthetic flag",
+          "actual route refuses missing synthetic session",
+          "actual route refuses non-owner fixture",
+          "actual route supplies synthetic server-scoped descriptor",
+          "unsigned browser session cannot enter fixture screen",
+          "React candidate screen mounts locked without automatically seeding",
+          "explicit test-vault creation clears phrase and preserves locked state",
+          "candidate creates synthetic customer and reports local pending save",
+          "candidate edits loaded contacts offline and increments revision",
+          "explicit lock removes contact plaintext and draft",
+          "reload retains encrypted local contact and receipt history",
+          "React identity change unmounts old controller and separates account storage",
+          "320px light candidate layout fits viewport",
+          "320px dark candidate layout fits viewport",
+          "candidate light theme remains light under a dark host page",
+          "logout fixture revokes local plaintext",
+          "online/financial routes untouched and no outside network or runtime errors"
+        ],
+        "identity": {
+          "accountId": "synthetic-fire-owner-account-v1",
+          "targetId": "synthetic-fire-doomsday-v1"
+        },
+        "browserVersion": "153.0.8010.0",
+        "actualReactPanel": true,
+        "actualServerPageWithAuthStub": true,
+        "syntheticSignedSessionFixture": true,
+        "realAuthTested": false,
+        "fullAppRuntimeTested": false,
+        "productionActivated": false
+      },
+      "fullBuildPassed": true,
+      "fullTypecheckPassed": true,
+      "financialRegression": {
+        "passed": 69,
+        "total": 69,
+        "syntheticSQLiteOnly": true
+      },
+      "buildLogSHA256": "38b2e70a37cdb5561308bd4d074a61d564573339cf295e716c6fbb17e563f7f5"
+    },
+    "staging": {
+      "browser": {
+        "passed": 18,
+        "total": 18,
+        "checks": [
+          "production page remains disabled even with synthetic flag",
+          "development page requires explicit synthetic flag",
+          "actual route refuses missing synthetic session",
+          "actual route refuses non-owner fixture",
+          "actual route supplies synthetic server-scoped descriptor",
+          "unsigned browser session cannot enter fixture screen",
+          "React candidate screen mounts locked without automatically seeding",
+          "explicit test-vault creation clears phrase and preserves locked state",
+          "candidate creates synthetic customer and reports local pending save",
+          "candidate edits loaded contacts offline and increments revision",
+          "explicit lock removes contact plaintext and draft",
+          "reload retains encrypted local contact and receipt history",
+          "React identity change unmounts old controller and separates account storage",
+          "320px light candidate layout fits viewport",
+          "320px dark candidate layout fits viewport",
+          "candidate light theme remains light under a dark host page",
+          "logout fixture revokes local plaintext",
+          "online/financial routes untouched and no outside network or runtime errors"
+        ],
+        "identity": {
+          "accountId": "synthetic-fire-owner-account-v1",
+          "targetId": "synthetic-fire-refund-staging-v1"
+        },
+        "browserVersion": "153.0.8010.0",
+        "actualReactPanel": true,
+        "actualServerPageWithAuthStub": true,
+        "syntheticSignedSessionFixture": true,
+        "realAuthTested": false,
+        "fullAppRuntimeTested": false,
+        "productionActivated": false
+      },
+      "fullBuildPassed": true,
+      "fullTypecheckPassed": true,
+      "financialRegression": {
+        "passed": 69,
+        "total": 69,
+        "syntheticSQLiteOnly": true
+      },
+      "buildLogSHA256": "9406d954df10d19aa5301344623fcde441dc0f93c6be1f41f0e34cfd7b639303"
+    }
+  },
+  "browserChecks": {
+    "passed": 54,
+    "total": 54
+  },
+  "fullBuilds": {
+    "passed": 3,
+    "total": 3
+  },
+  "fullTypechecks": {
+    "passed": 3,
+    "total": 3
+  },
+  "dashboardFinancialRegression": {
+    "passed": 207,
+    "total": 207
+  },
+  "sharedSourceParity": {
+    "files": 129,
+    "differences": 0,
+    "candidateCount": 3,
+    "deploymentAdapterExcluded": "app/local-customer-deployment.ts"
+  },
+  "newFeatureHashes": {
+    "app/dashboard.tsx": "f777fc9136547a584b905e2061e23ad6bd86ca2ed3577f3ad0111d17239633c8",
+    "app/development/local-customers/page.tsx": "d7a6dea7c1af6c79faceb578997e7abce0de4a1296683e1979bc3f23e9556fe5",
+    "components/candidate-local-customers.tsx": "78f1f552edc8cf10b88f8e5f9529555ccee5f7936e784f004a05dcd808d98f0b",
+    "lib/candidate-customer-access.ts": "f4d30e7f2262aeda06b95f823c5d022b545e701f8cc946a2cdc1b444907463f7",
+    "synthetic-customers-preview/preview.css": "092b138462f87e2da1b0191f37d1d6cdc1c5305ec96bc1a85027d83e1b77fead",
+    "scripts/test-candidate-local-customers-browser.mjs": "9a7d6dd3aa16f3d86729ea2ba4eb162641b23cba96b8b833ae4747f12c462278",
+    "scripts/test-dashboard-balance-consistency.mjs": "a018679615b784f96683c3d6c0f6626727fc14290aefa53bc730da9a488fee59",
+    "scripts/check-app-parity.mjs": "bc6ec17b4f715f67ff31d5d60585d8d3f937414a93a7aa591a7edf2b814c332e"
+  },
+  "onlineProtection": {
+    "existingApiSchemaMigrationFilesUnchanged": 63,
+    "onlineCustomersViewRetained": true,
+    "financialActionsAdded": false,
+    "serverCustomerReadsAdded": false,
+    "automaticSeeding": false,
+    "restorationAdded": false
+  },
+  "authenticationEvidence": {
+    "actualServerPageInvoked": true,
+    "authImportSubstitutedWithSyntheticPrincipalFixture": true,
+    "signedBrowserCookieIsLocalTestFixtureOnly": true,
+    "actualReactClientComponentBundled": true,
+    "fullFrameworkRuntimeAuthenticated": false,
+    "realDeployedAuthenticationVerified": false
+  },
+  "limitations": [
+    "No deployed activation or deployed parity verification",
+    "No real authenticated full-framework session test",
+    "No physical iPhone/iPad or installed offline cold launch test",
+    "Loaded route offline editing only; no service worker changes",
+    "Bottom-of-screen shaking remains unresolved"
+  ],
+  "deviceVaultsTouched": false,
+  "stripeActions": false,
+  "productionDatabaseWrites": false,
+  "productionCloudflareResourcesChanged": false,
+  "paidServicesUsed": false,
+  "costUSD": 0,
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  }
+}

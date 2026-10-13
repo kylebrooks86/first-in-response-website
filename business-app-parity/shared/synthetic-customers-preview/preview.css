@@ -1,5 +1,5 @@
 .fire-synthetic-preview{--bg:#f3f5f8;--panel:#fff;--text:#172235;--muted:#46556b;--border:#cbd3df;--accent:#b42318;--accent-text:#b42318;--soft:#fff1ed;color-scheme:light;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;line-height:1.5}
-html[data-theme=dark] .fire-synthetic-preview{--bg:#111827;--panel:#1d293b;--text:#f5f7fb;--muted:#c4cfdf;--border:#64748b;--accent:#b42318;--accent-text:#ff998c;--soft:#322222;color-scheme:dark}
+html[data-theme=dark] .fire-synthetic-preview:not([data-theme=light]),.fire-synthetic-preview[data-theme=dark]{--bg:#111827;--panel:#1d293b;--text:#f5f7fb;--muted:#c4cfdf;--border:#64748b;--accent:#b42318;--accent-text:#ff998c;--soft:#322222;color-scheme:dark}
 .fire-synthetic-preview *{box-sizing:border-box;min-width:0}
 .fire-synthetic-preview [hidden]{display:none!important}
 .fire-synthetic-preview a{color:inherit}
@@ -34,3 +34,5 @@ html[data-theme=dark] .fire-synthetic-preview{--bg:#111827;--panel:#1d293b;--tex
 .fire-synthetic-preview .skip-link:focus{top:12px}
 @media(max-width:600px){.fire-synthetic-preview .preview-shell{padding:16px 12px 32px;gap:16px}.fire-synthetic-preview .setup-card,.fire-synthetic-preview .customer-workspace{padding:18px 16px}.fire-synthetic-preview ul{grid-template-columns:1fr}.fire-synthetic-preview .preview-topbar{padding:10px 12px;gap:10px}.fire-synthetic-preview #theme{font-size:13px;max-width:145px}.fire-synthetic-preview form button{width:100%}}
 @media(prefers-reduced-motion:reduce){.fire-synthetic-preview *{scroll-behavior:auto!important}}
+
+.fire-synthetic-preview .candidate-topbar{flex-wrap:wrap}

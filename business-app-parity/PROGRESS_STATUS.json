@@ -4895,5 +4895,42 @@
       "total": 10,
       "percent": 30
     }
+  },
+  "candidateOfflineCustomersIntegration": {
+    "baseCheckpoint": "c8cdc76de902236a66480c1f4a74725bb77b3d70",
+    "evidence": "CANDIDATE_OFFLINE_CUSTOMERS_EVIDENCE.json",
+    "handoff": "CANDIDATE_OFFLINE_CUSTOMERS_HANDOFF.md",
+    "browserChecks": {
+      "passed": 54,
+      "total": 54
+    },
+    "fullBuilds": {
+      "passed": 3,
+      "total": 3
+    },
+    "fullTypechecks": {
+      "passed": 3,
+      "total": 3
+    },
+    "financialRegression": {
+      "passed": 207,
+      "total": 207
+    },
+    "sourceParity": {
+      "files": 129,
+      "differences": 0,
+      "candidateCount": 3,
+      "deploymentAdapterExcluded": "app/local-customer-deployment.ts"
+    },
+    "candidateRouteIntegrated": true,
+    "defaultActivated": false,
+    "productionActivated": false,
+    "wholeScreenShaking": "UNRESOLVED",
+    "nextTask": "Exercise the integrated candidate route under an actual local framework server with synthetic auth/database fixtures, including navigation and page lifecycle; then plan owner-held data import without overwrite or device recovery",
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    }
   }
 }
