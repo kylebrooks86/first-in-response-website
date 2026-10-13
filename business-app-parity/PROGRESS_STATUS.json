@@ -4802,5 +4802,32 @@
       "total": 10,
       "percent": 30
     }
+  },
+  "syntheticCustomerControllerBatch": {
+    "baseCheckpoint": "498720eb59dbd49987a78bc31209c55301c0f679",
+    "evidence": "SYNTHETIC_CUSTOMER_CONTROLLER_EVIDENCE.json",
+    "handoff": "SYNTHETIC_CUSTOMER_CONTROLLER_HANDOFF.md",
+    "browserChecks": {
+      "passed": 54,
+      "total": 54
+    },
+    "focusedTypeScript": {
+      "passed": 3,
+      "total": 3
+    },
+    "sourceParity": {
+      "files": 125,
+      "differences": 0,
+      "candidateCount": 3,
+      "deployedParityProven": false
+    },
+    "serverAuthenticationMappingVerified": false,
+    "runtimeActivated": false,
+    "nextTask": "Build an explicit synthetic candidate screen exercising the controller, then mobile light/dark layout checks; separately verify stable server account/target mapping before app runtime activation",
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    }
   }
 }

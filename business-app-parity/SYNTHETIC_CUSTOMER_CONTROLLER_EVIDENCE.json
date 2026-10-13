@@ -1,0 +1,104 @@
+{
+  "asOf": "2026-10-13 UTC",
+  "baseCheckpoint": "498720eb59dbd49987a78bc31209c55301c0f679",
+  "scope": "Opt-in synthetic Customers identity/lifecycle controller; existing auth and Dashboard routes unchanged",
+  "browserChecks": {
+    "passed": 54,
+    "total": 54
+  },
+  "results": {
+    "live": {
+      "passed": 18,
+      "total": 18,
+      "browserVersion": "153.0.8010.0",
+      "nativeIndexedDB": true,
+      "nativeWebCrypto": true,
+      "syntheticOnly": true,
+      "serverAuthenticationVerified": false,
+      "productionActivated": false
+    },
+    "doomsday": {
+      "passed": 18,
+      "total": 18,
+      "browserVersion": "153.0.8010.0",
+      "nativeIndexedDB": true,
+      "nativeWebCrypto": true,
+      "syntheticOnly": true,
+      "serverAuthenticationVerified": false,
+      "productionActivated": false
+    },
+    "staging": {
+      "passed": 18,
+      "total": 18,
+      "browserVersion": "153.0.8010.0",
+      "nativeIndexedDB": true,
+      "nativeWebCrypto": true,
+      "syntheticOnly": true,
+      "serverAuthenticationVerified": false,
+      "productionActivated": false
+    }
+  },
+  "focusedTypeScript": {
+    "passed": 3,
+    "total": 3
+  },
+  "sharedSourceParity": {
+    "files": 125,
+    "differences": 0,
+    "candidateCount": 3,
+    "deployedParityProven": false
+  },
+  "hashes": {
+    "lib/synthetic-customer-controller.ts": "c59e40a94dfc4219f7f81ef91daebe479e677dadfecf1d46d05bb8adf22a4115",
+    "scripts/test-synthetic-customer-controller-browser.mjs": "406977e814500720f8779a6fecf672d3ffb72d31197a46a8a4c06d9c7442b536"
+  },
+  "behaviors": [
+    "missing identity refuses activation without creating a database",
+    "wrong target refuses activation without creating a vault",
+    "invalid account and resolver errors fail closed",
+    "verified supplied identity mounts locked, never auto-unlocks",
+    "account A reads only account A fixture",
+    "logout refresh immediately wipes drafts and plaintext",
+    "account switch opens a separate locked vault",
+    "identity change before save rejects old form without writing either vault",
+    "latest activation wins when vault opens overlap",
+    "reactivation of an active identity resets to locked without losing records",
+    "identity lost while opening cannot mount a late view",
+    "logout during decryption never publishes late plaintext",
+    "page exit locks and return never auto-unlocks",
+    "target change revokes existing session on identity refresh",
+    "idle policy locks mounted UI",
+    "disposal during pending activation cannot remount late UI",
+    "closed controller refuses activation",
+    "no external network requests"
+  ],
+  "bugFixed": "Teardown callbacks previously invalidated the next activation; inactive guards no longer advance generation and epoch is captured after teardown. Regression covers reactivation and identity loss during opening.",
+  "authReview": {
+    "serverMappingVerified": false,
+    "ownerProfileIsInformational": true,
+    "candidateLiveIdentity": "userId from gateway header, fallback email; preview-owner in local preview",
+    "candidateIndependentOwnerIdentity": "Target-specific chatgpt-auth wrapper re-exports requireOwnerUser; owner-auth uses fire-owner after signed-cookie validation",
+    "emailUsedAsVaultIdentity": false,
+    "targetInferredFromLabelOrURL": false,
+    "requiredBeforeRuntimeActivation": "Explicit stable opaque account and fixed target mapping from validated server authentication, with immediate identity refresh on logout/account change"
+  },
+  "limits": [
+    "Synthetic caller-supplied identities are not server authentication proof",
+    "No Dashboard/route integration or complete app build",
+    "No iPhone/iPad or mobile visual tests",
+    "Pagehide/pageshow events were dispatched in Chromium; not physical device lifecycle evidence",
+    "Idle tested with short synthetic policy; default five minutes",
+    "No vault seeding/restore/sync or service-worker changes"
+  ],
+  "deviceVaultsTouched": false,
+  "publishedDemoChanged": false,
+  "deploymentsChanged": false,
+  "remoteDatabaseWrites": false,
+  "stripeCalls": false,
+  "costUSD": 0,
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  }
+}
