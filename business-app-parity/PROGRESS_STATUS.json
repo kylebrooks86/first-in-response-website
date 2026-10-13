@@ -5010,5 +5010,33 @@
       "total": 10,
       "percent": 30
     }
+  },
+  "bottomScrollStabilityBatch": {
+    "baseCheckpoint": "b894bf616f25aca403c377646f870bb124087fb3",
+    "evidence": "BOTTOM_SCROLL_STABILITY_EVIDENCE.json",
+    "handoff": "BOTTOM_SCROLL_STABILITY_HANDOFF.md",
+    "browserChecks": {
+      "passed": 69,
+      "total": 69
+    },
+    "measurementCases": {
+      "passed": 54,
+      "total": 54
+    },
+    "sourceParity": {
+      "files": 129,
+      "differences": 0,
+      "candidateCount": 3
+    },
+    "applicationSourceChanged": false,
+    "productionActivated": false,
+    "physicalSafariTested": false,
+    "wholeScreenShaking": "UNRESOLVED",
+    "nextTask": "Inspect viewport-height dependencies and prepare a read-only layout trace for future approved Safari reproduction; do not apply an unsupported CSS fix",
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    }
   }
 }
