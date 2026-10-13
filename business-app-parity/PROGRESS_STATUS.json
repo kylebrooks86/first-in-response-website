@@ -4747,5 +4747,33 @@
       "percent": 30
     },
     "nextStep": "No more owner device actions now. Future unused-device recovery requires separate approval; next development-only batch can review shared Customers offline repository boundary."
+  },
+  "localCustomerRepositoryBatch": {
+    "asOf": "2026-10-12 America/Chicago",
+    "baseCheckpoint": "29ded81770c248118ba103277d63000b962b6070",
+    "evidence": "LOCAL_CUSTOMER_REPOSITORY_EVIDENCE.json",
+    "handoff": "LOCAL_CUSTOMER_REPOSITORY_HANDOFF.md",
+    "browserChecks": {
+      "passed": 78,
+      "total": 78
+    },
+    "focusedTypeScript": {
+      "passed": 3,
+      "total": 3
+    },
+    "sourceParity": {
+      "files": 123,
+      "differences": 0,
+      "candidateCount": 3
+    },
+    "runtimeActivated": false,
+    "publishedDemoChanged": false,
+    "wholeScreenShaking": "UNRESOLVED",
+    "nextTask": "Separate isolated contacts-only view with explicit owner unlock/local pending-save status, followed by reviewed account/target adapter before Customers runtime activation",
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    }
   }
 }
