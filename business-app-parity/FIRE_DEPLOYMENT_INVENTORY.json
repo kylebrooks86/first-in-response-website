@@ -74,7 +74,7 @@
       "url": "https://fire-app-independent-staging.kyle-bfc.workers.dev",
       "referenceCommit": "e516af3ce93368450cd3d02906d117116d090f3e",
       "deployedCommitVerified": false,
-      "identityStatus": "Owner historical build log links source a1cdb94 and sealed-v138 archive to active full Worker version and D1 UUID. Artifact digest/runtime response, cross-target isolation and deployed parity remain unverified.",
+      "identityStatus": "Retained owner runtime screenshot visually matches the preserved historical build-log source and capture ID. Current routing seal, independent artifact fingerprint and cross-target database isolation remain unverified.",
       "workerName": "fire-app-independent-staging",
       "ownerObservedCloudflareVersionPrefix": "61fa32a3",
       "ownerObservedTrafficPercent": 100,
@@ -132,7 +132,21 @@
       "ownerObservedBuildLogSourceCommit": "a1cdb94be76b0ded16b213b84616e741651e140d",
       "ownerObservedBuildLogCaptureId": "3c5ac73d57b01602429b699e",
       "ownerObservedHistoricalTypecheckStatus": "FAIL_NONBLOCKING",
-      "historicalSourceToVersionLinked": true
+      "historicalSourceToVersionLinked": true,
+      "ownerAuthenticatedRuntimeCapture": {
+        "schemaVersion": 1,
+        "environment": "independent-dr-staging",
+        "worker": "fire-app-independent-staging",
+        "sourceCommit": "a1cdb94be76b0ded16b213b84616e741651e140d",
+        "release": "v138",
+        "packageVersion": "1.0.0-rc.138",
+        "captureId": "3c5ac73d57b01602429b699e",
+        "forwardSyncRegistrySha256": "207979f0a074cc37e474c6b3bbc34b5bc40db044803198ee53d71721be1e6d16",
+        "production": false,
+        "photoStorageR2Provisioned": false
+      },
+      "ownerAuthenticatedCaptureEvidence": "GATE4_SOURCE_CAPTURE_RECONCILIATION.json",
+      "sourceTranscriptionMismatchResolved": true
     }
   ],
   "asOf": "2026-10-09",

@@ -5824,5 +5824,117 @@
     },
     "evidence": "DELIBERATE_PORTABLE_RECOVERY_EVIDENCE.json",
     "handoff": "DELIBERATE_PORTABLE_RECOVERY_HANDOFF.md"
+  },
+  "backwardCompatibleRecoveryBatch": {
+    "date": "2026-10-13",
+    "baseCommit": "d16fe0a414c8aa9a5d7eaa9faf1d3e91f95359ec",
+    "scope": "Explicit backward-compatible original-snapshot and portable-bundle verification/recovery",
+    "checks": {
+      "browser": {
+        "passed": 453,
+        "total": 453,
+        "suites": {
+          "framework": 90,
+          "repository": 108,
+          "portable": 99,
+          "view": 93,
+          "controller": 63
+        }
+      },
+      "legacyBackupCrypto": {
+        "passed": 66,
+        "total": 66
+      },
+      "financialSyntheticSQLite": {
+        "passed": 207,
+        "total": 207
+      },
+      "fullBuilds": {
+        "passed": 3,
+        "total": 3
+      },
+      "sharedSourceParity": {
+        "passed": 131,
+        "total": 131,
+        "differences": 0
+      },
+      "finalFailures": 0,
+      "initialIssueResolved": "Format select needed an explicit accessible name; corrected and affected browser suites rerun.",
+      "typeScript": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "behavior": [
+      "Explicit format selector chooses an authenticated strict payload validator; no validation-error fallback.",
+      "Existing original backup encryption/decryption APIs and envelope format remain unchanged.",
+      "Original snapshots recover through the same add-only atomic any-row occupancy transaction and stay locked.",
+      "Original-format UI warns that resolution archives are not included; it does not claim missing archives were recovered or discard separate files.",
+      "Original-format round trip preserves revision 3 and three receipts, and re-exports them as a portable bundle.",
+      "Portable archive-complete round trip and fault/identity/occupied-destination protections remain passing."
+    ],
+    "actualOriginalDeviceFileVerified": false,
+    "originalDeviceFileModified": false,
+    "physicalDeviceRecovery": false,
+    "resolutionSaveUiActivated": false,
+    "productionChanged": false,
+    "paidServicesUsed": false,
+    "cssChanged": false,
+    "gate4BlockerRemoved": "Source transcription mismatch resolved by visual inspection of retained IMG_1847; source and capture ID match preserved build log.",
+    "gate4Passed": false,
+    "nextPriority": "Integrate guarded deliberate resolution-save confirmation with original-draft archiving and stale-snapshot rejection; verify the resulting portable bundle before activation.",
+    "remainingReleaseBlockers": [
+      "Gate 4 Sites immutable D1 UUIDs/cross-target isolation and current routing/artifact seals",
+      "Complete remote schema/journal/index validation and remaining production release gates",
+      "Actual native Safari/Home Screen/device backup acceptance remains unverified; device vaults and original backup stay untouched."
+    ],
+    "officialReleaseReadiness": {
+      "passedGates": 3,
+      "totalGates": 10,
+      "percent": 30
+    },
+    "evidence": "BACKWARD_COMPATIBLE_RECOVERY_EVIDENCE.json"
+  },
+  "gate4SourceCaptureReconciliation": {
+    "date": "2026-10-13",
+    "scope": "Visual reconciliation of retained owner-authenticated Doomsday screenshot; no new runtime request",
+    "originalScreenshot": {
+      "filename": "IMG_1847.png",
+      "libraryFileId": "libfile_3d0482a335fc8191809934a8f06268f7",
+      "sha256": "86ff17f30e9921ae34d2865e42f03bf4aead7a294f77e1835f56fd17927552ca",
+      "visuallyInspected": true
+    },
+    "observedIdentity": {
+      "schemaVersion": 1,
+      "environment": "independent-dr-staging",
+      "worker": "fire-app-independent-staging",
+      "sourceCommit": "a1cdb94be76b0ded16b213b84616e741651e140d",
+      "release": "v138",
+      "packageVersion": "1.0.0-rc.138",
+      "captureId": "3c5ac73d57b01602429b699e",
+      "forwardSyncRegistrySha256": "207979f0a074cc37e474c6b3bbc34b5bc40db044803198ee53d71721be1e6d16",
+      "production": false,
+      "photoStorageR2Provisioned": false
+    },
+    "reconciliation": {
+      "matchesPreservedBuildLogSource": true,
+      "matchesPreservedBuildLogCaptureId": true,
+      "regularChatReportSourceTranscriptionWasIncorrect": true,
+      "sourceTranscriptionBlockerResolved": true,
+      "newAuthenticatedRuntimeFetch": false,
+      "artifactDigestIndependentlyRetrieved": false
+    },
+    "gate4Passed": false,
+    "remainingGate4Blockers": [
+      "LIVE/refund-staging immutable D1 UUIDs and cross-target isolation",
+      "Authenticated current routing/version seals for remaining deployments",
+      "Independent build-artifact fingerprint/version linkage"
+    ],
+    "gate5Passed": false,
+    "officialReleaseReadiness": {
+      "passedGates": 3,
+      "totalGates": 10,
+      "percent": 30
+    }
   }
 }

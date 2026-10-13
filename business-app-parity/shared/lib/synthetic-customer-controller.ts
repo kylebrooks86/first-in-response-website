@@ -70,10 +70,10 @@ export function createSyntheticCustomerController(root: HTMLElement, options: {
         unlock: phrase => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.unlock(phrase); },
         save: (...args) => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.save(...args); },
         inspectStored: phrase => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.inspectStored(phrase); },
-        recoverPortableBackup: async (envelope, phrase, confirmed) => {
+        recoverPortableBackup: async (envelope, phrase, confirmed, format) => {
           if (!guard(captured)) throw new Error('Access changed.');
           try {
-            const result = await raw.recoverPortableBackup(envelope, phrase, confirmed);
+            const result = await raw.recoverPortableBackup(envelope, phrase, confirmed, format);
             if (!guard(captured)) throw new Error('Access changed.');
             return result;
           } catch (error) {
@@ -81,9 +81,9 @@ export function createSyntheticCustomerController(root: HTMLElement, options: {
             throw error;
           }
         },
-        inspectPortableDestination: async (envelope, phrase) => {
+        inspectPortableDestination: async (envelope, phrase, format) => {
           if (!guard(captured)) throw new Error('Access changed.');
-          const result = await raw.inspectPortableDestination(envelope, phrase);
+          const result = await raw.inspectPortableDestination(envelope, phrase, format);
           if (!guard(captured)) throw new Error('Access changed.');
           return result;
         },
@@ -93,9 +93,9 @@ export function createSyntheticCustomerController(root: HTMLElement, options: {
           if (!guard(captured)) throw new Error('Access changed.');
           return result;
         },
-        verifyPortableBackup: async (envelope, phrase) => {
+        verifyPortableBackup: async (envelope, phrase, format) => {
           if (!guard(captured)) throw new Error('Access changed.');
-          const result = await raw.verifyPortableBackup(envelope, phrase);
+          const result = await raw.verifyPortableBackup(envelope, phrase, format);
           if (!guard(captured)) throw new Error('Access changed.');
           return result;
         },

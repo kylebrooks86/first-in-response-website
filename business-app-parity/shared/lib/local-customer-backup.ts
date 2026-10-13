@@ -146,3 +146,16 @@ export async function protectLocalCustomerPortableBundle(value: unknown, namespa
 export async function verifyLocalCustomerPortableBundle(value: unknown, namespace: string, phrase: string, provider: Crypto | undefined = globalThis.crypto) {
   return recoverArchive(value, phrase, payload => validateLocalCustomerPortableBundle(payload, namespace), provider);
 }
+
+export type LocalCustomerRecoveryFormat = 'portable-bundle' | 'original-snapshot';
+/** Explicit dispatch after authenticated decryption; never fall back on a validation failure. */
+export async function verifyLocalCustomerRecoveryArchive(value: unknown, namespace: string, phrase: string,
+  format: LocalCustomerRecoveryFormat = 'portable-bundle', provider: Crypto | undefined = globalThis.crypto) {
+  if (format !== 'portable-bundle' && format !== 'original-snapshot') throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'Unsupported recovery format.');
+  return recoverArchive(value, phrase, payload => {
+    if (format === 'portable-bundle') return { format, bundle: validateLocalCustomerPortableBundle(payload, namespace) };
+    const snapshot = validateLocalCustomerExport(payload, namespace);
+    return { format, bundle: { format: 'fire-local-customer-bundle' as const, version: 1 as const, namespace,
+      snapshot, resolutions: [] as LocalCustomerResolutionArchive[], resolutionOperationIds: [] as string[] } };
+  }, provider);
+}

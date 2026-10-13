@@ -1,6 +1,6 @@
 /** Isolated synthetic Customers UI; opt-in DOM mount, mounted only by explicitly gated development routes. */
 import type { createLocalCustomerRepository } from '../lib/local-customer-repository';
-import { LocalCustomerBackupError } from '../lib/local-customer-backup';
+import { LocalCustomerBackupError, type LocalCustomerRecoveryFormat } from '../lib/local-customer-backup';
 import type { LocalCustomer, LocalCustomerInput } from '../lib/local-customer-store';
 type Repository = ReturnType<typeof createLocalCustomerRepository>;
 type ContactField = 'name' | 'email' | 'phone' | 'address' | 'leadSource';
@@ -25,6 +25,13 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
     const label = element('label', labelText), input = element('input'); input.type = 'password';
     input.name = 'phrase'; input.autocomplete = 'off'; input.minLength = 16; input.maxLength = 1024; input.required = true;
     append(label, input); append(form, label); return input;
+  }
+  function formatField(form: HTMLFormElement, labelText: string) {
+    const label = element('label', labelText), select = element('select'); select.setAttribute('aria-label', labelText);
+    for (const [value, text] of [['portable-bundle', 'Portable bundle with resolution archives'], ['original-snapshot', 'Original snapshot backup (no resolution archives)']]) {
+      const option = element('option', text); option.value = value; append(select, option);
+    }
+    append(label, select); append(form, label); return select;
   }
   function render(state = repository.read()) {
     if (disposed) return;
@@ -58,11 +65,12 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
         append(preflight, element('h2', 'Check portable recovery destination'), element('p', 'Locked does not mean empty. This check verifies the portable file and reads all stored vault rows. It never unlocks or restores records. An empty result is advisory; recovery must check again atomically.'));
         const fileLabel = element('label', 'Portable JSON file for destination check'), file = element('input');
         file.type = 'file'; file.accept = '.json,application/json'; file.required = true; append(fileLabel, file); append(preflight, fileLabel);
+        const destinationFormat = formatField(preflight, 'Backup format for destination check');
         const checkPhrase = phraseField(preflight, 'Test phrase for destination check');
         const checkButton = element('button', 'Verify file and check destination without changes'); checkButton.type = 'submit';
         const report = element('p', 'Verify the file and destination before deliberate recovery. Preserve the current vault and original backup.'); report.setAttribute('role', 'status'); report.dataset.destinationStatus = '';
         append(preflight, checkButton, report); append(root, preflight);
-        let checkedEnvelope: unknown;
+        let checkedEnvelope: unknown, checkedFormat: LocalCustomerRecoveryFormat = 'portable-bundle';
         const recovery = element('form'); recovery.setAttribute('aria-label', 'Deliberate portable recovery'); recovery.hidden = true;
         append(recovery, element('h2', 'Recover into an empty candidate vault'), element('p', 'This deliberate action adds the verified saved snapshot and archives only if the vault is still empty. It never overwrites. Completion stays locked. Keep the original backup.'));
         const recoveryPhrase = phraseField(recovery, 'Re-enter test phrase for deliberate recovery');
@@ -71,15 +79,16 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
         const recoverButton = element('button', 'Recover verified bundle only if destination is empty'); recoverButton.type = 'submit'; recoverButton.disabled = true;
         confirmation.addEventListener('change', () => { recoverButton.disabled = !confirmation.checked || backupBusy || !checkedEnvelope; });
         append(recovery, recoverButton); append(root, recovery);
+        destinationFormat.addEventListener('change', () => { checkedEnvelope = undefined; recovery.hidden = true; recoverButton.disabled = true; confirmation.checked = false; recoveryPhrase.value = ''; });
         const interrupt = button('Lock and stop pending recovery', () => repository.lock()); append(root, interrupt);
         recovery.addEventListener('submit', async event => {
           event.preventDefault(); const supplied = recoveryPhrase.value, approved = confirmation.checked, envelope = checkedEnvelope;
           recoveryPhrase.value = ''; confirmation.checked = false; checkedEnvelope = undefined;
           if (disposed || rendered !== renderGeneration || backupBusy || !approved || !envelope || repository.read().status !== 'locked') return;
-          const epoch = generation; backupBusy = true; recoverButton.disabled = recoveryPhrase.disabled = confirmation.disabled = checkButton.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = true;
+          const epoch = generation; backupBusy = true; recoverButton.disabled = recoveryPhrase.disabled = confirmation.disabled = checkButton.disabled = destinationFormat.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = true;
           report.textContent = 'Recovering verified bundle with an atomic empty-destination check…';
           try {
-            const result = await repository.recoverPortableBackup(envelope, supplied, true);
+            const result = await repository.recoverPortableBackup(envelope, supplied, true, checkedFormat);
             if (disposed || epoch !== generation || rendered !== renderGeneration || repository.read().status !== 'locked') return;
             report.textContent = `Recovered ${result.customerCount} customers and ${result.resolutionArchiveCount} resolution draft archives. Vault remains locked. Unlock explicitly to inspect, then export and verify a new bundle. Keep the original backup.`;
             root.dispatchEvent(new CustomEvent('fire-local-vault-recovered', { bubbles: true }));
@@ -92,24 +101,24 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
               : 'Recovery did not complete normally. Inspect stored-vault status before another attempt; a committed result may already exist. No automatic retry or overwrite.';
           } finally {
             if (!disposed && epoch === generation && rendered === renderGeneration) {
-              backupBusy = false; recovery.hidden = true; checkButton.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = false;
+              backupBusy = false; recovery.hidden = true; checkButton.disabled = destinationFormat.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = false;
               recoveryPhrase.disabled = confirmation.disabled = false;
             }
           }
         });
         preflight.addEventListener('submit', async event => {
-          event.preventDefault(); const supplied = checkPhrase.value, selected = file.files?.[0]; checkPhrase.value = ''; file.value = '';
+          event.preventDefault(); const supplied = checkPhrase.value, selected = file.files?.[0], selectedFormat = destinationFormat.value as LocalCustomerRecoveryFormat; checkPhrase.value = ''; file.value = '';
           if (disposed || rendered !== renderGeneration || backupBusy || !selected || repository.read().status !== 'locked') return;
-          const epoch = generation; checkedEnvelope = undefined; recovery.hidden = true; recoverButton.disabled = true; confirmation.checked = false; recoveryPhrase.value = ''; backupBusy = true; checkButton.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = true;
+          const epoch = generation; checkedEnvelope = undefined; recovery.hidden = true; recoverButton.disabled = true; confirmation.checked = false; recoveryPhrase.value = ''; backupBusy = true; checkButton.disabled = destinationFormat.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = true;
           report.textContent = 'Verifying file and reading destination status…';
           try {
             if (selected.size > 34 * 1024 * 1024) throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'Oversized file.');
             let envelope: unknown; try { envelope = JSON.parse(await selected.text()); } catch { throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'Invalid JSON.'); }
             if (disposed || epoch !== generation || rendered !== renderGeneration || repository.read().status !== 'locked') return;
-            const result = await repository.inspectPortableDestination(envelope, supplied);
+            const result = await repository.inspectPortableDestination(envelope, supplied, selectedFormat);
             if (disposed || epoch !== generation || rendered !== renderGeneration || repository.read().status !== 'locked') return;
-            checkedEnvelope = structuredClone(envelope); recovery.hidden = false;
-            report.textContent = `Portable bundle verified: ${result.customerCount} customers and ${result.resolutionArchiveCount} resolution draft archives. No stored destination rows found at this check. Verification only; no records were restored. Review the deliberate recovery confirmation below.`;
+            checkedEnvelope = structuredClone(envelope); checkedFormat = selectedFormat; recovery.hidden = false;
+            report.textContent = `Portable bundle verified: ${result.customerCount} customers and ${result.resolutionArchiveCount} resolution draft archives. No stored destination rows found at this check. Verification only; no records were restored. ${result.format === 'original-snapshot' ? 'Original snapshot format: resolution draft archives are not included. Keep any separate archive bundles. ' : ''}Review the deliberate recovery confirmation below.`;
           } catch (error) {
             if (disposed || epoch !== generation || rendered !== renderGeneration) return;
             report.textContent = error instanceof Error && 'code' in error && error.code === 'DESTINATION_OCCUPIED'
@@ -120,7 +129,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
               ? 'Invalid portable file or incorrect account/app target. No recovery was attempted.'
               : 'Destination check did not complete. Storage or access may be unavailable. Preserve the vault and backup; no automatic retry.';
           } finally {
-            if (!disposed && epoch === generation && rendered === renderGeneration) { backupBusy = false; checkButton.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = false; }
+            if (!disposed && epoch === generation && rendered === renderGeneration) { backupBusy = false; checkButton.disabled = destinationFormat.disabled = file.disabled = checkPhrase.disabled = submit.disabled = phrase.disabled = false; }
           }
         });
       }
@@ -144,6 +153,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
     const fileLabel = element('label', 'Portable encrypted JSON file'), file = element('input');
     file.type = 'file'; file.accept = '.json,application/json'; file.required = true; file.disabled = blocked;
     append(fileLabel, file); append(verifyForm, fileLabel);
+    const verificationFormat = formatField(verifyForm, 'Backup format for file verification'); verificationFormat.disabled = blocked;
     const verifyPhrase = phraseField(verifyForm, 'Test phrase for portable file verification');
     const verifyButton = element('button', 'Verify portable bundle without changes'); verifyButton.type = 'submit';
     verifyPhrase.disabled = verifyButton.disabled = blocked; append(verifyForm, verifyButton); append(backup, verifyForm); append(root, backup);
@@ -171,7 +181,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
       finally { if (!disposed && epoch === generation) { backupBusy = false; render(); } }
     });
     verifyForm.addEventListener('submit', async event => {
-      event.preventDefault(); const supplied = verifyPhrase.value, selectedFile = file.files?.[0]; verifyPhrase.value = ''; file.value = '';
+      event.preventDefault(); const supplied = verifyPhrase.value, selectedFile = file.files?.[0], selectedFormat = verificationFormat.value as LocalCustomerRecoveryFormat; verifyPhrase.value = ''; file.value = '';
       if (disposed || rendered !== renderGeneration || blocked || !selectedFile || repository.read().status !== 'ready') return;
       const epoch = generation; backupBusy = true; backupMessage = ''; render();
       try {
@@ -180,9 +190,9 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
         let envelope: unknown;
         try { envelope = JSON.parse(await selectedFile.text()); } catch { throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'Invalid JSON file.'); }
         if (disposed || epoch !== generation || repository.read().status !== 'ready') return;
-        const result = await repository.verifyPortableBackup(envelope, supplied);
+        const result = await repository.verifyPortableBackup(envelope, supplied, selectedFormat);
         if (disposed || epoch !== generation || repository.read().status !== 'ready') return;
-        backupMessage = `Verified portable bundle: ${result.customerCount} customers, ${result.receiptCount} receipts and ${result.resolutionArchiveCount} resolution draft archives. Verification only; no restoration or record changes.`;
+        backupMessage = `Verified portable bundle: ${result.customerCount} customers, ${result.receiptCount} receipts and ${result.resolutionArchiveCount} resolution draft archives. Verification only; no restoration or record changes. ${result.format === 'original-snapshot' ? 'Original snapshot format does not include resolution draft archives; keep separate archive bundles.' : ''}`;
       } catch (error) { if (!disposed && epoch === generation) backupMessage = backupFailure(error); }
       finally { if (!disposed && epoch === generation) { backupBusy = false; render(); } }
     });

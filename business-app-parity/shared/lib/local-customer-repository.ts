@@ -1,5 +1,5 @@
 /** Opt-in Customers boundary. Inactive until a reviewed UI explicitly supplies a vault. */
-import { verifyLocalCustomerPortableBundle } from './local-customer-backup';
+import { verifyLocalCustomerRecoveryArchive, type LocalCustomerRecoveryFormat } from './local-customer-backup';
 import type { openLocalCustomerVault } from './local-customer-vault';
 import type { LocalCustomer, LocalCustomerInput } from './local-customer-store';
 
@@ -98,21 +98,21 @@ export function createLocalCustomerRepository(vault: Vault) {
         throw new LocalCustomerRepositoryError('SAVE_FAILED');
       } finally { if (epoch === generation) busy = false; }
     },
-    async recoverPortableBackup(envelope: unknown, phrase: string, confirmed: boolean) {
+    async recoverPortableBackup(envelope: unknown, phrase: string, confirmed: boolean, format: LocalCustomerRecoveryFormat = 'portable-bundle') {
       const epoch = start();
       try {
         if (phase !== 'locked' || session) throw new LocalCustomerRepositoryError('BUSY');
         if (confirmed !== true) throw new Error('Explicit recovery confirmation required.');
-        const result = await vault.recoverPortableBundleIntoEmptyVault(structuredClone(envelope), phrase);
+        const result = await vault.recoverPortableBundleIntoEmptyVault(structuredClone(envelope), phrase, format);
         if (epoch !== generation || read().status !== 'locked') throw new LocalCustomerRepositoryError('INTERRUPTED');
         return result; // Recovery stays locked; no automatic unlock or retry.
       } finally { if (epoch === generation) busy = false; }
     },
-    async inspectPortableDestination(envelope: unknown, phrase: string) {
+    async inspectPortableDestination(envelope: unknown, phrase: string, format: LocalCustomerRecoveryFormat = 'portable-bundle') {
       const epoch = start();
       try {
         if (phase !== 'locked' || session) throw new LocalCustomerRepositoryError('BUSY');
-        const result = await vault.inspectPortableBundleDestination(structuredClone(envelope), phrase);
+        const result = await vault.inspectPortableBundleDestination(structuredClone(envelope), phrase, format);
         if (epoch !== generation || read().status !== 'locked') throw new LocalCustomerRepositoryError('INTERRUPTED');
         return result;
       } finally { if (epoch === generation) busy = false; }
@@ -126,14 +126,14 @@ export function createLocalCustomerRepository(vault: Vault) {
         return envelope;
       } finally { if (epoch === generation) busy = false; }
     },
-    async verifyPortableBackup(envelope: unknown, phrase: string) {
+    async verifyPortableBackup(envelope: unknown, phrase: string, format: LocalCustomerRecoveryFormat = 'portable-bundle') {
       const epoch = start();
       try {
         if (read().status !== 'ready' || !session) throw new LocalCustomerRepositoryError('LOCKED');
         const namespace = session.exportSnapshot().namespace;
-        const bundle = await verifyLocalCustomerPortableBundle(structuredClone(envelope), namespace, phrase);
+        const { bundle } = await verifyLocalCustomerRecoveryArchive(structuredClone(envelope), namespace, phrase, format);
         if (epoch !== generation || read().status !== 'ready') throw new LocalCustomerRepositoryError('INTERRUPTED');
-        return { customerCount: bundle.snapshot.customers.length, receiptCount: bundle.snapshot.pendingOperations.length,
+        return { format, customerCount: bundle.snapshot.customers.length, receiptCount: bundle.snapshot.pendingOperations.length,
           resolutionArchiveCount: bundle.resolutions.length, recoveryPerformed: false as const };
       } finally { if (epoch === generation) busy = false; }
     },

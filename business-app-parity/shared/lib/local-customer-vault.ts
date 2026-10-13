@@ -1,6 +1,6 @@
 /** Inactive encrypted snapshot foundation; no UI, plaintext migration or automatic sync. */
 import { localCustomerDatabaseName, validateLocalCustomerExport, type LocalCustomerExport, type LocalCustomerInput, type LocalCustomer } from './local-customer-store';
-import { protectLocalCustomerBackup, recoverLocalCustomerBackup, protectLocalCustomerResolutionArchive, recoverLocalCustomerResolutionArchive, validateLocalCustomerResolutionArchive, type LocalCustomerResolutionArchive, protectLocalCustomerPortableBundle, verifyLocalCustomerPortableBundle, type LocalCustomerPortableBundle } from './local-customer-backup';
+import { protectLocalCustomerBackup, recoverLocalCustomerBackup, protectLocalCustomerResolutionArchive, recoverLocalCustomerResolutionArchive, validateLocalCustomerResolutionArchive, type LocalCustomerResolutionArchive, protectLocalCustomerPortableBundle, verifyLocalCustomerPortableBundle, type LocalCustomerPortableBundle, verifyLocalCustomerRecoveryArchive, type LocalCustomerRecoveryFormat } from './local-customer-backup';
 
 export class LocalCustomerDestinationOccupiedError extends Error {
   readonly code = 'DESTINATION_OCCUPIED';
@@ -158,22 +158,22 @@ export async function openLocalCustomerVault(account: string, target: string,
       });
     },
     /** Advisory read-only preflight. Atomic recovery must check occupancy again. */
-    async inspectPortableBundleDestination(envelope: unknown, phrase: string) {
+    async inspectPortableBundleDestination(envelope: unknown, phrase: string, format: LocalCustomerRecoveryFormat = 'portable-bundle') {
       synchronizeLock(); const epoch = generation; check(epoch);
-      const bundle = await verifyLocalCustomerPortableBundle(envelope, customerNamespace, phrase, provider); check(epoch);
+      const { bundle } = await verifyLocalCustomerRecoveryArchive(envelope, customerNamespace, phrase, format, provider); check(epoch);
       const occupied = await new Promise<boolean>((resolve, reject) => {
         const tx = db.transaction('sealed', 'readonly'), request = tx.objectStore('sealed').count();
         tx.oncomplete = () => resolve(request.result !== 0); tx.onabort = () => reject(tx.error ?? new Error('Destination inspection failed.'));
       });
       check(epoch);
       if (occupied) throw new LocalCustomerDestinationOccupiedError();
-      return { destinationEmpty: true, customerCount: bundle.snapshot.customers.length,
+      return { format, destinationEmpty: true, customerCount: bundle.snapshot.customers.length,
         resolutionArchiveCount: bundle.resolutions.length, recoveryPerformed: false as const };
     },
     /** Explicit foundation only. Authenticate everything before an atomic add-only transaction. */
-    async recoverPortableBundleIntoEmptyVault(envelope: unknown, phrase: string) {
+    async recoverPortableBundleIntoEmptyVault(envelope: unknown, phrase: string, format: LocalCustomerRecoveryFormat = 'portable-bundle') {
       synchronizeLock(); const epoch = generation; check(epoch);
-      const bundle = await verifyLocalCustomerPortableBundle(envelope, customerNamespace, phrase, provider); check(epoch);
+      const { bundle } = await verifyLocalCustomerRecoveryArchive(envelope, customerNamespace, phrase, format, provider); check(epoch);
       const rows = [{ id: 'snapshot', version: 1, envelope: await protectLocalCustomerBackup(bundle.snapshot, customerNamespace, phrase, provider) }];
       check(epoch);
       for (const resolution of bundle.resolutions) {
@@ -195,7 +195,7 @@ export async function openLocalCustomerVault(account: string, target: string,
           for (const row of rows) store.add(row); // No put, deletion, merge or retry; all additions commit together.
         } catch (error) { abort(error); } };
       });
-      return { customerCount: bundle.snapshot.customers.length, resolutionArchiveCount: bundle.resolutions.length,
+      return { format, customerCount: bundle.snapshot.customers.length, resolutionArchiveCount: bundle.resolutions.length,
         recoveryPerformed: true as const, automaticallyUnlocked: false as const };
     },
     async initialize(value: unknown, phrase: string): Promise<void> {
