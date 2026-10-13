@@ -4714,8 +4714,8 @@
     "rollbackZIPFileHashes": "13/13",
     "zipFilename": "FIRE_Synthetic_Diagnostics_25ee996f_Review_Only.zip",
     "zipSha256": "4548404a625eddd3c1024aee67a02c6adbed7c3dfdcf49ed74dc4d840dc89776",
-    "accountEligibilityBindingsRollbackId": "UNVERIFIED; pre-upload conditions",
-    "newPackageDeployed": false,
+    "accountEligibilityBindingsRollbackId": "OWNER_REPORTED: Workers Free ($0), variables 0, no bindings, original deployment preserved; original ZIP verified for same-project manual rollback fallback; no independent account audit",
+    "newPackageDeployed": true,
     "publicationAuthorized": true,
     "deviceActionsPerformed": 0,
     "officialReadiness": {
@@ -4723,7 +4723,29 @@
       "total": 10,
       "percent": 30
     },
-    "nextStep": "Owner opens existing synthetic Cloudflare project Deployments, identifies old successful deployment and rollback, confirms no paid upgrade; manual upload after conditions pass",
+    "nextStep": "Hosted acceptance and owner iPad read-only status completed; see syntheticDiagnosticHostedAcceptance. Device recovery remains pending and not authorized.",
     "ownerApproval": "2026-10-12; manual-only, exact ZIP, conditional free/rollback preflight; no device restore"
+  },
+  "syntheticDiagnosticHostedAcceptance": {
+    "asOf": "2026-10-12 America/Chicago",
+    "sourceCommit": "ea3f2948d1644bcdd18713af4b6d51440b48bebe",
+    "shellVersion": "25ee996f7e1a41f47d3e58f2",
+    "evidence": "SYNTHETIC_DIAGNOSTIC_HOSTED_ACCEPTANCE.json",
+    "handoff": "SYNTHETIC_DIAGNOSTIC_HOSTED_HANDOFF.md",
+    "futureRecoveryPlan": "SYNTHETIC_EMPTY_VAULT_DEVICE_TEST_PLAN.md",
+    "hostedFileHashes": "11/11 independent public HTTP matches",
+    "ownerIPadStatus": "Current vault exists; recovery blocked; no records changed",
+    "ownerIPadRevision": 1,
+    "historicalIPadFailureCause": "UNVERIFIED; no prior occupancy inference",
+    "deviceRestoreSuccess": "NOT_VERIFIED",
+    "newPackageOwnerDeployed": true,
+    "finalDeploymentID": "NOT_CAPTURED",
+    "agentDeployments": 0,
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "nextStep": "No more owner device actions now. Future unused-device recovery requires separate approval; next development-only batch can review shared Customers offline repository boundary."
   }
 }

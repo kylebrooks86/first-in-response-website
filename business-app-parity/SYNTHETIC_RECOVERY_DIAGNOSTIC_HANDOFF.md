@@ -1,3 +1,5 @@
+> Latest status: diagnostic package owner-published; hosted acceptance and iPad read-only status completed. See SYNTHETIC_DIAGNOSTIC_HOSTED_HANDOFF.md and SYNTHETIC_DIAGNOSTIC_HOSTED_ACCEPTANCE.json. The dated preparation text below is historical; it does not describe the current publication state. Readiness remains 3/10 (30%).
+
 # Recovery diagnostic checkpoint — no device actions now
 
 2026-10-12. Official full Business App readiness remains **3/10 (30%)**.

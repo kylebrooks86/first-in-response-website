@@ -67,5 +67,16 @@
     "passed": 3,
     "total": 10,
     "percent": 30
+  },
+  "subsequentVerifiedCheckpoint": "ea3f2948d1644bcdd18713af4b6d51440b48bebe; draft promoted and tested; historical draft/validation sections above remain as recorded",
+  "latestOwnerDiagnosticResult": {
+    "asOf": "2026-10-12 America/Chicago",
+    "evidence": "SYNTHETIC_DIAGNOSTIC_HOSTED_ACCEPTANCE.json",
+    "currentVault": "EXISTS according to owner-performed new read-only check and photo",
+    "revisionAfterCheck": "Owner reports still Revision 1",
+    "historicalPriorOccupancy": "UNKNOWN",
+    "historicalFailureCause": "UNVERIFIED",
+    "successfulRestoration": "NOT_VERIFIED",
+    "furtherRecoveryAuthorized": false
   }
 }
