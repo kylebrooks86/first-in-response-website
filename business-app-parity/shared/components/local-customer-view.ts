@@ -9,6 +9,8 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
   function element<K extends keyof HTMLElementTagNameMap>(tag: K, text = '') {
     const node = document.createElement(tag); node.textContent = text; return node;
   }
+  // appendChild avoids the Cloudflare HTMLRewriter Element.append global overload.
+  function append(parent: Node, ...children: Node[]) { children.forEach(child => parent.appendChild(child)); }
   function wipeInputs() { root.querySelectorAll('input').forEach(input => { input.value = ''; }); }
   function button(text: string, run: () => void) {
     const node = element('button', text); node.type = 'button'; node.addEventListener('click', run); return node;
@@ -16,7 +18,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
   function phraseField(form: HTMLFormElement, labelText: string) {
     const label = element('label', labelText), input = element('input'); input.type = 'password';
     input.name = 'phrase'; input.autocomplete = 'off'; input.minLength = 16; input.maxLength = 1024; input.required = true;
-    label.append(input); form.append(label); return input;
+    append(label, input); append(form, label); return input;
   }
   function render(state = repository.read()) {
     if (disposed) return;
@@ -26,19 +28,19 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
     }
     wipeInputs(); root.replaceChildren(); root.dataset.localCustomerState = state.status;
     const header = element('header'); header.className = 'customers-head';
-    header.append(element('p', 'Customer records'), element('h1', 'Customers'));
-    header.append(element('p', 'Isolated synthetic preview. Contact records only; no server sync or financial actions.'));
-    root.append(header);
+    append(header, element('p', 'Customer records'), element('h1', 'Customers'));
+    append(header, element('p', 'Isolated synthetic preview. Contact records only; no server sync or financial actions.'));
+    append(root, header);
     const status = element('p'); status.setAttribute('role', 'status'); status.dataset.saveStatus = '';
     const history = element('p', 'Estimates, invoices, payments, notes and photos require a connection and a separately verified integration.');
-    history.dataset.jobHistory = 'connection-required'; root.append(status, history);
+    history.dataset.jobHistory = 'connection-required'; append(root, status, history);
     if (state.status !== 'ready') {
       status.textContent = state.status === 'unlocking' ? 'Unlocking local contacts…' : state.status === 'locked'
         ? 'Locked. Stored contacts are hidden; locked does not mean empty.' : 'Local contacts unavailable. Preserve your vault and backup.';
       if (state.status === 'closed') return;
       const form = element('form'), phrase = phraseField(form, 'Test recovery phrase');
       const submit = element('button', 'Unlock local contacts'); submit.type = 'submit'; submit.disabled = state.status === 'unlocking';
-      phrase.disabled = submit.disabled; form.append(submit); root.append(form);
+      phrase.disabled = submit.disabled; append(form, submit); append(root, form);
       form.addEventListener('submit', async event => {
         event.preventDefault(); const supplied = phrase.value; phrase.value = '';
         if (disposed || rendered !== renderGeneration || state.status === 'unlocking') return;
@@ -51,33 +53,33 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
       : state.saveState === 'saved-locally' ? 'Saved locally. Server sync pending.'
       : state.saveState === 'needs-inspection' ? 'Save did not complete. Inspect current records before retrying.' : 'Local contacts unlocked.');
     const pending = element('p', `${state.pendingOperationCount} local operation receipts retained; none acknowledged by a server.`);
-    root.append(pending, button('Lock local contacts', () => { repository.lock(); }));
+    append(root, pending, button('Lock local contacts', () => { repository.lock(); }));
     const list = element('ul'); list.setAttribute('aria-label', 'Local customers');
     for (const customer of state.customers) {
       const row = element('li'); row.dataset.customerId = customer.id;
-      row.append(element('strong', customer.name), element('p', `${customer.email} · ${customer.address}`), element('p', `Revision ${customer.revision}`));
+      append(row, element('strong', customer.name), element('p', `${customer.email} · ${customer.address}`), element('p', `Revision ${customer.revision}`));
       const edit = button(`Edit ${customer.name}`, () => {
         draft = { input: { id: customer.id, name: customer.name, email: customer.email, phone: customer.phone,
           address: customer.address, leadSource: customer.leadSource }, expectedRevision: customer.revision }; message = ''; render();
-      }); edit.disabled = state.saveState === 'saving' || state.saveState === 'needs-inspection'; row.append(edit); list.append(row);
+      }); edit.disabled = state.saveState === 'saving' || state.saveState === 'needs-inspection'; append(row, edit); append(list, row);
     }
-    root.append(list);
-    if (state.customers.length === 0) root.append(element('p', 'No local contacts in this unlocked vault.'));
+    append(root, list);
+    if (state.customers.length === 0) append(root, element('p', 'No local contacts in this unlocked vault.'));
     const add = button('Add synthetic customer', () => {
       draft = { input: { id: crypto.randomUUID(), name: 'Synthetic Customer', email: 'test@example.invalid', phone: '', address: 'Synthetic address', leadSource: 'Synthetic' }, expectedRevision: 0 };
       message = ''; render();
-    }); add.disabled = state.saveState === 'saving' || state.saveState === 'needs-inspection'; root.append(add);
+    }); add.disabled = state.saveState === 'saving' || state.saveState === 'needs-inspection'; append(root, add);
     if (!draft) return;
     const capturedDraft = draft, form = element('form'); form.setAttribute('aria-label', 'Local customer editor');
     for (const [key, title] of [['name', 'Name'], ['email', 'Email'], ['phone', 'Phone'], ['address', 'Address'], ['leadSource', 'Lead source']] as const) {
       const label = element('label', title), field = element('input'); field.name = key; field.value = capturedDraft.input[key];
       field.maxLength = 4096; field.required = key === 'name'; field.disabled = state.saveState === 'saving';
-      field.addEventListener('input', () => { capturedDraft.input[key] = field.value; }); label.append(field); form.append(label);
+      field.addEventListener('input', () => { capturedDraft.input[key] = field.value; }); append(label, field); append(form, label);
     }
     const phrase = phraseField(form, 'Test phrase for this local save'); phrase.disabled = state.saveState === 'saving';
-    const save = element('button', 'Save locally'); save.type = 'submit'; save.disabled = state.saveState === 'saving' || state.saveState === 'needs-inspection'; form.append(save);
+    const save = element('button', 'Save locally'); save.type = 'submit'; save.disabled = state.saveState === 'saving' || state.saveState === 'needs-inspection'; append(form, save);
     const cancel = button('Cancel edit', () => { draft = undefined; message = ''; render(); });
-    cancel.disabled = state.saveState === 'saving'; form.append(cancel); root.append(form);
+    cancel.disabled = state.saveState === 'saving'; append(form, cancel); append(root, form);
     form.addEventListener('submit', async event => {
       event.preventDefault(); const supplied = phrase.value; phrase.value = '';
       if (disposed || rendered !== renderGeneration || state.saveState === 'saving' || state.saveState === 'needs-inspection') return;

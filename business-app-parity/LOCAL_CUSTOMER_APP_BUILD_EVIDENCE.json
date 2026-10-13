@@ -1,0 +1,257 @@
+{
+  "asOf": "2026-10-13 UTC",
+  "baseCheckpoint": "bbdbaa2394b516e63cb1d709b16399ff4544889a",
+  "scope": "Restore isolated full-app validation; fix DOM/Cloudflare type conflict; add inactive server owner identity mapping",
+  "results": {
+    "live": {
+      "identityChecks": {
+        "passed": 19,
+        "total": 19,
+        "serverMappingUnitTests": true,
+        "realAuthenticationTested": false,
+        "routeActivated": false
+      },
+      "screenChecks": {
+        "passed": 22,
+        "total": 22,
+        "checks": [
+          "local review response has no-store and restrictive security headers",
+          "first visit does not seed an encrypted snapshot",
+          "explicit fixture creation clears phrase and starts locked",
+          "unlocked empty fixture accurately shows no contacts",
+          "complete screen creates two encrypted contacts and displays receipts",
+          "320px light layout has no horizontal overflow or undersized controls",
+          "320px dark layout has no horizontal overflow or undersized controls",
+          "390px light layout has no horizontal overflow or undersized controls",
+          "390px dark layout has no horizontal overflow or undersized controls",
+          "768px light layout has no horizontal overflow or undersized controls",
+          "768px dark layout has no horizontal overflow or undersized controls",
+          "1280px light layout has no horizontal overflow or undersized controls",
+          "1280px dark layout has no horizontal overflow or undersized controls",
+          "mobile light editor fits 320px and text contrast meets 4.5:1",
+          "mobile dark editor fits 320px and text contrast meets 4.5:1",
+          "mobile editor has labeled fields and visible keyboard focus",
+          "long synthetic values wrap without forcing sideways scrolling",
+          "mobile screen editing works offline after loading",
+          "reload preserves fixture and cannot offer overwrite creation",
+          "preview does not register a service worker or offer app/payment routes",
+          "sticky header stays visible at page bottom without viewport overflow",
+          "screen remains isolated with no script errors"
+        ],
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "viewportWidths": [
+          320,
+          390,
+          768,
+          1280
+        ],
+        "themes": [
+          "light",
+          "dark"
+        ],
+        "physicalMobileTested": false,
+        "productionActivated": false
+      },
+      "fullBuildPassed": true,
+      "fullTypecheckPassed": true,
+      "buildLogSHA256": "0af2067a962fc2264d55d504bf8d8b1f459c82f5cc278d3193ce7c37762047ca",
+      "typecheckLogBytes": 0
+    },
+    "doomsday": {
+      "identityChecks": {
+        "passed": 19,
+        "total": 19,
+        "serverMappingUnitTests": true,
+        "realAuthenticationTested": false,
+        "routeActivated": false
+      },
+      "screenChecks": {
+        "passed": 22,
+        "total": 22,
+        "checks": [
+          "local review response has no-store and restrictive security headers",
+          "first visit does not seed an encrypted snapshot",
+          "explicit fixture creation clears phrase and starts locked",
+          "unlocked empty fixture accurately shows no contacts",
+          "complete screen creates two encrypted contacts and displays receipts",
+          "320px light layout has no horizontal overflow or undersized controls",
+          "320px dark layout has no horizontal overflow or undersized controls",
+          "390px light layout has no horizontal overflow or undersized controls",
+          "390px dark layout has no horizontal overflow or undersized controls",
+          "768px light layout has no horizontal overflow or undersized controls",
+          "768px dark layout has no horizontal overflow or undersized controls",
+          "1280px light layout has no horizontal overflow or undersized controls",
+          "1280px dark layout has no horizontal overflow or undersized controls",
+          "mobile light editor fits 320px and text contrast meets 4.5:1",
+          "mobile dark editor fits 320px and text contrast meets 4.5:1",
+          "mobile editor has labeled fields and visible keyboard focus",
+          "long synthetic values wrap without forcing sideways scrolling",
+          "mobile screen editing works offline after loading",
+          "reload preserves fixture and cannot offer overwrite creation",
+          "preview does not register a service worker or offer app/payment routes",
+          "sticky header stays visible at page bottom without viewport overflow",
+          "screen remains isolated with no script errors"
+        ],
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "viewportWidths": [
+          320,
+          390,
+          768,
+          1280
+        ],
+        "themes": [
+          "light",
+          "dark"
+        ],
+        "physicalMobileTested": false,
+        "productionActivated": false
+      },
+      "fullBuildPassed": true,
+      "fullTypecheckPassed": true,
+      "buildLogSHA256": "2ba278baef2dec02f2aa29b135da793962177fc79416e6a0ddd2bc380c66abe8",
+      "typecheckLogBytes": 0
+    },
+    "staging": {
+      "identityChecks": {
+        "passed": 19,
+        "total": 19,
+        "serverMappingUnitTests": true,
+        "realAuthenticationTested": false,
+        "routeActivated": false
+      },
+      "screenChecks": {
+        "passed": 22,
+        "total": 22,
+        "checks": [
+          "local review response has no-store and restrictive security headers",
+          "first visit does not seed an encrypted snapshot",
+          "explicit fixture creation clears phrase and starts locked",
+          "unlocked empty fixture accurately shows no contacts",
+          "complete screen creates two encrypted contacts and displays receipts",
+          "320px light layout has no horizontal overflow or undersized controls",
+          "320px dark layout has no horizontal overflow or undersized controls",
+          "390px light layout has no horizontal overflow or undersized controls",
+          "390px dark layout has no horizontal overflow or undersized controls",
+          "768px light layout has no horizontal overflow or undersized controls",
+          "768px dark layout has no horizontal overflow or undersized controls",
+          "1280px light layout has no horizontal overflow or undersized controls",
+          "1280px dark layout has no horizontal overflow or undersized controls",
+          "mobile light editor fits 320px and text contrast meets 4.5:1",
+          "mobile dark editor fits 320px and text contrast meets 4.5:1",
+          "mobile editor has labeled fields and visible keyboard focus",
+          "long synthetic values wrap without forcing sideways scrolling",
+          "mobile screen editing works offline after loading",
+          "reload preserves fixture and cannot offer overwrite creation",
+          "preview does not register a service worker or offer app/payment routes",
+          "sticky header stays visible at page bottom without viewport overflow",
+          "screen remains isolated with no script errors"
+        ],
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "viewportWidths": [
+          320,
+          390,
+          768,
+          1280
+        ],
+        "themes": [
+          "light",
+          "dark"
+        ],
+        "physicalMobileTested": false,
+        "productionActivated": false
+      },
+      "fullBuildPassed": true,
+      "fullTypecheckPassed": true,
+      "buildLogSHA256": "0900003de21544e26bca72438a200a4215be6c4b76b5859a8a73bb95cf43c848",
+      "typecheckLogBytes": 0
+    }
+  },
+  "fullApplicationBuilds": {
+    "passed": 3,
+    "total": 3
+  },
+  "fullProjectTypechecks": {
+    "passed": 3,
+    "total": 3
+  },
+  "identityUnitTests": {
+    "passed": 57,
+    "total": 57
+  },
+  "affectedScreenRegression": {
+    "passed": 66,
+    "total": 66
+  },
+  "sharedSourceParity": {
+    "files": 126,
+    "differences": 0,
+    "candidateCount": 3
+  },
+  "sourceHashes": {
+    "components/local-customer-view.ts": "685e1971f20ffde00331a69acef348f7ef70d6930ae45dbf01d08a9c2c15d2d8",
+    "lib/local-customer-owner-identity.ts": "62468ed0a7c5a9ebe9777bd43c51ab1bf4d1f37fde7cb95a822904ccfa618129",
+    "scripts/test-local-customer-owner-identity.mjs": "c62771ba99cb7625c1c55d8e8cb86dca40632fe48e69629081c62775e484eb78"
+  },
+  "dependencyRestoration": {
+    "packageManager": "pnpm 11.25.0",
+    "frozenLockfile": true,
+    "installScriptsExecuted": false,
+    "manifestAndLockChanges": false,
+    "manifestHashes": {
+      "package.json": "4f6c2790297197729de0f4557b1fdf37e8e7868c232e75f13ab92e615ce3e03b",
+      "pnpm-lock.yaml": "89dcf13994f9f97e62a63ac011591005afe4096309f4488ec0b99f7593a9294c",
+      "pnpm-workspace.yaml": "8a6368c58017ac0d6201e461adc79305d6dc377b455e812e07079d111d32c5aa"
+    },
+    "npmBootstrap": "Pinned pnpm installed into disposable build-tools folder with scripts/audit/fund disabled",
+    "installCommand": "pnpm install --frozen-lockfile --ignore-scripts --store-dir <scratch-build-store> --reporter=append-only",
+    "compileCommand": "tsc --noEmit --incremental false",
+    "buildCommand": "node scripts/run-framework.mjs build",
+    "buildControls": {
+      "cloudflareRemoteFetchEnabled": false,
+      "wranglerMetricsEnabled": false,
+      "wranglerLogWritesEnabled": false,
+      "timeoutSeconds": 120
+    },
+    "notes": "628 package resolution reported in LIVE install; native build dependencies loaded successfully without install scripts. No package versions or deployment bindings changed."
+  },
+  "compatibilityFix": "Use appendChild through a Node helper instead of Element.append, avoiding Cloudflare HTMLRewriter global overload collision. No casts, suppressions or compiler weakening.",
+  "identityMapping": {
+    "accountId": "fire-owner-account-v1",
+    "targetIds": {
+      "live": "fire-live-v1",
+      "doomsday": "fire-doomsday-v1",
+      "staging": "fire-refund-staging-v1"
+    },
+    "ownerEmailUsage": "Existing owner authorization allowlist only; email is not embedded in vault namespace",
+    "browserInvocation": "Rejected",
+    "principalRequired": "Authenticated owner principal with expected email and nonblank subject, supplied after existing auth guard",
+    "authImplementationChanged": false,
+    "routesWired": false,
+    "realAuthenticatedSessionTested": false,
+    "risk": "This helper does not authenticate requests; caller must use existing trusted server auth and fixed target configuration."
+  },
+  "runCaveat": "First concurrent staging screen run had an incomplete receipt despite process exit 0. It was not counted. Isolated staging rerun completed 22/22 and supplied the saved final receipt; cause of the incomplete run was not proven.",
+  "remaining": [
+    "Wire server identity to isolated candidate UI and verify with synthetic authenticated app sessions",
+    "Verify real deployed identity/schema/security adapters, mobile workflows, photo storage, sandbox integration and rollback gates",
+    "Whole-screen shaking remains unresolved",
+    "Physical iPhone/iPad and installed offline cold launch not retested"
+  ],
+  "deploymentChanged": false,
+  "publishedSyntheticDemoChanged": false,
+  "deviceVaultsTouched": false,
+  "stripeCalls": false,
+  "remoteDatabaseWrites": false,
+  "costUSD": 0,
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  }
+}
