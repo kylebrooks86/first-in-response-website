@@ -4932,5 +4932,42 @@
       "total": 10,
       "percent": 30
     }
+  },
+  "localCustomersFrameworkBatch": {
+    "baseCheckpoint": "0edfea6d8981f39eea06f3219af75638ac5d922e",
+    "evidence": "LOCAL_CUSTOMERS_FRAMEWORK_EVIDENCE.json",
+    "handoff": "LOCAL_CUSTOMERS_FRAMEWORK_HANDOFF.md",
+    "actualFrameworkChecks": {
+      "passed": 39,
+      "total": 39
+    },
+    "componentRegression": {
+      "passed": 54,
+      "total": 54
+    },
+    "fullBuilds": {
+      "passed": 3,
+      "total": 3
+    },
+    "fullTypechecks": {
+      "passed": 3,
+      "total": 3
+    },
+    "sourceParity": {
+      "files": 129,
+      "differences": 0,
+      "candidateCount": 3
+    },
+    "actualLocalAuthAdaptersTested": true,
+    "realGatewayProviderVerified": false,
+    "productionActivated": false,
+    "wholeScreenShaking": "UNRESOLVED",
+    "mobileNavigationHydration": "UNRESOLVED",
+    "nextTask": "Investigate actual mobile navigation/hydration readiness and bottom-of-screen shaking with repeatable browser evidence, preserving production and device vaults",
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    }
   }
 }

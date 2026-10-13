@@ -7,6 +7,10 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = {
   main: "vinext/server/fetch-handler",
   compatibility_flags: ["nodejs_compat"],
+  vars: {
+    FIRE_LOCAL_CUSTOMERS_CANDIDATE: process.env.NODE_ENV === "development"
+      && process.env.FIRE_LOCAL_CUSTOMERS_CANDIDATE === "synthetic-only" ? "synthetic-only" : "",
+  },
   d1_databases: [{
     binding: "DB",
     database_name: "fire-app-local",
