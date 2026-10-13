@@ -5936,5 +5936,73 @@
       "totalGates": 10,
       "percent": 30
     }
+  },
+  "repositoryReviewedResolutionBatch": {
+    "date": "2026-10-13",
+    "baseCommit": "d615e89f9a696fdc46f18a6caa7c41095977b489",
+    "scope": "Guarded repository/controller reviewed-resolution save and read-only archive inspection; UI remains disabled",
+    "functionality": [
+      "Explicit confirmation is required before a reviewed save starts; missing intent changes neither storage nor save status.",
+      "Repository copies the reviewed snapshot and original draft before asynchronous work; existing vault atomically writes original draft archive and reviewed customer snapshot.",
+      "Stale review or storage failure sets needs-inspection; no automatic retry, merge or discard.",
+      "Archive inspection requires an unlocked current session and revokes late plaintext on lock.",
+      "Controller guards verified identity before and after resolution operations."
+    ],
+    "checks": {
+      "browser": {
+        "passed": 378,
+        "total": 378,
+        "suites": {
+          "repository": 132,
+          "framework": 90,
+          "view": 93,
+          "controller": 63
+        }
+      },
+      "financialSyntheticSQLite": {
+        "passed": 207,
+        "total": 207
+      },
+      "fullBuilds": {
+        "passed": 3,
+        "total": 3
+      },
+      "typeScript": {
+        "passed": 3,
+        "total": 3
+      },
+      "sharedSourceParity": {
+        "passed": 131,
+        "total": 131,
+        "differences": 0
+      },
+      "finalFailures": 0
+    },
+    "roundTrip": {
+      "savedCustomerRevision": 7,
+      "operationReceiptCount": 7,
+      "resolutionArchiveCount": 1,
+      "originalReviewedRevision": 6,
+      "priorReceiptCount": 6,
+      "originalDraftPreserved": true,
+      "recoveredIntoDisposableEmptyBrowser": true,
+      "reexportVerified": true,
+      "automaticUnlock": false
+    },
+    "uiActivation": false,
+    "productionChanged": false,
+    "physicalDeviceRecovery": false,
+    "paidServices": false,
+    "cssChanged": false,
+    "deployedParityVerified": false,
+    "nextPriority": "Wire and test explicit candidate resolution-save confirmation UI, keeping original draft/proposal on failures and requiring portable archive verification before activation.",
+    "releaseGateProgress": "No new release gate independently completed. Gate 4 source transcription blocker was resolved in prior checkpoint; remaining immutable database IDs/isolation and routing/artifact seals stay open.",
+    "officialReleaseReadiness": {
+      "passedGates": 3,
+      "totalGates": 10,
+      "percent": 30
+    },
+    "evidence": "REPOSITORY_REVIEWED_RESOLUTION_EVIDENCE.json",
+    "handoff": "REPOSITORY_REVIEWED_RESOLUTION_HANDOFF.md"
   }
 }

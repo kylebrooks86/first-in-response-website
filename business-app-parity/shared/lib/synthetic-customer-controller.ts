@@ -70,6 +70,20 @@ export function createSyntheticCustomerController(root: HTMLElement, options: {
         unlock: phrase => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.unlock(phrase); },
         save: (...args) => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.save(...args); },
         inspectStored: phrase => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.inspectStored(phrase); },
+        saveReviewedResolution: async (value, phrase, confirmed) => {
+          if (!guard(captured)) throw new Error('Access changed.');
+          try {
+            const result = await raw.saveReviewedResolution(value, phrase, confirmed);
+            if (!guard(captured)) throw new Error('Access changed.');
+            return result;
+          } catch (error) { if (!guard(captured)) throw new Error('Access changed.'); throw error; }
+        },
+        inspectResolutionArchive: async (operationId, phrase) => {
+          if (!guard(captured)) throw new Error('Access changed.');
+          const result = await raw.inspectResolutionArchive(operationId, phrase);
+          if (!guard(captured)) throw new Error('Access changed.');
+          return result;
+        },
         recoverPortableBackup: async (envelope, phrase, confirmed, format) => {
           if (!guard(captured)) throw new Error('Access changed.');
           try {

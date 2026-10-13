@@ -1,5 +1,5 @@
 /** Opt-in Customers boundary. Inactive until a reviewed UI explicitly supplies a vault. */
-import { verifyLocalCustomerRecoveryArchive, type LocalCustomerRecoveryFormat } from './local-customer-backup';
+import { verifyLocalCustomerRecoveryArchive, type LocalCustomerRecoveryFormat, type LocalCustomerResolutionArchive } from './local-customer-backup';
 import type { openLocalCustomerVault } from './local-customer-vault';
 import type { LocalCustomer, LocalCustomerInput } from './local-customer-store';
 
@@ -12,7 +12,7 @@ export type LocalCustomerDirectory =
   | { status: Exclude<Phase, 'ready'>; customers: null; pendingOperationCount: null; saveState: 'idle'; jobHistory: 'connection-required' };
 
 export class LocalCustomerRepositoryError extends Error {
-  constructor(public readonly code: 'CLOSED' | 'BUSY' | 'LOCKED' | 'UNLOCK_FAILED' | 'SAVE_FAILED' | 'INSPECTION_FAILED' | 'INTERRUPTED') {
+  constructor(public readonly code: 'CLOSED' | 'BUSY' | 'LOCKED' | 'UNLOCK_FAILED' | 'SAVE_FAILED' | 'INSPECTION_FAILED' | 'INTERRUPTED' | 'CONFIRMATION_REQUIRED') {
     super(code); this.name = 'LocalCustomerRepositoryError';
   }
 }
@@ -96,6 +96,41 @@ export function createLocalCustomerRepository(vault: Vault) {
         saveState = 'needs-inspection'; notify();
         // Failed/ambiguous saves never promise that nothing committed and never retry automatically.
         throw new LocalCustomerRepositoryError('SAVE_FAILED');
+      } finally { if (epoch === generation) busy = false; }
+    },
+    async saveReviewedResolution(value: LocalCustomerResolutionArchive, phrase: string, confirmed: boolean): Promise<LocalCustomerDirectory> {
+      if (confirmed !== true) throw new LocalCustomerRepositoryError('CONFIRMATION_REQUIRED');
+      const epoch = start();
+      try {
+        if (read().status !== 'ready' || !session) throw new LocalCustomerRepositoryError('LOCKED');
+        const active = session, captured = structuredClone(value);
+        saveState = 'saving'; notify();
+        await active.saveReviewedResolution(captured, phrase);
+        if (epoch !== generation) throw new LocalCustomerRepositoryError('INTERRUPTED');
+        saveState = 'saved-locally';
+        const view = read();
+        if (view.status !== 'ready') throw new LocalCustomerRepositoryError('INTERRUPTED');
+        notify();
+        if (epoch !== generation) throw new LocalCustomerRepositoryError('INTERRUPTED');
+        return view;
+      } catch (error) {
+        if (epoch !== generation) throw new LocalCustomerRepositoryError('INTERRUPTED');
+        if (error instanceof LocalCustomerRepositoryError && error.code === 'LOCKED') throw error;
+        saveState = 'needs-inspection'; notify();
+        throw new LocalCustomerRepositoryError('SAVE_FAILED'); // Ambiguous results require inspection, never automatic retry.
+      } finally { if (epoch === generation) busy = false; }
+    },
+    async inspectResolutionArchive(operationId: string, phrase: string) {
+      const epoch = start();
+      try {
+        if (read().status !== 'ready' || !session) throw new LocalCustomerRepositoryError('LOCKED');
+        const result = await session.inspectResolutionArchive(operationId, phrase);
+        if (epoch !== generation || read().status !== 'ready') throw new LocalCustomerRepositoryError('INTERRUPTED');
+        return result;
+      } catch (error) {
+        if (epoch !== generation) throw new LocalCustomerRepositoryError('INTERRUPTED');
+        if (error instanceof LocalCustomerRepositoryError) throw error;
+        throw new LocalCustomerRepositoryError('INSPECTION_FAILED');
       } finally { if (epoch === generation) busy = false; }
     },
     async recoverPortableBackup(envelope: unknown, phrase: string, confirmed: boolean, format: LocalCustomerRecoveryFormat = 'portable-bundle') {

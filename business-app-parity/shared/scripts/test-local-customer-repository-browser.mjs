@@ -162,6 +162,34 @@ try {
   await check('repository requires deliberate recovery confirmation and never overwrites occupied vault',async()=>{
     assert.equal(await p.evaluate(async()=>{const before=await raw();let rejected=0;for(const confirmed of [false,true])try{await repo.recoverPortableBackup(bundle,phrase,confirmed);}catch{rejected++;}return rejected===2&&before===await raw()&&repo.read().status==='locked';}),true);
   });
+  await p.evaluate(async()=>{await repo.unlock(phrase);const stored=await repo.inspectStored(phrase);window.reviewed={format:'fire-local-customer-resolution',version:1,namespace:archive.namespace,operationId:'repository-resolution-7',originalDraft:{...input,name:'Synthetic Original Retained Draft'},originalExpectedRevision:6,reviewedSnapshot:{format:'fire-local-customers',version:1,namespace:archive.namespace,customers:stored.customers,pendingOperations:stored.operations},proposed:{...input,name:'Synthetic Reviewed Resolution'}};});
+  await check('reviewed resolution requires explicit confirmation without changing save state',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=await raw(),state=repo.read().saveState;try{await repo.saveReviewedResolution(reviewed,phrase,false);return false;}catch(e){return e.code==='CONFIRMATION_REQUIRED'&&before===await raw()&&repo.read().saveState===state;}}),true);
+  });
+  await check('reviewed repository save archives original draft and preserves prior receipts atomically',async()=>{
+    assert.equal(await p.evaluate(async()=>{const r=await repo.saveReviewedResolution(reviewed,phrase,true),original=await repo.inspectResolutionArchive(reviewed.operationId,phrase);return r.customers[0].revision===7&&r.pendingOperationCount===7&&r.saveState==='saved-locally'&&original.originalDraft.name==='Synthetic Original Retained Draft'&&original.reviewedSnapshot.customers[0].revision===6&&original.reviewedSnapshot.pendingOperations.length===6;}),true);
+  });
+  await check('stale reviewed resolution refuses writes and requires inspection rather than retry',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=await raw();try{await repo.saveReviewedResolution({...reviewed,operationId:'stale-review'},phrase,true);return false;}catch(e){return e.code==='SAVE_FAILED'&&before===await raw()&&repo.read().saveState==='needs-inspection';}}),true);
+  });
+  await check('portable backup includes the repository resolution archive and all history without writes',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=await raw();window.resolutionBundle=await repo.exportPortableBackup(phrase);const v=await repo.verifyPortableBackup(resolutionBundle,phrase);return before===await raw()&&v.customerCount===1&&v.receiptCount===7&&v.resolutionArchiveCount===1;}),true);
+  });
+  await check('archive quota failure rolls back reviewed customer replacement and requires inspection',async()=>{
+    assert.equal(await p.evaluate(async()=>{const stored=await repo.inspectStored(phrase),before=await raw(),next={...reviewed,operationId:'quota-review',originalExpectedRevision:7,reviewedSnapshot:{format:'fire-local-customers',version:1,namespace:archive.namespace,customers:stored.customers,pendingOperations:stored.operations}},original=IDBObjectStore.prototype.add;IDBObjectStore.prototype.add=function(){throw new DOMException('Synthetic archive quota','QuotaExceededError');};try{await repo.saveReviewedResolution(next,phrase,true);return false;}catch(e){return e.code==='SAVE_FAILED'&&before===await raw()&&repo.read().saveState==='needs-inspection'&&repo.read().customers[0].revision===7;}finally{IDBObjectStore.prototype.add=original;}}),true);
+  });
+  await check('lock during archive inspection prevents late plaintext and preserves storage',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=await raw(),pending=repo.inspectResolutionArchive(reviewed.operationId,phrase);repo.lock();try{await pending;return false;}catch(e){return e.code==='INTERRUPTED'&&repo.read().customers===null&&before===await raw();}}),true);
+  });
+  await check('lock during reviewed save aborts writes and returns no late success',async()=>{
+    assert.equal(await p.evaluate(async()=>{await repo.unlock(phrase);const stored=await repo.inspectStored(phrase),before=await raw(),next={...reviewed,operationId:'locked-review',originalExpectedRevision:7,reviewedSnapshot:{format:'fire-local-customers',version:1,namespace:archive.namespace,customers:stored.customers,pendingOperations:stored.operations}};const pending=repo.saveReviewedResolution(next,phrase,true);repo.lock();try{await pending;return false;}catch(e){return e.code==='INTERRUPTED'&&before===await raw()&&repo.read().customers===null;}}),true);
+  });
+  await check('reviewed-save backup recovers original draft and receipts into an empty isolated browser',async()=>{
+    const envelope=await p.evaluate(()=>resolutionBundle),isolated=await context.browser().newContext();try{
+      await isolated.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());const q=await isolated.newPage();await q.goto(origin);
+      assert.equal(await q.evaluate(async envelope=>{const {openLocalCustomerVault}=await import('/local-customer-vault.js'),{createLocalCustomerRepository}=await import('/local-customer-repository.js');const v=await openLocalCustomerVault('synthetic-repository','synthetic-target'),r=createLocalCustomerRepository(v),phrase='synthetic repository recovery phrase only';try{await r.recoverPortableBackup(envelope,phrase,true);if(r.read().status!=='locked')return false;const state=await r.unlock(phrase),original=await r.inspectResolutionArchive('repository-resolution-7',phrase),again=await r.exportPortableBackup(phrase),verified=await r.verifyPortableBackup(again,phrase);return state.customers[0].revision===7&&state.pendingOperationCount===7&&original.originalDraft.name==='Synthetic Original Retained Draft'&&original.reviewedSnapshot.pendingOperations.length===6&&verified.resolutionArchiveCount===1;}finally{r.dispose();v.close();}},envelope),true);
+    }finally{await isolated.close();}
+  });
   await check('all requests stayed inside synthetic localhost origin', async () => assert.deepEqual(remote, []));
   console.log(JSON.stringify({ passed, total: passed, browserVersion: version, nativeIndexedDB: true, nativeWebCrypto: true,
     syntheticOnly: true, uiActivated: false, serverSync: false, iPhoneTested: false })); process.exitCode = 0;
