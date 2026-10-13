@@ -60,17 +60,59 @@ try{
  await check('unlock renders revision and pending receipts with explicit history limitation',async()=>{const text=await p.locator('main').innerText();assert.match(text,/Revision 1/);assert.match(text,/1 local operation receipts/);assert.match(text,/payments.*require a connection/);assert.ok(!text.includes('$0'));});
  await check('edit prepopulates the current contact',async()=>{await p.getByRole('button',{name:'Edit Synthetic Customer',exact:true}).click();assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),'Synthetic Customer');});
  await check('synthetic guard rejects customer data without a write',async()=>{await p.getByLabel('Email',{exact:true}).fill('real@example.com');await save(p);assert.match(await p.locator('[data-save-status]').innerText(),/Synthetic data only/);assert.equal(await p.evaluate(()=>repo.read().customers[0].revision),1);await p.getByLabel('Email',{exact:true}).fill('test@example.invalid');});
- await check('already loaded UI saves edit offline and displays committed revision',async()=>{await context.setOffline(true);await p.getByLabel('Name',{exact:true}).fill('Synthetic Edited');await save(p);await p.waitForFunction(()=>document.querySelector('main').innerText.includes('Revision 2'));assert.match(await p.locator('[data-save-status]').innerText(),/Saved locally/);assert.equal(await p.locator('input[type=password]').count(),0);await context.setOffline(false);});
+ await check('already loaded UI saves edit offline and displays committed revision',async()=>{await context.setOffline(true);await p.getByLabel('Name',{exact:true}).fill('Synthetic Edited');await save(p);await p.waitForFunction(()=>document.querySelector('main').innerText.includes('Revision 2'));assert.match(await p.locator('[data-save-status]').innerText(),/Saved locally/);assert.equal(await p.getByLabel('Test phrase for this local save',{exact:true}).count(),0);assert.equal(await p.getByLabel('Test phrase for stored inspection',{exact:true}).inputValue(),'');await context.setOffline(false);});
  await check('create appends a synthetic contact with its local receipt',async()=>{await p.getByRole('button',{name:'Add synthetic customer'}).click();await p.getByLabel('Name',{exact:true}).fill('Synthetic New');await save(p);await p.waitForFunction(()=>document.querySelectorAll('[data-customer-id]').length===2);assert.equal(await p.evaluate(()=>repo.read().pendingOperationCount),3);});
  await check('lock clears visible contact data and detached input values',async()=>{await p.getByRole('button',{name:'Edit Synthetic Edited',exact:true}).click();await p.getByLabel('Name',{exact:true}).fill('Synthetic Unsaved');await p.evaluate(()=>{window.oldForm=document.querySelector('[aria-label="Local customer editor"]');window.oldInputs=[...oldForm.querySelectorAll('input')];});await p.getByRole('button',{name:'Lock local contacts'}).click();assert.equal(await p.locator('[data-customer-id]').count(),0);assert.equal(await p.evaluate(()=>oldInputs.every(x=>x.value==='')),true);});
  await unlock(p);
  await check('detached editor cannot submit after lock and unlock',async()=>{await p.evaluate(()=>{oldForm.querySelector('[name=phrase]').value=phrase;oldForm.dispatchEvent(new Event('submit',{cancelable:true}));});assert.equal(await p.evaluate(()=>repo.read().customers[0].revision),2);});
  await check('native write failure preserves records and draft, disables retry',async()=>{await p.getByRole('button',{name:'Edit Synthetic Edited',exact:true}).click();await p.getByLabel('Name',{exact:true}).fill('Synthetic Failed');await p.evaluate(()=>{window.originalPut=IDBObjectStore.prototype.put;IDBObjectStore.prototype.put=function(){throw new DOMException('Synthetic quota injection','QuotaExceededError');};});await save(p);await p.waitForFunction(()=>document.querySelector('[data-save-status]').textContent.includes('Save did not complete'));assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),'Synthetic Failed');assert.equal(await p.getByRole('button',{name:'Save locally',exact:true}).isDisabled(),true);assert.equal(await p.getByLabel('Test phrase for this local save',{exact:true}).inputValue(),'');assert.equal(await p.evaluate(()=>repo.read().customers[0].revision),2);await p.evaluate(()=>{IDBObjectStore.prototype.put=originalPut;});});
+ await check('failed save can inspect fresh encrypted receipts without retry or draft loss',async()=>{
+  await p.getByLabel('Test phrase for stored inspection',{exact:true}).fill('synthetic UI recovery phrase only');await p.getByRole('button',{name:'Inspect stored local receipts'}).click();
+  await p.getByRole('region',{name:'Stored local receipt report'}).waitFor();
+  assert.match(await p.getByRole('region',{name:'Stored local receipt report'}).innerText(),/No receipt for this attempt/);
+  assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),'Synthetic Failed');assert.equal(await p.getByRole('button',{name:'Save locally',exact:true}).isDisabled(),true);
+  assert.equal(await p.evaluate(()=>repo.read().pendingOperationCount),3);
+  assert.equal(await p.getByLabel('Test phrase for stored inspection',{exact:true}).inputValue(),'');
+ });
+ await check('incorrect inspection phrase clears input and keeps draft and save barrier',async()=>{
+  await p.getByLabel('Test phrase for stored inspection',{exact:true}).fill('incorrect synthetic phrase only');await p.getByRole('button',{name:'Inspect stored local receipts'}).click();
+  await p.waitForFunction(()=>document.querySelector('[data-save-status]').textContent.includes('Stored inspection did not complete'));
+  assert.equal(await p.getByRole('region',{name:'Stored local receipt report'}).count(),0);assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),'Synthetic Failed');
+  assert.equal(await p.getByRole('button',{name:'Save locally',exact:true}).isDisabled(),true);assert.equal(await p.getByLabel('Test phrase for stored inspection',{exact:true}).inputValue(),'');
+ });
  await p.getByRole('button',{name:'Lock local contacts'}).click();await unlock(p);
  await check('text rendering does not interpret contact markup',async()=>{await p.getByRole('button',{name:'Edit Synthetic Edited',exact:true}).click();await p.getByLabel('Name',{exact:true}).fill('Synthetic <img src=x onerror="window.executed=true">');await save(p);await p.waitForFunction(()=>document.querySelector('main').innerText.includes('Revision 3'));assert.equal(await p.locator('main img').count(),0);assert.equal(await p.evaluate(()=>window.executed===true),false);});
  await check('disposal clears DOM and closes the repository',async()=>{await p.evaluate(()=>view.dispose());assert.equal(await p.locator('main').innerText(),'');assert.equal(await p.evaluate(()=>repo.read().status),'closed');});
  await p.evaluate(()=>vault.close());await context.close();await launch();p=await setup();
  await check('browser restart stays locked and retains encrypted edits after unlock',async()=>{assert.equal(await p.locator('[data-customer-id]').count(),0);await unlock(p);assert.equal(await p.locator('[data-customer-id]').count(),2);assert.equal(await p.evaluate(()=>repo.read().customers.find(c=>c.id==='synthetic-1').revision),3);});
+ await check('fresh stored inspection detects another session revision without overwriting cached edit',async()=>{
+  await p.locator('[data-customer-id="synthetic-1"] button').click();await p.getByLabel('Name',{exact:true}).fill('Synthetic Conflicting Draft');
+  await p.evaluate(async()=>{const other=await vault.unlock(phrase);await other.saveCustomer({...input,name:'Synthetic Other Session'},'synthetic-other-session',3,phrase);});
+  await save(p);await p.waitForFunction(()=>document.querySelector('[data-save-status]').textContent.includes('Save did not complete'));
+  await p.getByLabel('Test phrase for stored inspection',{exact:true}).fill('synthetic UI recovery phrase only');await p.getByRole('button',{name:'Inspect stored local receipts'}).click();
+  await p.getByRole('region',{name:'Stored local receipt report'}).waitFor();assert.match(await p.getByRole('region',{name:'Stored local receipt report'}).innerText(),/Stored revision changed to 4/);
+  assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),'Synthetic Conflicting Draft');assert.equal(await p.evaluate(()=>repo.read().customers.find(c=>c.id==='synthetic-1').revision),3);
+  assert.equal(await p.getByRole('button',{name:'Save locally',exact:true}).isDisabled(),true);
+ });
+ await check('lock removes stored inspection data and draft',async()=>{await p.getByRole('button',{name:'Lock local contacts'}).click();assert.equal(await p.getByRole('region',{name:'Stored local receipt report'}).count(),0);assert.equal(await p.getByLabel('Name',{exact:true}).count(),0);});
+ await p.evaluate(async()=>{
+  view.dispose();const {createLocalCustomerRepository}=await import('/local-customer-repository.js');const {mountSyntheticCustomerView}=await import('/view.js');
+  const wrapped={...vault,unlock:async supplied=>{const session=await vault.unlock(supplied);return {...session,saveCustomer:async(...args)=>{await session.saveCustomer(...args);throw Error('Synthetic post-commit outcome injection');}};}};
+  window.repo=createLocalCustomerRepository(wrapped);window.view=mountSyntheticCustomerView(document.querySelector('main'),repo);
+ });await unlock(p);
+ await check('stored operation identifies committed save despite injected post-commit failure',async()=>{
+  await p.getByRole('button',{name:'Edit Synthetic Other Session',exact:true}).click();await p.getByLabel('Name',{exact:true}).fill('Synthetic Committed Ambiguous');await save(p);
+  await p.waitForFunction(()=>document.querySelector('[data-save-status]').textContent.includes('Save did not complete'));
+  await p.getByLabel('Test phrase for stored inspection',{exact:true}).fill('synthetic UI recovery phrase only');await p.getByRole('button',{name:'Inspect stored local receipts'}).click();
+  await p.getByRole('region',{name:'Stored local receipt report'}).waitFor();assert.match(await p.getByRole('region',{name:'Stored local receipt report'}).innerText(),/Attempted save receipt is stored at revision 5/);
+  assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),'Synthetic Committed Ambiguous');assert.equal(await p.getByRole('button',{name:'Save locally',exact:true}).isDisabled(),true);
+  assert.match(await p.getByRole('region',{name:'Stored local receipt report'}).innerText(),/No server acknowledgement/);
+ });
+ await check('locking during inspection prevents decrypted report publication',async()=>{
+  await p.getByLabel('Test phrase for stored inspection',{exact:true}).fill('synthetic UI recovery phrase only');
+  await p.evaluate(()=>{const f=document.querySelector('[aria-label="Stored receipt inspection"]');f.dispatchEvent(new Event('submit',{cancelable:true}));repo.lock();});
+  await p.waitForTimeout(300);assert.equal(await p.getByRole('region',{name:'Stored local receipt report'}).count(),0);assert.equal(await p.locator('[data-customer-id]').count(),0);
+ });
  await check('all requests remained inside synthetic localhost',async()=>assert.deepEqual(remote,[]));
  console.log(JSON.stringify({passed,total:passed,browserVersion:version,nativeIndexedDB:true,nativeWebCrypto:true,syntheticOnly:true,productionActivated:false,iPhoneTested:false}));process.exitCode=0;
 }finally{if(context)await context.close();await new Promise(resolve=>server.close(resolve));rmSync(profile,{recursive:true,force:true});}

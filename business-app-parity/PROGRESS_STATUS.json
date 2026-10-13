@@ -5086,5 +5086,62 @@
     "evidence": "LAYOUT_TRACE_EVIDENCE.json",
     "handoff": "LAYOUT_TRACE_HANDOFF.md",
     "nextTask": "Review offline Customers pending-save/conflict reporting; trace remains available for a future approved Safari reproduction"
+  },
+  "storedCustomerReceiptBatch": {
+    "baseCheckpoint": "62a381529a218426650f8a8c2f9ebc0c047dfa58",
+    "scope": "Development candidates only; synthetic fixtures",
+    "browserChecks": {
+      "passed": 249,
+      "total": 249
+    },
+    "suiteTotals": {
+      "view": {
+        "passed": 63,
+        "total": 63
+      },
+      "repository": {
+        "passed": 84,
+        "total": 84
+      },
+      "controller": {
+        "passed": 54,
+        "total": 54
+      },
+      "framework": {
+        "passed": 48,
+        "total": 48
+      }
+    },
+    "fullBuilds": {
+      "passed": 3,
+      "total": 3
+    },
+    "fullTypechecks": {
+      "passed": 3,
+      "total": 3
+    },
+    "financialRegression": {
+      "passed": 207,
+      "total": 207
+    },
+    "sourceParity": {
+      "files": 131,
+      "differences": 0,
+      "candidateCount": 3
+    },
+    "inspectionWritesStorage": false,
+    "automaticRetryEnabled": false,
+    "inspectionUpdatesEditingSession": false,
+    "productionActivated": false,
+    "physicalIPhoneTested": false,
+    "wholeScreenShaking": "UNRESOLVED",
+    "officialReadiness": {
+      "passed": 3,
+      "total": 10,
+      "percent": 30
+    },
+    "evidence": "STORED_CUSTOMER_RECEIPTS_EVIDENCE.json",
+    "handoff": "STORED_CUSTOMER_RECEIPTS_HANDOFF.md",
+    "nextTask": "Explicit stored-contact versus retained-draft review before deliberate reconciliation; no automatic retry or overwrite"
   }
 }

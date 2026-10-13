@@ -11,7 +11,7 @@ export type LocalCustomerDirectory =
   | { status: Exclude<Phase, 'ready'>; customers: null; pendingOperationCount: null; saveState: 'idle'; jobHistory: 'connection-required' };
 
 export class LocalCustomerRepositoryError extends Error {
-  constructor(public readonly code: 'CLOSED' | 'BUSY' | 'LOCKED' | 'UNLOCK_FAILED' | 'SAVE_FAILED' | 'INTERRUPTED') {
+  constructor(public readonly code: 'CLOSED' | 'BUSY' | 'LOCKED' | 'UNLOCK_FAILED' | 'SAVE_FAILED' | 'INSPECTION_FAILED' | 'INTERRUPTED') {
     super(code); this.name = 'LocalCustomerRepositoryError';
   }
 }
@@ -95,6 +95,19 @@ export function createLocalCustomerRepository(vault: Vault) {
         saveState = 'needs-inspection'; notify();
         // Failed/ambiguous saves never promise that nothing committed and never retry automatically.
         throw new LocalCustomerRepositoryError('SAVE_FAILED');
+      } finally { if (epoch === generation) busy = false; }
+    },
+    async inspectStored(phrase: string) {
+      const epoch = start();
+      try {
+        if (read().status !== 'ready' || !session) throw new LocalCustomerRepositoryError('LOCKED');
+        const stored = await session.inspectStoredSnapshot(phrase);
+        if (epoch !== generation || read().status !== 'ready') throw new LocalCustomerRepositoryError('INTERRUPTED');
+        return { customers: stored.customers, operations: stored.pendingOperations, acknowledgement: 'not-sent' as const };
+      } catch (error) {
+        if (epoch !== generation) throw new LocalCustomerRepositoryError('INTERRUPTED');
+        if (error instanceof LocalCustomerRepositoryError) throw error;
+        throw new LocalCustomerRepositoryError('INSPECTION_FAILED');
       } finally { if (epoch === generation) busy = false; }
     },
     lock() {

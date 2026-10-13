@@ -69,6 +69,7 @@ export function createSyntheticCustomerController(root: HTMLElement, options: {
         subscribe: listener => raw.subscribe(state => { if (guard(captured)) listener(state); }),
         unlock: phrase => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.unlock(phrase); },
         save: (...args) => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.save(...args); },
+        inspectStored: phrase => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.inspectStored(phrase); },
         lock: () => { if (guard(captured)) raw.lock(); },
         dispose: () => raw.dispose(),
       };

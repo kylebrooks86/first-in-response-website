@@ -250,6 +250,23 @@ export async function openLocalCustomerVault(account: string, target: string,
             };
           });
         },
+        async inspectStoredSnapshot(phrase: string): Promise<LocalCustomerExport> {
+          current(); // Never inspect a locked or revoked session.
+          const sealed = await new Promise<unknown>((resolve, reject) => {
+            const tx = db.transaction('sealed', 'readonly');
+            const request = tx.objectStore('sealed').get('snapshot');
+            tx.oncomplete = () => resolve(request.result);
+            tx.onabort = () => reject(tx.error ?? new Error('Stored inspection aborted.'));
+          });
+          current();
+          if (!sealed || typeof sealed !== 'object' || Array.isArray(sealed)) throw new Error('Stored snapshot unavailable.');
+          const row = sealed as Record<string, unknown>;
+          if (Object.keys(row).length !== 3 || row.id !== 'snapshot' || row.version !== 1 || !Object.hasOwn(row, 'envelope')) throw new Error('Invalid stored snapshot.');
+          const inspected = await recoverLocalCustomerBackup(row.envelope, customerNamespace, phrase, provider);
+          current(); // Locks during derivation cannot publish decrypted contacts.
+          // Point-in-time read only: do not replace the session snapshot or write identity.
+          return structuredClone(inspected);
+        },
         getCustomer(id: string) {
           if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error('Invalid customer ID.');
           return structuredClone(current().customers.find(row => row.id === id) ?? null);

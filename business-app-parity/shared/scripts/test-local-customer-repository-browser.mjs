@@ -80,6 +80,12 @@ try {
   await check('stale revision save rejects without overwriting newer ciphertext', async () => {
     assert.equal(await p.evaluate(async () => { const before = await raw(); try { await repo.save(input, 'stale', 1, phrase); return false; } catch (e) { return e.code === 'SAVE_FAILED' && repo.read().saveState === 'needs-inspection' && before === await raw(); } }), true);
   });
+  await check('stored inspection leaves ciphertext and failure barrier unchanged',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=await raw();const stored=await repo.inspectStored(phrase);stored.customers[0].name='Mutation';return before===await raw()&&stored.operations.length===3&&repo.read().saveState==='needs-inspection'&&repo.read().customers[0].name!=='Mutation';}),true);
+  });
+  await check('wrong inspection phrase exposes no report and never writes',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=await raw();try{await repo.inspectStored('incorrect synthetic inspection phrase');return false;}catch(e){return e.code==='INSPECTION_FAILED'&&before===await raw()&&repo.read().saveState==='needs-inspection';}}),true);
+  });
   await check('wrong write phrase preserves records and exposes no secret/error detail', async () => {
     assert.equal(await p.evaluate(async () => { const before = await raw(); try { await repo.save(input, 'wrong-phrase', 3, 'incorrect synthetic write phrase'); return false; } catch (e) { return e.message === 'SAVE_FAILED' && before === await raw(); } }), true);
   });
