@@ -2,7 +2,8 @@
 import type { createLocalCustomerRepository } from '../lib/local-customer-repository';
 import type { LocalCustomer, LocalCustomerInput } from '../lib/local-customer-store';
 type Repository = ReturnType<typeof createLocalCustomerRepository>;
-type Comparison = { stored: LocalCustomer | null; draft: LocalCustomerInput; attempted?: LocalCustomerInput; expectedRevision: number };
+type ContactField = 'name' | 'email' | 'phone' | 'address' | 'leadSource';
+type Comparison = { choices: Partial<Record<ContactField, 'stored' | 'draft'>>; verification: 'unchecked' | 'checking' | 'unchanged' | 'changed' | 'failed'; stored: LocalCustomer | null; draft: LocalCustomerInput; attempted?: LocalCustomerInput; expectedRevision: number };
 type Draft = { input: LocalCustomerInput; expectedRevision: number; attempt?: { operationId: string; input: LocalCustomerInput } };
 
 export function mountSyntheticCustomerView(root: HTMLElement, repository: Repository) {
@@ -81,7 +82,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
       if (draft) append(report, button('Review stored record against draft', () => {
         if (disposed || rendered !== renderGeneration || inspecting || repository.read().status !== 'ready') return;
         const stored = inspection!.customers.find(row => row.id === draft!.input.id) ?? null;
-        comparison = { stored: structuredClone(stored), draft: structuredClone(draft!.input),
+        comparison = { choices: {}, verification: 'unchecked', stored: structuredClone(stored), draft: structuredClone(draft!.input),
           attempted: draft!.attempt ? structuredClone(draft!.attempt.input) : undefined, expectedRevision: draft!.expectedRevision };
         render();
       }));
@@ -106,9 +107,56 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
         for (const [label, value] of [['Stored at inspection', comparison.stored?.[key] ?? null], ['Attempted save', comparison.attempted?.[key] ?? null], ['Current retained draft', comparison.draft[key]]] as const) {
           const pair = element('div'); append(pair, element('dt', label), element('dd', value === null ? label === 'Attempted save' ? 'No save attempt' : 'No stored record' : value === '' ? '(blank)' : value)); append(values, pair);
         }
-        append(row, values); append(review, row);
+        append(row, values);
+        for (const source of ['stored', 'draft'] as const) {
+          const choice = button(`Use ${source === 'stored' ? 'stored' : 'draft'} ${title}`, () => {
+            if (disposed || rendered !== renderGeneration || inspecting || repository.read().status !== 'ready' || !comparison || (source === 'stored' && comparison.stored === null)) return;
+            comparison.choices[key] = source; comparison.verification = 'unchecked'; render();
+          });
+          choice.disabled = inspecting || (source === 'stored' && comparison.stored === null);
+          choice.setAttribute('aria-pressed', String(comparison.choices[key] === source)); append(row, choice);
+        }
+        append(review, row);
       }
       const summary = element('p', comparison.stored === null ? 'Stored record absent at inspection. All draft values remain retained.' : `${differences} of 5 current draft fields differ from the inspected stored record.`);
+      const keys: ContactField[] = ['name', 'email', 'phone', 'address', 'leadSource'];
+      const selected = keys.filter(key => comparison!.choices[key]).length;
+      append(review, element('p', `${selected} of 5 field sources selected. Choices only build a separate proposal; the original draft remains unchanged.`));
+      if (selected === 5) {
+        const proposal = element('section'); proposal.setAttribute('aria-label', 'Proposed customer resolution');
+        append(proposal, element('h3', 'Proposed resolution · not saved'));
+        const proposed = element('dl');
+        for (const key of keys) {
+          const value = comparison.choices[key] === 'stored' ? comparison.stored![key] : comparison.draft[key];
+          const title = ({ name: 'Name', email: 'Email', phone: 'Phone', address: 'Address', leadSource: 'Lead source' } as const)[key];
+          const pair = element('div'); pair.dataset.proposedField = key; append(pair, element('dt', title), element('dd', value === '' ? '(blank)' : value)); append(proposed, pair);
+        }
+        append(proposal, proposed); append(review, proposal);
+      }
+      const verifyForm = element('form'); verifyForm.setAttribute('aria-label', 'Resolution freshness check');
+      const verifyPhrase = phraseField(verifyForm, 'Test phrase for resolution recheck');
+      const verify = element('button', 'Recheck stored snapshot for proposal'); verify.type = 'submit'; verify.disabled = inspecting || selected !== 5; verifyPhrase.disabled = verify.disabled;
+      append(verifyForm, verify); append(review, verifyForm);
+      const verified = element('p', comparison.verification === 'checking' ? 'Rechecking encrypted storage…'
+        : comparison.verification === 'unchanged' ? 'Stored snapshot matches the reviewed inspection at this recheck. Proposal remains unsaved. This is a point-in-time check, not a save.'
+        : comparison.verification === 'changed' ? 'Stored snapshot changed since inspection. Inspect again and review before proceeding. Original draft and proposal are retained; nothing was saved.'
+        : comparison.verification === 'failed' ? 'Recheck did not complete. Check phrase and storage. Original draft and proposal are retained; nothing was saved.'
+        : 'Proposal has not been rechecked. Storage can change after any check; any future save must verify it has not changed.');
+      verified.setAttribute('role', 'status'); verified.dataset.resolutionStatus = ''; append(review, verified);
+      verifyForm.addEventListener('submit', async event => {
+        event.preventDefault(); const supplied = verifyPhrase.value; verifyPhrase.value = '';
+        if (disposed || rendered !== renderGeneration || inspecting || selected !== 5 || !comparison || !inspection) return;
+        const epoch = generation, captured = comparison, baseline = JSON.stringify(inspection);
+        inspecting = true; captured.verification = 'checking'; render();
+        try {
+          const stored = await repository.inspectStored(supplied);
+          if (disposed || epoch !== generation || comparison !== captured) return;
+          captured.verification = JSON.stringify(stored) === baseline ? 'unchanged' : 'changed';
+        } catch {
+          if (disposed || epoch !== generation || comparison !== captured) return;
+          captured.verification = 'failed';
+        } finally { if (!disposed && epoch === generation) { inspecting = false; render(); } }
+      });
       summary.setAttribute('role', 'status'); summary.dataset.comparisonSummary = ''; append(review, summary); append(root, review);
     }
     inspectionForm.addEventListener('submit', async event => {

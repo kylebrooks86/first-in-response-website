@@ -106,9 +106,36 @@ try{
   assert.match(await review.locator('[data-comparison-summary]').innerText(),/1 of 5/);assert.match(await review.innerText(),/Draft expects revision 3.*Inspected stored revision 4/);
   assert.equal(await p.evaluate(()=>raw()),before);assert.equal(await p.getByRole('button',{name:'Save locally',exact:true}).isDisabled(),true);
  });
+ await check('proposal requires all explicit sources and preserves original draft and ciphertext',async()=>{
+  const before=await p.evaluate(()=>raw());assert.equal(await p.getByRole('button',{name:'Recheck stored snapshot for proposal'}).isDisabled(),true);
+  assert.equal(await p.getByRole('region',{name:'Proposed customer resolution'}).count(),0);
+  await p.getByRole('button',{name:'Use stored Name',exact:true}).click();
+  for(const name of ['Email','Phone','Address','Lead source'])await p.getByRole('button',{name:'Use draft '+name,exact:true}).click();
+  const proposal=p.getByRole('region',{name:'Proposed customer resolution'});assert.equal(await proposal.locator('[data-proposed-field=name] dd').innerText(),'Synthetic Other Session');
+  assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),'Synthetic Conflicting Draft');assert.equal(await p.evaluate(()=>raw()),before);
+  assert.equal(await p.getByRole('button',{name:'Recheck stored snapshot for proposal'}).isEnabled(),true);
+ });
+ await check('freshness recheck verifies unchanged snapshot without write or retry',async()=>{
+  const before=await p.evaluate(()=>raw());await p.getByLabel('Test phrase for resolution recheck',{exact:true}).fill('synthetic UI recovery phrase only');await p.getByRole('button',{name:'Recheck stored snapshot for proposal'}).click();
+  await p.waitForFunction(()=>document.querySelector('[data-resolution-status]').textContent.includes('matches the reviewed inspection'));
+  assert.equal(await p.evaluate(()=>raw()),before);assert.equal(await p.getByRole('button',{name:'Save locally',exact:true}).isDisabled(),true);assert.equal(await p.getByLabel('Test phrase for resolution recheck',{exact:true}).inputValue(),'');
+ });
+ await check('wrong recheck phrase preserves choices draft and ciphertext',async()=>{
+  const before=await p.evaluate(()=>raw());await p.getByLabel('Test phrase for resolution recheck',{exact:true}).fill('incorrect synthetic phrase only');await p.getByRole('button',{name:'Recheck stored snapshot for proposal'}).click();
+  await p.waitForFunction(()=>document.querySelector('[data-resolution-status]').textContent.includes('Recheck did not complete'));
+  assert.equal(await p.evaluate(()=>raw()),before);assert.equal(await p.getByRole('button',{name:'Use stored Name',exact:true}).getAttribute('aria-pressed'),'true');
+  assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),'Synthetic Conflicting Draft');assert.equal(await p.getByLabel('Test phrase for resolution recheck',{exact:true}).inputValue(),'');
+ });
+ await check('intervening stored update invalidates freshness without replacing reviewed versions',async()=>{
+  await p.evaluate(async()=>{const other=await vault.unlock(phrase);await other.saveCustomer({...input,name:'Synthetic Intervening'},'synthetic-intervening',4,phrase);});
+  await p.getByLabel('Test phrase for resolution recheck',{exact:true}).fill('synthetic UI recovery phrase only');await p.getByRole('button',{name:'Recheck stored snapshot for proposal'}).click();
+  await p.waitForFunction(()=>document.querySelector('[data-resolution-status]').textContent.includes('changed since inspection'));
+  assert.equal(await p.getByRole('region',{name:'Proposed customer resolution'}).locator('[data-proposed-field=name] dd').innerText(),'Synthetic Other Session');
+  assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),'Synthetic Conflicting Draft');assert.equal(await p.getByRole('button',{name:'Save locally',exact:true}).isDisabled(),true);
+ });
  await check('editing draft invalidates comparison and keeps attempted payload separate',async()=>{
   await p.getByLabel('Name',{exact:true}).fill('Synthetic <img src=x onerror="window.executed=true">');await p.getByLabel('Email',{exact:true}).fill('changed@example.invalid');
-  assert.equal(await p.getByRole('region',{name:'Stored customer and draft comparison'}).count(),0);assert.match(await p.locator('[data-comparison-notice]').innerText(),/Draft changed/);
+  assert.equal(await p.getByRole('region',{name:'Stored customer and draft comparison'}).count(),0);assert.equal(await p.getByRole('region',{name:'Proposed customer resolution'}).count(),0);assert.match(await p.locator('[data-comparison-notice]').innerText(),/Draft changed/);
   await p.getByRole('button',{name:'Review stored record against draft'}).click();const review=p.getByRole('region',{name:'Stored customer and draft comparison'});
   assert.deepEqual(await review.locator('[data-comparison-field=email] dd').allTextContents(),['test@example.invalid','test@example.invalid','changed@example.invalid']);
   assert.match(await review.locator('[data-comparison-summary]').innerText(),/2 of 5/);assert.equal(await review.locator('img').count(),0);assert.equal(await p.evaluate(()=>window.executed===true),false);
@@ -123,7 +150,7 @@ try{
   await p.getByRole('button',{name:'Review stored record against draft'}).click();const review=p.getByRole('region',{name:'Stored customer and draft comparison'});
   assert.match(await review.innerText(),/No stored record in this inspected snapshot/);
   assert.deepEqual(await review.locator('[data-comparison-field=phone] dd').allTextContents(),['No stored record','No save attempt','(blank)']);
-  assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),'Synthetic Customer');
+  assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),'Synthetic Customer');assert.equal(await p.getByRole('button',{name:'Use stored Name',exact:true}).isDisabled(),true);
  });
  await check('lock removes stored inspection data and draft',async()=>{await p.getByRole('button',{name:'Lock local contacts'}).click();assert.equal(await p.getByRole('region',{name:'Stored local receipt report'}).count(),0);assert.equal(await p.getByLabel('Name',{exact:true}).count(),0);});
  await p.evaluate(async()=>{
@@ -132,10 +159,10 @@ try{
   window.repo=createLocalCustomerRepository(wrapped);window.view=mountSyntheticCustomerView(document.querySelector('main'),repo);
  });await unlock(p);
  await check('stored operation identifies committed save despite injected post-commit failure',async()=>{
-  await p.getByRole('button',{name:'Edit Synthetic Other Session',exact:true}).click();await p.getByLabel('Name',{exact:true}).fill('Synthetic Committed Ambiguous');await save(p);
+  await p.getByRole('button',{name:'Edit Synthetic Intervening',exact:true}).click();await p.getByLabel('Name',{exact:true}).fill('Synthetic Committed Ambiguous');await save(p);
   await p.waitForFunction(()=>document.querySelector('[data-save-status]').textContent.includes('Save did not complete'));
   await p.getByLabel('Test phrase for stored inspection',{exact:true}).fill('synthetic UI recovery phrase only');await p.getByRole('button',{name:'Inspect stored local receipts'}).click();
-  await p.getByRole('region',{name:'Stored local receipt report'}).waitFor();assert.match(await p.getByRole('region',{name:'Stored local receipt report'}).innerText(),/Attempted save receipt is stored at revision 5/);
+  await p.getByRole('region',{name:'Stored local receipt report'}).waitFor();assert.match(await p.getByRole('region',{name:'Stored local receipt report'}).innerText(),/Attempted save receipt is stored at revision 6/);
   assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),'Synthetic Committed Ambiguous');assert.equal(await p.getByRole('button',{name:'Save locally',exact:true}).isDisabled(),true);
   assert.match(await p.getByRole('region',{name:'Stored local receipt report'}).innerText(),/No server acknowledgement/);
  });
@@ -144,6 +171,12 @@ try{
   assert.match(await review.locator('[data-comparison-summary]').innerText(),/0 of 5/);assert.match(await review.innerText(),/not server acknowledgement/);
   assert.equal(await p.getByRole('button',{name:'Save locally',exact:true}).isDisabled(),true);assert.equal(await p.evaluate(()=>raw()),before);
  });
+ await check('lock during proposal recheck prevents result publication',async()=>{
+  for(const name of ['Name','Email','Phone','Address','Lead source'])await p.getByRole('button',{name:'Use draft '+name,exact:true}).click();
+  await p.getByLabel('Test phrase for resolution recheck',{exact:true}).fill('synthetic UI recovery phrase only');
+  await p.evaluate(()=>{document.querySelector('[aria-label="Resolution freshness check"]').dispatchEvent(new Event('submit',{cancelable:true}));repo.lock();});
+  await p.waitForTimeout(300);assert.equal(await p.getByRole('region',{name:'Proposed customer resolution'}).count(),0);assert.equal(await p.locator('[data-resolution-status]').count(),0);
+ });await unlock(p);
  await check('locking during inspection prevents decrypted report publication',async()=>{
   await p.getByLabel('Test phrase for stored inspection',{exact:true}).fill('synthetic UI recovery phrase only');
   await p.evaluate(()=>{const f=document.querySelector('[aria-label="Stored receipt inspection"]');f.dispatchEvent(new Event('submit',{cancelable:true}));repo.lock();});

@@ -63,9 +63,21 @@ try{
   assert.deepEqual((await review.locator('[data-comparison-field=name] dd').allTextContents()).slice(0,2),['Synthetic Framework Offline','No save attempt']);
   assert.ok((await p.getByLabel('Name',{exact:true}).inputValue()).startsWith('Synthetic Draft'));
  });
+ await check('actual framework requires explicit proposal choices without replacing draft',async()=>{
+  assert.equal(await p.getByRole('region',{name:'Proposed customer resolution'}).count(),0);
+  for(const name of ['Name','Email','Phone','Address','Lead source'])await p.getByRole('button',{name:'Use draft '+name,exact:true}).click();
+  const proposed=p.getByRole('region',{name:'Proposed customer resolution'});assert.equal(await proposed.locator('[data-proposed-field]').count(),5);
+  assert.equal(await proposed.locator('[data-proposed-field=name] dd').innerText(),await p.getByLabel('Name',{exact:true}).inputValue());
+ });
+ await check('actual framework rechecks proposal offline without saving contact',async()=>{
+  await context.setOffline(true);await p.getByLabel('Test phrase for resolution recheck',{exact:true}).fill(phrase);await p.getByRole('button',{name:'Recheck stored snapshot for proposal'}).click();
+  await p.waitForFunction(()=>document.querySelector('[data-resolution-status]').textContent.includes('matches the reviewed inspection'));
+  assert.equal(await p.getByLabel('Test phrase for resolution recheck',{exact:true}).inputValue(),'');assert.match(await p.locator('[data-customer-id]').innerText(),/Revision 2/);
+  await context.setOffline(false);
+ });
  for(const theme of ['dark','light'])await check('stored receipt report fits actual 320px '+theme+' screen',async()=>{
   await p.setViewportSize({width:320,height:844});if(await p.locator('.fire-synthetic-preview').getAttribute('data-theme')!==theme)await p.getByRole('button',{name:'Switch to '+theme+' mode'}).click();
-  assert.equal(await p.getByRole('region',{name:'Stored local receipt report'}).count(),1);assert.equal(await p.getByRole('region',{name:'Stored customer and draft comparison'}).count(),1);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  assert.equal(await p.getByRole('region',{name:'Stored local receipt report'}).count(),1);assert.equal(await p.getByRole('region',{name:'Stored customer and draft comparison'}).count(),1);assert.equal(await p.getByRole('region',{name:'Proposed customer resolution'}).count(),1);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  });
  await check('actual page lifecycle locks and never automatically unlocks',async()=>{await p.evaluate(()=>dispatchEvent(new Event('pagehide')));await p.waitForFunction(()=>!document.querySelector('[data-customer-id]'));assert.equal(await p.getByRole('region',{name:'Stored local receipt report'}).count(),0);assert.equal(await p.getByRole('region',{name:'Stored customer and draft comparison'}).count(),0);await p.evaluate(()=>dispatchEvent(new Event('pageshow')));assert.equal(await p.locator('[data-customer-id]').count(),0);await unlock();});
  await check('actual route reload preserves encrypted contact and receipts',async()=>{await p.reload();await p.getByRole('button',{name:'Unlock local contacts',exact:true}).waitFor();await unlock();assert.match(await p.locator('.customer-workspace').innerText(),/Synthetic Framework Offline/);assert.match(await p.locator('.customer-workspace').innerText(),/2 local operation receipts/);});
