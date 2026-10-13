@@ -1,0 +1,116 @@
+// Real Chromium IndexedDB integration; synthetic disposable profile, localhost only.
+// Optional FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE and FIRE_BROWSER_TEST_EXECUTABLE select local tools.
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {readFileSync, writeFileSync, mkdtempSync, rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {createServer} from 'node:http';
+const require=createRequire(import.meta.url);
+const ts=require('typescript');
+const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE || 'playwright');
+const modules = new Map();
+for (const [url, file] of [['/store.js','local-customer-store'],['/backup.js','local-customer-backup'],['/vault.js','local-customer-vault']]) {
+  const source=readFileSync(new URL(`../lib/${file}.ts`,import.meta.url),'utf8');
+  modules.set(url,ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace("'./local-customer-store'", "'/store.js'").replace("'./local-customer-backup'", "'/backup.js'"));
+}
+const server=createServer((req,res)=>{
+  if(modules.has(req.url)){res.setHeader('Content-Type','application/javascript');res.end(modules.get(req.url));}
+  else if(req.url==='/'){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Synthetic encrypted recovery test</title>');}
+  else {res.statusCode=404;res.end();}
+});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+const origin=`http://127.0.0.1:${server.address().port}`;
+const profile=mkdtempSync(join(tmpdir(),'fire-customer-idb-'));
+let context,destinationContext,passed=0;const remoteRequests=[];
+async function launch(){
+  context=await chromium.launchPersistentContext(profile,{
+    executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE || undefined,
+    headless:true,args:['--no-sandbox','--disable-gpu'],
+  });
+  await context.route('**/*',route=>{
+    if(new URL(route.request().url()).origin!==origin){remoteRequests.push(route.request().url());return route.abort();}
+    return route.continue();
+  });
+}
+async function page(){
+  const p=await context.newPage();await p.goto(origin);
+  await p.evaluate(async()=>{
+    window.api=await import('/store.js'); window.backups=await import('/backup.js'); window.phrase='synthetic browser recovery phrase only';
+    window.customer={id:'synthetic-1',name:'Synthetic Customer',email:'test@example.invalid',phone:'',address:'Synthetic',leadSource:'test'};
+    window.vaultApi=await import('/vault.js'); window.vault=await vaultApi.openLocalCustomerVault('synthetic-owner','synthetic-target'); const row={...customer,revision:1,updatedAt:'2026-10-10T00:00:00.000Z'}; window.archive={format:'fire-local-customers',version:1,namespace:api.localCustomerDatabaseName('synthetic-owner','synthetic-target'),customers:[row],pendingOperations:[{id:'synthetic-operation',kind:'customer-upsert',expectedRevision:0,customer:row,input:customer}]}; window.rawVault=async()=>{const db=await new Promise((resolve,reject)=>{const r=indexedDB.open(vault.namespace,1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);}); const rows=await new Promise((resolve,reject)=>{const tx=db.transaction('sealed');const req=tx.objectStore('sealed').getAll();tx.oncomplete=()=>resolve(req.result);tx.onabort=()=>reject(tx.error);});db.close();return rows;};
+  });return p;
+}
+async function check(name,fn){await fn();passed++;console.log(`PASS: ${name}`);}
+process.exitCode=1;
+try {
+ await launch();let p=await page();const version=context.browser().version();
+ await p.evaluate(async()=>{await vault.initialize(archive,phrase);window.session=await vault.unlock(phrase);await session.saveReviewedResolution({format:'fire-local-customer-resolution',version:1,namespace:archive.namespace,operationId:'portable-resolution',originalDraft:{...customer,name:'Synthetic Original Unsaved'},originalExpectedRevision:1,reviewedSnapshot:archive,proposed:{...customer,name:'Synthetic Chosen'}},phrase);});
+ await check('portable export preserves saved snapshot receipts and original draft archive without writes',async()=>{
+  assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());window.bundleFile=await session.exportPortableBundle(phrase);window.verified=await backups.verifyLocalCustomerPortableBundle(JSON.parse(JSON.stringify(bundleFile)),archive.namespace,phrase);return before===JSON.stringify(await rawVault())&&verified.snapshot.customers[0].revision===2&&verified.snapshot.pendingOperations.length===2&&verified.resolutions.length===1&&verified.resolutions[0].originalDraft.name==='Synthetic Original Unsaved'&&verified.resolutions[0].originalExpectedRevision===1&&verified.resolutions[0].reviewedSnapshot.customers[0].revision===1;}),true);
+ });
+ const file=await p.evaluate(()=>bundleFile);writeFileSync(join(profile,'portable-bundle.json'),JSON.stringify(file));
+ await check('portable JSON contains ciphertext and no plaintext contact or account',async()=>{const text=readFileSync(join(profile,'portable-bundle.json'),'utf8');assert.ok(!text.includes('Synthetic')&&!text.includes('synthetic-owner'));assert.deepEqual(Object.keys(JSON.parse(text)).sort(),['ciphertext','format','iv','salt','version']);});
+ await check('incorrect phrase and corrupted ciphertext reject without writes',async()=>assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());let failures=0;try{await backups.verifyLocalCustomerPortableBundle(bundleFile,archive.namespace,'incorrect synthetic phrase only');}catch{failures++;}const damaged={...bundleFile,ciphertext:(bundleFile.ciphertext[0]==='0'?'1':'0')+bundleFile.ciphertext.slice(1)};try{await backups.verifyLocalCustomerPortableBundle(damaged,archive.namespace,phrase);}catch{failures++;}return failures===2&&before===JSON.stringify(await rawVault());}),true));
+ await check('wrong account and target fail portable verification',async()=>assert.equal(await p.evaluate(async()=>{let failed=0;for(const namespace of ['fire-local-customers:v1:other:synthetic-target','fire-local-customers:v1:synthetic-owner:other']){try{await backups.verifyLocalCustomerPortableBundle(bundleFile,namespace,phrase);}catch{failed++;}}return failed===2;}),true));
+ await check('normal backup and portable bundle cannot be confused',async()=>assert.equal(await p.evaluate(async()=>{const normal=await backups.protectLocalCustomerBackup(archive,archive.namespace,phrase);let failed=0;try{await backups.verifyLocalCustomerPortableBundle(normal,archive.namespace,phrase);}catch{failed++;}try{await backups.recoverLocalCustomerBackup(bundleFile,archive.namespace,phrase);}catch{failed++;}return failed===2;}),true));
+ await check('incomplete duplicate or mismatched resolution inventory is rejected',async()=>assert.equal(await p.evaluate(async()=>{let failures=0;for(const change of [{resolutions:[]},{resolutions:[verified.resolutions[0],verified.resolutions[0]],resolutionOperationIds:['portable-resolution','portable-resolution']},{resolutionOperationIds:['different']},{resolutions:[{...verified.resolutions[0],proposed:{...customer,name:'Synthetic Wrong Chosen'}}]}]){try{await backups.protectLocalCustomerPortableBundle({...verified,...change},archive.namespace,phrase);}catch{failures++;}}return failures===4;}),true));
+ await check('wrong namespace inside a resolution is rejected',async()=>assert.equal(await p.evaluate(async()=>{try{await backups.protectLocalCustomerPortableBundle({...verified,resolutions:[{...verified.resolutions[0],namespace:'fire-local-customers:v1:other:target'}]},archive.namespace,phrase);return false;}catch{return true;}}),true));
+ await check('bundle export reads latest saved storage without replacing stale session cache',async()=>assert.equal(await p.evaluate(async()=>{const other=await vault.unlock(phrase);await other.saveCustomer({...customer,name:'Synthetic Later'},'later-write',2,phrase);const before=JSON.stringify(await rawVault());const exported=await session.exportPortableBundle(phrase),fresh=await backups.verifyLocalCustomerPortableBundle(exported,archive.namespace,phrase);return before===JSON.stringify(await rawVault())&&fresh.snapshot.customers[0].revision===3&&fresh.snapshot.pendingOperations.length===3&&fresh.resolutions.length===1&&session.exportSnapshot().customers[0].revision===2;}),true));
+ await check('actual occupied recovery rejects without overwriting source records',async()=>assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());try{await vault.recoverPortableBundleIntoEmptyVault(bundleFile,phrase);return false;}catch{return before===JSON.stringify(await rawVault());}}),true));
+ async function freshDestination(){
+  const ctx=await context.browser().newContext();await ctx.route('**/*',route=>{if(new URL(route.request().url()).origin!==origin){remoteRequests.push(route.request().url());return route.abort();}return route.continue();});
+  const d=await ctx.newPage();await d.goto(origin);
+  await d.evaluate(async()=>{window.backups=await import('/backup.js');window.vaultApi=await import('/vault.js');window.emptyVault=await vaultApi.openLocalCustomerVault('synthetic-owner','synthetic-target');window.phrase='synthetic browser recovery phrase only';window.rawEmpty=async()=>{const db=await new Promise((resolve,reject)=>{const r=indexedDB.open(emptyVault.namespace,1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});const result=await new Promise((resolve,reject)=>{const tx=db.transaction('sealed','readonly'),r=tx.objectStore('sealed').getAll();tx.oncomplete=()=>resolve(r.result);tx.onabort=()=>reject(tx.error);});db.close();return result;};});
+  return {ctx,d};
+ }
+ await check('native empty-vault recovery atomically preserves snapshot original draft revisions and receipts',async()=>{
+  const {ctx,d}=await freshDestination();try{assert.equal(await d.evaluate(async file=>{const result=await emptyVault.recoverPortableBundleIntoEmptyVault(file,phrase),rows=await rawEmpty();const opened=await emptyVault.unlock(phrase),stored=opened.exportSnapshot(),original=await opened.inspectResolutionArchive('portable-resolution',phrase);const again=await opened.exportPortableBundle(phrase),checked=await backups.verifyLocalCustomerPortableBundle(again,stored.namespace,phrase);return result.recoveryPerformed&&result.automaticallyUnlocked===false&&rows.length===2&&stored.customers[0].revision===2&&stored.pendingOperations.length===2&&original.originalDraft.name==='Synthetic Original Unsaved'&&original.reviewedSnapshot.customers[0].revision===1&&checked.resolutions.length===1;},file),true);}finally{await ctx.close();}
+ });
+ await check('recovery rejects wrong phrase corrupted file and mismatched identity before any writes',async()=>{
+  const {ctx,d}=await freshDestination();try{assert.equal(await d.evaluate(async file=>{let failed=0;for(const [value,secret] of [[file,'incorrect synthetic phrase only'],[{...file,ciphertext:'00'},phrase]]){try{await emptyVault.recoverPortableBundleIntoEmptyVault(value,secret);}catch{failed++;}}const other=await vaultApi.openLocalCustomerVault('another-owner','synthetic-target');try{await other.recoverPortableBundleIntoEmptyVault(file,phrase);}catch{failed++;}other.close();return failed===3&&(await rawEmpty()).length===0;},file),true);}finally{await ctx.close();}
+ });
+ await check('archive quota failure aborts snapshot addition with no partial recovery',async()=>{
+  const {ctx,d}=await freshDestination();try{assert.equal(await d.evaluate(async file=>{const original=IDBObjectStore.prototype.add;IDBObjectStore.prototype.add=function(row,...args){if(row.id.startsWith('resolution-'))throw new DOMException('Synthetic quota','QuotaExceededError');return original.call(this,row,...args);};let failed=false;try{await emptyVault.recoverPortableBundleIntoEmptyVault(file,phrase);}catch{failed=true;}finally{IDBObjectStore.prototype.add=original;}return failed&&(await rawEmpty()).length===0;},file),true);}finally{await ctx.close();}
+ });
+ await check('native request key collision rolls back every recovery row',async()=>{
+  const {ctx,d}=await freshDestination();try{assert.equal(await d.evaluate(async file=>{const original=IDBObjectStore.prototype.add;IDBObjectStore.prototype.add=function(row,...args){return original.call(this,row.id.startsWith('resolution-')?{...row,id:'snapshot'}:row,...args);};let failed=false;try{await emptyVault.recoverPortableBundleIntoEmptyVault(file,phrase);}catch{failed=true;}finally{IDBObjectStore.prototype.add=original;}return failed&&(await rawEmpty()).length===0;},file),true);}finally{await ctx.close();}
+ });
+ await check('lock during encryption prevents recovery writes',async()=>{
+  const {ctx,d}=await freshDestination();try{assert.equal(await d.evaluate(async file=>{const original=crypto.subtle.encrypt;crypto.subtle.encrypt=async function(...args){const result=await original.apply(this,args);emptyVault.lock();return result;};let failed=false;try{await emptyVault.recoverPortableBundleIntoEmptyVault(file,phrase);}catch{failed=true;}finally{crypto.subtle.encrypt=original;}return failed&&(await rawEmpty()).length===0;},file),true);}finally{await ctx.close();}
+ });
+ await check('lock during native write transaction aborts all additions',async()=>{
+  const {ctx,d}=await freshDestination();try{assert.equal(await d.evaluate(async file=>{const original=IDBObjectStore.prototype.add;IDBObjectStore.prototype.add=function(...args){const request=original.apply(this,args);request.addEventListener('success',()=>emptyVault.lock());return request;};let failed=false;try{await emptyVault.recoverPortableBundleIntoEmptyVault(file,phrase);}catch{failed=true;}finally{IDBObjectStore.prototype.add=original;}return failed&&(await rawEmpty()).length===0;},file),true);}finally{await ctx.close();}
+ });
+ await check('competing native recoveries have one winner and never merge or retry',async()=>{
+  const {ctx,d}=await freshDestination();try{assert.equal(await d.evaluate(async file=>{const other=await vaultApi.openLocalCustomerVault('synthetic-owner','synthetic-target');const results=await Promise.allSettled([emptyVault.recoverPortableBundleIntoEmptyVault(file,phrase),other.recoverPortableBundleIntoEmptyVault(file,phrase)]);const opened=await emptyVault.unlock(phrase),stored=opened.exportSnapshot();other.close();return results.filter(r=>r.status==='fulfilled').length===1&&results.filter(r=>r.status==='rejected').length===1&&(await rawEmpty()).length===2&&stored.pendingOperations.length===2;},file),true);}finally{await ctx.close();}
+ });
+ await check('competing initialization between validation and transaction remains intact',async()=>{
+  const {ctx,d}=await freshDestination();try{assert.equal(await d.evaluate(async file=>{const other=await vaultApi.openLocalCustomerVault('synthetic-owner','synthetic-target'),original=crypto.subtle.encrypt;let injected=false;crypto.subtle.encrypt=async function(...args){if(!injected){injected=true;await other.initialize({format:'fire-local-customers',version:1,namespace:'fire-local-customers:v1:synthetic-owner:synthetic-target',customers:[],pendingOperations:[]},phrase);}return original.apply(this,args);};let failed=false;try{await emptyVault.recoverPortableBundleIntoEmptyVault(file,phrase);}catch{failed=true;}finally{crypto.subtle.encrypt=original;}const opened=await emptyVault.unlock(phrase),stored=opened.exportSnapshot();other.close();return injected&&failed&&(await rawEmpty()).length===1&&stored.customers.length===0;},file),true);}finally{await ctx.close();}
+ });
+ await check('unknown occupied row is never cleared or overwritten by recovery',async()=>{
+  const {ctx,d}=await freshDestination();try{assert.equal(await d.evaluate(async file=>{const db=await new Promise(resolve=>{const r=indexedDB.open(emptyVault.namespace,1);r.onsuccess=()=>resolve(r.result);});await new Promise((resolve,reject)=>{const tx=db.transaction('sealed','readwrite');tx.objectStore('sealed').add({id:'unknown-synthetic',version:1,envelope:file});tx.oncomplete=resolve;tx.onabort=reject;});db.close();const before=JSON.stringify(await rawEmpty());try{await emptyVault.recoverPortableBundleIntoEmptyVault(file,phrase);return false;}catch{return before===JSON.stringify(await rawEmpty());}},file),true);}finally{await ctx.close();}
+ });
+ await check('occupied destination preflight rejects and preserves all rows',async()=>assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());try{await vault.inspectPortableBundleDestination(bundleFile,phrase);return false;}catch{return before===JSON.stringify(await rawVault());}}),true));
+ destinationContext=await context.browser().newContext();await destinationContext.route('**/*',route=>{if(new URL(route.request().url()).origin!==origin){remoteRequests.push(route.request().url());return route.abort();}return route.continue();});const empty=await destinationContext.newPage();await empty.goto(origin);
+ await empty.evaluate(async()=>{const {openLocalCustomerVault}=await import('/vault.js');window.emptyVault=await openLocalCustomerVault('synthetic-owner','synthetic-target');window.phrase='synthetic browser recovery phrase only';window.rawEmpty=async()=>{const db=await new Promise((resolve,reject)=>{const r=indexedDB.open(emptyVault.namespace,1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});const value=await new Promise(resolve=>{const tx=db.transaction('sealed','readonly'),r=tx.objectStore('sealed').getAll();tx.oncomplete=()=>resolve(r.result);});db.close();return value;};});
+ await check('genuinely empty destination preflight performs no recovery or writes',async()=>assert.equal(await empty.evaluate(async file=>{const before=JSON.stringify(await rawEmpty()),result=await emptyVault.inspectPortableBundleDestination(file,phrase);return result.destinationEmpty===true&&result.recoveryPerformed===false&&result.customerCount===1&&result.resolutionArchiveCount===1&&before==='[]'&&before===JSON.stringify(await rawEmpty())&&!(await emptyVault.hasStoredSnapshot());},file),true));
+ await check('orphan archive makes destination occupied even without snapshot',async()=>{
+  await empty.evaluate(async file=>{const db=await new Promise(resolve=>{const r=indexedDB.open(emptyVault.namespace,1);r.onsuccess=()=>resolve(r.result);});await new Promise((resolve,reject)=>{const tx=db.transaction('sealed','readwrite');tx.objectStore('sealed').add({id:'resolution-orphan',version:1,envelope:file});tx.oncomplete=resolve;tx.onabort=reject;});db.close();},file);
+  assert.equal(await empty.evaluate(async file=>{const before=JSON.stringify(await rawEmpty());try{await emptyVault.inspectPortableBundleDestination(file,phrase);return false;}catch{return !(await emptyVault.hasStoredSnapshot())&&before===JSON.stringify(await rawEmpty());}},file),true);
+ });
+ await check('actual archive-only recovery rejects with all existing data intact',async()=>assert.equal(await empty.evaluate(async file=>{const before=JSON.stringify(await rawEmpty());try{await emptyVault.recoverPortableBundleIntoEmptyVault(file,phrase);return false;}catch{return before===JSON.stringify(await rawEmpty());}},file),true));await destinationContext.close();destinationContext=undefined;
+ await check('lock during export prevents decrypted bundle publication',async()=>assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault()),original=crypto.subtle.decrypt;crypto.subtle.decrypt=async function(...args){const plain=await original.apply(this,args);vault.lock();return plain;};let failed=false;try{await session.exportPortableBundle(phrase);}catch{failed=true;}finally{crypto.subtle.decrypt=original;}return failed&&before===JSON.stringify(await rawVault());}),true));
+ await p.evaluate(()=>vault.close());await context.close();await launch();p=await page();
+ await check('portable file verifies after browser restart without restoring records',async()=>{
+  const fromFile=JSON.parse(readFileSync(join(profile,'portable-bundle.json'),'utf8'));
+  assert.equal(await p.evaluate(async file=>{const before=JSON.stringify(await rawVault()),checked=await backups.verifyLocalCustomerPortableBundle(file,archive.namespace,phrase);return before===JSON.stringify(await rawVault())&&checked.resolutions[0].originalDraft.name==='Synthetic Original Unsaved'&&checked.snapshot.customers[0].revision===2&&checked.snapshot.pendingOperations.length===2;},fromFile),true);
+ });
+ await p.evaluate(async()=>{window.session=await vault.unlock(phrase);});
+ await check('unknown stored row is rejected rather than silently omitted',async()=>{
+  await p.evaluate(async()=>{const db=await new Promise(resolve=>{const r=indexedDB.open(vault.namespace,1);r.onsuccess=()=>resolve(r.result);});await new Promise((resolve,reject)=>{const tx=db.transaction('sealed','readwrite');tx.objectStore('sealed').add({id:'unknown-synthetic-row',version:1,envelope:{ciphertext:'00'}});tx.oncomplete=resolve;tx.onabort=reject;});db.close();});
+  assert.equal(await p.evaluate(async()=>{const before=JSON.stringify(await rawVault());try{await session.exportPortableBundle(phrase);return false;}catch{return before===JSON.stringify(await rawVault());}}),true);
+ });
+ await check('no external or production requests',async()=>assert.deepEqual(remoteRequests,[]));
+ console.log(JSON.stringify({passed,total:passed,browser:version,nativeIndexedDB:true,nativeWebCrypto:true,syntheticOnly:true,syntheticNativeRecoveryTested:true,deviceRecoveryPerformed:false,emptyDestinationPreflightOnly:false,portableFileVerified:true,productionActivated:false,resolutionUiActivated:false}));process.exitCode=0;
+}finally{await destinationContext?.close();await context?.close();await new Promise(resolve=>server.close(resolve));rmSync(profile,{recursive:true,force:true});}

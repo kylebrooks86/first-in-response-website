@@ -112,3 +112,37 @@ export async function protectLocalCustomerResolutionArchive(value: unknown, name
 export async function recoverLocalCustomerResolutionArchive(value: unknown, namespace: string, phrase: string, provider: Crypto | undefined = globalThis.crypto) {
   return recoverArchive(value, phrase, payload => validateLocalCustomerResolutionArchive(payload, namespace), provider);
 }
+
+export type LocalCustomerPortableBundle = { format: 'fire-local-customer-bundle'; version: 1; namespace: string;
+  snapshot: LocalCustomerExport; resolutions: LocalCustomerResolutionArchive[]; resolutionOperationIds: string[] };
+export function validateLocalCustomerPortableBundle(value: unknown, namespace: string): LocalCustomerPortableBundle {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid customer bundle.');
+  const row = value as Record<string, unknown>, fields = ['format', 'version', 'namespace', 'snapshot', 'resolutions', 'resolutionOperationIds'];
+  if (Object.keys(row).length !== fields.length || fields.some(key => !Object.hasOwn(row, key))
+    || row.format !== 'fire-local-customer-bundle' || row.version !== 1 || row.namespace !== namespace
+    || !Array.isArray(row.resolutions) || row.resolutions.length > 1000 || !Array.isArray(row.resolutionOperationIds)
+    || row.resolutionOperationIds.length !== row.resolutions.length) throw new Error('Invalid customer bundle inventory.');
+  const snapshot = validateLocalCustomerExport(row.snapshot, namespace);
+  const operations = new Map(snapshot.pendingOperations.map(op => [op.id, op]));
+  const resolutions = row.resolutions.map(value => validateLocalCustomerResolutionArchive(value, namespace));
+  const ids = resolutions.map(resolution => resolution.operationId);
+  if (new Set(ids).size !== ids.length || row.resolutionOperationIds.some(id => typeof id !== 'string')
+    || JSON.stringify([...ids].sort()) !== JSON.stringify([...row.resolutionOperationIds].sort())) throw new Error('Incomplete or duplicate resolution inventory.');
+  for (const resolution of resolutions) {
+    const receipt = operations.get(resolution.operationId);
+    const reviewed = resolution.reviewedSnapshot.customers.find(customer => customer.id === resolution.proposed.id);
+    if (!receipt || receipt.expectedRevision !== (reviewed?.revision ?? 0)
+      || JSON.stringify(receipt.input) !== JSON.stringify(resolution.proposed)) throw new Error('Resolution receipt does not match bundle snapshot.');
+    for (const prior of resolution.reviewedSnapshot.pendingOperations) {
+      if (JSON.stringify(operations.get(prior.id)) !== JSON.stringify(prior)) throw new Error('Resolution review history is missing or differs.');
+    }
+  }
+  return { format: 'fire-local-customer-bundle', version: 1, namespace, snapshot, resolutions, resolutionOperationIds: ids };
+}
+export async function protectLocalCustomerPortableBundle(value: unknown, namespace: string, phrase: string, provider: Crypto | undefined = globalThis.crypto) {
+  return protectArchive(validateLocalCustomerPortableBundle(value, namespace), phrase, provider);
+}
+/** Verification/decryption only; never opens storage or performs recovery. */
+export async function verifyLocalCustomerPortableBundle(value: unknown, namespace: string, phrase: string, provider: Crypto | undefined = globalThis.crypto) {
+  return recoverArchive(value, phrase, payload => validateLocalCustomerPortableBundle(payload, namespace), provider);
+}

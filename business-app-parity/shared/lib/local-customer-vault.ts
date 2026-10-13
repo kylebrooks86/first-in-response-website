@@ -1,6 +1,6 @@
 /** Inactive encrypted snapshot foundation; no UI, plaintext migration or automatic sync. */
 import { localCustomerDatabaseName, validateLocalCustomerExport, type LocalCustomerExport, type LocalCustomerInput, type LocalCustomer } from './local-customer-store';
-import { protectLocalCustomerBackup, recoverLocalCustomerBackup, protectLocalCustomerResolutionArchive, recoverLocalCustomerResolutionArchive, validateLocalCustomerResolutionArchive, type LocalCustomerResolutionArchive } from './local-customer-backup';
+import { protectLocalCustomerBackup, recoverLocalCustomerBackup, protectLocalCustomerResolutionArchive, recoverLocalCustomerResolutionArchive, validateLocalCustomerResolutionArchive, type LocalCustomerResolutionArchive, protectLocalCustomerPortableBundle, verifyLocalCustomerPortableBundle, type LocalCustomerPortableBundle } from './local-customer-backup';
 
 export async function openLocalCustomerVault(account: string, target: string,
   factory: IDBFactory | undefined = globalThis.indexedDB, provider: Crypto | undefined = globalThis.crypto,
@@ -152,6 +152,47 @@ export async function openLocalCustomerVault(account: string, target: string,
         tx.onabort = () => reject(tx.error ?? new Error('Vault status unavailable; preserve data.'));
       });
     },
+    /** Advisory preflight only. No recovery method or storage writes are enabled. */
+    async inspectPortableBundleDestination(envelope: unknown, phrase: string) {
+      synchronizeLock(); const epoch = generation; check(epoch);
+      const bundle = await verifyLocalCustomerPortableBundle(envelope, customerNamespace, phrase, provider); check(epoch);
+      const occupied = await new Promise<boolean>((resolve, reject) => {
+        const tx = db.transaction('sealed', 'readonly'), request = tx.objectStore('sealed').count();
+        tx.oncomplete = () => resolve(request.result !== 0); tx.onabort = () => reject(tx.error ?? new Error('Destination inspection failed.'));
+      });
+      check(epoch);
+      if (occupied) throw new Error('Destination contains stored data; bundle recovery rejected.');
+      return { destinationEmpty: true, customerCount: bundle.snapshot.customers.length,
+        resolutionArchiveCount: bundle.resolutions.length, recoveryPerformed: false as const };
+    },
+    /** Explicit foundation only. Authenticate everything before an atomic add-only transaction. */
+    async recoverPortableBundleIntoEmptyVault(envelope: unknown, phrase: string) {
+      synchronizeLock(); const epoch = generation; check(epoch);
+      const bundle = await verifyLocalCustomerPortableBundle(envelope, customerNamespace, phrase, provider); check(epoch);
+      const rows = [{ id: 'snapshot', version: 1, envelope: await protectLocalCustomerBackup(bundle.snapshot, customerNamespace, phrase, provider) }];
+      check(epoch);
+      for (const resolution of bundle.resolutions) {
+        rows.push({ id: `resolution-${resolution.operationId}`, version: 1,
+          envelope: await protectLocalCustomerResolutionArchive(resolution, customerNamespace, phrase, provider) });
+        check(epoch);
+      }
+      await new Promise<void>((resolve, reject) => {
+        let failure: unknown; const tx = db.transaction('sealed', 'readwrite'); initializations.add(tx);
+        const abort = (error: unknown) => { failure = error; try { tx.abort(); } catch { /* Already settled. */ } };
+        tx.onabort = () => { initializations.delete(tx); reject(failure ?? tx.error ?? new Error('Atomic bundle recovery aborted.')); };
+        tx.oncomplete = () => { initializations.delete(tx); try { check(epoch); resolve(); } catch (error) { reject(error); } };
+        const store = tx.objectStore('sealed'), request = store.openCursor();
+        request.onerror = () => abort(request.error ?? new Error('Destination inspection failed.'));
+        request.onsuccess = () => { try {
+          check(epoch);
+          // Any row, including unknown or archive-only data, makes this destination occupied.
+          if (request.result) throw new Error('Destination contains stored data; recovery refused.');
+          for (const row of rows) store.add(row); // No put, deletion, merge or retry; all additions commit together.
+        } catch (error) { abort(error); } };
+      });
+      return { customerCount: bundle.snapshot.customers.length, resolutionArchiveCount: bundle.resolutions.length,
+        recoveryPerformed: true as const, automaticallyUnlocked: false as const };
+    },
     async initialize(value: unknown, phrase: string): Promise<void> {
       synchronizeLock();
       const epoch = generation; check(epoch);
@@ -286,6 +327,39 @@ export async function openLocalCustomerVault(account: string, target: string,
               store.add(retained); store.put(replacement);
             } catch (error) { failure = error; tx.abort(); } };
           });
+        },
+        async exportPortableBundle(phrase: string) {
+          current();
+          const rows = await new Promise<Record<string, unknown>[]>((resolve, reject) => {
+            let failure: unknown, encodedBytes = 0; const values: Record<string, unknown>[] = [];
+            const tx = db.transaction('sealed', 'readonly'), request = tx.objectStore('sealed').openCursor();
+            tx.oncomplete = () => resolve(values); tx.onabort = () => reject(failure ?? tx.error ?? new Error('Bundle read aborted.'));
+            request.onsuccess = () => { try {
+              current(); const cursor = request.result; if (!cursor) return;
+              const row = cursor.value as Record<string, unknown>;
+              if (!row || typeof row !== 'object' || Array.isArray(row) || Object.keys(row).length !== 3
+                || !Object.hasOwn(row, 'envelope') || row.version !== 1 || typeof row.id !== 'string'
+                || (row.id !== 'snapshot' && !/^resolution-([A-Za-z0-9_-]{1,128})$/.test(row.id))) throw new Error('Unrecognized stored row; preserve data.');
+              const envelope = row.envelope as Record<string, unknown>;
+              if (!envelope || typeof envelope.ciphertext !== 'string') throw new Error('Invalid stored envelope.');
+              encodedBytes += envelope.ciphertext.length;
+              if (values.length >= 1001 || encodedBytes > 32 * 1024 * 1024) throw new Error('Portable bundle exceeds supported limits; preserve storage.');
+              values.push(row); cursor.continue();
+            } catch (error) { failure = error; tx.abort(); } };
+          });
+          current();
+          const snapshotRow = rows.find(row => row.id === 'snapshot'); if (!snapshotRow) throw new Error('Stored snapshot unavailable.');
+          const saved = await recoverLocalCustomerBackup(snapshotRow.envelope, customerNamespace, phrase, provider); current();
+          const resolutions: LocalCustomerResolutionArchive[] = [];
+          for (const row of rows.filter(row => row.id !== 'snapshot')) {
+            const resolution = await recoverLocalCustomerResolutionArchive(row.envelope, customerNamespace, phrase, provider); current();
+            if (row.id !== `resolution-${resolution.operationId}`) throw new Error('Stored resolution identity mismatch.');
+            resolutions.push(resolution);
+          }
+          const bundle: LocalCustomerPortableBundle = { format: 'fire-local-customer-bundle', version: 1, namespace: customerNamespace,
+            snapshot: saved, resolutions, resolutionOperationIds: resolutions.map(resolution => resolution.operationId) };
+          const envelope = await protectLocalCustomerPortableBundle(bundle, customerNamespace, phrase, provider); current();
+          return envelope; // One consistent read transaction; no session snapshot replacement or writes.
         },
         async inspectResolutionArchive(operationId: string, phrase: string): Promise<LocalCustomerResolutionArchive> {
           current(); if (typeof operationId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(operationId)) throw new Error('Invalid resolution ID.');

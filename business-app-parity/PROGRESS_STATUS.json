@@ -5340,5 +5340,78 @@
     "evidence": "GUARDED_CUSTOMER_RESOLUTION_EVIDENCE.json",
     "handoff": "GUARDED_CUSTOMER_RESOLUTION_HANDOFF.md",
     "nextTask": "Portable encrypted bundle for snapshot and original resolution archives; empty-destination-only synthetic recovery before UI activation"
+  },
+  "portableCustomerBundleBatch": {
+    "date": "2026-10-13",
+    "baseCommit": "c67c81ef4cc0514a25d21d571143585a36f5c276",
+    "branch": "work/fire-business-app-parity-2026-10-08",
+    "scope": "Candidate-only portable encrypted customer bundle and native atomic recovery foundation",
+    "checks": {
+      "browser": {
+        "passed": 312,
+        "total": 312,
+        "portableBundle": 78,
+        "vault": 174,
+        "framework": 60
+      },
+      "legacyBackupCrypto": {
+        "passed": 66,
+        "total": 66
+      },
+      "financialSyntheticSQLite": {
+        "passed": 207,
+        "total": 207
+      },
+      "fullBuilds": {
+        "passed": 3,
+        "total": 3
+      },
+      "typeScript": {
+        "passed": 3,
+        "total": 3
+      },
+      "sharedSourceParity": {
+        "passed": 131,
+        "total": 131,
+        "differences": 0
+      },
+      "finalFailures": 0
+    },
+    "behavior": {
+      "preservesSnapshotDraftArchivesRevisionsReceipts": true,
+      "nativeAtomicRecoveryVerified": true,
+      "occupiedAnyRowRejected": true,
+      "noAutomaticRetryMergeOverwriteDiscard": true,
+      "requiresExplicitUnlockAfterRecovery": true,
+      "readOnlyPreflightIsAdvisory": true,
+      "originalBackupReadersPreserved": true,
+      "normalBackupAndPortableBundleFormatsAreDistinct": true,
+      "unknownSourceRowsRejectExport": true,
+      "maxResolutionArchives": 1000,
+      "maxBundlePlaintextBytes": 16777216,
+      "maxExportCiphertextHexBytes": 33554432
+    },
+    "activation": {
+      "resolutionSaveUi": false,
+      "ownerFacingPortableControls": false,
+      "production": false,
+      "deployedParityVerified": false,
+      "physicalDeviceRecovery": false,
+      "paidResources": false,
+      "cssChanges": false
+    },
+    "remainingBlockers": [
+      "Integrate candidate-only portable export/download, verification and deliberate recovery controls with repository/controller authorization and lock/failure handling.",
+      "Keep resolution-save UI disabled until the entire owner-facing backup/recovery and deliberate confirmation workflow passes.",
+      "Native Safari, installed-app and physical-device recovery acceptance not established by Chromium fixtures."
+    ],
+    "scrollStatus": "Prior isolated-candidate shaking report remains tracked. Owner reports installed LIVE and login-required Doomsday scroll smoothly. No CSS/layout change made.",
+    "officialReleaseReadiness": {
+      "passedGates": 3,
+      "totalGates": 10,
+      "percent": 30
+    },
+    "evidence": "PORTABLE_CUSTOMER_BUNDLE_EVIDENCE.json",
+    "handoff": "PORTABLE_CUSTOMER_BUNDLE_HANDOFF.md"
   }
 }
