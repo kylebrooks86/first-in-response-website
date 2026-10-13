@@ -14,7 +14,7 @@ for (const name of ['store', 'backup', 'vault', 'repository']) {
   for (const module of ['store', 'backup', 'vault']) js = js.replaceAll(`'./local-customer-${module}'`, `'/local-customer-${module}.js'`);
   modules.set(`/local-customer-${name}.js`, js);
 }
-modules.set('/view.js',ts.transpileModule(readFileSync(new URL('../components/local-customer-view.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText);
+modules.set('/view.js',ts.transpileModule(readFileSync(new URL('../components/local-customer-view.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replaceAll("'../lib/local-customer-backup'","'/local-customer-backup.js'"));
 const server = createServer((req, res) => {
   if (modules.has(req.url)) { res.setHeader('Content-Type', 'text/javascript'); res.end(modules.get(req.url)); }
   else if (req.url === '/') res.end('<!doctype html><title>Synthetic Customers UI test</title><main></main>');

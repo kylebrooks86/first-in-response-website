@@ -14,7 +14,7 @@ for (const name of ['store', 'backup', 'vault', 'repository']) {
   for (const module of ['store', 'backup', 'vault']) js = js.replaceAll(`'./local-customer-${module}'`, `'/local-customer-${module}.js'`);
   modules.set(`/local-customer-${name}.js`, js);
 }
-modules.set('/view.js',ts.transpileModule(readFileSync(new URL('../components/local-customer-view.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText);
+modules.set('/view.js',ts.transpileModule(readFileSync(new URL('../components/local-customer-view.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replaceAll("'../lib/local-customer-backup'","'/local-customer-backup.js'"));
 let controllerJS=ts.transpileModule(readFileSync(new URL('../lib/synthetic-customer-controller.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 for(const name of ['store','vault','repository'])controllerJS=controllerJS.replaceAll(`'./local-customer-${name}'`,`'/local-customer-${name}.js'`);
 controllerJS=controllerJS.replaceAll("'../components/local-customer-view'","'/view.js'");modules.set('/controller.js',controllerJS);
@@ -58,6 +58,21 @@ try{
  await check('verified supplied identity mounts locked, never auto-unlocks',async()=>{await activate(p);assert.equal(await p.locator('[data-customer-id]').count(),0);assert.match(await p.locator('main').innerText(),/locked does not mean empty/);});
  await unlock(p);
  await check('account A reads only account A fixture',async()=>{const text=await p.locator('main').innerText();assert.ok(text.includes('Synthetic synthetic-A'));assert.ok(!text.includes('Synthetic synthetic-B'));});
+ await check('identity switch during portable export suppresses the late download',async()=>{
+  const downloads=[];const listener=d=>downloads.push(d);p.on('download',listener);
+  await p.getByLabel('Test phrase for portable backup',{exact:true}).fill('synthetic controller recovery phrase only');
+  await p.evaluate(()=>{document.querySelector('[aria-label="Export portable backup"]').dispatchEvent(new Event('submit',{cancelable:true}));identity={accountId:'synthetic-B',targetId:'synthetic-target'};});
+  await p.waitForFunction(()=>!document.querySelector('input'));assert.deepEqual(downloads,[]);p.off('download',listener);await activate(p);await unlock(p);
+ });
+ await check('identity switch during portable verification suppresses the late report',async()=>{
+  const buffer=await p.evaluate(async()=>{const v=await vaultAPI.openLocalCustomerVault('synthetic-A','synthetic-target');try{return JSON.stringify(await (await v.unlock(phrase)).exportPortableBundle(phrase));}finally{v.close();}});
+  // The extra handle closes with a namespace lock; deliberately reopen the UI before verification.
+  await activate(p);await unlock(p);
+  await p.getByLabel('Portable encrypted JSON file',{exact:true}).setInputFiles({name:'synthetic.json',mimeType:'application/json',buffer:Buffer.from(buffer)});
+  await p.getByLabel('Test phrase for portable file verification',{exact:true}).fill('synthetic controller recovery phrase only');
+  await p.evaluate(()=>{document.querySelector('[aria-label="Verify portable backup"]').dispatchEvent(new Event('submit',{cancelable:true}));identity={accountId:'synthetic-B',targetId:'synthetic-target'};});
+  await p.waitForFunction(()=>!document.querySelector('input'));assert.ok(!(await p.locator('main').innerText()).includes('Verified portable bundle'));await activate(p);await unlock(p);
+ });
  await check('logout refresh immediately wipes drafts and plaintext',async()=>{await p.getByRole('button',{name:'Edit Synthetic synthetic-A'}).click();await p.getByLabel('Name',{exact:true}).fill('Synthetic Secret Draft');await p.evaluate(()=>{window.detached=document.querySelector('[name=name]');identity=null;controller.refreshIdentity();});assert.equal(await p.evaluate(()=>detached.value),'');assert.equal(await p.locator('input').count(),0);assert.ok(!(await p.locator('main').innerText()).includes('Secret Draft'));});
  await check('account switch opens a separate locked vault',async()=>{await activate(p,'synthetic-B');assert.equal(await p.locator('[data-customer-id]').count(),0);await unlock(p);assert.ok((await p.locator('main').innerText()).includes('Synthetic synthetic-B'));assert.ok(!(await p.locator('main').innerText()).includes('Synthetic synthetic-A'));});
  await check('identity change before save rejects old form without writing either vault',async()=>{await p.getByRole('button',{name:'Edit Synthetic synthetic-B'}).click();await p.getByLabel('Name',{exact:true}).fill('Synthetic Must Not Save');await p.getByLabel('Test phrase for this local save',{exact:true}).fill('synthetic controller recovery phrase only');await p.evaluate(()=>{identity={accountId:'synthetic-A',targetId:'synthetic-target'};document.querySelector('[aria-label="Local customer editor"]').dispatchEvent(new Event('submit',{cancelable:true}));});await p.waitForFunction(()=>!document.querySelector('input'));const result=await p.evaluate(async()=>{const v=await vaultAPI.openLocalCustomerVault('synthetic-B','synthetic-target');const s=await v.unlock(phrase);const a=s.exportSnapshot();v.close();return a;});assert.equal(result.customers[0].revision,1);assert.equal(result.pendingOperations.length,1);});

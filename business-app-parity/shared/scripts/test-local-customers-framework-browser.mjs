@@ -79,6 +79,49 @@ try{
   await p.setViewportSize({width:320,height:844});if(await p.locator('.fire-synthetic-preview').getAttribute('data-theme')!==theme)await p.getByRole('button',{name:'Switch to '+theme+' mode'}).click();
   assert.equal(await p.getByRole('region',{name:'Stored local receipt report'}).count(),1);assert.equal(await p.getByRole('region',{name:'Stored customer and draft comparison'}).count(),1);assert.equal(await p.getByRole('region',{name:'Proposed customer resolution'}).count(),1);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  });
+ let portableFile;
+ await check('candidate encrypted download preserves retained draft and saved revision',async()=>{
+  const draft=await p.getByLabel('Name',{exact:true}).inputValue();
+  await p.getByLabel('Test phrase for portable backup',{exact:true}).fill(phrase);
+  const download=p.waitForEvent('download');await p.getByRole('button',{name:'Download encrypted customer bundle',exact:true}).click();
+  const result=await download;portableFile=readFileSync(await result.path());
+  await p.waitForFunction(()=>document.querySelector('[data-backup-status]')?.textContent.includes('download prepared'));
+  assert.ok(/^fire-customer-bundle-.*\.json$/.test(result.suggestedFilename()));
+  assert.deepEqual(Object.keys(JSON.parse(portableFile)),['format','version','salt','iv','ciphertext']);
+  assert.ok(!portableFile.toString().includes('Synthetic Framework'));assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),draft);
+  assert.match(await p.locator('[data-customer-id]').innerText(),/Revision 2/);assert.equal(await p.getByLabel('Test phrase for portable backup',{exact:true}).inputValue(),'');
+  assert.match(await p.getByRole('region',{name:'Portable encrypted customer backup'}).innerText(),/current unsaved edit is not yet archived/i);
+ });
+ async function verifyFile(buffer,testPhrase){
+  await p.getByLabel('Portable encrypted JSON file',{exact:true}).setInputFiles({name:'synthetic-portable.json',mimeType:'application/json',buffer});
+  await p.getByLabel('Test phrase for portable file verification',{exact:true}).fill(testPhrase);
+  await p.getByRole('button',{name:'Verify portable bundle without changes',exact:true}).click();
+  await p.waitForFunction(()=>!document.querySelector('[data-backup-status]')?.textContent.includes('Processing'));
+ }
+ await check('actual downloaded file verifies offline without restoration or draft loss',async()=>{
+  const draft=await p.getByLabel('Name',{exact:true}).inputValue();await context.setOffline(true);await verifyFile(portableFile,phrase);
+  assert.match(await p.locator('[data-backup-status]').innerText(),/1 customers, 2 receipts and 0 resolution draft archives/);
+  assert.match(await p.locator('[data-backup-status]').innerText(),/Verification only; no restoration/);
+  assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),draft);assert.equal(await p.getByLabel('Test phrase for portable file verification',{exact:true}).inputValue(),'');
+  assert.equal(await p.getByLabel('Portable encrypted JSON file',{exact:true}).inputValue(),'');await context.setOffline(false);
+ });
+ await check('wrong portable phrase shows authentication uncertainty and keeps saved revision',async()=>{
+  await verifyFile(portableFile,'incorrect synthetic portable phrase');assert.match(await p.locator('[data-backup-status]').innerText(),/incorrect phrase or altered encrypted file/);assert.match(await p.locator('[data-customer-id]').innerText(),/Revision 2/);
+ });
+ await check('malformed file is rejected without losing retained draft',async()=>{
+  const draft=await p.getByLabel('Name',{exact:true}).inputValue();await verifyFile(Buffer.from('{broken'),phrase);
+  assert.match(await p.locator('[data-backup-status]').innerText(),/Invalid portable bundle/);assert.equal(await p.getByLabel('Name',{exact:true}).inputValue(),draft);
+ });
+ await check('altered downloaded ciphertext cannot verify or write records',async()=>{
+  const value=JSON.parse(portableFile);value.ciphertext=(value.ciphertext.startsWith('00')?'01':'00')+value.ciphertext.slice(2);await verifyFile(Buffer.from(JSON.stringify(value)),phrase);
+  assert.match(await p.locator('[data-backup-status]').innerText(),/incorrect phrase or altered encrypted file/);assert.match(await p.locator('[data-customer-id]').innerText(),/Revision 2/);
+ });
+ await check('locking interrupts a pending export and hides backup controls',async()=>{
+  const downloads=[];const listener=d=>downloads.push(d);p.on('download',listener);
+  await p.getByLabel('Test phrase for portable backup',{exact:true}).fill(phrase);await p.getByRole('button',{name:'Download encrypted customer bundle',exact:true}).click();
+  await p.getByRole('button',{name:'Lock local contacts',exact:true}).click();await p.waitForTimeout(1000);
+  assert.deepEqual(downloads,[]);assert.equal(await p.getByRole('region',{name:'Portable encrypted customer backup'}).count(),0);p.off('download',listener);await unlock();
+ });
  await check('actual page lifecycle locks and never automatically unlocks',async()=>{await p.evaluate(()=>dispatchEvent(new Event('pagehide')));await p.waitForFunction(()=>!document.querySelector('[data-customer-id]'));assert.equal(await p.getByRole('region',{name:'Stored local receipt report'}).count(),0);assert.equal(await p.getByRole('region',{name:'Stored customer and draft comparison'}).count(),0);await p.evaluate(()=>dispatchEvent(new Event('pageshow')));assert.equal(await p.locator('[data-customer-id]').count(),0);await unlock();});
  await check('actual route reload preserves encrypted contact and receipts',async()=>{await p.reload();await p.getByRole('button',{name:'Unlock local contacts',exact:true}).waitFor();await unlock();assert.match(await p.locator('.customer-workspace').innerText(),/Synthetic Framework Offline/);assert.match(await p.locator('.customer-workspace').innerText(),/2 local operation receipts/);});
  await check('Home loads actual app with empty synthetic D1 and exposes gated Customers entry',async()=>{await p.setViewportSize({width:1280,height:900});await p.getByRole('link',{name:'FIRE · Home',exact:true}).click();await p.getByRole('button',{name:'Customers',exact:true}).first().click();await p.getByRole('link',{name:'Offline Customers · synthetic development'}).waitFor({timeout:5000});assert.equal(await p.locator('[data-customer-id]').count(),0);});

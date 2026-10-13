@@ -1,5 +1,6 @@
 /** Isolated synthetic Customers UI; opt-in DOM mount, mounted only by explicitly gated development routes. */
 import type { createLocalCustomerRepository } from '../lib/local-customer-repository';
+import { LocalCustomerBackupError } from '../lib/local-customer-backup';
 import type { LocalCustomer, LocalCustomerInput } from '../lib/local-customer-store';
 type Repository = ReturnType<typeof createLocalCustomerRepository>;
 type ContactField = 'name' | 'email' | 'phone' | 'address' | 'leadSource';
@@ -8,6 +9,7 @@ type Draft = { input: LocalCustomerInput; expectedRevision: number; attempt?: { 
 
 export function mountSyntheticCustomerView(root: HTMLElement, repository: Repository) {
   let draft: Draft | undefined, disposed = false, generation = 0, renderGeneration = 0, message = '', inspecting = false;
+  let backupBusy = false, backupMessage = '';
   let comparison: Comparison | undefined;
   let inspection: Awaited<ReturnType<Repository['inspectStored']>> | undefined;
   function element<K extends keyof HTMLElementTagNameMap>(tag: K, text = '') {
@@ -28,7 +30,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
     if (disposed) return;
     const rendered = ++renderGeneration;
     if (['locked', 'unavailable', 'closed'].includes(state.status)) {
-      generation++; draft = undefined; message = ''; inspection = undefined; comparison = undefined; inspecting = false;
+      generation++; backupBusy = false; backupMessage = ''; draft = undefined; message = ''; inspection = undefined; comparison = undefined; inspecting = false;
     }
     wipeInputs(); root.replaceChildren(); root.dataset.localCustomerState = state.status;
     const header = element('header'); header.className = 'customers-head';
@@ -58,10 +60,65 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
       : state.saveState === 'needs-inspection' ? 'Save outcome uncertain. Inspect stored local receipts; retry remains blocked.' : 'Local contacts unlocked.');
     const pending = element('p', `${state.pendingOperationCount} local operation receipts retained; none acknowledged by a server.`);
     append(root, pending, button('Lock local contacts', () => { repository.lock(); }));
+    const backup = element('section'); backup.setAttribute('aria-label', 'Portable encrypted customer backup');
+    append(backup, element('h2', 'Encrypted customer backup'), element('p', 'Includes saved contacts, revisions, receipts and stored resolution draft archives. A current unsaved edit is not yet archived and is not included. Export and verification never save or discard it. Keep the original backup.'));
+    const backupStatus = element('p', backupBusy ? 'Processing encrypted backup…' : backupMessage || 'Verify a downloaded portable bundle without changing records. Recovery controls remain disabled.');
+    backupStatus.setAttribute('role', 'status'); backupStatus.dataset.backupStatus = ''; append(backup, backupStatus);
+    const exportForm = element('form'); exportForm.setAttribute('aria-label', 'Export portable backup');
+    const exportPhrase = phraseField(exportForm, 'Test phrase for portable backup');
+    const exportButton = element('button', 'Download encrypted customer bundle'); exportButton.type = 'submit';
+    const blocked = backupBusy || inspecting || state.saveState === 'saving';
+    exportPhrase.disabled = exportButton.disabled = blocked; append(exportForm, exportButton); append(backup, exportForm);
+    const verifyForm = element('form'); verifyForm.setAttribute('aria-label', 'Verify portable backup');
+    const fileLabel = element('label', 'Portable encrypted JSON file'), file = element('input');
+    file.type = 'file'; file.accept = '.json,application/json'; file.required = true; file.disabled = blocked;
+    append(fileLabel, file); append(verifyForm, fileLabel);
+    const verifyPhrase = phraseField(verifyForm, 'Test phrase for portable file verification');
+    const verifyButton = element('button', 'Verify portable bundle without changes'); verifyButton.type = 'submit';
+    verifyPhrase.disabled = verifyButton.disabled = blocked; append(verifyForm, verifyButton); append(backup, verifyForm); append(root, backup);
+    function backupFailure(error: unknown) {
+      return error instanceof LocalCustomerBackupError && error.code === 'AUTHENTICATION_FAILED'
+        ? 'Verification failed: incorrect phrase or altered encrypted file. No records changed.'
+        : error instanceof LocalCustomerBackupError && error.code === 'INVALID_ARCHIVE'
+        ? 'Invalid portable bundle or incorrect account/app target. Original backup and records are preserved.'
+        : 'Backup operation did not complete. Check the phrase, file and storage. No save or recovery was attempted.';
+    }
+    exportForm.addEventListener('submit', async event => {
+      event.preventDefault(); const supplied = exportPhrase.value; exportPhrase.value = '';
+      if (disposed || rendered !== renderGeneration || blocked || repository.read().status !== 'ready') return;
+      const epoch = generation; backupBusy = true; backupMessage = ''; render();
+      try {
+        const envelope = await repository.exportPortableBackup(supplied);
+        if (disposed || epoch !== generation || repository.read().status !== 'ready') return;
+        const blob = new Blob([JSON.stringify(envelope)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob), link = element('a'); link.href = url;
+        link.download = `fire-customer-bundle-${crypto.randomUUID()}.json`;
+        document.body.appendChild(link);
+        try { link.click(); } finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+        backupMessage = 'Encrypted download prepared. Confirm the file was saved, then select it below to verify. Current unsaved edits are not included. No records changed.';
+      } catch (error) { if (!disposed && epoch === generation) backupMessage = backupFailure(error); }
+      finally { if (!disposed && epoch === generation) { backupBusy = false; render(); } }
+    });
+    verifyForm.addEventListener('submit', async event => {
+      event.preventDefault(); const supplied = verifyPhrase.value, selectedFile = file.files?.[0]; verifyPhrase.value = ''; file.value = '';
+      if (disposed || rendered !== renderGeneration || blocked || !selectedFile || repository.read().status !== 'ready') return;
+      const epoch = generation; backupBusy = true; backupMessage = ''; render();
+      try {
+        // The 16 MiB protected plaintext becomes hex ciphertext plus a small JSON header.
+        if (selectedFile.size > 34 * 1024 * 1024) throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'File exceeds bundle limit.');
+        let envelope: unknown;
+        try { envelope = JSON.parse(await selectedFile.text()); } catch { throw new LocalCustomerBackupError('INVALID_ARCHIVE', 'Invalid JSON file.'); }
+        if (disposed || epoch !== generation || repository.read().status !== 'ready') return;
+        const result = await repository.verifyPortableBackup(envelope, supplied);
+        if (disposed || epoch !== generation || repository.read().status !== 'ready') return;
+        backupMessage = `Verified portable bundle: ${result.customerCount} customers, ${result.receiptCount} receipts and ${result.resolutionArchiveCount} resolution draft archives. Verification only; no restoration or record changes.`;
+      } catch (error) { if (!disposed && epoch === generation) backupMessage = backupFailure(error); }
+      finally { if (!disposed && epoch === generation) { backupBusy = false; render(); } }
+    });
     const inspectionForm = element('form'); inspectionForm.setAttribute('aria-label', 'Stored receipt inspection');
     const inspectionPhrase = phraseField(inspectionForm, 'Test phrase for stored inspection');
     const inspect = element('button', 'Inspect stored local receipts'); inspect.type = 'submit';
-    inspect.disabled = inspecting || state.saveState === 'saving'; inspectionPhrase.disabled = inspect.disabled;
+    inspect.disabled = inspecting || backupBusy || state.saveState === 'saving'; inspectionPhrase.disabled = inspect.disabled;
     append(inspectionForm, inspect); append(root, inspectionForm);
     const inspectionStatus = element('p', inspecting ? 'Reading encrypted storage…' : 'Inspection is a point-in-time read. It never retries a save or acknowledges server sync.');
     inspectionStatus.setAttribute('role', 'status'); inspectionStatus.dataset.inspectionStatus = ''; append(root, inspectionStatus);
@@ -80,7 +137,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
         append(report, element('p', result));
       }
       if (draft) append(report, button('Review stored record against draft', () => {
-        if (disposed || rendered !== renderGeneration || inspecting || repository.read().status !== 'ready') return;
+        if (disposed || rendered !== renderGeneration || inspecting || backupBusy || repository.read().status !== 'ready') return;
         const stored = inspection!.customers.find(row => row.id === draft!.input.id) ?? null;
         comparison = { choices: {}, verification: 'unchecked', stored: structuredClone(stored), draft: structuredClone(draft!.input),
           attempted: draft!.attempt ? structuredClone(draft!.attempt.input) : undefined, expectedRevision: draft!.expectedRevision };
@@ -110,10 +167,10 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
         append(row, values);
         for (const source of ['stored', 'draft'] as const) {
           const choice = button(`Use ${source === 'stored' ? 'stored' : 'draft'} ${title}`, () => {
-            if (disposed || rendered !== renderGeneration || inspecting || repository.read().status !== 'ready' || !comparison || (source === 'stored' && comparison.stored === null)) return;
+            if (disposed || rendered !== renderGeneration || inspecting || backupBusy || repository.read().status !== 'ready' || !comparison || (source === 'stored' && comparison.stored === null)) return;
             comparison.choices[key] = source; comparison.verification = 'unchecked'; render();
           });
-          choice.disabled = inspecting || (source === 'stored' && comparison.stored === null);
+          choice.disabled = inspecting || backupBusy || (source === 'stored' && comparison.stored === null);
           choice.setAttribute('aria-pressed', String(comparison.choices[key] === source)); append(row, choice);
         }
         append(review, row);
@@ -135,7 +192,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
       }
       const verifyForm = element('form'); verifyForm.setAttribute('aria-label', 'Resolution freshness check');
       const verifyPhrase = phraseField(verifyForm, 'Test phrase for resolution recheck');
-      const verify = element('button', 'Recheck stored snapshot for proposal'); verify.type = 'submit'; verify.disabled = inspecting || selected !== 5; verifyPhrase.disabled = verify.disabled;
+      const verify = element('button', 'Recheck stored snapshot for proposal'); verify.type = 'submit'; verify.disabled = inspecting || backupBusy || selected !== 5; verifyPhrase.disabled = verify.disabled;
       append(verifyForm, verify); append(review, verifyForm);
       const verified = element('p', comparison.verification === 'checking' ? 'Rechecking encrypted storage…'
         : comparison.verification === 'unchanged' ? 'Stored snapshot matches the reviewed inspection at this recheck. Proposal remains unsaved. This is a point-in-time check, not a save.'
@@ -145,7 +202,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
       verified.setAttribute('role', 'status'); verified.dataset.resolutionStatus = ''; append(review, verified);
       verifyForm.addEventListener('submit', async event => {
         event.preventDefault(); const supplied = verifyPhrase.value; verifyPhrase.value = '';
-        if (disposed || rendered !== renderGeneration || inspecting || selected !== 5 || !comparison || !inspection) return;
+        if (disposed || rendered !== renderGeneration || inspecting || backupBusy || selected !== 5 || !comparison || !inspection) return;
         const epoch = generation, captured = comparison, baseline = JSON.stringify(inspection);
         inspecting = true; captured.verification = 'checking'; render();
         try {
@@ -161,7 +218,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
     }
     inspectionForm.addEventListener('submit', async event => {
       event.preventDefault(); const supplied = inspectionPhrase.value; inspectionPhrase.value = '';
-      if (disposed || rendered !== renderGeneration || inspecting || state.saveState === 'saving') return;
+      if (disposed || rendered !== renderGeneration || inspecting || backupBusy || state.saveState === 'saving') return;
       const epoch = generation; inspecting = true; inspection = undefined; comparison = undefined; message = ''; render();
       try {
         const stored = await repository.inspectStored(supplied);
@@ -179,28 +236,28 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
       const edit = button(`Edit ${customer.name}`, () => {
         draft = { input: { id: customer.id, name: customer.name, email: customer.email, phone: customer.phone,
           address: customer.address, leadSource: customer.leadSource }, expectedRevision: customer.revision }; message = ''; inspection = undefined; comparison = undefined; render();
-      }); edit.disabled = inspecting || state.saveState === 'saving' || state.saveState === 'needs-inspection'; append(row, edit); append(list, row);
+      }); edit.disabled = inspecting || backupBusy || state.saveState === 'saving' || state.saveState === 'needs-inspection'; append(row, edit); append(list, row);
     }
     append(root, list);
     if (state.customers.length === 0) append(root, element('p', 'No local contacts in this unlocked vault.'));
     const add = button('Add synthetic customer', () => {
       draft = { input: { id: crypto.randomUUID(), name: 'Synthetic Customer', email: 'test@example.invalid', phone: '', address: 'Synthetic address', leadSource: 'Synthetic' }, expectedRevision: 0 };
       message = ''; inspection = undefined; comparison = undefined; render();
-    }); add.disabled = inspecting || state.saveState === 'saving' || state.saveState === 'needs-inspection'; append(root, add);
+    }); add.disabled = inspecting || backupBusy || state.saveState === 'saving' || state.saveState === 'needs-inspection'; append(root, add);
     if (!draft) return;
     const capturedDraft = draft, form = element('form'); form.setAttribute('aria-label', 'Local customer editor');
     for (const [key, title] of [['name', 'Name'], ['email', 'Email'], ['phone', 'Phone'], ['address', 'Address'], ['leadSource', 'Lead source']] as const) {
       const label = element('label', title), field = element('input'); field.name = key; field.value = capturedDraft.input[key];
-      field.maxLength = 4096; field.required = key === 'name'; field.disabled = inspecting || state.saveState === 'saving';
+      field.maxLength = 4096; field.required = key === 'name'; field.disabled = inspecting || backupBusy || state.saveState === 'saving';
       field.addEventListener('input', () => { capturedDraft.input[key] = field.value; if (comparison) { comparison = undefined; root.querySelector('[aria-label="Stored customer and draft comparison"]')?.remove(); const notice = root.querySelector<HTMLElement>('[data-comparison-notice]'); if (notice) notice.textContent = 'Draft changed. Review again to compare the current values; nothing was saved.'; } }); append(label, field); append(form, label);
     }
-    const phrase = phraseField(form, 'Test phrase for this local save'); phrase.disabled = inspecting || state.saveState === 'saving';
-    const save = element('button', 'Save locally'); save.type = 'submit'; save.disabled = inspecting || state.saveState === 'saving' || state.saveState === 'needs-inspection'; append(form, save);
+    const phrase = phraseField(form, 'Test phrase for this local save'); phrase.disabled = inspecting || backupBusy || state.saveState === 'saving';
+    const save = element('button', 'Save locally'); save.type = 'submit'; save.disabled = inspecting || backupBusy || state.saveState === 'saving' || state.saveState === 'needs-inspection'; append(form, save);
     const cancel = button('Cancel edit', () => { draft = undefined; message = ''; inspection = undefined; comparison = undefined; render(); });
-    cancel.disabled = inspecting || state.saveState === 'saving'; append(form, cancel); append(root, form);
+    cancel.disabled = inspecting || backupBusy || state.saveState === 'saving'; append(form, cancel); append(root, form);
     form.addEventListener('submit', async event => {
       event.preventDefault(); const supplied = phrase.value; phrase.value = '';
-      if (disposed || rendered !== renderGeneration || inspecting || state.saveState === 'saving' || state.saveState === 'needs-inspection') return;
+      if (disposed || rendered !== renderGeneration || inspecting || backupBusy || state.saveState === 'saving' || state.saveState === 'needs-inspection') return;
       const input = structuredClone(capturedDraft.input), epoch = generation;
       if (!input.name.startsWith('Synthetic ') || (input.email && !/^[^@\s]+@example\.invalid$/.test(input.email))
         || input.phone !== '' || !input.address.startsWith('Synthetic') || input.leadSource !== 'Synthetic') {
@@ -223,7 +280,7 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
     refresh: () => render(),
     dispose() {
       if (disposed) return;
-      repository.dispose(); disposed = true; generation++; draft = undefined; message = ''; inspection = undefined; comparison = undefined; inspecting = false;
+      repository.dispose(); disposed = true; generation++; backupBusy = false; backupMessage = ''; draft = undefined; message = ''; inspection = undefined; comparison = undefined; inspecting = false;
       unsubscribe(); wipeInputs(); root.replaceChildren(); delete root.dataset.localCustomerState;
     },
   };

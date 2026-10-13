@@ -138,6 +138,21 @@ try {
   await check('subscriber lock after committed save prevents plaintext return but preserves commit', async () => {
     assert.equal(await p.evaluate(async () => { await repo.unlock(phrase); const off = repo.subscribe(s => { if (s.saveState === 'saved-locally') repo.lock(); }); let interrupted = false; try { await repo.save({ ...input, name: 'Synthetic Revision 6' }, 'synthetic-edit-6', 5, phrase); } catch (e) { interrupted = e.code === 'INTERRUPTED' && repo.read().customers === null; } finally { off(); } const view = await repo.unlock(phrase); return interrupted && view.customers[0].revision === 6 && view.pendingOperationCount === 6; }), true);
   });
+  await check('repository portable export and verification preserve save state and ciphertext',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=await raw(),state=repo.read().saveState;window.bundle=await repo.exportPortableBackup(phrase);const result=await repo.verifyPortableBackup(bundle,phrase);return result.customerCount===1&&result.receiptCount===6&&result.resolutionArchiveCount===0&&!result.recoveryPerformed&&before===await raw()&&repo.read().saveState===state;}),true);
+  });
+  await check('portable verification rejects wrong account and target without changing either vault',async()=>{
+    assert.equal(await p.evaluate(async()=>{for(const [account,target] of [['synthetic-other-account','synthetic-target'],['synthetic-repository','synthetic-other-target']]){const other=await vaultAPI.openLocalCustomerVault(account,target);await other.initialize({format:'fire-local-customers',version:1,namespace:`fire-local-customers:v1:${account}:${target}`,customers:[],pendingOperations:[]},phrase);const r=repositoryAPI.createLocalCustomerRepository(other);await r.unlock(phrase);try{await r.verifyPortableBackup(bundle,phrase);return false;}catch(e){if(e.code!=='INVALID_ARCHIVE'||r.read().customers.length!==0)return false;}finally{r.dispose();other.close();}}return true;}),true);
+  });
+  await check('portable export blocks competing save rather than queuing it',async()=>{
+    assert.equal(await p.evaluate(async()=>{const before=await raw(),pending=repo.exportPortableBackup(phrase);let busy=false;try{await repo.save(input,'blocked-export-save',6,phrase);}catch(e){busy=e.code==='BUSY';}await pending;return busy&&before===await raw();}),true);
+  });
+  await check('lock during portable verification prevents late result publication',async()=>{
+    assert.equal(await p.evaluate(async()=>{const pending=repo.verifyPortableBackup(bundle,phrase);repo.lock();try{await pending;return false;}catch(e){return e.code==='INTERRUPTED'&&repo.read().customers===null;}}),true);
+  });
+  await check('locked repository refuses portable operations',async()=>{
+    assert.equal(await p.evaluate(async()=>{let rejected=0;for(const run of [()=>repo.exportPortableBackup(phrase),()=>repo.verifyPortableBackup(bundle,phrase)])try{await run();}catch(e){if(e.code==='LOCKED')rejected++;}return rejected===2;}),true);
+  });
   await check('all requests stayed inside synthetic localhost origin', async () => assert.deepEqual(remote, []));
   console.log(JSON.stringify({ passed, total: passed, browserVersion: version, nativeIndexedDB: true, nativeWebCrypto: true,
     syntheticOnly: true, uiActivated: false, serverSync: false, iPhoneTested: false })); process.exitCode = 0;

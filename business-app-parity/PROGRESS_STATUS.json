@@ -5413,5 +5413,76 @@
     },
     "evidence": "PORTABLE_CUSTOMER_BUNDLE_EVIDENCE.json",
     "handoff": "PORTABLE_CUSTOMER_BUNDLE_HANDOFF.md"
+  },
+  "portableCustomerControlsBatch": {
+    "date": "2026-10-13",
+    "baseCommit": "a9b74147694e5d11e4479a3314cfe4e81bf2e4f0",
+    "branch": "work/fire-business-app-parity-2026-10-08",
+    "scope": "Candidate-only portable encrypted download and read-only file verification",
+    "functionality": [
+      "Unlocked synthetic Customers screen downloads encrypted portable bundle using a unique filename.",
+      "File verification uses actual crypto and strict current account/target namespace and returns counts only; no recovery or record changes.",
+      "Repository serializes backup against writes/inspection and revokes late results after locking.",
+      "Controller checks verified identity before and after async backup work.",
+      "Current unarchived edit is explicitly excluded; export and verification retain it without saving/discarding.",
+      "Phrase and selected-file fields clear after each operation; lock hides controls and late reports/downloads.",
+      "Owner must confirm downloaded file exists and select it to verify; prepared download is not reported as confirmed file persistence."
+    ],
+    "checks": {
+      "browser": {
+        "passed": 330,
+        "total": 330,
+        "suites": {
+          "framework": 78,
+          "repository": 99,
+          "view": 93,
+          "controller": 60
+        }
+      },
+      "financialSyntheticSQLite": {
+        "passed": 207,
+        "total": 207
+      },
+      "fullBuilds": {
+        "passed": 3,
+        "total": 3
+      },
+      "typeScript": {
+        "passed": 3,
+        "total": 3
+      },
+      "sharedSourceParity": {
+        "passed": 131,
+        "total": 131,
+        "differences": 0
+      },
+      "finalFailures": 0
+    },
+    "restrictions": {
+      "productionDeployment": false,
+      "productionDatabaseChanges": false,
+      "stripeActions": false,
+      "physicalDeviceRecovery": false,
+      "paidServices": false,
+      "recoveryUiActivated": false,
+      "resolutionSaveUiActivated": false,
+      "cssChanges": false,
+      "deployedParityClaimed": false
+    },
+    "remainingBlockers": [
+      "Connect candidate-only deliberate empty-destination recovery with transactional occupancy enforcement, explicit intent and locked completion.",
+      "Verify owner-facing archive-complete export/verify/recovery workflow before enabling deliberate resolution-save.",
+      "Legacy backup APIs remain intact; new portable controls explicitly accept portable bundles only. Recovery UI must dispatch formats deliberately.",
+      "Safari/Home Screen and deployed acceptance remain unverified."
+    ],
+    "nextPriority": "Candidate-only deliberate recovery integration and synthetic failure/occupied-destination checks; keep resolution-save disabled.",
+    "scrollIssue": "Prior candidate shaking remains tracked; installed LIVE and Doomsday reported smooth by owner; no CSS changes.",
+    "officialReleaseReadiness": {
+      "passedGates": 3,
+      "totalGates": 10,
+      "percent": 30
+    },
+    "evidence": "PORTABLE_CUSTOMER_CONTROLS_EVIDENCE.json",
+    "handoff": "PORTABLE_CUSTOMER_CONTROLS_HANDOFF.md"
   }
 }

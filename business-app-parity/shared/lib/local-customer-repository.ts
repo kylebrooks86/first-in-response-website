@@ -1,4 +1,5 @@
 /** Opt-in Customers boundary. Inactive until a reviewed UI explicitly supplies a vault. */
+import { verifyLocalCustomerPortableBundle } from './local-customer-backup';
 import type { openLocalCustomerVault } from './local-customer-vault';
 import type { LocalCustomer, LocalCustomerInput } from './local-customer-store';
 
@@ -95,6 +96,26 @@ export function createLocalCustomerRepository(vault: Vault) {
         saveState = 'needs-inspection'; notify();
         // Failed/ambiguous saves never promise that nothing committed and never retry automatically.
         throw new LocalCustomerRepositoryError('SAVE_FAILED');
+      } finally { if (epoch === generation) busy = false; }
+    },
+    async exportPortableBackup(phrase: string) {
+      const epoch = start();
+      try {
+        if (read().status !== 'ready' || !session) throw new LocalCustomerRepositoryError('LOCKED');
+        const envelope = await session.exportPortableBundle(phrase);
+        if (epoch !== generation || read().status !== 'ready') throw new LocalCustomerRepositoryError('INTERRUPTED');
+        return envelope;
+      } finally { if (epoch === generation) busy = false; }
+    },
+    async verifyPortableBackup(envelope: unknown, phrase: string) {
+      const epoch = start();
+      try {
+        if (read().status !== 'ready' || !session) throw new LocalCustomerRepositoryError('LOCKED');
+        const namespace = session.exportSnapshot().namespace;
+        const bundle = await verifyLocalCustomerPortableBundle(structuredClone(envelope), namespace, phrase);
+        if (epoch !== generation || read().status !== 'ready') throw new LocalCustomerRepositoryError('INTERRUPTED');
+        return { customerCount: bundle.snapshot.customers.length, receiptCount: bundle.snapshot.pendingOperations.length,
+          resolutionArchiveCount: bundle.resolutions.length, recoveryPerformed: false as const };
       } finally { if (epoch === generation) busy = false; }
     },
     async inspectStored(phrase: string) {
