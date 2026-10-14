@@ -6115,5 +6115,27 @@
     "officialReleaseReadinessPercent": 30,
     "verifiedGates": 3,
     "totalGates": 10
+  },
+  "confirmedFollowupTimingBatch": {
+    "parentCheckpoint": "a0bc478b86788325f0e50a796f769f224e8b7439",
+    "dateUtc": "2026-10-14",
+    "status": "verified candidate source; checkpoint accompanies this report",
+    "browserPassed": 102,
+    "browserTotal": 102,
+    "timingPassed": 42,
+    "timingTotal": 42,
+    "financialPassed": 207,
+    "financialTotal": 207,
+    "typeScriptPassed": 3,
+    "fullBuildsPassed": 3,
+    "sharedFilesChecked": 132,
+    "sourceParity": true,
+    "deployedParityVerified": false,
+    "evidence": "CONFIRMED_FOLLOWUP_TIMING_EVIDENCE.json",
+    "handoff": "CONFIRMED_FOLLOWUP_TIMING_HANDOFF.md",
+    "nextPriority": "Deliberate Contacted/Snooze actions preserving financial exceptions",
+    "officialReleaseReadinessPercent": 30,
+    "verifiedGates": 3,
+    "totalGates": 10
   }
 }
