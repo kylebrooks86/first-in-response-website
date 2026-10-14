@@ -75,6 +75,7 @@ if (!entries.includes("manifest.json")) throw new Error("The ZIP archive does no
 const manifestResult = unzip(["-p", absoluteArchive, "manifest.json"]);
 if (manifestResult.status !== 0) fail(manifestResult, "manifest.json could not be read.");
 const manifest = JSON.parse(String(manifestResult.stdout));
+if(manifest?.format==="fire-app-photo-storage-archive"&&manifest?.version===2)throw new Error("Complete photo storage archives are validation-only. Native atomic restoration and occupied-destination safety are not proven; CLI restore is blocked.");
 if (manifest?.format !== "fire-app-photo-archive" || manifest?.version !== 1 || !Array.isArray(manifest.photos)) {
   throw new Error("This is not a valid FIRE App photo archive.");
 }

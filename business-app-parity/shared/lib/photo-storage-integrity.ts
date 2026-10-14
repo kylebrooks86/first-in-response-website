@@ -45,7 +45,7 @@ export async function inspectPhotoStorage(reader:Reader,bucket:PhotoBucket){
  const final=await read(),finalObjects=await inventory();
  const stable=JSON.stringify(initial)===JSON.stringify(final)&&JSON.stringify(objects)===JSON.stringify(finalObjects);
  const retainedUnreferencedObjects=objects.filter(object=>!keys.has(object.key));
- return {format:'fire-photo-storage-inspection',version:1,metadataPhotoCount:initial.photos.length,storageObjectCount:objects.length,issues,retainedUnreferencedObjects,
+ return {format:'fire-photo-storage-inspection',version:1,metadataPhotoCount:initial.photos.length,storageObjectCount:objects.length,objectInventory:objects,issues,retainedUnreferencedObjects,
   completeInventory:true,observationsStable:stable,referencedMetadataMatches:stable&&issues.length===0,
   recoveryReady:false,snapshotAtomic:false,photoBytesVerified:false,cleanupAuthorized:false,writesAttempted:0,
   warning:'Read-only observations cannot prove an atomic backup or byte-level recovery. Keep all unreferenced objects; never automatically retry or delete them.'};

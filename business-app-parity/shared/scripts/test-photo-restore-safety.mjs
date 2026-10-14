@@ -34,7 +34,7 @@ try {
  console.error('Unexpected fixture operation');process.exit(99);
  `);
  const config={d1_databases:[{binding:'DB',database_name:'synthetic-photo-db',database_id:'11111111-1111-4111-8111-111111111111'}],r2_buckets:[{binding:'BUCKET',bucket_name:'synthetic-photo-bucket'}]};
- function test({mode='normal',photos=[photo],missing=[],entries=[[entry,'abc']],apply=false,extra=[],configOverride,expected=0,message,check}){
+ function test({mode='normal',photos=[photo],missing=[],entries=[[entry,'abc']],apply=false,extra=[],configOverride,manifestOverride,expected=0,message,check}){
   count++;const dir=join(work,'case-'+count);mkdirSync(dir);const archive=join(dir,'archive.zip'),log=join(dir,'operations.jsonl'),configFile=join(dir,'config.json'),databaseFile=join(dir,'synthetic.sqlite');
   const db=new DatabaseSync(databaseFile);
   db.exec("CREATE TABLE customers(id TEXT PRIMARY KEY);CREATE TABLE payments(id TEXT PRIMARY KEY,amount_cents INTEGER);INSERT INTO payments VALUES('preserved-payment',7500);CREATE TABLE customer_photos(id TEXT PRIMARY KEY,customer_id TEXT,category TEXT,caption TEXT,filename TEXT,content_type TEXT,size_bytes INTEGER,object_key TEXT,created_at TEXT);");
@@ -42,7 +42,7 @@ try {
   if(['existing-record','matching-record'].includes(mode))db.prepare('INSERT INTO customer_photos VALUES(?,?,?,?,?,?,?,?,?)').run(photo.id,mode==='existing-record'?'other-customer':photo.customerId,'before','Existing caption must remain','existing.jpg',photo.contentType,3,photo.objectKey,photo.createdAt);
   const financialBefore=JSON.stringify(db.prepare('SELECT * FROM payments').all()),photosBefore=JSON.stringify(db.prepare('SELECT * FROM customer_photos').all());db.close();
   writeFileSync(configFile,JSON.stringify(configOverride||config));
-  const manifest={format:'fire-app-photo-archive',version:1,photoCount:photos.length-missing.length,missingPhotoIds:missing,photos};
+  const manifest=manifestOverride||{format:'fire-app-photo-archive',version:1,photoCount:photos.length-missing.length,missingPhotoIds:missing,photos};
   const zipped=spawnSync('python3',['-c',"import sys,json,zipfile; d=json.load(sys.stdin); z=zipfile.ZipFile(d['path'],'w'); z.writestr('manifest.json',json.dumps(d['manifest'])); [z.writestr(n,s) for n,s in d['entries']]; z.close()"],{input:JSON.stringify({path:archive,manifest,entries}),encoding:'utf8'});
   assert.equal(zipped.status,0,zipped.stderr);
   const args=[join(work,'scripts/restore-photo-archive.mjs'),'--archive',archive,'--config',configFile,...(extra.includes('--remote')?[]:['--local']),...(apply?['--apply']:[]),...extra];
@@ -78,5 +78,6 @@ try {
  test({configOverride:{...config,r2_buckets:[]},expected:1,message:/non-placeholder DB and BUCKET/,check:ops=>assert.equal(ops.length,0)});
  test({apply:true,extra:['--remote','--confirm-bucket','synthetic-photo-bucket'],expected:1,message:/confirm-database/,check:ops=>assert.equal(ops.length,0)});
  test({extra:['--remote'],message:/Dry run complete/,check:noWrites});
+ test({manifestOverride:{format:'fire-app-photo-storage-archive',version:2},apply:true,expected:1,message:/CLI restore is blocked/,check:ops=>assert.equal(ops.length,0)});
  console.log('PASS: '+count+' actual photo-recovery CLI cases using synthetic ZIPs and local-only fake Wrangler; dry runs, target confirmation, conflicts, corrupt archives, interrupted writes, and non-destructive verification failures. No network/storage resources used.');
 } finally {rmSync(work,{recursive:true,force:true});}
