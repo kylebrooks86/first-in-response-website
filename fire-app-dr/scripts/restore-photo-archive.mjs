@@ -161,19 +161,19 @@ try {
     const insert = `INSERT OR IGNORE INTO customer_photos (id,customer_id,category,caption,filename,content_type,size_bytes,object_key,created_at) VALUES (${sql(photo.id)},${sql(photo.customerId)},${sql(photo.category)},${sql(photo.caption)},${sql(photo.filename)},${sql(photo.contentType)},${sql(photo.sizeBytes)},${sql(photo.objectKey)},${sql(photo.createdAt)})`;
     const databaseWrite = run(["d1", "execute", "DB", "--config", absoluteConfig, ...modeArgs, "--yes", "--command", insert]);
     if (databaseWrite.status !== 0) {
-      run(["r2","object","delete",`${bucket}/${photo.objectKey}`,"--config",absoluteConfig,...modeArgs]);
-      fail(databaseWrite, `Photo ${photo.id} database metadata could not be restored; the just-uploaded object was removed.`);
+      // Preserve uploaded bytes: the D1 write may have committed despite an error or lost acknowledgement.
+      fail(databaseWrite, `Photo ${photo.id} database metadata status is uncertain. Uploaded bytes were preserved; inspect D1 and R2 before retrying.`);
     }
     const verifyRecord=run(["d1","execute","DB","--config",absoluteConfig,...modeArgs,"--json","--command",`SELECT customer_id AS customerId,object_key AS objectKey,size_bytes AS sizeBytes FROM customer_photos WHERE id=${sql(photo.id)} LIMIT 1`]);
     if(verifyRecord.status!==0){
-      run(["r2","object","delete",`${bucket}/${photo.objectKey}`,"--config",absoluteConfig,...modeArgs]);
-      fail(verifyRecord,`Photo ${photo.id} metadata verification failed; the just-uploaded object was removed.`);
+      // Preserve uploaded bytes: the D1 write may have committed despite an error or lost acknowledgement.
+      fail(verifyRecord,`Photo ${photo.id} metadata verification is uncertain. Uploaded bytes were preserved; inspect D1 and R2 before retrying.`);
     }
     const verifiedRows=JSON.parse(verifyRecord.stdout)[0]?.results||[];
     const verified=verifiedRows[0];
     if(!verified||String(verified.customerId)!==photo.customerId||String(verified.objectKey)!==photo.objectKey||Number(verified.sizeBytes)!==photo.sizeBytes){
-      run(["r2","object","delete",`${bucket}/${photo.objectKey}`,"--config",absoluteConfig,...modeArgs]);
-      throw new Error(`Photo ${photo.id} metadata does not match the archive; the just-uploaded object was removed.`);
+      // Preserve uploaded bytes: the D1 write may have committed despite an error or lost acknowledgement.
+      throw new Error(`Photo ${photo.id} metadata does not match the archive. Uploaded bytes were preserved; investigate before retrying.`);
     }
     restored += 1;
     console.log(`Restored and verified ${photo.id} (${photo.filename}).`);
