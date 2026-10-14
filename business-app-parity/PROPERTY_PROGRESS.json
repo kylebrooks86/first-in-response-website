@@ -19,17 +19,18 @@
     },
     {
       "name": "Complete customer estimate workflow",
-      "verified": false
+      "verified": true
     }
   ],
-  "passed": 4,
+  "passed": 5,
   "total": 5,
-  "percent": 80,
+  "percent": 100,
   "officialReleaseReadiness": {
     "passed": 3,
     "total": 10,
     "percent": 30
   },
-  "evidence": "PROPERTY_RECOVERY_EVIDENCE.json",
-  "handoff": "PROPERTY_RECOVERY_HANDOFF.md"
+  "evidence": "PROPERTY_WORKFLOW_EVIDENCE.json",
+  "handoff": "PROPERTY_WORKFLOW_HANDOFF.md",
+  "scope": "Isolated candidate source/native tests only; production approval and device acceptance remain pending"
 }

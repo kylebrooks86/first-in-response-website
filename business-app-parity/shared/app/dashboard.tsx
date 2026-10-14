@@ -1,6 +1,7 @@
 "use client";
 
 import { CandidateLayoutTrace } from "../components/candidate-layout-trace";
+import type {PropertyEstimateSelection} from '../lib/customer-properties';
 import {CustomerProperties} from '../components/customer-properties';
 import { OwnerAccountView } from "./owner-account";
 import { estimateFollowUpTiming, estimateReminderStage } from "../lib/follow-up-timing";
@@ -76,7 +77,7 @@ import { DEFAULT_CASH_APP_HANDLE, DEFAULT_VENMO_HANDLE } from "@/lib/payment-met
 const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
 
 type EstimateItemRow = { id:string; name:string; description:string; quantity:number; unit:string; totalCents:number };
-type EstimateRow = { id:string; customerId?:string; customer:string; email?:string; phone?:string; address?:string;serviceAddressSource?:string; service:string; serviceDescription?:string; items?:EstimateItemRow[]; subtotalCents?:number; discountCents?:number; appreciationDiscount?:number|boolean; additionalDiscountType?:"percent"|"dollar"; additionalDiscountValue?:number; status:string; totalCents:number; depositCents:number; paidCents:number; scheduledAt?:string|null; invoiceId?:string|null; invoiceShareToken?:string|null; invoiceTotalCents?:number|null; shareToken?:string|null; firstViewedAt?:string|null; acceptedAt?:string|null; signedName?:string|null; signedAt?:string|null; contractInitials?:string|null; photoRelease?:string|null; pendingChangeCount?:number; latestChangeRequest?:string|null; firstEstimateSentAt?:string|null; stage1At?:string|null; stage3At?:string|null; stage7At?:string|null; lastEstimateSentAt?:string|null; lastEstimateContactAt?:string|null; lastManualContactAt?:string|null;snoozeUntil?:string|null;lastReviewRequestAt?:string|null; lastRebookMessageAt?:string|null; paymentOverageOpen?:number; createdAt:string };
+type EstimateRow = { id:string; customerId?:string; customer:string; email?:string; phone?:string; address?:string;serviceAddressSource?:string;propertyId?:string|null;propertyRevision?:number|null; service:string; serviceDescription?:string; items?:EstimateItemRow[]; subtotalCents?:number; discountCents?:number; appreciationDiscount?:number|boolean; additionalDiscountType?:"percent"|"dollar"; additionalDiscountValue?:number; status:string; totalCents:number; depositCents:number; paidCents:number; scheduledAt?:string|null; invoiceId?:string|null; invoiceShareToken?:string|null; invoiceTotalCents?:number|null; shareToken?:string|null; firstViewedAt?:string|null; acceptedAt?:string|null; signedName?:string|null; signedAt?:string|null; contractInitials?:string|null; photoRelease?:string|null; pendingChangeCount?:number; latestChangeRequest?:string|null; firstEstimateSentAt?:string|null; stage1At?:string|null; stage3At?:string|null; stage7At?:string|null; lastEstimateSentAt?:string|null; lastEstimateContactAt?:string|null; lastManualContactAt?:string|null;snoozeUntil?:string|null;lastReviewRequestAt?:string|null; lastRebookMessageAt?:string|null; paymentOverageOpen?:number; createdAt:string };
 type CustomerRow = { id:string; name:string; email:string; phone:string; address:string; leadSource?:string; createdAt:string; estimateCount:number; estimateTotal:number; paidTotal:number };
 type CustomerEstimate = { address?:string|null;serviceAddressSource?:string;id:string; customerId:string; service:string; serviceDescription?:string; items?:EstimateItemRow[]; subtotalCents?:number; discountCents?:number; appreciationDiscount?:number|boolean; additionalDiscountType?:"percent"|"dollar"; additionalDiscountValue?:number; status:string; totalCents:number; depositCents:number; paidCents:number; scheduledAt?:string|null; invoiceId?:string|null; invoiceShareToken?:string|null; invoiceTotalCents?:number|null; shareToken?:string|null; firstViewedAt?:string|null; acceptedAt?:string|null; signedName?:string|null; signedAt?:string|null; contractInitials?:string|null; photoRelease?:string|null; pendingChangeCount?:number; latestChangeRequest?:string|null; firstEstimateSentAt?:string|null; stage1At?:string|null; stage3At?:string|null; stage7At?:string|null; lastEstimateSentAt?:string|null; lastEstimateContactAt?:string|null; lastManualContactAt?:string|null;snoozeUntil?:string|null;lastReviewRequestAt?:string|null; lastRebookMessageAt?:string|null; paymentOverageOpen?:number; createdAt:string };
 type CustomerNote = { id:string; customerId:string; body:string; createdAt:string };
@@ -368,7 +369,7 @@ function discountMath(subtotal:number, appreciation:boolean, mode:DiscountMode, 
   return {appreciationCents,additionalCents,requestedDiscount,total,appliedDiscount,deposit:Math.round(total/2)};
 }
 
-function NewEstimate({ onSaved, customer,disabledReason }: { onSaved?: (estimate: EstimateRow) => void; customer?: CustomerRow;disabledReason?:string }) {
+function NewEstimate({ onSaved, customer,disabledReason,propertySelection,propertyWorkflowReady=false,onClosed }: { onSaved?: (estimate: EstimateRow) => void; customer?: CustomerRow;disabledReason?:string;propertySelection?:PropertyEstimateSelection|null;propertyWorkflowReady?:boolean;onClosed?:()=>void }) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [customerName,setCustomerName]=useState(customer?.name??"");
@@ -382,6 +383,17 @@ function NewEstimate({ onSaved, customer,disabledReason }: { onSaved?: (estimate
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [estimateProperty,setEstimateProperty]=useState<PropertyEstimateSelection|null>(null);
+  const [propertyBlocked,setPropertyBlocked]=useState(propertyWorkflowReady);
+  const [propertyRefresh,setPropertyRefresh]=useState(0);
+  const [forcePropertyReview,setForcePropertyReview]=useState(false);
+  const [uncertainSave,setUncertainSave]=useState(false);
+  const saveLock=useRef(false);
+  const [reviewedRecords,setReviewedRecords]=useState<EstimateRow[]>([]);
+  const [reviewingRecords,setReviewingRecords]=useState(false);
+  const [savedReceipt,setSavedReceipt]=useState<{address:string;total:number;deposit:number}|null>(null);
+  const resolvedAddress=estimateProperty?estimateProperty.property.address+(estimateProperty.property.designation?' · '+estimateProperty.property.designation:''):address;
+  const reviewStored=async()=>{setReviewingRecords(true);try{const response=await fetch('/api/customers');const data=await response.json() as {estimates?:EstimateRow[]};if(!response.ok||!Array.isArray(data.estimates))throw Error('Stored estimates could not be read.');setReviewedRecords(data.estimates.filter(row=>row.customerId===customer?.id));}catch(e){setError(e instanceof Error?e.message:'Stored estimates unavailable.');}finally{setReviewingRecords(false);}};
   const subtotal=items.reduce((sum,item)=>sum+Math.round((Number(item.quantity)||0)*(Number(item.unitRateCents)||0)),0);
   const discount=discountMath(subtotal,appreciationDiscount,discountMode,Number(discountValue));
   const total=discount.total;
@@ -390,25 +402,36 @@ function NewEstimate({ onSaved, customer,disabledReason }: { onSaved?: (estimate
   const addService=()=>setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);
 
   const saveEstimate = async () => {
+    if(saveLock.current||saving||uncertainSave)return;
+    if(propertyWorkflowReady&&propertyBlocked){setStep(1);setError('Review and select an active service property before saving.');return;}
     if(!customerName.trim()){setStep(1);setError("Customer name is required.");return;}
     if(!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isFinite(item.unitRateCents)||item.unitRateCents<0)){setStep(2);setError("Every service needs a service, quantity, and valid price.");return;}
     const maxPercent=appreciationDiscount?45:50;
     if(discountMode==="percent"&&(Number(discountValue)||0)>maxPercent){setError(`Additional percentage discount cannot exceed ${maxPercent}% with the current appreciation-discount setting.`);return;}
     if(discountMode==="dollar"&&Math.round((Number(discountValue)||0)*100)>subtotal){setError("Dollar discount cannot exceed the service subtotal.");return;}
-    setSaving(true);setError("");
+    saveLock.current=true;setSaving(true);setError("");
+    let safelyRejected=false;
     try {
       const payloadItems=items.map((item)=>({name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:Math.round(item.quantity*item.unitRateCents)}));
       const response = await fetch("/api/estimates", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ customerId: customer?.id, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:address.trim(), items:payloadItems, appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountMode==="percent"?Math.round((Number(discountValue)||0)*100):Math.round((Number(discountValue)||0)*100) }),
+        body: JSON.stringify({ customerId: customer?.id, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:resolvedAddress.trim(), ...(propertyWorkflowReady&&estimateProperty?{propertyId:estimateProperty.property.id,propertyRevision:estimateProperty.property.revision,propertySelectionMode:estimateProperty.mode}:{}), items:payloadItems, appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountMode==="percent"?Math.round((Number(discountValue)||0)*100):Math.round((Number(discountValue)||0)*100) }),
       });
-      const result = await response.json() as { id?: string; customerId?:string; shareToken?:string; subtotalCents?:number;discountCents?:number;totalCents?:number;depositCents?:number;error?: string };
-      if (!response.ok || !result.id) throw new Error(result.error || "The estimate could not be saved.");
+      const result = await response.json() as { id?: string; customerId?:string; shareToken?:string; subtotalCents?:number;discountCents?:number;totalCents?:number;depositCents?:number;address?:string;propertyId?:string|null;propertyRevision?:number|null;error?: string };
+      if(!response.ok){
+        safelyRejected=response.status>=400&&response.status<500;
+        if(response.status>=500)setUncertainSave(true);
+        else if(response.status===409&&propertyWorkflowReady){setStep(1);setForcePropertyReview(true);setEstimateProperty(null);setPropertyBlocked(true);setPropertyRefresh(value=>value+1);}
+        throw new Error(result.error||'The estimate could not be saved.');
+      }
+      if(!result.id||propertyWorkflowReady&&(typeof result.address!=='string'||result.customerId!==customer?.id||estimateProperty&&(result.propertyId!==estimateProperty.property.id||result.propertyRevision!==estimateProperty.property.revision))){setUncertainSave(true);throw new Error('Save receipt could not be verified. Review stored estimates before another attempt.');}
+      const confirmedAddress=typeof result.address==='string'?result.address:resolvedAddress.trim();
+      setSavedReceipt({address:confirmedAddress,total:Number(result.totalCents??total),deposit:Number(result.depositCents??deposit)});
       const createdAt = new Date().toISOString();
-      onSaved?.({ id: result.id, customerId: result.customerId||customer?.id, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:address.trim(), service: items.map((item)=>item.name).join(", "), serviceDescription:items[0]?.description||"", items:payloadItems.map((item,index)=>({...item,id:`new-${index}`})), status: "draft", subtotalCents:Number(result.subtotalCents??subtotal), discountCents:Number(result.discountCents??discount.appliedDiscount), appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountMode==="percent"?Math.round((Number(discountValue)||0)*100):Math.round((Number(discountValue)||0)*100), totalCents: Number(result.totalCents??total), depositCents: Number(result.depositCents??deposit), paidCents: 0, shareToken:result.shareToken, createdAt });
+      onSaved?.({ id: result.id, customerId: result.customerId||customer?.id, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:confirmedAddress,propertyId:result.propertyId,propertyRevision:result.propertyRevision,serviceAddressSource:result.propertyId?'captured':undefined, service: items.map((item)=>item.name).join(", "), serviceDescription:items[0]?.description||"", items:payloadItems.map((item,index)=>({...item,id:`new-${index}`})), status: "draft", subtotalCents:Number(result.subtotalCents??subtotal), discountCents:Number(result.discountCents??discount.appliedDiscount), appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountMode==="percent"?Math.round((Number(discountValue)||0)*100):Math.round((Number(discountValue)||0)*100), totalCents: Number(result.totalCents??total), depositCents: Number(result.depositCents??deposit), paidCents: 0, shareToken:result.shareToken, createdAt });
       setSaved(true);
-    } catch (saveError) { setError(saveError instanceof Error ? saveError.message : "The estimate could not be saved. Please try again."); }
-    finally { setSaving(false); }
+    } catch (saveError) { if(!safelyRejected)setUncertainSave(true);setError(saveError instanceof Error ? saveError.message : "The estimate could not be saved. Please try again."); }
+    finally { setSaving(false);saveLock.current=false; }
   };
 
   const initialItem = {serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0};
@@ -417,21 +440,23 @@ function NewEstimate({ onSaved, customer,disabledReason }: { onSaved?: (estimate
     || JSON.stringify(items) !== JSON.stringify([initialItem]) || appreciationDiscount || discountMode !== "percent" || discountValue !== "");
   const reset = (value: boolean) => {
     if (!value && saving) return; // A pending response must finish before the dialog can close.
-    if (!value && hasUnsavedChanges && !window.confirm("Discard this unfinished estimate? Customer details, services, quantities, prices and discounts will be lost. Choose Cancel to keep editing.")) return;
+    if (!value && (hasUnsavedChanges||uncertainSave) && !window.confirm(uncertainSave?"Save was not confirmed. Closing does not cancel a possibly saved estimate. Review stored estimates before creating another. Close this draft?":"Discard this unfinished estimate? Customer details, services, quantities, prices and discounts will be lost. Choose Cancel to keep editing.")) return;
+    if(value){setForcePropertyReview(false);setEstimateProperty(propertySelection??null);setPropertyBlocked(propertyWorkflowReady);setPropertyRefresh(count=>count+1);}
     setOpen(value);
     if (!value) {
+      onClosed?.();
       // No delayed reset: reopening cannot be wiped by a timer from the prior dialog.
-      setStep(1);setSaved(false);setError("");setItems([initialItem]);setAppreciationDiscount(false);setDiscountMode("percent");setDiscountValue("");
+      setStep(1);setSaved(false);setSavedReceipt(null);setUncertainSave(false);setReviewedRecords([]);setError("");setItems([initialItem]);setAppreciationDiscount(false);setDiscountMode("percent");setDiscountValue("");
       setCustomerName(customer?.name??"");setEmail(customer?.email??"");setPhone(customer?.phone??"");setAddress(customer?.address??"");
     }
   };
 
   return <Dialog open={open} onOpenChange={reset}>
     <DialogTrigger asChild><Button className="brand-button" disabled={Boolean(disabledReason)} title={disabledReason}><Plus className="h-4 w-4" /> New estimate</Button></DialogTrigger>
-    <DialogContent className="max-h-[92vh] overflow-y-auto border-0 p-0 sm:max-w-[620px]">
+    <DialogContent aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto border-0 p-0 sm:max-w-[620px]">
       <div className="estimate-head"><DialogHeader><DialogTitle className="text-xl">Create estimate</DialogTitle></DialogHeader><p className="mt-1 text-sm text-slate-500">Step {step} of 2 · {step===1?"Customer details":"Services and pricing"}</p><Progress value={step*50} className="mt-4 h-1.5"/></div>
-      {saved?<div className="px-6 py-12 text-center"><span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-8 w-8"/></span><h2 className="text-2xl font-extrabold">Estimate ready</h2><p className="mx-auto mt-2 max-w-sm text-slate-500">{money(total)} total. A {money(deposit)} (50%) deposit reserves the customer&apos;s place on the schedule; the remaining balance is due when the work is completed.</p><div className="mt-7 flex justify-center"><Button className="brand-button" onClick={()=>reset(false)}>Done</Button></div></div>
-      :step===1?<div className="space-y-5 px-6 py-6"><div className="grid gap-2"><Label>Customer name</Label><Input placeholder="Full name" value={customerName} onChange={(event)=>setCustomerName(event.target.value)} readOnly={Boolean(customer)}/></div><div className="grid gap-2"><Label>Email</Label><Input type="email" placeholder="customer@email.com" value={email} onChange={(event)=>setEmail(event.target.value)} readOnly={Boolean(customer)}/></div><div className="grid gap-2"><Label>Phone</Label><Input inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={(event)=>setPhone(event.target.value)} readOnly={Boolean(customer)}/></div><div className="grid gap-2"><Label>Service address</Label><Input placeholder="Tulsa-area address" value={address} onChange={(event)=>setAddress(event.target.value)} readOnly={Boolean(customer)}/></div>{error&&<p className="save-error" role="alert">{error}</p>}<Button className="brand-button w-full" onClick={()=>{if(!customerName.trim()){setError("Customer name is required.");return;}setError("");setStep(2);}}>Continue to services <ChevronRight className="h-4 w-4"/></Button></div>
+      {saved?<div className="px-6 py-12 text-center"><span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-8 w-8"/></span><h2 className="text-2xl font-extrabold">Estimate ready</h2><p className="mx-auto mt-2 max-w-sm text-slate-500">{money(savedReceipt?.total??total)} total. A {money(savedReceipt?.deposit??deposit)} (50%) deposit reserves the customer&apos;s place on the schedule; the remaining balance is due when the work is completed.</p><p className="mt-3" data-saved-service-address>{savedReceipt?.address}</p><div className="mt-7 flex justify-center"><Button className="brand-button" onClick={()=>reset(false)}>Done</Button></div></div>
+      :step===1?<div className="space-y-5 px-6 py-6"><div className="grid gap-2"><Label>Customer name</Label><Input placeholder="Full name" value={customerName} onChange={(event)=>setCustomerName(event.target.value)} readOnly={Boolean(customer)}/></div><div className="grid gap-2"><Label>Email</Label><Input type="email" placeholder="customer@email.com" value={email} onChange={(event)=>setEmail(event.target.value)} readOnly={Boolean(customer)}/></div><div className="grid gap-2"><Label>Phone</Label><Input inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={(event)=>setPhone(event.target.value)} readOnly={Boolean(customer)}/></div><div className="grid gap-2"><Label>Service address</Label><Input aria-label="Estimate service address" placeholder="Tulsa-area address" value={resolvedAddress} onChange={(event)=>setAddress(event.target.value)} readOnly={Boolean(customer)}/></div>{propertyWorkflowReady&&customer&&open&&<CustomerProperties key={customer.id+'-'+propertyRefresh} customerId={customer.id} onRecordsChange={setPropertyBlocked} onSelectionChange={setEstimateProperty} initialPropertyId={forcePropertyReview?undefined:propertySelection?.property.id} compact/>}{error&&<p className="save-error" role="alert">{error}</p>}<Button className="brand-button w-full" disabled={propertyWorkflowReady&&propertyBlocked||uncertainSave} onClick={()=>{if(!customerName.trim()){setError("Customer name is required.");return;}setError("");setStep(2);}}>Continue to services <ChevronRight className="h-4 w-4"/></Button></div>
       :<div className="space-y-5 px-6 py-6">
         <div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.id||index}><header><strong>Service {index+1}</strong>{items.length>1&&<button type="button" onClick={()=>setItems((current)=>current.filter((_,i)=>i!==index))} aria-label={`Remove service ${index+1}`}><Trash2/></button>}</header>
           <div><Label>Service</Label><Select value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,quantity:svc.unit==="job"?1:0});setError("");}}><SelectTrigger><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent>{services.map((svc)=><SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}</SelectContent></Select></div>
@@ -444,8 +469,9 @@ function NewEstimate({ onSaved, customer,disabledReason }: { onSaved?: (estimate
         <section className="edit-discount-card"><Label>Additional bundle, promotion, or family discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} onChange={(event)=>setDiscountValue(event.target.value)} placeholder="0"/></div><p className="service-description-help">Choose percentage or dollar amount. Percentage discounts stack with the 5% appreciation discount, up to 50% total.</p></section>
         <div className="edit-totals"><span>Service subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(discount.appliedDiscount)}</strong></span><span>Customer total<strong>{money(total)}</strong></span><span>50% deposit to schedule<strong>{money(deposit)}</strong></span></div>
         {subtotal>0&&subtotal-discount.requestedDiscount<15000&&<p className="service-description-help">The $150 minimum job charge is applied automatically.</p>}{error&&<p className="save-error" role="alert">{error}</p>}
-        <div className="flex gap-3"><Button variant="outline" onClick={()=>setStep(1)} disabled={saving}>Back</Button><Button className="brand-button flex-1" onClick={()=>void saveEstimate()} disabled={saving}>{saving?"Saving…":`Save ${money(total)} estimate`}</Button></div>
+        <div className="flex gap-3"><Button variant="outline" onClick={()=>setStep(1)} disabled={saving}>Back</Button><Button className="brand-button flex-1" onClick={()=>void saveEstimate()} disabled={saving||uncertainSave||propertyWorkflowReady&&propertyBlocked}>{saving?"Saving…":`Save ${money(total)} estimate`}</Button></div>
       </div>}
+      {uncertainSave&&<section className="px-6 pb-6" aria-label="Unconfirmed estimate save"><p role="status">Save was not confirmed. Another save is blocked to prevent duplicate estimates.</p><Button variant="outline" disabled={reviewingRecords} onClick={()=>void reviewStored()}>Review stored estimates</Button>{reviewedRecords.map(row=><p key={row.id}>{row.service} · {row.address} · {money(row.totalCents)} · {row.id}</p>)}</section>}
     </DialogContent>
   </Dialog>;
 }
@@ -907,9 +933,13 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [photos,setPhotos]=useState<CustomerPhoto[]>([]);
   const [messages,setMessages]=useState<CustomerMessage[]>([]);
-  const [propertyEstimateBlocked,setPropertyEstimateBlocked]=useState(false);
+  const [propertyEstimateBlocked,setPropertyEstimateBlocked]=useState(true);
+  const [selectedProperty,setSelectedProperty]=useState<PropertyEstimateSelection|null>(null);
+  const [propertyWorkflowReady,setPropertyWorkflowReady]=useState(false);
+  const [propertyListRefresh,setPropertyListRefresh]=useState(0);
   const [payments,setPayments]=useState<PaymentRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  useEffect(()=>{setPropertyEstimateBlocked(true);setSelectedProperty(null);setPropertyWorkflowReady(false);},[selectedId]);
   const [activeEstimate, setActiveEstimate] = useState<EstimateRow | null>(null);
   const [section, setSection] = useState("estimates");
   const [noteText, setNoteText] = useState("");
@@ -917,9 +947,9 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const loadRequest=useRef(0);
-  const load = async () => {
+  const load = async (quiet=false) => {
     const request=++loadRequest.current;
-    setLoading(true); setError("");
+    if(!quiet){setLoading(true);setError("");}
     try {
       const response = await fetch("/api/customers");
       const result = await response.json() as { customers?: CustomerRow[]; estimates?: CustomerEstimate[]; notes?:CustomerNote[]; invoices?:InvoiceRow[]; photos?:CustomerPhoto[]; messages?:CustomerMessage[]; payments?:PaymentRow[]; error?: string };
@@ -943,7 +973,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
       setPhotos(nextPhotos);
       setMessages(nextMessages);
       setPayments(nextPayments);
-    } catch (loadError) { if(request===loadRequest.current)setError(loadError instanceof Error ? loadError.message : "Customer records could not be loaded."); }
+    } catch (loadError) { if(request===loadRequest.current&&!quiet)setError(loadError instanceof Error ? loadError.message : "Customer records could not be loaded."); }
     finally { if(request===loadRequest.current)setLoading(false); }
   };
   useEffect(() => { void load(); return()=>{loadRequest.current++;}; }, []);
@@ -959,7 +989,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
   const activeCustomerEstimate=customerEstimates.find((estimate)=>estimate.status==="scheduled")??customerEstimates.find((estimate)=>["approved","sent","draft"].includes(estimate.status))??customerEstimates.find((estimate)=>estimate.status==="completed"&&estimate.paidCents<resolvedBillingTotalCents(estimate))??customerEstimates[0];
   const customerOpenBalance=customerEstimates.reduce((sum,estimate)=>sum+billingBalanceCents(estimate),0);
   const customerPaidTotal=customerPayments.filter((payment)=>!['Tip','Tip Refund'].includes(payment.type)).reduce((sum,payment)=>sum+payment.amountCents,0);
-  const handleEstimateSaved = (estimate: EstimateRow) => { onEstimateSaved(estimate); void load(); };
+  const handleEstimateSaved = (estimate: EstimateRow) => { onEstimateSaved(estimate); void load(true); };
   const saveNote = async () => {
     if (!selected || !noteText.trim()) return;
     setSavingNote(true);
@@ -977,7 +1007,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
     <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={()=>{ setActiveEstimate(null); void load(); }} />
     <button className="back-link" onClick={() => { setSelectedId(null); setSection("estimates"); }}>← All customers</button>
     <section className="customer-profile">
-      <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><p className="eyebrow">Customer profile</p><h1>{selected.name}</h1></div><div className="profile-head-actions"><EditCustomer customer={selected} onUpdated={(updated)=>setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item))}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/><NewEstimate disabledReason={propertyEstimateBlocked?'Property-linked estimates remain disabled pending association and backup verification.':undefined} customer={selected} onSaved={handleEstimateSaved} /></div></div>
+      <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><p className="eyebrow">Customer profile</p><h1>{selected.name}</h1></div><div className="profile-head-actions"><EditCustomer customer={selected} onUpdated={(updated)=>setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item))}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/><NewEstimate key={selected.id} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /></div></div>
       <div className="customer-snapshot">
         <span><small>Jobs / estimates</small><strong>{customerEstimates.length}</strong></span>
         <span><small>Paid</small><strong>{money(customerPaidTotal)}</strong></span>
@@ -995,7 +1025,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
         {selected.address && <a href={`https://www.zillow.com/homes/${encodeURIComponent(selected.address.trim().replace(/\s+/g,"-"))}_rb/`} target="_blank" rel="noreferrer"><House />Zillow</a>}
       </div>
       {selected.address && <PropertyPreview address={selected.address} />}
-      <CustomerProperties key={selected.id} customerId={selected.id} onRecordsChange={setPropertyEstimateBlocked}/>
+      <CustomerProperties key={selected.id+'-'+propertyListRefresh} customerId={selected.id} onRecordsChange={setPropertyEstimateBlocked} onSelectionChange={setSelectedProperty} onWorkflowChange={setPropertyWorkflowReady}/>
     </section>
     <nav className="record-tabs">
       <button className={section === "estimates" ? "active" : ""} onClick={() => setSection("estimates")}>Estimates <b>{customerEstimates.length}</b></button>

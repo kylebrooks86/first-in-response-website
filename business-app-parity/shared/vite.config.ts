@@ -10,6 +10,7 @@ const localBindingConfig = {
   vars: {
     FIRE_SERVICE_LOCATIONS_CANDIDATE: process.env.NODE_ENV === "development" && process.env.FIRE_SERVICE_LOCATIONS_CANDIDATE === "synthetic-only" ? "synthetic-only" : "",
     FIRE_CUSTOMER_PROPERTIES_CANDIDATE: process.env.NODE_ENV === "development" && process.env.FIRE_CUSTOMER_PROPERTIES_CANDIDATE === "synthetic-only" ? "synthetic-only" : "",
+    FIRE_PROPERTY_WORKFLOW_CANDIDATE: process.env.NODE_ENV === "development" && process.env.FIRE_PROPERTY_WORKFLOW_CANDIDATE === "synthetic-tests-only" ? "synthetic-tests-only" : "",
     FIRE_PROPERTY_RECOVERY_CANDIDATE: process.env.NODE_ENV === "development" && process.env.FIRE_PROPERTY_RECOVERY_CANDIDATE === "synthetic-tests-only" ? "synthetic-tests-only" : "",
     FIRE_PROPERTY_ESTIMATES_CANDIDATE: process.env.NODE_ENV === "development" && process.env.FIRE_PROPERTY_ESTIMATES_CANDIDATE === "synthetic-tests-only" ? "synthetic-tests-only" : "",
     FIRE_LOCAL_CUSTOMERS_CANDIDATE: process.env.NODE_ENV === "development"

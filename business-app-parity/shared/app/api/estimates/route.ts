@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     if(Object.prototype.hasOwnProperty.call(body,'propertyId')&&(!propertyTests||!existingCustomerId))return Response.json({error:'Property-linked estimates are disabled pending association and backup verification. No estimate created.'},{status:409});
     if(!propertyTests&&customerPropertiesEnabled(env)&&existingCustomerId){const properties=await env.DB.prepare('SELECT COUNT(*) AS total FROM customer_properties WHERE customer_id=?').bind(existingCustomerId).first<{total:number}>();if(Number(properties?.total)>0)return Response.json({error:'This customer has retained properties. Property-linked estimate creation is not enabled until association and backup checks pass. No estimate created.'},{status:409});}
     let selection:Awaited<ReturnType<typeof selectEstimateProperty>>=null;
-    if(propertyTests&&existingCustomerId){try{selection=await selectEstimateProperty(env.DB,existingCustomerId,body.propertyId,body.propertyRevision);}catch(error){if(error instanceof PropertySelectionError)return Response.json({error:error.message},{status:409});throw error;}}
+    if(propertyTests&&existingCustomerId){try{selection=await selectEstimateProperty(env.DB,existingCustomerId,body.propertyId,body.propertyRevision,body.propertySelectionMode);}catch(error){if(error instanceof PropertySelectionError)return Response.json({error:error.message},{status:409});throw error;}}
     const customer = String(body.customer ?? "").trim();
     const email = String(body.email ?? "").trim();
     const phone = String(body.phone ?? "").trim();
