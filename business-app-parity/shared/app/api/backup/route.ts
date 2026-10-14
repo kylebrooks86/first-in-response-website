@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {serviceLocationsEnabled} from "../../../lib/service-location";
 import {customerPropertiesEnabled} from '../../../lib/customer-properties';
+import {propertyBackupError,hasPropertyBackup} from "../../../lib/property-backup.mjs";
 import {serviceLocationManifest,serviceLocationBackupError} from "../../../lib/service-location-backup.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
@@ -282,10 +283,12 @@ export async function POST(request: Request) {
     const raw = await request.text();
     if (raw.length > 5_000_000) return Response.json({ error: "That backup is larger than the 5 MB restore limit." }, { status: 413 });
     const payload: unknown = JSON.parse(raw);
-    if(isRecord(payload)&&isRecord(payload.tables)&&Object.keys(payload.tables).some(table=>['customer_properties','estimate_property_links'].includes(table)))return Response.json({error:'Property-aware recovery is not verified yet. No records changed.'},{status:409});
+    if(isRecord(payload)&&isRecord(payload.tables)&&hasPropertyBackup(payload,payload.tables))return Response.json({error:'Property-aware recovery is not verified yet. No records changed.'},{status:409});
     if (!isRecord(payload)) return Response.json({ error: "This is not a valid FIRE App records backup." }, { status: 400 });
     const backupTables = normalizeBackupTables(payload);
     if (!backupTables) return Response.json({ error: "This is not a valid or complete FIRE App records backup." }, { status: 400 });
+    const propertyError=propertyBackupError(payload,backupTables);
+    if(propertyError)return Response.json({error:propertyError,restoreAudit},{status:400});
     const snapshotError=serviceLocationBackupError(payload,backupTables);
     if(snapshotError)return Response.json({error:snapshotError,restoreAudit},{status:400});
     const snapshotEnabled=serviceLocationsEnabled(env);
