@@ -1,6 +1,6 @@
 {
   "scope": "FIRE Business App only",
-  "asOf": "2026-10-13",
+  "asOf": "2026-10-14",
   "sourceComparison": {
     "passed": 119,
     "total": 119,
@@ -6200,6 +6200,25 @@
     "evidence": "ESTIMATE_HISTORY_PAGINATION_EVIDENCE.json",
     "handoff": "ESTIMATE_HISTORY_PAGINATION_HANDOFF.md",
     "nextPriority": "Historical service-address/property schema compatibility and remaining hosted gate evidence",
+    "officialReleaseReadinessPercent": 30,
+    "verifiedGates": 3,
+    "totalGates": 10
+  },
+  "followupRefreshRetentionBatch": {
+    "parentCheckpoint": "6ea359715065053775026964e1ede94bd56cf4fb",
+    "dateUtc": "2026-10-14",
+    "status": "verified candidate source; checkpoint accompanies this report",
+    "browserPassed": 111,
+    "browserTotal": 111,
+    "financialPassed": 207,
+    "financialTotal": 207,
+    "typeScriptPassed": 3,
+    "fullBuildsPassed": 3,
+    "sharedFilesChecked": 134,
+    "sourceParity": true,
+    "deployedParityVerified": false,
+    "evidence": "FOLLOWUP_REFRESH_RETENTION_EVIDENCE.json",
+    "handoff": "FOLLOWUP_REFRESH_RETENTION_HANDOFF.md",
     "officialReleaseReadinessPercent": 30,
     "verifiedGates": 3,
     "totalGates": 10

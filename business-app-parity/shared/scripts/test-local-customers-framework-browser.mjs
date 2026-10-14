@@ -193,13 +193,35 @@ try{
  });
  await check('authenticated follow-up keyset pages preserve older records bounds and retry',async()=>{
   const now=Date.now(),created=new Date(now-30*86400000).toISOString(),sent=new Date(now-8*86400000).toISOString();
-  const sql=["INSERT INTO customers(id,name,created_at) VALUES ('synthetic-page-customer','Synthetic Older History','"+created+"');"];
+  const sql=["INSERT INTO customers(id,name,phone,created_at) VALUES ('synthetic-page-customer','Synthetic Older History','9185550100','"+created+"');"];
   for(let i=0;i<125;i++){const id='synthetic-page-'+String(i).padStart(3,'0');sql.push("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES ('"+id+"','synthetic-page-customer','sent',20000,20000,10000,'"+created+"');");sql.push("INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES ('"+id+"-send','synthetic-page-customer','"+id+"','text_confirmed','estimate','Synthetic only','"+sent+"');");}
   writeFileSync(join(testRoot,'synthetic-followup-pages.sql'),sql.join('\n'));await command([join(source,'node_modules/wrangler/bin/wrangler.js'),'d1','execute','fire-app-local','--local','--persist-to',join(testRoot,'.wrangler/state'),'--config',join(testRoot,'wrangler.fixture.json'),'--file',join(testRoot,'synthetic-followup-pages.sql')]);
   const ids=[];let cursor=null;do{const res=await context.request.get(origin+'/api/followups?limit=50'+(cursor?'&cursor='+encodeURIComponent(cursor):''));assert.equal(res.status(),200);const page=await res.json();assert.ok(page.estimates.length<=50);ids.push(...page.estimates.map(e=>e.id));cursor=page.nextCursor;}while(cursor);assert.equal(ids.length,126);assert.equal(new Set(ids).size,126);
   for(const q of ['limit=0','limit=51','limit=-1','limit=1.5','cursor=bad!'])assert.equal((await context.request.get(origin+'/api/followups?'+q)).status(),400);
   const anon=await context.browser().newContext();try{assert.equal((await anon.request.get(origin+'/api/followups')).status(),401);}finally{await anon.close();}
   await p.getByRole('button',{name:'Follow-ups',exact:true}).first().click();await p.getByRole('status').filter({hasText:'50 records loaded'}).waitFor();let fail=true;const failure=async route=>{if(fail&&route.request().url().includes('cursor=')){fail=false;return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Synthetic page unavailable'})});}return route.continue();};await p.route('**/api/followups?*',failure);await p.getByRole('button',{name:'Load older records',exact:true}).click();await p.getByRole('alert').filter({hasText:'Synthetic page unavailable'}).waitFor();await p.getByRole('status').filter({hasText:'50 records loaded'}).waitFor();await p.getByRole('button',{name:'Retry older records',exact:true}).click();await p.getByRole('status').filter({hasText:'100 records loaded'}).waitFor();await p.getByRole('button',{name:'Load older records',exact:true}).click();await p.getByRole('status').filter({hasText:'126 records loaded'}).waitFor();assert.equal(await p.getByRole('button',{name:'Load older records',exact:true}).count(),0);await p.unroute('**/api/followups?*',failure);await p.getByRole('button',{name:'Customers',exact:true}).first().click();
+ });
+ await check('confirmed-send refresh keeps older pages and retries failed refresh without resending',async()=>{
+  await p.getByRole('button',{name:'Follow-ups',exact:true}).first().click();
+  await p.getByRole('status').filter({hasText:'50 records loaded'}).waitFor();
+  for(const count of [100,126]){await p.getByRole('button',{name:'Load older records',exact:true}).click();await p.getByRole('status').filter({hasText:count+' records loaded'}).waitFor();}
+  const send=async()=>{const card=p.locator('.followup-card').filter({hasText:'Synthetic Older History'}).last();await card.getByRole('button',{name:'Prepare message',exact:true}).click();const composer=p.getByRole('dialog',{name:'Message Synthetic Older History',exact:true});await composer.getByRole('button',{name:'Text',exact:true}).click();await composer.getByRole('button',{name:'I sent the prepared message',exact:true}).click();await composer.waitFor({state:'detached'});};
+  const before=await p.locator('.followup-card').filter({hasText:'Synthetic Older History'}).count();
+  await send();await p.waitForFunction(()=>document.querySelector('.followup-summary')!==null);
+  assert.match(await p.getByRole('status').innerText(),/126 records loaded/);
+  assert.equal(await p.locator('.followup-card').filter({hasText:'Synthetic Older History'}).count(),before-1);
+  let fail=true;const reads=[];const failure=async route=>{reads.push(route.request().method());if(fail&&route.request().url().includes('cursor=')){fail=false;return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Synthetic refresh page unavailable'})});}return route.continue();};
+  await p.route('**/api/followups?*',failure);await send();
+  await p.getByRole('alert').filter({hasText:'Synthetic refresh page unavailable'}).waitFor();
+  assert.match(await p.getByRole('status').innerText(),/126 records loaded/);
+  assert.equal(await p.locator('.followup-card').filter({hasText:'Synthetic Older History'}).count(),before-2);
+  const messagesBefore=await (await context.request.get(origin+'/api/followups?limit=50')).json();
+  await p.getByRole('button',{name:'Retry follow-up refresh',exact:true}).click();await p.waitForFunction(()=>document.querySelector('.followup-summary')!==null);
+  assert.match(await p.getByRole('status').innerText(),/126 records loaded/);assert.equal(await p.getByRole('alert').count(),0);
+  assert.equal(await p.locator('.followup-card').filter({hasText:'Synthetic Older History'}).count(),before-2);
+  assert.ok(reads.length>=5);assert.ok(reads.every(method=>method==='GET'));
+  assert.deepEqual(await (await context.request.get(origin+'/api/followups?limit=50')).json(),messagesBefore);
+  await p.unroute('**/api/followups?*',failure);await p.getByRole('button',{name:'Customers',exact:true}).first().click();
  });
  await check('estimate history pages search all records preserve details and retain open edits',async()=>{
   const created=new Date(Date.now()-30*86400000).toISOString();

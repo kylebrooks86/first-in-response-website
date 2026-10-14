@@ -1152,17 +1152,37 @@ function FollowUpsView({searchQuery}:{searchQuery:string}){
   const [nextCursor,setNextCursor]=useState<string|null>(null);
   const [reviewEstimate,setReviewEstimate]=useState<EstimateRow|null>(null);
   const loadRequest=useRef(0);
+  const loadedPages=useRef(1);
+  const retryAppend=useRef(false);
   const load=async(append=false)=>{
     const request=++loadRequest.current;
+    retryAppend.current=append;
     setLoading(true);setError("");
     try{
-      const response=await fetch(`/api/followups?limit=50${append&&nextCursor?`&cursor=${encodeURIComponent(nextCursor)}`:""}`);
-      const result=await response.json() as {estimates?:EstimateRow[];nextCursor?:string|null;error?:string};
-      if(!response.ok)throw new Error(result.error||"Customer follow-ups could not be loaded.");
-      if(!Array.isArray(result.estimates))throw new Error("Follow-up records could not be read. Try again.");
+      // Refresh every page already loaded; publish only after the full read succeeds.
+      // Each request remains bounded to 50 records. Never write or retry a send here.
+      const pageLimit=append?1:loadedPages.current;
+      let cursor=append?nextCursor:null;
+      const incoming:EstimateRow[]=[];
+      let pagesRead=0;
+      for(let page=0;page<pageLimit;page++){
+        const response=await fetch(`/api/followups?limit=50${cursor?`&cursor=${encodeURIComponent(cursor)}`:""}`);
+        const result=await response.json() as {estimates?:EstimateRow[];nextCursor?:string|null;error?:string};
+        if(request!==loadRequest.current)return;
+        if(!response.ok)throw new Error(result.error||"Customer follow-ups could not be loaded.");
+        if(!Array.isArray(result.estimates)||!(result.nextCursor==null||typeof result.nextCursor==="string"))throw new Error("Follow-up records could not be read. Try again.");
+        incoming.push(...result.estimates.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)})));
+        pagesRead++;
+        const following=result.nextCursor??null;
+        if(following&&following===cursor)throw new Error("Follow-up paging did not advance. Try again.");
+        cursor=following;
+        if(!cursor)break;
+      }
       if(request!==loadRequest.current)return;
-      const incoming=result.estimates.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)}));
-      setRows(current=>append?[...current,...incoming.filter(item=>!current.some(row=>row.id===item.id))]:incoming);setNextCursor(result.nextCursor??null);
+      const unique=incoming.filter((item,index)=>incoming.findIndex(row=>row.id===item.id)===index);
+      setRows(current=>append?[...current,...unique.filter(item=>!current.some(row=>row.id===item.id))]:unique);
+      loadedPages.current=append?loadedPages.current+pagesRead:pagesRead;
+      setNextCursor(cursor);
     }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Customer follow-ups could not be loaded.");}
     finally{if(request===loadRequest.current)setLoading(false);}
   };
@@ -1192,7 +1212,7 @@ function FollowUpsView({searchQuery}:{searchQuery:string}){
     {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>recommended actions</small></div></span><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>Messages open prefilled and editable. Your phone still lets you review and tap Send.</p></div>}
     {loading&&rows.length===0?<div className="customers-state">Checking customer follow-ups…</div>:error&&rows.length===0?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:actions.length?<section className="followup-list">{actions.map(({estimate,template,reason,kind})=>{const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};return <article className={`followup-card ${kind}`} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><p>{reason}</p><small>{estimate.service} · {money(billingBalanceCents(estimate))}</small></div>{kind==="history"?<Button variant="outline" onClick={()=>setReviewEstimate(estimate)}>Review estimate</Button>:<MessageComposer customer={customer} estimate={estimate} initialTemplate={template} triggerLabel="Prepare message" onSent={(message,status)=>{setRows(current=>current.map(row=>row.id===estimate.id?{...row,status:status||row.status,...(message.template==="estimate"?{firstEstimateSentAt:row.firstEstimateSentAt||message.createdAt,lastEstimateSentAt:message.createdAt}:{}),...(["estimate","followUp1","followUp3","followUp7"].includes(message.template)?{lastEstimateContactAt:message.createdAt}:{}),...(message.template==="followUp1"?{stage1At:message.createdAt}:{}),...(message.template==="followUp3"?{stage3At:message.createdAt}:{}),...(message.template==="followUp7"?{stage7At:message.createdAt}:{}),...(message.template==="review"?{lastReviewRequestAt:message.createdAt}:{}),...(["winBack6","winBack11"].includes(message.template)?{lastRebookMessageAt:message.createdAt}:{})}:row));void load();}}/>}
 </article>;})}</section>:<div className="customers-state"><CheckCircle2/><strong>{nextCursor?"No reminders in loaded records":"You’re caught up"}</strong><p>No follow-ups are recommended in the loaded records. Check older records when available.</p></div>}
-    <p role="status">{rows.length} records loaded. {nextCursor?"Older records are available.":"End of available records."}</p>{error&&rows.length>0&&<p role="alert">{error}</p>}{nextCursor&&<Button variant="outline" disabled={loading} onClick={()=>void load(true)}>{loading?"Loading…":error?"Retry older records":"Load older records"}</Button>}
+    <p role="status">{rows.length} records loaded. {nextCursor?"Older records are available.":"End of available records."}</p>{error&&rows.length>0&&<p role="alert">{error}</p>}{error&&!retryAppend.current&&rows.length>0&&<Button variant="outline" disabled={loading} onClick={()=>void load()}>Retry follow-up refresh</Button>}{nextCursor&&<Button variant="outline" disabled={loading||Boolean(error&&!retryAppend.current)} onClick={()=>void load(true)}>{loading?"Loading…":error&&retryAppend.current?"Retry older records":"Load older records"}</Button>}
   </div>;
 }
 
