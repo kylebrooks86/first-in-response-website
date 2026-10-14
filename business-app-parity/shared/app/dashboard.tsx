@@ -3,6 +3,7 @@
 import { CandidateLayoutTrace } from "../components/candidate-layout-trace";
 import { OwnerAccountView } from "./owner-account";
 import { estimateFollowUpTiming, estimateReminderStage } from "../lib/follow-up-timing";
+import { messageHistoryEntries } from "../lib/message-history";
 import { summarizeProcessing } from "../lib/processing-fees";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -195,6 +196,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const [open,setOpen]=useState(false);
   const [template,setTemplate]=useState(initialTemplate);
   const [body,setBody]=useState("");
+  const draftEdited=useRef(false);
   const [templates,setTemplates]=useState<FireTemplate[]>(FIRE_TEMPLATES);
   const [shareToken,setShareToken]=useState(estimate?.shareToken||"");
   const [invoiceShareToken,setInvoiceShareToken]=useState(estimate?.invoiceShareToken||"");
@@ -223,17 +225,28 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const needsEstimateLink=["estimate","followUp1","followUp3","followUp7"].includes(template);
   useEffect(()=>{
     if(!open)return;
-    void (async()=>{try{const response=await fetch("/api/message-templates");const result=await response.json() as {templates?:FireTemplate[]};if(response.ok&&result.templates)setTemplates(result.templates);}catch{}})();
+    let active=true;
+    void (async()=>{try{const response=await fetch("/api/message-templates");const result=await response.json() as {templates?:FireTemplate[]};if(active&&response.ok&&result.templates)setTemplates(result.templates);}catch{}})();
+    return()=>{active=false;};
   },[open]);
   useEffect(()=>{
     if(!open||!estimate||shareToken||!needsEstimateLink)return;
-    void (async()=>{try{const response=await fetch(`/api/estimates/${estimate.id}/share`,{method:"POST"});const result=await response.json() as {shareToken?:string};if(response.ok&&result.shareToken)setShareToken(result.shareToken);}catch{}})();
+    let active=true;
+    void (async()=>{try{const response=await fetch(`/api/estimates/${estimate.id}/share`,{method:"POST"});const result=await response.json() as {shareToken?:string};if(active&&response.ok&&result.shareToken)setShareToken(result.shareToken);}catch{}})();
+    return()=>{active=false;};
   },[open,estimate,shareToken,needsEstimateLink]);
   useEffect(()=>{
     if(!open||!estimate?.invoiceId||invoiceShareToken||!needsInvoiceLink)return;
-    void (async()=>{try{const response=await fetch(`/api/invoices/${estimate.invoiceId}/share`,{method:"POST"});const result=await response.json() as {shareToken?:string};if(response.ok&&result.shareToken)setInvoiceShareToken(result.shareToken);}catch{}})();
+    let active=true;
+    void (async()=>{try{const response=await fetch(`/api/invoices/${estimate.invoiceId}/share`,{method:"POST"});const result=await response.json() as {shareToken?:string};if(active&&response.ok&&result.shareToken)setInvoiceShareToken(result.shareToken);}catch{}})();
+    return()=>{active=false;};
   },[open,estimate,invoiceShareToken,needsInvoiceLink]);
-  useEffect(()=>{if(open)setBody(renderedBody);},[open,renderedBody]);
+  useEffect(()=>{if(open&&!draftEdited.current)setBody(renderedBody);},[open,renderedBody]);
+  const chooseTemplate=(value:string)=>{
+    if(value===template)return;
+    if(draftEdited.current&&!window.confirm("Replace your edited message with another template?"))return;
+    draftEdited.current=false;setTemplate(value);setBody("");
+  };
   const log=async(channel:"text_prepared"|"email_prepared"|"copy")=>{
     setWorking(true);
     try{
@@ -250,14 +263,14 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     try{const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:preparedMessage.id,customerId:customer.id,ownerConfirmedSent:true})});const result=await response.json() as {message?:CustomerMessage;estimateStatus?:string;error?:string};if(!response.ok||!result.message)throw new Error(result.error||"Send confirmation could not be saved.");onLogged?.(result.message);setPreparedMessage(null);setMessageStatus("Sent — confirmed by you. Delivery and read status are unknown.");if(preparedMessage.template===initialTemplate)await onSent?.(result.message,result.estimateStatus);}catch(error){setMessageStatus(error instanceof Error?error.message:"Send confirmation could not be saved.");}finally{setWorking(false);}
   };
   const copy=async()=>{try{await navigator.clipboard.writeText(body);await log("copy");}catch{setMessageStatus("Copy failed. No sending is confirmed.");}};
-  return <Dialog open={open} onOpenChange={(value)=>{setOpen(value);if(value){setTemplate(initialTemplate);setSiteOrigin(window.location.origin);}}}>
+  return <Dialog open={open} onOpenChange={(value)=>{setOpen(value);if(value){setSiteOrigin(window.location.origin);}}}>
     <DialogTrigger asChild><Button variant="outline"><MessageSquareText className="h-4 w-4" /> {triggerLabel}</Button></DialogTrigger>
     <DialogContent className="message-dialog sm:max-w-[620px]">
       <DialogHeader><DialogTitle>Message {customer.name}</DialogTitle></DialogHeader>
       <div className="message-builder">
-        {messageStatus&&<p role="status">{messageStatus}</p>}{preparedMessage&&<div><p>After sending the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}, confirm here. Opening the other app does not send it.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button></div>}
-        <div><Label>Message type</Label><Select value={preparedMessage?.template??template} onValueChange={setTemplate} disabled={working||Boolean(preparedMessage)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{composerTemplates.map((item)=><SelectItem key={item.key} value={item.key}>{item.name}</SelectItem>)}</SelectContent></Select></div>
-        <div><Label htmlFor="customerMessage">Personalized message</Label><Textarea id="customerMessage" disabled={working||Boolean(preparedMessage)} value={preparedMessage?.body??body} onChange={(event)=>setBody(event.target.value)} rows={8}/><small>Customer, service, price, date, address, and the private estimate or invoice link are filled in automatically when available. You can edit anything before sending.</small></div>
+        {messageStatus&&<p role="status">{messageStatus}</p>}{preparedMessage&&<div><p>After sending the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}, confirm here. Opening the other app does not send it.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button></div>}
+        <div><Label>Message type</Label><Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{composerTemplates.map((item)=><SelectItem key={item.key} value={item.key}>{item.name}</SelectItem>)}</SelectContent></Select></div>
+        <div><Label htmlFor="customerMessage">Personalized message</Label><Textarea id="customerMessage" disabled={working||Boolean(preparedMessage)} value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={8}/><small>Customer, service, price, date, address, and the private estimate or invoice link are filled in automatically when available. You can edit anything before sending.</small></div>
         <div className="message-actions"><Button variant="outline" onClick={()=>void copy()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Copy className="h-4 w-4"/> Copy</Button>{customer.email&&activeTemplate?.channel!=="sms"&&<Button variant="outline" onClick={()=>void sendEmail()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Mail className="h-4 w-4"/> Email</Button>}{customer.phone&&activeTemplate?.channel!=="email"&&<Button className="brand-button" onClick={()=>void sendText()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Send className="h-4 w-4"/> Text</Button>}</div>
       </div>
     </DialogContent>
@@ -938,6 +951,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
   const customerInvoices = invoices.filter((invoice)=>invoice.customerId === selectedId);
   const customerPhotos=photos.filter((photo)=>photo.customerId===selectedId);
   const customerMessages=messages.filter((message)=>message.customerId===selectedId);
+  const historyEntries=messageHistoryEntries(customerMessages);
   const customerPayments=payments.filter((payment)=>payment.customerId===selectedId);
   const filteredCustomers = customers.filter((customer)=>[customer.name,customer.email,customer.phone,customer.address].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));
   const activeCustomerEstimate=customerEstimates.find((estimate)=>estimate.status==="scheduled")??customerEstimates.find((estimate)=>["approved","sent","draft"].includes(estimate.status))??customerEstimates.find((estimate)=>estimate.status==="completed"&&estimate.paidCents<resolvedBillingTotalCents(estimate))??customerEstimates[0];
@@ -961,14 +975,14 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
     <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={()=>{ setActiveEstimate(null); void load(); }} />
     <button className="back-link" onClick={() => { setSelectedId(null); setSection("estimates"); }}>← All customers</button>
     <section className="customer-profile">
-      <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><p className="eyebrow">Customer profile</p><h1>{selected.name}</h1></div><div className="profile-head-actions"><EditCustomer customer={selected} onUpdated={(updated)=>setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item))}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current])}/><NewEstimate customer={selected} onSaved={handleEstimateSaved} /></div></div>
+      <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><p className="eyebrow">Customer profile</p><h1>{selected.name}</h1></div><div className="profile-head-actions"><EditCustomer customer={selected} onUpdated={(updated)=>setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item))}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/><NewEstimate customer={selected} onSaved={handleEstimateSaved} /></div></div>
       <div className="customer-snapshot">
         <span><small>Jobs / estimates</small><strong>{customerEstimates.length}</strong></span>
         <span><small>Paid</small><strong>{money(customerPaidTotal)}</strong></span>
         <span><small>Open balance</small><strong>{money(customerOpenBalance)}</strong></span>
         <span><small>Current stage</small><strong>{activeCustomerEstimate?statusLabel(activeCustomerEstimate.status):"No active job"}</strong></span>
       </div>
-      {activeCustomerEstimate&&<button className="customer-next-job" onClick={()=>setActiveEstimate({...activeCustomerEstimate,customer:selected.name,email:selected.email,phone:selected.phone,address:selected.address})}><span><Sparkles/><span><small>Continue current job</small><strong>{activeCustomerEstimate.service}</strong></span></span><span>{activeCustomerEstimate.scheduledAt?dateTime(activeCustomerEstimate.scheduledAt):statusLabel(activeCustomerEstimate.status)} <ChevronRight/></span></button>}
+      {activeCustomerEstimate&&<button className="customer-next-job" onClick={()=>setActiveEstimate({...activeCustomerEstimate,customer:selected.name,email:selected.email,phone:selected.phone,address:activeCustomerEstimate.address??undefined})}><span><Sparkles/><span><small>Continue current job</small><strong>{activeCustomerEstimate.service}</strong></span></span><span>{activeCustomerEstimate.scheduledAt?dateTime(activeCustomerEstimate.scheduledAt):statusLabel(activeCustomerEstimate.status)} <ChevronRight/></span></button>}
       <div className="customer-contact">
         {selected.phone ? <a href={`tel:${selected.phone}`}><Phone />Call</a> : <span><Phone />No phone</span>}
         {selected.phone && <a href={`sms:${selected.phone}`}><Send />Text</a>}
@@ -985,15 +999,15 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
       <button className={section === "payments" ? "active" : ""} onClick={() => setSection("payments")}>Payments</button>
       <button className={section === "invoices" ? "active" : ""} onClick={() => setSection("invoices")}>Invoices</button>
       <button className={section === "photos" ? "active" : ""} onClick={() => setSection("photos")}>Photos <b>{customerPhotos.length}</b></button>
-      <button className={section === "messages" ? "active" : ""} onClick={() => setSection("messages")}>Messages <b>{customerMessages.length}</b></button>
+      <button className={section === "messages" ? "active" : ""} onClick={() => setSection("messages")}>Messages <b>{historyEntries.length}</b></button>
       <button className={section === "notes" ? "active" : ""} onClick={() => setSection("notes")}>Notes <b>{customerNotes.length}</b></button>
     </nav>
     <section className="customer-records">
-      {section === "estimates" && (customerEstimates.length ? customerEstimates.map((estimate) => <button className="customer-record record-button" key={estimate.id} onClick={()=>setActiveEstimate({...estimate,customer:selected.name,email:selected.email,phone:selected.phone,address:selected.address})}><div><strong>{estimate.service}</strong><small>{new Date(estimate.createdAt).toLocaleDateString()} · {statusLabel(estimate.status)}{estimate.scheduledAt ? ` · ${dateTime(estimate.scheduledAt)}` : ""}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight /></button>) : <div className="record-empty"><ClipboardList /><strong>No estimates yet</strong><p>Create the first estimate from this customer profile.</p></div>)}
+      {section === "estimates" && (customerEstimates.length ? customerEstimates.map((estimate) => <button className="customer-record record-button" key={estimate.id} onClick={()=>setActiveEstimate({...estimate,customer:selected.name,email:selected.email,phone:selected.phone,address:estimate.address??undefined})}><div><strong>{estimate.service}</strong><small>{new Date(estimate.createdAt).toLocaleDateString()} · {statusLabel(estimate.status)}{estimate.scheduledAt ? ` · ${dateTime(estimate.scheduledAt)}` : ""}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight /></button>) : <div className="record-empty"><ClipboardList /><strong>No estimates yet</strong><p>Create the first estimate from this customer profile.</p></div>)}
       {section === "payments" && (customerPayments.length ? customerPayments.map((payment) => <article className="customer-record customer-payment-record" key={payment.id}><div><strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":`${paymentTypeLabel(payment.type)} payment`}</strong><small>{dateTime(payment.createdAt)}{payment.reference&&<span className="inline-flex max-w-full flex-wrap items-center gap-1"><span className="font-mono" title={payment.reference}> · Ref …{payment.reference.slice(-12)}</span><button type="button" aria-label="Copy full payment reference" className="rounded border px-2 py-0.5 text-xs" onClick={()=>void navigator.clipboard.writeText(payment.reference||"").catch(()=>{})}>Copy</button></span>}</small><ProcessingDetails payment={payment}/></div><strong className="customer-payment-amount">{money(payment.amountCents)}</strong><RefundPayment payment={payment} onRefunded={()=>void load()}/></article>) : <div className="record-empty"><CreditCard /><strong>No payments recorded</strong><p>Open an estimate and choose Record payment after receiving money through Wave, Cash App, Venmo, cash, check, card, or bank transfer.</p></div>)}
       {section === "invoices" && (customerInvoices.length ? customerInvoices.map((invoice)=><a className="customer-record record-button" key={invoice.id} href={invoice.shareToken?`/invoice/${invoice.shareToken}`:undefined} target="_blank" rel="noreferrer"><div><strong>Invoice #{invoice.id.slice(0,6).toUpperCase()}</strong><small>{Number(invoice.paymentOverageOpen)>0?"Payment review in progress":statusLabel(invoice.status)} · Due {invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString() : "on receipt"}</small></div><strong>{money(invoice.totalCents)}</strong><ExternalLink/></a>) : <div className="record-empty"><Receipt /><strong>No invoices yet</strong><p>Open an estimate and tap Create invoice.</p></div>)}
       {section === "photos"&&<CustomerPhotos customer={selected} photos={photos} setPhotos={setPhotos}/>}
-      {section === "messages"&&(customerMessages.length?customerMessages.map((message)=><article className="message-history" key={message.id}><span className={`message-channel ${message.channel}`}><MessageSquareText/></span><div><strong>{message.template==="followupContact"?"Customer contact recorded":message.template==="followupSnooze"?"Estimate follow-up snoozed":messageLabels[message.template]||"Customer message"}</strong><p>{message.body}</p><small>{message.channel==="contact_recorded"?"Contacted · owner recorded":message.channel==="followup_snoozed"?"Follow-up snoozed until "+dateTime(message.body):message.channel.endsWith("_prepared")?"Prepared · sending unconfirmed":message.channel.endsWith("_confirmed")?"Sent · owner confirmed; delivery unknown":message.channel==="copy"?"Copied · sending unconfirmed":"Legacy interaction · sending unconfirmed"} · {dateTime(message.createdAt)}</small></div></article>):<div className="record-empty"><MessageSquareText/><strong>No messages prepared yet</strong><p>Use the Message button to create a personalized text or email.</p></div>)}
+      {section === "messages"&&(historyEntries.length?historyEntries.map(({message,prepared})=><article className="message-history" key={message.id}><span className={`message-channel ${message.channel}`}><MessageSquareText/></span><div><strong>{message.template==="followupContact"?"Customer contact recorded":message.template==="followupSnooze"?"Estimate follow-up snoozed":messageLabels[message.template]||"Customer message"}</strong><p>{message.body}</p><small>{message.channel==="contact_recorded"?"Contacted · owner recorded":message.channel==="followup_snoozed"?"Follow-up snoozed until "+dateTime(message.body):message.channel.endsWith("_prepared")?"Prepared · sending unconfirmed":message.channel.endsWith("_confirmed")?"Sent · owner confirmed; delivery unknown":message.channel==="copy"?"Copied · sending unconfirmed":"Legacy interaction · sending unconfirmed"} · {dateTime(message.createdAt)}{prepared&&<> · Prepared {dateTime(prepared.createdAt)} · 2 audit events retained</>}</small></div></article>):<div className="record-empty"><MessageSquareText/><strong>No messages prepared yet</strong><p>Use the Message button to create a personalized text or email.</p></div>)}
       {section === "notes" && <div className="notes-panel"><div className="note-compose"><Input value={noteText} onChange={(event)=>setNoteText(event.target.value)} placeholder="Gate code, pets, property details…" /><Button className="brand-button" onClick={()=>void saveNote()} disabled={savingNote || !noteText.trim()}><Plus className="h-4 w-4" /> Add note</Button></div>{customerNotes.length ? customerNotes.map((note)=><article className="note-row" key={note.id}><StickyNote /><div><p>{note.body}</p><small>{dateTime(note.createdAt)}</small></div></article>) : <div className="record-empty"><StickyNote /><strong>No notes yet</strong><p>Save access details and job-specific reminders here.</p></div>}</div>}
     </section>
   </div>;
