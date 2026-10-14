@@ -1005,27 +1005,31 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
 function EstimatesView({ onSaved, searchQuery, focusEstimateId }: { onSaved:(estimate:EstimateRow)=>void; searchQuery:string; focusEstimateId?:string|null }) {
   const [rows,setRows]=useState<EstimateRow[]>([]);
   const [filter,setFilter]=useState("all");
+  const [historySearch,setHistorySearch]=useState(searchQuery);
+  useEffect(()=>setHistorySearch(searchQuery),[searchQuery]);
   const [view,setView]=useState<"pipeline"|"list">("pipeline");
   const [selected,setSelected]=useState<EstimateRow|null>(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
+  const [nextCursor,setNextCursor]=useState<string|null>(null);
   const loadRequest=useRef(0);
-  const load=async()=>{
+  const load=async(append=false)=>{
     const request=++loadRequest.current;
-    setLoading(true);setError("");setSelected(null);
+    setLoading(true);setError("");
     try{
-      const response=await fetch("/api/estimates");
-      const result=await response.json() as {estimates?:EstimateRow[];error?:string};
+      const response=await fetch(`/api/estimate-history?limit=50&q=${encodeURIComponent(historySearch)}&status=${encodeURIComponent(filter)}${append&&nextCursor?`&cursor=${encodeURIComponent(nextCursor)}`:""}`);
+      const result=await response.json() as {estimates?:EstimateRow[];nextCursor?:string|null;error?:string};
       if(!response.ok)throw new Error(result.error||"Estimates could not be loaded.");
       if(!Array.isArray(result.estimates))throw new Error("Estimate records could not be read. Try again.");
       if(request!==loadRequest.current)return;
-      setRows(result.estimates.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)})));
+      const incoming=result.estimates.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)}));
+      setRows(current=>append?[...current,...incoming.filter(item=>!current.some(row=>row.id===item.id))]:incoming);setNextCursor(result.nextCursor??null);
     }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Estimates could not be loaded.");}
     finally{if(request===loadRequest.current)setLoading(false);}
   };
-  useEffect(()=>{void load();return()=>{loadRequest.current++;};},[]);
-  useEffect(()=>{if(loading||error||!focusEstimateId)return;const match=rows.find((row)=>row.id===focusEstimateId);if(!match)return;const timer=window.setTimeout(()=>setSelected(match),0);return()=>window.clearTimeout(timer);},[focusEstimateId,rows,loading,error]);
-  const searched=rows.filter((row)=>[row.customer,row.service,row.address,row.phone].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));
+  useEffect(()=>{loadRequest.current++;setLoading(true);const timer=window.setTimeout(()=>void load(),200);return()=>{window.clearTimeout(timer);loadRequest.current++;};},[historySearch,filter]);
+  useEffect(()=>{if(!focusEstimateId)return;let cancelled=false;void(async()=>{try{const response=await fetch(`/api/estimate-history?focus=${encodeURIComponent(focusEstimateId)}`);const result=await response.json() as {estimates?:EstimateRow[];error?:string};if(!response.ok||!result.estimates?.[0])throw new Error(result.error||"The selected estimate could not be found.");if(!cancelled)setSelected(result.estimates[0]);}catch(error){if(!cancelled)setError(error instanceof Error?error.message:"The selected estimate could not be read.");}})();return()=>{cancelled=true;};},[focusEstimateId]);
+  const searched=rows;
   const visible=searched.filter((row)=>filter==="all"||row.status===filter);
   const pipeline=[
     {key:"draft",label:"New quotes",rows:searched.filter((row)=>row.status==="draft"&&row.paidCents<resolvedBillingTotalCents(row))},
@@ -1036,12 +1040,14 @@ function EstimatesView({ onSaved, searchQuery, focusEstimateId }: { onSaved:(est
     {key:"paid",label:"Paid",rows:searched.filter((row)=>resolvedBillingTotalCents(row)>0&&row.paidCents>=resolvedBillingTotalCents(row))},
     {key:"declined",label:"Lost",rows:searched.filter((row)=>row.status==="declined"&&row.paidCents<resolvedBillingTotalCents(row))},
   ];
-  const changed=(estimate:EstimateRow)=>{setRows((current)=>current.map((row)=>row.id===estimate.id?estimate:row));setSelected(estimate);};
+  const changed=(estimate:EstimateRow)=>{setRows((current)=>current.some(row=>row.id===estimate.id)?current.map((row)=>row.id===estimate.id?estimate:row):[...current,estimate]);setSelected(estimate);};
   return <div className="workspace-view">
-    <EstimateDetail estimate={loading||error?null:selected} onClose={()=>setSelected(null)} onChanged={changed}/>
-    <section className="workspace-head"><div><p className="eyebrow">Quote to job</p><h1>Estimates</h1><p>See every opportunity, move it forward, and know what needs attention.</p></div><div className="workspace-head-actions"><div className="view-switch" aria-label="Estimate view"><button className={view==="pipeline"?"active":""} onClick={()=>setView("pipeline")}><SquareKanban/> Pipeline</button><button className={view==="list"?"active":""} onClick={()=>setView("list")}><List/> List</button></div><NewEstimate onSaved={(estimate)=>{onSaved(estimate);setRows((current)=>[estimate,...current]);}}/></div></section>
+    <EstimateDetail estimate={selected} onClose={()=>setSelected(null)} onChanged={changed}/>
+    <section className="workspace-head"><div><p className="eyebrow">Quote to job</p><h1>Estimates</h1><p>See every opportunity, move it forward, and know what needs attention.</p></div><div className="workspace-head-actions"><div className="view-switch" aria-label="Estimate view"><button className={view==="pipeline"?"active":""} onClick={()=>{setView("pipeline");setFilter("all");}}><SquareKanban/> Pipeline</button><button className={view==="list"?"active":""} onClick={()=>setView("list")}><List/> List</button></div><NewEstimate onSaved={(estimate)=>{onSaved(estimate);setRows((current)=>[estimate,...current]);}}/></div></section>
+    <Input aria-label="Search estimate history" placeholder="Search estimate history" maxLength={128} value={historySearch} onChange={event=>setHistorySearch(event.target.value)}/>
     {view==="list"&&<div className="filter-row">{["all","draft","sent","approved","scheduled","completed","declined"].map((status)=><button key={status} className={filter===status?"active":""} onClick={()=>setFilter(status)}>{statusLabel(status)}</button>)}</div>}
-    {loading?<div className="customers-state">Loading estimates…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:view==="pipeline"?<section className="pipeline-board">{pipeline.map((column)=><section className={`pipeline-column ${column.key}`} key={column.key}><header><div><strong>{column.label}</strong><small>{money(column.rows.reduce((sum,row)=>sum+resolvedBillingTotalCents(row),0))}</small></div><b>{column.rows.length}</b></header><div>{column.rows.map((estimate)=><button className="pipeline-card" key={estimate.id} onClick={()=>setSelected(estimate)}><span><strong>{estimate.customer}</strong>{resolvedBillingTotalCents(estimate)>=100000&&<em><Star/> High value</em>}</span><p>{estimate.service}</p>{estimate.scheduledAt&&<small><CalendarDays/> {dateTime(estimate.scheduledAt)}</small>}<footer><span>{estimate.paidCents>0?`${money(estimate.paidCents)} paid`:new Date(estimate.createdAt).toLocaleDateString()}</span><strong>{money(resolvedBillingTotalCents(estimate))}</strong></footer></button>)}{!column.rows.length&&<div className="pipeline-empty">Nothing here</div>}</div></section>)}</section>:visible.length?<section className="estimate-list">{visible.map((estimate)=><button key={estimate.id} className="estimate-card" onClick={()=>setSelected(estimate)}><span className={`status-bar ${estimate.status}`}/><span className="estimate-person"><strong>{estimate.customer}</strong><small>{estimate.service} · {new Date(estimate.createdAt).toLocaleDateString()}</small></span><span className={`status-chip ${estimate.status}`}>{statusLabel(estimate.status)}</span>{estimate.scheduledAt&&<span className="scheduled-chip"><CalendarDays/> {dateTime(estimate.scheduledAt)}</span>}<strong className="estimate-amount">{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight/></button>)}</section>:<div className="customers-state"><ClipboardList/><strong>No matching estimates</strong><p>Create an estimate or choose another status.</p></div>}
+    {loading&&rows.length===0?<div className="customers-state">Loading estimates…</div>:error&&rows.length===0?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:view==="pipeline"?<section className="pipeline-board">{pipeline.map((column)=><section className={`pipeline-column ${column.key}`} key={column.key}><header><div><strong>{column.label}</strong><small>{money(column.rows.reduce((sum,row)=>sum+resolvedBillingTotalCents(row),0))}</small></div><b>{column.rows.length}</b></header><div>{column.rows.map((estimate)=><button className="pipeline-card" key={estimate.id} onClick={()=>setSelected(estimate)}><span><strong>{estimate.customer}</strong>{resolvedBillingTotalCents(estimate)>=100000&&<em><Star/> High value</em>}</span><p>{estimate.service}</p>{estimate.scheduledAt&&<small><CalendarDays/> {dateTime(estimate.scheduledAt)}</small>}<footer><span>{estimate.paidCents>0?`${money(estimate.paidCents)} paid`:new Date(estimate.createdAt).toLocaleDateString()}</span><strong>{money(resolvedBillingTotalCents(estimate))}</strong></footer></button>)}{!column.rows.length&&<div className="pipeline-empty">Nothing here</div>}</div></section>)}</section>:visible.length?<section className="estimate-list">{visible.map((estimate)=><button key={estimate.id} className="estimate-card" onClick={()=>setSelected(estimate)}><span className={`status-bar ${estimate.status}`}/><span className="estimate-person"><strong>{estimate.customer}</strong><small>{estimate.service} · {new Date(estimate.createdAt).toLocaleDateString()}</small></span><span className={`status-chip ${estimate.status}`}>{statusLabel(estimate.status)}</span>{estimate.scheduledAt&&<span className="scheduled-chip"><CalendarDays/> {dateTime(estimate.scheduledAt)}</span>}<strong className="estimate-amount">{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight/></button>)}</section>:<div className="customers-state"><ClipboardList/><strong>No matching estimates</strong><p>No matching estimates in this result page. Try another search or status.</p></div>}
+    <p role="status">{rows.length} estimate records loaded. {nextCursor?"Older matching records are available.":"End of matching history."} Pipeline totals cover loaded records.</p>{error&&rows.length>0&&<p role="alert">{error}</p>}{nextCursor&&<Button variant="outline" disabled={loading} onClick={()=>void load(true)}>{loading?"Loading…":error?"Retry older estimates":"Load older estimates"}</Button>}
   </div>;
 }
 

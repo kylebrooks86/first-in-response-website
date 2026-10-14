@@ -6183,5 +6183,25 @@
     "databaseWrites": 0,
     "stripeActions": 0,
     "paidServices": 0
+  },
+  "estimateHistoryPaginationBatch": {
+    "parentCheckpoint": "67c8d6dee396f3bc6cf88249bf80472aaf3d4174",
+    "dateUtc": "2026-10-14",
+    "status": "verified candidate source; checkpoint accompanies this report",
+    "browserPassed": 108,
+    "browserTotal": 108,
+    "financialPassed": 207,
+    "financialTotal": 207,
+    "typeScriptPassed": 3,
+    "fullBuildsPassed": 3,
+    "sharedFilesChecked": 134,
+    "sourceParity": true,
+    "deployedParityVerified": false,
+    "evidence": "ESTIMATE_HISTORY_PAGINATION_EVIDENCE.json",
+    "handoff": "ESTIMATE_HISTORY_PAGINATION_HANDOFF.md",
+    "nextPriority": "Historical service-address/property schema compatibility and remaining hosted gate evidence",
+    "officialReleaseReadinessPercent": 30,
+    "verifiedGates": 3,
+    "totalGates": 10
   }
 }
