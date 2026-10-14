@@ -70,6 +70,12 @@ if (!archiveStat?.isFile()) throw new Error(`Photo archive not found: ${absolute
 const listResult = unzip(["-Z1", absoluteArchive]);
 if (listResult.status !== 0) fail(listResult, "The ZIP archive could not be listed.");
 const entries = String(listResult.stdout).split(/\r?\n/).filter(Boolean);
+if (new Set(entries).size !== entries.length) throw new Error("The ZIP archive contains duplicate entry names.");
+// Validate the entire archive before inspecting or writing destination resources.
+// A successful central-directory listing alone does not prove file integrity.
+const integrityResult = unzip(["-t", absoluteArchive]);
+if (integrityResult.status !== 0) fail(integrityResult, "The ZIP archive failed integrity validation.");
+
 if (!entries.includes("manifest.json")) throw new Error("The ZIP archive does not contain manifest.json.");
 
 const manifestResult = unzip(["-p", absoluteArchive, "manifest.json"]);
