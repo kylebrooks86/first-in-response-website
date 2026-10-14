@@ -389,9 +389,19 @@ function NewEstimate({ onSaved, customer }: { onSaved?: (estimate: EstimateRow) 
     finally { setSaving(false); }
   };
 
+  const initialItem = {serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0};
+  const hasUnsavedChanges = !saved && (customerName !== (customer?.name??"") || email !== (customer?.email??"")
+    || phone !== (customer?.phone??"") || address !== (customer?.address??"")
+    || JSON.stringify(items) !== JSON.stringify([initialItem]) || appreciationDiscount || discountMode !== "percent" || discountValue !== "");
   const reset = (value: boolean) => {
+    if (!value && saving) return; // A pending response must finish before the dialog can close.
+    if (!value && hasUnsavedChanges && !window.confirm("Discard this unfinished estimate? Customer details, services, quantities, prices and discounts will be lost. Choose Cancel to keep editing.")) return;
     setOpen(value);
-    if (!value) setTimeout(() => { setStep(1);setSaved(false);setError("");setItems([{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);setAppreciationDiscount(false);setDiscountMode("percent");setDiscountValue("");if(!customer){setCustomerName("");setEmail("");setPhone("");setAddress("");} }, 250);
+    if (!value) {
+      // No delayed reset: reopening cannot be wiped by a timer from the prior dialog.
+      setStep(1);setSaved(false);setError("");setItems([initialItem]);setAppreciationDiscount(false);setDiscountMode("percent");setDiscountValue("");
+      setCustomerName(customer?.name??"");setEmail(customer?.email??"");setPhone(customer?.phone??"");setAddress(customer?.address??"");
+    }
   };
 
   return <Dialog open={open} onOpenChange={reset}>
