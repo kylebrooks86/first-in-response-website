@@ -6,6 +6,7 @@ async function authorized(){ const user=await getOwnerUser(); return Boolean(use
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return new Response("Unauthorized", { status: 401 });
+  if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable. Existing photo records have been preserved." }, { status: 503 });
   const { id } = await context.params;
   const row = await env.DB.prepare("SELECT object_key AS objectKey,content_type AS contentType FROM customer_photos WHERE id=?").bind(id).first<{objectKey:string;contentType:string}>();
   if (!row || !env.BUCKET) return new Response("Photo not found", { status: 404 });
