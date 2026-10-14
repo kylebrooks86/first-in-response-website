@@ -36,7 +36,14 @@ const stages=[
  ['before initial send needs review',record(4,{stage7At:ago(12)}),null,true],
  ['new send cycle ignores prior stages',record(2,{firstEstimateSentAt:ago(20),stage7At:ago(10)}),'followUp1',false],
  ['draft is not a sent stage',record(8,{status:'draft'}),null,false],
- ['invalid stage needs review',record(8,{stage3At:'invalid'}),null,true],
+ ['manual contact cooldown',record(8,{lastManualContactAt:ago(.5)}),null,false],
+ ['manual contact boundary',record(8,{lastManualContactAt:ago(1)}),'followUp7',false],
+ ['future manual contact needs review',record(8,{lastManualContactAt:ago(-1)}),null,true],
+ ['invalid manual contact needs review',record(8,{lastManualContactAt:'invalid'}),null,true],
+ ['snooze suppresses quote only',record(8,{snoozeUntil:ago(-7)}),null,false],
+ ['expired snooze returns existing stage',record(8,{snoozeUntil:ago(0)}),'followUp7',false],
+ ['invalid snooze requires review',record(8,{snoozeUntil:'invalid'}),null,true],
+ ['invalid stage needs review' ,record(8,{stage3At:'invalid'}),null,true],
 ];
 for(const [name,value,template,review] of stages){const result=estimateReminderStage(value,now);assert.equal(result.template,template,name);assert.equal(Boolean(result.reviewReason),review,name);}
 console.log(JSON.stringify({passed:cases.length+stages.length,total:cases.length+stages.length,checks:[...cases.map(c=>c[0]),...stages.map(c=>c[0])]}));

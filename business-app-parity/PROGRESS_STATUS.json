@@ -6222,5 +6222,26 @@
     "officialReleaseReadinessPercent": 30,
     "verifiedGates": 3,
     "totalGates": 10
+  },
+  "followupOwnerActionsBatch": {
+    "parentCheckpoint": "d90c1081490e107a2027af2d4386dfe4547c252c",
+    "status": "verified candidate source; checkpoint accompanies this report",
+    "dateUtc": "2026-10-14",
+    "browserPassed": 117,
+    "browserTotal": 117,
+    "timingPassed": 108,
+    "timingTotal": 108,
+    "financialPassed": 207,
+    "financialTotal": 207,
+    "typeScriptPassed": 3,
+    "fullBuildsPassed": 3,
+    "sharedFilesChecked": 135,
+    "sourceParity": true,
+    "deployedParityVerified": false,
+    "evidence": "FOLLOWUP_OWNER_ACTIONS_EVIDENCE.json",
+    "handoff": "FOLLOWUP_OWNER_ACTIONS_HANDOFF.md",
+    "officialReleaseReadinessPercent": 30,
+    "verifiedGates": 3,
+    "totalGates": 10
   }
 }

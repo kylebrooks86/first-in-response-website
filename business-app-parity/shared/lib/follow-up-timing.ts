@@ -9,7 +9,7 @@ export function estimateFollowUpTiming(estimate: FollowUpEstimate, now: number) 
   return { ageDays:anchor===null||!Number.isFinite(now)?0:Math.max(0,Math.floor((now-anchor)/86400000)), confirmedContact:confirmed.length>0 };
 }
 
-export type ReminderRecord = {status:string;lastEstimateSentAt?:string|null;firstEstimateSentAt?:string|null;lastEstimateContactAt?:string|null;stage1At?:string|null;stage3At?:string|null;stage7At?:string|null};
+export type ReminderRecord = {status:string;lastEstimateSentAt?:string|null;firstEstimateSentAt?:string|null;lastEstimateContactAt?:string|null;stage1At?:string|null;stage3At?:string|null;stage7At?:string|null;lastManualContactAt?:string|null;snoozeUntil?:string|null};
 export function estimateReminderStage(record:ReminderRecord,now:number):{template:"followUp1"|"followUp3"|"followUp7"|null;reviewReason:string|null} {
   const none={template:null,reviewReason:null};if(record.status!=="sent")return none;
   const first=timestamp(record.firstEstimateSentAt),sent=timestamp(record.lastEstimateSentAt);
@@ -20,6 +20,9 @@ export function estimateReminderStage(record:ReminderRecord,now:number):{templat
   const stages=[timestamp(record.stage1At),timestamp(record.stage3At),timestamp(record.stage7At)].map(time=>time!==null&&time>=sent?time:null);
   if(stages.some((time,i)=>time!==null&&stages.slice(i+1).some(later=>later!==null&&time>later)))return {template:null,reviewReason:"Reminder order needs review; no reminder is suggested."};
   if(stages[2]!==null)return none;
+  const manual=timestamp(record.lastManualContactAt),snooze=timestamp(record.snoozeUntil);
+  if((record.lastManualContactAt&&(manual===null||manual>now))||(record.snoozeUntil&&snooze===null))return {template:null,reviewReason:"Follow-up action dates need review; no reminder is suggested."};
+  if((manual!==null&&now-manual<86400000)||(snooze!==null&&snooze>now))return none;
   const contact=timestamp(record.lastEstimateContactAt)??sent;
   if(!Number.isFinite(now)||now-Math.max(sent,contact)<86400000)return none;
   const days=(now-sent)/86400000;
