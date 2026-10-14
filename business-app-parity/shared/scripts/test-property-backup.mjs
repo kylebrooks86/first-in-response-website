@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {propertyBackupError,propertyBackupManifest} from '../lib/property-backup.mjs';
+import {validateRecordIdentities} from './records-backup-integrity.mjs';
 import {serviceLocationManifest} from '../lib/service-location-backup.mjs';
 const time='2026-10-14T00:00:00.000Z';
 const tables={customers:[{id:'c'}],estimates:[{id:'e',customer_id:'c'}],customer_properties:[{id:'p',customer_id:'c',address:'123 Main',designation:'Unit A',active:1,revision:1,created_at:time}],estimate_property_links:[{estimate_id:'e',customer_id:'c',property_id:'p',property_revision:1,selection_mode:'sole',captured_at:time}],estimate_service_locations:[{estimate_id:'e',customer_id:'c',address:'123 Main · Unit A',captured_at:time}]};
@@ -33,4 +34,6 @@ check('partial link coverage',p=>p.customerProperties.estimateIds=[]);
 check('duplicate manifest identity',p=>p.customerProperties.propertyIds.push('p'));
 check('legacy never invents links',p=>{delete p.includes.customerProperties;delete p.customerProperties;delete p.tables.customer_properties;delete p.tables.estimate_property_links;},true);
 check('empty complete property extension',p=>{p.tables.customer_properties=[];p.tables.estimate_property_links=[];p.customerProperties=propertyBackupManifest([],[]);},true);
+assert.equal(validateRecordIdentities(tables),null);passed++;console.log('PASS shared identity validation uses estimate identity for snapshots and links');
+const duplicate=structuredClone(tables);duplicate.estimate_property_links.push({...duplicate.estimate_property_links[0]});assert.match(validateRecordIdentities(duplicate),/duplicate estimate_id/);passed++;console.log('PASS shared identity validation rejects duplicate property links');
 console.log(`PASS ${passed}/${passed} property backup contracts; no database writes`);

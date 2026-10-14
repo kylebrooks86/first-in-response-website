@@ -123,7 +123,7 @@ export {validateBackupRelationships,validateRefundIntegrity};
 export function validateRecordIdentities(tables){
  for(const [table,rows] of Object.entries(tables)){
   if(!Array.isArray(rows))return `Backup ${table} must be an array.`;
-  const seen=new Set();const key=table==='message_templates'?'key':'id';
+  const seen=new Set();const key=['estimate_service_locations','estimate_property_links'].includes(table)?'estimate_id':table==='message_templates'?'key':'id';
   for(const row of rows){
    if(!isRecord(row)||typeof row[key]!=='string'||!row[key].trim())return `Backup ${table} contains an invalid ${key}.`;
    if(seen.has(row[key]))return `Backup ${table} contains duplicate ${key} ${row[key]}.`;

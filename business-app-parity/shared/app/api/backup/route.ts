@@ -1,3 +1,4 @@
+import {propertyRecoveryTestEnabled,exportPropertyRecords,restorePropertyRecords} from '../../../lib/property-recovery';
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {serviceLocationsEnabled} from "../../../lib/service-location";
@@ -202,8 +203,9 @@ async function authorized() {
 
 export async function GET() {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if(customerPropertiesEnabled(env))return Response.json({error:'Property-aware backup is not verified yet. Candidate export is blocked to prevent omitted property records.'},{status:409});
+  if(customerPropertiesEnabled(env)&&!propertyRecoveryTestEnabled(env))return Response.json({error:'Property-aware backup is not verified yet. Candidate export is blocked to prevent omitted property records.'},{status:409});
   try {
+    if(propertyRecoveryTestEnabled(env)){const payload=await exportPropertyRecords(env.DB);return new Response(JSON.stringify(payload),{headers:{'cache-control':'no-store','content-type':'application/json','content-disposition':'attachment; filename=fire-property-records-backup.json'}});}
     const snapshotEnabled=serviceLocationsEnabled(env);
     const exportTables:readonly string[]=snapshotEnabled?[...TABLES,"estimate_service_locations"]:TABLES;
     const results = await env.DB.batch(exportTables.map((table) => env.DB.prepare(`SELECT * FROM ${table}`)));
@@ -263,7 +265,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if(customerPropertiesEnabled(env))return Response.json({error:'Property-aware recovery is not verified yet. No records changed.'},{status:409});
+  if(customerPropertiesEnabled(env)&&!propertyRecoveryTestEnabled(env))return Response.json({error:'Property-aware recovery is not verified yet. No records changed.'},{status:409});
   const restoreAudit={
     attemptId:crypto.randomUUID(),
     phase:"input_validation",
@@ -283,10 +285,12 @@ export async function POST(request: Request) {
     const raw = await request.text();
     if (raw.length > 5_000_000) return Response.json({ error: "That backup is larger than the 5 MB restore limit." }, { status: 413 });
     const payload: unknown = JSON.parse(raw);
-    if(isRecord(payload)&&isRecord(payload.tables)&&hasPropertyBackup(payload,payload.tables))return Response.json({error:'Property-aware recovery is not verified yet. No records changed.'},{status:409});
+    if(isRecord(payload)&&isRecord(payload.tables)&&hasPropertyBackup(payload,payload.tables)&&!propertyRecoveryTestEnabled(env))return Response.json({error:'Property-aware recovery is not verified yet. No records changed.'},{status:409});
     if (!isRecord(payload)) return Response.json({ error: "This is not a valid FIRE App records backup." }, { status: 400 });
     const backupTables = normalizeBackupTables(payload);
     if (!backupTables) return Response.json({ error: "This is not a valid or complete FIRE App records backup." }, { status: 400 });
+    if(propertyRecoveryTestEnabled(env)&&hasPropertyBackup(payload,backupTables))return await restorePropertyRecords(env.DB,payload,backupTables);
+    if(propertyRecoveryTestEnabled(env)){const retained=await env.DB.prepare('SELECT COUNT(*) AS total FROM customer_properties').first<{total:number}>();if(Number(retained?.total)>0)return Response.json({error:'Legacy recovery cannot modify a destination with retained properties.'},{status:409});}
     const propertyError=propertyBackupError(payload,backupTables);
     if(propertyError)return Response.json({error:propertyError,restoreAudit},{status:400});
     const snapshotError=serviceLocationBackupError(payload,backupTables);

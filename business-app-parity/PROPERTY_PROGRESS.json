@@ -1,0 +1,35 @@
+{
+  "dateUtc": "2026-10-14",
+  "milestones": [
+    {
+      "name": "Property records and authenticated management",
+      "verified": true
+    },
+    {
+      "name": "Profile selection and archival",
+      "verified": true
+    },
+    {
+      "name": "Atomic estimate/property association",
+      "verified": true
+    },
+    {
+      "name": "Property-aware native backup/recovery",
+      "verified": true
+    },
+    {
+      "name": "Complete customer estimate workflow",
+      "verified": false
+    }
+  ],
+  "passed": 4,
+  "total": 5,
+  "percent": 80,
+  "officialReleaseReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "evidence": "PROPERTY_RECOVERY_EVIDENCE.json",
+  "handoff": "PROPERTY_RECOVERY_HANDOFF.md"
+}
