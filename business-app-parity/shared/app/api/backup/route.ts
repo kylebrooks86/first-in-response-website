@@ -1,5 +1,7 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {serviceLocationsEnabled} from "../../../lib/service-location";
+import {serviceLocationManifest,serviceLocationBackupError} from "../../../lib/service-location-backup.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 const TABLES = [
@@ -199,8 +201,11 @@ async function authorized() {
 export async function GET() {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const results = await env.DB.batch(TABLES.map((table) => env.DB.prepare(`SELECT * FROM ${table}`)));
-    const tables = Object.fromEntries(TABLES.map((table, index) => [table, results[index]?.results ?? []]));
+    const snapshotEnabled=serviceLocationsEnabled(env);
+    const exportTables:readonly string[]=snapshotEnabled?[...TABLES,"estimate_service_locations"]:TABLES;
+    const results = await env.DB.batch(exportTables.map((table) => env.DB.prepare(`SELECT * FROM ${table}`)));
+    if(results.some(result=>!Array.isArray(result.results)))throw Error("Incomplete backup read");
+    const tables = Object.fromEntries(exportTables.map((table, index) => [table, results[index].results]));
     const refundIntegrityError=validateRefundIntegrity(tables);
     if(refundIntegrityError)return Response.json({error:`Records backup stopped: ${refundIntegrityError}`},{status:409});
     if(Array.isArray(tables.customer_photos)){
@@ -233,10 +238,14 @@ export async function GET() {
         invoiceRevisionHistory: true,
         paymentCheckoutSessionSafety: true,
         paymentRefundHistory: true,
+        ...(snapshotEnabled?{serviceAddressSnapshots:true}:{}),
       },
       warning: "Customer photo files are stored separately and are not included in this JSON backup.",
       tables,
+      ...(snapshotEnabled?{serviceLocationSnapshots:serviceLocationManifest(tables.estimate_service_locations as Record<string,unknown>[])}:{}),
     };
+    const snapshotError=serviceLocationBackupError(payload,tables);
+    if(snapshotError)return Response.json({error:`Records backup stopped: ${snapshotError}`},{status:409});
     return new Response(JSON.stringify(payload, null, 2), {
       headers: {
         "cache-control": "no-store",
@@ -273,6 +282,22 @@ export async function POST(request: Request) {
     if (!isRecord(payload)) return Response.json({ error: "This is not a valid FIRE App records backup." }, { status: 400 });
     const backupTables = normalizeBackupTables(payload);
     if (!backupTables) return Response.json({ error: "This is not a valid or complete FIRE App records backup." }, { status: 400 });
+    const snapshotError=serviceLocationBackupError(payload,backupTables);
+    if(snapshotError)return Response.json({error:snapshotError,restoreAudit},{status:400});
+    const snapshotEnabled=serviceLocationsEnabled(env);
+    const hasSnapshots=Array.isArray(backupTables.estimate_service_locations);
+    if(hasSnapshots&&!snapshotEnabled)return Response.json({error:"This destination has not enabled service-address snapshot recovery. No records changed.",restoreAudit},{status:409});
+    let targetSnapshots:Record<string,unknown>[]=[];
+    if(snapshotEnabled){
+      const schema=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='estimate_service_locations'").first();
+      if(!schema)return Response.json({error:"The destination snapshot schema is unavailable. No records changed.",restoreAudit},{status:409});
+      targetSnapshots=(await env.DB.prepare("SELECT estimate_id,customer_id,address,captured_at FROM estimate_service_locations").all<Record<string,unknown>>()).results;
+    }
+    const snapshotById=new Map(targetSnapshots.map(row=>[row.estimate_id,row]));
+    if(hasSnapshots)for(const raw of backupTables.estimate_service_locations as Record<string,unknown>[]){
+      const existing=snapshotById.get(raw.estimate_id);
+      if(existing&&["estimate_id","customer_id","address","captured_at"].some(column=>existing[column]!==raw[column]))return Response.json({error:"Restore conflict: an existing historical service address differs. No records changed.",restoreAudit},{status:409});
+    }
     const relationshipError=validateBackupRelationships(backupTables);
     if(relationshipError)return Response.json({error:`This backup failed relationship validation: ${relationshipError}`,restoreAudit},{status:400});
     const lifecycleNormalization=normalizeLegacyLifecycleNotifications(backupTables.notifications);
@@ -503,7 +528,8 @@ export async function POST(request: Request) {
 
     const statements: ReturnType<typeof env.DB.prepare>[] = [];
     const verificationPlans:{table:string;identityColumn:string;identity:string;columns:readonly string[];values:(string|number|null)[]}[]=[];
-    for (const [table, columns] of RESTORE_TABLES) {
+    const restoreTables:readonly (readonly [string,readonly string[]])[]=hasSnapshots?[...RESTORE_TABLES,["estimate_service_locations",["estimate_id","customer_id","address","captured_at"]]]:RESTORE_TABLES;
+    for (const [table, columns] of restoreTables) {
       const rows = backupTables[table];
       if (!Array.isArray(rows)) {
         if (table === "invoice_items" || table === "invoice_revisions" || table === "payment_checkout_sessions" || table === "payment_refunds") continue;
@@ -533,10 +559,13 @@ export async function POST(request: Request) {
           return Response.json({ error: `The ${table} backup contains an invalid field.` }, { status: 400 });
         }
         const placeholders = columns.map(() => "?").join(",");
-        const identityColumn=table==="message_templates"?"key":"id";
+        const identityColumn=table==="estimate_service_locations"?"estimate_id":table==="message_templates"?"key":"id";
         const identity=String(candidate[identityColumn]??"");
         if(!identity)return Response.json({error:`The ${table} backup contains a record without a valid ${identityColumn}.`},{status:400});
-        statements.push(env.DB.prepare(`INSERT OR IGNORE INTO ${table} (${columns.join(",")}) VALUES (${placeholders})`).bind(...values as BackupRow[keyof BackupRow][]));
+        if(table==="estimate_service_locations"){
+          // A concurrent differing snapshot must abort the whole D1 batch, not be ignored.
+          statements.push(env.DB.prepare(`INSERT INTO estimate_service_locations (${columns.join(",")}) SELECT ${placeholders} WHERE NOT EXISTS(SELECT 1 FROM estimate_service_locations WHERE estimate_id=? AND customer_id=? AND address=? AND captured_at=?)`).bind(...values as BackupRow[keyof BackupRow][],...values as BackupRow[keyof BackupRow][]));
+        }else statements.push(env.DB.prepare(`INSERT OR IGNORE INTO ${table} (${columns.join(",")}) VALUES (${placeholders})`).bind(...values as BackupRow[keyof BackupRow][]));
         verificationPlans.push({table,identityColumn,identity,columns,values:values as (string|number|null)[]});
       }
     }
@@ -556,8 +585,9 @@ export async function POST(request: Request) {
     const normalize=(value:unknown)=>value===null||value===undefined?null:typeof value==="number"?value:String(value);
     let verifiedRecords=0;
     for(let planIndex=0;planIndex<verificationPlans.length;planIndex++){
-      if(Number(recordResults[planIndex]?.meta.changes??0)===0)continue;
       const plan=verificationPlans[planIndex];
+      const inserted=Number(recordResults[planIndex]?.meta.changes??0)>0;
+      if(!inserted&&plan.table!=="estimate_service_locations")continue;
       const select=plan.columns.map((column)=>`${column} AS "${column}"`).join(",");
       const row=await env.DB.prepare(`SELECT ${select} FROM ${plan.table} WHERE ${plan.identityColumn}=? LIMIT 1`).bind(plan.identity).first<Record<string,unknown>>();
       if(!row)return postWriteFailure(`Restore verification failed: ${plan.table} record ${plan.identity} is missing after apply.`);
@@ -567,7 +597,7 @@ export async function POST(request: Request) {
         const actual=normalize(row[column]);
         if(actual!==expected)return postWriteFailure(`Restore verification failed: ${plan.table}.${column} for ${plan.identity} does not match the backup.`);
       }
-      verifiedRecords++;
+      if(inserted)verifiedRecords++;
       restoreAudit.verifiedRecords=verifiedRecords;
     }
     if(verifiedRecords!==insertedRecords)return postWriteFailure(`Restore verification failed: expected ${insertedRecords} inserted records but verified ${verifiedRecords}.`);

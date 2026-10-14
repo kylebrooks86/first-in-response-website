@@ -1,4 +1,5 @@
 import { assertBackupIntegrity } from "./records-backup-integrity.mjs";
+import {serviceLocationBackupError} from "../lib/service-location-backup.mjs";
 import { readFile, stat } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 
@@ -48,5 +49,7 @@ if(kind==="app-export"){
   }
 }
 assertBackupIntegrity(tables);
+const locationError=serviceLocationBackupError(payload,tables);
+if(locationError)throw Error(locationError);
 const counts = Object.fromEntries(Object.entries(tables).filter(([, rows]) => Array.isArray(rows)).map(([name, rows]) => [name, rows.length]));
 console.log(JSON.stringify({file: basename(path), valid: true, kind, rows: Object.values(counts).reduce((a,b)=>a+b,0), counts}, null, 2));

@@ -6263,5 +6263,26 @@
     "officialReleaseReadinessPercent": 30,
     "verifiedGates": 3,
     "totalGates": 10
+  },
+  "serviceLocationBackupBatch": {
+    "parentCheckpoint": "c04ce107c45a56008d4b5d38d1fb1ff52a931e23",
+    "dateUtc": "2026-10-14",
+    "status": "verified synthetic API backup/restore; CLI snapshot apply blocked; normal capability disabled",
+    "browserPassed": 123,
+    "browserTotal": 123,
+    "contractPassed": 39,
+    "contractTotal": 39,
+    "financialPassed": 207,
+    "financialTotal": 207,
+    "typeScriptPassed": 3,
+    "fullBuildsPassed": 3,
+    "sharedFilesChecked": 139,
+    "sourceParity": true,
+    "deployedParityVerified": false,
+    "evidence": "SERVICE_LOCATION_BACKUP_EVIDENCE.json",
+    "handoff": "SERVICE_LOCATION_BACKUP_HANDOFF.md",
+    "officialReleaseReadinessPercent": 30,
+    "verifiedGates": 3,
+    "totalGates": 10
   }
 }

@@ -1,4 +1,5 @@
 import { assertBackupIntegrity } from "./records-backup-integrity.mjs";
+import {serviceLocationBackupError} from "../lib/service-location-backup.mjs";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, resolve } from "node:path";
@@ -85,6 +86,9 @@ if (payload?.format === "fire-app-records-backup" && payload?.version === 1 && p
   }));
 }
 if (!backupTables) throw new Error("This is not a valid or complete FIRE App records backup.");
+const locationError=serviceLocationBackupError(payload,backupTables);
+if(locationError)throw Error(locationError);
+if(backupTables.estimate_service_locations!==undefined)throw Error("CLI service-address snapshot apply is disabled pending native transaction verification. Use the reviewed owner API workflow; no records changed.");
 
 assertBackupIntegrity(backupTables);
 const restoredAt = new Date().toISOString();
