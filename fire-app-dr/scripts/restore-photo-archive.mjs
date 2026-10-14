@@ -137,6 +137,10 @@ for (const candidate of manifest.photos) {
 }
 
 const summary = plans.reduce((result, plan) => { result[plan.action] = (result[plan.action] || 0) + 1; return result; }, {});
+if (apply && (summary.skip_missing_archive_object || summary.skip_missing_customer)) {
+  throw new Error("Restore apply blocked: archive photos are missing or customer records are absent. Review the dry-run summary and restore prerequisites before applying; partial recovery is not automatic.");
+}
+
 console.log(JSON.stringify({ archive: basename(absoluteArchive), targetDatabase: database.database_name, targetBucket: bucket, mode: local ? "local" : "remote", apply, summary }, null, 2));
 if (!apply) {
   console.log("Dry run complete. No database records or R2 objects were changed.");
