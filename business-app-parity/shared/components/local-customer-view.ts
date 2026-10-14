@@ -7,7 +7,8 @@ type ContactField = 'name' | 'email' | 'phone' | 'address' | 'leadSource';
 type Comparison = { choices: Partial<Record<ContactField, 'stored' | 'draft'>>; verification: 'unchecked' | 'checking' | 'unchanged' | 'changed' | 'failed'; stored: LocalCustomer | null; draft: LocalCustomerInput; attempted?: LocalCustomerInput; expectedRevision: number };
 type Draft = { input: LocalCustomerInput; expectedRevision: number; attempt?: { operationId: string; input: LocalCustomerInput } };
 
-export function mountSyntheticCustomerView(root: HTMLElement, repository: Repository) {
+export function mountSyntheticCustomerView(root: HTMLElement, repository: Repository, options: { reviewedResolutionEnabled?: boolean } = {}) {
+  const reviewedResolutionEnabled = options.reviewedResolutionEnabled === true;
   let draft: Draft | undefined, disposed = false, generation = 0, renderGeneration = 0, message = '', inspecting = false;
   let backupBusy = false, backupMessage = '';
   let comparison: Comparison | undefined;
@@ -293,6 +294,37 @@ export function mountSyntheticCustomerView(root: HTMLElement, repository: Reposi
         } catch {
           if (disposed || epoch !== generation || comparison !== captured) return;
           captured.verification = 'failed';
+        } finally { if (!disposed && epoch === generation) { inspecting = false; render(); } }
+      });
+      const resolutionForm = element('form'); resolutionForm.setAttribute('aria-label', 'Deliberate reviewed customer save');
+      append(resolutionForm, element('h3', 'Save reviewed resolution'), element('p', 'Explicit confirmation saves only the selected proposal and archives the original retained draft and reviewed history atomically. Any changed stored snapshot blocks the save. Export and verify a portable bundle afterward.'));
+      const resolutionPhrase = phraseField(resolutionForm, 'Test phrase for reviewed resolution save');
+      const approvalLabel = element('label', 'I approve this reviewed proposal and preservation of my original draft.'), approval = element('input'); approval.type = 'checkbox'; approval.required = true; append(approvalLabel, approval); append(resolutionForm, approvalLabel);
+      const resolutionSave = element('button', 'Save reviewed proposal and archive original draft'); resolutionSave.type = 'submit';
+      const eligible = reviewedResolutionEnabled && selected === 5 && comparison.verification === 'unchanged' && !inspecting && !backupBusy && state.saveState !== 'saving';
+      resolutionSave.disabled = true; resolutionPhrase.disabled = approval.disabled = !eligible;
+      approval.addEventListener('change', () => { resolutionSave.disabled = !eligible || !approval.checked; });
+      append(resolutionForm, resolutionSave, element('p', reviewedResolutionEnabled ? 'No automatic retry. A failed or uncertain save retains the draft and proposal for inspection.' : 'Resolution-save remains disabled pending complete candidate workflow verification.')); append(review, resolutionForm);
+      resolutionForm.addEventListener('submit', async event => {
+        event.preventDefault(); const supplied = resolutionPhrase.value, confirmed = approval.checked; resolutionPhrase.value = ''; approval.checked = false;
+        if (disposed || rendered !== renderGeneration || !eligible || !confirmed || !comparison || !inspection || !draft || repository.read().status !== 'ready') return;
+        const epoch = generation, captured = comparison, capturedDraft = draft, capturedInspection = inspection;
+        const proposed = structuredClone(captured.draft);
+        for (const key of keys) proposed[key] = captured.choices[key] === 'stored' ? captured.stored![key] : captured.draft[key];
+        if (!proposed.name.startsWith('Synthetic ') || (proposed.email && !/^[^@\s]+@example\.invalid$/.test(proposed.email)) || proposed.phone !== '' || !proposed.address.startsWith('Synthetic') || proposed.leadSource !== 'Synthetic') {
+          message = 'Synthetic resolution only. Keep the original draft and review valid fixture values.'; render(); return;
+        }
+        inspecting = true; message = ''; captured.verification = 'unchecked'; render();
+        try {
+          await repository.saveReviewedProposal({ operationId: crypto.randomUUID(), originalDraft: structuredClone(captured.draft),
+            originalExpectedRevision: captured.expectedRevision, reviewedCustomers: structuredClone(capturedInspection.customers),
+            reviewedOperations: structuredClone(capturedInspection.operations), proposed }, supplied, true);
+          if (disposed || epoch !== generation || draft !== capturedDraft) return;
+          draft = undefined; inspection = undefined; comparison = undefined;
+          message = 'Reviewed resolution saved locally. Original draft and review history archived. Export and verify a portable bundle; not sent to a server.';
+        } catch {
+          if (disposed || epoch !== generation || draft !== capturedDraft) return;
+          message = 'Reviewed save did not complete normally. Original draft and proposal retained. Inspect stored receipts before another decision; no automatic retry.';
         } finally { if (!disposed && epoch === generation) { inspecting = false; render(); } }
       });
       summary.setAttribute('role', 'status'); summary.dataset.comparisonSummary = ''; append(review, summary); append(root, review);

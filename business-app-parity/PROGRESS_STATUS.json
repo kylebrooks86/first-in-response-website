@@ -6004,5 +6004,75 @@
     },
     "evidence": "REPOSITORY_REVIEWED_RESOLUTION_EVIDENCE.json",
     "handoff": "REPOSITORY_REVIEWED_RESOLUTION_HANDOFF.md"
+  },
+  "reviewedResolutionUiBatch": {
+    "date": "2026-10-14",
+    "baseCommit": "8d8831fe63042374d6c226c7b520337b1fec6c69",
+    "scope": "Verified candidate-only explicit reviewed-resolution confirmation UI",
+    "behavior": [
+      "All five field sources and a successful freshness recheck are required before confirmation is available.",
+      "Fresh phrase and explicit checkbox confirmation precede any save.",
+      "Guarded repository supplies the authenticated namespace; the view cannot choose an account/target.",
+      "Atomic save retains original draft and reviewed snapshot/history in an encrypted archive.",
+      "Wrong phrase, stale storage after recheck and native archive quota failures retain editing draft and proposal and require another review.",
+      "Successful local save clears the editor only after completion and instructs the owner to export/verify a portable bundle.",
+      "Default view/controller mounts remain disabled unless explicitly opted in; all three isolated synthetic candidate panels opt in after native workflow verification."
+    ],
+    "checks": {
+      "browser": {
+        "passed": 489,
+        "total": 489,
+        "suites": {
+          "repository": 132,
+          "framework": 93,
+          "view": 93,
+          "controller": 63,
+          "portable": 108
+        }
+      },
+      "financialSyntheticSQLite": {
+        "passed": 207,
+        "total": 207
+      },
+      "typeScript": {
+        "passed": 3,
+        "total": 3
+      },
+      "sharedSourceParity": {
+        "passed": 131,
+        "total": 131,
+        "differences": 0
+      },
+      "finalFailures": 0,
+      "initialHarnessIssueResolved": "Fresh fixture needed to await initialization teardown/remount before unlock; wait corrected and actual framework suites rerun.",
+      "fullBuilds": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "roundTrip": "Actual authenticated local framework: customer -> retained draft -> stored comparison -> explicit field choices -> freshness check -> confirmed save -> encrypted download -> file verification -> deliberate empty-browser recovery. Native UI confirms recovered original draft and prior review history.",
+    "activation": {
+      "isolatedSyntheticCandidateResolutionSave": true,
+      "defaultMountResolutionSave": false,
+      "productionResolutionSave": false,
+      "productionDeployment": false,
+      "physicalDeviceRecovery": false,
+      "paidServices": false,
+      "cssChanges": false,
+      "deployedParityClaimed": false
+    },
+    "nextPriority": "Audit existing customer/property/estimate relationships and implement the smallest isolated candidate property organization change, preserving historical service addresses; no production migration.",
+    "remainingReleaseBlockers": [
+      "Gate 4 immutable Sites DB UUIDs/cross-target isolation and routing/artifact seals",
+      "Complete remote schema/journal/index validation and remaining release gates",
+      "Native Safari/Home Screen and physical-device acceptance are unverified; actual original device backup/vaults stay untouched."
+    ],
+    "officialReleaseReadiness": {
+      "passedGates": 3,
+      "totalGates": 10,
+      "percent": 30
+    },
+    "evidence": "REVIEWED_RESOLUTION_UI_EVIDENCE.json",
+    "handoff": "REVIEWED_RESOLUTION_UI_HANDOFF.md"
   }
 }

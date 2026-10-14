@@ -12,9 +12,10 @@ type Active = { identity: LocalCustomerIdentity; vault: Vault; repository: Repos
 
 /** No identity inference, authentication, vault seeding, restore or transport. */
 export function createSyntheticCustomerController(root: HTMLElement, options: {
-  targetId: string; readIdentity: () => LocalCustomerIdentity | null; idleMs?: number;
+  targetId: string; readIdentity: () => LocalCustomerIdentity | null; idleMs?: number; reviewedResolutionEnabled?: boolean;
 }) {
   // Copy config so callers cannot silently retarget an active controller.
+  const reviewedResolutionEnabled = options.reviewedResolutionEnabled === true;
   const targetId = options.targetId, readIdentity = options.readIdentity, idleMs = options.idleMs ?? 300_000;
   localCustomerDatabaseName('synthetic-config-check', targetId);
   if (typeof readIdentity !== 'function' || !Number.isSafeInteger(idleMs) || idleMs < 50 || idleMs > 86_400_000)
@@ -70,6 +71,13 @@ export function createSyntheticCustomerController(root: HTMLElement, options: {
         unlock: phrase => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.unlock(phrase); },
         save: (...args) => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.save(...args); },
         inspectStored: phrase => { if (!guard(captured)) return Promise.reject(new Error('Access changed.')); return raw.inspectStored(phrase); },
+        saveReviewedProposal: async (value, phrase, confirmed) => {
+          if (!guard(captured)) throw new Error('Access changed.');
+          try {
+            const result = await raw.saveReviewedProposal(value, phrase, confirmed);
+            if (!guard(captured)) throw new Error('Access changed.'); return result;
+          } catch (error) { if (!guard(captured)) throw new Error('Access changed.'); throw error; }
+        },
         saveReviewedResolution: async (value, phrase, confirmed) => {
           if (!guard(captured)) throw new Error('Access changed.');
           try {
@@ -118,7 +126,7 @@ export function createSyntheticCustomerController(root: HTMLElement, options: {
       };
       // Establish the active identity before initial rendering calls guarded.read().
       active = { identity: captured, vault, repository: raw, view: undefined };
-      const view = mountSyntheticCustomerView(root, guarded); active.view = view;
+      const view = mountSyntheticCustomerView(root, guarded, { reviewedResolutionEnabled }); active.view = view;
       return true;
     } catch {
       repository?.dispose(); vault?.close();

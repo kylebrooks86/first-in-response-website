@@ -1,0 +1,357 @@
+{
+  "date": "2026-10-14",
+  "baseCommit": "8d8831fe63042374d6c226c7b520337b1fec6c69",
+  "scope": "Verified candidate-only explicit reviewed-resolution confirmation UI",
+  "behavior": [
+    "All five field sources and a successful freshness recheck are required before confirmation is available.",
+    "Fresh phrase and explicit checkbox confirmation precede any save.",
+    "Guarded repository supplies the authenticated namespace; the view cannot choose an account/target.",
+    "Atomic save retains original draft and reviewed snapshot/history in an encrypted archive.",
+    "Wrong phrase, stale storage after recheck and native archive quota failures retain editing draft and proposal and require another review.",
+    "Successful local save clears the editor only after completion and instructs the owner to export/verify a portable bundle.",
+    "Default view/controller mounts remain disabled unless explicitly opted in; all three isolated synthetic candidate panels opt in after native workflow verification."
+  ],
+  "checks": {
+    "browser": {
+      "passed": 489,
+      "total": 489,
+      "suites": {
+        "repository": 132,
+        "framework": 93,
+        "view": 93,
+        "controller": 63,
+        "portable": 108
+      }
+    },
+    "financialSyntheticSQLite": {
+      "passed": 207,
+      "total": 207
+    },
+    "typeScript": {
+      "passed": 3,
+      "total": 3
+    },
+    "sharedSourceParity": {
+      "passed": 131,
+      "total": 131,
+      "differences": 0
+    },
+    "finalFailures": 0,
+    "initialHarnessIssueResolved": "Fresh fixture needed to await initialization teardown/remount before unlock; wait corrected and actual framework suites rerun.",
+    "fullBuilds": {
+      "passed": 3,
+      "total": 3
+    }
+  },
+  "perCandidate": {
+    "live": {
+      "repository": {
+        "passed": 44,
+        "total": 44,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "uiActivated": false,
+        "serverSync": false,
+        "iPhoneTested": false
+      },
+      "framework": {
+        "passed": 31,
+        "total": 31,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual gateway adapter denies non-owner header fixture",
+          "actual framework renders and hydrates candidate route",
+          "explicit local fixture creation mounts locked and clears phrase",
+          "framework panel saves encrypted contacts and shows pending status",
+          "loaded framework panel edits offline",
+          "actual framework retains a new unsaved edit for comparison",
+          "actual framework reads stored receipts offline without server acknowledgement",
+          "actual framework explicitly compares stored record and retained draft",
+          "actual framework requires explicit proposal choices without replacing draft",
+          "actual framework rechecks proposal offline without saving contact",
+          "stored receipt report fits actual 320px dark screen",
+          "stored receipt report fits actual 320px light screen",
+          "candidate encrypted download preserves retained draft and saved revision",
+          "actual downloaded file verifies offline without restoration or draft loss",
+          "wrong portable phrase shows authentication uncertainty and keeps saved revision",
+          "malformed file is rejected without losing retained draft",
+          "altered downloaded ciphertext cannot verify or write records",
+          "locking interrupts a pending export and hides backup controls",
+          "locked occupied destination preflight blocks recovery without unlocking",
+          "locked destination check distinguishes failed file authentication",
+          "genuinely empty authenticated browser preflight performs no restoration",
+          "authenticated candidate recovery requires confirmation and completes locked",
+          "actual page lifecycle locks and never automatically unlocks",
+          "actual route reload preserves encrypted contact and receipts",
+          "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+          "candidate entry navigation returns locked and retains contacts",
+          "actual 320px dark layout fits",
+          "actual 320px light layout fits",
+          "authenticated reviewed resolution UI saves archives verifies and recovers deliberately",
+          "no external requests or framework browser errors"
+        ],
+        "deployment": "live",
+        "browserVersion": "153.0.8010.0",
+        "actualFrameworkRuntime": true,
+        "actualAuthAdapter": true,
+        "syntheticAuthFixtures": true,
+        "disposableLocalD1": true,
+        "realGatewayTested": false,
+        "productionActivated": false
+      },
+      "view": {
+        "passed": 31,
+        "total": 31,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "productionActivated": false,
+        "iPhoneTested": false
+      },
+      "controller": {
+        "passed": 21,
+        "total": 21,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "serverAuthenticationVerified": false,
+        "productionActivated": false
+      },
+      "portable": {
+        "passed": 36,
+        "total": 36,
+        "browser": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "syntheticNativeRecoveryTested": true,
+        "deviceRecoveryPerformed": false,
+        "emptyDestinationPreflightOnly": false,
+        "portableFileVerified": true,
+        "productionActivated": false,
+        "defaultMountResolutionUiActivated": false,
+        "resolutionUiFixtureTested": true
+      }
+    },
+    "doomsday": {
+      "repository": {
+        "passed": 44,
+        "total": 44,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "uiActivated": false,
+        "serverSync": false,
+        "iPhoneTested": false
+      },
+      "framework": {
+        "passed": 31,
+        "total": 31,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual independent auth rejects invalid signed-cookie fixture",
+          "actual framework renders and hydrates candidate route",
+          "explicit local fixture creation mounts locked and clears phrase",
+          "framework panel saves encrypted contacts and shows pending status",
+          "loaded framework panel edits offline",
+          "actual framework retains a new unsaved edit for comparison",
+          "actual framework reads stored receipts offline without server acknowledgement",
+          "actual framework explicitly compares stored record and retained draft",
+          "actual framework requires explicit proposal choices without replacing draft",
+          "actual framework rechecks proposal offline without saving contact",
+          "stored receipt report fits actual 320px dark screen",
+          "stored receipt report fits actual 320px light screen",
+          "candidate encrypted download preserves retained draft and saved revision",
+          "actual downloaded file verifies offline without restoration or draft loss",
+          "wrong portable phrase shows authentication uncertainty and keeps saved revision",
+          "malformed file is rejected without losing retained draft",
+          "altered downloaded ciphertext cannot verify or write records",
+          "locking interrupts a pending export and hides backup controls",
+          "locked occupied destination preflight blocks recovery without unlocking",
+          "locked destination check distinguishes failed file authentication",
+          "genuinely empty authenticated browser preflight performs no restoration",
+          "authenticated candidate recovery requires confirmation and completes locked",
+          "actual page lifecycle locks and never automatically unlocks",
+          "actual route reload preserves encrypted contact and receipts",
+          "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+          "candidate entry navigation returns locked and retains contacts",
+          "actual 320px dark layout fits",
+          "actual 320px light layout fits",
+          "authenticated reviewed resolution UI saves archives verifies and recovers deliberately",
+          "no external requests or framework browser errors"
+        ],
+        "deployment": "doomsday",
+        "browserVersion": "153.0.8010.0",
+        "actualFrameworkRuntime": true,
+        "actualAuthAdapter": true,
+        "syntheticAuthFixtures": true,
+        "disposableLocalD1": true,
+        "realGatewayTested": false,
+        "productionActivated": false
+      },
+      "view": {
+        "passed": 31,
+        "total": 31,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "productionActivated": false,
+        "iPhoneTested": false
+      },
+      "controller": {
+        "passed": 21,
+        "total": 21,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "serverAuthenticationVerified": false,
+        "productionActivated": false
+      },
+      "portable": {
+        "passed": 36,
+        "total": 36,
+        "browser": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "syntheticNativeRecoveryTested": true,
+        "deviceRecoveryPerformed": false,
+        "emptyDestinationPreflightOnly": false,
+        "portableFileVerified": true,
+        "productionActivated": false,
+        "defaultMountResolutionUiActivated": false,
+        "resolutionUiFixtureTested": true
+      }
+    },
+    "staging": {
+      "repository": {
+        "passed": 44,
+        "total": 44,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "uiActivated": false,
+        "serverSync": false,
+        "iPhoneTested": false
+      },
+      "framework": {
+        "passed": 31,
+        "total": 31,
+        "checks": [
+          "actual framework requires owner authentication",
+          "actual gateway adapter denies non-owner header fixture",
+          "actual framework renders and hydrates candidate route",
+          "explicit local fixture creation mounts locked and clears phrase",
+          "framework panel saves encrypted contacts and shows pending status",
+          "loaded framework panel edits offline",
+          "actual framework retains a new unsaved edit for comparison",
+          "actual framework reads stored receipts offline without server acknowledgement",
+          "actual framework explicitly compares stored record and retained draft",
+          "actual framework requires explicit proposal choices without replacing draft",
+          "actual framework rechecks proposal offline without saving contact",
+          "stored receipt report fits actual 320px dark screen",
+          "stored receipt report fits actual 320px light screen",
+          "candidate encrypted download preserves retained draft and saved revision",
+          "actual downloaded file verifies offline without restoration or draft loss",
+          "wrong portable phrase shows authentication uncertainty and keeps saved revision",
+          "malformed file is rejected without losing retained draft",
+          "altered downloaded ciphertext cannot verify or write records",
+          "locking interrupts a pending export and hides backup controls",
+          "locked occupied destination preflight blocks recovery without unlocking",
+          "locked destination check distinguishes failed file authentication",
+          "genuinely empty authenticated browser preflight performs no restoration",
+          "authenticated candidate recovery requires confirmation and completes locked",
+          "actual page lifecycle locks and never automatically unlocks",
+          "actual route reload preserves encrypted contact and receipts",
+          "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+          "candidate entry navigation returns locked and retains contacts",
+          "actual 320px dark layout fits",
+          "actual 320px light layout fits",
+          "authenticated reviewed resolution UI saves archives verifies and recovers deliberately",
+          "no external requests or framework browser errors"
+        ],
+        "deployment": "staging",
+        "browserVersion": "153.0.8010.0",
+        "actualFrameworkRuntime": true,
+        "actualAuthAdapter": true,
+        "syntheticAuthFixtures": true,
+        "disposableLocalD1": true,
+        "realGatewayTested": false,
+        "productionActivated": false
+      },
+      "view": {
+        "passed": 31,
+        "total": 31,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "productionActivated": false,
+        "iPhoneTested": false
+      },
+      "controller": {
+        "passed": 21,
+        "total": 21,
+        "browserVersion": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "serverAuthenticationVerified": false,
+        "productionActivated": false
+      },
+      "portable": {
+        "passed": 36,
+        "total": 36,
+        "browser": "153.0.8010.0",
+        "nativeIndexedDB": true,
+        "nativeWebCrypto": true,
+        "syntheticOnly": true,
+        "syntheticNativeRecoveryTested": true,
+        "deviceRecoveryPerformed": false,
+        "emptyDestinationPreflightOnly": false,
+        "portableFileVerified": true,
+        "productionActivated": false,
+        "defaultMountResolutionUiActivated": false,
+        "resolutionUiFixtureTested": true
+      }
+    }
+  },
+  "sourceSha256": {
+    "business-app-parity/shared/components/candidate-local-customers.tsx": "650b5befc8078eb13fccc48f9335fdf5693ea3636cd6a258be87e927df42ff2a",
+    "business-app-parity/shared/components/local-customer-view.ts": "91bd112c151351ae03362cb0093c54ae01a9f3f3616b8d22471277ed8f45b363",
+    "business-app-parity/shared/lib/local-customer-repository.ts": "9c74cf96c9ae47da5a155a249f509d888952a74440ea912464432089d1a6bbaf",
+    "business-app-parity/shared/lib/synthetic-customer-controller.ts": "03ad735dd41ff1fc6f76d5b1283ad91fbcfdde09af0da4bdc76d7317d1af6308",
+    "business-app-parity/shared/scripts/test-local-customer-portable-bundle-browser.mjs": "5ce1a18bf98329a13aa47124bf8bf44d9d966b1610676b57e237b988767ce40c",
+    "business-app-parity/shared/scripts/test-local-customers-framework-browser.mjs": "712d798b434dd282a39df975f2bfa7d4372ee2713e4ee4b105cacefb44756571"
+  },
+  "roundTrip": "Actual authenticated local framework: customer -> retained draft -> stored comparison -> explicit field choices -> freshness check -> confirmed save -> encrypted download -> file verification -> deliberate empty-browser recovery. Native UI confirms recovered original draft and prior review history.",
+  "activation": {
+    "isolatedSyntheticCandidateResolutionSave": true,
+    "defaultMountResolutionSave": false,
+    "productionResolutionSave": false,
+    "productionDeployment": false,
+    "physicalDeviceRecovery": false,
+    "paidServices": false,
+    "cssChanges": false,
+    "deployedParityClaimed": false
+  },
+  "nextPriority": "Audit existing customer/property/estimate relationships and implement the smallest isolated candidate property organization change, preserving historical service addresses; no production migration.",
+  "remainingReleaseBlockers": [
+    "Gate 4 immutable Sites DB UUIDs/cross-target isolation and routing/artifact seals",
+    "Complete remote schema/journal/index validation and remaining release gates",
+    "Native Safari/Home Screen and physical-device acceptance are unverified; actual original device backup/vaults stay untouched."
+  ],
+  "officialReleaseReadiness": {
+    "passedGates": 3,
+    "totalGates": 10,
+    "percent": 30
+  }
+}

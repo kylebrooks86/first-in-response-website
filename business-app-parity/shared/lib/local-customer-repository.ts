@@ -1,7 +1,7 @@
 /** Opt-in Customers boundary. Inactive until a reviewed UI explicitly supplies a vault. */
 import { verifyLocalCustomerRecoveryArchive, type LocalCustomerRecoveryFormat, type LocalCustomerResolutionArchive } from './local-customer-backup';
 import type { openLocalCustomerVault } from './local-customer-vault';
-import type { LocalCustomer, LocalCustomerInput } from './local-customer-store';
+import type { LocalCustomer, LocalCustomerInput, LocalCustomerExport } from './local-customer-store';
 
 type Vault = Awaited<ReturnType<typeof openLocalCustomerVault>>;
 type Session = Awaited<ReturnType<Vault['unlock']>>;
@@ -97,6 +97,15 @@ export function createLocalCustomerRepository(vault: Vault) {
         // Failed/ambiguous saves never promise that nothing committed and never retry automatically.
         throw new LocalCustomerRepositoryError('SAVE_FAILED');
       } finally { if (epoch === generation) busy = false; }
+    },
+    async saveReviewedProposal(value: { operationId: string; originalDraft: LocalCustomerInput; originalExpectedRevision: number;
+      reviewedCustomers: LocalCustomer[]; reviewedOperations: LocalCustomerExport['pendingOperations']; proposed: LocalCustomerInput }, phrase: string, confirmed: boolean): Promise<LocalCustomerDirectory> {
+      if (read().status !== 'ready' || !session) throw new LocalCustomerRepositoryError('LOCKED');
+      const captured = structuredClone(value), namespace = session.exportSnapshot().namespace;
+      return this.saveReviewedResolution({ format: 'fire-local-customer-resolution', version: 1, namespace,
+        operationId: captured.operationId, originalDraft: captured.originalDraft, originalExpectedRevision: captured.originalExpectedRevision,
+        reviewedSnapshot: { format: 'fire-local-customers', version: 1, namespace, customers: captured.reviewedCustomers, pendingOperations: captured.reviewedOperations },
+        proposed: captured.proposed }, phrase, confirmed);
     },
     async saveReviewedResolution(value: LocalCustomerResolutionArchive, phrase: string, confirmed: boolean): Promise<LocalCustomerDirectory> {
       if (confirmed !== true) throw new LocalCustomerRepositoryError('CONFIRMATION_REQUIRED');

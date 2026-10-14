@@ -15,7 +15,7 @@ export function CandidateLocalCustomers({ identity }: { identity: LocalCustomerI
   useEffect(() => {
     const epoch = ++generation.current; setPhrase(''); setOccupied(true); setBusy(false);
     if (!identity || !identity.accountId.startsWith('synthetic-') || !identity.targetId.startsWith('synthetic-') || !root.current) { setStatus('Local contacts locked. Verified candidate identity required.'); return; }
-    const active = createSyntheticCustomerController(root.current, { targetId: identity.targetId, readIdentity: () => current.current });
+    const active = createSyntheticCustomerController(root.current, { targetId: identity.targetId, readIdentity: () => current.current, reviewedResolutionEnabled: true });
     controller.current = active; void active.activate();
     const workspace = root.current;
     const recovered = () => { if (epoch === generation.current) { setOccupied(true); setStatus('Synthetic bundle recovered. Vault stays locked; unlock below to inspect.'); } };
