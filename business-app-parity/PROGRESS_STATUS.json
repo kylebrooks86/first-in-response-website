@@ -6137,5 +6137,27 @@
     "officialReleaseReadinessPercent": 30,
     "verifiedGates": 3,
     "totalGates": 10
+  },
+  "followupQueueIntegrationBatch": {
+    "parentCheckpoint": "d3ff9d9f9ce4bc54d15874c5393cde1835161342",
+    "dateUtc": "2026-10-14",
+    "status": "verified candidate source; checkpoint accompanies this report",
+    "browserPassed": 105,
+    "browserTotal": 105,
+    "timingPassed": 87,
+    "timingTotal": 87,
+    "financialPassed": 207,
+    "financialTotal": 207,
+    "typeScriptPassed": 3,
+    "fullBuildsPassed": 3,
+    "sharedFilesChecked": 133,
+    "sourceParity": true,
+    "deployedParityVerified": false,
+    "evidence": "FOLLOWUP_QUEUE_INTEGRATION_EVIDENCE.json",
+    "handoff": "FOLLOWUP_QUEUE_INTEGRATION_HANDOFF.md",
+    "nextPriority": "Bounded estimate-history pagination; preserve historical service addresses before property selection",
+    "officialReleaseReadinessPercent": 30,
+    "verifiedGates": 3,
+    "totalGates": 10
   }
 }

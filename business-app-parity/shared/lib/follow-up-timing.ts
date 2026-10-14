@@ -8,3 +8,24 @@ export function estimateFollowUpTiming(estimate: FollowUpEstimate, now: number) 
   const anchor=confirmed.length?Math.max(...confirmed):created;
   return { ageDays:anchor===null||!Number.isFinite(now)?0:Math.max(0,Math.floor((now-anchor)/86400000)), confirmedContact:confirmed.length>0 };
 }
+
+export type ReminderRecord = {status:string;lastEstimateSentAt?:string|null;firstEstimateSentAt?:string|null;lastEstimateContactAt?:string|null;stage1At?:string|null;stage3At?:string|null;stage7At?:string|null};
+export function estimateReminderStage(record:ReminderRecord,now:number):{template:"followUp1"|"followUp3"|"followUp7"|null;reviewReason:string|null} {
+  const none={template:null,reviewReason:null};if(record.status!=="sent")return none;
+  const first=timestamp(record.firstEstimateSentAt),sent=timestamp(record.lastEstimateSentAt);
+  if(first===null||sent===null)return {template:null,reviewReason:"Send date unverified — review saved history before another reminder."};
+  const raw=[record.firstEstimateSentAt,record.lastEstimateSentAt,record.lastEstimateContactAt,record.stage1At,record.stage3At,record.stage7At];
+  const times=raw.map(timestamp);
+  if(raw.some((value,i)=>value&&times[i]===null)||times.some(time=>time!==null&&(time>now||time<first))||sent<first)return {template:null,reviewReason:"Communication dates need review; no reminder is suggested."};
+  const stages=[timestamp(record.stage1At),timestamp(record.stage3At),timestamp(record.stage7At)].map(time=>time!==null&&time>=sent?time:null);
+  if(stages.some((time,i)=>time!==null&&stages.slice(i+1).some(later=>later!==null&&time>later)))return {template:null,reviewReason:"Reminder order needs review; no reminder is suggested."};
+  if(stages[2]!==null)return none;
+  const contact=timestamp(record.lastEstimateContactAt)??sent;
+  if(!Number.isFinite(now)||now-Math.max(sent,contact)<86400000)return none;
+  const days=(now-sent)/86400000;
+  if(days>=7)return {template:"followUp7",reviewReason:null};
+  if(stages[1]!==null)return none;
+  if(days>=3)return {template:"followUp3",reviewReason:null};
+  if(stages[0]!==null)return none;
+  return days>=1?{template:"followUp1",reviewReason:null}:none;
+}
