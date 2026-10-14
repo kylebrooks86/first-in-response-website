@@ -6159,5 +6159,29 @@
     "officialReleaseReadinessPercent": 30,
     "verifiedGates": 3,
     "totalGates": 10
+  },
+  "releaseGateReadOnlyReview": {
+    "dateUtc": "2026-10-14",
+    "reviewedCandidateCommit": "6231fb5a1bc3b6cd888f7665cca1b02a99e73adf",
+    "evidence": "RELEASE_GATE_REVIEW_6231fb5.json",
+    "handoff": "RELEASE_GATE_REVIEW_6231fb5.md",
+    "freshSavedVersionDeploymentArchiveLinks": 2,
+    "freshLiveTableCount": 18,
+    "freshRefundStagingTableCount": 19,
+    "liveCandidateSchemaGap": "payment_refunds",
+    "remainingSitesImmutableD1Ids": 2,
+    "ownerZeroTableDashboardDisplayConfirmed": true,
+    "zeroTableRuntimeSchemaConfirmed": false,
+    "ownerScreenshotsReviewed": 6,
+    "newlyPassedGates": 0,
+    "passedGates": 3,
+    "totalGates": 10,
+    "percent": 30,
+    "nextEvidence": "Exact remaining immutable resource IDs and authenticated runtime seals; full exact-resource schema/journal captures",
+    "deployments": 0,
+    "migrations": 0,
+    "databaseWrites": 0,
+    "stripeActions": 0,
+    "paidServices": 0
   }
 }
