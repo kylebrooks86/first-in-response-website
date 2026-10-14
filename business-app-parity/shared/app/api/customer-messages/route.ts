@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const channel = String(value.channel ?? "").trim();
     const template = String(value.template ?? "custom").trim();
     const body = String(value.body ?? "").trim();
-    if (!customerId || !body || !["text","email","copy"].includes(channel)) return Response.json({ error: "Customer, channel, and message are required." }, { status: 400 });
+    if (!customerId || !body || !["text_prepared","email_prepared","copy"].includes(channel)) return Response.json({ error: "Customer, channel, and message are required." }, { status: 400 });
     const customer=await env.DB.prepare("SELECT id FROM customers WHERE id=? LIMIT 1").bind(customerId).first<{id:string}>();
     if(!customer)return Response.json({error:"Customer not found."},{status:404});
     if(estimateId){
@@ -38,4 +38,27 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ error: "We couldn't save this communication." }, { status: 500 });
   }
+}
+
+// Confirmation appends evidence; preparation and legacy history stay immutable.
+export async function PATCH(request: Request) {
+  if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const value=await request.json() as Record<string,unknown>;
+    const id=String(value.preparedMessageId??"").trim();
+    const customerId=String(value.customerId??"").trim();
+    if(!id||!customerId||value.ownerConfirmedSent!==true)return Response.json({error:"Explicit owner send confirmation is required."},{status:400});
+    const prepared=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1").bind(id,customerId).first<{id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string}>();
+    if(!prepared||!["text_prepared","email_prepared"].includes(prepared.channel))return Response.json({error:"A matching prepared message is required."},{status:409});
+    const confirmedId=prepared.id+":owner-confirmed";
+    const channel=prepared.channel==="text_prepared"?"text_confirmed":"email_confirmed";
+    const createdAt=new Date().toISOString();
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) SELECT ?,customer_id,estimate_id,?,template,body,? FROM customer_messages WHERE id=? AND customer_id=? AND channel=? AND NOT EXISTS (SELECT 1 FROM customer_messages WHERE id=?)").bind(confirmedId,channel,createdAt,prepared.id,customerId,prepared.channel,confirmedId),
+      env.DB.prepare("UPDATE estimates SET status='sent' WHERE id=? AND customer_id=? AND status='draft' AND NOT EXISTS (SELECT 1 FROM invoices WHERE estimate_id=estimates.id) AND EXISTS (SELECT 1 FROM customer_messages WHERE id=? AND customer_id=? AND estimate_id=estimates.id AND template='estimate' AND channel IN ('text_confirmed','email_confirmed'))").bind(prepared.estimateId,customerId,confirmedId,customerId),
+    ]);
+    const message=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1").bind(confirmedId,customerId).first();
+    const estimate=prepared.estimateId?await env.DB.prepare("SELECT status FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(prepared.estimateId,customerId).first<{status:string}>():null;
+    return Response.json({message,estimateStatus:estimate?.status});
+  }catch{return Response.json({error:"Send confirmation could not be saved. No delivery is claimed."},{status:500});}
 }

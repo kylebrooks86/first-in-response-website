@@ -79,7 +79,7 @@ type CustomerEstimate = { id:string; customerId:string; service:string; serviceD
 type CustomerNote = { id:string; customerId:string; body:string; createdAt:string };
 type InvoiceRow = { estimateStatus?:string; depositCents?:number; id:string; estimateId:string; customerId:string; customer?:string; email?:string; phone?:string; address?:string; service?:string; status:string; subtotalCents?:number; discountCents?:number; discountType?:"percent"|"dollar"; discountValue?:number; totalCents:number; paidCents?:number; dueAt?:string|null; shareToken?:string|null; firstViewedAt?:string|null; paymentOverageOpen?:number; createdAt:string };
 type CustomerPhoto = { id:string; customerId:string; category:"before"|"after"|"property"; caption?:string; filename:string; contentType:string; sizeBytes:number; createdAt:string };
-type CustomerMessage = { id:string; customerId:string; estimateId?:string|null; channel:"text"|"email"|"copy"; template:string; body:string; createdAt:string };
+type CustomerMessage = { id:string; customerId:string; estimateId?:string|null; channel:"text"|"email"|"copy"|"text_prepared"|"email_prepared"|"text_confirmed"|"email_confirmed"; template:string; body:string; createdAt:string };
 type AppNotification = { id:string; type:string; title:string; body:string; customerId?:string|null; estimateId?:string|null; readAt?:string|null; resolvedAt?:string|null; createdAt:string };
 type TaskRow = { id:string; title:string; customerId?:string|null; customer?:string|null; dueAt?:string|null; status:string; notes?:string|null; createdAt:string; completedAt?:string|null };
 type ExpenseRow = { id:string; estimateId?:string|null; category:string; description:string; amountCents:number; incurredAt:string; customer?:string|null; service?:string|null };
@@ -190,7 +190,7 @@ function PropertyPreview({ address }: { address: string }) {
 
 const messageLabels: Record<string,string> = Object.fromEntries(FIRE_TEMPLATES.map((item)=>[item.key,item.name]));
 
-function MessageComposer({ customer, estimate, initialTemplate="estimate", triggerLabel="Message", onLogged, onSent }: { customer:CustomerRow; estimate?:CustomerEstimate|EstimateRow|null; initialTemplate?:string; triggerLabel?:string; onLogged?:(message:CustomerMessage)=>void; onSent?:()=>void|Promise<void> }) {
+function MessageComposer({ customer, estimate, initialTemplate="estimate", triggerLabel="Message", onLogged, onSent }: { customer:CustomerRow; estimate?:CustomerEstimate|EstimateRow|null; initialTemplate?:string; triggerLabel?:string; onLogged?:(message:CustomerMessage)=>void; onSent?:(message:CustomerMessage,estimateStatus?:string)=>void|Promise<void> }) {
   const [open,setOpen]=useState(false);
   const [template,setTemplate]=useState(initialTemplate);
   const [body,setBody]=useState("");
@@ -199,6 +199,8 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const [invoiceShareToken,setInvoiceShareToken]=useState(estimate?.invoiceShareToken||"");
   const [siteOrigin,setSiteOrigin]=useState("");
   const [working,setWorking]=useState(false);
+  const [preparedMessage,setPreparedMessage]=useState<CustomerMessage|null>(null);
+  const [messageStatus,setMessageStatus]=useState("");
   const firstName=customer.name.trim().split(/\s+/)[0] || customer.name;
   const service=estimate?.service || "exterior cleaning service";
   const scheduled=estimate?.scheduledAt ? dateTime(estimate.scheduledAt) : "your scheduled time";
@@ -231,26 +233,31 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     void (async()=>{try{const response=await fetch(`/api/invoices/${estimate.invoiceId}/share`,{method:"POST"});const result=await response.json() as {shareToken?:string};if(response.ok&&result.shareToken)setInvoiceShareToken(result.shareToken);}catch{}})();
   },[open,estimate,invoiceShareToken,needsInvoiceLink]);
   useEffect(()=>{if(open)setBody(renderedBody);},[open,renderedBody]);
-  const log=async(channel:"text"|"email"|"copy")=>{
+  const log=async(channel:"text_prepared"|"email_prepared"|"copy")=>{
     setWorking(true);
     try{
       const response=await fetch("/api/customer-messages",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerId:customer.id,estimateId:estimate?.id,channel,template,body})});
       const result=await response.json() as {message?:CustomerMessage;error?:string};
-      if(!response.ok||!result.message)return false;
-      onLogged?.(result.message);return true;
-    }catch{return false;}finally{setWorking(false);}
+      if(!response.ok||!result.message){setMessageStatus(result.error||"Message preparation could not be saved.");return false;}
+      onLogged?.(result.message);if(channel!=="copy")setPreparedMessage(result.message);setMessageStatus(channel==="copy"?"Copied; sending is not confirmed.":"Prepared — sending is not confirmed. Return here after sending to confirm.");return true;
+    }catch{setMessageStatus("Message preparation could not be saved.");return false;}finally{setWorking(false);}
   };
-  const sendText=async()=>{if(!await log("text"))return;await onSent?.();window.location.href=`sms:${customer.phone}&body=${encodeURIComponent(body)}`;};
-  const sendEmail=async()=>{if(!await log("email"))return;await onSent?.();window.location.href=`mailto:${customer.email}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(body)}`;};
-  const copy=async()=>{await navigator.clipboard.writeText(body);await log("copy");setOpen(false);};
+  const sendText=async()=>{if(!await log("text_prepared"))return;window.location.href=`sms:${customer.phone}&body=${encodeURIComponent(body)}`;};
+  const sendEmail=async()=>{if(!await log("email_prepared"))return;window.location.href=`mailto:${customer.email}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(body)}`;};
+  const confirmSent=async()=>{
+    if(!preparedMessage)return;setWorking(true);setMessageStatus("");
+    try{const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:preparedMessage.id,customerId:customer.id,ownerConfirmedSent:true})});const result=await response.json() as {message?:CustomerMessage;estimateStatus?:string;error?:string};if(!response.ok||!result.message)throw new Error(result.error||"Send confirmation could not be saved.");onLogged?.(result.message);setPreparedMessage(null);setMessageStatus("Sent — confirmed by you. Delivery and read status are unknown.");if(preparedMessage.template===initialTemplate)await onSent?.(result.message,result.estimateStatus);}catch(error){setMessageStatus(error instanceof Error?error.message:"Send confirmation could not be saved.");}finally{setWorking(false);}
+  };
+  const copy=async()=>{try{await navigator.clipboard.writeText(body);await log("copy");}catch{setMessageStatus("Copy failed. No sending is confirmed.");}};
   return <Dialog open={open} onOpenChange={(value)=>{setOpen(value);if(value){setTemplate(initialTemplate);setSiteOrigin(window.location.origin);}}}>
     <DialogTrigger asChild><Button variant="outline"><MessageSquareText className="h-4 w-4" /> {triggerLabel}</Button></DialogTrigger>
     <DialogContent className="message-dialog sm:max-w-[620px]">
       <DialogHeader><DialogTitle>Message {customer.name}</DialogTitle></DialogHeader>
       <div className="message-builder">
-        <div><Label>Message type</Label><Select value={template} onValueChange={setTemplate}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{composerTemplates.map((item)=><SelectItem key={item.key} value={item.key}>{item.name}</SelectItem>)}</SelectContent></Select></div>
-        <div><Label htmlFor="customerMessage">Personalized message</Label><Textarea id="customerMessage" value={body} onChange={(event)=>setBody(event.target.value)} rows={8}/><small>Customer, service, price, date, address, and the private estimate or invoice link are filled in automatically when available. You can edit anything before sending.</small></div>
-        <div className="message-actions"><Button variant="outline" onClick={()=>void copy()} disabled={working||!body.trim()}><Copy className="h-4 w-4"/> Copy</Button>{customer.email&&activeTemplate?.channel!=="sms"&&<Button variant="outline" onClick={()=>void sendEmail()} disabled={working||!body.trim()}><Mail className="h-4 w-4"/> Email</Button>}{customer.phone&&activeTemplate?.channel!=="email"&&<Button className="brand-button" onClick={()=>void sendText()} disabled={working||!body.trim()}><Send className="h-4 w-4"/> Text</Button>}</div>
+        {messageStatus&&<p role="status">{messageStatus}</p>}{preparedMessage&&<div><p>After sending the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}, confirm here. Opening the other app does not send it.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button></div>}
+        <div><Label>Message type</Label><Select value={preparedMessage?.template??template} onValueChange={setTemplate} disabled={working||Boolean(preparedMessage)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{composerTemplates.map((item)=><SelectItem key={item.key} value={item.key}>{item.name}</SelectItem>)}</SelectContent></Select></div>
+        <div><Label htmlFor="customerMessage">Personalized message</Label><Textarea id="customerMessage" disabled={working||Boolean(preparedMessage)} value={preparedMessage?.body??body} onChange={(event)=>setBody(event.target.value)} rows={8}/><small>Customer, service, price, date, address, and the private estimate or invoice link are filled in automatically when available. You can edit anything before sending.</small></div>
+        <div className="message-actions"><Button variant="outline" onClick={()=>void copy()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Copy className="h-4 w-4"/> Copy</Button>{customer.email&&activeTemplate?.channel!=="sms"&&<Button variant="outline" onClick={()=>void sendEmail()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Mail className="h-4 w-4"/> Email</Button>}{customer.phone&&activeTemplate?.channel!=="email"&&<Button className="brand-button" onClick={()=>void sendText()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Send className="h-4 w-4"/> Text</Button>}</div>
       </div>
     </DialogContent>
   </Dialog>;
@@ -447,7 +454,7 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate}:{userName
         <Button variant="outline" onClick={() => onNavigate("followups")}>Review follow-ups <ChevronRight className="h-4 w-4" /></Button>
       </section>
       <div className="content-grid">
-        <section className="panel"><header><div><h2>Recent estimates</h2><p>Tap any row to continue the job</p></div><button onClick={() => onNavigate("estimates")}>View all</button></header><div className="job-list">{estimates.length?estimates.map((estimate) => <button className="job-row" key={estimate.id} onClick={()=>onNavigate("estimates")}><span className="date-tile"><b>{new Date(estimate.createdAt).getDate()}</b><small>{new Date(estimate.createdAt).toLocaleString("en-US",{month:"short"}).toUpperCase()}</small></span><div className="job-main"><strong>{estimate.customer}</strong><p>{estimate.service}</p></div><span className="status-pill">{estimate.status}</span><strong className="job-price">{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight className="row-arrow" /></button>):<div className="real-empty"><strong>No estimates yet</strong><p>Create your first estimate to start the customer record.</p></div>}</div></section>
+        <section className="panel"><header><div><h2>Recent estimates</h2><p>Tap any row to continue the job</p></div><button onClick={() => onNavigate("estimates")}>View all</button></header><div className="job-list">{estimates.length?estimates.map((estimate) => <button className="job-row" key={estimate.id} onClick={()=>onNavigate("estimates")}><span className="date-tile"><b>{new Date(estimate.createdAt).toLocaleDateString("en-US",{day:"numeric",timeZone:"America/Chicago"})}</b><small>{new Date(estimate.createdAt).toLocaleString("en-US",{month:"short",timeZone:"America/Chicago"}).toUpperCase()}</small></span><div className="job-main"><strong>{estimate.customer}</strong><p>{estimate.service}</p></div><span className="status-pill">{estimate.status}</span><strong className="job-price">{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight className="row-arrow" /></button>):<div className="real-empty"><strong>No estimates yet</strong><p>Create your first estimate to start the customer record.</p></div>}</div></section>
         <section className="panel quick-actions-panel"><header><div><h2>Quick actions</h2><p>Common field shortcuts</p></div></header><div className="quick-actions-grid">
           <button onClick={()=>onNavigate("customers")}><span className="quick-icon red"><Users/></span><span><strong>Customers</strong><small>Profiles, photos, and history</small></span><ChevronRight/></button>
           <button onClick={()=>onNavigate("schedule")}><span className="quick-icon blue"><CalendarDays/></span><span><strong>Schedule</strong><small>Jobs and driving plan</small></span><ChevronRight/></button>
@@ -846,10 +853,10 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
         estimate={estimate}
         initialTemplate={estimate.invoiceId?"invoice":"estimate"}
         triggerLabel={estimate.invoiceId?"Send invoice":"Send estimate"}
-        onSent={!estimate.invoiceId&&estimate.status==="draft"?()=>update({status:"sent"}):undefined}
+        onSent={!estimate.invoiceId&&estimate.status==="draft"?(_message,status)=>onChanged({...estimate,status:status||estimate.status}):undefined}
       />}
       {estimate.customerId&&estimate.status==="scheduled"&&estimate.scheduledAt&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="onMyWay" triggerLabel="On my way"/>}
-      {estimate.customerId&&estimate.status==="completed"&&Number(estimate.paymentOverageOpen)===0&&estimate.paidCents>=resolvedBillingTotalCents(estimate)&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="review" triggerLabel={estimate.lastReviewRequestAt?"Review requested":"Request review"} onSent={()=>onChanged({...estimate,lastReviewRequestAt:new Date().toISOString()})}/>}
+      {estimate.customerId&&estimate.status==="completed"&&Number(estimate.paymentOverageOpen)===0&&estimate.paidCents>=resolvedBillingTotalCents(estimate)&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="review" triggerLabel={estimate.lastReviewRequestAt?"Review requested":"Request review"} onSent={(message)=>onChanged({...estimate,lastReviewRequestAt:message.createdAt})}/>}
       {estimate.shareToken&&<a href={`/estimate/${estimate.shareToken}`} target="_blank" rel="noreferrer"><ExternalLink/> Customer view</a>}
       {estimate.invoiceId&&estimate.invoiceShareToken&&<a href={`/invoice/${estimate.invoiceShareToken}`} target="_blank" rel="noreferrer"><Receipt/> View invoice</a>}
       {estimate.phone && <a href={`tel:${estimate.phone}`}><Phone /> Call</a>}
@@ -984,7 +991,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
       {section === "payments" && (customerPayments.length ? customerPayments.map((payment) => <article className="customer-record customer-payment-record" key={payment.id}><div><strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":`${paymentTypeLabel(payment.type)} payment`}</strong><small>{dateTime(payment.createdAt)}{payment.reference&&<span className="inline-flex max-w-full flex-wrap items-center gap-1"><span className="font-mono" title={payment.reference}> · Ref …{payment.reference.slice(-12)}</span><button type="button" aria-label="Copy full payment reference" className="rounded border px-2 py-0.5 text-xs" onClick={()=>void navigator.clipboard.writeText(payment.reference||"").catch(()=>{})}>Copy</button></span>}</small><ProcessingDetails payment={payment}/></div><strong className="customer-payment-amount">{money(payment.amountCents)}</strong><RefundPayment payment={payment} onRefunded={()=>void load()}/></article>) : <div className="record-empty"><CreditCard /><strong>No payments recorded</strong><p>Open an estimate and choose Record payment after receiving money through Wave, Cash App, Venmo, cash, check, card, or bank transfer.</p></div>)}
       {section === "invoices" && (customerInvoices.length ? customerInvoices.map((invoice)=><a className="customer-record record-button" key={invoice.id} href={invoice.shareToken?`/invoice/${invoice.shareToken}`:undefined} target="_blank" rel="noreferrer"><div><strong>Invoice #{invoice.id.slice(0,6).toUpperCase()}</strong><small>{Number(invoice.paymentOverageOpen)>0?"Payment review in progress":statusLabel(invoice.status)} · Due {invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString() : "on receipt"}</small></div><strong>{money(invoice.totalCents)}</strong><ExternalLink/></a>) : <div className="record-empty"><Receipt /><strong>No invoices yet</strong><p>Open an estimate and tap Create invoice.</p></div>)}
       {section === "photos"&&<CustomerPhotos customer={selected} photos={photos} setPhotos={setPhotos}/>}
-      {section === "messages"&&(customerMessages.length?customerMessages.map((message)=><article className="message-history" key={message.id}><span className={`message-channel ${message.channel}`}><MessageSquareText/></span><div><strong>{messageLabels[message.template]||"Customer message"}</strong><p>{message.body}</p><small>{statusLabel(message.channel)} · {dateTime(message.createdAt)}</small></div></article>):<div className="record-empty"><MessageSquareText/><strong>No messages prepared yet</strong><p>Use the Message button to create a personalized text or email.</p></div>)}
+      {section === "messages"&&(customerMessages.length?customerMessages.map((message)=><article className="message-history" key={message.id}><span className={`message-channel ${message.channel}`}><MessageSquareText/></span><div><strong>{messageLabels[message.template]||"Customer message"}</strong><p>{message.body}</p><small>{message.channel.endsWith("_prepared")?"Prepared · sending unconfirmed":message.channel.endsWith("_confirmed")?"Sent · owner confirmed; delivery unknown":message.channel==="copy"?"Copied · sending unconfirmed":"Legacy interaction · sending unconfirmed"} · {dateTime(message.createdAt)}</small></div></article>):<div className="record-empty"><MessageSquareText/><strong>No messages prepared yet</strong><p>Use the Message button to create a personalized text or email.</p></div>)}
       {section === "notes" && <div className="notes-panel"><div className="note-compose"><Input value={noteText} onChange={(event)=>setNoteText(event.target.value)} placeholder="Gate code, pets, property details…" /><Button className="brand-button" onClick={()=>void saveNote()} disabled={savingNote || !noteText.trim()}><Plus className="h-4 w-4" /> Add note</Button></div>{customerNotes.length ? customerNotes.map((note)=><article className="note-row" key={note.id}><StickyNote /><div><p>{note.body}</p><small>{dateTime(note.createdAt)}</small></div></article>) : <div className="record-empty"><StickyNote /><strong>No notes yet</strong><p>Save access details and job-specific reminders here.</p></div>}</div>}
     </section>
   </div>;
