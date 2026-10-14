@@ -29,6 +29,6 @@ Add immutable estimate/property links with exact customer ownership, authoritati
 
 Address editing/reactivation, linking pre-existing estimates, in-dialog property creation, and portable property recovery remain incomplete. No auto-backfill, merge or reassignment is authorized. The schema presently supports archival only.
 
-Official release readiness stays **30% (3/10 gates)**. Gate 4's physical LIVE/refund-staging resource identities and full deployed artifact/runtime isolation evidence remain unavailable. No release gate is advanced by this batch. Actual mobile shaking remains tracked without CSS changes.
+Official release readiness stays **30% (3/10 gates)**. Gate 4's physical LIVE/refund-staging resource identities and full deployed artifact/runtime isolation evidence remain unavailable. No release gate is advanced by this batch. Owner confirmed that existing installed iPhone and iPad Home Screen apps scroll smoothly. Shaking is not an active defect for those apps; new candidate installed-device validation remains pending. No speculative CSS changes.
 
 No production deployments, migrations, financial actions, paid services, device recovery, customer-data modifications, or changes to existing Home Screen apps, calculator or backups.

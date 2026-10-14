@@ -1,3 +1,4 @@
+import {customerPropertiesEnabled,propertyAssociationColumns} from '../../../lib/customer-properties';
 import {serviceLocationsEnabled,serviceAddressColumns} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
@@ -21,7 +22,7 @@ export async function GET() {
         GROUP BY c.id ORDER BY c.created_at DESC
       `),
       env.DB.prepare(`
-        SELECT e.id,e.customer_id AS customerId,${serviceAddressColumns(serviceLocationsEnabled(env),"(SELECT address FROM customers WHERE id=e.customer_id)")},e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.total_cents AS totalCents,
+        SELECT e.id,e.customer_id AS customerId,${serviceAddressColumns(serviceLocationsEnabled(env),"(SELECT address FROM customers WHERE id=e.customer_id)")+propertyAssociationColumns(customerPropertiesEnabled(env))},e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.total_cents AS totalCents,
           (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,
           e.deposit_cents AS depositCents,e.scheduled_at AS scheduledAt,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,e.created_at AS createdAt,
           COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
@@ -37,7 +38,7 @@ export async function GET() {
         FROM estimates e ORDER BY e.created_at DESC
       `),
       env.DB.prepare(`SELECT id,customer_id AS customerId,body,created_at AS createdAt FROM customer_notes ORDER BY created_at DESC`),
-      env.DB.prepare(`SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,first_viewed_at AS firstViewedAt,created_at AS createdAt FROM invoices ORDER BY created_at DESC`),
+      env.DB.prepare(`SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,first_viewed_at AS firstViewedAt,created_at AS createdAt${customerPropertiesEnabled(env)?",(SELECT pl.property_id FROM estimate_property_links pl WHERE pl.estimate_id=invoices.estimate_id AND pl.customer_id=invoices.customer_id) AS propertyId":""} FROM invoices ORDER BY created_at DESC`),
       env.DB.prepare(`SELECT id,customer_id AS customerId,category,caption,filename,content_type AS contentType,size_bytes AS sizeBytes,created_at AS createdAt FROM customer_photos ORDER BY created_at DESC`),
       env.DB.prepare(`SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages ORDER BY created_at DESC`),
       env.DB.prepare(`SELECT p.id,p.estimate_id AS estimateId,e.customer_id AS customerId,p.type,p.amount_cents AS amountCents,p.processing_fee_cents AS processingFeeCents,p.gross_received_cents AS grossReceivedCents,p.bundled_tip_cents AS bundledTipCents,p.processing_method AS processingMethod,p.status,p.provider_id AS reference,p.created_at AS createdAt, (SELECT r.id FROM payment_refunds r WHERE r.payment_id=p.id AND r.status='pending' ORDER BY r.created_at LIMIT 1) AS pendingRefundId, (SELECT r.amount_cents FROM payment_refunds r WHERE r.payment_id=p.id AND r.status='pending' ORDER BY r.created_at LIMIT 1) AS pendingRefundAmountCents, CASE WHEN p.amount_cents>0 THEN COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status='succeeded'),0) ELSE 0 END AS refundedCents,

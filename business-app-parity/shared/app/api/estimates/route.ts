@@ -1,5 +1,5 @@
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
-import {customerPropertiesEnabled} from '../../../lib/customer-properties';
+import {customerPropertiesEnabled,propertyAssociationColumns,propertyEstimatesTestEnabled,selectEstimateProperty,PropertySelectionError} from '../../../lib/customer-properties';
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 
@@ -14,7 +14,7 @@ export async function GET() {
     const [estimateResult,itemResult]=await env.DB.batch([
       env.DB.prepare(`
         SELECT e.id,e.customer_id AS customerId,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.appreciation_discount AS appreciationDiscount,e.additional_discount_type AS additionalDiscountType,e.additional_discount_value AS additionalDiscountValue,e.total_cents AS totalCents,e.deposit_cents AS depositCents,
-               e.scheduled_at AS scheduledAt,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,e.created_at AS createdAt,c.name AS customer,c.email,c.phone,${serviceAddressColumns(serviceLocationsEnabled(env))},
+               e.scheduled_at AS scheduledAt,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,e.created_at AS createdAt,c.name AS customer,c.email,c.phone,${serviceAddressColumns(serviceLocationsEnabled(env))+propertyAssociationColumns(customerPropertiesEnabled(env))},
                COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
                (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceId,
                (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceShareToken,
@@ -45,8 +45,11 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as Record<string, unknown>;
     const existingCustomerId = String(body.customerId ?? "").trim();
-    if(Object.prototype.hasOwnProperty.call(body,'propertyId'))return Response.json({error:'Property-linked estimates are disabled pending association and backup verification. No estimate created.'},{status:409});
-    if(customerPropertiesEnabled(env)&&existingCustomerId){const properties=await env.DB.prepare('SELECT COUNT(*) AS total FROM customer_properties WHERE customer_id=?').bind(existingCustomerId).first<{total:number}>();if(Number(properties?.total)>0)return Response.json({error:'This customer has retained properties. Property-linked estimate creation is not enabled until association and backup checks pass. No estimate created.'},{status:409});}
+    const propertyTests=propertyEstimatesTestEnabled(env);
+    if(Object.prototype.hasOwnProperty.call(body,'propertyId')&&(!propertyTests||!existingCustomerId))return Response.json({error:'Property-linked estimates are disabled pending association and backup verification. No estimate created.'},{status:409});
+    if(!propertyTests&&customerPropertiesEnabled(env)&&existingCustomerId){const properties=await env.DB.prepare('SELECT COUNT(*) AS total FROM customer_properties WHERE customer_id=?').bind(existingCustomerId).first<{total:number}>();if(Number(properties?.total)>0)return Response.json({error:'This customer has retained properties. Property-linked estimate creation is not enabled until association and backup checks pass. No estimate created.'},{status:409});}
+    let selection:Awaited<ReturnType<typeof selectEstimateProperty>>=null;
+    if(propertyTests&&existingCustomerId){try{selection=await selectEstimateProperty(env.DB,existingCustomerId,body.propertyId,body.propertyRevision);}catch(error){if(error instanceof PropertySelectionError)return Response.json({error:error.message},{status:409});throw error;}}
     const customer = String(body.customer ?? "").trim();
     const email = String(body.email ?? "").trim();
     const phone = String(body.phone ?? "").trim();
@@ -81,12 +84,14 @@ export async function POST(request: Request) {
     let serviceAddress=address;
     if(existingCustomerId){const existing=await env.DB.prepare("SELECT id,address FROM customers WHERE id=?").bind(existingCustomerId).first();if(!existing)return Response.json({error:"That customer record could not be found."},{status:404});if(!Object.prototype.hasOwnProperty.call(body,"address"))serviceAddress=String(existing.address??"");}
     else statements.push(env.DB.prepare("INSERT INTO customers (id,name,email,phone,address,created_at) VALUES (?,?,?,?,?,?)").bind(customerId,customer,email||null,phone||null,address||null,now));
+    if(selection)serviceAddress=selection.property.address+(selection.property.designation?' · '+selection.property.designation:'');
     statements.push(env.DB.prepare("INSERT INTO estimates (id,customer_id,status,subtotal_cents,discount_cents,appreciation_discount,additional_discount_type,additional_discount_value,total_cents,deposit_cents,share_token,created_at) VALUES (?,?,'draft',?,?,?,?,?,?,?,?,?)").bind(estimateId,customerId,subtotal,appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,total,deposit,shareToken,now));
     if(serviceLocationsEnabled(env))statements.push(env.DB.prepare("INSERT INTO estimate_service_locations(estimate_id,customer_id,address,captured_at) VALUES(?,?,?,?)").bind(estimateId,customerId,serviceAddress,now));
+    if(selection)statements.push(env.DB.prepare('INSERT INTO estimate_property_links(estimate_id,customer_id,property_id,property_revision,selection_mode,captured_at) VALUES(?,?,?,?,?,?)').bind(estimateId,customerId,selection.property.id,selection.property.revision,selection.mode,now));
     for(const item of items)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),estimateId,item.name,item.description,item.quantity,item.unit,item.totalCents));
     await env.DB.batch(statements);
-    return Response.json({id:estimateId,customerId,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue},{status:201});
+    return Response.json({id:estimateId,customerId,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue},{status:201});
   } catch {
-    return Response.json({ error: "We couldn't save this estimate. Please try again." }, { status: 500 });
+    return Response.json({ error: propertyEstimatesTestEnabled(env)?'Estimate save was not confirmed. Review stored records before another deliberate attempt.':"We couldn't save this estimate. Please try again." }, { status: 500 });
   }
 }

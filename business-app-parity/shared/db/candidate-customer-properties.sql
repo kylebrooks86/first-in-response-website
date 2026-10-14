@@ -17,3 +17,23 @@ WHEN OLD.active<>1 OR NEW.active<>0 OR NEW.revision<>OLD.revision+1
 BEGIN SELECT RAISE(ABORT,'Only deliberate revision-checked archival is supported'); END;
 CREATE TRIGGER customer_property_no_delete BEFORE DELETE ON customer_properties
 BEGIN SELECT RAISE(ABORT,'Property history must be retained'); END;
+
+CREATE TABLE estimate_property_links(
+ estimate_id TEXT PRIMARY KEY NOT NULL REFERENCES estimates(id),
+ customer_id TEXT NOT NULL REFERENCES customers(id),
+ property_id TEXT NOT NULL REFERENCES customer_properties(id),
+ property_revision INTEGER NOT NULL CHECK(property_revision>=1),
+ selection_mode TEXT NOT NULL CHECK(selection_mode IN ('sole','explicit')),
+ captured_at TEXT NOT NULL
+);
+CREATE INDEX estimate_property_owner ON estimate_property_links(customer_id,property_id);
+CREATE TRIGGER estimate_property_ownership BEFORE INSERT ON estimate_property_links
+WHEN NOT EXISTS(SELECT 1 FROM customer_properties p JOIN estimates e ON e.id=NEW.estimate_id JOIN estimate_service_locations sl ON sl.estimate_id=e.id
+ WHERE p.id=NEW.property_id AND p.customer_id=NEW.customer_id AND e.customer_id=NEW.customer_id AND sl.customer_id=NEW.customer_id
+ AND p.active=1 AND p.revision=NEW.property_revision AND sl.captured_at=NEW.captured_at AND sl.address=p.address||CASE WHEN p.designation<>'' THEN ' · '||p.designation ELSE '' END
+ AND (NEW.selection_mode='explicit' OR (SELECT COUNT(*) FROM customer_properties other WHERE other.customer_id=p.customer_id AND other.active=1)=1))
+BEGIN SELECT RAISE(ABORT,'Property selection or captured address changed'); END;
+CREATE TRIGGER estimate_property_immutable_update BEFORE UPDATE ON estimate_property_links
+BEGIN SELECT RAISE(ABORT,'Historical property links cannot be overwritten'); END;
+CREATE TRIGGER estimate_property_immutable_delete BEFORE DELETE ON estimate_property_links
+BEGIN SELECT RAISE(ABORT,'Historical property links cannot be deleted'); END;

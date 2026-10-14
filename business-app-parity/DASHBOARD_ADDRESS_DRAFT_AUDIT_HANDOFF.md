@@ -23,6 +23,6 @@ Final results are recorded in `DASHBOARD_ADDRESS_DRAFT_AUDIT_EVIDENCE.json`. Ear
 - Multiple-property management is not implemented by this batch. Next: customer-owned active properties and explicit multi-property selection, preserving immutable estimate snapshots, transaction ownership and additive backup coverage behind a development-only gate. No production schema changes are approved.
 - CLI service-address snapshot restore remains blocked pending native atomic verification; the verified owner API workflow is unchanged.
 - Gate 4 still lacks immutable LIVE/refund-staging physical database identities and complete deployed artifact/runtime isolation evidence. Other pending release gates remain open.
-- Actual iPhone/iPad, installed-app, deployed parity and bottom-of-screen shaking evidence are unchanged.
+- Owner confirms existing installed iPhone/iPad Home Screen apps scroll smoothly. Shaking is not an active defect for those apps. New candidate installed-device/deployed parity remains pending; no speculative CSS changes.
 
 Official readiness: **30% (3/10 gates)**. Source/tests/builds do not prove deployed acceptance.
