@@ -115,6 +115,11 @@ export async function GET() {
         const manifestBytes = encoder.encode(JSON.stringify({
           format: "fire-app-photo-archive",
           version: 1,
+          scope: "referenced-photos-only",
+          unreferencedStorageFilesIncluded: false,
+          atomicSnapshot: false,
+          requiresSeparateRecordsBackup: true,
+          warning: "This archive includes referenced photo files only. Retained unreferenced files from uncertain uploads or deletions need separate review and preservation. It does not prove complete storage recovery.",
           exportedAt: new Date().toISOString(),
           photoCount: photos.length - missingPhotoIds.length,
           missingPhotoIds,
