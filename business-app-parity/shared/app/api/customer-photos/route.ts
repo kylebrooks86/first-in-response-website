@@ -27,9 +27,15 @@ export async function POST(request: Request) {
     try {
       await env.DB.prepare("INSERT INTO customer_photos (id,customer_id,category,caption,filename,content_type,size_bytes,object_key,created_at) VALUES (?,?,?,?,?,?,?,?,?)")
         .bind(id, customerId, safeCategory, caption || null, file.name || `photo.${extension}`, file.type, file.size, objectKey, createdAt).run();
-    } catch (error) {
-      await env.BUCKET.delete(objectKey);
-      throw error;
+    } catch {
+      // A D1 error can arrive AFTER the insert commits. Never automatically delete
+      // the stored bytes: that would leave a valid customer_photos row pointing at
+      // a missing object. Preserve the file for deliberate reconciliation.
+      // A retry must first check for an existing record, not silently resubmit.
+      return Response.json({
+        error: "Photo save status is uncertain. Check this customer's Photos before uploading again.",
+        saveUncertain: true,
+      }, { status: 503 });
     }
     return Response.json({ photo: { id, customerId, category: safeCategory, caption, filename: file.name, contentType: file.type, sizeBytes: file.size, createdAt } }, { status: 201 });
   } catch {

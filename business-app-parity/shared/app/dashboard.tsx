@@ -289,25 +289,50 @@ function CustomerPhotos({customer,photos,setPhotos}:{customer:CustomerRow;photos
   const [afterId,setAfterId]=useState("");
   const [comparing,setComparing]=useState(false);
   const [error,setError]=useState("");
+  const [deletingId,setDeletingId]=useState<string|null>(null);
+  const [uncertain,setUncertain]=useState(false);
+  const [refreshing,setRefreshing]=useState(false);
+  const [reviewed,setReviewed]=useState(false);
+  const mutationLock=useRef(false);
+  const refreshPhotos=async()=>{
+    setRefreshing(true);setReviewed(false);
+    try{
+      const response=await fetch('/api/customers',{cache:'no-store'});const result=await response.json() as {photos?:CustomerPhoto[]};
+      if(!response.ok||!Array.isArray(result.photos)||result.photos.some(photo=>!photo||typeof photo.id!=='string'||typeof photo.customerId!=='string'))throw Error('Photo records could not be refreshed. No photo action was retried.');
+      const own=result.photos.filter(photo=>photo.customerId===customer.id);
+      if(new Set(own.map(photo=>photo.id)).size!==own.length)throw Error('Photo records could not be verified.');
+      setPhotos(current=>[...current.filter(photo=>photo.customerId!==customer.id),...own]);setReviewed(true);
+    }catch(refreshError){setError(current=>(current?current+' ':'')+(refreshError instanceof Error?refreshError.message:'Photo records unavailable.'));}
+    finally{setRefreshing(false);}
+  };
   const upload=async(files:FileList|null)=>{
-    if(!files?.length)return;
+    if(!files?.length||mutationLock.current||uncertain||refreshing)return;
+    mutationLock.current=true;
     setUploading(true);setError("");
+    let safelyRejected=false;
     try{
       for(const file of Array.from(files)){
         const form=new FormData();form.append("customerId",customer.id);form.append("category",category);form.append("caption",caption);form.append("photo",file);
         const response=await fetch("/api/customer-photos",{method:"POST",body:form});
-        const result=await response.json() as {photo?:CustomerPhoto;error?:string};
-        if(!response.ok||!result.photo)throw new Error(result.error||"Photo upload failed.");
+        const result=await response.json() as {photo?:CustomerPhoto;error?:string;saveUncertain?:boolean};
+        if(!response.ok||!result.photo){safelyRejected=response.status>=400&&response.status<500&&!result.saveUncertain;throw new Error(result.error||'Photo upload was not confirmed.');}
+        if(result.photo.customerId!==customer.id||typeof result.photo.id!=='string')throw new Error('Photo save receipt could not be verified.');
         setPhotos((current)=>[result.photo!,...current]);
       }
       setCaption("");
-    }catch(uploadError){setError(uploadError instanceof Error?uploadError.message:"Photo upload failed.");}
-    finally{setUploading(false);if(cameraRef.current)cameraRef.current.value="";if(libraryRef.current)libraryRef.current.value="";}
+    }catch(uploadError){if(!safelyRejected)setUncertain(true);setError(uploadError instanceof Error?uploadError.message:'Photo upload was not confirmed.');await refreshPhotos();}
+    finally{mutationLock.current=false;setUploading(false);if(cameraRef.current)cameraRef.current.value="";if(libraryRef.current)libraryRef.current.value="";}
   };
   const remove=async(photo:CustomerPhoto)=>{
-    if(!window.confirm(`Delete this ${photo.category} photo?`))return;
-    const response=await fetch(`/api/customer-photos/${photo.id}`,{method:"DELETE"});
-    if(response.ok)setPhotos((current)=>current.filter((item)=>item.id!==photo.id));
+    if(mutationLock.current||uncertain||refreshing||!window.confirm(`Delete this ${photo.category} photo?`))return;
+    mutationLock.current=true;setDeletingId(photo.id);setError('');let safelyRejected=false;
+    try{
+      const response=await fetch(`/api/customer-photos/${photo.id}`,{method:'DELETE'});
+      const result=await response.json() as {ok?:boolean;error?:string;deleteUncertain?:boolean;cleanupUncertain?:boolean};
+      if(!response.ok||result.ok!==true){safelyRejected=response.status>=400&&response.status<500&&!result.deleteUncertain&&!result.cleanupUncertain;throw Error(result.error||'Photo deletion was not confirmed.');}
+      setPhotos(current=>current.filter(item=>item.id!==photo.id));
+    }catch(deleteError){if(!safelyRejected)setUncertain(true);setError(deleteError instanceof Error?deleteError.message:'Photo deletion was not confirmed.');await refreshPhotos();}
+    finally{mutationLock.current=false;setDeletingId(null);}
   };
   const own=photos.filter((photo)=>photo.customerId===customer.id);
   const beforePhotos=own.filter((photo)=>photo.category==="before");
@@ -340,13 +365,14 @@ function CustomerPhotos({customer,photos,setPhotos}:{customer:CustomerRow;photos
     <div className="photo-toolbar">
       <div><Label>Photo type</Label><Select value={category} onValueChange={(value)=>setCategory(value as typeof category)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="before">Before</SelectItem><SelectItem value="after">After</SelectItem><SelectItem value="property">Property / damage</SelectItem></SelectContent></Select></div>
       <div className="photo-caption"><Label htmlFor="photoCaption">Optional note</Label><Input id="photoCaption" value={caption} onChange={(event)=>setCaption(event.target.value)} placeholder="North siding, cracked outlet cover…"/></div>
-      <div className="photo-buttons"><Button className="brand-button" onClick={()=>cameraRef.current?.click()} disabled={uploading}><Camera className="h-4 w-4"/>{uploading?"Uploading…":"Camera"}</Button><Button variant="outline" onClick={()=>libraryRef.current?.click()} disabled={uploading}><Images className="h-4 w-4"/>Photo library</Button></div>
+      <div className="photo-buttons"><Button className="brand-button" onClick={()=>cameraRef.current?.click()} disabled={uploading||Boolean(deletingId)||uncertain||refreshing}><Camera className="h-4 w-4"/>{uploading?"Uploading…":"Camera"}</Button><Button variant="outline" onClick={()=>libraryRef.current?.click()} disabled={uploading||Boolean(deletingId)||uncertain||refreshing}><Images className="h-4 w-4"/>Photo library</Button></div>
       <input ref={cameraRef} className="photo-input" type="file" accept="image/*" capture="environment" onChange={(event)=>void upload(event.target.files)}/>
       <input ref={libraryRef} className="photo-input" type="file" accept="image/*" multiple onChange={(event)=>void upload(event.target.files)}/>
     </div>
     {error&&<p className="save-error" role="alert">{error}</p>}
+    {uncertain&&<section className="space-y-2" aria-label="Unconfirmed photo action"><p role="status">The photo action was not confirmed. Upload and delete actions are paused; no automatic retry was made.</p><Button variant="outline" disabled={refreshing||uploading||Boolean(deletingId)} onClick={()=>void refreshPhotos()}>Review stored photos</Button>{reviewed&&<><p>Stored photo records were refreshed. Image-storage cleanup may still require separate review.</p><Button variant="outline" disabled={refreshing||uploading||Boolean(deletingId)} onClick={()=>{if(window.confirm('I reviewed the refreshed photo records. Any unconfirmed image-storage cleanup will be handled separately. Enable new deliberate photo actions?')){setUncertain(false);setReviewed(false);}}}>Continue after reviewing photos</Button></>}</section>}
     {beforePhotos.length>0&&afterPhotos.length>0&&<section className="before-after-builder"><header><div><strong>Before &amp; after</strong><p>Pair two real job photos into one shareable image.</p></div><Images/></header><div><label><span>Before photo</span><Select value={selectedBefore?.id} onValueChange={setBeforeId}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{beforePhotos.map((photo)=><SelectItem key={photo.id} value={photo.id}>{photo.caption||`${new Date(photo.createdAt).toLocaleDateString()} · ${photo.filename}`}</SelectItem>)}</SelectContent></Select></label><label><span>After photo</span><Select value={selectedAfter?.id} onValueChange={setAfterId}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{afterPhotos.map((photo)=><SelectItem key={photo.id} value={photo.id}>{photo.caption||`${new Date(photo.createdAt).toLocaleDateString()} · ${photo.filename}`}</SelectItem>)}</SelectContent></Select></label><Button className="brand-button" onClick={()=>void createComparison()} disabled={comparing}><Download className="h-4 w-4"/>{comparing?"Creating…":"Create comparison"}</Button></div><div className="before-after-preview"><figure><img src={`/api/customer-photos/${selectedBefore?.id}`} alt="Selected before"/><figcaption>Before</figcaption></figure><figure><img src={`/api/customer-photos/${selectedAfter?.id}`} alt="Selected after"/><figcaption>After</figcaption></figure></div></section>}
-    {own.length?<div className="photo-groups">{(["before","after","property"] as const).map((type)=>{const group=own.filter((photo)=>photo.category===type);if(!group.length)return null;return <section key={type}><header><strong>{type==="property"?"Property / damage":statusLabel(type)}</strong><span>{group.length}</span></header><div className="photo-grid">{group.map((photo)=><article className="photo-card" key={photo.id}><a href={`/api/customer-photos/${photo.id}`} target="_blank" rel="noreferrer"><img src={`/api/customer-photos/${photo.id}`} alt={`${statusLabel(photo.category)} photo${photo.caption?`: ${photo.caption}`:""}`} loading="lazy"/></a><div><p>{photo.caption||photo.filename}</p><small>{new Date(photo.createdAt).toLocaleDateString()}</small></div><button onClick={()=>void remove(photo)} aria-label="Delete photo"><Trash2/></button></article>)}</div></section>})}</div>:<div className="record-empty"><Camera/><strong>No property photos yet</strong><p>Choose Before, After, or Property / damage, then use your camera or photo library.</p></div>}
+    {own.length?<div className="photo-groups">{(["before","after","property"] as const).map((type)=>{const group=own.filter((photo)=>photo.category===type);if(!group.length)return null;return <section key={type}><header><strong>{type==="property"?"Property / damage":statusLabel(type)}</strong><span>{group.length}</span></header><div className="photo-grid">{group.map((photo)=><article className="photo-card" key={photo.id}><a href={`/api/customer-photos/${photo.id}`} target="_blank" rel="noreferrer"><img src={`/api/customer-photos/${photo.id}`} alt={`${statusLabel(photo.category)} photo${photo.caption?`: ${photo.caption}`:""}`} loading="lazy"/></a><div><p>{photo.caption||photo.filename}</p><small>{new Date(photo.createdAt).toLocaleDateString()}</small></div><button disabled={uploading||Boolean(deletingId)||uncertain||refreshing} onClick={()=>void remove(photo)} aria-label="Delete photo"><Trash2/></button></article>)}</div></section>})}</div>:<div className="record-empty"><Camera/><strong>No property photos yet</strong><p>Choose Before, After, or Property / damage, then use your camera or photo library.</p></div>}
   </div>;
 }
 
