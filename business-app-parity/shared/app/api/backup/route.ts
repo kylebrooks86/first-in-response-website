@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {serviceLocationsEnabled} from "../../../lib/service-location";
+import {customerPropertiesEnabled} from '../../../lib/customer-properties';
 import {serviceLocationManifest,serviceLocationBackupError} from "../../../lib/service-location-backup.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
@@ -200,6 +201,7 @@ async function authorized() {
 
 export async function GET() {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if(customerPropertiesEnabled(env))return Response.json({error:'Property-aware backup is not verified yet. Candidate export is blocked to prevent omitted property records.'},{status:409});
   try {
     const snapshotEnabled=serviceLocationsEnabled(env);
     const exportTables:readonly string[]=snapshotEnabled?[...TABLES,"estimate_service_locations"]:TABLES;
@@ -260,6 +262,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if(customerPropertiesEnabled(env))return Response.json({error:'Property-aware recovery is not verified yet. No records changed.'},{status:409});
   const restoreAudit={
     attemptId:crypto.randomUUID(),
     phase:"input_validation",
@@ -279,6 +282,7 @@ export async function POST(request: Request) {
     const raw = await request.text();
     if (raw.length > 5_000_000) return Response.json({ error: "That backup is larger than the 5 MB restore limit." }, { status: 413 });
     const payload: unknown = JSON.parse(raw);
+    if(isRecord(payload)&&isRecord(payload.tables)&&Object.keys(payload.tables).some(table=>['customer_properties','estimate_property_links'].includes(table)))return Response.json({error:'Property-aware recovery is not verified yet. No records changed.'},{status:409});
     if (!isRecord(payload)) return Response.json({ error: "This is not a valid FIRE App records backup." }, { status: 400 });
     const backupTables = normalizeBackupTables(payload);
     if (!backupTables) return Response.json({ error: "This is not a valid or complete FIRE App records backup." }, { status: 400 });

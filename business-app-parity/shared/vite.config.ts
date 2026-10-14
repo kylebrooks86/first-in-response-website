@@ -9,6 +9,7 @@ const localBindingConfig = {
   compatibility_flags: ["nodejs_compat"],
   vars: {
     FIRE_SERVICE_LOCATIONS_CANDIDATE: process.env.NODE_ENV === "development" && process.env.FIRE_SERVICE_LOCATIONS_CANDIDATE === "synthetic-only" ? "synthetic-only" : "",
+    FIRE_CUSTOMER_PROPERTIES_CANDIDATE: process.env.NODE_ENV === "development" && process.env.FIRE_CUSTOMER_PROPERTIES_CANDIDATE === "synthetic-only" ? "synthetic-only" : "",
     FIRE_LOCAL_CUSTOMERS_CANDIDATE: process.env.NODE_ENV === "development"
       && process.env.FIRE_LOCAL_CUSTOMERS_CANDIDATE === "synthetic-only" ? "synthetic-only" : "",
   },

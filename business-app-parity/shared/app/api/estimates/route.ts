@@ -1,4 +1,5 @@
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
+import {customerPropertiesEnabled} from '../../../lib/customer-properties';
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 
@@ -44,6 +45,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as Record<string, unknown>;
     const existingCustomerId = String(body.customerId ?? "").trim();
+    if(Object.prototype.hasOwnProperty.call(body,'propertyId'))return Response.json({error:'Property-linked estimates are disabled pending association and backup verification. No estimate created.'},{status:409});
+    if(customerPropertiesEnabled(env)&&existingCustomerId){const properties=await env.DB.prepare('SELECT COUNT(*) AS total FROM customer_properties WHERE customer_id=?').bind(existingCustomerId).first<{total:number}>();if(Number(properties?.total)>0)return Response.json({error:'This customer has retained properties. Property-linked estimate creation is not enabled until association and backup checks pass. No estimate created.'},{status:409});}
     const customer = String(body.customer ?? "").trim();
     const email = String(body.email ?? "").trim();
     const phone = String(body.phone ?? "").trim();

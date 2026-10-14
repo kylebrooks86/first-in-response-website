@@ -1,6 +1,7 @@
 "use client";
 
 import { CandidateLayoutTrace } from "../components/candidate-layout-trace";
+import {CustomerProperties} from '../components/customer-properties';
 import { OwnerAccountView } from "./owner-account";
 import { estimateFollowUpTiming, estimateReminderStage } from "../lib/follow-up-timing";
 import { messageHistoryEntries } from "../lib/message-history";
@@ -367,7 +368,7 @@ function discountMath(subtotal:number, appreciation:boolean, mode:DiscountMode, 
   return {appreciationCents,additionalCents,requestedDiscount,total,appliedDiscount,deposit:Math.round(total/2)};
 }
 
-function NewEstimate({ onSaved, customer }: { onSaved?: (estimate: EstimateRow) => void; customer?: CustomerRow }) {
+function NewEstimate({ onSaved, customer,disabledReason }: { onSaved?: (estimate: EstimateRow) => void; customer?: CustomerRow;disabledReason?:string }) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [customerName,setCustomerName]=useState(customer?.name??"");
@@ -426,7 +427,7 @@ function NewEstimate({ onSaved, customer }: { onSaved?: (estimate: EstimateRow) 
   };
 
   return <Dialog open={open} onOpenChange={reset}>
-    <DialogTrigger asChild><Button className="brand-button"><Plus className="h-4 w-4" /> New estimate</Button></DialogTrigger>
+    <DialogTrigger asChild><Button className="brand-button" disabled={Boolean(disabledReason)} title={disabledReason}><Plus className="h-4 w-4" /> New estimate</Button></DialogTrigger>
     <DialogContent className="max-h-[92vh] overflow-y-auto border-0 p-0 sm:max-w-[620px]">
       <div className="estimate-head"><DialogHeader><DialogTitle className="text-xl">Create estimate</DialogTitle></DialogHeader><p className="mt-1 text-sm text-slate-500">Step {step} of 2 · {step===1?"Customer details":"Services and pricing"}</p><Progress value={step*50} className="mt-4 h-1.5"/></div>
       {saved?<div className="px-6 py-12 text-center"><span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-8 w-8"/></span><h2 className="text-2xl font-extrabold">Estimate ready</h2><p className="mx-auto mt-2 max-w-sm text-slate-500">{money(total)} total. A {money(deposit)} (50%) deposit reserves the customer&apos;s place on the schedule; the remaining balance is due when the work is completed.</p><div className="mt-7 flex justify-center"><Button className="brand-button" onClick={()=>reset(false)}>Done</Button></div></div>
@@ -906,6 +907,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [photos,setPhotos]=useState<CustomerPhoto[]>([]);
   const [messages,setMessages]=useState<CustomerMessage[]>([]);
+  const [propertyEstimateBlocked,setPropertyEstimateBlocked]=useState(false);
   const [payments,setPayments]=useState<PaymentRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeEstimate, setActiveEstimate] = useState<EstimateRow | null>(null);
@@ -975,7 +977,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
     <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={()=>{ setActiveEstimate(null); void load(); }} />
     <button className="back-link" onClick={() => { setSelectedId(null); setSection("estimates"); }}>← All customers</button>
     <section className="customer-profile">
-      <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><p className="eyebrow">Customer profile</p><h1>{selected.name}</h1></div><div className="profile-head-actions"><EditCustomer customer={selected} onUpdated={(updated)=>setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item))}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/><NewEstimate customer={selected} onSaved={handleEstimateSaved} /></div></div>
+      <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><p className="eyebrow">Customer profile</p><h1>{selected.name}</h1></div><div className="profile-head-actions"><EditCustomer customer={selected} onUpdated={(updated)=>setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item))}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/><NewEstimate disabledReason={propertyEstimateBlocked?'Property-linked estimates remain disabled pending association and backup verification.':undefined} customer={selected} onSaved={handleEstimateSaved} /></div></div>
       <div className="customer-snapshot">
         <span><small>Jobs / estimates</small><strong>{customerEstimates.length}</strong></span>
         <span><small>Paid</small><strong>{money(customerPaidTotal)}</strong></span>
@@ -993,6 +995,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
         {selected.address && <a href={`https://www.zillow.com/homes/${encodeURIComponent(selected.address.trim().replace(/\s+/g,"-"))}_rb/`} target="_blank" rel="noreferrer"><House />Zillow</a>}
       </div>
       {selected.address && <PropertyPreview address={selected.address} />}
+      <CustomerProperties key={selected.id} customerId={selected.id} onRecordsChange={setPropertyEstimateBlocked}/>
     </section>
     <nav className="record-tabs">
       <button className={section === "estimates" ? "active" : ""} onClick={() => setSection("estimates")}>Estimates <b>{customerEstimates.length}</b></button>

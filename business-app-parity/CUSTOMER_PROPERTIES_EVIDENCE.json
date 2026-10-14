@@ -1,0 +1,215 @@
+{
+  "dateUtc": "2026-10-14",
+  "baseCommit": "45b14984d4549b3f5440c7ece9ff6809b302d856",
+  "scope": "Actual shared development property records API/profile integration; no deployments or production migrations",
+  "browsers": [
+    {
+      "passed": 8,
+      "total": 8,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual gateway adapter denies non-owner header fixture",
+        "actual framework renders and hydrates candidate route",
+        "explicit local fixture creation mounts locked and clears phrase",
+        "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+        "native property profile saves separate buildings auto selects sole active and requires explicit multiple choice",
+        "native property pagination exceeds fifty without merging and retains failed-save input",
+        "no external requests or framework browser errors"
+      ],
+      "deployment": "live",
+      "browserVersion": "153.0.8010.0",
+      "actualFrameworkRuntime": true,
+      "actualAuthAdapter": true,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "realGatewayTested": false,
+      "productionActivated": false,
+      "propertyCapability": "on"
+    },
+    {
+      "passed": 7,
+      "total": 7,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual gateway adapter denies non-owner header fixture",
+        "actual framework renders and hydrates candidate route",
+        "explicit local fixture creation mounts locked and clears phrase",
+        "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+        "disabled property capability reads no new schema and preserves legacy backup and estimate paths",
+        "no external requests or framework browser errors"
+      ],
+      "deployment": "live",
+      "browserVersion": "153.0.8010.0",
+      "actualFrameworkRuntime": true,
+      "actualAuthAdapter": true,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "realGatewayTested": false,
+      "productionActivated": false,
+      "propertyCapability": "off"
+    },
+    {
+      "passed": 8,
+      "total": 8,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual independent auth rejects invalid signed-cookie fixture",
+        "actual framework renders and hydrates candidate route",
+        "explicit local fixture creation mounts locked and clears phrase",
+        "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+        "native property profile saves separate buildings auto selects sole active and requires explicit multiple choice",
+        "native property pagination exceeds fifty without merging and retains failed-save input",
+        "no external requests or framework browser errors"
+      ],
+      "deployment": "doomsday",
+      "browserVersion": "153.0.8010.0",
+      "actualFrameworkRuntime": true,
+      "actualAuthAdapter": true,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "realGatewayTested": false,
+      "productionActivated": false,
+      "propertyCapability": "on"
+    },
+    {
+      "passed": 7,
+      "total": 7,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual independent auth rejects invalid signed-cookie fixture",
+        "actual framework renders and hydrates candidate route",
+        "explicit local fixture creation mounts locked and clears phrase",
+        "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+        "disabled property capability reads no new schema and preserves legacy backup and estimate paths",
+        "no external requests or framework browser errors"
+      ],
+      "deployment": "doomsday",
+      "browserVersion": "153.0.8010.0",
+      "actualFrameworkRuntime": true,
+      "actualAuthAdapter": true,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "realGatewayTested": false,
+      "productionActivated": false,
+      "propertyCapability": "off"
+    },
+    {
+      "passed": 8,
+      "total": 8,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual gateway adapter denies non-owner header fixture",
+        "actual framework renders and hydrates candidate route",
+        "explicit local fixture creation mounts locked and clears phrase",
+        "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+        "native property profile saves separate buildings auto selects sole active and requires explicit multiple choice",
+        "native property pagination exceeds fifty without merging and retains failed-save input",
+        "no external requests or framework browser errors"
+      ],
+      "deployment": "staging",
+      "browserVersion": "153.0.8010.0",
+      "actualFrameworkRuntime": true,
+      "actualAuthAdapter": true,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "realGatewayTested": false,
+      "productionActivated": false,
+      "propertyCapability": "on"
+    },
+    {
+      "passed": 7,
+      "total": 7,
+      "checks": [
+        "actual framework requires owner authentication",
+        "actual gateway adapter denies non-owner header fixture",
+        "actual framework renders and hydrates candidate route",
+        "explicit local fixture creation mounts locked and clears phrase",
+        "Home loads actual app with empty synthetic D1 and exposes gated Customers entry",
+        "disabled property capability reads no new schema and preserves legacy backup and estimate paths",
+        "no external requests or framework browser errors"
+      ],
+      "deployment": "staging",
+      "browserVersion": "153.0.8010.0",
+      "actualFrameworkRuntime": true,
+      "actualAuthAdapter": true,
+      "syntheticAuthFixtures": true,
+      "disposableLocalD1": true,
+      "realGatewayTested": false,
+      "productionActivated": false,
+      "propertyCapability": "off"
+    }
+  ],
+  "browserPassed": 45,
+  "browserTotal": 45,
+  "schemaContractPassed": 7,
+  "schemaContractTotal": 7,
+  "backupFileRejectionPassed": 4,
+  "backupFileRejectionTotal": 4,
+  "financialPassed": 207,
+  "financialTotal": 207,
+  "typeScriptPassed": 3,
+  "fullBuildsPassed": 3,
+  "sharedFilesChecked": 144,
+  "sourceParity": true,
+  "deployedParityVerified": false,
+  "testedRetainedPropertiesPerCustomer": 55,
+  "applicationPropertyCountCap": null,
+  "propertyWorkflowChecklist": {
+    "definition": "Five bounded source-integration milestones, not release-readiness gates",
+    "passed": 2,
+    "total": 5,
+    "percent": 40,
+    "milestones": [
+      {
+        "name": "Actual customer-owned paginated property records and deliberate archival",
+        "passed": true
+      },
+      {
+        "name": "Sole-active automatic and multiple-active explicit profile selection",
+        "passed": true
+      },
+      {
+        "name": "Atomic estimate/property links and invoice/history associations",
+        "passed": false
+      },
+      {
+        "name": "Property-aware portable backup and occupied-safe restoration",
+        "passed": false
+      },
+      {
+        "name": "End-to-end selected-property estimate/document workflow",
+        "passed": false
+      }
+    ]
+  },
+  "safety": {
+    "featureEnabledInNormalBuilds": false,
+    "schemaInMigrationJournals": false,
+    "propertyEstimateCreationEnabled": false,
+    "propertyBackupRecoveryEnabled": false,
+    "automaticMutationRetries": false,
+    "propertyAddressEditingEnabled": false,
+    "existingCustomerAddressChanged": false,
+    "deviceVaultsTouched": false,
+    "productionDeployed": false,
+    "paidServicesUsed": false
+  },
+  "initialFailures": [
+    "D1 batch results typed unknown; corrected before final TypeScript/build verification",
+    "Initial parallel LIVE browser process did not complete verification and is not counted as a pass"
+  ],
+  "finalFailures": 0,
+  "remainingBlockers": [
+    "Property selection not consumed by estimate creation; creation blocked for retained-property customers in the gated candidate",
+    "Property-aware backup/restore not implemented; affected exports/imports fail closed",
+    "Editing/reactivation and in-estimate property creation remain unfinished",
+    "CLI snapshot apply remains blocked pending native atomic verification",
+    "Gate 4 missing physical LIVE/refund-staging D1 IDs and complete deployed identity/isolation evidence",
+    "Actual mobile shaking and installed/deployed parity still unverified"
+  ],
+  "officialReadiness": {
+    "passedGates": 3,
+    "totalGates": 10,
+    "percent": 30
+  }
+}

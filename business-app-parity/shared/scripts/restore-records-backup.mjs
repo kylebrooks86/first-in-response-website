@@ -86,6 +86,7 @@ if (payload?.format === "fire-app-records-backup" && payload?.version === 1 && p
   }));
 }
 if (!backupTables) throw new Error("This is not a valid or complete FIRE App records backup.");
+if(Object.keys(backupTables).some(table=>['customer_properties','estimate_property_links'].includes(table)))throw Error('Property-aware recovery is disabled pending native backup verification. No records changed.');
 const locationError=serviceLocationBackupError(payload,backupTables);
 if(locationError)throw Error(locationError);
 if(backupTables.estimate_service_locations!==undefined)throw Error("CLI service-address snapshot apply is disabled pending native transaction verification. Use the reviewed owner API workflow; no records changed.");

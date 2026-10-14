@@ -1,0 +1,31 @@
+"use client";
+import {useEffect,useRef,useState} from 'react';
+import type {CustomerProperty} from '../lib/customer-properties';
+import {Button} from './ui/button';
+import {Input} from './ui/input';
+type Page={enabled:boolean;properties:CustomerProperty[];activeCount:number;total:number;soleActiveProperty:CustomerProperty|null;nextCursor:string|null};
+export function CustomerProperties({customerId,onRecordsChange}:{customerId:string;onRecordsChange:(blocked:boolean)=>void}){
+ const [page,setPage]=useState<Page|null>(null),[rows,setRows]=useState<CustomerProperty[]>([]),[selected,setSelected]=useState(''),[address,setAddress]=useState(''),[designation,setDesignation]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[uncertain,setUncertain]=useState(false);
+ const request=useRef(0);
+ async function load(cursor?:string){
+  const generation=++request.current;setLoading(true);setError('');
+  try{const response=await fetch('/api/customer-properties?customerId='+encodeURIComponent(customerId)+(cursor?'&cursor='+encodeURIComponent(cursor):''));const data=await response.json() as Page&{error?:string};if(!response.ok)throw Error(data.error||'Properties unavailable.');if(generation!==request.current)return;if(!data.enabled){setPage(null);setRows([]);onRecordsChange(false);return;}if(!Array.isArray(data.properties)||!Number.isSafeInteger(data.activeCount)||!Number.isSafeInteger(data.total))throw Error('Property response could not be verified.');setUncertain(false);onRecordsChange(data.total>0);setPage(data);setRows(current=>cursor?[...current,...data.properties.filter(row=>!current.some(old=>old.id===row.id))]:data.properties);setSelected(current=>data.activeCount===1?data.soleActiveProperty?.id??'':cursor?current:'');}
+  catch(e){if(generation===request.current)setError(e instanceof Error?e.message:'Properties unavailable.');}finally{if(generation===request.current)setLoading(false);}
+ }
+ useEffect(()=>{setPage(null);setRows([]);setSelected('');setAddress('');setDesignation('');setMessage('');void load();return()=>{request.current++;};},[customerId]);
+ async function save(){if(busy||!address.trim())return;setBusy(true);setMessage('');try{const response=await fetch('/api/customer-properties',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({customerId,address,designation})});const data=await response.json() as {error?:string;property?:CustomerProperty};if(!response.ok||!data.property)throw Error(data.error||'Save was not confirmed. Review stored properties.');setAddress('');setDesignation('');setMessage('Property saved. Existing customers and historical addresses were not changed.');await load();}catch(e){setUncertain(true);setMessage(e instanceof Error?e.message:'Save was not confirmed. Review stored properties.');}finally{setBusy(false);}}
+ async function archive(property:CustomerProperty){if(busy||!window.confirm('Archive this property for future work? Its saved address and history will be retained.'))return;setBusy(true);setMessage('');try{const response=await fetch('/api/customer-properties',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({customerId,propertyId:property.id,action:'archive',expectedRevision:property.revision})});const data=await response.json() as {error?:string;property?:CustomerProperty};if(!response.ok||!data.property)throw Error(data.error||'Archive was not confirmed.');setMessage('Property archived; its record is retained.');await load();}catch(e){setUncertain(true);setMessage(e instanceof Error?e.message:'Archive was not confirmed.');}finally{setBusy(false);}}
+ if(!page&&!error)return null;
+ return <section aria-label="Customer properties" className="mt-4 rounded-lg border p-4 space-y-3">
+  <h2 className="font-bold">Properties</h2>
+  {error&&<p role="alert">{error}</p>}{message&&<p role="status">{message}</p>}{uncertain&&<Button variant="outline" disabled={loading||busy} onClick={()=>void load()}>Review stored properties</Button>}
+  {page&&<><p>{page.activeCount} active · {page.total} retained properties</p><p role="status">{page.activeCount===1?'Only active property selected automatically.':page.activeCount>1?'Select the property explicitly for future work.':'No active properties. Retained property records stay protected.'}</p>
+  <div className="space-y-2">{rows.map(property=><div key={property.id} className="flex flex-wrap items-center justify-between gap-2"><label className="flex gap-2"><input type="radio" name={'property-'+customerId} checked={selected===property.id} onChange={()=>setSelected(property.id)} disabled={!property.active||busy||loading} aria-label={'Select '+property.address+(property.designation?' · '+property.designation:'')}/><span>{property.address}{property.designation&&' · '+property.designation}{!property.active&&' · Archived'}</span></label>{Boolean(property.active)&&<Button variant="outline" disabled={busy||loading||uncertain} onClick={()=>void archive(property)} aria-label={'Archive '+property.address+(property.designation?' · '+property.designation:'')}>Archive</Button>}</div>)}</div>
+  {page.nextCursor&&<Button variant="outline" disabled={busy||loading} onClick={()=>void load(page.nextCursor!)}>Load more properties</Button>}
+  <p className="text-sm">Property-linked estimates and property backup/recovery remain disabled until their association and recovery checks pass. Existing historical addresses are not reassigned.</p>
+  <label className="block">Property service address<Input aria-label="Property service address" value={address} disabled={busy} onChange={e=>setAddress(e.target.value)} maxLength={2000}/></label>
+  <label className="block">Building / unit / area (optional)<Input aria-label="Property building unit or area" value={designation} disabled={busy} onChange={e=>setDesignation(e.target.value)} maxLength={200}/></label>
+  <Button disabled={busy||loading||uncertain||!address.trim()} onClick={()=>void save()}>{busy?'Saving…':'Add property'}</Button></>}
+  {error&&<Button variant="outline" disabled={loading||busy} onClick={()=>void load(page?.nextCursor??undefined)}>Retry property read</Button>}
+ </section>;
+}
