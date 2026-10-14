@@ -156,7 +156,7 @@ try {
     const { photo, entry } = plan;
     const existingPath = resolve(work, `${photo.id}-existing`);
     const existing = run(["r2", "object", "get", `${bucket}/${photo.objectKey}`, "--config", absoluteConfig, ...modeArgs, "--file", existingPath]);
-    if (existing.status === 0) { conflicts += 1; console.warn(`Skipped ${photo.id}: an R2 object already exists at ${photo.objectKey}.`); continue; }
+    if (existing.status === 0) { throw new Error(`Restore blocked: R2 object already exists at ${photo.objectKey}. No overwrite was attempted; inspect the destination before retrying.`); }
     const missingText = `${existing.stdout || ""}\n${existing.stderr || ""}`;
     if (!missingText.includes("specified key does not exist")) fail(existing, `Could not safely check R2 object ${photo.objectKey}.`);
 
@@ -165,7 +165,7 @@ try {
     if (extracted.stdout.byteLength !== photo.sizeBytes) throw new Error(`Photo ${photo.id} size does not match its manifest.`);
     const photoPath = resolve(work, photo.id);
     await writeFile(photoPath, extracted.stdout);
-    const upload = run(["r2", "object", "put", `${bucket}/${photo.objectKey}`, "--config", absoluteConfig, ...modeArgs, "--file", photoPath, "--content-type", photo.contentType, "--force"]);
+    const upload = run(["r2", "object", "put", `${bucket}/${photo.objectKey}`, "--config", absoluteConfig, ...modeArgs, "--file", photoPath, "--content-type", photo.contentType]);
     if (upload.status !== 0) fail(upload, `Could not upload photo ${photo.id}.`);
 
     const insert = `INSERT OR IGNORE INTO customer_photos (id,customer_id,category,caption,filename,content_type,size_bytes,object_key,created_at) VALUES (${sql(photo.id)},${sql(photo.customerId)},${sql(photo.category)},${sql(photo.caption)},${sql(photo.filename)},${sql(photo.contentType)},${sql(photo.sizeBytes)},${sql(photo.objectKey)},${sql(photo.createdAt)})`;
