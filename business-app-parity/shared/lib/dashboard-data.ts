@@ -1,4 +1,5 @@
-export async function loadDashboardData(db: D1Database) {
+import {serviceAddressColumns} from "./service-location";
+export async function loadDashboardData(db: D1Database, serviceLocations=false) {
   const [summaryResult,recentResult] = await db.batch([
     db.prepare(`SELECT COUNT(*) AS estimates,
       COALESCE(SUM(CASE WHEN status IN ('draft','sent') THEN total_cents ELSE 0 END),0) AS openValue,
@@ -9,7 +10,7 @@ export async function loadDashboardData(db: D1Database) {
       END),0) AS outstanding
       FROM estimates`),
     db.prepare(`SELECT e.id,e.customer_id AS customerId,e.status,e.total_cents AS totalCents,e.deposit_cents AS depositCents,e.scheduled_at AS scheduledAt,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,e.created_at AS createdAt,
-      c.name AS customer,c.email,c.phone,c.address,
+      c.name AS customer,c.email,c.phone,${serviceAddressColumns(serviceLocations)},
       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Custom service') AS service,
       COALESCE((SELECT description FROM estimate_items ei WHERE ei.estimate_id=e.id ORDER BY rowid ASC LIMIT 1),'') AS serviceDescription,
       COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,

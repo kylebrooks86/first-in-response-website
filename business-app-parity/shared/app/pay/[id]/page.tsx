@@ -1,3 +1,4 @@
+import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { PayButton } from "./pay-button";
@@ -12,12 +13,12 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
   const { paid } = await searchParams;
   const row = await env.DB.prepare(`
     SELECT e.id, e.total_cents AS estimateTotalCents, COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents, e.deposit_cents AS depositCents, e.status, e.accepted_at AS acceptedAt,
-           c.name AS customer, c.address,
+           c.name AS customer, ${serviceAddressColumns(serviceLocationsEnabled(env))},
            COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
            COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen
     FROM estimates e JOIN customers c ON c.id=e.customer_id
     WHERE e.share_token=? LIMIT 1
-  `).bind(shareToken).first<{ id:string; estimateTotalCents:number; totalCents:number; depositCents:number; status:string; acceptedAt:string|null; paidCents:number; paymentOverageOpen:number; customer:string; address:string|null }>();
+  `).bind(shareToken).first<{ id:string; estimateTotalCents:number; totalCents:number; depositCents:number; status:string; acceptedAt:string|null; paidCents:number; paymentOverageOpen:number; customer:string; address:string|null;serviceAddressSource?:string }>();
   if (!row) return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div><h1>Estimate not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
   const itemResult = await env.DB.prepare(`SELECT name,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC`).bind(row.id).all<{name:string;quantity:number;unit:string;totalCents:number}>();
   const items = itemResult.results.map((item)=>({...item,quantity:Number(item.quantity),totalCents:Number(item.totalCents)}));
@@ -34,6 +35,7 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
     <header><div className="pay-logo">F</div><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
     {paid === "1" ? <div className="paid-state"><CheckCircle2 /><h1>Payment received</h1><p>Thank you, {row.customer}. Your payment has been recorded successfully.</p></div> : <>
       <div className="pay-title"><p>ESTIMATE FOR</p><h1>{row.customer}</h1>{row.address && <span>{row.address}</span>}</div>
+      {row.serviceAddressSource==="legacy-current-unverified"&&<p>Current customer address shown; original service address unverified.</p>}
       <div className="portal-service-list">{items.map((item,index)=><div className="pay-line" key={`${item.name}-${index}`}><div><strong>{item.name}</strong><span>{item.quantity} {item.unit}</span></div><strong>{currency(item.totalCents)}</strong></div>)}</div>
       <div className="pay-summary"><span><small>Estimate total</small><strong>{currency(row.totalCents)}</strong></span><span><small>Paid</small><strong>{currency(paidCents)}</strong></span><span><small>{paymentType==="deposit"?"Deposit remaining":"Balance due"}</small><strong className="red-text">{currency(dueNow)}</strong></span></div>
       <p className="pay-note">After approval, the 50% deposit reserves your place on the schedule. The remaining balance is due upon completion of the work.</p>

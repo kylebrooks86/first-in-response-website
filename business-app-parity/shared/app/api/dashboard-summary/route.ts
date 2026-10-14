@@ -10,5 +10,5 @@ export async function GET() {
   if (!user || user.email.toLowerCase() !== OWNER_EMAIL) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return Response.json(await loadDashboardData(env.DB));
+  return Response.json(await loadDashboardData(env.DB,env.FIRE_SERVICE_LOCATIONS_CANDIDATE==="synthetic-only"));
 }

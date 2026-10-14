@@ -6243,5 +6243,25 @@
     "officialReleaseReadinessPercent": 30,
     "verifiedGates": 3,
     "totalGates": 10
+  },
+  "serviceLocationSnapshotBatch": {
+    "parentCheckpoint": "33cf2c566eec4b9d0d0e076fe2f9ca7ec4e842f8",
+    "dateUtc": "2026-10-14",
+    "status": "verified synthetic-only candidate capability; normal builds disabled",
+    "browserPassed": 120,
+    "browserTotal": 120,
+    "financialPassed": 207,
+    "financialTotal": 207,
+    "typeScriptPassed": 3,
+    "fullBuildsPassed": 3,
+    "sharedFilesChecked": 137,
+    "sourceParity": true,
+    "deployedParityVerified": false,
+    "evidence": "SERVICE_LOCATION_SNAPSHOT_EVIDENCE.json",
+    "handoff": "SERVICE_LOCATION_SNAPSHOT_HANDOFF.md",
+    "activationBlockedByBackupCompatibility": true,
+    "officialReleaseReadinessPercent": 30,
+    "verifiedGates": 3,
+    "totalGates": 10
   }
 }

@@ -9,7 +9,8 @@ const env={DB:{prepare(sql){return {sql};},async batch(queries){return queries.m
 function load(path,imports){const exports={};const code=ts.transpileModule(readFileSync(path,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;vm.runInNewContext(code,{exports,require:name=>{if(!(name in imports))throw Error('Unexpected import '+name);return imports[name];},Response,process:{env:{NODE_ENV:'production'}}});return exports;}
 let user={email:'kylebrooks8605@gmail.com',fullName:'Kyle Brooks'};
 const auth={getChatGPTUser:async()=>user,requireChatGPTUser:async()=>user,chatGPTSignOutPath:()=>'/logout'};
-const data=load('lib/dashboard-data.ts',{});
+const location=load('lib/service-location.ts',{});
+const data=load('lib/dashboard-data.ts',{'./service-location':location});
 const home=load('app/page.tsx',{'../lib/dashboard-data':data,'cloudflare:workers':{env},'./chatgpt-auth':auth,'./dashboard':{Dashboard:'Dashboard'},'react/jsx-runtime':{jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})}});
 const api=load('app/api/dashboard-summary/route.ts',{'../../../lib/dashboard-data':data,'cloudflare:workers':{env},'../../chatgpt-auth':auth});
 let checks=0;
