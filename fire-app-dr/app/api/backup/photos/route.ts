@@ -61,6 +61,7 @@ export async function GET() {
   if (!await authorized()) return new Response("Unauthorized", { status: 401 });
   if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable." }, { status: 503 });
 
+  const bucket = env.BUCKET;
   const result = await env.DB.prepare(`SELECT id,customer_id AS customerId,category,caption,filename,content_type AS contentType,size_bytes AS sizeBytes,object_key AS objectKey,created_at AS createdAt FROM customer_photos ORDER BY created_at`).all<PhotoRow>();
   const photos = result.results ?? [];
   const expectedBytes = photos.reduce((sum, photo) => sum + Number(photo.sizeBytes || 0), 0);
@@ -97,7 +98,7 @@ export async function GET() {
 
       try {
         for (const photo of photos) {
-          const object = await env.BUCKET.get(photo.objectKey);
+          const object = await bucket.get(photo.objectKey);
           if (!object) { missingPhotoIds.push(photo.id); continue; }
           const name = encoder.encode(`photos/${photo.customerId}/${photo.id}-${safeName(photo.filename)}`);
           const entry = await startEntry(name, photo.createdAt);
