@@ -11,7 +11,8 @@ const sources={};
 for(const [name,path] of Object.entries({
  zip:'../lib/photo-storage-zip.ts',
  archive:'../lib/offline-photo-backup.ts',
- vault:'../lib/local-photo-vault.ts'
+ vault:'../lib/local-photo-vault.ts',
+ directory:'../lib/offline-photo-customer-directory.ts'
 })){
  const content=readFileSync(new URL(path,import.meta.url),'utf8');
  sources[name]=ts.transpileModule(content,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
@@ -43,6 +44,7 @@ try{
    modules[name]=exports;if(name==='archive')window.FIRE_ARCHIVE_MODULE=exports;return exports;
   };
   window.FIRE_LOCAL_PHOTOS=run('vault');
+  window.FIRE_OFFLINE_PHOTO_CUSTOMERS=run('directory');
  },sources);
  await page.goto(origin);await inject();
  const created=await page.evaluate(async()=>{
@@ -61,6 +63,31 @@ try{
  });
  check(remembered.count===1&&remembered.photoId===created.photoId,'Photo persists across complete browser page restart');
  check(remembered.bytes==='photo-one-binary','Real IndexedDB blob bytes persist unchanged across restart');
+ const customerDir=await page.evaluate(async()=>{
+  const d=window.FIRE_OFFLINE_PHOTO_CUSTOMERS;
+  await d.saveOfflinePhotoCustomerDirectory([{id:'synthetic-customer',name:'Synthetic Customer'},{id:'other-customer',name:'Other Customer'}]);
+  return await d.loadOfflinePhotoCustomerDirectory();
+ });
+ check(customerDir.length===2&&customerDir[0].name==='Other Customer','Online synced identity directory retains minimal customer IDs and names only');
+ check(customerDir.every(c=>Object.keys(c).sort().join(',')==='id,name'),'Offline photo customer cache excludes addresses, finances, phone numbers and notes');
+ await page.reload();await inject();
+ check((await page.evaluate(async()=>window.FIRE_OFFLINE_PHOTO_CUSTOMERS.loadOfflinePhotoCustomerDirectory().then(rows=>rows.length)))===2,'Minimal on-device customer directory survives cold reload');
+ const declinedUpdate=await page.evaluate(async()=>{
+  const d=window.FIRE_OFFLINE_PHOTO_CUSTOMERS;
+  try{await d.saveOfflinePhotoCustomerDirectory([{id:'synthetic-customer',name:'A'},{id:'synthetic-customer',name:'B'}]);return false;}
+  catch{return true;}
+ });
+ check(declinedUpdate,'Invalid duplicate customer directory refuses replacement');
+ check((await page.evaluate(async()=>window.FIRE_OFFLINE_PHOTO_CUSTOMERS.loadOfflinePhotoCustomerDirectory().then(x=>x.length)))===2,'Rejected directory update preserves the previously valid directory');
+ const stagingDirectory=await page.evaluate(source=>{
+  const exports={};
+  new Function('exports','require',source.directory)(exports,(name)=>{
+   if(name==='../app/local-customer-deployment')return {LOCAL_CUSTOMER_DEPLOYMENT:'staging'};
+   throw Error('Unexpected directory import '+name);
+  });
+  return exports.loadOfflinePhotoCustomerDirectory().then(rows=>rows.length);
+ },sources);
+ check(stagingDirectory===0,'Staging candidate cannot read LIVE customer directory on a shared browser origin');
  // Verify a second fixed deployment cannot read a LIVE candidate's photos,
  // even when this test intentionally places both candidates on one origin.
  const isolated=await page.evaluate(source=>{
@@ -109,6 +136,8 @@ try{
  check(after.count===1&&after.bytes==='photo-one-binary','Actual browser round-trip preserved byte-identical photo');
  await context.setOffline(true);
  const offline=await page.evaluate(async()=>{
+  const directory=await window.FIRE_OFFLINE_PHOTO_CUSTOMERS.loadOfflinePhotoCustomerDirectory();
+  if(directory.length!==2||directory.find(row=>row.id==='synthetic-customer')?.name!=='Synthetic Customer')throw Error('Customer-photo directory not accessible offline');
   const v=window.FIRE_LOCAL_PHOTOS;
   const file=new File([new TextEncoder().encode('after-offline')],'fixture-after.png',{type:'image/png'});
   await v.addOfflinePhoto('synthetic-customer','after','done',file);
@@ -116,9 +145,15 @@ try{
   const zipped=await v.exportLocalPhotos();
   return {count:rows.length,after:rows.some(r=>r.category==='after'),zipBytes:zipped.size};
  });
- check(offline.count===2&&offline.after&&offline.zipBytes>100,'Photo capture, preview metadata and ZIP export work with network disabled');
+ check(offline.count===2&&offline.after&&offline.zipBytes>100,'Customer directory plus photo capture, preview and ZIP export work offline');
  await context.setOffline(false);await page.reload();await inject();
  check((await page.evaluate(async()=>window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer').then(x=>x.length)))===2,'Offline-created photo survives network recovery and full page reload');
+ await page.evaluate(async()=>window.FIRE_OFFLINE_PHOTO_CUSTOMERS.clearOfflinePhotoCustomerDirectory());
+ check((await page.evaluate(async()=>window.FIRE_OFFLINE_PHOTO_CUSTOMERS.loadOfflinePhotoCustomerDirectory().then(rows=>rows.length)))===0,'Owner logout invalidation can erase cached customer names without deleting photo bytes');
+ check((await page.evaluate(async()=>window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer').then(rows=>rows.length)))===2,'Clearing cached customer names does not delete owner's local photo files');
+ const dashboard=readFileSync(new URL('../app/dashboard.tsx',import.meta.url),'utf8');
+ check(dashboard.includes('saveOfflinePhotoCustomerDirectory(nextCustomers.map(')&&dashboard.includes('if(offlinePhotoOnly){'),'Actual FIRE Customers screen supplies photo-only offline fallback from authenticated identity cache');
+ check(dashboard.includes('authenticationFailed=true')&&dashboard.includes('clearOfflinePhotoCustomerDirectory().catch'),'Actual FIRE customer API denial never exposes cached directory as a fallback');
  await context.close();
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 console.log('PASS '+passed+' actual browser IndexedDB offline photo checks.');

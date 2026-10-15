@@ -5,6 +5,7 @@ import type {PropertyEstimateSelection} from '../lib/customer-properties';
 import {CustomerProperties} from '../components/customer-properties';
 import { OwnerAccountView } from "./owner-account";
 import {OfflineCustomerPhotos} from "../components/offline-customer-photos";
+import {saveOfflinePhotoCustomerDirectory,loadOfflinePhotoCustomerDirectory,clearOfflinePhotoCustomerDirectory,type OfflinePhotoCustomer} from "../lib/offline-photo-customer-directory";
 import { estimateFollowUpTiming, estimateReminderStage } from "../lib/follow-up-timing";
 import { messageHistoryEntries } from "../lib/message-history";
 import { summarizeProcessing } from "../lib/processing-fees";
@@ -1037,12 +1038,23 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
   const [savingNote, setSavingNote] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [offlinePhotoOnly,setOfflinePhotoOnly]=useState(false);
+  const [offlinePhotoCustomers,setOfflinePhotoCustomers]=useState<OfflinePhotoCustomer[]>([]);
   const loadRequest=useRef(0);
   const load = async (quiet=false) => {
     const request=++loadRequest.current;
     if(!quiet){setLoading(true);setError("");}
+    let networkFailed=false,authenticationFailed=false;
     try {
-      const response = await fetch("/api/customers");
+      let response:Response;
+      try{response=await fetch("/api/customers");}
+      catch(networkError){networkFailed=true;throw networkError;}
+      if(response.status===401||response.status===403){
+        authenticationFailed=true;
+        // Do not offer offline customer names after the server denied this
+        // session. Photo bytes are still kept; this only clears cached labels.
+        void clearOfflinePhotoCustomerDirectory().catch(()=>{});
+      }
       const result = await response.json() as { customers?: CustomerRow[]; estimates?: CustomerEstimate[]; notes?:CustomerNote[]; invoices?:InvoiceRow[]; photos?:CustomerPhoto[]; messages?:CustomerMessage[]; payments?:PaymentRow[]; error?: string };
       if(request!==loadRequest.current)return;
       if (!response.ok) throw new Error(result?.error || "Customer records could not be loaded.");
@@ -1058,13 +1070,33 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
       const nextMessages=result.messages??[];
       const nextPayments=(result.payments??[]).map((item)=>({...item,amountCents:asNumber(item.amountCents)}));
       setCustomers(nextCustomers);
+      // Cache only authenticated customer IDs/names, never financial records.
+      // Failure is visible but never prevents online customer operations.
+      try{
+        await saveOfflinePhotoCustomerDirectory(nextCustomers.map(item=>({id:item.id,name:item.name})));
+      }catch{/* Customer directory storage may be unavailable on this device. */}
+      if(request!==loadRequest.current)return;
+      setOfflinePhotoOnly(false);setOfflinePhotoCustomers([]);
       setEstimates(nextEstimates);
       setNotes(nextNotes);
       setInvoices(nextInvoices);
       setPhotos(nextPhotos);
       setMessages(nextMessages);
       setPayments(nextPayments);
-    } catch (loadError) { if(request===loadRequest.current&&!quiet)setError(loadError instanceof Error ? loadError.message : "Customer records could not be loaded."); }
+    }catch(loadError){
+      if(request!==loadRequest.current||quiet)return;
+      if(!authenticationFailed&&(networkFailed||navigator.onLine===false)){
+        try{
+          const cached=await loadOfflinePhotoCustomerDirectory();
+          if(request!==loadRequest.current)return;
+          if(cached.length>0){
+            setOfflinePhotoCustomers(cached);setOfflinePhotoOnly(true);setError("");
+            return;
+          }
+        }catch{/* No usable cached directory: show the original error. */}
+      }
+      if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Customer records could not be loaded.");
+    }
     finally { if(request===loadRequest.current)setLoading(false); }
   };
   useEffect(() => { void load(); return()=>{loadRequest.current++;}; }, []);
@@ -1090,6 +1122,25 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
       if (response.ok && result.note) { setNotes((current)=>[result.note!,...current]); setNoteText(""); }
     } finally { setSavingNote(false); }
   };
+  // The server-backed customer workflow is intentionally NOT rendered when
+  // offline. Only a previously authenticated, minimally cached photo directory
+  // can be browsed, and photos remain stored locally in IndexedDB.
+  if(offlinePhotoOnly){
+    const selectedOffline=offlinePhotoCustomers.find(customer=>customer.id===selectedId);
+    return <div className="customers-view">
+      <section className="business-panel" role="status">
+        <h2>Offline customer photos</h2>
+        <p>The server is unreachable. FIRE is showing names last saved on this device and your on-device photos only. Estimates, invoices, payments, messaging, and editing are unavailable until you reconnect.</p>
+        <Button variant="outline" onClick={()=>void load()}>Reconnect & refresh customer records</Button>
+      </section>
+      {selectedOffline?<><button className="back-link" onClick={()=>setSelectedId(null)}>← Offline customers</button>
+        <h2>{selectedOffline.name} — on-device photos</h2>
+        <OfflineCustomerPhotos key={selectedOffline.id} customerId={selectedOffline.id} customerName={selectedOffline.name} knownCustomerIds={offlinePhotoCustomers.map(item=>item.id)}/>
+       </>:<div className="customer-list">{offlinePhotoCustomers.filter(customer=>customer.name.toLowerCase().includes(searchQuery.toLowerCase())).map(customer=>
+        <button className="customer-list-item" type="button" key={customer.id} onClick={()=>setSelectedId(customer.id)}>{customer.name} — local photos <ChevronRight/></button>
+       )}</div>}
+    </div>;
+  }
   if(loading||error)return <div className="customers-view">
     {selected&&<button className="back-link" onClick={()=>{setSelectedId(null);setSection("estimates");}}>← All customers</button>}
     {loading?<div className="customers-state" role="status">Loading customers…</div>:<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>}
