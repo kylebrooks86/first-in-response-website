@@ -72,6 +72,12 @@ class ReadOnlyCapture(unittest.TestCase):
         self.assertFalse(report["gate4Passed"])
         self.assertFalse(report["gate5Passed"])
         self.assertEqual(report["officialReadinessPercent"], 30)
+        # Provider D1 migration-journal DDL is not a candidate-owned application
+        # table; migration rows themselves are checked exactly via query five.
+        for captured in self.fixture["captures"]:
+            self.assertFalse(any(item.get("tbl_name") == "d1_migrations"
+                                 for item in captured["queries"][0]["rows"]))
+            self.assertTrue(captured["queries"][4]["rows"])
 
     def test_partial_captures_never_satisfy_three_target_check(self):
         data = copy.deepcopy(self.fixture)
