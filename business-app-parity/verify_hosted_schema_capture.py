@@ -81,6 +81,8 @@ def valid_time(value):
 def evaluate(document):
     if not isinstance(document, dict) or document.get("format") != REQUIRED_CAPTURE_FORMAT:
         raise ValueError("Unsupported read-only capture document format.")
+    if set(document) != {"format", "captures"}:
+        raise ValueError("Unexpected top-level fields; do not include customer/payment records.")
     captures = document.get("captures")
     if not isinstance(captures, list) or not captures or len(captures) > 3:
         raise ValueError("Expected one, two or three capture objects.")
@@ -94,6 +96,8 @@ def evaluate(document):
         if target not in TARGETS or target in reports:
             raise ValueError("Unknown or duplicate target in capture.")
         errors = []
+        if set(capture) != {"target", "url", "capturedAt", "providerMetadata", "truncated", "queries"}:
+            errors.append("UNRECOGNIZED_CAPTURE_FIELDS_OR_SENSITIVE_DATA_RISK")
         if capture.get("url") != URLS[target]:
             errors.append("TARGET_URL_MISMATCH")
         if not valid_time(capture.get("capturedAt")):
@@ -101,6 +105,8 @@ def evaluate(document):
         metadata = capture.get("providerMetadata")
         if not isinstance(metadata, dict):
             metadata = {}
+        if set(metadata) != {"binding", "databaseUuid", "activeVersion", "sourceCommit", "providerRecordId"}:
+            errors.append("UNRECOGNIZED_PROVIDER_FIELDS_OR_SENSITIVE_DATA_RISK")
         if metadata.get("binding") != "DB":
             errors.append("REQUIRED_DB_BINDING_UNVERIFIED")
         uuid = metadata.get("databaseUuid")
