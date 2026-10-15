@@ -7,6 +7,9 @@ export async function startCustomerDemo(port=0,options={}){
  const server=createServer((req,res)=>{
   res.setHeader('Cache-Control','no-store');
   if(req.url==='/'){res.writeHead(302,{Location:scope});res.end();}
+  // The /seed document only exists on this loopback-only test server. It
+  // provides a same-origin CacheStorage context before SW registration.
+  else if(req.url==='/seed'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><title>Synthetic cache seed</title>');}
   else if(req.url===scope+'worker.js'){res.setHeader('Content-Type','text/javascript');res.end(worker);}
   else if(assets.has(req.url)){const asset=assets.get(req.url);res.setHeader('X-Fire-Synthetic-Asset','1');res.setHeader('Content-Type',asset.type);res.end(asset.body);}
   else{res.statusCode=404;res.end();}
