@@ -151,6 +151,18 @@ const work = await mkdtemp(`${tmpdir()}/fire-photo-restore-`);
 let restored = 0;
 let conflicts = 0;
 try {
+  // Preflight all destination keys before the first upload. This avoids
+  // partially restoring earlier photos when a later key is already occupied.
+  for (const plan of plans) {
+    if (plan.action !== "restore") continue;
+    const checkPath = resolve(work, `${plan.photo.id}-preflight`);
+    const existing = run(["r2", "object", "get", `${bucket}/${plan.photo.objectKey}`, "--config", absoluteConfig, ...modeArgs, "--file", checkPath]);
+    if (existing.status === 0) {
+      throw new Error(`Restore blocked: R2 object already exists at ${plan.photo.objectKey}. No uploads have started.`);
+    }
+    const detail = `${existing.stdout || ""}\n${existing.stderr || ""}`;
+    if (!detail.includes("specified key does not exist")) fail(existing, `Could not safely preflight R2 object ${plan.photo.objectKey}.`);
+  }
   for (const plan of plans) {
     if (plan.action !== "restore") continue;
     const { photo, entry } = plan;
