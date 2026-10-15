@@ -202,3 +202,44 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
           pnpm run build
+
+  offline-browser:
+    name: Isolated synthetic Home Screen offline cold-launch browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+      FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE: ${{ runner.temp }}/fire-browser-harness/node_modules/playwright
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - name: Checkout development branch (read only)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install shared dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Install isolated pinned Playwright driver (no browser download)
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+      - name: Locate GitHub runner's pre-installed Chrome
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || { echo "Chrome is not available on the runner; do not fall back to unreviewed installs."; exit 1; }
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Test native Chromium persistent profile and offline cold launch
+        run: node scripts/test-local-customer-demo-cold-browser.mjs
+      - name: Test portable synthetic PWA export, install assets and offline recovery
+        run: node scripts/test-local-customer-demo-package.mjs
+      - name: Test exact-origin HTTPS Pages fixture, CSP and service-worker scope
+        run: node scripts/test-local-customer-pages-browser.mjs
