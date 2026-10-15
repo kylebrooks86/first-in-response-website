@@ -35,7 +35,7 @@ export async function finalizeRefund(db:Database,id:string,providerRefundId:stri
   const now=new Date().toISOString();
   const refundPaymentProvider=`refund:${row.paymentId}:${row.id}`;
   const statements=[
-    db.prepare("UPDATE payment_refunds SET status='succeeded',provider_refund_id=COALESCE(?,provider_refund_id),completed_at=? WHERE id=? AND status IN ('pending','succeeded') AND (provider_refund_id IS NULL OR provider_refund_id IS ?)")
+    db.prepare("UPDATE payment_refunds SET status='succeeded',provider_refund_id=COALESCE(?,provider_refund_id),completed_at=COALESCE(completed_at,?) WHERE id=? AND status IN ('pending','succeeded') AND (provider_refund_id IS NULL OR provider_refund_id IS ?)")
       .bind(providerRefundId,now,row.id,providerRefundId),
     db.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
       SELECT ?,?,CASE WHEN ?='Tip' THEN 'Tip Refund' ELSE 'Refund' END,?,'paid',?,?

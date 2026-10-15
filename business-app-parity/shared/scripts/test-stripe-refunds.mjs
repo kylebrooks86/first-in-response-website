@@ -46,8 +46,14 @@ const refund=(paymentId,requestId,amountCents,more={})=>route.POST(new Request('
 async function event(object,type='refund.updated'){const body=JSON.stringify({type,livemode:false,data:{object}}),t=Math.floor(Date.now()/1000);const h=createHmac('sha256','whsec_test_fixture').update(t+'.'+body).digest('hex');return webhook.POST(new Request('https://test/api/payments/webhook',{method:'POST',headers:{'stripe-signature':`t=${t},v1=${h}`},body}));}
 const id=fixture();const r=await refund('p-'+id,'partial',2500);assert.equal(r.status,200,await r.text());assert.equal(principal(id),7500);assert.equal(tipTotal(id),1000);assert.equal(sql.prepare('SELECT status FROM invoices WHERE id=?').get(id).status,'partial');
 const stripe=remote.get('fire-refund-partial');const sent=posts;
+// A signed refund webhook can replay many times, but its completed timestamp is
+// an immutable financial-history fact after the first successful confirmation.
+const originalCompletion=sql.prepare("SELECT completed_at AS at FROM payment_refunds WHERE id='partial'").get().at;
+assert.ok(originalCompletion);
+sql.prepare("UPDATE payment_refunds SET completed_at=? WHERE id='partial'").run('2020-01-01T00:00:00.000Z');
 assert.equal((await refund('p-'+id,'partial',2500)).status,200);assert.equal(posts,sent);
-for(let i=0;i<3;i++)assert.equal((await event(stripe)).status,200);assert.equal(principal(id),7500);assert.equal(sql.prepare("SELECT COUNT(*) n FROM payments WHERE provider_id='refund:p-job-1:partial'").get().n,1);
+for(let i=0;i<3;i++)assert.equal((await event(stripe)).status,200);
+assert.equal(sql.prepare("SELECT completed_at AS at FROM payment_refunds WHERE id='partial'").get().at,'2020-01-01T00:00:00.000Z','A replay must not rewrite the original refund completion timestamp');assert.equal(principal(id),7500);assert.equal(sql.prepare("SELECT COUNT(*) n FROM payments WHERE provider_id='refund:p-job-1:partial'").get().n,1);
 assert.equal((await refund('p-'+id,'partial',2501)).status,409);
 assert.equal((await refund('p-'+id,'limit',7501)).status,409);assert.equal(posts,sent);
 assert.equal((await event({...stripe,amount:2501})).status,409);assert.equal((await event({...stripe,id:'re_other'})).status,409);assert.equal(principal(id),7500);
