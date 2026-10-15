@@ -150,7 +150,7 @@ try{
  check((await page.evaluate(async()=>window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer').then(x=>x.length)))===2,'Offline-created photo survives network recovery and full page reload');
  await page.evaluate(async()=>window.FIRE_OFFLINE_PHOTO_CUSTOMERS.clearOfflinePhotoCustomerDirectory());
  check((await page.evaluate(async()=>window.FIRE_OFFLINE_PHOTO_CUSTOMERS.loadOfflinePhotoCustomerDirectory().then(rows=>rows.length)))===0,'Owner logout invalidation can erase cached customer names without deleting photo bytes');
- check((await page.evaluate(async()=>window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer').then(rows=>rows.length)))===2,'Clearing cached customer names does not delete owner's local photo files');
+ check((await page.evaluate(async()=>window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer').then(rows=>rows.length))===2,'Clearing cached customer names does not delete owner's local photo files');
  const dashboard=readFileSync(new URL('../app/dashboard.tsx',import.meta.url),'utf8');
  check(dashboard.includes('saveOfflinePhotoCustomerDirectory(nextCustomers.map(')&&dashboard.includes('if(offlinePhotoOnly){'),'Actual FIRE Customers screen supplies photo-only offline fallback from authenticated identity cache');
  check(dashboard.includes('authenticationFailed=true')&&dashboard.includes('clearOfflinePhotoCustomerDirectory().catch'),'Actual FIRE customer API denial never exposes cached directory as a fallback');
