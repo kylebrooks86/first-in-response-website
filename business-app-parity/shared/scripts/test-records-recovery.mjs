@@ -6,6 +6,8 @@ import {spawnSync} from 'node:child_process';
 import {DatabaseSync} from 'node:sqlite';
 import ts from 'typescript';
 import {validateBackupRelationships,validateRefundIntegrity,validateRecordIdentities} from './records-backup-integrity.mjs';
+import {propertyBackupError,hasPropertyBackup} from '../lib/property-backup.mjs';
+import {serviceLocationManifest,serviceLocationBackupError} from '../lib/service-location-backup.mjs';
 const root=resolve('.'),work=mkdtempSync(join(tmpdir(),'fire-synthetic-records-'));
 let checks=0;const equal=(a,b,message)=>{assert.deepEqual(a,b,message);checks++;};
 const schema=readdirSync(join(root,'drizzle')).filter(f=>f.endsWith('.sql')).sort().map(f=>readFileSync(join(root,'drizzle',f),'utf8')).join('\n');
@@ -37,7 +39,18 @@ try{
  const ast=ts.createSourceFile('route.ts',raw,ts.ScriptTarget.Latest,true);
  const helpers=['validateBackupRelationships','validateRefundIntegrity'].map(name=>ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name).getText(ast)).join('\n');
  const semantics=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule('const isRecord=v=>!!v&&typeof v==="object"&&!Array.isArray(v);\n'+helpers+'\nexport {validateBackupRelationships,validateRefundIntegrity};',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64'));
- const source='const env={get DB(){return globalThis.__recordsRecoveryDb;}};\n'+raw.replace(/^import .*?;\n/gm,'').replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');
+ globalThis.__recordsRecoveryHelpers={propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError};
+ // Current property/location features are disabled in this legacy-format fixture.
+ // Use the production validators for any included manifest rather than stubs.
+ const globals=`const env={get DB(){return globalThis.__recordsRecoveryDb;}};
+const serviceLocationsEnabled=(env)=>env.FIRE_SERVICE_LOCATIONS_CANDIDATE==='synthetic-only';
+const customerPropertiesEnabled=(env)=>serviceLocationsEnabled(env)&&env.FIRE_CUSTOMER_PROPERTIES_CANDIDATE==='synthetic-only';
+const propertyRecoveryTestEnabled=(env)=>customerPropertiesEnabled(env)&&env.FIRE_PROPERTY_RECOVERY_CANDIDATE==='synthetic-tests-only';
+const {propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError}=globalThis.__recordsRecoveryHelpers;
+const exportPropertyRecords=()=>{throw Error('Property export must not run without synthetic feature flags')};
+const restorePropertyRecords=()=>{throw Error('Property restore must not run without synthetic feature flags')};
+`;
+ const source=globals+raw.replace(/^import .*?;\n/gm,'').replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');
  const backupApi=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64'));
  const exported=await backupApi.GET();equal(exported.status,200);const backup=await exported.json();equal(backup.tables.payment_refunds.length,4);equal(validateRefundIntegrity(backup.tables),null);
  const backupPath=join(work,'backup.json');const save=payload=>writeFileSync(backupPath,JSON.stringify(payload));save(backup);
@@ -94,4 +107,4 @@ try{
  const olderLedgerPath=join(work,'older-ledger.db');makeDb(olderLedgerPath).close();result=restore(olderLedgerPath);equal(result.status,0,result.stderr);const olderLedgerDb=new DatabaseSync(olderLedgerPath);equal(olderLedgerDb.prepare('SELECT SUM(amount_cents) n FROM payments').get().n,8300);olderLedgerDb.close();
  equal(validateRecordIdentities(backup.tables),null);sourceDb.close();target.close();interrupted.close();
  console.log(`PASS ${checks}/${checks}: actual in-app synthetic backup → standalone validator → local restore → re-export verification; partial/tip/failed/pending refunds, ownership/reservation/ledger corruption, duplicate input/target records, pre-write failures, interrupted-prefix retry, older verified backups. No network, Stripe, or remote writes.`);
-}finally{globalThis.fetch=originalFetch;delete globalThis.__recordsRecoveryDb;rmSync(work,{recursive:true,force:true});}
+}finally{globalThis.fetch=originalFetch;delete globalThis.__recordsRecoveryDb;delete globalThis.__recordsRecoveryHelpers;rmSync(work,{recursive:true,force:true});}
