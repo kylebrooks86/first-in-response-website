@@ -45,7 +45,7 @@ const keyedBody={estimateId:keyedJob,requestId:paymentRequestId,amountCents:4000
 const sendKeyed=(body)=>route.POST(new Request('https://test/api/payments',{method:'POST',body:JSON.stringify(body)}));
 const firstKeyed=await sendKeyed(keyedBody);assert.equal(firstKeyed.status,201,await firstKeyed.text());
 assert.equal(rows(keyedJob).length,2);assert.equal(principal(keyedJob),4000);
-const repeatKeyed=await sendKeyed(keyedBody);assert.equal(repeatKeyed.status,200,await repeatKeyed.text());
+const repeatKeyed=await sendKeyed(keyedBody);assert.equal(repeatKeyed.status,200,await repeatKeyed.clone().text());
 assert.equal((await repeatKeyed.json()).duplicate,true);
 assert.equal(rows(keyedJob).length,2);assert.equal(principal(keyedJob),4000);
 assert.equal((await sendKeyed({...keyedBody,amountCents:5000})).status,409);
