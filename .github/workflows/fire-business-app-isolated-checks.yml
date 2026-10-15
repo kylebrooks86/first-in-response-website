@@ -132,6 +132,19 @@ jobs:
         run: |
           node scripts/test-photo-upload-integrity.mjs
           node scripts/test-photo-delete-integrity.mjs
+      - name: Validate isolated offline Pages package and negative security controls
+        run: node scripts/verify-synthetic-pages-package.mjs
+      - name: Prepare reviewed synthetic-only Home Screen testing package
+        run: |
+          node scripts/prepare-local-customer-pages.mjs "$RUNNER_TEMP/fire-synthetic-pages-review"
+          node scripts/verify-synthetic-pages-package.mjs "$RUNNER_TEMP/fire-synthetic-pages-review"
+      - name: Archive review-only package for later separate owner approval
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-synthetic-pwa-review-${{ github.sha }}
+          path: ${{ runner.temp }}/fire-synthetic-pages-review/
+          if-no-files-found: error
+          retention-days: 7
       - name: Build shared candidate without deployment
         run: pnpm run build
 
