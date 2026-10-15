@@ -12,7 +12,8 @@ for(const [name,path] of Object.entries({
  zip:'../lib/photo-storage-zip.ts',
  archive:'../lib/offline-photo-backup.ts',
  vault:'../lib/local-photo-vault.ts',
- directory:'../lib/offline-photo-customer-directory.ts'
+ directory:'../lib/offline-photo-customer-directory.ts',
+ inspection:'../lib/offline-photo-inspection.ts'
 })){
  const content=readFileSync(new URL(path,import.meta.url),'utf8');
  sources[name]=ts.transpileModule(content,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
@@ -37,6 +38,7 @@ try{
    const req=path=>{
     if(path==='./photo-storage-zip')return run('zip');
     if(path==='./offline-photo-backup')return run('archive');
+    if(path==='./local-photo-vault')return run('vault');
     if(path==='../app/local-customer-deployment')return {LOCAL_CUSTOMER_DEPLOYMENT:'live'};
     throw Error('Undeclared test-only import '+path);
    };
@@ -45,6 +47,7 @@ try{
   };
   window.FIRE_LOCAL_PHOTOS=run('vault');
   window.FIRE_OFFLINE_PHOTO_CUSTOMERS=run('directory');
+  window.FIRE_PHOTO_BACKUP_INSPECTION=run('inspection');
  },sources);
  await page.goto(origin);await inject();
  const created=await page.evaluate(async()=>{
@@ -107,6 +110,18 @@ try{
   return Array.from(new Uint8Array(await zip.arrayBuffer()));
  });
  check(archiveBytes.length>100,'Actual IndexedDB-to-ZIP export produces nonempty user backup');
+ const savedInspection=await page.evaluate(async bytes=>
+   window.FIRE_PHOTO_BACKUP_INSPECTION.inspectSavedOfflinePhotoZip(
+    new Blob([new Uint8Array(bytes)]),['synthetic-customer']),archiveBytes);
+ check(savedInspection.archivePhotoCount===1&&savedInspection.byteIdenticalOnDevice===1&&
+   savedInspection.notYetOnDevice===0&&savedInspection.localPhotosNotInArchive===0,
+   'ZIP reselected from simulated Files is independently re-read and verified against on-device image bytes');
+ const failedUnknownInspection=await page.evaluate(async bytes=>{
+  try{await window.FIRE_PHOTO_BACKUP_INSPECTION.inspectSavedOfflinePhotoZip(
+   new Blob([new Uint8Array(bytes)]),['unknown-customer']);return false;}
+  catch{return true;}
+ },archiveBytes);
+ check(failedUnknownInspection,'Saved ZIP inspector refuses unknown customer ownership without modifying photos');
  const duplicate=await page.evaluate(async bytes=>
   window.FIRE_LOCAL_PHOTOS.restoreLocalPhotos(new Blob([new Uint8Array(bytes)]),['synthetic-customer']),archiveBytes);
  check(duplicate.restored===0&&duplicate.alreadyPresent===1,'Replaying the same ZIP safely skips identical photos instead of failing');
@@ -131,6 +146,12 @@ try{
   catch{return 'refused';}
  },damaged);
  check(rejected==='refused','Damaged archive fails closed without writing customer photos');
+ const verificationRejectsCorruption=await page.evaluate(async bytes=>{
+  try{await window.FIRE_PHOTO_BACKUP_INSPECTION.inspectSavedOfflinePhotoZip(
+   new Blob([new Uint8Array(bytes)]),['synthetic-customer']);return false;}
+  catch{return true;}
+ },damaged);
+ check(verificationRejectsCorruption,'Saved ZIP verification rejects corrupted image content and does not write to storage');
  await page.evaluate(async id=>{await window.FIRE_LOCAL_PHOTOS.removeOfflinePhoto(id,'synthetic-customer');},created.photoId);
  check((await page.evaluate(async()=>window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer').then(x=>x.length)))===0,'Deliberate photo deletion is verified on device');
  const restored=await page.evaluate(async bytes=>{
@@ -155,6 +176,11 @@ try{
  });
  check(merge.result.restored===1&&merge.result.alreadyPresent===1,'Partial restore adds only missing photos and skips already-identical originals');
  check(merge.count===2&&merge.secondByteMatch,'Partial restore keeps the exact two photo blobs and customer associations');
+ const oldZipInspection=await page.evaluate(async bytes=>
+  window.FIRE_PHOTO_BACKUP_INSPECTION.inspectSavedOfflinePhotoZip(
+   new Blob([new Uint8Array(bytes)]),['synthetic-customer']),archiveBytes);
+ check(oldZipInspection.localPhotosNotInArchive===1&&oldZipInspection.byteIdenticalOnDevice===1,
+   'Backup inspector clearly reports later photos absent from an older saved ZIP');
  // A malicious or stale ZIP with an existing ID but different bytes must be
  // rejected in full, including any otherwise new photos in the same archive.
  const conflicting=await page.evaluate(async()=>{
@@ -173,6 +199,17 @@ try{
  });
  check(conflicting.denied&&conflicting.byteMatch,'Same photo ID with different bytes fails closed and preserves the original');
  check(conflicting.count===2&&conflicting.newNotAdded,'Conflicting mixed archive never partially inserts new photo rows');
+ const inspectionConflict=await page.evaluate(async()=>{
+  const vault=window.FIRE_LOCAL_PHOTOS,arch=window.FIRE_ARCHIVE_MODULE;
+  const originals=await vault.listOfflinePhotos('synthetic-customer');
+  const existing=originals.find(row=>row.caption==='north siding');
+  const edited=new Blob([new TextEncoder().encode('photo-one-binarY')],{type:'image/png'});
+  const badZip=await arch.exportOfflinePhotoBackup([{...existing,blob:edited,sizeBytes:edited.size}]);
+  try{await window.FIRE_PHOTO_BACKUP_INSPECTION.inspectSavedOfflinePhotoZip(
+   badZip,['synthetic-customer']);return false;}
+  catch{return true;}
+ });
+ check(inspectionConflict,'ZIP inspector rejects a same-ID/different-bytes archive without restoring it');
  await page.evaluate(async id=>window.FIRE_LOCAL_PHOTOS.removeOfflinePhoto(id,'synthetic-customer'),merge.secondId);
  check((await page.evaluate(async()=>window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer').then(x=>x.length)))===1,'Synthetic merge cleanup preserves remaining photo for offline tests');
  await context.setOffline(true);

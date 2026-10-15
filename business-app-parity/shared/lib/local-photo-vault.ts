@@ -77,7 +77,7 @@ export async function exportLocalPhotos(customerId?:string):Promise<Blob>{
  return zip;
 }
 export type PhotoRestoreResult={restored:number;alreadyPresent:number};
-async function exactSavedPhotoMatch(saved:OfflinePhoto,incoming:OfflinePhoto):Promise<boolean>{
+export async function exactSavedPhotoMatch(saved:OfflinePhoto,incoming:OfflinePhoto):Promise<boolean>{
  const fields=['id','customerId','category','caption','filename','contentType','sizeBytes','createdAt'] as const;
  if(fields.some(field=>saved[field]!==incoming[field]))return false;
  if(!(saved.blob instanceof Blob)||saved.blob.size!==saved.sizeBytes||

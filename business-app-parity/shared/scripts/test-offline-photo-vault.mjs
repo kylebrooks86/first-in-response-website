@@ -76,6 +76,11 @@ check(vault.includes("db.transaction(STORE,'readwrite')")&&vault.includes('store
 check(vault.includes("crypto.subtle.digest('SHA-256'")&&vault.includes('exactSavedPhotoMatch(stored,row)'),'Actual restore compares existing device photo bytes with cryptographic digest before skipping them');
 check(vault.includes('if(!additions.length)return {restored:0,alreadyPresent}')&&vault.includes('return {restored:additions.length,alreadyPresent}'),'Actual restore reports new and byte-identical existing photos separately');
 check(component.includes('result.alreadyPresent')&&component.includes('result.restored'),'Actual iPhone owner UI explains both added and skipped originals');
+const inspectionCode=readFileSync(new URL('../lib/offline-photo-inspection.ts',import.meta.url),'utf8');
+check(component.includes('Verify saved ZIP from Files')&&component.includes('verifySavedArchive=async')&&component.includes('verifyRef.current?.click()'),'Actual iPhone screen has a dedicated read-only saved Files ZIP verification action');
+check(inspectionCode.includes('readOfflinePhotoBackup(file)')&&inspectionCode.includes('exactSavedPhotoMatch(stored,photo)'),'Read-back verification checks archive hashes and exact on-device originals');
+check(inspectionCode.includes('localPhotosNotInArchive')&&component.includes('NOT included in this ZIP'),'A stale or partial backup explicitly shows device photos missing from the saved file');
+
 check(vault.includes('readOfflinePhotoBackup(archive)')&&vault.includes('knownCustomerIds'),'Restore validates entire ZIP and customer associations before touching IndexedDB');
 check(component.includes('Keep originals')||component.includes('Keep the originals'),'Owner UI provides backup safety guidance');
 check(component.includes('legacyCloudPhotoCount>0'),'Older server/R2 photo records remain visible as a migration warning instead of disappearing silently');

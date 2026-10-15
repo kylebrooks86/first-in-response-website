@@ -7,6 +7,7 @@ import {Input} from './ui/input';
 import {Label} from './ui/label';
 import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos} from '../lib/local-photo-vault';
 import type {OfflinePhoto} from '../lib/offline-photo-backup';
+import {inspectSavedOfflinePhotoZip} from '../lib/offline-photo-inspection';
 
 type Preview={photo:OfflinePhoto;url:string};
 export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,legacyCloudPhotoCount=0}:{customerId:string;customerName:string;knownCustomerIds:string[];legacyCloudPhotoCount?:number}){
@@ -16,7 +17,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  const [preparedBackup,setPreparedBackup]=useState<File|null>(null);
  const [category,setCategory]=useState<'before'|'after'|'property'>('before'),[caption,setCaption]=useState('');
  const [beforeId,setBeforeId]=useState(''),[afterId,setAfterId]=useState('');
- const cameraRef=useRef<HTMLInputElement>(null),libraryRef=useRef<HTMLInputElement>(null),restoreRef=useRef<HTMLInputElement>(null);
+ const cameraRef=useRef<HTMLInputElement>(null),libraryRef=useRef<HTMLInputElement>(null),restoreRef=useRef<HTMLInputElement>(null),verifyRef=useRef<HTMLInputElement>(null);
  const active=useRef(false);
  const refresh=async()=>{
   const rows=await listOfflinePhotos(customerId);
@@ -93,6 +94,19 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
    else setError('iOS could not open the share sheet. Try Download prepared ZIP below; your prepared archive has not been erased.');
   }finally{active.current=false;setBusy(false);}
  };
+ const verifySavedArchive=async(files:FileList|null)=>{
+  if(!files?.length||active.current)return;
+  active.current=true;setBusy(true);setError('');setMessage('');
+  try{
+   const result=await inspectSavedOfflinePhotoZip(files[0],knownCustomerIds);
+   setMessage('Saved ZIP selected from Files passed photo checksums: '+result.archivePhotoCount+
+    ' photo(s) in archive; '+result.byteIdenticalOnDevice+' exactly match this device; '+
+    result.notYetOnDevice+' not yet on this device; '+
+    result.localPhotosNotInArchive+' current device photo(s) NOT included in this ZIP. '+
+    'A complete all-customer backup should include every photo on this device. Keep the saved ZIP outside FIRE.');
+  }catch(err){setError((err instanceof Error?err.message:'Saved backup verification failed.')+' No photos were changed.');}
+  finally{active.current=false;setBusy(false);if(verifyRef.current)verifyRef.current.value='';}
+ };
  const restore=async(files:FileList|null)=>{
   if(!files?.length||active.current)return;
   if(!window.confirm('Restore this photo ZIP? FIRE will check all photos and customer IDs. Identical existing photos will be skipped. Conflicting photo IDs will stop the restore without overwriting anything. Restore matching customer records first.'))return;
@@ -147,8 +161,10 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
    <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive('customer')}><Download className="h-4 w-4"/>Prepare this customer's photos ZIP</Button>
    {preparedBackup&&<><Button variant="outline" disabled={busy||loading} onClick={()=>void savePreparedArchive()}><Upload className="h-4 w-4"/>Save prepared ZIP to Files</Button>
     <Button variant="outline" disabled={busy||loading} onClick={downloadPreparedArchive}><Download className="h-4 w-4"/>Download prepared ZIP</Button></>}
+   <Button variant="outline" disabled={busy||loading} onClick={()=>verifyRef.current?.click()}><Images className="h-4 w-4"/>Verify saved ZIP from Files</Button>
    <Button variant="outline" disabled={busy||loading} onClick={()=>restoreRef.current?.click()}><Upload className="h-4 w-4"/>Restore verified photo ZIP</Button>
   </div>
+  <input ref={verifyRef} className="photo-input" type="file" accept=".zip,application/zip" onChange={e=>void verifySavedArchive(e.target.files)}/>
   <input ref={restoreRef} className="photo-input" type="file" accept=".zip,application/zip" onChange={e=>void restore(e.target.files)}/>
   {error&&<p className="save-error" role="alert">{error}</p>}{message&&<p className="save-success" role="status">{message}</p>}
   {loading?<p>Opening saved photos on this device…</p>:items.length===0?<div className="record-empty"><Camera/><strong>No on-device photos for this customer</strong><p>Use Camera or Photo library. No photos are uploaded to Cloudflare.</p></div>:<div className="photo-groups">
