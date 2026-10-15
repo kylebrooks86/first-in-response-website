@@ -116,7 +116,16 @@ try{
   catch{return 'refused';}
  },archiveBytes);
  check(wrongCustomer==='refused','Restore refuses photographs for a missing customer record');
- const damaged=archiveBytes.slice();damaged[damaged.length-40]^=1;
+ // Corrupt the actual stored image bytes, not an unused ZIP attribute.
+ // A strong integrity test must fail for CRC-32/SHA-256 reasons.
+ const damaged=archiveBytes.slice(),needle=Array.from(new TextEncoder().encode('photo-one-binary'));
+ let damagedAt=-1;
+ findPhoto:for(let i=0;i<=damaged.length-needle.length;i++){
+  for(let j=0;j<needle.length;j++)if(damaged[i+j]!==needle[j])continue findPhoto;
+  damagedAt=i;break;
+ }
+ check(damagedAt>=0,'Corruption fixture located the actual embedded photo bytes');
+ damaged[damagedAt]^=1;
  const rejected=await page.evaluate(async bytes=>{
   try{await window.FIRE_LOCAL_PHOTOS.restoreLocalPhotos(new Blob([new Uint8Array(bytes)]),['synthetic-customer']);return 'unexpected success';}
   catch{return 'refused';}
