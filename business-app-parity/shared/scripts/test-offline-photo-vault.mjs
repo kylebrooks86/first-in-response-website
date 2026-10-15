@@ -69,6 +69,8 @@ check(prepareFlow.includes('exportLocalPhotos()')&&!saveFlow.includes('exportLoc
 check(saveWithoutComments.includes('await navigator.share({files:[file]')&&!saveWithoutComments.slice(0,saveWithoutComments.indexOf('await navigator.share({files:[file]')).match(/\bawait\b/),'iOS share-sheet invocation runs before ANY await inside a fresh button click');
 check(saveFlow.includes('navigator.canShare')&&component.includes('downloadPreparedArchive'),'Owner retains a direct-tap download fallback if native sharing is unavailable');
 check(component.includes('setPreparedBackup(null)'),'Photo changes invalidate any staged ZIP, avoiding a false up-to-date backup');
+check(component.includes("prepareArchive('customer')")&&component.includes("prepareArchive('all')"),'Owner can export photos for one customer or all customers to handle large archives');
+check(vault.includes('listOfflinePhotos(customerId)')&&vault.includes('invalid customer identifier'),'Scoped backup filters the actual on-device photo vault and validates customer IDs');
 check(component.includes('URL.createObjectURL(photo.blob)')&&component.includes('URL.revokeObjectURL'),'Actual photo screen uses offline blobs and releases previews');
 check(vault.includes("db.transaction(STORE,'readwrite')")&&vault.includes('store.add(row)')&&!vault.includes('store.put(row)'),'Restore adds photos atomically without destructive overwrite');
 check(vault.includes('readOfflinePhotoBackup(archive)')&&vault.includes('knownCustomerIds'),'Restore validates entire ZIP and customer associations before touching IndexedDB');

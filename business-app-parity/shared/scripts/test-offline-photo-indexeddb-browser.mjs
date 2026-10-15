@@ -151,6 +151,23 @@ try{
  await page.evaluate(async()=>window.FIRE_OFFLINE_PHOTO_CUSTOMERS.clearOfflinePhotoCustomerDirectory());
  check((await page.evaluate(async()=>window.FIRE_OFFLINE_PHOTO_CUSTOMERS.loadOfflinePhotoCustomerDirectory().then(rows=>rows.length)))===0,'Owner logout invalidation can erase cached customer names without deleting photo bytes');
  check((await page.evaluate(async()=>window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer').then(rows=>rows.length)))===2,'Clearing cached customer names does not delete local photo files');
+ // A large business photo library must be exportable customer by customer
+ // when the all-customer ZIP exceeds the device-safe 160 MB export limit.
+ const subset=await page.evaluate(async()=>{
+  const vault=window.FIRE_LOCAL_PHOTOS;
+  const image=new File([new TextEncoder().encode('other synthetic photo')],'fixture-other.png',{type:'image/png'});
+  await vault.addOfflinePhoto('other-customer','property','separate property',image);
+  const only=await vault.exportLocalPhotos('synthetic-customer');
+  const full=await vault.exportLocalPhotos();
+  const importer=window.FIRE_ARCHIVE_MODULE;
+  const mine=await importer.readOfflinePhotoBackup(only),everyone=await importer.readOfflinePhotoBackup(full);
+  let invalidRejected=false;
+  try{await vault.exportLocalPhotos('../unsafe-path');}catch{invalidRejected=true;}
+  return {mineCount:mine.length,mineOwned:mine.every(photo=>photo.customerId==='synthetic-customer'),allCount:everyone.length,otherCount:everyone.filter(photo=>photo.customerId==='other-customer').length,invalidRejected};
+ });
+ check(subset.mineCount===2&&subset.mineOwned,'Per-customer ZIP export contains only this customer’s photo bytes and labels');
+ check(subset.allCount===3&&subset.otherCount===1,'All-customer ZIP still includes every customer’s photos');
+ check(subset.invalidRejected,'Scoped export fails closed for unsafe customer identifiers');
  const dashboard=readFileSync(new URL('../app/dashboard.tsx',import.meta.url),'utf8');
  check(dashboard.includes('saveOfflinePhotoCustomerDirectory(nextCustomers.map(')&&dashboard.includes('if(offlinePhotoOnly){'),'Actual FIRE Customers screen supplies photo-only offline fallback from authenticated identity cache');
  check(dashboard.includes('mustClearOfflinePhotoDirectory(response.status)')&&dashboard.includes('setOfflinePhotoOnly(false);setOfflinePhotoCustomers([]);')&&dashboard.includes('await clearOfflinePhotoCustomerDirectory().catch'),'Actual FIRE owner authorization denial revokes cached customer listing before any offline fallback');

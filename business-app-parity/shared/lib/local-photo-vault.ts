@@ -61,9 +61,11 @@ export async function removeOfflinePhoto(id:string,customerId:string):Promise<vo
  }finally{db.close();}
  if((await listOfflinePhotos(customerId)).some(x=>x.id===id))throw Error('Photo removal could not be verified.');
 }
-export async function exportLocalPhotos():Promise<Blob>{
- const rows=await listOfflinePhotos();
- if(!rows.length)throw Error('There are no on-device photos to back up.');
+export async function exportLocalPhotos(customerId?:string):Promise<Blob>{
+ if(customerId!==undefined&&!/^[a-zA-Z0-9_-]{1,120}$/.test(customerId))
+   throw Error('Cannot export photos for an invalid customer identifier.');
+ const rows=await listOfflinePhotos(customerId);
+ if(!rows.length)throw Error(customerId?'This customer has no on-device photos to back up.':'There are no on-device photos to back up.');
  const zip=await exportOfflinePhotoBackup(rows);
  // Validate the actual final ZIP, not only its source manifest. This detects
  // interrupted streams and broken central directory metadata before a user

@@ -54,14 +54,14 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  // a ZIP first and THEN trying to share after awaits loses that gesture.
  // Step 1 prepares/verifies asynchronously; step 2 opens sharing immediately
  // inside a new actual button click, before the first await.
- const prepareArchive=async()=>{
+ const prepareArchive=async(scope:'all'|'customer')=>{
   if(active.current)return;active.current=true;setBusy(true);setError('');setMessage('');setPreparedBackup(null);
   try{
-   const zip=await exportLocalPhotos();
-   const filename='FIRE-offline-photos-'+new Date().toISOString().slice(0,10)+'.zip';
+   const zip=await exportLocalPhotos(scope==='customer'?customerId:undefined);
+   const filename='FIRE-'+(scope==='customer'?'customer-'+customerId:'all')+'-photos-'+new Date().toISOString().slice(0,10)+'.zip';
    const file=new File([zip],filename,{type:'application/zip'});
    setPreparedBackup(file);
-   setMessage('Backup ZIP passed integrity checks and is READY to save. Tap Save prepared ZIP to Files or Download prepared ZIP. Your photos are not backed up until you verify the file in Files or iCloud.');
+   setMessage((scope==='customer'?'This customer’s':'All customers’')+' photo ZIP passed integrity checks and is READY. Tap Save prepared ZIP to Files or Download prepared ZIP. Backups are not complete until you confirm the file exists in Files or iCloud.');
   }catch(err){setError(err instanceof Error?err.message:'Photo archive was not created.');}
   finally{active.current=false;setBusy(false);}
  };
@@ -142,7 +142,8 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   <input ref={cameraRef} className="photo-input" type="file" accept="image/*" capture="environment" onChange={e=>void add(e.target.files)}/>
   <input ref={libraryRef} className="photo-input" type="file" accept="image/*" multiple onChange={e=>void add(e.target.files)}/>
   <div className="photo-buttons">
-   <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive()}><Download className="h-4 w-4"/>Prepare all local photos ZIP</Button>
+   <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive('all')}><Download className="h-4 w-4"/>Prepare all local photos ZIP</Button>
+   <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive('customer')}><Download className="h-4 w-4"/>Prepare this customer's photos ZIP</Button>
    {preparedBackup&&<><Button variant="outline" disabled={busy||loading} onClick={()=>void savePreparedArchive()}><Upload className="h-4 w-4"/>Save prepared ZIP to Files</Button>
     <Button variant="outline" disabled={busy||loading} onClick={downloadPreparedArchive}><Download className="h-4 w-4"/>Download prepared ZIP</Button></>}
    <Button variant="outline" disabled={busy||loading} onClick={()=>restoreRef.current?.click()}><Upload className="h-4 w-4"/>Restore verified photo ZIP</Button>
