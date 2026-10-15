@@ -97,7 +97,13 @@ jobs:
       - name: Shared-source parity gate regression
         run: node scripts/test-parity-gate.mjs
       - name: Shared financial regression suite
-        run: node --experimental-sqlite scripts/test-processing-fees.mjs
+        # The fixture imports transpiled TypeScript as a data: module. If an
+        # assertion fails, Node can dump >64 KiB of encoded source and hide
+        # the useful exception. Strip only that encoded source from CI logs.
+        run: |
+          set -o pipefail
+          node --experimental-sqlite scripts/test-processing-fees.mjs 2>&1 |
+            sed -E 's#data:text/javascript;base64,[A-Za-z0-9+/=]+#[synthetic compiled module omitted]#g'
       - name: Shared photo storage integrity regression
         run: node --experimental-sqlite scripts/test-photo-storage-integrity.mjs
       - name: Build shared candidate without deployment
