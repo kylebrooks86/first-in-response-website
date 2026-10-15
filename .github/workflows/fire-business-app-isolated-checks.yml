@@ -100,5 +100,15 @@ jobs:
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
       - name: Shared photo storage integrity regression
         run: node --experimental-sqlite scripts/test-photo-storage-integrity.mjs
+      - name: Synthetic record-backup restore and rollback fault rehearsal
+        run: node --experimental-sqlite scripts/test-records-recovery.mjs
+      - name: Synthetic Stripe refund and webhook replay regression
+        run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-stripe-refunds.mjs
+      - name: Synthetic owner auth and session adapter regression
+        run: node scripts/test-independent-auth-adapter.mjs
+      - name: Synthetic photo upload and delete integrity regression
+        run: |
+          node scripts/test-photo-upload-integrity.mjs
+          node scripts/test-photo-delete-integrity.mjs
       - name: Build shared candidate without deployment
         run: pnpm run build
