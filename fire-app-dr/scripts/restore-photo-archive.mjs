@@ -186,14 +186,14 @@ try {
       // Preserve uploaded bytes: the D1 write may have committed despite an error or lost acknowledgement.
       fail(databaseWrite, `Photo ${photo.id} database metadata status is uncertain. Uploaded bytes were preserved; inspect D1 and R2 before retrying.`);
     }
-    const verifyRecord=run(["d1","execute","DB","--config",absoluteConfig,...modeArgs,"--json","--command",`SELECT customer_id AS customerId,object_key AS objectKey,size_bytes AS sizeBytes FROM customer_photos WHERE id=${sql(photo.id)} LIMIT 1`]);
+    const verifyRecord=run(["d1","execute","DB","--config",absoluteConfig,...modeArgs,"--json","--command",`SELECT customer_id AS customerId,category,caption,filename,content_type AS contentType,size_bytes AS sizeBytes,object_key AS objectKey,created_at AS createdAt FROM customer_photos WHERE id=${sql(photo.id)} LIMIT 1`]);
     if(verifyRecord.status!==0){
       // Preserve uploaded bytes: the D1 write may have committed despite an error or lost acknowledgement.
       fail(verifyRecord,`Photo ${photo.id} metadata verification is uncertain. Uploaded bytes were preserved; inspect D1 and R2 before retrying.`);
     }
     const verifiedRows=JSON.parse(verifyRecord.stdout)[0]?.results||[];
     const verified=verifiedRows[0];
-    if(!verified||String(verified.customerId)!==photo.customerId||String(verified.objectKey)!==photo.objectKey||Number(verified.sizeBytes)!==photo.sizeBytes){
+    if(!verified||String(verified.customerId)!==photo.customerId||String(verified.category)!==photo.category||(verified.caption==null?null:String(verified.caption))!==photo.caption||String(verified.filename)!==photo.filename||String(verified.contentType)!==photo.contentType||String(verified.objectKey)!==photo.objectKey||Number(verified.sizeBytes)!==photo.sizeBytes||String(verified.createdAt)!==photo.createdAt){
       // Preserve uploaded bytes: the D1 write may have committed despite an error or lost acknowledgement.
       throw new Error(`Photo ${photo.id} metadata does not match the archive. Uploaded bytes were preserved; investigate before retrying.`);
     }
