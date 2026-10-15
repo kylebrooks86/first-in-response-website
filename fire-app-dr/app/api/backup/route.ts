@@ -47,12 +47,12 @@ type BackupRow = Record<string, string | number | null>;
 const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 const LIFECYCLE_NOTIFICATION_TYPES=new Set(["estimate_viewed","invoice_viewed","estimate_accepted"]);
-function normalizeLegacyLifecycleNotifications(rows){
+function normalizeLegacyLifecycleNotifications(rows: unknown){
   if(!Array.isArray(rows))return {rows,skipped:0};
-  const passthrough=[];
-  const winnerByKey=new Map();
+  const passthrough: unknown[]=[];
+  const winnerByKey=new Map<string, Record<string, unknown>>();
   let skipped=0;
-  const rank=(row)=>{
+  const rank=(row: Record<string, unknown>)=>{
     const created=Date.parse(String(row?.created_at??""));
     return [Number.isFinite(created)?created:Number.MAX_SAFE_INTEGER,String(row?.id??"")];
   };
@@ -225,6 +225,7 @@ export async function POST(request: Request) {
     verifiedRecords:0,
     lifecycleNotificationUniquenessVerified:false,
     legacyLifecycleNotificationsSkipped:0,
+    relationshipIntegrityVerified:false,
   };
   const postWriteFailure=(error:string)=>Response.json({
     error,
