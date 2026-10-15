@@ -36,7 +36,7 @@ export async function POST(request:Request){
     const stripePayment=["deposit","balance","Tip"].includes(payment.type)&&Boolean(payment.providerId?.startsWith("cs_"));
     const mode=stripePayment?"stripe":"manual";
     const runtime=env as RuntimeEnv;
-    const sandboxTarget = LOCAL_CUSTOMER_DEPLOYMENT !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
+    const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
     const stripeSecret=runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY;
     if(stripePayment&&sandboxTarget&&stripeSecret&&!/^(sk|rk|rkcs)_test_/.test(stripeSecret))
       return Response.json({error:"Isolated candidates only accept sandbox Stripe keys."},{status:503});

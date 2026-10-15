@@ -62,7 +62,7 @@ export async function POST(request:Request) {
     return Response.json({ error:"Invalid webhook payload." }, { status:400 });
   }
 
-  const sandboxTarget = LOCAL_CUSTOMER_DEPLOYMENT !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
+  const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
   if(sandboxTarget&&event.livemode!==false)return Response.json({error:"Staging rejects live Stripe events."},{status:400});
   if(["refund.created","refund.updated"].includes(event.type??"")){
     if(!event.data?.object)return Response.json({error:"Missing refund."},{status:400});

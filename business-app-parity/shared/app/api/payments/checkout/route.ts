@@ -20,7 +20,7 @@ async function expireTrackedCheckout(sessionId: string, secret: string) {
 export async function POST(request: Request) {
   const runtime = env as RuntimeEnv;
   const stripeKey = runtime.STRIPE_RESTRICTED_KEY || runtime.STRIPE_SECRET_KEY;
-  const sandboxTarget = LOCAL_CUSTOMER_DEPLOYMENT !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
+  const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
   if(sandboxTarget&&stripeKey&&!/^(sk|rk|rkcs)_test_/.test(stripeKey))return Response.json({error:"Staging only accepts sandbox Stripe keys."},{status:503});
   if (!stripeKey) return Response.json({ error: "Payments have not been connected yet." }, { status: 503 });
   try {
