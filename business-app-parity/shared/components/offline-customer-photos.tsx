@@ -13,6 +13,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  const [items,setItems]=useState<Preview[]>([]);
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [error,setError]=useState(''),[message,setMessage]=useState('');
+ const [preparedBackup,setPreparedBackup]=useState<File|null>(null);
  const [category,setCategory]=useState<'before'|'after'|'property'>('before'),[caption,setCaption]=useState('');
  const [beforeId,setBeforeId]=useState(''),[afterId,setAfterId]=useState('');
  const cameraRef=useRef<HTMLInputElement>(null),libraryRef=useRef<HTMLInputElement>(null),restoreRef=useRef<HTMLInputElement>(null);
@@ -34,7 +35,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  useEffect(()=>()=>{for(const item of items)URL.revokeObjectURL(item.url);},[items]);
  const add=async(files:FileList|null)=>{
   if(!files?.length||active.current)return;
-  active.current=true;setBusy(true);setError('');setMessage('');
+  active.current=true;setBusy(true);setError('');setMessage('');setPreparedBackup(null);
   try{
    for(const file of Array.from(files))await addOfflinePhoto(customerId,category,caption,file);
    await refresh();setCaption('');
@@ -44,35 +45,58 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  };
  const remove=async(photo:OfflinePhoto)=>{
   if(active.current||!window.confirm('Delete this on-device photo? This cannot be undone without a separate backup.'))return;
-  active.current=true;setBusy(true);setError('');setMessage('');
+  active.current=true;setBusy(true);setError('');setMessage('');setPreparedBackup(null);
   try{await removeOfflinePhoto(photo.id,customerId);await refresh();setMessage('Photo removed from this device. An older exported ZIP is unchanged.');}
   catch(err){setError(err instanceof Error?err.message:'Could not verify photo removal.');try{await refresh();}catch{}}
   finally{active.current=false;setBusy(false);}
  };
- const offerArchive=async()=>{
-  if(active.current)return;active.current=true;setBusy(true);setError('');setMessage('');
+ // iOS Safari requires an active user gesture for navigator.share(). Preparing
+ // a ZIP first and THEN trying to share after awaits loses that gesture.
+ // Step 1 prepares/verifies asynchronously; step 2 opens sharing immediately
+ // inside a new actual button click, before the first await.
+ const prepareArchive=async()=>{
+  if(active.current)return;active.current=true;setBusy(true);setError('');setMessage('');setPreparedBackup(null);
   try{
    const zip=await exportLocalPhotos();
    const filename='FIRE-offline-photos-'+new Date().toISOString().slice(0,10)+'.zip';
    const file=new File([zip],filename,{type:'application/zip'});
-   let offered=false;
-   if(navigator.canShare?.({files:[file]})&&navigator.share){
-    try{await navigator.share({files:[file],title:'FIRE Offline Photo Backup'});offered=true;}
-    catch(error){if(error instanceof Error&&error.name==='AbortError')throw Error('Export was cancelled. Photos remain on this device and are not backed up.');}
-   }
-   if(!offered){
-    const url=URL.createObjectURL(zip),link=document.createElement('a');
-    link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();
-    window.setTimeout(()=>URL.revokeObjectURL(url),60_000);
-   }
-   setMessage('ZIP was offered for saving. Verify the file exists in Files or iCloud Drive before treating photos as backed up. Keep your original Apple Photos too.');
+   setPreparedBackup(file);
+   setMessage('Backup ZIP passed integrity checks and is READY to save. Tap Save prepared ZIP to Files or Download prepared ZIP. Your photos are not backed up until you verify the file in Files or iCloud.');
   }catch(err){setError(err instanceof Error?err.message:'Photo archive was not created.');}
   finally{active.current=false;setBusy(false);}
+ };
+ const downloadPreparedArchive=()=>{
+  if(active.current||busy||!preparedBackup)return;
+  setError('');setMessage('');
+  try{
+   const url=URL.createObjectURL(preparedBackup),link=document.createElement('a');
+   link.href=url;link.download=preparedBackup.name;document.body.appendChild(link);
+   link.click();link.remove();window.setTimeout(()=>URL.revokeObjectURL(url),60_000);
+   setMessage('ZIP download offered. Check Files/Downloads and verify the file before considering photos backed up.');
+  }catch(err){setError(err instanceof Error?err.message:'Could not start download; prepared ZIP remains available.');}
+ };
+ const savePreparedArchive=async()=>{
+  if(active.current||busy||!preparedBackup)return;
+  // The share invocation is the FIRST asynchronous action after this click.
+  // Do not add an await before it: iOS will reject a stale user gesture.
+  setError('');setMessage('');
+  const file=preparedBackup;
+  if(!navigator.share||!navigator.canShare?.({files:[file]})){
+   downloadPreparedArchive();return;
+  }
+  active.current=true;setBusy(true);
+  try{
+   await navigator.share({files:[file],title:'FIRE Offline Photo Backup'});
+   setMessage('Photo ZIP was offered to the iOS share sheet. Confirm it exists in Files or iCloud Drive before treating it as backed up. Keep original photos too.');
+  }catch(err){
+   if(err instanceof Error&&err.name==='AbortError')setMessage('Saving was cancelled. Your prepared ZIP is still available; photos are NOT backed up.');
+   else setError('iOS could not open the share sheet. Try Download prepared ZIP below; your prepared archive has not been erased.');
+  }finally{active.current=false;setBusy(false);}
  };
  const restore=async(files:FileList|null)=>{
   if(!files?.length||active.current)return;
   if(!window.confirm('Restore this photo ZIP? FIRE will check all photos and customer IDs. Existing photos will NOT be overwritten. Restore matching customer records first.'))return;
-  active.current=true;setBusy(true);setError('');setMessage('');
+  active.current=true;setBusy(true);setError('');setMessage('');setPreparedBackup(null);
   try{
    const count=await restoreLocalPhotos(files[0],knownCustomerIds);
    await refresh();setMessage('Restored '+count+' verified photos. Keep the original archive for recovery.');
@@ -118,7 +142,9 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   <input ref={cameraRef} className="photo-input" type="file" accept="image/*" capture="environment" onChange={e=>void add(e.target.files)}/>
   <input ref={libraryRef} className="photo-input" type="file" accept="image/*" multiple onChange={e=>void add(e.target.files)}/>
   <div className="photo-buttons">
-   <Button variant="outline" disabled={busy||loading} onClick={()=>void offerArchive()}><Download className="h-4 w-4"/>Export all local photos ZIP</Button>
+   <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive()}><Download className="h-4 w-4"/>Prepare all local photos ZIP</Button>
+   {preparedBackup&&<><Button variant="outline" disabled={busy||loading} onClick={()=>void savePreparedArchive()}><Upload className="h-4 w-4"/>Save prepared ZIP to Files</Button>
+    <Button variant="outline" disabled={busy||loading} onClick={downloadPreparedArchive}><Download className="h-4 w-4"/>Download prepared ZIP</Button></>}
    <Button variant="outline" disabled={busy||loading} onClick={()=>restoreRef.current?.click()}><Upload className="h-4 w-4"/>Restore verified photo ZIP</Button>
   </div>
   <input ref={restoreRef} className="photo-input" type="file" accept=".zip,application/zip" onChange={e=>void restore(e.target.files)}/>
