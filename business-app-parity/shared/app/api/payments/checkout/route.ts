@@ -112,10 +112,14 @@ export async function POST(request: Request) {
     const stripe = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: { authorization: `Bearer ${stripeKey}`, "content-type": "application/x-www-form-urlencoded", "Idempotency-Key":`fire-checkout-${reservationId}` }, body: form });
     const data = await stripe.json() as { id?: string; url?: string; error?: { message?: string } };
     if(!stripe.ok){
-      // A definite Stripe API rejection cannot create a payable checkout.
-      // Uncertain transport/parsing failures retain the provisional lock.
-      await releaseReservation();
-      return Response.json({error:data.error?.message||"Payment checkout could not be started."},{status:502});
+      // Stripe may send HTTP 5xx/429 after creating a session. Those responses
+      // are NOT evidence that a retry is safe. Keep the lock for owner review.
+      // Only non-retryable validation/auth errors can release this reservation.
+      if([400,401,403,404,422].includes(stripe.status)){
+        await releaseReservation();
+        return Response.json({error:data.error?.message||"Payment checkout was rejected by Stripe."},{status:502});
+      }
+      return Response.json({error:"Stripe payment setup has an uncertain outcome. Do not start another checkout; ask FIRE to review this payment.",checkoutUncertain:true},{status:503});
     }
     if(!data.id||!data.url)return Response.json({error:"Stripe checkout acknowledgment was incomplete. Payment setup needs review before starting another."},{status:503});
     const current=await env.DB.prepare(`SELECT e.status,e.deposit_cents AS depositCents,

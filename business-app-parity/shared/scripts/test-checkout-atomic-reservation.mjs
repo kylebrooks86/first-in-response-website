@@ -59,6 +59,8 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false}={
      state.creates++;
      check(options.headers['Idempotency-Key'].startsWith('fire-checkout-fire-creating:'),'Stripe create uses the reserved operation ID as idempotency key');
      if(stripeResponse==='rejection')return Response.json({error:{message:'Synthetic card setup rejected'}},{status:400});
+     if(stripeResponse==='server-error')return Response.json({error:{message:'Stripe internal error'}},{status:500});
+     if(stripeResponse==='rate-limit')return Response.json({error:{message:'Stripe rate limit'}},{status:429});
      if(stripeResponse==='uncertain')throw Error('Lost Stripe acknowledgement');
      return Response.json({id:'cs_test_real_synthetic',url:'https://checkout.stripe.test/synthetic'});
    }
@@ -90,6 +92,13 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false}={
  const r=await h.post();
  check(r.status===502,'Definitive Stripe API rejection is reported');
  check(h.state.open===null,'Definitive Stripe rejection releases reservation so another checkout is possible');
+}
+for(const kind of ['server-error','rate-limit']){
+ const h=harness({stripeResponse:kind});
+ const r=await h.post();
+ check(r.status===503,kind+' is a potentially committed Stripe session, not a proven rejection');
+ check(h.state.open?.id.startsWith('fire-creating:'),kind+' retains the checkout lock');
+ check((await h.post()).status===409&&h.state.creates===1,kind+' blocks a duplicate checkout attempt');
 }
 {
  const h=harness({stripeResponse:'uncertain'});
