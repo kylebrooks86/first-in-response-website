@@ -34,7 +34,9 @@ For **each** of LIVE, staging, and Doomsday, collect:
    RELEASE_SCHEMA_CAPTURE_READ_ONLY.sql, run on that **exact** D1. They
    return schema/index/column/foreign-key definitions, ordered migration
    journal names, and integer counts only. SELECT 1 now includes **all**
-   non-internal schema tables and indexes to expose unexpected objects.
+   non-internal application tables and indexes to expose unexpected objects;
+   the provider-owned d1_migrations CREATE statement is excluded because its
+   syntax can vary, while SELECT 5 compares its ordered migration names.
 4. Explicit error/truncation/missing-table status for any unavailable result.
    Never replace a failed query with empty rows or assumed zero counts.
 
