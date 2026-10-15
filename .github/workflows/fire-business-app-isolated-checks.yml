@@ -1,0 +1,49 @@
+name: FIRE Business App Isolated Checks
+
+on:
+  push:
+    branches:
+      - work/fire-business-app-parity-2026-10-08
+    paths:
+      - 'fire-app-dr/**'
+      - '.github/workflows/fire-business-app-isolated-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fire-business-app-isolated-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-and-build:
+    name: Typecheck, recovery contracts, and independent candidate build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+    defaults:
+      run:
+        working-directory: fire-app-dr
+    steps:
+      - name: Checkout development branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Verify TypeScript
+        run: pnpm run typecheck
+      - name: Verify restore contract
+        run: pnpm run restore:verify-contract
+      - name: Verify recovery documentation
+        run: pnpm run release:docs:check
+      - name: Build independent candidate without deployment
+        run: pnpm run build:independent
