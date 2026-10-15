@@ -54,7 +54,7 @@ try{
       migrations_dir:'migrations'
     }]
   },null,2));
-  invoke([wrangler,'d1','migrations','apply','DB','--local','--config',config,'--yes']);
+  invoke([wrangler,'d1','migrations','apply','DB','--local','--config',config]);
   checks++;
   const seed=join(root,'seed.sql');
   writeFileSync(seed,[
