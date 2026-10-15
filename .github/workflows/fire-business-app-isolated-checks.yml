@@ -286,6 +286,8 @@ jobs:
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
       - name: Verify actual IndexedDB customer photos, ZIP restore and offline additions in Chrome
         run: node scripts/test-offline-photo-indexeddb-browser.mjs
+      - name: Exercise real React customer photo screen, offline ZIP, Files readback and restore
+        run: node scripts/test-offline-photo-ui-browser.mjs
       - name: Test native Chromium persistent profile and offline cold launch
         run: node scripts/test-local-customer-demo-cold-browser.mjs
       - name: Test portable synthetic PWA export, install assets and offline recovery
