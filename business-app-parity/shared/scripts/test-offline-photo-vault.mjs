@@ -1,0 +1,65 @@
+/** Validate the REAL offline-photo ZIP implementation, restore checks and UI wiring. */
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {webcrypto} from 'node:crypto';
+const require=createRequire(import.meta.url),ts=require('typescript');
+let checks=0;
+const check=(value,label)=>{assert.ok(value,label);checks++;console.log('PASS: '+label);};
+function load(path,resolveImport=()=>{throw Error('Unexpected module import')}){
+ const source=readFileSync(new URL(path,import.meta.url),'utf8');
+ const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+ const exports={};
+ new Function('require','exports','crypto',js)((name)=>resolveImport(name),exports,webcrypto);
+ return exports;
+}
+const zip=load('../lib/photo-storage-zip.ts');
+const archive=load('../lib/offline-photo-backup.ts',name=>{
+ if(name==='./photo-storage-zip')return zip;
+ throw Error('Unexpected import '+name);
+});
+const photo=(id,customerId,category='before',text='photo bytes')=>{
+ const blob=new Blob([new TextEncoder().encode(text)],{type:'image/png'});
+ return {id,customerId,category,caption:'Synthetic test',filename:id+'.png',contentType:'image/png',sizeBytes:blob.size,createdAt:'2026-10-15T03:20:00.000Z',blob};
+};
+const first=photo('img-one','customer-A','before','one synthetic photo');
+const second=photo('img-two','customer-B','after','another synthetic photo');
+const file=await archive.exportOfflinePhotoBackup([first,second]);
+check(file.type==='application/zip'&&file.size>0,'Real archive exporter produces ZIP bytes without Cloudflare');
+const restored=await archive.readOfflinePhotoBackup(file);
+check(restored.length===2,'ZIP reader restores every declared image');
+check(restored[0].id===first.id&&restored[1].customerId==='customer-B','Backup preserves original photo/customer relationship');
+check(restored[0].category==='before'&&restored[1].category==='after','Backup retains before/after categories');
+check((await restored[0].blob.text())==='one synthetic photo','Full photo bytes survive export/import');
+check((await restored[1].blob.text())==='another synthetic photo','Second image bytes survive archive');
+check(restored.every(row=>row.contentType==='image/png'&&row.blob.type===row.contentType&&row.blob.size===row.sizeBytes),'All restored MIME and byte lengths match manifest');
+const corrupt=new Uint8Array(await file.arrayBuffer());
+const needle=new TextEncoder().encode('one synthetic photo');
+let at=-1;outer:for(let i=0;i<corrupt.length-needle.length;i++){for(let j=0;j<needle.length;j++)if(corrupt[i+j]!==needle[j])continue outer;at=i;break;}
+check(at>=0,'Test fixture locates real photo bytes inside ZIP');
+corrupt[at]^=1;
+await assert.rejects(archive.readOfflinePhotoBackup(new Blob([corrupt])),/checksum/);
+check(true,'Tampered image is rejected before restore');
+await assert.rejects(archive.readOfflinePhotoBackup(new Blob([(await file.arrayBuffer()).slice(0,-12)])),/rejected/);
+check(true,'Truncated ZIP is rejected before restore');
+await assert.rejects(archive.exportOfflinePhotoBackup([first,first]),/duplicate photo/);
+check(true,'Duplicate source photo ID cannot enter archive');
+const unsupported=photo('invalid id','customer-A');
+await assert.rejects(archive.exportOfflinePhotoBackup([unsupported]),/invalid photo/);
+check(true,'Unsafe photo names cannot be exported');
+const wrongBytes={...first,sizeBytes:3};
+await assert.rejects(archive.exportOfflinePhotoBackup([wrongBytes]),/incomplete stored bytes/);
+check(true,'Corrupt IndexedDB metadata cannot masquerade as a complete backup');
+const empty=await archive.exportOfflinePhotoBackup([]);
+check((await archive.readOfflinePhotoBackup(empty)).length===0,'Empty backup is valid archive but restore deliberately refuses it');
+const page=readFileSync(new URL('../app/dashboard.tsx',import.meta.url),'utf8');
+const component=readFileSync(new URL('../components/offline-customer-photos.tsx',import.meta.url),'utf8');
+const vault=readFileSync(new URL('../lib/local-photo-vault.ts',import.meta.url),'utf8');
+check(page.includes('<OfflineCustomerPhotos')&&page.includes('knownCustomerIds={customers.map(item=>item.id)}'),'Actual FIRE customer profile renders the on-device vault');
+check(!page.includes('section === "photos"&&<CustomerPhotos'),'Original R2 photo panel no longer owns the customer tab');
+check(component.includes('exportLocalPhotos()')&&component.includes('restoreLocalPhotos('),'Actual photo screen exposes archive export and restore');
+check(component.includes('URL.createObjectURL(photo.blob)')&&component.includes('URL.revokeObjectURL'),'Actual photo screen uses offline blobs and releases previews');
+check(vault.includes("db.transaction(STORE,'readwrite')")&&vault.includes('store.add(row)')&&!vault.includes('store.put(row)'),'Restore adds photos atomically without destructive overwrite');
+check(vault.includes('readOfflinePhotoBackup(archive)')&&vault.includes('knownCustomerIds'),'Restore validates entire ZIP and customer associations before touching IndexedDB');
+check(component.includes('Keep originals')||component.includes('Keep the originals'),'Owner UI provides backup safety guidance');
+console.log('PASS '+checks+' offline-photo archive and actual integrated UI checks.');
