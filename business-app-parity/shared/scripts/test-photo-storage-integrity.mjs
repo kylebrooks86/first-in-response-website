@@ -83,15 +83,51 @@ try{
   // This fixture proves export/byte transport only. Existing archive excludes orphan bytes; it cannot be a complete storage backup.
   assert.ok(await bucket.head('customers/customer-1/orphan-1.png'));
  });
- await check('actual archive marks missing referenced bytes without inventing files',async()=>{
+ await check('legacy photo archive rejects missing referenced bytes BEFORE a successful ZIP download',async()=>{
   await bucket.delete(key);
-  const archive=await load(join(source,'app/api/backup/photos/route.ts')).GET();const file=join(temp,'missing-synthetic.zip');writeFileSync(file,Buffer.from(await archive.arrayBuffer()));
-  const manifest=JSON.parse(spawnSync('unzip',['-p',file,'manifest.json'],{encoding:'utf8'}).stdout);
-  assert.equal(manifest.photoCount,0);assert.deepEqual(manifest.missingPhotoIds,['photo-1']);assert.equal(manifest.photos.length,1);
-  await bucket.put(key,bytes,{httpMetadata:{contentType:'image/png'}});
+  try {
+   const response=await load(join(source,'app/api/backup/photos/route.ts')).GET();
+   assert.equal(response.status,409);
+   assert.equal(response.headers.get('content-type'),'application/json');
+   assert.equal(response.headers.get('cache-control'),'no-store');
+   assert.equal((await response.json()).archiveIncomplete,true);
+  } finally {await bucket.put(key,bytes,{httpMetadata:{contentType:'image/png'}});}
+ });
+ await check('legacy photo archive rejects incorrect stored byte length without touching either store',async()=>{
+  await db.prepare('UPDATE customer_photos SET size_bytes=size_bytes+1 WHERE id=?').bind('photo-1').run();
+  try {
+   const response=await load(join(source,'app/api/backup/photos/route.ts')).GET();
+   assert.equal(response.status,409);
+   assert.equal((await response.json()).archiveIncomplete,true);
+   assert.deepEqual(Buffer.from(await (await bucket.get(key)).arrayBuffer()),bytes);
+  } finally {await db.prepare('UPDATE customer_photos SET size_bytes=? WHERE id=?').bind(bytes.length,'photo-1').run();}
+ });
+ await check('legacy photo archive rejects R2 content-type mismatch without deleting originals',async()=>{
+  await bucket.put(key,bytes,{httpMetadata:{contentType:'image/jpeg'}});
+  try {
+   const response=await load(join(source,'app/api/backup/photos/route.ts')).GET();
+   assert.equal(response.status,409);
+   assert.equal((await response.json()).archiveIncomplete,true);
+  } finally {await bucket.put(key,bytes,{httpMetadata:{contentType:'image/png'}});}
+ });
+ await check('legacy photo archive denies success when HEAD verification fails',async()=>{
+  env.BUCKET={head:async()=>{throw Error('Synthetic R2 HEAD outage');}};
+  try {
+   const response=await load(join(source,'app/api/backup/photos/route.ts')).GET();
+   assert.equal(response.status,503);
+   assert.equal((await response.json()).archiveUncertain,true);
+  } finally {env.BUCKET=bucket;}
+ });
+ await check('legacy photo archive aborts if R2 object vanishes after successful preflight',async()=>{
+  env.BUCKET={head:k=>bucket.head(k),get:async()=>null};
+  try {
+   const response=await load(join(source,'app/api/backup/photos/route.ts')).GET();
+   assert.equal(response.status,200);
+   await assert.rejects(response.arrayBuffer(),/disappeared or changed/);
+  } finally {env.BUCKET=bucket;}
  });
  await check('actual archive aborts interrupted byte reads and preserves source',async()=>{
-  env.BUCKET={get:async()=>{throw Error('Synthetic interrupted export');}};
+  env.BUCKET={head:k=>bucket.head(k),get:async()=>{throw Error('Synthetic interrupted export');}};
   try{const archive=await load(join(source,'app/api/backup/photos/route.ts')).GET();await assert.rejects(archive.arrayBuffer(),/interrupted export/);}finally{env.BUCKET=bucket;}
   assert.deepEqual(Buffer.from(await (await bucket.get(key)).arrayBuffer()),bytes);
  });

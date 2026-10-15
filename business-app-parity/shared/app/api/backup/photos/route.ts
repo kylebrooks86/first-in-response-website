@@ -67,6 +67,26 @@ export async function GET() {
   if (expectedBytes > 2_000_000_000) return Response.json({ error: "The photo library is too large for one archive. A managed export is required." }, { status: 413 });
   if (photos.length > 65_000) return Response.json({ error: "The photo library contains too many files for one archive. A managed export is required." }, { status: 413 });
 
+  // Verify every referenced R2 file before returning a successful download.
+  // A manifest warning inside an apparently valid ZIP is not a safe backup.
+  // These are read-only HEAD requests; no remote object is modified.
+  try {
+    for (const photo of photos) {
+      const object = await env.BUCKET.head(photo.objectKey);
+      if (!object || object.size !== Number(photo.sizeBytes) || object.httpMetadata?.contentType !== photo.contentType) {
+        return Response.json({
+          error: "Photo archive is incomplete: referenced photo bytes are missing or differ from saved records. Inspect photo storage before exporting.",
+          archiveIncomplete: true,
+        }, { status: 409, headers: { "cache-control": "no-store" } });
+      }
+    }
+  } catch {
+    return Response.json({
+      error: "Could not verify every photo before export. Existing records and photo bytes were preserved.",
+      archiveUncertain: true,
+    }, { status: 503, headers: { "cache-control": "no-store" } });
+  }
+
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();
   void (async () => {
@@ -98,7 +118,9 @@ export async function GET() {
       try {
         for (const photo of photos) {
           const object = await env.BUCKET.get(photo.objectKey);
-          if (!object) { missingPhotoIds.push(photo.id); continue; }
+          if (!object || object.size !== Number(photo.sizeBytes) || object.httpMetadata?.contentType !== photo.contentType) {
+            throw Error("Referenced photo disappeared or changed while exporting. Discard this incomplete ZIP.");
+          }
           const name = encoder.encode(`photos/${photo.customerId}/${photo.id}-${safeName(photo.filename)}`);
           const entry = await startEntry(name, photo.createdAt);
           const reader = object.body.getReader();
@@ -109,6 +131,7 @@ export async function GET() {
             if (chunk.done) break;
             crc = updateCrc(crc, chunk.value); size += chunk.value.byteLength; await push(chunk.value);
           }
+          if (size !== Number(photo.sizeBytes)) throw Error("Referenced photo size changed during export. Discard this incomplete ZIP.");
           await finishEntry(name, (crc ^ 0xffffffff) >>> 0, size, entry.localOffset, entry.time, entry.date);
         }
 
