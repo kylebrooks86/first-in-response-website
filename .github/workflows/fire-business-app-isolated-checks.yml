@@ -45,5 +45,16 @@ jobs:
         run: pnpm run restore:verify-contract
       - name: Verify recovery documentation
         run: pnpm run release:docs:check
-      - name: Build independent candidate without deployment
+      - name: Synthetic payment, refund, and backup regression tests
+        run: node --experimental-sqlite scripts/test-processing-fees.mjs
+      - name: Source-only independent preflight
+        run: pnpm run preflight:independent
+      # Values below refer to NO real resources and are intentionally scoped to
+      # this build step. Never add a deploy or wrangler remote command to CI.
+      - name: Build independent candidate with disposable config identities
+        env:
+          FIRE_WORKER_NAME: fire-app-ci-synthetic-do-not-deploy
+          FIRE_D1_DATABASE_NAME: fire-app-ci-synthetic-no-database
+          FIRE_D1_DATABASE_ID: 12345678-1234-4234-8234-123456789abc
+          FIRE_R2_BUCKET_NAME: fire-app-ci-synthetic-no-bucket
         run: pnpm run build:independent
