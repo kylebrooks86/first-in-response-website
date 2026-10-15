@@ -87,6 +87,39 @@ review packet; do not attach SQL/customer data. The verifier:
   `exportCompletenessAgainstLiveDatabaseVerified: false`,
   `migrationAuthorized: false`, and `releaseGateAccepted: false`.
 
+## Additional Gate 5 rehearsal — exact additive index and RAM rollback
+
+After the **owner** securely exports and privately retains the Doomsday SQL
+file, and after the preceding verifier passes, run the following **locally**:
+
+```powershell
+# On Windows, run in the root of the FIRE GitHub checkout.
+# This NEVER connects to Cloudflare; replace this path with your private file.
+py -3 business-app-parity/rehearse_doomsday_0022_export.py "C:\\FIRE-Private-Backups\\PRIVATE_FIRE_DOOMSDAY_PRE0022.sql"
+```
+
+This secondary tool repeats all existing dump-integrity, schema, journal and
+ledger checks, then loads the SQL into an **in-memory-only** disposable SQLite
+database. It accepts only the exact reviewed additive migration statement
+`0022_stripe_provider_uniqueness.sql`. The new partial unique index is built
+inside a local savepoint; its column, uniqueness and predicate are checked;
+it verifies that the data/ledger and migration journal are untouched; and it
+rolls the entire index creation back to the original pre-0022 schema. This
+provides stronger confidence in migration compatibility with the *captured*
+export, not evidence that the live database is unchanged or writers are
+quiescent.
+
+**Never upload the SQL file.** Share only the metadata-only output after
+checking that it contains no private records. No Stripe API request, D1
+remote command, hosted migration, Worker deployment or customer-data write
+can be performed by this rehearsal script.
+
+The test suite runs against synthetic exports in GitHub CI; it **does not**
+use an owner export. `localMigration0022RehearsalPassed=true` is a local
+technical subcheck only. Gate 5 remains open pending independently validated
+source identity, full/secure backup, controlled writer pause, owner approval
+and hosted after-change/rollback evidence.
+
 ## Requirements not satisfied even if verification succeeds
 
 A passing owner-held export does not independently prove that the export

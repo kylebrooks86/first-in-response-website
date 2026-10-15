@@ -21,6 +21,8 @@ on:
       - 'business-app-parity/test_doomsday_ledger_owner_aggregate.py'
       - 'business-app-parity/verify_doomsday_d1_export.py'
       - 'business-app-parity/test_doomsday_export_restore.py'
+      - 'business-app-parity/rehearse_doomsday_0022_export.py'
+      - 'business-app-parity/test_doomsday_0022_export_rehearsal.py'
       - 'business-app-parity/shared/scripts/test-real-wrangler-local-d1-export.mjs'
       - 'business-app-parity/shared/scripts/test-fire-service-catalog-pricing.mjs'
       - 'business-app-parity/shared/scripts/test-per-job-price-overrides.mjs'
@@ -139,6 +141,8 @@ jobs:
           python3 ../test_doomsday_ledger_owner_aggregate.py
       - name: Verify private SQL-export offline restore and anti-tamper controls
         run: python3 ../test_doomsday_export_restore.py
+      - name: Rehearse exact Doomsday 0022 index on synthetic restored D1 exports with local rollback
+        run: python3 ../test_doomsday_0022_export_rehearsal.py
       - name: Verify real Wrangler local D1 export and private SQL restoration
         run: node scripts/test-real-wrangler-local-d1-export.mjs
       - name: Protect owner-approved FIRE service rates in the shared source
