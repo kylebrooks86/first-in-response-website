@@ -52,11 +52,12 @@ function photo(id) {
     objectKey: `customers/${customerId}/${id}.png`, createdAt,
   };
 }
-async function makeArchive(name, photos) {
+async function makeArchive(name, photos, missingPhotoIds = []) {
   const dir = join(temp, name);
   await mkdir(dir, { recursive: true });
   const entries = [];
   for (const p of photos) {
+    if (missingPhotoIds.includes(p.id)) continue;
     const relative = `photos/${p.customerId}/${p.id}-synthetic.png`;
     const full = join(dir, relative);
     await mkdir(join(dir, "photos", p.customerId), { recursive: true });
@@ -64,8 +65,8 @@ async function makeArchive(name, photos) {
     entries.push(relative);
   }
   await writeFile(join(dir, "manifest.json"), JSON.stringify({
-    format: "fire-app-photo-archive", version: 1, photoCount: photos.length,
-    missingPhotoIds: [], photos,
+    format: "fire-app-photo-archive", version: 1, photoCount: entries.length,
+    missingPhotoIds, photos,
   }));
   const zip = join(temp, name + ".zip");
   exec("zip", ["-q", "-0", zip, "manifest.json", ...entries], { cwd: dir });
@@ -119,7 +120,69 @@ try {
     `SELECT COUNT(*) AS count FROM customer_photos WHERE id IN ('${unoccupied.id}','${occupied.id}')`]);
   assert.equal(Number(JSON.parse(check)[0]?.results?.[0]?.count), 0);
 
-  console.log("PASS: synthetic local D1/R2 photo restore, dry-run, metadata/bytes, idempotence, occupied-key preflight, zero partial writes");
+  // A matching D1 record without its R2 bytes must NOT be treated as restored.
+  const missingR2 = photo("photo-ci-0004");
+  const beforeMissing = photo("photo-ci-0005");
+  const seedMetadata = (p) => wr(["d1", "execute", "DB", ...base, "--yes", "--command",
+    `INSERT INTO customer_photos (id,customer_id,category,caption,filename,content_type,size_bytes,object_key,created_at) VALUES ('${p.id}','${p.customerId}','${p.category}','${p.caption}','${p.filename}','${p.contentType}',${p.sizeBytes},'${p.objectKey}','${p.createdAt}')`]);
+  seedMetadata(missingR2);
+  const missingR2Archive = await makeArchive("existing-without-r2", [beforeMissing, missingR2]);
+  assert.match(restore(missingR2Archive, true, { expectFailure: true }), /no readable R2 image/);
+  wr(["r2", "object", "get", `${expected.bucket}/${beforeMissing.objectKey}`, ...base,
+    "--file", join(temp, "missing-r2-must-not-upload.png")], { expectFailure: true });
+
+  // Existing R2 bytes that differ from the archive must stop the whole batch.
+  const wrongBytes = photo("photo-ci-0006");
+  const beforeWrongBytes = photo("photo-ci-0007");
+  seedMetadata(wrongBytes);
+  const differentPixel = Buffer.from(pixel);
+  differentPixel[10] ^= 1;
+  const differentFile = join(temp, "different-image.png");
+  await writeFile(differentFile, differentPixel);
+  wr(["r2", "object", "put", `${expected.bucket}/${wrongBytes.objectKey}`, ...base,
+    "--file", differentFile, "--content-type", "image/png"]);
+  const differentArchive = await makeArchive("existing-wrong-bytes", [beforeWrongBytes, wrongBytes]);
+  assert.match(restore(differentArchive, true, { expectFailure: true }), /differs from the archive/);
+  wr(["r2", "object", "get", `${expected.bucket}/${beforeWrongBytes.objectKey}`, ...base,
+    "--file", join(temp, "wrong-bytes-must-not-upload.png")], { expectFailure: true });
+  const stillDifferent = join(temp, "still-different.png");
+  wr(["r2", "object", "get", `${expected.bucket}/${wrongBytes.objectKey}`, ...base, "--file", stillDifferent]);
+  assert.equal(hash(await readFile(stillDifferent)), hash(differentPixel), "Existing R2 object was unexpectedly overwritten");
+
+  // A later manifest size mismatch must not allow earlier bytes to be uploaded.
+  const beforeBadSize = photo("photo-ci-0008");
+  const invalidSize = { ...photo("photo-ci-0009"), sizeBytes: pixel.length + 1 };
+  const invalidSizeArchive = await makeArchive("manifest-size-mismatch", [beforeBadSize, invalidSize]);
+  assert.match(restore(invalidSizeArchive, true, { expectFailure: true }), /archive size differs from manifest/);
+  wr(["r2", "object", "get", `${expected.bucket}/${beforeBadSize.objectKey}`, ...base,
+    "--file", join(temp, "bad-size-must-not-upload.png")], { expectFailure: true });
+
+  // Incomplete photo exports are not silently applied.
+  const beforeMissingArchive = photo("photo-ci-0010");
+  const missingArchived = photo("photo-ci-0011");
+  const partial = await makeArchive("partial-export", [beforeMissingArchive, missingArchived], [missingArchived.id]);
+  assert.match(restore(partial, true, { expectFailure: true }), /partial recovery is not automatic/);
+  wr(["r2", "object", "get", `${expected.bucket}/${beforeMissingArchive.objectKey}`, ...base,
+    "--file", join(temp, "partial-must-not-upload.png")], { expectFailure: true });
+
+  // Missing destination customers must be restored before any photo writes.
+  const beforeNoCustomer = photo("photo-ci-0012");
+  const withoutCustomer = { ...photo("photo-ci-0013"), customerId: "customer-ci-missing",
+    objectKey: "customers/customer-ci-missing/photo-ci-0013.png" };
+  const missingCustomerArchive = await makeArchive("missing-customer", [beforeNoCustomer, withoutCustomer]);
+  assert.match(restore(missingCustomerArchive, true, { expectFailure: true }), /customer records are absent/);
+  wr(["r2", "object", "get", `${expected.bucket}/${beforeNoCustomer.objectKey}`, ...base,
+    "--file", join(temp, "missing-customer-must-not-upload.png")], { expectFailure: true });
+
+  const readCount = (ids) => {
+    const values = ids.map((id) => `'${id}'`).join(",");
+    const data = wr(["d1", "execute", "DB", ...base, "--json", "--command",
+      `SELECT COUNT(*) AS count FROM customer_photos WHERE id IN (${values})`]);
+    return Number(JSON.parse(data)[0]?.results?.[0]?.count);
+  };
+  assert.equal(readCount([beforeMissing.id, beforeWrongBytes.id, beforeBadSize.id, beforeMissingArchive.id, beforeNoCustomer.id]), 0,
+    "Aborted synthetic batches left unexpected database records");
+  console.log("PASS: synthetic local D1/R2 recovery; full metadata/bytes; idempotence; occupied, missing, mismatched R2; bad sizes; incomplete archives; missing customer; no partial writes");
 } finally {
   await rm(temp, { recursive: true, force: true });
 }
