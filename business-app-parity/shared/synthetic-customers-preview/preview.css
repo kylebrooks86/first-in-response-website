@@ -9,6 +9,7 @@ html[data-theme=dark] .fire-synthetic-preview:not([data-theme=light]),.fire-synt
 .fire-synthetic-preview button[type=submit]{background:var(--accent);border-color:var(--accent);color:white;font-weight:650}
 .fire-synthetic-preview :focus-visible{outline:3px solid #3b82f6;outline-offset:3px}
 .fire-synthetic-preview input{display:block;width:100%;min-height:48px;margin-top:6px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text);font-size:16px}
+.fire-synthetic-preview select{display:block;width:100%;max-width:100%;min-height:48px;margin-top:6px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text);font:inherit;font-size:16px}
 .fire-synthetic-preview label{display:block;font-size:14px;font-weight:650}
 .fire-synthetic-preview p{margin:8px 0;color:var(--muted);overflow-wrap:anywhere}
 .fire-synthetic-preview h1{font-size:clamp(28px,5vw,38px);line-height:1.15;margin:4px 0 12px;letter-spacing:-.025em}
