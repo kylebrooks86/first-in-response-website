@@ -57,7 +57,7 @@ const restorePropertyRecords=()=>{throw Error('Property restore must not run wit
  const invoke=(file,args=[],env={})=>spawnSync(process.execPath,[join(work,'scripts',file),...args],{cwd:work,encoding:'utf8',env:{...process.env,...env},maxBuffer:8*1024*1024});
  const validate=()=>invoke('validate-records-backup.mjs',[backupPath]);
  const restore=(path,apply=true,env={})=>invoke('restore-records-backup.mjs',['--backup',backupPath,'--config',join(work,'config.json'),'--local','--persist-to',path,...(apply?['--apply']:[])],env);
- equal(validate().status,0);
+ const initialValidation=validate();equal(initialValidation.status,0,initialValidation.stderr+'\n'+initialValidation.stdout);
  const targetPath=join(work,'target.db');makeDb(targetPath).close();
  let result=restore(targetPath,false);equal(result.status,0,result.stderr);equal(new DatabaseSync(targetPath).prepare('SELECT COUNT(*) n FROM customers').get().n,0,'dry run writes nothing');
  result=restore(targetPath);equal(result.status,0,result.stderr);assert.match(result.stdout,/restoredAndVerified/);checks++;
