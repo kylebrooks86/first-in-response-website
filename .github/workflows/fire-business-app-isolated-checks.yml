@@ -157,6 +157,8 @@ jobs:
         run: node scripts/test-checkout-atomic-reservation.mjs
       - name: Recover owner-selected paid and expired Stripe checkouts without duplicate charges
         run: node --experimental-sqlite scripts/test-checkout-owner-reconciliation.mjs
+      - name: Verify manual payment retries preserve same cents and ID across iPhone restarts
+        run: node --experimental-strip-types scripts/test-manual-payment-retry-state.mjs
       - name: Verify refund request survives iPhone app restart and uncertain responses
         run: node --experimental-strip-types scripts/test-refund-retry-state.mjs
       - name: Synthetic Stripe refund and webhook replay regression

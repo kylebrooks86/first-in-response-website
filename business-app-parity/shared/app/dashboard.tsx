@@ -8,6 +8,7 @@ import { estimateFollowUpTiming, estimateReminderStage } from "../lib/follow-up-
 import { messageHistoryEntries } from "../lib/message-history";
 import { summarizeProcessing } from "../lib/processing-fees";
 import { loadRefundRetry, saveRefundRetry, clearRefundRetry, type RefundRetryAttempt } from "../lib/refund-retry-state";
+import { loadManualPaymentRetry, saveManualPaymentRetry, clearManualPaymentRetry, type ManualPaymentAttempt } from "../lib/manual-payment-retry-state";
 import { editMoneyLine, editableLineTotalCents, restoreEditableLineMoney } from "../lib/editable-line-totals";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -744,25 +745,67 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
   const [tipChoice,setTipChoice]=useState<"0"|"5"|"10"|"15"|"custom">("0");
   const [fee,setFee]=useState("");const [feeMode,setFeeMode]=useState<"fee"|"net">("fee");const [feeEstimate,setFeeEstimate]=useState<number|null>(null);const [open,setOpen]=useState(false);const [amount,setAmount]=useState("");const [tip,setTip]=useState("");const [method,setMethod]=useState("Wave");const [reference,setReference]=useState("");const [saving,setSaving]=useState(false);const [error,setError]=useState("");
   const manualRequestId=useRef<string|null>(null);
+  const activeManual=useRef<ManualPaymentAttempt|null>(null);
+  const [retryPending,setRetryPending]=useState(false);
+  const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
   const billingTotal=estimate.invoiceTotalCents??estimate.totalCents;
   const normalized = {status:estimate.status??"completed",totalCents:billingTotal,depositCents:estimate.depositCents??Math.round(estimate.totalCents/2),paidCents:estimate.paidCents,invoiceTotalCents:estimate.invoiceTotalCents};
   const balance=amountDueNow(normalized);
   const totalRemaining=Math.max(0,normalized.totalCents-normalized.paidCents);
   const depositRemaining=Math.max(0,normalized.depositCents-normalized.paidCents);
-  useEffect(()=>{if(open){setAmount(balance>0?(balance/100).toFixed(2):"");setTip("");setTipChoice("0");setFee("");setFeeEstimate(null);setError("");}},[open,balance]);
+  useEffect(()=>{if(!open)return;
+    const previous=activeManual.current??loadManualPaymentRetry(storage(),estimate.id);
+    if(previous){
+      activeManual.current=previous;manualRequestId.current=previous.requestId;
+      setRetryPending(true);
+      setAmount((previous.amountCents/100).toFixed(2));
+      setTip(previous.tipCents>0?(previous.tipCents/100).toFixed(2):"");
+      setTipChoice(previous.tipCents>0?"custom":"0");
+      setMethod(previous.method);setReference(previous.reference);
+      setFeeMode("fee");setFee(previous.processingFeeCents===null?"":(previous.processingFeeCents/100).toFixed(2));
+      setError("An earlier payment attempt needs confirmation. Retry the SAME request without changing its details; FIRE will not record a second payment.");
+    }else{
+      setRetryPending(false);setAmount(balance>0?(balance/100).toFixed(2):"");
+      setTip("");setTipChoice("0");setFee("");setFeeEstimate(null);setError("");
+    }
+  },[open,balance,estimate.id]);
   const feeMethod=method==="Cash App"||method==="Venmo";
   const grossCents=Math.round(Number(amount||0)*100)+Math.round(Number(tip||0)*100);
   const enteredFeeCents=fee===""?null:Math.round(Number(fee)*100);
   const processingFeeCents=enteredFeeCents==null?null:feeMode==="fee"?enteredFeeCents:grossCents-enteredFeeCents;
   const feeValid=processingFeeCents==null||Number.isSafeInteger(processingFeeCents)&&processingFeeCents>=0&&processingFeeCents<=grossCents;
-  const save=async()=>{const amountCents=Math.round(Number(amount||0)*100);const tipCents=Math.round(Number(tip||0)*100);const maxTipCents=Math.min(normalized.totalCents,50000);if((!Number.isSafeInteger(amountCents)||amountCents<0)||(!Number.isSafeInteger(tipCents)||tipCents<0)||(amountCents<=0&&tipCents<=0)){setError("Enter a payment or tip amount.");return;}if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0){setError("This job's tip limit cannot be represented safely.");return;}if(tipCents>maxTipCents){setError("Tip cannot exceed the invoice total or $500.");return;}if(feeMethod&&!feeValid){setError("Fee and net deposited must be between zero and the customer payment.");return;}setSaving(true);setError("");const requestId=manualRequestId.current??crypto.randomUUID();manualRequestId.current=requestId;try{const response=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,requestId,amountCents,tipCents,method,reference,processingFeeCents:feeMethod?processingFeeCents:undefined})});const result=await response.json() as {paidCents?:number;error?:string};if(!response.ok||result.paidCents===undefined)throw new Error(result.error||"The payment could not be recorded.");manualRequestId.current=null;onRecorded?.(Number(result.paidCents));setOpen(false);}catch(saveError){setError(saveError instanceof Error?saveError.message:"Payment status is uncertain. Refresh Payment History before submitting another payment.");}finally{setSaving(false);}};
+  const save=async()=>{
+    const amountCents=Math.round(Number(amount||0)*100),tipCents=Math.round(Number(tip||0)*100);
+    const maxTipCents=Math.min(normalized.totalCents,50000);
+    if(!Number.isSafeInteger(amountCents)||amountCents<0||!Number.isSafeInteger(tipCents)||tipCents<0||(amountCents<=0&&tipCents<=0)){setError("Enter a payment or tip amount.");return;}
+    if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0){setError("This job's tip limit cannot be represented safely.");return;}
+    if(tipCents>maxTipCents){setError("Tip cannot exceed the invoice total or $500.");return;}
+    if(feeMethod&&!feeValid){setError("Fee and net deposited must be between zero and the customer payment.");return;}
+    const requestId=manualRequestId.current??crypto.randomUUID();
+    const attempt:ManualPaymentAttempt={requestId,amountCents,tipCents,method,reference,processingFeeCents:feeMethod?processingFeeCents:null};
+    if(retryPending&&activeManual.current&&JSON.stringify(activeManual.current)!==JSON.stringify(attempt)){
+      setError("A previous payment is unresolved. Its amount, method and reference must remain identical. Review Payment History before creating another payment.");return;
+    }
+    // Save before the POST because D1 may commit and lose its acknowledgement.
+    manualRequestId.current=requestId;activeManual.current=attempt;
+    saveManualPaymentRetry(storage(),estimate.id,attempt);
+    setRetryPending(true);setSaving(true);setError("");
+    try{
+      const response=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,requestId,amountCents,tipCents,method,reference,processingFeeCents:feeMethod?processingFeeCents:undefined})});
+      const result=await response.json() as {paidCents?:number;error?:string};
+      if(!response.ok||result.paidCents===undefined)throw new Error(result.error||"The payment could not be recorded.");
+      clearManualPaymentRetry(storage(),estimate.id);manualRequestId.current=null;activeManual.current=null;
+      setRetryPending(false);onRecorded?.(Number(result.paidCents));setOpen(false);
+    }catch(saveError){setError((saveError instanceof Error?saveError.message:"Payment status is uncertain.")+" Retry this SAME attempt; do not enter the payment a second time.");}
+    finally{setSaving(false);}
+  };
   return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="outline" disabled={balance<=0&&normalized.status!=="completed"}><CircleDollarSign className="h-4 w-4"/>{balance<=0?(normalized.status==="completed"?"Record tip":"Deposit recorded"):"Record payment"}</Button></DialogTrigger><DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>{balance<=0&&normalized.status==="completed"?"Record tip":"Record payment"}</DialogTitle></DialogHeader><div className="payment-form">
     <p className="payment-estimate-summary"><strong>{estimate.customer}</strong> · {estimate.service}<br/><span>{money(totalRemaining)} remaining</span></p>
     <div className="payment-due-options"><span><small>Deposit due</small><strong>{money(depositRemaining)}</strong></span><span><small>Full balance</small><strong>{money(totalRemaining)}</strong></span></div>
-    <div><Label>Amount applied to invoice</Label><Input value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<section className="final-tip-selector" aria-label="Optional tip choices"><Label>Tip received (optional)</Label><p className="payment-handle-note">No tip is selected by default. Percentages use the full invoice total.</p><div className="final-tip-options">{([0,5,10,15] as const).map((percent)=><button key={percent} type="button" disabled={saving} aria-pressed={tipChoice===String(percent)} onClick={()=>{setTipChoice(String(percent) as "0"|"5"|"10"|"15");setTip(percent===0?"":(Math.round(billingTotal*percent/100)/100).toFixed(2));}}><strong>{percent===0?"No tip":`${percent}%`}</strong><span>{money(Math.round(billingTotal*percent/100))}</span></button>)}<button type="button" disabled={saving} aria-pressed={tipChoice==="custom"} onClick={()=>{setTipChoice("custom");setTip("");}}><strong>Custom</strong><span>Enter amount</span></button></div>{tipChoice==="custom"&&<div><Label>Custom tip amount</Label><Input aria-label="Custom tip amount" disabled={saving} value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" type="number" min="0" step="0.01" placeholder="0.00"/></div>}<small className="payment-handle-note">Recorded separately and does not change the invoice balance.</small></section>}
-    <div><Label>Payment method</Label><Select value={method} onValueChange={(value)=>{setMethod(value);setFee("");setFeeEstimate(null);}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Wave","Cash App","Venmo","Cash","Check","Card","ACH / bank","Other"].map((item)=><SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select><small className="payment-handle-note">Cash App {DEFAULT_CASH_APP_HANDLE} · Venmo {DEFAULT_VENMO_HANDLE}</small></div>
-    {feeMethod&&<details><summary>Processing fee (optional)</summary><div className="payment-form"><div><Label>Customer paid (invoice + tip)</Label><Input readOnly value={(grossCents/100).toFixed(2)}/></div><div><Label>Processing fee</Label><Input inputMode="decimal" value={feeMode==="fee"?fee:processingFeeCents==null?"":(processingFeeCents/100).toFixed(2)} placeholder="Not recorded" onChange={event=>{setFeeMode("fee");setFee(event.target.value);}}/></div><div><Label>Net deposited</Label><Input inputMode="decimal" value={feeMode==="net"?fee:processingFeeCents==null?"":((grossCents-processingFeeCents)/100).toFixed(2)} placeholder={(grossCents/100).toFixed(2)} onChange={event=>{setFeeMode("net");setFee(event.target.value);}}/></div><small>Enter the actual fee or net deposit. Invoice credit stays {money(Math.round(Number(amount||0)*100))}.</small>{method==="Venmo"&&<><Button type="button" variant="outline" onClick={()=>setFeeEstimate(Math.round(grossCents*0.019)+10)}>Estimate fee</Button>{feeEstimate!=null&&<div><small>Venmo Business direct-payment estimate: 1.9% + $0.10 = {money(feeEstimate)}. Check the actual transaction; Tap to Pay and rates may differ.</small><Button type="button" variant="outline" onClick={()=>{setFeeMode("fee");setFee((feeEstimate/100).toFixed(2));setFeeEstimate(null);}}>Use this fee</Button></div>}</>}</div></details>}
-    <div><Label>Reference or note</Label><Input value={reference} onChange={(event)=>setReference(event.target.value)} placeholder="Wave transaction, check number, or note"/></div>
+    <div><Label>Amount applied to invoice</Label><Input disabled={saving||retryPending} value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<section className="final-tip-selector" aria-label="Optional tip choices"><Label>Tip received (optional)</Label><p className="payment-handle-note">No tip is selected by default. Percentages use the full invoice total.</p><div className="final-tip-options">{([0,5,10,15] as const).map((percent)=><button key={percent} type="button" disabled={saving||retryPending} aria-pressed={tipChoice===String(percent)} onClick={()=>{setTipChoice(String(percent) as "0"|"5"|"10"|"15");setTip(percent===0?"":(Math.round(billingTotal*percent/100)/100).toFixed(2));}}><strong>{percent===0?"No tip":`${percent}%`}</strong><span>{money(Math.round(billingTotal*percent/100))}</span></button>)}<button type="button" disabled={saving||retryPending} aria-pressed={tipChoice==="custom"} onClick={()=>{setTipChoice("custom");setTip("");}}><strong>Custom</strong><span>Enter amount</span></button></div>{tipChoice==="custom"&&<div><Label>Custom tip amount</Label><Input aria-label="Custom tip amount" disabled={saving||retryPending} value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" type="number" min="0" step="0.01" placeholder="0.00"/></div>}<small className="payment-handle-note">Recorded separately and does not change the invoice balance.</small></section>}
+    <div><Label>Payment method</Label><Select disabled={saving||retryPending} value={method} onValueChange={(value)=>{setMethod(value);setFee("");setFeeEstimate(null);}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Wave","Cash App","Venmo","Cash","Check","Card","ACH / bank","Other"].map((item)=><SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select><small className="payment-handle-note">Cash App {DEFAULT_CASH_APP_HANDLE} · Venmo {DEFAULT_VENMO_HANDLE}</small></div>
+    {feeMethod&&<details><summary>Processing fee (optional)</summary><div className="payment-form"><div><Label>Customer paid (invoice + tip)</Label><Input readOnly value={(grossCents/100).toFixed(2)}/></div><div><Label>Processing fee</Label><Input disabled={saving||retryPending} inputMode="decimal" value={feeMode==="fee"?fee:processingFeeCents==null?"":(processingFeeCents/100).toFixed(2)} placeholder="Not recorded" onChange={event=>{setFeeMode("fee");setFee(event.target.value);}}/></div><div><Label>Net deposited</Label><Input disabled={saving||retryPending} inputMode="decimal" value={feeMode==="net"?fee:processingFeeCents==null?"":((grossCents-processingFeeCents)/100).toFixed(2)} placeholder={(grossCents/100).toFixed(2)} onChange={event=>{setFeeMode("net");setFee(event.target.value);}}/></div><small>Enter the actual fee or net deposit. Invoice credit stays {money(Math.round(Number(amount||0)*100))}.</small>{method==="Venmo"&&<><Button type="button" variant="outline" disabled={saving||retryPending} onClick={()=>setFeeEstimate(Math.round(grossCents*0.019)+10)}>Estimate fee</Button>{feeEstimate!=null&&<div><small>Venmo Business direct-payment estimate: 1.9% + $0.10 = {money(feeEstimate)}. Check the actual transaction; Tap to Pay and rates may differ.</small><Button type="button" variant="outline" disabled={saving||retryPending} onClick={()=>{setFeeMode("fee");setFee((feeEstimate/100).toFixed(2));setFeeEstimate(null);}}>Use this fee</Button></div>}</>}</div></details>}
+    <div><Label>Reference or note</Label><Input disabled={saving||retryPending} value={reference} onChange={(event)=>setReference(event.target.value)} placeholder="Wave transaction, check number, or note"/></div>
     {error&&<p className="save-error">{error}</p>}<Button className="brand-button" onClick={()=>void save()} disabled={saving}>{saving?"Saving…":Number(amount||0)<=0&&Number(tip||0)>0?"Save tip":"Save payment"}</Button>
   </div></DialogContent></Dialog>;
 }
