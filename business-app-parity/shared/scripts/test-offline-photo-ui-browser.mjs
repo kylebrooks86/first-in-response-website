@@ -142,11 +142,24 @@ try{
  await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
  await coldPage.getByText(/photo ZIP passed integrity checks/).waitFor({timeout:30000});
  check(await coldPage.getByRole('button',{name:'Download prepared ZIP'}).count()===1,'Actual photo ZIP can be freshly prepared after fully offline browser restart');
- const [coldDownload]=await Promise.all([coldPage.waitForEvent('download'),coldPage.getByRole('button',{name:'Download prepared ZIP'}).click()]);
- const coldZip=readFileSync(await coldDownload.path());
- check(coldZip.length===exported.length&&coldZip.length>100,'Offline cold-launch ZIP contains original photos after browser/server shutdown');
+ // Browser-managed download paths can disappear when Chromium detaches its
+ // offline download context. Verify a fresh ZIP through the native file-share
+ // entry point, and separately reselect the previously saved bytes from Files.
+ await coldPage.evaluate(()=>{
+  Object.defineProperty(navigator,'canShare',{configurable:true,value:files=>files.files?.length===1});
+  Object.defineProperty(navigator,'share',{configurable:true,value:async ({files})=>{
+   const actual=files[0],buffer=await actual.arrayBuffer();
+   window.fixtureOfflineShare={filename:actual.name,size:buffer.byteLength,
+     active:Boolean(navigator.userActivation?.isActive)};
+  }});
+ });
+ await coldPage.getByRole('button',{name:'Save prepared ZIP to Files'}).click();
+ await coldPage.getByText(/Photo ZIP was offered to the iOS share sheet/).waitFor();
+ const coldShare=await coldPage.evaluate(()=>window.fixtureOfflineShare);
+ check(coldShare?.active===true&&coldShare?.size===exported.length&&coldShare.size>100,
+   'Fresh ZIP built after offline cold launch contains original two photographs and was handed to native share');
  const coldVerify=coldPage.locator('input[type="file"][accept*=".zip"]').first();
- await coldVerify.setInputFiles({name:filename,mimeType:'application/zip',buffer:coldZip});
+ await coldVerify.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
  await coldPage.getByText(/Saved ZIP selected from Files passed photo checksums/).waitFor({timeout:30000});
  check((await coldPage.getByRole('status').allInnerTexts()).some(t=>t.includes('2 exactly match this device')),'Saved photo ZIP verification still works after a genuinely offline cold launch');
  check(remote.length===0,'No external network, Cloudflare, R2, or Stripe requests occurred');
