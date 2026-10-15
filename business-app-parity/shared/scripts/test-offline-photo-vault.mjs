@@ -73,6 +73,9 @@ check(component.includes("prepareArchive('customer')")&&component.includes("prep
 check(vault.includes('listOfflinePhotos(customerId)')&&vault.includes('invalid customer identifier'),'Scoped backup filters the actual on-device photo vault and validates customer IDs');
 check(component.includes('URL.createObjectURL(photo.blob)')&&component.includes('URL.revokeObjectURL'),'Actual photo screen uses offline blobs and releases previews');
 check(vault.includes("db.transaction(STORE,'readwrite')")&&vault.includes('store.add(row)')&&!vault.includes('store.put(row)'),'Restore adds photos atomically without destructive overwrite');
+check(vault.includes("crypto.subtle.digest('SHA-256'")&&vault.includes('exactSavedPhotoMatch(stored,row)'),'Actual restore compares existing device photo bytes with cryptographic digest before skipping them');
+check(vault.includes('if(!additions.length)return {restored:0,alreadyPresent}')&&vault.includes('return {restored:additions.length,alreadyPresent}'),'Actual restore reports new and byte-identical existing photos separately');
+check(component.includes('result.alreadyPresent')&&component.includes('result.restored'),'Actual iPhone owner UI explains both added and skipped originals');
 check(vault.includes('readOfflinePhotoBackup(archive)')&&vault.includes('knownCustomerIds'),'Restore validates entire ZIP and customer associations before touching IndexedDB');
 check(component.includes('Keep originals')||component.includes('Keep the originals'),'Owner UI provides backup safety guidance');
 check(component.includes('legacyCloudPhotoCount>0'),'Older server/R2 photo records remain visible as a migration warning instead of disappearing silently');

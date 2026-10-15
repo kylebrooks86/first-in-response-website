@@ -95,11 +95,12 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  };
  const restore=async(files:FileList|null)=>{
   if(!files?.length||active.current)return;
-  if(!window.confirm('Restore this photo ZIP? FIRE will check all photos and customer IDs. Existing photos will NOT be overwritten. Restore matching customer records first.'))return;
+  if(!window.confirm('Restore this photo ZIP? FIRE will check all photos and customer IDs. Identical existing photos will be skipped. Conflicting photo IDs will stop the restore without overwriting anything. Restore matching customer records first.'))return;
   active.current=true;setBusy(true);setError('');setMessage('');setPreparedBackup(null);
   try{
-   const count=await restoreLocalPhotos(files[0],knownCustomerIds);
-   await refresh();setMessage('Restored '+count+' verified photos. Keep the original archive for recovery.');
+   const result=await restoreLocalPhotos(files[0],knownCustomerIds);
+   await refresh();
+   setMessage('Restored '+result.restored+' new verified photo(s); '+result.alreadyPresent+' byte-identical photo(s) already on this device were safely skipped. Keep the original archive for recovery.');
   }catch(err){setError(err instanceof Error?err.message:'Photo restore failed safely. No existing photos were replaced.');}
   finally{active.current=false;setBusy(false);if(restoreRef.current)restoreRef.current.value='';}
  };

@@ -107,12 +107,10 @@ try{
   return Array.from(new Uint8Array(await zip.arrayBuffer()));
  });
  check(archiveBytes.length>100,'Actual IndexedDB-to-ZIP export produces nonempty user backup');
- const conflict=await page.evaluate(async bytes=>{
-  try{await window.FIRE_LOCAL_PHOTOS.restoreLocalPhotos(new Blob([new Uint8Array(bytes)]),['synthetic-customer']);return 'unexpected success';}
-  catch{return 'refused';}
- },archiveBytes);
- check(conflict==='refused','Restore cannot overwrite an existing photo with the same ID');
- check((await page.evaluate(async()=>window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer').then(x=>x.length)))===1,'Failed duplicate restore rolls back without changing current library');
+ const duplicate=await page.evaluate(async bytes=>
+  window.FIRE_LOCAL_PHOTOS.restoreLocalPhotos(new Blob([new Uint8Array(bytes)]),['synthetic-customer']),archiveBytes);
+ check(duplicate.restored===0&&duplicate.alreadyPresent===1,'Replaying the same ZIP safely skips identical photos instead of failing');
+ check((await page.evaluate(async()=>window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer').then(x=>x.length)))===1,'Idempotent ZIP replay never creates duplicate photos');
  const wrongCustomer=await page.evaluate(async bytes=>{
   try{await window.FIRE_LOCAL_PHOTOS.restoreLocalPhotos(new Blob([new Uint8Array(bytes)]),['wrong-customer']);return 'unexpected success';}
   catch{return 'refused';}
@@ -129,11 +127,45 @@ try{
  const restored=await page.evaluate(async bytes=>{
   return await window.FIRE_LOCAL_PHOTOS.restoreLocalPhotos(new Blob([new Uint8Array(bytes)]),['synthetic-customer']);
  },archiveBytes);
- check(restored===1,'Fully validated ZIP restores into empty on-device vault');
+ check(restored.restored===1&&restored.alreadyPresent===0,'Fully validated ZIP restores into empty on-device vault');
  const after=await page.evaluate(async()=>{
   const x=await window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer');return {count:x.length,bytes:await x[0].blob.text()};
  });
  check(after.count===1&&after.bytes==='photo-one-binary','Actual browser round-trip preserved byte-identical photo');
+ // A customer can import a newer ZIP when some photos already exist:
+ // retain originals, add missing ones, and report both categories.
+ const merge=await page.evaluate(async()=>{
+  const vault=window.FIRE_LOCAL_PHOTOS;
+  const second=await vault.addOfflinePhoto('synthetic-customer','after','later job',
+    new File([new TextEncoder().encode('second-photo')],'second.png',{type:'image/png'}));
+  const archive=await vault.exportLocalPhotos('synthetic-customer');
+  await vault.removeOfflinePhoto(second.id,'synthetic-customer');
+  const result=await vault.restoreLocalPhotos(archive,['synthetic-customer']);
+  const rows=await vault.listOfflinePhotos('synthetic-customer');
+  return {result,count:rows.length,secondByteMatch:await rows.find(row=>row.id===second.id).blob.text()==='second-photo',secondId:second.id};
+ });
+ check(merge.result.restored===1&&merge.result.alreadyPresent===1,'Partial restore adds only missing photos and skips already-identical originals');
+ check(merge.count===2&&merge.secondByteMatch,'Partial restore keeps the exact two photo blobs and customer associations');
+ // A malicious or stale ZIP with an existing ID but different bytes must be
+ // rejected in full, including any otherwise new photos in the same archive.
+ const conflicting=await page.evaluate(async()=>{
+  const vault=window.FIRE_LOCAL_PHOTOS,archive=window.FIRE_ARCHIVE_MODULE;
+  const originals=await vault.listOfflinePhotos('synthetic-customer');
+  const original=originals.find(row=>row.caption==='north siding');
+  const editedBlob=new Blob([new TextEncoder().encode('photo-one-binarY')],{type:'image/png'});
+  const changed={...original,blob:editedBlob,sizeBytes:editedBlob.size};
+  const unexpected={...changed,id:'new-photo-should-not-import',caption:'should not write'};
+  const badArchive=await archive.exportOfflinePhotoBackup([unexpected,changed]);
+  let denied=false;
+  try{await vault.restoreLocalPhotos(badArchive,['synthetic-customer']);}
+  catch(error){denied=String(error).includes('different data');}
+  const now=await vault.listOfflinePhotos('synthetic-customer');
+  return {denied,count:now.length,byteMatch:await now.find(row=>row.id===original.id).blob.text()==='photo-one-binary',newNotAdded:!now.some(row=>row.id==='new-photo-should-not-import')};
+ });
+ check(conflicting.denied&&conflicting.byteMatch,'Same photo ID with different bytes fails closed and preserves the original');
+ check(conflicting.count===2&&conflicting.newNotAdded,'Conflicting mixed archive never partially inserts new photo rows');
+ await page.evaluate(async id=>window.FIRE_LOCAL_PHOTOS.removeOfflinePhoto(id,'synthetic-customer'),merge.secondId);
+ check((await page.evaluate(async()=>window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer').then(x=>x.length)))===1,'Synthetic merge cleanup preserves remaining photo for offline tests');
  await context.setOffline(true);
  const offline=await page.evaluate(async()=>{
   const directory=await window.FIRE_OFFLINE_PHOTO_CUSTOMERS.loadOfflinePhotoCustomerDirectory();

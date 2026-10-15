@@ -76,22 +76,55 @@ export async function exportLocalPhotos(customerId?:string):Promise<Blob>{
    throw Error('Final photo archive could not be fully verified; no successful backup was offered.');
  return zip;
 }
-export async function restoreLocalPhotos(archive:Blob,knownCustomerIds:string[]):Promise<number>{
- // Entire ZIP is validated, byte-checked and bound to existing customer IDs
- // BEFORE starting one atomic readwrite transaction.
+export type PhotoRestoreResult={restored:number;alreadyPresent:number};
+async function exactSavedPhotoMatch(saved:OfflinePhoto,incoming:OfflinePhoto):Promise<boolean>{
+ const fields=['id','customerId','category','caption','filename','contentType','sizeBytes','createdAt'] as const;
+ if(fields.some(field=>saved[field]!==incoming[field]))return false;
+ if(!(saved.blob instanceof Blob)||saved.blob.size!==saved.sizeBytes||
+    saved.blob.type!==saved.contentType)return false;
+ // Identical IDs alone are NOT evidence of identical originals. The ZIP has
+ // already passed CRC-32 and SHA-256; compare the actual existing device bytes.
+ const [a,b]=await Promise.all([
+  crypto.subtle.digest('SHA-256',await saved.blob.arrayBuffer()),
+  crypto.subtle.digest('SHA-256',await incoming.blob.arrayBuffer())
+ ]);
+ const left=new Uint8Array(a),right=new Uint8Array(b);
+ return left.length===right.length&&left.every((value,i)=>value===right[i]);
+}
+export async function restoreLocalPhotos(archive:Blob,knownCustomerIds:string[]):Promise<PhotoRestoreResult>{
+ // Verify the entire ZIP and its customer association BEFORE any local write.
  const rows=await readOfflinePhotoBackup(archive);
  if(!rows.length)throw Error('This photo backup is empty; no data was changed.');
  const allowed=new Set(knownCustomerIds);
- for(const row of rows)if(!allowed.has(row.customerId))throw Error('Restore the matching FIRE customer records first. Photo backup contains an unknown customer ID.');
+ for(const row of rows)if(!allowed.has(row.customerId))
+   throw Error('Restore the matching FIRE customer records first. Photo backup contains an unknown customer ID.');
+ // Preflight outside a write transaction: awaiting a blob digest from inside
+ // an IndexedDB transaction could auto-commit/close that transaction on iOS.
+ const existing=new Map((await listOfflinePhotos()).map(photo=>[photo.id,photo]));
+ const additions:OfflinePhoto[]=[];
+ let alreadyPresent=0;
+ for(const row of rows){
+  const stored=existing.get(row.id);
+  if(!stored){additions.push(row);continue;}
+  if(!await exactSavedPhotoMatch(stored,row))
+    throw Error('Restore stopped: the same photo ID contains different data on this device. No photos were changed.');
+  alreadyPresent++;
+ }
+ if(!additions.length)return {restored:0,alreadyPresent};
  const db=await openVault();
  try{
   const tx=db.transaction(STORE,'readwrite'),done=transactionDone(tx),store=tx.objectStore(STORE);
-  // add() (never put()) refuses existing IDs. Any conflict aborts and rolls
-  // back the entire import; no existing photo can be silently overwritten.
-  try{for(const row of rows)await requestDone(store.add(row));await done;}
-  catch(error){try{tx.abort();}catch{/* Transaction already rolled back. */}try{await done;}catch{}throw Error('Photo restore was cancelled without replacing any existing photos. '+(error instanceof Error?error.message:''));}
+  // add(), never put(): any concurrent same-ID insertion aborts the whole
+  // transaction. Existing originals cannot be overwritten or silently merged.
+  try{for(const row of additions)await requestDone(store.add(row));await done;}
+  catch(error){
+   try{tx.abort();}catch{/* Transaction already rolled back. */}
+   try{await done;}catch{}
+   throw Error('Photo restore was cancelled without replacing existing photos. Review the library before retrying.');
+  }
  }finally{db.close();}
- const imported=(await listOfflinePhotos()).filter(r=>rows.some(p=>p.id===r.id));
- if(imported.length!==rows.length)throw Error('Restore needs review: not every imported photo could be verified.');
- return rows.length;
+ const restored=new Map((await listOfflinePhotos()).map(photo=>[photo.id,photo]));
+ if(additions.some(row=>!restored.has(row.id)||restored.get(row.id)!.blob.size!==row.sizeBytes))
+   throw Error('Restore needs review: not every newly added photo could be verified.');
+ return {restored:additions.length,alreadyPresent};
 }
