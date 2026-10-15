@@ -25,13 +25,13 @@ eq(editableLineTotalCents(editMoneyLine(historical,{quantity:3})),2001,
 eq(historical.preservedLineTotalCents,2000,'Editable patches do not mutate saved source row');
 eq(editableLineTotalCents({quantity:2000,unitRateCents:22}),44000,
   'New 2,000 sq ft house wash computes normal cents without historical preservation');
-eq(editableLineTotalCents({quantity:100,unitRateCents:175}),17500,
-  'New 100 lf gutter estimate uses future approved rate');
-eq(editableLineTotalCents({quantity:0,unitRateCents:175}),0,
+eq(editableLineTotalCents({quantity:100,unitRateCents:150}),15000,
+  'New 100 lf gutter estimate uses confirmed $1.50 rate');
+eq(editableLineTotalCents({quantity:0,unitRateCents:150}),0,
   'Empty draft does not throw when first rendered');
-eq(editableLineTotalCents({quantity:Number.NaN,unitRateCents:175}),0,
+eq(editableLineTotalCents({quantity:Number.NaN,unitRateCents:150}),0,
   'Incomplete draft preview never crashes editor');
-eq(editableLineTotalCents({quantity:1e100,unitRateCents:175}),0,
+eq(editableLineTotalCents({quantity:1e100,unitRateCents:150}),0,
   'Unsafe multiplication must not create rounded monetary record preview');
 for(const amount of [-1,0.1,Number.MAX_SAFE_INTEGER+1,NaN]){
   assert.throws(()=>restoreEditableLineMoney(3,amount),/Invalid historical service total/);checks++;
