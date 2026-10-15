@@ -36,10 +36,11 @@ try{
    const req=path=>{
     if(path==='./photo-storage-zip')return run('zip');
     if(path==='./offline-photo-backup')return run('archive');
+    if(path==='../app/local-customer-deployment')return {LOCAL_CUSTOMER_DEPLOYMENT:'live'};
     throw Error('Undeclared test-only import '+path);
    };
    new Function('exports','require',source[name])(exports,req);
-   modules[name]=exports;return exports;
+   modules[name]=exports;if(name==='archive')window.FIRE_ARCHIVE_MODULE=exports;return exports;
   };
   window.FIRE_LOCAL_PHOTOS=run('vault');
  },sources);
@@ -60,6 +61,20 @@ try{
  });
  check(remembered.count===1&&remembered.photoId===created.photoId,'Photo persists across complete browser page restart');
  check(remembered.bytes==='photo-one-binary','Real IndexedDB blob bytes persist unchanged across restart');
+ // Verify a second fixed deployment cannot read a LIVE candidate's photos,
+ // even when this test intentionally places both candidates on one origin.
+ const isolated=await page.evaluate(source=>{
+   const exports={};
+   const req=(name)=>{
+     if(name==='../app/local-customer-deployment')return {LOCAL_CUSTOMER_DEPLOYMENT:'staging'};
+     if(name==='./offline-photo-backup')return window.FIRE_ARCHIVE_MODULE;
+     throw Error('Unexpected import '+name);
+   };
+   // Compile the exact same source with the staging deployment adapter.
+   new Function('exports','require',source.vault)(exports,req);
+   return exports.listOfflinePhotos('synthetic-customer').then(rows=>rows.length);
+ },sources);
+ check(isolated===0,'LIVE and staging candidate IndexedDB photo stores cannot cross-read on a shared origin');
  const archiveBytes=await page.evaluate(async()=>{
   const zip=await window.FIRE_LOCAL_PHOTOS.exportLocalPhotos();
   return Array.from(new Uint8Array(await zip.arrayBuffer()));

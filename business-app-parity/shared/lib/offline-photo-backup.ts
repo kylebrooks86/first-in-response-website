@@ -6,6 +6,8 @@ export type OfflinePhoto = {
 };
 type ArchivePhoto = Omit<OfflinePhoto,'blob'> & {sha256:string};
 const MAX_ARCHIVE=160*1024*1024,MAX_PHOTOS=500,decoder=new TextDecoder('utf-8',{fatal:true}),encoder=new TextEncoder();
+const SAFE_IMAGE_TYPES=new Set(['image/jpeg','image/png','image/webp','image/gif','image/avif','image/heic','image/heif','image/bmp']);
+export function supportedOfflinePhotoType(value:string):boolean{return SAFE_IMAGE_TYPES.has(value.toLowerCase());}
 const hex=(buf:ArrayBuffer)=>Array.from(new Uint8Array(buf),b=>b.toString(16).padStart(2,'0')).join('');
 async function digest(bytes:ArrayBuffer){return hex(await crypto.subtle.digest('SHA-256',bytes));}
 function validMeta(p:Omit<OfflinePhoto,'blob'>){
@@ -14,7 +16,7 @@ function validMeta(p:Omit<OfflinePhoto,'blob'>){
    &&['before','after','property'].includes(p.category)
    &&typeof p.caption==='string'&&p.caption.length<=2000
    &&typeof p.filename==='string'&&p.filename.length>0&&p.filename.length<=240
-   &&typeof p.contentType==='string'&&/^image\/[a-z0-9.+-]+$/i.test(p.contentType)
+   &&typeof p.contentType==='string'&&supportedOfflinePhotoType(p.contentType)
    &&Number.isSafeInteger(p.sizeBytes)&&p.sizeBytes>0&&p.sizeBytes<=15*1024*1024
    &&typeof p.createdAt==='string'&&Number.isFinite(Date.parse(p.createdAt));
 }

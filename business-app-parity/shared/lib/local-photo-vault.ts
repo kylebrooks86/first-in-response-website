@@ -1,6 +1,10 @@
-import {type OfflinePhoto,readOfflinePhotoBackup,exportOfflinePhotoBackup} from './offline-photo-backup';
+import {type OfflinePhoto,readOfflinePhotoBackup,exportOfflinePhotoBackup,supportedOfflinePhotoType} from './offline-photo-backup';
+import { LOCAL_CUSTOMER_DEPLOYMENT } from '../app/local-customer-deployment';
 
-const DB_NAME='fire-private-offline-photos-v1',STORE='photos';
+// This fixed deployment adapter isolates browsers that host different FIRE
+// candidates under the same origin. Never derive identity from the URL, query,
+ // browser storage, or untrusted environment variables.
+const DB_NAME='fire-private-offline-photos-'+LOCAL_CUSTOMER_DEPLOYMENT+'-v1',STORE='photos';
 const MAX_FILE=15*1024*1024;
 function requestDone<T>(request:IDBRequest<T>):Promise<T>{
  return new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error??Error('On-device photo operation failed'));});
@@ -34,7 +38,7 @@ export async function listOfflinePhotos(customerId?:string):Promise<OfflinePhoto
 export async function addOfflinePhoto(customerId:string,category:OfflinePhoto['category'],caption:string,file:File):Promise<OfflinePhoto>{
  if(!customerId||!/^[a-zA-Z0-9_-]{1,120}$/.test(customerId))throw Error('Choose a valid saved customer before adding photos.');
  if(!['before','after','property'].includes(category))throw Error('Choose a valid photo category.');
- if(!(file instanceof File)||!file.type.startsWith('image/')||file.size<=0||file.size>MAX_FILE)throw Error('Choose an image smaller than 15 MB.');
+ if(!(file instanceof File)||!supportedOfflinePhotoType(file.type)||file.size<=0||file.size>MAX_FILE)throw Error('Choose an image smaller than 15 MB.');
  const record:OfflinePhoto={id:crypto.randomUUID(),customerId,category,caption:caption.slice(0,2000),
   filename:(file.name||'photo').slice(0,240),contentType:file.type,sizeBytes:file.size,createdAt:new Date().toISOString(),blob:file};
  const db=await openVault();
@@ -59,7 +63,16 @@ export async function removeOfflinePhoto(id:string,customerId:string):Promise<vo
 }
 export async function exportLocalPhotos():Promise<Blob>{
  const rows=await listOfflinePhotos();
- return exportOfflinePhotoBackup(rows);
+ if(!rows.length)throw Error('There are no on-device photos to back up.');
+ const zip=await exportOfflinePhotoBackup(rows);
+ // Validate the actual final ZIP, not only its source manifest. This detects
+ // interrupted streams and broken central directory metadata before a user
+ // is offered a file and mistakenly believes photos were backed up.
+ const checked=await readOfflinePhotoBackup(zip);
+ if(checked.length!==rows.length||checked.some((photo,i)=>photo.id!==rows[i].id||
+     photo.sizeBytes!==rows[i].sizeBytes||photo.customerId!==rows[i].customerId))
+   throw Error('Final photo archive could not be fully verified; no successful backup was offered.');
+ return zip;
 }
 export async function restoreLocalPhotos(archive:Blob,knownCustomerIds:string[]):Promise<number>{
  // Entire ZIP is validated, byte-checked and bound to existing customer IDs

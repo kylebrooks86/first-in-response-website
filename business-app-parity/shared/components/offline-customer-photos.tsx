@@ -9,7 +9,7 @@ import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,r
 import type {OfflinePhoto} from '../lib/offline-photo-backup';
 
 type Preview={photo:OfflinePhoto;url:string};
-export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds}:{customerId:string;customerName:string;knownCustomerIds:string[]}){
+export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,legacyCloudPhotoCount=0}:{customerId:string;customerName:string;knownCustomerIds:string[];legacyCloudPhotoCount?:number}){
  const [items,setItems]=useState<Preview[]>([]);
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [error,setError]=useState(''),[message,setMessage]=useState('');
@@ -108,7 +108,8 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds}
  };
  return <section className="photo-panel" aria-label="On-device customer photos">
   <header><strong>Private on-device photos</strong><p>Stored only in this device’s FIRE Home Screen/browser storage. No R2 subscription or automatic syncing.</p></header>
-  <p className="payment-handle-note"><strong>Backup required:</strong> iPhone app deletion, storage clearing, or device failure can erase these photos. Keep originals in Apple Photos and export ZIP backups to Files/iCloud Drive.</p>
+  <p className="payment-handle-note"><strong>Backup required:</strong> iPhone app deletion, storage clearing, or device failure can erase these photos. Keep originals in Apple Photos and export ZIP backups to Files/iCloud Drive. Export includes local photos from this FIRE candidate only, not older hosted R2 images.</p>
+  {legacyCloudPhotoCount>0&&<p role="alert" className="save-error">{legacyCloudPhotoCount} older hosted photo record(s) remain associated with this customer. The new on-device gallery and ZIP backup do not include those bytes. No existing hosted records were deleted or migrated. Preserve the old cloud archive separately before considering its storage retired.</p>}
   <div className="photo-toolbar">
    <div><Label>Photo type</Label><select aria-label="Photo type" value={category} onChange={e=>setCategory(e.target.value as typeof category)} disabled={busy}><option value="before">Before</option><option value="after">After</option><option value="property">Property / damage</option></select></div>
    <div className="photo-caption"><Label>Optional note</Label><Input value={caption} disabled={busy} onChange={e=>setCaption(e.target.value)} placeholder="North siding, water damage…"/></div>

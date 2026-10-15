@@ -44,6 +44,9 @@ await assert.rejects(archive.readOfflinePhotoBackup(new Blob([(await file.arrayB
 check(true,'Truncated ZIP is rejected before restore');
 await assert.rejects(archive.exportOfflinePhotoBackup([first,first]),/duplicate photo/);
 check(true,'Duplicate source photo ID cannot enter archive');
+const unsafeImage=photo('svg-img','customer-A');unsafeImage.blob=new Blob(['<svg xmlns="http://www.w3.org/2000/svg"/>'],{type:'image/svg+xml'});unsafeImage.contentType='image/svg+xml';unsafeImage.sizeBytes=unsafeImage.blob.size;
+await assert.rejects(archive.exportOfflinePhotoBackup([unsafeImage]),/invalid photo/);
+check(true,'Active-content SVG is rejected from image vault backups');
 const unsupported=photo('invalid id','customer-A');
 await assert.rejects(archive.exportOfflinePhotoBackup([unsupported]),/invalid photo/);
 check(true,'Unsafe photo names cannot be exported');
@@ -62,4 +65,7 @@ check(component.includes('URL.createObjectURL(photo.blob)')&&component.includes(
 check(vault.includes("db.transaction(STORE,'readwrite')")&&vault.includes('store.add(row)')&&!vault.includes('store.put(row)'),'Restore adds photos atomically without destructive overwrite');
 check(vault.includes('readOfflinePhotoBackup(archive)')&&vault.includes('knownCustomerIds'),'Restore validates entire ZIP and customer associations before touching IndexedDB');
 check(component.includes('Keep originals')||component.includes('Keep the originals'),'Owner UI provides backup safety guidance');
+check(component.includes('legacyCloudPhotoCount>0'),'Older server/R2 photo records remain visible as a migration warning instead of disappearing silently');
+check(vault.includes("'+LOCAL_CUSTOMER_DEPLOYMENT+'"),'Shared local photo store is partitioned by a fixed deployment identity');
+check(vault.includes('readOfflinePhotoBackup(zip)'),'Actual downloaded ZIP is verified after assembly before being offered');
 console.log('PASS '+checks+' offline-photo archive and actual integrated UI checks.');
