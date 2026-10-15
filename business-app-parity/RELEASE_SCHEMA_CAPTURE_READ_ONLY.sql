@@ -5,7 +5,8 @@
 -- Keep each output with target URL, immutable D1 UUID and capture timestamp.
 -- Binding UUID and full Worker build/version identity must be captured separately from Cloudflare.
 
-SELECT type, name, tbl_name, sql FROM sqlite_master WHERE tbl_name IN ('auth_rate_limits', 'customer_messages', 'customer_notes', 'customer_photos', 'customers', 'estimate_change_requests', 'estimate_items', 'estimates', 'expenses', 'invoice_items', 'invoice_revisions', 'invoices', 'job_reports', 'message_templates', 'notifications', 'payment_checkout_sessions', 'payment_refunds', 'payments', 'tasks', 'd1_migrations') AND type IN ('table','index') ORDER BY type,tbl_name,name;
+-- Include ALL non-internal tables and indexes to detect unexpected remote schema objects, not only the candidate allowlist.
+SELECT type, name, tbl_name, sql FROM sqlite_master WHERE type IN ('table','index') AND name NOT LIKE 'sqlite_%' ORDER BY type,tbl_name,name;
 
 SELECT m.name AS table_name, p.cid, p.name AS column_name, p.type, p."notnull", p.dflt_value, p.pk FROM sqlite_master m JOIN pragma_table_info(m.name) p WHERE m.type='table' AND m.name IN ('auth_rate_limits', 'customer_messages', 'customer_notes', 'customer_photos', 'customers', 'estimate_change_requests', 'estimate_items', 'estimates', 'expenses', 'invoice_items', 'invoice_revisions', 'invoices', 'job_reports', 'message_templates', 'notifications', 'payment_checkout_sessions', 'payment_refunds', 'payments', 'tasks') ORDER BY m.name,p.cid;
 
