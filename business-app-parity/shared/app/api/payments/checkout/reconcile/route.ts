@@ -17,8 +17,8 @@ export async function POST(request:Request){
     if(!/^fire-creating:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reservationId)
       ||!/^cs_(test|live)_[a-zA-Z0-9]+$/.test(sessionId))
       return Response.json({error:"Enter the original unresolved checkout and its complete Stripe Session ID."},{status:400});
-    const reservation=await env.DB.prepare(\`SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents
-      FROM payment_checkout_sessions WHERE id=? AND status='open' LIMIT 1\`)
+    const reservation=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents
+      FROM payment_checkout_sessions WHERE id=? AND status='open' LIMIT 1`)
       .bind(reservationId).first<{id:string;estimateId:string;type:string;amountCents:number}>();
     if(!reservation)return Response.json({error:"This checkout is no longer awaiting reconciliation. Refresh Payment History."},{status:409});
     const runtime=env as RuntimeEnv;
@@ -28,8 +28,8 @@ export async function POST(request:Request){
       return Response.json({error:"A matching test/live Stripe connection is required to verify this checkout."},{status:503});
     if(sandbox&&!sessionId.startsWith("cs_test_"))
       return Response.json({error:"An isolated candidate cannot reconcile live Stripe payments."},{status:409});
-    const response=await fetch(\`https://api.stripe.com/v1/checkout/sessions/\${encodeURIComponent(sessionId)}\`,{
-      headers:{authorization:\`Bearer \${secret}\`,"Stripe-Version":"2026-08-26.dahlia"}
+    const response=await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`,{
+      headers:{authorization:`Bearer ${secret}`,"Stripe-Version":"2026-08-26.dahlia"}
     });
     if(!response.ok)return Response.json({error:"Stripe did not verify that session. Keep the checkout blocked and review its ID."},{status:503});
     const session=await response.json() as RemoteSession;
@@ -48,8 +48,8 @@ export async function POST(request:Request){
       return Response.json({resolved:true,action:"paid",duplicate:Boolean(result.duplicate),message:"Stripe payment verified and recorded against the matching job."});
     }
     if(session.status==="expired"&&session.payment_status==="unpaid"){
-      const result=await env.DB.prepare(\`UPDATE payment_checkout_sessions SET status='expired',expired_at=?
-        WHERE id=? AND estimate_id=? AND type=? AND amount_cents=? AND status='open'\`)
+      const result=await env.DB.prepare(`UPDATE payment_checkout_sessions SET status='expired',expired_at=?
+        WHERE id=? AND estimate_id=? AND type=? AND amount_cents=? AND status='open'`)
         .bind(new Date().toISOString(),reservationId,reservation.estimateId,reservation.type,reservation.amountCents).run();
       if(!result.meta.changes)return Response.json({error:"Checkout changed during verification. Refresh before retrying."},{status:409});
       return Response.json({resolved:true,action:"expired",message:"Stripe confirmed this checkout expired without payment. The blocked slot was released."});
