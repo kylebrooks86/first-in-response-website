@@ -36,7 +36,7 @@ function invoke(args){
     // No actual data leaves this synthetic temp dir; still redact CLI command
     // output to avoid future leakage should the fixture ever change.
     throw new Error('Synthetic local D1 stage '+args.slice(1,4).join(' ')+' failed ('+
-      (result.error?.name || String(result.status))+').');
+      (result.error?.name || String(result.status))+') '+[result.stderr,result.stdout].join('\n').replaceAll(root,'[synthetic-temporary-directory]').slice(-1600));
   }
   return result.stdout;
 }
