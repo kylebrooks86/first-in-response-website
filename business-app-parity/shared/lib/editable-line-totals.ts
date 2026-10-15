@@ -39,9 +39,11 @@ export function editMoneyLine<T extends EditableMoneyLine>(item: T, patch: Parti
 
 export function editableLineTotalCents(item: EditableMoneyLine): number {
   if (item.preservedLineTotalCents !== undefined) return cents(item.preservedLineTotalCents);
+  // Draft UI may temporarily contain an empty, incomplete or invalid field.
+  // Retain the existing zero-preview behavior; API save validation must reject
+  // non-finite/negative/unsafe entries before any financial record is written.
   if (!Number.isFinite(item.quantity) || item.quantity < 0
-      || !Number.isFinite(item.unitRateCents) || item.unitRateCents < 0) {
-    throw new Error('Invalid service quantity or rate.');
-  }
-  return cents(Math.round(item.quantity * item.unitRateCents));
+      || !Number.isFinite(item.unitRateCents) || item.unitRateCents < 0) return 0;
+  const computed = Math.round(item.quantity * item.unitRateCents);
+  return Number.isSafeInteger(computed) && computed >= 0 ? computed : 0;
 }
