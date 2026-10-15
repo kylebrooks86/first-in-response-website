@@ -120,6 +120,10 @@ for (const candidate of manifest.photos) {
   if (!customerIds.has(photo.customerId)) { plans.push({ photo, action: "skip_missing_customer" }); continue; }
   const objectOwner=existingObjectOwners.get(photo.objectKey);
   if(objectOwner&&objectOwner!==photo.id)throw new Error(`Photo object key ${photo.objectKey} already belongs to target photo ${objectOwner}.`);
+  const prefix = `photos/${photo.customerId}/${photo.id}-`;
+  const matches = entries.filter((entry) => entry.startsWith(prefix));
+  if (matches.length !== 1) throw new Error(`Photo ${photo.id} must have exactly one matching file in the archive.`);
+  const entry = matches[0];
   if (existingPhotos.has(photo.id)) {
     const existing=existingPhotos.get(photo.id);
     const metadataMatches=
@@ -128,12 +132,9 @@ for (const candidate of manifest.photos) {
       String(existing.contentType)===photo.contentType&&Number(existing.sizeBytes)===photo.sizeBytes&&
       String(existing.objectKey)===photo.objectKey&&String(existing.createdAt)===photo.createdAt;
     if(!metadataMatches)throw new Error(`Photo ${photo.id} already exists with different metadata.`);
-    plans.push({ photo, action: "skip_existing_record" }); continue;
+    plans.push({ photo, entry, action: "skip_existing_record" }); continue;
   }
-  const prefix = `photos/${photo.customerId}/${photo.id}-`;
-  const matches = entries.filter((entry) => entry.startsWith(prefix));
-  if (matches.length !== 1) throw new Error(`Photo ${photo.id} must have exactly one matching file in the archive.`);
-  plans.push({ photo, entry: matches[0], action: "restore" });
+  plans.push({ photo, entry, action: "restore" });
 }
 
 const summary = plans.reduce((result, plan) => { result[plan.action] = (result[plan.action] || 0) + 1; return result; }, {});
@@ -151,17 +152,36 @@ const work = await mkdtemp(`${tmpdir()}/fire-photo-restore-`);
 let restored = 0;
 let conflicts = 0;
 try {
-  // Preflight all destination keys before the first upload. This avoids
-  // partially restoring earlier photos when a later key is already occupied.
+  // Validate every archive payload and target key before the first upload.
+  // This prevents a later corrupt manifest/file, missing existing image, or
+  // occupied destination from leaving earlier photos partially restored.
   for (const plan of plans) {
-    if (plan.action !== "restore") continue;
-    const checkPath = resolve(work, `${plan.photo.id}-preflight`);
-    const existing = run(["r2", "object", "get", `${bucket}/${plan.photo.objectKey}`, "--config", absoluteConfig, ...modeArgs, "--file", checkPath]);
+    if (plan.action !== "restore" && plan.action !== "skip_existing_record") continue;
+    const { photo, entry } = plan;
+    const archived = unzip(["-p", absoluteArchive, entry], { encoding: null });
+    if (archived.status !== 0) fail(archived, `Could not preflight archive bytes for ${photo.id}.`);
+    if (archived.stdout.byteLength !== photo.sizeBytes) {
+      throw new Error(`Restore blocked: photo ${photo.id} archive size differs from manifest. No uploads have started.`);
+    }
+
+    const checkPath = resolve(work, `${photo.id}-preflight`);
+    const existing = run(["r2", "object", "get", `${bucket}/${photo.objectKey}`, "--config", absoluteConfig, ...modeArgs, "--file", checkPath]);
+
+    if (plan.action === "skip_existing_record") {
+      if (existing.status !== 0) {
+        fail(existing, `Restore blocked: existing database photo ${photo.id} has no readable R2 image. No uploads have started.`);
+      }
+      const existingBytes = await readFile(checkPath);
+      if (!existingBytes.equals(archived.stdout)) {
+        throw new Error(`Restore blocked: existing R2 image for ${photo.id} differs from the archive. No uploads have started.`);
+      }
+      continue;
+    }
     if (existing.status === 0) {
-      throw new Error(`Restore blocked: R2 object already exists at ${plan.photo.objectKey}. No uploads have started.`);
+      throw new Error(`Restore blocked: R2 object already exists at ${photo.objectKey}. No uploads have started.`);
     }
     const detail = `${existing.stdout || ""}\n${existing.stderr || ""}`;
-    if (!detail.includes("specified key does not exist")) fail(existing, `Could not safely preflight R2 object ${plan.photo.objectKey}.`);
+    if (!detail.includes("specified key does not exist")) fail(existing, `Could not safely preflight R2 object ${photo.objectKey}.`);
   }
   for (const plan of plans) {
     if (plan.action !== "restore") continue;
@@ -179,8 +199,16 @@ try {
     await writeFile(photoPath, extracted.stdout);
     const upload = run(["r2", "object", "put", `${bucket}/${photo.objectKey}`, "--config", absoluteConfig, ...modeArgs, "--file", photoPath, "--content-type", photo.contentType]);
     if (upload.status !== 0) fail(upload, `Could not upload photo ${photo.id}.`);
+    // Do not insert D1 metadata until the written R2 object can be read back
+    // byte-for-byte. Retain any uncertain upload for deliberate investigation.
+    const readbackPath = resolve(work, `${photo.id}-readback`);
+    const readback = run(["r2", "object", "get", `${bucket}/${photo.objectKey}`, "--config", absoluteConfig, ...modeArgs, "--file", readbackPath]);
+    if (readback.status !== 0) fail(readback, `Photo ${photo.id} R2 readback failed. Uploaded bytes were preserved; investigate before retrying.`);
+    if (!(await readFile(readbackPath)).equals(extracted.stdout)) {
+      throw new Error(`Photo ${photo.id} R2 readback differs from the archive. Uploaded bytes were preserved; investigate before retrying.`);
+    }
 
-    const insert = `INSERT OR IGNORE INTO customer_photos (id,customer_id,category,caption,filename,content_type,size_bytes,object_key,created_at) VALUES (${sql(photo.id)},${sql(photo.customerId)},${sql(photo.category)},${sql(photo.caption)},${sql(photo.filename)},${sql(photo.contentType)},${sql(photo.sizeBytes)},${sql(photo.objectKey)},${sql(photo.createdAt)})`;
+    const insert = `INSERT INTO customer_photos (id,customer_id,category,caption,filename,content_type,size_bytes,object_key,created_at) VALUES (${sql(photo.id)},${sql(photo.customerId)},${sql(photo.category)},${sql(photo.caption)},${sql(photo.filename)},${sql(photo.contentType)},${sql(photo.sizeBytes)},${sql(photo.objectKey)},${sql(photo.createdAt)})`;
     const databaseWrite = run(["d1", "execute", "DB", "--config", absoluteConfig, ...modeArgs, "--yes", "--command", insert]);
     if (databaseWrite.status !== 0) {
       // Preserve uploaded bytes: the D1 write may have committed despite an error or lost acknowledgement.
