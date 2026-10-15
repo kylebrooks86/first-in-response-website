@@ -12,6 +12,7 @@ export type StripeCheckoutSession = {
     expected_amount_cents?: string;
     tip_amount_cents?: string;
     expected_charge_cents?: string;
+    fire_checkout_reservation_id?: string;
   } | null;
 };
 
@@ -67,6 +68,27 @@ export async function reconcileStripeCheckout(db:Database,session:StripeCheckout
   if (paymentType!=="balance" && tipCents>0) return {ok:false,reason:"tip_not_allowed_for_deposit"};
   const maxTipCents=Math.min(Number(estimate.totalCents),50000);
   if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0||tipCents>maxTipCents)return {ok:false,reason:"tip_outside_allowed_range"};
+  // Stripe's signed webhook (or an authenticated Stripe API retrieval) may
+  // arrive after session creation but before its D1 acknowledgement. Recover
+  // the pre-existing reserved slot IN PLACE rather than dropping a paid event.
+  // Do not create a new row or infer ownership from the customer URL alone.
+  const reservationId=session.metadata?.fire_checkout_reservation_id;
+  if(reservationId){
+    if(!/^fire-creating:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reservationId)||!session.id.startsWith("cs_"))
+      return {ok:false,reason:"invalid_checkout_reservation"};
+    const reserved=await db.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payment_checkout_sessions WHERE id=? LIMIT 1")
+      .bind(reservationId).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+    if(reserved){
+      if(reserved.estimateId!==estimateId||reserved.type!==paymentType||reserved.status!=="open"||Number(reserved.amountCents)!==sessionAmount)
+        return {ok:false,reason:"checkout_reservation_mismatch"};
+      try{
+        const promoted=await db.prepare(`UPDATE payment_checkout_sessions SET id=?
+          WHERE id=? AND estimate_id=? AND type=? AND amount_cents=? AND status='open'`)
+          .bind(session.id,reservationId,estimateId,paymentType,sessionAmount).run();
+        if(!promoted.meta.changes)return {ok:false,reason:"checkout_reservation_changed"};
+      }catch{return {ok:false,reason:"checkout_reservation_promotion_failed"};}
+    }
+  }
   const tracked = await db.prepare("SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payment_checkout_sessions WHERE id=? LIMIT 1").bind(session.id).first<{estimateId:string;type:string;amountCents:number;status:string}>();
   if (!tracked || tracked.estimateId !== estimateId || tracked.type !== paymentType || Number(tracked.amountCents) !== sessionAmount || !["open","paid"].includes(tracked.status)) {
     return { ok:false, reason:"untracked_or_stale_checkout" };

@@ -58,6 +58,8 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false}={
    if(url==='https://api.stripe.com/v1/checkout/sessions'&&options.method==='POST'){
      state.creates++;
      check(options.headers['Idempotency-Key'].startsWith('fire-checkout-fire-creating:'),'Stripe create uses the reserved operation ID as idempotency key');
+     const form=new URLSearchParams(options.body);
+     check(form.get('metadata[fire_checkout_reservation_id]')===state.open?.id,'Checkout session carries its exact reserved slot for signed-event recovery');
      if(stripeResponse==='rejection')return Response.json({error:{message:'Synthetic card setup rejected'}},{status:400});
      if(stripeResponse==='server-error')return Response.json({error:{message:'Stripe internal error'}},{status:500});
      if(stripeResponse==='rate-limit')return Response.json({error:{message:'Stripe rate limit'}},{status:429});

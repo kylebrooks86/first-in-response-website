@@ -123,13 +123,20 @@ sql.prepare('UPDATE invoices SET total_cents=9000 WHERE estimate_id=?').run(a);a
 assert.equal((await pay(job(),7500,'Cash App',7501)).status,400);assert.equal((await pay(job(),7500,'Cash',210)).status,400);
 // Signed Stripe event + retry retain idempotency, ignore manual tips in principal math.
 const stripeJob=job(10000);await pay(stripeJob,0,'Cash App',10,500);
-sql.prepare("INSERT INTO payment_checkout_sessions (id,estimate_id,type,amount_cents,status,created_at) VALUES ('cs_fee_test',?,'balance',10000,'open','2026-10-07')").run(stripeJob);
+sql.prepare("INSERT INTO payment_checkout_sessions (id,estimate_id,type,amount_cents,status,created_at) VALUES ('fire-creating:11111111-2222-4333-8444-555555555555',?,'balance',10000,'open','2026-10-07')").run(stripeJob);
 globalThis.__feeReconcile=(await load('lib/stripe-payments.ts')).reconcileStripeCheckout;
 const webhook=await load('app/api/payments/webhook/route.ts');
-const event=JSON.stringify({type:'checkout.session.completed',data:{object:{id:'cs_fee_test',payment_status:'paid',amount_total:10000,metadata:{estimate_id:stripeJob,payment_type:'balance',expected_amount_cents:'10000',expected_tip_cents:'0'}}}});
+const event=JSON.stringify({type:'checkout.session.completed',data:{object:{id:'cs_fee_test',payment_status:'paid',amount_total:10000,metadata:{estimate_id:stripeJob,payment_type:'balance',expected_amount_cents:'10000',expected_tip_cents:'0',fire_checkout_reservation_id:'fire-creating:11111111-2222-4333-8444-555555555555'}}}});
 const timestamp=Math.floor(Date.now()/1000);const signature=createHmac('sha256','whsec_test_fixture').update(timestamp+'.'+event).digest('hex');
 for(let i=0;i<2;i++){const response=await webhook.POST(new Request('https://test/api/payments/webhook',{method:'POST',headers:{'stripe-signature':`t=${timestamp},v1=${signature}`},body:event}));assert.equal(response.status,200,await response.text());}
-assert.equal(principal(stripeJob),10000);assert.equal(rows(stripeJob).filter(r=>r.provider_id==='cs_fee_test').length,1);assert.equal(sql.prepare("SELECT status FROM payment_checkout_sessions WHERE id='cs_fee_test'").get().status,'paid');assert.equal(sql.prepare("SELECT COUNT(*) n FROM notifications WHERE estimate_id=? AND type='payment_overage'").get(stripeJob).n,0);
+assert.equal(principal(stripeJob),10000);assert.equal(sql.prepare("SELECT COUNT(*) n FROM payment_checkout_sessions WHERE id LIKE 'fire-creating:%' AND estimate_id=?").get(stripeJob).n,0);assert.equal(rows(stripeJob).filter(r=>r.provider_id==='cs_fee_test').length,1);assert.equal(sql.prepare("SELECT status FROM payment_checkout_sessions WHERE id='cs_fee_test'").get().status,'paid');assert.equal(sql.prepare("SELECT COUNT(*) n FROM notifications WHERE estimate_id=? AND type='payment_overage'").get(stripeJob).n,0);
+// A forged/incorrect reservation cannot attach a paid session to another job.
+const wrongReservationJob=job(10000);
+sql.prepare("INSERT INTO payment_checkout_sessions (id,estimate_id,type,amount_cents,status,created_at) VALUES ('fire-creating:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',?,'balance',10000,'open','2026-10-07')").run(wrongReservationJob);
+const badReservation={id:'cs_wrong_reservation',payment_status:'paid',amount_total:10000,metadata:{estimate_id:stripeJob,payment_type:'balance',expected_amount_cents:'10000',fire_checkout_reservation_id:'fire-creating:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'}};
+assert.equal((await globalThis.__feeReconcile(DB,badReservation)).reason,'checkout_reservation_mismatch');
+assert.equal(sql.prepare("SELECT status FROM payment_checkout_sessions WHERE id='fire-creating:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'").get().status,'open');
+assert.equal(rows(stripeJob).filter(r=>r.provider_id==='cs_wrong_reservation').length,0);
 const exported=await (await backup.GET()).json();assert.equal(exported.tables.payments.find(r=>r.estimate_id===e&&r.type==='Cash App').processing_fee_cents,300);
 // Restore in an empty database, preserving all three accounting dimensions.
 sql.exec('PRAGMA foreign_keys=OFF');for(const table of Object.keys(exported.tables).reverse()){sql.exec('DELETE FROM '+table);}sql.exec('PRAGMA foreign_keys=ON');

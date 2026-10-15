@@ -94,6 +94,9 @@ export async function POST(request: Request) {
     form.set("cancel_url", `${origin}/estimate/${shareToken}`);
     form.set("client_reference_id", row.id);
     form.set("metadata[estimate_id]", row.id);
+    // Signed Stripe events can use this to finish a checkout reservation if
+    // Stripe accepted the payment before D1 acknowledged the session ID.
+    form.set("metadata[fire_checkout_reservation_id]", reservationId);
     form.set("metadata[payment_type]", paymentType);
     form.set("metadata[expected_amount_cents]", String(amount));
     form.set("metadata[tip_amount_cents]", String(tipCents));
