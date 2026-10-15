@@ -86,6 +86,42 @@ any approved migration. Gate 4, Gate 5, Gate 7, Gate 8, Gate 9 and Gate 10
 remain pending under existing release policy. Neither `0022` nor any
 remote migration is authorized by either set of owner observations.
 
+## October 15 owner-confirmed D1 Time Travel recovery option
+
+The owner opened **D1 → fire-app-staging-db → Time Travel** and supplied
+a screenshot showing the following available controls:
+
+- The page advertises restore to a **specific date/time or bookmark ID**.
+- The visible recovery window is **7 days**, with the displayed range
+  **October 7, 2026 23:30 through October 14, 2026 23:30**. Those are
+  dashboard-displayed values; timezone and exact capture instant were not
+  independently validated. The window moves with time.
+- The date/time has **not been selected**, and the red Restore database
+  button is not currently active.
+- Cloudflare's page expressly warns that restoring an older version
+  **overwrites the current database**.
+
+**What this proves:** A seven-day D1 Time Travel restore interface is
+available to the owner for this database. It does **not** establish that a
+specific restore point exists/was bookmarked, that restoration has been
+tested, or that the backup is independently retained outside the rolling
+window. It does not capture or back up R2 photo objects.
+
+**Release decision:** This is meaningful Gate 10 recovery capability
+evidence but **NOT a completed backup-and-restore gate**. Before an
+owner-authorized database migration or redeploy, separately require:
+immutable target UUID and active Worker binding confirmation, a complete
+owner-controlled pre-change D1 export or equivalent independently
+restorable snapshot (with a verified secure retention location), integrity
+hash/size and schema+journal capture, disposable restore and invariant
+rehearsal, selected recovery strategy with migration-version compatibility,
+writer-quiescence/recheck procedures, and explicit narrowly-scoped owner
+approval. Do not select a restore point, invoke Time Travel, change the
+binding, or execute a migration based only on this screenshot.
+
+**Screenshot source:** owner-provided Cloudflare D1 Time Travel page,
+October 15, 2026. Image remains in the chat, not Git or any public artifact.
+
 ## Strict execution boundary
 
 No remote migration, table modification, Stripe payment, R2 activation, build
