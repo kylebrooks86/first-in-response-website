@@ -9,11 +9,11 @@ let total=0;
 function pass(name,predicate){assert.equal(Boolean(predicate),true,name);total++;console.log('PASS',name);}
 const root=new URL('./fixtures/photo-integrity/',import.meta.url);
 function harness(file,mode='success',authorized=true,bucket=true,found=true){
- const rows=new Map(found?[['photo-1',{objectKey:'customers/customer-1/photo-1.png'}]]:[]);
+ const rows=new Map(found?[['photo-1',{objectKey:'customers/customer-1/photo-1.png',contentType:'image/png'}]]:[]);
  const objects=new Map([['customers/customer-1/photo-1.png','original-png-bytes']]);
  const events=[];
  const env={
-   BUCKET:bucket?{async delete(key){events.push('bucket-delete');if(mode==='bucket-error')throw Error('R2 outage');objects.delete(key);}}:null,
+   BUCKET:bucket?{async get(key){events.push('bucket-get');return objects.has(key)?{body:objects.get(key)}:null;},async delete(key){events.push('bucket-delete');if(mode==='bucket-error')throw Error('R2 outage');objects.delete(key);}}:null,
    DB:{prepare(query){return {bind(id){return {
      async first(){events.push('db-select');return rows.get(id)||null;},
      async run(){events.push('db-delete');if(mode==='db-precommit-error')throw Error('D1 rejected before commit');rows.delete(id);if(mode==='db-postcommit-error')throw Error('D1 deleted before acknowledgement');return {success:true};}
@@ -27,11 +27,23 @@ function harness(file,mode='success',authorized=true,bucket=true,found=true){
    throw Error('Unexpected import '+id);
  }},{filename:file});
  const context={params:Promise.resolve({id:'photo-1'})};
- return {DELETE:()=>exports.DELETE(new Request('https://synthetic.invalid/api/customer-photos/photo-1',{method:'DELETE'}),context),rows,objects,events};
+ return {GET:()=>exports.GET(new Request('https://synthetic.invalid/api/customer-photos/photo-1'),context),DELETE:()=>exports.DELETE(new Request('https://synthetic.invalid/api/customer-photos/photo-1',{method:'DELETE'}),context),rows,objects,events};
 }
 for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]','fire-app-dr/app/api/customer-photos/[id]']){
  for (const patched of [false,true]){
   const file=`${prefix}/route.${patched?'ts':'original.ts'}`;
+  if(patched&&prefix.startsWith('business-app-parity/shared/')){
+    const getCase=harness(file);
+    const photo=await getCase.GET();
+    pass('current shared GET serves original synthetic bytes without changing records',photo.status===200&&(await photo.text())==='original-png-bytes'&&getCase.rows.size===1&&getCase.objects.size===1&&getCase.events.join(',')==='db-select,bucket-get');
+    pass('current shared GET prevents sensitive photo caching',photo.headers.get('cache-control')==='private, no-store');
+    pass('current shared GET prevents MIME-type sniffing',photo.headers.get('x-content-type-options')==='nosniff');
+    pass('current shared GET isolates inline image content',photo.headers.get('content-security-policy')==='sandbox'&&photo.headers.get('content-disposition')==='inline');
+    const locked=harness(file,'success',false);
+    pass('current shared GET forbids unauthorized photo reads',(await locked.GET()).status===401&&locked.events.length===0);
+    const missingBucket=harness(file,'success',true,false);
+    pass('current shared GET fails closed without storage',(await missingBucket.GET()).status===503&&missingBucket.rows.size===1&&missingBucket.events.length===0);
+  }
   let t=harness(file);let res=await t.DELETE();pass(`${file} normal success removes both`,res.status===200&&t.rows.size===0&&t.objects.size===0);
   t=harness(file,'db-precommit-error');let threw=false;try{res=await t.DELETE();}catch{threw=true;}
   pass(`${file} precommit failure preserves metadata`,t.rows.size===1);
