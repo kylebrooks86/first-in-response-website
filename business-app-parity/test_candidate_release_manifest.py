@@ -75,6 +75,22 @@ class CandidateManifest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "percentage"):
             self.manifest()
 
+    def test_local_customer_identity_is_explicitly_adapter_scoped(self):
+        for target in ["live", "doomsday", "staging"]:
+            directory = self.root / "adapters" / target / "app"
+            directory.mkdir(parents=True, exist_ok=True)
+            (directory / "local-customer-deployment.ts").write_text(
+                f"export const LOCAL_CUSTOMER_DEPLOYMENT = '{target}' as const;\\n"
+            )
+        manifest = self.manifest()
+        self.assertEqual(manifest["sharedApplicationFilesMatched"], 1)
+        self.assertTrue(all(
+            "app/local-customer-deployment.ts" in manifest["targets"][target]["adapterFilesSha256"]
+            for target in ["live", "doomsday", "staging"]
+        ))
+        self.assertFalse(manifest["productionReady"])
+        self.assertFalse(manifest["publicationAuthorized"])
+
     def test_unapproved_shared_application_override_rejected(self):
         directory = self.root / "adapters/doomsday/app"
         directory.mkdir()
