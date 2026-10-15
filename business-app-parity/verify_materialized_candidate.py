@@ -43,10 +43,10 @@ def check(target, directory):
         raise ValueError("Required target-fixed local-customer identity adapter is missing.")
     identity_source = identity.read_text()
     expected_identity = f"export const LOCAL_CUSTOMER_DEPLOYMENT = '{target}' as const;"
-    declarations = re.findall(r"export\\s+(?:const|function|class)\\s+([A-Za-z0-9_]+)", identity_source)
+    declarations = re.findall(r"export\s+(?:const|function|class)\s+([A-Za-z0-9_]+)", identity_source)
     if declarations != ["LOCAL_CUSTOMER_DEPLOYMENT"] or expected_identity not in identity_source:
         raise ValueError("Local-customer deployment identity does not match target " + target)
-    if re.search(r"(?m)^\\s*(?:import|require\\(|export\\s+default)", identity_source):
+    if re.search(r"(?m)^\s*(?:import|require\(|export\s+default)", identity_source):
         raise ValueError("Local-customer identity adapter may not import or execute external code.")
     expected = {name: digest for name, digest in shared.items() if not name.startswith("drizzle/")}
     expected.update({name: digest for name, digest in adapters.items() if name != "ABSENT_FILES.json"})
