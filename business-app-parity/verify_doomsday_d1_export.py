@@ -81,7 +81,7 @@ def sql_authorizer(action, arg1, arg2, _database, _trigger):
         return sqlite3.SQLITE_DENY
     if action == sqlite3.SQLITE_PRAGMA and str(arg1 or "").lower() not in (
             "foreign_keys", "defer_foreign_keys", "recursive_triggers",
-            "query_only", "integrity_check"):
+            "query_only", "integrity_check", "foreign_key_check"):
         return sqlite3.SQLITE_DENY
     return sqlite3.SQLITE_OK
 
