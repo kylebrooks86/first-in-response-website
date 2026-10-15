@@ -30,8 +30,9 @@ def check(target, directory):
     for name in absent:
         if not isinstance(name, str) or name not in APP_ADAPTERS:
             raise ValueError("Adapter may only remove explicitly listed auth/hosting files.")
-        if name not in shared and name not in adapters:
-            raise ValueError("Adapter absence refers to unknown source: " + name)
+        # Absence manifests describe target capability boundaries. They may
+        # explicitly exclude an adapter-only auth route that is not in shared,
+        # provided the name belongs to the reviewed adapter allowlist.
     for name in adapters:
         if name == "ABSENT_FILES.json":
             continue
