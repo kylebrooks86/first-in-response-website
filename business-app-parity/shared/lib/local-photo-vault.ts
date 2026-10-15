@@ -74,7 +74,7 @@ export async function restoreLocalPhotos(archive:Blob,knownCustomerIds:string[])
   // add() (never put()) refuses existing IDs. Any conflict aborts and rolls
   // back the entire import; no existing photo can be silently overwritten.
   try{for(const row of rows)await requestDone(store.add(row));await done;}
-  catch(error){if(tx.readyState==='active')tx.abort();try{await done;}catch{}throw Error('Photo restore was cancelled without replacing any existing photos. '+(error instanceof Error?error.message:''));}
+  catch(error){try{tx.abort();}catch{/* Transaction already rolled back. */}try{await done;}catch{}throw Error('Photo restore was cancelled without replacing any existing photos. '+(error instanceof Error?error.message:''));}
  }finally{db.close();}
  const imported=(await listOfflinePhotos()).filter(r=>rows.some(p=>p.id===r.id));
  if(imported.length!==rows.length)throw Error('Restore needs review: not every imported photo could be verified.');
