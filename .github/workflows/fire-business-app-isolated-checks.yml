@@ -88,6 +88,8 @@ jobs:
           FIRE_D1_DATABASE_ID: 12345678-1234-4234-8234-123456789abc
           FIRE_R2_BUCKET_NAME: fire-app-ci-synthetic-no-bucket
         run: pnpm run build:independent
+      - name: Verify optional R2 configuration and D1-only independent Worker build
+        run: node scripts/test-independent-wrangler-d1-only.mjs
       - name: Rehearse local synthetic D1 and R2 photo recovery
         run: node scripts/test-local-photo-restore.mjs
 
