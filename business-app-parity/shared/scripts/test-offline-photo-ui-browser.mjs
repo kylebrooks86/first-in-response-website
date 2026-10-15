@@ -5,7 +5,8 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {createServer} from 'node:http';
-import {readFileSync} from 'node:fs';
+import {readFileSync,mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
 const require=createRequire(import.meta.url);
 const esbuild=require('../node_modules/.pnpm/esbuild@0.28.0/node_modules/esbuild');
@@ -17,20 +18,37 @@ const bundle=await esbuild.build({stdin:{
  contents:"import React from 'react';import{createRoot}from'react-dom/client';import{OfflineCustomerPhotos}from'./components/offline-customer-photos';const root=createRoot(document.querySelector('#app'));root.render(React.createElement(OfflineCustomerPhotos,{customerId:'synthetic-customer-photo',customerName:'Synthetic Photo Customer',knownCustomerIds:['synthetic-customer-photo']}));",
  resolveDir:root,sourcefile:'photo-ui-browser-fixture.tsx',loader:'tsx'
  },bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',loader:{'.css':'empty'},define:{'process.env.NODE_ENV':'"production"'}});
+const shell='<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>FIRE synthetic customer photo UI</title><div id="app"></div><script type="module" src="/bundle.js"></script>';
+// Disposable test-only worker: deliberately NOT registered in FIRE production.
+// Exercise true closed-browser, stopped-server cold launch with the actual
+// React photo component bundled, rather than only the storage libraries.
+const fixtureWorker=`const CACHE='fire-synthetic-photo-cold-launch-v1';
+self.addEventListener('install',event=>event.waitUntil((async()=>{
+ const cache=await caches.open(CACHE);await cache.addAll(['/','/bundle.js']);
+ await self.skipWaiting();
+})()));
+self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
+self.addEventListener('fetch',event=>{
+ const url=new URL(event.request.url);
+ if(event.request.method!=='GET'||url.origin!==self.location.origin||!['/','/bundle.js'].includes(url.pathname))return;
+ event.respondWith((async()=>await (await caches.open(CACHE)).match(url.pathname)||fetch(event.request))());
+});`;
 const server=createServer((req,res)=>{
  res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);return;}
- if(req.url==='/'){res.setHeader('content-type','text/html; charset=utf-8');res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>FIRE synthetic customer photo UI</title><div id="app"></div><script type="module" src="/bundle.js"></script>');return;}
+ if(req.url==='/sw.js'){res.setHeader('content-type','text/javascript');res.setHeader('Service-Worker-Allowed','/');res.end(fixtureWorker);return;}
+ if(req.url==='/'){res.setHeader('content-type','text/html; charset=utf-8');res.end(shell);return;}
  res.statusCode=404;res.end();
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin='http://127.0.0.1:'+server.address().port;
-let browser,checks=0;const browserErrors=[],remote=[];
+const profile=mkdtempSync(join(tmpdir(),'fire-offline-react-photo-ui-'));
+let context,serverClosed=false,checks=0;const browserErrors=[],remote=[];
 const check=(condition,msg)=>{assert.ok(condition,msg);checks++;console.log('PASS: '+msg);};
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==','base64');
 try{
- browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
- const ctx=await browser.newContext({acceptDownloads:true,viewport:{width:390,height:844}});
+ context=await chromium.launchPersistentContext(profile,{headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,acceptDownloads:true,viewport:{width:390,height:844},args:['--no-sandbox','--disable-dev-shm-usage']});
+ const ctx=context;
  await ctx.route('**/*',route=>{
   if(new URL(route.request().url()).origin!==origin){remote.push(route.request().url());return route.abort();}
   return route.continue();
@@ -100,8 +118,43 @@ try{
  await page.reload();
  await page.locator('.photo-card').nth(1).waitFor({timeout:30000});
  check(await page.locator('.photo-card').count()===2,'React photo screen reload displays both restored IndexedDB photos');
+ // Register a strictly-local fixture worker after online seeding of the
+ // ACTUAL React UI. This tests installable-shell dependencies, but does NOT
+ // assert full hosted FIRE framework offline support or iPhone Safari success.
+ await page.evaluate(async()=>{await navigator.serviceWorker.register('/sw.js',{scope:'/'});await navigator.serviceWorker.ready;});
+ await page.waitForFunction(()=>navigator.serviceWorker.controller!==null);
+ const cacheEvidence=await page.evaluate(async()=>({
+   controlled:Boolean(navigator.serviceWorker.controller),
+   shell:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/')),
+   bundle:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/bundle.js'))
+ }));
+ check(cacheEvidence.controlled&&cacheEvidence.shell&&cacheEvidence.bundle,'Actual React photo screen shell and bundle are cached by a separate synthetic install worker');
+ await ctx.close();context=null;
+ await new Promise(resolve=>server.close(resolve));serverClosed=true;
+ context=await chromium.launchPersistentContext(profile,{headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,acceptDownloads:true,viewport:{width:390,height:844},args:['--no-sandbox','--disable-dev-shm-usage']});
+ await context.setOffline(true);
+ const coldPage=await context.newPage();
+ coldPage.on('pageerror',error=>browserErrors.push(error.message));
+ await coldPage.goto(origin+'/');
+ await coldPage.locator('.photo-card').nth(1).waitFor({timeout:30000});
+ check(await coldPage.locator('.photo-card').count()===2,'Browser fully closed, HTTP server stopped: actual React customer-photo screen cold-launches offline with original IndexedDB photos');
+ check(await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).count()===1,'Offline cold launch retains the real customer ZIP export control');
+ await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
+ await coldPage.getByText(/photo ZIP passed integrity checks/).waitFor({timeout:30000});
+ check(await coldPage.getByRole('button',{name:'Download prepared ZIP'}).count()===1,'Actual photo ZIP can be freshly prepared after fully offline browser restart');
+ const [coldDownload]=await Promise.all([coldPage.waitForEvent('download'),coldPage.getByRole('button',{name:'Download prepared ZIP'}).click()]);
+ const coldZip=readFileSync(await coldDownload.path());
+ check(coldZip.length===exported.length&&coldZip.length>100,'Offline cold-launch ZIP contains original photos after browser/server shutdown');
+ const coldVerify=coldPage.locator('input[type="file"][accept*=".zip"]').first();
+ await coldVerify.setInputFiles({name:filename,mimeType:'application/zip',buffer:coldZip});
+ await coldPage.getByText(/Saved ZIP selected from Files passed photo checksums/).waitFor({timeout:30000});
+ check((await coldPage.getByRole('status').allInnerTexts()).some(t=>t.includes('2 exactly match this device')),'Saved photo ZIP verification still works after a genuinely offline cold launch');
  check(remote.length===0,'No external network, Cloudflare, R2, or Stripe requests occurred');
  check(browserErrors.length===0,'Actual browser photo UI produced no uncaught client errors: '+browserErrors.join(' / '));
- await ctx.close();
-}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
-console.log('PASS '+checks+' actual owner React photo-screen acceptance checks in isolated Chrome; iPhone/iPad acceptance still pending.');
+ await context.close();context=null;
+}finally{
+ await context?.close();
+ if(!serverClosed)await new Promise(resolve=>server.close(resolve));
+ rmSync(profile,{recursive:true,force:true});
+}
+console.log('PASS '+checks+' actual React photo-screen acceptance tests, including stopped-server Chromium offline cold launch; production/iPhone/iPad acceptance still pending.');
