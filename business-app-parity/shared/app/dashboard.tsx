@@ -6,6 +6,7 @@ import {CustomerProperties} from '../components/customer-properties';
 import { OwnerAccountView } from "./owner-account";
 import {OfflineCustomerPhotos} from "../components/offline-customer-photos";
 import {saveOfflinePhotoCustomerDirectory,loadOfflinePhotoCustomerDirectory,clearOfflinePhotoCustomerDirectory,type OfflinePhotoCustomer} from "../lib/offline-photo-customer-directory";
+import {mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory} from "../lib/offline-photo-availability";
 import { estimateFollowUpTiming, estimateReminderStage } from "../lib/follow-up-timing";
 import { messageHistoryEntries } from "../lib/message-history";
 import { summarizeProcessing } from "../lib/processing-fees";
@@ -1044,16 +1045,20 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
   const load = async (quiet=false) => {
     const request=++loadRequest.current;
     if(!quiet){setLoading(true);setError("");}
-    let networkFailed=false,authenticationFailed=false;
+    let networkFailed=false,responseStatus:number|undefined;
     try {
       let response:Response;
       try{response=await fetch("/api/customers");}
       catch(networkError){networkFailed=true;throw networkError;}
-      if(response.status===401||response.status===403){
-        authenticationFailed=true;
-        // Do not offer offline customer names after the server denied this
-        // session. Photo bytes are still kept; this only clears cached labels.
-        void clearOfflinePhotoCustomerDirectory().catch(()=>{});
+      responseStatus=response.status;
+      if(mustClearOfflinePhotoDirectory(response.status)&&request===loadRequest.current){
+        // Authentication denial takes precedence over any previously visible
+        // offline fallback. Never keep stale customer names rendered.
+        setOfflinePhotoOnly(false);setOfflinePhotoCustomers([]);
+        setSelectedId(null);setCustomers([]);setEstimates([]);setInvoices([]);
+        setPhotos([]);setMessages([]);setNotes([]);setPayments([]);
+        // Persistent labels are removed, while local photo bytes remain intact.
+        await clearOfflinePhotoCustomerDirectory().catch(()=>{});
       }
       const result = await response.json() as { customers?: CustomerRow[]; estimates?: CustomerEstimate[]; notes?:CustomerNote[]; invoices?:InvoiceRow[]; photos?:CustomerPhoto[]; messages?:CustomerMessage[]; payments?:PaymentRow[]; error?: string };
       if(request!==loadRequest.current)return;
@@ -1085,7 +1090,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
       setPayments(nextPayments);
     }catch(loadError){
       if(request!==loadRequest.current||quiet)return;
-      if(!authenticationFailed&&(networkFailed||navigator.onLine===false)){
+      if(mayUseOfflinePhotoDirectory({networkFailed,responseStatus,browserReportsOffline:navigator.onLine===false})){
         try{
           const cached=await loadOfflinePhotoCustomerDirectory();
           if(request!==loadRequest.current)return;
@@ -1095,7 +1100,10 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
           }
         }catch{/* No usable cached directory: show the original error. */}
       }
-      if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Customer records could not be loaded.");
+      if(request===loadRequest.current){
+        setOfflinePhotoOnly(false);setOfflinePhotoCustomers([]);
+        setError(loadError instanceof Error?loadError.message:"Customer records could not be loaded.");
+      }
     }
     finally { if(request===loadRequest.current)setLoading(false); }
   };
@@ -1149,7 +1157,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
     <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={()=>{ setActiveEstimate(null); void load(); }} />
     <button className="back-link" onClick={() => { setSelectedId(null); setSection("estimates"); }}>← All customers</button>
     <section className="customer-profile">
-      <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><p className="eyebrow">Customer profile</p><h1>{selected.name}</h1></div><div className="profile-head-actions"><EditCustomer customer={selected} onUpdated={(updated)=>setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item))}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/><NewEstimate key={selected.id} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /></div></div>
+      <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><p className="eyebrow">Customer profile</p><h1>{selected.name}</h1></div><div className="profile-head-actions"><EditCustomer customer={selected} onUpdated={(updated)=>{setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item));void load(true);}}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/><NewEstimate key={selected.id} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /></div></div>
       <div className="customer-snapshot">
         <span><small>Jobs / estimates</small><strong>{customerEstimates.length}</strong></span>
         <span><small>Paid</small><strong>{money(customerPaidTotal)}</strong></span>
@@ -1187,7 +1195,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
     </section>
   </div>;
   return <div className="customers-view">
-    <section className="customers-head"><div><p className="eyebrow">Customer records</p><h1>Customers</h1><p>Contact details and job history in one place.</p></div><AddCustomer onAdded={(customer) => { setCustomers((current) => [customer, ...current]); setSelectedId(customer.id); }} /></section>
+    <section className="customers-head"><div><p className="eyebrow">Customer records</p><h1>Customers</h1><p>Contact details and job history in one place.</p></div><AddCustomer onAdded={(customer) => { setCustomers((current) => [customer, ...current]); setSelectedId(customer.id);void load(true); }} /></section>
     {loading ? <div className="customers-state">Loading customers…</div> : error ? <div className="customers-state"><p>{error}</p><Button variant="outline" onClick={() => void load()}>Try again</Button></div> : filteredCustomers.length ? <section className="customer-list">{filteredCustomers.map((customer) => <button className="customer-card" key={customer.id} onClick={() => setSelectedId(customer.id)}><span className="customer-avatar">{customer.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><span className="customer-main"><strong>{customer.name}</strong><small>{customer.phone || customer.email || "No contact details saved"}</small></span><span className="customer-totals"><strong>{customer.estimateCount} estimate{customer.estimateCount === 1 ? "" : "s"}</strong><small>{money(customer.estimateTotal)}</small></span><ChevronRight /></button>)}</section> : <div className="customers-state"><Users /><strong>{searchQuery ? "No matching customers" : "No customers yet"}</strong><p>{searchQuery ? "Try a name, phone number, email, or address." : "Add your first customer to start their permanent record."}</p></div>}
   </div>;
 }

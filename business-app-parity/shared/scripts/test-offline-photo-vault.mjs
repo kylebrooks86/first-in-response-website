@@ -68,4 +68,18 @@ check(component.includes('Keep originals')||component.includes('Keep the origina
 check(component.includes('legacyCloudPhotoCount>0'),'Older server/R2 photo records remain visible as a migration warning instead of disappearing silently');
 check(vault.includes("'+LOCAL_CUSTOMER_DEPLOYMENT+'"),'Shared local photo store is partitioned by a fixed deployment identity');
 check(vault.includes('readOfflinePhotoBackup(zip)'),'Actual downloaded ZIP is verified after assembly before being offered');
+const fallback=load('../lib/offline-photo-availability.ts');
+check(!fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:401,browserReportsOffline:true}),'HTTP 401 denies access to cached customer names even while browser reports offline');
+check(!fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:403,browserReportsOffline:false}),'HTTP 403 is always treated as owner denial, never as offline fallback');
+check(fallback.mustClearOfflinePhotoDirectory(401)&&fallback.mustClearOfflinePhotoDirectory(403),'Explicit authentication denial must clear the device photo directory');
+check(!fallback.mustClearOfflinePhotoDirectory(503),'Temporary server outage must not erase previously authenticated customer labels');
+check(fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:503,browserReportsOffline:false}),'HTTP 503 permits a photo-only recovery screen while browser claims connectivity');
+check(fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:502,browserReportsOffline:false}),'HTTP 502 permits local gallery during gateway outage');
+check(fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:504,browserReportsOffline:false}),'HTTP 504 permits local gallery during backend timeout');
+check(fallback.mayUseOfflinePhotoDirectory({networkFailed:true,browserReportsOffline:false}),'Network connection failure permits photo-only fallback');
+check(fallback.mayUseOfflinePhotoDirectory({networkFailed:false,browserReportsOffline:true}),'Airplane mode permits photo-only fallback');
+check(!fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:400,browserReportsOffline:false}),'Ordinary invalid server requests do not silently expose stale customer names');
+check(page.includes('setOfflinePhotoOnly(false);setOfflinePhotoCustomers([]);')&&page.includes('setCustomers([]);setEstimates([]);setInvoices([]);'),'Actual owner UI revokes cached customer display and prior financial rows on explicit auth denial');
+check(page.includes('mayUseOfflinePhotoDirectory({networkFailed,responseStatus,browserReportsOffline:navigator.onLine===false})'),'Actual FIRE Customers fallback uses the reviewed network/auth decision policy');
+check(page.includes('void load(true); }} />'),'Customer creation refreshes offline directory promptly rather than remaining undiscoverable until next login');
 console.log('PASS '+checks+' offline-photo archive and actual integrated UI checks.');
