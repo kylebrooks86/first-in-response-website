@@ -127,6 +127,11 @@ export async function POST(request: Request) {
     if(tipCents>maxTipCents)return Response.json({error:"Tip cannot exceed the invoice total or $500."},{status:400});
     if (tipCents > 0 && estimate.status !== "completed") return Response.json({ error: "Tips can be recorded only after the job is completed." }, { status: 409 });
 
+    // A customer may already be at Stripe checkout. Blocking manual collection
+    // prevents double-recording if that same card checkout subsequently succeeds.
+    // Exact-id replay above remains allowed to recover a previously saved payment.
+    const activeCheckout=await env.DB.prepare("SELECT id FROM payment_checkout_sessions WHERE estimate_id=? AND status='open' LIMIT 1").bind(estimateId).first();
+    if(activeCheckout)return Response.json({error:"This job has an active or unresolved Stripe checkout. Confirm whether the customer paid or whether the checkout expired before recording cash, Wave, Venmo, or another payment or tip."},{status:409});
     const pendingRefund=await env.DB.prepare("SELECT id FROM payment_refunds WHERE estimate_id=? AND status='pending' LIMIT 1").bind(estimateId).first();
     if(pendingRefund)return Response.json({error:"A refund is processing. Wait for Stripe reconciliation before collecting another payment."},{status:409});
     const billingException = await env.DB.prepare("SELECT id FROM notifications WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL LIMIT 1").bind(estimateId).first<{id:string}>();
@@ -163,7 +168,8 @@ export async function POST(request: Request) {
           FROM estimates e WHERE e.id=?
         )
         AND (SELECT COALESCE(SUM(p.amount_cents),0) FROM payments p WHERE p.estimate_id=? AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')) <= 9007199254740991 - ?
-      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, accounting.processingFeeCents, accounting.grossReceivedCents, tipCents, method, amountCents, estimateId, estimateId, amountCents);
+        AND NOT EXISTS (SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=? AND s.status='open')
+      `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, accounting.processingFeeCents, accounting.grossReceivedCents, tipCents, method, amountCents, estimateId, estimateId, amountCents, estimateId);
 
       if(tipCents>0){
         const recordedTipId=tipId??crypto.randomUUID();
@@ -192,12 +198,16 @@ export async function POST(request: Request) {
     if(tipCents>0&&amountCents<=0){
       tip={id:tipId??crypto.randomUUID(),estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:[method,reference].filter(Boolean).join(" · ")||method,createdAt:new Date().toISOString()};
       const results=await env.DB.batch([
-        env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at,processing_fee_cents,gross_received_cents,bundled_tip_cents,processing_method) VALUES (?,?, 'Tip',?,'paid',?,?,?,?,?,?)")
-          .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt,accounting.processingFeeCents,accounting.grossReceivedCents,0,method),
-        env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates WHERE id=?")
-          .bind(crypto.randomUUID(),"Tip received",`${(tipCents/100).toFixed(2)} tip recorded via ${method}.`,estimateId,tip.createdAt,estimateId),
+        env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at,processing_fee_cents,gross_received_cents,bundled_tip_cents,processing_method)
+          SELECT ?,?,'Tip',?,'paid',?,?,?,?,?,?
+          WHERE NOT EXISTS (SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=? AND s.status='open')`)
+          .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt,accounting.processingFeeCents,accounting.grossReceivedCents,0,method,estimateId),
+        env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
+          SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates WHERE id=?
+          AND EXISTS (SELECT 1 FROM payments WHERE id=? AND estimate_id=? AND type='Tip' AND status='paid')`)
+          .bind(crypto.randomUUID(),"Tip received",`${(tipCents/100).toFixed(2)} tip recorded via ${method}.`,estimateId,tip.createdAt,estimateId,tip.id,estimateId),
       ]);
-      if(!results[0]?.meta.changes)return Response.json({error:"The tip could not be recorded safely. Refresh Payment History before trying again."},{status:409});
+      if(!results[0]?.meta.changes)return Response.json({error:"A Stripe checkout became active or the tip could not be recorded safely. Verify the customer payment before trying again."},{status:409});
     }
 
     const refreshed = await env.DB.prepare(`

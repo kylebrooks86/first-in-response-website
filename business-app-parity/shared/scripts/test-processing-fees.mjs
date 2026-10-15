@@ -38,6 +38,45 @@ const d=job(10000);assert.equal((await pay(d,4000,'Cash App',100)).status,201);a
 const e=job(10000);assert.equal((await pay(e,10000,'Cash App',300,1000)).status,201);assert.equal(principal(e),10000);assert.equal(rows(e).find(r=>r.type==='Tip').amount_cents,1000);assert.equal(rows(e)[0].gross_received_cents,11000);assert.equal(rows(e)[0].gross_received_cents-rows(e)[0].processing_fee_cents,10700);
 const f=job(15000,'approved',7500);assert.equal((await pay(f,7500,'Cash App',210)).status,201);assert.equal(principal(f),7500);assert.equal((await pay(f,0,'Cash App',0,100)).status,409);
 const g=job(7500);assert.equal((await pay(g,8000,'Cash App',500)).status,400);assert.equal(rows(g).length,0);
+// A job with an open or unresolved Stripe Checkout must not accept another
+// manual charge: the customer might complete that already-created card link.
+const stripeLocked=job(10000);
+const reserveStripe=(estimateId,id)=>sql.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES (?,?,'balance',10000,'open','now')").run(id,estimateId);
+reserveStripe(stripeLocked,'cs_test_open_manual_block');
+const blockedCash=await pay(stripeLocked,2000,'Cash',0);
+assert.equal(blockedCash.status,409);
+assert.equal(rows(stripeLocked).length,0);
+const blockedTip=await pay(stripeLocked,0,'Venmo',20,250);
+assert.equal(blockedTip.status,409);
+assert.equal(rows(stripeLocked).length,0);
+const blockedCombo=await pay(stripeLocked,2000,'Venmo',30,100);
+assert.equal(blockedCombo.status,409);
+assert.equal(rows(stripeLocked).length,0);
+// Race injection: the preflight looked clean, but a Stripe reservation was
+// inserted before the money INSERT. The SQL itself must reject the payment.
+const unguardedPrepare=DB.prepare.bind(DB);
+let racingCheckoutPreflight=true;
+DB.prepare=(query)=>{
+ const stmt=unguardedPrepare(query);
+ if(racingCheckoutPreflight&&query.includes("SELECT id FROM payment_checkout_sessions WHERE estimate_id=? AND status='open' LIMIT 1"))stmt.first=async()=>null;
+ return stmt;
+};
+try{
+ const cashRace=await pay(stripeLocked,2000,'Cash',0);
+ assert.equal(cashRace.status,409);
+ assert.equal(rows(stripeLocked).length,0);
+ const tipRace=await pay(stripeLocked,0,'Cash App',20,250);
+ assert.equal(tipRace.status,409);
+ assert.equal(rows(stripeLocked).length,0);
+ assert.equal(sql.prepare("SELECT COUNT(*) n FROM notifications WHERE estimate_id=? AND type='tip_received'").get(stripeLocked).n,0);
+ const comboRace=await pay(stripeLocked,2000,'Cash App',30,250);
+ assert.equal(comboRace.status,409);
+ assert.equal(rows(stripeLocked).length,0);
+}finally{racingCheckoutPreflight=false;DB.prepare=unguardedPrepare;}
+sql.prepare("UPDATE payment_checkout_sessions SET status='expired' WHERE estimate_id=?").run(stripeLocked);
+assert.equal((await pay(stripeLocked,2000,'Cash',0)).status,201);
+assert.equal(principal(stripeLocked),2000);
+
 // Client-generated manual payment requests must be replay-safe, even when a
 // previous D1 INSERT was committed before its acknowledgement was lost.
 const keyedJob=job(10000),paymentRequestId='11111111-1111-4111-8111-111111111111';
@@ -48,6 +87,14 @@ assert.equal(rows(keyedJob).length,2);assert.equal(principal(keyedJob),4000);
 const repeatKeyed=await sendKeyed(keyedBody);assert.equal(repeatKeyed.status,200,await repeatKeyed.clone().text());
 assert.equal((await repeatKeyed.json()).duplicate,true);
 assert.equal(rows(keyedJob).length,2);assert.equal(principal(keyedJob),4000);
+// A lost acknowledgement may be replayed while Stripe checkout is open. It
+// must RETURN the original payment and never write any new money.
+reserveStripe(keyedJob,'cs_test_open_after_previous_manual');
+const duplicateWithCheckout=await sendKeyed(keyedBody);
+assert.equal(duplicateWithCheckout.status,200);
+assert.equal((await duplicateWithCheckout.json()).duplicate,true);
+assert.equal(rows(keyedJob).length,2);
+sql.prepare("UPDATE payment_checkout_sessions SET status='expired' WHERE estimate_id=?").run(keyedJob);
 assert.equal((await sendKeyed({...keyedBody,amountCents:5000})).status,409);
 assert.equal((await sendKeyed({...keyedBody,estimateId:job(10000)})).status,409);
 assert.equal((await sendKeyed({...keyedBody,requestId:'bad-token'})).status,400);
