@@ -55,6 +55,41 @@ Do not use `--no-data` (it omits financial records), `d1 execute`,
 wrapper, or a default config that points to another database. Remote
 exports can temporarily affect availability, so schedule if necessary.
 
+## Windows owner-controlled helper (no upload, safe dry run by default)
+
+When you're home at your Windows laptop, the development repository includes
+`business-app-parity/owner_windows_doomsday_backup.ps1`. This is **not** a
+migration or deployment script.
+
+For a dry run that does not even contact Cloudflare:
+
+```powershell
+powershell.exe -NoProfile -File .\business-app-parity\owner_windows_doomsday_backup.ps1
+```
+
+It reports the exact target identity and prerequisites. On a separately
+approved backup window, a **human** may add `-Export`; the helper first
+requires typing the entire expected D1 UUID, uses a read-only D1 list to
+compare both the name and full UUID in the logged-in account, and keeps
+Wrangler's own confirmation prompt for export. If either identity differs,
+it refuses to export. It does not install software, login automatically,
+execute SQL, deploy, apply migrations, restore a remote database or overwrite
+existing backups.
+
+The helper requires already-installed `wrangler.cmd` and the Python
+`py.exe` launcher. It stores the SQL backup in an owner-chosen, private
+location **outside the Git repository** (default profile folder
+`FIRE-Private-Backups`) and then runs both locally checked restoration tools.
+No backup contents should ever be pasted here or into GitHub. Export can
+temporarily make D1 queries unavailable. Have a safe window and approved
+operational recovery procedure first; the helper cannot stop hosted writers,
+guarantee physical consistency of LIVE vs staging, or independently verify
+latest hosted records. A green receipt never authorizes migration 0022.
+
+This helper has not been used against your account; synthetic guard tests
+only. If the CLI's JSON response shape differs from the reviewed structure,
+the helper stops rather than guessing or changing databases.
+
 ## Offline verification (never connects to Cloudflare)
 
 With a clean checkout of the exact candidate repo (with 23 canonical
