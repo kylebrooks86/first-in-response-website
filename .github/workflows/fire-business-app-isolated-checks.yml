@@ -11,6 +11,10 @@ on:
       - 'business-app-parity/materialize.py'
       - 'business-app-parity/verify_materialized_candidate.py'
       - 'business-app-parity/candidate_release_manifest.py'
+      - 'business-app-parity/RELEASE_SCHEMA_CAPTURE_READ_ONLY.sql'
+      - 'business-app-parity/verify_hosted_schema_capture.py'
+      - 'business-app-parity/test_hosted_schema_capture.py'
+      - 'business-app-parity/test_release_schema_capture.py'
       - 'scripts/deploy-fire-dr-staging.sh'
       - '.github/workflows/fire-business-app-isolated-checks.yml'
   workflow_dispatch:
@@ -112,6 +116,10 @@ jobs:
         run: node scripts/test-governed-deploy-guards.mjs
       - name: Release-manifest integrity, source drift and negative controls
         run: python3 ../test_candidate_release_manifest.py
+      - name: Read-only hosted schema capture coverage and mismatch negative controls
+        run: |
+          python3 ../test_release_schema_capture.py
+          python3 ../test_hosted_schema_capture.py
       - name: Shared financial regression suite
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
       - name: Shared photo storage integrity regression
