@@ -61,6 +61,14 @@ const vault=readFileSync(new URL('../lib/local-photo-vault.ts',import.meta.url),
 check(page.includes('<OfflineCustomerPhotos')&&page.includes('knownCustomerIds={customers.map(item=>item.id)}'),'Actual FIRE customer profile renders the on-device vault');
 check(!page.includes('section === "photos"&&<CustomerPhotos'),'Original R2 photo panel no longer owns the customer tab');
 check(component.includes('exportLocalPhotos()')&&component.includes('restoreLocalPhotos('),'Actual photo screen exposes archive export and restore');
+check(component.includes('Prepare all local photos ZIP')&&component.includes('Save prepared ZIP to Files')&&component.includes('Download prepared ZIP'),'Owner has a separate, native iOS share action after ZIP verification');
+const prepareFlow=component.slice(component.indexOf('const prepareArchive=async()=>{'),component.indexOf('const downloadPreparedArchive=()=>{'));
+const saveFlow=component.slice(component.indexOf('const savePreparedArchive=async()=>{'),component.indexOf('const restore=async('));
+const saveWithoutComments=saveFlow.replace(/\/\*[^]*?\*\//g,'').replace(/\/\/[^\n]*/g,'');
+check(prepareFlow.includes('exportLocalPhotos()')&&!saveFlow.includes('exportLocalPhotos()'),'The expensive photo ZIP export is done before the iOS share gesture');
+check(saveWithoutComments.includes('await navigator.share({files:[file]')&&!saveWithoutComments.slice(0,saveWithoutComments.indexOf('await navigator.share({files:[file]')).match(/\bawait\b/),'iOS share-sheet invocation runs before ANY await inside a fresh button click');
+check(saveFlow.includes('navigator.canShare')&&component.includes('downloadPreparedArchive'),'Owner retains a direct-tap download fallback if native sharing is unavailable');
+check(component.includes('setPreparedBackup(null)'),'Photo changes invalidate any staged ZIP, avoiding a false up-to-date backup');
 check(component.includes('URL.createObjectURL(photo.blob)')&&component.includes('URL.revokeObjectURL'),'Actual photo screen uses offline blobs and releases previews');
 check(vault.includes("db.transaction(STORE,'readwrite')")&&vault.includes('store.add(row)')&&!vault.includes('store.put(row)'),'Restore adds photos atomically without destructive overwrite');
 check(vault.includes('readOfflinePhotoBackup(archive)')&&vault.includes('knownCustomerIds'),'Restore validates entire ZIP and customer associations before touching IndexedDB');
