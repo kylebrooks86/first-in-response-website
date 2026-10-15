@@ -1,6 +1,6 @@
 # FIRE App — Independent Cloudflare DR Staging Runbook
 
-This is the independent disaster-recovery staging copy of the FIRE App v138 release candidate. The active deployment model is intentionally **free-tier, D1-only, no R2** and uses a separate Cloudflare Worker and separate D1 database.
+This runbook describes FIRE App release candidate v138 and its independent disaster-recovery staging copy. The active deployment model is intentionally **free-tier, D1-only, no R2** and uses a separate Cloudflare Worker and separate D1 database.
 
 Current staging resources:
 
