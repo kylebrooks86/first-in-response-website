@@ -10,11 +10,13 @@ function load(route,deployment,fireEnv,key){
  const file=new URL('../app/api/payments/'+route+'/route.ts',import.meta.url);
  const source=readFileSync(file,'utf8').replace(/^import .*?;\n/gm,'');
  const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
- const calls={db:0,network:0},env={FIRE_ENV:fireEnv,STRIPE_RESTRICTED_KEY:key,STRIPE_WEBHOOK_SECRET:'whsec_synthetic-only',
+ const calls={db:0,network:0,reconciled:0,refunds:0},env={FIRE_ENV:fireEnv,STRIPE_RESTRICTED_KEY:key,STRIPE_WEBHOOK_SECRET:'whsec_synthetic-only',
   DB:{prepare(){calls.db++;return {bind(){return {async first(){return {id:'synthetic-payment',estimateId:'job-1',type:'deposit',status:'paid',amountCents:5000,providerId:'cs_fake',customerId:'customer-1'};}}}};}}};
  const exports={};
- const fn=new Function('require','exports','Response','Request','crypto','fetch','LOCAL_CUSTOMER_DEPLOYMENT','getChatGPTUser','env',code);
- fn(id=>{if(id==='cloudflare:workers')return {env};throw Error('Unexpected import '+id);},exports,Response,Request,webcrypto,async()=>{calls.network++;throw Error('Network forbidden');},deployment,async()=>({email:'kylebrooks8605@gmail.com'}),env);
+ const fn=new Function('require','exports','Response','Request','crypto','fetch','LOCAL_CUSTOMER_DEPLOYMENT','getChatGPTUser','env','reconcileStripeCheckout','recordRefundUpdate',code);
+ fn(id=>{if(id==='cloudflare:workers')return {env};throw Error('Unexpected import '+id);},exports,Response,Request,webcrypto,async()=>{calls.network++;throw Error('Network forbidden');},deployment,async()=>({email:'kylebrooks8605@gmail.com'}),env,
+ async()=>{calls.reconciled++;return {ok:true,duplicate:false};},
+ async()=>{calls.refunds++;return {ok:true};});
  return {POST:exports.POST,calls};
 }
 const checkoutBody=JSON.stringify({shareToken:'synthetic',paymentType:'deposit'});
@@ -43,4 +45,39 @@ for(const env of ['independent-dr-staging','refund-staging','synthetic-tests']){
 const live=load('checkout','live','production','sk_live_fake-no-secrets');
 eq((await live.POST(new Request('https://synthetic.invalid/api/payments/checkout',{method:'POST',body:JSON.stringify({shareToken:'synthetic',paymentType:'invalid'})}))).status,400,'legitimate live candidate follows normal input validation');
 eq(live.calls.network,0,'invalid live request does not call Stripe');
+
+const stagingSigned=load('webhook','staging','staging','sk_test_fixture');
+eq((await webhook(stagingSigned,{type:'checkout.session.completed',livemode:false,
+  data:{object:{id:'cs_test_correct123',livemode:false,payment_status:'paid'}}})).status,200,
+  'Signed test checkout reaches isolated staging reconciliation');
+eq(stagingSigned.calls.reconciled,1,'Staging valid test event is dispatched exactly once');
+eq((await webhook(stagingSigned,{type:'checkout.session.completed',livemode:false,
+  data:{object:{id:'cs_live_wrong123',livemode:false,payment_status:'paid'}}})).status,400,
+  'Staging rejects live session ID even in an otherwise signed test envelope');
+eq((await webhook(stagingSigned,{type:'refund.updated',livemode:false,
+  data:{object:{id:'re_synthetic123',livemode:true}}})).status,400,
+  'Staging rejects contradictory refund object/envelope modes');
+eq(stagingSigned.calls.refunds,0,'Mismatched staged refund never touches the financial ledger');
+
+const liveWebhook=load('webhook','live','production','sk_live_fixture');
+eq((await webhook(liveWebhook,{type:'checkout.session.completed',livemode:false,
+  data:{object:{id:'cs_test_signed123',livemode:false,payment_status:'paid'}}})).status,400,
+  'LIVE rejects correctly signed test-mode payment webhook');
+eq(liveWebhook.calls.reconciled,0,'LIVE test-mode webhook fails before financial reconciliation');
+eq(liveWebhook.calls.db,0,'LIVE test-mode webhook causes zero D1 reads/writes');
+eq((await webhook(liveWebhook,{type:'refund.updated',livemode:false,
+  data:{object:{id:'re_synthetic123',livemode:false}}})).status,400,
+  'LIVE rejects test-mode refund webhook before any ledger change');
+eq(liveWebhook.calls.refunds,0,'LIVE refuses test refund reconciliation');
+eq((await webhook(liveWebhook,{type:'checkout.session.completed',livemode:true,
+  data:{object:{id:'cs_test_misrouted123',livemode:true,payment_status:'paid'}}})).status,400,
+  'LIVE rejects test session ID inside a signed live envelope');
+eq((await webhook(liveWebhook,{type:'checkout.session.completed',livemode:true,
+  data:{object:{id:'cs_live_synthetic123',livemode:true,payment_status:'paid'}}})).status,200,
+  'Correctly signed LIVE-mode session reaches LIVE reconciliation');
+eq(liveWebhook.calls.reconciled,1,'LIVE valid event is reconciled only once');
+eq((await webhook(liveWebhook,{type:'refund.updated',livemode:true,
+  data:{object:{id:'re_synthetic123',livemode:true}}})).status,200,
+  'Correctly signed LIVE-mode refund still reaches normal reconciliation');
+eq(liveWebhook.calls.refunds,1,'LIVE valid refund handler remains operational');
 console.log('PASS '+checks+'/'+checks+' isolated test-key and signed live-event safety checks against actual routes.');

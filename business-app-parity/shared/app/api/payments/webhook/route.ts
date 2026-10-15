@@ -63,7 +63,15 @@ export async function POST(request:Request) {
   }
 
   const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
-  if(sandboxTarget&&event.livemode!==false)return Response.json({error:"Staging rejects live Stripe events."},{status:400});
+  // The signed Stripe webhook secret is necessary but is not an identity
+  // boundary by itself: a test endpoint secret wired to LIVE must never
+  // allow test-mode payments/refunds into production D1 (or vice versa).
+  if(event.livemode!==!sandboxTarget)
+    return Response.json({error:"Stripe event mode does not match this FIRE deployment. No ledger change."},{status:400});
+  // Reject a contradictory object mode even inside a correctly signed event.
+  const object=event.data?.object as (StripeCheckoutSession & StripeRefund & {livemode?:boolean})|undefined;
+  if(typeof object?.livemode==="boolean"&&object.livemode!==event.livemode)
+    return Response.json({error:"Stripe event object mode does not match event envelope."},{status:400});
   if(["refund.created","refund.updated"].includes(event.type??"")){
     if(!event.data?.object)return Response.json({error:"Missing refund."},{status:400});
     try{
@@ -77,6 +85,8 @@ export async function POST(request:Request) {
 
   const session = event.data?.object;
   if (!session) return Response.json({ error:"Missing checkout session." }, { status:400 });
+  if(typeof session.id!=="string"||!new RegExp(sandboxTarget?"^cs_test_[a-zA-Z0-9]+$":"^cs_live_[a-zA-Z0-9]+$").test(session.id))
+    return Response.json({error:"Stripe checkout session ID does not match this FIRE environment."},{status:400});
   const result = await reconcileStripeCheckout(env.DB,session);
   if (!result.ok) return Response.json({ error:`Payment event rejected: ${result.reason}.` }, { status:400 });
   return Response.json({ received:true, duplicate:Boolean(result.duplicate) });
