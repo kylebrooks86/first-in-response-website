@@ -14,7 +14,7 @@ export async function POST(request:Request){
     const body=await request.json() as Record<string,unknown>;
     const reservationId=String(body.reservationId??"").trim();
     const sessionId=String(body.sessionId??"").trim();
-    const provisional=/^fire-creating:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reservationId);
+    const provisional=/^fire-creating:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reservationId);
     const tracked=/^cs_(test|live)_[a-zA-Z0-9]+$/.test(reservationId);
     if((!provisional&&!tracked)||!/^cs_(test|live)_[a-zA-Z0-9]+$/.test(sessionId)
       ||(tracked&&reservationId!==sessionId))
