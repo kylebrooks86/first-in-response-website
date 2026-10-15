@@ -14,7 +14,7 @@ not an authenticated Cloudflare API query, migration authorization or deployment
 | Application tables | D1 Studio lists the 19 expected application table names including `payment_refunds` | SQL definitions, column types, partial index predicates and foreign keys still need read-only capture |
 | Migration journal | `d1_migrations` reports **22 rows**, first `0000_wise_namora.sql`, final `0021_manual_processing_fees.sql` dated Oct 7 | Owner screenshots cover journal range and last row; not a captured machine-readable exact definition/manifest |
 | Pending candidate migration | Coordinated Doomsday candidate expects **`0022_stripe_provider_uniqueness.sql`**, absent from the observed journal | Do not assume its proposed index is absent without independently reading metadata |
-| Application indexes | Index `idx_payments_stripe_provider_unique` not yet captured in the latest screenshots | Requires safe owner read-only query before preparing reviewed migration approval |
+| Pending 0022 index | **Owner's read-only D1 Studio SQL returned `index_0022_rows=0`** | Confirms absence of the *named* index at the time queried; exact other index/constraint definitions not yet captured |
 | R2 | Production Bindings screenshot displays D1 only; R2 navigation shows **Get started with R2** | No R2 binding currently shown. An account-level start screen is not a definitive provider inventory or authorization for paid storage |
 | Build failure | Legacy v138 preparation/build **completed**, TypeScript reported `FAIL_NONBLOCKING`; auto deploy attempted `npx wrangler preview` and failed for missing `previews` block | Later settings screenshot displayed `bash scripts/deploy-fire-dr-staging.sh`. The screenshots do not establish why the executed command differed from current settings. **Do not retry, save, or switch commands.** |
 
@@ -24,29 +24,39 @@ development branch. Passing the old build is not deployed candidate parity.
 The governed deploy wrapper could apply remote migrations and deploy a Worker;
 it remains **out of scope** without separate owner approval.
 
-## Next narrowly scoped screenshot: one read-only SQL result
+## October 15 owner-confirmed Gate 5 diagnostic: 0 / 0 / 0
 
-Cloudflare **D1 → fire-app-staging-db → Studio → Query**. Paste and run only
-the single `SELECT` in `DOOMSDAY_0022_OWNER_CONSOLE_READ_ONLY.sql`.
-It returns **one aggregate row** with these columns:
+The owner independently opened **D1 → fire-app-staging-db → Studio → Query**
+and provided a screenshot showing one result row for the exact reviewed,
+read-only `DOOMSDAY_0022_OWNER_CONSOLE_READ_ONLY.sql` statement:
 
-- `migration_0022_rows`: 0 expected based on captured migration journal
-- `index_0022_rows`: currently **unknown** (do not infer from journal)
-- `duplicate_provider_groups`: currently **unknown** in this screenshot set
+| Column | Observed count | Narrow interpretation |
+|---|---:|---|
+| `migration_0022_rows` | **0** | Named migration not recorded in `d1_migrations` |
+| `index_0022_rows` | **0** | Named partial unique index not present in `sqlite_master` |
+| `duplicate_provider_groups` | **0** | No currently duplicated `payments.provider_id` groups matching `cs_*` or `refund:*` |
 
-Take one screenshot displaying the entire query result and database breadcrumb.
-A result of `0,0,0` would mean **preflight remains reviewable**, *not* that
-it is safe or authorized to apply 0022. A failed query, nonzero duplicate
-count, mismatched journal/index status, or unrecognized database is **STOP**.
-Never screenshot provider IDs, customer/payment rows, tokens or secrets.
+**Observation source:** owner-supplied Cloudflare D1 Studio screenshot,
+October 15, 2026. This is **point-in-time screenshot evidence**, not a
+provider-signed/exported SQL result or a permanently locked database. The
+SQL is one SELECT, does not export payment identifiers, and its GLOB
+predicates match the WHERE predicate of the reviewed candidate's
+`0022_stripe_provider_uniqueness.sql` index.
 
-Even if that query passes, Gate 5 still requires complete read-only application
-schema/index/column/foreign-key metadata, reconciliation with the candidate's
-migration manifest, additional refund integrity checks, immutable deployed
-artifact identity and provider-authenticated mapping. Gate 4 also requires
-physical isolation of all three targets. Gate 7 remains blocked by no hosted
-R2 binding/recovery acceptance. Mobile/iPad, sandbox Stripe and hosted rollback
-are independently pending.
+**Acceptance:** This narrow duplicate-reference/index/journal preflight
+is clear **as of the screenshot**. No proof of writer quiescence, full
+metadata integrity, physical backup/restore or authorized execution.
+If another payment/refund is written after the screenshot, preflight
+results may change. Do not assume the index can be created safely until
+rechecked immediately before an owner-authorized maintenance window.
+
+**Remaining blockers:** Confirm complete schema/partial-index definitions,
+constraints, `foreign_key_check`, all four ledger/anomaly queries,
+migration-file checksum, current source/active runtime, provider-verified D1
+resource separation across LIVE/refund staging/Doomsday, complete physical
+backup/restore, and safe deployment/rollback plan. Gate 4, Gate 5, Gate 7,
+Gate 8, Gate 9 and Gate 10 remain pending under existing release policy.
+Neither `0022` nor any other remote migration is approved by this finding.
 
 ## Strict execution boundary
 
