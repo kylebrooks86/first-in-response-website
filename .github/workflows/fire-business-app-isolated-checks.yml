@@ -211,7 +211,6 @@ jobs:
       CI: 'true'
       CLOUDFLARE_CF_FETCH_ENABLED: 'false'
       WRANGLER_SEND_METRICS: 'false'
-      FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE: ${{ runner.temp }}/fire-browser-harness/node_modules/playwright
     defaults:
       run:
         working-directory: business-app-parity/shared
@@ -232,6 +231,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/fire-browser-harness"
           npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
       - name: Locate GitHub runner's pre-installed Chrome
         run: |
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
