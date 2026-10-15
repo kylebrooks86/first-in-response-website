@@ -25,6 +25,7 @@ on:
       - 'business-app-parity/shared/scripts/test-fire-service-catalog-pricing.mjs'
       - 'business-app-parity/shared/scripts/test-per-job-price-overrides.mjs'
       - 'business-app-parity/shared/scripts/test-editable-line-totals.mjs'
+      - 'business-app-parity/shared/scripts/test-stripe-isolation.mjs'
       - 'scripts/deploy-fire-dr-staging.sh'
       - '.github/workflows/fire-business-app-isolated-checks.yml'
   workflow_dispatch:
@@ -150,6 +151,8 @@ jobs:
         run: node --experimental-sqlite scripts/test-photo-storage-integrity.mjs
       - name: Synthetic record-backup restore and rollback fault rehearsal
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-records-recovery.mjs
+      - name: Verify Stripe test-only guard for isolated candidates
+        run: node scripts/test-stripe-isolation.mjs
       - name: Synthetic Stripe refund and webhook replay regression
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-stripe-refunds.mjs
       - name: Synthetic photo upload and delete integrity regression

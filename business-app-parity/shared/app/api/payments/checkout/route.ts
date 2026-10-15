@@ -1,3 +1,4 @@
+import { LOCAL_CUSTOMER_DEPLOYMENT } from "../../../local-customer-deployment";
 import { env } from "cloudflare:workers";
 
 type RuntimeEnv = Cloudflare.Env & { STRIPE_RESTRICTED_KEY?: string; STRIPE_SECRET_KEY?: string; FIRE_ENV?:string; SITE_ORIGIN?: string };
@@ -19,7 +20,8 @@ async function expireTrackedCheckout(sessionId: string, secret: string) {
 export async function POST(request: Request) {
   const runtime = env as RuntimeEnv;
   const stripeKey = runtime.STRIPE_RESTRICTED_KEY || runtime.STRIPE_SECRET_KEY;
-  if(runtime.FIRE_ENV==="staging"&&stripeKey&&!/^(sk|rk|rkcs)_test_/.test(stripeKey))return Response.json({error:"Staging only accepts sandbox Stripe keys."},{status:503});
+  const sandboxTarget = LOCAL_CUSTOMER_DEPLOYMENT !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
+  if(sandboxTarget&&stripeKey&&!/^(sk|rk|rkcs)_test_/.test(stripeKey))return Response.json({error:"Staging only accepts sandbox Stripe keys."},{status:503});
   if (!stripeKey) return Response.json({ error: "Payments have not been connected yet." }, { status: 503 });
   try {
     const { shareToken, paymentType = "deposit", tipCents: requestedTipCents = 0 } = await request.json() as { shareToken?: string; paymentType?: "deposit" | "balance"; tipCents?: number };

@@ -1,3 +1,4 @@
+import { LOCAL_CUSTOMER_DEPLOYMENT } from "../../../local-customer-deployment";
 // Approved DR per-payment refund behavior, adapted to LIVE owner auth and shared reconciliation.
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
@@ -34,6 +35,11 @@ export async function POST(request:Request){
 
     const stripePayment=["deposit","balance","Tip"].includes(payment.type)&&Boolean(payment.providerId?.startsWith("cs_"));
     const mode=stripePayment?"stripe":"manual";
+    const runtime=env as RuntimeEnv;
+    const sandboxTarget = LOCAL_CUSTOMER_DEPLOYMENT !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
+    const stripeSecret=runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY;
+    if(stripePayment&&sandboxTarget&&stripeSecret&&!/^(sk|rk|rkcs)_test_/.test(stripeSecret))
+      return Response.json({error:"Isolated candidates only accept sandbox Stripe keys."},{status:503});
 
     const existing=await env.DB.prepare("SELECT payment_id AS paymentId,amount_cents AS amountCents,mode,status,provider_refund_id AS providerRefundId FROM payment_refunds WHERE id=? LIMIT 1")
       .bind(requestId).first<{paymentId:string;amountCents:number;mode:string;status:string;providerRefundId:string|null}>();
@@ -78,14 +84,12 @@ export async function POST(request:Request){
       return Response.json({...result,mode:"manual",moneyMovedByFire:false},{status:result.status});
     }
 
-    const runtime=env as RuntimeEnv;
-    const stripeSecret=runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY;
     if(!stripeSecret){
       await env.DB.prepare("UPDATE payment_refunds SET status='failed' WHERE id=? AND status='pending'").bind(requestId).run();
       return Response.json({error:"Stripe refunds are unavailable because Stripe is not configured."},{status:503});
     }
 
-    if(runtime.FIRE_ENV==="staging"&&!/^(sk|rk|rkcs)_test_/.test(stripeSecret))return Response.json({error:"Staging only accepts sandbox Stripe keys."},{status:503});
+    if(sandboxTarget&&!/^(sk|rk|rkcs)_test_/.test(stripeSecret))return Response.json({error:"Staging only accepts sandbox Stripe keys."},{status:503});
     const pending=await env.DB.prepare('SELECT provider_refund_id AS providerRefundId FROM payment_refunds WHERE id=?').bind(requestId).first<{providerRefundId:string|null}>();
     if(pending?.providerRefundId){
       const check=await stripeGet(`refunds/${encodeURIComponent(pending.providerRefundId)}`,stripeSecret);
@@ -102,7 +106,7 @@ export async function POST(request:Request){
     const sessionResponse=await stripeGet(`checkout/sessions/${encodeURIComponent(checkoutSessionId)}`,stripeSecret);
     const session=await sessionResponse.json() as {livemode?:boolean;payment_intent?:string|{id?:string};error?:{message?:string}};
     const paymentIntent=typeof session.payment_intent==="string"?session.payment_intent:session.payment_intent?.id;
-    if(!sessionResponse.ok||!paymentIntent||(runtime.FIRE_ENV==="staging"&&session.livemode!==false)){
+    if(!sessionResponse.ok||!paymentIntent||(sandboxTarget&&session.livemode!==false)){
       await env.DB.prepare("UPDATE payment_refunds SET status='failed' WHERE id=? AND status='pending'").bind(requestId).run();
       return Response.json({error:session.error?.message||"FIRE could not locate the Stripe payment to refund."},{status:409});
     }

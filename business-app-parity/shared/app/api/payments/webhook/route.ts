@@ -1,3 +1,4 @@
+import { LOCAL_CUSTOMER_DEPLOYMENT } from "../../../local-customer-deployment";
 import { recordRefundUpdate, type StripeRefund } from "../../../../lib/stripe-refunds";
 import { reconcileStripeCheckout, type StripeCheckoutSession } from "../../../../lib/stripe-payments";
 import { env } from "cloudflare:workers";
@@ -61,7 +62,8 @@ export async function POST(request:Request) {
     return Response.json({ error:"Invalid webhook payload." }, { status:400 });
   }
 
-  if(runtime.FIRE_ENV==="staging"&&event.livemode!==false)return Response.json({error:"Staging rejects live Stripe events."},{status:400});
+  const sandboxTarget = LOCAL_CUSTOMER_DEPLOYMENT !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
+  if(sandboxTarget&&event.livemode!==false)return Response.json({error:"Staging rejects live Stripe events."},{status:400});
   if(["refund.created","refund.updated"].includes(event.type??"")){
     if(!event.data?.object)return Response.json({error:"Missing refund."},{status:400});
     try{
