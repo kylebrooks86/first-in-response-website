@@ -17,6 +17,8 @@ on:
       - 'business-app-parity/test_release_schema_capture.py'
       - 'business-app-parity/DOOMSDAY_0022_OWNER_CONSOLE_READ_ONLY.sql'
       - 'business-app-parity/test_doomsday_owner_console.py'
+      - 'business-app-parity/DOOMSDAY_LEDGER_OWNER_AGGREGATE_READ_ONLY.sql'
+      - 'business-app-parity/test_doomsday_ledger_owner_aggregate.py'
       - 'scripts/deploy-fire-dr-staging.sh'
       - '.github/workflows/fire-business-app-isolated-checks.yml'
   workflow_dispatch:
@@ -123,7 +125,9 @@ jobs:
           python3 ../test_release_schema_capture.py
           python3 ../test_hosted_schema_capture.py
       - name: Owner-safe remote 0022 evidence query and synthetic integrity states
-        run: python3 ../test_doomsday_owner_console.py
+        run: |
+          python3 ../test_doomsday_owner_console.py
+          python3 ../test_doomsday_ledger_owner_aggregate.py
       - name: Shared financial regression suite
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
       - name: Shared photo storage integrity regression
