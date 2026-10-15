@@ -7,7 +7,19 @@ import {join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 const require=createRequire(import.meta.url),ts=require('typescript');
-const {Miniflare}=require(process.env.FIRE_PREFLIGHT_MINIFLARE_MODULE||'miniflare');
+// pnpm isolates transitive dependencies, so miniflare may be available
+// through Wrangler even when it is not directly resolvable from this test.
+const resolveMiniflare = () => {
+  const override = process.env.FIRE_PREFLIGHT_MINIFLARE_MODULE;
+  if (override) return require(override).Miniflare;
+  try { return require('miniflare').Miniflare; }
+  catch (error) {
+    if (error?.code !== 'MODULE_NOT_FOUND') throw error;
+    const fromWrangler = createRequire(require.resolve('wrangler'));
+    return fromWrangler('miniflare').Miniflare;
+  }
+};
+const Miniflare = resolveMiniflare();
 const source=resolve(new URL('..',import.meta.url).pathname),target=readFileSync(join(source,'app/local-customer-deployment.ts'),'utf8').match(/= '(\w+)'/)[1];
 const temp=mkdtempSync(join(tmpdir(),'fire-photo-reconciliation-'));let passed=0;const checks=[];
 const check=async(name,fn)=>{await fn();passed++;checks.push(name);};
