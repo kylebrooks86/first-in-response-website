@@ -29,6 +29,35 @@ if(readdirSync(root+'/app/api/payments').includes('refund')) {
  const refundRoute=await load('app/api/payments/refund/route.ts');
  const response=await refundRoute.POST(new Request('https://test/api/payments/refund',{method:'POST',body:JSON.stringify({paymentId:rows(b)[0].id,requestId:'fee-refund',amountCents:2000,externalRefundConfirmed:true})}));
  assert.equal(response.status,200,await response.text());assert.equal(principal(b),8000);assert.equal(rows(b)[0].processing_fee_cents,200);
+
+ // Synthetic historical overpayment: a partial refund must NOT close its
+ // owner-review notification while invoice principal is still overpaid.
+ // This injects fixture ledger rows directly; it never calls Stripe.
+ const overpaid=job(10000);
+ assert.equal((await pay(overpaid,10000,'Cash App',0)).status,201);
+ const customer=sql.prepare('SELECT customer_id FROM estimates WHERE id=?').get(overpaid).customer_id;
+ const extraPaymentId='synthetic-extra-overage';
+ sql.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,created_at) VALUES (?,?,'Cash App',2500,'paid','2026-10-07')")
+   .run(extraPaymentId,overpaid);
+ sql.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,created_at) VALUES ('overage-tip',?,'Tip',700,'paid','2026-10-07')")
+   .run(overpaid);
+ sql.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,'payment_overage','Payment review','Synthetic excess',?,?,'2026-10-07')")
+   .run('synthetic-overage-alert',customer,overpaid);
+ const openAlerts=()=>Number(sql.prepare("SELECT COUNT(*) AS count FROM notifications WHERE estimate_id=? AND type='payment_overage' AND resolved_at IS NULL").get(overpaid).count);
+ assert.equal(principal(overpaid),12500);assert.equal(openAlerts(),1);
+ for(const [requestId,amountCents,paidExpected,alertsExpected] of [
+   ['synthetic-refund-partial',1000,11500,1],
+   ['synthetic-refund-rest',1500,10000,0],
+ ]){
+   const outcome=await refundRoute.POST(new Request('https://test/api/payments/refund',{
+     method:'POST',body:JSON.stringify({paymentId:extraPaymentId,requestId,amountCents,externalRefundConfirmed:true}),
+   }));
+   assert.equal(outcome.status,200,await outcome.text());
+   assert.equal(principal(overpaid),paidExpected,'Refund principal ledger mismatch');
+   assert.equal(openAlerts(),alertsExpected,'Overpayment review was incorrectly resolved');
+ }
+ assert.equal(Number(sql.prepare("SELECT COALESCE(SUM(amount_cents),0) AS cents FROM payments WHERE estimate_id=? AND type='Tip'").get(overpaid).cents),700);
+ assert.match(String(sql.prepare("SELECT resolution_note AS note FROM notifications WHERE id='synthetic-overage-alert'").get().note),/^refund:/);
 }
 // Refund ledger remains principal only; processor expense remains original, not assumed returned.
 sql.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,created_at) VALUES ('refund',?,'Refund',-2500,'paid','2026-10-07')").run(a);assert.equal(principal(a),5000);assert.equal(rows(a)[0].processing_fee_cents,210);
@@ -52,4 +81,4 @@ const exported=await (await backup.GET()).json();assert.equal(exported.tables.pa
 sql.exec('PRAGMA foreign_keys=OFF');for(const table of Object.keys(exported.tables).reverse()){sql.exec('DELETE FROM '+table);}sql.exec('PRAGMA foreign_keys=ON');
 const restored=await backup.POST(new Request('https://test/api/backup',{method:'POST',body:JSON.stringify(exported)}));assert.equal(restored.status,200,await restored.text());assert.equal(rows(e)[0].processing_fee_cents,300);assert.equal(rows(e)[0].gross_received_cents,11000);assert.equal(principal(e),10000);
 const legacy=structuredClone(exported);for(const r of legacy.tables.payments){delete r.processing_fee_cents;delete r.gross_received_cents;delete r.bundled_tip_cents;delete r.processing_method;}const legacyResponse=await backup.POST(new Request('https://test/api/backup',{method:'POST',body:JSON.stringify(legacy)}));assert.equal(legacyResponse.status,200,await legacyResponse.text());
-console.log('PASS: Cash App, Venmo, no fee, partial, tip + fee, deposit, overpayment rejection, refund ledger, invoice revision, backup/restore, legacy backup, invalid fees.');
+console.log('PASS: Cash App, Venmo, fees, tips, deposits, partial/full overpayment refunds and alerts, refund ledger, invoice revisions, backup/restore, legacy backups, invalid fees.');
