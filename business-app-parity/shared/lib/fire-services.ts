@@ -25,14 +25,14 @@ export const FIRE_SERVICES: FireService[] = [
     id: "gutters",
     name: "Gutter Cleaning + Flush",
     unit: "linear ft",
-    rate: 150,
+    rate: 175,
     description: "Removal of loose debris from safely accessible gutters with a basic flush of accessible downspouts to confirm normal flow. Gutter guard removal and reinstall, underground drain clearing, packed or hardened blockages, repairs, resealing, and replacement parts are not included unless separately listed. Customer should identify known leaks, loose gutters, buried drain connections, and areas of concern before work begins.",
   },
   {
     id: "gutter-guards",
     name: "Remove & Reinstall Existing Gutter Guards",
     unit: "linear ft",
-    rate: 50,
+    rate: 100,
     description: "Temporary removal and reinstallation of the customer's existing gutter guards where needed to clean the gutter channel. New guards, replacement parts, repairs, and any guards that cannot be safely removed are not included. This is an add-on to gutter cleaning, charged only for the length requiring removal.",
   },
   {
