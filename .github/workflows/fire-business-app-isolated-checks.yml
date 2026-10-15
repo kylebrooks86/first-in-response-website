@@ -153,6 +153,8 @@ jobs:
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-records-recovery.mjs
       - name: Verify Stripe test-only guard for isolated candidates
         run: node scripts/test-stripe-isolation.mjs
+      - name: Verify atomic checkout reservation and duplicate-charge prevention
+        run: node scripts/test-checkout-atomic-reservation.mjs
       - name: Synthetic Stripe refund and webhook replay regression
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-stripe-refunds.mjs
       - name: Synthetic photo upload and delete integrity regression
