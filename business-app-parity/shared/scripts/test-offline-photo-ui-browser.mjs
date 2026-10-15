@@ -60,6 +60,23 @@ try{
  await page.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
  await page.getByText(/photo ZIP passed integrity checks/).waitFor({timeout:30000});
  check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).count()===1,'Photo ZIP preparation works in airplane mode and exposes a separate iOS share gesture');
+ await page.evaluate(()=>{
+  Object.defineProperty(navigator,'canShare',{configurable:true,value:files=>files.files?.length===1});
+  Object.defineProperty(navigator,'share',{configurable:true,value:async ({files})=>{
+   // An iOS share-sheet call must be invoked within the real TAP handler,
+   // before awaiting file creation or unrelated asynchronous work.
+   window.fixtureNativeShare={active:Boolean(navigator.userActivation?.isActive),
+     filename:files[0].name,size:files[0].size,type:files[0].type};
+  }});
+ });
+ await page.getByRole('button',{name:'Save prepared ZIP to Files'}).click();
+ await page.getByText(/Photo ZIP was offered to the iOS share sheet/).waitFor();
+ const share=await page.evaluate(()=>window.fixtureNativeShare);
+ check(share?.active===true&&share.size>100&&share.type==='application/zip',
+   'Real owner Save-to-Files button invokes the native share sheet within its fresh user gesture');
+ check(share.filename.startsWith('FIRE-customer-synthetic-customer-photo-photos-'),
+   'Native sharing includes the verified customer-specific ZIP filename and bytes');
+
  const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Download prepared ZIP'}).click()]);
  const filename=download.suggestedFilename();
  const exported=readFileSync(await download.path());
