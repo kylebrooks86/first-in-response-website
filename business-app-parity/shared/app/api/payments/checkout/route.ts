@@ -58,10 +58,35 @@ export async function POST(request: Request) {
     if (!Number.isSafeInteger(chargeAmount) || chargeAmount <= 0) return Response.json({ error: "The total card charge is outside FIRE's safe payment range." }, { status: 409 });
     const openSessions = await env.DB.prepare("SELECT id FROM payment_checkout_sessions WHERE estimate_id=? AND status='open'").bind(row.id).all<{id:string}>();
     for (const session of openSessions.results) {
+      // A prior request may have reached Stripe without receiving its acknowledgement.
+      // Do not mistake our provisional D1 checkout lock for a Stripe session or
+      // discard it: that could create a second charge after an ambiguous response.
+      if(session.id.startsWith("fire-creating:"))return Response.json({error:"A card checkout is still being prepared or needs reconciliation. Do not start another payment; contact FIRE if this message persists."},{status:409});
       const remotelyExpired = await expireTrackedCheckout(session.id, stripeKey);
       if (!remotelyExpired) return Response.json({ error:"A previous payment checkout is still processing. Please wait a moment and try again." }, { status:409 });
       await env.DB.prepare("UPDATE payment_checkout_sessions SET status='expired',expired_at=? WHERE id=? AND status='open'").bind(new Date().toISOString(), session.id).run();
     }
+    // Secure the one-open-checkout slot BEFORE calling Stripe. The existing D1
+    // partial unique index (0015) makes the reservation atomic across requests;
+    // checking for open rows alone did not prevent two concurrent Stripe sessions.
+    const reservationId=`fire-creating:${crypto.randomUUID()}`;
+    let reserved=false;
+    try {
+      const locked=await env.DB.prepare(`INSERT INTO payment_checkout_sessions (id,estimate_id,type,amount_cents,status,created_at)
+        SELECT ?,?,?,?,'open',? WHERE NOT EXISTS (
+          SELECT 1 FROM payment_checkout_sessions WHERE estimate_id=? AND status='open')`)
+        .bind(reservationId,row.id,paymentType,chargeAmount,new Date().toISOString(),row.id).run();
+      reserved=Boolean(locked.meta.changes);
+    }catch {
+      // The unique index also rejects a concurrent reservation which won the race.
+      return Response.json({error:"A checkout was just started for this estimate. Please wait before trying again."},{status:409});
+    }
+    if(!reserved)return Response.json({error:"A checkout was just started for this estimate. Please wait before trying again."},{status:409});
+    // Release only when Stripe definitively did not create a payable session,
+    // or confirms that a newly created session has been expired.
+    const releaseReservation=async()=>env.DB.prepare(`UPDATE payment_checkout_sessions
+      SET status='expired',expired_at=? WHERE id=? AND status='open'`)
+      .bind(new Date().toISOString(),reservationId).run();
     const origin = runtime.SITE_ORIGIN || new URL(request.url).origin;
     const form = new URLSearchParams();
     form.set("mode", "payment");
@@ -84,9 +109,15 @@ export async function POST(request: Request) {
       form.set("line_items[1][price_data][product_data][name]", "Optional tip");
     }
     form.set("payment_intent_data[description]", `FIRE estimate ${row.id}`);
-    const stripe = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: { authorization: `Bearer ${stripeKey}`, "content-type": "application/x-www-form-urlencoded" }, body: form });
+    const stripe = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: { authorization: `Bearer ${stripeKey}`, "content-type": "application/x-www-form-urlencoded", "Idempotency-Key":`fire-checkout-${reservationId}` }, body: form });
     const data = await stripe.json() as { id?: string; url?: string; error?: { message?: string } };
-    if (!stripe.ok || !data.id || !data.url) return Response.json({ error: data.error?.message || "Payment checkout could not be started." }, { status: 502 });
+    if(!stripe.ok){
+      // A definite Stripe API rejection cannot create a payable checkout.
+      // Uncertain transport/parsing failures retain the provisional lock.
+      await releaseReservation();
+      return Response.json({error:data.error?.message||"Payment checkout could not be started."},{status:502});
+    }
+    if(!data.id||!data.url)return Response.json({error:"Stripe checkout acknowledgment was incomplete. Payment setup needs review before starting another."},{status:503});
     const current=await env.DB.prepare(`SELECT e.status,e.deposit_cents AS depositCents,
       COALESCE((SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,
       COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
@@ -94,15 +125,19 @@ export async function POST(request: Request) {
       FROM estimates e WHERE e.id=?`).bind(row.id).first<{status:string;depositCents:number;totalCents:number;paidCents:number;paymentOverageOpen:number}>();
     const currentDue=current?(paymentType==="deposit"&&current.status!=="completed"?Math.max(0,Number(current.depositCents)-Number(current.paidCents)):paymentType==="balance"&&current.status==="completed"?Math.max(0,Number(current.totalCents)-Number(current.paidCents)):0):0;
     if(!current||!Number.isSafeInteger(currentDue)||Number(current.paymentOverageOpen)>0||currentDue!==amount){
-      await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(data.id)}/expire`,{method:"POST",headers:{authorization:`Bearer ${stripeKey}`}});
-      return Response.json({error:"The amount due changed while checkout was being created. Refresh the page before paying."},{status:409});
+      if(await expireTrackedCheckout(data.id,stripeKey))await releaseReservation();
+      return Response.json({error:"The amount due changed during checkout creation. Refresh the job; if the checkout remains blocked, contact FIRE."},{status:409});
     }
     try {
-      await env.DB.prepare("INSERT INTO payment_checkout_sessions (id,estimate_id,type,amount_cents,status,created_at) VALUES (?,?,?,?, 'open', ?)")
-        .bind(data.id,row.id,paymentType,chargeAmount,new Date().toISOString()).run();
+      // Promote the existing lock to the real Stripe session IN PLACE. Creating
+      // a second open row would violate the unique index and strand the session.
+      const saved=await env.DB.prepare(`UPDATE payment_checkout_sessions SET id=?
+        WHERE id=? AND estimate_id=? AND status='open'`)
+        .bind(data.id,reservationId,row.id).run();
+      if(!saved.meta.changes)throw Error("Checkout reservation was lost.");
     } catch {
-      await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(data.id)}/expire`, { method:"POST", headers:{ authorization:`Bearer ${stripeKey}` } });
-      return Response.json({ error:"Payment checkout could not be safely tracked. Please try again." }, { status:502 });
+      if(await expireTrackedCheckout(data.id,stripeKey))await releaseReservation();
+      return Response.json({error:"Stripe checkout could not be safely tracked. If payment setup remains blocked, contact FIRE before trying again."},{status:503});
     }
     return Response.json({ url: data.url });
   } catch {
