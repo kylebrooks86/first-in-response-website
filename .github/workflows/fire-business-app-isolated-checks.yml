@@ -243,3 +243,5 @@ jobs:
         run: node scripts/test-local-customer-demo-package.mjs
       - name: Test exact-origin HTTPS Pages fixture, CSP and service-worker scope
         run: node scripts/test-local-customer-pages-browser.mjs
+      - name: Exercise actual guarded React offline-customer screen and synthetic auth in Chrome
+        run: node scripts/test-candidate-local-customers-browser.mjs
