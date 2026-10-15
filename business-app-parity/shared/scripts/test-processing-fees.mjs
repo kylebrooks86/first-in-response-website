@@ -43,7 +43,7 @@ const g=job(7500);assert.equal((await pay(g,8000,'Cash App',500)).status,400);as
 const stripeLocked=job(10000);
 const reserveStripe=(estimateId,id)=>sql.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES (?,?,'balance',10000,'open','now')").run(id,estimateId);
 reserveStripe(stripeLocked,'cs_test_open_manual_block');
-const blockedCash=await pay(stripeLocked,2000,'Cash',0);
+const blockedCash=await pay(stripeLocked,2000,'Cash');
 assert.equal(blockedCash.status,409);
 assert.equal(rows(stripeLocked).length,0);
 const blockedTip=await pay(stripeLocked,0,'Venmo',20,250);
@@ -62,7 +62,7 @@ DB.prepare=(query)=>{
  return stmt;
 };
 try{
- const cashRace=await pay(stripeLocked,2000,'Cash',0);
+ const cashRace=await pay(stripeLocked,2000,'Cash');
  assert.equal(cashRace.status,409);
  assert.equal(rows(stripeLocked).length,0);
  const tipRace=await pay(stripeLocked,0,'Cash App',20,250);
@@ -74,7 +74,7 @@ try{
  assert.equal(rows(stripeLocked).length,0);
 }finally{racingCheckoutPreflight=false;DB.prepare=unguardedPrepare;}
 sql.prepare("UPDATE payment_checkout_sessions SET status='expired' WHERE estimate_id=?").run(stripeLocked);
-assert.equal((await pay(stripeLocked,2000,'Cash',0)).status,201);
+assert.equal((await pay(stripeLocked,2000,'Cash')).status,201);
 assert.equal(principal(stripeLocked),2000);
 
 // Client-generated manual payment requests must be replay-safe, even when a
