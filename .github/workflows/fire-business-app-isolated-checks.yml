@@ -7,6 +7,10 @@ on:
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
+      - 'business-app-parity/adapters/**'
+      - 'business-app-parity/materialize.py'
+      - 'business-app-parity/verify_materialized_candidate.py'
+      - 'business-app-parity/candidate_release_manifest.py'
       - 'scripts/deploy-fire-dr-staging.sh'
       - '.github/workflows/fire-business-app-isolated-checks.yml'
   workflow_dispatch:
@@ -120,3 +124,52 @@ jobs:
           node scripts/test-photo-delete-integrity.mjs
       - name: Build shared candidate without deployment
         run: pnpm run build
+
+  coordinated-candidates:
+    name: Coordinated ${{ matrix.target }} candidate — exact source, schema, finance, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [live, doomsday, staging]
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout development branch (read only)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Materialize isolated coordinated candidate
+        run: python3 business-app-parity/materialize.py "${{ matrix.target }}" "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+      - name: Verify exact candidate fingerprints, adapter boundaries and migration sequence
+        run: python3 business-app-parity/verify_materialized_candidate.py "${{ matrix.target }}" "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+      - name: Install candidate dependencies from immutable lockfile
+        run: |
+          cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+          pnpm install --frozen-lockfile
+      - name: Typecheck actual materialized candidate
+        run: |
+          cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+          pnpm exec tsc --noEmit
+      - name: Rehearse candidate's target-specific migrations in disposable SQLite
+        run: |
+          cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+          node --experimental-sqlite scripts/test-local-schema-audit.mjs
+          node --experimental-sqlite scripts/test-candidate-db-preflight.mjs
+      - name: Regress candidate financial behavior with synthetic data
+        run: |
+          cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+          node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
+      - name: Build materialized candidate without publishing
+        run: |
+          cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+          pnpm run build
