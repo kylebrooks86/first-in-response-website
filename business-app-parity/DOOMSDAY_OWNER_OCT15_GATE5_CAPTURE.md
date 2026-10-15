@@ -50,13 +50,41 @@ If another payment/refund is written after the screenshot, preflight
 results may change. Do not assume the index can be created safely until
 rechecked immediately before an owner-authorized maintenance window.
 
-**Remaining blockers:** Confirm complete schema/partial-index definitions,
-constraints, `foreign_key_check`, all four ledger/anomaly queries,
-migration-file checksum, current source/active runtime, provider-verified D1
-resource separation across LIVE/refund staging/Doomsday, complete physical
-backup/restore, and safe deployment/rollback plan. Gate 4, Gate 5, Gate 7,
-Gate 8, Gate 9 and Gate 10 remain pending under existing release policy.
-Neither `0022` nor any other remote migration is approved by this finding.
+## October 15 owner-confirmed financial and foreign-key preflight: 0 / 0 / 0 / 0
+
+The owner next ran the reviewed **single SELECT**
+`DOOMSDAY_LEDGER_OWNER_AGGREGATE_READ_ONLY.sql` in the same Cloudflare
+**D1 → fire-app-staging-db → Studio → Query** and supplied four screenshots
+showing the horizontally scrollable **one-row / four-column** result.
+Across the four screenshots, all four blue result values are visible as 0:
+
+| Aggregate-only field | Observed count | Interpretation limited to query predicate |
+|---|---:|---|
+| `invalid_refund_links` | **0** | No detected invalid original-payment/estimate/amount associations |
+| `succeeded_refund_ledger_mismatches` | **0** | No detected succeeded-refund negative-ledger mismatch |
+| `over_reserved_payment_groups` | **0** | No detected group whose pending plus succeeded refunds exceed the referenced original payment |
+| `foreign_key_violations` | **0** | `pragma_foreign_key_check` returned zero violations |
+
+**Evidence:** October 15, 2026 owner-supplied D1 Studio result
+screenshots. The observations are consistent with the exact safe SQL
+in the repo; the screenshot set did not disclose any row-level customer,
+payment, refund, or provider identifiers. Screenshots are retained in
+the conversation, not copied into this Git repository.
+
+**Acceptance:** All **seven** owner-observed aggregate checks (three
+migration/index/provider-reference counts plus four ledger/FK counts)
+were zero *at capture time*. This is a **narrow Gate 5 subcheck**, not
+the entire Gate 5 acceptance, hosted cutover approval, proof of application
+data being present, or proof that concurrent writers are stopped.
+
+**Remaining blockers:** Confirm complete application schema, exact
+columns/index SQL and constraints, migration-manifest checksums, active
+deployed source/runtime identity, provider-verifiable D1 isolation
+across LIVE/refund-staging/Doomsday, backup export and disposable restore
+proof, a controlled writer-quiescence plan and recheck immediately before
+any approved migration. Gate 4, Gate 5, Gate 7, Gate 8, Gate 9 and Gate 10
+remain pending under existing release policy. Neither `0022` nor any
+remote migration is authorized by either set of owner observations.
 
 ## Strict execution boundary
 
