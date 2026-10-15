@@ -11,7 +11,7 @@ let checks=0;
 const check=(condition,description)=>{assert.ok(condition,description);checks++;console.log('PASS: '+description);};
 const body=JSON.stringify({shareToken:'synthetic-share-token',paymentType:'deposit'});
 function harness({twoReaders=false,stripeResponse='success',saveFailure=false,priorStatus=null,priorPaymentStatus='unpaid',priorMatches=true,priorMode=true}={}){
- const state={open:priorStatus?{id:'cs_test_previous_synthetic',estimateId:'estimate-1',type:'deposit',charge:5000,status:'open'}:null,creates:0,expirations:0,locks:0,inspections:0};
+ const state={open:priorStatus?{id:'cs_test_previoussynthetic',estimateId:'estimate-1',type:'deposit',charge:5000,status:'open'}:null,creates:0,expirations:0,locks:0,inspections:0};
  let readers=0,openReaders;
  const bothReaders=new Promise(resolve=>{openReaders=resolve;});
  const db={prepare(sql){
@@ -73,7 +73,7 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
    if(String(url).includes('/checkout/sessions/')){
      state.inspections++;
      if(priorStatus==='unavailable')return Response.json({error:'Stripe is temporarily unreachable'},{status:503});
-     return Response.json({id:priorMatches?'cs_test_previous_synthetic':'cs_test_other_job',
+     return Response.json({id:priorMatches?'cs_test_previoussynthetic':'cs_test_other_job',
       livemode:!priorMode, status:priorStatus,payment_status:priorPaymentStatus,
       client_reference_id:'estimate-1',amount_total:5000,
       metadata:{estimate_id:'estimate-1',payment_type:'deposit',expected_charge_cents:'5000'}});
@@ -127,7 +127,7 @@ for(const [kind,payment] of [['open','unpaid'],['complete','paid'],['expired','p
  const response=await h.post();
  check(response.status===409,'Prior '+kind+'/'+payment+' checkout is not replaced by customer retry');
  check(h.state.expirations===0,'Customer retry NEVER sends /expire for a prior '+kind+' Stripe session');
- check(h.state.creates===0&&h.state.open?.id==='cs_test_previous_synthetic','Prior '+kind+' checkout stays tracked and cannot start a second payment');
+ check(h.state.creates===0&&h.state.open?.id==='cs_test_previoussynthetic','Prior '+kind+' checkout stays tracked and cannot start a second payment');
 }
 {
  const h=harness({priorStatus:'expired',priorPaymentStatus:'unpaid'});
