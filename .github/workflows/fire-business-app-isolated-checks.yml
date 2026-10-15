@@ -21,6 +21,7 @@ on:
       - 'business-app-parity/test_doomsday_ledger_owner_aggregate.py'
       - 'business-app-parity/verify_doomsday_d1_export.py'
       - 'business-app-parity/test_doomsday_export_restore.py'
+      - 'business-app-parity/shared/scripts/test-real-wrangler-local-d1-export.mjs'
       - 'scripts/deploy-fire-dr-staging.sh'
       - '.github/workflows/fire-business-app-isolated-checks.yml'
   workflow_dispatch:
@@ -132,6 +133,8 @@ jobs:
           python3 ../test_doomsday_ledger_owner_aggregate.py
       - name: Verify private SQL-export offline restore and anti-tamper controls
         run: python3 ../test_doomsday_export_restore.py
+      - name: Verify real Wrangler local D1 export and private SQL restoration
+        run: node scripts/test-real-wrangler-local-d1-export.mjs
       - name: Shared financial regression suite
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
       - name: Shared photo storage integrity regression
