@@ -41,6 +41,14 @@ export async function POST(request: Request) {
     const tipCents = Math.round(Number(body.tipCents) || 0);
     const method = String(body.method ?? "Other").trim() || "Other";
     const reference = String(body.reference ?? "").trim() || null;
+    // The owner form holds this ID across an uncertain network response. Reusing
+    // it must NEVER create a second manual payment or tip.
+    const requestId = body.requestId == null ? null : body.requestId;
+    if (requestId !== null && (typeof requestId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId))) {
+      return Response.json({error:"Invalid payment request identifier."},{status:400});
+    }
+    const principalId = requestId ? `manual-${requestId}` : null;
+    const tipId = requestId ? `manual-${requestId}-tip` : null;
     let accounting: ReturnType<typeof processingAmounts>;
     try { accounting=processingAmounts(amountCents,tipCents,body.processingFeeCents,method); }
     catch(error) { return Response.json({error:error instanceof Error?error.message:"Invalid processing fee."},{status:400}); }
@@ -54,6 +62,45 @@ export async function POST(request: Request) {
       FROM estimates e WHERE e.id=?
     `).bind(estimateId).first<{id:string;estimateTotalCents:number;totalCents:number;depositCents:number;status:string;paidCents:number}>();
     if (!estimate) return Response.json({ error: "Estimate not found." }, { status: 404 });
+    if (principalId && tipId) {
+      const existing = await env.DB.prepare(`SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents,status,
+        provider_id AS reference,processing_fee_cents AS processingFeeCents,gross_received_cents AS grossReceivedCents,
+        bundled_tip_cents AS bundledTipCents,processing_method AS processingMethod
+        FROM payments WHERE id IN (?,?)`).bind(principalId,tipId).all<{
+          id:string;estimateId:string;type:string;amountCents:number;status:string;reference:string|null;
+          processingFeeCents:number|null;grossReceivedCents:number|null;bundledTipCents:number|null;processingMethod:string|null;
+        }>();
+      if (existing.results.length) {
+        const principal = existing.results.find(row=>row.id===principalId);
+        const recordedTip = existing.results.find(row=>row.id===tipId);
+        const expectedTipRef = [method,reference].filter(Boolean).join(" · ")||method;
+        const matchPrincipal = amountCents<=0 ? !principal : Boolean(principal &&
+          principal.estimateId===estimateId && principal.status==="paid" && principal.type===method &&
+          Number(principal.amountCents)===amountCents && principal.reference===reference &&
+          principal.processingFeeCents===accounting.processingFeeCents &&
+          principal.grossReceivedCents===accounting.grossReceivedCents &&
+          Number(principal.bundledTipCents??0)===tipCents && principal.processingMethod===method);
+        const matchTip = tipCents<=0 ? !recordedTip : Boolean(recordedTip &&
+          recordedTip.estimateId===estimateId && recordedTip.status==="paid" && recordedTip.type==="Tip" &&
+          Number(recordedTip.amountCents)===tipCents && recordedTip.reference===expectedTipRef &&
+          (amountCents>0
+            ? recordedTip.processingFeeCents===null && recordedTip.grossReceivedCents===null
+            : recordedTip.processingFeeCents===accounting.processingFeeCents &&
+              recordedTip.grossReceivedCents===accounting.grossReceivedCents &&
+              recordedTip.processingMethod===method));
+        if(!matchPrincipal||!matchTip||existing.results.length!==(amountCents>0?1:0)+(tipCents>0?1:0)){
+          return Response.json({error:"This payment request was already used for different or incomplete records. Review Payment History; no second payment was entered."},{status:409});
+        }
+        const alreadyPaid=Number(estimate.paidCents);
+        const limit=estimate.status==="completed"?Number(estimate.totalCents):
+          ["approved","scheduled"].includes(estimate.status)?Number(estimate.depositCents):0;
+        if(!Number.isSafeInteger(alreadyPaid)||!Number.isSafeInteger(limit)){
+          return Response.json({error:"The previous payment exists, but current totals require review."},{status:409});
+        }
+        return Response.json({duplicate:true,payment:principal??null,tip:recordedTip??null,
+          paidCents:alreadyPaid,balanceCents:Math.max(0,limit-alreadyPaid)},{status:200});
+      }
+    }
     const maxTipCents=Math.min(Number(estimate.totalCents),50000);
     if(!Number.isSafeInteger(maxTipCents)||maxTipCents<0)return Response.json({error:"This job's tip limit cannot be represented safely. Stop and review the invoice total."},{status:409});
     if(tipCents>maxTipCents)return Response.json({error:"Tip cannot exceed the invoice total or $500."},{status:400});
@@ -80,7 +127,7 @@ export async function POST(request: Request) {
       if (balance <= 0) return Response.json({ error: estimate.status === "completed" ? "This job is already paid in full. Record the tip by itself instead." : "The reservation deposit is already paid." }, { status: 400 });
       if (amountCents > balance) return Response.json({ error: `Payment cannot exceed the amount currently due of $${(balance / 100).toFixed(2)}. Put any extra amount in Tip received instead.` }, { status: 400 });
 
-      payment = { id:crypto.randomUUID(), estimateId, type:method, amountCents, status:"paid", reference, createdAt:new Date().toISOString() };
+      payment = { id:principalId??crypto.randomUUID(), estimateId, type:method, amountCents, status:"paid", reference, createdAt:new Date().toISOString() };
       const paymentStatement = env.DB.prepare(`
         INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at,processing_fee_cents,gross_received_cents,bundled_tip_cents,processing_method)
         SELECT ?,?,?,?,'paid',?,?,?,?,?,?
@@ -98,7 +145,7 @@ export async function POST(request: Request) {
       `).bind(payment.id, estimateId, method, amountCents, reference, payment.createdAt, accounting.processingFeeCents, accounting.grossReceivedCents, tipCents, method, amountCents, estimateId, estimateId, amountCents);
 
       if(tipCents>0){
-        const tipId=crypto.randomUUID();
+        const recordedTipId=tipId??crypto.randomUUID();
         const tipReference=[method,reference].filter(Boolean).join(" · ")||method;
         const tipCreatedAt=new Date().toISOString();
         const results=await env.DB.batch([
@@ -106,7 +153,7 @@ export async function POST(request: Request) {
           env.DB.prepare(`INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at)
             SELECT ?,?,'Tip',?,'paid',?,?
             WHERE EXISTS (SELECT 1 FROM payments WHERE id=? AND estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund'))`)
-            .bind(tipId,estimateId,tipCents,tipReference,tipCreatedAt,payment.id,estimateId),
+            .bind(recordedTipId,estimateId,tipCents,tipReference,tipCreatedAt,payment.id,estimateId),
           env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
             SELECT ?,'tip_received',?,?,customer_id,?,? FROM estimates
             WHERE id=? AND EXISTS (SELECT 1 FROM payments WHERE id=? AND estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund'))`)
@@ -114,7 +161,7 @@ export async function POST(request: Request) {
         ]);
         if(!results[0]?.meta.changes)return Response.json({ error:"The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." },{status:409});
         if(!results[1]?.meta.changes)return Response.json({ error:"The invoice payment was not paired with its tip record. Refresh Payment History before recording anything else." },{status:409});
-        tip={id:tipId,estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:tipReference,createdAt:tipCreatedAt};
+        tip={id:recordedTipId,estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:tipReference,createdAt:tipCreatedAt};
       }else{
         const inserted=await paymentStatement.run();
         if(!inserted.meta.changes)return Response.json({ error:"The amount due changed while this payment was being recorded. Refresh the job and verify the remaining balance before trying again." },{status:409});
@@ -122,7 +169,7 @@ export async function POST(request: Request) {
     }
 
     if(tipCents>0&&amountCents<=0){
-      tip={id:crypto.randomUUID(),estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:[method,reference].filter(Boolean).join(" · ")||method,createdAt:new Date().toISOString()};
+      tip={id:tipId??crypto.randomUUID(),estimateId,type:"Tip",amountCents:tipCents,status:"paid",reference:[method,reference].filter(Boolean).join(" · ")||method,createdAt:new Date().toISOString()};
       const results=await env.DB.batch([
         env.DB.prepare("INSERT INTO payments (id,estimate_id,type,amount_cents,status,provider_id,created_at,processing_fee_cents,gross_received_cents,bundled_tip_cents,processing_method) VALUES (?,?, 'Tip',?,'paid',?,?,?,?,?,?)")
           .bind(tip.id,estimateId,tipCents,tip.reference,tip.createdAt,accounting.processingFeeCents,accounting.grossReceivedCents,0,method),
@@ -156,6 +203,6 @@ export async function POST(request: Request) {
     }
     return Response.json({ payment, tip, accounting, paidCents:nextPaid, balanceCents:Math.max(0, refreshedDueLimit-nextPaid) }, { status: 201 });
   } catch {
-    return Response.json({ error: "We couldn't record this payment. Please try again." }, { status: 500 });
+    return Response.json({ error: "Payment confirmation is uncertain. Review Payment History before another attempt; the payment or tip may already have been recorded.", saveUncertain:true }, { status: 503 });
   }
 }

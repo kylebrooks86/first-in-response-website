@@ -38,6 +38,49 @@ const d=job(10000);assert.equal((await pay(d,4000,'Cash App',100)).status,201);a
 const e=job(10000);assert.equal((await pay(e,10000,'Cash App',300,1000)).status,201);assert.equal(principal(e),10000);assert.equal(rows(e).find(r=>r.type==='Tip').amount_cents,1000);assert.equal(rows(e)[0].gross_received_cents,11000);assert.equal(rows(e)[0].gross_received_cents-rows(e)[0].processing_fee_cents,10700);
 const f=job(15000,'approved',7500);assert.equal((await pay(f,7500,'Cash App',210)).status,201);assert.equal(principal(f),7500);assert.equal((await pay(f,0,'Cash App',0,100)).status,409);
 const g=job(7500);assert.equal((await pay(g,8000,'Cash App',500)).status,400);assert.equal(rows(g).length,0);
+// Client-generated manual payment requests must be replay-safe, even when a
+// previous D1 INSERT was committed before its acknowledgement was lost.
+const keyedJob=job(10000),paymentRequestId='11111111-1111-4111-8111-111111111111';
+const keyedBody={estimateId:keyedJob,requestId:paymentRequestId,amountCents:4000,tipCents:300,method:'Cash App',reference:'synthetic-receipt',processingFeeCents:100};
+const sendKeyed=(body)=>route.POST(new Request('https://test/api/payments',{method:'POST',body:JSON.stringify(body)}));
+const firstKeyed=await sendKeyed(keyedBody);assert.equal(firstKeyed.status,201,await firstKeyed.text());
+assert.equal(rows(keyedJob).length,2);assert.equal(principal(keyedJob),4000);
+const repeatKeyed=await sendKeyed(keyedBody);assert.equal(repeatKeyed.status,200,await repeatKeyed.text());
+assert.equal((await repeatKeyed.json()).duplicate,true);
+assert.equal(rows(keyedJob).length,2);assert.equal(principal(keyedJob),4000);
+assert.equal((await sendKeyed({...keyedBody,amountCents:5000})).status,409);
+assert.equal((await sendKeyed({...keyedBody,estimateId:job(10000)})).status,409);
+assert.equal((await sendKeyed({...keyedBody,requestId:'bad-token'})).status,400);
+assert.equal(rows(keyedJob).length,2);
+const tipJob=job(10000),tipBody={estimateId:tipJob,requestId:'22222222-2222-4222-8222-222222222222',amountCents:0,tipCents:500,method:'Venmo',reference:'synthetic-tip',processingFeeCents:15};
+assert.equal((await sendKeyed(tipBody)).status,201);
+assert.equal((await sendKeyed(tipBody)).status,200);
+assert.equal(rows(tipJob).filter(x=>x.type==='Tip').length,1);
+const principalJob=job(10000),principalBody={estimateId:principalJob,requestId:'33333333-3333-4333-8333-333333333333',amountCents:6000,tipCents:0,method:'Cash',reference:'synthetic-cash'};
+assert.equal((await sendKeyed(principalBody)).status,201);
+assert.equal((await sendKeyed(principalBody)).status,200);
+assert.equal(principal(principalJob),6000);
+assert.equal(rows(principalJob).length,1);
+const originalPrepare=DB.prepare.bind(DB);
+let lostAck=true;
+DB.prepare=(query)=>{
+  const statement=originalPrepare(query);
+  if(lostAck && query.includes('INSERT INTO payments') && query.includes('WHERE ? <= (')){
+    const normalRun=statement.run.bind(statement);
+    statement.run=async()=>{const result=await normalRun();lostAck=false;throw Error('Synthetic lost D1 acknowledgement after committing payment');};
+  }
+  return statement;
+};
+const lostJob=job(10000),lostBody={estimateId:lostJob,requestId:'44444444-4444-4444-8444-444444444444',amountCents:4000,tipCents:0,method:'Cash',reference:'ack-lost'};
+try{
+ const lostResponse=await sendKeyed(lostBody);assert.equal(lostResponse.status,503);
+ assert.equal((await lostResponse.json()).saveUncertain,true);
+ assert.equal(principal(lostJob),4000);
+ const recoveredResponse=await sendKeyed(lostBody);assert.equal(recoveredResponse.status,200);
+ assert.equal((await recoveredResponse.json()).duplicate,true);
+ assert.equal(principal(lostJob),4000);assert.equal(rows(lostJob).length,1);
+}finally{DB.prepare=originalPrepare;}
+
 // Exercise the existing DR refund endpoint when present; no processor request is made.
 if(readdirSync(root+'/app/api/payments').includes('refund')) {
  const refundRoute=await load('app/api/payments/refund/route.ts');
