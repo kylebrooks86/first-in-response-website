@@ -62,3 +62,42 @@ jobs:
         run: pnpm run build:independent
       - name: Rehearse local synthetic D1 and R2 photo recovery
         run: node scripts/test-local-photo-restore.mjs
+
+  shared-candidate:
+    name: Shared-source candidate — finance, schema, parity, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - name: Checkout development branch (read only)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install shared-source dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Shared TypeScript check
+        run: pnpm exec tsc --noEmit
+      - name: Local migration and schema-journal integrity
+        run: |
+          node --experimental-sqlite scripts/test-local-schema-audit.mjs
+          node --experimental-sqlite scripts/test-candidate-db-preflight.mjs
+      - name: Shared-source parity gate regression
+        run: node scripts/test-parity-gate.mjs
+      - name: Shared financial regression suite
+        run: node --experimental-sqlite scripts/test-processing-fees.mjs
+      - name: Shared photo storage integrity regression
+        run: node --experimental-sqlite scripts/test-photo-storage-integrity.mjs
+      - name: Build shared candidate without deployment
+        run: pnpm run build
