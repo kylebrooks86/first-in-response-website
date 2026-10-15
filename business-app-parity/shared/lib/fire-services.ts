@@ -130,9 +130,9 @@ export const FIRE_SERVICES: FireService[] = [
   {
     id: "trash-bins",
     name: "Trash Bin Cleaning",
-    unit: "bin",
+    unit: "set of 2 bins",
     rate: 2500,
-    description: "Cleaning and deodorizing of customer-owned trash or recycling bins. Bins must be empty and accessible. Paint, tar, construction material, hazardous waste, embedded staining, damage, and pest remediation are not included.",
+    description: "Cleaning and deodorizing of up to two customer-owned trash or recycling bins per set. Bins must be empty and accessible. Additional bins require a separately quoted line item. Paint, tar, construction material, hazardous waste, embedded staining, damage, and pest remediation are not included.",
   },
 
   {
