@@ -6,6 +6,7 @@ on:
       - work/fire-business-app-parity-2026-10-08
     paths:
       - 'fire-app-dr/**'
+      - 'business-app-parity/shared/**'
       - '.github/workflows/fire-business-app-isolated-checks.yml'
   workflow_dispatch:
 
