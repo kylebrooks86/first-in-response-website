@@ -97,6 +97,17 @@ export async function POST(request: Request) {
         if(!Number.isSafeInteger(alreadyPaid)||!Number.isSafeInteger(limit)){
           return Response.json({error:"The previous payment exists, but current totals require review."},{status:409});
         }
+        // The original INSERT may have committed while the invoice-status
+        // follow-up failed. Idempotent replay must repair that derived status
+        // from the actual ledger, never create another payment.
+        if (estimate.status==="completed" && amountCents>0) {
+          await env.DB.prepare(`UPDATE invoices SET status=CASE
+            WHEN ?>=total_cents THEN 'paid'
+            WHEN ?>0 THEN 'partial'
+            WHEN first_viewed_at IS NOT NULL OR status='sent' THEN 'sent'
+            ELSE 'draft' END WHERE estimate_id=?`)
+            .bind(alreadyPaid,alreadyPaid,estimateId).run();
+        }
         return Response.json({duplicate:true,payment:principal??null,tip:recordedTip??null,
           paidCents:alreadyPaid,balanceCents:Math.max(0,limit-alreadyPaid)},{status:200});
       }

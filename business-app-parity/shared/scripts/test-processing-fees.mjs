@@ -61,6 +61,31 @@ assert.equal((await sendKeyed(principalBody)).status,201);
 assert.equal((await sendKeyed(principalBody)).status,200);
 assert.equal(principal(principalJob),6000);
 assert.equal(rows(principalJob).length,1);
+// A payment INSERT can commit, then its derived invoice status update can
+// fail. The same request ID must safely repair status without new money rows.
+const statusJob=job(10000),statusBody={estimateId:statusJob,requestId:'55555555-5555-4555-8555-555555555555',amountCents:10000,tipCents:0,method:'Check',reference:'status-repair'};
+const realPrepare=DB.prepare.bind(DB);
+let failStatusOnce=true;
+DB.prepare=(query)=>{
+  const statement=realPrepare(query);
+  if(failStatusOnce && query.includes('UPDATE invoices SET status=CASE')) {
+    const originalRun=statement.run.bind(statement);
+    statement.run=async()=>{if(failStatusOnce){failStatusOnce=false;throw Error('Synthetic invoice status update lost');}return originalRun();};
+  }
+  return statement;
+};
+try {
+ const uncertain=await sendKeyed(statusBody);
+ assert.equal(uncertain.status,503);
+ assert.equal(principal(statusJob),10000);
+ assert.equal(sql.prepare('SELECT status FROM invoices WHERE estimate_id=?').get(statusJob).status,'sent');
+ const replay=await sendKeyed(statusBody);
+ assert.equal(replay.status,200,await replay.clone().text());
+ assert.equal((await replay.json()).duplicate,true);
+ assert.equal(principal(statusJob),10000);
+ assert.equal(rows(statusJob).length,1);
+ assert.equal(sql.prepare('SELECT status FROM invoices WHERE estimate_id=?').get(statusJob).status,'paid');
+} finally {DB.prepare=realPrepare;}
 const originalPrepare=DB.prepare.bind(DB);
 let lostAck=true;
 DB.prepare=(query)=>{
