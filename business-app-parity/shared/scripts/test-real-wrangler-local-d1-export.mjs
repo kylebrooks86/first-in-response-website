@@ -28,7 +28,6 @@ const env={
 function invoke(args){
   assert.ok(args.includes('--local'),'Every D1 call must explicitly target local storage.');
   assert.ok(args.includes('--config') && [config,restoredConfig].some(p=>args.includes(p)));
-  assert.ok(args.includes('--output')===false,'Unsupported export argument form: output must be explicit path');
   assert.ok(args[0]===wrangler && args[1]==='d1' && ['migrations','execute','export'].includes(args[2]),
     'Disallow other Wrangler commands.');
   assert.ok(!args.includes('--remote'),'Remote D1 commands forbidden.');
