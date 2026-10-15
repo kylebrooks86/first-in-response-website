@@ -49,6 +49,8 @@ jobs:
         run: node --experimental-sqlite scripts/test-processing-fees.mjs
       - name: Source-only independent preflight
         run: pnpm run preflight:independent
+      - name: Verify release-readiness source policy
+        run: pnpm run release:readiness
       # Values below refer to NO real resources and are intentionally scoped to
       # this build step. Never add a deploy or wrangler remote command to CI.
       - name: Build independent candidate with disposable config identities
