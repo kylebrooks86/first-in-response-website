@@ -288,6 +288,8 @@ jobs:
         run: node scripts/test-offline-photo-indexeddb-browser.mjs
       - name: Exercise actual photo screen, offline ZIP, stopped-server cold launch and Files readback
         run: node scripts/test-offline-photo-ui-browser.mjs
+      - name: Exercise actual Customers dashboard offline-photo fallback, authenticated directory and 401 revocation
+        run: node scripts/test-actual-customer-photo-fallback-browser.mjs
       - name: Test native Chromium persistent profile and offline cold launch
         run: node scripts/test-local-customer-demo-cold-browser.mjs
       - name: Test portable synthetic PWA export, install assets and offline recovery
