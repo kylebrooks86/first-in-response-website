@@ -7,10 +7,10 @@ import {FIRE_SERVICES} from '../lib/fire-services.ts';
 
 const expected=new Map([
   ['house-wash',{rate:22,unit:'sq ft'}],
-  ['gutters',{rate:175,unit:'linear ft'}],
-  ['gutter-guards',{rate:100,unit:'linear ft'}],
+  ['gutters',{rate:150,unit:'linear ft'}],
+  ['gutter-guards',{rate:50,unit:'linear ft'}],
   ['fence',{rate:40,unit:'sq ft'}],
-  ['trash-bins',{rate:2500,unit:'set of 2 bins'}],
+  ['trash-bins',{rate:2500,unit:'bin'}],
   ['windows',{rate:700,unit:'window'}],
   ['windows-2f',{rate:1100,unit:'window'}],
   ['french-windows-1f',{rate:1200,unit:'window'}],
@@ -29,11 +29,11 @@ for(const [id,{rate,unit}] of expected){
   assert.ok(Number.isSafeInteger(actual.rate) && actual.rate>=0);checks++;
 }
 assert.equal(lookup.get('house-wash').rate*2000,44000,'2,000 sq ft house wash should be $440');checks++;
-assert.equal(lookup.get('trash-bins').rate*1,2500,'One set of two bins should be $25');checks++;
-assert.equal(lookup.get('gutters').rate*100,17500,'100 linear feet gutters should be $175');checks++;
-assert.equal(lookup.get('gutter-guards').rate*100,10000,'100 linear feet existing guards should be $100');checks++;
-assert.equal((lookup.get('gutters').rate+lookup.get('gutter-guards').rate)*100,27500,
-  '100 linear feet both services should be $275 before discounts');checks++;
+assert.equal(lookup.get('trash-bins').rate*1,2500,'One bin should be $25');checks++;
+assert.equal(lookup.get('gutters').rate*100,15000,'100 linear feet gutters should be $150');checks++;
+assert.equal(lookup.get('gutter-guards').rate*100,5000,'100 linear feet existing guards should be $50');checks++;
+assert.equal((lookup.get('gutters').rate+lookup.get('gutter-guards').rate)*100,20000,
+  '100 linear feet both services should be $200 before discounts');checks++;
 // Test scope excludes service-specific custom zero-rate entries and historical
 // estimates (existing contract line prices MUST NOT be rewritten).
 console.log('PASS: '+checks+' FIRE shared service-catalog rate, unit, identity and integer arithmetic checks.');
