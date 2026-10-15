@@ -14,8 +14,10 @@ export async function POST(request:Request){
     const body=await request.json() as Record<string,unknown>;
     const reservationId=String(body.reservationId??"").trim();
     const sessionId=String(body.sessionId??"").trim();
-    if(!/^fire-creating:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reservationId)
-      ||!/^cs_(test|live)_[a-zA-Z0-9]+$/.test(sessionId))
+    const provisional=/^fire-creating:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reservationId);
+    const tracked=/^cs_(test|live)_[a-zA-Z0-9]+$/.test(reservationId);
+    if((!provisional&&!tracked)||!/^cs_(test|live)_[a-zA-Z0-9]+$/.test(sessionId)
+      ||(tracked&&reservationId!==sessionId))
       return Response.json({error:"Enter the original unresolved checkout and its complete Stripe Session ID."},{status:400});
     const reservation=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,type,amount_cents AS amountCents
       FROM payment_checkout_sessions WHERE id=? AND status='open' LIMIT 1`)
@@ -36,7 +38,7 @@ export async function POST(request:Request){
     const meta=session.metadata;
     const amount=Number(session.amount_total);
     if(session.id!==sessionId||session.livemode!==(sandbox?false:sessionId.startsWith("cs_live_"))
-      ||meta?.fire_checkout_reservation_id!==reservationId
+      ||(provisional&&meta?.fire_checkout_reservation_id!==reservationId)
       ||meta?.estimate_id!==reservation.estimateId||meta?.payment_type!==reservation.type
       ||session.client_reference_id!==reservation.estimateId
       ||!Number.isSafeInteger(amount)||amount!==Number(reservation.amountCents)

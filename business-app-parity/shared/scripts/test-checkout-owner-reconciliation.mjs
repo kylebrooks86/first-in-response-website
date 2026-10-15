@@ -22,7 +22,7 @@ const load=(path,extra={})=>{
  const exports={};const req=id=>{if(id==='cloudflare:workers')return {env};throw Error('Unexpected import '+id);};
  new Function('exports','require','env','crypto','Response','Request','fetch','getChatGPTUser','LOCAL_CUSTOMER_DEPLOYMENT','reconcileStripeCheckout',output)(exports,req,env,webcrypto,Response,Request,async(url)=>{
    network++;
-   assert.equal(url,'https://api.stripe.com/v1/checkout/sessions/cs_test_ownerfix');
+   assert.ok(['cs_test_ownerfix','cs_test_trackedfix','cs_test_trackedpaid'].some(id=>url==='https://api.stripe.com/v1/checkout/sessions/'+id));
    return remote?Response.json(remote):Response.json({error:'missing'},{status:404});
  },async()=>owner?{email:'kylebrooks8605@gmail.com'}:null,'doomsday',extra.reconcileStripeCheckout);
  return exports;
@@ -72,4 +72,37 @@ check(sql.prepare('SELECT status FROM invoices WHERE id=?').get('inv-owner').sta
 check((await call()).status===409,'Resolved payment cannot be reconciled again through provisional owner route');
 check((await stripe.reconcileStripeCheckout(DB,remote)).ok===true,'Duplicate signed webhook is idempotent after owner reconciliation');
 check(sql.prepare('SELECT COUNT(*) n FROM payments WHERE provider_id=?').get(sessionId).n===1,'Replay does not duplicate payment');
+// A fully tracked open checkout can be verified directly. Only a confirmed
+// Stripe expiration releases its hold on another manually recorded payment.
+sql.prepare("INSERT INTO customers(id,name,created_at) VALUES ('cust-tracked','Synthetic tracked customer','now')").run();
+sql.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES ('job-tracked','cust-tracked','completed',10000,10000,5000,'now')").run();
+sql.prepare("INSERT INTO invoices(id,estimate_id,customer_id,total_cents,status,created_at) VALUES ('inv-tracked','job-tracked','cust-tracked',10000,'sent','now')").run();
+const trackedId='cs_test_trackedfix';
+sql.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES (?,'job-tracked','balance',10000,'open','now')").run(trackedId);
+const trackedSession=(id,status='expired',paymentStatus='unpaid')=>({
+  ...session(status,paymentStatus),id,client_reference_id:'job-tracked',
+  metadata:{...session().metadata,estimate_id:'job-tracked'}
+});
+remote=trackedSession(trackedId,'open','unpaid');
+check((await call(trackedId,'cs_test_ownerfix')).status===400,'Tracked owner recovery rejects a different Stripe session ID');
+check((await call(trackedId,trackedId)).status===202,'An open, unpaid, tracked checkout stays blocked');
+check(sql.prepare('SELECT status FROM payment_checkout_sessions WHERE id=?').get(trackedId).status==='open','Unconfirmed tracked session is never expired');
+remote=trackedSession(trackedId);remote.metadata.estimate_id='wrong-job';
+check((await call(trackedId,trackedId)).status===409,'Wrong-job tracked checkout is rejected');
+remote=trackedSession(trackedId);
+const expiredTracked=await call(trackedId,trackedId);
+check(expiredTracked.status===200&&(await expiredTracked.json()).action==='expired','Stripe-verified expired tracked checkout can be released');
+check(sql.prepare('SELECT status FROM payment_checkout_sessions WHERE id=?').get(trackedId).status==='expired','Released tracked checkout is no longer open');
+check(sql.prepare("SELECT COUNT(*) n FROM payments WHERE estimate_id='job-tracked'").get().n===0,'Expiration did not invent a financial receipt');
+const trackedPaidId='cs_test_trackedpaid';
+sql.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES (?,'job-tracked','balance',10000,'open','now')").run(trackedPaidId);
+remote=trackedSession(trackedPaidId,'complete','paid');
+const confirmedTracked=await call(trackedPaidId,trackedPaidId);
+check(confirmedTracked.status===200&&(await confirmedTracked.json()).action==='paid','Owner can reconcile paid tracked checkout against actual D1 ledger');
+check(sql.prepare('SELECT status FROM payment_checkout_sessions WHERE id=?').get(trackedPaidId).status==='paid','Reconciled tracked checkout is marked paid');
+check(sql.prepare('SELECT COUNT(*) n FROM payments WHERE provider_id=?').get(trackedPaidId).n===1,'Tracked checkout adds exactly one verified payment');
+const ownerUi=readFileSync(resolve(root,'app/dashboard.tsx'),'utf8');
+const ownerPayments=readFileSync(resolve(root,'app/api/payments/route.ts'),'utf8');
+check(ownerUi.includes('issue.id.startsWith("cs_")?issue.id:""'),'Actual owner UI pre-fills known Stripe session IDs');
+check(ownerPayments.includes("WHERE s.status='open'\n"),'All open checkout records appear on owner Payments screen');
 console.log('PASS '+checks+' owner checkout recovery assertions on actual route, actual financial reconciler and disposable SQLite.');

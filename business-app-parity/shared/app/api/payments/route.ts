@@ -29,15 +29,14 @@ export async function GET() {
     return Number.isSafeInteger(amount)&&Number.isSafeInteger(refunded)&&refunded>=0&&Number.isSafeInteger(refundable)&&refundable>=0;
   });
   if(!paymentRowsSafe)return Response.json({error:"Payment history contains accounting values that require owner review."},{status:409});
-  // Surface unresolved Stripe setup reservations in the OWNER's payment view.
-  // A provisional lock may mean Stripe created a session before its response
-  // was lost; silently retrying would risk a second customer charge.
+  // Show all open Stripe checkout records, including tracked sessions that
+  // may have expired remotely but still block manual payment until verified.
   const checkoutIssues=await env.DB.prepare(`SELECT s.id,s.estimate_id AS estimateId,
     c.name AS customer,s.type,s.amount_cents AS amountCents,s.created_at AS createdAt
     FROM payment_checkout_sessions s
     JOIN estimates e ON e.id=s.estimate_id
     JOIN customers c ON c.id=e.customer_id
-    WHERE s.status='open' AND s.id LIKE 'fire-creating:%'
+    WHERE s.status='open'
     ORDER BY s.created_at DESC LIMIT 50`).all();
   return Response.json({payments:result.results,checkoutIssues:checkoutIssues.results});
 }
