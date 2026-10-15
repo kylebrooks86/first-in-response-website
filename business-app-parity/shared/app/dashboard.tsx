@@ -7,6 +7,7 @@ import { OwnerAccountView } from "./owner-account";
 import { estimateFollowUpTiming, estimateReminderStage } from "../lib/follow-up-timing";
 import { messageHistoryEntries } from "../lib/message-history";
 import { summarizeProcessing } from "../lib/processing-fees";
+import { loadRefundRetry, saveRefundRetry, clearRefundRetry, type RefundRetryAttempt } from "../lib/refund-retry-state";
 import { editMoneyLine, editableLineTotalCents, restoreEditableLineMoney } from "../lib/editable-line-totals";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -667,32 +668,50 @@ function RefundPayment({payment,onRefunded}:{payment:PaymentRow;onRefunded?:()=>
   const [error,setError]=useState("");
   const [message,setMessage]=useState("");
   const [submitted,setSubmitted]=useState(false);
+  const activeRefund=useRef<RefundRetryAttempt|null>(null);
+  // Safari may reject localStorage in restricted sessions. Keep the same ID at
+  // least across dialog closing in memory, even when persistence is disabled.
+  const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
   const openChange=(value:boolean)=>{
     setOpen(value);
     if(value){
-      setSubmitted(Boolean(payment.pendingRefundId));
-      setAmount((refundable/100).toFixed(2));
+      const pending=payment.pendingRefundId&&Number.isSafeInteger(Number(payment.pendingRefundAmountCents))&&Number(payment.pendingRefundAmountCents)>0
+        ?{requestId:payment.pendingRefundId,amountCents:Number(payment.pendingRefundAmountCents)}:null;
+      const previous=pending??activeRefund.current??loadRefundRetry(storage(),payment.id);
+      const retry=previous&&previous.amountCents>0?previous:null;
+      if(retry)activeRefund.current=retry;
+      setSubmitted(Boolean(retry));
+      setAmount(((retry?.amountCents??refundable)/100).toFixed(2));
       setNote("");
       setConfirmed(false);
-      setRequestId(payment.pendingRefundId||crypto.randomUUID());
+      setRequestId(retry?.requestId??crypto.randomUUID());
       setError("");
-      setMessage("");
+      setMessage(retry?"Existing refund attempt found. Verify this SAME request rather than submitting a second refund.":"");
     }
   };
   const submit=async()=>{
     const amountCents=Math.round(Number(amount)*100);
     if(!Number.isSafeInteger(amountCents)||amountCents<=0||amountCents>refundable){setError(`Enter a refund up to ${money(refundable)}.`);return;}
     if(!stripe&&!confirmed){setError("Send the refund through the original/manual payment method first, then confirm it here.");return;}
+    if(!requestId){setError("Refund request identity is missing. Close and reopen this refund before submitting.");return;}
+    const attempt={requestId,amountCents};
+    activeRefund.current=attempt;
+    // Write before any network request: Stripe may commit and lose the response.
+    // Reopening or restarting then reuses the same provider idempotency key.
+    saveRefundRetry(storage(),payment.id,attempt);
     setSubmitted(true);setSaving(true);setError("");setMessage("");
     try{
       const response=await fetch("/api/payments/refund",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({paymentId:payment.id,requestId,amountCents,externalRefundConfirmed:!stripe&&confirmed,note})});
       const result=await response.json() as {ok?:boolean;pending?:boolean;mode?:string;paidCents?:number;error?:string};
       if(!response.ok&&!result.pending)throw new Error(result.error||"The refund could not be completed.");
       if(result.pending){setMessage("Stripe accepted the refund and it is still processing. Retry here to check the same request; FIRE will reconcile it when Stripe confirms completion.");return;}
+      if(!result.ok)throw new Error("Refund confirmation is incomplete. Review history before attempting another refund.");
+      // Only a verified completed acknowledgement clears the persisted ID.
+      clearRefundRetry(storage(),payment.id);activeRefund.current=null;
       setMessage(stripe?"Stripe refund completed and FIRE billing was updated.":"Manual refund recorded and FIRE billing was updated.");
       onRefunded?.();
       window.setTimeout(()=>setOpen(false),450);
-    }catch(refundError){setError(refundError instanceof Error?refundError.message:"The refund could not be completed.");}
+    }catch(refundError){setError((refundError instanceof Error?refundError.message:"The refund could not be completed.")+" Retry this SAME refund request; do not send the money twice.");}
     finally{setSaving(false);}
   };
   if(refundable<=0||payment.amountCents<=0)return null;
