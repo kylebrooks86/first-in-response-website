@@ -5,7 +5,7 @@
  */
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
-import {existsSync,mkdtempSync,mkdirSync,readdirSync,writeFileSync,copyFileSync,rmSync} from 'node:fs';
+import {existsSync,mkdtempSync,mkdirSync,readdirSync,writeFileSync,copyFileSync,readFileSync,rmSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 
@@ -18,7 +18,7 @@ assert.equal(names.length,23,'Expected 23 Doomsday candidate migration files.');
 assert.equal(names.at(-1),'0022_stripe_provider_uniqueness.sql');
 const root=mkdtempSync(join(tmpdir(),'fire-wrangler-d1-export-'));
 const name='fire-synthetic-local-d1-export-no-remote';
-const config=join(root,'wrangler.jsonc');
+const config=join(root,'wrangler.jsonc'), restoredConfig=join(root,'restore.wrangler.jsonc');
 let checks=0;
 const env={
   ...process.env,
@@ -27,7 +27,8 @@ const env={
 };
 function invoke(args){
   assert.ok(args.includes('--local'),'Every D1 call must explicitly target local storage.');
-  assert.ok(args.includes('--config') && args.includes(config));
+  assert.ok(args.includes('--config') && [config,restoredConfig].some(p=>args.includes(p)));
+  assert.ok(args.includes('--output')===false,'Unsupported export argument form: output must be explicit path');
   assert.ok(args[0]===wrangler && args[1]==='d1' && ['migrations','execute','export'].includes(args[2]),
     'Disallow other Wrangler commands.');
   assert.ok(!args.includes('--remote'),'Remote D1 commands forbidden.');
@@ -81,6 +82,28 @@ try{
   assert.equal(receipt.releaseGateAccepted,false);
   assert.deepEqual(Object.values(receipt.checks),Array(Object.keys(receipt.checks).length).fill(true));
   checks+=7;
+  // Import this actual Wrangler dump into a DIFFERENT, empty local D1
+  // instance, then re-export. Never restore over the original database.
+  const restoreName='fire-synthetic-restore-empty-no-remote';
+  writeFileSync(restoredConfig,JSON.stringify({
+    name:restoreName,main:'./noop.js',compatibility_date:'2026-10-14',
+    d1_databases:[{binding:'DB',database_name:restoreName,
+      database_id:'42345678-1234-4234-8234-123456789abc',
+      migrations_dir:'migrations'}]
+  },null,2));
+  invoke([wrangler,'d1','execute','DB','--local','--config',restoredConfig,'--file',output,'--yes']);
+  checks++;
+  const restoredDump=join(root,'restored-from-real-d1.sql');
+  invoke([wrangler,'d1','export','DB','--local','--config',restoredConfig,'--output',restoredDump]);
+  const second=spawnSync('python3',[verifier,restoredDump],
+    {cwd:root,env,encoding:'utf8',timeout:40000,maxBuffer:1024*1024});
+  assert.equal(second.status,0,'Independent restored local D1 re-export must validate');
+  assert.equal(JSON.parse(second.stdout).offlineRestorationValidated,true);
+  assert.ok(readFileSync(output,'utf8').includes('Synthetic-only Wrangler customer'),
+    'Initial export must contain full synthetic data, not schema only.');
+  assert.ok(readFileSync(restoredDump,'utf8').includes('Synthetic-only Wrangler customer'),
+    'Restored D1 must preserve synthetic customer data, not only table definitions.');
+  checks+=3;
   const schemaOnly=join(root,'schema-only.sql');
   invoke([wrangler,'d1','export','DB','--local','--config',config,'--no-data','--output',schemaOnly]);
   const noData=spawnSync('python3',[verifier,schemaOnly],{cwd:root,env,encoding:'utf8',timeout:40000,maxBuffer:1024*1024});
