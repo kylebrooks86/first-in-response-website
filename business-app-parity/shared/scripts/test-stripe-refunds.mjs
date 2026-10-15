@@ -4,12 +4,22 @@ import {resolve} from 'node:path';
 import {DatabaseSync} from 'node:sqlite';
 import {createHmac} from 'node:crypto';
 import ts from 'typescript';
+import {propertyBackupError,hasPropertyBackup} from '../lib/property-backup.mjs';
+import {serviceLocationManifest,serviceLocationBackupError} from '../lib/service-location-backup.mjs';
 const root=resolve(process.argv[2]||'.');
 const sql=new DatabaseSync(':memory:');
 for(const file of readdirSync(root+'/drizzle').filter(f=>f.endsWith('.sql')).sort())sql.exec(readFileSync(root+'/drizzle/'+file,'utf8'));
 const DB={prepare(query){return {args:[],bind(...args){this.args=args;return this;},async first(){return sql.prepare(query).get(...this.args)||null;},async all(){return {results:sql.prepare(query).all(...this.args)};},async run(){return {meta:{changes:Number(sql.prepare(query).run(...this.args).changes)}}},query};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements){const stmt=sql.prepare(s.query);results.push(/^\s*SELECT/i.test(s.query)?{results:stmt.all(...s.args)}:{meta:{changes:Number(stmt.run(...s.args).changes)}});}sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
 globalThis.__feeTestDB=DB;
-async function load(path){let source=readFileSync(root+'/'+path,'utf8').replace(/^import .*?;\n/gm,'');source=source.replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');if(path.includes('payments/route'))source=readFileSync(root+'/lib/processing-fees.ts','utf8')+'\n'+source;if(path.includes('refund/route'))source='const finalizeRefund=globalThis.__refundFinalize;const recordRefundUpdate=globalThis.__refundUpdate;\n'+source;if(path.includes('webhook'))source='const recordRefundUpdate=globalThis.__refundUpdate;\n'+source;if(path.includes('webhook'))source='const reconcileStripeCheckout=globalThis.__feeReconcile;\n'+source;source='const env={DB:globalThis.__feeTestDB,STRIPE_WEBHOOK_SECRET:"whsec_test_fixture",STRIPE_RESTRICTED_KEY:"sk_test_fixture"};const getOwnerUser=async()=>globalThis.__unauthorized?null:({email:"kylebrooks8605@gmail.com"});const getChatGPTUser=getOwnerUser;\n'+source;const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;return import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));}
+globalThis.__feeBackupHelpers={propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError};
+async function load(path){let source=readFileSync(root+'/'+path,'utf8').replace(/^import .*?;\n/gm,'');source=source.replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');if(path.includes('payments/route'))source=readFileSync(root+'/lib/processing-fees.ts','utf8')+'\n'+source;if(path==='app/api/backup/route.ts'){
+source=`const serviceLocationsEnabled=e=>e.FIRE_SERVICE_LOCATIONS_CANDIDATE==='synthetic-only';
+const customerPropertiesEnabled=e=>serviceLocationsEnabled(e)&&e.FIRE_CUSTOMER_PROPERTIES_CANDIDATE==='synthetic-only';
+const propertyRecoveryTestEnabled=e=>customerPropertiesEnabled(e)&&e.FIRE_PROPERTY_RECOVERY_CANDIDATE==='synthetic-tests-only';
+const {propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError}=globalThis.__feeBackupHelpers;
+const exportPropertyRecords=()=>{throw Error('Unexpected property export in synthetic legacy backup')};
+const restorePropertyRecords=()=>{throw Error('Unexpected property restore in synthetic legacy backup')};
+`+source;}if(path.includes('refund/route'))source='const finalizeRefund=globalThis.__refundFinalize;const recordRefundUpdate=globalThis.__refundUpdate;\n'+source;if(path.includes('webhook'))source='const recordRefundUpdate=globalThis.__refundUpdate;\n'+source;if(path.includes('webhook'))source='const reconcileStripeCheckout=globalThis.__feeReconcile;\n'+source;source='const env={DB:globalThis.__feeTestDB,STRIPE_WEBHOOK_SECRET:"whsec_test_fixture",STRIPE_RESTRICTED_KEY:"sk_test_fixture"};const getOwnerUser=async()=>globalThis.__unauthorized?null:({email:"kylebrooks8605@gmail.com"});const getChatGPTUser=getOwnerUser;\n'+source;const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;return import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));}
 const refunds=await load('lib/stripe-refunds.ts');globalThis.__refundFinalize=refunds.finalizeRefund;globalThis.__refundUpdate=refunds.recordRefundUpdate;
 
 const route=await load('app/api/payments/refund/route.ts');
