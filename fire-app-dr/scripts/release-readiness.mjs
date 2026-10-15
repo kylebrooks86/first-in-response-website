@@ -189,7 +189,7 @@ expect(currentDocsValidator.includes("intentional owner exception") && currentDo
 
 expect(currentReadme.includes("FIRE App v138") && currentReadme.includes("Intentional owner exception") && !/This package is FIRE App v27/i.test(currentReadme), "README is current and scheduling-exception aware", "the recovery entrypoint identifies v138 and preserves the approved/signed scheduling exception");
 
-expect(currentGoNoGo.includes("FIRE App v138") && currentGoNoGo.includes("22 migrations") && currentGoNoGo.includes("0021") && !/Release candidate:\\s*v14/i.test(currentGoNoGo), "GO/NO-GO gate is current", "release guidance uses the current v138 identity and all 22 migrations from 0000 through 0021");
+expect(currentGoNoGo.includes("FIRE App v138") && currentGoNoGo.includes("22 migrations") && currentGoNoGo.includes("0021") && !/Release candidate:\s*v14/i.test(currentGoNoGo), "GO/NO-GO gate is current", "release guidance uses the current v138 identity and all 22 migrations from 0000 through 0021");
 
 expect(currentSecurityStatus.includes("21 contiguous migrations: 0000 through 0020") && currentSecurityStatus.includes("Release evidence files are SHA256/size/provenance validated") && !/0000` through `0009/i.test(currentSecurityStatus), "Security/recovery status matches current recovery architecture", "the active security guide documents all 20 migrations and current refund/evidence/recovery safeguards");
 
