@@ -12,7 +12,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (!row || !env.BUCKET) return new Response("Photo not found", { status: 404 });
   const object = await env.BUCKET.get(row.objectKey);
   if (!object) return new Response("Photo not found", { status: 404 });
-  return new Response(object.body, { headers: { "content-type": row.contentType, "cache-control": "private, max-age=3600", "content-disposition": "inline" } });
+  return new Response(object.body, { headers: { "content-type": row.contentType, "cache-control": "private, no-store", "x-content-type-options": "nosniff", "content-security-policy": "sandbox", "content-disposition": "inline" } });
 }
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
