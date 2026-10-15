@@ -17,6 +17,29 @@ async function expireTrackedCheckout(sessionId: string, secret: string) {
   return remote.status === "expired";
 }
 
+// A repeated customer checkout request MUST NOT call Stripe's /expire endpoint
+// for a previous still-active session. The customer may already be paying.
+async function inspectUnpaidExpiration(session: {id:string;type:string;amountCents:number},estimateId:string,secret:string,sandbox:boolean){
+  if(!/^cs_(test|live)_[a-zA-Z0-9]+$/.test(session.id))return false;
+  if((sandbox&&!session.id.startsWith("cs_test_"))||(!sandbox&&!session.id.startsWith("cs_live_")))return false;
+  const response=await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(session.id)}`,{
+    headers:{authorization:`Bearer ${secret}`,"Stripe-Version":"2026-08-26.dahlia"}
+  });
+  if(!response.ok)return false;
+  const remote=await response.json() as {
+    id?:string;status?:string;payment_status?:string;livemode?:boolean;
+    amount_total?:number;client_reference_id?:string;
+    metadata?:Record<string,string>;
+  };
+  return remote.id===session.id&&remote.livemode===!sandbox&&
+    remote.status==="expired"&&remote.payment_status==="unpaid"&&
+    remote.client_reference_id===estimateId&&
+    remote.metadata?.estimate_id===estimateId&&
+    remote.metadata?.payment_type===session.type&&
+    remote.metadata?.expected_charge_cents===String(session.amountCents)&&
+    remote.amount_total===session.amountCents;
+}
+
 export async function POST(request: Request) {
   const runtime = env as RuntimeEnv;
   const stripeKey = runtime.STRIPE_RESTRICTED_KEY || runtime.STRIPE_SECRET_KEY;
@@ -56,15 +79,22 @@ export async function POST(request: Request) {
     if (tipCents > maxTipCents) return Response.json({ error: `Tip cannot exceed the invoice total or $500.` }, { status: 400 });
     const chargeAmount = amount + tipCents;
     if (!Number.isSafeInteger(chargeAmount) || chargeAmount <= 0) return Response.json({ error: "The total card charge is outside FIRE's safe payment range." }, { status: 409 });
-    const openSessions = await env.DB.prepare("SELECT id FROM payment_checkout_sessions WHERE estimate_id=? AND status='open'").bind(row.id).all<{id:string}>();
+    const openSessions = await env.DB.prepare("SELECT id,type,amount_cents AS amountCents FROM payment_checkout_sessions WHERE estimate_id=? AND status='open'").bind(row.id).all<{id:string;type:string;amountCents:number}>();
     for (const session of openSessions.results) {
       // A prior request may have reached Stripe without receiving its acknowledgement.
       // Do not mistake our provisional D1 checkout lock for a Stripe session or
       // discard it: that could create a second charge after an ambiguous response.
       if(session.id.startsWith("fire-creating:"))return Response.json({error:"A card checkout is still being prepared or needs reconciliation. Do not start another payment; contact FIRE if this message persists."},{status:409});
-      const remotelyExpired = await expireTrackedCheckout(session.id, stripeKey);
-      if (!remotelyExpired) return Response.json({ error:"A previous payment checkout is still processing. Please wait a moment and try again." }, { status:409 });
-      await env.DB.prepare("UPDATE payment_checkout_sessions SET status='expired',expired_at=? WHERE id=? AND status='open'").bind(new Date().toISOString(), session.id).run();
+      // Read only: never invalidate a real customer session just because the
+      // payment button was tapped twice or an old page was refreshed.
+      // Stripe-paid sessions must be reconciled by webhook/owner, not expired.
+      const remotelyExpired = await inspectUnpaidExpiration(session,row.id,stripeKey,sandboxTarget);
+      if (!remotelyExpired) return Response.json({ error:"A previous card checkout is still open, paid, or needs reconciliation. Do not start a second payment; contact FIRE if this persists." }, { status:409 });
+      const closed=await env.DB.prepare(`UPDATE payment_checkout_sessions
+        SET status='expired',expired_at=?
+        WHERE id=? AND estimate_id=? AND type=? AND amount_cents=? AND status='open'`)
+        .bind(new Date().toISOString(),session.id,row.id,session.type,session.amountCents).run();
+      if(!closed.meta.changes)return Response.json({error:"Previous checkout changed during verification. Refresh before retrying."},{status:409});
     }
     // Secure the one-open-checkout slot BEFORE calling Stripe. The existing D1
     // partial unique index (0015) makes the reservation atomic across requests;

@@ -10,8 +10,8 @@ const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.
 let checks=0;
 const check=(condition,description)=>{assert.ok(condition,description);checks++;console.log('PASS: '+description);};
 const body=JSON.stringify({shareToken:'synthetic-share-token',paymentType:'deposit'});
-function harness({twoReaders=false,stripeResponse='success',saveFailure=false}={}){
- const state={open:null,creates:0,expirations:0,locks:0};
+function harness({twoReaders=false,stripeResponse='success',saveFailure=false,priorStatus=null,priorPaymentStatus='unpaid',priorMatches=true,priorMode=true}={}){
+ const state={open:priorStatus?{id:'cs_test_previous_synthetic',estimateId:'estimate-1',type:'deposit',charge:5000,status:'open'}:null,creates:0,expirations:0,locks:0,inspections:0};
  let readers=0,openReaders;
  const bothReaders=new Promise(resolve=>{openReaders=resolve;});
  const db={prepare(sql){
@@ -26,8 +26,8 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false}={
          throw Error('Unexpected first SQL: '+sql);
        },
        async all(){
-         if(!sql.includes('SELECT id FROM payment_checkout_sessions'))throw Error('Unexpected all SQL: '+sql);
-         const snapshot=state.open?[{id:state.open.id}]:[];
+         if(!sql.includes('FROM payment_checkout_sessions WHERE estimate_id=? AND status=\'open\''))throw Error('Unexpected all SQL: '+sql);
+         const snapshot=state.open?[{id:state.open.id,type:state.open.type,amountCents:state.open.charge}]:[];
          if(twoReaders){readers++;if(readers===2)openReaders();await bothReaders;}
          return {results:snapshot};
        },
@@ -71,7 +71,12 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false}={
      return Response.json({id:'cs_test_real_synthetic',status:'expired'});
    }
    if(String(url).includes('/checkout/sessions/')){
-     return Response.json({status:'expired'});
+     state.inspections++;
+     if(priorStatus==='unavailable')return Response.json({error:'Stripe is temporarily unreachable'},{status:503});
+     return Response.json({id:priorMatches?'cs_test_previous_synthetic':'cs_test_other_job',
+      livemode:!priorMode, status:priorStatus,payment_status:priorPaymentStatus,
+      client_reference_id:'estimate-1',amount_total:5000,
+      metadata:{estimate_id:'estimate-1',payment_type:'deposit',expected_charge_cents:'5000'}});
    }
    throw Error('Unexpected Stripe API call '+url);
  }
@@ -115,5 +120,25 @@ for(const kind of ['server-error','rate-limit']){
  check(r.status===503,'Failed D1 checkout acknowledgement blocks returning a payable link');
  check(h.state.expirations===1,'The unmatched external Stripe session is explicitly expired');
  check(h.state.open===null,'Confirmed Stripe expiry releases the checkout lock');
+}
+
+for(const [kind,payment] of [['open','unpaid'],['complete','paid'],['expired','paid'],['unavailable','unpaid']]){
+ const h=harness({priorStatus:kind,priorPaymentStatus:payment});
+ const response=await h.post();
+ check(response.status===409,'Prior '+kind+'/'+payment+' checkout is not replaced by customer retry');
+ check(h.state.expirations===0,'Customer retry NEVER sends /expire for a prior '+kind+' Stripe session');
+ check(h.state.creates===0&&h.state.open?.id==='cs_test_previous_synthetic','Prior '+kind+' checkout stays tracked and cannot start a second payment');
+}
+{
+ const h=harness({priorStatus:'expired',priorPaymentStatus:'unpaid'});
+ const response=await h.post();
+ check(response.status===200,'Stripe-confirmed expired unpaid session permits a replacement checkout');
+ check(h.state.creates===1&&h.state.expirations===0,'A new link is created after read-only expiry verification without forcing cancellation');
+ check(h.state.open?.id==='cs_test_real_synthetic','Old verified-expired checkout slot was replaced atomically with newly tracked session');
+}
+for(const flag of ['priorMatches','priorMode']){
+ const h=harness({priorStatus:'expired',priorPaymentStatus:'unpaid',[flag]:false});
+ const response=await h.post();
+ check(response.status===409&&h.state.creates===0&&h.state.expirations===0,'Stripe expired session with mismatched '+flag+' cannot release old lock');
 }
 console.log('PASS '+checks+' synthetic checkout race and recovery assertions against the actual FIRE route.');
