@@ -1,6 +1,6 @@
 declare namespace Cloudflare {
   interface Env {
-    DB?: D1Database;
+    DB: D1Database;
     BUCKET?: R2Bucket;
     CASH_APP_HANDLE?: string;
     VENMO_HANDLE?: string;
