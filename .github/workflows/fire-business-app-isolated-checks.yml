@@ -171,6 +171,12 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
           node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
+      - name: Physical SQLite rollback, journal/index preservation, and anti-tamper checks
+        env:
+          FIRE_SYNTHETIC_TARGET: ${{ matrix.target }}
+        run: |
+          cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
+          node --experimental-sqlite scripts/test-physical-rollback.mjs
       - name: Build materialized candidate without publishing
         run: |
           cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
