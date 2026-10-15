@@ -20,9 +20,9 @@ from verify_doomsday_d1_export import (
 
 CANDIDATE = ROOT / "adapters" / "doomsday" / "drizzle" / NEXT_MIGRATION
 REVIEWED_DDL = (
-    "CREATE UNIQUE INDEX \`idx_payments_stripe_provider_unique\` "
-    "ON \`payments\` (\`provider_id\`) "
-    "WHERE \`provider_id\` GLOB 'cs_*' OR \`provider_id\` GLOB 'refund:*'"
+    "CREATE UNIQUE INDEX `idx_payments_stripe_provider_unique` "
+    "ON `payments` (`provider_id`) "
+    "WHERE `provider_id` GLOB 'cs_*' OR `provider_id` GLOB 'refund:*'"
 )
 
 def reviewed_migration_sql():
