@@ -7,6 +7,7 @@ on:
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
+      - 'scripts/deploy-fire-dr-staging.sh'
       - '.github/workflows/fire-business-app-isolated-checks.yml'
   workflow_dispatch:
 
@@ -103,6 +104,8 @@ jobs:
           node --experimental-sqlite scripts/test-candidate-db-preflight.mjs
       - name: Shared-source parity gate regression
         run: node scripts/test-parity-gate.mjs
+      - name: Governed Doomsday deployment fail-closed policy (no execution)
+        run: node scripts/test-governed-deploy-guards.mjs
       - name: Shared financial regression suite
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
       - name: Shared photo storage integrity regression
