@@ -23,6 +23,7 @@ on:
       - 'business-app-parity/test_doomsday_export_restore.py'
       - 'business-app-parity/shared/scripts/test-real-wrangler-local-d1-export.mjs'
       - 'business-app-parity/shared/scripts/test-fire-service-catalog-pricing.mjs'
+      - 'business-app-parity/shared/scripts/test-editable-line-totals.mjs'
       - 'scripts/deploy-fire-dr-staging.sh'
       - '.github/workflows/fire-business-app-isolated-checks.yml'
   workflow_dispatch:
@@ -138,6 +139,8 @@ jobs:
         run: node scripts/test-real-wrangler-local-d1-export.mjs
       - name: Protect owner-approved FIRE service rates in the shared source
         run: node --experimental-strip-types scripts/test-fire-service-catalog-pricing.mjs
+      - name: Preserve historical estimate and invoice line totals during no-op edits
+        run: node --experimental-strip-types scripts/test-editable-line-totals.mjs
       - name: Shared financial regression suite
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
       - name: Shared photo storage integrity regression
