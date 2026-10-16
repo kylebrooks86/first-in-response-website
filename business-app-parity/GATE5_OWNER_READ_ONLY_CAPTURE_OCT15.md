@@ -87,3 +87,39 @@ A failure/mismatch must be reviewed, never masked.
 deployed Worker artifact provenance, isolation, and separately reviewed migration
 authorization/safe rollback acceptance. This checkpoint performs no hosted
 mutations or deployments.
+
+
+## Owner next screenshot — offline 22-migration baseline comparison
+
+Owner's Windows screen shows **6/6 local synthetic comparator tests passing**,
+and receipt FIRE-DOOMSDAY-METADATA-ONLY-20261016-033529.json identified.
+The private 10-query receipt was checked against historical Doomsday 0000–0021.
+Results: **only Query 1 differs** (sqlite_master table/index CREATE definitions).
+Queries 2–10 exactly matched local baseline. All five aggregate foreign-key,
+provider-collision, refund-link/ledger, and overreserved-refund counts equal
+zero. The result is **REVIEW_REQUIRED**, not a pass.
+
+Cause of Query 1 drift is **not established**: could be additional/missing
+table/index definitions, CREATE SQL text differences, or a row-order issue.
+Do not declare a formatting-only issue until identifiers and exact definitions
+are reviewed. No remote queries, database writes, or migrations were run during
+this comparison. Existing archive and receipt must remain private.
+
+To investigate without posting raw SQL or re-running hosted queries, new
+schema_object_differences in compare_doomsday_pre0022_capture.py prints
+Query 1 expected/captured object counts, missing/unexpected object identifiers,
+changed known object identifiers and the status of SQL-token formatting
+comparisons, with CREATE SQL and record contents withheld. This does not
+relax exact schema acceptance. New synthetic tests cover drift, no SQL output,
+order-only mismatch and duplicate object rejection; owner Windows has NOT
+yet run the updated ten-test suite. Explicit sqlite3 closing also eliminates
+the fixture's prior unclosed-connection ResourceWarning.
+
+Recommended owner-only next call (after fast-forward pull), no Cloudflare:
+
+    py -3 "$HOME\first-in-response-website\business-app-parity\test_compare_doomsday_pre0022_capture.py"
+    py -3 "$HOME\first-in-response-website\business-app-parity\compare_doomsday_pre0022_capture.py"
+
+Stop on test failure. Only sanitized final console output should be supplied.
+No migration/Stripe/deploy or active binding change is authorized. Gate 5
+remains OPEN, official release readiness 30% (3/10).
