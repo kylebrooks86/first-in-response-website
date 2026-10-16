@@ -101,7 +101,11 @@ check(vault.includes('listOfflinePhotos(customerId)')&&vault.includes('invalid c
 check(component.includes('URL.createObjectURL(photo.blob)')&&component.includes('URL.revokeObjectURL'),'Actual photo screen uses offline blobs and releases previews');
 check(vault.includes("db.transaction(STORE,'readwrite')")&&vault.includes('store.add(row)')&&!vault.includes('store.put(row)'),'Restore adds photos atomically without destructive overwrite');
 check(vault.includes("crypto.subtle.digest('SHA-256'")&&vault.includes('exactSavedPhotoMatch(stored,row)'),'Actual restore compares existing device photo bytes with cryptographic digest before skipping them');
-check(vault.includes('if(!additions.length)return {restored:0,alreadyPresent}')&&vault.includes('return {restored:additions.length,alreadyPresent}'),'Actual restore reports new and byte-identical existing photos separately');
+check(vault.includes('if(!additions.length){')&&
+  vault.includes('await verifyRestoredOfflinePhotos(rows);')&&
+  vault.includes('return {restored:0,alreadyPresent};')&&
+  vault.includes('return {restored:additions.length,alreadyPresent};'),
+  'Actual restore checks final photo bytes for no-op replay and new images before reporting success');
 check(component.includes('result.alreadyPresent')&&component.includes('result.restored'),'Actual iPhone owner UI explains both added and skipped originals');
 const inspectionCode=readFileSync(new URL('../lib/offline-photo-inspection.ts',import.meta.url),'utf8');
 check(component.includes('Verify saved ZIP from Files')&&component.includes('verifySavedArchive=async')&&component.includes('verifyRef.current?.click()'),'Actual iPhone screen has a dedicated read-only saved Files ZIP verification action');
