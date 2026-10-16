@@ -169,6 +169,8 @@ jobs:
         run: node scripts/test-offline-photo-vault.mjs
       - name: Shared photo storage integrity regression
         run: node --experimental-sqlite scripts/test-photo-storage-integrity.mjs
+      - name: Offline photo archive and records recovery pairing — no mutations
+        run: python3 scripts/test-plan-complete-photo-recovery.py
       - name: Synthetic record-backup restore and rollback fault rehearsal
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-records-recovery.mjs
       - name: Verify Stripe test-only guard for isolated candidates
