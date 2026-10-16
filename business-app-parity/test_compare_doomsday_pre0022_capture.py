@@ -1,6 +1,8 @@
 """Offline-only synthetic regressions for historical Doomsday pre-0022 comparison."""
 from copy import deepcopy
 from datetime import datetime, timezone
+from contextlib import redirect_stdout
+from io import StringIO
 import unittest
 import compare_doomsday_pre0022_capture as m
 
@@ -78,6 +80,51 @@ class HistoricalDoonsdayComparisonTest(unittest.TestCase):
         data["captures"][0]["queries"][6]["rows"][0]["customer_email"] = "should-not-exist"
         with self.assertRaises(ValueError):
             m.compare_capture(data)
+
+    def test_query1_whitespace_candidate_requires_review_not_acceptance(self):
+        expected = self.baseline[0]
+        actual = deepcopy(expected)
+        item = next(i for i, row in enumerate(actual) if isinstance(row["sql"], str))
+        actual[item]["sql"] += " "
+        detail = m.schema_object_differences(actual, expected)
+        self.assertEqual(len(detail["changed"]), 1)
+        self.assertEqual(detail["changed"][0][1], "WHITESPACE_TOKEN_CANDIDATE")
+        self.assertFalse(detail["rowOrderOnly"])
+        with redirect_stdout(StringIO()) as captured:
+            m.print_schema_diagnostic(detail)
+        self.assertNotIn("CREATE TABLE", captured.getvalue())
+        self.assertNotIn("CREATE INDEX", captured.getvalue())
+        data = self.receipt()
+        data["captures"][0]["queries"][0]["rows"] = actual
+        self.assertEqual(m.compare_capture(data)["result"], "REVIEW_REQUIRED")
+
+    def test_query1_missing_and_unexpected_object_identifiers(self):
+        expected = self.baseline[0]
+        actual = deepcopy(expected)
+        absent = actual.pop(0)
+        actual.append({"type": "index", "name": "synthetic_new_index",
+                       "tbl_name": "payments", "sql": "CREATE INDEX synthetic_new_index ON payments(id)"})
+        detail = m.schema_object_differences(actual, expected)
+        self.assertIn((absent["type"], absent["name"], absent["tbl_name"]), detail["missing"])
+        self.assertIn(("index", "synthetic_new_index", "payments"), detail["unexpected"])
+
+    def test_query1_structural_change_is_not_dismissed_as_formatting(self):
+        expected = self.baseline[0]
+        actual = deepcopy(expected)
+        item = next(i for i, row in enumerate(actual) if isinstance(row["sql"], str))
+        actual[item]["sql"] += " /* changed */"
+        detail = m.schema_object_differences(actual, expected)
+        self.assertEqual(detail["changed"][0][1], "DEFINITION_REVIEW_REQUIRED")
+
+    def test_query1_order_only_and_duplicate_fail_closed(self):
+        expected = self.baseline[0]
+        actual = list(reversed(deepcopy(expected)))
+        detail = m.schema_object_differences(actual, expected)
+        self.assertTrue(detail["rowOrderOnly"])
+        self.assertEqual(detail["changed"], [])
+        actual = deepcopy(expected) + [deepcopy(expected[0])]
+        with self.assertRaisesRegex(ValueError, "Duplicate schema object"):
+            m.schema_object_differences(actual, expected)
 
     def test_0022_migration_cannot_be_mislabeled_historical_baseline(self):
         data = self.receipt()
