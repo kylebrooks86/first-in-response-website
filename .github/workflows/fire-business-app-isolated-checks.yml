@@ -13,6 +13,8 @@ on:
       - 'business-app-parity/candidate_release_manifest.py'
       - 'business-app-parity/prepare_device_review.py'
       - 'business-app-parity/test_prepare_device_review.py'
+      - 'business-app-parity/verify_device_review_packet.py'
+      - 'business-app-parity/test_verify_device_review_packet.py'
       - 'business-app-parity/RELEASE_SCHEMA_CAPTURE_READ_ONLY.sql'
       - 'business-app-parity/verify_hosted_schema_capture.py'
       - 'business-app-parity/capture_doomsday_schema_read_only.py'
@@ -141,6 +143,8 @@ jobs:
         run: node scripts/test-governed-deploy-guards.mjs
       - name: Device review archive privacy, exact bytes, non-overwrite and cleanup
         run: python3 ../test_prepare_device_review.py
+      - name: Reject swapped, forged and unsafe full-app review ZIPs
+        run: python3 ../test_verify_device_review_packet.py
       - name: Release-manifest integrity, source drift and negative controls
         run: python3 ../test_candidate_release_manifest.py
       - name: Read-only hosted schema capture coverage and mismatch negative controls
@@ -274,6 +278,12 @@ jobs:
             --target "${{ matrix.target }}" \
             --candidate "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate" \
             --output "$RUNNER_TEMP/fire-${{ matrix.target }}-device-review" \
+            --checkpoint "$GITHUB_SHA"
+      - name: Reopen and independently verify sealed full-app review ZIP against exact CI source commit
+        run: |
+          python3 business-app-parity/verify_device_review_packet.py \
+            --packet "$RUNNER_TEMP/fire-${{ matrix.target }}-device-review" \
+            --target "${{ matrix.target }}" \
             --checkpoint "$GITHUB_SHA"
       - name: Retain isolated full-app review bundle without publishing
         uses: actions/upload-artifact@v4
