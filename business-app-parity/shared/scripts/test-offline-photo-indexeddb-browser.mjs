@@ -110,6 +110,21 @@ try{
   return Array.from(new Uint8Array(await zip.arrayBuffer()));
  });
  check(archiveBytes.length>100,'Actual IndexedDB-to-ZIP export produces nonempty user backup');
+ const concurrentExportGuard=await page.evaluate(async()=>{
+  const vault=window.FIRE_LOCAL_PHOTOS;
+  const rows=await vault.listOfflinePhotos('synthetic-customer');
+  return {
+   stable:vault.sameOfflinePhotoInventory(rows,rows),
+   extra:vault.sameOfflinePhotoInventory(rows,[...rows,{...rows[0],id:'unexpected-concurrent-photo'}]),
+   deleted:vault.sameOfflinePhotoInventory(rows,[]),
+   swappedId:vault.sameOfflinePhotoInventory(rows,rows.map(row=>({...row,id:'replaced-photo'}))),
+   amendedSize:vault.sameOfflinePhotoInventory(rows,rows.map(row=>({...row,sizeBytes:row.sizeBytes+1}))),
+  };
+ });
+ check(concurrentExportGuard.stable&&!concurrentExportGuard.extra&&!concurrentExportGuard.deleted,
+   'Mobile ZIP export inventory guard refuses an added or deleted photo from another tab');
+ check(!concurrentExportGuard.swappedId&&!concurrentExportGuard.amendedSize,
+   'Mobile ZIP export inventory guard refuses a same-count photo replacement or changed metadata');
  const savedInspection=await page.evaluate(async bytes=>
    window.FIRE_PHOTO_BACKUP_INSPECTION.inspectSavedOfflinePhotoZip(
     new Blob([new Uint8Array(bytes)]),['synthetic-customer']),archiveBytes);
