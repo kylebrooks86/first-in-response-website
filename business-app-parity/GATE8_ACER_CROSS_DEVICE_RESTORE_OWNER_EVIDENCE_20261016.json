@@ -37,7 +37,8 @@
     },
     {
       "step": "Repeat recovery refused with restored revision unchanged",
-      "result": "PENDING_OWNER_TEST"
+      "result": "PASS_OWNER_OBSERVED_REJECTION; POST_REJECTION_RECORD_RECHECK_PENDING",
+      "evidence": "Owner screenshot of actual repeat recovery attempt on Acer Edge at query-free canonical synthetic URL, saved file fire-synthetic-customer-backup.json selected and confirmation checkbox checked. UI returned: 'Recovery blocked: vault already exists on this device. Existing records preserved; do not clear data.' No successful overwrite reported; revised record content must still be rechecked after refusal."
     },
     {
       "step": "Read-only occupied-vault detection after offline cold restart",
@@ -57,7 +58,7 @@
   "officialReadinessPercent": 30,
   "gate8FullBusinessAppAccepted": false,
   "syntheticCrossDeviceRecoveryToUnlockedRevision3": "PASS_OWNER_OBSERVED",
-  "nextStep": "With Acer recovered synthetic Revision 3 vault occupied, optionally perform ONE owner-approved repeat recovery of the same encrypted synthetic JSON to prove the guarded operation refuses overwrite. Expected error/existing-vault refusal. Afterward unlock and confirm Revision 3 unchanged. Stop on unexpected result, no retries/clears; never use customer data or real-app backup.",
-  "safeguards": "Evidence is owner-observed/reported for synthetic demo only. Successful standalone Windows Edge offline cold relaunch and occupied-vault diagnostic confirmed; repeat recovery refusal not yet exercised, candidate full iOS Business App release untested, production gates not raised. Wi-Fi state reported by owner, not independently measured.",
-  "lastObservedBranchHead": "3d056540dc4d3b71b57caf4dc22c86cddad57664"
+  "nextStep": "On the same Acer Edge synthetic demo, keep Wi-Fi OFF and use Test recovery phrase (top field) to unlock. Confirm Synthetic Recovery / Revision 3 unchanged after rejected second recovery; screenshot without phrase. No Save offline edit or repeat restore.",
+  "safeguards": "Evidence is owner-observed/reported synthetic only. Real Acer restore, offline cold restart, occupied status, and actual repeat recover refusal all observed, but post-rejection content comparison pending. Full Business App iOS Home Screen candidate acceptance and production release gates are not proved.",
+  "lastObservedBranchHead": "9c9fe9df644b9ac151865b06a0bb1c89930aeec2"
 }
