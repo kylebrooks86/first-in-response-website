@@ -13,6 +13,10 @@ on:
       - 'business-app-parity/candidate_release_manifest.py'
       - 'business-app-parity/RELEASE_SCHEMA_CAPTURE_READ_ONLY.sql'
       - 'business-app-parity/verify_hosted_schema_capture.py'
+      - 'business-app-parity/capture_doomsday_schema_read_only.py'
+      - 'business-app-parity/test_capture_doomsday_schema_read_only.py'
+      - 'business-app-parity/compare_doomsday_pre0022_capture.py'
+      - 'business-app-parity/test_compare_doomsday_pre0022_capture.py'
       - 'business-app-parity/test_hosted_schema_capture.py'
       - 'business-app-parity/test_release_schema_capture.py'
       - 'business-app-parity/DOOMSDAY_0022_OWNER_CONSOLE_READ_ONLY.sql'
@@ -137,6 +141,10 @@ jobs:
         run: |
           python3 ../test_release_schema_capture.py
           python3 ../test_hosted_schema_capture.py
+      - name: Owner-safe read-only D1 capture and historical pre-0022 comparator security regressions
+        run: |
+          python3 ../test_capture_doomsday_schema_read_only.py
+          python3 ../test_compare_doomsday_pre0022_capture.py
       - name: Owner-safe remote 0022 evidence query and synthetic integrity states
         run: |
           python3 ../test_doomsday_owner_console.py
