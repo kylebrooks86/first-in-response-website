@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-16",
+  "scope": "Existing published synthetic customer demo, not the unpublished full Business App release candidate",
+  "target": "Acer Windows laptop, Microsoft Edge regular browser profile",
+  "canonicalUrl": "https://fire-synthetic-offline-test-bfc00939.pages.dev/synthetic-customer-demo/",
+  "provenance": "Owner-supplied sequential Acer screen photographs in FIRE App conversation; independently authenticated byte-level device observations not performed",
+  "observations": [
+    {
+      "step": "Previously verified empty snapshot",
+      "result": "PASS_OWNER_OBSERVED",
+      "evidence": "Read-only precheck: No stored vault snapshot found on this device"
+    },
+    {
+      "step": "Original synthetic encrypted backup accessible from Windows",
+      "result": "PASS_OWNER_OBSERVED",
+      "evidence": "fire-synthetic-customer-backup.json selected; verification: revision 3, 3 operation receipts, no records changed"
+    },
+    {
+      "step": "Restore to previously empty Windows Edge vault",
+      "result": "PASS_OWNER_OBSERVED",
+      "evidence": "Recovered into an empty synthetic vault. Unlock above to inspect saved records. Nothing was replayed."
+    },
+    {
+      "step": "Unlock the restored Windows Edge snapshot",
+      "result": "PASS_OWNER_OBSERVED",
+      "evidence": "Unlocked synthetic records; Synthetic Recovery - Revision 3; demo@example.invalid"
+    },
+    {
+      "step": "Offline full browser shutdown and cold restart",
+      "result": "PENDING_OWNER_TEST",
+      "evidence": "Current screenshot displays offline shell ready, but does not independently prove network disabled or closed-browser relaunch"
+    },
+    {
+      "step": "Repeat recovery refused with restored revision unchanged",
+      "result": "PENDING_OWNER_TEST"
+    }
+  ],
+  "urlObservation": "Owner screenshots include ?utm_source=chatgpt.com. Exact query-free canonical URL should be used in offline cold restart to avoid service-worker cache scope/query mismatch.",
+  "preservation": [
+    "Original iPhone Revision 3 vault retained",
+    "Original iPad Revision 1 vault retained",
+    "Original encrypted JSON kept private; backup phrase not recorded",
+    "No production customer data, payment or deployed full-app application changes"
+  ],
+  "officialGatesPassed": 3,
+  "totalGates": 10,
+  "officialReadinessPercent": 30,
+  "gate8FullBusinessAppAccepted": false,
+  "syntheticCrossDeviceRecoveryToUnlockedRevision3": "PASS_OWNER_OBSERVED",
+  "nextStep": "On Edge, while online first use exact query-free canonical URL, confirm shell ready; then turn network fully offline, completely close Edge, reopen exact URL offline, unlock and check revision 3. Stop and report if offline navigation fails. Do not clear browser storage.",
+  "safeguards": "All claims limited to visible owner-reported synthetic demo evidence. No offline cold launch PASS, durable iOS recovery PASS, production app acceptance, or successful overwrite-refusal asserted."
+}
