@@ -68,6 +68,43 @@ def local_expected(target):
     }
 
 
+
+def matches_documented_d1_reserved_table(observed, expected):
+    """Accept ONLY Cloudflare's exact _cf_KV internal table as an extra object.
+
+    Application objects must still match byte-for-byte in original query order.
+    Cloudflare documents _cf_KV as internal D1 storage:
+    https://developers.cloudflare.com/d1/best-practices/import-export-data/
+    No generic _cf_* exception, missing objects or altered app SQL is allowed.
+    """
+    if (not isinstance(observed, list) or not isinstance(expected, list)
+            or len(observed) != len(expected) + 1):
+        return False
+    expected_keys = {"type", "name", "tbl_name", "sql"}
+    if any(not isinstance(row, dict) or set(row) != expected_keys
+           for row in observed):
+        return False
+    internal_key = ("table", "_cf_KV", "_cf_KV")
+    extra = [row for row in observed
+             if (row["type"], row["name"], row["tbl_name"]) == internal_key]
+    if len(extra) != 1:
+        return False
+    application_rows = [row for row in observed
+                        if (row["type"], row["name"], row["tbl_name"]) != internal_key]
+    if application_rows != expected:
+        return False
+    ddl = extra[0]["sql"]
+    if not isinstance(ddl, str):
+        return False
+    table = r'(?:_cf_KV|"_cf_KV"|\x60_cf_KV\x60|\[_cf_KV\])'
+    key = r'(?:key|"key"|\x60key\x60|\[key\])'
+    value = r'(?:value|"value"|\x60value\x60|\[value\])'
+    pattern = (r'CREATE\s+TABLE\s+' + table + r'\s*\(\s*'
+               + key + r'\s+TEXT\s+PRIMARY\s+KEY\s*,\s*'
+               + value + r'\s+BLOB\s*\)\s+WITHOUT\s+ROWID\s*;?')
+    return re.fullmatch(pattern, ddl.strip(), flags=re.IGNORECASE) is not None
+
+
 def valid_time(value):
     if not isinstance(value, str):
         return False
@@ -126,6 +163,7 @@ def evaluate(document):
             errors.append("CAPTURE_COMPLETENESS_UNVERIFIED")
         rows = capture.get("queries")
         expected, fingerprint = local_expected(target)
+        documented_internal_table_only = False
         if not isinstance(rows, list) or len(rows) != len(expected):
             errors.append("INCOMPLETE_CAPTURE_QUERY_SET")
         else:
@@ -136,14 +174,16 @@ def evaluate(document):
                         any(not isinstance(row, dict) for row in query["rows"])):
                     errors.append(f"QUERY_{i:02}_MALFORMED_OR_UNAVAILABLE")
                 elif query["rows"] != wanted:
-                    # Exact expected rows/column types, constraints, CREATE SQL,
-                    # partial index predicates, ordered journal and anomaly counts.
-                    # A different SQLite dialect representation must be reviewed,
-                    # not automatically declared equivalent.
-                    errors.append(f"QUERY_{i:02}_DIFFERS_FROM_CANDIDATE")
+                    # Only query 1 may have D1's documented internal _cf_KV.
+                    # Do not relax any other application/journal/financial result.
+                    if i == 1 and matches_documented_d1_reserved_table(query["rows"], wanted):
+                        documented_internal_table_only = True
+                    else:
+                        errors.append(f"QUERY_{i:02}_DIFFERS_FROM_CANDIDATE")
         reports[target] = {
             "technicalMatch": not errors,
             "blockers": errors,
+            "documentedD1ReservedTableOnly": documented_internal_table_only,
             "candidateMigrationCount": fingerprint["files"],
             "candidateMigrationManifestSha256": fingerprint["sha256"],
             "remoteIdentityIndependentlyVerified": False,
