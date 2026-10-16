@@ -123,3 +123,40 @@ Recommended owner-only next call (after fast-forward pull), no Cloudflare:
 Stop on test failure. Only sanitized final console output should be supplied.
 No migration/Stripe/deploy or active binding change is authorized. Gate 5
 remains OPEN, official release readiness 30% (3/10).
+
+
+## D1 reserved-table diagnosis from owner screenshot (October 15, 10:43 PM CDT)
+
+Owner's updated Acer output confirmed **10/10 offline synthetic tests pass**,
+receipt matching queries 2–10, and all five aggregate anomaly counts zero.
+The sole Query 1 difference was 52 observed schema objects vs 51 from
+historical migrations 0000–0021. No missing application objects and no
+modified CREATE definitions. Exactly one extra "table / _cf_KV / _cf_KV".
+
+**Independent Cloudflare documentation verifies _cf_KV is a reserved internal
+D1 storage table**, not an application table:
+https://developers.cloudflare.com/d1/best-practices/import-export-data/
+Do not drop, alter, query its data or include it in an application migration.
+This does not justify ignoring other or generic _cf-prefixed objects.
+
+The offline comparator now allows one narrowly checked _cf_KV exception:
+exact reserved object type/name/owner, documented two-column schema,
+and unmodified baseline objects with exact row ordering. It continues to
+retain/report the raw Query 1 difference; distinguishes application-only
+comparison MATCH_D1_RESERVED_TABLE from a byte-for-byte full-system
+match; refuses malformed/multiple unexpected objects and nonzero financial
+anomaly counts. These changes do not set gate5Accepted true or change the
+official readiness 30%. Five extra synthetic tests added (15 total),
+still awaiting owner Windows execution after a fast-forward pull.
+
+Owner should run (local only, no CAPTURE and no Cloudflare):
+  git -C "$HOME\first-in-response-website" pull --ff-only
+  py -3 "$HOME\first-in-response-website\business-app-parity\test_compare_doomsday_pre0022_capture.py"
+  py -3 "$HOME\first-in-response-website\business-app-parity\compare_doomsday_pre0022_capture.py"
+
+Remaining gate acceptance blockers (independent of this schema exception):
+authenticated active Worker version/build/source and runtime DB-binding
+attestation; proof LIVE/refund-staging physical isolation; reviewed
+pre-0022 to candidate-0022 plan with writer quiescence, webhook protection,
+safe backup and recovery window, independent signoff and fresh anomalies.
+No hosted migration/deploy or real records touched.
