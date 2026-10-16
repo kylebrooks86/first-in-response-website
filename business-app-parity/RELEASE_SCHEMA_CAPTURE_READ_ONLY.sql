@@ -15,7 +15,8 @@ SELECT m.name AS table_name, p.id, p.seq, p."table" AS parent_table, p."from" AS
 
 SELECT m.name AS table_name, i.name AS index_name, i."unique", i.origin, i.partial, c.seqno, c.cid, c.name AS column_name FROM sqlite_master m JOIN pragma_index_list(m.name) i JOIN pragma_index_info(i.name) c WHERE m.type='table' AND m.name IN ('auth_rate_limits', 'customer_messages', 'customer_notes', 'customer_photos', 'customers', 'estimate_change_requests', 'estimate_items', 'estimates', 'expenses', 'invoice_items', 'invoice_revisions', 'invoices', 'job_reports', 'message_templates', 'notifications', 'payment_checkout_sessions', 'payment_refunds', 'payments', 'tasks') ORDER BY m.name,i.name,c.seqno;
 
-SELECT name FROM d1_migrations ORDER BY name;
+-- Preserve actual migration application sequence: sorting by name could hide journal reordering.
+SELECT name FROM d1_migrations ORDER BY id;
 
 SELECT COUNT(*) AS foreign_key_violation_count FROM pragma_foreign_key_check;
 
