@@ -60,3 +60,32 @@ A matching receipt is narrower than Gate 4: it does not identify LIVE or
 refund-staging storage, prove the deployed artifact's source SHA, or
 authenticate the Sites deployment routes. It cannot justify Gate 4/5
 acceptance, a schema migration, a Worker deployment or release readiness.
+
+## Owner-verified independent Doomsday active binding — October 16, 2026
+
+**Completed; do not request this Acer check again merely to repeat it.**
+The owner ran `capture_doomsday_worker_identity_read_only.py --capture`
+on an authenticated Windows/Cloudflare session and supplied a PowerShell
+screenshot. The sanitized checker returned
+`INDEPENDENT_DOOMSDAY_READ_ONLY_BINDING_MATCH`:
+
+- Active Worker: `fire-app-independent-staging`
+- Deployed version: `61fa32a3-3461-469d-9245-a9df6dd3f036`
+- D1 DB binding UUID: `afb2c05a-d794-4a9a-b580-924ce01c26ad`
+- D1 account inventory match: true
+- Historical version changed: false
+- LIVE/refund staging verified: false
+- Source/artifact SHA independently verified: false
+- Three-target physical database isolation verified: false
+
+The screenshot is retained in the owner's conversation, not checked into Git.
+Its exact SHA256 and strict limitations are recorded in
+`GATE4_OWNER_ACTIVE_DOOMSDAY_BINDING_OCT16.json`.
+No deployment, D1 write, migration or customer/Stripe data access occurred.
+
+**Remaining Gate 4 blockers:** provider-authenticated LIVE/refund-staging
+immutable physical DB mappings, current routed provider artifacts, and
+independent Doomsday source/binary provenance. Do not mistake distinct Sites
+project IDs for DB isolation. Do not send the owner through another completed
+Doomsday read-only lookup while awaiting Sites' answer. Gates 4/5 remain open;
+official readiness 30% (3 of 10).
