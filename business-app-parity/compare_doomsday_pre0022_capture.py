@@ -102,6 +102,77 @@ def compare_capture(document):
     }
 
 
+def schema_object_differences(actual_rows, expected_rows):
+    """Safe, shape-checked Query 1 diagnostic; never emits CREATE SQL or data rows.
+
+    This is a DIAGNOSTIC only. Even a whitespace-only difference is NOT
+    automatically equivalent to the reviewed schema or an accepted release.
+    """
+    columns = {"type", "name", "tbl_name", "sql"}
+
+    def keyed(rows):
+        found = {}
+        if not isinstance(rows, list):
+            raise ValueError("Schema diagnostic requires a row list.")
+        for row in rows:
+            if (not isinstance(row, dict) or set(row) != columns
+                    or not all(isinstance(row.get(k), str) for k in ("type", "name", "tbl_name"))
+                    or row["type"] not in {"table", "index"}
+                    or not isinstance(row["sql"], (str, type(None)))):
+                raise ValueError("Schema diagnostic received unexpected fields; stop.")
+            key = (row["type"], row["name"], row["tbl_name"])
+            if key in found:
+                raise ValueError("Duplicate schema object in capture; stop.")
+            found[key] = row
+        return found
+
+    actual = keyed(actual_rows)
+    expected = keyed(expected_rows)
+    missing = sorted(set(expected) - set(actual))
+    unexpected = sorted(set(actual) - set(expected))
+    changed = []
+    for key in sorted(set(actual) & set(expected)):
+        original = expected[key]["sql"]
+        observed = actual[key]["sql"]
+        if observed != original:
+            # Heuristic only. This does not establish SQL semantic equivalence.
+            same_tokens = (isinstance(observed, str) and isinstance(original, str)
+                           and observed.split() == original.split())
+            changed.append((key, "WHITESPACE_TOKEN_CANDIDATE" if same_tokens
+                            else "DEFINITION_REVIEW_REQUIRED"))
+    return {
+        "expectedObjectCount": len(expected_rows),
+        "capturedObjectCount": len(actual_rows),
+        "missing": missing,
+        "unexpected": unexpected,
+        "changed": changed,
+        "rowOrderOnly": not missing and not unexpected and not changed
+                        and actual_rows != expected_rows,
+    }
+
+
+def print_schema_diagnostic(detail):
+    """Print schema object identifiers only: no SQL text or customer records."""
+    print("Query 1 database object diagnostic (metadata identifiers only):")
+    print("  Expected objects: " + str(detail["expectedObjectCount"]) +
+          "; captured objects: " + str(detail["capturedObjectCount"]))
+    for label in ("missing", "unexpected"):
+        entries = detail[label]
+        print("  " + label + " object count: " + str(len(entries)))
+        for obj_type, name, table in entries[:12]:
+            print("    " + label + ": " + obj_type + " / " + name + " / " + table)
+        if len(entries) > 12:
+            print("    ... additional objects withheld")
+    print("  Changed CREATE definitions: " + str(len(detail["changed"])))
+    for (obj_type, name, table), classification in detail["changed"][:12]:
+        print("    " + obj_type + " / " + name + " / " + table + ": " + classification)
+    if len(detail["changed"]) > 12:
+        print("    ... additional definitions withheld")
+    if detail["rowOrderOnly"]:
+        print("  Diagnostic: same objects and definitions; returned row order differs.")
+    print("No SQL definitions printed; all differences require review.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("receipt", type=Path, nargs="?", help="Private owner metadata JSON receipt")
@@ -118,6 +189,10 @@ def main():
             raise ValueError("Missing or oversized metadata receipt; stop.")
         doc = json.loads(path.read_text(encoding="utf-8"))
         report = compare_capture(doc)
+        diagnostic = None
+        if 1 in report["differenceQueryNumbers"]:
+            diagnostic = schema_object_differences(
+                doc["captures"][0]["queries"][0]["rows"], expected_baseline()[0])
         print("FIRE Doomsday — OFFLINE pre-0022 comparison; no remote operations.")
         print("Receipt: " + path.name)
         print("Schema/index/journal comparisons: " +
@@ -125,6 +200,8 @@ def main():
                else "Differences in queries: " + ", ".join(map(str, report["differenceQueryNumbers"]))))
         print("Five foreign-key/payment anomaly counts (aggregate only): " +
               str(report["aggregateAnomalyCounts"]))
+        if diagnostic is not None:
+            print_schema_diagnostic(diagnostic)
         print("Pre-0022 baseline result: " + report["result"])
         print("Current candidate has migration 0022; this is NOT an acceptance or approval.")
         print("Deployed Worker provenance/physical isolation unverified. Gate 5 OPEN. Official readiness 30%.")
