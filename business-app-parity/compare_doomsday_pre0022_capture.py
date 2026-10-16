@@ -11,6 +11,7 @@ rollback safety, or Gate 5 acceptance.
 import argparse
 from contextlib import closing
 import json
+import re
 from pathlib import Path
 import sqlite3
 import sys
@@ -42,6 +43,40 @@ def expected_baseline():
         if db.total_changes != before:
             raise ValueError("Unexpected local write while reading baseline metadata.")
     return result
+
+
+def documented_cf_kv_only(actual_rows, expected_rows):
+    """Allow precisely the D1-reserved storage table as an infrastructure exception.
+
+    Cloudflare's D1 import/export docs identify _cf_KV as an internal table:
+    https://developers.cloudflare.com/d1/best-practices/import-export-data/
+    Do not ignore arbitrary _cf_* names, missing app objects, changed CREATE
+    statements, other unexpected objects, or malformed _cf_KV declarations.
+    This is NOT an exception to Gate 5 provider/deployment requirements.
+    """
+    detail = schema_object_differences(actual_rows, expected_rows)
+    internal = ("table", "_cf_KV", "_cf_KV")
+    if (detail["missing"] or detail["changed"]
+            or detail["unexpected"] != [internal]):
+        return False
+    # Preserve pinned order and exact application CREATE SQL definitions.
+    retained = [r for r in actual_rows
+                if (r["type"], r["name"], r["tbl_name"]) != internal]
+    if retained != expected_rows:
+        return False
+    reserved = next(r for r in actual_rows
+                    if (r["type"], r["name"], r["tbl_name"]) == internal)
+    ddl = reserved["sql"]
+    if not isinstance(ddl, str):
+        return False
+    # Only the documented 2-column key/value WITHOUT ROWID reserved table.
+    table = r'(?:_cf_KV|"_cf_KV"|\x60_cf_KV\x60|\[_cf_KV\])'
+    key = r'(?:key|"key"|\x60key\x60|\[key\])'
+    value = r'(?:value|"value"|\x60value\x60|\[value\])'
+    pattern = (r'CREATE\s+TABLE\s+' + table + r'\s*\(\s*'
+               + key + r'\s+TEXT\s+PRIMARY\s+KEY\s*,\s*'
+               + value + r'\s+BLOB\s*\)\s+WITHOUT\s+ROWID\s*;?')
+    return re.fullmatch(pattern, ddl.strip(), flags=re.IGNORECASE) is not None
 
 
 def compare_capture(document):
@@ -83,15 +118,21 @@ def compare_capture(document):
     expected = expected_baseline()
     differences = [i for i, (received, wanted) in enumerate(zip(rows, expected), 1)
                    if received != wanted]
+    documented_system_exception = (differences == [1]
+                                   and documented_cf_kv_only(rows[0], expected[0]))
+    app_differences = [] if documented_system_exception else differences
     anomaly_counts = {next(iter(rows[i][0])): next(iter(rows[i][0].values()))
                       for i in range(5, 10)}
     safe = all(value == 0 for value in anomaly_counts.values())
     return {
-        "result": "MATCH" if not differences and safe else "REVIEW_REQUIRED",
+        "result": ("MATCH_D1_RESERVED_TABLE" if documented_system_exception and safe
+                   else "MATCH" if not differences and safe else "REVIEW_REQUIRED"),
         "baselineMigrationCount": 22,
         "currentCandidateMigrationCount": 23,
-        "pre0022StructuralMatch": not differences,
+        "pre0022StructuralMatch": not app_differences,
         "differenceQueryNumbers": differences,
+        "applicationSchemaDifferenceQueryNumbers": app_differences,
+        "documentedD1ReservedTableOnly": documented_system_exception,
         "readOnlyFinancialChecksAllZero": safe,
         "aggregateAnomalyCounts": anomaly_counts,
         "providerAttestedActiveWorker": False,
@@ -202,10 +243,14 @@ def main():
               str(report["aggregateAnomalyCounts"]))
         if diagnostic is not None:
             print_schema_diagnostic(diagnostic)
-        print("Pre-0022 baseline result: " + report["result"])
+        if report["documentedD1ReservedTableOnly"]:
+            print("Query 1 exception: ONLY documented Cloudflare _cf_KV reserved storage table.")
+            print("Application schema definitions match pre-0022: YES (51/51).")
+            print("The original raw Query 1 difference remains recorded.")
+        print("Pre-0022 application baseline result: " + report["result"])
         print("Current candidate has migration 0022; this is NOT an acceptance or approval.")
         print("Deployed Worker provenance/physical isolation unverified. Gate 5 OPEN. Official readiness 30%.")
-        return 0 if report["result"] == "MATCH" else 1
+        return 0 if report["result"] in {"MATCH", "MATCH_D1_RESERVED_TABLE"} else 1
     except (ValueError, KeyError, IndexError, TypeError, OSError, sqlite3.Error,
             json.JSONDecodeError, UnicodeError) as error:
         # Errors here are curated only, never a dump of SQL or source-file contents.
