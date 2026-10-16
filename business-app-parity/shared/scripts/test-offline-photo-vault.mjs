@@ -42,6 +42,33 @@ await assert.rejects(archive.readOfflinePhotoBackup(new Blob([corrupt])),/checks
 check(true,'Tampered image is rejected before restore');
 await assert.rejects(archive.readOfflinePhotoBackup(new Blob([(await file.arrayBuffer()).slice(0,-12)])),/rejected/);
 check(true,'Truncated ZIP is rejected before restore');
+// The ZIP entry payload can be unchanged even when an adversary damages
+// its signed descriptor or hides undeclared data outside central-directory entries.
+const originalZip=new Uint8Array(await file.arrayBuffer());
+const descriptorZip=originalZip.slice(),descriptorView=new DataView(descriptorZip.buffer);
+let descriptorAt=-1;
+for(let i=0;i<descriptorZip.length-16;i++){
+ if(descriptorView.getUint32(i,true)===0x08074b50){descriptorAt=i;break;}
+}
+check(descriptorAt>=0,'Fixture includes FIRE writer signed data descriptor');
+descriptorZip[descriptorAt+4]^=1; // Change descriptor CRC only; photo and central CRC remain valid.
+await assert.rejects(archive.readOfflinePhotoBackup(new Blob([descriptorZip])),/data descriptor/);
+check(true,'Forged ZIP descriptor rejected even though original photo bytes and central checksum still match');
+const prefixZip=new Uint8Array(originalZip.length+1);
+prefixZip[0]=0x21;prefixZip.set(originalZip,1);
+const prefixView=new DataView(prefixZip.buffer);
+const eocd=prefixZip.length-22;
+check(prefixView.getUint32(eocd,true)===0x06054b50,'Fixture includes a final ZIP directory record');
+let directory=prefixView.getUint32(eocd+16,true)+1;
+prefixView.setUint32(eocd+16,directory,true);
+const entries=prefixView.getUint16(eocd+10,true);
+for(let i=0;i<entries;i++){
+ check(prefixView.getUint32(directory,true)===0x02014b50,'Hidden-prefix fixture preserves a valid central record');
+ prefixView.setUint32(directory+42,prefixView.getUint32(directory+42,true)+1,true);
+ directory+=46+prefixView.getUint16(directory+28,true)+prefixView.getUint16(directory+30,true)+prefixView.getUint16(directory+32,true);
+}
+await assert.rejects(archive.readOfflinePhotoBackup(new Blob([prefixZip])),/gaps|overlapping/);
+check(true,'ZIP with undisclosed leading bytes and repaired offsets is rejected before restore');
 await assert.rejects(archive.exportOfflinePhotoBackup([first,first]),/duplicate photo/);
 check(true,'Duplicate source photo ID cannot enter archive');
 const unsafeImage=photo('svg-img','customer-A');unsafeImage.blob=new Blob(['<svg xmlns="http://www.w3.org/2000/svg"/>'],{type:'image/svg+xml'});unsafeImage.contentType='image/svg+xml';unsafeImage.sizeBytes=unsafeImage.blob.size;
