@@ -21,6 +21,8 @@ on:
       - 'business-app-parity/test_capture_doomsday_schema_read_only.py'
       - 'business-app-parity/capture_doomsday_worker_identity_read_only.py'
       - 'business-app-parity/test_capture_doomsday_worker_identity_read_only.py'
+      - 'business-app-parity/check_isolated_cloudflare_free_preflight.py'
+      - 'business-app-parity/test_check_isolated_cloudflare_free_preflight.py'
       - 'business-app-parity/compare_doomsday_pre0022_capture.py'
       - 'business-app-parity/test_compare_doomsday_pre0022_capture.py'
       - 'business-app-parity/test_hosted_schema_capture.py'
@@ -157,6 +159,8 @@ jobs:
           python3 ../test_compare_doomsday_pre0022_capture.py
       - name: Active independent Worker-to-D1 read-only identity negative controls
         run: python3 ../test_capture_doomsday_worker_identity_read_only.py
+      - name: Cloudflare Free-plan QA isolated D1 count read-only checks and negative controls
+        run: python3 ../test_check_isolated_cloudflare_free_preflight.py
       - name: Owner-safe remote 0022 evidence query and synthetic integrity states
         run: |
           python3 ../test_doomsday_owner_console.py
