@@ -22,23 +22,24 @@ class CaptureTest(unittest.TestCase):
     def test_verified_sql_digest_rejects_changes_and_non_reviewed_queries(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d)/'queries.sql'
-            p.write_text('SELECT 1;\n' * 10)
+            # Use raw bytes rather than Path.write_text: Windows text mode
+            # translates LF to CRLF and would hash a different fixture.
+            content = b'SELECT 1;\n' * 10
+            p.write_bytes(content)
             with self.assertRaisesRegex(ValueError, 'checksum changed'):
                 m.reviewed_statements(p)
-            content=p.read_bytes()
             blob=hashlib.sha1(b'blob '+str(len(content)).encode()+b'\0'+content).hexdigest()
             with patch.object(m,'APPROVED_SQL_BLOB',blob):
                 self.assertEqual(len(m.reviewed_statements(p)),10)
-                # Windows core.autocrlf translates LF -> CRLF; reviewed SQL must
-                # still match, but a changed statement must still be blocked.
+                # Explicit Windows CRLF checkout, independent of test host OS.
                 windows_checkout = content.replace(b'\n', b'\r\n')
                 p.write_bytes(windows_checkout)
                 self.assertEqual(len(m.reviewed_statements(p)),10)
                 p.write_bytes(windows_checkout.replace(b'SELECT 1', b'SELECT 2', 1))
                 with self.assertRaisesRegex(ValueError, 'checksum changed'):
                     m.reviewed_statements(p)
-                p.write_text('DELETE FROM payments;\n' + 'SELECT 1;\n'*9)
-                changed=p.read_bytes()
+                changed = b'DELETE FROM payments;\n' + b'SELECT 1;\n'*9
+                p.write_bytes(changed)
                 changed_blob=hashlib.sha1(b'blob '+str(len(changed)).encode()+b'\0'+changed).hexdigest()
                 with patch.object(m,'APPROVED_SQL_BLOB',changed_blob):
                     with self.assertRaisesRegex(ValueError, 'ten SELECT-only'):
