@@ -32,10 +32,12 @@ export function inspectSchema(db, root) {
   let journal={status:'unavailable',expectedFileCount:files.length};
   if(journalExists){
     const columns=db.prepare("SELECT name FROM pragma_table_info('d1_migrations')").all().map(row=>row.name);
-    if(!columns.includes('name'))journal={...journal,status:'unrecognized-format'};
+    // D1's integer journal id preserves application order. Alphabetical
+    // ORDER BY name can conceal a swapped or interrupted migration sequence.
+    if(!columns.includes('name')||!columns.includes('id'))journal={...journal,status:'unrecognized-format'};
     else {
-      const names=db.prepare('SELECT name FROM d1_migrations ORDER BY name').all().map(row=>row.name);
-      journal={status:'observed',expectedFileCount:files.length,recordedFileCount:names.length,missing:files.filter(name=>!names.includes(name)),unexpected:names.filter(name=>!files.includes(name)),duplicateNames:[...new Set(names.filter((name,i)=>names.indexOf(name)!==i))]};
+      const names=db.prepare('SELECT name FROM d1_migrations ORDER BY id').all().map(row=>row.name);
+      journal={status:'observed',expectedFileCount:files.length,recordedFileCount:names.length,missing:files.filter(name=>!names.includes(name)),unexpected:names.filter(name=>!files.includes(name)),duplicateNames:[...new Set(names.filter((name,i)=>names.indexOf(name)!==i))],appliedOrderMatchesCandidate:names.length===files.length&&names.every((name,i)=>name===files[i])};
     }
   }
   return {schemaCompatible:missingColumns.length===0&&invalidIndexes.length===0,missingColumns,invalidIndexes,journal,productionReady:false,scope:'local read-only SQLite inspection; remote identity and customer ledger not verified'};
@@ -59,7 +61,7 @@ export function inspectCandidatePreflight(db, root) {
     try{return {name:names[index],status:'observed',anomalyCount:Number(db.prepare(`SELECT COUNT(*) AS count FROM (${sql})`).get().count)};}
     catch{return {name:names[index],status:'unavailable',anomalyCount:null};}
   });
-  const journalCompatible=schema.journal.status==='observed'&&['missing','unexpected','duplicateNames'].every(key=>schema.journal[key].length===0);
+  const journalCompatible=schema.journal.status==='observed'&&schema.journal.appliedOrderMatchesCandidate===true&&['missing','unexpected','duplicateNames'].every(key=>schema.journal[key].length===0);
   const authSchemaCompatible=invalidAuthColumns.length===0;
   const ledgerClear=ledgerChecks.every(check=>check.status==='observed'&&check.anomalyCount===0);
   return {...schema,authSchemaCompatible,invalidAuthColumns,ledgerChecks,journalCompatible,
