@@ -26,7 +26,14 @@ const check=database=>{
   assert.deepEqual(database.prepare('PRAGMA foreign_key_check').all(),[],'Foreign-key inconsistency detected');
 };
 function state(database){
+  // Include every column and user table, including additive property/history tables.
+  const names=database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all().map(row=>row.name);
+  const tables=Object.fromEntries(names.map(name=>[name,
+    database.prepare('SELECT * FROM "'+name.replaceAll('"','""')+'"').all()
+      .map(row=>JSON.stringify(row)).sort()
+  ]));
   return {
+    tables,
     objects:database.prepare("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name").all(),
     journal:database.prepare('SELECT name FROM d1_migrations ORDER BY id').all().map(row=>row.name),
     customers:database.prepare('SELECT id,name,created_at FROM customers ORDER BY id').all(),
@@ -64,6 +71,14 @@ try{
     INSERT INTO payments(id,estimate_id,type,amount_cents,status,provider_id,created_at) VALUES
       ('payment-ci','estimate-ci','Cash',10000,'paid','manual-ci','2026-10-14'),
       ('tip-ci','estimate-ci','Tip',800,'paid','tip-ci','2026-10-14');`);
+  database.exec(`INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,created_at)
+    VALUES ('invoice-ci','estimate-ci','customer-ci','sent',10000,'2026-10-16');
+    INSERT INTO customer_photos(id,customer_id,category,caption,filename,content_type,size_bytes,object_key,created_at)
+    VALUES ('photo-ci','customer-ci','before','Original north siding','synthetic.png','image/png',3,'customers/customer-ci/photo-ci.png','2026-10-16');
+    INSERT INTO payments(id,estimate_id,type,amount_cents,status,provider_id,created_at)
+    VALUES ('refund-ledger-ci','estimate-ci','Refund',-1000,'paid','refund:payment-ci:refund-ci','2026-10-16');
+    INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,created_at)
+    VALUES ('refund-ci','payment-ci','estimate-ci',1000,'manual','succeeded','2026-10-16');`);
   check(database);
   assert.equal(inspectCandidatePreflight(database,root).candidatePreflightClear,true,'Synthetic source must pass release schema preflight');
   const before=state(database);
@@ -94,6 +109,20 @@ try{
   assert.throws(()=>restoreOnlyToEmpty(backupPath,forged,restoredPath,target),/migration fingerprint changed/);
   assert.equal(existsSync(restoredPath),false);
 
+  // Recomputed file hashes cannot excuse loss of sealed invoice/photo/refund/address rows.
+  for(const [label,mutation] of [
+    ['invoice',"UPDATE invoices SET total_cents=10001 WHERE id='invoice-ci'"],
+    ['photo',"UPDATE customer_photos SET caption='Changed after backup' WHERE id='photo-ci'"],
+    ['refund',"UPDATE payment_refunds SET note='Changed after backup' WHERE id='refund-ci'"],
+    ['customer',"UPDATE customers SET address='Changed historical address' WHERE id='customer-ci'"],
+  ]){
+    const changed=join(workspace,label+'.synthetic.sqlite');
+    copyFileSync(backupPath,changed);
+    const edit=new DatabaseSync(changed);edit.exec(mutation);edit.close();
+    assert.throws(()=>reviewSnapshot(changed,{...seal,sha256:sha(readFileSync(changed))},target),
+      /evidence\/backup mismatch|preflight failed/,'Complete recovery must detect '+label+' metadata loss');
+  }
+
   // A bad cutover can change payments, drop a safety index, and lose journal
   // metadata. Rollback must restore all three, not just app-visible records.
   database.exec("UPDATE payments SET amount_cents=9999 WHERE id='payment-ci'");
@@ -117,7 +146,7 @@ try{
   assert.throws(()=>restoreOnlyToEmpty(backupPath,seal,restoredPath,target),/destination must be empty/,
     'Refuse to overwrite a previously restored destination');
   assert.equal(sha(readFileSync(backupPath)),seal.sha256,'Read-only snapshot mutated during recovery');
-  console.log(`PASS: ${target} ${migrations.length} target migrations; full physical SQLite snapshot, schema/index/payment/journal rollback, byte-for-byte seal, target/hash/migration guards, non-overwrite; no remote access or deployments.`);
+  console.log(`PASS: ${target} ${migrations.length} target migrations; full physical SQLite snapshot, every-table/every-column comparison, invoice/photo/refund/address drift controls, schema/index/payment/journal rollback, byte-for-byte seal, target/hash/migration guards, non-overwrite; no remote access or deployments.`);
 }finally{
   rmSync(workspace,{recursive:true,force:true});
 }

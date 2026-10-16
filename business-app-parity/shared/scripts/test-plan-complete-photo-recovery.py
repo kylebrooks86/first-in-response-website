@@ -11,6 +11,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+import os
 import zipfile
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -109,6 +111,64 @@ class OfflineRecoveryPlan(unittest.TestCase):
         self.assertFalse(result["nativeAtomicRestoreTested"])
         self.assertFalse(result["pairedBackupSameInstantVerified"])
         self.assertFalse(result["releaseGate7Accepted"])
+
+    def test_pair_receipt_binds_exact_validated_bytes(self):
+        archive, records = files(self.temp.name, self.manifest, self.records)
+        result = planner.plan(archive, records)
+        for key, path in (("photoArchive", archive), ("recordsBackup", records)):
+            self.assertEqual(result["validatedInputBytes"][key], {
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "sizeBytes": path.stat().st_size,
+            })
+        self.assertTrue(result["privateSnapshotsRemovedOnReturn"])
+
+    def test_source_replacement_cannot_change_validated_pair(self):
+        archive, records = files(self.temp.name, self.manifest, self.records)
+        expected = hashlib.sha256(records.read_bytes()).hexdigest()
+        original = planner.validated_complete_archive
+        captured = []
+        def replace_sources(private_path):
+            captured.append(private_path.parent)
+            self.assertNotEqual(private_path, archive)
+            self.assertEqual(private_path.stat().st_mode & 0o777, 0o600)
+            archive.write_bytes(b"replaced during validation")
+            records.write_text('{"corrupt":true}')
+            return original(private_path)
+        with patch.object(planner, "validated_complete_archive", replace_sources):
+            result = planner.plan(archive, records)
+        self.assertEqual(result["referencedPhotoCount"], 1)
+        self.assertEqual(result["validatedInputBytes"]["recordsBackup"]["sha256"], expected)
+        self.assertFalse(captured[0].exists(), "Private backup snapshots must be removed")
+
+    def test_snapshot_failure_removes_private_files(self):
+        archive, records = files(self.temp.name, self.manifest, self.records)
+        captured = []
+        def reject(path):
+            captured.append(path.parent)
+            raise planner.UnsafePair("Synthetic validation failure")
+        with patch.object(planner, "validated_complete_archive", reject):
+            with self.assertRaises(planner.UnsafePair):
+                planner.plan(archive, records)
+        self.assertFalse(captured[0].exists())
+
+    def test_snapshot_refuses_symlink_pipe_and_oversize(self):
+        source = Path(self.temp.name) / "source"
+        destination = Path(self.temp.name) / "snapshot"
+        source.write_bytes(b"12345")
+        with self.assertRaises(planner.UnsafePair):
+            planner.private_snapshot(source, destination, 4)
+        destination.unlink()
+        symlink = Path(self.temp.name) / "link"
+        symlink.symlink_to(source)
+        with self.assertRaises(OSError):
+            planner.private_snapshot(symlink, destination, 5)
+        self.assertFalse(destination.exists())
+        if hasattr(os, "mkfifo"):
+            fifo = Path(self.temp.name) / "pipe"
+            os.mkfifo(fifo)
+            with self.assertRaises(planner.UnsafePair):
+                planner.private_snapshot(fifo, destination, 5)
+            self.assertFalse(destination.exists())
 
     def test_mismatched_photo_record_fields_block(self):
         for key, value in (

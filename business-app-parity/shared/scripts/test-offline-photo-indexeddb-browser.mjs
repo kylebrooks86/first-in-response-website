@@ -326,6 +326,26 @@ try{
  check(subset.mineCount===2&&subset.mineOwned,'Per-customer ZIP export contains only this customer’s photo bytes and labels');
  check(subset.allCount===3&&subset.otherCount===1,'All-customer ZIP still includes every customer’s photos');
  check(subset.invalidRejected,'Scoped export fails closed for unsafe customer identifiers');
+ // Simulate same-length corruption during an actual IndexedDB add. Old
+ // length/type-only verification falsely reported this save as successful.
+ const corruptedSave=await page.evaluate(async()=>{
+  const original=IDBObjectStore.prototype.add;
+  let savedId;
+  IDBObjectStore.prototype.add=function(row,...args){
+   if(this.name==='photos'&&row.customerId==='corruption-fixture'){
+    savedId=row.id;row={...row,blob:new Blob(['WRONG'],{type:row.contentType})};
+   }
+   return original.call(this,row,...args);
+  };
+  let denied=false;
+  try{await window.FIRE_LOCAL_PHOTOS.addOfflinePhoto('corruption-fixture','before','',new File(['RIGHT'],'check.png',{type:'image/png'}));}
+  catch(error){denied=/could not be verified/.test(error.message);}
+  finally{IDBObjectStore.prototype.add=original;}
+  const rows=await window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('corruption-fixture');
+  return {denied,count:rows.length,retained:rows[0]?.id===savedId,bytes:await rows[0]?.blob.text()};
+ });
+ check(corruptedSave.denied,'New photo save rejects same-length changed bytes instead of claiming verified success');
+ check(corruptedSave.count===1&&corruptedSave.retained&&corruptedSave.bytes==='WRONG','Uncertain save preserves the committed row for inspection and never retries or deletes it');
  const dashboard=readFileSync(new URL('../app/dashboard.tsx',import.meta.url),'utf8');
  check(dashboard.includes('saveOfflinePhotoCustomerDirectory(nextCustomers.map(')&&dashboard.includes('if(offlinePhotoOnly){'),'Actual FIRE Customers screen supplies photo-only offline fallback from authenticated identity cache');
  check(dashboard.includes('mustClearOfflinePhotoDirectory(response.status)')&&dashboard.includes('setOfflinePhotoOnly(false);setOfflinePhotoCustomers([]);')&&dashboard.includes('await clearOfflinePhotoCustomerDirectory().catch'),'Actual FIRE owner authorization denial revokes cached customer listing before any offline fallback');

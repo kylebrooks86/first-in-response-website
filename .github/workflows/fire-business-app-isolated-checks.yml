@@ -11,6 +11,8 @@ on:
       - 'business-app-parity/materialize.py'
       - 'business-app-parity/verify_materialized_candidate.py'
       - 'business-app-parity/candidate_release_manifest.py'
+      - 'business-app-parity/prepare_device_review.py'
+      - 'business-app-parity/test_prepare_device_review.py'
       - 'business-app-parity/RELEASE_SCHEMA_CAPTURE_READ_ONLY.sql'
       - 'business-app-parity/verify_hosted_schema_capture.py'
       - 'business-app-parity/capture_doomsday_schema_read_only.py'
@@ -137,6 +139,8 @@ jobs:
         run: node scripts/test-parity-gate.mjs
       - name: Governed Doomsday deployment fail-closed policy (no execution)
         run: node scripts/test-governed-deploy-guards.mjs
+      - name: Device review archive privacy, exact bytes, non-overwrite and cleanup
+        run: python3 ../test_prepare_device_review.py
       - name: Release-manifest integrity, source drift and negative controls
         run: python3 ../test_candidate_release_manifest.py
       - name: Read-only hosted schema capture coverage and mismatch negative controls

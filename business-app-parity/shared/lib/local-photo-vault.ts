@@ -44,11 +44,13 @@ export async function addOfflinePhoto(customerId:string,category:OfflinePhoto['c
  const db=await openVault();
  try{
   const tx=db.transaction(STORE,'readwrite');const done=transactionDone(tx);
-  await requestDone(tx.objectStore(STORE).add(record));await done;
+  try{await requestDone(tx.objectStore(STORE).add(record));await done;}
+  catch(error){try{tx.abort();}catch{}try{await done;}catch{}throw error;}
  }finally{db.close();}
- // Verify the saved blob exists and retained its full length before claiming success.
+ // Verify exact saved metadata and SHA-256 bytes before claiming success.
+ // A committed write followed by failed verification must never be replayed automatically.
  const check=(await listOfflinePhotos(customerId)).find(x=>x.id===record.id);
- if(!check||check.blob.size!==file.size||check.contentType!==file.type)throw Error('Photo save could not be verified. Review local photos before retrying.');
+ if(!check||!await exactSavedPhotoMatch(check,record))throw Error('Photo save could not be verified. Review local photos before retrying.');
  return record;
 }
 export async function removeOfflinePhoto(id:string,customerId:string):Promise<void>{

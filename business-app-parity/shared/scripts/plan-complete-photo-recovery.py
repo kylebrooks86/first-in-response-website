@@ -8,6 +8,10 @@ private identities, object paths, record values, SQL or archive contents.
 import argparse
 import importlib.util
 import json
+import hashlib
+import os
+import stat
+import tempfile
 from pathlib import Path
 import subprocess
 import sys
@@ -15,6 +19,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parent
 MAX_RECORDS_BYTES = 5_000_000
+MAX_ARCHIVE_BYTES = 260 * 1024 * 1024
 FIELDS = {
     "id": "id", "customerId": "customer_id", "category": "category",
     "caption": "caption", "filename": "filename", "contentType": "content_type",
@@ -134,10 +139,50 @@ def reconcile(manifest, tables):
     }
 
 
+def private_snapshot(source, destination, limit):
+    """Bounded private copy: validate and consume exactly the same bytes.
+
+    A source may change while copied, so this does NOT establish an atomic
+    source backup. The captured bytes must still pass every archive/records
+    validator. Never follow a symlink or block on a pipe/device input.
+    """
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    fd = os.open(source, flags)
+    digest = hashlib.sha256()
+    length = 0
+    with os.fdopen(fd, "rb") as incoming:
+        fail_if(not stat.S_ISREG(os.fstat(incoming.fileno()).st_mode),
+                "Backup input must be a regular file")
+        with open(destination, "xb") as captured:
+            os.chmod(destination, 0o600)
+            while True:
+                chunk = incoming.read(min(1024 * 1024, limit + 1 - length))
+                if not chunk:
+                    break
+                length += len(chunk)
+                fail_if(length > limit, "Backup input exceeds the bounded size limit")
+                captured.write(chunk)
+                digest.update(chunk)
+    return {"sha256": digest.hexdigest(), "sizeBytes": length}
+
+
 def plan(archive_path, records_path):
-    manifest = validated_complete_archive(Path(archive_path))
-    tables = validated_records_backup(Path(records_path))
-    return reconcile(manifest, tables)
+    # Validators open their input more than once, including a Node subprocess
+    # for records. Owner-selected originals can be replaced during that window.
+    # Private, bounded snapshots close that gap without modifying either source.
+    with tempfile.TemporaryDirectory(prefix="fire-private-pair-") as temporary:
+        archive_copy = Path(temporary) / "photos.zip"
+        records_copy = Path(temporary) / "records.json"
+        identities = {
+            "photoArchive": private_snapshot(archive_path, archive_copy, MAX_ARCHIVE_BYTES),
+            "recordsBackup": private_snapshot(records_path, records_copy, MAX_RECORDS_BYTES),
+        }
+        manifest = validated_complete_archive(archive_copy)
+        tables = validated_records_backup(records_copy)
+        result = reconcile(manifest, tables)
+        result["validatedInputBytes"] = identities
+        result["privateSnapshotsRemovedOnReturn"] = True
+        return result
 
 
 def main():

@@ -62,6 +62,28 @@ try{
  check(await page.locator('.photo-card').count()===0,'Actual React customer-photo screen mounts with empty on-device gallery');
  const library=page.locator('input[type="file"][multiple]');
  const take=(name)=>({name,mimeType:'image/png',buffer:png});
+ // A bulk selection can commit its first photo and then reject another.
+ // The real UI must retain that committed photo and require explicit review.
+ await library.setInputFiles([take('synthetic-partial.png'),{name:'invalid.txt',mimeType:'text/plain',buffer:Buffer.from('not an image')}]);
+ await page.getByText(/Photo changes are paused/).waitFor();
+ check(await page.locator('.photo-card').count()===1,'Partially completed selection refreshes the committed photo without replaying it');
+ check(await page.getByRole('button',{name:'Photo library',exact:true}).isDisabled(),'Uncertain batch disables new photo additions');
+ check(await page.getByRole('button',{name:'Delete on-device photo'}).isDisabled(),'Uncertain batch disables destructive photo actions');
+ const allow=page.getByRole('button',{name:'I reviewed saved photos; allow new changes'});
+ check(await allow.isDisabled(),'Owner cannot resume changes before a successful read-only refresh');
+ await page.evaluate(()=>{
+  window.originalPhotoGetAll=IDBIndex.prototype.getAll;
+  IDBIndex.prototype.getAll=function(...args){if(this.objectStore.name==='photos')throw Error('Synthetic read unavailable');return window.originalPhotoGetAll.apply(this,args);};
+ });
+ await page.getByRole('button',{name:'Refresh saved photos for review'}).click();
+ await page.getByText(/Changes remain paused/).waitFor();
+ check(await allow.isDisabled(),'Failed read-only review cannot unlock photo mutations');
+ await page.evaluate(()=>{IDBIndex.prototype.getAll=window.originalPhotoGetAll;});
+ await page.getByRole('button',{name:'Refresh saved photos for review'}).click();
+ await allow.click();
+ check(await page.locator('.photo-card').count()===1,'Explicit review never retries the previous file selection');
+ await page.getByRole('button',{name:'Delete on-device photo'}).click();
+ await page.getByText('No on-device photos for this customer').waitFor();
  await page.getByPlaceholder('North siding, water damage…').fill('Before north siding');
  await library.setInputFiles(take('synthetic-before.png'));
  await page.getByText('Photos verified on this device.').waitFor({timeout:20000}).catch(async()=>page.getByText(/Photos verified on this device/).waitFor());
@@ -110,6 +132,25 @@ try{
  await page.getByRole('button',{name:'Delete on-device photo'}).first().click();
  await page.locator('.photo-card').nth(1).waitFor({state:'detached'});
  check(await page.locator('.photo-card').count()===1,'Confirmed owner deletion affects only the selected local photo');
+ // Lose the verification read AFTER native IndexedDB restore commits.
+ await page.evaluate(()=>{
+  window.originalRestoreAdd=IDBObjectStore.prototype.add;
+  window.originalRestoreGetAll=IDBObjectStore.prototype.getAll;
+  window.failRestoreVerification=false;
+  IDBObjectStore.prototype.add=function(...args){const request=window.originalRestoreAdd.apply(this,args);if(this.name==='photos')window.failRestoreVerification=true;return request;};
+  IDBObjectStore.prototype.getAll=function(...args){if(this.name==='photos'&&window.failRestoreVerification){window.failRestoreVerification=false;throw Error('Synthetic post-commit verification unavailable');}return window.originalRestoreGetAll.apply(this,args);};
+ });
+ await restoreInput.setInputFiles([]);
+ await restoreInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
+ await page.getByText(/Photos may already have been added/).waitFor();
+ check(await page.locator('.photo-card').count()===2,'Interrupted post-commit restore refreshes both actual saved photos');
+ check(await page.getByRole('button',{name:'Restore verified photo ZIP',exact:true}).isDisabled(),'Unconfirmed restore blocks a second recovery request');
+ await page.evaluate(()=>{IDBObjectStore.prototype.add=window.originalRestoreAdd;IDBObjectStore.prototype.getAll=window.originalRestoreGetAll;});
+ await page.getByRole('button',{name:'Refresh saved photos for review'}).click();
+ await page.getByRole('button',{name:'I reviewed saved photos; allow new changes'}).click();
+ check(await page.locator('.photo-card').count()===2,'Review after interrupted restore never duplicates committed photos');
+ await page.getByRole('button',{name:'Delete on-device photo'}).first().click();
+ await page.locator('.photo-card').nth(1).waitFor({state:'detached'});
  await restoreInput.setInputFiles([]);
  await restoreInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
  await page.getByText(/Restored 1 new verified photo/).waitFor({timeout:30000});
