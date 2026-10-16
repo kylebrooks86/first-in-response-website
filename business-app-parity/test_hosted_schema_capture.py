@@ -146,6 +146,71 @@ class ReadOnlyCapture(unittest.TestCase):
             })
         self.evaluate_mutation(add_unexpected, "QUERY_01_DIFFERS_FROM_CANDIDATE")
 
+    @staticmethod
+    def d1_reserved_table():
+        return {"type": "table", "name": "_cf_KV", "tbl_name": "_cf_KV",
+                "sql": "CREATE TABLE _cf_KV (key TEXT PRIMARY KEY, value BLOB) WITHOUT ROWID"}
+
+    def test_only_documented_cloudflare_internal_table_can_be_ignored(self):
+        data = copy.deepcopy(self.fixture)
+        for capture in data["captures"]:
+            capture["queries"][0]["rows"].append(self.d1_reserved_table())
+        report = evaluate(data)
+        self.assertTrue(report["candidateSchemaComparisonPassed"])
+        for target in TARGETS:
+            self.assertTrue(report["targets"][target]["documentedD1ReservedTableOnly"])
+            self.assertTrue(report["targets"][target]["technicalMatch"])
+        # Even a complete exact owner-supplied schema match is NOT a provider
+        # attestation of runtime identity, DB isolation or hosted acceptance.
+        self.assertFalse(report["providerAttestationVerified"])
+        self.assertFalse(report["physicalDatabaseIsolationVerified"])
+        self.assertFalse(report["gate4Passed"])
+        self.assertFalse(report["gate5Passed"])
+        self.assertEqual(report["officialReadinessPercent"], 30)
+
+    def test_reserved_table_variants_cannot_mask_real_schema_drift(self):
+        variants = (
+            ("missing-application-table", lambda rows: rows.pop()),
+            ("altered-application-create", lambda rows: rows[0].update(
+                sql=str(rows[0]["sql"]) + " -- drift")),
+            ("unreviewed-d1-like-name", lambda rows: rows[-1].update(
+                name="_cf_KV_extra", tbl_name="_cf_KV_extra")),
+            ("different-internal-ddl", lambda rows: rows[-1].update(
+                sql="CREATE TABLE _cf_KV (key TEXT PRIMARY KEY, value BLOB, pii TEXT) WITHOUT ROWID")),
+            ("not-reserved-ddl", lambda rows: rows[-1].update(
+                sql="CREATE TABLE _cf_KV (key TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID")),
+            ("extra-index", lambda rows: rows.append({
+                "type": "index", "name": "unreviewed_idx", "tbl_name": "payments",
+                "sql": "CREATE INDEX unreviewed_idx ON payments(id)"})),
+            ("duplicate-reserved", lambda rows: rows.append(self.d1_reserved_table())),
+            ("injected-private-row", lambda rows: rows[-1].update(customer_phone="private")),
+        )
+        for label, mutation in variants:
+            with self.subTest(label=label):
+                data = copy.deepcopy(self.fixture)
+                rows = data["captures"][2]["queries"][0]["rows"]
+                rows.append(self.d1_reserved_table())
+                mutation(rows)
+                report = evaluate(data)
+                self.assertFalse(report["candidateSchemaComparisonPassed"])
+                self.assertIn("QUERY_01_DIFFERS_FROM_CANDIDATE",
+                              report["targets"]["doomsday"]["blockers"])
+                self.assertFalse(report["targets"]["doomsday"]["documentedD1ReservedTableOnly"])
+                self.assertFalse(report["gate5Passed"])
+
+    def test_reserved_d1_exception_never_masks_failed_financial_anomaly(self):
+        data = copy.deepcopy(self.fixture)
+        capture = data["captures"][2]
+        capture["queries"][0]["rows"].append(self.d1_reserved_table())
+        capture["queries"][6]["rows"][0]["provider_collision_groups"] = 1
+        report = evaluate(data)
+        self.assertTrue(report["targets"]["doomsday"]["documentedD1ReservedTableOnly"])
+        self.assertFalse(report["targets"]["doomsday"]["technicalMatch"])
+        self.assertIn("QUERY_07_DIFFERS_FROM_CANDIDATE",
+                      report["targets"]["doomsday"]["blockers"])
+        self.assertFalse(report["candidateSchemaComparisonPassed"])
+        self.assertFalse(report["gate5Passed"])
+
     def test_schema_sql_partial_index_and_column_drift(self):
         def index_drift(doc):
             items = doc["captures"][1]["queries"][0]["rows"]
