@@ -200,6 +200,48 @@ try{
   const x=await window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer');return {count:x.length,bytes:await x[0].blob.text()};
  });
  check(after.count===1&&after.bytes==='photo-one-binary','Actual browser round-trip preserved byte-identical photo');
+ const postRestoreByteVerification=await page.evaluate(async bytes=>{
+  const vault=window.FIRE_LOCAL_PHOTOS;
+  const archived=await window.FIRE_ARCHIVE_MODULE.readOfflinePhotoBackup(
+   new Blob([new Uint8Array(bytes)]));
+  const [original]=await vault.listOfflinePhotos('synthetic-customer');
+  const changed={...original,blob:new Blob(
+   [new TextEncoder().encode('photo-one-binarY')],{type:original.contentType})};
+  if(changed.blob.size!==original.blob.size)throw Error('Fixture is not same-length byte drift');
+  // Introduce a synthetic competing tab's update through the real browser
+  // IndexedDB API; this is a disposable Chrome profile, never an owner vault.
+  const db=await new Promise((resolve,reject)=>{
+   const request=indexedDB.open('fire-private-offline-photos-live-v1');
+   request.onupgradeneeded=()=>{request.transaction?.abort();reject(Error('Unexpected photo DB namespace'));};
+   request.onsuccess=()=>resolve(request.result);
+   request.onerror=()=>reject(request.error);
+  });
+  const put=row=>new Promise((resolve,reject)=>{
+   const tx=db.transaction('photos','readwrite');
+   tx.oncomplete=()=>resolve();
+   tx.onerror=()=>reject(tx.error);
+   tx.objectStore('photos').put(row);
+  });
+  try{
+   await put(changed);
+   let conflictRejected=false;
+   try{await vault.verifyRestoredOfflinePhotos(archived);}
+   catch(error){conflictRejected=String(error).includes('bytes or metadata changed');}
+   // Restore the original only inside the synthetic test fixture.
+   await put(original);
+   await vault.verifyRestoredOfflinePhotos(archived);
+   const replay=await vault.restoreLocalPhotos(
+    new Blob([new Uint8Array(bytes)]),['synthetic-customer']);
+   return {conflictRejected,replay,verifiedOriginal:
+    (await vault.listOfflinePhotos('synthetic-customer'))[0].blob.size===original.blob.size};
+  }finally{db.close();}
+ },archiveBytes);
+ check(postRestoreByteVerification.conflictRejected,
+  'Post-restore validation rejects concurrent same-size photo byte replacement in real IndexedDB');
+ check(postRestoreByteVerification.replay.restored===0&&
+  postRestoreByteVerification.replay.alreadyPresent===1&&
+  postRestoreByteVerification.verifiedOriginal,
+  'Idempotent restore verifies all previously stored photo bytes before reporting success');
  // A customer can import a newer ZIP when some photos already exist:
  // retain originals, add missing ones, and report both categories.
  const merge=await page.evaluate(async()=>{
