@@ -44,10 +44,15 @@ COLUMNS = (
 
 def reviewed_statements(sql_file):
     source = sql_file.read_bytes()
-    identity = hashlib.sha1(b"blob " + str(len(source)).encode() + b"\0" + source).hexdigest()
+    # Git for Windows may checkout CRLF despite Git storing canonical LF bytes.
+    # Normalize *only* CRLF; any actual SQL edit still fails the pinned blob hash.
+    normalized = source.replace(b"\r\n", b"\n")
+    if b"\r" in normalized:
+        raise ValueError("Unrecognized SQL line endings. Stop and review.")
+    identity = hashlib.sha1(b"blob " + str(len(normalized)).encode() + b"\0" + normalized).hexdigest()
     if identity != APPROVED_SQL_BLOB:
         raise ValueError("Reviewed SQL query-file checksum changed. Stop; review before running.")
-    content = source.decode("utf-8")
+    content = normalized.decode("utf-8")
     statements = [s.strip() for s in re.sub(r"(?m)^\s*--[^\n]*$", "", content).split(";") if s.strip()]
     if len(statements) != 10 or any(not re.match(r"^SELECT\s", s, re.I) for s in statements):
         raise ValueError("The reviewed SQL must contain exactly ten SELECT-only statements.")
