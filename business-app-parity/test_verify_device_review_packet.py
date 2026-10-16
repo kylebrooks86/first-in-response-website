@@ -37,6 +37,7 @@ class DeviceReviewVerification(unittest.TestCase):
             p = self.source / name
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text("synthetic-only:" + name)
+        (self.source / "package.json").write_text('{"name":"synthetic-fixture"}')
         self.packet = base / "review"
         self.receipt = prepare.prepare({TARGET: self.source}, self.packet, CHECKPOINT)
 
@@ -74,7 +75,7 @@ class DeviceReviewVerification(unittest.TestCase):
         self.assertFalse(result["publicationAuthorized"])
         self.assertIsNone(result["installableURL"])
         self.assertEqual(result["target"], TARGET)
-        self.assertEqual(result["fileCount"], 7)
+        self.assertEqual(result["fileCount"], 8)
         self.assertEqual(result["checkpoint"], CHECKPOINT)
 
     def test_wrong_target_and_wrong_checkpoint_refused(self):
