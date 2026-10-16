@@ -32,12 +32,17 @@
     },
     {
       "step": "Offline full browser shutdown and cold restart",
-      "result": "PENDING_OWNER_TEST",
-      "evidence": "Current screenshot displays offline shell ready, but does not independently prove network disabled or closed-browser relaunch"
+      "result": "PASS_OWNER_REPORTED_WITH_SCREENSHOT",
+      "evidence": "Owner explicitly confirms closed every Microsoft Edge window and reopened synthetic demo while Wi-Fi OFF. Prior screenshot shows unlocked Synthetic Recovery Revision 3 on the query-free canonical URL after reopening. Current screenshot confirms site continues running at canonical URL; network state is owner-reported, not independently instrumented."
     },
     {
       "step": "Repeat recovery refused with restored revision unchanged",
       "result": "PENDING_OWNER_TEST"
+    },
+    {
+      "step": "Read-only occupied-vault detection after offline cold restart",
+      "result": "PASS_OWNER_OBSERVED",
+      "evidence": "New Acer Edge screenshot displays: 'Stored vault exists on this device. Recovery is blocked; no records changed. Keep this vault.' This is a read-only status observation, not a repeat restore attempt."
     }
   ],
   "urlObservation": "Owner screenshots include ?utm_source=chatgpt.com. Exact query-free canonical URL should be used in offline cold restart to avoid service-worker cache scope/query mismatch.",
@@ -52,6 +57,7 @@
   "officialReadinessPercent": 30,
   "gate8FullBusinessAppAccepted": false,
   "syntheticCrossDeviceRecoveryToUnlockedRevision3": "PASS_OWNER_OBSERVED",
-  "nextStep": "Keep Wi-Fi off; close every Microsoft Edge window, wait briefly, reopen Edge and navigate to the query-free canonical synthetic URL; unlock privately and photograph Revision 3 or stop at offline error. Do not restore again or clear any browser storage.",
-  "safeguards": "Claims limited to owner-reported/photographed synthetic demo evidence. Same-tab offline refresh and unlock passed on owner report. Full offline browser shutdown/cold restart, overwrite refusal, iOS candidate release, production release gates remain unverified."
+  "nextStep": "With Acer recovered synthetic Revision 3 vault occupied, optionally perform ONE owner-approved repeat recovery of the same encrypted synthetic JSON to prove the guarded operation refuses overwrite. Expected error/existing-vault refusal. Afterward unlock and confirm Revision 3 unchanged. Stop on unexpected result, no retries/clears; never use customer data or real-app backup.",
+  "safeguards": "Evidence is owner-observed/reported for synthetic demo only. Successful standalone Windows Edge offline cold relaunch and occupied-vault diagnostic confirmed; repeat recovery refusal not yet exercised, candidate full iOS Business App release untested, production gates not raised. Wi-Fi state reported by owner, not independently measured.",
+  "lastObservedBranchHead": "3d056540dc4d3b71b57caf4dc22c86cddad57664"
 }
