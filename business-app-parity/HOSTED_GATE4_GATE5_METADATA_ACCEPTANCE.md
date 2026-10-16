@@ -132,3 +132,44 @@ Local synthetic rollback evidence does not complete Gate 10.
 Related: GATE4_PROVIDER_EVIDENCE_REQUEST.md,
 DOOMSDAY_0022_MIGRATION_PLAN.md, and
 RELEASE_SCHEMA_CAPTURE_READ_ONLY.sql.
+
+## Cloudflare-reserved D1 table and CI safety checkpoint — October 15/16
+
+Historical owner-held Doomsday capture is now verified locally:
+15/15 pre-0022 historical regression cases passed, **51/51 application
+schema definitions matched**, all nine remaining query result sets
+matched the 22-migration baseline, and all five aggregate anomaly counts
+were zero. Query 1 had one extra provider-owned `_cf_KV` table;
+Cloudflare documents it as internal storage. That exception does not
+authorize migration 0022 or certify the deployment's current identity.
+
+The *candidate* hosted-schema verifier now applies the same narrow,
+strictly checked exception for LIVE, staging, or Doomsday in Query 1 only.
+It accepts exactly one `table/_cf_KV/_cf_KV` with Cloudflare's documented
+key/value WITHOUT ROWID CREATE definition and **requires all actual
+application objects, definitions, and row ordering to equal the expected
+candidate**. It still rejects any different provider-looking table,
+missing refund table, altered partial index SQL, duplicate object,
+extra index, missing journal entry, nonzero financial count, missing
+provider identity, wrong UUID or cross-target UUID collision. The
+report records `documentedD1ReservedTableOnly` per target.
+
+CI is wired to execute owner-safe ten-query-capture and historical
+pre-0022 comparator security tests on relevant changes in addition to
+hosted candidate verifier negative controls. The six-job isolated suite
+for code commit `6bfcd200b40c4e3a0d604d03aacfc2614640caed` passed:
+https://github.com/kylebrooks86/first-in-response-website/actions/runs/38849040690
+
+CI uses synthetic test data and never reads the owner's private capture
+or backup, changes hosted resources, deploys an app, applies 0022 or
+sends Stripe requests. The previous full LIVE table-name discrepancy
+(payment_refunds absent in observed deployed legacy LIVE) remains a
+separate blocker; do not silently treat it as resolved by the reserved
+table exemption. Release readiness remains **30%, three of ten gates**.
+
+Next externally dependent requirement: provider-attested immutable
+resource mapping and current routed Worker version/artifact association
+for LIVE, staging, and Doomsday, then full three-target candidate
+schema/journal verification and independently approved writer-safe
+migration and release plan. No user needs to repeat the completed
+historical Doomsday schema comparison.
