@@ -42,3 +42,34 @@ Do not default to restoring an old database: that can discard payments/refunds r
 ## Release checklist outcome
 
 Doomsday table/column/index-count, clean duplicate/FK and journal observations are accepted as targeted owner evidence. Full remote-schema gate remains incomplete: actual definitions, cross-target resource isolation, 0022 gap, LIVE/staging checks and authenticated runtime/artifact evidence remain open. Other auth, photo, mobile, sandbox and rollback/seal gates remain open. Official readiness stays 3/10 (30%), NOT READY. Single most useful next step: obtain the exact read-only schema/index/journal results for bound Doomsday UUID afb2c05a-d794-4a9a-b580-924ce01c26ad, starting with DOOMSDAY_0022_STATE_READ_ONLY.sql. Full historical source/version and D1 UUID are now captured; do not ask the owner to repeat build-log navigation. No execution approval is supplied.
+
+## October 15/16 owner-held schema capture — verified pre-0022 checkpoint
+
+Owner completed the protected read-only Cloudflare D1 metadata capture
+(ten/ten SELECTs). The private resulting receipt was compared offline on
+the Acer against a locally built Doomsday migration 0000–0021 baseline.
+The updated comparator's 15/15 Windows regression tests passed;
+`MATCH_D1_RESERVED_TABLE` established **51/51 application schema objects
+unchanged**, the extra provider-owned `_cf_KV` storage table identified
+as the sole Query 1 difference, and all remaining nine metadata queries
+matched the 22-migration baseline. All five foreign-key/payment/refund
+aggregate anomaly counts were zero at capture time.
+
+The completed source-schema comparison replaces earlier language in this
+historical plan saying complete remote SQL definitions were unavailable.
+It does **not** establish that migration 0022 is already applied:
+historical D1 is correctly **pre-0022**, while the candidate includes 0022.
+It also does not verify that the currently routed Worker artifact is unchanged
+since the preserved owner-supplied version/build log, or prove physical
+isolation from LIVE/refund staging.
+
+**Do not rerun the completed pre-0022 diagnostic just for more evidence.**
+For actual migration approval, obtain separate provider-attested active
+deployment/resource mapping, LIVE/refund-staging D1 isolation evidence,
+freeze all relevant writers (including Stripe/webhooks) under a reviewed
+maintenance procedure, take/verify a fresh protected backup and immediate
+financial preflight, lock exact migration checksum/source/target, and obtain
+explicit owner-specific authorization and safe post-write recovery plan.
+No hosted migration or deployment has been authorized. Gate 5 still OPEN;
+official release readiness stays 3/10 (30%).
+
