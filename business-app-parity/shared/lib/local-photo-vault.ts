@@ -73,6 +73,16 @@ export function sameOfflinePhotoInventory(before:OfflinePhoto[],after:OfflinePho
     row.blob.size===current.blob.size&&row.blob.type===current.blob.type);
  });
 }
+/** Match a fully verified ZIP against the current IndexedDB images, not only
+ * their names and lengths. A second tab can replace a photo with different
+ * bytes while preserving every metadata field and the original byte length.
+ * Hash sequentially to bound memory on iPhone/iPad (15 MB maximum per image).
+ */
+export async function byteIdenticalOfflinePhotoInventory(archive:OfflinePhoto[],current:OfflinePhoto[]):Promise<boolean>{
+ if(!sameOfflinePhotoInventory(archive,current))return false;
+ for(let i=0;i<archive.length;i++)if(!await exactSavedPhotoMatch(archive[i],current[i]))return false;
+ return true;
+}
 export async function exportLocalPhotos(customerId?:string):Promise<Blob>{
  if(customerId!==undefined&&!/^[a-zA-Z0-9_-]{1,120}$/.test(customerId))
    throw Error('Cannot export photos for an invalid customer identifier.');
@@ -87,7 +97,7 @@ export async function exportLocalPhotos(customerId?:string):Promise<Blob>{
    throw Error('Final photo archive could not be fully verified; no successful backup was offered.');
  // Two FIRE tabs can add/remove photos during an expensive mobile ZIP export.
  // A genuine saved backup must not claim current all-customer coverage then.
- if(!sameOfflinePhotoInventory(rows,await listOfflinePhotos(customerId)))
+ if(!await byteIdenticalOfflinePhotoInventory(checked,await listOfflinePhotos(customerId)))
    throw Error('Photos changed while this ZIP was prepared. Prepare a fresh backup before saving to Files.');
  return zip;
 }
