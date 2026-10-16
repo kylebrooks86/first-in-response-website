@@ -29,3 +29,46 @@ Prove that the saved encrypted synthetic Revision 3 backup can restore records i
 Device recovery remains NOT VERIFIED until one eligible unused durable context completes offline recovery, restored offline relaunch and the separately authorized repeat-recovery rejection. Any status failure, interrupted operation, unverified shell, existing vault or uncertainty stops the procedure. Do not infer an AES-GCM authentication failure means only an incorrect phrase: altered ciphertext has the same failure class.
 
 Passing this synthetic milestone does not activate offline Customers in the full Business App or complete a full release gate. Financial safety, authenticated target identity/schema, durable recovery, all-version functionality/appearance and native scrolling parity remain separate obligations.
+
+
+## October 16 owner-assisted cross-device PRECHECK — Windows Acer, no restore yet
+
+The owner has offered to help with device acceptance. First task is a **read-only
+presence check** on the Acer laptop with a separate, durable regular Microsoft
+Edge browser profile, not InPrivate/Guest. The existing published **synthetic**
+diagnostic at
+`https://fire-synthetic-offline-test-bfc00939.pages.dev/synthetic-customer-demo/`
+has owner-observed shell `25ee996f7e1a41f47d3e58f2` and a read-only
+**Check stored-vault status without changes** control. The latest successful
+development CI run does not imply that newer candidate source is published.
+
+1. In normal Edge, open only the canonical synthetic URL above. Confirm the
+   demo and offline shell appear. Do **not** tap Unlock/Initialize/Recover.
+2. Tap **Check stored-vault status without changes** exactly once and report
+   its displayed result via screenshot (hide any personal or secret data).
+   Note that merely using a different browser *can* isolate IndexedDB, but
+   that fact must be checked rather than assumed. No browser-profile creation,
+   deletion or storage clearing is requested.
+3. If it reads **No stored vault snapshot found on this device**, the Edge
+   profile is a *candidate* recovery destination. This read does not guarantee
+   continued emptiness; the final protected restore uses atomic `add`.
+   Before an actual restore, separately confirm the profile is persistent
+   and unused, the exported Revision 3 file is available privately in local
+   Files (never upload it to ChatGPT/GitHub), the shell identity is as expected,
+   and the owner approves that exact test target.
+4. If **exists**, **unavailable**, unknown shell or absent controls: STOP.
+   Do not initialize, unlock, overwrite, clear Edge data or retry restoration.
+   Preserve the iPhone Rev 3, iPad Rev 1 and encrypted backup.
+5. After preflight and explicit target-specific authorization, use the
+   established offline test procedure from this document; test successful
+   empty-destination restore, Revision 3 reopen and occupied-destination
+   refusal only on the proven disposable destination.
+
+**Evidence classification:** Windows/Edge real-device cross-device restore
+could validate a genuine distinct-storage recovery path, but cannot establish
+iOS Safari/Home Screen Gate 8 acceptance. Owner-reported iPhone synthetic
+offline/export/verification 13/13 and occupied iPad diagnostics remain
+historical accepted observations, not current Business App candidate
+acceptance. This precheck is PENDING, not PASSED, until the owner reports it.
+The complete Business App candidate is NOT published; do not present the
+synthetic demo as that candidate or change readiness from 30%.
