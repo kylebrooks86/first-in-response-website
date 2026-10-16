@@ -114,10 +114,18 @@ def checked_rows(payload, index):
     return rows
 
 
+def checked_cli_stage(wrangler, args, stage):
+    """Report only the failed *stage*, never raw CLI stdout/stderr or tokens."""
+    try:
+        return run_wrangler(wrangler, args)
+    except RuntimeError as error:
+        raise RuntimeError(f"{stage}: {error}") from None
+
+
 def capture(wrangler, statements, output_dir):
     if not output_dir.is_dir():
         raise ValueError("Choose an existing private destination folder.")
-    inventory = run_wrangler(wrangler, ["d1", "list", "--json"])
+    inventory = checked_cli_stage(wrangler, ["d1", "list", "--json"], "Initial D1 inventory")
     checked_inventory(inventory)
     # Explicit temporary config pins the exact reviewed D1 UUID. No Worker name,
     # deploy target, routes, secrets, or writable SQL are included.
@@ -129,11 +137,12 @@ def capture(wrangler, statements, output_dir):
         }), encoding="utf-8")
         results = []
         for i, statement in enumerate(statements, 1):
-            payload = run_wrangler(wrangler, ["d1", "execute", TARGET, "--remote", "--json",
-                                             "--config", str(config_path), "--command", statement])
+            payload = checked_cli_stage(wrangler, ["d1", "execute", TARGET, "--remote", "--json",
+                                                    "--config", str(config_path), "--command", statement],
+                                        f"Remote SELECT {i}/10")
             results.append({"rows": checked_rows(payload, i)})
     # Repeat inventory to detect an account/target change during capture.
-    checked_inventory(run_wrangler(wrangler, ["d1", "list", "--json"]))
+    checked_inventory(checked_cli_stage(wrangler, ["d1", "list", "--json"], "Final D1 inventory"))
     # This is intentionally an incomplete provider identity declaration:
     # these values require separately authenticated active Worker evidence.
     result = {
