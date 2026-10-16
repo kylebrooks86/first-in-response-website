@@ -126,6 +126,71 @@ class HistoricalDoonsdayComparisonTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Duplicate schema object"):
             m.schema_object_differences(actual, expected)
 
+    @staticmethod
+    def reserved_table():
+        return {"type": "table", "name": "_cf_KV", "tbl_name": "_cf_KV",
+                "sql": "CREATE TABLE _cf_KV (\n key TEXT PRIMARY KEY,\n value BLOB\n) WITHOUT ROWID"}
+
+    def test_exact_documented_d1_reserved_table_is_only_exception(self):
+        data = self.receipt()
+        data["captures"][0]["queries"][0]["rows"].append(self.reserved_table())
+        report = m.compare_capture(data)
+        self.assertEqual(report["result"], "MATCH_D1_RESERVED_TABLE")
+        self.assertTrue(report["documentedD1ReservedTableOnly"])
+        self.assertEqual(report["differenceQueryNumbers"], [1])
+        self.assertEqual(report["applicationSchemaDifferenceQueryNumbers"], [])
+        self.assertTrue(report["pre0022StructuralMatch"])
+        self.assertTrue(report["readOnlyFinancialChecksAllZero"])
+        self.assertFalse(report["providerAttestedActiveWorker"])
+        self.assertFalse(report["physicalDatabaseIsolationVerified"])
+        self.assertFalse(report["gate5Accepted"])
+        self.assertEqual(report["officialReadinessPercent"], 30)
+
+    def test_cf_kv_lookalikes_and_unreviewed_definitions_are_not_accepted(self):
+        for field, value in [
+                ("name", "_cf_METADATA"), ("tbl_name", "_cf_METADATA"),
+                ("sql", "CREATE TABLE _cf_KV (secret TEXT)"),
+                ("sql", "CREATE TABLE _cf_KV (key TEXT PRIMARY KEY, value BLOB, extra TEXT) WITHOUT ROWID"),
+                ("sql", None)]:
+            with self.subTest(field=field, value=value):
+                data = self.receipt()
+                row = self.reserved_table()
+                row[field] = value
+                data["captures"][0]["queries"][0]["rows"].append(row)
+                report = m.compare_capture(data)
+                self.assertEqual(report["result"], "REVIEW_REQUIRED")
+                self.assertFalse(report["documentedD1ReservedTableOnly"])
+
+    def test_reserved_object_does_not_mask_application_definition_drift(self):
+        data = self.receipt()
+        rows = data["captures"][0]["queries"][0]["rows"]
+        rows.append(self.reserved_table())
+        idx = next(i for i, row in enumerate(rows)
+                   if row["name"] != "_cf_KV" and isinstance(row["sql"], str))
+        rows[idx]["sql"] += " -- unreviewed change"
+        report = m.compare_capture(data)
+        self.assertEqual(report["result"], "REVIEW_REQUIRED")
+        self.assertFalse(report["pre0022StructuralMatch"])
+
+    def test_other_unexpected_objects_still_block_reserved_exception(self):
+        data = self.receipt()
+        rows = data["captures"][0]["queries"][0]["rows"]
+        rows.append(self.reserved_table())
+        rows.append({"type": "index", "name": "unreviewed_extra_index",
+                     "tbl_name": "payments", "sql": "CREATE INDEX unreviewed_extra_index ON payments(id)"})
+        report = m.compare_capture(data)
+        self.assertEqual(report["result"], "REVIEW_REQUIRED")
+        self.assertFalse(report["documentedD1ReservedTableOnly"])
+
+    def test_financial_anomalies_block_even_if_only_cf_kv_is_extra(self):
+        data = self.receipt()
+        data["captures"][0]["queries"][0]["rows"].append(self.reserved_table())
+        data["captures"][0]["queries"][6]["rows"][0]["provider_collision_groups"] = 1
+        report = m.compare_capture(data)
+        self.assertEqual(report["result"], "REVIEW_REQUIRED")
+        self.assertFalse(report["readOnlyFinancialChecksAllZero"])
+        self.assertFalse(report["gate5Accepted"])
+
     def test_0022_migration_cannot_be_mislabeled_historical_baseline(self):
         data = self.receipt()
         data["captures"][0]["queries"][4]["rows"].append({
