@@ -30,3 +30,33 @@ Existing owner evidence already identifies DB `fire-app-staging-db` / `afb2c05a-
 Sites reports the owner role for both projects and the same successful saved deployments. Supported Sites service access reached both existing `/api/app-version` endpoints with HTTP 200. The initial unauthenticated requests returned HTTP 403. The service credential was used only for its exact Site and was never stored in this repository or included in evidence.
 
 Successful version responses improve runtime evidence but do not establish immutable source/artifact seals or physical D1 isolation. Gate 4 remains pending. Official readiness stays 30% (3/10 gates). No support message has been sent by the agent.
+
+## Optional independent Doomsday Worker proof — no Sites access implied
+
+The Windows helper `business-app-parity/capture_doomsday_worker_identity_read_only.py`
+is dry-run by default. It is **not** a command to run on LIVE/refund staging:
+those are ChatGPT Sites resources and their underlying database IDs still
+require a response from Sites hosting support.
+
+Only when the owner is ready to gather a fresh Doomsday binding receipt on their
+own authenticated Cloudflare account:
+
+```powershell
+python "$HOME\first-in-response-website\business-app-parity\capture_doomsday_worker_identity_read_only.py"
+python "$HOME\first-in-response-website\business-app-parity\capture_doomsday_worker_identity_read_only.py" --capture
+```
+
+The explicit capture allows only the documented read-only Wrangler
+`deployments status --json`, `versions view --json`, and `d1 list --json`.
+It requires the currently serving Worker version to be 100% active, and
+requires that version's `DB` D1 binding UUID to match the known independent
+Doomsday UUID and account database inventory. Split deployments, missing
+binding IDs or unrecognized CLI JSON schemas **fail closed**. If Wrangler
+changes its output schema, review and update tests first; never guess a UUID.
+Only a sanitized version/database receipt is printed: no raw Cloudflare
+JSON, secrets or customer data, and no file is written.
+
+A matching receipt is narrower than Gate 4: it does not identify LIVE or
+refund-staging storage, prove the deployed artifact's source SHA, or
+authenticate the Sites deployment routes. It cannot justify Gate 4/5
+acceptance, a schema migration, a Worker deployment or release readiness.
