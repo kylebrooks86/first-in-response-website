@@ -170,7 +170,7 @@ class ReadOnlyCapture(unittest.TestCase):
 
     def test_reserved_table_variants_cannot_mask_real_schema_drift(self):
         variants = (
-            ("missing-application-table", lambda rows: rows.pop()),
+            ("missing-application-object", lambda rows: rows.pop(0)),
             ("altered-application-create", lambda rows: rows[0].update(
                 sql=str(rows[0]["sql"]) + " -- drift")),
             ("unreviewed-d1-like-name", lambda rows: rows[-1].update(
