@@ -38,3 +38,52 @@ The helper requires typing CAPTURE followed by the full exact database UUID. It 
 - Obtain a reviewed target-specific migration checksum, writer-quiescence (including webhook writers), recovery/rollback that accounts for post-backup writes, maintenance plan, and specific separate owner authorization before any hosted migration.
 
 No remote schema write, hosted migration, deployment, Stripe request, changes to customer records, or release-gate acceptance was performed.
+
+
+## Owner screenshot — completed Windows capture on October 15 (new)
+
+The owner subsequently performed the updated pinned review with an exact Doomsday
+D1 UUID confirmation on the Acer. The final PowerShell screenshot explicitly
+shows **9/9 test cases passing** (Ran 9 tests ... OK) and **all ten remote
+read-only SELECT metadata queries completing** with the program's final
+"remote database not modified" completion message. The program saved
+FIRE-DOOMSDAY-METADATA-ONLY-*.json locally under FIRE-Private-Backups.
+The printed row counts clearly begin **52, 163, 23, 63, 22**, consistent
+with ten-result completeness and the 22-migration pre-0022 journal, but
+the remaining counts are clipped by the image boundary. Their values
+must not be guessed from the screenshot; the owner-held receipt contains them.
+
+This updates the prior statement that "remote ten-query batch has NOT run":
+**it has now run successfully**, on the owner's computer. The earlier captured
+offline local SQL recovery and encrypted Google Drive archive remain independent.
+The private receipt was **not** uploaded to ChatGPT or GitHub. The screenshot
+alone does NOT establish byte-exact comparison against pre-0022 migration
+definitions, currently active deployed source/artifact identity, LIVE and
+refund-staging D1 isolation, a writer-quiescent maintenance window, current
+candidate parity, or Gate 5 acceptance.
+
+### Immediate next evidence action, offline only
+
+New compare_doomsday_pre0022_capture.py compares this one private ten-query
+metadata receipt against historical Doomsday migrations 0000-0021, not
+the later 23-migration candidate. It prints mismatch query *numbers*, zero/nonzero
+aggregate counts, and a not-accepted release status **without displaying
+or uploading raw metadata**. New test_compare_doomsday_pre0022_capture.py
+contains synthetic coverage; it still requires Windows owner execution.
+This follow-up requires **no more hosted SQL queries**.
+
+From owner's regular Windows PowerShell, after a fast-forward repository pull:
+
+    py -3 "$HOME\first-in-response-website\business-app-parity\test_compare_doomsday_pre0022_capture.py"
+    py -3 "$HOME\first-in-response-website\business-app-parity\compare_doomsday_pre0022_capture.py"
+
+The second program chooses the newest matching metadata-only receipt in the
+private backup folder (unless an explicit path is supplied), validates the
+exact target and 10-query shapes, and reports only summarized findings.
+Do not upload the receipt, local SQL export, encrypted archive, or password.
+A failure/mismatch must be reviewed, never masked.
+
+**Official readiness remains 30% (3/10), Gate 5 OPEN** until provider binding,
+deployed Worker artifact provenance, isolation, and separately reviewed migration
+authorization/safe rollback acceptance. This checkpoint performs no hosted
+mutations or deployments.
