@@ -101,6 +101,31 @@ class CaptureTest(unittest.TestCase):
                 m.capture('fake-wrangler',['SELECT 1']*10,Path(d))
             self.assertEqual(list(Path(d).iterdir()),[])
 
+    def test_multiline_sql_is_sent_as_single_line_without_changing_terms(self):
+        original = "SELECT COUNT(*) AS provider_collision_groups FROM (SELECT provider_id\nFROM payments\nWHERE provider_id GLOB 'cs_*' OR provider_id GLOB 'refund:*'\nGROUP BY provider_id HAVING COUNT(*) > 1)"
+        flattened = m.cli_safe_statement(original)
+        self.assertNotIn('\\n', flattened)
+        self.assertIn("FROM payments WHERE provider_id", flattened)
+        self.assertIn("'refund:*'", flattened)
+        self.assertIn("HAVING COUNT(*) > 1)", flattened)
+        self.assertEqual(m.cli_safe_statement("SELECT 1"), "SELECT 1")
+        self.assertEqual(m.cli_safe_statement("SELECT 1\\r\\nFROM payments"), "SELECT 1 FROM payments")
+
+    def test_remote_batch_flattens_query_7_before_wrangler_call(self):
+        commands = []
+        def fake_run(_wrangler, args):
+            if args[:2] == ["d1", "list"]:
+                return [{"name": m.TARGET, "uuid": m.UUID}]
+            commands.append(args[args.index("--command") + 1])
+            return [{"success": True, "results": fixture_rows(len(commands))}]
+        sql = ["SELECT 1"] * 10
+        sql[6] = "SELECT COUNT(*) AS provider_collision_groups\\nFROM payments\\nWHERE 1 = 1"
+        with tempfile.TemporaryDirectory() as d, patch.object(m, 'run_wrangler', side_effect=fake_run):
+            m.capture("fake-wrangler", sql, Path(d))
+        self.assertEqual(len(commands), 10)
+        self.assertEqual(commands[6], "SELECT COUNT(*) AS provider_collision_groups FROM payments WHERE 1 = 1")
+        self.assertTrue(all('\\n' not in statement and '\\r' not in statement for statement in commands))
+
     def test_failed_cloudflare_stage_is_safe_and_identifiable(self):
         with patch.object(m, "run_wrangler", side_effect=RuntimeError("Cloudflare CLI returned an error")):
             with self.assertRaisesRegex(RuntimeError, "Remote SELECT 3/10") as failure:
