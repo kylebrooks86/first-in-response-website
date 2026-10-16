@@ -235,6 +235,13 @@ class ReadOnlyCapture(unittest.TestCase):
         self.evaluate_mutation(lambda doc: doc["captures"][2]["queries"][4]["rows"].append(
             {"name": "0023_unreviewed.sql"}), "QUERY_05_DIFFERS_FROM_CANDIDATE")
 
+    def test_out_of_order_journal_is_rejected_not_normalized(self):
+        def reorder(doc):
+            names = doc["captures"][2]["queries"][4]["rows"]
+            assert len(names) >= 2
+            names[0], names[1] = names[1], names[0]
+        self.evaluate_mutation(reorder, "QUERY_05_DIFFERS_FROM_CANDIDATE")
+
     def test_payment_anomalies_and_query_failures(self):
         for query_index in range(5, 10):
             with self.subTest(query=query_index + 1):
