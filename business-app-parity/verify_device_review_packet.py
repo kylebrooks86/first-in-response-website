@@ -39,7 +39,7 @@ def safe_member(info):
     name = info.filename
     parts = name.split("/")
     require(name.startswith(("source/", "build/"))
-            and len(parts) >= 3
+            and len(parts) >= 2
             and not name.startswith("/")
             and "\\" not in name
             and not any(part in ("", ".", "..") for part in parts)
