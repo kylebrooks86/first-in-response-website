@@ -61,6 +61,18 @@ export async function removeOfflinePhoto(id:string,customerId:string):Promise<vo
  }finally{db.close();}
  if((await listOfflinePhotos(customerId)).some(x=>x.id===id))throw Error('Photo removal could not be verified.');
 }
+/** Reject an all-customer or scoped ZIP if another tab changed the photo
+ * inventory while the archive was being prepared. No additional blob reads. */
+export function sameOfflinePhotoInventory(before:OfflinePhoto[],after:OfflinePhoto[]):boolean{
+ if(before.length!==after.length)return false;
+ const fields=['id','customerId','category','caption','filename','contentType','sizeBytes','createdAt'] as const;
+ return before.every((row,i)=>{
+  const current=after[i];
+  return Boolean(current&&fields.every(field=>row[field]===current[field])&&
+    row.blob instanceof Blob&&current.blob instanceof Blob&&
+    row.blob.size===current.blob.size&&row.blob.type===current.blob.type);
+ });
+}
 export async function exportLocalPhotos(customerId?:string):Promise<Blob>{
  if(customerId!==undefined&&!/^[a-zA-Z0-9_-]{1,120}$/.test(customerId))
    throw Error('Cannot export photos for an invalid customer identifier.');
@@ -71,9 +83,12 @@ export async function exportLocalPhotos(customerId?:string):Promise<Blob>{
  // interrupted streams and broken central directory metadata before a user
  // is offered a file and mistakenly believes photos were backed up.
  const checked=await readOfflinePhotoBackup(zip);
- if(checked.length!==rows.length||checked.some((photo,i)=>photo.id!==rows[i].id||
-     photo.sizeBytes!==rows[i].sizeBytes||photo.customerId!==rows[i].customerId))
+ if(!sameOfflinePhotoInventory(rows,checked))
    throw Error('Final photo archive could not be fully verified; no successful backup was offered.');
+ // Two FIRE tabs can add/remove photos during an expensive mobile ZIP export.
+ // A genuine saved backup must not claim current all-customer coverage then.
+ if(!sameOfflinePhotoInventory(rows,await listOfflinePhotos(customerId)))
+   throw Error('Photos changed while this ZIP was prepared. Prepare a fresh backup before saving to Files.');
  return zip;
 }
 export type PhotoRestoreResult={restored:number;alreadyPresent:number};
