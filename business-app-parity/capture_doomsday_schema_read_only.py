@@ -24,8 +24,8 @@ TARGET = "fire-app-staging-db"
 UUID = "afb2c05a-d794-4a9a-b580-924ce01c26ad"
 URL = "https://fire-app-independent-staging.kyle-bfc.workers.dev"
 SQL_NAME = "RELEASE_SCHEMA_CAPTURE_READ_ONLY.sql"
-# Git blob SHA of the reviewed ten SELECTs at the Oct 15 development checkpoint.
-APPROVED_SQL_BLOB = "c931e45dd4d1a177011c73458da7be2dd050e673"
+# Pinned reviewed SELECT set: journal is read in actual D1 id order; no hosted writes.
+APPROVED_SQL_BLOB = "ffe32fde7d139cff5d67aa0826ae6b293aa01925"
 MAX_JSON_BYTES = 2_000_000
 MAX_ROWS = 4_000
 COLUMNS = (
