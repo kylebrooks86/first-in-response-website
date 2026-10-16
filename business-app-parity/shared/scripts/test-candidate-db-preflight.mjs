@@ -18,6 +18,20 @@ try {
  db.exec('CREATE TABLE d1_migrations(id INTEGER PRIMARY KEY,name TEXT NOT NULL);');
  for(const name of files)db.prepare('INSERT INTO d1_migrations(name) VALUES(?)').run(name);
  report=inspectCandidatePreflight(db,root);equal(report.candidatePreflightClear,true);equal(report.ledgerChecks.every(check=>check.anomalyCount===0),true);
+ // Gate 5: actual applied order must match the candidate, even when every
+ // correct migration name is present once. Names sorted alphabetically hid this.
+ db.prepare('UPDATE d1_migrations SET name=CASE WHEN id=1 THEN ? WHEN id=2 THEN ? ELSE name END WHERE id IN (1,2)').run(files[1],files[0]);
+ report=inspectCandidatePreflight(db,root);
+ equal(report.journal.appliedOrderMatchesCandidate,false);
+ equal(report.journal.missing.length,0);
+ equal(report.journal.unexpected.length,0);
+ equal(report.journal.duplicateNames.length,0);
+ equal(report.journalCompatible,false);
+ equal(report.candidatePreflightClear,false);
+ db.prepare('UPDATE d1_migrations SET name=CASE WHEN id=1 THEN ? WHEN id=2 THEN ? ELSE name END WHERE id IN (1,2)').run(files[0],files[1]);
+ report=inspectCandidatePreflight(db,root);
+ equal(report.journal.appliedOrderMatchesCandidate,true);
+ equal(report.candidatePreflightClear,true);
  db.prepare('INSERT INTO d1_migrations(name) VALUES(?)').run(files[0]);equal(inspectCandidatePreflight(db,root).candidatePreflightClear,false);db.exec('DELETE FROM d1_migrations WHERE id=(SELECT MAX(id) FROM d1_migrations)');
  db.exec('DROP TABLE auth_rate_limits; CREATE TABLE auth_rate_limits(key TEXT NOT NULL,attempts INTEGER NOT NULL,window_started_at INTEGER NOT NULL,blocked_until INTEGER NOT NULL);');
  report=inspectCandidatePreflight(db,root);equal(report.authSchemaCompatible,false);ok(report.invalidAuthColumns.includes('key'));
