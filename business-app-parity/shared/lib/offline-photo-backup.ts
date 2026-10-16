@@ -50,7 +50,7 @@ export async function readOfflinePhotoBackup(file:Blob):Promise<OfflinePhoto[]>{
  guard(end>=0,'ZIP directory is missing or incomplete');
  const count=view.getUint16(end+10,true),dirSize=view.getUint32(end+12,true),dirOffset=view.getUint32(end+16,true);
  guard(count<=MAX_PHOTOS+1&&count===view.getUint16(end+8,true)&&dirOffset+dirSize===end,'ZIP directory is inconsistent');
- let offset=dirOffset,total=0;const parts=new Map<string,Uint8Array>();
+ let offset=dirOffset,total=0,expectedLocalOffset=0;const parts=new Map<string,Uint8Array>();
  for(let index=0;index<count;index++){
   guard(offset+46<=end&&view.getUint32(offset,true)===0x02014b50,'invalid ZIP directory entry');
   const flags=view.getUint16(offset+8,true),method=view.getUint16(offset+10,true),crc=view.getUint32(offset+16,true);
@@ -61,15 +61,31 @@ export async function readOfflinePhotoBackup(file:Blob):Promise<OfflinePhoto[]>{
   const name=decoder.decode(bytes.subarray(offset+46,offset+46+nameLen));
   guard(name==='manifest.json'||/^photos\/[a-zA-Z0-9_-]{1,90}$/.test(name),'unrecognized or unsafe archive path');
   guard(!parts.has(name),'duplicate ZIP entry');
-  guard(local+30<=dirOffset&&view.getUint32(local,true)===0x04034b50,'missing local file');
+  // FIRE's own ZIP writer emits sequential, stored local entries followed by
+  // signed 16-byte data descriptors. Demand the EXACT layout it produced:
+  // no hidden sidecar bytes, overlapping/aliased entries or forged descriptor.
+  guard(local===expectedLocalOffset&&local+30<=dirOffset&&view.getUint32(local,true)===0x04034b50,
+    'ZIP contains gaps, overlapping entries or a missing local file');
+  const localFlags=view.getUint16(local+6,true),localMethod=view.getUint16(local+8,true);
   const localNameLen=view.getUint16(local+26,true),localExtra=view.getUint16(local+28,true),start=local+30+localNameLen+localExtra;
-  guard(localNameLen===nameLen&&start+size<=dirOffset&&decoder.decode(bytes.subarray(local+30,local+30+nameLen))===name,'ZIP offsets or local names do not match');
-  const content=bytes.slice(start,start+size);
+  guard(flags===0x0808&&localFlags===flags&&localMethod===0&&localExtra===0&&
+    view.getUint32(local+14,true)===0&&view.getUint32(local+18,true)===0&&view.getUint32(local+22,true)===0,
+    'ZIP local metadata does not match the supported FIRE archive format');
+  guard(localNameLen===nameLen&&start+size+16<=dirOffset&&decoder.decode(bytes.subarray(local+30,local+30+nameLen))===name,
+    'ZIP offsets or local names do not match');
+  const content=bytes.slice(start,start+size),descriptor=start+size;
+  guard(view.getUint32(descriptor,true)===0x08074b50&&
+    view.getUint32(descriptor+4,true)===crc&&
+    view.getUint32(descriptor+8,true)===size&&
+    view.getUint32(descriptor+12,true)===size,
+    'ZIP data descriptor does not match the declared photo bytes');
   guard(crc32(content)===crc,'ZIP checksum mismatch');
   total+=size;guard(total<=MAX_ARCHIVE,'expanded ZIP exceeds safety limit');
+  expectedLocalOffset=descriptor+16;
   parts.set(name,content);offset+=46+nameLen+extra+comment;
  }
- guard(offset===end&&parts.has('manifest.json'),'ZIP contents or manifest incomplete');
+ guard(expectedLocalOffset===dirOffset&&offset===end&&parts.has('manifest.json'),
+   'ZIP contains undeclared bytes or an incomplete directory');
  let manifest:unknown;try{manifest=JSON.parse(decoder.decode(parts.get('manifest.json')!));}catch{throw Error('Photo backup rejected: invalid manifest');}
  const data=manifest as {format?:unknown;version?:unknown;requiresMatchingCustomerRecords?:unknown;photos?:unknown};
  guard(data&&data.format==='fire-offline-photo-vault'&&data.version===1&&data.requiresMatchingCustomerRecords===true&&Array.isArray(data.photos),'wrong backup format or version');
