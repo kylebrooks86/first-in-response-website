@@ -81,9 +81,9 @@ def reconcile(manifest, tables):
     """Never return sensitive source IDs or object names."""
     customers = tables["customers"]
     photos = tables["customer_photos"]
-    source_customers = [row.get("id") for row in customers]
     fail_if(any(not isinstance(row, dict) for row in customers + photos),
             "Malformed records table")
+    source_customers = [row.get("id") for row in customers]
     fail_if(any(not isinstance(cid, str) or not cid for cid in source_customers)
             or len(set(source_customers)) != len(source_customers),
             "Invalid or duplicate customer identities")
