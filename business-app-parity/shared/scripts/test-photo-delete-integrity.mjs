@@ -14,9 +14,23 @@ function harness(file,mode='success',authorized=true,bucket=true,found=true){
  const events=[];
  const env={
    BUCKET:bucket?{async get(key){events.push('bucket-get');return objects.has(key)?{body:objects.get(key)}:null;},async delete(key){events.push('bucket-delete');if(mode==='bucket-error')throw Error('R2 outage');objects.delete(key);}}:null,
-   DB:{prepare(query){return {bind(id){return {
-     async first(){events.push('db-select');return rows.get(id)||null;},
-     async run(){events.push('db-delete');if(mode==='db-precommit-error')throw Error('D1 rejected before commit');rows.delete(id);if(mode==='db-postcommit-error')throw Error('D1 deleted before acknowledgement');return {success:true};}
+   DB:{prepare(query){return {bind(...args){return {
+     async first(){events.push('db-select');return rows.get(args[0])||null;},
+     async run(){
+       events.push('db-delete');
+       if(mode==='db-precommit-error')throw Error('D1 rejected before commit');
+       if(mode==='db-missing-ack')return {success:true};
+       if(mode==='db-zero-change')return {success:true,meta:{changes:0}};
+       if(mode==='db-row-changed'){
+         const record=rows.get(args[0]);
+         if(record)rows.set(args[0],{...record,objectKey:'customers/customer-1/replaced.png'});
+       }
+       const current=rows.get(args[0]);
+       const matching=Boolean(current&&(args.length===1||args[1]===current.objectKey));
+       if(matching)rows.delete(args[0]);
+       if(mode==='db-postcommit-error')throw Error('D1 deleted before acknowledgement');
+       return {success:true,meta:{changes:matching?1:0}};
+     }
    };}};}}
  };
  const exports={};
@@ -57,6 +71,12 @@ for (const prefix of ['business-app-parity/shared/app/api/customer-photos/[id]',
   t=harness(file,'success',true,true,false);res=await t.DELETE();pass(`${file} nonexistent photo not mutated`,res.status===404&&t.rows.size===0&&t.objects.size===1&&t.events.join(',')==='db-select');
   if(patched){
    t=harness(file,'success',true,false);res=await t.DELETE();pass(`${file} no R2 fails closed, retains metadata`,res.status===503&&t.rows.size===1&&t.events.length===0);
+   for(const mode of ['db-zero-change','db-missing-ack','db-row-changed']){
+     t=harness(file,mode);res=await t.DELETE();
+     const payload=await res.json();
+     pass(`${file} ${mode} forbids R2 byte deletion and reports uncertainty`,
+       res.status===503&&payload.deleteUncertain===true&&t.objects.size===1&&t.rows.size===1&&t.events.join(',')==='db-select,db-delete');
+   }
    t=harness(file,'bucket-error');res=await t.DELETE();const body=await res.json();pass(`${file} R2 cleanup error explicitly reported`,res.status===503&&body.cleanupUncertain===true&&t.objects.size===1&&t.rows.size===0);
   }else{
    t=harness(file,'bucket-error');threw=false;try{await t.DELETE();}catch{threw=true;}pass(`${file} negative control R2 failure throws and leaves metadata`,threw&&t.rows.size===1&&t.objects.size===1);
