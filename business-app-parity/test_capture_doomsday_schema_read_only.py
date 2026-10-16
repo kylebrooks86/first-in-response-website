@@ -101,6 +101,15 @@ class CaptureTest(unittest.TestCase):
                 m.capture('fake-wrangler',['SELECT 1']*10,Path(d))
             self.assertEqual(list(Path(d).iterdir()),[])
 
+    def test_failed_cloudflare_stage_is_safe_and_identifiable(self):
+        with patch.object(m, "run_wrangler", side_effect=RuntimeError("Cloudflare CLI returned an error")):
+            with self.assertRaisesRegex(RuntimeError, "Remote SELECT 3/10") as failure:
+                m.checked_cli_stage("fake", ["d1", "execute", m.TARGET], "Remote SELECT 3/10")
+            self.assertNotIn("token", str(failure.exception).lower())
+        with patch.object(m, "run_wrangler", side_effect=RuntimeError("Cloudflare CLI returned an error")):
+            with self.assertRaisesRegex(RuntimeError, "Initial D1 inventory"):
+                m.checked_cli_stage("fake", ["d1", "list"], "Initial D1 inventory")
+
     def test_shell_failure_does_not_echo_api_response(self):
         import subprocess
         with patch.object(m.subprocess,'run',return_value=subprocess.CompletedProcess([],1,'SECRET','CREDENTIALS')):
