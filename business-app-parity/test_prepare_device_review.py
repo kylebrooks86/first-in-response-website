@@ -1,4 +1,4 @@
-import importlib.util,json,tempfile,unittest,zipfile
+import importlib.util,json,tempfile,unittest,zipfile,subprocess,sys
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('prepare',Path(__file__).with_name('prepare_device_review.py'));module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 class DevicePacket(unittest.TestCase):
@@ -31,4 +31,28 @@ class DevicePacket(unittest.TestCase):
     else:(root/'app/api/development/photo-fixture').mkdir(parents=True)
     with self.assertRaises(ValueError):module.prepare({'live':root},p/'out','synthetic')
     self.assertFalse((p/'out').exists());self.assertEqual(list(p.glob('fire-device-review-*')),[])
+ def test_root_directory_and_config_symlinks_refused(self):
+  for location in ['root','dist','public','package.json']:
+   with self.subTest(location=location),tempfile.TemporaryDirectory() as d:
+    p=Path(d);root=p/'candidate';self.fixture(root)
+    if location=='root':
+     link=p/'linked';link.symlink_to(root,target_is_directory=True);root=link
+    elif location=='dist':
+     original=root/'dist';original.rename(root/'saved-dist');original.symlink_to(root/'saved-dist',target_is_directory=True)
+    elif location=='public':(root/'public').symlink_to(root/'app',target_is_directory=True)
+    else:(root/'package.json').symlink_to(root/'app/page.tsx')
+    with self.assertRaises(ValueError):module.prepare({'live':root},p/'out','synthetic')
+    self.assertFalse((p/'out').exists());self.assertEqual(list(p.glob('fire-device-review-*')),[])
+ def test_single_candidate_cli_and_invalid_mode_guards(self):
+  with tempfile.TemporaryDirectory() as d:
+   p=Path(d);root=p/'candidate';self.fixture(root)
+   command=[sys.executable,str(Path(__file__).with_name('prepare_device_review.py'))]
+   result=subprocess.run(command+['--target','doomsday','--candidate',str(root),'--output',str(p/'review'),'--checkpoint','synthetic-ci-commit'],capture_output=True,text=True)
+   self.assertEqual(result.returncode,0,result.stderr)
+   receipt=json.loads((p/'review/DEVICE_REVIEW_RECEIPT.json').read_text())
+   self.assertEqual(list(receipt['targets']),['doomsday']);self.assertIsNone(receipt['installableURL'])
+   self.assertEqual(receipt['baseCheckpoint'],'synthetic-ci-commit')
+   for args in [['--target','live'],['--candidate',str(root)],['--live',str(root)],['--target','live','--candidate',str(root),'--live',str(root)]]:
+    rejected=subprocess.run(command+args+['--output',str(p/'rejected'),'--checkpoint','synthetic'],capture_output=True,text=True)
+    self.assertNotEqual(rejected.returncode,0);self.assertFalse((p/'rejected').exists())
 if __name__=='__main__':unittest.main(verbosity=2)

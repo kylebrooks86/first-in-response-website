@@ -268,6 +268,21 @@ jobs:
           cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
           pnpm run build
 
+      - name: Seal exact full-app candidate source and build for separate device-hosting review
+        run: |
+          python3 business-app-parity/prepare_device_review.py \
+            --target "${{ matrix.target }}" \
+            --candidate "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate" \
+            --output "$RUNNER_TEMP/fire-${{ matrix.target }}-device-review" \
+            --checkpoint "$GITHUB_SHA"
+      - name: Retain isolated full-app review bundle without publishing
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-full-app-review-${{ matrix.target }}-${{ github.sha }}
+          path: ${{ runner.temp }}/fire-${{ matrix.target }}-device-review/
+          if-no-files-found: error
+          retention-days: 7
+
   offline-browser:
     name: Isolated synthetic Home Screen offline cold-launch browser tests
     runs-on: ubuntu-latest
