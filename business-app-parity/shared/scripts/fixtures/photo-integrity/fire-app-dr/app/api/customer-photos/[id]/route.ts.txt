@@ -6,12 +6,13 @@ async function authorized(){ const user=await getOwnerUser(); return Boolean(use
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return new Response("Unauthorized", { status: 401 });
+  if (!env.BUCKET) return Response.json({ error: "Photo storage is unavailable. Existing photo records have been preserved." }, { status: 503 });
   const { id } = await context.params;
   const row = await env.DB.prepare("SELECT object_key AS objectKey,content_type AS contentType FROM customer_photos WHERE id=?").bind(id).first<{objectKey:string;contentType:string}>();
   if (!row || !env.BUCKET) return new Response("Photo not found", { status: 404 });
   const object = await env.BUCKET.get(row.objectKey);
   if (!object) return new Response("Photo not found", { status: 404 });
-  return new Response(object.body, { headers: { "content-type": row.contentType, "cache-control": "private, max-age=3600", "content-disposition": "inline" } });
+  return new Response(object.body, { headers: { "content-type": row.contentType, "cache-control": "private, no-store", "x-content-type-options": "nosniff", "content-security-policy": "sandbox", "content-disposition": "inline" } });
 }
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -23,7 +24,15 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   // Remove the database reference FIRST. Deleting R2 bytes first can strand a
   // committed customer_photos row if the D1 deletion fails or its ACK is lost.
   try {
-    await env.DB.prepare("DELETE FROM customer_photos WHERE id=?").bind(id).run();
+    // Match both identity and object key: a stale lookup must not remove
+    // bytes for a different photo record. D1 confirms one affected row.
+    const deletion = await env.DB.prepare("DELETE FROM customer_photos WHERE id=? AND object_key=?").bind(id, row.objectKey).run();
+    if (deletion.success !== true || deletion.meta?.changes !== 1) {
+      return Response.json({
+        error: "Photo changed or its deletion could not be confirmed. Refresh Photos before retrying.",
+        deleteUncertain: true,
+      }, { status: 503 });
+    }
   } catch {
     // The D1 delete may have committed before the response failed. NEVER
     // destroy photo bytes when the metadata outcome is ambiguous.
