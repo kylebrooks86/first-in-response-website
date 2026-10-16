@@ -24,7 +24,15 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   // Remove the database reference FIRST. Deleting R2 bytes first can strand a
   // committed customer_photos row if the D1 deletion fails or its ACK is lost.
   try {
-    await env.DB.prepare("DELETE FROM customer_photos WHERE id=?").bind(id).run();
+    // Match both identity and object key: a stale lookup must not remove
+    // bytes for a different photo record. D1 confirms one affected row.
+    const deletion = await env.DB.prepare("DELETE FROM customer_photos WHERE id=? AND object_key=?").bind(id, row.objectKey).run();
+    if (deletion.success !== true || deletion.meta?.changes !== 1) {
+      return Response.json({
+        error: "Photo changed or its deletion could not be confirmed. Refresh Photos before retrying.",
+        deleteUncertain: true,
+      }, { status: 503 });
+    }
   } catch {
     // The D1 delete may have committed before the response failed. NEVER
     // destroy photo bytes when the metadata outcome is ambiguous.
