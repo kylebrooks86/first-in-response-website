@@ -9,7 +9,7 @@ prove deployed Worker identity, cross-target isolation, current candidate parity
 rollback safety, or Gate 5 acceptance.
 """
 import argparse
-from datetime import datetime
+from contextlib import closing
 import json
 from pathlib import Path
 import sqlite3
@@ -28,7 +28,7 @@ def expected_baseline():
     baseline = files[:-1]
     if len(baseline) != 22 or baseline[-1].name != EXPECTED_LAST:
         raise ValueError("Historical Doomsday migration sequence changed.")
-    with sqlite3.connect(":memory:") as db:
+    with closing(sqlite3.connect(":memory:")) as db:
         db.row_factory = sqlite3.Row
         for file in baseline:
             db.executescript(file.read_text(encoding="utf-8"))
