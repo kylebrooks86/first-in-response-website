@@ -125,6 +125,29 @@ try{
    'Mobile ZIP export inventory guard refuses an added or deleted photo from another tab');
  check(!concurrentExportGuard.swappedId&&!concurrentExportGuard.amendedSize,
    'Mobile ZIP export inventory guard refuses a same-count photo replacement or changed metadata');
+ const concurrentSameLengthBytes=await page.evaluate(async bytes=>{
+  const vault=window.FIRE_LOCAL_PHOTOS;
+  const current=await vault.listOfflinePhotos('synthetic-customer');
+  const originalBytes=await current[0].blob.arrayBuffer();
+  const exact=[{...current[0],blob:new Blob([originalBytes],{type:current[0].contentType})}];
+  const changed=[{...current[0],blob:new Blob([new TextEncoder().encode('photo-one-binarY')],{type:'image/png'})}];
+  return {
+    sameLength:current[0].blob.size===changed[0].blob.size,
+    metadataOnlyWouldPass:vault.sameOfflinePhotoInventory(current,changed),
+    byteIdenticalAcceptsOriginal:await vault.byteIdenticalOfflinePhotoInventory(current,exact),
+    byteIdenticalRejectsReplacement:!await vault.byteIdenticalOfflinePhotoInventory(current,changed),
+    savedZipStillMatchesCurrent:await vault.byteIdenticalOfflinePhotoInventory(
+      await window.FIRE_ARCHIVE_MODULE.readOfflinePhotoBackup(
+        new Blob([new Uint8Array(bytes)])),current),
+  };
+ },archiveBytes);
+ check(concurrentSameLengthBytes.sameLength&&concurrentSameLengthBytes.metadataOnlyWouldPass,
+   'Regression fixture reproduces hidden same-size byte drift that metadata-only comparison misses');
+ check(concurrentSameLengthBytes.byteIdenticalAcceptsOriginal&&
+   concurrentSameLengthBytes.byteIdenticalRejectsReplacement,
+   'Actual mobile backup comparison detects identical-metadata changed image bytes');
+ check(concurrentSameLengthBytes.savedZipStillMatchesCurrent,
+   'Byte-level export validation matches current IndexedDB photos to the ZIP image bytes');
  const savedInspection=await page.evaluate(async bytes=>
    window.FIRE_PHOTO_BACKUP_INSPECTION.inspectSavedOfflinePhotoZip(
     new Blob([new Uint8Array(bytes)]),['synthetic-customer']),archiveBytes);
