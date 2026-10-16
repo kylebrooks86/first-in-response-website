@@ -15,7 +15,15 @@ try {
  assert.equal(report.schemaCompatible,true);assert.equal(report.journal.status,'unavailable');assert.equal(report.productionReady,false);
  db.exec('CREATE TABLE d1_migrations(id INTEGER PRIMARY KEY,name TEXT NOT NULL,applied_at TEXT);');
  for(const file of files)db.prepare('INSERT INTO d1_migrations(name) VALUES(?)').run(file);
- report=inspectSchema(db,root);assert.deepEqual(report.journal.missing,[]);assert.equal(report.journal.recordedFileCount,files.length);
+ report=inspectSchema(db,root);assert.deepEqual(report.journal.missing,[]);assert.equal(report.journal.recordedFileCount,files.length);assert.equal(report.journal.appliedOrderMatchesCandidate,true);
+ // A set-complete journal can still be unsafe if two applied IDs are swapped.
+ db.prepare('UPDATE d1_migrations SET name=CASE WHEN id=1 THEN ? WHEN id=2 THEN ? ELSE name END WHERE id IN (1,2)').run(files[1],files[0]);
+ report=inspectSchema(db,root);
+ assert.equal(report.journal.appliedOrderMatchesCandidate,false);
+ assert.deepEqual(report.journal.missing,[]);
+ assert.deepEqual(report.journal.unexpected,[]);
+ db.prepare('UPDATE d1_migrations SET name=CASE WHEN id=1 THEN ? WHEN id=2 THEN ? ELSE name END WHERE id IN (1,2)').run(files[0],files[1]);
+ assert.equal(inspectSchema(db,root).journal.appliedOrderMatchesCandidate,true);
  db.prepare('DELETE FROM d1_migrations WHERE name=?').run(files.at(-1));
  report=inspectSchema(db,root);assert.equal(report.schemaCompatible,true);assert.deepEqual(report.journal.missing,[files.at(-1)]);
  // Name alone cannot prove a safe index: reject nonunique and wrong predicates.
