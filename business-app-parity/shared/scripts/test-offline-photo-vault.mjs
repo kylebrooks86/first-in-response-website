@@ -113,6 +113,9 @@ check(component.includes('Keep originals')||component.includes('Keep the origina
 check(component.includes('legacyCloudPhotoCount>0'),'Older server/R2 photo records remain visible as a migration warning instead of disappearing silently');
 check(vault.includes("'+LOCAL_CUSTOMER_DEPLOYMENT+'"),'Shared local photo store is partitioned by a fixed deployment identity');
 check(vault.includes('readOfflinePhotoBackup(zip)'),'Actual downloaded ZIP is verified after assembly before being offered');
+check(vault.includes('if(!await byteIdenticalOfflinePhotoInventory(checked,await listOfflinePhotos(customerId)))')&&
+  vault.includes('for(let i=0;i<archive.length;i++)if(!await exactSavedPhotoMatch(archive[i],current[i]))return false'),
+  'Actual export refuses same-size photo byte replacement using SHA-256 before offering a prepared iPhone ZIP');
 const fallback=load('../lib/offline-photo-availability.ts');
 check(!fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:401,browserReportsOffline:true}),'HTTP 401 denies access to cached customer names even while browser reports offline');
 check(!fallback.mayUseOfflinePhotoDirectory({networkFailed:false,responseStatus:403,browserReportsOffline:false}),'HTTP 403 is always treated as owner denial, never as offline fallback');
