@@ -122,6 +122,16 @@ def checked_cli_stage(wrangler, args, stage):
         raise RuntimeError(f"{stage}: {error}") from None
 
 
+def cli_safe_statement(statement):
+    """Use a single physical line for Wrangler's --command argument.
+
+    The reviewed SQL blob is pinned. Its line breaks are formatting between
+    SQL tokens, never SQL string values; do not alter SQL text beyond replacing
+    line breaks with ASCII spaces, or relax any checked result expectations.
+    """
+    return statement.replace("\r\n", " ").replace("\n", " ")
+
+
 def capture(wrangler, statements, output_dir):
     if not output_dir.is_dir():
         raise ValueError("Choose an existing private destination folder.")
@@ -138,7 +148,7 @@ def capture(wrangler, statements, output_dir):
         results = []
         for i, statement in enumerate(statements, 1):
             payload = checked_cli_stage(wrangler, ["d1", "execute", TARGET, "--remote", "--json",
-                                                    "--config", str(config_path), "--command", statement],
+                                                    "--config", str(config_path), "--command", cli_safe_statement(statement)],
                                         f"Remote SELECT {i}/10")
             results.append({"rows": checked_rows(payload, i)})
     # Repeat inventory to detect an account/target change during capture.
