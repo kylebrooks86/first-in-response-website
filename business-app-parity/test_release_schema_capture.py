@@ -25,4 +25,19 @@ for target in ('live', 'doomsday', 'staging'):
             if index >= 5:
                 assert rows == [(0,)], 'Empty synthetic fixtures must have no anomalies'
             checks += 1
-print(f'PASS {checks}/{checks}: ten metadata/count-only SELECT statements execute on three disposable target schemas without changing schema, journal or records; no remote access.')
+
+# Negative control: a journal inserted out of sequence must NOT be normalized
+# into apparent good order by sorting names. The owner capture must reveal
+# actual D1 journal id order to the metadata verifier.
+with sqlite3.connect(':memory:') as db:
+    db.execute('CREATE TABLE d1_migrations(id INTEGER PRIMARY KEY,name TEXT NOT NULL)')
+    db.executemany('INSERT INTO d1_migrations(name) VALUES(?)',
+                   [('0001_later.sql',), ('0000_earlier.sql',)])
+    before = db.total_changes
+    observed = [row[0] for row in db.execute(queries[4])]
+    assert observed == ['0001_later.sql', '0000_earlier.sql'], observed
+    assert observed != sorted(observed), 'Journal sequence must not be alphabetized'
+    assert db.total_changes == before, 'The regression check must be read-only'
+    checks += 1
+
+print(f'PASS {checks}/{checks}: ten metadata/count-only SELECTs on three disposable schemas plus journal reordering negative control; no hosted access or writes.')
