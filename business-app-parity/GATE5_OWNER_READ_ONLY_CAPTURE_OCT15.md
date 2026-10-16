@@ -160,3 +160,36 @@ attestation; proof LIVE/refund-staging physical isolation; reviewed
 pre-0022 to candidate-0022 plan with writer quiescence, webhook protection,
 safe backup and recovery window, independent signoff and fresh anomalies.
 No hosted migration/deploy or real records touched.
+
+## Final owner Acer verification — historical Doomsday schema accepted locally
+
+Owner screenshot received after installing the narrow Cloudflare-reserved `_cf_KV`
+exception. It shows **15/15 synthetic local tests passing** and an offline
+comparison against owner-held metadata receipt
+`FIRE-DOOMSDAY-METADATA-ONLY-20261016-033529.json`:
+
+- 51/51 application schema object definitions match historical pre-0022.
+- Exactly one additional table is Cloudflare's reserved `_cf_KV`;
+  strict narrow internal-table exception applied, with the raw Query 1
+  difference retained in the report.
+- All other nine read-only result sets match baseline.
+- All five aggregate FK/payment/refund safety counts are zero.
+- Result is `MATCH_D1_RESERVED_TABLE`; 22 migrations 0000–0021.
+- Metadata verification ran **offline** against the owner's existing receipt;
+  no new Cloudflare queries, mutations, Stripe requests, or deployments.
+- Receipt and encrypted export remain owner-private; only sanitized console
+  results were shared in the conversation.
+
+**Completed technical subcheck:** historical Doomsday D1 application-schema
+match and clean point-in-time financial anomaly counts. **Not completed:**
+deployment/source provenance attested by the provider independently of
+owner-provided logs; current active route/version seal; LIVE/refund-staging
+physical DB isolation; approved writer-quiescent migration 0022 window and
+hosted post-apply/rollback checks; full release acceptance.
+
+Do not re-run Query 1 investigations, historical 22-migration schema captures,
+or encryption/archive/hash checks merely to repeat this completed evidence.
+A fresh *point-in-time* financial check will still be required immediately
+before any separately approved hosted migration, once writers are paused.
+
+**Gate 5 remains OPEN. Official overall readiness stays 30% (3/10).**
