@@ -37,8 +37,8 @@
     },
     {
       "step": "Repeat recovery refused with restored revision unchanged",
-      "result": "PASS_OWNER_OBSERVED_REJECTION; POST_REJECTION_RECORD_RECHECK_PENDING",
-      "evidence": "Owner screenshot of actual repeat recovery attempt on Acer Edge at query-free canonical synthetic URL, saved file fire-synthetic-customer-backup.json selected and confirmation checkbox checked. UI returned: 'Recovery blocked: vault already exists on this device. Existing records preserved; do not clear data.' No successful overwrite reported; revised record content must still be rechecked after refusal."
+      "result": "PASS_OWNER_OBSERVED_WITH_POST_REJECTION_REVISION3_RECHECK",
+      "evidence": "Owner deliberately attempted recovery of the same encrypted synthetic Revision 3 JSON on the already occupied Acer Edge vault and received 'Recovery blocked: vault already exists on this device. Existing records preserved; do not clear data.' A subsequent owner screenshot on the same canonical demo shows 'Unlocked synthetic records' and 'Synthetic Recovery - Revision 3 - demo@example.invalid' still readable after the refusal. No extra save, reset, or successful replay observed."
     },
     {
       "step": "Read-only occupied-vault detection after offline cold restart",
@@ -58,7 +58,8 @@
   "officialReadinessPercent": 30,
   "gate8FullBusinessAppAccepted": false,
   "syntheticCrossDeviceRecoveryToUnlockedRevision3": "PASS_OWNER_OBSERVED",
-  "nextStep": "On the same Acer Edge synthetic demo, keep Wi-Fi OFF and use Test recovery phrase (top field) to unlock. Confirm Synthetic Recovery / Revision 3 unchanged after rejected second recovery; screenshot without phrase. No Save offline edit or repeat restore.",
-  "safeguards": "Evidence is owner-observed/reported synthetic only. Real Acer restore, offline cold restart, occupied status, and actual repeat recover refusal all observed, but post-rejection content comparison pending. Full Business App iOS Home Screen candidate acceptance and production release gates are not proved.",
-  "lastObservedBranchHead": "9c9fe9df644b9ac151865b06a0bb1c89930aeec2"
+  "nextStep": "Synthetic Acer recovery milestone completed; no more repeat Acer restore or resets needed. For the full Business App, prioritize approved isolated full-app candidate installation and iPhone/iPad real-device acceptance, then authenticated host/storage/payment gates as separately authorized.",
+  "safeguards": "All observed pass evidence is user-supplied screenshot/report for synthetic demo only; network state for offline cold start is user-reported, not independently instrumented. No actual full-app release candidate has been installed on devices or remotely deployed. No production database or Stripe changes. Preserve iPhone Rev3, iPad Rev1 and original backup.",
+  "lastObservedBranchHead": "9c9fe9df644b9ac151865b06a0bb1c89930aeec2",
+  "syntheticCrossDeviceRecoveryAcceptance": "PASS_OWNER_OBSERVED_END_TO_END"
 }
