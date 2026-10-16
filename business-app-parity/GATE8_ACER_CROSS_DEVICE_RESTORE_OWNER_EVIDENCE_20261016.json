@@ -26,6 +26,11 @@
       "evidence": "Unlocked synthetic records; Synthetic Recovery - Revision 3; demo@example.invalid"
     },
     {
+      "step": "Offline same-tab reload at query-free canonical URL and recovered Revision 3 unlock",
+      "result": "PASS_OWNER_REPORTED_WITH_SCREENSHOT",
+      "evidence": "Owner confirmed Wi-Fi OFF during Ctrl+R reload of exact query-free URL, and following photo shows Offline shell ready, Unlocked synthetic records, Synthetic Recovery - Revision 3. Screenshot alone does not independently verify radio state or full Edge process shutdown."
+    },
+    {
       "step": "Offline full browser shutdown and cold restart",
       "result": "PENDING_OWNER_TEST",
       "evidence": "Current screenshot displays offline shell ready, but does not independently prove network disabled or closed-browser relaunch"
@@ -47,6 +52,6 @@
   "officialReadinessPercent": 30,
   "gate8FullBusinessAppAccepted": false,
   "syntheticCrossDeviceRecoveryToUnlockedRevision3": "PASS_OWNER_OBSERVED",
-  "nextStep": "On Edge, while online first use exact query-free canonical URL, confirm shell ready; then turn network fully offline, completely close Edge, reopen exact URL offline, unlock and check revision 3. Stop and report if offline navigation fails. Do not clear browser storage.",
-  "safeguards": "All claims limited to visible owner-reported synthetic demo evidence. No offline cold launch PASS, durable iOS recovery PASS, production app acceptance, or successful overwrite-refusal asserted."
+  "nextStep": "Keep Wi-Fi off; close every Microsoft Edge window, wait briefly, reopen Edge and navigate to the query-free canonical synthetic URL; unlock privately and photograph Revision 3 or stop at offline error. Do not restore again or clear any browser storage.",
+  "safeguards": "Claims limited to owner-reported/photographed synthetic demo evidence. Same-tab offline refresh and unlock passed on owner report. Full offline browser shutdown/cold restart, overwrite refusal, iOS candidate release, production release gates remain unverified."
 }
