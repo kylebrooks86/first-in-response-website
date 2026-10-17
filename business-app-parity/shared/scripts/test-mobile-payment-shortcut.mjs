@@ -38,20 +38,23 @@ assert.match(header,/<button disabled=\{!interactive\} className="payment-state"
  'Desktop Payments action must remain unchanged');
 const parsed=postcss.parse(css);const rules=[];parsed.walkRules(rule=>rules.push(rule));
 const get=(selector,media)=>rules.findLast(rule=>rule.selector===selector&&
-  (media?rule.parent.type==='atrule':rule.parent.type==='root'));
+  (media?rule.parent.type==='atrule'&&rule.parent.params==='max-width:760px':rule.parent.type==='root'));
 const value=(rule,property)=>rule?.nodes.find(node=>node.prop===property)?.value;
+const important=(rule,property)=>Boolean(rule?.nodes.find(node=>node.prop===property)?.important);
 assert.equal(value(get('.mobile-payment-quick-action',false),'display'),'none',
  'Desktop must keep its original toolbar entry only');
 assert.match(css,/@media\(max-width:760px\)\{\s*\.mobile-payment-quick-action\{/);
-assert.equal(value(get('.mobile-payment-quick-action',true),'display'),'grid!important');
-assert.equal(value(get('.mobile-payment-quick-action',true),'min-height'),'42px!important');
-assert.equal(value(get('.mobile-payment-quick-action',true),'width'),'42px!important');
+assert.equal(value(get('.mobile-payment-quick-action',true),'display'),'grid');
+assert.ok(important(get('.mobile-payment-quick-action',true),'display'));
+assert.equal(value(get('.mobile-payment-quick-action',true),'min-height'),'42px');
+assert.ok(important(get('.mobile-payment-quick-action',true),'min-height'));
+assert.equal(value(get('.mobile-payment-quick-action',true),'width'),'42px');
 assert.ok(css.includes('@media(max-width:430px)'));
 assert.ok(css.includes('@media(max-width:360px)'));
 assert.ok(css.includes('.topbar .mobile-brand{display:none!important}'),
  'Keep all interactive buttons even on extremely narrow phones');
 assert.equal(value(get('.mobile-payment-quick-action:focus-visible',true),'outline'),
- '3px solid #db4651!important');
+ '3px solid #db4651');
 assert.match(dashboard,/process\.env\.NODE_ENV === "development" && localCustomersCandidate && <CandidateLayoutTrace\/>/,
  'Diagnostic must remain development-only across QA, LIVE, staging, Doomsday');
 console.log('PASS: Shared top-bar $ quick action on phone, accessible label, same Payments navigation on every tab, preserved desktop entry, narrow layout, no giant CTA; no real payments.');
