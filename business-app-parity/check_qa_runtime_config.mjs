@@ -15,9 +15,17 @@ assert.deepEqual(cfg.d1_databases,[{binding:"DB",database_name:db,database_id:id
 assert.equal(cfg.workers_dev,true,"QA should not use existing custom routes");
 assert.ok(!cfg.routes?.length && !cfg.route && !cfg.zone_id && !cfg.account_id,
   "QA build must not target existing routing, zones or foreign accounts");
-for(const field of ["r2_buckets","kv_namespaces","durable_objects","services","queues","ai","unsafe","dispatch_namespaces"]){
+for(const field of ["r2_buckets","kv_namespaces","services","queues","ai","unsafe","dispatch_namespaces"]){
   assert.ok(!cfg[field] || (Array.isArray(cfg[field])&&cfg[field].length===0),
     "Unapproved QA production resource binding: "+field);
+}
+// The vinext/Cloudflare compiler may emit an empty Durable Objects section.
+// Only an EMPTY bindings list is safe; refuse any actual DO binding or class.
+if(cfg.durable_objects){
+  const bindings=cfg.durable_objects.bindings;
+  assert.ok(Array.isArray(bindings)&&bindings.length===0,
+    "QA generated unexpected Durable Objects bindings: "+JSON.stringify(
+      Array.isArray(bindings)?bindings.map(x=>({name:x?.name,class_name:x?.class_name})):Object.keys(cfg.durable_objects)));
 }
 const vars=cfg.vars??{};
 assert.equal(vars.FIRE_ENV,"synthetic-qa");
