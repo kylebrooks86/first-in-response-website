@@ -46,6 +46,12 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertLess(S.index("d1 info $qaDatabase"), S.index("deployments status"))
         self.assertLess(S.index("deployments status"), S.index("deploy --dry-run"))
         self.assertNotIn("fire-app-staging-db", S)
+        self.assertIn("f650d25b18d23bc9f71a4d55c9322bfd5870ef75", S)
+        self.assertIn("$previousSQL.Count -eq 23", S)
+        self.assertIn("Get-FileHash -Algorithm SHA256", S)
+        self.assertIn("$baseline.ContainsKey($file.Name)", S)
+        self.assertIn("QA migration bytes differ from original published app", S)
+        self.assertLess(S.index("Get-FileHash -Algorithm SHA256"), S.index("deployments status"))
 
     def test_temp_config_only_and_cleanup_guarantee(self):
         self.assertIn("prepare_qa_deploy_config.mjs", S)
