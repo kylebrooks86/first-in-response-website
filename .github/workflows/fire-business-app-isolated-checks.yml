@@ -15,6 +15,7 @@ on:
       - 'business-app-parity/test_prepare_device_review.py'
       - 'business-app-parity/verify_device_review_packet.py'
       - 'business-app-parity/test_verify_device_review_packet.py'
+      - 'business-app-parity/check_qa_runtime_config.mjs'
       - 'business-app-parity/RELEASE_SCHEMA_CAPTURE_READ_ONLY.sql'
       - 'business-app-parity/verify_hosted_schema_capture.py'
       - 'business-app-parity/capture_doomsday_schema_read_only.py'
@@ -349,6 +350,8 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-candidate"
           pnpm run build
+      - name: Fail closed unless built QA manifest binds only the newly created isolated D1
+        run: node business-app-parity/check_qa_runtime_config.mjs "$RUNNER_TEMP/fire-qa-candidate/dist/server/wrangler.json"
       - name: Seal synthetic-only QA full-app review bundle
         run: |
           python3 business-app-parity/prepare_device_review.py \
