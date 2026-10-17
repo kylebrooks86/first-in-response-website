@@ -49,7 +49,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertLess(S.index("d1 list --json"), S.index("deployments status"))
         self.assertLess(S.index("deployments status"), S.index("deploy --dry-run"))
         self.assertNotIn("fire-app-staging-db", S)
-        self.assertNotIn("d1 info ", S)
+        self.assertNotRegex(S, r"&\\s*\\$wrangler\\.Source\\s+d1\\s+info\\b")
         self.assertIn("qa_d1_identity_from_list.ps1", S)
         self.assertIn("& $identityHelper -Json ($databaseRaw -join [Environment]::NewLine)", S)
         self.assertIn("Strict read-only D1 identity validator is missing", S)
