@@ -83,12 +83,25 @@ if (-not $Publish) {
 
 # Cloudflare deployment changes a remote resource. Protect it with a fresh
 # exact Worker-name collision check AND typed owner consent after all preflights.
-$probe = @()
-try { $probe = @(& $remoteWrangler.Source deployments list --name $workerName 2>&1) }
-catch { $probe = @($_.ToString()) }
-$probeText = ($probe | Out-String)
-Require ($LASTEXITCODE -ne 0 -and $probeText -match '10007' -and
-    $probeText -match 'does not exist') 'Worker name is occupied or Cloudflare result ambiguous. Never overwrite.'
+# Windows PowerShell 5.1 converts native stderr into an ErrorRecord. With
+# ErrorActionPreference=Stop, even Cloudflare's EXPECTED "does not exist" 10007
+# may throw before the response is captured. Temporarily continue ONLY for
+# this read-only probe, capturing the exact native exit code + all output.
+# Never interpret other errors, network failures, or success as "available".
+$oldErrorActionPreference = $ErrorActionPreference
+$probeText = ''
+$probeExitCode = $null
+try {
+    $ErrorActionPreference = 'Continue'
+    $probe = @(& $remoteWrangler.Source deployments list --name $workerName 2>&1)
+    $probeExitCode = $LASTEXITCODE
+    $probeText = ($probe | Out-String)
+} finally {
+    $ErrorActionPreference = $oldErrorActionPreference
+}
+Require ($probeExitCode -is [int] -and $probeExitCode -ne 0 -and
+    $probeText -match 'This Worker does not exist on your account' -and
+    $probeText -match '\[code:\s*10007\]') 'Worker name is occupied or Cloudflare result ambiguous. Never overwrite.'
 $approval = 'PUBLISH QA ' + $workerName + ' ' + $qaUuid + ' ' + $reviewedCandidateCommit
 Write-Warning 'THIS WILL CREATE a NEW synthetic-only Cloudflare QA Worker and upload ONLY its two owner login secrets. NO existing Worker, D1 migration, Stripe, R2, DNS, or LIVE path.'
 $typed = Read-Host ('To authorize this exact QA-only first publication, type ' + $approval)
