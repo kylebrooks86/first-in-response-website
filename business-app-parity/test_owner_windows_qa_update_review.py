@@ -37,15 +37,20 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "82fba39a-5736-41d7-a944-d55776ccc670",
+                         "c77e8efd-3ad3-4586-9afd-",
                          "deployments status --name $workerName --json",
                          "d1 info $qaDatabase --json", "databaseInfo.uuid -ceq $qaId",
-                         "deploymentText -match [regex]::Escape($priorVersion)"):
+                         "$activeVersions.Count -eq 1",
+                         "[double]$activeVersions[0].percentage -eq 100",
+                         "$activeVersions[0].version_id",
+                         "[regex]::Escape($expectedActiveVersionPrefix)"):
             self.assertIn(expected, S)
         self.assertLess(S.index("qa $candidate --built"), S.index("d1 info $qaDatabase"))
         self.assertLess(S.index("d1 info $qaDatabase"), S.index("deployments status"))
         self.assertLess(S.index("deployments status"), S.index("deploy --dry-run"))
         self.assertNotIn("fire-app-staging-db", S)
+        self.assertNotIn("$deploymentText -match", S)
+        self.assertNotIn("82fba39a-5736-41d7-a944-d55776ccc670", S)
         self.assertIn("f650d25b18d23bc9f71a4d55c9322bfd5870ef75", S)
         self.assertIn("$previousSQL.Count -eq 23", S)
         self.assertIn("Get-FileHash -Algorithm SHA256", S)
