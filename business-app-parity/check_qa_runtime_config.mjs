@@ -29,6 +29,8 @@ for(const field of ["r2_buckets","kv_namespaces","durable_objects","services","q
 const vars=cfg.vars??{};
 assert.equal(vars.FIRE_ENV,"synthetic-qa");
 assert.equal(vars.FIRE_QA_SYNTHETIC_ONLY,"enabled");
+assert.equal(vars.FIRE_LOCAL_CUSTOMERS_CANDIDATE,"synthetic-only",
+  "Only the explicit synthetic-only QA local customer mode is permitted");
 assert.equal(typeof vars.SITE_ORIGIN,"string");
 assert.equal(vars.SITE_ORIGIN, "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev",
   "QA SITE_ORIGIN must be the independently owner-verified Cloudflare workers.dev origin");
