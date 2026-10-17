@@ -44,6 +44,23 @@ foreach ($path in @($candidate, $manifest, $sourceCheck, $runtimeCheck, $prepare
     Require (Test-Path -LiteralPath $path) 'Missing latest isolated QA build or source verifier. Build the new candidate locally first.'
 }
 Require (-not ((Get-Item -LiteralPath $candidate).Attributes -band [IO.FileAttributes]::ReparsePoint)) 'Refusing symbolic-link QA build directory.'
+# An update must not quietly change schema expectations while keeping the
+# pre-existing D1 contents. Compare every local SQL migration with the exact
+# candidate that first published this QA Worker, including file names/order.
+$firstSource = 'f650d25b18d23bc9f71a4d55c9322bfd5870ef75'
+$original = Join-Path $env:LOCALAPPDATA ('FIRE-QA-Builds\qa-' + $firstSource)
+Require (Test-Path -LiteralPath (Join-Path $original 'drizzle') -PathType Container) 'The preserved first-release QA migration baseline is missing.'
+Require (-not ((Get-Item -LiteralPath $original).Attributes -band [IO.FileAttributes]::ReparsePoint)) 'First-release QA candidate must not be a symbolic link.'
+$previousSQL = @(Get-ChildItem -LiteralPath (Join-Path $original 'drizzle') -Filter '*.sql' -File)
+$nextSQL = @(Get-ChildItem -LiteralPath (Join-Path $candidate 'drizzle') -Filter '*.sql' -File)
+Require ($previousSQL.Count -eq 23 -and $nextSQL.Count -eq $previousSQL.Count) 'QA migration count changed since first deployment. Stop.'
+$baseline = @{}
+foreach ($file in $previousSQL) { $baseline[$file.Name] = (Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName).Hash }
+foreach ($file in $nextSQL) {
+    Require ($baseline.ContainsKey($file.Name) -and
+        $baseline[$file.Name] -ceq (Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName).Hash) 'QA migration bytes differ from original published app. Stop without touching D1.'
+}
+Write-Host 'PASS: All 23 original QA migrations are byte-for-byte unchanged. No migrations run.'
 & $python.Source $sourceCheck qa $candidate --built
 Require-Exit 'Latest full-app QA compiled source verification'
 & $node.Source $runtimeCheck $manifest
