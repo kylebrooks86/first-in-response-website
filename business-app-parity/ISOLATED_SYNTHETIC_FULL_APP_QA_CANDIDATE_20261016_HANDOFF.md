@@ -35,3 +35,23 @@ The new QA-only job passed exact source verification, frozen dependency installa
 3. After owner sees the verified QA resource identity and approved configuration, publish a single isolated owner-authenticated QA version; test sign-in, fail-closed missing-config cases, data isolation, app screens, the actual iPhone/iPad install and offline behavior. Never replace existing Home Screen apps or clear vaults.
 
 At this point the user has conditionally approved a new isolated $0 QA environment, but the assistant has **not** authenticated to the owner's Cloudflare account and cannot claim the resource exists. Confirm new account resource identities first; a review ZIP alone is not a runtime or a release gate.
+
+## Owner-verified Cloudflare QA D1 creation — October 16
+
+**Observed in an Acer Wrangler CLI screenshot:**
+`wrangler.cmd d1 create fire-fullapp-qa-db-20261016` returned
+`Successfully created DB 'fire-fullapp-qa-db-20261016' in region WNAM`
+with **new UUID `8ccfb1f8-1657-4074-b1b2-47de78f95003`**.
+
+The existing independently listed database `fire-app-staging-db`
+remains UUID `afb2c05a-d794-4a9a-b580-924ce01c26ad`.
+The identities are distinct; **the new D1 was created and is not a LIVE/staging rename**. Schema state not independently checked; do not assume migrations were applied. Only the QA D1 creation is authorized and observed; no Worker, R2, Stripe resource, GitHub deployment, data migration or paid service activation has occurred.
+
+The exact QA adapter now overrides the otherwise placeholder local Vite/Cloudflare config: it pins Worker `fire-fullapp-qa-20261016`, uses the **sole** `DB` binding to the **new** UUID, has **no R2 bucket**, no Stripe keys and no LIVE/domain routes. `SITE_ORIGIN` remains EMPTY unless an exact owner-subdomain QA URL is independently confirmed at build time; this deliberately fails authentication closed. CI builds and checks the resolved Worker manifest with `check_qa_runtime_config.mjs`. That CI must pass before review package is considered updated; this is not deployment consent.
+
+**Next owner action:**
+```powershell
+wrangler.cmd d1 info fire-fullapp-qa-db-20261016 --json
+```
+
+This is an official Cloudflare **read-only** info command, not a schema mutation. Confirm it identifies the new D1 and shows empty/new status. After observing that, obtain precise existing `workers.dev` account subdomain (without sharing secrets) and validate the QA-only runtime configuration, before applying any synthetic-only schema to the isolated new DB. No full app release gate passes from D1 provisioning alone.
