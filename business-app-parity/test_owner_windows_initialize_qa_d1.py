@@ -47,7 +47,7 @@ class IsolatedQAMigrationGuard(unittest.TestCase):
         self.assertLess(SCRIPT.index("Assert-True ($choice -ceq $expected)"),
                         SCRIPT.index(apply_command))
         self.assertIn("Assert-True ($info.uuid -ceq $uuid", SCRIPT)
-        self.assertIn("Assert-True ([int]$info.num_tables -eq 0)", SCRIPT)
+        self.assertIn("$null -ne $info.PSObject.Properties['num_tables']", SCRIPT)
 
     def test_account_identity_and_exact_migration_order_are_checked_first(self):
         self.assertIn("d1 list --json", SCRIPT)
