@@ -43,6 +43,8 @@ on:
       - 'business-app-parity/wrangler.qa-migrations.json'
       - 'business-app-parity/owner_windows_initialize_qa_d1.ps1'
       - 'business-app-parity/test_owner_windows_initialize_qa_d1.py'
+      - 'business-app-parity/owner_windows_qa_release_preflight.ps1'
+      - 'business-app-parity/test_owner_windows_qa_release_preflight.py'
       - 'business-app-parity/shared/scripts/test-real-wrangler-local-d1-export.mjs'
       - 'business-app-parity/shared/scripts/test-fire-service-catalog-pricing.mjs'
       - 'business-app-parity/shared/scripts/test-per-job-price-overrides.mjs'
