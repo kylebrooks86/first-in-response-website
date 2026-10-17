@@ -13,7 +13,7 @@ APP_ADAPTERS = {
     "app/page.tsx", "app/layout.tsx", "app/chatgpt-auth.ts", "app/owner-auth.ts",
     "app/login/page.tsx", "app/api/auth/login/route.ts", "app/api/auth/logout/route.ts",
     "app/api/app-version/route.ts", "app/api/staging-fixtures/route.ts",
-    "app/local-customer-deployment.ts",
+    "app/local-customer-deployment.ts", "vite.config.ts",
 }
 
 
