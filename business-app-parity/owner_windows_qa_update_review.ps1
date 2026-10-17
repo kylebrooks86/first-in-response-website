@@ -9,8 +9,8 @@ $branch = 'work/fire-business-app-parity-2026-10-08'
 $workerName = 'fire-fullapp-qa-20261016'
 $qaDatabase = 'fire-fullapp-qa-db-20261016'
 $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
-# This is the already owner-observed first UPDATE, not the initial QA Worker.
-# Require the same exact version prefix before allowing the next QA update.
+# Only recognize the one serving version of the previously owner-observed
+# October 17 QA Worker update. Never accept old deployment history versions.
 $expectedActiveVersionPrefix = 'c77e8efd-3ad3-4586-9afd-'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
@@ -73,8 +73,7 @@ Require-Exit 'Read-only existing QA database identity'
 try { $databaseInfo = ConvertFrom-Json -InputObject ($databaseRaw -join [Environment]::NewLine) }
 catch { throw 'FIRE QA UPDATE STOP: Malformed D1 identity response.' }
 Require ($databaseInfo.name -ceq $qaDatabase -and $databaseInfo.uuid -ceq $qaId) 'QA D1 identity differs. No publish.'
-# Read only the one currently serving version. Never match a stale version in a
-# deployment history / free-text JSON blob, and never accept split traffic.
+# Verify exactly the sole ACTIVE version, not arbitrary historical status text.
 $deploymentRaw = @(& $wrangler.Source deployments status --name $workerName --json)
 Require-Exit 'Read-only current QA Worker status'
 try { $deploymentInfo = ConvertFrom-Json -InputObject ($deploymentRaw -join [Environment]::NewLine) }
@@ -84,27 +83,7 @@ $activeVersions = @($deploymentInfo.versions)
 Require ($activeVersions.Count -eq 1) 'QA Worker traffic is split or ambiguous. Stop.'
 Require ([double]$activeVersions[0].percentage -eq 100) 'Exactly one QA Worker version must serve 100 percent of requests.'
 $activeVersion = [string]$activeVersions[0].version_id
-Require ($activeVersion -cmatch ('^' + [regex]::Escape($expectedActiveVersionPrefix) + '[a-f0-9]{12}
-# Dry-run requires ONLY a disposable normalized manifest, outside any app data.
-$temporaryManifest = Join-Path (Split-Path -Parent $manifest) (
-    'wrangler.fire-qa-firstpublish-' + [Guid]::NewGuid().ToString('D') + '.json')
-try {
-    & $node.Source $prepare $manifest $temporaryManifest
-    Require-Exit 'QA-only Wrangler config compatibility'
-    Push-Location $candidate
-    try {
-        & $wrangler.Source deploy --dry-run --config $temporaryManifest --name $workerName
-        Require-Exit 'No-upload QA update dry run'
-    } finally { Pop-Location }
-} finally {
-    if (Test-Path -LiteralPath $temporaryManifest -PathType Leaf) {
-        Remove-Item -LiteralPath $temporaryManifest -Force
-    }
-}
-Write-Host ('REVIEW PASS: New QA candidate Git source ' + $head)
-Write-Host 'NO PUBLISH. Existing QA Worker, private credentials and D1 customer records are untouched.'
-Write-Host 'Further steps require owner approval of a distinct UPDATE release and retained rollback version.'
-)) 'Active QA Worker differs from owner-observed October 17 successful update. Stop.'
+Require ($activeVersion -cmatch ('^' + [regex]::Escape($expectedActiveVersionPrefix) + '[a-f0-9]{12}$')) 'Active QA Worker differs from owner-observed October 17 successful update. Stop.'
 Write-Host ('PASS: Active QA Worker is exactly one 100-percent deployment: ' + $activeVersion)
 Write-Host ('PASS: Existing QA database name and UUID match: ' + $qaDatabase)
 # Dry-run requires ONLY a disposable normalized manifest, outside any app data.
