@@ -49,6 +49,8 @@ on:
       - 'business-app-parity/test_owner_windows_build_qa_candidate.py'
       - 'business-app-parity/owner_windows_first_qa_publish.ps1'
       - 'business-app-parity/test_owner_windows_first_qa_publish.py'
+      - 'business-app-parity/owner_windows_qa_update_review.ps1'
+      - 'business-app-parity/test_owner_windows_qa_update_review.py'
       - 'business-app-parity/prepare_qa_deploy_config.mjs'
       - 'business-app-parity/test_prepare_qa_deploy_config.mjs'
       - 'business-app-parity/verify_materialized_candidate.py'
@@ -196,6 +198,22 @@ jobs:
         run: python3 ../test_owner_windows_build_qa_candidate.py
       - name: First QA Worker publication must require exact owner consent and preserve secrets
         run: python3 ../test_owner_windows_first_qa_publish.py
+      - name: Existing QA Worker update review must preserve all hosted customer records
+        run: python3 ../test_owner_windows_qa_update_review.py
+      - name: Windows QA update review script parses without running it
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '../owner_windows_qa_update_review.ps1'),
+            [ref]$tokens, [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -ne 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw "FIRE QA update review contains syntax errors."
+          }
+          Write-Host 'PASS: QA update review parses; no deployment was executed.'
       - name: Ensure QA Worker release script parses under PowerShell without executing it
         shell: pwsh
         run: |
