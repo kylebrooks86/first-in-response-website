@@ -496,6 +496,8 @@ jobs:
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
           test -n "$CHROME" || { echo "Chrome is not available on the runner; do not fall back to unreviewed installs."; exit 1; }
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Verify shared payments toolbar across phone, tablet and desktop in light and dark
+        run: node scripts/test-payments-shortcut-browser.mjs
       - name: Verify actual IndexedDB customer photos, ZIP restore and offline additions in Chrome
         run: node scripts/test-offline-photo-indexeddb-browser.mjs
       - name: Exercise actual photo screen, offline ZIP, stopped-server cold launch and Files readback

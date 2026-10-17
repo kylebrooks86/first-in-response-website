@@ -23,4 +23,4 @@ Owner requirement: **Do not require entering a full password to open FIRE for or
 
 ## Separate accepted mobile payment UI change
 
-The former full-width 'Record payments' phone CTA consumed excessive vertical space. Keep the same actual Payments navigation and an accessible name, but expose a compact **$** action in the top toolbar on narrow screens, with the desktop text shortcut unchanged and no overlap on small devices. No button directly charges/collects funds.
+The former full-width 'Record payments' phone CTA consumed excessive vertical space. Keep the same actual Payments navigation and an accessible name, but expose a compact **$** action in the top toolbar at all screen sizes, replacing the desktop orange-dot/text shortcut too, with only responsive sizing and no overlap on small devices. No button directly charges/collects funds.
