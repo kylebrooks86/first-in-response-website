@@ -1,0 +1,142 @@
+# First FULL FIRE Business App synthetic QA publication, never LIVE/staging/DR.
+# No remote mutation by default. -Publish requires a fresh typed exact approval.
+# Never paste the local DPAPI owner record, a secret or a verifier into ChatGPT.
+[CmdletBinding()]
+param([switch]$Publish)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$workerName = 'fire-fullapp-qa-20261016'
+$qaName = 'fire-fullapp-qa-db-20261016'
+$qaUuid = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
+$stagingName = 'fire-app-staging-db'
+$stagingUuid = 'afb2c05a-d794-4a9a-b580-924ce01c26ad'
+$qaOrigin = 'https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev'
+$reviewedCandidateCommit = 'f650d25b18d23bc9f71a4d55c9322bfd5870ef75'
+$repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+$candidate = Join-Path $env:LOCALAPPDATA ('FIRE-QA-Builds\qa-' + $reviewedCandidateCommit)
+$manifest = Join-Path $candidate 'dist\server\wrangler.json'
+$privateDir = Join-Path $env:LOCALAPPDATA 'FIRE-QA-Private'
+$privateFile = Join-Path $privateDir 'qa-owner-secrets.xml'
+$wrangler = Join-Path $candidate 'node_modules\.bin\wrangler.cmd'
+$verifySource = Join-Path $PSScriptRoot 'verify_materialized_candidate.py'
+$verifyRuntime = Join-Path $PSScriptRoot 'check_qa_runtime_config.mjs'
+function Require([bool]$ok, [string]$message) {
+    if (-not $ok) { throw ('FIRE QA STOP: ' + $message) }
+}
+function Require-Exit([string]$name) { Require ($LASTEXITCODE -eq 0) ($name + ' failed. STOP without publishing.') }
+function Read-CheckedD1([string]$name, [string]$expectedUuid) {
+    # Read-only individual database lookup; deliberately avoids the broken D1 list API.
+    $raw = @(& $wrangler d1 info $name --json)
+    Require-Exit ('Read-only D1 identity lookup for ' + $name)
+    try { $info = ConvertFrom-Json -InputObject ($raw -join [Environment]::NewLine) }
+    catch { throw 'FIRE QA STOP: Invalid read-only D1 response.' }
+    Require ($info.name -ceq $name -and $info.uuid -ceq $expectedUuid) 'Cloudflare database UUID/name mismatch.'
+}
+Write-Host 'FIRE FULL-APP QA: first-Worker release review (NO WRITES by default)'
+Require ($env:OS -eq 'Windows_NT' -and -not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) 'Owner Windows user profile required.'
+$git = Get-Command 'git.exe' -ErrorAction SilentlyContinue
+$node = Get-Command 'node.exe' -ErrorAction SilentlyContinue
+$python = Get-Command 'python.exe' -ErrorAction SilentlyContinue
+Require ($null -ne $git -and $null -ne $node -and $null -ne $python) 'Existing Git, Node and Python are required.'
+$currentBranch = (& $git.Source -C $repo branch --show-current).Trim()
+Require-Exit 'Read-only Git branch check'
+Require ($currentBranch -ceq 'work/fire-business-app-parity-2026-10-08') 'Wrong working branch.'
+$changes = @(& $git.Source -C $repo status --porcelain --untracked-files=no)
+Require-Exit 'Read-only Git tracked files'
+Require ($changes.Count -eq 0) 'Preserve uncommitted source changes and stop.'
+foreach ($path in @($candidate, $manifest, $privateFile, $verifySource, $verifyRuntime, $wrangler)) {
+    Require (Test-Path -LiteralPath $path) 'Expected pinned candidate, credential record, or verifier missing.'
+}
+Require (-not ((Get-Item -LiteralPath $candidate).Attributes -band [IO.FileAttributes]::ReparsePoint)) 'QA candidate directory cannot be a symlink.'
+& $python.Source $verifySource qa $candidate --built
+Require-Exit 'Reverified exact full-app shared/QA adapter sources'
+& $node.Source $verifyRuntime $manifest
+Require-Exit 'Reverified compiled Worker identity, both required secrets, and isolated database'
+$rawHelp = @(& $wrangler deploy --help)
+Require-Exit 'Read-only Wrangler deploy help'
+Require (($rawHelp -join [Environment]::NewLine) -match '--secrets-file') 'Pinned Wrangler must support one-step code+secret deployment.'
+try { $record = Import-Clixml -LiteralPath $privateFile }
+catch { throw 'FIRE QA STOP: Previously protected QA credentials are inaccessible. Do not regenerate them.' }
+Require ($record.workerName -ceq $workerName -and $record.origin -ceq $qaOrigin -and
+    $record.databaseName -ceq $qaName -and $record.databaseId -ceq $qaUuid) 'Original private QA metadata does not match the exact new Worker.'
+Require ($record.passwordSha256 -cmatch '^[a-f0-9]{64}$' -and
+    $record.sessionSigningSecret -is [Security.SecureString] -and
+    $record.sessionSigningSecret.Length -ge 32) 'Previously prepared private login credentials are malformed.'
+Read-CheckedD1 $qaName $qaUuid
+Read-CheckedD1 $stagingName $stagingUuid
+Write-Host ('PASS: Full QA source/compiled config verified, QA Worker ' + $workerName)
+Write-Host ('PASS: Separate QA database ' + $qaUuid + '; older staging database identified read-only.')
+Write-Host 'PASS: Existing private QA credentials checked in Windows profile (values hidden).'
+if (-not $Publish) {
+    Write-Host 'REVIEW ONLY PASS. No secrets uploaded; no Worker created or deployed.'
+    Write-Host 'Publishing needs explicit separate approval of this exact synthetic-only Worker and two QA secrets.'
+    $record = $null
+    return
+}
+
+# Cloudflare deployment changes a remote resource. Protect it with a fresh
+# exact Worker-name collision check AND typed owner consent after all preflights.
+$probe = @()
+try { $probe = @(& $wrangler deployments list --name $workerName 2>&1) }
+catch { $probe = @($_.ToString()) }
+$probeText = ($probe | Out-String)
+Require ($LASTEXITCODE -ne 0 -and $probeText -match '10007' -and
+    $probeText -match 'does not exist') 'Worker name is occupied or Cloudflare result ambiguous. Never overwrite.'
+$approval = 'PUBLISH QA ' + $workerName + ' ' + $qaUuid + ' ' + $reviewedCandidateCommit
+Write-Warning 'THIS WILL CREATE a NEW synthetic-only Cloudflare QA Worker and upload ONLY its two owner login secrets. NO existing Worker, D1 migration, Stripe, R2, DNS, or LIVE path.'
+$typed = Read-Host ('To authorize this exact QA-only first publication, type ' + $approval)
+Require ($typed -ceq $approval) 'Exact owner publication approval not provided; no Cloudflare write.'
+# Save both private values in ONE access-restricted, temporary JSON secrets file
+# under the owner's private Windows directory, never inside Git/the build.
+# Wrangler --secrets-file uploads code + both secret values in the same deployment.
+$secretFile = Join-Path $privateDir ('qa-firstpublish-' + [Guid]::NewGuid().ToString('N') + '.json')
+$pointer = [IntPtr]::Zero
+$secretClear = $null
+$json = $null
+$bytes = $null
+$stream = $null
+try {
+    $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($record.sessionSigningSecret)
+    $secretClear = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer)
+    Require (-not [string]::IsNullOrWhiteSpace($secretClear) -and $secretClear.Length -ge 32) 'Unable to decode existing protected QA session secret.'
+    $json = ConvertTo-Json -Compress -InputObject ([ordered]@{
+        FIRE_QA_PASSWORD_HASH = $record.passwordSha256
+        FIRE_QA_SESSION_SECRET = $secretClear
+    })
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes($json)
+    $stream = [IO.FileStream]::new($secretFile, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    $security = [Security.AccessControl.FileSecurity]::new()
+    $security.SetAccessRuleProtection($true, $false)
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent().User
+    $rule = [Security.AccessControl.FileSystemAccessRule]::new($identity,
+        [Security.AccessControl.FileSystemRights]::FullControl,
+        [Security.AccessControl.AccessControlType]::Allow)
+    $security.AddAccessRule($rule)
+    $stream.SetAccessControl($security)
+    $stream.Write($bytes, 0, $bytes.Length)
+    $stream.Flush()
+    $stream.Dispose()
+    $stream = $null
+    $record = $null
+    $secretClear = $null
+    $json = $null
+    [Array]::Clear($bytes, 0, $bytes.Length)
+    $bytes = $null
+    Push-Location $candidate
+    try {
+        & $wrangler deploy --config $manifest --secrets-file $secretFile --name $workerName
+        Require-Exit 'Isolated QA-only first Worker publication'
+    } finally { Pop-Location }
+    Write-Host ('PASS: QA Worker publication command succeeded: ' + $workerName)
+    Write-Host 'Verify remote login and no-real-payments acceptance before advancing release gates.'
+} finally {
+    if ($null -ne $stream) { $stream.Dispose() }
+    if ($null -ne $bytes) { [Array]::Clear($bytes, 0, $bytes.Length) }
+    $record = $null
+    $secretClear = $null
+    $json = $null
+    if ($pointer -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
+    if (Test-Path -LiteralPath $secretFile) {
+        Remove-Item -LiteralPath $secretFile -Force
+    }
+}
