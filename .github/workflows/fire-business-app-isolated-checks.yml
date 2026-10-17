@@ -49,6 +49,8 @@ on:
       - 'business-app-parity/test_owner_windows_build_qa_candidate.py'
       - 'business-app-parity/owner_windows_first_qa_publish.ps1'
       - 'business-app-parity/test_owner_windows_first_qa_publish.py'
+      - 'business-app-parity/qa_d1_identity_from_list.ps1'
+      - 'business-app-parity/test_qa_d1_identity_from_list.ps1'
       - 'business-app-parity/owner_windows_qa_update_review.ps1'
       - 'business-app-parity/test_owner_windows_qa_update_review.py'
       - 'business-app-parity/owner_windows_qa_update_publish.ps1'
@@ -200,6 +202,9 @@ jobs:
         run: python3 ../test_owner_windows_build_qa_candidate.py
       - name: First QA Worker publication must require exact owner consent and preserve secrets
         run: python3 ../test_owner_windows_first_qa_publish.py
+      - name: Cloudflare D1 list identity regression — exact UUID, protected staging and negative cases
+        shell: pwsh
+        run: ../test_qa_d1_identity_from_list.ps1
       - name: Existing QA Worker update review must preserve all hosted customer records
         run: python3 ../test_owner_windows_qa_update_review.py
       - name: Code-only QA Worker updates must require distinct approval and preserve login/data
