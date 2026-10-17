@@ -67,12 +67,15 @@ Write-Host 'PASS: All 23 original QA migrations are byte-for-byte unchanged. No 
 Require-Exit 'Latest full-app QA compiled source verification'
 & $node.Source $runtimeCheck $manifest
 Require-Exit 'Exactly isolated QA Worker/D1 bindings'
-# Remote checks are individually scoped and READ ONLY. Never run SQL or migrations remotely.
-$databaseRaw = @(& $wrangler.Source d1 info $qaDatabase --json)
-Require-Exit 'Read-only existing QA database identity'
-try { $databaseInfo = ConvertFrom-Json -InputObject ($databaseRaw -join [Environment]::NewLine) }
-catch { throw 'FIRE QA UPDATE STOP: Malformed D1 identity response.' }
-Require ($databaseInfo.name -ceq $qaDatabase -and $databaseInfo.uuid -ceq $qaId) 'QA D1 identity differs. No publish.'
+# Read-only Wrangler D1 LIST works with the owner's current token even when
+# d1 info returns API code 10000. Check BOTH QA and protected staging identities,
+# fail closed on collisions, and never infer schema from num_tables metadata.
+$identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'
+Require (Test-Path -LiteralPath $identityHelper -PathType Leaf) 'Strict read-only D1 identity validator is missing.'
+$databaseRaw = @(& $wrangler.Source d1 list --json)
+Require-Exit 'Read-only existing QA/staging D1 list'
+$databaseInfo = & $identityHelper -Json ($databaseRaw -join [Environment]::NewLine)
+Require ($databaseInfo.qaName -ceq $qaDatabase -and $databaseInfo.qaUuid -ceq $qaId) 'Isolated QA D1 identity differs. No publish.'
 # Verify exactly the sole ACTIVE version, not arbitrary historical status text.
 $deploymentRaw = @(& $wrangler.Source deployments status --name $workerName --json)
 Require-Exit 'Read-only current QA Worker status'
