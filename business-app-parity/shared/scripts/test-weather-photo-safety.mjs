@@ -11,11 +11,40 @@ const night=weather.normalizeForecast([periods[1]],now);assert.equal(night.daily
 for(const values of [[],[{...periods[0],temperature:null}],[{...periods[0],temperature:NaN}],[{...periods[0],temperatureUnit:'C'}],[{...periods[0],endTime:'2000-01-01'}]])assert.throws(()=>weather.normalizeForecast(values,now));
 const future=periods.map(p=>({...p,startTime:'2099-10-08T12:00:00-05:00',endTime:'2099-10-08T18:00:00-05:00'}));let calls=0;const fetcher=async(url,options)=>{calls++;assert.equal(new URL(url).hostname,'api.weather.gov');assert.ok(options.headers['User-Agent']);return Response.json(calls===1?{properties:{forecast:'https://api.weather.gov/gridpoints/TSA/1,1/forecast'}}:{properties:{periods:future}});};assert.equal((await weather.loadTulsaWeather(fetcher)).current.temperature,80);assert.equal(calls,2);
 await assert.rejects(()=>weather.loadTulsaWeather(async()=>Response.json({properties:{forecast:'https://malicious.invalid/forecast'}})));await assert.rejects(()=>weather.loadTulsaWeather(async()=>new Response('',{status:503})));
+// Real NWS gridpoint lookup may HTTP-redirect a precise coordinate to the
+// rounded canonical /points/36.154,-95.9928. Cloudflare must follow ONLY the
+// trusted origin, never a redirected arbitrary HTTPS endpoint.
+let redirectCalls=0;
+const canonicalForecast='https://api.weather.gov/gridpoints/TSA/41,105/forecast';
+const canonicalFetcher=async (url,options)=>{
+ redirectCalls++;assert.equal(options.redirect,'manual');
+ const path=new URL(url).pathname;
+ if(path==='/points/36.15398,-95.99277')return Response.redirect('https://api.weather.gov/points/36.154,-95.9928',301);
+ if(path==='/points/36.154,-95.9928')return Response.json({properties:{forecast:canonicalForecast}});
+ if(path==='/gridpoints/TSA/41,105/forecast')return Response.json({properties:{periods:future}});
+ throw Error('Unexpected NWS URL');
+};
+assert.equal((await weather.loadTulsaWeather(canonicalFetcher)).current.temperature,80);
+assert.equal(redirectCalls,3);
+let outboundCalls=0;
+await assert.rejects(()=>weather.loadTulsaWeather(async()=>{outboundCalls++;return Response.redirect('https://attacker.invalid/forecast',302);}),/Invalid forecast source/);
+assert.equal(outboundCalls,1);
+let loopingCalls=0;
+await assert.rejects(()=>weather.loadTulsaWeather(async(url)=>{loopingCalls++;return Response.redirect(url,301);}),/Repeated forecast redirect/);
+assert.equal(loopingCalls,1);
+await assert.rejects(()=>weather.loadTulsaWeather(async()=>new Response('',{status:301})),/Missing forecast redirect location/);
+const tooMany=['/points/36.154,-95.9928','/points/36.1541,-95.9928','/points/36.1542,-95.9928'];
+let redirectsSeen=0;
+await assert.rejects(()=>weather.loadTulsaWeather(async()=>{
+ return Response.redirect('https://api.weather.gov'+tooMany[redirectsSeen++],301);
+}),/Too many forecast redirects/);
+assert.equal(redirectsSeen,3);
+
 let owner=null;globalThis.__weatherOwner=()=>owner;const route=await load('app/api/weather/route.ts','const getChatGPTUser=async()=>globalThis.__weatherOwner();const loadTulsaWeather=async()=>({location:"Tulsa"});\n');assert.equal((await route.GET()).status,401);owner={email:'kylebrooks8605@gmail.com'};assert.equal((await route.GET()).status,200);
 globalThis.__photoEnv={DB:{prepare(){throw Error('Missing storage must not read or mutate photo metadata');}}};globalThis.__photoOwner=true;
 for(const path of ['app/api/customer-photos/route.ts','app/api/customer-photos/[id]/route.ts','app/api/backup/photos/route.ts']){const mod=await load(path,'const env=globalThis.__photoEnv;const getChatGPTUser=async()=>globalThis.__photoOwner?{email:"kylebrooks8605@gmail.com"}:null;\n');for(const method of ['GET','POST','DELETE'])if(mod[method]){const response=await mod[method](new Request('https://test/photos',{method}),{params:Promise.resolve({id:'existing'})});assert.equal(response.status,503);globalThis.__photoOwner=false;assert.equal((await mod[method](new Request('https://test/photos',{method}),{params:Promise.resolve({id:'existing'})})).status,401);globalThis.__photoOwner=true;}}
 const source=readFileSync('app/dashboard.tsx','utf8');assert.ok(source.includes('window.addEventListener("focus",resume)'));assert.ok(source.includes('document.addEventListener("visibilitychange",resume)'));assert.ok(source.includes('controller.abort()'));assert.ok(source.includes('day.rainChance==null?"—"'));assert.ok(source.includes('Tulsa weather'));assert.ok(!source.includes('api.open-meteo.com'));
-console.log('PASS: Tulsa forecast timezone, temperature/precipitation/wind normalization, missing values, invalid/expired input, upstream host allowlist/outage, owner authorization; photo upload/download/delete/archive fail closed with no metadata reads/writes when storage absent; foreground refresh and cleanup wiring. No external calls or deployed data used.');
+console.log('PASS: Tulsa forecast timezone, temperature/precipitation/wind normalization, canonical NWS redirects, redirect loops/limits, external-host refusal, missing values, invalid/expired input, upstream host allowlist/outage, owner authorization; photo upload/download/delete/archive fail closed with no metadata reads/writes when storage absent; foreground refresh and cleanup wiring. No external calls or deployed data used.');
 
 // Execute the actual mounted weather effect, including foreground events and cleanup.
 const component=source.slice(source.indexOf('function ScheduleWeather('),source.indexOf('\nfunction ScheduleView'));
