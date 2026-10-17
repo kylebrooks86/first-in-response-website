@@ -301,6 +301,75 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  synthetic-full-app-qa:
+    name: Isolated synthetic QA full-app — auth, payment refusals, schema, build, sealed review
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout review-only branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Materialize separate QA application (never deploy)
+        run: python3 business-app-parity/materialize.py qa "$RUNNER_TEMP/fire-qa-candidate"
+      - name: Verify exact shared plus two-layer authenticated QA source assembly
+        run: python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-candidate"
+      - name: Install QA build dependencies from existing lockfile
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          pnpm install --frozen-lockfile
+      - name: QA TypeScript verification
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          pnpm exec tsc --noEmit
+      - name: Verify QA's disposable full schema, never any hosted DB
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          node --experimental-sqlite scripts/test-local-schema-audit.mjs
+          node --experimental-sqlite scripts/test-candidate-db-preflight.mjs
+      - name: QA independent passphrase, cookie, spoofed-header and wrong-origin regression
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          node scripts/test-qa-auth-adapter.mjs
+      - name: Real QA payment route guards reject checkout/refund/webhooks before provider or DB
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          node scripts/test-stripe-isolation.mjs
+      - name: Build entire QA Business App candidate without publishing
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          pnpm run build
+      - name: Seal synthetic-only QA full-app review bundle
+        run: |
+          python3 business-app-parity/prepare_device_review.py \
+            --target qa \
+            --candidate "$RUNNER_TEMP/fire-qa-candidate" \
+            --output "$RUNNER_TEMP/fire-qa-review" \
+            --checkpoint "$GITHUB_SHA"
+      - name: Check exact QA source, build ID and every ZIP hash before upload
+        run: |
+          python3 business-app-parity/verify_device_review_packet.py \
+            --packet "$RUNNER_TEMP/fire-qa-review" \
+            --target qa \
+            --checkpoint "$GITHUB_SHA"
+      - name: Archive QA source/build for separate future owner-authorized hosting
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-full-app-review-qa-${{ github.sha }}
+          path: ${{ runner.temp }}/fire-qa-review/
+          if-no-files-found: error
+          retention-days: 7
+
   offline-browser:
     name: Isolated synthetic Home Screen offline cold-launch browser tests
     runs-on: ubuntu-latest
