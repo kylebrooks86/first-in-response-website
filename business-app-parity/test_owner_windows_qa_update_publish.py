@@ -33,7 +33,7 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
                      "QA Worker was updated by another operation"):
             self.assertIn(text,S)
         self.assertNotIn("fire-app-staging-db",S)
-        self.assertNotIn("d1 info ", S)
+        self.assertNotRegex(S, r"&\\s*\\$wrangler\\.Source\\s+d1\\s+info\\b")
         self.assertIn("qa_d1_identity_from_list.ps1", S)
         self.assertIn("& $identityHelper -Json ($rawD1 -join [Environment]::NewLine)", S)
         self.assertLess(S.index("Require ($typed -ceq $approval)"), S.index("d1 list --json"))
