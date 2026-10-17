@@ -24,6 +24,7 @@ $builtWrangler = Join-Path $candidate 'node_modules\.bin\wrangler.cmd'
 $remoteWrangler = Get-Command 'wrangler.cmd' -ErrorAction SilentlyContinue
 $verifySource = Join-Path $PSScriptRoot 'verify_materialized_candidate.py'
 $verifyRuntime = Join-Path $PSScriptRoot 'check_qa_runtime_config.mjs'
+$prepareDeploy = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
 function Require([bool]$ok, [string]$message) {
     if (-not $ok) { throw ('FIRE QA STOP: ' + $message) }
 }
@@ -49,7 +50,7 @@ $changes = @(& $git.Source -C $repo status --porcelain --untracked-files=no)
 Require-Exit 'Read-only Git tracked files'
 Require ($changes.Count -eq 0) 'Preserve uncommitted source changes and stop.'
 Require ($null -ne $remoteWrangler) 'Authenticated global Wrangler CLI missing. No remote operation attempted.'
-foreach ($path in @($candidate, $manifest, $privateFile, $verifySource, $verifyRuntime, $builtWrangler)) {
+foreach ($path in @($candidate, $manifest, $privateFile, $verifySource, $verifyRuntime, $prepareDeploy, $builtWrangler)) {
     Require (Test-Path -LiteralPath $path) 'Expected pinned candidate, credential record, or verifier missing.'
 }
 Require ([IO.Path]::GetFullPath($remoteWrangler.Source) -cne
@@ -80,6 +81,24 @@ if (-not $Publish) {
     $record = $null
     return
 }
+
+# The compiled manifest contains an obsolete legacy_env=true field rejected
+# by global Wrangler 4.151. Preserve the original compiled manifest and create
+# a disposable QA-only manifest BESIDE it, keeping entry/asset paths unchanged.
+# Refuse legacy_env=false since that could change routing semantics.
+$deployManifest = Join-Path (Split-Path -Parent $manifest) (
+    'wrangler.fire-qa-firstpublish-' + [Guid]::NewGuid().ToString('D') + '.json')
+try {
+    & $node.Source $prepareDeploy $manifest $deployManifest
+    Require-Exit 'QA-only Wrangler v4 manifest normalization'
+    # Validate the exact config and compiled Worker LOCALLY before unpacking
+    # credentials, probing Worker names, or asking for another approval.
+    Push-Location $candidate
+    try {
+        & $remoteWrangler.Source deploy --dry-run --config $deployManifest --name $workerName
+        Require-Exit 'Wrangler no-upload QA first-release dry run'
+    } finally { Pop-Location }
+    Write-Host 'PASS: Global Wrangler accepts disposable QA manifest in dry-run mode. No upload.'
 
 # Cloudflare deployment changes a remote resource. Protect it with a fresh
 # exact Worker-name collision check AND typed owner consent after all preflights.
@@ -167,7 +186,7 @@ try {
     $bytes = $null
     Push-Location $candidate
     try {
-        & $remoteWrangler.Source deploy --config $manifest --secrets-file $secretFile --name $workerName
+        & $remoteWrangler.Source deploy --config $deployManifest --secrets-file $secretFile --name $workerName
         Require-Exit 'Isolated QA-only first Worker publication'
     } finally { Pop-Location }
     Write-Host ('PASS: QA Worker publication command succeeded: ' + $workerName)
@@ -181,5 +200,10 @@ try {
     if ($pointer -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
     if (Test-Path -LiteralPath $secretFile) {
         Remove-Item -LiteralPath $secretFile -Force
+    }
+
+} finally {
+    if (Test-Path -LiteralPath $deployManifest -PathType Leaf) {
+        Remove-Item -LiteralPath $deployManifest -Force
     }
 }
