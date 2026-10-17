@@ -20,15 +20,22 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
         for text in ("fire-fullapp-qa-20261016",
                      "fire-fullapp-qa-db-20261016",
                      "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                     "82fba39a-5736-41d7-a944-d55776ccc670",
+                     "c77e8efd-3ad3-4586-9afd-",
                      "owner_windows_qa_update_review.ps1",
-                     "$statusText -match [regex]::Escape($expectedOldVersion)",
+                     "$beforeVersions.Count -eq 1",
+                     "[double]$beforeVersions[0].percentage -eq 100",
+                     "$expectedOldVersion = [string]$beforeVersions[0].version_id",
+                     "FROM ' + $expectedOldVersion",
+                     "$afterVersions.Count -eq 1",
+                     "[string]$afterVersions[0].version_id -ceq $expectedOldVersion",
                      "d1 info $dbName --json",
                      "$d1.name -ceq $dbName -and $d1.uuid -ceq $dbId",
                      "QA Worker was updated by another operation"):
             self.assertIn(text,S)
         self.assertNotIn("fire-app-staging-db",S)
-        self.assertLess(S.index("$typed = Read-Host"),S.index("deployments status --name $workerName --json"))
+        self.assertLess(S.index("deployments status --name $workerName --json"),S.index("$typed = Read-Host"))
+        self.assertLess(S.index("$typed = Read-Host"),S.rindex("deployments status --name $workerName --json"))
+        self.assertNotIn("$statusText -match", S)
         self.assertLess(S.index("deployments status --name"),S.index("d1 info $dbName"))
         self.assertLess(S.index("d1 info $dbName"),S.index("deploy --config $temporaryManifest --name"))
 
