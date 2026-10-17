@@ -40,6 +40,9 @@ on:
       - 'business-app-parity/test_owner_windows_backup_script.py'
       - 'business-app-parity/owner_windows_prepare_qa_credentials.ps1'
       - 'business-app-parity/test_owner_windows_prepare_qa_credentials.py'
+      - 'business-app-parity/wrangler.qa-migrations.json'
+      - 'business-app-parity/owner_windows_initialize_qa_d1.ps1'
+      - 'business-app-parity/test_owner_windows_initialize_qa_d1.py'
       - 'business-app-parity/shared/scripts/test-real-wrangler-local-d1-export.mjs'
       - 'business-app-parity/shared/scripts/test-fire-service-catalog-pricing.mjs'
       - 'business-app-parity/shared/scripts/test-per-job-price-overrides.mjs'
@@ -176,6 +179,8 @@ jobs:
         run: python3 ../test_owner_windows_backup_script.py
       - name: QA owner credential provisioning must be private, no-op by default and unbound to production
         run: python3 ../test_owner_windows_prepare_qa_credentials.py
+      - name: QA-only remote D1 initializer must not write without exact owner acknowledgement
+        run: python3 ../test_owner_windows_initialize_qa_d1.py
       - name: Verify real Wrangler local D1 export and private SQL restoration
         run: node scripts/test-real-wrangler-local-d1-export.mjs
       - name: Protect owner-approved FIRE service rates in the shared source
