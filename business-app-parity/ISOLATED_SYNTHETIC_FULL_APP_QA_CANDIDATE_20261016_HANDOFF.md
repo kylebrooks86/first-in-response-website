@@ -136,3 +136,24 @@ Hosted D1 remains empty and unmigrated as last observed. First remote
 schema initialization, QA secret provisioning, full Worker publish and
 iPhone/iPad acceptance are all independently pending. Official gates
 remain 3/10 (30%).
+
+
+## Owner accepted private QA credential preparation (October 16, 2026)
+
+Owner screenshot on Acer PowerShell shows **"QA-only credential preparation succeeded."**
+Local DPAPI-protected record at `C:\\Users\\Kyleb\\AppData\\Local\\FIRE-QA-Private\\qa-owner-secrets.xml`. User-entered long QA passphrase was hidden; no passphrase, hash or session secret was shared. Script explicitly reported no Cloudflare Worker, secret upload, D1 write or migration. The owner should retain the new QA passphrase privately and NEVER send the credential record or its hash into ChatGPT, screenshots or GitHub. This step **is completed, never prompt user to repeat it or overwrite protected file**.
+
+A new `wrangler.qa-migrations.json` and default-no-op
+`owner_windows_initialize_qa_d1.ps1` are committed. They point to the
+**new-only** `fire-fullapp-qa-db-20261016` ID
+`8ccfb1f8-1657-4074-b1b2-47de78f95003` and use the reviewed 23
+migration files, including 0022. The script checks current account inventory
+against the distinct preexisting staging UUID, remote empty table count, exact
+migration count/order, and requires an explicit `-Apply` **plus typed full UUID**
+to execute SQL remotely. Its default invocation is a read-only QA D1
+preflight. Creating or running this script in GitHub **has not initialized D1**.
+The target config does not bind R2/Stripe/production or deploy a Worker.
+
+Before owner executes `-Apply`, review and confirm appropriate explicit
+owner permission for a remote write to the NEW QA database. No hosted gate
+gets credited solely for generating/passing migration helper tests.
