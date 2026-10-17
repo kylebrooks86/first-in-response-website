@@ -65,7 +65,7 @@ Write-Host 'PASS: All 23 original QA migrations are byte-for-byte unchanged. No 
 Require-Exit 'Latest full-app QA compiled source verification'
 & $node.Source $runtimeCheck $manifest
 Require-Exit 'Exactly isolated QA Worker/D1 bindings'
-# Remote checks are individually scoped and READ ONLY. Never use d1 execute or migrations.
+# Remote checks are individually scoped and READ ONLY. Never run SQL or migrations remotely.
 $databaseRaw = @(& $wrangler.Source d1 info $qaDatabase --json)
 Require-Exit 'Read-only existing QA database identity'
 try { $databaseInfo = ConvertFrom-Json -InputObject ($databaseRaw -join [Environment]::NewLine) }
