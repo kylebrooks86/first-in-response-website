@@ -15,5 +15,5 @@ export default async function Home() {
     return <main><h1>FIRE QA disabled</h1></main>;
   }
   const { recent, ...metrics } = await loadDashboardData(env.DB,env.FIRE_SERVICE_LOCATIONS_CANDIDATE==="synthetic-only");
-  return <><div role="status" style={{background:"#601818",color:"#fff",padding:"10px",textAlign:"center",fontWeight:700}}>SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS</div><Dashboard localCustomersCandidate={process.env.NODE_ENV === "development" && (env as typeof env & { FIRE_LOCAL_CUSTOMERS_CANDIDATE?: string }).FIRE_LOCAL_CUSTOMERS_CANDIDATE === "synthetic-only"} environment="QA" userName={user.fullName?.split(" ")[0]??"Kyle"} metrics={metrics} estimates={recent as never[]} /></>;
+  return <><div role="status" style={{background:"#601818",color:"#fff",padding:"10px",textAlign:"center",fontWeight:700}}>SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS</div><Dashboard localCustomersCandidate={(env as typeof env & { FIRE_LOCAL_CUSTOMERS_CANDIDATE?: string }).FIRE_LOCAL_CUSTOMERS_CANDIDATE === "synthetic-only"} environment="QA" userName={user.fullName?.split(" ")[0]??"Kyle"} metrics={metrics} estimates={recent as never[]} /></>;
 }
