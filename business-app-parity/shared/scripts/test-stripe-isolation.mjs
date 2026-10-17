@@ -42,6 +42,21 @@ for(const env of ['independent-dr-staging','refund-staging','synthetic-tests']){
  eq((await c.POST(new Request('https://synthetic.invalid/api/payments/checkout',{method:'POST',body:checkoutBody}))).status,503,env+' rejects live key despite live-labelled adapter');
  eq(c.calls.network,0,env+' no Stripe network');
 }
+// A fully separate QA target never reaches Stripe, D1 or signed webhooks,
+// even when someone accidentally supplies a live-looking credential.
+const qaCheckout=load('checkout','qa','synthetic-qa','sk_live_fake-no-secrets');
+eq((await qaCheckout.POST(new Request('https://synthetic.invalid/api/payments/checkout',{method:'POST',body:checkoutBody}))).status,503,'QA denies checkout regardless of key');
+eq(qaCheckout.calls.network,0,'QA checkout no provider call');
+eq(qaCheckout.calls.db,0,'QA checkout no database call');
+const qaRefund=load('refund','qa','synthetic-qa','sk_live_fake-no-secrets');
+eq((await qaRefund.POST(new Request('https://synthetic.invalid/api/payments/refund',{method:'POST',body:refundBody}))).status,503,'QA denies refund regardless of key');
+eq(qaRefund.calls.network,0,'QA refund no provider call');
+eq(qaRefund.calls.db,0,'QA refund no database call');
+const qaWebhook=load('webhook','qa','synthetic-qa','sk_test_fake-no-secrets');
+eq((await webhook(qaWebhook,{type:'checkout.session.completed',livemode:false,data:{object:{id:'cs_test_synthetic'}}})).status,503,'QA rejects signed event before decoding or reconciling');
+eq(qaWebhook.calls.reconciled,0,'QA webhook never reconciles');
+eq(qaWebhook.calls.db,0,'QA webhook no database access');
+
 const live=load('checkout','live','production','sk_live_fake-no-secrets');
 eq((await live.POST(new Request('https://synthetic.invalid/api/payments/checkout',{method:'POST',body:JSON.stringify({shareToken:'synthetic',paymentType:'invalid'})}))).status,400,'legitimate live candidate follows normal input validation');
 eq(live.calls.network,0,'invalid live request does not call Stripe');
