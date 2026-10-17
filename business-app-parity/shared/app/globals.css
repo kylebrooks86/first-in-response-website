@@ -622,3 +622,18 @@ html,body{max-width:100%;overflow-x:clip}
 .app-shell[data-app-ready="false"] button:disabled{cursor:wait;opacity:.55}.app-loading-status{margin:16px 24px;color:var(--foreground);font-size:14px}
 
 .candidate-layout-trace{margin:12px 24px;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12px}.candidate-layout-trace button{margin:4px;padding:8px;min-height:44px;min-width:44px}.candidate-layout-trace textarea{display:block;width:100%;max-width:100%;box-sizing:border-box}.candidate-layout-trace summary{cursor:pointer}
+
+/* Payment entry must be discoverable without the desktop-only header shortcut.
+   It opens Payments; an individual estimate/balance is required to record funds. */
+.mobile-record-payments-action{display:none}
+@media(max-width:760px){
+  .mobile-record-payments-action{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    width:100%;min-height:48px;margin:0 0 14px;padding:10px 14px;
+    border:1px solid #d52d38;border-radius:12px;
+    background:#d52d38;color:#fff;font-size:15px;font-weight:750;
+    cursor:pointer;touch-action:manipulation
+  }
+  .mobile-record-payments-action svg{width:20px;height:20px;flex:none}
+  .mobile-record-payments-action:focus-visible{outline:3px solid #f7b9be;outline-offset:3px}
+}
