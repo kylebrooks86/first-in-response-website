@@ -220,6 +220,8 @@ jobs:
         run: node --experimental-strip-types scripts/test-per-job-price-overrides.mjs
       - name: Preserve historical estimate and invoice line totals during no-op edits
         run: node --experimental-strip-types scripts/test-editable-line-totals.mjs
+      - name: Ensure phone and iPad payment shortcut visible, QA layout diagnostic not in production builds
+        run: node scripts/test-mobile-payment-shortcut.mjs
       - name: Shared financial regression suite
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
       - name: Verify on-device customer photo ZIP integrity and owner UI integration
