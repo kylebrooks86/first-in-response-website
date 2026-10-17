@@ -65,11 +65,15 @@ Require ($null -ne $after -and $null -ne $after.versions) 'Active QA Worker depl
 $afterVersions = @($after.versions)
 Require ($afterVersions.Count -eq 1 -and [double]$afterVersions[0].percentage -eq 100 -and
     [string]$afterVersions[0].version_id -ceq $expectedOldVersion) 'QA Worker was updated by another operation. Refusing overwrite.'
-$rawD1 = @(& $wrangler.Source d1 info $dbName --json)
-Require-Exit 'Fresh, read-only QA D1 identity'
-try { $d1 = ConvertFrom-Json -InputObject ($rawD1 -join [Environment]::NewLine) }
-catch { throw 'FIRE QA UPDATE STOP: Invalid QA D1 identity JSON.' }
-Require ($d1.name -ceq $dbName -and $d1.uuid -ceq $dbId) 'QA database identity changed after review. Refusing overwrite.'
+# Repeat the WORKING read-only D1 listing after exact owner confirmation.
+# Check exact QA and protected staging UUIDs; do not trust stale table-count
+# metadata from Wrangler's list response.
+$identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'
+Require (Test-Path -LiteralPath $identityHelper -PathType Leaf) 'QA-only D1 identity validator missing.'
+$rawD1 = @(& $wrangler.Source d1 list --json)
+Require-Exit 'Fresh, read-only QA/staging D1 identities'
+$d1 = & $identityHelper -Json ($rawD1 -join [Environment]::NewLine)
+Require ($d1.qaName -ceq $dbName -and $d1.qaUuid -ceq $dbId) 'QA database identity changed after review. Refusing overwrite.'
 # Normalize ONLY the obsolete, default legacy_env=true. The build's original
 # manifest and all D1 customer rows must be preserved. No secrets are read,
 # written, generated, displayed, or submitted during a code-only QA update.
