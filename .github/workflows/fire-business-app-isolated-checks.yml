@@ -181,6 +181,8 @@ jobs:
         run: python3 ../test_owner_windows_prepare_qa_credentials.py
       - name: QA-only remote D1 initializer must not write without exact owner acknowledgement
         run: python3 ../test_owner_windows_initialize_qa_d1.py
+      - name: QA post-migration full-app preflight must remain read-only and preserve private owner credentials
+        run: python3 ../test_owner_windows_qa_release_preflight.py
       - name: Verify real Wrangler local D1 export and private SQL restoration
         run: node scripts/test-real-wrangler-local-d1-export.mjs
       - name: Protect owner-approved FIRE service rates in the shared source
