@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 $workerName = 'fire-fullapp-qa-20261016'
 $dbName = 'fire-fullapp-qa-db-20261016'
 $dbId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
-$expectedOldVersion = '82fba39a-5736-41d7-a944-d55776ccc670'
+$expectedActiveVersionPrefix = 'c77e8efd-3ad3-4586-9afd-'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
@@ -39,20 +39,63 @@ Require ($head -cmatch '^[0-9a-f]{40}$') 'Invalid Git source checkpoint.'
 $candidate = Join-Path $env:LOCALAPPDATA ('FIRE-QA-Builds\qa-' + $head)
 $manifest = Join-Path $candidate 'dist\server\wrangler.json'
 Require (Test-Path -LiteralPath $manifest -PathType Leaf) 'Verified current QA build missing.'
-$approval = 'UPDATE QA ' + $workerName + ' ' + $dbId + ' ' + $head
+# Snapshot precisely the one live Worker version *before* asking for approval.
+# Do not accept a stale version ID that appears only in deployment history.
+$beforeRaw = @(& $wrangler.Source deployments status --name $workerName --json)
+Require-Exit 'Read-only pre-approval active QA deployment'
+try { $before = ConvertFrom-Json -InputObject ($beforeRaw -join [Environment]::NewLine) }
+catch { throw 'FIRE QA UPDATE STOP: Invalid pre-approval deployment status JSON.' }
+Require ($null -ne $before -and $null -ne $before.versions) 'Missing active QA Worker version.'
+$beforeVersions = @($before.versions)
+Require ($beforeVersions.Count -eq 1 -and [double]$beforeVersions[0].percentage -eq 100) 'QA Worker must have one active 100-percent code version.'
+$expectedOldVersion = [string]$beforeVersions[0].version_id
+Require ($expectedOldVersion -cmatch ('^' + [regex]::Escape($expectedActiveVersionPrefix) + '[a-f0-9]{12}
+$rawD1 = @(& $wrangler.Source d1 info $dbName --json)
+Require-Exit 'Fresh, read-only QA D1 identity'
+try { $d1 = ConvertFrom-Json -InputObject ($rawD1 -join [Environment]::NewLine) }
+catch { throw 'FIRE QA UPDATE STOP: Invalid QA D1 identity JSON.' }
+Require ($d1.name -ceq $dbName -and $d1.uuid -ceq $dbId) 'QA database identity changed after review. Refusing overwrite.'
+# Normalize ONLY the obsolete, default legacy_env=true. The build's original
+# manifest and all D1 customer rows must be preserved. No secrets are read,
+# written, generated, displayed, or submitted during a code-only QA update.
+$temporaryManifest = Join-Path (Split-Path -Parent $manifest) (
+    'wrangler.fire-qa-firstpublish-' + [Guid]::NewGuid().ToString('D') + '.json')
+try {
+    & $node.Source $prepare $manifest $temporaryManifest
+    Require-Exit 'Strict QA deployment manifest normalization'
+    Push-Location $candidate
+    try {
+        & $wrangler.Source deploy --dry-run --config $temporaryManifest --name $workerName
+        Require-Exit 'Local, no-upload pre-update verification'
+        Write-Host 'PASS: No-upload pre-update verification. Owner confirmation and remote identity rechecked.'
+        & $wrangler.Source deploy --config $temporaryManifest --name $workerName
+        Require-Exit 'Authorized existing synthetic QA Worker code update'
+    } finally { Pop-Location }
+    Write-Host ('PASS: Existing synthetic QA Worker code updated from ' + $head)
+    Write-Host ('Previously working code rollback version: ' + $expectedOldVersion)
+    Write-Host 'Verify hosted owner sign-in and synthetic customer persistence before any additional release gate advances.'
+} finally {
+    if (Test-Path -LiteralPath $temporaryManifest -PathType Leaf) {
+        Remove-Item -LiteralPath $temporaryManifest -Force
+    }
+}
+)) 'Unknown currently active QA Worker version. Stop.'
+$approval = 'UPDATE QA ' + $workerName + ' ' + $dbId + ' ' + $head + ' FROM ' + $expectedOldVersion
 Write-Warning ('This will REPLACE ONLY the code/assets on existing QA Worker ' + $workerName +
     ' while retaining its current D1 database, fictional customer records and existing owner secrets.')
-Write-Warning ('Rollback code version, if needed: ' + $expectedOldVersion +
+Write-Warning ('Exact active QA code version retained for rollback: ' + $expectedOldVersion +
     '. This update does not reset or roll back database contents.')
 $typed = Read-Host ('For this exact QA update only, type ' + $approval)
 Require ($typed -ceq $approval) 'Exact QA update owner approval not provided.'
-# Protect against races after the typed approval. Never change a different Worker.
+# Re-read active traffic after confirmation. Refuse any intervening change.
 $rawStatus = @(& $wrangler.Source deployments status --name $workerName --json)
 Require-Exit 'Fresh, read-only active QA deployment identity'
-$statusText = $rawStatus -join [Environment]::NewLine
-try { $null = ConvertFrom-Json -InputObject $statusText }
+try { $after = ConvertFrom-Json -InputObject ($rawStatus -join [Environment]::NewLine) }
 catch { throw 'FIRE QA UPDATE STOP: Invalid current deployment status JSON.' }
-Require ($statusText -match [regex]::Escape($expectedOldVersion)) 'QA Worker was updated by another operation. Refusing overwrite.'
+Require ($null -ne $after -and $null -ne $after.versions) 'Active QA Worker deployment missing or ambiguous.'
+$afterVersions = @($after.versions)
+Require ($afterVersions.Count -eq 1 -and [double]$afterVersions[0].percentage -eq 100 -and
+    [string]$afterVersions[0].version_id -ceq $expectedOldVersion) 'QA Worker was updated by another operation. Refusing overwrite.'
 $rawD1 = @(& $wrangler.Source d1 info $dbName --json)
 Require-Exit 'Fresh, read-only QA D1 identity'
 try { $d1 = ConvertFrom-Json -InputObject ($rawD1 -join [Environment]::NewLine) }
