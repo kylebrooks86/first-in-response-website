@@ -253,6 +253,20 @@
     "authenticatedInWorkBrowser": false,
     "observedPage": "https://dash.cloudflare.com/login",
     "costOrCapacityConfirmed": false,
-    "resourcesCreated": 0
+    "resourcesCreated": 0,
+    "authenticationAttempt": {
+      "method": "owner-selected Google account via secure browserAuth",
+      "outcome": "Cloudflare returned Unable to sign in. Try again or use your email and password.",
+      "signedInVerified": false,
+      "repeatedAttempt": false
+    }
+  },
+  "verifiedApplicationCommit": "ace5e2b51236443f4703cb72ffbbe0a3ba08ddbc",
+  "githubCI": {
+    "id": 38984996095,
+    "url": "https://github.com/kylebrooks86/first-in-response-website/actions/runs/38984996095",
+    "jobsPassed": 6,
+    "jobsTotal": 6,
+    "conclusion": "success"
   }
 }
