@@ -11,20 +11,24 @@ import sys
 
 from candidate_release_manifest import APP_ADAPTERS, ROOT, inventory
 
-TARGETS = ("live", "doomsday", "staging")
+TARGETS = ("live", "doomsday", "staging", "qa")
 
 
 def check(target, directory):
     if target not in TARGETS:
-        raise ValueError("Unknown candidate; expected live, doomsday or staging.")
+        raise ValueError("Unknown candidate; expected live, doomsday, staging or qa.")
     directory = Path(directory).resolve(strict=True)
     if not directory.is_dir() or directory.is_symlink():
         raise ValueError("Candidate must be a real directory, not a symlink.")
     shared = inventory(ROOT / "shared")
-    adapter_dir = ROOT / "adapters" / target
-    adapters = inventory(adapter_dir)
-    absent_path = adapter_dir / "ABSENT_FILES.json"
-    absent = json.loads(absent_path.read_text())
+    adapter_dirs = ([ROOT / "adapters" / "doomsday", ROOT / "adapters" / "qa"]
+                    if target == "qa" else [ROOT / "adapters" / target])
+    adapters = {}
+    absent = []
+    for adapter_dir in adapter_dirs:
+        adapter_files = inventory(adapter_dir)
+        adapters.update(adapter_files)
+        absent.extend(json.loads((adapter_dir / "ABSENT_FILES.json").read_text()))
     if not isinstance(absent, list) or len(absent) != len(set(absent)):
         raise ValueError("Adapter absence list must be unique and explicit.")
     for name in absent:
@@ -38,7 +42,7 @@ def check(target, directory):
             continue
         if not name.startswith("drizzle/") and name not in APP_ADAPTERS:
             raise ValueError("Adapter contains an unapproved business source override: " + name)
-    identity = adapter_dir / "app/local-customer-deployment.ts"
+    identity = adapter_dirs[-1] / "app/local-customer-deployment.ts"
     if not identity.is_file():
         raise ValueError("Required target-fixed local-customer identity adapter is missing.")
     identity_source = identity.read_text()
@@ -81,7 +85,7 @@ def check(target, directory):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        sys.exit("Usage: python verify_materialized_candidate.py <live|doomsday|staging> <directory>")
+        sys.exit("Usage: python verify_materialized_candidate.py <live|doomsday|staging|qa> <directory>")
     try:
         print(json.dumps(check(sys.argv[1], sys.argv[2]), indent=2))
     except (ValueError, OSError, KeyError, TypeError) as error:
