@@ -371,6 +371,8 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-candidate"
           pnpm run build
+      - name: Confirm entire compiled QA candidate retains exact shared and adapter source
+        run: python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-candidate" --built
       - name: Fail closed unless built QA manifest binds only the newly created isolated D1
         run: node business-app-parity/check_qa_runtime_config.mjs "$RUNNER_TEMP/fire-qa-candidate/dist/server/wrangler.json"
       - name: Seal synthetic-only QA full-app review bundle
