@@ -4,7 +4,7 @@ from pathlib import Path
 
 def digest(data):return hashlib.sha256(data).hexdigest()
 def prepare(roots,out,checkpoint):
- if not roots or not set(roots)<=set(['live','doomsday','staging']):raise ValueError('Unknown review target')
+ if not roots or not set(roots)<=set(['live','doomsday','staging','qa']):raise ValueError('Unknown review target')
  if out.exists():raise ValueError('Refuse to overwrite a prior device review packet')
  out.parent.mkdir(parents=True,exist_ok=True)
  pending=Path(tempfile.mkdtemp(prefix='fire-device-review-',dir=out.parent))
