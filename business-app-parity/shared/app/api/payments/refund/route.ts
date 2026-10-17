@@ -104,11 +104,13 @@ export async function POST(request:Request){
 
     const checkoutSessionId=payment.type==="Tip"?String(payment.providerId||"").replace(/:tip$/,""):payment.providerId!;
     const sessionResponse=await stripeGet(`checkout/sessions/${encodeURIComponent(checkoutSessionId)}`,stripeSecret);
-    const session=await sessionResponse.json() as {livemode?:boolean;payment_intent?:string|{id?:string};error?:{message?:string}};
+    const session=await sessionResponse.json() as {id?:string;currency?:string;livemode?:boolean;payment_intent?:string|{id?:string};error?:{message?:string}};
     const paymentIntent=typeof session.payment_intent==="string"?session.payment_intent:session.payment_intent?.id;
-    if(!sessionResponse.ok||!paymentIntent||(sandboxTarget&&session.livemode!==false)){
-      await env.DB.prepare("UPDATE payment_refunds SET status='failed' WHERE id=? AND status='pending'").bind(requestId).run();
-      return Response.json({error:session.error?.message||"FIRE could not locate the Stripe payment to refund."},{status:409});
+    // A retry can reach this lookup AFTER an earlier refund POST committed
+    // but lost its response. Failed reads must never release that reservation.
+    if(!sessionResponse.ok)return Response.json({error:"Stripe payment verification is unavailable. Keep this refund pending and retry the same request only.",pending:true},{status:503});
+    if(!paymentIntent||session.id!==checkoutSessionId||session.currency!=="usd"||(sandboxTarget&&session.livemode!==false)){
+      return Response.json({error:"Stripe payment identity, mode or currency did not match. Keep this refund pending for owner review.",pending:true},{status:409});
     }
 
     const form=new URLSearchParams();

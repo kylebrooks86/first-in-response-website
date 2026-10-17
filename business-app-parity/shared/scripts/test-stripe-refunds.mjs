@@ -25,15 +25,15 @@ const refunds=await load('lib/stripe-refunds.ts');globalThis.__refundFinalize=re
 const route=await load('app/api/payments/refund/route.ts');
 const webhook=await load('app/api/payments/webhook/route.ts');
 const backup=await load('app/api/backup/route.ts');
-let count=0,posts=0,failOnce=false,pending=false,networkOnce=false;
+let count=0,posts=0,failOnce=false,pending=false,networkOnce=false,lookupFailure=false,lookupCurrency='usd';
 const remote=new Map(),sessions=new Map();
 globalThis.fetch=async(url,opts={})=>{
  if(url.includes('/checkout/sessions?'))return Response.json({data:[{id:'cs_external'}]});
- if(url.includes('/checkout/sessions/'))return Response.json({id:url.split('/').at(-1),livemode:false,payment_intent:'pi_fixture'});
+ if(url.includes('/checkout/sessions/'))return lookupFailure?Response.json({error:{message:'synthetic lookup failure'}},{status:503}):Response.json({id:url.split('/').at(-1),currency:lookupCurrency,livemode:false,payment_intent:'pi_fixture'});
  if(url.includes('/refunds/')){const x=[...remote.values()].find(v=>v.id===url.split('/').at(-1));return Response.json(x||{error:'missing'},{status:x?200:404});}
  assert.equal(url,'https://api.stripe.com/v1/refunds');posts++;
  const key=opts.headers['idempotency-key'],body=new URLSearchParams(opts.body);
- let result=remote.get(key);if(!result){result={id:'re_'+(++count),amount:Number(body.get('amount')),status:pending?'pending':'succeeded',payment_intent:'pi_fixture',metadata:{fire_refund_id:body.get('metadata[fire_refund_id]'),fire_payment_id:body.get('metadata[fire_payment_id]')}};remote.set(key,result);}
+ let result=remote.get(key);if(!result){result={currency:'usd',id:'re_'+(++count),amount:Number(body.get('amount')),status:pending?'pending':'succeeded',payment_intent:'pi_fixture',metadata:{fire_refund_id:body.get('metadata[fire_refund_id]'),fire_payment_id:body.get('metadata[fire_payment_id]')}};remote.set(key,result);}
  if(networkOnce){networkOnce=false;throw new Error('transport lost after Stripe accepted');}
  if(failOnce){failOnce=false;return Response.json({error:{message:'temporarily unavailable'}},{status:500});}
  return Response.json(result);
@@ -43,7 +43,7 @@ function fixture(amount=10000,tip=1000,provider){const id='job-'+(++n);sql.prepa
 const principal=id=>Number(sql.prepare("SELECT SUM(amount_cents) a FROM payments WHERE estimate_id=? AND type NOT IN ('Tip','Tip Refund')").get(id).a);
 const tipTotal=id=>Number(sql.prepare("SELECT COALESCE(SUM(amount_cents),0) a FROM payments WHERE estimate_id=? AND type IN ('Tip','Tip Refund')").get(id).a);
 const refund=(paymentId,requestId,amountCents,more={})=>route.POST(new Request('https://test/api/payments/refund',{method:'POST',body:JSON.stringify({paymentId,requestId,amountCents,...more})}));
-async function event(object,type='refund.updated'){const body=JSON.stringify({type,livemode:false,data:{object}}),t=Math.floor(Date.now()/1000);const h=createHmac('sha256','whsec_test_fixture').update(t+'.'+body).digest('hex');return webhook.POST(new Request('https://test/api/payments/webhook',{method:'POST',headers:{'stripe-signature':`t=${t},v1=${h}`},body}));}
+async function event(object,type='refund.updated'){object={currency:'usd',...object};const body=JSON.stringify({type,livemode:false,data:{object}}),t=Math.floor(Date.now()/1000);const h=createHmac('sha256','whsec_test_fixture').update(t+'.'+body).digest('hex');return webhook.POST(new Request('https://test/api/payments/webhook',{method:'POST',headers:{'stripe-signature':`t=${t},v1=${h}`},body}));}
 const id=fixture();const r=await refund('p-'+id,'partial',2500);assert.equal(r.status,200,await r.text());assert.equal(principal(id),7500);assert.equal(tipTotal(id),1000);assert.equal(sql.prepare('SELECT status FROM invoices WHERE id=?').get(id).status,'partial');
 const stripe=remote.get('fire-refund-partial');const sent=posts;
 // A signed refund webhook can replay many times, but its completed timestamp is
@@ -106,4 +106,24 @@ sql.prepare("DELETE FROM payment_refunds WHERE id='wrong-job'").run();
 const exported=await (await backup.GET()).json();assert.ok(exported.tables.payment_refunds.length>0);const ledgerSnapshot=JSON.stringify(sql.prepare('SELECT * FROM payments ORDER BY id').all());const requestsSnapshot=JSON.stringify(sql.prepare('SELECT * FROM payment_refunds ORDER BY id').all());
 sql.exec('DELETE FROM payment_refunds;DELETE FROM payments;');const restored=await backup.POST(new Request('https://test/api/backup',{method:'POST',body:JSON.stringify(exported)}));assert.equal(restored.status,200,await restored.text());assert.equal(JSON.stringify(sql.prepare('SELECT * FROM payments ORDER BY id').all()),ledgerSnapshot);assert.equal(JSON.stringify(sql.prepare('SELECT * FROM payment_refunds ORDER BY id').all()),requestsSnapshot);
 delete exported.tables.payment_refunds;assert.equal((await backup.POST(new Request('https://test/api/backup',{method:'POST',body:JSON.stringify(exported)}))).status,200);
+// Lost refund acknowledgement followed by an unavailable lookup must retain
+// the original reservation/key; it is not proof that Stripe refunded nothing.
+const ambiguous=fixture(10000,0);networkOnce=true;
+assert.equal((await refund('p-'+ambiguous,'ambiguous-lookup',2100)).status,500);
+const sentBeforeLookup=posts;lookupFailure=true;
+assert.equal((await refund('p-'+ambiguous,'ambiguous-lookup',2100)).status,503);
+assert.equal(sql.prepare("SELECT status FROM payment_refunds WHERE id='ambiguous-lookup'").get().status,'pending');
+assert.equal(posts,sentBeforeLookup);
+assert.equal((await refund('p-'+ambiguous,'unsafe-new-request',10000)).status,409);
+lookupFailure=false;lookupCurrency='eur';
+assert.equal((await refund('p-'+ambiguous,'ambiguous-lookup',2100)).status,409);
+assert.equal(sql.prepare("SELECT status FROM payment_refunds WHERE id='ambiguous-lookup'").get().status,'pending');
+assert.equal(posts,sentBeforeLookup);
+lookupCurrency='usd';
+assert.equal((await refund('p-'+ambiguous,'ambiguous-lookup',2100)).status,200);
+assert.equal(principal(ambiguous),7900);
+assert.equal(sql.prepare("SELECT COUNT(*) n FROM payments WHERE provider_id=?").get('refund:p-'+ambiguous+':ambiguous-lookup').n,1);
+assert.equal([...remote.keys()].filter(k=>k==='fire-refund-ambiguous-lookup').length,1);
+assert.equal((await event({...stripe,currency:'eur'})).status,409);
+assert.equal(principal(id),7500);
 console.log('PASS: partial per-payment Stripe refunds; repeat API requests; duplicate/signed webhooks; altered amount/provider rejection; pending-to-success reconciliation; Stripe 500 and lost-response retries reuse idempotency key; atomic rollback/recovery; concurrent limits; tip separation; manual refund confirmation and fee preservation; imported external refunds; backup/restore and legacy backup compatibility. Only in-memory SQLite and mocked Stripe used.');

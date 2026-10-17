@@ -1,5 +1,5 @@
 type Database=Cloudflare.Env["DB"];
-export type StripeRefund={id:string;status?:string;amount?:number;payment_intent?:string|{id?:string}|null;metadata?:{fire_refund_id?:string;fire_payment_id?:string}};
+export type StripeRefund={id:string;currency?:string|null;status?:string;amount?:number;payment_intent?:string|{id?:string}|null;metadata?:{fire_refund_id?:string;fire_payment_id?:string}};
 const currency=(value:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(value/100);
 
 type RefundRow={
@@ -79,6 +79,7 @@ async function stripeCheckoutForPaymentIntent(paymentIntent:string,secret:string
 }
 
 export async function recordRefundUpdate(db:Database,refund:StripeRefund,stripeSecret?:string){
+  if(refund.currency!=="usd")return {ok:false,reason:"currency_mismatch"};
   if(!refund.id?.startsWith("re_")||!Number.isSafeInteger(refund.amount)||Number(refund.amount)<=0||!["succeeded","pending","requires_action","failed","canceled"].includes(refund.status||""))return {ok:false,reason:"invalid_refund"};
   let requestId=refund.metadata?.fire_refund_id?.trim()||"";
   let paymentId=refund.metadata?.fire_payment_id?.trim()||"";

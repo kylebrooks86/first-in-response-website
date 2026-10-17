@@ -189,6 +189,10 @@ jobs:
         run: python3 scripts/test-plan-complete-photo-recovery.py
       - name: Synthetic record-backup restore and rollback fault rehearsal
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-records-recovery.mjs
+      - name: Verify final tips and interrupted-payment recovery against actual modules
+        run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-final-tipping.mjs
+      - name: Verify pinned Stripe connection diagnostics and strict USD reconciliation
+        run: node scripts/test-stripe-connection-inspection.mjs
       - name: Verify Stripe test-only guard for isolated candidates
         run: node scripts/test-stripe-isolation.mjs
       - name: Verify atomic checkout reservation and duplicate-charge prevention

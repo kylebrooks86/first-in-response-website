@@ -1,0 +1,258 @@
+{
+  "baseCheckpoint": "dcb0a3aaa0a4ef134095dcd6c5df8347e32bc607",
+  "officialReadiness": {
+    "passed": 3,
+    "total": 10,
+    "percent": 30
+  },
+  "sourceSha256": {
+    ".github/workflows/fire-business-app-isolated-checks.yml": "6951f2e687668ad810e4c7e55c820cfb143302142603d9c7f429240c66236234",
+    "business-app-parity/shared/app/api/payments/checkout/reconcile/route.ts": "c59e8be55a76dcf1765b8e1fc2f97bd55b53c22fe881e74c887f60efebf5460b",
+    "business-app-parity/shared/app/api/payments/refund/route.ts": "8236776f3e1061a8de8b83370a5078e05ddd5c4dcd1f28b4d8c76f6f4a572239",
+    "business-app-parity/shared/lib/stripe-payments.ts": "b64ec857a52a0626fe52dfcf8d72017f3d1989e7b8a0546794bed61f049f85f8",
+    "business-app-parity/shared/lib/stripe-refunds.ts": "23fddda79a6006f1ff0b864b10c5f0567b74dab859d7acaac7eff7a6cd166f29",
+    "business-app-parity/shared/scripts/test-checkout-owner-reconciliation.mjs": "f1cfaa5a25fac6918f8d1fcb2068e9aab959e4ad6f7f091aff24ced1733375c0",
+    "business-app-parity/shared/scripts/test-final-tipping.mjs": "4fed5318dd9db2da9ec31cb2373184667b3af3777be255235480d2d59305f216",
+    "business-app-parity/shared/scripts/test-processing-fees.mjs": "c3a5767108e6b34814221270013310c7df863074102f0c9eb1bfd17c94d983d5",
+    "business-app-parity/shared/scripts/test-stripe-refunds.mjs": "7abcb91d3ac64ced5e4e6534b7b021b5b3522b83ec9c0a45a21c64eeace36adb",
+    "business-app-parity/shared/app/api/payments/connection/route.ts": "2d514a83e2e605616f37760e6731a0fb83b0dcef1c0ca71abc03b18d6ed85196",
+    "business-app-parity/shared/lib/stripe-connection-inspection.ts": "dea7846eee6c367f61735ed6d448d971162605193e0d1d63a0cec341202ce543",
+    "business-app-parity/shared/scripts/test-stripe-connection-inspection.mjs": "52d192510794bd29bbadd24a943ca4f04c8fde925ee9f26f70b683a94b2f5210",
+    "business-app-parity/shared/scripts/route-test-loader.mjs": "4bbfab47aad79fef1fb32d8a437187a4d0defc552807f8c2af25b9421b8a78be"
+  },
+  "stripeReadOnly": {
+    "verifiedAccount": "acct_1ULRIG7ND12rd1wI",
+    "name": "First In Response Exteriors sandbox",
+    "livemode": false,
+    "defaultCurrency": "usd",
+    "observedReadableOperations": [
+      "GetAccountsAccount",
+      "GetCheckoutSessions",
+      "GetPaymentIntents",
+      "GetRefunds",
+      "GetEvents",
+      "GetWebhookEndpoints"
+    ],
+    "fullPermissionACLExposed": false,
+    "writePermissionsTested": false,
+    "providerWriteCalls": 0,
+    "checkoutSessions": {
+      "total": 5,
+      "paidComplete": 3,
+      "expiredUnpaid": 2,
+      "completeList": true
+    },
+    "paymentIntents": {
+      "total": 3,
+      "succeeded": 3,
+      "completeList": true
+    },
+    "refunds": {
+      "total": 1,
+      "succeeded": 1,
+      "completeList": true
+    },
+    "events": {
+      "sample": 10,
+      "completeList": false
+    },
+    "webhooks": {
+      "total": 1,
+      "enabled": 1,
+      "pointsToExistingLiveApp": true,
+      "refundEventsSubscribed": false
+    },
+    "currentAppConnectionVerified": false,
+    "endToEndGate9Accepted": false
+  },
+  "parity": {
+    "live": {
+      "candidate": "live",
+      "exactSourceFiles": 345,
+      "adapterFiles": 39,
+      "migrationFiles": 21,
+      "sourceFingerprint": "194bc05bdb2dab794a7d59bc67299aeed828f0e1aaf1c9d2a0e341be886ed675",
+      "identicalToSharedPlusAuthorizedAdapter": true,
+      "deployed": false,
+      "remoteSchemaVerified": false,
+      "publicationAuthorized": false
+    },
+    "doomsday": {
+      "candidate": "doomsday",
+      "exactSourceFiles": 350,
+      "adapterFiles": 44,
+      "migrationFiles": 23,
+      "sourceFingerprint": "4ebf24678b08392effa4ef3444d17addf238d1f66afbecb14f9187669d306943",
+      "identicalToSharedPlusAuthorizedAdapter": true,
+      "deployed": false,
+      "remoteSchemaVerified": false,
+      "publicationAuthorized": false
+    },
+    "staging": {
+      "candidate": "staging",
+      "exactSourceFiles": 346,
+      "adapterFiles": 40,
+      "migrationFiles": 21,
+      "sourceFingerprint": "63f8e70d46986335b9a0650164e3da3c15fd0448a862ce80d7b99b383a526747",
+      "identicalToSharedPlusAuthorizedAdapter": true,
+      "deployed": false,
+      "remoteSchemaVerified": false,
+      "publicationAuthorized": false
+    }
+  },
+  "tests": {
+    "live": {
+      "suites": [
+        {
+          "suite": "test-processing-fees.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-stripe-refunds.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-final-tipping.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-checkout-owner-reconciliation.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-stripe-connection-inspection.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-checkout-atomic-reservation.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-stripe-isolation.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-manual-payment-retry-state.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-refund-retry-state.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-local-schema-audit.mjs",
+          "exitCode": 0
+        }
+      ],
+      "connectionAndCurrencyAssertions": 45,
+      "ownerReconciliationAssertions": 35,
+      "typecheckPassed": true,
+      "buildPassed": true
+    },
+    "doomsday": {
+      "suites": [
+        {
+          "suite": "test-processing-fees.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-stripe-refunds.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-final-tipping.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-checkout-owner-reconciliation.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-stripe-connection-inspection.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-checkout-atomic-reservation.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-stripe-isolation.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-manual-payment-retry-state.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-refund-retry-state.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-local-schema-audit.mjs",
+          "exitCode": 0
+        }
+      ],
+      "connectionAndCurrencyAssertions": 45,
+      "ownerReconciliationAssertions": 35,
+      "typecheckPassed": true,
+      "buildPassed": true
+    },
+    "staging": {
+      "suites": [
+        {
+          "suite": "test-processing-fees.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-stripe-refunds.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-final-tipping.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-checkout-owner-reconciliation.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-stripe-connection-inspection.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-checkout-atomic-reservation.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-stripe-isolation.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-manual-payment-retry-state.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-refund-retry-state.mjs",
+          "exitCode": 0
+        },
+        {
+          "suite": "test-local-schema-audit.mjs",
+          "exitCode": 0
+        }
+      ],
+      "connectionAndCurrencyAssertions": 45,
+      "ownerReconciliationAssertions": 35,
+      "typecheckPassed": true,
+      "buildPassed": true
+    }
+  },
+  "productionDeployments": 0,
+  "existingResourcesModified": 0,
+  "credentialsChanged": false,
+  "cloudflare": {
+    "authenticatedInWorkBrowser": false,
+    "observedPage": "https://dash.cloudflare.com/login",
+    "costOrCapacityConfirmed": false,
+    "resourcesCreated": 0
+  }
+}

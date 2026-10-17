@@ -37,7 +37,7 @@ export async function POST(request:Request){
     const session=await response.json() as RemoteSession;
     const meta=session.metadata;
     const amount=Number(session.amount_total);
-    if(session.id!==sessionId||session.livemode!==(sandbox?false:sessionId.startsWith("cs_live_"))
+    if(session.currency!=="usd"||session.id!==sessionId||session.livemode!==(sandbox?false:sessionId.startsWith("cs_live_"))
       ||(provisional&&meta?.fire_checkout_reservation_id!==reservationId)
       ||meta?.estimate_id!==reservation.estimateId||meta?.payment_type!==reservation.type
       ||session.client_reference_id!==reservation.estimateId

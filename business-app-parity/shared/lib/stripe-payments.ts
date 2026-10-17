@@ -2,6 +2,7 @@ type Database = Cloudflare.Env["DB"];
 
 export type StripeCheckoutSession = {
   id: string;
+  currency?: string | null;
   amount_total?: number | null;
   client_reference_id?: string | null;
   payment_status?: string | null;
@@ -47,6 +48,7 @@ export async function recordStripeCheckoutFailure(db: Database, session: StripeC
 }
 
 export async function reconcileStripeCheckout(db:Database,session:StripeCheckoutSession) {
+  if(session.currency!=="usd")return {ok:false,reason:"currency_mismatch"};
   if (!session.id || session.payment_status !== "paid" || !session.amount_total) return { ok:false, reason:"unpaid" };
   const estimateId = session.metadata?.estimate_id?.trim();
   if (!estimateId) return { ok:false, reason:"missing_estimate" };

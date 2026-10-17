@@ -40,7 +40,7 @@ function fixture(){
 }
 fixture();
 function session(status='complete',payment_status='paid'){return {
- id:sessionId,livemode:false,status,payment_status,amount_total:10000,client_reference_id:'job-owner',
+ id:sessionId,livemode:false,status,payment_status,currency:'usd',amount_total:10000,client_reference_id:'job-owner',
  metadata:{estimate_id:'job-owner',payment_type:'balance',expected_amount_cents:'10000',tip_amount_cents:'0',expected_charge_cents:'10000',fire_checkout_reservation_id:reserve}
 };}
 const call=(rid=reserve,sid=sessionId)=>api.POST(new Request('https://synthetic.invalid/api/payments/checkout/reconcile',{method:'POST',body:JSON.stringify({reservationId:rid,sessionId:sid})}));
@@ -53,6 +53,8 @@ check((await call()).status===409,'Cross-job Stripe session rejected');check(sta
 remote=session();remote.metadata.fire_checkout_reservation_id='fire-creating:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 check((await call()).status===409,'Different Stripe reservation ID rejected');
 remote=session();remote.amount_total=5000;check((await call()).status===409,'Different Stripe amount rejected');
+remote=session();remote.currency='eur';check((await call()).status===409&&status()==='open'&&paymentCount()===0,'Wrong currency cannot record money or release checkout');
+remote=session('expired','unpaid');delete remote.currency;check((await call()).status===409&&status()==='open','Missing currency cannot release an expired checkout');
 remote=session();remote.livemode=true;check((await call()).status===409,'Isolated candidate rejects live-mode session');
 remote=session('open','unpaid');const pending=await call();
 check(pending.status===202&&(await pending.json()).action==='pending','Open unpaid checkout remains pending, no forced close');
