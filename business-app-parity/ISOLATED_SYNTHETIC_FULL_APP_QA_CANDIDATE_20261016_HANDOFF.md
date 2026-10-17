@@ -102,3 +102,37 @@ server-side session secret without exposing them in ChatGPT or GitHub, and
 rehearse the isolated-new-D1 schema setup with a pinned UUID and no
 staging/Doomsday remote side effects. No deploy or migrations from documentation
 alone. Official gates remain **3/10 (30%)**.
+
+
+## Cloudflare QA Worker noncollision and private credentials — owner report
+
+Owner searched existing Cloudflare Workers & Pages applications for exact
+`fire-fullapp-qa-20261016` and reported **"no project found."** This is
+owner-observed UI evidence of no visible existing project under that name,
+not an API-level Worker script namespace uniqueness proof. No new Worker
+was created, deployed or purchased.
+
+The independent QA credential preparation helper is now
+`owner_windows_prepare_qa_credentials.ps1`, with security regression
+`test_owner_windows_prepare_qa_credentials.py`. **Dry-run by default**;
+`-Prepare` is optional and deliberately local Windows-only. It prompts
+privately for a NEW owner-chosen passphrase of 24–128 characters (never
+reuses the LIVE/DR PIN), calculates its SHA-256 verifier, and uses CSPRNG
+to generate an independent 48-byte session secret. Only an owner-Windows
+DPAPI-encrypted SecureString and corresponding QA metadata are written
+under `%LOCALAPPDATA%\\FIRE-QA-Private\\qa-owner-secrets.xml`, with
+nonoverwrite protection. No credential is uploaded, displayed to
+ChatGPT, or deployed by this preparation helper. Full Windows execution
+has not been owner-observed or authenticated yet.
+
+**Next strictly non-destructive owner step:** Confirm whether the GitHub
+checkout exists on Acer:
+`Test-Path "$HOME\\first-in-response-website"`.
+Use this to choose either a safe `git pull --ff-only` in an existing
+checkout or a separately reviewed download/install workflow. Never
+ask for the passphrase, session secret, private XML, or its hash in chat.
+
+Hosted D1 remains empty and unmigrated as last observed. First remote
+schema initialization, QA secret provisioning, full Worker publish and
+iPhone/iPad acceptance are all independently pending. Official gates
+remain 3/10 (30%).
