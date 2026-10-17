@@ -7,7 +7,7 @@ type RuntimeEnv=Cloudflare.Env & {STRIPE_RESTRICTED_KEY?:string;STRIPE_SECRET_KE
  FIRE_STRIPE_EXPECTED_ACCOUNT_ID?:string;FIRE_ENV?:string;SITE_ORIGIN?:string;STRIPE_WEBHOOK_SECRET?:string};
 /** This endpoint never enables payments, creates checkouts or sends test events. */
 export async function GET(){
-  if (LOCAL_CUSTOMER_DEPLOYMENT === "qa" as string) return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
+  if (String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa") return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
  const owner=await getChatGPTUser();
  if(!owner||owner.email.toLowerCase()!=='kylebrooks8605@gmail.com')return Response.json({error:'Unauthorized'},{status:401});
  const runtime=env as RuntimeEnv;
