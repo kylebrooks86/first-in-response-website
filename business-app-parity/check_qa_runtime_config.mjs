@@ -15,17 +15,16 @@ assert.deepEqual(cfg.d1_databases,[{binding:"DB",database_name:db,database_id:id
 assert.equal(cfg.workers_dev,true,"QA should not use existing custom routes");
 assert.ok(!cfg.routes?.length && !cfg.route && !cfg.zone_id && !cfg.account_id,
   "QA build must not target existing routing, zones or foreign accounts");
-for(const field of ["r2_buckets","kv_namespaces","services","queues","ai","unsafe","dispatch_namespaces"]){
-  assert.ok(!cfg[field] || (Array.isArray(cfg[field])&&cfg[field].length===0),
-    "Unapproved QA production resource binding: "+field);
+// Wrangler may emit default empty objects and empty nested queues/DO arrays.
+// Accept only recursively EMPTY resource settings. A single actual binding,
+ // class, consumer or script is a hard failure.
+function isEmpty(value) {
+  if(value===null || value===undefined || value==="") return true;
+  if(Array.isArray(value)) return value.length===0;
+  return typeof value==="object" && Object.values(value).every(isEmpty);
 }
-// The vinext/Cloudflare compiler may emit an empty Durable Objects section.
-// Only an EMPTY bindings list is safe; refuse any actual DO binding or class.
-if(cfg.durable_objects){
-  const bindings=cfg.durable_objects.bindings;
-  assert.ok(Array.isArray(bindings)&&bindings.length===0,
-    "QA generated unexpected Durable Objects bindings: "+JSON.stringify(
-      Array.isArray(bindings)?bindings.map(x=>({name:x?.name,class_name:x?.class_name})):Object.keys(cfg.durable_objects)));
+for(const field of ["r2_buckets","kv_namespaces","durable_objects","services","queues","ai","unsafe","dispatch_namespaces"]){
+  assert.ok(isEmpty(cfg[field]),"Unapproved QA resource binding or nonempty metadata in: "+field);
 }
 const vars=cfg.vars??{};
 assert.equal(vars.FIRE_ENV,"synthetic-qa");
