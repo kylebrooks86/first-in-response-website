@@ -31,7 +31,7 @@ class QACredentialPreparationContract(unittest.TestCase):
         self.assertLess(SOURCE.index("if (-not $Prepare)"),
                         SOURCE.index("Read-Host"))
         self.assertLess(SOURCE.index("if (-not $Prepare)"),
-                        SOURCE.index("Export-Clixml"))
+                        SOURCE.index("$record | Export-Clixml -LiteralPath $target -NoClobber"))
         self.assertIn("if (Test-Path -LiteralPath $target)", SOURCE)
         self.assertIn("Refusing to overwrite", SOURCE)
         self.assertIn("-NoClobber", SOURCE)
