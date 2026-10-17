@@ -13,7 +13,7 @@ async function stripeGet(path:string,secret:string){
 }
 
 export async function POST(request:Request){
-  if (LOCAL_CUSTOMER_DEPLOYMENT === "qa" as string) return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
+  if (String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa") return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   try{
     const value=await request.json() as Record<string,unknown>;
