@@ -44,6 +44,7 @@ async function verifyStripeSignature(rawBody:string, signatureHeader:string, sec
 }
 
 export async function POST(request:Request) {
+  if (LOCAL_CUSTOMER_DEPLOYMENT === "qa" as string) return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
   const runtime = env as RuntimeEnv;
   if (!runtime.STRIPE_WEBHOOK_SECRET) return Response.json({ error:"Stripe webhook is not configured." }, { status:503 });
 
