@@ -43,7 +43,7 @@ const fakeCloudflare = {
       ({ path: "fixture:qa-env", namespace: "fire-fixture" }));
     build.onLoad({ filter: /.*/, namespace: "fire-fixture" }, () =>
       ({ contents: "export const env = globalThis.fireQaFixtureEnv;", loader: "js" }));
-    build.onLoad({ filter: /app\\/chatgpt-auth\\.ts$/ }, () => ({
+    build.onLoad({ filter: /app\/chatgpt-auth\.ts$/ }, () => ({
       contents: "export async function requireChatGPTUser() { globalThis.fireQaFixtureAuthCalls++; if (!globalThis.fireQaFixtureOwner) throw Error('QA login required'); return globalThis.fireQaFixtureOwner; }",
       loader: "ts"
     }));
@@ -108,7 +108,7 @@ try {
     assert.equal(m.id, "/fire-synthetic-qa-v1");
     assert.equal(m.name, "FIRE QA - Synthetic Only");
     assert.equal(m.short_name, "FIRE QA");
-    assert.match(m.start_url, /^\\/\\?qa=synthetic&app=/);
+    assert.match(m.start_url, /^\/\?qa=synthetic&app=/);
     assert.notEqual(m.id, "/");
   });
   await check("QA build config requires synthetic local customer mode", () => {
