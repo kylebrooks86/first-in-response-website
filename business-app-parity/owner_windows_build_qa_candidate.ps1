@@ -39,18 +39,40 @@ Assert-True ($dirty.Count -eq 0) 'Tracked source files have local edits. Preserv
 $node = Get-Command 'node.exe' -ErrorAction SilentlyContinue
 $python = Get-Command 'python.exe' -ErrorAction SilentlyContinue
 $pnpm = Get-Command 'pnpm.cmd' -ErrorAction SilentlyContinue
+$corepack = Get-Command 'corepack.cmd' -ErrorAction SilentlyContinue
 Assert-True ($null -ne $node) 'Node.js 22.13+ is needed for an exact QA candidate build.'
 Assert-True ($null -ne $python) 'Python 3 is needed to materialize and fingerprint the isolated QA source.'
-Assert-True ($null -ne $pnpm) 'Pinned pnpm 11.25.0 is required. Stop without installing tools automatically.'
+# Read the committed packageManager pin; never install or activate global tools
+# on a dry run. Corepack is an allowed local invocation of the exact pnpm pin.
+$sharedPackage = Join-Path $PSScriptRoot 'shared\package.json'
+Assert-True (Test-Path -LiteralPath $sharedPackage -PathType Leaf) 'Shared candidate package.json missing.'
+$packageSpec = (Get-Content -LiteralPath $sharedPackage -Raw | ConvertFrom-Json).packageManager
+Assert-True ($packageSpec -ceq 'pnpm@11.25.0') 'QA package manager pin differs from the tested lockfile.'
+$packageTool = $null
+$packageArgs = @()
 $nodeVersion = (& $node.Source -p 'process.versions.node').Trim()
 Check-Exit 'Read-only Node version check'
 Assert-True ([Version]$nodeVersion -ge [Version]'22.13.0') 'Node.js must be version 22.13.0 or newer.'
 $pythonVersion = @(& $python.Source --version)
 Check-Exit 'Read-only Python version check'
 Assert-True (($pythonVersion -join '') -match '^Python 3\.') 'Python 3 required.'
-$pnpmVersion = (& $pnpm.Source --version).Trim()
-Check-Exit 'Read-only pnpm version check'
-Assert-True ($pnpmVersion -ceq '11.25.0') 'pnpm 11.25.0 required to match tested lockfile.'
+if ($null -ne $pnpm) {
+    $pnpmVersion = (& $pnpm.Source --version).Trim()
+    Check-Exit 'Read-only pnpm version check'
+    if ($pnpmVersion -ceq '11.25.0') {
+        $packageTool = $pnpm
+        Write-Host 'PASS: Exact pinned pnpm 11.25.0 already available.'
+    }
+}
+if ($null -eq $packageTool) {
+    Assert-True ($null -ne $corepack) 'No pinned pnpm or Corepack found; stop without installing tools automatically.'
+    $corepackVersion = (& $corepack.Source --version).Trim()
+    Check-Exit 'Read-only Corepack availability check'
+    Assert-True ($corepackVersion -match '^\d+\.\d+\.\d+') 'Installed Corepack cannot report a valid version.'
+    $packageTool = $corepack
+    $packageArgs = @('pnpm')
+    Write-Host 'PASS: Corepack available. Exact pnpm 11.25.0 is resolved only with -Build.'
+}
 $buildRoot = Join-Path $env:LOCALAPPDATA 'FIRE-QA-Builds'
 $destination = Join-Path $buildRoot ('qa-' + $head)
 Write-Host ('Reviewed Git source: ' + $head)
@@ -61,6 +83,16 @@ if (-not $Build) {
     return
 }
 Assert-True (-not (Test-Path -LiteralPath $destination)) 'Existing QA candidate directory must be preserved; refusing overwrite.'
+# Only an explicit -Build may ask Corepack to acquire the pinned pnpm version.
+# Run Corepack from the reviewed shared package root, not the unrelated repo root.
+if ($packageArgs.Count -gt 0) {
+    Push-Location (Join-Path $PSScriptRoot 'shared')
+    try {
+        $resolvedVersion = (& $packageTool.Source @packageArgs --version).Trim()
+        Check-Exit 'Pinned Corepack pnpm resolution'
+        Assert-True ($resolvedVersion -ceq '11.25.0') 'Corepack did not resolve required pnpm 11.25.0.'
+    } finally { Pop-Location }
+}
 # This new source/build directory is separate from FIRE-QA-Private and the real
 # Home Screen vault. It contains only cloned/verified synthetic candidate code.
 if (-not (Test-Path -LiteralPath $buildRoot)) {
@@ -76,11 +108,11 @@ $oldMetrics = $env:WRANGLER_SEND_METRICS
 try {
     $env:CLOUDFLARE_CF_FETCH_ENABLED = 'false'
     $env:WRANGLER_SEND_METRICS = 'false'
-    & $pnpm.Source install --frozen-lockfile
+    & $packageTool.Source @packageArgs install --frozen-lockfile
     Check-Exit 'Pinned frozen package installation'
-    & $pnpm.Source exec tsc --noEmit
+    & $packageTool.Source @packageArgs exec tsc --noEmit
     Check-Exit 'Full QA TypeScript check'
-    & $pnpm.Source run build
+    & $packageTool.Source @packageArgs run build
     Check-Exit 'Full QA Worker build'
 } finally {
     $env:CLOUDFLARE_CF_FETCH_ENABLED = $oldFetch
