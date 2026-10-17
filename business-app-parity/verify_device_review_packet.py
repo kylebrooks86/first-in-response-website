@@ -11,7 +11,7 @@ import stat
 import zipfile
 from pathlib import Path
 
-TARGETS = {"live", "doomsday", "staging"}
+TARGETS = {"live", "doomsday", "staging", "qa"}
 HASH = re.compile(r"^[0-9a-f]{64}$")
 MAX_ZIP = 512 * 1024 * 1024
 MAX_EXPANDED = 2 * 1024 * 1024 * 1024
