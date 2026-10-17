@@ -5,6 +5,7 @@ connection, touches a production resource or executes a deployment command.
 """
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import sys
@@ -12,9 +13,37 @@ import sys
 from candidate_release_manifest import APP_ADAPTERS, ROOT, inventory
 
 TARGETS = ("live", "doomsday", "staging", "qa")
+# Only locally produced build artifacts are omitted from source comparisons.
+# Original strict source verification is unchanged when built=False.
+BUILT_TOP_LEVEL_DIRS = {"dist", "node_modules", ".wrangler", ".next", ".vite"}
+BUILT_TOP_LEVEL_FILES = {"tsconfig.tsbuildinfo"}
 
 
-def check(target, directory):
+def inventory_built_sources(directory):
+    result = {}
+    for root, dirs, files in os.walk(directory, followlinks=False):
+        base = Path(root)
+        if base == directory:
+            for name in list(dirs):
+                if name in BUILT_TOP_LEVEL_DIRS:
+                    ignored = base / name
+                    if ignored.is_symlink() or not ignored.is_dir():
+                        raise ValueError("Built output directory must not be a symlink.")
+                    dirs.remove(name)
+        for name in files:
+            path = base / name
+            relative = path.relative_to(directory).as_posix()
+            if relative in BUILT_TOP_LEVEL_FILES:
+                if path.is_symlink():
+                    raise ValueError("Build cache must not be a symlink.")
+                continue
+            if path.is_symlink():
+                raise ValueError("Source symlinks must be reviewed, not silently sealed.")
+            result[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return dict(sorted(result.items()))
+
+
+def check(target, directory, built=False):
     if target not in TARGETS:
         raise ValueError("Unknown candidate; expected live, doomsday, staging or qa.")
     directory = Path(directory).resolve(strict=True)
@@ -56,7 +85,9 @@ def check(target, directory):
     expected.update({name: digest for name, digest in adapters.items() if name != "ABSENT_FILES.json"})
     for name in absent:
         expected.pop(name, None)
-    actual = inventory(directory)
+    if built and target != "qa":
+        raise ValueError("Built output verification currently supports isolated QA only.")
+    actual = inventory_built_sources(directory) if built else inventory(directory)
     missing = sorted(set(expected) - set(actual))
     unexpected = sorted(set(actual) - set(expected))
     altered = sorted(name for name in expected.keys() & actual.keys() if expected[name] != actual[name])
@@ -84,9 +115,9 @@ def check(target, directory):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        sys.exit("Usage: python verify_materialized_candidate.py <live|doomsday|staging|qa> <directory>")
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] != "--built"):
+        sys.exit("Usage: python verify_materialized_candidate.py <live|doomsday|staging|qa> <directory> [--built]")
     try:
-        print(json.dumps(check(sys.argv[1], sys.argv[2]), indent=2))
+        print(json.dumps(check(sys.argv[1], sys.argv[2], built=len(sys.argv) == 4), indent=2))
     except (ValueError, OSError, KeyError, TypeError) as error:
         sys.exit("Candidate verification BLOCKED: " + str(error))
