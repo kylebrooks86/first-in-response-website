@@ -8,6 +8,7 @@ type RemoteSession=StripeCheckoutSession & {status?:string;livemode?:boolean};
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 
 export async function POST(request:Request){
+  if (LOCAL_CUSTOMER_DEPLOYMENT === "qa" as string) return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
   const owner=await getChatGPTUser();
   if(!owner||owner.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401});
   try{
