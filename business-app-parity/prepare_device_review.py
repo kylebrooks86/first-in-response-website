@@ -50,7 +50,7 @@ def prepare(roots,out,checkpoint):
 def main():
  ap=argparse.ArgumentParser(description=__doc__)
  for target in ['live','doomsday','staging']:ap.add_argument('--'+target,type=Path)
- ap.add_argument('--target',choices=['live','doomsday','staging'])
+ ap.add_argument('--target',choices=['live','doomsday','staging','qa'])
  ap.add_argument('--candidate',type=Path)
  ap.add_argument('--output',required=True,type=Path)
  ap.add_argument('--checkpoint',required=True)
