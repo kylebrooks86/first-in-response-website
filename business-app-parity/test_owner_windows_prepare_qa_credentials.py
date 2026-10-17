@@ -58,7 +58,7 @@ class QACredentialPreparationContract(unittest.TestCase):
         self.assertNotIn("afb2c05a-d794-4a9a-b580-924ce01c26ad", SOURCE)
         self.assertNotIn("fire-app-staging-db", SOURCE)
         self.assertIn("24-128", SOURCE)
-        self.assertIn("existing FIRE credentials", SOURCE.lower().replace("existing fire credentials", "existing FIRE credentials"))
+        self.assertIn("Existing FIRE credentials", SOURCE)
 
     def test_only_one_protected_private_output(self):
         self.assertEqual(SOURCE.count("Export-Clixml -LiteralPath $target -NoClobber"), 1)
