@@ -41,7 +41,7 @@ async function inspectUnpaidExpiration(session: {id:string;type:string;amountCen
 }
 
 export async function POST(request: Request) {
-  if (LOCAL_CUSTOMER_DEPLOYMENT === "qa" as string) return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
+  if (String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa") return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
   const runtime = env as RuntimeEnv;
   const stripeKey = runtime.STRIPE_RESTRICTED_KEY || runtime.STRIPE_SECRET_KEY;
   const sandboxTarget = String(LOCAL_CUSTOMER_DEPLOYMENT) !== "live" || /(?:staging|doomsday|synthetic|sandbox)/i.test(runtime.FIRE_ENV || "");
