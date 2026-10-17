@@ -25,7 +25,7 @@ function qaEnvironmentEnabled() {
     const address = new URL(runtime.SITE_ORIGIN || "");
     return address.protocol === "https:" && address.hostname.startsWith("fire-fullapp-qa-20261016.")
       && address.hostname.endsWith(".workers.dev") && address.origin === runtime.SITE_ORIGIN
-      && !address.username && !address.password;
+      && !address.username && !address.password && !address.port;
   } catch { return false; }
 }
 
