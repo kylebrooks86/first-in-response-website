@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-import postcss from 'postcss';
+import { createRequire } from 'node:module';
+const require=createRequire(import.meta.url);
+const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss');
 
 const dashboard=readFileSync('app/dashboard.tsx','utf8');
 const css=readFileSync('app/globals.css','utf8');
