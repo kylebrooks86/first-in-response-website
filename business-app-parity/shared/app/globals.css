@@ -623,17 +623,42 @@ html,body{max-width:100%;overflow-x:clip}
 
 .candidate-layout-trace{margin:12px 24px;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12px}.candidate-layout-trace button{margin:4px;padding:8px;min-height:44px;min-width:44px}.candidate-layout-trace textarea{display:block;width:100%;max-width:100%;box-sizing:border-box}.candidate-layout-trace summary{cursor:pointer}
 
-/* Payment entry must be discoverable without the desktop-only header shortcut.
-   It opens Payments; an individual estimate/balance is required to record funds. */
-.mobile-record-payments-action{display:none}
+/* Shared FIRE Payments action: desktop keeps its text entry point; phones
+   use a compact, accessible $ button in the fixed top utility area. */
+.mobile-payment-quick-action{display:none}
 @media(max-width:760px){
-  .mobile-record-payments-action{
-    display:flex;align-items:center;justify-content:center;gap:10px;
-    width:100%;min-height:48px;margin:0 0 14px;padding:10px 14px;
-    border:1px solid #d52d38;border-radius:12px;
-    background:#d52d38;color:#fff;font-size:15px;font-weight:750;
-    cursor:pointer;touch-action:manipulation
+  .mobile-payment-quick-action{
+    display:grid!important;place-items:center!important;
+    width:42px!important;height:42px!important;
+    min-width:42px!important;min-height:42px!important;
+    flex:0 0 42px!important;border:1px solid #d1dae5!important;
+    border-radius:11px!important;background:#f2f6fb!important;
+    color:#c32a32!important;font-weight:800!important;
+    font-size:24px!important;line-height:1!important;
+    padding:0!important;cursor:pointer!important;touch-action:manipulation
   }
-  .mobile-record-payments-action svg{width:20px;height:20px;flex:none}
-  .mobile-record-payments-action:focus-visible{outline:3px solid #f7b9be;outline-offset:3px}
+  [data-theme="dark"] .mobile-payment-quick-action{
+    background:#182a40!important;border-color:#30445b!important;
+    color:#fa868b!important
+  }
+  .mobile-payment-quick-action:focus-visible{
+    outline:3px solid #db4651!important;outline-offset:2px!important
+  }
+  .mobile-payment-quick-action:disabled{opacity:.5!important;cursor:wait!important}
+}
+@media(max-width:430px){
+  .mobile-payment-quick-action{
+    width:39px!important;height:39px!important;
+    min-width:39px!important;min-height:39px!important;
+    flex-basis:39px!important
+  }
+}
+/* Leave all three top quick actions reachable on very narrow phones.
+   Hide only the decorative FIRE mark rather than hiding an operation. */
+@media(max-width:360px){
+  .topbar{grid-template-columns:minmax(0,1fr) auto!important}
+  .topbar .mobile-brand{display:none!important}
+  .topbar .mobile-primary-actions{grid-column:1!important;justify-self:start!important}
+  .topbar .top-actions{grid-column:2!important;justify-self:end!important}
+  .topbar .search-box{grid-column:1/-1!important}
 }
