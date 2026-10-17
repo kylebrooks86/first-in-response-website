@@ -51,6 +51,8 @@ on:
       - 'business-app-parity/test_owner_windows_first_qa_publish.py'
       - 'business-app-parity/owner_windows_qa_update_review.ps1'
       - 'business-app-parity/test_owner_windows_qa_update_review.py'
+      - 'business-app-parity/owner_windows_qa_update_publish.ps1'
+      - 'business-app-parity/test_owner_windows_qa_update_publish.py'
       - 'business-app-parity/prepare_qa_deploy_config.mjs'
       - 'business-app-parity/test_prepare_qa_deploy_config.mjs'
       - 'business-app-parity/verify_materialized_candidate.py'
@@ -200,6 +202,22 @@ jobs:
         run: python3 ../test_owner_windows_first_qa_publish.py
       - name: Existing QA Worker update review must preserve all hosted customer records
         run: python3 ../test_owner_windows_qa_update_review.py
+      - name: Code-only QA Worker updates must require distinct approval and preserve login/data
+        run: python3 ../test_owner_windows_qa_update_publish.py
+      - name: Windows QA update publisher parses without running it
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '../owner_windows_qa_update_publish.ps1'),
+            [ref]$tokens, [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -ne 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw "FIRE QA update publisher contains syntax errors."
+          }
+          Write-Host 'PASS: QA update publisher parses, no remote writes.'
       - name: Windows QA update review script parses without running it
         shell: pwsh
         run: |
