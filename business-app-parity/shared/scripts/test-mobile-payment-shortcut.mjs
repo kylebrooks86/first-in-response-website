@@ -30,9 +30,10 @@ assert.match(button,/type="button"/);
 const parsed=postcss.parse(css);
 const rules=[];parsed.walkRules(rule=>rules.push(rule));
 const get=(selector,media)=>rules.findLast(rule=>rule.selector===selector&&
-  (media?rule.parent.type==='atrule'&&rule.parent.params==='max-width:760px':
-   rule.parent.type==='root'));
+  (media?rule.parent.type==='atrule':rule.parent.type==='root'));
 const value=(rule,property)=>rule?.nodes.find(node=>node.prop===property)?.value;
+assert.match(css, /@media\(max-width:760px\)\{\s*\.mobile-record-payments-action\{/,
+  'Phone-width media block must contain the shortcut, not only desktop styles');
 assert.equal(value(get('.mobile-record-payments-action',false),'display'),'none',
   'Do not alter desktop presentation');
 assert.equal(value(get('.mobile-record-payments-action',true),'display'),'flex',
