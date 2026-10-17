@@ -30,8 +30,8 @@ const vars=cfg.vars??{};
 assert.equal(vars.FIRE_ENV,"synthetic-qa");
 assert.equal(vars.FIRE_QA_SYNTHETIC_ONLY,"enabled");
 assert.equal(typeof vars.SITE_ORIGIN,"string");
-assert.ok(!vars.SITE_ORIGIN || /^https:\/\/fire-fullapp-qa-20261016\.[a-z0-9-]+\.workers\.dev$/.test(vars.SITE_ORIGIN),
-  "QA SITE_ORIGIN must be empty (fail-closed in CI) or the exact future QA origin");
+assert.equal(vars.SITE_ORIGIN, "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev",
+  "QA SITE_ORIGIN must be the independently owner-verified Cloudflare workers.dev origin");
 assert.ok(!Object.keys(vars).some(k=>/(stripe|r2|live|staging|doomsday|password|secret|token|private)/i.test(k)),
   "No credentials or privileged resource identities may be in published QA vars");
 assert.ok(!("site-creator"===cfg.name),"Not the default build");
