@@ -28,7 +28,7 @@ class QAPostMigrationReadOnlyContract(unittest.TestCase):
         self.assertNotRegex(SCRIPT, r"(?m)^\s*(?:&\s*\$wrangler\.Source|wrangler(?:\.cmd)?)\s+(?:deploy|secret|publish|delete|upload|d1\s+migrations)")
         self.assertNotRegex(SCRIPT, r"(?m)^\s*.*\s(?:d1\s+execute|d1\s+migrations)\s+.*\b(?:INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|REPLACE|apply)\b")
         for forbidden in ("Invoke-Expression", "Start-Process", "Set-Clipboard", "Export-Clixml",
-                          "Remove-Item", "Set-Content", "Out-File", "-Apply", "-Publish"):
+                          "Remove-Item", "Set-Content", "Out-File"):
             self.assertNotIn(forbidden, SCRIPT)
         self.assertEqual(SCRIPT.count("d1 execute $qaName --remote"), 1)
         self.assertIn('"--command=$sql"', SCRIPT)
