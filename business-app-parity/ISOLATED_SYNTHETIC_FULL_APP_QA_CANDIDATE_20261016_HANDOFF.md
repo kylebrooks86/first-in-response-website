@@ -71,3 +71,34 @@ https://github.com/kylebrooks86/first-in-response-website/actions/runs/389972886
 That CI validates only the built artifact; **it does not apply migrations or prove any deployed origin**.
 
 **Next owner-facing task** is discover the owner's exact Cloudflare `workers.dev` account subdomain from the Cloudflare Workers & Pages dashboard (no keys, no passwords), then generate and validate the exact QA URL. Until then `SITE_ORIGIN` stays unset and QA authentication remains fail-closed. Separately prepare and rehearse all 23 migrations with an exact new-DB guard before any authorized remote schema initialization; do not ask owner to run generic `wrangler d1 migrations apply` against an unverified configuration. Official gates remain 3/10.
+
+
+## Verified Cloudflare Workers subdomain and exact planned QA URL — October 17
+
+Owner provided Cloudflare Workers & Pages dashboard screenshot displaying existing
+`fire-app-independent-staging.kyle-bfc.workers.dev`, confirming this account's
+public Worker subdomain is `kyle-bfc.workers.dev`. The separate candidate's
+**planned but NOT DEPLOYED** origin is:
+
+`https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev`
+
+The QA Vite Worker config now pins that exact canonical HTTPS address at build
+time; the QA authentication origin guard and built Worker manifest verifier now
+require this precise value, rejecting attacker-owned or unrelated Cloudflare
+subdomains. A separate test confirms wrong-account origins fail closed.
+
+**State:** The owner-verified new QA D1 remains the only approved D1 binding;
+there is still **no QA Worker deployed**, no password hash/session secret
+provisioned, no R2 signup, no billed resource activation, no remote migration,
+and no change to existing Workers, DNS, LIVE staging, Stripe, iPhone/iPad vaults
+or completed Acer offline recovery evidence. QA app sign-in must not be enabled
+or deployed until the owner-only credentials and first-run D1 schema are
+independently prepared and approved. New full-app build CI must pass before
+the newly origin-pinned artifact is used.
+
+**Next prerequisite before a QA publish:** Verify exact QA Worker name is not
+already occupied in the account, prepare an owner-held QA passphrase and
+server-side session secret without exposing them in ChatGPT or GitHub, and
+rehearse the isolated-new-D1 schema setup with a pinned UUID and no
+staging/Doomsday remote side effects. No deploy or migrations from documentation
+alone. Official gates remain **3/10 (30%)**.
