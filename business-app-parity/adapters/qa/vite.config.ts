@@ -35,6 +35,7 @@ export default defineConfig(async () => {
           vars: {
             FIRE_ENV: "synthetic-qa",
             FIRE_QA_SYNTHETIC_ONLY: "enabled",
+            FIRE_LOCAL_CUSTOMERS_CANDIDATE: "synthetic-only",
             SITE_ORIGIN: QA_SITE_ORIGIN
           },
           d1_databases: [{ binding: "DB", database_name: QA_DB_NAME, database_id: QA_DB_ID }]
