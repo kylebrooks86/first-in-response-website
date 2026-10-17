@@ -13,8 +13,30 @@ export function normalizeForecast(periods:Period[],now=Date.now()):WeatherRespon
  days.set(date,day);}
  return {location:"Tulsa",updatedAt:new Date(now).toISOString(),current:{temperature:valid[0].temperature!,description:valid[0].shortForecast||"Forecast"},daily:[...days.values()].slice(0,7)};
 }
+/** NWS may canonicalize coordinates with a 301/302 redirect. Follow ONLY
+ * same-origin HTTPS api.weather.gov locations, never arbitrary upstream URLs.
+ * Cloudflare Workers' redirect:"error" used to reject valid NWS responses. */
 export async function loadTulsaWeather(fetcher:typeof fetch=fetch):Promise<WeatherResponse>{
- const read=async(url:string)=>{const u=new URL(url);if(u.origin!=="https://api.weather.gov"||u.username||u.password)throw Error("Invalid forecast source");const response=await fetcher(u,{headers:{Accept:"application/geo+json","User-Agent":"FIRE-Business-App (https://firstinresponseexteriors.com)"},signal:AbortSignal.timeout(10000),redirect:"error"});if(!response.ok)throw Error("Weather unavailable");return await response.json() as {properties?:{forecast?:string;periods?:Period[]}};};
+ const origin="https://api.weather.gov";
+ const validate=(address:string)=>{const u=new URL(address);if(u.origin!==origin||u.username||u.password||u.port)throw Error("Invalid forecast source");return u;};
+ const read=async(address:string)=>{
+  let url=validate(address);
+  const seen=new Set<string>();
+  for(let attempt=0;attempt<3;attempt++){
+   if(seen.has(url.href))throw Error("Repeated forecast redirect");
+   seen.add(url.href);
+   const response=await fetcher(url,{headers:{Accept:"application/geo+json","User-Agent":"FIRE-Business-App (https://firstinresponseexteriors.com)"},signal:AbortSignal.timeout(10000),redirect:"manual"});
+   if([301,302,303,307,308].includes(response.status)){
+    const location=response.headers.get("location");
+    if(!location)throw Error("Missing forecast redirect location");
+    url=validate(new URL(location,url).href);
+    continue;
+   }
+   if(!response.ok)throw Error("Weather unavailable");
+   return await response.json() as {properties?:{forecast?:string;periods?:Period[]}};
+  }
+  throw Error("Too many forecast redirects");
+ };
  const point=await read("https://api.weather.gov/points/36.15398,-95.99277");if(typeof point.properties?.forecast!=="string")throw Error("Missing forecast URL");
  const forecast=await read(point.properties.forecast);if(!Array.isArray(forecast.properties?.periods))throw Error("Missing forecast periods");
  return normalizeForecast(forecast.properties.periods);
