@@ -32,6 +32,9 @@ export default defineConfig(async () => {
           compatibility_date: "2026-10-16",
           compatibility_flags: ["nodejs_compat"],
           workers_dev: true,
+          // Wrangler must refuse a hosted QA release with either owner login
+          // secret missing. Values never belong in source or plain vars.
+          secrets: { required: ["FIRE_QA_PASSWORD_HASH", "FIRE_QA_SESSION_SECRET"] },
           vars: {
             FIRE_ENV: "synthetic-qa",
             FIRE_QA_SYNTHETIC_ONLY: "enabled",
