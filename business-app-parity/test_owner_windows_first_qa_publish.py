@@ -14,7 +14,9 @@ class FirstQAPublishContract(unittest.TestCase):
         self.assertIn("return", SCRIPT)
         self.assertIn("Read-Host ('To authorize this exact QA-only first publication, type '", SCRIPT)
         self.assertIn("Require ($typed -ceq $approval)", SCRIPT)
-        for action in ("wrangler deploy", "deploy --config $manifest --secrets-file",
+        # The earlier 'wrangler deploy --help' is read-only; only the exact
+        # executable publish invocation must be after explicit -Publish gating.
+        for action in ("& $wrangler deploy --config $manifest --secrets-file",
                        "ConvertTo-Json -Compress", "FileStream]::new($secretFile"):
             # Ensure remote code and sensitive temporary file creation are gated.
             self.assertGreater(SCRIPT.index(action), SCRIPT.index("if (-not $Publish)"))
