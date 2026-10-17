@@ -49,6 +49,8 @@ on:
       - 'business-app-parity/test_owner_windows_build_qa_candidate.py'
       - 'business-app-parity/owner_windows_first_qa_publish.ps1'
       - 'business-app-parity/test_owner_windows_first_qa_publish.py'
+      - 'business-app-parity/prepare_qa_deploy_config.mjs'
+      - 'business-app-parity/test_prepare_qa_deploy_config.mjs'
       - 'business-app-parity/verify_materialized_candidate.py'
       - 'business-app-parity/shared/scripts/test-real-wrangler-local-d1-export.mjs'
       - 'business-app-parity/shared/scripts/test-fire-service-catalog-pricing.mjs'
@@ -194,6 +196,22 @@ jobs:
         run: python3 ../test_owner_windows_build_qa_candidate.py
       - name: First QA Worker publication must require exact owner consent and preserve secrets
         run: python3 ../test_owner_windows_first_qa_publish.py
+      - name: Ensure QA Worker release script parses under PowerShell without executing it
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '../owner_windows_first_qa_publish.ps1'),
+            [ref]$tokens, [ref]$parseErrors
+          ) | Out-Null
+          if ($parseErrors.Count -ne 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            throw "FIRE QA Windows publish script contains PowerShell syntax errors."
+          }
+          Write-Host 'PASS: First QA release script parses without executing deployment.'
+      - name: QA deployment manifest compatibility must change exactly legacy_env=true
+        run: node ../test_prepare_qa_deploy_config.mjs
       - name: Verify real Wrangler local D1 export and private SQL restoration
         run: node scripts/test-real-wrangler-local-d1-export.mjs
       - name: Protect owner-approved FIRE service rates in the shared source
