@@ -57,9 +57,21 @@ class FirstQAPublishContract(unittest.TestCase):
         self.assertIn("Authenticated global Wrangler CLI missing", SCRIPT)
         self.assertIn("A separately installed global Wrangler is required", SCRIPT)
         self.assertNotIn("& $builtWrangler d1", SCRIPT)
-        self.assertIn("$LASTEXITCODE -ne 0", SCRIPT)
-        self.assertIn("$probeText -match '10007'", SCRIPT)
-        self.assertIn("$probeText -match 'does not exist'", SCRIPT)
+        # Windows PowerShell 5.1 converts Wrangler's expected stderr 10007
+        # into ErrorRecord; capture its complete text without swallowing other
+        # errors or loosening the no-overwrite requirement.
+        self.assertIn("$oldErrorActionPreference = $ErrorActionPreference", SCRIPT)
+        self.assertIn("$ErrorActionPreference = 'Continue'", SCRIPT)
+        self.assertIn("$ErrorActionPreference = $oldErrorActionPreference", SCRIPT)
+        self.assertIn("$probeExitCode = $LASTEXITCODE", SCRIPT)
+        self.assertIn("$probeExitCode -is [int] -and $probeExitCode -ne 0", SCRIPT)
+        self.assertIn("$probeText -match 'This Worker does not exist on your account'", SCRIPT)
+        self.assertIn("$probeText -match '\\[code:\\s*10007\\]'", SCRIPT)
+        self.assertNotIn("$probe = @($_.ToString())", SCRIPT)
+        self.assertLess(SCRIPT.index("$ErrorActionPreference = $oldErrorActionPreference"),
+                        SCRIPT.index("Require ($probeExitCode -is [int]"))
+        self.assertLess(SCRIPT.index("Require ($probeExitCode -is [int]"),
+                        SCRIPT.index("$typed = Read-Host"))
         self.assertLess(SCRIPT.index("Worker name is occupied or Cloudflare result ambiguous"),
                         SCRIPT.index("$typed = Read-Host"))
         self.assertLess(SCRIPT.index("$typed = Read-Host"), SCRIPT.index("$secretFile = Join-Path"))
