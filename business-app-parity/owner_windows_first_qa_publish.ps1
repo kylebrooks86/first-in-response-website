@@ -109,6 +109,10 @@ Require ($typed -ceq $approval) 'Exact owner publication approval not provided; 
 # Save both private values in ONE access-restricted, temporary JSON secrets file
 # under the owner's private Windows directory, never inside Git/the build.
 # Wrangler --secrets-file uploads code + both secret values in the same deployment.
+# Never replace or silently delete an earlier temporary secrets file. If a
+# previous run left one behind, stop and investigate locally before proceeding.
+$leftovers = @(Get-ChildItem -LiteralPath $privateDir -Filter 'qa-firstpublish-*.json' -File)
+Require ($leftovers.Count -eq 0) 'An earlier QA temporary secrets file is still present. Stop and inspect locally before publishing.'
 $secretFile = Join-Path $privateDir ('qa-firstpublish-' + [Guid]::NewGuid().ToString('N') + '.json')
 $pointer = [IntPtr]::Zero
 $secretClear = $null
@@ -124,7 +128,10 @@ try {
         FIRE_QA_SESSION_SECRET = $secretClear
     })
     $bytes = [Text.UTF8Encoding]::new($false).GetBytes($json)
-    $stream = [IO.FileStream]::new($secretFile, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    # Do not create an unprotected file and attempt SetAccessControl on the
+    # already-open stream: Windows denied that operation on the owner's Acer.
+    # .NET Framework's 7-argument constructor applies the owner-only DACL
+    # AT FILE CREATION. Do not write a single secret byte until read-back passes.
     $security = [Security.AccessControl.FileSecurity]::new()
     $security.SetAccessRuleProtection($true, $false)
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent().User
@@ -132,7 +139,23 @@ try {
         [Security.AccessControl.FileSystemRights]::FullControl,
         [Security.AccessControl.AccessControlType]::Allow)
     $security.AddAccessRule($rule)
-    $stream.SetAccessControl($security)
+    $stream = [IO.FileStream]::new($secretFile,
+        [IO.FileMode]::CreateNew,
+        [Security.AccessControl.FileSystemRights]::Write,
+        [IO.FileShare]::None, 4096, [IO.FileOptions]::None, $security)
+    $stream.Dispose()
+    $stream = $null
+    $effective = [IO.File]::GetAccessControl($secretFile,
+        [Security.AccessControl.AccessControlSections]::Access)
+    Require ($effective.AreAccessRulesProtected) 'Temporary secrets file inherits permissions. Refusing to write any secrets.'
+    $permissions = @($effective.GetAccessRules($true, $false,
+        [Security.Principal.SecurityIdentifier]))
+    Require ($permissions.Count -eq 1 -and
+        $permissions[0].IdentityReference.Value -eq $identity.Value -and
+        $permissions[0].AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and
+        ($permissions[0].FileSystemRights -band [Security.AccessControl.FileSystemRights]::WriteData)) 'Temporary secrets file ACL is not owner-only. Refusing to write any secrets.'
+    $stream = [IO.FileStream]::new($secretFile, [IO.FileMode]::Open,
+        [IO.FileAccess]::Write, [IO.FileShare]::None)
     $stream.Write($bytes, 0, $bytes.Length)
     $stream.Flush()
     $stream.Dispose()
