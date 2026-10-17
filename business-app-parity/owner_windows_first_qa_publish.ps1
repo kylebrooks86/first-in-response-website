@@ -201,7 +201,7 @@ try {
     if (Test-Path -LiteralPath $secretFile) {
         Remove-Item -LiteralPath $secretFile -Force
     }
-
+}
 } finally {
     if (Test-Path -LiteralPath $deployManifest -PathType Leaf) {
         Remove-Item -LiteralPath $deployManifest -Force
