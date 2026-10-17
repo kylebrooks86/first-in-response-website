@@ -1586,7 +1586,7 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string)=>void}){
   </PopoverContent></Popover>;
 }
 
-export function Dashboard({userName,metrics,estimates,environment="LIVE",localCustomersCandidate=false}:{localCustomersCandidate?:boolean;environment?:"LIVE"|"DOOMSDAY"|"STAGING";userName:string;metrics:{estimates:number;openValue:number;outstanding:number};estimates:EstimateRow[]}) {
+export function Dashboard({userName,metrics,estimates,environment="LIVE",localCustomersCandidate=false}:{localCustomersCandidate?:boolean;environment?:"LIVE"|"DOOMSDAY"|"STAGING"|"QA";userName:string;metrics:{estimates:number;openValue:number;outstanding:number};estimates:EstimateRow[]}) {
   const [tab, setTab] = useState("dashboard");
   const [interactive, setInteractive] = useState(false);
   useEffect(() => { setInteractive(true); }, []);
