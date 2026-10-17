@@ -13,6 +13,12 @@ assert.equal(cfg.name,name,"Only the new QA Worker name is permitted");
 assert.deepEqual(cfg.d1_databases,[{binding:"DB",database_name:db,database_id:id}],
   "Built QA must bind exactly ONE newly created D1, via app's DB binding");
 assert.equal(cfg.workers_dev,true,"QA should not use existing custom routes");
+assert.deepEqual(cfg.secrets?.required,
+  ["FIRE_QA_PASSWORD_HASH", "FIRE_QA_SESSION_SECRET"],
+  "Hosted QA must declare BOTH private owner-login secrets as required for release");
+assert.ok(!Object.hasOwn(cfg.vars ?? {}, "FIRE_QA_PASSWORD_HASH") &&
+  !Object.hasOwn(cfg.vars ?? {}, "FIRE_QA_SESSION_SECRET"),
+  "Required QA secrets must NEVER be stored as plain Worker vars");
 assert.ok(!cfg.routes?.length && !cfg.route && !cfg.zone_id && !cfg.account_id,
   "QA build must not target existing routing, zones or foreign accounts");
 // Wrangler may emit default empty objects and empty nested queues/DO arrays.
