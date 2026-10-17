@@ -55,3 +55,19 @@ wrangler.cmd d1 info fire-fullapp-qa-db-20261016 --json
 ```
 
 This is an official Cloudflare **read-only** info command, not a schema mutation. Confirm it identifies the new D1 and shows empty/new status. After observing that, obtain precise existing `workers.dev` account subdomain (without sharing secrets) and validate the QA-only runtime configuration, before applying any synthetic-only schema to the isolated new DB. No full app release gate passes from D1 provisioning alone.
+
+
+## Owner-read-only D1 verification (October 17 UTC)
+
+After successful creation, owner ran `wrangler.cmd d1 info fire-fullapp-qa-db-20261016 --json` in already authenticated PowerShell and photographed output. This is **real Cloudflare read-only evidence**, not a simulated result:
+- Returned UUID `8ccfb1f8-1657-4074-b1b2-47de78f95003` with exact new QA name.
+- Region WNAM; **num_tables: 0**, `database_size: 12288`, `read_queries_24h: 0`, `write_queries_24h: 0`, `rows_read_24h: 0`, `rows_written_24h: 0`.
+- Read replication disabled. These statistics support a new empty D1 at observation time, not a verified persistent hosted schema.
+- No migration, schema, Worker app, R2 bucket or auth secret configured by this read-only check.
+- Distinct from preexisting `fire-app-staging-db` UUID `afb2c05a-d794-4a9a-b580-924ce01c26ad`. **Never execute any migration on staging or the old independent Doomsday D1**.
+
+The pinned QA Worker build config and its built-manifest guard passed all seven CI jobs at commit `654cd34b468b698c10183fa29b35f95e73096214`:
+https://github.com/kylebrooks86/first-in-response-website/actions/runs/38997288618
+That CI validates only the built artifact; **it does not apply migrations or prove any deployed origin**.
+
+**Next owner-facing task** is discover the owner's exact Cloudflare `workers.dev` account subdomain from the Cloudflare Workers & Pages dashboard (no keys, no passwords), then generate and validate the exact QA URL. Until then `SITE_ORIGIN` stays unset and QA authentication remains fail-closed. Separately prepare and rehearse all 23 migrations with an exact new-DB guard before any authorized remote schema initialization; do not ask owner to run generic `wrangler d1 migrations apply` against an unverified configuration. Official gates remain 3/10.
