@@ -28,16 +28,20 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
                      "FROM ' + $expectedOldVersion",
                      "$afterVersions.Count -eq 1",
                      "[string]$afterVersions[0].version_id -ceq $expectedOldVersion",
-                     "d1 info $dbName --json",
-                     "$d1.name -ceq $dbName -and $d1.uuid -ceq $dbId",
+                     "d1 list --json",
+                     "$d1.qaName -ceq $dbName -and $d1.qaUuid -ceq $dbId",
                      "QA Worker was updated by another operation"):
             self.assertIn(text,S)
         self.assertNotIn("fire-app-staging-db",S)
+        self.assertNotIn("d1 info ", S)
+        self.assertIn("qa_d1_identity_from_list.ps1", S)
+        self.assertIn("& $identityHelper -Json ($rawD1 -join [Environment]::NewLine)", S)
+        self.assertLess(S.index("Require ($typed -ceq $approval)"), S.index("d1 list --json"))
         self.assertLess(S.index("deployments status --name $workerName --json"),S.index("$typed = Read-Host"))
         self.assertLess(S.index("$typed = Read-Host"),S.rindex("deployments status --name $workerName --json"))
         self.assertNotIn("$statusText -match", S)
-        self.assertLess(S.index("deployments status --name"),S.index("d1 info $dbName"))
-        self.assertLess(S.index("d1 info $dbName"),S.index("deploy --config $temporaryManifest --name"))
+        self.assertLess(S.index("deployments status --name"),S.index("d1 list --json"))
+        self.assertLess(S.index("d1 list --json"),S.index("deploy --config $temporaryManifest --name"))
 
     def test_code_only_not_migrations_secrets_or_remote_rollbacks(self):
         prohibited=("Import-Clixml","Export-Clixml","--secrets-file","secret put",
