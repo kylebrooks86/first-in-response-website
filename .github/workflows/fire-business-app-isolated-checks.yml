@@ -355,6 +355,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-candidate"
           node scripts/test-stripe-isolation.mjs
+      - name: Verify hosted QA offline customer vault and separate installed PWA identity
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          node scripts/test-hosted-qa-local-customers.mjs
       - name: Build entire QA Business App candidate without publishing
         run: |
           cd "$RUNNER_TEMP/fire-qa-candidate"
