@@ -7,11 +7,11 @@ import { defineConfig } from "vite";
 const QA_WORKER = "fire-fullapp-qa-20261016";
 const QA_DB_NAME = "fire-fullapp-qa-db-20261016";
 const QA_DB_ID = "8ccfb1f8-1657-4074-b1b2-47de78f95003";
-const qaSiteOrigin = process.env.FIRE_QA_SITE_ORIGIN || "";
-// Site origin must be discovered from the owner's account before first deployment.
-// Intentionally EMPTY in CI: unconfigured authentication then fails closed.
-if (qaSiteOrigin && !/^https:\/\/fire-fullapp-qa-20261016\.[a-z0-9-]+\.workers\.dev$/.test(qaSiteOrigin)) {
-  throw new Error("QA HTTPS origin does not match the isolated Worker identity.");
+// Account origin verified by owner-provided Cloudflare Workers dashboard screenshot.
+// Pin the FULL origin to prevent a QA build from targeting any other account.
+const QA_SITE_ORIGIN = "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev";
+if (process.env.FIRE_QA_SITE_ORIGIN && process.env.FIRE_QA_SITE_ORIGIN !== QA_SITE_ORIGIN) {
+  throw new Error("FIRE QA origin override does not match the verified account.");
 }
 
 export default defineConfig(async () => {
@@ -35,7 +35,7 @@ export default defineConfig(async () => {
           vars: {
             FIRE_ENV: "synthetic-qa",
             FIRE_QA_SYNTHETIC_ONLY: "enabled",
-            SITE_ORIGIN: qaSiteOrigin
+            SITE_ORIGIN: QA_SITE_ORIGIN
           },
           d1_databases: [{ binding: "DB", database_name: QA_DB_NAME, database_id: QA_DB_ID }]
           // No R2, Stripe, DNS, routes or existing Worker bindings.
