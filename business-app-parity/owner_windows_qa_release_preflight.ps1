@@ -52,13 +52,17 @@ Write-Host 'PASS: Original owner-only QA credential metadata exists and is consi
 
 $wrangler = Get-Command 'wrangler.cmd' -ErrorAction SilentlyContinue
 Assert-True ($null -ne $wrangler) 'wrangler.cmd was not found. Nothing was changed.'
-$rawList = @(& $wrangler.Source d1 list --json)
-$inventory = @(Read-Json $rawList 'Cloudflare read-only D1 list')
-Assert-True (@($inventory | Where-Object { $_.name -ceq $qaName -and $_.uuid -ceq $qaUuid }).Count -eq 1) 'Expected isolated QA D1 not uniquely present.'
-Assert-True (@($inventory | Where-Object { $_.name -ceq $protectedName -and $_.uuid -ceq $protectedUuid }).Count -eq 1) 'Existing independent staging D1 identity differs; stop.'
+# The broad D1 list endpoint may return Cloudflare 10000 even when the
+# authenticated account can read a database by its exact name. Verify BOTH
+# named resource identities separately; never select the first listed DB.
 $rawInfo = @(& $wrangler.Source d1 info $qaName --json)
 $info = Read-Json $rawInfo 'Cloudflare read-only QA D1 info'
-Assert-True ($info.uuid -ceq $qaUuid -and $info.name -ceq $qaName) 'Remote D1 name/UUID mismatch.'
+Assert-True ($info.uuid -ceq $qaUuid -and $info.name -ceq $qaName) 'Remote QA D1 name/UUID mismatch.'
+$rawProtected = @(& $wrangler.Source d1 info $protectedName --json)
+$protectedInfo = Read-Json $rawProtected 'Cloudflare read-only protected staging D1 info'
+Assert-True ($protectedInfo.uuid -ceq $protectedUuid -and
+    $protectedInfo.name -ceq $protectedName) 'Protected existing staging D1 identity differs; stop.'
+Assert-True ($info.uuid -cne $protectedInfo.uuid) 'Isolated QA and protected staging D1 identities must differ.'
 Assert-True ($null -ne $info.num_tables -and [int]$info.num_tables -gt 0) 'QA database is empty or table count unavailable; do NOT initialize/reapply migrations.'
 
 # One SELECT statement. No customer rows, amounts, emails, secrets, payments or
