@@ -16,7 +16,7 @@ class FirstQAPublishContract(unittest.TestCase):
         self.assertIn("Require ($typed -ceq $approval)", SCRIPT)
         # The earlier 'wrangler deploy --help' is read-only; only the exact
         # executable publish invocation must be after explicit -Publish gating.
-        for action in ("& $remoteWrangler.Source deploy --config $manifest --secrets-file",
+        for action in ("& $remoteWrangler.Source deploy --config $deployManifest --secrets-file",
                        "ConvertTo-Json -Compress", "FileStream]::new($secretFile"):
             # Ensure remote code and sensitive temporary file creation are gated.
             self.assertGreater(SCRIPT.index(action), SCRIPT.index("if (-not $Publish)"))
@@ -78,6 +78,14 @@ class FirstQAPublishContract(unittest.TestCase):
 
     def test_single_secret_file_and_cleanup_even_if_deploy_fails(self):
         self.assertIn("FIRE-QA-Private", SCRIPT)
+        self.assertIn("prepare_qa_deploy_config.mjs", SCRIPT)
+        self.assertIn("& $node.Source $prepareDeploy $manifest $deployManifest", SCRIPT)
+        self.assertIn("& $remoteWrangler.Source deploy --dry-run --config $deployManifest --name $workerName", SCRIPT)
+        self.assertIn("Wrangler no-upload QA first-release dry run", SCRIPT)
+        self.assertIn("Remove-Item -LiteralPath $deployManifest -Force", SCRIPT)
+        self.assertNotIn("& $remoteWrangler.Source deploy --config $manifest", SCRIPT)
+        self.assertLess(SCRIPT.index("--dry-run --config $deployManifest"), SCRIPT.index("$typed = Read-Host"))
+        self.assertLess(SCRIPT.index("$typed = Read-Host"), SCRIPT.index("--config $deployManifest --secrets-file"))
         self.assertIn("'qa-owner-secrets.xml'", SCRIPT)
         self.assertIn("qa-firstpublish-", SCRIPT)
         self.assertIn("FileMode]::CreateNew", SCRIPT)
