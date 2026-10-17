@@ -17,7 +17,11 @@ $candidate = Join-Path $env:LOCALAPPDATA ('FIRE-QA-Builds\qa-' + $reviewedCandid
 $manifest = Join-Path $candidate 'dist\server\wrangler.json'
 $privateDir = Join-Path $env:LOCALAPPDATA 'FIRE-QA-Private'
 $privateFile = Join-Path $privateDir 'qa-owner-secrets.xml'
-$wrangler = Join-Path $candidate 'node_modules\.bin\wrangler.cmd'
+$builtWrangler = Join-Path $candidate 'node_modules\.bin\wrangler.cmd'
+# The pinned build Wrangler differs from the authenticated global CLI that
+# successfully inspected the QA D1 on Acer. Use the working global CLI for
+# BOTH read-only remote checks and any separately approved first publication.
+$remoteWrangler = Get-Command 'wrangler.cmd' -ErrorAction SilentlyContinue
 $verifySource = Join-Path $PSScriptRoot 'verify_materialized_candidate.py'
 $verifyRuntime = Join-Path $PSScriptRoot 'check_qa_runtime_config.mjs'
 function Require([bool]$ok, [string]$message) {
@@ -26,7 +30,7 @@ function Require([bool]$ok, [string]$message) {
 function Require-Exit([string]$name) { Require ($LASTEXITCODE -eq 0) ($name + ' failed. STOP without publishing.') }
 function Read-CheckedD1([string]$name, [string]$expectedUuid) {
     # Read-only individual database lookup; deliberately avoids the broken D1 list API.
-    $raw = @(& $wrangler d1 info $name --json)
+    $raw = @(& $remoteWrangler.Source d1 info $name --json)
     Require-Exit ('Read-only D1 identity lookup for ' + $name)
     try { $info = ConvertFrom-Json -InputObject ($raw -join [Environment]::NewLine) }
     catch { throw 'FIRE QA STOP: Invalid read-only D1 response.' }
@@ -44,15 +48,18 @@ Require ($currentBranch -ceq 'work/fire-business-app-parity-2026-10-08') 'Wrong 
 $changes = @(& $git.Source -C $repo status --porcelain --untracked-files=no)
 Require-Exit 'Read-only Git tracked files'
 Require ($changes.Count -eq 0) 'Preserve uncommitted source changes and stop.'
-foreach ($path in @($candidate, $manifest, $privateFile, $verifySource, $verifyRuntime, $wrangler)) {
+Require ($null -ne $remoteWrangler) 'Authenticated global Wrangler CLI missing. No remote operation attempted.'
+foreach ($path in @($candidate, $manifest, $privateFile, $verifySource, $verifyRuntime, $builtWrangler)) {
     Require (Test-Path -LiteralPath $path) 'Expected pinned candidate, credential record, or verifier missing.'
 }
+Require ([IO.Path]::GetFullPath($remoteWrangler.Source) -cne
+    [IO.Path]::GetFullPath($builtWrangler)) 'A separately installed global Wrangler is required for authenticated remote requests.'
 Require (-not ((Get-Item -LiteralPath $candidate).Attributes -band [IO.FileAttributes]::ReparsePoint)) 'QA candidate directory cannot be a symlink.'
 & $python.Source $verifySource qa $candidate --built
 Require-Exit 'Reverified exact full-app shared/QA adapter sources'
 & $node.Source $verifyRuntime $manifest
 Require-Exit 'Reverified compiled Worker identity, both required secrets, and isolated database'
-$rawHelp = @(& $wrangler deploy --help)
+$rawHelp = @(& $remoteWrangler.Source deploy --help)
 Require-Exit 'Read-only Wrangler deploy help'
 Require (($rawHelp -join [Environment]::NewLine) -match '--secrets-file') 'Pinned Wrangler must support one-step code+secret deployment.'
 try { $record = Import-Clixml -LiteralPath $privateFile }
@@ -77,7 +84,7 @@ if (-not $Publish) {
 # Cloudflare deployment changes a remote resource. Protect it with a fresh
 # exact Worker-name collision check AND typed owner consent after all preflights.
 $probe = @()
-try { $probe = @(& $wrangler deployments list --name $workerName 2>&1) }
+try { $probe = @(& $remoteWrangler.Source deployments list --name $workerName 2>&1) }
 catch { $probe = @($_.ToString()) }
 $probeText = ($probe | Out-String)
 Require ($LASTEXITCODE -ne 0 -and $probeText -match '10007' -and
@@ -124,7 +131,7 @@ try {
     $bytes = $null
     Push-Location $candidate
     try {
-        & $wrangler deploy --config $manifest --secrets-file $secretFile --name $workerName
+        & $remoteWrangler.Source deploy --config $manifest --secrets-file $secretFile --name $workerName
         Require-Exit 'Isolated QA-only first Worker publication'
     } finally { Pop-Location }
     Write-Host ('PASS: QA Worker publication command succeeded: ' + $workerName)
