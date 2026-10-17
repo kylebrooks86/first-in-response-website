@@ -21,8 +21,11 @@ class QAPostMigrationReadOnlyContract(unittest.TestCase):
 
     def test_read_only_no_upload_or_deploy_commands(self):
         self.assertIn("param()", SCRIPT)
-        self.assertIn("d1 list --json", SCRIPT)
-        self.assertIn("d1 info $qaName --json", SCRIPT)
+        self.assertNotIn("d1 list --json", SCRIPT)
+        self.assertEqual(SCRIPT.count("d1 info $qaName --json"), 1)
+        self.assertEqual(SCRIPT.count("d1 info $protectedName --json"), 1)
+        self.assertIn("$info.uuid -cne $protectedInfo.uuid", SCRIPT)
+        self.assertIn("Cloudflare read-only protected staging D1 info", SCRIPT)
         self.assertIn("d1 execute $qaName --remote", SCRIPT)
         self.assertEqual(len(re.findall(r"(?m)^\s*\$rawQuery\s*=\s*@", SCRIPT)), 1)
         self.assertNotRegex(SCRIPT, r"(?m)^\s*(?:&\s*\$wrangler\.Source|wrangler(?:\.cmd)?)\s+(?:deploy|secret|publish|delete|upload|d1\s+migrations)")
