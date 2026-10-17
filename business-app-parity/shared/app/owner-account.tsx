@@ -1,6 +1,6 @@
 "use client";
 
-export function OwnerAccountView({theme,onToggleTheme,environment="LIVE"}:{environment?:"LIVE"|"DOOMSDAY"|"STAGING";theme:"light"|"dark";onToggleTheme:()=>void}) {
+export function OwnerAccountView({theme,onToggleTheme,environment="LIVE"}:{environment?:"LIVE"|"DOOMSDAY"|"STAGING"|"QA";theme:"light"|"dark";onToggleTheme:()=>void}) {
   return <div className="dashboard-view owner-account-view">
     <section className="welcome-row"><div><p className="eyebrow">FIRE Business App</p><h1>Owner Account</h1><p>Profile, business contact information, and app preferences.</p></div></section>
     <section className="record-card" style={{padding:20,marginBottom:16}}>
@@ -22,7 +22,7 @@ export function OwnerAccountView({theme,onToggleTheme,environment="LIVE"}:{envir
     </section>
     <section className="record-card" style={{padding:20}}>
       <h2>Security &amp; account management</h2>
-      <p>{environment==="DOOMSDAY"?"Owner access uses the independent deployment’s existing signed-cookie authentication.":"Owner access remains protected by ChatGPT sign-in and the existing owner-only checks."}</p>
+      <p>{(environment==="DOOMSDAY" || environment==="QA")?"Owner access uses the independent deployment’s existing signed-cookie authentication.":"Owner access remains protected by ChatGPT sign-in and the existing owner-only checks."}</p>
     </section>
   </div>;
 }
