@@ -16,7 +16,7 @@ class FirstQAPublishContract(unittest.TestCase):
         self.assertIn("Require ($typed -ceq $approval)", SCRIPT)
         # The earlier 'wrangler deploy --help' is read-only; only the exact
         # executable publish invocation must be after explicit -Publish gating.
-        for action in ("& $wrangler deploy --config $manifest --secrets-file",
+        for action in ("& $remoteWrangler.Source deploy --config $manifest --secrets-file",
                        "ConvertTo-Json -Compress", "FileStream]::new($secretFile"):
             # Ensure remote code and sensitive temporary file creation are gated.
             self.assertGreater(SCRIPT.index(action), SCRIPT.index("if (-not $Publish)"))
@@ -50,7 +50,13 @@ class FirstQAPublishContract(unittest.TestCase):
             self.assertNotIn(forbidden, SCRIPT)
 
     def test_first_publish_only_if_worker_absent(self):
-        self.assertIn("$wrangler deployments list --name $workerName", SCRIPT)
+        self.assertIn("$remoteWrangler.Source deployments list --name $workerName", SCRIPT)
+        self.assertIn("$remoteWrangler.Source deploy --help", SCRIPT)
+        self.assertIn("$remoteWrangler.Source d1 info $name --json", SCRIPT)
+        self.assertIn("Get-Command 'wrangler.cmd' -ErrorAction SilentlyContinue", SCRIPT)
+        self.assertIn("Authenticated global Wrangler CLI missing", SCRIPT)
+        self.assertIn("A separately installed global Wrangler is required", SCRIPT)
+        self.assertNotIn("& $builtWrangler d1", SCRIPT)
         self.assertIn("$LASTEXITCODE -ne 0", SCRIPT)
         self.assertIn("$probeText -match '10007'", SCRIPT)
         self.assertIn("$probeText -match 'does not exist'", SCRIPT)
@@ -73,7 +79,7 @@ class FirstQAPublishContract(unittest.TestCase):
         self.assertIn("Remove-Item -LiteralPath $secretFile -Force", SCRIPT)
         self.assertIn("} finally {", SCRIPT)
         self.assertIn("Array]::Clear($bytes", SCRIPT)
-        self.assertEqual(len(re.findall(r"&\s*\$wrangler deploy --config", SCRIPT)), 1)
+        self.assertEqual(len(re.findall(r"&\s*\$remoteWrangler\.Source deploy --config", SCRIPT)), 1)
         self.assertNotRegex(SCRIPT, r"(?m)^\s*&.*\b(?:migrations|d1 execute|secret put|secret bulk|delete)\b")
 
 if __name__ == "__main__":
