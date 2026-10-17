@@ -55,7 +55,8 @@ Assert-True ($LASTEXITCODE -eq 0) 'Read-only QA D1 info failed.'
 try { $info = ConvertFrom-Json -InputObject ($rawInfo -join [Environment]::NewLine) }
 catch { throw 'FIRE QA STOP: Could not parse QA D1 info.' }
 Assert-True ($info.uuid -ceq $uuid -and $info.name -ceq $name) 'D1 info does not match the new QA database UUID.'
-Assert-True ([int]$info.num_tables -eq 0) 'QA D1 is not empty; refuse potentially destructive or repeat setup.'
+Assert-True ($null -ne $info.PSObject.Properties['num_tables'] -and
+    $null -ne $info.num_tables -and [int]$info.num_tables -eq 0) 'QA D1 is not verifiably empty; refuse potentially destructive or repeat setup.'
 Write-Host 'PASS: Separate Cloudflare QA D1 is empty and matches exact name plus UUID.'
 if (-not $Apply) {
     Write-Host 'DRY RUN PASS. No SQL, migrations, Worker deployment, Stripe, R2 or billing changes.'
