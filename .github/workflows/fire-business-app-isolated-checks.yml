@@ -272,6 +272,8 @@ jobs:
           node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
           node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
           node scripts/test-payment-load-errors.mjs
+          node scripts/test-payment-mobile-ui.mjs
+          node scripts/test-customer-load-recovery.mjs
       - name: Verify on-device customer photo ZIP integrity and owner UI integration
         run: node scripts/test-offline-photo-vault.mjs
       - name: Shared photo storage integrity regression
@@ -362,6 +364,8 @@ jobs:
           node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
           node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
           node scripts/test-payment-load-errors.mjs
+          node scripts/test-payment-mobile-ui.mjs
+          node scripts/test-customer-load-recovery.mjs
       - name: Physical SQLite rollback, journal/index preservation, and anti-tamper checks
         env:
           FIRE_SYNTHETIC_TARGET: ${{ matrix.target }}
@@ -435,6 +439,8 @@ jobs:
           cd "$RUNNER_TEMP/fire-qa-candidate"
           node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
           node scripts/test-payment-load-errors.mjs
+          node scripts/test-payment-mobile-ui.mjs
+          node scripts/test-customer-load-recovery.mjs
           node scripts/test-qa-auth-adapter.mjs
       - name: Real QA payment route guards reject checkout/refund/webhooks before provider or DB
         run: |

@@ -16,7 +16,10 @@ let cursor=0,state=[],posts=[];
 const hooks={useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],value=>state[i]=typeof value==='function'?value(state[i]):value];},useRef:initial=>({current:initial}),useEffect(){}};
 const Button=({children,...props})=>React.createElement('button',props,children);
 const fragment=({children})=>React.createElement(React.Fragment,null,children);
-const context={exports:{},require,useState:hooks.useState,useRef:hooks.useRef,useEffect:hooks.useEffect,Button,Dialog:fragment,DialogContent:fragment,DialogHeader:fragment,DialogTitle:fragment,Label:fragment,Input:props=>React.createElement('input',props),crypto:{randomUUID:()=> 'synthetic-request-id'},window:{setTimeout(){}},money:c=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(c/100),paymentTypeLabel:t=>t,fetch:async(url,options)=>{posts.push({url,...JSON.parse(options.body)});return {ok:true,json:async()=>({pending:true})};},CircleDollarSign:()=>null};
+const sharedHelpers={};
+{const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/customer-balance-summary.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
+{const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/refund-retry-state.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
+const context={exports:{},require,...sharedHelpers,useState:hooks.useState,useRef:hooks.useRef,useEffect:hooks.useEffect,Button,Dialog:fragment,DialogContent:fragment,DialogHeader:fragment,DialogTitle:fragment,Label:fragment,Input:props=>React.createElement('input',props),crypto:{randomUUID:()=> 'synthetic-request-id'},window:{setTimeout(){}},money:c=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(c/100),paymentTypeLabel:t=>t,fetch:async(url,options)=>{posts.push({url,...JSON.parse(options.body)});return {ok:true,json:async()=>({pending:true})};},CircleDollarSign:()=>null};
 const accounting={exports:{},require};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/processing-fees.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,accounting);
 context.summarizeProcessing=accounting.exports.summarizeProcessing;
@@ -36,7 +39,7 @@ check('Refund dialog remains scrollable within a mobile viewport',()=>{const nod
 let tree=refund({...base,pendingRefundId:'pending-id',pendingRefundAmountCents:2100},true);
 nodes(tree).find(n=>n.type===Button&&n.props.className==='payment-refund-action').props.onClick();
 tree=refund({...base,pendingRefundId:'pending-id',pendingRefundAmountCents:2100});
-await nodes(tree).find(n=>n.type===Button&&n.props.className==='brand-button').props.onClick();
+await nodes(tree).find(n=>n.type===Button&&n.props.className==='brand-button').props.onClick();await new Promise(resolve=>setImmediate(resolve));
 check('Pending Stripe retry preserves payment ID, request ID and amount',()=>{assert.equal(posts.length,1);assert.deepEqual(posts[0],{url:'/api/payments/refund',paymentId:'synthetic-payment',requestId:'pending-id',amountCents:2100,externalRefundConfirmed:false,note:''});});
 const manual={...base,stripePayment:0};const beforeManual=posts.length;
 nodes(refund(manual,true)).find(n=>n.type===Button&&n.props.className==='payment-refund-action').props.onClick();
