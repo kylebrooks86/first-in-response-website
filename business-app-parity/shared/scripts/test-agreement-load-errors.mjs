@@ -8,7 +8,9 @@ const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ContractsView');
 let state=[],cursor=0,effect,requests=[],responder;
 const stubs=Object.fromEntries(['Button','EstimateDetail','PenLine','MessageSquareText','Clock3','ChevronRight'].map(name=>[name,()=>null]));
-const context={exports:{},require,Error,Array,...stubs,
+const pagination={exports:{},require};
+vm.runInNewContext(ts.transpileModule(readFileSync('lib/estimate-pagination.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,pagination);
+const context={exports:{},require,...pagination.exports,Error,Array,...stubs,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},
  useRef:initial=>({current:initial}),useEffect(fn){effect=fn;},fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),
 };
@@ -17,7 +19,7 @@ function render(searchQuery=''){cursor=0;return context.exports.view({searchQuer
 function nodes(tree){const out=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;out.push(n);walk(n.props?.children);}walk(tree);return out;}
 async function settle(){for(let i=0;i<16;i++)await Promise.resolve();assert.equal(state[2],false,'Load must settle');}
 const job={id:'job-synthetic',customer:'Synthetic QA',service:'House Wash',status:'approved',signedAt:'2026-10-09T12:00:00Z',signedName:'Synthetic Signer',totalCents:10000,depositCents:5000,paidCents:2000,pendingChangeCount:0};
-const ok=estimates=>({ok:true,json:async()=>({estimates})});
+const ok=estimates=>({ok:true,json:async()=>({estimates,nextCursor:null})});
 let checks=0;function equal(a,b){assert.equal(a,b);checks++;}
 const failures=[
  [()=>({ok:false,json:async()=>({error:'Agreement access denied'})}),'Agreement access denied'],
@@ -34,7 +36,7 @@ for(const [fail,message] of failures)for(const populated of [false,true]){
  effect();await settle();equal(state[3],message);equal(state[0].length,populated?1:0);equal(state[1],null);
  const all=nodes(render());const alert=all.find(n=>n.props?.role==='alert');assert.ok(alert);checks++;
  equal(alert.props.children[0].props.children,message);equal(all.some(n=>n.props?.className==='business-metrics'),false);equal(all.some(n=>n.props?.className==='contract-list'),false);equal(all.some(n=>n.props?.children==='No agreements yet'),false);
- responder=()=>ok([job]);requests=[];alert.props.children[1].props.onClick();await settle();equal(state[3],'');equal(requests.length,1);equal(requests[0],'/api/estimates');
+ responder=()=>ok([job]);requests=[];alert.props.children[1].props.onClick();await settle();equal(state[3],'');equal(requests.length,1);equal(requests[0],'/api/estimate-history?limit=50');
  const recovered=nodes(render());equal(recovered.some(n=>n.props?.role==='alert'),false);equal(recovered.some(n=>n.props?.className==='business-metrics'),true);
  const list=recovered.find(n=>n.props?.className==='contract-list');assert.ok(list);checks++;const card=list.props.children[0];equal(nodes(card).some(n=>n.props?.className==='contract-state signed'),true);card.props.onClick();equal(state[1].signedName,'Synthetic Signer');
 }

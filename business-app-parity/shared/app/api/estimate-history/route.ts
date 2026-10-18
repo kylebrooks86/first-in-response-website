@@ -52,6 +52,6 @@ export async function GET(request:Request){
   }
   const estimates=page.map(row=>({...row,items:grouped.get(row.id)??[]}));
   const nextCursor=!focus&&result.results.length>size&&last?btoa(JSON.stringify({createdAt:last.createdAt,id:last.id})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,""):null;
-  return Response.json({estimates,nextCursor,pageSize:size});
+  return Response.json({estimates,nextCursor,pageSize:size},{headers:{"Cache-Control":"no-store"}});
  }catch{return Response.json({error:"Estimate history could not be read."},{status:503});}
 }

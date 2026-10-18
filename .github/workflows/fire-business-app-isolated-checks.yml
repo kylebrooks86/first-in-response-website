@@ -272,6 +272,9 @@ jobs:
           node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
           node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
           node scripts/test-payment-load-errors.mjs
+          node scripts/test-schedule-load-errors.mjs
+          node scripts/test-agreement-load-errors.mjs
+          node scripts/test-complete-estimate-pages.mjs
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
       - name: Verify on-device customer photo ZIP integrity and owner UI integration
@@ -364,6 +367,9 @@ jobs:
           node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
           node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
           node scripts/test-payment-load-errors.mjs
+          node scripts/test-schedule-load-errors.mjs
+          node scripts/test-agreement-load-errors.mjs
+          node scripts/test-complete-estimate-pages.mjs
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
       - name: Physical SQLite rollback, journal/index preservation, and anti-tamper checks
@@ -439,6 +445,9 @@ jobs:
           cd "$RUNNER_TEMP/fire-qa-candidate"
           node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
           node scripts/test-payment-load-errors.mjs
+          node scripts/test-schedule-load-errors.mjs
+          node scripts/test-agreement-load-errors.mjs
+          node scripts/test-complete-estimate-pages.mjs
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-qa-auth-adapter.mjs
@@ -472,6 +481,7 @@ jobs:
           node scripts/test-qa-worker-http-browser.mjs
           node scripts/test-qa-worker-http-browser.mjs --customer-lookup
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
+          node scripts/test-qa-worker-http-browser.mjs --complete-ledger
       - name: Seal synthetic-only QA full-app review bundle
         run: |
           python3 business-app-parity/prepare_device_review.py \

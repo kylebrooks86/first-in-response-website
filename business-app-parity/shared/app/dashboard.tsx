@@ -1,4 +1,5 @@
 "use client";
+import {completeEstimatePages} from "@/lib/estimate-pagination";
 import {hasCollectibleJobValue,summarizeCustomerBalances} from "@/lib/customer-balance-summary";
 
 import { CandidateLayoutTrace } from "../components/candidate-layout-trace";
@@ -1331,18 +1332,21 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
   const [selected,setSelected]=useState<EstimateRow|null>(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
+  const loadRequest=useRef(0);
   const load=async()=>{
+    const request=++loadRequest.current;
     setLoading(true);setError("");setSelected(null);
     try{
-      const response=await fetch("/api/estimates");
+      const response=await fetch("/api/estimate-history?limit=50");
       const result=await response.json() as {estimates?:EstimateRow[];error?:string};
       if(!response.ok)throw new Error(result.error||"Schedule could not be loaded.");
       if(!Array.isArray(result.estimates))throw new Error("Schedule records could not be read. Try again.");
-      setRows(result.estimates.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)})));
-    }catch(loadError){setError(loadError instanceof Error?loadError.message:"Schedule could not be loaded.");}
-    finally{setLoading(false);}
+      const complete=await completeEstimatePages<EstimateRow>(result,fetch,()=>request===loadRequest.current);if(!complete)return;
+      setRows(complete.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)})));
+    }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Schedule could not be loaded.");}
+    finally{if(request===loadRequest.current)setLoading(false);}
   };
-  useEffect(()=>{void load();},[]);
+  useEffect(()=>{void load();return()=>{loadRequest.current++;};},[]);
   const matches=(row:EstimateRow)=>[row.customer,row.service,row.address].join(" ").toLowerCase().includes(searchQuery.toLowerCase());
   const now=useCurrentTime();
   const scheduled=rows.filter((row)=>row.scheduledAt&&matches(row)).sort((a,b)=>new Date(a.scheduledAt!).getTime()-new Date(b.scheduledAt!).getTime());
@@ -1391,12 +1395,13 @@ function ContractsView({searchQuery}:{searchQuery:string}){
     const request=++loadRequest.current;
     setLoading(true);setError("");setSelected(null);
     try{
-      const response=await fetch("/api/estimates");
+      const response=await fetch("/api/estimate-history?limit=50");
       const result=await response.json() as {estimates?:EstimateRow[];error?:string};
       if(!response.ok)throw new Error(result.error||"Agreements could not be loaded.");
       if(!Array.isArray(result.estimates))throw new Error("Agreement records could not be read. Try again.");
       if(request!==loadRequest.current)return;
-      setRows(result.estimates.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents),pendingChangeCount:Number(item.pendingChangeCount??0)})));
+      const complete=await completeEstimatePages<EstimateRow>(result,fetch,()=>request===loadRequest.current);if(!complete)return;
+      setRows(complete.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents),pendingChangeCount:Number(item.pendingChangeCount??0)})));
     }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Agreements could not be loaded.");}
     finally{if(request===loadRequest.current)setLoading(false);}
   };
@@ -1521,13 +1526,16 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
     const request=++loadRequest.current;
     setLoading(true);setError("");
     try{
-      const [estimateResponse,paymentResponse]=await Promise.all([fetch("/api/estimates"),fetch("/api/payments")]);
+      const [estimateResponse,paymentResponse]=await Promise.all([fetch("/api/estimate-history?limit=50"),fetch("/api/payments")]);
       const estimateResult=await estimateResponse.json() as {estimates?:EstimateRow[];error?:string};
       const paymentResult=await paymentResponse.json() as {payments?:PaymentRow[];checkoutIssues?:CheckoutIssue[];error?:string};
       if(!estimateResponse.ok)throw new Error(estimateResult.error||"Job balances could not be loaded.");
       if(!paymentResponse.ok)throw new Error(paymentResult.error||"Payment history could not be loaded.");
       if(!Array.isArray(estimateResult.estimates)||!Array.isArray(paymentResult.payments))throw new Error("Payment records could not be read. Try again.");
-      const nextEstimates=estimateResult.estimates.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)}));
+      const complete=await completeEstimatePages<EstimateRow>(estimateResult,fetch,()=>request===loadRequest.current);if(!complete)return;
+      const nextEstimates=complete.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)}));
+      if(nextEstimates.some(item=>[item.totalCents,item.depositCents,item.paidCents,...(item.invoiceTotalCents==null?[]:[Number(item.invoiceTotalCents)])].some(value=>!Number.isSafeInteger(value)||value<0)||item.depositCents>item.totalCents))throw Error("Job balances contain accounting values that require owner review.");
+      if(Object.values(summarizeCustomerBalances(nextEstimates)).some(value=>!Number.isSafeInteger(value)))throw Error("Complete job totals exceed FIRE's safe accounting range. Review records before recording payment.");
       const nextPayments=paymentResult.payments.map((item)=>({...item,amountCents:Number(item.amountCents)}));
       if(request!==loadRequest.current)return;
       setEstimates(nextEstimates);setPayments(nextPayments);setCheckoutIssues(Array.isArray(paymentResult.checkoutIssues)?paymentResult.checkoutIssues:[]);

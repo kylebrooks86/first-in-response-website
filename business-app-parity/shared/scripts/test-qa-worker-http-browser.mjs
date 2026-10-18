@@ -3,6 +3,7 @@
  */
 import assert from 'node:assert/strict';
 import {exerciseCustomerBalances} from './test-customer-balance-workflow.mjs';
+import {exerciseCompleteLedger} from './test-complete-ledger-workflow.mjs';
 import {exerciseCustomerLookup} from './test-customer-lookup-workflow.mjs';
 import {exerciseCustomerProfileControls} from './test-customer-profile-controls.mjs';
 import {createRequire} from 'node:module';
@@ -15,7 +16,7 @@ import {createServer} from 'node:net';
 import {get as httpsGet} from 'node:https';
 import {validateRecordIdentities,validateBackupRelationships,validateRefundIntegrity} from './records-backup-integrity.mjs';
 const require=createRequire(import.meta.url);
-const lookupMode=process.argv.includes('--customer-lookup'),profileMode=process.argv.includes('--customer-profile');
+const lookupMode=process.argv.includes('--customer-lookup'),profileMode=process.argv.includes('--customer-profile'),ledgerMode=process.argv.includes('--complete-ledger');
 if(!process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||!process.env.FIRE_BROWSER_TEST_EXECUTABLE)throw Error('Pinned Chromium runner required');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE);
 const root=resolve(new URL('..',import.meta.url).pathname);
@@ -209,6 +210,7 @@ try{
  }
  if(lookupMode)await exerciseCustomerLookup({page,context,browser,origin,request,check,originalEstimateId:estimate.id});
  if(profileMode){await exerciseCustomerProfileControls({page,context,origin,request,check,originalEstimateId:estimate.id});await exerciseCustomerBalances({page,context,origin,request,check});}
+ if(ledgerMode)await exerciseCompleteLedger({page,context,origin,request,check,originalEstimateId:estimate.id});
  check(outside.length===0&&clientErrors.length===0,'No external network dispatched or uncaught framework client errors: '+JSON.stringify({outside,clientErrors,interceptedSyntheticMapFrames:blockedSyntheticMaps.length}));
  console.log('PASS '+checks+' built QA Worker HTTP / native D1 / Chromium checks. Local synthetic evidence only; no hosted or iOS acceptance claimed.');
 }finally{if(browser)await browser.close();await stop();rmSync(temp,{recursive:true,force:true});}
