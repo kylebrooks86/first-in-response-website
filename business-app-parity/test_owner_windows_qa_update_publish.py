@@ -7,7 +7,12 @@ S=(Path(__file__).parent/"owner_windows_qa_update_publish.ps1").read_text(encodi
 
 class OnlyApprovedQAUpdate(unittest.TestCase):
     def test_defaults_to_read_only(self):
-        self.assertIn("param([switch]$Publish)",S)
+        self.assertIn("param([switch]$Publish,[string]$ApprovalText)",S)
+        self.assertIn("if ($PSBoundParameters.ContainsKey('ApprovalText'))",S)
+        self.assertIn("$typed = $ApprovalText",S)
+        self.assertIn("} else {\n    $typed = Read-Host",S)
+        self.assertIn("Require ($typed -ceq $approval)",S)
+        self.assertLess(S.index("if ($PSBoundParameters.ContainsKey('ApprovalText'))"),S.index("Require ($typed -ceq $approval)"))
         self.assertIn("& $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review",S)
         self.assertIn("if (-not $Publish)",S)
         self.assertIn("REVIEW ONLY PASS. No Worker update or secret upload",S)

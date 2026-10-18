@@ -3,7 +3,7 @@
 # Runs the separately tested read-only update review first. The D1 and both
 # independent QA login secrets MUST remain in place. No R2, Stripe or LIVE.
 [CmdletBinding()]
-param([switch]$Publish)
+param([switch]$Publish,[string]$ApprovalText)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $workerName = 'fire-fullapp-qa-20261016'
@@ -54,7 +54,14 @@ Write-Warning ('This will REPLACE ONLY the code/assets on existing QA Worker ' +
     ' while retaining its current D1 database, fictional customer records and existing owner secrets.')
 Write-Warning ('Exact active QA code version retained for rollback: ' + $expectedOldVersion +
     '. This update does not reset or roll back database contents.')
-$typed = Read-Host ('For this exact QA update only, type ' + $approval)
+# An explicit CLI approval avoids clipboard/prompt confusion on the owner's Acer.
+# Both paths enforce the same full, current code/Worker/D1/rollback identity.
+if ($PSBoundParameters.ContainsKey('ApprovalText')) {
+    $typed = $ApprovalText
+    Write-Host 'Checking exact QA owner approval passed with -ApprovalText.'
+} else {
+    $typed = Read-Host ('For this exact QA update only, type ' + $approval)
+}
 Require ($typed -ceq $approval) 'Exact QA update owner approval not provided.'
 # Race protection: refuse if active Worker changed after owner confirmation.
 $rawStatus = @(& $wrangler.Source deployments status --name $workerName --json)
