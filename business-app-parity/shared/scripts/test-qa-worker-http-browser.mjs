@@ -72,7 +72,9 @@ try{
  await context.route('**/*',route=>{if(new URL(route.request().url()).origin!==origin){outside.push(route.request().url());return route.abort();}return route.continue();});
  const request=async(path,method='GET',data,headers={})=>{
   assert.ok(path.startsWith('/api/')&&!path.startsWith('//'));
-  return context.request.fetch(origin+path,{method,data,headers});
+  // Fix the synthetic client IP; local Wrangler may synthesize different
+  // connecting addresses across platforms. Never rely on runner geo/IP data.
+  return context.request.fetch(origin+path,{method,data,headers:{'cf-connecting-ip':'192.0.2.17','x-forwarded-for':'192.0.2.17',...headers}});
  };
  check((await request('/api/customers')).status()===401,'Real built Worker rejects unauthenticated customer read');
  check((await request('/api/estimates','POST',{customer:'Synthetic forged request'},{'oai-authenticated-user-email':'kylebrooks8605@gmail.com'})).status()===401,'Real HTTP gateway-header spoof cannot authorize an estimate write');
@@ -117,7 +119,7 @@ try{
  }
  const failures=[];
  for(let i=0;i<5;i++)failures.push((await request('/api/auth/login','POST',{password:'synthetic-wrong-passphrase-00000000'})).status());
- check(failures.slice(0,4).every(status=>status===401)&&failures[4]===429,'Native D1 login limiter atomically blocks fifth failed attempt');
+ check(failures.slice(0,4).every(status=>status===401)&&failures[4]===429,'Native D1 login limiter atomically blocks fifth failed attempt: '+JSON.stringify(failures));
  await stop();await start();
  check((await request('/api/auth/login','POST',{password})).status()===429,'Authentication lockout persists after local Worker restart');
  const reloaded=await request('/api/estimates');const saved=(await reloaded.json()).estimates;
