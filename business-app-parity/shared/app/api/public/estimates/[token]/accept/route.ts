@@ -7,11 +7,11 @@ export async function POST(request:Request,context:{params:Promise<{token:string
     const signedName=String(body.signedName??"").trim();
     const photoRelease=body.photoRelease==="yes"?"yes":body.photoRelease==="no"?"no":"";
     if(signedName.length<2||signedName.length>120||!photoRelease||body.acceptedTerms!==true)return Response.json({error:"Please choose photo permission, type your full name, and accept the service agreement."},{status:400});
-    const estimate=await env.DB.prepare(`SELECT e.id,e.customer_id AS customerId,e.status,e.accepted_at AS acceptedAt,c.name AS customer,
+    const estimate=await env.DB.prepare(`SELECT e.id,e.customer_id AS customerId,e.status,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.photo_release AS photoRelease,c.name AS customer,
       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Exterior cleaning service') AS service
-      FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.share_token=? LIMIT 1`).bind(token).first<{id:string;customerId:string;status:string;acceptedAt:string|null;customer:string;service:string}>();
+      FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.share_token=? LIMIT 1`).bind(token).first<{id:string;customerId:string;status:string;acceptedAt:string|null;signedName:string|null;signedAt:string|null;photoRelease:string|null;customer:string;service:string}>();
     if(!estimate)return Response.json({error:"Estimate not found."},{status:404});
-    if(estimate.acceptedAt)return Response.json({ok:true,acceptedAt:estimate.acceptedAt});
+    if(estimate.acceptedAt)return Response.json({ok:true,acceptedAt:estimate.acceptedAt,signedName:estimate.signedName,signedAt:estimate.signedAt,photoRelease:estimate.photoRelease});
     if(!["draft","sent"].includes(estimate.status))return Response.json({error:"This estimate is no longer available for approval. Please contact First In Response Exteriors."},{status:409});
     const now=new Date().toISOString();
     const [accepted]=await env.DB.batch([
@@ -31,11 +31,11 @@ export async function POST(request:Request,context:{params:Promise<{token:string
         .bind(crypto.randomUUID(),"estimate_accepted",`${estimate.customer} approved an estimate`,`${estimate.service} was approved. Contact the customer to schedule the job.`,estimate.customerId,estimate.id,now,estimate.id,now,now,estimate.id),
     ]);
     if(!accepted.meta.changes){
-      const current=await env.DB.prepare("SELECT accepted_at AS acceptedAt,status FROM estimates WHERE id=?").bind(estimate.id).first<{acceptedAt:string|null;status:string}>();
-      if(current?.acceptedAt)return Response.json({ok:true,acceptedAt:current.acceptedAt});
+      const current=await env.DB.prepare("SELECT accepted_at AS acceptedAt,status,signed_name AS signedName,signed_at AS signedAt,photo_release AS photoRelease FROM estimates WHERE id=?").bind(estimate.id).first<{acceptedAt:string|null;status:string;signedName:string|null;signedAt:string|null;photoRelease:string|null}>();
+      if(current?.acceptedAt)return Response.json({ok:true,acceptedAt:current.acceptedAt,signedName:current.signedName,signedAt:current.signedAt,photoRelease:current.photoRelease});
       if(current&&["draft","sent"].includes(current.status))return Response.json({error:"This estimate has a billing or service-line integrity issue and cannot be approved yet. Please contact First In Response Exteriors."},{status:409});
       return Response.json({error:"This estimate changed while you were approving it. Please refresh or contact First In Response Exteriors."},{status:409});
     }
-    return Response.json({ok:true,acceptedAt:now,signedName});
+    return Response.json({ok:true,acceptedAt:now,signedName,signedAt:now,photoRelease});
   }catch{return Response.json({error:"The estimate could not be approved. Please contact First In Response Exteriors."},{status:500});}
 }

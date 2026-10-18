@@ -1,0 +1,64 @@
+{
+  "baselineCommit": "0e42d58cdfb86fda86794ea973d51453e5f384d8",
+  "officialReadiness": {
+    "accepted": 3,
+    "gates": 10,
+    "percent": 30
+  },
+  "implemented": [
+    "Atomic idempotent public change-request receipt with same-ID payload/estimate checks",
+    "Identical open changes deduplicated even for legacy/new-tab IDs",
+    "One atomic notification per persisted change; races with signed approval fail without partial writes",
+    "Uncertain change/approval forms protect original input, block double submission, and offer deliberate same-attempt retries; no automatic POST retry",
+    "Approval replay returns actual immutable signature/timestamp/photo permission",
+    "Estimate-linked notifications open the exact owner estimate/job through existing focus routing",
+    "Focus targets are consumed once; mismatched target data is rejected and target errors persist independently of background history loading"
+  ],
+  "verified": {
+    "publicRouteSQLiteChecksPerCandidate": 47,
+    "builtQaWorkerNativeD1HttpsBrowserChecks": 67,
+    "financialChecksPerCandidate": 208,
+    "candidateTypeScriptBuilds": 4,
+    "financialRegressionSuites": 4,
+    "finalTippingSuites": 3,
+    "dbPreflightChecksPerCandidate": 59,
+    "qaAuthChecks": 33,
+    "exactSourceParityCandidates": [
+      "live",
+      "doomsday",
+      "staging",
+      "qa"
+    ],
+    "notificationWidths": [
+      390,
+      768,
+      1366
+    ],
+    "faults": [
+      "response lost after native D1 change commit",
+      "response lost after native D1 approval commit",
+      "eight concurrent identical changes",
+      "cross-estimate request ID collision",
+      "SQLite batch rollback",
+      "post-commit exception",
+      "approval workflow race",
+      "notification insert failure",
+      "mismatched focused record response"
+    ]
+  },
+  "safety": {
+    "deployed": false,
+    "hostedDataChanged": false,
+    "migrations": false,
+    "stripeCalls": false,
+    "credentialsChanged": false
+  },
+  "limits": [
+    "This mitigates unsafe retries; it does not establish the cause of owner-observed roughly 10-second network failures",
+    "Customer creation and manual payment latency/reconciliation investigation remains pending",
+    "Notification events without an estimate ID retain existing section fallback; dedicated customer-only/invoice-specific routing remains follow-up",
+    "Current public messages/notifications/backup records retained; no historical audit deletion or rewriting",
+    "Native loopback tests are not iPhone Safari/hosted acceptance"
+  ],
+  "backlog": "GATE8_OWNER_IPHONE_20261018_ADDITIONAL_FINDINGS.json"
+}

@@ -1,0 +1,47 @@
+/** Full built QA app, real workerd/D1 and response loss AFTER commit. */
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {validateRecordIdentities,validateBackupRelationships,validateRefundIntegrity} from './records-backup-integrity.mjs';
+export async function exercisePublicEstimateRetry({page,context,origin,request,check,originalEstimateId}){
+ page.setDefaultTimeout(15000);
+ const created=await request('/api/customers','POST',{name:'Synthetic Retry Receipt Customer',email:'retry-receipt@example.invalid'});assert.equal(created.status(),201);const customer=(await created.json()).customer;
+ const create=async(name,totalCents)=>{const r=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[{name,quantity:1,unit:'job',totalCents}]});assert.equal(r.status(),201);return r.json();};
+ const target=await create('Synthetic Retry Target Service',20000),decoy=await create('Synthetic Unrelated Service',30000);
+ await page.goto(origin+'/estimate/'+target.shareToken);await page.getByRole('button',{name:'Need something changed?',exact:true}).click();
+ const draft=page.getByRole('textbox',{name:'Requested estimate changes'}),message='Please include the front gutter in this synthetic request.';await draft.fill(message);
+ const path='**/api/public/estimates/'+target.shareToken+'/change-request',attempts=[];
+ const loseChange=async route=>{attempts.push(route.request().postDataJSON());const response=await route.fetch();assert.equal(response.status(),200);if(attempts.length===1)await route.abort('failed');else await route.fulfill({response});};await context.route(path,loseChange);
+ await page.getByRole('button',{name:'Send change request',exact:true}).evaluate(button=>{button.click();button.click();});
+ await page.getByRole('alert').filter({hasText:'Retry this same request'}).waitFor();
+ check(attempts.length===1&&await draft.isDisabled()&&await draft.inputValue()===message,'A lost change-request response retains the draft, blocks double submission and protects uncertain text');
+ let backup=await (await request('/api/backup')).json();
+ check(backup.tables.estimate_change_requests.filter(row=>row.estimate_id===target.id).length===1&&backup.tables.notifications.filter(row=>row.estimate_id===target.id&&row.type==='estimate_change_requested').length===1,'Native D1 committed exactly one change and one notification before the response was lost');
+ await page.getByRole('button',{name:'Check / retry same request',exact:true}).click();await page.getByText('Your request was sent to First In Response Exteriors.',{exact:true}).waitFor();
+ check(attempts.length===2&&attempts[0].requestId===attempts[1].requestId&&attempts[0].message===attempts[1].message,'Explicit retry reuses the exact change request identity and body');await context.unroute(path,loseChange);
+ const concurrent=await Promise.all(Array.from({length:8},()=>request('/api/public/estimates/'+target.shareToken+'/change-request','POST',{requestId:randomUUID(),message})));
+ check(concurrent.every(response=>response.status()===200),'Eight native D1 concurrent identical request retries confirm the existing receipt');
+ backup=await (await request('/api/backup')).json();check(backup.tables.estimate_change_requests.filter(row=>row.estimate_id===target.id).length===1&&backup.tables.notifications.filter(row=>row.estimate_id===target.id&&row.type==='estimate_change_requested').length===1,'Concurrent and new-tab IDs do not duplicate the pending change or owner alert');
+ check((await request('/api/public/estimates/'+decoy.shareToken+'/change-request','POST',{...attempts[0]})).status()===409,'A request ID cannot be reused for a different estimate');
+ for(const [width,height] of [[390,844],[768,1024],[1366,900]]){
+  await page.setViewportSize({width,height});await page.goto(origin+'/');await page.getByRole('button',{name:/unread notifications|^Notifications$/}).click();await page.locator('.notification-list button').filter({hasText:customer.name+' requested an estimate change'}).click();
+  const detail=page.getByRole('dialog',{name:'Synthetic Retry Target Service',exact:true});await detail.waitFor();check(await detail.locator('.detail-customer').innerText().then(text=>text.includes(customer.name)&&text.includes('$200')),'Notification opens the exact related estimate/job rather than a general section at '+width);
+  await detail.getByRole('button',{name:'Close',exact:true}).click();
+  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('button',{name:'Customers',exact:true}).first().click();await page.getByRole('heading',{name:'Customers',exact:true}).waitFor();await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('button',{name:/^Estimates/}).first().click();await page.getByRole('heading',{name:'Estimates',exact:true}).waitFor();check(await page.getByRole('dialog',{name:'Synthetic Retry Target Service',exact:true}).count()===0,'Consumed notification target does not reopen unexpectedly after navigating away at '+width);
+ }
+ const wrongFocus=route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({estimates:[{id:decoy.id,customer:customer.name,service:'Synthetic Unrelated Service',totalCents:30000,depositCents:15000,paidCents:0,status:'draft'}]})});
+ await context.route('**/api/estimate-history?focus=*',wrongFocus);await page.goto(origin+'/');await page.getByRole('button',{name:/unread notifications|^Notifications$/}).click();await page.locator('.notification-list button').filter({hasText:customer.name+' requested an estimate change'}).click();await page.getByRole('alert').filter({hasText:'The selected estimate could not be found.'}).waitFor();
+ check(await page.locator('.estimate-detail').count()===0,'A mismatched focus response cannot open an unrelated customer/job record');await context.unroute('**/api/estimate-history?focus=*',wrongFocus);
+ await page.setViewportSize({width:390,height:844});await page.goto(origin+'/estimate/'+target.shareToken);await page.locator('#signatureName').fill('Synthetic Original Signer');await page.locator('input[name=photoRelease][value=no]').check();await page.locator('.terms-check input').check();
+ const acceptPath='**/api/public/estimates/'+target.shareToken+'/accept',approvalAttempts=[];
+ const loseApproval=async route=>{approvalAttempts.push(route.request().postDataJSON());const response=await route.fetch();assert.equal(response.status(),200);if(approvalAttempts.length===1)await route.abort('failed');else await route.fulfill({response});};await context.route(acceptPath,loseApproval);
+ await page.getByRole('button',{name:'Sign agreement & approve',exact:true}).evaluate(button=>{button.click();button.click();});await page.getByRole('alert').filter({hasText:'Retry this same approval'}).waitFor();
+ check(approvalAttempts.length===1&&await page.locator('#signatureName').isDisabled()&&await page.locator('input[name=photoRelease][value=no]').isDisabled(),'A lost approval response locks signature/permission to the same explicit attempt and blocks double submission');
+ backup=await (await request('/api/backup')).json();let saved=backup.tables.estimates.find(row=>row.id===target.id);
+ check(saved.status==='approved'&&saved.signed_name==='Synthetic Original Signer'&&saved.photo_release==='no'&&backup.tables.payments.length===0,'Approval committed the original agreement and No marketing choice without recording payment');
+ await page.getByRole('button',{name:'Check / retry same approval',exact:true}).click();await page.getByText(/Estimate approved and agreement signed/).waitFor();check(approvalAttempts.length===2&&JSON.stringify(approvalAttempts[0])===JSON.stringify(approvalAttempts[1]),'Approval retry uses the original payload and reconciles its saved receipt');await context.unroute(acceptPath,loseApproval);
+ const different=await (await request('/api/public/estimates/'+target.shareToken+'/accept','POST',{signedName:'Different Retry Name',photoRelease:'yes',acceptedTerms:true})).json();check(different.signedName==='Synthetic Original Signer'&&different.photoRelease==='no'&&different.signedAt===saved.signed_at,'Server replay receipt returns authoritative immutable signature and permission instead of echoing new choices');
+ backup=await (await request('/api/backup')).json();saved=backup.tables.estimates.find(row=>row.id===target.id);
+ check(backup.tables.notifications.filter(row=>row.estimate_id===target.id&&row.type==='estimate_accepted').length===1&&backup.tables.estimate_change_requests.filter(row=>row.estimate_id===target.id).length===1&&backup.tables.payments.length===0,'Retries preserve one approval alert, one change request and an empty payment ledger');
+ check(!validateRecordIdentities(backup.tables)&&!validateBackupRelationships(backup.tables)&&!validateRefundIntegrity(backup.tables),'Retry receipts and stable notification IDs remain valid complete-backup records');
+ check(saved.total_cents===20000&&saved.deposit_cents===10000&&backup.tables.estimates.find(row=>row.id===originalEstimateId).total_cents===25000&&backup.tables.estimates.find(row=>row.id===decoy.id).total_cents===30000,'Fault tests preserve all original and unrelated synthetic pricing/deposit records');
+}
