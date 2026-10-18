@@ -5,6 +5,22 @@ import {createRequire} from 'node:module';
 import ts from 'typescript';
 const load=async(path,prefix='')=>{const source=prefix+readFileSync(path,'utf8').replace(/^import .*;\n/gm,'');return import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64'));};
 const weather=await load('lib/tulsa-weather.ts');const now=Date.parse('2026-10-08T16:00:00-05:00');
+// The NWS daily forecast can start at night, so no daytime high is supplied
+// for the first day. Display a truthful single low rather than "— / 40°".
+const partialNight={date:'2026-10-17',temperatureMax:null,temperatureMin:40,rainChance:0,windMax:0};
+assert.equal(weather.formatDailyTemperatures(partialNight),'Low 40°');
+assert.equal(weather.weatherDayHeading(partialNight,Date.parse('2026-10-17T18:46:00-05:00')),'Tonight');
+assert.equal(weather.weatherDayHeading(partialNight,Date.parse('2026-10-18T12:00:00-05:00')),'Sat');
+assert.equal(weather.formatDailyTemperatures({...partialNight,temperatureMax:67}),'67° / 40°');
+assert.equal(weather.formatDailyTemperatures({...partialNight,temperatureMin:null,temperatureMax:67}),'High 67°');
+assert.equal(weather.formatDailyTemperatures({...partialNight,temperatureMin:null}),'Forecast pending');
+for(const [description,expected] of [
+ ['Clear','clear'],['Sunny','sun'],['Mostly Sunny','sun-cloud'],
+ ['Partly Cloudy','moon-cloud'],['Mostly Cloudy','cloud'],
+ ['Rain Showers Likely','rain'],['Thunderstorms','storm'],
+ ['Light Snow','snow'],['Patchy Fog','fog'],['Breezy','wind'],['Unknown','cloud']
+])assert.equal(weather.weatherIconKind(description),expected,`Incorrect icon for ${description}`);
+
 const periods=[{startTime:'2026-10-08T12:00:00-05:00',endTime:'2026-10-08T18:00:00-05:00',isDaytime:true,temperature:80,temperatureUnit:'F',shortForecast:'Sunny',windSpeed:'5 to 10 mph',probabilityOfPrecipitation:{value:20}},{startTime:'2026-10-08T18:00:00-05:00',endTime:'2026-10-09T06:00:00-05:00',isDaytime:false,temperature:30,temperatureUnit:'F',shortForecast:'Clear',windSpeed:'15 mph',probabilityOfPrecipitation:{value:null}}];
 const result=weather.normalizeForecast(periods,now);assert.equal(result.current.temperature,80);assert.equal(result.daily[0].date,'2026-10-08');assert.equal(result.daily[0].temperatureMin,30);assert.equal(result.daily[0].temperatureMax,80);assert.equal(result.daily[0].windMax,15);assert.equal(result.daily[0].rainChance,20);
 const night=weather.normalizeForecast([periods[1]],now);assert.equal(night.daily[0].temperatureMax,null);assert.equal(night.daily[0].rainChance,null);
@@ -43,7 +59,11 @@ assert.equal(redirectsSeen,3);
 let owner=null;globalThis.__weatherOwner=()=>owner;const route=await load('app/api/weather/route.ts','const getChatGPTUser=async()=>globalThis.__weatherOwner();const loadTulsaWeather=async()=>({location:"Tulsa"});\n');assert.equal((await route.GET()).status,401);owner={email:'kylebrooks8605@gmail.com'};assert.equal((await route.GET()).status,200);
 globalThis.__photoEnv={DB:{prepare(){throw Error('Missing storage must not read or mutate photo metadata');}}};globalThis.__photoOwner=true;
 for(const path of ['app/api/customer-photos/route.ts','app/api/customer-photos/[id]/route.ts','app/api/backup/photos/route.ts']){const mod=await load(path,'const env=globalThis.__photoEnv;const getChatGPTUser=async()=>globalThis.__photoOwner?{email:"kylebrooks8605@gmail.com"}:null;\n');for(const method of ['GET','POST','DELETE'])if(mod[method]){const response=await mod[method](new Request('https://test/photos',{method}),{params:Promise.resolve({id:'existing'})});assert.equal(response.status,503);globalThis.__photoOwner=false;assert.equal((await mod[method](new Request('https://test/photos',{method}),{params:Promise.resolve({id:'existing'})})).status,401);globalThis.__photoOwner=true;}}
-const source=readFileSync('app/dashboard.tsx','utf8');assert.ok(source.includes('window.addEventListener("focus",resume)'));assert.ok(source.includes('document.addEventListener("visibilitychange",resume)'));assert.ok(source.includes('controller.abort()'));assert.ok(source.includes('day.rainChance==null?"—"'));assert.ok(source.includes('Tulsa weather'));assert.ok(!source.includes('api.open-meteo.com'));
+const source=readFileSync('app/dashboard.tsx','utf8');
+assert.ok(source.includes('<WeatherConditionIcon description={weather.current.description}/>'),'Forecast must show a condition-matched icon');
+assert.ok(source.includes('formatDailyTemperatures(day)'),'Daily partial highs/lows must avoid misleading dash');
+assert.ok(source.includes('weatherDayHeading(day,new Date(weather.updatedAt).getTime())'),'Tonight label must follow Tulsa forecast update time');
+assert.ok(source.includes('window.addEventListener("focus",resume)'));assert.ok(source.includes('document.addEventListener("visibilitychange",resume)'));assert.ok(source.includes('controller.abort()'));assert.ok(source.includes('day.rainChance==null?"—"'));assert.ok(source.includes('Tulsa weather'));assert.ok(!source.includes('api.open-meteo.com'));
 console.log('PASS: Tulsa forecast timezone, temperature/precipitation/wind normalization, canonical NWS redirects, redirect loops/limits, external-host refusal, missing values, invalid/expired input, upstream host allowlist/outage, owner authorization; photo upload/download/delete/archive fail closed with no metadata reads/writes when storage absent; foreground refresh and cleanup wiring. No external calls or deployed data used.');
 
 // Execute the actual mounted weather effect, including foreground events and cleanup.
