@@ -2,6 +2,7 @@
  * Only a disposable loopback runtime; no remote mode, provider or deployed data.
  */
 import assert from 'node:assert/strict';
+import {exerciseCustomerCreateRetry} from './test-customer-create-retry-workflow.mjs';
 import {exerciseManualPaymentConfirmation} from './test-manual-payment-confirmation-workflow.mjs';
 import {exerciseBusinessBrand} from './test-business-brand-workflow.mjs';
 import {exerciseCustomerBalances} from './test-customer-balance-workflow.mjs';
@@ -217,6 +218,7 @@ try{
  if(ledgerMode)await exerciseCompleteLedger({page,context,origin,request,check,originalEstimateId:estimate.id});
  if(publicRetryMode)await exercisePublicEstimateRetry({page,context,origin,request,check,originalEstimateId:estimate.id});
  if(process.argv.includes('--manual-payment-confirmation'))await exerciseManualPaymentConfirmation({page,context,origin,request,check});
+ if(process.argv.includes('--customer-create-retry'))await exerciseCustomerCreateRetry({page,context,origin,request,check});
  check(outside.length===0&&clientErrors.length===0,'No external network dispatched or uncaught framework client errors: '+JSON.stringify({outside,clientErrors,interceptedSyntheticMapFrames:blockedSyntheticMaps.length}));
  console.log('PASS '+checks+' built QA Worker HTTP / native D1 / Chromium checks. Local synthetic evidence only; no hosted or iOS acceptance claimed.');
 }finally{if(browser)await browser.close();await stop();rmSync(temp,{recursive:true,force:true});}

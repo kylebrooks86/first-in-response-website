@@ -1,0 +1,52 @@
+{
+  "baseCommit": "4eb0f13ce599a8c05b73e784084553efb0a67d73",
+  "officialReadiness": {
+    "acceptedGates": 3,
+    "totalGates": 10,
+    "percent": 30
+  },
+  "scope": "Shared development source plus four isolated synthetic candidates. No hosted deployment or database/customer changes.",
+  "implemented": [
+    "Optional stable creation UUID becomes customer primary ID; atomic INSERT rejects duplicate IDs as well as existing contact identity matches",
+    "Same-request replay returns authoritative current customer/history totals; conflicting saved details are never overwritten",
+    "Owner-only read-only confirmation endpoint returns exact customer by creation ID, privately and without cache",
+    "Add Customer persists only the save UUID before POST, not plaintext contact details; synchronous double-submit lock and locked uncertain form",
+    "After lost acknowledgement, read once to confirm; no automatic POST retry",
+    "After reload, check previous save using GET only. If never committed, deliberately re-enter using the same reserved ID",
+    "Changed saved details require explicit current-customer review; successful UI insertion deduplicates by customer ID",
+    "Navigation/unmount preserves pending recovery ID rather than clearing it through an old callback"
+  ],
+  "tests": {
+    "nativeSqliteRouteAndStorageChecks": "55/55 per candidate",
+    "builtQaNativeD1HttpsBrowser": "60/60: double tap, contactless customer, lost acknowledgement, unavailable reads, wrong-customer receipt, full reload, uncommitted retry, reserved-ID re-entry and complete backup relationships",
+    "financial": "208/208 customer/invoice balance checks per candidate; processing fees per four candidates; final tipping per three non-QA candidates",
+    "manualPaymentConfirmation": "46/46 per candidate preserved",
+    "customerLoadRecovery": "1460/1460 per candidate; mocked read/error/stale/unmount coverage",
+    "typeScript": "Four candidates passed",
+    "builds": "Four final-source candidate builds passed",
+    "sourceParity": {
+      "qa": 383,
+      "live": 378,
+      "doomsday": 383,
+      "staging": 379
+    }
+  },
+  "preserved": [
+    "Legacy POST without requestId remains supported",
+    "Existing normalized email, phone and name/address duplicate guards",
+    "Existing customer edits, history, property associations, invoice/principal/tip/refund accounting and payment recovery",
+    "Current authentication adapters, owner identifiers, databases, secrets and rollback resources"
+  ],
+  "limitations": [
+    "Intermittent hosted iPhone 10-second Load failed root cause remains unproven",
+    "This batch covers Add Customer. New Estimate inline creation retains its existing atomic customer-identity safeguards; full estimate-create idempotent recovery remains a separate requirement",
+    "Recovery requires browser storage for a save UUID. If unavailable, this form blocks a new POST with an actionable message",
+    "Uncommitted form contact details remain in memory, not plaintext persistent storage. After full reload with no server record, explicit re-entry uses the same reserved ID; encrypted pending-form recovery remains future offline work.",
+    "No new hosted or iPhone release acceptance. Official readiness remains 3/10",
+    "Invoice paid-state messaging/derived-status reconciliation, owner invoice Close, global search, remaining notification targets, resolved change history, Safari scrolling, deposit exceptions and structured concern photos remain open"
+  ],
+  "nextBatch": "Paid invoice messaging and authoritative invoice state after payments/refunds; owner-only invoice preview exit without public owner navigation",
+  "deploymentPerformed": false,
+  "hostedDataChanged": false,
+  "stripeChanged": false
+}

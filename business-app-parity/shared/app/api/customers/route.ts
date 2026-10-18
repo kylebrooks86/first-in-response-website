@@ -2,7 +2,7 @@ import {customerPropertiesEnabled,propertyAssociationColumns} from '../../../lib
 import {serviceLocationsEnabled,serviceAddressColumns} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
-import {customerIdentityPredicate} from '../../../lib/customer-identity';
+import {customerIdentityPredicate,customerCreationReceipt} from '../../../lib/customer-identity';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized() {
@@ -65,15 +65,24 @@ export async function POST(request: Request) {
     const address = String(body.address ?? "").trim();
     const leadSource = String(body.leadSource ?? "Unknown").trim() || "Unknown";
     if (!name) return Response.json({ error: "Customer name is required." }, { status: 400 });
-    const id = crypto.randomUUID();
+    const requestId=body.requestId;
+    if(requestId!==undefined&&(typeof requestId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(requestId)))return Response.json({error:'Invalid customer save identifier.'},{status:400});
+    const id = typeof requestId==='string'?requestId:crypto.randomUUID();
+    const replay=async()=>{
+      const customer=await customerCreationReceipt(env.DB,id);
+      if(!customer)return null;
+      if(customer.name!==name||customer.email!==email||customer.phone!==phone||customer.address!==address||customer.leadSource!==leadSource)return Response.json({error:'This save identifier already belongs to different customer details. Check the saved customer; no records were overwritten.'},{status:409});
+      return Response.json({requestId:id,duplicate:true,customer},{headers:{'Cache-Control':'no-store, private'}});
+    };
+    if(requestId){const receipt=await replay();if(receipt)return receipt;}
     const createdAt = new Date().toISOString();
     const match=customerIdentityPredicate({name,email,phone,address});
-    const inserted=await env.DB.prepare(`INSERT INTO customers (id,name,email,phone,address,lead_source,created_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM customers WHERE ${match.sql}) RETURNING id`)
-      .bind(id,name,email||null,phone||null,address||null,leadSource,createdAt,...match.values).first();
-    if(!inserted)return Response.json({error:'A matching customer already exists. Search and select their saved record instead of creating a duplicate.'},{status:409});
-    return Response.json({ customer: { id, name, email, phone, address, leadSource, createdAt, estimateCount: 0, estimateTotal: 0, paidTotal: 0 } }, { status: 201 });
+    const inserted=await env.DB.prepare(`INSERT INTO customers (id,name,email,phone,address,lead_source,created_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM customers WHERE id=? OR ${match.sql}) RETURNING id`)
+      .bind(id,name,email||null,phone||null,address||null,leadSource,createdAt,id,...match.values).first();
+    if(!inserted){if(requestId){const receipt=await replay();if(receipt)return receipt;}return Response.json({error:'A matching customer already exists. Search and select their saved record instead of creating a duplicate.'},{status:409});}
+    return Response.json({ requestId:id,customer: { id, name, email, phone, address, leadSource, createdAt, estimateCount: 0, estimateTotal: 0, paidTotal: 0 } }, { status: 201,headers:{"Cache-Control":"no-store, private"} });
   } catch {
-    return Response.json({ error: "We couldn't save this customer. Please try again." }, { status: 500 });
+    return Response.json({ error: "Customer save confirmation is uncertain. Check the same request before creating another record." }, { status: 500 });
   }
 }
 

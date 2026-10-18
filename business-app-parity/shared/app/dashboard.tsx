@@ -1,4 +1,5 @@
 "use client";
+import {loadCustomerCreateRequest,saveCustomerCreateRequest,clearCustomerCreateRequest,confirmedCreatedCustomer,sameCustomerCreateInput,type CreatedCustomer,type CustomerCreateInput} from "../lib/customer-create-retry";
 import {completeEstimatePages} from "@/lib/estimate-pagination";
 import {hasCollectibleJobValue,summarizeCustomerBalances} from "@/lib/customer-balance-summary";
 
@@ -591,37 +592,77 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate}:{userName
 }
 
 function AddCustomer({ onAdded }: { onAdded: (customer: CustomerRow) => void }) {
-  const [open, setOpen] = useState(false);
+  const [open,setOpen]=useState(false);
   const [name,setName]=useState("");const [email,setEmail]=useState("");const [phone,setPhone]=useState("");const [address,setAddress]=useState("");
-  const [leadSource,setLeadSource]=useState("Referral");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const save = async () => {
-    if (!name.trim()) { setError("Customer name is required."); return; }
-    setSaving(true); setError("");
-    try {
-      const response = await fetch("/api/customers", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name:name.trim(), email:email.trim(), phone:phone.trim(), address:address.trim(), leadSource }) });
-      const result = await response.json() as { customer?: CustomerRow; error?: string };
-      if (!response.ok || !result.customer) throw new Error(result.error || "The customer could not be saved.");
-      onAdded(result.customer);
-      setName("");setEmail("");setPhone("");setAddress("");
-      setOpen(false);
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "The customer could not be saved.");
-    } finally { setSaving(false); }
+  const [leadSource,setLeadSource]=useState("Referral");const [saving,setSaving]=useState(false);const [pending,setPending]=useState(false);const [error,setError]=useState("");
+  const [review,setReview]=useState<CreatedCustomer|null>(null);
+  const requestId=useRef<string|null>(null),attempt=useRef<CustomerCreateInput|null>(null),saveLock=useRef(false),mounted=useRef(true);
+  const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
+  useEffect(()=>{mounted.current=true;const id=loadCustomerCreateRequest(storage());if(id){requestId.current=id;setPending(true);}return()=>{mounted.current=false;};},[]);
+  const setOpenSafe=(value:boolean)=>{
+    if(!value&&saveLock.current)return;
+    if(value){const id=requestId.current??loadCustomerCreateRequest(storage());if(id){requestId.current=id;setPending(true);setError("An earlier customer save needs confirmation. Check it before creating another customer.");}}
+    setOpen(value);
   };
-  return <Dialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) setError(""); }}>
-    <DialogTrigger asChild><Button className="brand-button"><UserPlus className="h-4 w-4" /> Add customer</Button></DialogTrigger>
-    <DialogContent className="sm:max-w-[520px]">
-      <DialogHeader><DialogTitle>Add customer</DialogTitle></DialogHeader>
-      <div className="customer-form">
-        <div><Label>Customer name</Label><Input placeholder="Full name" value={name} onChange={(event)=>setName(event.target.value)} /></div>
-        <div><Label>Email</Label><Input type="email" placeholder="customer@email.com" value={email} onChange={(event)=>setEmail(event.target.value)} /></div>
-        <div><Label>Phone</Label><Input inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={(event)=>setPhone(event.target.value)} /></div>
-        <div><Label>Service address</Label><Input placeholder="Tulsa-area address" value={address} onChange={(event)=>setAddress(event.target.value)} /></div>
-        <div><Label>How they found FIRE</Label><Select value={leadSource} onValueChange={setLeadSource}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Referral","Google","Facebook","Website","Repeat customer","Door knocking","Other"].map((source)=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div>
-        {error && <p className="save-error" role="alert">{error}</p>}
-        <Button className="brand-button" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save customer"}</Button>
+  const finish=(customer:CreatedCustomer)=>{
+    const id=requestId.current;if(id)clearCustomerCreateRequest(storage(),id);
+    requestId.current=null;attempt.current=null;setPending(false);setReview(null);setOpen(false);
+    setName("");setEmail("");setPhone("");setAddress("");setLeadSource("Referral");setError("");
+    onAdded(customer);
+  };
+  const save=async()=>{
+    if(saveLock.current)return;
+    const input:CustomerCreateInput={name:name.trim(),email:email.trim(),phone:phone.trim(),address:address.trim(),leadSource};
+    if(!pending&&!input.name){setError("Customer name is required.");return;}
+    const id=requestId.current??crypto.randomUUID();
+    if(!saveCustomerCreateRequest(storage(),id)){setError("FIRE could not preserve this save identifier, or another customer save needs review. Keep this form open and check browser storage before saving.");return;}
+    requestId.current=id;saveLock.current=true;setSaving(true);setError("");setReview(null);
+    const wasPending=pending;
+    if(!wasPending)attempt.current=input;
+    setPending(true);
+    let confirmed:CreatedCustomer|null=null;
+    const checkSaved=async()=>{
+      const response=await fetch(`/api/customers/confirmation?requestId=${encodeURIComponent(id)}`,{cache:"no-store"});
+      const result=await response.json() as {error?:string;requestId?:string;confirmed?:boolean;customer?:unknown};
+      if(!response.ok)throw new Error(result.error||"Customer save status is uncertain.");
+      if(result.requestId===id&&result.confirmed===false&&result.customer===null)return null;
+      const customer=confirmedCreatedCustomer(result,id);
+      if(!customer)throw new Error("The saved customer receipt does not match this request. Keep the save identifier for review.");
+      return customer;
+    };
+    try{
+      if(wasPending){
+        confirmed=await checkSaved();
+        if(!confirmed&&!attempt.current){setPending(false);setError("No saved customer was found yet. Re-enter the details to retry using this same save identifier.");return;}
+      }
+      if(!confirmed){
+        let message="Customer save confirmation is uncertain.",rejected=false;
+        try{
+          const response=await fetch("/api/customers",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({requestId:id,...attempt.current})});
+          if(!response.ok){const result=await response.json() as {error?:string};message=result.error||message;rejected=[400,409].includes(response.status);}
+        }catch{/* The write may have committed. Read once; never auto-repeat a POST. */}
+        confirmed=await checkSaved();
+        if(!confirmed){if(rejected){setPending(false);attempt.current=null;}throw new Error(message);}
+      }
+    }catch(saveError){setError((saveError instanceof Error?saveError.message:"Customer save status is uncertain.")+" Check this SAME save before creating another record.");}
+    finally{saveLock.current=false;setSaving(false);}
+    if(confirmed&&mounted.current){
+      if(attempt.current&&!sameCustomerCreateInput(confirmed,attempt.current)){setReview(confirmed);setError("The saved customer now has different details. Review the current record below; FIRE has not overwritten it.");}
+      else finish(confirmed);
+    }
+  };
+  return <Dialog open={open} onOpenChange={setOpenSafe}>
+    <DialogTrigger asChild><Button className="brand-button"><UserPlus className="h-4 w-4"/>{pending?"Check previous customer save":"Add customer"}</Button></DialogTrigger>
+    <DialogContent className="sm:max-w-[520px] max-h-[90dvh] overflow-y-auto">
+      <DialogHeader><DialogTitle>Add customer</DialogTitle></DialogHeader><div className="customer-form">
+        <div><Label htmlFor="newCustomerName">Customer name</Label><Input id="newCustomerName" disabled={saving||pending} placeholder="Full name" value={name} onChange={e=>setName(e.target.value)}/></div>
+        <div><Label htmlFor="newCustomerEmail">Email</Label><Input id="newCustomerEmail" disabled={saving||pending} type="email" placeholder="customer@email.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+        <div><Label htmlFor="newCustomerPhone">Phone</Label><Input id="newCustomerPhone" disabled={saving||pending} inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={e=>setPhone(e.target.value)}/></div>
+        <div><Label htmlFor="newCustomerAddress">Service address</Label><Input id="newCustomerAddress" disabled={saving||pending} placeholder="Tulsa-area address" value={address} onChange={e=>setAddress(e.target.value)}/></div>
+        <div><Label>How they found FIRE</Label><Select disabled={saving||pending} value={leadSource} onValueChange={setLeadSource}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Referral","Google","Facebook","Website","Repeat customer","Door knocking","Other"].map(source=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div>
+        {error&&<p className="save-error" role="alert">{error}</p>}
+        {review&&<div className="record-card" role="region" aria-label="Saved customer to review"><strong>{review.name}</strong><p>{[review.email,review.phone,review.address].filter(Boolean).join(" · ")}</p><Button className="brand-button" onClick={()=>finish(review)}>Open saved customer</Button></div>}
+        {!review&&<Button className="brand-button" onClick={()=>void save()} disabled={saving}>{saving?"Checking customer…":pending?attempt.current?"Check / retry same customer save":"Check previous save":"Save customer"}</Button>}
       </div>
     </DialogContent>
   </Dialog>;
@@ -1276,7 +1317,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
     </section>
   </div>;
   return <div className="customers-view">
-    <section className="customers-head"><div><p className="eyebrow">Customer records</p><h1>Customers</h1><p>Contact details and job history in one place.</p></div><AddCustomer onAdded={(customer) => { setCustomers((current) => [customer, ...current]); setSelectedId(customer.id);void load(true); }} /></section>
+    <section className="customers-head"><div><p className="eyebrow">Customer records</p><h1>Customers</h1><p>Contact details and job history in one place.</p></div><AddCustomer onAdded={(customer) => { setCustomers((current) => [customer, ...current.filter(item=>item.id!==customer.id)]); setSelectedId(customer.id);void load(true); }} /></section>
     {loading ? <div className="customers-state">Loading customers…</div> : error ? <div className="customers-state"><p>{error}</p><Button variant="outline" onClick={() => void load()}>Try again</Button></div> : filteredCustomers.length ? <section className="customer-list">{filteredCustomers.map((customer) => <button className="customer-card" key={customer.id} onClick={() => setSelectedId(customer.id)}><span className="customer-avatar">{customer.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><span className="customer-main"><strong>{customer.name}</strong><small>{customer.phone || customer.email || "No contact details saved"}</small></span><span className="customer-totals"><strong>{customer.estimateCount} estimate{customer.estimateCount === 1 ? "" : "s"}</strong><small>{money(customer.estimateTotal)}</small></span><ChevronRight /></button>)}</section> : <div className="customers-state"><Users /><strong>{searchQuery ? "No matching customers" : "No customers yet"}</strong><p>{searchQuery ? "Try a name, phone number, email, or address." : "Add your first customer to start their permanent record."}</p></div>}
   </div>;
 }
