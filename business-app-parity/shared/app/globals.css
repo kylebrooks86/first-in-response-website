@@ -755,3 +755,5 @@ html,body{max-width:100%;overflow-x:clip}
 .recent-estimate-row{grid-template-columns:auto minmax(0,1fr) auto auto}
 .job-main .recent-estimate-status{display:block;width:fit-content;max-width:100%;margin-top:6px;border:1px solid #b9c9db;border-radius:6px;padding:3px 7px;color:var(--foreground);font-size:12px;font-weight:750;white-space:normal;overflow-wrap:anywhere}
 .job-main .recent-estimate-dates,.job-main .recent-estimate-appointment{display:block;margin-top:4px;font-size:11px;line-height:1.4;white-space:normal;overflow-wrap:anywhere;color:var(--muted-foreground)}
+
+.invoice-card:focus-visible{outline:3px solid #e92332;outline-offset:3px}

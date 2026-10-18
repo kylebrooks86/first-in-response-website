@@ -99,7 +99,7 @@ type EstimateRow = { id:string; customerId?:string; customer:string; email?:stri
 type CustomerRow = { id:string; name:string; email:string; phone:string; address:string; leadSource?:string; createdAt:string; estimateCount:number; estimateTotal:number; paidTotal:number };
 type CustomerEstimate = { address?:string|null;serviceAddressSource?:string;id:string; customerId:string; service:string; serviceDescription?:string; items?:EstimateItemRow[]; subtotalCents?:number; discountCents?:number; appreciationDiscount?:number|boolean; additionalDiscountType?:"percent"|"dollar"; additionalDiscountValue?:number; status:string; totalCents:number; depositCents:number; paidCents:number; scheduledAt?:string|null; invoiceId?:string|null; invoiceShareToken?:string|null; invoiceTotalCents?:number|null; shareToken?:string|null; firstViewedAt?:string|null; acceptedAt?:string|null; signedName?:string|null; signedAt?:string|null; contractInitials?:string|null; photoRelease?:string|null; pendingChangeCount?:number; latestChangeRequest?:string|null; firstEstimateSentAt?:string|null; stage1At?:string|null; stage3At?:string|null; stage7At?:string|null; lastEstimateSentAt?:string|null; lastEstimateContactAt?:string|null; lastManualContactAt?:string|null;snoozeUntil?:string|null;lastReviewRequestAt?:string|null; lastRebookMessageAt?:string|null; paymentOverageOpen?:number; createdAt:string };
 type CustomerNote = { id:string; customerId:string; body:string; createdAt:string };
-type InvoiceRow = { estimateStatus?:string; depositCents?:number; id:string; estimateId:string; customerId:string; customer?:string; email?:string; phone?:string; address?:string; service?:string; status:string; subtotalCents?:number; discountCents?:number; discountType?:"percent"|"dollar"; discountValue?:number; totalCents:number; paidCents?:number; dueAt?:string|null; shareToken?:string|null; firstViewedAt?:string|null; paymentOverageOpen?:number; createdAt:string };
+type InvoiceRow = { paymentReviewPending?:boolean;pendingRefundCount?:number;storedStatus?:string; estimateStatus?:string; depositCents?:number; id:string; estimateId:string; customerId:string; customer?:string; email?:string; phone?:string; address?:string; service?:string; status:string; subtotalCents?:number; discountCents?:number; discountType?:"percent"|"dollar"; discountValue?:number; totalCents:number; paidCents?:number; dueAt?:string|null; shareToken?:string|null; firstViewedAt?:string|null; paymentOverageOpen?:number; createdAt:string };
 type CustomerPhoto = { id:string; customerId:string; category:"before"|"after"|"property"; caption?:string; filename:string; contentType:string; sizeBytes:number; createdAt:string };
 type CustomerMessage = { id:string; customerId:string; estimateId?:string|null; channel:"contact_recorded"|"followup_snoozed"|"text"|"email"|"copy"|"text_prepared"|"email_prepared"|"text_confirmed"|"email_confirmed"; template:string; body:string; createdAt:string };
 type AppNotification = { id:string; type:string; title:string; body:string; customerId?:string|null; estimateId?:string|null; readAt?:string|null; resolvedAt?:string|null; createdAt:string };
@@ -1114,7 +1114,7 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
       {estimate.customerId&&estimate.status==="scheduled"&&estimate.scheduledAt&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="onMyWay" triggerLabel="On my way"/>}
       {estimate.customerId&&estimate.status==="completed"&&Number(estimate.paymentOverageOpen)===0&&estimate.paidCents>=resolvedBillingTotalCents(estimate)&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="review" triggerLabel={estimate.lastReviewRequestAt?"Review requested":"Request review"} onSent={(message)=>onChanged({...estimate,lastReviewRequestAt:message.createdAt})}/>}
       {estimate.shareToken&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`}><ExternalLink/> Customer view</a>}
-      {estimate.invoiceId&&estimate.invoiceShareToken&&<a href={`/invoice/${estimate.invoiceShareToken}`} target="_blank" rel="noreferrer"><Receipt/> View invoice</a>}
+      {estimate.invoiceId&&estimate.invoiceShareToken&&<a href={`/invoice/${encodeURIComponent(estimate.invoiceShareToken)}?ownerPreview=1&from=estimate`}><Receipt/> View invoice</a>}
       {estimate.phone && <a href={`tel:${estimate.phone}`}><Phone /> Call</a>}
       {estimate.phone && <a href={`sms:${estimate.phone}`}><Send /> Text</a>}
       {estimate.address && <a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation /> Google Maps</a>}
@@ -1140,7 +1140,7 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
   </DialogContent></Dialog>;
 }
 
-function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (estimate: EstimateRow) => void; searchQuery: string }) {
+function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSection="estimates",onFocusHandled }: { onEstimateSaved: (estimate: EstimateRow) => void; searchQuery: string;focusCustomerId?:string|null;focusSection?:"estimates"|"invoices";onFocusHandled?:(id:string)=>void }) {
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [estimates, setEstimates] = useState<CustomerEstimate[]>([]);
   const [notes, setNotes] = useState<CustomerNote[]>([]);
@@ -1229,6 +1229,13 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
     finally { if(request===loadRequest.current)setLoading(false); }
   };
   useEffect(() => { void load(); return()=>{loadRequest.current++;}; }, []);
+  useEffect(()=>{
+    if(!focusCustomerId||loading||error||offlinePhotoOnly)return;
+    const customer=customers.find(row=>row.id===focusCustomerId);
+    if(customer){setSelectedId(customer.id);setSection(focusSection);}
+    else setError("The selected customer is unavailable. Refresh the customer list or check your connection.");
+    onFocusHandled?.(focusCustomerId);
+  },[focusCustomerId,loading,error,offlinePhotoOnly,customers,focusSection]);
   const selected = customers.find((customer) => customer.id === selectedId) ?? null;
   const customerEstimates = estimates.filter((estimate) => estimate.customerId === selectedId);
   const customerNotes = notes.filter((note)=>note.customerId === selectedId);
@@ -1310,7 +1317,7 @@ function CustomersView({ onEstimateSaved, searchQuery }: { onEstimateSaved: (est
     <section className="customer-records">
       {section === "estimates" && (customerEstimates.length ? customerEstimates.map((estimate) => <button className="customer-record record-button" key={estimate.id} onClick={()=>setActiveEstimate({...estimate,customer:selected.name,email:selected.email,phone:selected.phone,address:estimate.address??undefined})}><div><strong>{estimate.service}</strong><small>{new Date(estimate.createdAt).toLocaleDateString()} · {statusLabel(estimate.status)}{estimate.scheduledAt ? ` · ${dateTime(estimate.scheduledAt)}` : ""}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight /></button>) : <div className="record-empty"><ClipboardList /><strong>No estimates yet</strong><p>Create the first estimate from this customer profile.</p></div>)}
       {section === "payments" && (customerPayments.length ? customerPayments.map((payment) => <article className="customer-record customer-payment-record" key={payment.id}><div><strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":`${paymentTypeLabel(payment.type)} payment`}</strong><small>{dateTime(payment.createdAt)}{payment.reference&&<span className="inline-flex max-w-full flex-wrap items-center gap-1"><span className="font-mono" title={payment.reference}> · Ref …{payment.reference.slice(-12)}</span><button type="button" aria-label="Copy full payment reference" className="rounded border px-2 py-0.5 text-xs" onClick={()=>void navigator.clipboard.writeText(payment.reference||"").catch(()=>{})}>Copy</button></span>}</small><ProcessingDetails payment={payment}/></div><strong className="customer-payment-amount">{money(payment.amountCents)}</strong><RefundPayment payment={payment} onRefunded={()=>void load()}/></article>) : <div className="record-empty"><CreditCard /><strong>No payments recorded</strong><p>Open an estimate and choose Record payment after receiving money through Wave, Cash App, Venmo, cash, check, card, or bank transfer.</p></div>)}
-      {section === "invoices" && (customerInvoices.length ? customerInvoices.map((invoice)=><a className="customer-record record-button" key={invoice.id} href={invoice.shareToken?`/invoice/${invoice.shareToken}`:undefined} target="_blank" rel="noreferrer"><div><strong>Invoice #{invoice.id.slice(0,6).toUpperCase()}</strong><small>{Number(invoice.paymentOverageOpen)>0?"Payment review in progress":statusLabel(invoice.status)} · Due {invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString() : "on receipt"}</small></div><strong>{money(invoice.totalCents)}</strong><ExternalLink/></a>) : <div className="record-empty"><Receipt /><strong>No invoices yet</strong><p>Open an estimate and tap Create invoice.</p></div>)}
+      {section === "invoices" && (customerInvoices.length ? customerInvoices.map((invoice)=><a className="customer-record record-button" key={invoice.id} href={invoice.shareToken?`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=customer`:undefined}><div><strong>Invoice #{invoice.id.slice(0,6).toUpperCase()}</strong><small>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Payment review in progress":invoice.status==="paid"?"Paid in full":`${statusLabel(invoice.status)} · Due ${invoice.dueAt?new Date(invoice.dueAt).toLocaleDateString():"on receipt"}`}</small></div><strong>{money(invoice.totalCents)}</strong><ExternalLink/></a>) : <div className="record-empty"><Receipt /><strong>No invoices yet</strong><p>Open an estimate and tap Create invoice.</p></div>)}
       {section === "photos"&&<OfflineCustomerPhotos key={selected.id} customerId={selected.id} customerName={selected.name} knownCustomerIds={customers.map(item=>item.id)} legacyCloudPhotoCount={customerPhotos.length}/>}
       {section === "messages"&&<section className="customer-messages-panel" aria-label="Customer messages"><div className="customer-messages-actions"><MessageComposer key={selected.id} customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" triggerLabel="+ Compose Message" triggerClassName="brand-button" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div>{historyEntries.length?historyEntries.map(({message,prepared})=><article className="message-history" key={message.id}><span className={`message-channel ${message.channel}`}><MessageSquareText/></span><div><strong>{message.template==="followupContact"?"Customer contact recorded":message.template==="followupSnooze"?"Estimate follow-up snoozed":messageLabels[message.template]||"Customer message"}</strong><p>{message.body}</p><small>{message.channel==="contact_recorded"?"Contacted · owner recorded":message.channel==="followup_snoozed"?"Follow-up snoozed until "+dateTime(message.body):message.channel.endsWith("_prepared")?"Prepared · sending unconfirmed":message.channel.endsWith("_confirmed")?"Sent · owner confirmed; delivery unknown":message.channel==="copy"?"Copied · sending unconfirmed":"Legacy interaction · sending unconfirmed"} · {dateTime(message.createdAt)}{prepared&&<> · Prepared {dateTime(prepared.createdAt)} · 2 audit events retained</>}</small></div></article>):<div className="record-empty"><MessageSquareText/><strong>No messages prepared yet</strong><p>Compose a personalized text or email above. Prepared drafts and your send confirmations appear here.</p></div>}</section>}
       {section === "notes" && <div className="notes-panel"><div className="note-compose"><Input value={noteText} onChange={(event)=>setNoteText(event.target.value)} placeholder="Gate code, pets, property details…" /><Button className="brand-button" onClick={()=>void saveNote()} disabled={savingNote || !noteText.trim()}><Plus className="h-4 w-4" /> Add note</Button></div>{customerNotes.length ? customerNotes.map((note)=><article className="note-row" key={note.id}><StickyNote /><div><p>{note.body}</p><small>{dateTime(note.createdAt)}</small></div></article>) : <div className="record-empty"><StickyNote /><strong>No notes yet</strong><p>Save access details and job-specific reminders here.</p></div>}</div>}
@@ -1434,7 +1441,7 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
   </div>;
 }
 
-function InvoicesView({searchQuery}:{searchQuery:string}) {
+function InvoicesView({searchQuery,focusInvoiceId,onFocusHandled}:{searchQuery:string;focusInvoiceId?:string|null;onFocusHandled?:(id:string)=>void}) {
   const [rows,setRows]=useState<InvoiceRow[]>([]);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
@@ -1453,8 +1460,15 @@ function InvoicesView({searchQuery}:{searchQuery:string}) {
     finally{if(request===loadRequest.current)setLoading(false);}
   };
   useEffect(()=>{void load();return()=>{loadRequest.current++;};},[]);
+  useEffect(()=>{
+    if(!focusInvoiceId||loading||error)return;
+    const invoice=rows.find(row=>row.id===focusInvoiceId);
+    if(!invoice){setError("The selected invoice is unavailable. Refresh the invoice list or check your connection.");onFocusHandled?.(focusInvoiceId);return;}
+    const element=document.getElementById('invoice-'+invoice.id);
+    if(element){element.scrollIntoView({block:"center"});element.focus({preventScroll:true});onFocusHandled?.(focusInvoiceId);}
+  },[focusInvoiceId,loading,error,rows]);
   const visible=rows.filter((row)=>[row.customer,row.service,row.status].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));
-  return <div className="workspace-view"><section className="workspace-head"><div><p className="eyebrow">Billing</p><h1>Invoices</h1><p>Open, send, and record payment against every invoice.</p></div></section>{loading?<div className="customers-state">Loading invoices…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visible.length?<section className="invoice-list">{visible.map((invoice)=>{const estimate={id:invoice.estimateId,customer:invoice.customer||"Customer",service:invoice.service||"Service",status:invoice.estimateStatus,depositCents:invoice.depositCents,totalCents:invoice.totalCents,paidCents:Number(invoice.paidCents??0)};return <article className="invoice-card" key={invoice.id}><span className="invoice-icon"><Receipt/></span><div><strong>{invoice.customer}</strong><small>{invoice.service} · Invoice #{invoice.id.slice(0,6).toUpperCase()}</small></div><span className={`status-chip ${Number(invoice.paymentOverageOpen)>0?"partial":invoice.status}`}>{Number(invoice.paymentOverageOpen)>0?"Payment review":statusLabel(invoice.status)}</span><div className="invoice-total"><strong>{money(invoice.totalCents)}</strong><small>{Number(invoice.paymentOverageOpen)>0?"Billing exception open":`${money(Math.max(0,invoice.totalCents-Number(invoice.paidCents??0)))} balance`}</small></div><div className="invoice-actions">{invoice.shareToken&&<a href={`/invoice/${invoice.shareToken}`} target="_blank" rel="noreferrer"><ExternalLink/>Open</a>}<RecordPayment estimate={estimate} onRecorded={()=>void load()}/></div></article>;})}</section>:<div className="customers-state"><Receipt/><strong>{rows.length?"No matching invoices":"No invoices yet"}</strong><p>{rows.length?"Try another customer, service, or status.":"Open an estimate and choose Create invoice."}</p></div>}</div>;
+  return <div className="workspace-view"><section className="workspace-head"><div><p className="eyebrow">Billing</p><h1>Invoices</h1><p>Open, send, and record payment against every invoice.</p></div></section>{loading?<div className="customers-state">Loading invoices…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visible.length?<section className="invoice-list">{visible.map((invoice)=>{const estimate={id:invoice.estimateId,customer:invoice.customer||"Customer",service:invoice.service||"Service",status:invoice.estimateStatus,depositCents:invoice.depositCents,totalCents:invoice.totalCents,paidCents:Number(invoice.paidCents??0)};return <article className="invoice-card" id={`invoice-${invoice.id}`} tabIndex={-1} key={invoice.id}><span className="invoice-icon"><Receipt/></span><div><strong>{invoice.customer}</strong><small>{invoice.service} · Invoice #{invoice.id.slice(0,6).toUpperCase()}</small></div><span className={`status-chip ${(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"partial":invoice.status}`}>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Payment review":statusLabel(invoice.status)}</span><div className="invoice-total"><strong>{money(invoice.totalCents)}</strong><small>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Billing exception open":`${money(Math.max(0,invoice.totalCents-Number(invoice.paidCents??0)))} balance`}</small></div><div className="invoice-actions">{invoice.shareToken&&<a href={`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=invoices`}><ExternalLink/>Open</a>}<RecordPayment estimate={estimate} onRecorded={()=>void load()}/></div></article>;})}</section>:<div className="customers-state"><Receipt/><strong>{rows.length?"No matching invoices":"No invoices yet"}</strong><p>{rows.length?"Try another customer, service, or status.":"Open an estimate and choose Create invoice."}</p></div>}</div>;
 }
 
 function ContractsView({searchQuery}:{searchQuery:string}){
@@ -1733,6 +1747,9 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   const [theme,setTheme]=useState<"light"|"dark">("light");
   const [estimateRefreshKey,setEstimateRefreshKey]=useState(0);
   const [focusEstimateId,setFocusEstimateId]=useState<string|null>(null);
+  const [focusCustomerId,setFocusCustomerId]=useState<string|null>(null);
+  const [focusCustomerSection,setFocusCustomerSection]=useState<"estimates"|"invoices">("estimates");
+  const [focusInvoiceId,setFocusInvoiceId]=useState<string|null>(null);
   const [estimateRows, setEstimateRows] = useState(estimates);
   const [liveMetrics, setLiveMetrics] = useState(metrics);
   const previousTab = useRef("dashboard");
@@ -1783,14 +1800,16 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   },[tab,estimateRefreshKey]);
   useEffect(()=>{
     const url=new URL(window.location.href);
-    const id=url.searchParams.get("openEstimate");
-    if(!id)return;
-    url.searchParams.delete("openEstimate");
+    const estimateId=url.searchParams.get("openEstimate"),customerId=url.searchParams.get("openCustomer"),invoiceId=url.searchParams.get("openInvoice");
+    const section=url.searchParams.get("customerSection")==="invoices"?"invoices":"estimates";
+    if(!estimateId&&!customerId&&!invoiceId)return;
+    for(const key of ["openEstimate","openCustomer","openInvoice","customerSection"])url.searchParams.delete(key);
     window.history.replaceState(null,"",`${url.pathname}${url.search}${url.hash}`);
     const timer=window.setTimeout(()=>{
-      setFocusEstimateId(id);
-      setEstimateRefreshKey((value)=>value+1);
-      setTab("estimates");
+      setSearchQuery("");
+      if(estimateId){setFocusEstimateId(estimateId);setEstimateRefreshKey(value=>value+1);setTab("estimates");}
+      else if(customerId){setFocusCustomerId(customerId);setFocusCustomerSection(section);setTab("customers");}
+      else if(invoiceId){setFocusInvoiceId(invoiceId);setTab("invoices");}
     },0);
     return()=>window.clearTimeout(timer);
   },[]);
@@ -1811,7 +1830,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
         {process.env.NODE_ENV === "development" && localCustomersCandidate && <CandidateLayoutTrace/>}
         {!interactive && <p role="status" className="app-loading-status">Loading app…</p>}
         {tab === "customers" && localCustomersCandidate && <a className="brand-button" href="/development/local-customers">Offline Customers · synthetic development</a>}
-        {tab === "dashboard" ? <DashboardView userName={userName} metrics={liveMetrics} estimates={estimateRows} onSaved={handleSaved} onNavigate={setTab} /> : tab === "contracts" ? <ContractsView searchQuery={searchQuery}/> : tab === "customers" ? <CustomersView onEstimateSaved={handleSaved} searchQuery={searchQuery} /> : tab === "estimates" ? <EstimatesView key={estimateRefreshKey} onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "followups" ? <FollowUpsView searchQuery={searchQuery}/> : tab === "schedule" ? <ScheduleView searchQuery={searchQuery}/> : tab === "invoices" ? <InvoicesView searchQuery={searchQuery}/> : tab === "insights" ? <InsightsView/> : tab === "business" ? <BusinessView/> : tab === "payments" ? <PaymentsView searchQuery={searchQuery}/> : tab === "settings" ? <SettingsView/> : tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/> : <EmptyView tab={tab} onSaved={handleSaved} />}
+        {tab === "dashboard" ? <DashboardView userName={userName} metrics={liveMetrics} estimates={estimateRows} onSaved={handleSaved} onNavigate={setTab} /> : tab === "contracts" ? <ContractsView searchQuery={searchQuery}/> : tab === "customers" ? <CustomersView onEstimateSaved={handleSaved} searchQuery={searchQuery} focusCustomerId={focusCustomerId} focusSection={focusCustomerSection} onFocusHandled={id=>setFocusCustomerId(current=>current===id?null:current)}/> : tab === "estimates" ? <EstimatesView key={estimateRefreshKey} onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "followups" ? <FollowUpsView searchQuery={searchQuery}/> : tab === "schedule" ? <ScheduleView searchQuery={searchQuery}/> : tab === "invoices" ? <InvoicesView searchQuery={searchQuery} focusInvoiceId={focusInvoiceId} onFocusHandled={id=>setFocusInvoiceId(current=>current===id?null:current)}/> : tab === "insights" ? <InsightsView/> : tab === "business" ? <BusinessView/> : tab === "payments" ? <PaymentsView searchQuery={searchQuery}/> : tab === "settings" ? <SettingsView/> : tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/> : <EmptyView tab={tab} onSaved={handleSaved} />}
       </section>
       {mobileMenu && <button aria-label="Close menu overlay" className="menu-scrim" onClick={() => setMobileMenu(false)} />}
       <nav className="bottom-nav">{nav.filter(([id])=>["dashboard","contracts","customers","estimates","schedule"].includes(id)).map(([id, label, Icon]) => <button key={id} disabled={!interactive} className={tab === id ? "active" : ""} onClick={() => setTab(id)}><Icon /><span>{id==="dashboard"?"Home":label}</span></button>)}</nav>

@@ -1,3 +1,4 @@
+import {currentInvoice} from "../../../../lib/invoice-state.mjs";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
 
@@ -32,7 +33,11 @@ async function expireOpenCheckoutSessions(estimateId:string){
 export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   const {id}=await params;
-  const invoice=await env.DB.prepare("SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,created_at AS createdAt FROM invoices WHERE id=?").bind(id).first();
+  const storedInvoice=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,subtotal_cents AS subtotalCents,discount_cents AS discountCents,discount_type AS discountType,discount_value AS discountValue,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,first_viewed_at AS firstViewedAt,created_at AS createdAt,
+    COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=invoices.estimate_id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+    (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=invoices.estimate_id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
+    (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=invoices.estimate_id AND r.status='pending') AS pendingRefundCount FROM invoices WHERE id=?`).bind(id).first();
+  const invoice=storedInvoice?currentInvoice(storedInvoice):null;
   if(!invoice)return Response.json({error:"Invoice not found."},{status:404});
   const [items,revisions]=await Promise.all([
     env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC").bind(id).all(),
@@ -45,7 +50,7 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
     const {itemsJson:_itemsJson,...rest}=record;void _itemsJson;
     return {...rest,items:revisionItems};
   });
-  return Response.json({invoice:{...invoice,items:items.results,revisions:normalizedRevisions}});
+  return Response.json({invoice:{...invoice,items:items.results,revisions:normalizedRevisions}},{headers:{"Cache-Control":"no-store, private"}});
 }
 
 export async function PATCH(request:Request,{params}:{params:Promise<{id:string}>}){

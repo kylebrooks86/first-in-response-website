@@ -1,3 +1,4 @@
+import {currentInvoice} from "../../../lib/invoice-state.mjs";
 import {customerPropertiesEnabled,propertyAssociationColumns} from '../../../lib/customer-properties';
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
@@ -13,9 +14,10 @@ export async function GET() {
       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM invoice_items ii WHERE ii.invoice_id=inv.id),'Custom service') AS service,
       COALESCE((SELECT description FROM estimate_items ei WHERE ei.estimate_id=e.id ORDER BY rowid ASC LIMIT 1),'') AS serviceDescription,
       COALESCE((SELECT SUM(amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
-      COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen
+      COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen,
+      (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending') AS pendingRefundCount
       FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id ORDER BY inv.created_at DESC`).all();
-    return Response.json({ invoices: result.results });
+    return Response.json({ invoices: result.results.map(currentInvoice) },{headers:{"Cache-Control":"no-store, private"}});
   } catch { return Response.json({ error: "Invoices are temporarily unavailable." }, { status: 503 }); }
 }
 

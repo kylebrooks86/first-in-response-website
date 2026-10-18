@@ -1,3 +1,4 @@
+import {currentInvoice} from "../../../lib/invoice-state.mjs";
 import {customerPropertiesEnabled,propertyAssociationColumns} from '../../../lib/customer-properties';
 import {serviceLocationsEnabled,serviceAddressColumns} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
@@ -39,7 +40,10 @@ export async function GET() {
         FROM estimates e ORDER BY e.created_at DESC
       `),
       env.DB.prepare(`SELECT id,customer_id AS customerId,body,created_at AS createdAt FROM customer_notes ORDER BY created_at DESC`),
-      env.DB.prepare(`SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,first_viewed_at AS firstViewedAt,created_at AS createdAt${customerPropertiesEnabled(env)?",(SELECT pl.property_id FROM estimate_property_links pl WHERE pl.estimate_id=invoices.estimate_id AND pl.customer_id=invoices.customer_id) AS propertyId":""} FROM invoices ORDER BY created_at DESC`),
+      env.DB.prepare(`SELECT id,estimate_id AS estimateId,customer_id AS customerId,status,total_cents AS totalCents,due_at AS dueAt,share_token AS shareToken,first_viewed_at AS firstViewedAt,created_at AS createdAt,
+        COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=invoices.estimate_id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
+        (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=invoices.estimate_id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
+        (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=invoices.estimate_id AND r.status='pending') AS pendingRefundCount${customerPropertiesEnabled(env)?",(SELECT pl.property_id FROM estimate_property_links pl WHERE pl.estimate_id=invoices.estimate_id AND pl.customer_id=invoices.customer_id) AS propertyId":""} FROM invoices ORDER BY created_at DESC`),
       env.DB.prepare(`SELECT id,customer_id AS customerId,category,caption,filename,content_type AS contentType,size_bytes AS sizeBytes,created_at AS createdAt FROM customer_photos ORDER BY created_at DESC`),
       env.DB.prepare(`SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages ORDER BY created_at DESC`),
       env.DB.prepare(`SELECT p.id,p.estimate_id AS estimateId,e.customer_id AS customerId,p.type,p.amount_cents AS amountCents,p.processing_fee_cents AS processingFeeCents,p.gross_received_cents AS grossReceivedCents,p.bundled_tip_cents AS bundledTipCents,p.processing_method AS processingMethod,p.status,p.provider_id AS reference,p.created_at AS createdAt, (SELECT r.id FROM payment_refunds r WHERE r.payment_id=p.id AND r.status='pending' ORDER BY r.created_at LIMIT 1) AS pendingRefundId, (SELECT r.amount_cents FROM payment_refunds r WHERE r.payment_id=p.id AND r.status='pending' ORDER BY r.created_at LIMIT 1) AS pendingRefundAmountCents, CASE WHEN p.amount_cents>0 THEN COALESCE((SELECT SUM(r.amount_cents) FROM payment_refunds r WHERE r.payment_id=p.id AND r.status='succeeded'),0) ELSE 0 END AS refundedCents,
@@ -49,7 +53,7 @@ export async function GET() {
     const grouped=new Map<string,Record<string,unknown>[]>();
     for(const raw of estimateItems.results as Record<string,unknown>[]){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};const key=String(raw.estimateId);grouped.set(key,[...(grouped.get(key)??[]),row]);}
     const mappedEstimates=(estimates.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,items,service:items.map((item)=>String(item.name)).join(", ")||"Custom service",serviceDescription:String(items[0]?.description??"")};});
-    return Response.json({ customers: customers.results, estimates: mappedEstimates, notes: notes.results, invoices: invoices.results, photos: photos.results, messages: messages.results, payments:payments.results });
+    return Response.json({ customers: customers.results, estimates: mappedEstimates, notes: notes.results, invoices: invoices.results.map(currentInvoice), photos: photos.results, messages: messages.results, payments:payments.results },{headers:{"Cache-Control":"no-store, private"}});
   } catch {
     return Response.json({ error: "Customer records are temporarily unavailable." }, { status: 503 });
   }

@@ -273,6 +273,7 @@ jobs:
         run: |
           node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
           node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+          node --experimental-sqlite scripts/test-invoice-current-state.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
           node --experimental-sqlite scripts/test-customer-create-retry.mjs
@@ -371,6 +372,7 @@ jobs:
           cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
           node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
           node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+          node --experimental-sqlite scripts/test-invoice-current-state.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
           node --experimental-sqlite scripts/test-customer-create-retry.mjs
@@ -452,6 +454,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-candidate"
           node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+          node --experimental-sqlite scripts/test-invoice-current-state.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
           node --experimental-sqlite scripts/test-customer-create-retry.mjs
@@ -493,7 +496,7 @@ jobs:
           node scripts/test-qa-worker-http-browser.mjs --customer-lookup
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
           node scripts/test-qa-worker-http-browser.mjs --complete-ledger
-          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry
+          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry --invoice-state
       - name: Seal synthetic-only QA full-app review bundle
         run: |
           python3 business-app-parity/prepare_device_review.py \

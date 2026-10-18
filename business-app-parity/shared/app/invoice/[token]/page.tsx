@@ -1,6 +1,8 @@
+import {invoicePaymentState,invoicePaymentMessage} from "../../../lib/invoice-state.mjs";
+import {getChatGPTUser} from "../../chatgpt-auth";
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
-import { CalendarDays, MapPin, ShieldCheck, Info, ArrowUpRight } from "lucide-react";
+import { CalendarDays, MapPin, ShieldCheck, Info, ArrowUpRight, X } from "lucide-react";
 import { publicInvoiceFooter } from "../../../lib/fire-templates";
 import { serviceDescriptionFor } from "../../../lib/fire-services";
 import { PayButton } from "../../pay/[id]/pay-button";
@@ -20,8 +22,11 @@ const invoiceDueLabel = (dueAt:string|null, createdAt:string) => {
   return `Payment due ${new Intl.DateTimeFormat("en-US", { month:"long", day:"numeric", year:"numeric" }).format(due)}`;
 };
 
-export default async function CustomerInvoicePage({ params, searchParams }: { params:Promise<{token:string}>; searchParams:Promise<{from?:string}> }) {
+export default async function CustomerInvoicePage({ params, searchParams }: { params:Promise<{token:string}>; searchParams:Promise<{from?:string;ownerPreview?:string}> }) {
   const { token } = await params;
+  const {ownerPreview:requestedPreview,from}=await searchParams;
+  const previewOwner=requestedPreview==='1'?await getChatGPTUser():null;
+  const ownerPreview=previewOwner?.email?.toLowerCase()==='kylebrooks8605@gmail.com';
   const row = await env.DB.prepare(`
     SELECT inv.id,inv.estimate_id AS estimateId,inv.customer_id AS customerId,inv.status,inv.total_cents AS totalCents,
       inv.due_at AS dueAt,inv.created_at AS createdAt,inv.first_viewed_at AS firstViewedAt,c.name AS customer,${serviceAddressColumns(serviceLocationsEnabled(env))},e.share_token AS estimateShareToken,e.status AS estimateStatus,
@@ -35,26 +40,29 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
   const itemResult=await env.DB.prepare(`SELECT name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC`).bind(row.id).all<{name:string;description:string;quantity:number;unit:string;totalCents:number}>();
   const items=itemResult.results.map((item)=>({...item,quantity:Number(item.quantity),totalCents:Number(item.totalCents)}));
   const serviceSummary=items.map((item)=>item.name).join(", ")||"Exterior cleaning service";
-  if (!row.firstViewedAt) {
+  if (!ownerPreview&&!row.firstViewedAt) {
     const now = new Date().toISOString();
     await env.DB.batch([
       env.DB.prepare("UPDATE invoices SET first_viewed_at=?,status=CASE WHEN status='draft' THEN 'sent' ELSE status END WHERE id=? AND first_viewed_at IS NULL").bind(now,row.id),
       env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE type='invoice_viewed' AND estimate_id=?)`).bind(crypto.randomUUID(),"invoice_viewed",`${row.customer} viewed an invoice`,`${serviceSummary} invoice was opened for the first time.`,row.customerId,row.estimateId,now,row.estimateId),
     ]);
   }
-  const paidCents = Number(row.paidCents??0);
-  const balance = Math.max(0,row.totalCents-paidCents);
-  const paymentReviewPending = Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0;
+  const state=invoicePaymentState(row);
+  const balance=state.balanceCents??0;
+  const paymentReviewPending=state.review;
+  const returnHref=from==='customer'?`/?openCustomer=${encodeURIComponent(row.customerId)}&customerSection=invoices`:from==='invoices'?`/?openInvoice=${encodeURIComponent(row.id)}`:`/?openEstimate=${encodeURIComponent(row.estimateId)}`;
+  const close=ownerPreview?<a className="owner-estimate-preview-close owner-invoice-preview-close" href={returnHref} aria-label="Close invoice preview" title="Return to FIRE"><X aria-hidden="true"/></a>:null;
+  if(!state.safe)return <main className={`pay-page invoice-page${ownerPreview?' owner-estimate-preview':''}`}>{close}<section className="pay-card"><h1>Invoice account review</h1><p>We are checking this invoice. Please contact First In Response Exteriors before making a payment.</p></section></main>;
   const runtime = env as RuntimeEnv;
   const paymentsReady = Boolean(runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY);
   const handles = paymentHandles(runtime);
   const footer=await env.DB.prepare("SELECT body FROM message_templates WHERE key='invoiceFooter'").first<{body:string}>();
-  return <main className="pay-page invoice-page"><section className="pay-card estimate-portal invoice-portal">
+  return <main className={`pay-page invoice-page${ownerPreview?" owner-estimate-preview":""}`}>{close}<section className="pay-card estimate-portal invoice-portal">
     <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
     <div className="pay-title"><p>INVOICE FOR</p><h1>{row.customer}</h1>{row.address&&<span><MapPin/>{row.address}</span>}{row.serviceAddressSource==="legacy-current-unverified"&&<small>Current customer address; original service address unverified.</small>}</div>
     <div className="portal-service-list">{items.map((item,index)=><div className="pay-line" key={`${item.name}-${index}`}><div><strong>{item.name}</strong>{item.quantity&&<span>{item.quantity} {item.unit}</span>}<p className="portal-service-description">{item.description||serviceDescriptionFor(item.name)}</p></div><strong>{currency(item.totalCents)}</strong></div>)}</div>
     <div className="pay-summary"><span><small>Invoice total</small><strong>{currency(row.totalCents)}</strong></span><span><small>Balance due</small><strong className="red-text">{currency(balance)}</strong></span></div>
-    <p className="invoice-due"><CalendarDays/> {paymentReviewPending?"Payment received — account review in progress":balance===0?"Paid in full":invoiceDueLabel(row.dueAt,row.createdAt)}</p>
+    <p className="invoice-due"><CalendarDays/> {paymentReviewPending?"Account review in progress":balance===0?"Paid in full":invoiceDueLabel(row.dueAt,row.createdAt)}</p>
     {balance>0&&!paymentReviewPending&&row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="portal-payment"><PayButton shareToken={row.estimateShareToken} paymentType="balance" dueAmountCents={balance} tipBaseCents={Number(row.totalCents)} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
     {balance>0&&!paymentReviewPending&&<>
       {row.estimateStatus==="completed"&&paymentsReady&&row.estimateShareToken&&<div className="invoice-payment-divider"><span/>OR<span/></div>}
@@ -64,7 +72,7 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
         <a className="invoice-manual-method venmo" href={`https://venmo.com/u/${encodeURIComponent(handles.venmo.replace(/^@/,""))}`} target="_blank" rel="noopener noreferrer"><span className="invoice-method-icon">V</span><span><strong>Venmo <ArrowUpRight/></strong><small>{handles.venmo}</small></span></a>
       </section>
     </>}
-    <div className="invoice-footer-note"><span><Info/></span><p>{publicInvoiceFooter(footer?.body)}</p></div>
+    <div className="invoice-footer-note"><span><Info/></span><p>{invoicePaymentMessage(state)??publicInvoiceFooter(footer?.body)}</p></div>
     <div className="secure-note"><ShieldCheck/> Your private invoice link is unique to you.</div>
   </section></main>;
 }

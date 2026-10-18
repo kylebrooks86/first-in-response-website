@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {invoicePaymentState} from '../lib/invoice-state.mjs';
 import {readFileSync,readdirSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {DatabaseSync} from 'node:sqlite';
@@ -49,5 +50,5 @@ assert.equal(guard({},0,[]).billingStateSafe,false);
 assert.equal(guard({},-1).billingStateSafe,false);
 assert.equal(guard({status:'completed'},10000).balance,0);
 const invoice=readFileSync(root+'/app/invoice/[token]/page.tsx','utf8');
-assert.ok(invoice.includes("r.status='pending'"));assert.ok(invoice.includes('Number(row.pendingRefundCount??0)>0'));
+assert.ok(invoice.includes("r.status='pending'"));assert.ok(invoice.includes('invoicePaymentState(row)'));assert.ok(invoice.includes('const paymentReviewPending=state.review'));assert.equal(invoicePaymentState({status:'paid',totalCents:10000,paidCents:10000,pendingRefundCount:1}).review,true);
 console.log('PASS: actual notification SQL handles repeated/stale visits and acceptance without duplicate alerts; valid deposit/final payments remain available; malformed billing and pending refund/overage block collection.');
