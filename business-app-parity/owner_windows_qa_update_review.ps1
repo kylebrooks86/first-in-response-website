@@ -11,7 +11,7 @@ $qaDatabase = 'fire-fullapp-qa-db-20261016'
 $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Only recognize the one serving version of the previously owner-observed
 # October 17 QA Worker update. Never accept old deployment history versions.
-$expectedActiveVersionPrefix = 'c77e8efd-3ad3-4586-9afd-'
+$expectedActiveVersionPrefix = 'd3c33191-469f-4c08-8399-'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }
