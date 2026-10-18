@@ -1,7 +1,8 @@
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { retrieveStripeCheckoutSession, recordStripeCheckoutSession } from "../../../lib/stripe-payments";
 import { env } from "cloudflare:workers";
-import { CheckCircle2, MapPin, ShieldCheck } from "lucide-react";
+import { CheckCircle2, MapPin, ShieldCheck, X } from "lucide-react";
+import { getChatGPTUser } from "../../chatgpt-auth";
 import { AcceptEstimateButton } from "./accept-button";
 import { PayButton } from "../../pay/[id]/pay-button";
 import { SERVICE_AGREEMENT, templateByKey } from "../../../lib/fire-templates";
@@ -22,9 +23,13 @@ async function confirmPayment(sessionId:string,estimate:{id:string}){
   return (await recordStripeCheckoutSession(env.DB,session)).recorded;
 }
 
-export default async function CustomerEstimatePage({params,searchParams}:{params:Promise<{token:string}>;searchParams:Promise<{session_id?:string;from?:string}>}){
+export default async function CustomerEstimatePage({params,searchParams}:{params:Promise<{token:string}>;searchParams:Promise<{session_id?:string;from?:string;ownerPreview?:string}>}){
   const {token}=await params;
-  const {session_id:sessionId}=await searchParams;
+  const {session_id:sessionId,ownerPreview:previewRequested}=await searchParams;
+  // The query is only a navigation hint, never authorization. Ordinary shared
+  // links omit it; copying/forging it cannot expose owner controls to a customer.
+  const previewUser=previewRequested==='1'?await getChatGPTUser():null;
+  const ownerPreview=Boolean(previewUser?.email?.toLowerCase()==='kylebrooks8605@gmail.com');
   const row=await env.DB.prepare(`SELECT e.id,e.customer_id AS customerId,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.total_cents AS totalCents,(SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,e.deposit_cents AS depositCents,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,c.name AS customer,${serviceAddressColumns(serviceLocationsEnabled(env))},(SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,(SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending') AS pendingRefundCount FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.share_token=? LIMIT 1`).bind(token).first<{id:string;customerId:string;status:string;subtotalCents:number;discountCents:number;totalCents:number;invoiceTotalCents:number|null;depositCents:number;shareToken:string;firstViewedAt:string|null;acceptedAt:string|null;signedName:string|null;signedAt:string|null;contractInitials:string|null;photoRelease:string|null;customer:string;address:string|null;serviceAddressSource?:string;paymentOverageOpen:number;pendingRefundCount:number}>();
   if(!row)return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div><h1>Estimate not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
   const itemResult=await env.DB.prepare(`SELECT name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC`).bind(row.id).all<{name:string;description:string;quantity:number;unit:string;totalCents:number}>();
@@ -34,7 +39,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const estimateSnapshotSafe=estimateItemsSafe&&Number.isSafeInteger(itemSubtotalCents)&&itemSubtotalCents===Number(row.subtotalCents)&&Number.isSafeInteger(Number(row.discountCents))&&Number(row.discountCents)>=0&&Number(row.discountCents)<=itemSubtotalCents;
   const paymentReviewPending=Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0;
   const serviceSummary=items.map((item)=>item.name).join(", ")||"Exterior cleaning service";
-  if(!row.firstViewedAt){
+  if(!ownerPreview&&!row.firstViewedAt){
     const now=new Date().toISOString();
     await env.DB.batch([
       env.DB.prepare("UPDATE estimates SET first_viewed_at=?,status=CASE WHEN status='draft' THEN 'sent' ELSE status END WHERE id=? AND first_viewed_at IS NULL").bind(now,row.id),
@@ -57,7 +62,9 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const canPayBalance=billingStateSafe&&!paymentReviewPending&&row.status==="completed"&&balance>0;
   const footer=await env.DB.prepare("SELECT body FROM message_templates WHERE key='estimateFooter'").first<{body:string}>();
   const contract=await env.DB.prepare("SELECT body FROM message_templates WHERE key='contractTerms'").first<{body:string}>();
-  return <main className="pay-page"><section className="pay-card estimate-portal">
+  return <main className={`pay-page${ownerPreview?' owner-estimate-preview':''}`}>
+    {ownerPreview&&<a className="owner-estimate-preview-close" href={`/?openEstimate=${encodeURIComponent(row.id)}`} aria-label="Close estimate preview" title="Return to estimate details"><X aria-hidden="true"/></a>}
+    <section className="pay-card estimate-portal">
     <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
     {paymentConfirmed&&<div className="portal-payment-success"><CheckCircle2/><div><strong>Payment received</strong><p>Thank you, {row.customer}. Kyle has been notified.</p></div></div>}
     <div className="pay-title"><p>ESTIMATE FOR</p><h1>{row.customer}</h1>{row.address&&<span><MapPin/>{row.address}</span>}{row.serviceAddressSource==="legacy-current-unverified"&&<small>Current customer address; original service address unverified.</small>}</div>

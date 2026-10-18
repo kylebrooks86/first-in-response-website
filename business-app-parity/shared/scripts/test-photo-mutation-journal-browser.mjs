@@ -75,7 +75,14 @@ try{
  });
  check(live.writes===0&&live.reviewReads===0&&live.failures.every(Boolean),'Active mutation prevents concurrent mutation, review and premature acknowledgement across tabs');
  await page.close();
- await other.waitForFunction(async()=>(await navigator.locks.query()).held.length===0);
+ // Closing a tab and querying lock state do not provide a release barrier on
+ // every Chromium version. Queue a native read-only barrier, then let its
+ // release settle before testing the deliberately non-queuing product API.
+ await other.evaluate(async()=>{
+  const name=(await indexedDB.databases()).find(x=>x.name.startsWith('fire-photo-mutation-')).name+'-exclusive';
+  await navigator.locks.request(name,()=>undefined);
+  await new Promise(requestAnimationFrame);
+ });
  reviewed=await other.evaluate(()=>fixture.reviewPhotoMutation('synthetic-A',()=>fixture.listOfflinePhotos()));
  check(typeof reviewed==='string','Closing active tab releases Web Lock but preserves interruption receipt');
  await other.evaluate(id=>fixture.acknowledgePhotoMutation(id),reviewed);

@@ -1003,7 +1003,7 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
       />}
       {estimate.customerId&&estimate.status==="scheduled"&&estimate.scheduledAt&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="onMyWay" triggerLabel="On my way"/>}
       {estimate.customerId&&estimate.status==="completed"&&Number(estimate.paymentOverageOpen)===0&&estimate.paidCents>=resolvedBillingTotalCents(estimate)&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="review" triggerLabel={estimate.lastReviewRequestAt?"Review requested":"Request review"} onSent={(message)=>onChanged({...estimate,lastReviewRequestAt:message.createdAt})}/>}
-      {estimate.shareToken&&<a href={`/estimate/${estimate.shareToken}`} target="_blank" rel="noreferrer"><ExternalLink/> Customer view</a>}
+      {estimate.shareToken&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`}><ExternalLink/> Customer view</a>}
       {estimate.invoiceId&&estimate.invoiceShareToken&&<a href={`/invoice/${estimate.invoiceShareToken}`} target="_blank" rel="noreferrer"><Receipt/> View invoice</a>}
       {estimate.phone && <a href={`tel:${estimate.phone}`}><Phone /> Call</a>}
       {estimate.phone && <a href={`sms:${estimate.phone}`}><Send /> Text</a>}
