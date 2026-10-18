@@ -666,3 +666,41 @@ html,body{max-width:100%;overflow-x:clip}
 .weather-current.condition-storm>svg{color:#ae7418}
 .weather-current.condition-snow>svg{color:#4982b3}
 .weather-current.condition-fog>svg{color:#6c8194}
+
+/* FIRE QA: prevent iPhone Safari from centering long edit-estimate forms
+   outside the visible viewport. Header/close and save remain reachable;
+   only the middle form scrolls. Shared source: phone, tablet, desktop. */
+.estimate-edit-dialog{
+  display:flex;flex-direction:column;
+  max-height:min(92vh,92dvh);overflow:hidden;
+}
+.estimate-edit-modal-header{flex:0 0 auto;min-height:24px;padding-right:44px}
+.estimate-edit-scroll-area{
+  flex:1 1 auto;min-height:0;min-width:0;
+  overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  padding:4px 2px 14px;
+  display:grid;align-content:start;gap:16px;
+}
+.estimate-edit-modal-footer{
+  flex:0 0 auto;min-width:0;padding-top:12px;
+  border-top:1px solid var(--border);
+  background:var(--background);
+}
+@media(max-width:760px){
+  .estimate-edit-dialog{
+    top:max(12px,env(safe-area-inset-top))!important;
+    bottom:max(12px,env(safe-area-inset-bottom))!important;
+    left:14px!important;right:14px!important;
+    width:auto!important;height:auto!important;
+    max-height:none!important;
+    translate:none!important;transform:none!important;
+    overflow:hidden!important;
+    padding:18px!important;
+  }
+  .estimate-edit-modal-header{padding-right:52px}
+  .estimate-edit-modal-footer .brand-button{min-height:48px}
+  .estimate-edit-scroll-area input,.estimate-edit-scroll-area textarea{
+    font-size:16px;
+  }
+}
