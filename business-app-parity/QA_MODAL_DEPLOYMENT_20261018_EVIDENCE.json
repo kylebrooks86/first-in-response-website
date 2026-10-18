@@ -41,5 +41,16 @@
     "totalGates": 10,
     "percent": 30
   },
-  "productionAppsOrRecordsModified": false
+  "productionAppsOrRecordsModified": false,
+  "ownerIPhoneScreenshotCheck": {
+    "imageReference": "IMG_2110.png (visible conversation attachment; image bytes not archived)",
+    "ownerReported": "it worked",
+    "observed": [
+      "Centered Edit estimate modal within iPhone viewport",
+      "Close control visible in header while long form is scrolled",
+      "Save estimate changes visible in footer",
+      "Total $200 and deposit $100 displayed"
+    ],
+    "keyboardAndFullWorkflowAcceptance": "Pending separate owner device evidence; not requested again in this development batch"
+  }
 }

@@ -443,6 +443,18 @@ jobs:
         run: python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-candidate" --built
       - name: Fail closed unless built QA manifest binds only the newly created isolated D1
         run: node business-app-parity/check_qa_runtime_config.mjs "$RUNNER_TEMP/fire-qa-candidate/dist/server/wrangler.json"
+      - name: Prepare pinned browser driver for built QA local-runtime integration
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-qa-http-browser"
+          npm --prefix "$RUNNER_TEMP/fire-qa-http-browser" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-qa-http-browser/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || { echo "Runner Chrome is unavailable."; exit 1; }
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Entire built QA Worker over local HTTPS — native D1, owner auth, mobile modal and restart
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          node scripts/test-qa-worker-http-browser.mjs
       - name: Seal synthetic-only QA full-app review bundle
         run: |
           python3 business-app-parity/prepare_device_review.py \
@@ -506,6 +518,8 @@ jobs:
         run: node scripts/test-estimate-editor-react-browser.mjs
       - name: Verify actual IndexedDB customer photos, ZIP restore and offline additions in Chrome
         run: node scripts/test-offline-photo-indexeddb-browser.mjs
+      - name: Verify durable photo interruption receipts, native cross-tab locking and browser restart
+        run: node scripts/test-photo-mutation-journal-browser.mjs
       - name: Exercise actual photo screen, offline ZIP, stopped-server cold launch and Files readback
         run: node scripts/test-offline-photo-ui-browser.mjs
       - name: Exercise actual Customers dashboard offline-photo fallback, authenticated directory and 401 revocation

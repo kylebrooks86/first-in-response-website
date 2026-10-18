@@ -1,0 +1,132 @@
+/** Entire BUILT QA Worker, real local workerd/D1, auth cookies and mobile UI.
+ * Only a disposable loopback runtime; no remote mode, provider or deployed data.
+ */
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {spawn} from 'node:child_process';
+import {createHash,randomUUID} from 'node:crypto';
+import {mkdtempSync,readFileSync,writeFileSync,rmSync} from 'node:fs';
+import {join,resolve} from 'node:path';
+import {tmpdir} from 'node:os';
+import {createServer} from 'node:net';
+import {get as httpsGet} from 'node:https';
+import {validateRecordIdentities,validateBackupRelationships,validateRefundIntegrity} from './records-backup-integrity.mjs';
+const require=createRequire(import.meta.url);
+if(!process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||!process.env.FIRE_BROWSER_TEST_EXECUTABLE)throw Error('Pinned Chromium runner required');
+const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE);
+const root=resolve(new URL('..',import.meta.url).pathname);
+const built=JSON.parse(readFileSync(join(root,'dist/server/wrangler.json'),'utf8'));
+assert.equal(built.name,'fire-fullapp-qa-20261016');
+assert.equal(built.vars.FIRE_ENV,'synthetic-qa');assert.equal(built.vars.FIRE_QA_SYNTHETIC_ONLY,'enabled');
+assert.equal(built.d1_databases.length,1);assert.equal(built.d1_databases[0].binding,'DB');
+for(const key of ['r2_buckets','services','kv_namespaces','queues','hyperdrive']){
+ const value=built[key];assert.ok(!value||(Array.isArray(value)?value.length===0:Object.values(value).every(x=>Array.isArray(x)&&x.length===0)),'Unexpected binding '+key);
+}
+assert.ok(!Object.keys(built.vars).some(key=>key.startsWith('STRIPE_')));
+const temp=mkdtempSync(join(tmpdir(),'fire-local-qa-http-'));
+const password='synthetic-http-'+randomUUID(),sessionSecret=randomUUID()+randomUUID();
+// Runtime copy removes EVERY physical provider identifier. The original built
+// manifest, bindings, secrets and databases are never edited.
+const config={name:'fire-local-qa-http-fixture',main:resolve(root,'dist/server',built.main),
+ // The locked local workerd binary supports dates through 2026-05-22.
+ // Cap only this disposable fixture, never the production build or manifest.
+ // This tests built code, not October hosted compatibility-date semantics.
+ compatibility_date:'2026-05-22',compatibility_flags:built.compatibility_flags,
+ no_bundle:true,rules:built.rules,vars:built.vars,
+ assets:{directory:resolve(root,'dist/client')},
+ d1_databases:[{binding:'DB',database_name:'fire-local-synthetic-db',database_id:randomUUID(),migrations_dir:join(root,'drizzle')}]};
+const configPath=join(temp,'wrangler.json');writeFileSync(configPath,JSON.stringify(config));
+writeFileSync(join(temp,'.dev.vars'),`FIRE_QA_PASSWORD_HASH=${createHash('sha256').update(password).digest('hex')}\nFIRE_QA_SESSION_SECRET=${sessionSecret}\n`,{mode:0o600});
+const env={...process.env,CLOUDFLARE_CF_FETCH_ENABLED:'false',WRANGLER_SEND_METRICS:'false',CI:'true'};
+// Never borrow any local or CI Cloudflare authentication for a local test.
+for(const key of Object.keys(env))if(/^(CLOUDFLARE_API_|CF_API_|CLOUDFLARE_ACCOUNT_ID)/.test(key))delete env[key];
+const wrangler=join(root,'node_modules/wrangler/bin/wrangler.js');
+let worker,browser,workerLog='',checks=0;const outside=[],clientErrors=[];
+const check=(value,label)=>{assert.ok(value,label);checks++;console.log('PASS: '+label);};
+function command(args){
+ assert.ok(args.includes('--local')&&!args.includes('--remote')&&!args.includes('deploy'));
+ return new Promise((resolve,reject)=>{
+  const child=spawn(process.execPath,[wrangler,...args],{cwd:temp,env,stdio:['ignore','pipe','pipe']});let out='';
+  child.stdout.on('data',d=>{out+=d;});child.stderr.on('data',d=>{out+=d;});
+  child.on('error',reject);child.on('exit',code=>code===0?resolve():reject(Error('Local D1 preparation failed: '+out.slice(-1800))));
+ });
+}
+const port=await new Promise(resolve=>{const s=createServer();s.listen(0,'127.0.0.1',()=>{const p=s.address().port;s.close(()=>resolve(p));});});
+const origin='https://127.0.0.1:'+port;
+async function start(){
+ worker=spawn(process.execPath,[wrangler,'dev','--config',configPath,'--local','--persist-to',join(temp,'state'),'--ip','127.0.0.1','--port',String(port),'--local-protocol','https','--inspector-port','0','--show-interactive-dev-session=false'],{cwd:temp,env,stdio:['ignore','pipe','pipe']});
+ worker.stdout.on('data',d=>{workerLog+=d;});worker.stderr.on('data',d=>{workerLog+=d;});
+ for(let i=0;i<150;i++){
+  if(worker.exitCode!==null)throw Error('Local Worker stopped: '+workerLog.slice(-1800));
+  try{const status=await new Promise((resolve,reject)=>{const r=httpsGet(origin+'/login',{rejectUnauthorized:false,timeout:1500},response=>{response.resume();resolve(response.statusCode);});r.on('error',reject);r.on('timeout',()=>r.destroy(Error('Local readiness timeout')));});if(status===200)return;}catch{}
+  await new Promise(r=>setTimeout(r,200));
+ }
+ throw Error('Local Worker did not become ready: '+workerLog.slice(-1800));
+}
+async function stop(){if(worker&&worker.exitCode===null){const ended=new Promise(r=>worker.once('exit',r));worker.kill('SIGTERM');await ended;}worker=null;}
+try{
+ await command(['d1','migrations','apply','DB','--local','--persist-to',join(temp,'state'),'--config',configPath]);
+ await start();
+ browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
+ const context=await browser.newContext({viewport:{width:390,height:844},ignoreHTTPSErrors:true});
+ await context.route('**/*',route=>{if(new URL(route.request().url()).origin!==origin){outside.push(route.request().url());return route.abort();}return route.continue();});
+ const request=async(path,method='GET',data,headers={})=>{
+  assert.ok(path.startsWith('/api/')&&!path.startsWith('//'));
+  return context.request.fetch(origin+path,{method,data,headers});
+ };
+ check((await request('/api/customers')).status()===401,'Real built Worker rejects unauthenticated customer read');
+ check((await request('/api/estimates','POST',{customer:'Synthetic forged request'},{'oai-authenticated-user-email':'kylebrooks8605@gmail.com'})).status()===401,'Real HTTP gateway-header spoof cannot authorize an estimate write');
+ const login=await request('/api/auth/login','POST',{password});
+ check(login.status()===200,'Actual QA login route verifies synthetic passphrase against native D1 rate limiter');
+ check(/HttpOnly; Secure; SameSite=Strict/.test(login.headers()['set-cookie']),'Actual HTTP response sets isolated secure owner session cookie');
+ check((await request('/api/customers')).status()===200,'Browser cookie authorizes real Worker customer API');
+ const customerResponse=await request('/api/customers','POST',{name:'Synthetic HTTP Customer',address:'100 Synthetic Fixture Way',email:'fixture@example.invalid'});
+ const customer=(await customerResponse.json()).customer;
+ check(customerResponse.status()===201&&typeof customer?.id==='string','Customer creation persists through actual HTTP and native D1');
+ const item={name:'Synthetic Gutter Service',description:'Isolated runtime fixture',quantity:1,unit:'job',totalCents:20000};
+ const created=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[item]});
+ const estimate=await created.json();
+ check(created.status()===201&&estimate.totalCents===20000&&estimate.depositCents===10000,'Real estimate creation retains exact $200 total and $100 deposit');
+ const invalid=await request('/api/estimates/'+estimate.id,'PATCH',{items:[{...item,quantity:0}]});
+ check(invalid.status()===400,'Native HTTP edit rejects invalid service quantity');
+ const premature=await request('/api/invoices','POST',{estimateId:estimate.id});
+ check(premature.status()===409,'Actual invoice route blocks billing an incomplete job');
+ const page=await context.newPage();page.on('pageerror',e=>clientErrors.push(e.message));
+ await page.goto(origin+'/');
+ await page.getByText('SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS',{exact:true}).waitFor();
+ check(true,'Entire built Business App renders authenticated SSR and client hydration on iPhone viewport');
+ // Open the actual dashboard workflow, without fixture replacement or mocked API.
+ await page.getByRole('button',{name:'Open menu',exact:true}).click();
+ await page.getByRole('button',{name:/Estimates 1/}).click();
+ await page.getByRole('button',{name:/Synthetic HTTP Customer.*\$200/}).click();
+ await page.getByRole('button',{name:'Edit estimate',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Edit estimate',exact:true});await dialog.waitFor();
+ const box=await dialog.boundingBox();
+ check(box.x>=0&&box.x+box.width<=391&&box.y>=0&&box.y+box.height<=845,'Real Worker assets center actual Edit Estimate modal within iPhone viewport');
+ check(await dialog.getByRole('button',{name:'Save estimate changes',exact:true}).isVisible(),'Real framework modal retains accessible Save control');
+ await dialog.getByRole('button',{name:'Close',exact:true}).click();
+ await page.getByRole('dialog',{name:'Synthetic Gutter Service',exact:true}).getByRole('button',{name:'Close',exact:true}).click();
+ // Actual server edit, then terminate/restart the local Worker and re-read D1.
+ const edited=await request('/api/estimates/'+estimate.id,'PATCH',{items:[{...item,totalCents:25000}]});
+ check(edited.status()===200&&(await edited.json()).estimate?.totalCents===25000,'HTTP estimate edit atomically persists $250 total');
+ const backupResponse=await request('/api/backup');const backup=await backupResponse.json();
+ check(backupResponse.status()===200&&backup.tables.customers.length===1&&backup.tables.estimates.length===1,'Full records backup covers actual synthetic customer and estimate');
+ check(!validateRecordIdentities(backup.tables)&&!validateBackupRelationships(backup.tables)&&!validateRefundIntegrity(backup.tables),'Actual HTTP backup passes shared identity, ownership and financial validators');
+ for(const [path,body] of [['/api/payments/checkout',{estimateId:estimate.id,type:'deposit'}],['/api/payments/refund',{paymentId:'synthetic',amountCents:1}],['/api/payments/webhook',{}]]){
+  const response=await request(path,'POST',body);check(response.status()===409||response.status()===503,'Actual QA Worker refuses provider operation '+path);
+ }
+ const failures=[];
+ for(let i=0;i<5;i++)failures.push((await request('/api/auth/login','POST',{password:'synthetic-wrong-passphrase-00000000'})).status());
+ check(failures.slice(0,4).every(status=>status===401)&&failures[4]===429,'Native D1 login limiter atomically blocks fifth failed attempt');
+ await stop();await start();
+ check((await request('/api/auth/login','POST',{password})).status()===429,'Authentication lockout persists after local Worker restart');
+ const reloaded=await request('/api/estimates');const saved=(await reloaded.json()).estimates;
+ check(reloaded.status()===200&&saved.length===1&&saved[0].totalCents===25000&&saved[0].depositCents===12500,'Worker restart preserves owner cookie, customer relationship, estimate and deposit in native D1');
+ await page.reload();await page.getByText('SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Open menu',exact:true}).click();
+ await page.getByRole('button',{name:/Estimates 1/}).click();
+ await page.getByRole('button',{name:/Synthetic HTTP Customer.*\$250/}).waitFor();
+ check(true,'Actual Estimates screen shows saved estimate after full local Worker restart');
+ check(outside.length===0&&clientErrors.length===0,'Zero external browser requests and uncaught framework client errors');
+ console.log('PASS '+checks+' built QA Worker HTTP / native D1 / Chromium checks. Local synthetic evidence only; no hosted or iOS acceptance claimed.');
+}finally{if(browser)await browser.close();await stop();rmSync(temp,{recursive:true,force:true});}

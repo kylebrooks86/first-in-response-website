@@ -69,6 +69,10 @@ try{
  check(await page.locator('.photo-card').count()===1,'Partially completed selection refreshes the committed photo without replaying it');
  check(await page.getByRole('button',{name:'Photo library',exact:true}).isDisabled(),'Uncertain batch disables new photo additions');
  check(await page.getByRole('button',{name:'Delete on-device photo'}).isDisabled(),'Uncertain batch disables destructive photo actions');
+ await page.reload();
+ await page.getByText(/Photo changes are paused/).waitFor();
+ check(await page.locator('.photo-card').count()===1,'Reload after partial selection retains committed image and durable pause');
+ check(await page.getByRole('button',{name:'Photo library',exact:true}).isDisabled(),'Reload cannot re-enable a duplicate upload after an interrupted selection');
  const allow=page.getByRole('button',{name:'I reviewed saved photos; allow new changes'});
  check(await allow.isDisabled(),'Owner cannot resume changes before a successful read-only refresh');
  await page.evaluate(()=>{
@@ -146,6 +150,10 @@ try{
  check(await page.locator('.photo-card').count()===2,'Interrupted post-commit restore refreshes both actual saved photos');
  check(await page.getByRole('button',{name:'Restore verified photo ZIP',exact:true}).isDisabled(),'Unconfirmed restore blocks a second recovery request');
  await page.evaluate(()=>{IDBObjectStore.prototype.add=window.originalRestoreAdd;IDBObjectStore.prototype.getAll=window.originalRestoreGetAll;});
+ await ctx.setOffline(false);await page.reload();
+ await page.getByText(/Photo changes are paused/).waitFor();
+ check(await page.locator('.photo-card').count()===2,'Reload after committed-but-unconfirmed ZIP restore preserves images and durable pause');
+ check(await page.getByRole('button',{name:'Restore verified photo ZIP',exact:true}).isDisabled(),'Reload cannot enable an unreviewed ZIP restore retry');
  await page.getByRole('button',{name:'Refresh saved photos for review'}).click();
  await page.getByRole('button',{name:'I reviewed saved photos; allow new changes'}).click();
  check(await page.locator('.photo-card').count()===2,'Review after interrupted restore never duplicates committed photos');

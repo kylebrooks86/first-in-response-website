@@ -1,0 +1,109 @@
+{
+  "baseCommit": "90e064121c721a4bcf96f58e5339380ae2b9d3cf",
+  "officialReadiness": {
+    "acceptedGates": 3,
+    "totalGates": 10,
+    "percent": 30
+  },
+  "implemented": [
+    "Durable per-deployment IndexedDB interruption receipts committed before actual on-device photo additions, deletions and ZIP restores.",
+    "Native Web Locks exclude concurrent photo mutations, review and acknowledgement across tabs. No expiry, automatic retry or queued replay.",
+    "Actual customer-photo UI checks receipts after mount/focus/visibility; reload retains pause. Explicit successful read-only review and exact attempt acknowledgement required.",
+    "Failure after saved image or receipt cleanup preserves bytes and receipt. Missing lock support or safety storage fails closed for mutations; read/export remain available.",
+    "Entire built QA Worker tested through local HTTPS with actual owner login, native D1 migrations, HTTP APIs, Chromium UI, backup validation and Worker restart. Added CI coverage."
+  ],
+  "verification": {
+    "candidateTargets": [
+      "live",
+      "doomsday",
+      "staging",
+      "qa"
+    ],
+    "typechecks": {
+      "passed": 4,
+      "total": 4
+    },
+    "builds": {
+      "passed": 4,
+      "total": 4
+    },
+    "financialRegressionSuiteInvocations": {
+      "passed": 4,
+      "total": 4,
+      "suite": "test-processing-fees.mjs via run-ci-regression.mjs"
+    },
+    "schemaAuditInvocations": {
+      "passed": 4,
+      "total": 4
+    },
+    "databaseContractInvocations": {
+      "passed": 4,
+      "total": 4
+    },
+    "photoArchiveUIContractInvocations": {
+      "passed": 4,
+      "total": 4
+    },
+    "browserAssertionsPerTarget": {
+      "durableMutationJournal": 24,
+      "actualReactPhotoUI": 35,
+      "actualIndexedDBPhotos": 48,
+      "actualCustomersFallbackAndAuthDenial": 12
+    },
+    "photoBrowserAssertionsTotal": 476,
+    "builtQAWorkerHTTPSAssertions": 23,
+    "combinedBrowserAndHTTPAssertions": 499,
+    "builtQAWorkerCoverage": [
+      "Unauthenticated read rejection",
+      "Spoofed owner header rejection",
+      "Real passphrase verification and secure cookie",
+      "Actual customer create",
+      "20000-cent estimate and 10000-cent deposit",
+      "Invalid quantity rejected",
+      "Premature invoice refused",
+      "Authenticated SSR and hydration",
+      "Actual mobile Edit Estimate geometry and actions",
+      "25000-cent edit persisted",
+      "Complete records backup validates identities/ownership/refunds",
+      "Checkout/refund/webhook refusals",
+      "Fifth failed login blocked",
+      "Rate limit survives Worker restart",
+      "Owner session and 25000/12500-cent records survive Worker restart",
+      "Actual Estimates UI renders saved total after restart"
+    ],
+    "localD1MigrationCount": 23,
+    "builtSourceFileCounts": {
+      "live": 355,
+      "doomsday": 360,
+      "staging": 356,
+      "qa": 360
+    },
+    "zeroExternalBrowserRequests": true,
+    "zeroUncaughtBrowserErrors": true
+  },
+  "limitations": [
+    "All new photo, HTTP and D1 evidence uses disposable isolated synthetic local environments; no hosted acceptance or iOS keyboard acceptance claimed.",
+    "The pinned local workerd supports compatibility dates only through 2026-05-22. Only the disposable HTTP fixture caps its date; deployed candidate compatibility date remains 2026-10-16. Hosted October compatibility semantics remain unverified by this fixture.",
+    "Web Locks support is required for new photo mutations. Browsers without it retain read/export access and show a paused error.",
+    "Receipts coordinate the current shared UI on one origin/deployment, not obsolete app versions or third-party direct database writers. Browser storage loss/eviction still requires external backups.",
+    "A corrupted receipt is not automatically erased. An interrupted change must be reviewed from its original customer gallery.",
+    "Complete full-app offline record editing, coordinated hosted photo recovery, physical LIVE/refund-staging identities, actual Stripe sandbox integration and production rollback acceptance remain pending."
+  ],
+  "safety": {
+    "deployedAppsChanged": false,
+    "hostedDatabasesChanged": false,
+    "existingCustomerRecordsChanged": false,
+    "stripeOrCredentialsChanged": false,
+    "paidResourcesCreated": false,
+    "existingInstallationsOrVaultsChanged": false,
+    "qaDeploymentPerformed": false
+  },
+  "gateMilestonesAdvanced": [
+    5,
+    6,
+    7,
+    8,
+    10
+  ],
+  "nextTask": "Use the new full built-Worker integration harness to exercise signed-estimate scheduling/completion/invoicing and coherent recovery without provider actions; retain all hosted gate blocks."
+}
