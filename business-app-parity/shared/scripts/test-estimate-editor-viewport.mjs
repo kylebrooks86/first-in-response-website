@@ -26,9 +26,25 @@ for(const bit of [
  '.estimate-edit-scroll-area{','min-height:0;min-width:0','overflow-y:auto;overflow-x:hidden',
  'overscroll-behavior:contain','-webkit-overflow-scrolling:touch',
  '.estimate-edit-modal-footer{','flex:0 0 auto','@media(max-width:760px)',
- 'top:max(12px,env(safe-area-inset-top))!important','bottom:max(12px,env(safe-area-inset-bottom))!important',
- 'translate:none!important;transform:none!important','max-height:none!important'])
+ 'top:50%!important;left:50%!important','bottom:auto!important;right:auto!important',
+ 'width:calc(100vw - 28px)!important','max-width:calc(100vw - 28px)!important',
+ 'translate:-50% -50%!important','max-height:calc(100dvh - 28px)!important'])
  assert.ok(patch.includes(bit),'Missing responsive editor guarantee: '+bit);
 assert.ok(patch.indexOf('.estimate-edit-dialog{')<patch.indexOf('@media(max-width:760px)'),'Desktop modal remains centered with bounded height');
+// The previous patch anchored the dialog at 14px but left Radix's -50%
+// centering in place; iPhone Safari then clipped half the form off-screen.
+assert.ok(!patch.includes('left:14px!important'),'Never anchor a translated dialog at the left edge');
+assert.ok(!patch.includes('translate:none!important'),'Do not remove Radix dialog centering');
+assert.ok(!patch.includes('transform:none!important'),'Do not override Radix dialog animations');
+const radixDialog=readFileSync('components/ui/dialog.tsx','utf8');
+assert.match(radixDialog,/top-\\[50%\\] left-\\[50%\\]/,'Base dialog uses centered viewport anchors');
+assert.match(radixDialog,/translate-x-\\[-50%\\] translate-y-\\[-50%\\]/,'Base dialog uses centered translations');
+for(const viewportWidth of [320,375,390,430,760]){
+  const modalWidth=viewportWidth-28;
+  const left=viewportWidth/2-modalWidth/2;
+  assert.equal(left,14,`Editor left edge at ${viewportWidth}px must stay visible`);
+  assert.equal(left+modalWidth,viewportWidth-14,`Editor right edge at ${viewportWidth}px must stay visible`);
+}
+
 assert.equal((editor.match(/Save estimate changes/g)||[]).length,1,'Single save action');
-console.log('PASS: Edit Estimate has reachable close/header and save footer, internal scroll, dynamic viewport/safe-area positioning; source-only synthetic checks; no deployment.');
+console.log('PASS: Edit Estimate header/save footer and scroll area stay accessible; shared mobile dialog horizontal centering model; static source checks only, no browser execution/deployment.');

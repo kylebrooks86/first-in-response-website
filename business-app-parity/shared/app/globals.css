@@ -689,12 +689,16 @@ html,body{max-width:100%;overflow-x:clip}
 }
 @media(max-width:760px){
   .estimate-edit-dialog{
-    top:max(12px,env(safe-area-inset-top))!important;
-    bottom:max(12px,env(safe-area-inset-bottom))!important;
-    left:14px!important;right:14px!important;
-    width:auto!important;height:auto!important;
-    max-height:none!important;
-    translate:none!important;transform:none!important;
+    /* Radix centers fixed dialogs using 50% anchors plus -50% translation.
+       Do not mix a 14px left anchor with its -50% translation: iPhone Safari
+       then positions the editor partly outside the left edge of the screen. */
+    top:50%!important;left:50%!important;
+    bottom:auto!important;right:auto!important;
+    width:calc(100vw - 28px)!important;
+    max-width:calc(100vw - 28px)!important;
+    height:auto!important;
+    max-height:calc(100dvh - 28px)!important;
+    translate:-50% -50%!important;
     overflow:hidden!important;
     padding:18px!important;
   }
