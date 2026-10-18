@@ -37,8 +37,8 @@ assert.ok(!patch.includes('left:14px!important'),'Never anchor a translated dial
 assert.ok(!patch.includes('translate:none!important'),'Do not remove Radix dialog centering');
 assert.ok(!patch.includes('transform:none!important'),'Do not override Radix dialog animations');
 const radixDialog=readFileSync('components/ui/dialog.tsx','utf8');
-assert.match(radixDialog,/top-\\[50%\\] left-\\[50%\\]/,'Base dialog uses centered viewport anchors');
-assert.match(radixDialog,/translate-x-\\[-50%\\] translate-y-\\[-50%\\]/,'Base dialog uses centered translations');
+assert.match(radixDialog,/top-\[50%\] left-\[50%\]/,'Base dialog uses centered viewport anchors');
+assert.match(radixDialog,/translate-x-\[-50%\] translate-y-\[-50%\]/,'Base dialog uses centered translations');
 for(const viewportWidth of [320,375,390,430,760]){
   const modalWidth=viewportWidth-28;
   const left=viewportWidth/2-modalWidth/2;
