@@ -1,0 +1,45 @@
+{
+  "deployedCommit": "41cb8d5a9ad71b051490645f7683cd6bf8b5a27f",
+  "worker": "fire-fullapp-qa-20261016",
+  "url": "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev/",
+  "ownerDeploymentOutput": {
+    "screenshot": "IMG_A518C2C2-B769-42FC-9610-FD5B09113EE2.jpeg",
+    "currentVersion": "58a467fa-9dbc-45a3-971e-b5a4e478f54d",
+    "previousRollbackVersion": "5e44f843-94f0-4ea4-b80f-a889bd0830ef",
+    "databaseBinding": "fire-fullapp-qa-db-20261016",
+    "successMessage": true
+  },
+  "independentHostedBrowserVerification": {
+    "authenticatedSessionPreserved": true,
+    "correctedCSSOMVerified": true,
+    "mobileInset": "50% auto auto 50%",
+    "mobileTranslate": "-50% -50%",
+    "mobileMaxHeight": "calc(100dvh - 28px)",
+    "transitionProperty": "opacity, transform",
+    "old14pxEdgeAnchorRuleReplaced": true,
+    "customer": "FIRE QA Test Customer Updated",
+    "estimate": "Gutter Cleaning + Flush",
+    "estimateCount": 1,
+    "totalCents": 20000,
+    "depositCents": 10000,
+    "paidCents": 0,
+    "balanceCents": 20000,
+    "editorScrollable": true,
+    "editorSaveAndClosePresent": true,
+    "actualDesktopEditorInsideViewport": true,
+    "savedOrSentRecords": false
+  },
+  "limits": {
+    "currentCloudflareVersionSource": "Owner's authenticated Wrangler deployment output; Work dashboard sign-in remains unavailable.",
+    "physicalIPhoneAcceptance": false,
+    "physicalIPadAcceptance": false,
+    "deployedParityAcrossProductionTargets": false
+  },
+  "nextRelease": "This release is already published. Do not rerun its publisher. Before any later release, independently verify the then-active full UUID and update/review its exact baseline; do not blindly accept arbitrary current versions.",
+  "releaseReadiness": {
+    "acceptedGates": 3,
+    "totalGates": 10,
+    "percent": 30
+  },
+  "productionAppsOrRecordsModified": false
+}
