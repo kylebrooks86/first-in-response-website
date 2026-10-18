@@ -37,7 +37,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "c77e8efd-3ad3-4586-9afd-",
+                         "d3c33191-469f-4c08-8399-",
                          "deployments status --name $workerName --json",
                          "d1 list --json", "databaseInfo.qaUuid -ceq $qaId",
                          "$activeVersions.Count -eq 1",
