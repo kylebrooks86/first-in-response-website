@@ -7,9 +7,9 @@ async function authorized(){const user=await getChatGPTUser();return Boolean(use
 export async function GET(){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   try{
-    const result=await env.DB.prepare("SELECT id,type,title,body,customer_id AS customerId,estimate_id AS estimateId,read_at AS readAt,resolved_at AS resolvedAt,resolution_note AS resolutionNote,created_at AS createdAt FROM notifications ORDER BY created_at DESC LIMIT 40").all();
+    const result=await env.DB.prepare("SELECT n.id,n.type,n.title,n.body,n.customer_id AS customerId,n.estimate_id AS estimateId,n.read_at AS readAt,n.resolved_at AS resolvedAt,n.resolution_note AS resolutionNote,n.created_at AS createdAt,(SELECT inv.id FROM invoices inv WHERE inv.estimate_id=n.estimate_id AND (n.customer_id IS NULL OR inv.customer_id=n.customer_id) LIMIT 1) AS invoiceId FROM notifications n ORDER BY n.created_at DESC LIMIT 40").all();
     const unread=result.results.filter((item)=>!item.readAt).length;
-    return Response.json({notifications:result.results,unread});
+    return Response.json({notifications:result.results,unread},{headers:{"Cache-Control":"no-store, private"}});
   }catch{return Response.json({notifications:[],unread:0,error:"Notifications are temporarily unavailable."},{status:503});}
 }
 

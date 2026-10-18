@@ -757,3 +757,14 @@ html,body{max-width:100%;overflow-x:clip}
 .job-main .recent-estimate-dates,.job-main .recent-estimate-appointment{display:block;margin-top:4px;font-size:11px;line-height:1.4;white-space:normal;overflow-wrap:anywhere;color:var(--muted-foreground)}
 
 .invoice-card:focus-visible{outline:3px solid #e92332;outline-offset:3px}
+
+.estimate-change-history{min-width:0;border:1px solid var(--border);border-radius:16px;padding:16px}
+.estimate-change-history header,.change-request-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.estimate-change-history h3{font-weight:700}
+.estimate-change-history article{padding:16px 0;border-top:1px solid var(--border);margin-top:12px;min-width:0}
+.estimate-change-history small{display:block;opacity:.75;margin:6px 0}
+.estimate-change-history p{white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0}
+.estimate-change-history button{white-space:normal;min-height:44px;max-width:100%}
+
+/* Long request/audit history must not push desktop dialog controls offscreen. */
+.estimate-detail{max-height:calc(100dvh - 32px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;align-content:start}

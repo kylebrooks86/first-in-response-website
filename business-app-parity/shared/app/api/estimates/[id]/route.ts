@@ -87,7 +87,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       statements.push(env.DB.prepare("UPDATE estimates SET status=?, scheduled_at=? WHERE id=?").bind(nextStatus,nextSchedule,id));
       responseFields={...responseFields,status:nextStatus,scheduledAt:nextSchedule};
     }
-    if (body.resolveChangeRequests === true) statements.push(env.DB.prepare("UPDATE estimate_change_requests SET status='resolved' WHERE estimate_id=? AND status='open'").bind(id));
+    if (body.resolveChangeRequests === true) return Response.json({error:"Refresh the app and resolve a specific request from Customer change-request history."},{status:409});
     if(changingStatus){
       const latestWorkflow=await env.DB.prepare(`SELECT status,accepted_at AS acceptedAt,signed_at AS signedAt,COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents FROM estimates e WHERE e.id=?`).bind(id).first<{status:string;acceptedAt:string|null;signedAt:string|null;paidCents:number}>();
       if(!latestWorkflow)return Response.json({error:"Estimate not found."},{status:404});

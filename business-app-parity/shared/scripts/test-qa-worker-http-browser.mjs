@@ -1,3 +1,4 @@
+import {exerciseChangeRequestHistory} from './test-change-request-history-workflow.mjs';
 /** Entire BUILT QA Worker, real local workerd/D1, auth cookies and mobile UI.
  * Only a disposable loopback runtime; no remote mode, provider or deployed data.
  */
@@ -220,6 +221,7 @@ try{
  if(publicRetryMode)await exercisePublicEstimateRetry({page,context,origin,request,check,originalEstimateId:estimate.id});
  if(process.argv.includes('--manual-payment-confirmation'))await exerciseManualPaymentConfirmation({page,context,origin,request,check});
  if(process.argv.includes('--customer-create-retry'))await exerciseCustomerCreateRetry({page,context,origin,request,check});
+ if(process.argv.includes('--change-history'))await exerciseChangeRequestHistory({page,context,browser,origin,request,check});
  if(process.argv.includes('--invoice-state'))await exerciseInvoiceState({page,context,browser,origin,request,check,originalEstimateId:estimate.id,mutateSyntheticD1:async sql=>{await stop();await command(['d1','execute','DB','--local','--persist-to',join(temp,'state'),'--config',configPath,'--command',sql]);await start();}});
  check(outside.length===0&&clientErrors.length===0,'No external network dispatched or uncaught framework client errors: '+JSON.stringify({outside,clientErrors,interceptedSyntheticMapFrames:blockedSyntheticMaps.length}));
  console.log('PASS '+checks+' built QA Worker HTTP / native D1 / Chromium checks. Local synthetic evidence only; no hosted or iOS acceptance claimed.');
