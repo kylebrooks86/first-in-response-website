@@ -14,7 +14,7 @@ import { estimateFollowUpTiming, estimateReminderStage } from "../lib/follow-up-
 import { messageHistoryEntries } from "../lib/message-history";
 import { summarizeProcessing } from "../lib/processing-fees";
 import { loadRefundRetry, saveRefundRetry, clearRefundRetry, type RefundRetryAttempt } from "../lib/refund-retry-state";
-import { loadManualPaymentRetry, saveManualPaymentRetry, clearManualPaymentRetry, type ManualPaymentAttempt } from "../lib/manual-payment-retry-state";
+import { confirmedManualPayment,loadManualPaymentRetry, saveManualPaymentRetry, clearManualPaymentRetry, type ManualPaymentAttempt } from "../lib/manual-payment-retry-state";
 import { editMoneyLine, editableLineTotalCents, restoreEditableLineMoney } from "../lib/editable-line-totals";
 
 import {weatherIconKind,formatDailyTemperatures,weatherDayHeading} from "../lib/tulsa-weather";
@@ -799,6 +799,7 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
   const [tipChoice,setTipChoice]=useState<"0"|"5"|"10"|"15"|"custom">("0");
   const [fee,setFee]=useState("");const [feeMode,setFeeMode]=useState<"fee"|"net">("fee");const [feeEstimate,setFeeEstimate]=useState<number|null>(null);const [open,setOpen]=useState(false);const [amount,setAmount]=useState("");const [tip,setTip]=useState("");const [method,setMethod]=useState("Wave");const [reference,setReference]=useState("");const [saving,setSaving]=useState(false);const [error,setError]=useState("");
   const manualRequestId=useRef<string|null>(null);
+  const paymentLock=useRef(false);
   const activeManual=useRef<ManualPaymentAttempt|null>(null);
   const [retryPending,setRetryPending]=useState(false);
   const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
@@ -807,7 +808,7 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
   const balance=amountDueNow(normalized);
   const totalRemaining=Math.max(0,normalized.totalCents-normalized.paidCents);
   const depositRemaining=Math.max(0,normalized.depositCents-normalized.paidCents);
-  useEffect(()=>{if(!open)return;
+  useEffect(()=>{if(!open){setRetryPending(Boolean(activeManual.current??loadManualPaymentRetry(storage(),estimate.id)));return;}
     const previous=activeManual.current??loadManualPaymentRetry(storage(),estimate.id);
     if(previous){
       activeManual.current=previous;manualRequestId.current=previous.requestId;
@@ -817,7 +818,7 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
       setTipChoice(previous.tipCents>0?"custom":"0");
       setMethod(previous.method);setReference(previous.reference);
       setFeeMode("fee");setFee(previous.processingFeeCents===null?"":(previous.processingFeeCents/100).toFixed(2));
-      setError("An earlier payment attempt needs confirmation. Retry the SAME request without changing its details; FIRE will not record a second payment.");
+      setError("An earlier payment attempt needs confirmation. Check its saved status before retrying the same request. Keep its original details unchanged.");
     }else{
       setRetryPending(false);setAmount(balance>0?(balance/100).toFixed(2):"");
       setTip("");setTipChoice("0");setFee("");setFeeEstimate(null);setError("");
@@ -829,6 +830,7 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
   const processingFeeCents=enteredFeeCents==null?null:feeMode==="fee"?enteredFeeCents:grossCents-enteredFeeCents;
   const feeValid=processingFeeCents==null||Number.isSafeInteger(processingFeeCents)&&processingFeeCents>=0&&processingFeeCents<=grossCents;
   const save=async()=>{
+    if(paymentLock.current)return;
     const amountCents=Math.round(Number(amount||0)*100),tipCents=Math.round(Number(tip||0)*100);
     const maxTipCents=Math.min(normalized.totalCents,50000);
     if(!Number.isSafeInteger(amountCents)||amountCents<0||!Number.isSafeInteger(tipCents)||tipCents<0||(amountCents<=0&&tipCents<=0)){setError("Enter a payment or tip amount.");return;}
@@ -840,27 +842,51 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
     if(retryPending&&activeManual.current&&JSON.stringify(activeManual.current)!==JSON.stringify(attempt)){
       setError("A previous payment is unresolved. Its amount, method and reference must remain identical. Review Payment History before creating another payment.");return;
     }
+    const wasPending=Boolean(activeManual.current);
+    paymentLock.current=true;
     // Save before the POST because D1 may commit and lose its acknowledgement.
     manualRequestId.current=requestId;activeManual.current=attempt;
     saveManualPaymentRetry(storage(),estimate.id,attempt);
     setRetryPending(true);setSaving(true);setError("");
+    const checkStored=async()=>{
+      const response=await fetch(`/api/payments/confirmation?estimateId=${encodeURIComponent(estimate.id)}&requestId=${encodeURIComponent(requestId)}`,{cache:"no-store"});
+      const result=await response.json() as {error?:string;confirmed?:boolean;records?:unknown[];estimateId?:string;requestId?:string};
+      if(!response.ok)throw new Error(result.error||"Payment status is uncertain.");
+      if(result.confirmed===false&&Array.isArray(result.records)&&result.records.length===0&&result.estimateId===estimate.id&&result.requestId===requestId)return null;
+      const paid=confirmedManualPayment(result,estimate.id,attempt);
+      if(paid===null)throw new Error("The saved payment receipt does not match this attempt. Keep its details and review Payment History.");
+      return paid;
+    };
+    let confirmed:number|null=null;
     try{
-      const response=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,requestId,amountCents,tipCents,method,reference,processingFeeCents:feeMethod?processingFeeCents:undefined})});
-      const result=await response.json() as {paidCents?:number;error?:string};
-      if(!response.ok||result.paidCents===undefined)throw new Error(result.error||"The payment could not be recorded.");
+      // An explicit retry checks first. Never automatically repeat a POST.
+      if(wasPending)confirmed=await checkStored();
+      if(confirmed===null){
+        let postError="Payment confirmation is uncertain.";
+        try{
+          const response=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,requestId,amountCents,tipCents,method,reference,processingFeeCents:feeMethod?processingFeeCents:undefined})});
+          if(!response.ok){const result=await response.json() as {error?:string;confirmed?:boolean;records?:unknown[];estimateId?:string;requestId?:string};postError=result.error||postError;}
+        }catch{/* Read the ledger once even if the response was lost after commit. */}
+        confirmed=await checkStored();
+        if(confirmed===null)throw new Error(postError);
+      }
+    }catch(saveError){setError((saveError instanceof Error?saveError.message:"Payment status is uncertain.")+" Not confirmed. Check / retry this SAME attempt; do not enter another payment.");}
+    finally{paymentLock.current=false;setSaving(false);}
+    if(confirmed!==null){
       clearManualPaymentRetry(storage(),estimate.id);manualRequestId.current=null;activeManual.current=null;
-      setRetryPending(false);onRecorded?.(Number(result.paidCents));setOpen(false);
-    }catch(saveError){setError((saveError instanceof Error?saveError.message:"Payment status is uncertain.")+" Retry this SAME attempt; do not enter the payment a second time.");}
-    finally{setSaving(false);}
+      setRetryPending(false);setOpen(false);
+      // A parent refresh failure cannot turn a confirmed payment into a retry.
+      onRecorded?.(confirmed);
+    }
   };
-  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="outline" disabled={balance<=0&&normalized.status!=="completed"}><CircleDollarSign className="h-4 w-4"/>{balance<=0?(normalized.status==="completed"?"Record tip":"Deposit recorded"):"Record payment"}</Button></DialogTrigger><DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>{balance<=0&&normalized.status==="completed"?"Record tip":"Record payment"}</DialogTitle></DialogHeader><div className="payment-form">
+  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="outline" disabled={!retryPending&&balance<=0&&normalized.status!=="completed"}><CircleDollarSign className="h-4 w-4"/>{retryPending?"Check payment status":balance<=0?(normalized.status==="completed"?"Record tip":"Deposit recorded"):"Record payment"}</Button></DialogTrigger><DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>{balance<=0&&normalized.status==="completed"?"Record tip":"Record payment"}</DialogTitle></DialogHeader><div className="payment-form">
     <p className="payment-estimate-summary"><strong>{estimate.customer}</strong> · {estimate.service}<br/><span>{money(totalRemaining)} remaining</span></p>
     <div className="payment-due-options"><span><small>Deposit due</small><strong>{money(depositRemaining)}</strong></span><span><small>Full balance</small><strong>{money(totalRemaining)}</strong></span></div>
     <div><Label>Amount applied to invoice</Label><Input disabled={saving||retryPending} value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<section className="final-tip-selector" aria-label="Optional tip choices"><Label>Tip received (optional)</Label><p className="payment-handle-note">No tip is selected by default. Percentages use the full invoice total.</p><div className="final-tip-options">{([0,5,10,15] as const).map((percent)=><button key={percent} type="button" disabled={saving||retryPending} aria-pressed={tipChoice===String(percent)} onClick={()=>{setTipChoice(String(percent) as "0"|"5"|"10"|"15");setTip(percent===0?"":(Math.round(billingTotal*percent/100)/100).toFixed(2));}}><strong>{percent===0?"No tip":`${percent}%`}</strong><span>{money(Math.round(billingTotal*percent/100))}</span></button>)}<button type="button" disabled={saving||retryPending} aria-pressed={tipChoice==="custom"} onClick={()=>{setTipChoice("custom");setTip("");}}><strong>Custom</strong><span>Enter amount</span></button></div>{tipChoice==="custom"&&<div><Label>Custom tip amount</Label><Input aria-label="Custom tip amount" disabled={saving||retryPending} value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" type="number" min="0" step="0.01" placeholder="0.00"/></div>}<small className="payment-handle-note">Recorded separately and does not change the invoice balance.</small></section>}
     <div><Label>Payment method</Label><Select disabled={saving||retryPending} value={method} onValueChange={(value)=>{setMethod(value);setFee("");setFeeEstimate(null);}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Wave","Cash App","Venmo","Cash","Check","Card","ACH / bank","Other"].map((item)=><SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select><small className="payment-handle-note">Cash App {DEFAULT_CASH_APP_HANDLE} · Venmo {DEFAULT_VENMO_HANDLE}</small></div>
     {feeMethod&&<details><summary>Processing fee (optional)</summary><div className="payment-form"><div><Label>Customer paid (invoice + tip)</Label><Input readOnly value={(grossCents/100).toFixed(2)}/></div><div><Label>Processing fee</Label><Input disabled={saving||retryPending} inputMode="decimal" value={feeMode==="fee"?fee:processingFeeCents==null?"":(processingFeeCents/100).toFixed(2)} placeholder="Not recorded" onChange={event=>{setFeeMode("fee");setFee(event.target.value);}}/></div><div><Label>Net deposited</Label><Input disabled={saving||retryPending} inputMode="decimal" value={feeMode==="net"?fee:processingFeeCents==null?"":((grossCents-processingFeeCents)/100).toFixed(2)} placeholder={(grossCents/100).toFixed(2)} onChange={event=>{setFeeMode("net");setFee(event.target.value);}}/></div><small>Enter the actual fee or net deposit. Invoice credit stays {money(Math.round(Number(amount||0)*100))}.</small>{method==="Venmo"&&<><Button type="button" variant="outline" disabled={saving||retryPending} onClick={()=>setFeeEstimate(Math.round(grossCents*0.019)+10)}>Estimate fee</Button>{feeEstimate!=null&&<div><small>Venmo Business direct-payment estimate: 1.9% + $0.10 = {money(feeEstimate)}. Check the actual transaction; Tap to Pay and rates may differ.</small><Button type="button" variant="outline" disabled={saving||retryPending} onClick={()=>{setFeeMode("fee");setFee((feeEstimate/100).toFixed(2));setFeeEstimate(null);}}>Use this fee</Button></div>}</>}</div></details>}
     <div><Label>Reference or note</Label><Input disabled={saving||retryPending} value={reference} onChange={(event)=>setReference(event.target.value)} placeholder="Wave transaction, check number, or note"/></div>
-    {error&&<p className="save-error">{error}</p>}<Button className="brand-button" onClick={()=>void save()} disabled={saving}>{saving?"Saving…":Number(amount||0)<=0&&Number(tip||0)>0?"Save tip":"Save payment"}</Button>
+    {error&&<p className="save-error" role="alert">{error}</p>}<Button className="brand-button" onClick={()=>void save()} disabled={saving}>{saving?"Checking payment…":retryPending?"Check / retry same payment":Number(amount||0)<=0&&Number(tip||0)>0?"Save tip":"Save payment"}</Button>
   </div></DialogContent></Dialog>;
 }
 

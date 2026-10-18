@@ -37,5 +37,5 @@ const form=source.slice(source.indexOf('function RecordPayment('),source.indexOf
 eq(form.includes('loadManualPaymentRetry(storage(),estimate.id)'),true,'Actual owner form restores interrupted payments on reopen');
 eq(form.indexOf('saveManualPaymentRetry(storage(),estimate.id,attempt)')<form.indexOf('fetch("/api/payments"'),true,'Actual owner form stores operation BEFORE the payment API request');
 eq(form.includes('setRetryPending(true)')&&form.includes('disabled={saving||retryPending}'),true,'Actual owner form locks edits while prior payment awaits confirmation');
-eq(form.indexOf('clearManualPaymentRetry(storage(),estimate.id)')>form.indexOf('if(!response.ok||result.paidCents===undefined)'),true,'Actual owner form clears persisted ID only on confirmed server acknowledgement');
+eq(form.indexOf('clearManualPaymentRetry(storage(),estimate.id)')>form.indexOf('if(confirmed!==null)'),true,'Actual owner form clears persisted ID only on confirmed server acknowledgement');
 console.log('PASS '+checks+'/'+checks+' actual manual payment retry and saved-identity integrity assertions.');

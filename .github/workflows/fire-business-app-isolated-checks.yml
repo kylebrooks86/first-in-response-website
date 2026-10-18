@@ -274,6 +274,7 @@ jobs:
           node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
           node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
+          node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
           node scripts/test-payment-load-errors.mjs
           node scripts/test-schedule-load-errors.mjs
           node scripts/test-agreement-load-errors.mjs
@@ -370,6 +371,7 @@ jobs:
           node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
           node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
+          node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
           node scripts/test-payment-load-errors.mjs
           node scripts/test-schedule-load-errors.mjs
           node scripts/test-agreement-load-errors.mjs
@@ -449,6 +451,7 @@ jobs:
           cd "$RUNNER_TEMP/fire-qa-candidate"
           node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
+          node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
           node scripts/test-payment-load-errors.mjs
           node scripts/test-schedule-load-errors.mjs
           node scripts/test-agreement-load-errors.mjs
@@ -487,7 +490,7 @@ jobs:
           node scripts/test-qa-worker-http-browser.mjs --customer-lookup
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
           node scripts/test-qa-worker-http-browser.mjs --complete-ledger
-          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand
+          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation
       - name: Seal synthetic-only QA full-app review bundle
         run: |
           python3 business-app-parity/prepare_device_review.py \

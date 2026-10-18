@@ -1,0 +1,88 @@
+{
+  "scope": "Owner-reported synthetic iPhone QA, additional requirements, not new release acceptance",
+  "readiness": {
+    "acceptedGates": 3,
+    "totalGates": 10,
+    "percent": 30
+  },
+  "preserveObservedPasses": [
+    "Address search for 456 Synthetic QA Lane opened FIRE QA Second Test Customer actual profile; full global search remains unverified",
+    "Synthetic change revised 1000 sqft/$200/$100 deposit to 1200 sqft/$240/$120; customer preview reflected change",
+    "Job progressed through scheduling, report, completion and invoice; report notes persisted",
+    "Invoice $240 with $120 deposit + $120 final principal and separate $12 tip; zero remaining principal",
+    "Photo camera/import, three categories, refresh persistence, ZIP external saving/verification, identical skip, delete/recovery/customer ownership, comparisons and branded PNG export"
+  ],
+  "alreadyImplementedInSource": [
+    "Owner estimate-preview X with authenticated boundary; invoice equivalent remains open",
+    "Business branding and exact default compatibility, commit 77b48e4",
+    "Photo ZIP controls responsive wrapping and Messages Compose button, prior commit 741e932",
+    "Existing-customer shared New Estimate lookup; not full global search",
+    "Public change request/approval same-attempt safety and estimate-linked notification focus, commit a8339d6",
+    "Customer collectible versus potential balance separation; broader status acceptance still pending"
+  ],
+  "currentBatch": "Manual-payment scoped read-only confirmation, exact receipt validation, synchronous double-submit guard, saved-attempt recovery when deposit already paid; native response-loss/reload tests",
+  "backlog": [
+    {
+      "priority": "high",
+      "item": "Customer creation request identity and reconciliation; intermittent 10-second Load failed root cause and real Safari latency evidence"
+    },
+    {
+      "priority": "high",
+      "item": "Global categorized autocomplete for customers/contact/address/estimate/invoice/service/job with exact record navigation and local/offline scope"
+    },
+    {
+      "priority": "high",
+      "item": "Notification invoice/payment/customer deep links, deleted/offline handling, no loops; preserve unread/read history"
+    },
+    {
+      "priority": "high",
+      "item": "Application-wide Safari scrolling, keyboard/modal/dropdown interactions in both themes"
+    },
+    {
+      "priority": "high",
+      "item": "Resolved estimate change request history, timestamps and appropriate reopening; preserve scope change acceptance rules"
+    },
+    {
+      "priority": "high",
+      "item": "Paid-in-full invoice copy/payment prompts must reflect current principal and refunds; preserve Cash App/Venmo and custom/legal content"
+    },
+    {
+      "priority": "high",
+      "item": "Owner-only invoice preview Close and originating context; standalone links must not expose owner records"
+    },
+    {
+      "priority": "high",
+      "item": "Deposit default enforcement and explicit owner exceptions with durable actor/reason/terms and no balance forgiveness"
+    },
+    {
+      "priority": "normal",
+      "item": "Universal primary workflow status versus viewed events; current next action synchronized across all surfaces"
+    },
+    {
+      "priority": "normal",
+      "item": "Refund external-record versus Stripe-processing distinction, confirmations, refundable limits and durable audit"
+    },
+    {
+      "priority": "normal",
+      "item": "Scheduling overlap warnings without changing existing appointments"
+    },
+    {
+      "priority": "normal",
+      "item": "Job report capture/link photos and exceptions/edit history; cost persistence/isolation and estimated gross profit terminology"
+    },
+    {
+      "priority": "normal",
+      "item": "Areas of Concern & Pre-Existing Conditions: new category and structured concern metadata, customer/property/estimate/job links, timestamps, before/after pairing, private notes and optional customer disclosure/acknowledgement. Preserve exact disclosure/response. No implied waiver, expanded scope, marketing permission or extra charge. Add backward-compatible vault/ZIP/backup/restore validators and tests BEFORE enabling new category."
+    },
+    {
+      "priority": "normal",
+      "item": "Respect No marketing permission separately from internal documentation and authorized concern disclosure; preserve raw photos and comparison framing"
+    }
+  ],
+  "protected": [
+    "Hosted synthetic customers/estimates/reports/photos/payments and original editing baseline",
+    "Existing offline vaults, backups, credentials, deployment bindings and rollback versions",
+    "LIVE, Doomsday and staging deployments remain untouched"
+  ],
+  "nextOwnerAction": "No repeat of passed QA checks requested; real iPhone checks after next reviewed combined QA release"
+}
