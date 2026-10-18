@@ -49,20 +49,33 @@ async function clearFailures(key: string) {
 }
 
 export async function POST(request: Request) {
+  let stage = "rate-key";
   try {
     const key = await rateLimitKey(request);
+    stage = "rate-read";
     const status = await rateLimitStatus(key);
     if (status.blocked) {
       return Response.json({ error: "Too many sign-in attempts. Try again later." }, { status: 429, headers: { "cache-control": "no-store", "retry-after": String(status.retryAfter) } });
     }
+    stage = "body-parse";
     const body = await request.json() as { password?: string };
+    stage = "password-verify";
     if (typeof body?.password !== "string" || body.password.length < 24 || body.password.length > 128 || !await verifyIndependentPassword(body.password)) {
+      stage = "failure-record";
       const retryAfter = await recordFailure(key);
       return Response.json({ error: retryAfter ? "Too many sign-in attempts. Try again later." : "Incorrect QA passphrase." }, { status: retryAfter ? 429 : 401, headers: { "cache-control": "no-store", ...(retryAfter ? { "retry-after": String(retryAfter) } : {}) } });
     }
+    stage = "clear-failures";
     await clearFailures(key);
+    stage = "session-cookie";
     return Response.json({ ok: true }, { headers: { "cache-control": "no-store", "set-cookie": await independentSessionCookie() } });
-  } catch {
+  } catch (error) {
+    // Operational diagnostics only: never log passphrases, cookies, IPs,
+    // hash values, SQL text, request bodies, or arbitrary exception messages.
+    const message = error instanceof Error ? error.message : "";
+    const code = message.match(/\b(?:SQLITE_BUSY|SQLITE_LOCKED|SQLITE_ERROR|D1_ERROR|D1_EXEC_ERROR|D1_TYPE_ERROR)\b/)?.[0]
+      || (message === "Login protection failed to record the attempt." ? "EMPTY_RETURNING_ROW" : "UNCLASSIFIED");
+    console.error("QA sign-in protection unavailable", { stage, name: error instanceof Error ? error.name : "UnknownError", code });
     return Response.json({ error: "Sign-in protection is temporarily unavailable." }, { status: 503, headers: { "cache-control": "no-store" } });
   }
 }

@@ -3,6 +3,7 @@
  */
 import assert from 'node:assert/strict';
 import {exerciseCustomerLookup} from './test-customer-lookup-workflow.mjs';
+import {exerciseCustomerProfileControls} from './test-customer-profile-controls.mjs';
 import {createRequire} from 'node:module';
 import {spawn} from 'node:child_process';
 import {createHash,randomUUID} from 'node:crypto';
@@ -13,7 +14,7 @@ import {createServer} from 'node:net';
 import {get as httpsGet} from 'node:https';
 import {validateRecordIdentities,validateBackupRelationships,validateRefundIntegrity} from './records-backup-integrity.mjs';
 const require=createRequire(import.meta.url);
-const lookupMode=process.argv.includes('--customer-lookup');
+const lookupMode=process.argv.includes('--customer-lookup'),profileMode=process.argv.includes('--customer-profile');
 if(!process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||!process.env.FIRE_BROWSER_TEST_EXECUTABLE)throw Error('Pinned Chromium runner required');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE);
 const root=resolve(new URL('..',import.meta.url).pathname);
@@ -86,12 +87,14 @@ try{
   assert.ok(path.startsWith('/api/')&&!path.startsWith('//'));
   // Fix the synthetic client IP; local Wrangler may synthesize different
   // connecting addresses across platforms. Never rely on runner geo/IP data.
-  return context.request.fetch(origin+path,{method,data,headers:{'cf-connecting-ip':'192.0.2.17','x-forwarded-for':'192.0.2.17',...headers}});
+  const response=await context.request.fetch(origin+path,{method,data,headers:{'cf-connecting-ip':'192.0.2.17','x-forwarded-for':'192.0.2.17',...headers}});
+  if(path==='/api/auth/login'&&response.status()===503)console.error('Local auth diagnostic:',workerLog.match(/QA sign-in protection unavailable\s+\{[\s\S]*?\}/g)?.slice(-1)??'No stage diagnostic recorded');
+  return response;
  };
  check((await request('/api/customers')).status()===401,'Real built Worker rejects unauthenticated customer read');
  check((await request('/api/estimates','POST',{customer:'Synthetic forged request'},{'oai-authenticated-user-email':'kylebrooks8605@gmail.com'})).status()===401,'Real HTTP gateway-header spoof cannot authorize an estimate write');
  const login=await request('/api/auth/login','POST',{password});
- check(login.status()===200,'Actual QA login route verifies synthetic passphrase against native D1 rate limiter');
+ check(login.status()===200,'Actual QA login route verifies synthetic passphrase against native D1 rate limiter: HTTP '+login.status()+' '+(login.status()===200?'ok':await login.text()));
  check(/HttpOnly; Secure; SameSite=Strict/.test(login.headers()['set-cookie']),'Actual HTTP response sets isolated secure owner session cookie');
  check((await request('/api/customers')).status()===200,'Browser cookie authorizes real Worker customer API');
  const customerResponse=await request('/api/customers','POST',{name:'Synthetic HTTP Customer',address:'100 Synthetic Fixture Way',email:'fixture@example.invalid'});
@@ -190,6 +193,7 @@ try{
   page.once('dialog',d=>d.accept());await draft.getByRole('button',{name:'Close',exact:true}).click();
  }
  if(lookupMode)await exerciseCustomerLookup({page,context,browser,origin,request,check,originalEstimateId:estimate.id});
+ if(profileMode)await exerciseCustomerProfileControls({page,context,origin,request,check,originalEstimateId:estimate.id});
  check(outside.length===0&&clientErrors.length===0,'No external network dispatched or uncaught framework client errors: '+JSON.stringify({outside,clientErrors,interceptedSyntheticMapFrames:blockedSyntheticMaps.length}));
  console.log('PASS '+checks+' built QA Worker HTTP / native D1 / Chromium checks. Local synthetic evidence only; no hosted or iOS acceptance claimed.');
 }finally{if(browser)await browser.close();await stop();rmSync(temp,{recursive:true,force:true});}

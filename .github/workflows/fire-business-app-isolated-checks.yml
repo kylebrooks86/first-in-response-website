@@ -458,6 +458,7 @@ jobs:
           cd "$RUNNER_TEMP/fire-qa-candidate"
           node scripts/test-qa-worker-http-browser.mjs
           node scripts/test-qa-worker-http-browser.mjs --customer-lookup
+          node scripts/test-qa-worker-http-browser.mjs --customer-profile
       - name: Seal synthetic-only QA full-app review bundle
         run: |
           python3 business-app-parity/prepare_device_review.py \

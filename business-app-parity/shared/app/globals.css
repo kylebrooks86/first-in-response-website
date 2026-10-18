@@ -736,3 +736,16 @@ html,body{max-width:100%;overflow-x:clip}
     font-size:16px;
   }
 }
+
+/* Customer records: keep long backup/recovery labels inside their panel. */
+.photo-panel{min-width:0;max-width:100%;overflow-wrap:anywhere}
+.photo-panel .photo-toolbar{grid-template-columns:minmax(0,160px) minmax(0,1fr);min-width:0}
+.photo-panel .photo-toolbar>.photo-buttons{grid-column:1/-1}
+.photo-panel .photo-buttons{display:flex;min-width:0;max-width:100%;flex-wrap:wrap}
+.photo-panel .photo-buttons>button{flex:1 1 220px;min-width:0;max-width:100%;min-height:44px;height:auto;white-space:normal;overflow-wrap:anywhere;line-height:1.4;text-align:center}
+.photo-panel .photo-buttons>button svg{flex-shrink:0}
+.photo-panel .save-error button{min-width:0;max-width:100%;min-height:44px;height:auto;white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+.customer-messages-panel{min-width:0;max-width:100%}
+.customer-messages-actions{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.customer-messages-actions>button{min-height:44px;max-width:100%;height:auto;white-space:normal}
+@media(max-width:760px){.photo-panel .photo-toolbar{grid-template-columns:minmax(0,1fr)}.photo-panel .photo-buttons>button{flex-basis:100%}.customer-messages-actions>button{width:100%}}

@@ -61,4 +61,14 @@ env.FIRE_QA_PASSWORD_HASH='bad';
 await check(!await exports.verifyIndependentPassword(good),'Invalid password hash fails');
 await check(exports.safeRelativeReturnPath('//evil.example.invalid')==='/', 'External redirect denied');
 await check(exports.safeRelativeReturnPath('/dashboard')==='/dashboard','Local path allowed');
+// The real login route must fail closed and log only a classified stage/code.
+const authRoute={},diagnostics=[];
+env.DB={prepare(){throw Error('SQLITE_BUSY: sensitive fixture '+good+' '+env.FIRE_QA_SESSION_SECRET);}};
+vm.runInNewContext(ts.transpileModule(readFileSync('app/api/auth/login/route.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{
+ exports:authRoute,require:name=>name==='cloudflare:workers'?{env}:exports,Response,Request,TextEncoder,crypto:webcrypto,Error,console:{error:(...args)=>diagnostics.push(args)}
+});
+const unavailable=await authRoute.POST(new Request('https://qa-fixture.invalid/api/auth/login',{method:'POST',body:JSON.stringify({password:good})}));
+await check(unavailable.status===503&&!unavailable.headers.has('set-cookie'),'Unavailable rate-limit storage never authenticates or sets a session');
+await check(diagnostics.length===1&&diagnostics[0][1].stage==='rate-read'&&diagnostics[0][1].code==='SQLITE_BUSY','Login diagnostic identifies failing stage and safe database error class');
+await check(!JSON.stringify(diagnostics).includes(good)&&!JSON.stringify(diagnostics).includes(env.FIRE_QA_SESSION_SECRET)&&!JSON.stringify(diagnostics).includes('sensitive fixture'),'Login diagnostic excludes credentials and arbitrary exception details');
 console.log('PASS '+count+' synthetic QA auth assertions: separate long passphrase, cookie, fail-closed origin/env, no gateway spoofing, no old PIN. No host, D1 or credential mutation.');
