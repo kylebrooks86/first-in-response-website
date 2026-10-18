@@ -36,7 +36,7 @@ vm.runInNewContext(compiled,{exports,require});
 for(const theme of ['light','dark']){
  let clicks=0;const tree=exports.OwnerAccountView({theme,onToggleTheme:()=>clicks++});
  const html=renderToStaticMarkup(tree);
- for(const expected of ['Owner Account','Kyle Brooks','First In Response Exteriors','(918) 922-9366','LIVE','ChatGPT sign-in'])assert.ok(html.includes(expected),expected);
+ for(const expected of ['Owner Account','First In Response Exteriors','(918) 922-9366','LIVE','ChatGPT sign-in'])assert.ok(html.includes(expected),expected);
  assert.ok(!html.includes('DOOMSDAY'));assert.ok(!html.includes('<input'));assert.ok(!html.includes('password'));
  const buttons=[];const visit=node=>{if(!node||typeof node!=='object')return;if(Array.isArray(node)){node.forEach(visit);return;}if(node.type==='button')buttons.push(node);visit(node.props?.children);};visit(tree);
  assert.equal(buttons.length,1);buttons[0].props.onClick();assert.equal(clicks,1);
@@ -49,5 +49,5 @@ for(const path of ['app/estimate/[token]/page.tsx','app/invoice/[token]/page.tsx
  for(const marker of ['PortalNavigation','mobile-back-button','mobile-home-button','isOwner'])assert.ok(!current.includes(marker),`${path}: ${marker}`);
 }
 // Billing/refund and notification changes are exercised by test-public-document-guards.mjs.
-for(const path of ['app/page.tsx','app/chatgpt-auth.ts'])assert.equal(readFileSync(path,'utf8'),execFileSync('git',['show',`776bbe8c894877d6c199aa8b8f041feeb949ba8e:${path}`],{encoding:'utf8'}));
+for(const path of ['app/chatgpt-auth.ts'])assert.equal(readFileSync(path,'utf8'),execFileSync('git',['show',`776bbe8c894877d6c199aa8b8f041feeb949ba8e:${path}`],{encoding:'utf8'}));
 console.log('PASS: owner entry actions, mobile menu close, light/dark rendering, theme persistence, Templates separation, dashboard navigation, public documents omit owner controls, owner auth unchanged.');

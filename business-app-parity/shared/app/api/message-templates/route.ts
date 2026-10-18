@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
-import { FIRE_TEMPLATES, SERVICE_AGREEMENT } from "../../../lib/fire-templates";
+import { FIRE_TEMPLATES, SERVICE_AGREEMENT, businessTemplateOverride } from "../../../lib/fire-templates";
 
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
@@ -8,7 +8,7 @@ async function authorized(){const user=await getChatGPTUser();return Boolean(use
 export async function GET(){
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
   const saved=await env.DB.prepare("SELECT key,subject,body,updated_at AS updatedAt FROM message_templates").all<{key:string;subject:string;body:string;updatedAt:string}>();
-  const overrides=new Map((saved.results??[]).map((item)=>[item.key,item]));
+  const overrides=new Map((saved.results??[]).map((item)=>[item.key,businessTemplateOverride(item)]));
   return Response.json({templates:FIRE_TEMPLATES.map((item)=>{const override=overrides.get(item.key);if(item.key==="contractTerms"&&override?.body.startsWith("I authorize First In Response Exteriors to perform the services listed"))return {...item,body:SERVICE_AGREEMENT};return {...item,...override};})});
 }
 

@@ -2,6 +2,7 @@
  * Only a disposable loopback runtime; no remote mode, provider or deployed data.
  */
 import assert from 'node:assert/strict';
+import {exerciseBusinessBrand} from './test-business-brand-workflow.mjs';
 import {exerciseCustomerBalances} from './test-customer-balance-workflow.mjs';
 import {exerciseCompleteLedger} from './test-complete-ledger-workflow.mjs';
 import {exercisePublicEstimateRetry} from './test-public-estimate-retry-workflow.mjs';
@@ -209,6 +210,7 @@ try{
   check(await draft.getByRole('region',{name:'Customer properties',exact:true}).count()===0,'Lookup does not enable gated property creation or associations');
   page.once('dialog',d=>d.accept());await draft.getByRole('button',{name:'Close',exact:true}).click();
  }
+ if(process.argv.includes('--business-brand'))await exerciseBusinessBrand({page,request,origin,check});
  if(lookupMode)await exerciseCustomerLookup({page,context,browser,origin,request,check,originalEstimateId:estimate.id});
  if(profileMode){await exerciseCustomerProfileControls({page,context,origin,request,check,originalEstimateId:estimate.id});await exerciseCustomerBalances({page,context,origin,request,check});}
  if(ledgerMode)await exerciseCompleteLedger({page,context,origin,request,check,originalEstimateId:estimate.id});

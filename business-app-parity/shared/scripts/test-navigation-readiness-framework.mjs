@@ -62,7 +62,7 @@ try{
  await check('Home and Back each respond to one enabled tap and reset scroll',async()=>{
   await p.locator('.mobile-home-button').click();await p.getByRole('button',{name:'Open menu',exact:true}).click();
   await p.getByRole('button',{name:'Customers',exact:true}).first().click();
-  await p.locator('.mobile-back-button').click();await p.getByRole('heading',{name:/Welcome, Kyle/}).waitFor({timeout:5000});assert.equal(await p.evaluate(()=>scrollY),0);
+  await p.locator('.mobile-back-button').click();await p.getByRole('heading',{name:"Welcome to First In Response Exteriors"}).waitFor({timeout:5000});assert.equal(await p.evaluate(()=>scrollY),0);
  });
  await check('no external browser requests or runtime errors',async()=>{assert.deepEqual(remote,[]);assert.deepEqual(errors,[]);});
  console.log(JSON.stringify({passed,total:passed,checks,deployment,actualFrameworkRuntime:true,singleNativeClicks:true,retries:false,syntheticFixtures:true,physicalIPhoneTested:false,shakingResolved:false}));process.exitCode=0;

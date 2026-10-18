@@ -72,9 +72,9 @@ export async function POST(request: Request) {
     const paid = await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(row.id).first<{ amount: number }>();
     const paidCents = Number(paid?.amount ?? 0);
     const totalCents=Number(row.totalCents);const depositCents=Number(row.depositCents);
-    if(!Number.isSafeInteger(paidCents)||!Number.isSafeInteger(totalCents)||!Number.isSafeInteger(depositCents))return Response.json({error:"Billing totals are outside FIRE's safe payment range. Contact Kyle before paying."},{status:409});
+    if(!Number.isSafeInteger(paidCents)||!Number.isSafeInteger(totalCents)||!Number.isSafeInteger(depositCents))return Response.json({error:"Billing totals are outside FIRE's safe payment range. Contact First In Response Exteriors before paying."},{status:409});
     const amount = paymentType === "deposit" ? Math.max(0, depositCents - paidCents) : Math.max(0, totalCents - paidCents);
-    if(!Number.isSafeInteger(amount))return Response.json({error:"The amount due cannot be represented safely. Contact Kyle before paying."},{status:409});
+    if(!Number.isSafeInteger(amount))return Response.json({error:"The amount due cannot be represented safely. Contact First In Response Exteriors before paying."},{status:409});
     if (amount < 50) return Response.json({ error: "This estimate has no balance due." }, { status: 400 });
     const maxTipCents = Math.min(totalCents, 50000);
     if (tipCents > maxTipCents) return Response.json({ error: `Tip cannot exceed the invoice total or $500.` }, { status: 400 });

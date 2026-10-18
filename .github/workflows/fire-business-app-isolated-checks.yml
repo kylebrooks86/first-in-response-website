@@ -264,7 +264,9 @@ jobs:
       - name: iPhone and iPad Edit Estimate modal viewport accessibility — no remote changes
         run: node scripts/test-estimate-editor-viewport.mjs
       - name: Keep customer-facing estimate and invoice system messages branded
-        run: node --experimental-strip-types scripts/test-customer-facing-brand-copy.mjs
+        run: |
+          node --experimental-strip-types scripts/test-customer-facing-brand-copy.mjs
+          node --experimental-strip-types scripts/test-business-template-compatibility.mjs
       - name: Ensure phone and iPad payment shortcut visible, QA layout diagnostic not in production builds
         run: node scripts/test-mobile-payment-shortcut.mjs
       - name: Shared financial regression suite
@@ -485,7 +487,7 @@ jobs:
           node scripts/test-qa-worker-http-browser.mjs --customer-lookup
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
           node scripts/test-qa-worker-http-browser.mjs --complete-ledger
-          node scripts/test-qa-worker-http-browser.mjs --public-retry
+          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand
       - name: Seal synthetic-only QA full-app review bundle
         run: |
           python3 business-app-parity/prepare_device_review.py \

@@ -9,8 +9,8 @@ const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 export default async function Home() {
   const user = await requireChatGPTUser("/");
   if (user.email.toLowerCase() !== OWNER_EMAIL) {
-    return <main className="access-page"><div className="access-card"><img className="access-logo" src="/fire-app-logo.png" alt="First In Response Exteriors" /><h1>Private FIRE app</h1><p>This account does not have access to Kyle&apos;s business records.</p><a href={chatGPTSignOutPath("/")}>Sign out and use Kyle&apos;s account</a></div></main>;
+    return <main className="access-page"><div className="access-card"><img className="access-logo" src="/fire-app-logo.png" alt="First In Response Exteriors" /><h1>Private FIRE app</h1><p>This account does not have access to First In Response Exteriors business records.</p><a href={chatGPTSignOutPath("/")}>Sign out and use the authorized owner account</a></div></main>;
   }
   const { recent, ...metrics } = await loadDashboardData(env.DB,env.FIRE_SERVICE_LOCATIONS_CANDIDATE==="synthetic-only");
-  return <Dashboard localCustomersCandidate={process.env.NODE_ENV === "development" && (env as typeof env & { FIRE_LOCAL_CUSTOMERS_CANDIDATE?: string }).FIRE_LOCAL_CUSTOMERS_CANDIDATE === "synthetic-only"} environment="DOOMSDAY" userName={user.fullName?.split(" ")[0]??"Kyle"} metrics={metrics} estimates={recent as never[]} />;
+  return <Dashboard localCustomersCandidate={process.env.NODE_ENV === "development" && (env as typeof env & { FIRE_LOCAL_CUSTOMERS_CANDIDATE?: string }).FIRE_LOCAL_CUSTOMERS_CANDIDATE === "synthetic-only"} environment="DOOMSDAY" userName="First In Response Exteriors" metrics={metrics} estimates={recent as never[]} />;
 }
