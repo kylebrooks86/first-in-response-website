@@ -2,6 +2,7 @@ import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from ".
 import {customerPropertiesEnabled,propertyAssociationColumns,propertyEstimatesTestEnabled,selectEstimateProperty,PropertySelectionError} from '../../../lib/customer-properties';
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {customerIdentityPredicate,duplicateCustomer} from '../../../lib/customer-identity';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
@@ -50,9 +51,9 @@ export async function POST(request: Request) {
     if(!propertyTests&&customerPropertiesEnabled(env)&&existingCustomerId){const properties=await env.DB.prepare('SELECT COUNT(*) AS total FROM customer_properties WHERE customer_id=?').bind(existingCustomerId).first<{total:number}>();if(Number(properties?.total)>0)return Response.json({error:'This customer has retained properties. Property-linked estimate creation is not enabled until association and backup checks pass. No estimate created.'},{status:409});}
     let selection:Awaited<ReturnType<typeof selectEstimateProperty>>=null;
     if(propertyTests&&existingCustomerId){try{selection=await selectEstimateProperty(env.DB,existingCustomerId,body.propertyId,body.propertyRevision,body.propertySelectionMode);}catch(error){if(error instanceof PropertySelectionError)return Response.json({error:error.message},{status:409});throw error;}}
-    const customer = String(body.customer ?? "").trim();
-    const email = String(body.email ?? "").trim();
-    const phone = String(body.phone ?? "").trim();
+    let customer = String(body.customer ?? "").trim();
+    let email = String(body.email ?? "").trim();
+    let phone = String(body.phone ?? "").trim();
     const address = String(body.address ?? "").trim();
     const rawItems=Array.isArray(body.items)?body.items as Record<string,unknown>[]:[];
     const items=rawItems.map((item)=>({name:String(item.name??"").trim(),description:String(item.description??"").trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??"job").trim()||"job",totalCents:Math.round(Number(item.totalCents))}));
@@ -82,15 +83,28 @@ export async function POST(request: Request) {
     const estimateId=crypto.randomUUID();const shareToken=crypto.randomUUID().replaceAll("-","");const now=new Date().toISOString();
     const statements=[];
     let serviceAddress=address;
-    if(existingCustomerId){const existing=await env.DB.prepare("SELECT id,address FROM customers WHERE id=?").bind(existingCustomerId).first();if(!existing)return Response.json({error:"That customer record could not be found."},{status:404});if(!Object.prototype.hasOwnProperty.call(body,"address"))serviceAddress=String(existing.address??"");}
-    else statements.push(env.DB.prepare("INSERT INTO customers (id,name,email,phone,address,created_at) VALUES (?,?,?,?,?,?)").bind(customerId,customer,email||null,phone||null,address||null,now));
+    if(existingCustomerId){
+      const existing=await env.DB.prepare("SELECT id,name,email,phone,address FROM customers WHERE id=?").bind(existingCustomerId).first<{id:string;name:string;email:string|null;phone:string|null;address:string|null}>();
+      if(!existing)return Response.json({error:"That customer record could not be found."},{status:404});
+      if(body.customerLookupSelection===true){
+        if(customer!==existing.name.trim()||email!==String(existing.email??'').trim()||phone!==String(existing.phone??'').trim()||!selection&&address!==String(existing.address??'').trim())return Response.json({error:'The selected customer changed. Review their current information and service properties before saving.',customerSelectionStale:true},{status:409});
+        customer=existing.name;email=existing.email??'';phone=existing.phone??'';serviceAddress=existing.address??'';
+      }else if(!Object.prototype.hasOwnProperty.call(body,"address"))serviceAddress=String(existing.address??"");
+    }else{
+      const identity={name:customer,email,phone,address};
+      if(await duplicateCustomer(env.DB,identity))return Response.json({error:'A matching customer already exists. Search and explicitly select their saved record. No estimate created.',duplicateCustomer:true},{status:409});
+      const match=customerIdentityPredicate(identity);
+      // Recheck within the same atomic batch. A concurrent duplicate causes
+      // the dependent estimate FK to abort the batch, never an orphan/history split.
+      statements.push(env.DB.prepare(`INSERT INTO customers (id,name,email,phone,address,created_at) SELECT ?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM customers WHERE ${match.sql})`).bind(customerId,customer,email||null,phone||null,address||null,now,...match.values));
+    }
     if(selection)serviceAddress=selection.property.address+(selection.property.designation?' · '+selection.property.designation:'');
     statements.push(env.DB.prepare("INSERT INTO estimates (id,customer_id,status,subtotal_cents,discount_cents,appreciation_discount,additional_discount_type,additional_discount_value,total_cents,deposit_cents,share_token,created_at) VALUES (?,?,'draft',?,?,?,?,?,?,?,?,?)").bind(estimateId,customerId,subtotal,appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,total,deposit,shareToken,now));
     if(serviceLocationsEnabled(env))statements.push(env.DB.prepare("INSERT INTO estimate_service_locations(estimate_id,customer_id,address,captured_at) VALUES(?,?,?,?)").bind(estimateId,customerId,serviceAddress,now));
     if(selection)statements.push(env.DB.prepare('INSERT INTO estimate_property_links(estimate_id,customer_id,property_id,property_revision,selection_mode,captured_at) VALUES(?,?,?,?,?,?)').bind(estimateId,customerId,selection.property.id,selection.property.revision,selection.mode,now));
     for(const item of items)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),estimateId,item.name,item.description,item.quantity,item.unit,item.totalCents));
     await env.DB.batch(statements);
-    return Response.json({id:estimateId,customerId,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue},{status:201});
+    return Response.json({id:estimateId,customerId,customer,email,phone,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue},{status:201});
   } catch {
     return Response.json({ error: propertyEstimatesTestEnabled(env)?'Estimate save was not confirmed. Review stored records before another deliberate attempt.':"We couldn't save this estimate. Please try again." }, { status: 500 });
   }

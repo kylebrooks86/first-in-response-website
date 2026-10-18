@@ -2,6 +2,7 @@
  * Only a disposable loopback runtime; no remote mode, provider or deployed data.
  */
 import assert from 'node:assert/strict';
+import {exerciseCustomerLookup} from './test-customer-lookup-workflow.mjs';
 import {createRequire} from 'node:module';
 import {spawn} from 'node:child_process';
 import {createHash,randomUUID} from 'node:crypto';
@@ -12,6 +13,7 @@ import {createServer} from 'node:net';
 import {get as httpsGet} from 'node:https';
 import {validateRecordIdentities,validateBackupRelationships,validateRefundIntegrity} from './records-backup-integrity.mjs';
 const require=createRequire(import.meta.url);
+const lookupMode=process.argv.includes('--customer-lookup');
 if(!process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||!process.env.FIRE_BROWSER_TEST_EXECUTABLE)throw Error('Pinned Chromium runner required');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE);
 const root=resolve(new URL('..',import.meta.url).pathname);
@@ -32,7 +34,7 @@ const config={name:'fire-local-qa-http-fixture',main:resolve(root,'dist/server',
  // Cap only this disposable fixture, never the production build or manifest.
  // This tests built code, not October hosted compatibility-date semantics.
  compatibility_date:'2026-05-22',compatibility_flags:built.compatibility_flags,
- no_bundle:true,rules:built.rules,vars:built.vars,
+ no_bundle:true,rules:built.rules,vars:{...built.vars,...(lookupMode?{FIRE_SERVICE_LOCATIONS_CANDIDATE:'synthetic-only',FIRE_CUSTOMER_PROPERTIES_CANDIDATE:'synthetic-only',FIRE_PROPERTY_ESTIMATES_CANDIDATE:'synthetic-tests-only',FIRE_PROPERTY_RECOVERY_CANDIDATE:'synthetic-tests-only',FIRE_PROPERTY_WORKFLOW_CANDIDATE:'synthetic-tests-only'}:{})},
  assets:{directory:resolve(root,'dist/client')},
  d1_databases:[{binding:'DB',database_name:'fire-local-synthetic-db',database_id:randomUUID(),migrations_dir:join(root,'drizzle')}]};
 const configPath=join(temp,'wrangler.json');writeFileSync(configPath,JSON.stringify(config));
@@ -41,7 +43,7 @@ const env={...process.env,CLOUDFLARE_CF_FETCH_ENABLED:'false',WRANGLER_SEND_METR
 // Never borrow any local or CI Cloudflare authentication for a local test.
 for(const key of Object.keys(env))if(/^(CLOUDFLARE_API_|CF_API_|CLOUDFLARE_ACCOUNT_ID)/.test(key))delete env[key];
 const wrangler=join(root,'node_modules/wrangler/bin/wrangler.js');
-let worker,browser,workerLog='',checks=0;const outside=[],clientErrors=[];
+let worker,browser,workerLog='',checks=0;const outside=[],clientErrors=[],blockedSyntheticMaps=[];
 const check=(value,label)=>{assert.ok(value,label);checks++;console.log('PASS: '+label);};
 function command(args){
  assert.ok(args.includes('--local')&&!args.includes('--remote')&&!args.includes('deploy'));
@@ -66,10 +68,20 @@ async function start(){
 async function stop(){if(worker&&worker.exitCode===null){const ended=new Promise(r=>worker.once('exit',r));worker.kill('SIGTERM');await ended;}worker=null;}
 try{
  await command(['d1','migrations','apply','DB','--local','--persist-to',join(temp,'state'),'--config',configPath]);
+ if(lookupMode){
+  const file=join(temp,'synthetic-properties.sql');writeFileSync(file,['candidate-service-locations.sql','candidate-customer-properties.sql'].map(name=>readFileSync(join(root,'db',name),'utf8')).join('\n'));
+  await command(['d1','execute','DB','--local','--persist-to',join(temp,'state'),'--config',configPath,'--file',file]);
+ }
  await start();
  browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
  const context=await browser.newContext({viewport:{width:390,height:844},ignoreHTTPSErrors:true});
- await context.route('**/*',route=>{if(new URL(route.request().url()).origin!==origin){outside.push(route.request().url());return route.abort();}return route.continue();});
+ await context.route('**/*',route=>{const url=new URL(route.request().url());if(url.origin!==origin){
+  // Existing profile satellite embeds are optional third-party content. The
+  // synthetic workflow must never dispatch them, nor permit any other host.
+  if(lookupMode&&url.origin==='https://maps.google.com'&&url.pathname==='/maps'&&['10 North Fixture Way','20 South Fixture Way'].includes(url.searchParams.get('q')))blockedSyntheticMaps.push(url.href);
+  else outside.push(url.href);
+  return route.abort();
+ }return route.continue();});
  const request=async(path,method='GET',data,headers={})=>{
   assert.ok(path.startsWith('/api/')&&!path.startsWith('//'));
   // Fix the synthetic client IP; local Wrangler may synthesize different
@@ -167,6 +179,17 @@ try{
  await page.getByRole('button',{name:/Estimates 1/}).click();
  await page.getByRole('button',{name:/Synthetic HTTP Customer.*\$250/}).waitFor();
  check(true,'Actual Estimates screen shows saved estimate after full local Worker restart');
- check(outside.length===0&&clientErrors.length===0,'Zero external browser requests and uncaught framework client errors');
+ if(!lookupMode){
+  await page.goto(origin+'/');await page.getByRole('button',{name:'New estimate',exact:true}).click();
+  const draft=page.getByRole('dialog',{name:'Create estimate',exact:true});
+  await draft.getByRole('combobox',{name:'Find an existing customer'}).fill(customer.email);await draft.getByRole('option').filter({hasText:customer.email}).click();
+  await draft.getByRole('button',{name:'Continue to services'}).waitFor();
+  await page.waitForFunction(()=>{const b=[...document.querySelectorAll('[role=dialog] button')].find(n=>n.textContent.includes('Continue to services'));return b&&!b.disabled;});
+  check(await draft.getByLabel('Email',{exact:true}).inputValue()===customer.email&&await draft.getByLabel('Estimate service address').inputValue()===customer.address,'Existing-customer lookup remains usable with property workflow disabled; saved primary address is authoritative');
+  check(await draft.getByRole('region',{name:'Customer properties',exact:true}).count()===0,'Lookup does not enable gated property creation or associations');
+  page.once('dialog',d=>d.accept());await draft.getByRole('button',{name:'Close',exact:true}).click();
+ }
+ if(lookupMode)await exerciseCustomerLookup({page,context,browser,origin,request,check,originalEstimateId:estimate.id});
+ check(outside.length===0&&clientErrors.length===0,'No external network dispatched or uncaught framework client errors: '+JSON.stringify({outside,clientErrors,interceptedSyntheticMapFrames:blockedSyntheticMaps.length}));
  console.log('PASS '+checks+' built QA Worker HTTP / native D1 / Chromium checks. Local synthetic evidence only; no hosted or iOS acceptance claimed.');
 }finally{if(browser)await browser.close();await stop();rmSync(temp,{recursive:true,force:true});}

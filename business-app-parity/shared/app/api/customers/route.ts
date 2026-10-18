@@ -2,6 +2,7 @@ import {customerPropertiesEnabled,propertyAssociationColumns} from '../../../lib
 import {serviceLocationsEnabled,serviceAddressColumns} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import {customerIdentityPredicate} from '../../../lib/customer-identity';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized() {
@@ -66,8 +67,10 @@ export async function POST(request: Request) {
     if (!name) return Response.json({ error: "Customer name is required." }, { status: 400 });
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
-    await env.DB.prepare("INSERT INTO customers (id,name,email,phone,address,lead_source,created_at) VALUES (?,?,?,?,?,?,?)")
-      .bind(id, name, email || null, phone || null, address || null, leadSource, createdAt).run();
+    const match=customerIdentityPredicate({name,email,phone,address});
+    const inserted=await env.DB.prepare(`INSERT INTO customers (id,name,email,phone,address,lead_source,created_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM customers WHERE ${match.sql}) RETURNING id`)
+      .bind(id,name,email||null,phone||null,address||null,leadSource,createdAt,...match.values).first();
+    if(!inserted)return Response.json({error:'A matching customer already exists. Search and select their saved record instead of creating a duplicate.'},{status:409});
     return Response.json({ customer: { id, name, email, phone, address, leadSource, createdAt, estimateCount: 0, estimateTotal: 0, paidTotal: 0 } }, { status: 201 });
   } catch {
     return Response.json({ error: "We couldn't save this customer. Please try again." }, { status: 500 });

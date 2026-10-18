@@ -3,16 +3,17 @@ import {readFileSync,readdirSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {createRouteFixtureLoader} from './route-test-loader.mjs';
 
 const db=new DatabaseSync(':memory:');
 for(const file of readdirSync('drizzle').filter(name=>name.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
 const env={DB:{prepare(sql){return {sql,async all(){return {results:db.prepare(sql).all()};}};},async batch(queries){return queries.map(({sql})=>({results:db.prepare(sql).all()}));}}};
 let user={email:'kylebrooks8605@gmail.com'};
 function load(source,imports){const exports={};const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;vm.runInNewContext(code,{exports,require:name=>{if(!(name in imports))throw Error('Unexpected import '+name);return imports[name];},Response});return exports;}
-const imports={'cloudflare:workers':{env},'../../chatgpt-auth':{getChatGPTUser:async()=>user}};
-const customers=load(readFileSync('app/api/customers/route.ts','utf8'),imports);
-const invoices=load(readFileSync('app/api/invoices/route.ts','utf8'),imports);
-const estimates=load(readFileSync('app/api/estimates/route.ts','utf8'),imports);
+const loadRoute=createRouteFixtureLoader(process.cwd(),env,()=>user);
+const customers=loadRoute('app/api/customers/route.ts');
+const invoices=loadRoute('app/api/invoices/route.ts');
+const estimates=loadRoute('app/api/estimates/route.ts');
 // Execute the actual UI billing helpers, selected by AST rather than copied formulas.
 const dashboardSource=readFileSync('app/dashboard.tsx','utf8');
 const tree=ts.createSourceFile('dashboard.tsx',dashboardSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);

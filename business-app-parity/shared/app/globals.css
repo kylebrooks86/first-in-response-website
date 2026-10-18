@@ -701,6 +701,15 @@ html,body{max-width:100%;overflow-x:clip}
   box-shadow:0 2px 10px #0003;text-decoration:none;
 }
 .owner-estimate-preview-close svg{width:24px;height:24px}
+.customer-lookup{display:grid;gap:10px;min-width:0}
+.customer-lookup>label{font-weight:700}
+.customer-lookup>button{min-height:44px}
+.customer-lookup input{font-size:16px}
+.customer-lookup-results{border:1px solid var(--border);border-radius:10px;max-height:240px;overflow-y:auto;overscroll-behavior:contain;background:var(--card)}
+.customer-lookup-results button{display:grid;gap:4px;width:100%;min-height:60px;padding:12px;text-align:left;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--foreground);overflow-wrap:anywhere;cursor:pointer}
+.customer-lookup-results button[aria-selected="true"],.customer-lookup-results button:hover{background:var(--accent)}
+.customer-lookup-results span{font-size:13px;color:var(--muted-foreground)}
+.customer-lookup-results p{padding:12px;font-size:13px}
 .owner-estimate-preview-close:focus-visible{outline:3px solid #e92332;outline-offset:3px}
 @media print{
   .owner-estimate-preview-close{display:none}

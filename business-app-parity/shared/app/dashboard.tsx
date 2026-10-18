@@ -2,6 +2,7 @@
 
 import { CandidateLayoutTrace } from "../components/candidate-layout-trace";
 import type {PropertyEstimateSelection} from '../lib/customer-properties';
+import {CustomerLookup,validLookupCustomer,type LookupCustomer} from '../components/customer-lookup';
 import {CustomerProperties} from '../components/customer-properties';
 import { OwnerAccountView } from "./owner-account";
 import {OfflineCustomerPhotos} from "../components/offline-customer-photos";
@@ -16,7 +17,7 @@ import { editMoneyLine, editableLineTotalCents, restoreEditableLineMoney } from 
 
 import {weatherIconKind,formatDailyTemperatures,weatherDayHeading} from "../lib/tulsa-weather";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   Bell,
   BarChart3,
@@ -409,9 +410,14 @@ function discountMath(subtotal:number, appreciation:boolean, mode:DiscountMode, 
   return {appreciationCents,additionalCents,requestedDiscount,total,appliedDiscount,deposit:Math.round(total/2)};
 }
 
-function NewEstimate({ onSaved, customer,disabledReason,propertySelection,propertyWorkflowReady=false,onClosed }: { onSaved?: (estimate: EstimateRow) => void; customer?: CustomerRow;disabledReason?:string;propertySelection?:PropertyEstimateSelection|null;propertyWorkflowReady?:boolean;onClosed?:()=>void }) {
+function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClosed }: { onSaved?: (estimate: EstimateRow) => void; customer?: CustomerRow;disabledReason?:string;propertySelection?:PropertyEstimateSelection|null;propertyWorkflowReady?:boolean;onClosed?:()=>void }) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
+  const [selectedCustomer,setSelectedCustomer]=useState<LookupCustomer|null>(customer??null);
+  const [customerMode,setCustomerMode]=useState<'lookup'|'existing'|'new'>(customer?'existing':'lookup');
+  const [customerLoading,setCustomerLoading]=useState(false),[identityConfirmed,setIdentityConfirmed]=useState(false);
+  const customerRequest=useRef(0);
+  const [propertyWorkflowReady,setPropertyWorkflowReady]=useState(false);
   const [customerName,setCustomerName]=useState(customer?.name??"");
   const [email,setEmail]=useState(customer?.email??"");
   const [phone,setPhone]=useState(customer?.phone??"");
@@ -424,7 +430,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,proper
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [estimateProperty,setEstimateProperty]=useState<PropertyEstimateSelection|null>(null);
-  const [propertyBlocked,setPropertyBlocked]=useState(propertyWorkflowReady);
+  const [propertyBlocked,setPropertyBlocked]=useState(Boolean(customer));
   const [propertyRefresh,setPropertyRefresh]=useState(0);
   const [forcePropertyReview,setForcePropertyReview]=useState(false);
   const [uncertainSave,setUncertainSave]=useState(false);
@@ -432,8 +438,26 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,proper
   const [reviewedRecords,setReviewedRecords]=useState<EstimateRow[]>([]);
   const [reviewingRecords,setReviewingRecords]=useState(false);
   const [savedReceipt,setSavedReceipt]=useState<{address:string;total:number;deposit:number}|null>(null);
-  const resolvedAddress=estimateProperty?estimateProperty.property.address+(estimateProperty.property.designation?' · '+estimateProperty.property.designation:''):address;
-  const reviewStored=async()=>{setReviewingRecords(true);try{const response=await fetch('/api/customers');const data=await response.json() as {estimates?:EstimateRow[]};if(!response.ok||!Array.isArray(data.estimates))throw Error('Stored estimates could not be read.');setReviewedRecords(data.estimates.filter(row=>row.customerId===customer?.id));}catch(e){setError(e instanceof Error?e.message:'Stored estimates unavailable.');}finally{setReviewingRecords(false);}};
+  const acceptProperty=useCallback((selection:PropertyEstimateSelection|null)=>{
+    if(selection&&selection.property.customerId!==selectedCustomer?.id){setEstimateProperty(null);setPropertyBlocked(true);return;}
+    setEstimateProperty(selection);
+  },[selectedCustomer?.id]);
+  const chooseCustomer=async(input:LookupCustomer|null,initial=false)=>{
+    if(saving||uncertainSave)return;
+    if(!initial&&hasUnsavedChanges&&!window.confirm('Switch customer? This discards the unfinished estimate, including customer information, property choices, services, prices and discounts. Choose Cancel to keep all changes.'))return;
+    const generation=++customerRequest.current;setCustomerLoading(true);setError('');
+    try{
+      let fresh:LookupCustomer|null=null;
+      if(input){const response=await fetch('/api/customers/lookup?customerId='+encodeURIComponent(input.id),{cache:'no-store'});const data=await response.json() as {customer?:unknown;error?:string};if(!response.ok||!validLookupCustomer(data.customer)||data.customer.id!==input.id)throw Error(data.error||'Selected customer could not be verified.');fresh=data.customer;}
+      if(generation!==customerRequest.current)return;
+      if(!initial){setItems([{serviceId:'',name:'',description:'',quantity:0,unit:'unit',unitRateCents:0}]);setAppreciationDiscount(false);setDiscountMode('percent');setDiscountValue('');}
+      setSelectedCustomer(fresh);setCustomerMode(fresh?'existing':'new');setCustomerName(fresh?.name??'');setEmail(fresh?.email??'');setPhone(fresh?.phone??'');setAddress(fresh?.address??'');
+      setEstimateProperty(null);setPropertyBlocked(Boolean(fresh));setPropertyWorkflowReady(false);setForcePropertyReview(!initial);setPropertyRefresh(count=>count+1);setIdentityConfirmed(true);setStep(1);
+    }catch(err){if(generation===customerRequest.current){setIdentityConfirmed(false);setError(err instanceof Error?err.message:'Customer verification failed.');}}
+    finally{if(generation===customerRequest.current)setCustomerLoading(false);}
+  };
+  const resolvedAddress=estimateProperty&&estimateProperty.property.customerId===selectedCustomer?.id?estimateProperty.property.address+(estimateProperty.property.designation?' · '+estimateProperty.property.designation:''):address;
+  const reviewStored=async()=>{setReviewingRecords(true);try{const response=await fetch('/api/customers');const data=await response.json() as {estimates?:EstimateRow[]};if(!response.ok||!Array.isArray(data.estimates))throw Error('Stored estimates could not be read.');setReviewedRecords(data.estimates.filter(row=>selectedCustomer?row.customerId===selectedCustomer.id:true));}catch(e){setError(e instanceof Error?e.message:'Stored estimates unavailable.');}finally{setReviewingRecords(false);}};
   const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
   const discount=discountMath(subtotal,appreciationDiscount,discountMode,Number(discountValue));
   const total=discount.total;
@@ -443,7 +467,9 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,proper
 
   const saveEstimate = async () => {
     if(saveLock.current||saving||uncertainSave)return;
-    if(propertyWorkflowReady&&propertyBlocked){setStep(1);setError('Review and select an active service property before saving.');return;}
+    if(customerMode==='lookup'||!identityConfirmed||customerLoading){setStep(1);setError('Select a saved customer or choose Create New Customer.');return;}
+    if(estimateProperty&&estimateProperty.property.customerId!==selectedCustomer?.id){setStep(1);setPropertyBlocked(true);setError('The service property does not belong to this customer. Review their properties again.');return;}
+    if(selectedCustomer&&propertyBlocked){setStep(1);setError('Review and select an active service property before saving.');return;}
     if(!customerName.trim()){setStep(1);setError("Customer name is required.");return;}
     if(!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isFinite(item.unitRateCents)||item.unitRateCents<0)){setStep(2);setError("Every service needs a service, quantity, and valid price.");return;}
     const maxPercent=appreciationDiscount?45:50;
@@ -455,35 +481,36 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,proper
       const payloadItems=items.map((item)=>({name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:editableLineTotalCents(item)}));
       const response = await fetch("/api/estimates", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ customerId: customer?.id, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:resolvedAddress.trim(), ...(propertyWorkflowReady&&estimateProperty?{propertyId:estimateProperty.property.id,propertyRevision:estimateProperty.property.revision,propertySelectionMode:estimateProperty.mode}:{}), items:payloadItems, appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountMode==="percent"?Math.round((Number(discountValue)||0)*100):Math.round((Number(discountValue)||0)*100) }),
+        body: JSON.stringify({ customerId: selectedCustomer?.id, customerLookupSelection:Boolean(selectedCustomer), customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:resolvedAddress.trim(), ...(propertyWorkflowReady&&estimateProperty?{propertyId:estimateProperty.property.id,propertyRevision:estimateProperty.property.revision,propertySelectionMode:estimateProperty.mode}:{}), items:payloadItems, appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountMode==="percent"?Math.round((Number(discountValue)||0)*100):Math.round((Number(discountValue)||0)*100) }),
       });
       const result = await response.json() as { id?: string; customerId?:string; shareToken?:string; subtotalCents?:number;discountCents?:number;totalCents?:number;depositCents?:number;address?:string;propertyId?:string|null;propertyRevision?:number|null;error?: string };
       if(!response.ok){
         safelyRejected=response.status>=400&&response.status<500;
         if(response.status>=500)setUncertainSave(true);
-        else if(response.status===409&&propertyWorkflowReady){setStep(1);setForcePropertyReview(true);setEstimateProperty(null);setPropertyBlocked(true);setPropertyRefresh(value=>value+1);}
+        else if(response.status===409){setStep(1);if(selectedCustomer)setIdentityConfirmed(false);setForcePropertyReview(true);setEstimateProperty(null);setPropertyBlocked(true);setPropertyRefresh(value=>value+1);}
         throw new Error(result.error||'The estimate could not be saved.');
       }
-      if(!result.id||propertyWorkflowReady&&(typeof result.address!=='string'||result.customerId!==customer?.id||estimateProperty&&(result.propertyId!==estimateProperty.property.id||result.propertyRevision!==estimateProperty.property.revision))){setUncertainSave(true);throw new Error('Save receipt could not be verified. Review stored estimates before another attempt.');}
+      if(typeof result.id!=='string'||!result.id||typeof result.customerId!=='string'||typeof result.address!=='string'||selectedCustomer&&result.customerId!==selectedCustomer.id||propertyWorkflowReady&&estimateProperty&&(result.propertyId!==estimateProperty.property.id||result.propertyRevision!==estimateProperty.property.revision)){setUncertainSave(true);throw new Error('Save receipt could not be verified. Review stored estimates before another attempt.');}
       const confirmedAddress=typeof result.address==='string'?result.address:resolvedAddress.trim();
       setSavedReceipt({address:confirmedAddress,total:Number(result.totalCents??total),deposit:Number(result.depositCents??deposit)});
       const createdAt = new Date().toISOString();
-      onSaved?.({ id: result.id, customerId: result.customerId||customer?.id, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:confirmedAddress,propertyId:result.propertyId,propertyRevision:result.propertyRevision,serviceAddressSource:result.propertyId?'captured':undefined, service: items.map((item)=>item.name).join(", "), serviceDescription:items[0]?.description||"", items:payloadItems.map((item,index)=>({...item,id:`new-${index}`})), status: "draft", subtotalCents:Number(result.subtotalCents??subtotal), discountCents:Number(result.discountCents??discount.appliedDiscount), appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountMode==="percent"?Math.round((Number(discountValue)||0)*100):Math.round((Number(discountValue)||0)*100), totalCents: Number(result.totalCents??total), depositCents: Number(result.depositCents??deposit), paidCents: 0, shareToken:result.shareToken, createdAt });
+      onSaved?.({ id: result.id, customerId: result.customerId, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:confirmedAddress,propertyId:result.propertyId,propertyRevision:result.propertyRevision,serviceAddressSource:result.propertyId?'captured':undefined, service: items.map((item)=>item.name).join(", "), serviceDescription:items[0]?.description||"", items:payloadItems.map((item,index)=>({...item,id:`new-${index}`})), status: "draft", subtotalCents:Number(result.subtotalCents??subtotal), discountCents:Number(result.discountCents??discount.appliedDiscount), appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountMode==="percent"?Math.round((Number(discountValue)||0)*100):Math.round((Number(discountValue)||0)*100), totalCents: Number(result.totalCents??total), depositCents: Number(result.depositCents??deposit), paidCents: 0, shareToken:result.shareToken, createdAt });
       setSaved(true);
     } catch (saveError) { if(!safelyRejected)setUncertainSave(true);setError(saveError instanceof Error ? saveError.message : "The estimate could not be saved. Please try again."); }
     finally { setSaving(false);saveLock.current=false; }
   };
 
   const initialItem = {serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0};
-  const hasUnsavedChanges = !saved && (customerName !== (customer?.name??"") || email !== (customer?.email??"")
+  const hasUnsavedChanges = !saved && ((selectedCustomer?.id??null)!==(customer?.id??null) || Boolean(estimateProperty&&estimateProperty.property.id!==propertySelection?.property.id) || customerName !== (customer?.name??"") || email !== (customer?.email??"")
     || phone !== (customer?.phone??"") || address !== (customer?.address??"")
     || JSON.stringify(items) !== JSON.stringify([initialItem]) || appreciationDiscount || discountMode !== "percent" || discountValue !== "");
   const reset = (value: boolean) => {
     if (!value && saving) return; // A pending response must finish before the dialog can close.
     if (!value && (hasUnsavedChanges||uncertainSave) && !window.confirm(uncertainSave?"Save was not confirmed. Closing does not cancel a possibly saved estimate. Review stored estimates before creating another. Close this draft?":"Discard this unfinished estimate? Customer details, services, quantities, prices and discounts will be lost. Choose Cancel to keep editing.")) return;
-    if(value){setForcePropertyReview(false);setEstimateProperty(propertySelection??null);setPropertyBlocked(propertyWorkflowReady);setPropertyRefresh(count=>count+1);}
+    if(value){setIdentityConfirmed(false);setForcePropertyReview(false);setEstimateProperty(null);setPropertyBlocked(Boolean(customer));setPropertyRefresh(count=>count+1);if(customer)void chooseCustomer(customer,true);else{setCustomerMode('lookup');setSelectedCustomer(null);}}
     setOpen(value);
     if (!value) {
+      customerRequest.current++;setCustomerLoading(false);setIdentityConfirmed(false);setSelectedCustomer(customer??null);setCustomerMode(customer?'existing':'lookup');setPropertyWorkflowReady(false);setEstimateProperty(null);
       onClosed?.();
       // No delayed reset: reopening cannot be wiped by a timer from the prior dialog.
       setStep(1);setSaved(false);setSavedReceipt(null);setUncertainSave(false);setReviewedRecords([]);setError("");setItems([initialItem]);setAppreciationDiscount(false);setDiscountMode("percent");setDiscountValue("");
@@ -492,11 +519,25 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,proper
   };
 
   return <Dialog open={open} onOpenChange={reset}>
-    <DialogTrigger asChild><Button className="brand-button" disabled={Boolean(disabledReason)} title={disabledReason}><Plus className="h-4 w-4" /> New estimate</Button></DialogTrigger>
+    <DialogTrigger asChild><Button className="brand-button" title={disabledReason}><Plus className="h-4 w-4" /> New estimate</Button></DialogTrigger>
     <DialogContent aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto border-0 p-0 sm:max-w-[620px]">
       <div className="estimate-head"><DialogHeader><DialogTitle className="text-xl">Create estimate</DialogTitle></DialogHeader><p className="mt-1 text-sm text-slate-500">Step {step} of 2 · {step===1?"Customer details":"Services and pricing"}</p><Progress value={step*50} className="mt-4 h-1.5"/></div>
       {saved?<div className="px-6 py-12 text-center"><span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-8 w-8"/></span><h2 className="text-2xl font-extrabold">Estimate ready</h2><p className="mx-auto mt-2 max-w-sm text-slate-500">{money(savedReceipt?.total??total)} total. A {money(savedReceipt?.deposit??deposit)} (50%) deposit reserves the customer&apos;s place on the schedule; the remaining balance is due when the work is completed.</p><p className="mt-3" data-saved-service-address>{savedReceipt?.address}</p><div className="mt-7 flex justify-center"><Button className="brand-button" onClick={()=>reset(false)}>Done</Button></div></div>
-      :step===1?<div className="space-y-5 px-6 py-6"><div className="grid gap-2"><Label>Customer name</Label><Input placeholder="Full name" value={customerName} onChange={(event)=>setCustomerName(event.target.value)} readOnly={Boolean(customer)}/></div><div className="grid gap-2"><Label>Email</Label><Input type="email" placeholder="customer@email.com" value={email} onChange={(event)=>setEmail(event.target.value)} readOnly={Boolean(customer)}/></div><div className="grid gap-2"><Label>Phone</Label><Input inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={(event)=>setPhone(event.target.value)} readOnly={Boolean(customer)}/></div><div className="grid gap-2"><Label>Service address</Label><Input aria-label="Estimate service address" placeholder="Tulsa-area address" value={resolvedAddress} onChange={(event)=>setAddress(event.target.value)} readOnly={Boolean(customer)}/></div>{propertyWorkflowReady&&customer&&open&&<CustomerProperties key={customer.id+'-'+propertyRefresh} customerId={customer.id} onRecordsChange={setPropertyBlocked} onSelectionChange={setEstimateProperty} initialPropertyId={forcePropertyReview?undefined:propertySelection?.property.id} compact/>}{error&&<p className="save-error" role="alert">{error}</p>}<Button className="brand-button w-full" disabled={propertyWorkflowReady&&propertyBlocked||uncertainSave} onClick={()=>{if(!customerName.trim()){setError("Customer name is required.");return;}setError("");setStep(2);}}>Continue to services <ChevronRight className="h-4 w-4"/></Button></div>
+      :step===1?<div className="space-y-5 px-6 py-6">
+        <CustomerLookup disabled={saving||uncertainSave||customerLoading} onSelect={row=>void chooseCustomer(row)} onCreate={()=>void chooseCustomer(null)}/>
+        {customerLoading&&<p role="status">Checking saved customer information…</p>}
+        {customerMode==='lookup'?<p>Select a matching customer explicitly, or choose + Create New Customer.</p>:<>
+          <p role="status">{selectedCustomer?'Using saved customer — linked to their existing history.':'Creating a new customer with this estimate.'}</p>
+          <div className="grid gap-2"><Label htmlFor="estimate-customer-name">Customer name</Label><Input id="estimate-customer-name" placeholder="Full name" value={customerName} onChange={event=>setCustomerName(event.target.value)} readOnly={Boolean(selectedCustomer)}/></div>
+          <div className="grid gap-2"><Label htmlFor="estimate-customer-email">Email</Label><Input id="estimate-customer-email" type="email" placeholder="customer@email.com" value={email} onChange={event=>setEmail(event.target.value)} readOnly={Boolean(selectedCustomer)}/></div>
+          <div className="grid gap-2"><Label htmlFor="estimate-customer-phone">Phone</Label><Input id="estimate-customer-phone" inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={event=>setPhone(event.target.value)} readOnly={Boolean(selectedCustomer)}/></div>
+          <div className="grid gap-2"><Label htmlFor="estimate-customer-address">Service address</Label><Input id="estimate-customer-address" aria-label="Estimate service address" placeholder="Tulsa-area address" value={resolvedAddress} onChange={event=>setAddress(event.target.value)} readOnly={Boolean(selectedCustomer)}/></div>
+        </>}
+        {selectedCustomer&&open&&!uncertainSave&&<CustomerProperties key={selectedCustomer.id+'-'+propertyRefresh} customerId={selectedCustomer.id} onRecordsChange={setPropertyBlocked} onSelectionChange={acceptProperty} onWorkflowChange={setPropertyWorkflowReady} initialPropertyId={!forcePropertyReview&&selectedCustomer.id===customer?.id?propertySelection?.property.id:undefined} compact/>}
+        {error&&<p className="save-error" role="alert">{error}</p>}
+        {selectedCustomer&&!identityConfirmed&&!customerLoading&&<Button variant="outline" onClick={()=>void chooseCustomer(selectedCustomer,true)}>Refresh selected customer</Button>}
+        <Button className="brand-button w-full" disabled={customerMode==='lookup'||!identityConfirmed||customerLoading||Boolean(selectedCustomer)&&propertyBlocked||uncertainSave} onClick={()=>{if(!customerName.trim()){setError('Customer name is required.');return;}setError('');setStep(2);}}>Continue to services <ChevronRight className="h-4 w-4"/></Button>
+      </div>
       :<div className="space-y-5 px-6 py-6">
         <div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.id||index}><header><strong>Service {index+1}</strong>{items.length>1&&<button type="button" onClick={()=>setItems((current)=>current.filter((_,i)=>i!==index))} aria-label={`Remove service ${index+1}`}><Trash2/></button>}</header>
           <div><Label>Service</Label><Select value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,quantity:svc.unit==="job"?1:0});setError("");}}><SelectTrigger><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent>{services.map((svc)=><SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}</SelectContent></Select></div>
@@ -509,7 +550,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,proper
         <section className="edit-discount-card"><Label>Additional bundle, promotion, or family discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} onChange={(event)=>setDiscountValue(event.target.value)} placeholder="0"/></div><p className="service-description-help">Choose percentage or dollar amount. Percentage discounts stack with the 5% appreciation discount, up to 50% total.</p></section>
         <div className="edit-totals"><span>Service subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(discount.appliedDiscount)}</strong></span><span>Customer total<strong>{money(total)}</strong></span><span>50% deposit to schedule<strong>{money(deposit)}</strong></span></div>
         {subtotal>0&&subtotal-discount.requestedDiscount<15000&&<p className="service-description-help">The $150 minimum job charge is applied automatically.</p>}{error&&<p className="save-error" role="alert">{error}</p>}
-        <div className="flex gap-3"><Button variant="outline" onClick={()=>setStep(1)} disabled={saving}>Back</Button><Button className="brand-button flex-1" onClick={()=>void saveEstimate()} disabled={saving||uncertainSave||propertyWorkflowReady&&propertyBlocked}>{saving?"Saving…":`Save ${money(total)} estimate`}</Button></div>
+        <div className="flex gap-3"><Button variant="outline" onClick={()=>setStep(1)} disabled={saving}>Back</Button><Button className="brand-button flex-1" onClick={()=>void saveEstimate()} disabled={saving||uncertainSave||customerLoading||!identityConfirmed||Boolean(selectedCustomer)&&propertyBlocked}>{saving?"Saving…":`Save ${money(total)} estimate`}</Button></div>
       </div>}
       {uncertainSave&&<section className="px-6 pb-6" aria-label="Unconfirmed estimate save"><p role="status">Save was not confirmed. Another save is blocked to prevent duplicate estimates.</p><Button variant="outline" disabled={reviewingRecords} onClick={()=>void reviewStored()}>Review stored estimates</Button>{reviewedRecords.map(row=><p key={row.id}>{row.service} · {row.address} · {money(row.totalCents)} · {row.id}</p>)}</section>}
     </DialogContent>
