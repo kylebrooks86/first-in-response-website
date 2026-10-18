@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 $workerName = 'fire-fullapp-qa-20261016'
 $dbName = 'fire-fullapp-qa-db-20261016'
 $dbId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
-$expectedActiveVersionPrefix = 'da71b08f-5cd9-41cd-b817-'
+$expectedActiveVersion = '5e44f843-94f0-4ea4-b80f-a889bd0830ef'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
@@ -48,7 +48,7 @@ Require ($null -ne $before -and $null -ne $before.versions) 'Missing active QA W
 $beforeVersions = @($before.versions)
 Require ($beforeVersions.Count -eq 1 -and [double]$beforeVersions[0].percentage -eq 100) 'QA Worker must have one active 100-percent code version.'
 $expectedOldVersion = [string]$beforeVersions[0].version_id
-Require ($expectedOldVersion -cmatch ('^' + [regex]::Escape($expectedActiveVersionPrefix) + '[a-f0-9]{12}$')) 'Unknown currently active QA Worker version. Stop.'
+Require ($expectedOldVersion -ceq $expectedActiveVersion) 'Unknown currently active QA Worker version. Stop.'
 $approval = 'UPDATE QA ' + $workerName + ' ' + $dbId + ' ' + $head + ' FROM ' + $expectedOldVersion
 Write-Warning ('This will REPLACE ONLY the code/assets on existing QA Worker ' + $workerName +
     ' while retaining its current D1 database, fictional customer records and existing owner secrets.')

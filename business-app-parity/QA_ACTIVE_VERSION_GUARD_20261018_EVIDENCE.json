@@ -1,0 +1,34 @@
+{
+  "source": "Owner-supplied screenshot of authenticated Wrangler deployments status --name fire-fullapp-qa-20261016 --json, October 17 23:50 Chicago",
+  "screenshot": "IMG_526AC64A-20F3-4E30-B2EB-D3C3A6639BDA.jpeg",
+  "worker": "fire-fullapp-qa-20261016",
+  "activeVersion": "5e44f843-94f0-4ea4-b80f-a889bd0830ef",
+  "versionCount": 1,
+  "trafficPercentage": 100,
+  "workCloudflareDashboardVerification": "Sign-in was rejected; do not represent owner CLI evidence as direct Work dashboard access. Both corrected scripts query Cloudflare status again before publication.",
+  "guardChange": "Both scripts now require case-sensitive equality to the complete observed UUID, replacing the stale da71b08f prefix.",
+  "preserved": [
+    "Exactly one serving version at 100 percent",
+    "Exact QA worker and D1 UUID checks before publication",
+    "Unchanged 23 migration baseline and compiled source verification",
+    "Exact owner approval includes candidate commit and previous full version",
+    "Fresh provider read and identical version required after approval",
+    "No schema, record or secret writes; code-only QA deployment",
+    "Original version remains identified for code rollback"
+  ],
+  "applicationChanged": false,
+  "deployed": false,
+  "releaseReadiness": {
+    "acceptedGates": 3,
+    "totalGates": 10,
+    "percent": 30
+  },
+  "verification": {
+    "qaWindowsScriptSafetyTestsPassed": 31,
+    "scope": "Python source-contract tests for the existing QA credential/build/preflight/publish safety scripts; no Windows PowerShell runtime executed in Work.",
+    "applicationSourceUnchanged": true,
+    "applicationVerifiedCheckpoint": "cb1ebd5bcbdc25c6633a2a71a0f7cf0c7828195d",
+    "applicationCI": "https://github.com/kylebrooks86/first-in-response-website/actions/runs/39097583483",
+    "applicationCIJobsPassed": 7
+  }
+}
