@@ -1,6 +1,39 @@
 export type WeatherDay = {date:string;temperatureMax:number|null;temperatureMin:number|null;rainChance:number|null;windMax:number|null};
 export type WeatherResponse = {location:string;updatedAt:string;current:{temperature:number;description:string};daily:WeatherDay[]};
 type Period = {startTime?:string;endTime?:string;isDaytime?:boolean;temperature?:number;temperatureUnit?:string;shortForecast?:string;windSpeed?:string;probabilityOfPrecipitation?:{value?:number|null}};
+
+/** The NWS forecast is made from partial daytime/nighttime periods. A missing
+ * high (after sunset) is unknown, not zero and not a forecast failure. */
+export function formatDailyTemperatures(day:WeatherDay):string {
+ const degrees=(value:number)=>`${Math.round(value)}°`;
+ const high=day.temperatureMax;
+ const low=day.temperatureMin;
+ if(high!=null&&Number.isFinite(high)&&low!=null&&Number.isFinite(low))return `${degrees(high)} / ${degrees(low)}`;
+ if(high!=null&&Number.isFinite(high))return `High ${degrees(high)}`;
+ if(low!=null&&Number.isFinite(low))return `Low ${degrees(low)}`;
+ return "Forecast pending";
+}
+export type WeatherIconKind="sun"|"sun-cloud"|"clear"|"moon-cloud"|"cloud"|"rain"|"snow"|"storm"|"fog"|"wind";
+export function weatherIconKind(description:string):WeatherIconKind {
+ const text=String(description||"").toLowerCase();
+ if(/thunder|t-?storm|lightning/.test(text))return "storm";
+ if(/snow|sleet|flurr|ice pellet|freezing rain|blizzard/.test(text))return "snow";
+ if(/rain|shower|drizzle|precipitation/.test(text))return "rain";
+ if(/fog|haze|smoke|mist/.test(text))return "fog";
+ if(/mostly cloudy|overcast|cloudy/.test(text))return /partly cloudy/.test(text)?"moon-cloud":"cloud";
+ if(/partly sunny|mostly sunny/.test(text))return "sun-cloud";
+ if(/partly cloudy/.test(text))return "moon-cloud";
+ if(/sunny|fair/.test(text))return "sun";
+ if(/clear/.test(text))return "clear";
+ if(/breezy|windy/.test(text))return "wind";
+ return "cloud";
+}
+export function weatherDayHeading(day:WeatherDay,now=Date.now()):string {
+ // Midnight rollover is based on Tulsa time, not the browser's device zone.
+ if(day.date===dateKey(new Date(now).toISOString())&&day.temperatureMax==null&&day.temperatureMin!=null)return "Tonight";
+ return new Date(`${day.date}T12:00:00`).toLocaleDateString("en-US",{weekday:"short",timeZone:"America/Chicago"});
+}
+
 const dateKey=(value:string)=>new Date(value).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
 export function normalizeForecast(periods:Period[],now=Date.now()):WeatherResponse {
  const valid=periods.filter(p=>p&&typeof p==="object"&&p.startTime&&p.endTime&&Number.isFinite(Date.parse(p.startTime))&&Number.isFinite(Date.parse(p.endTime))&&Date.parse(p.endTime)>now&&typeof p.temperature==="number"&&Number.isFinite(p.temperature)&&p.temperatureUnit==="F");
