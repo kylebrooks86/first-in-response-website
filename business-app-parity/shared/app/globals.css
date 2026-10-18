@@ -673,6 +673,9 @@ html,body{max-width:100%;overflow-x:clip}
 .estimate-edit-dialog{
   display:flex;flex-direction:column;
   max-height:min(92vh,92dvh);overflow:hidden;
+  /* Radix duration-200 otherwise transitions max-height/top during viewport
+     shrink, briefly leaving close/save outside the new visible bounds. */
+  transition-property:opacity,transform;
 }
 .estimate-edit-modal-header{flex:0 0 auto;min-height:24px;padding-right:44px}
 .estimate-edit-scroll-area{

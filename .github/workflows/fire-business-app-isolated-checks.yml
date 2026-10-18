@@ -502,6 +502,8 @@ jobs:
         run: node scripts/test-payments-shortcut-browser.mjs
       - name: Verify actual Edit Estimate viewport geometry, scrolling and reachable actions in Chrome
         run: node scripts/test-estimate-editor-geometry-browser.mjs
+      - name: Actual nested React editor, Radix portals, compiled Tailwind, keyboard and save recovery
+        run: node scripts/test-estimate-editor-react-browser.mjs
       - name: Verify actual IndexedDB customer photos, ZIP restore and offline additions in Chrome
         run: node scripts/test-offline-photo-indexeddb-browser.mjs
       - name: Exercise actual photo screen, offline ZIP, stopped-server cold launch and Files readback

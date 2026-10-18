@@ -22,7 +22,7 @@ assert.ok(editor.includes('onClick={()=>void save()} disabled={saving}'),'Save b
 const patch=css.slice(css.indexOf('/* FIRE QA: prevent iPhone Safari'));
 assert.ok(patch.startsWith('/* FIRE QA:'),'Viewport patch exists');
 for(const bit of [
- '.estimate-edit-dialog{','display:flex;flex-direction:column','max-height:min(92vh,92dvh);overflow:hidden',
+ '.estimate-edit-dialog{','transition-property:opacity,transform','display:flex;flex-direction:column','max-height:min(92vh,92dvh);overflow:hidden',
  '.estimate-edit-scroll-area{','min-height:0;min-width:0','overflow-y:auto;overflow-x:hidden',
  'overscroll-behavior:contain','-webkit-overflow-scrolling:touch',
  '.estimate-edit-modal-footer{','flex:0 0 auto','@media(max-width:760px)',
