@@ -268,7 +268,9 @@ jobs:
       - name: Ensure phone and iPad payment shortcut visible, QA layout diagnostic not in production builds
         run: node scripts/test-mobile-payment-shortcut.mjs
       - name: Shared financial regression suite
-        run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
+        run: |
+          node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
       - name: Verify on-device customer photo ZIP integrity and owner UI integration
         run: node scripts/test-offline-photo-vault.mjs
       - name: Shared photo storage integrity regression
@@ -357,6 +359,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-${{ matrix.target }}-candidate"
           node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
       - name: Physical SQLite rollback, journal/index preservation, and anti-tamper checks
         env:
           FIRE_SYNTHETIC_TARGET: ${{ matrix.target }}
@@ -428,6 +431,7 @@ jobs:
       - name: QA independent passphrase, cookie, spoofed-header and wrong-origin regression
         run: |
           cd "$RUNNER_TEMP/fire-qa-candidate"
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
           node scripts/test-qa-auth-adapter.mjs
       - name: Real QA payment route guards reject checkout/refund/webhooks before provider or DB
         run: |

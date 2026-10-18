@@ -2,12 +2,13 @@
  * Only a disposable loopback runtime; no remote mode, provider or deployed data.
  */
 import assert from 'node:assert/strict';
+import {exerciseCustomerBalances} from './test-customer-balance-workflow.mjs';
 import {exerciseCustomerLookup} from './test-customer-lookup-workflow.mjs';
 import {exerciseCustomerProfileControls} from './test-customer-profile-controls.mjs';
 import {createRequire} from 'node:module';
 import {spawn} from 'node:child_process';
 import {createHash,randomUUID} from 'node:crypto';
-import {mkdtempSync,readFileSync,writeFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,readFileSync,readdirSync,writeFileSync,rmSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createServer} from 'node:net';
@@ -56,8 +57,22 @@ function command(args){
 }
 const port=await new Promise(resolve=>{const s=createServer();s.listen(0,'127.0.0.1',()=>{const p=s.address().port;s.close(()=>resolve(p));});});
 const origin='https://127.0.0.1:'+port;
+// Execute immutable compiled modules in native workerd, without the Wrangler
+// dev proxy/file watcher restarting in-flight POSTs. D1 preparation stays native.
+const runnerPath=join(temp,'immutable-local-worker.mjs');
+const moduleFiles=directory=>readdirSync(directory,{withFileTypes:true}).flatMap(entry=>entry.isDirectory()?moduleFiles(join(directory,entry.name)):entry.name.endsWith('.js')?[join(directory,entry.name)]:[]);
+const compiledModules=[{type:'ESModule',path:config.main},...moduleFiles(resolve(root,'dist/server')).filter(path=>path!==config.main).map(path=>({type:'ESModule',path}))];
+writeFileSync(runnerPath,`import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url),wranglerPath=${JSON.stringify(join(root,'node_modules/wrangler'))};
+const {unstable_getMiniflareWorkerOptions}=require(wranglerPath);
+const {Miniflare}=createRequire(require.resolve(wranglerPath))('miniflare');
+const {workerOptions,externalWorkers}=unstable_getMiniflareWorkerOptions(${JSON.stringify(configPath)});
+const worker=new Miniflare({host:'127.0.0.1',port:${port},https:true,cf:false,d1Persist:${JSON.stringify(join(temp,'state','v3','d1'))},workers:[{name:'fire-immutable-synthetic',...workerOptions,bindings:{...workerOptions.bindings,FIRE_QA_PASSWORD_HASH:${JSON.stringify(createHash('sha256').update(password).digest('hex'))},FIRE_QA_SESSION_SECRET:${JSON.stringify(sessionSecret)}},modules:${JSON.stringify(compiledModules)},modulesRoot:${JSON.stringify(resolve(root,'dist/server'))}},...externalWorkers]});
+await worker.ready;
+process.once('SIGTERM',async()=>{await worker.dispose();process.exit(0);});
+`);
 async function start(){
- worker=spawn(process.execPath,[wrangler,'dev','--config',configPath,'--local','--persist-to',join(temp,'state'),'--ip','127.0.0.1','--port',String(port),'--local-protocol','https','--inspector-port','0','--show-interactive-dev-session=false'],{cwd:temp,env,stdio:['ignore','pipe','pipe']});
+ worker=spawn(process.execPath,[runnerPath],{cwd:temp,env,stdio:['ignore','pipe','pipe']});
  worker.stdout.on('data',d=>{workerLog+=d;});worker.stderr.on('data',d=>{workerLog+=d;});
  for(let i=0;i<150;i++){
   if(worker.exitCode!==null)throw Error('Local Worker stopped: '+workerLog.slice(-1800));
@@ -75,7 +90,7 @@ try{
  }
  await start();
  browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
- const context=await browser.newContext({viewport:{width:390,height:844},ignoreHTTPSErrors:true});
+ const context=await browser.newContext({viewport:{width:390,height:844},ignoreHTTPSErrors:true,timezoneId:'America/Chicago'});
  await context.route('**/*',route=>{const url=new URL(route.request().url());if(url.origin!==origin){
   // Existing profile satellite embeds are optional third-party content. The
   // synthetic workflow must never dispatch them, nor permit any other host.
@@ -154,7 +169,7 @@ try{
  check(await regular.getByRole('link',{name:'Close estimate preview',exact:true}).count()===0,'Ordinary standalone estimate link omits owner navigation even in an owner browser');
  check(await regular.locator('.estimate-portal').innerText()===documentText,'Owner preview retains identical customer agreement, pricing, deposit and approval content');
  await regular.close();
- const anonymous=await browser.newContext({ignoreHTTPSErrors:true});
+ const anonymous=await browser.newContext({ignoreHTTPSErrors:true,timezoneId:'America/Chicago'});
  const anonymousResponse=await anonymous.request.get(origin+previewPath,{headers:{'oai-authenticated-user-email':'kylebrooks8605@gmail.com'}});
  const anonymousHTML=await anonymousResponse.text();
  check(anonymousResponse.status()===200&&!anonymousHTML.includes('owner-estimate-preview-close')&&!anonymousHTML.includes('openEstimate='),'Forged preview query and owner header never expose owner X or return ID to an unauthenticated customer, including after authenticated cache use');
@@ -193,7 +208,7 @@ try{
   page.once('dialog',d=>d.accept());await draft.getByRole('button',{name:'Close',exact:true}).click();
  }
  if(lookupMode)await exerciseCustomerLookup({page,context,browser,origin,request,check,originalEstimateId:estimate.id});
- if(profileMode)await exerciseCustomerProfileControls({page,context,origin,request,check,originalEstimateId:estimate.id});
+ if(profileMode){await exerciseCustomerProfileControls({page,context,origin,request,check,originalEstimateId:estimate.id});await exerciseCustomerBalances({page,context,origin,request,check});}
  check(outside.length===0&&clientErrors.length===0,'No external network dispatched or uncaught framework client errors: '+JSON.stringify({outside,clientErrors,interceptedSyntheticMapFrames:blockedSyntheticMaps.length}));
  console.log('PASS '+checks+' built QA Worker HTTP / native D1 / Chromium checks. Local synthetic evidence only; no hosted or iOS acceptance claimed.');
 }finally{if(browser)await browser.close();await stop();rmSync(temp,{recursive:true,force:true});}

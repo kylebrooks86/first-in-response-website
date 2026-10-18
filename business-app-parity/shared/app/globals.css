@@ -749,3 +749,9 @@ html,body{max-width:100%;overflow-x:clip}
 .customer-messages-actions{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
 .customer-messages-actions>button{min-height:44px;max-width:100%;height:auto;white-space:normal}
 @media(max-width:760px){.photo-panel .photo-toolbar{grid-template-columns:minmax(0,1fr)}.photo-panel .photo-buttons>button{flex-basis:100%}.customer-messages-actions>button{width:100%}}
+
+/* Shared customer accounting and visible Home status at every viewport. */
+.customer-balance-explanation{margin:10px 0;color:var(--muted-foreground);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.recent-estimate-row{grid-template-columns:auto minmax(0,1fr) auto auto}
+.job-main .recent-estimate-status{display:block;width:fit-content;max-width:100%;margin-top:6px;border:1px solid #b9c9db;border-radius:6px;padding:3px 7px;color:var(--foreground);font-size:12px;font-weight:750;white-space:normal;overflow-wrap:anywhere}
+.job-main .recent-estimate-dates,.job-main .recent-estimate-appointment{display:block;margin-top:4px;font-size:11px;line-height:1.4;white-space:normal;overflow-wrap:anywhere;color:var(--muted-foreground)}

@@ -11,6 +11,7 @@ const env={DB:{prepare(sql){return {sql,async all(){return {results:db.prepare(s
 let user={email:'kylebrooks8605@gmail.com'};
 function load(source,imports){const exports={};const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;vm.runInNewContext(code,{exports,require:name=>{if(!(name in imports))throw Error('Unexpected import '+name);return imports[name];},Response});return exports;}
 const loadRoute=createRouteFixtureLoader(process.cwd(),env,()=>user);
+const {summarizeCustomerBalances,hasCollectibleJobValue}=loadRoute('lib/customer-balance-summary.ts');
 const customers=loadRoute('app/api/customers/route.ts');
 const invoices=loadRoute('app/api/invoices/route.ts');
 const estimates=loadRoute('app/api/estimates/route.ts');
@@ -52,12 +53,29 @@ try{
   equal(invoiceData.invoices.length,fixture.invoice===undefined?0:1);
   if(fixture.invoice!==undefined){const i=invoiceData.invoices[0];equal(i.totalCents,billingTotal);equal(i.paidCents,principal);equal(Math.max(0,i.totalCents-i.paidCents),balance);equal(customerData.invoices[0].totalCents,billingTotal);}
   equal(helpers.amountDueNow(e),fixture.status==='scheduled'?3000:balance);
+  const summary=summarizeCustomerBalances([e]);
+  equal(summary.collectibleCents,balance);equal(summary.netPrincipalPaidCents,principal);equal(summary.depositRemainingCents,fixture.status==='scheduled'?3000:0);
  }
  // One overpaid job must not hide another job's open balance; unrelated customers stay isolated.
  seed({invoice:8000,payments:[['balance',12000]]});
  db.exec("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES('e2','c','completed',10000,10000,5000,'now'); INSERT INTO customers(id,name,created_at) VALUES('other','Other synthetic','now'); INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES('other-e','other','completed',99000,99000,49500,'now'); INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES('other-p','other-e','balance',99000,'paid','now');");
  const multiple=await body(customers);const customer=multiple.customers.find(row=>row.id==='c');const jobs=multiple.estimates.filter(row=>row.customerId==='c');
  equal(customer.estimateTotal,18000);equal(customer.paidTotal,12000);equal(jobs.reduce((sum,row)=>sum+helpers.billingBalanceCents(row),0),10000);equal(multiple.payments.filter(row=>row.customerId==='c'&&!['Tip','Tip Refund'].includes(row.type)).reduce((sum,row)=>sum+row.amountCents,0),12000);
+ // Actual persisted routes: an unapproved quote is potential revenue, never debt.
+ seed({total:20000,status:'scheduled'});
+ db.exec("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES('quote','c','sent',20000,20000,10000,'now'); UPDATE estimates SET deposit_cents=10000 WHERE id='e';");
+ async function summary(){return summarizeCustomerBalances((await body(customers)).estimates);}
+ let value=await summary();equal(value.collectibleCents,20000);equal(value.potentialCents,20000);equal(value.depositRemainingCents,10000);equal(value.netPrincipalPaidCents,0);
+ db.exec("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES('deposit','e','deposit',10000,'paid','now'),('tip','e','Tip',500,'paid','now');");
+ value=await summary();equal(value.collectibleCents,10000);equal(value.depositRemainingCents,0);equal(value.netPrincipalPaidCents,10000);equal(value.potentialCents,20000);
+ db.exec("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES('refund','e','Refund',-4000,'paid','now'),('tip-refund','e','Tip Refund',-500,'paid','now');");
+ value=await summary();equal(value.collectibleCents,14000);equal(value.depositRemainingCents,4000);equal(value.netPrincipalPaidCents,6000);
+ db.exec("INSERT INTO invoices(id,estimate_id,customer_id,status,total_cents,created_at) VALUES('revised','e','c','sent',8000,'now');");
+ value=await summary();equal(value.collectibleCents,2000);equal(value.depositRemainingCents,2000);
+ db.exec("UPDATE invoices SET total_cents=0 WHERE id='revised';");
+ value=await summary();equal(value.collectibleCents,0);equal(value.depositRemainingCents,0);equal(value.potentialCents,20000);
+ for(const status of ['declined','canceled','unknown'])equal(hasCollectibleJobValue({status,totalCents:20000,depositCents:10000,paidCents:0}),false);
+ equal(summarizeCustomerBalances([{status:'declined',invoiceTotalCents:5000,totalCents:20000,depositCents:10000,paidCents:0}]).collectibleCents,5000);
  for(const unauthorized of [null,{email:'other@example.test'}]){user=unauthorized;for(const route of [customers,invoices,estimates])equal((await route.GET()).status,401);}
  console.log(`PASS ${checks}/${checks}: actual customer/invoice/estimate routes and UI helpers preserve revised/zero invoice totals, principal versus tips/refunds, pending/failed exclusion, overpayment floor, per-job balances, customer isolation and owner access. Synthetic SQLite only.`);
 }finally{db.close();}
