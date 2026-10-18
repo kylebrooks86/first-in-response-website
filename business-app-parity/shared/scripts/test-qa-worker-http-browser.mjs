@@ -1,3 +1,4 @@
+import {exerciseGlobalSearch} from './test-global-search-workflow.mjs';
 import {exerciseChangeRequestHistory} from './test-change-request-history-workflow.mjs';
 /** Entire BUILT QA Worker, real local workerd/D1, auth cookies and mobile UI.
  * Only a disposable loopback runtime; no remote mode, provider or deployed data.
@@ -101,7 +102,7 @@ try{
  await context.route('**/*',route=>{const url=new URL(route.request().url());if(url.origin!==origin){
   // Existing profile satellite embeds are optional third-party content. The
   // synthetic workflow must never dispatch them, nor permit any other host.
-  if(lookupMode&&url.origin==='https://maps.google.com'&&url.pathname==='/maps'&&['10 North Fixture Way','20 South Fixture Way'].includes(url.searchParams.get('q')))blockedSyntheticMaps.push(url.href);
+  if(url.origin==='https://maps.google.com'&&url.pathname==='/maps'&&((lookupMode&&['10 North Fixture Way','20 South Fixture Way'].includes(url.searchParams.get('q')))||(process.argv.includes('--global-search')&&url.searchParams.get('q')==='456 Synthetic Universal Lane')))blockedSyntheticMaps.push(url.href);
   else outside.push(url.href);
   return route.abort();
  }return route.continue();});
@@ -221,6 +222,7 @@ try{
  if(publicRetryMode)await exercisePublicEstimateRetry({page,context,origin,request,check,originalEstimateId:estimate.id});
  if(process.argv.includes('--manual-payment-confirmation'))await exerciseManualPaymentConfirmation({page,context,origin,request,check});
  if(process.argv.includes('--customer-create-retry'))await exerciseCustomerCreateRetry({page,context,origin,request,check});
+ if(process.argv.includes('--global-search'))await exerciseGlobalSearch({page,context,browser,origin,request,check});
  if(process.argv.includes('--change-history'))await exerciseChangeRequestHistory({page,context,browser,origin,request,check});
  if(process.argv.includes('--invoice-state'))await exerciseInvoiceState({page,context,browser,origin,request,check,originalEstimateId:estimate.id,mutateSyntheticD1:async sql=>{await stop();await command(['d1','execute','DB','--local','--persist-to',join(temp,'state'),'--config',configPath,'--command',sql]);await start();}});
  check(outside.length===0&&clientErrors.length===0,'No external network dispatched or uncaught framework client errors: '+JSON.stringify({outside,clientErrors,interceptedSyntheticMapFrames:blockedSyntheticMaps.length}));

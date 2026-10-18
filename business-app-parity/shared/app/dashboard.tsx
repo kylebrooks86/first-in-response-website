@@ -7,6 +7,7 @@ import { CandidateLayoutTrace } from "../components/candidate-layout-trace";
 import type {PropertyEstimateSelection} from '../lib/customer-properties';
 import {CustomerLookup,validLookupCustomer,type LookupCustomer} from '../components/customer-lookup';
 import {EstimateChangeHistory} from '../components/estimate-change-history';
+import {GlobalSearch,type SearchResult} from '../components/global-search';
 import {CustomerProperties} from '../components/customer-properties';
 import { OwnerAccountView } from "./owner-account";
 import {OfflineCustomerPhotos} from "../components/offline-customer-photos";
@@ -1745,6 +1746,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   useEffect(() => { setInteractive(true); }, []);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [searchQuery,setSearchQuery]=useState("");
+  const [globalQuery,setGlobalQuery]=useState("");
   const [theme,setTheme]=useState<"light"|"dark">("light");
   const [estimateRefreshKey,setEstimateRefreshKey]=useState(0);
   const [focusEstimateId,setFocusEstimateId]=useState<string|null>(null);
@@ -1814,6 +1816,12 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
     },0);
     return()=>window.clearTimeout(timer);
   },[]);
+  const openSearchResult=(row:SearchResult)=>{
+    setSearchQuery("");setGlobalQuery("");setMobileMenu(false);
+    if(row.kind==="customer"){setFocusCustomerSection("estimates");setFocusCustomerId(row.id);setTab("customers");}
+    else if(row.kind==="invoice"){setFocusInvoiceId(row.id);setTab("invoices");}
+    else{setFocusEstimateId(row.id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}
+  };
   const handleSaved = (estimate: EstimateRow) => {
     setEstimateRows((current) => [estimate, ...current]);
     setLiveMetrics((current) => ({ estimates: current.estimates + 1, openValue: current.openValue + estimate.totalCents, outstanding: current.outstanding }));
@@ -1822,12 +1830,12 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
     <main className="app-shell" data-app-ready={interactive}>
       <aside className={`sidebar ${mobileMenu ? "mobile-open" : ""}`}>
         <div className="brand"><FireMark /><div><strong>FIRE</strong><small>Business App</small></div><button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X /></button></div>
-        <label className="mobile-menu-search"><Search/><input disabled={!interactive} value={searchQuery} onChange={(event)=>setSearchQuery(event.target.value)} onKeyDown={(event)=>{if(event.key==="Enter"){setTab("customers");setMobileMenu(false);}}} placeholder="Search customers or jobs" aria-label="Search customers or jobs"/>{searchQuery&&<button type="button" onClick={()=>setSearchQuery("")} aria-label="Clear search"><X/></button>}</label>
+        <div className="mobile-menu-search"><GlobalSearch query={globalQuery} onQuery={setGlobalQuery} onSelect={openSearchResult} disabled={!interactive} active={mobileMenu} menu/></div>
         <nav>{nav.map(([id, label, Icon]) => <button key={id} disabled={!interactive} className={tab === id ? "active" : ""} onClick={() => { setTab(id); setMobileMenu(false); }}><Icon /><span>{label}</span>{id === "estimates" && liveMetrics.estimates > 0 && <b>{liveMetrics.estimates}</b>}</button>)}</nav>
         <button type="button" disabled={!interactive} className="sidebar-foot" onClick={() => { setTab("owner-account"); setMobileMenu(false); }} aria-label="Open owner account"><div className="owner-avatar">FIRE</div><div><strong>First In Response Exteriors</strong><small>Owner · Account</small></div><ChevronRight /></button>
       </aside>
       <section className="main-area">
-        <header className={`topbar ${["estimates","schedule"].includes(tab)?"compact-mobile":""}`}><div className="mobile-brand"><FireMark small /><strong>FIRE</strong></div><div className="mobile-primary-actions"><button disabled={!interactive} className="mobile-back-button" onClick={goBack} aria-label="Back" title="Back"><ArrowLeft /></button><button disabled={!interactive} className={`mobile-home-button ${tab==="dashboard"?"active":""}`} onClick={goHome} aria-label="Home" title="Home"><House /></button><button disabled={!interactive} className="mobile-theme-button" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}</button><button disabled={!interactive} className="menu-button" onClick={() => setMobileMenu(true)} aria-label="Open menu" title="Menu"><Menu /></button></div>{!["estimates","schedule"].includes(tab)&&<label className="search-box"><Search /><input disabled={!interactive} value={searchQuery} onChange={(event)=>setSearchQuery(event.target.value)} onFocus={()=>{if(tab==="dashboard")setTab("customers");}} placeholder="Search customers, jobs, or addresses" aria-label="Search customers, jobs, or addresses"/></label>}<div className="top-actions"><button disabled={!interactive} type="button" className="payments-quick-action" onClick={()=>setTab("payments")} aria-label="Record payments" title="Record payments"><span aria-hidden="true">$</span></button><StrideButton top/><NotificationBell onNavigate={(next,estimateId,invoiceId,customerId)=>{setSearchQuery("");if(invoiceId){setFocusInvoiceId(invoiceId);setTab("invoices");}else if(estimateId){setFocusEstimateId(estimateId);setEstimateRefreshKey(value=>value+1);setTab("estimates");}else if(customerId){setFocusCustomerSection("estimates");setFocusCustomerId(customerId);setTab("customers");}else{if(next==="estimates")setEstimateRefreshKey(value=>value+1);setTab(next);}}}/><button disabled={!interactive} className="theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}<span>{theme==="dark"?"Light":"Dark"}</span></button><button disabled={!interactive} className="avatar-button" onClick={() => setTab("owner-account")} aria-label="Open owner account">FIRE</button></div></header>
+        <header className={`topbar `}><div className="mobile-brand"><FireMark small /><strong>FIRE</strong></div><div className="mobile-primary-actions"><button disabled={!interactive} className="mobile-back-button" onClick={goBack} aria-label="Back" title="Back"><ArrowLeft /></button><button disabled={!interactive} className={`mobile-home-button ${tab==="dashboard"?"active":""}`} onClick={goHome} aria-label="Home" title="Home"><House /></button><button disabled={!interactive} className="mobile-theme-button" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}</button><button disabled={!interactive} className="menu-button" onClick={() => setMobileMenu(true)} aria-label="Open menu" title="Menu"><Menu /></button></div><GlobalSearch query={globalQuery} onQuery={setGlobalQuery} onSelect={openSearchResult} active={!mobileMenu} disabled={!interactive}/><div className="top-actions"><button disabled={!interactive} type="button" className="payments-quick-action" onClick={()=>setTab("payments")} aria-label="Record payments" title="Record payments"><span aria-hidden="true">$</span></button><StrideButton top/><NotificationBell onNavigate={(next,estimateId,invoiceId,customerId)=>{setSearchQuery("");if(invoiceId){setFocusInvoiceId(invoiceId);setTab("invoices");}else if(estimateId){setFocusEstimateId(estimateId);setEstimateRefreshKey(value=>value+1);setTab("estimates");}else if(customerId){setFocusCustomerSection("estimates");setFocusCustomerId(customerId);setTab("customers");}else{if(next==="estimates")setEstimateRefreshKey(value=>value+1);setTab(next);}}}/><button disabled={!interactive} className="theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}<span>{theme==="dark"?"Light":"Dark"}</span></button><button disabled={!interactive} className="avatar-button" onClick={() => setTab("owner-account")} aria-label="Open owner account">FIRE</button></div></header>
         {process.env.NODE_ENV === "development" && localCustomersCandidate && <CandidateLayoutTrace/>}
         {!interactive && <p role="status" className="app-loading-status">Loading app…</p>}
         {tab === "customers" && localCustomersCandidate && <a className="brand-button" href="/development/local-customers">Offline Customers · synthetic development</a>}

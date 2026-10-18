@@ -1,0 +1,38 @@
+{
+  "baseCommit": "483e3dff120c97deafa714be60f0d0c9dbe14f02",
+  "officialReadiness": {"passed": 3, "total": 10, "percent": 30},
+  "scope": "Shared development source; disposable synthetic local candidates only",
+  "implemented": [
+    "Shared persistent top-bar and mobile-menu search without redirecting typing to Customers or filtering the unrelated active screen",
+    "Owner-authenticated private/no-store search of customers, estimates, invoices and jobs, including partial contact details, addresses and quoted service names/descriptions",
+    "Displayed invoice number and full ID search, including 6528C9, #6528C9 and Invoice #6528C9, with exact ID/number matches ranked first",
+    "Queries cover records beyond existing list pagination; bounded eight results per category with explicit more-matches notice",
+    "All, Customers, Estimates, Invoices and Jobs filters with icons, identifying details, primary status, service appointment time and short estimate/job IDs",
+    "Explicit pointer or arrow-key/Enter selection opens actual customer profile, exact invoice card or shared estimate/job details; Enter alone never auto-selects",
+    "Debounced cancellable reads, generation guards, immediate stale-result clearing, explicit read retry, clear/empty/loading/error states and Escape dismissal",
+    "Viewport-sized results, wrapping filters, 16px input text and separate tablet search row; existing historical-address and property feature guards retained",
+    "No persistent plaintext record index, financial mutation or customer-data rewrite"
+  ],
+  "verification": {
+    "routeContracts": "57/57 per four candidates, actual SQLite routes: owner auth, displayed invoice numbers/IDs/ranking, literal queries, 65-estimate pagination fixture, contacts/services, category limits, uncached failures, ownership and gated historical/property addresses",
+    "builtQaNativeD1HttpsChromium": "81/81: widths 320/390/768/1366, correct invoice/job targets, keyboard customer address selection, no automatic first selection, current filter, Escape, stale/failed response handling, menu search and unchanged financial records",
+    "networkIsolation": "No external request dispatched or uncaught client error. Only the exact known synthetic profile map iframe is intercepted and aborted; all other outside requests remain test failures",
+    "financial": "194 invoice-state and 208 customer/invoice-balance assertions per four candidates; processing-fee and public-document suites per four; final-tipping suite on LIVE candidate",
+    "customerLoadRecovery": "1460/1460 mocked read/error/stale/unmount checks on LIVE candidate",
+    "typeScript": "4/4 passed",
+    "finalBuilds": "4/4 passed with complete-build markers",
+    "sourceParity": {"qa": 394, "live": 389, "doomsday": 394, "staging": 390}
+  },
+  "limitations": [
+    "This is the first universal-search integration, not completion of all Step 152 requirements",
+    "Offline indexing/search, dedicated property results, payments, notes and photo/document metadata remain future work; no new record index is persisted",
+    "SQLite existing case handling is used; full Unicode normalization is not verified",
+    "Search uses current existing invoice/estimate/customer views for authoritative opening; deleted/unavailable records use their existing focus error states",
+    "No hosted deployment or real iPhone/iPad Safari or keyboard acceptance claimed",
+    "Hosted latency root cause, deposit exceptions, broader status/notification work and other release gates remain open"
+  ],
+  "nextBatch": "Extend authorized search to remaining record metadata with clear record targets; design isolated encrypted offline indexing before storing customer/financial search records",
+  "deploymentPerformed": false,
+  "hostedDatabaseChanged": false,
+  "stripeOrCredentialsChanged": false
+}
