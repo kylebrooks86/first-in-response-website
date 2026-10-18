@@ -12,7 +12,7 @@ export async function POST(request:Request,context:{params:Promise<{token:string
       FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.share_token=? LIMIT 1`).bind(token).first<{id:string;customerId:string;status:string;acceptedAt:string|null;customer:string;service:string}>();
     if(!estimate)return Response.json({error:"Estimate not found."},{status:404});
     if(estimate.acceptedAt)return Response.json({ok:true,acceptedAt:estimate.acceptedAt});
-    if(!["draft","sent"].includes(estimate.status))return Response.json({error:"This estimate is no longer available for approval. Please contact Kyle."},{status:409});
+    if(!["draft","sent"].includes(estimate.status))return Response.json({error:"This estimate is no longer available for approval. Please contact First In Response Exteriors."},{status:409});
     const now=new Date().toISOString();
     const [accepted]=await env.DB.batch([
       env.DB.prepare(`UPDATE estimates SET status='approved',accepted_at=?,signed_name=?,signed_at=?,photo_release=?,contract_version='2026-09-21'
@@ -33,9 +33,9 @@ export async function POST(request:Request,context:{params:Promise<{token:string
     if(!accepted.meta.changes){
       const current=await env.DB.prepare("SELECT accepted_at AS acceptedAt,status FROM estimates WHERE id=?").bind(estimate.id).first<{acceptedAt:string|null;status:string}>();
       if(current?.acceptedAt)return Response.json({ok:true,acceptedAt:current.acceptedAt});
-      if(current&&["draft","sent"].includes(current.status))return Response.json({error:"This estimate has a billing or service-line integrity issue and cannot be approved yet. Please contact Kyle."},{status:409});
-      return Response.json({error:"This estimate changed while you were approving it. Please refresh or contact Kyle."},{status:409});
+      if(current&&["draft","sent"].includes(current.status))return Response.json({error:"This estimate has a billing or service-line integrity issue and cannot be approved yet. Please contact First In Response Exteriors."},{status:409});
+      return Response.json({error:"This estimate changed while you were approving it. Please refresh or contact First In Response Exteriors."},{status:409});
     }
     return Response.json({ok:true,acceptedAt:now,signedName});
-  }catch{return Response.json({error:"The estimate could not be approved. Please contact Kyle."},{status:500});}
+  }catch{return Response.json({error:"The estimate could not be approved. Please contact First In Response Exteriors."},{status:500});}
 }

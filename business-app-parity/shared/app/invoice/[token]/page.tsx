@@ -1,7 +1,7 @@
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
 import { CalendarDays, MapPin, ShieldCheck, Info, ArrowUpRight } from "lucide-react";
-import { templateByKey } from "../../../lib/fire-templates";
+import { publicInvoiceFooter } from "../../../lib/fire-templates";
 import { serviceDescriptionFor } from "../../../lib/fire-services";
 import { PayButton } from "../../pay/[id]/pay-button";
 import { paymentHandles } from "../../../lib/payment-methods";
@@ -64,7 +64,7 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
         <a className="invoice-manual-method venmo" href={`https://venmo.com/u/${encodeURIComponent(handles.venmo.replace(/^@/,""))}`} target="_blank" rel="noopener noreferrer"><span className="invoice-method-icon">V</span><span><strong>Venmo <ArrowUpRight/></strong><small>{handles.venmo}</small></span></a>
       </section>
     </>}
-    <div className="invoice-footer-note"><span><Info/></span><p>{footer?.body||templateByKey("invoiceFooter").body}</p></div>
+    <div className="invoice-footer-note"><span><Info/></span><p>{publicInvoiceFooter(footer?.body)}</p></div>
     <div className="secure-note"><ShieldCheck/> Your private invoice link is unique to you.</div>
   </section></main>;
 }

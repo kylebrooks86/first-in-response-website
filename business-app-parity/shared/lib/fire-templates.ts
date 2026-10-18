@@ -100,12 +100,21 @@ export const FIRE_TEMPLATES:FireTemplate[] = [
   {key:"inspection",name:"Inspection or job report",category:"After service",channel:"email",subject:"Your property report from First In Response Exteriors",body:"Hi @customer_first_name, your @service_list inspection or job report is ready. View the report and property documentation here: @form_link Please reply with any questions. — Kyle"},
   {key:"autoReply",name:"Automatic reply",category:"After service",channel:"both",subject:"We received your message",body:"Hi @customer_first_name, thanks for contacting First In Response Exteriors. I’m currently helping a customer or working in the field, but I received your message and will respond as soon as I can. — Kyle"},
   {key:"estimateFooter",name:"Estimate footer",category:"Documents",channel:"document",subject:"",body:"Thank you for the opportunity to earn your business. A 50% deposit reserves your service date, and the remaining balance is due immediately upon completion. Final scope and pricing are subject to visible property conditions and customer-approved changes."},
-  {key:"invoiceFooter",name:"Invoice footer",category:"Documents",channel:"document",subject:"",body:"Thank you for choosing First In Response Exteriors. The remaining balance is due upon completion. Please contact Kyle with any questions about this invoice or to arrange payment."},
+  {key:"invoiceFooter",name:"Invoice footer",category:"Documents",channel:"document",subject:"",body:"Thank you for choosing First In Response Exteriors. The remaining balance is due upon completion. Please contact First In Response Exteriors with any questions about this invoice or to arrange payment."},
   {key:"inspectionFooter",name:"Inspection report footer",category:"Documents",channel:"document",subject:"",body:"This report documents visible conditions at the time of service. Photos and notes are provided for customer records and do not replace evaluation by a licensed specialist when one is required."},
   {key:"contractTerms",name:"Service agreement",category:"Documents",channel:"document",subject:"",body:SERVICE_AGREEMENT},
 ];
 
 export const templateByKey=(key:string)=>FIRE_TEMPLATES.find((item)=>item.key===key)??FIRE_TEMPLATES[0];
+
+
+// Keep the owner's custom invoice footer untouched. Only normalize the exact
+// legacy default already stored in D1; no migrations or customer-row writes.
+export function publicInvoiceFooter(savedBody:string|null|undefined){
+  const currentDefault=templateByKey("invoiceFooter").body;
+  const legacyDefault="Thank you for choosing First In Response Exteriors. The remaining balance is due upon completion. Please contact Kyle with any questions about this invoice or to arrange payment.";
+  return !savedBody||savedBody===legacyDefault?currentDefault:savedBody;
+}
 
 export function fillTemplate(value:string,variables:Record<string,string>){
   return value.replace(/@[a-z_]+/g,(tag)=>variables[tag]??tag);
