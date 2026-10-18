@@ -14,6 +14,8 @@ import { loadRefundRetry, saveRefundRetry, clearRefundRetry, type RefundRetryAtt
 import { loadManualPaymentRetry, saveManualPaymentRetry, clearManualPaymentRetry, type ManualPaymentAttempt } from "../lib/manual-payment-retry-state";
 import { editMoneyLine, editableLineTotalCents, restoreEditableLineMoney } from "../lib/editable-line-totals";
 
+import {weatherIconKind,formatDailyTemperatures,weatherDayHeading} from "../lib/tulsa-weather";
+
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
@@ -32,7 +34,13 @@ import {
   Download,
   ExternalLink,
   CheckCircle2,
+  Cloud,
+  CloudFog,
+  CloudLightning,
+  CloudMoon,
   CloudRain,
+  CloudSnow,
+  CloudSun,
   Gauge,
   Globe2,
   House,
@@ -1251,6 +1259,13 @@ function EstimatesView({ onSaved, searchQuery, focusEstimateId }: { onSaved:(est
 
 type WeatherDay={date:string;temperatureMax:number|null;temperatureMin:number|null;rainChance:number|null;windMax:number|null};
 type WeatherResponse={location:string;updatedAt:string;current:{temperature:number;description:string};daily:WeatherDay[]};
+function WeatherConditionIcon({description}:{description:string}){
+ const kind=weatherIconKind(description);
+ const Icon=kind==="sun"?Sun:kind==="sun-cloud"?CloudSun:kind==="clear"?Moon:
+  kind==="moon-cloud"?CloudMoon:kind==="rain"?CloudRain:kind==="snow"?CloudSnow:
+  kind==="storm"?CloudLightning:kind==="fog"?CloudFog:kind==="wind"?Wind:Cloud;
+ return <Icon aria-hidden="true" />;
+}
 function ScheduleWeather({nextJobAt,compact=false}:{nextJobAt?:string|null;compact?:boolean}){
  const [weather,setWeather]=useState<WeatherResponse|null>(null);const [unavailable,setUnavailable]=useState(false);
  useEffect(()=>{let cancelled=false;let running=false;const controller=new AbortController();
@@ -1262,7 +1277,7 @@ function ScheduleWeather({nextJobAt,compact=false}:{nextJobAt?:string|null;compa
  const jobDate=nextJobAt?new Date(nextJobAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"}):"";
  const jobDay=weather.daily.find(day=>day.date===jobDate);const days=jobDay?[weather.daily[0],jobDay].filter((day,index,array)=>array.findIndex(item=>item.date===day.date)===index):weather.daily.slice(0,3);
  const freeze=days.some(day=>day.temperatureMin!=null&&day.temperatureMin<=32);const rain=days.some(day=>day.rainChance!=null&&day.rainChance>=50);const degrees=(value:number|null)=>value==null?"—":`${Math.round(value)}°`;
- return <section className={`weather-strip ${compact?"home-weather":""}`}><div className="weather-current"><CloudRain/><span><small>{weather.location} forecast</small><strong>{degrees(weather.current.temperature)} · {weather.current.description}</strong><small>Updated {new Date(weather.updatedAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})}</small></span></div><div className="weather-days">{days.map(day=><article key={day.date} className={day.date===jobDate?"job-day":""}><small>{day.date===jobDate?"Next job":new Date(`${day.date}T12:00:00`).toLocaleDateString("en-US",{weekday:"short"})}</small><strong>{degrees(day.temperatureMax)} / {degrees(day.temperatureMin)}</strong><span><CloudRain/>{day.rainChance==null?"—":`${Math.round(day.rainChance)}%`} <Wind/>{day.windMax==null?"—":Math.round(day.windMax)} mph</span></article>)}</div><div className={`weather-alert ${freeze||rain?"show":""}`}>{freeze?"Freeze risk":rain?"Rain likely":""}</div><a href="https://www.weather.gov/" target="_blank" rel="noreferrer">National Weather Service</a></section>;
+ return <section className={`weather-strip ${compact?"home-weather":""}`}><div className={`weather-current condition-${weatherIconKind(weather.current.description)}`}><WeatherConditionIcon description={weather.current.description}/><span><small>{weather.location} forecast</small><strong>{degrees(weather.current.temperature)} · {weather.current.description}</strong><small>Updated {new Date(weather.updatedAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})}</small></span></div><div className="weather-days">{days.map(day=><article key={day.date} className={day.date===jobDate?"job-day":""}><small>{day.date===jobDate?"Next job":weatherDayHeading(day,new Date(weather.updatedAt).getTime())}</small><strong>{formatDailyTemperatures(day)}</strong><span><CloudRain/>{day.rainChance==null?"—":`${Math.round(day.rainChance)}%`} <Wind/>{day.windMax==null?"—":Math.round(day.windMax)} mph</span></article>)}</div><div className={`weather-alert ${freeze||rain?"show":""}`}>{freeze?"Freeze risk":rain?"Rain likely":""}</div><a href="https://www.weather.gov/" target="_blank" rel="noreferrer">National Weather Service</a></section>;
 }
 
 function ScheduleView({ searchQuery }:{searchQuery:string}) {
