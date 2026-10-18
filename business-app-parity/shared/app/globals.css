@@ -658,3 +658,11 @@ html,body{max-width:100%;overflow-x:clip}
   .topbar .top-actions{grid-column:2!important;justify-self:end!important}
   .topbar .search-box{grid-column:1/-1!important}
 }
+
+/* Match the dashboard forecast icon to the NWS condition description.
+   The high/low display is derived only from published NWS periods. */
+.weather-current.condition-sun>svg,.weather-current.condition-sun-cloud>svg{color:#c78b12}
+.weather-current.condition-clear>svg,.weather-current.condition-moon-cloud>svg{color:#6775c7}
+.weather-current.condition-storm>svg{color:#ae7418}
+.weather-current.condition-snow>svg{color:#4982b3}
+.weather-current.condition-fog>svg{color:#6c8194}
