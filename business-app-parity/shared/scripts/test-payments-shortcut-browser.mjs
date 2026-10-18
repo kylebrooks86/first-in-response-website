@@ -12,10 +12,12 @@ assert.ok(start>=0);
 const header=dashboard.slice(start,dashboard.indexOf('</header>',start)+9);
 const fixture=`import React,{useState} from 'react';import{createRoot}from'react-dom/client';
 import{ArrowLeft,House,Sun,Moon,Menu,Search}from'lucide-react';
+import{GlobalSearch}from'./components/global-search';
 function FireMark(){return <span>F</span>}
 function StrideButton(){return <button className="top-stride-button" aria-label="Stride">S</button>}
 function NotificationBell(){return <button className="notification-button" aria-label="Notifications">N</button>}
 function Fixture(){const[tab,setTab]=useState('dashboard'),[theme,setTheme]=useState('light'),[interactive,ready]=useState(true),[searchQuery,setSearchQuery]=useState('');
+const[globalQuery,setGlobalQuery]=useState(''),mobileMenu=false,openSearchResult=()=>{};
 window.setReady=ready;window.setFixtureTab=setTab;window.setFixtureTheme=setTheme;
 const goBack=()=>setTab('dashboard'),goHome=goBack,toggleTheme=()=>setTheme(theme==='dark'?'light':'dark'),setMobileMenu=()=>{},setEstimateRefreshKey=()=>{};
 return <div className="app-shell" data-theme={theme}><main className="main-area">${header}<output data-tab={tab}>{tab}</output></main></div>}

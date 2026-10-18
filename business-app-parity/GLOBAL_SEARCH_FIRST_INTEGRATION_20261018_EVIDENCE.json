@@ -16,6 +16,7 @@
   "verification": {
     "routeContracts": "57/57 per four candidates, actual SQLite routes: owner auth, displayed invoice numbers/IDs/ranking, literal queries, 65-estimate pagination fixture, contacts/services, category limits, uncached failures, ownership and gated historical/property addresses",
     "builtQaNativeD1HttpsChromium": "81/81: widths 320/390/768/1366, correct invoice/job targets, keyboard customer address selection, no automatic first selection, current filter, Escape, stale/failed response handling, menu search and unchanged financial records",
+    "paymentsHeaderFixture": "111/111 phone/tablet/desktop light/dark payment entry, focus, navigation and loading assertions; fixture imports actual GlobalSearch and provides its state after CI detected the missing component",
     "networkIsolation": "No external request dispatched or uncaught client error. Only the exact known synthetic profile map iframe is intercepted and aborted; all other outside requests remain test failures",
     "financial": "194 invoice-state and 208 customer/invoice-balance assertions per four candidates; processing-fee and public-document suites per four; final-tipping suite on LIVE candidate",
     "customerLoadRecovery": "1460/1460 mocked read/error/stale/unmount checks on LIVE candidate",
