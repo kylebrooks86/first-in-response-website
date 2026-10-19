@@ -18,6 +18,7 @@ const TABLES = [
   ["payments", ["id", "estimate_id", "type", "amount_cents", "status", "provider_id", "created_at", "processing_fee_cents", "gross_received_cents", "bundled_tip_cents", "processing_method"]],
   ["payment_refunds", ["id", "payment_id", "estimate_id", "amount_cents", "mode", "status", "provider_refund_id", "note", "created_at", "completed_at"]],
   ["deposit_policy_events", ["id","estimate_id","confirmation_id","actor_email","mode","previous_total_cents","previous_deposit_cents","new_deposit_cents","paid_principal_cents","percent_basis_points","schedule_before_collection","previous_contract_version","updated_contract_version","previous_signed_at","requires_customer_reapproval","reason","created_at"]],
+  ["deposit_agreement_snapshots", ["event_id","estimate_id","document_version","document_digest","total_cents","deposit_cents","mode","scope_json","agreement_text","signed_name","photo_release","signed_at","accepted_at"]],
   ["customer_messages", ["id", "customer_id", "estimate_id", "channel", "template", "body", "created_at"]],
   ["notifications", ["id", "type", "title", "body", "customer_id", "estimate_id", "read_at", "resolved_at", "resolution_note", "created_at"]],
   ["message_templates", ["key", "subject", "body", "updated_at"]],
@@ -100,7 +101,7 @@ const restoredAt = new Date().toISOString();
 const plans = [];
 for (const [table, columns] of TABLES) {
   const rows = backupTables[table];
-  if (!Array.isArray(rows)) { if (table === "invoice_items" || table === "invoice_revisions" || table === "payment_checkout_sessions" || table === "payment_refunds" || table === "deposit_policy_events") continue; throw new Error(`The backup is missing the ${table} records.`); }
+  if (!Array.isArray(rows)) { if (table === "invoice_items" || table === "invoice_revisions" || table === "payment_checkout_sessions" || table === "payment_refunds" || table === "deposit_policy_events" || table === "deposit_agreement_snapshots") continue; throw new Error(`The backup is missing the ${table} records.`); }
   for (const candidate of rows) {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error(`The ${table} backup contains an invalid record.`);
     const values = columns.map((column) => {
@@ -121,7 +122,7 @@ for (const [table, columns] of TABLES) {
       return value;
     });
     if (values.some((value) => value !== null && value !== undefined && typeof value !== "string" && typeof value !== "number")) throw new Error(`The ${table} backup contains an invalid field.`);
-    const identityColumn = table === "message_templates" ? "key" : "id";
+    const identityColumn = table === "deposit_agreement_snapshots" ? "event_id" : table === "message_templates" ? "key" : "id";
     const identity = candidate[identityColumn];
     if (typeof identity !== "string" || !identity) throw new Error(`The ${table} backup contains a record without a valid ${identityColumn}.`);
     plans.push({ table, columns, values, identityColumn, identity });
@@ -131,7 +132,7 @@ if (plans.length > 5_000) throw new Error("This backup contains more than 5,000 
 
 const existingByTable = new Map();
 for (const [table] of TABLES) {
-  const identityColumn = table === "message_templates" ? "key" : "id";
+  const identityColumn = table === "deposit_agreement_snapshots" ? "event_id" : table === "message_templates" ? "key" : "id";
   const result = run(["d1", "execute", "DB", "--config", absoluteConfig, ...modeArgs, "--json", "--command", `SELECT * FROM ${table}`]);
   if (result.status !== 0) fail(result, `Could not inspect target table ${table}.`);
   const parsed = JSON.parse(result.stdout);
@@ -145,6 +146,7 @@ const immutable = {
  payments:["estimate_id","type","amount_cents","status","provider_id","processing_fee_cents","gross_received_cents","bundled_tip_cents","processing_method"],
  payment_refunds:["payment_id","estimate_id","amount_cents","mode"],
  deposit_policy_events:["id","estimate_id","confirmation_id","actor_email","mode","previous_total_cents","previous_deposit_cents","new_deposit_cents","paid_principal_cents","percent_basis_points","schedule_before_collection","previous_contract_version","updated_contract_version","previous_signed_at","requires_customer_reapproval","reason","created_at"],
+ deposit_agreement_snapshots:["event_id","estimate_id","document_version","document_digest","total_cents","deposit_cents","mode","scope_json","agreement_text","signed_name","photo_release","signed_at","accepted_at"],
 };
 const normalize=value=>value==null?null:value;
 for(const plan of plans){
@@ -156,7 +158,7 @@ for(const plan of plans){
  for(const column of fields)if(source[column]!==undefined&&normalize(source[column])!==normalize(existing[column]))throw new Error(`Existing ${plan.table}.${column} conflicts with backup record ${plan.identity}. No records changed.`);
 }
 function mergedTables(){
- return Object.fromEntries(TABLES.filter(([table])=>table!=="payment_refunds"||backupTables.payment_refunds!==undefined||existingByTable.get(table).size>0).map(([table])=>[table,[...existingByTable.get(table).values(),...plans.filter(plan=>plan.table===table&&!existingByTable.get(table).has(plan.identity)).map(plan=>Object.fromEntries(plan.columns.map((column,i)=>[column,plan.values[i]??null])))]]));
+ return Object.fromEntries(TABLES.filter(([table])=>!["payment_refunds","deposit_agreement_snapshots"].includes(table)||backupTables[table]!==undefined||existingByTable.get(table).size>0).map(([table])=>[table,[...existingByTable.get(table).values(),...plans.filter(plan=>plan.table===table&&!existingByTable.get(table).has(plan.identity)).map(plan=>Object.fromEntries(plan.columns.map((column,i)=>[column,plan.values[i]??null])))]]));
 }
 // Include preserved target reservations/ledger rows, and incomplete prior writes,
 // when checking the complete recovery result before making any new writes.

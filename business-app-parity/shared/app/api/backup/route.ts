@@ -6,6 +6,7 @@ import {customerPropertiesEnabled} from '../../../lib/customer-properties';
 import {propertyBackupError,hasPropertyBackup} from "../../../lib/property-backup.mjs";
 import {serviceLocationManifest,serviceLocationBackupError} from "../../../lib/service-location-backup.mjs";
 import {DEPOSIT_AUDIT_COLUMNS,validateDepositAuditIntegrity,depositAuditRowsConflict} from "../../../lib/deposit-audit-backup.mjs";
+import {SIGNED_AGREEMENT_COLUMNS,validateSignedAgreementSnapshots,signedAgreementRowsConflict} from "../../../lib/deposit-agreement-backup.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 const TABLES = [
@@ -18,6 +19,7 @@ const TABLES = [
   "payment_checkout_sessions",
   "payment_refunds",
   "deposit_policy_events",
+  "deposit_agreement_snapshots",
   "estimate_items",
   "payments",
   "customer_photos",
@@ -42,6 +44,7 @@ const RESTORE_TABLES = [
   ["payments", ["id", "estimate_id", "type", "amount_cents", "status", "provider_id", "created_at", "processing_fee_cents", "gross_received_cents", "bundled_tip_cents", "processing_method"]],
   ["payment_refunds", ["id", "payment_id", "estimate_id", "amount_cents", "mode", "status", "provider_refund_id", "note", "created_at", "completed_at"]],
   ["deposit_policy_events", DEPOSIT_AUDIT_COLUMNS],
+  ["deposit_agreement_snapshots", SIGNED_AGREEMENT_COLUMNS],
   ["customer_messages", ["id", "customer_id", "estimate_id", "channel", "template", "body", "created_at"]],
   ["notifications", ["id", "type", "title", "body", "customer_id", "estimate_id", "read_at", "resolved_at", "resolution_note", "created_at"]],
   ["message_templates", ["key", "subject", "body", "updated_at"]],
@@ -218,6 +221,8 @@ export async function GET() {
     if(refundIntegrityError)return Response.json({error:`Records backup stopped: ${refundIntegrityError}`},{status:409});
     const auditError=validateDepositAuditIntegrity(tables,true);
     if(auditError)return Response.json({error:`Records backup stopped: ${auditError}`},{status:409});
+    const signatureError=validateSignedAgreementSnapshots(tables,true);
+    if(signatureError)return Response.json({error:`Records backup stopped: ${signatureError}`},{status:409});
     if(Array.isArray(tables.customer_photos)){
       const photoIds=new Set<string>();
       const objectKeys=new Set<string>();
@@ -249,6 +254,7 @@ export async function GET() {
         paymentCheckoutSessionSafety: true,
         paymentRefundHistory: true,
         depositPolicyAuditHistory: true,
+        signedDepositAgreementHistory: true,
         ...(snapshotEnabled?{serviceAddressSnapshots:true}:{}),
       },
       warning: "Customer photo files are stored separately and are not included in this JSON backup.",
@@ -325,6 +331,8 @@ export async function POST(request: Request) {
     if(refundIntegrityError)return Response.json({error:`This backup failed refund-integrity validation: ${refundIntegrityError}`},{status:400});
     const auditError=validateDepositAuditIntegrity(backupTables,isRecord(payload.includes)&&payload.includes.depositPolicyAuditHistory===true);
     if(auditError)return Response.json({error:`This backup failed deposit-audit validation: ${auditError}`,restoreAudit},{status:400});
+    const signatureError=validateSignedAgreementSnapshots(backupTables,isRecord(payload.includes)&&payload.includes.signedDepositAgreementHistory===true);
+    if(signatureError)return Response.json({error:`This backup failed signed-agreement validation: ${signatureError}`,restoreAudit},{status:400});
 
     if(Array.isArray(backupTables.payments)) for(const row of backupTables.payments) {
       if(!isRecord(row))return Response.json({error:"Invalid payment record."},{status:400});
@@ -388,6 +396,15 @@ export async function POST(request: Request) {
       if(owner&&owner!==String(event.id))return Response.json({error:"Restore conflict: deposit confirmation ID belongs to another event. No records changed.",restoreAudit},{status:409});
     }
 
+    const targetSignedByEvent=new Map((await env.DB.prepare("SELECT * FROM deposit_agreement_snapshots").all<Record<string,unknown>>()).results.map(row=>[String(row.event_id),row]));
+    const signedVersionOwners=new Map([...targetSignedByEvent.values()].map(row=>[String(row.document_version),String(row.event_id)]));
+    if(Array.isArray(backupTables.deposit_agreement_snapshots))for(const row of backupTables.deposit_agreement_snapshots){
+      const signed=row as Record<string,unknown>;
+      const existing=targetSignedByEvent.get(String(signed.event_id));
+      if(existing&&signedAgreementRowsConflict(existing,signed))return Response.json({error:"Restore conflict: immutable signed document differs. No records changed.",restoreAudit},{status:409});
+      const other=signedVersionOwners.get(String(signed.document_version));
+      if(other&&other!==String(signed.event_id))return Response.json({error:"Restore conflict: signed version belongs to another event. No records changed.",restoreAudit},{status:409});
+    }
     if(Array.isArray(backupTables.estimates)){
       for(const raw of backupTables.estimates){
         if(!isRecord(raw))return Response.json({error:"The estimates backup contains an invalid record."},{status:400});
@@ -560,7 +577,7 @@ export async function POST(request: Request) {
     for (const [table, columns] of restoreTables) {
       const rows = backupTables[table];
       if (!Array.isArray(rows)) {
-        if (table === "invoice_items" || table === "invoice_revisions" || table === "payment_checkout_sessions" || table === "payment_refunds" || table === "deposit_policy_events") continue;
+        if (table === "invoice_items" || table === "invoice_revisions" || table === "payment_checkout_sessions" || table === "payment_refunds" || table === "deposit_policy_events" || table === "deposit_agreement_snapshots") continue;
         return Response.json({ error: `The backup is missing the ${table} records.` }, { status: 400 });
       }
       for (const candidate of rows) {
@@ -587,7 +604,7 @@ export async function POST(request: Request) {
           return Response.json({ error: `The ${table} backup contains an invalid field.` }, { status: 400 });
         }
         const placeholders = columns.map(() => "?").join(",");
-        const identityColumn=table==="estimate_service_locations"?"estimate_id":table==="message_templates"?"key":"id";
+        const identityColumn=table==="estimate_service_locations"?"estimate_id":table==="deposit_agreement_snapshots"?"event_id":table==="message_templates"?"key":"id";
         const identity=String(candidate[identityColumn]??"");
         if(!identity)return Response.json({error:`The ${table} backup contains a record without a valid ${identityColumn}.`},{status:400});
         if(table==="estimate_service_locations"){
@@ -615,7 +632,7 @@ export async function POST(request: Request) {
     for(let planIndex=0;planIndex<verificationPlans.length;planIndex++){
       const plan=verificationPlans[planIndex];
       const inserted=Number(recordResults[planIndex]?.meta.changes??0)>0;
-      if(!inserted&&plan.table!=="estimate_service_locations"&&plan.table!=="deposit_policy_events")continue;
+      if(!inserted&&plan.table!=="estimate_service_locations"&&plan.table!=="deposit_policy_events"&&plan.table!=="deposit_agreement_snapshots")continue;
       const select=plan.columns.map((column)=>`${column} AS "${column}"`).join(",");
       const row=await env.DB.prepare(`SELECT ${select} FROM ${plan.table} WHERE ${plan.identityColumn}=? LIMIT 1`).bind(plan.identity).first<Record<string,unknown>>();
       if(!row)return postWriteFailure(`Restore verification failed: ${plan.table} record ${plan.identity} is missing after apply.`);
@@ -647,6 +664,7 @@ export async function POST(request: Request) {
       ["invoice revision",`SELECT ir.id FROM invoice_revisions ir LEFT JOIN invoices inv ON inv.id=ir.invoice_id WHERE inv.id IS NULL LIMIT 1`],
       ["job report",`SELECT jr.id FROM job_reports jr LEFT JOIN estimates e ON e.id=jr.estimate_id LEFT JOIN customers c ON c.id=jr.customer_id WHERE e.id IS NULL OR c.id IS NULL OR e.customer_id<>jr.customer_id LIMIT 1`],
       ["deposit audit",`SELECT d.id FROM deposit_policy_events d LEFT JOIN estimates e ON e.id=d.estimate_id WHERE e.id IS NULL LIMIT 1`],
+      ["signed agreement",`SELECT s.event_id FROM deposit_agreement_snapshots s LEFT JOIN estimates e ON e.id=s.estimate_id LEFT JOIN deposit_policy_events d ON d.id=s.event_id WHERE e.id IS NULL OR d.id IS NULL OR d.estimate_id<>s.estimate_id LIMIT 1`],
     ] as const;
     for(const [label,sql] of relationshipChecks){
       const orphan=await env.DB.prepare(sql).first<{id:string}>();

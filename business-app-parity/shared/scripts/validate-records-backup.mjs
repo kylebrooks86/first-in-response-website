@@ -30,8 +30,9 @@ if (payload?.format === "fire-app-records-backup" && payload?.version === 1 && p
 }
 const required = ["customers","estimates","customer_notes","invoices","estimate_items","payments","customer_messages","notifications","message_templates","estimate_change_requests","tasks","expenses","job_reports"];
 if(hasPropertyBackup(payload,tables))throw Error('Property-aware backup is not verified yet. Do not restore this file with the legacy workflow.');
-const optionalRecoveryTables = ["invoice_items", "invoice_revisions", "payment_checkout_sessions", "payment_refunds", "deposit_policy_events"];
+const optionalRecoveryTables = ["invoice_items", "invoice_revisions", "payment_checkout_sessions", "payment_refunds", "deposit_policy_events", "deposit_agreement_snapshots"];
 if(payload?.includes?.depositPolicyAuditHistory===true&&!Array.isArray(tables.deposit_policy_events))throw Error("Backup declares deposit audit history but omits its records.");
+if(payload?.includes?.signedDepositAgreementHistory===true&&!Array.isArray(tables.deposit_agreement_snapshots))throw Error("Backup declares signed agreement history but omits its records.");
 for (const table of required) if (!Array.isArray(tables[table])) throw new Error(`Backup is missing ${table}.`);
 for (const table of optionalRecoveryTables) if (tables[table] !== undefined && !Array.isArray(tables[table])) throw new Error(`Backup ${table} must be an array when present.`);
 const criticalFields = {
@@ -41,6 +42,7 @@ const criticalFields = {
   invoice_revisions:["id","invoice_id","total_cents","items_json"],
   payment_checkout_sessions:["id","estimate_id","type","amount_cents","status"],
   ...(payload?.includes?.depositPolicyAuditHistory===true?{deposit_policy_events:["id","estimate_id","confirmation_id","actor_email","created_at"]}:{}),
+  ...(payload?.includes?.signedDepositAgreementHistory===true?{deposit_agreement_snapshots:["event_id","estimate_id","document_version","document_digest","scope_json","agreement_text","signed_name","signed_at","accepted_at"]}:{}),
 };
 if(kind==="app-export"){
   for(const [table,fields] of Object.entries(criticalFields)){

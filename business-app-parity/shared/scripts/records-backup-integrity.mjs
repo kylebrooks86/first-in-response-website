@@ -1,5 +1,6 @@
 // Keep refund/relationship semantics aligned with app/api/backup/route.ts; regression tests compare both.
 import {validateDepositAuditIntegrity} from "../lib/deposit-audit-backup.mjs";
+import {validateSignedAgreementSnapshots} from "../lib/deposit-agreement-backup.mjs";
 const isRecord = value => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 function validateBackupRelationships(tables) {
     const rows = (table) => Array.isArray(tables[table]) ? tables[table].filter(isRecord) : [];
@@ -124,7 +125,7 @@ export {validateBackupRelationships,validateRefundIntegrity};
 export function validateRecordIdentities(tables){
  for(const [table,rows] of Object.entries(tables)){
   if(!Array.isArray(rows))return `Backup ${table} must be an array.`;
-  const seen=new Set();const key=['estimate_service_locations','estimate_property_links'].includes(table)?'estimate_id':table==='message_templates'?'key':'id';
+  const seen=new Set();const key=['estimate_service_locations','estimate_property_links'].includes(table)?'estimate_id':table==='deposit_agreement_snapshots'?'event_id':table==='message_templates'?'key':'id';
   for(const row of rows){
    if(!isRecord(row)||typeof row[key]!=='string'||!row[key].trim())return `Backup ${table} contains an invalid ${key}.`;
    if(seen.has(row[key]))return `Backup ${table} contains duplicate ${key} ${row[key]}.`;
@@ -134,6 +135,6 @@ export function validateRecordIdentities(tables){
  return null;
 }
 export function assertBackupIntegrity(tables){
- const error=validateRecordIdentities(tables)||validateBackupRelationships(tables)||validateRefundIntegrity(tables)||validateDepositAuditIntegrity(tables);
+ const error=validateRecordIdentities(tables)||validateBackupRelationships(tables)||validateRefundIntegrity(tables)||validateDepositAuditIntegrity(tables)||validateSignedAgreementSnapshots(tables);
  if(error)throw new Error(error);
 }
