@@ -84,7 +84,7 @@ eq(f.get("description"),"","Confirmed cost clears description");
 eq(f.get("rows").length,1,"Confirmed cost refreshes job totals");
 const report=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==="JobReport");
 assert.ok(report);
-for(const fragment of ['className="fire-job-dialog','className="report-progress"','role="status"','Save completed report','Save draft report','className="fire-job-save"']){assert.ok(report.getText(ast).includes(fragment),fragment);checks++;}
+for(const fragment of ['className="fire-job-dialog','className="report-progress"','role="status"','Save completed report','Save draft report','className="brand-button fire-job-save"']){assert.ok(report.getText(ast).includes(fragment),fragment);checks++;}
 for(const fragment of ['.fire-job-dialog .cost-form','.fire-job-dialog .airflow-fields','.fire-job-dialog .report-progress','@media(max-width:360px)','min-height:44px']){assert.ok(css.includes(fragment),fragment);checks++;}
 assert.ok(fn.getText(ast).includes('role="alert"'),"Job costs errors must be visible");checks++;
 console.log("PASS "+checks+"/"+checks+": actual iPhone Job Cost entry validation, HTTP/network/response refusal, duplicate-tap lock, confirmed totals refresh, and responsive Job Report/Cost source UI. No hosted writes.");
