@@ -1,4 +1,5 @@
 // Keep refund/relationship semantics aligned with app/api/backup/route.ts; regression tests compare both.
+import {validateDepositAuditIntegrity} from "../lib/deposit-audit-backup.mjs";
 const isRecord = value => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 function validateBackupRelationships(tables) {
     const rows = (table) => Array.isArray(tables[table]) ? tables[table].filter(isRecord) : [];
@@ -133,6 +134,6 @@ export function validateRecordIdentities(tables){
  return null;
 }
 export function assertBackupIntegrity(tables){
- const error=validateRecordIdentities(tables)||validateBackupRelationships(tables)||validateRefundIntegrity(tables);
+ const error=validateRecordIdentities(tables)||validateBackupRelationships(tables)||validateRefundIntegrity(tables)||validateDepositAuditIntegrity(tables);
  if(error)throw new Error(error);
 }

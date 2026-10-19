@@ -5,6 +5,7 @@ import {serviceLocationsEnabled} from "../../../lib/service-location";
 import {customerPropertiesEnabled} from '../../../lib/customer-properties';
 import {propertyBackupError,hasPropertyBackup} from "../../../lib/property-backup.mjs";
 import {serviceLocationManifest,serviceLocationBackupError} from "../../../lib/service-location-backup.mjs";
+import {DEPOSIT_AUDIT_COLUMNS,validateDepositAuditIntegrity,depositAuditRowsConflict} from "../../../lib/deposit-audit-backup.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 const TABLES = [
@@ -16,6 +17,7 @@ const TABLES = [
   "invoice_revisions",
   "payment_checkout_sessions",
   "payment_refunds",
+  "deposit_policy_events",
   "estimate_items",
   "payments",
   "customer_photos",
@@ -39,6 +41,7 @@ const RESTORE_TABLES = [
   ["estimate_items", ["id", "estimate_id", "name", "description", "quantity", "unit", "total_cents"]],
   ["payments", ["id", "estimate_id", "type", "amount_cents", "status", "provider_id", "created_at", "processing_fee_cents", "gross_received_cents", "bundled_tip_cents", "processing_method"]],
   ["payment_refunds", ["id", "payment_id", "estimate_id", "amount_cents", "mode", "status", "provider_refund_id", "note", "created_at", "completed_at"]],
+  ["deposit_policy_events", DEPOSIT_AUDIT_COLUMNS],
   ["customer_messages", ["id", "customer_id", "estimate_id", "channel", "template", "body", "created_at"]],
   ["notifications", ["id", "type", "title", "body", "customer_id", "estimate_id", "read_at", "resolved_at", "resolution_note", "created_at"]],
   ["message_templates", ["key", "subject", "body", "updated_at"]],
@@ -213,6 +216,8 @@ export async function GET() {
     const tables = Object.fromEntries(exportTables.map((table, index) => [table, results[index].results]));
     const refundIntegrityError=validateRefundIntegrity(tables);
     if(refundIntegrityError)return Response.json({error:`Records backup stopped: ${refundIntegrityError}`},{status:409});
+    const auditError=validateDepositAuditIntegrity(tables,true);
+    if(auditError)return Response.json({error:`Records backup stopped: ${auditError}`},{status:409});
     if(Array.isArray(tables.customer_photos)){
       const photoIds=new Set<string>();
       const objectKeys=new Set<string>();
@@ -243,6 +248,7 @@ export async function GET() {
         invoiceRevisionHistory: true,
         paymentCheckoutSessionSafety: true,
         paymentRefundHistory: true,
+        depositPolicyAuditHistory: true,
         ...(snapshotEnabled?{serviceAddressSnapshots:true}:{}),
       },
       warning: "Customer photo files are stored separately and are not included in this JSON backup.",
@@ -317,6 +323,8 @@ export async function POST(request: Request) {
     restoreAudit.phase="target_conflict_validation";
     const refundIntegrityError=validateRefundIntegrity(backupTables);
     if(refundIntegrityError)return Response.json({error:`This backup failed refund-integrity validation: ${refundIntegrityError}`},{status:400});
+    const auditError=validateDepositAuditIntegrity(backupTables,isRecord(payload.includes)&&payload.includes.depositPolicyAuditHistory===true);
+    if(auditError)return Response.json({error:`This backup failed deposit-audit validation: ${auditError}`,restoreAudit},{status:400});
 
     if(Array.isArray(backupTables.payments)) for(const row of backupTables.payments) {
       if(!isRecord(row))return Response.json({error:"Invalid payment record."},{status:400});
@@ -370,6 +378,15 @@ export async function POST(request: Request) {
     const targetCustomerMessageById=new Map((targetCustomerMessages.results as Record<string,unknown>[]).map((row)=>[String(row.id),row]));
     const targetNotificationById=new Map((targetNotifications.results as Record<string,unknown>[]).map((row)=>[String(row.id),row]));
     const targetTemplateByKey=new Map((targetTemplates.results as Record<string,unknown>[]).map((row)=>[String(row.key),row]));
+    const targetAuditById=new Map((await env.DB.prepare("SELECT * FROM deposit_policy_events").all<Record<string,unknown>>()).results.map(row=>[String(row.id),row]));
+    const targetAuditByConfirmation=new Map([...targetAuditById.values()].map(row=>[String(row.confirmation_id),String(row.id)]));
+    if(Array.isArray(backupTables.deposit_policy_events))for(const row of backupTables.deposit_policy_events){
+      const event=row as Record<string,unknown>;
+      const existing=targetAuditById.get(String(event.id));
+      if(existing&&depositAuditRowsConflict(existing,event))return Response.json({error:"Restore conflict: immutable deposit audit event differs. No records changed.",restoreAudit},{status:409});
+      const owner=targetAuditByConfirmation.get(String(event.confirmation_id));
+      if(owner&&owner!==String(event.id))return Response.json({error:"Restore conflict: deposit confirmation ID belongs to another event. No records changed.",restoreAudit},{status:409});
+    }
 
     if(Array.isArray(backupTables.estimates)){
       for(const raw of backupTables.estimates){
@@ -543,7 +560,7 @@ export async function POST(request: Request) {
     for (const [table, columns] of restoreTables) {
       const rows = backupTables[table];
       if (!Array.isArray(rows)) {
-        if (table === "invoice_items" || table === "invoice_revisions" || table === "payment_checkout_sessions" || table === "payment_refunds") continue;
+        if (table === "invoice_items" || table === "invoice_revisions" || table === "payment_checkout_sessions" || table === "payment_refunds" || table === "deposit_policy_events") continue;
         return Response.json({ error: `The backup is missing the ${table} records.` }, { status: 400 });
       }
       for (const candidate of rows) {
@@ -598,7 +615,7 @@ export async function POST(request: Request) {
     for(let planIndex=0;planIndex<verificationPlans.length;planIndex++){
       const plan=verificationPlans[planIndex];
       const inserted=Number(recordResults[planIndex]?.meta.changes??0)>0;
-      if(!inserted&&plan.table!=="estimate_service_locations")continue;
+      if(!inserted&&plan.table!=="estimate_service_locations"&&plan.table!=="deposit_policy_events")continue;
       const select=plan.columns.map((column)=>`${column} AS "${column}"`).join(",");
       const row=await env.DB.prepare(`SELECT ${select} FROM ${plan.table} WHERE ${plan.identityColumn}=? LIMIT 1`).bind(plan.identity).first<Record<string,unknown>>();
       if(!row)return postWriteFailure(`Restore verification failed: ${plan.table} record ${plan.identity} is missing after apply.`);
@@ -629,6 +646,7 @@ export async function POST(request: Request) {
       ["invoice item",`SELECT ii.id FROM invoice_items ii LEFT JOIN invoices inv ON inv.id=ii.invoice_id WHERE inv.id IS NULL LIMIT 1`],
       ["invoice revision",`SELECT ir.id FROM invoice_revisions ir LEFT JOIN invoices inv ON inv.id=ir.invoice_id WHERE inv.id IS NULL LIMIT 1`],
       ["job report",`SELECT jr.id FROM job_reports jr LEFT JOIN estimates e ON e.id=jr.estimate_id LEFT JOIN customers c ON c.id=jr.customer_id WHERE e.id IS NULL OR c.id IS NULL OR e.customer_id<>jr.customer_id LIMIT 1`],
+      ["deposit audit",`SELECT d.id FROM deposit_policy_events d LEFT JOIN estimates e ON e.id=d.estimate_id WHERE e.id IS NULL LIMIT 1`],
     ] as const;
     for(const [label,sql] of relationshipChecks){
       const orphan=await env.DB.prepare(sql).first<{id:string}>();

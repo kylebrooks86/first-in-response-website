@@ -8,6 +8,7 @@ import ts from 'typescript';
 import {validateBackupRelationships,validateRefundIntegrity,validateRecordIdentities} from './records-backup-integrity.mjs';
 import {propertyBackupError,hasPropertyBackup} from '../lib/property-backup.mjs';
 import {serviceLocationManifest,serviceLocationBackupError} from '../lib/service-location-backup.mjs';
+import {validateDepositAuditIntegrity,depositAuditRowsConflict} from '../lib/deposit-audit-backup.mjs';
 const root=resolve('.'),work=mkdtempSync(join(tmpdir(),'fire-synthetic-records-'));
 let checks=0;const equal=(a,b,message)=>{assert.deepEqual(a,b,message);checks++;};
 const schema=readdirSync(join(root,'drizzle')).filter(f=>f.endsWith('.sql')).sort().map(f=>readFileSync(join(root,'drizzle',f),'utf8')).join('\n');
@@ -19,7 +20,7 @@ try{
  for(const file of ['restore-records-backup.mjs','validate-records-backup.mjs','records-backup-integrity.mjs'])copyFileSync(join(root,'scripts',file),join(work,'scripts',file));
  // Standalone recovery commands import these production validators relative
  // to scripts/. Bring exact source files into the disposable fixture, not stubs.
- for(const file of ['property-backup.mjs','service-location-backup.mjs'])copyFileSync(join(root,'lib',file),join(work,'lib',file));
+ for(const file of ['property-backup.mjs','service-location-backup.mjs','deposit-audit-backup.mjs'])copyFileSync(join(root,'lib',file),join(work,'lib',file));
  writeFileSync(join(work,'config.json'),JSON.stringify({d1_databases:[{binding:'DB',database_name:'synthetic-local-only',database_id:'11111111-1111-4111-8111-111111111111'}]}));
  // Mock Wrangler operates only on a temporary SQLite file; there are no cloud bindings.
  writeFileSync(join(work,'node_modules/wrangler/bin/wrangler.js'),`const fs=require('node:fs'),{DatabaseSync}=require('node:sqlite');const a=process.argv.slice(2);if(a.includes('--remote')||!a.includes('--local'))throw Error('Remote actions forbidden');const value=x=>a[a.indexOf(x)+1],db=new DatabaseSync(value('--persist-to'));db.exec('PRAGMA foreign_keys=ON');if(a.includes('--command')){console.log(JSON.stringify([{results:db.prepare(value('--command')).all()}]));}else{const text=fs.readFileSync(value('--file'),'utf8');let quoted=false,start=0,n=0;for(let i=0;i<text.length;i++){if(text[i]==="'"){if(quoted&&text[i+1]==="'"){i++;continue;}quoted=!quoted;}if(text[i]===';'&&!quoted){db.exec(text.slice(start,i+1));start=i+1;n++;if(process.env.FIRE_SYNTHETIC_INTERRUPT_AFTER&&n===Number(process.env.FIRE_SYNTHETIC_INTERRUPT_AFTER))throw Error('Synthetic interruption after committed prefix');}}console.log('Synthetic local apply complete');}db.close();`);
@@ -42,14 +43,14 @@ try{
  const ast=ts.createSourceFile('route.ts',raw,ts.ScriptTarget.Latest,true);
  const helpers=['validateBackupRelationships','validateRefundIntegrity'].map(name=>ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name).getText(ast)).join('\n');
  const semantics=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule('const isRecord=v=>!!v&&typeof v==="object"&&!Array.isArray(v);\n'+helpers+'\nexport {validateBackupRelationships,validateRefundIntegrity};',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64'));
- globalThis.__recordsRecoveryHelpers={propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError};
+ globalThis.__recordsRecoveryHelpers={propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError,validateDepositAuditIntegrity,depositAuditRowsConflict};
  // Current property/location features are disabled in this legacy-format fixture.
  // Use the production validators for any included manifest rather than stubs.
  const globals=`const env={get DB(){return globalThis.__recordsRecoveryDb;}};
 const serviceLocationsEnabled=(env)=>env.FIRE_SERVICE_LOCATIONS_CANDIDATE==='synthetic-only';
 const customerPropertiesEnabled=(env)=>serviceLocationsEnabled(env)&&env.FIRE_CUSTOMER_PROPERTIES_CANDIDATE==='synthetic-only';
 const propertyRecoveryTestEnabled=(env)=>customerPropertiesEnabled(env)&&env.FIRE_PROPERTY_RECOVERY_CANDIDATE==='synthetic-tests-only';
-const {propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError}=globalThis.__recordsRecoveryHelpers;
+const {propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError,validateDepositAuditIntegrity,depositAuditRowsConflict}=globalThis.__recordsRecoveryHelpers;
 const exportPropertyRecords=()=>{throw Error('Property export must not run without synthetic feature flags')};
 const restorePropertyRecords=()=>{throw Error('Property restore must not run without synthetic feature flags')};
 `;

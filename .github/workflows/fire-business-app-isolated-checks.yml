@@ -277,6 +277,7 @@ jobs:
           node --experimental-sqlite scripts/test-change-request-history.mjs
           node --experimental-sqlite scripts/test-global-search.mjs
           node --experimental-sqlite scripts/test-deposit-policy.mjs
+           node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
            node scripts/test-deposit-exception-proposals.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
@@ -384,6 +385,7 @@ jobs:
           node --experimental-sqlite scripts/test-change-request-history.mjs
           node --experimental-sqlite scripts/test-global-search.mjs
           node --experimental-sqlite scripts/test-deposit-policy.mjs
+           node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
            node scripts/test-deposit-exception-proposals.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
@@ -470,6 +472,7 @@ jobs:
           node --experimental-sqlite scripts/test-change-request-history.mjs
           node --experimental-sqlite scripts/test-global-search.mjs
           node --experimental-sqlite scripts/test-deposit-policy.mjs
+           node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
            node scripts/test-deposit-exception-proposals.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs

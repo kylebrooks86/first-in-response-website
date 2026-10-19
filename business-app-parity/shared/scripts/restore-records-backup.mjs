@@ -17,6 +17,7 @@ const TABLES = [
   ["estimate_items", ["id", "estimate_id", "name", "description", "quantity", "unit", "total_cents"]],
   ["payments", ["id", "estimate_id", "type", "amount_cents", "status", "provider_id", "created_at", "processing_fee_cents", "gross_received_cents", "bundled_tip_cents", "processing_method"]],
   ["payment_refunds", ["id", "payment_id", "estimate_id", "amount_cents", "mode", "status", "provider_refund_id", "note", "created_at", "completed_at"]],
+  ["deposit_policy_events", ["id","estimate_id","confirmation_id","actor_email","mode","previous_total_cents","previous_deposit_cents","new_deposit_cents","paid_principal_cents","percent_basis_points","schedule_before_collection","previous_contract_version","updated_contract_version","previous_signed_at","requires_customer_reapproval","reason","created_at"]],
   ["customer_messages", ["id", "customer_id", "estimate_id", "channel", "template", "body", "created_at"]],
   ["notifications", ["id", "type", "title", "body", "customer_id", "estimate_id", "read_at", "resolved_at", "resolution_note", "created_at"]],
   ["message_templates", ["key", "subject", "body", "updated_at"]],
@@ -99,7 +100,7 @@ const restoredAt = new Date().toISOString();
 const plans = [];
 for (const [table, columns] of TABLES) {
   const rows = backupTables[table];
-  if (!Array.isArray(rows)) { if (table === "invoice_items" || table === "invoice_revisions" || table === "payment_checkout_sessions" || table === "payment_refunds") continue; throw new Error(`The backup is missing the ${table} records.`); }
+  if (!Array.isArray(rows)) { if (table === "invoice_items" || table === "invoice_revisions" || table === "payment_checkout_sessions" || table === "payment_refunds" || table === "deposit_policy_events") continue; throw new Error(`The backup is missing the ${table} records.`); }
   for (const candidate of rows) {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error(`The ${table} backup contains an invalid record.`);
     const values = columns.map((column) => {
@@ -143,6 +144,7 @@ const immutable = {
  invoices:["estimate_id","customer_id","total_cents","share_token"],
  payments:["estimate_id","type","amount_cents","status","provider_id","processing_fee_cents","gross_received_cents","bundled_tip_cents","processing_method"],
  payment_refunds:["payment_id","estimate_id","amount_cents","mode"],
+ deposit_policy_events:["id","estimate_id","confirmation_id","actor_email","mode","previous_total_cents","previous_deposit_cents","new_deposit_cents","paid_principal_cents","percent_basis_points","schedule_before_collection","previous_contract_version","updated_contract_version","previous_signed_at","requires_customer_reapproval","reason","created_at"],
 };
 const normalize=value=>value==null?null:value;
 for(const plan of plans){

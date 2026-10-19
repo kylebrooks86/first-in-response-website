@@ -23,3 +23,15 @@ export const jobReports = sqliteTable("job_reports", { id:text("id").primaryKey(
 export const authRateLimits = sqliteTable("auth_rate_limits", { key:text("key").primaryKey(), attempts:integer("attempts").notNull().default(0), windowStartedAt:integer("window_started_at").notNull(), blockedUntil:integer("blocked_until").notNull().default(0) });
 
 export const paymentRefunds=sqliteTable("payment_refunds",{id:text("id").primaryKey(),paymentId:text("payment_id").notNull().references(()=>payments.id),estimateId:text("estimate_id").notNull().references(()=>estimates.id),amountCents:integer("amount_cents").notNull(),mode:text("mode").notNull(),status:text("status").notNull().default("pending"),providerRefundId:text("provider_refund_id"),note:text("note"),createdAt:text("created_at").notNull(),completedAt:text("completed_at")},table=>[index("idx_payment_refunds_payment_status").on(table.paymentId,table.status),index("idx_payment_refunds_estimate_status").on(table.estimateId,table.status),uniqueIndex("idx_payment_refunds_provider").on(table.providerRefundId)]);
+
+// Additive append-only deposit-exception history; the owner mutation endpoint is NOT enabled.
+export const depositPolicyEvents = sqliteTable("deposit_policy_events", {
+  id:text("id").primaryKey(), estimateId:text("estimate_id").notNull().references(()=>estimates.id), confirmationId:text("confirmation_id").notNull().unique(),
+  actorEmail:text("actor_email").notNull(), mode:text("mode").notNull(), previousTotalCents:integer("previous_total_cents").notNull(),
+  previousDepositCents:integer("previous_deposit_cents").notNull(), newDepositCents:integer("new_deposit_cents").notNull(),
+  paidPrincipalCents:integer("paid_principal_cents").notNull(), percentBasisPoints:integer("percent_basis_points"),
+  scheduleBeforeCollection:integer("schedule_before_collection").notNull().default(0),
+  previousContractVersion:text("previous_contract_version"), updatedContractVersion:text("updated_contract_version"),
+  previousSignedAt:text("previous_signed_at"), requiresCustomerReapproval:integer("requires_customer_reapproval").notNull().default(0),
+  reason:text("reason"),createdAt:text("created_at").notNull()
+},table=>[index("idx_deposit_policy_events_estimate_time").on(table.estimateId,table.createdAt)]);
