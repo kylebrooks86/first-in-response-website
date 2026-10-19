@@ -1,0 +1,40 @@
+{
+  "baseCommit":"f0d664aa6b0633e6b3515925c13e66fdac2ddc86",
+  "officialReadiness":{"passed":3,"total":10,"percent":30},
+  "scope":"Shared deposit scheduling foundation; disposable synthetic candidates only",
+  "activation":"FIRE_DEPOSIT_POLICY_CANDIDATE=synthetic-tests-only; absent from every deployment adapter and built default manifest. Enabled only in the dedicated disposable test runtime.",
+  "implemented":[
+    "Owner-authenticated private/no-store deposit eligibility endpoint derives standard fifty-percent requirement from final stored estimate total without editing signed terms",
+    "Separate standard/stored requirement, net recorded principal, remaining deposit and remaining full-job balance; tips and pending/failed payments never satisfy principal",
+    "Gated initial scheduling requires signed approval, matching standard terms and sufficient recorded principal; malformed amounts, overpayment, active Checkout, pending refund, invoice and billing-review holds block scheduling",
+    "The actual scheduling UPDATE re-evaluates financial eligibility and approval inside the transaction, preventing stale preflight reads from bypassing the requirement",
+    "Previously scheduled jobs retain their existing schedule and stored terms, with explicit retainedSchedule eligibility; this neither waives their deposit nor records or forgives any principal",
+    "Existing owner form surfaces the remaining deposit amount and preserves the chosen date after a blocked save",
+    "Reject unsupported deposit override fields while this foundation is gated; report uncertain schedule confirmation after a possible committed response loss",
+    "No payment initiation, automatic payment retry, ledger rewrite, new database table, migration, resource or deployed activation"
+  ],
+  "verification":{
+    "routeAndAtomicSql":"84/84 per QA, LIVE, Doomsday and staging candidates: auth/privacy, partial deposits, tips, pending/failed exclusion, principal refunds, odd cents, zero totals, changed terms, unsafe amounts, legacy schedule retention, active checkout/refund/billing/invoice holds, unsupported overrides, gate-off compatibility, four injected pre-commit races and committed-response uncertainty",
+    "builtQaNativeD1HttpsChromium":"63/63, including sixteen deposit-policy checks: actual native guarded scheduling, blocked saves at 320/390/768/1366 widths, retained date input, exact remaining amount, full-deposit unlock, unchanged ledger/signature/marketing refusal, existing unpaid scheduled-job rescheduling and anonymous refusal",
+    "networkIsolation":"No external request dispatched or uncaught framework client errors; no map exception used",
+    "financial":"194 invoice-state and 208 customer/invoice-balance checks, processing-fee and public-document suites per four candidates; final-tipping suite on LIVE candidate",
+    "publicApproval":"47/47 public change/approval retry and signature/permission contracts per four candidates",
+    "headerBrowser":"111/111 phone/tablet/desktop payment entry, light/dark, keyboard, navigation and loading checks",
+    "typeScript":"4/4 passed",
+    "builds":"4/4 passed with complete-build markers",
+    "sourceParity":{"qa":400,"live":395,"doomsday":400,"staging":396}
+  },
+  "limitations":[
+    "This is the gated standard-policy foundation, not the complete owner-exception feature",
+    "Waive/reduce/percentage/schedule-before-payment/restore controls, explicit confirmation, owner identity/reason audit, agreement-term handling and backup/recovery coverage for exceptions remain to implement",
+    "Keep the gate off in hosted builds until exception integration, audit/recovery, scheduling UI and acceptance tests are complete and an exact QA release is reviewed",
+    "SQLite tests inject changes immediately before the transactional batch; they are not an independently concurrent hosted-writer test",
+    "The native response-loss case is covered by the SQLite batch fixture; no actual provider transport interruption or hosted latency diagnosis claimed",
+    "Existing scheduled jobs are retained, not retroactively unscheduled or marked paid; no synthetic exception is invented for their historical agreements",
+    "No actual iPhone/iPad acceptance, hosted schema/identity proof or production approval inferred"
+  ],
+  "nextBatch":"Add append-only owner deposit-exception records with explicit confirmation, actor/reason, revision protection and complete backup/recovery validation before connecting override controls or activating the policy",
+  "deploymentPerformed":false,
+  "hostedDatabaseChanged":false,
+  "stripeOrCredentialsChanged":false
+}

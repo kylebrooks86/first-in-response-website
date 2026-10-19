@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
+import {depositPolicyEnabled,depositPolicyColumns,depositSchedulingPolicy,depositSchedulingGuard,type DepositPolicyRow} from '../../../../lib/deposit-policy';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
@@ -8,9 +9,11 @@ type EditItem={id?:string;name:string;description:string;quantity:number;unit:st
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  let guardedSchedule=false;
   try {
     const { id } = await params;
     const body = await request.json() as Record<string, unknown>;
+    if(depositPolicyEnabled(env)&&Object.keys(body).some(key=>/^(?:deposit|overrideDeposit|allowSchedulingBeforeDeposit)/i.test(key)))return Response.json({error:'Deposit exceptions are not enabled. This request cannot change deposit terms or bypass collection.'},{status:400});
     const status = String(body.status ?? "").trim();
     let scheduledAt = String(body.scheduledAt ?? "").trim();
     if(scheduledAt){const parsedSchedule=new Date(scheduledAt);if(Number.isNaN(parsedSchedule.getTime()))return Response.json({error:"Choose a valid job date and time."},{status:400});scheduledAt=parsedSchedule.toISOString();}
@@ -24,6 +27,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!existing) return Response.json({ error: "Estimate not found." }, { status: 404 });
 
     const statements=[];
+    let guardedScheduleIndex=-1;
     let responseFields:Record<string,unknown>={id};
     if(Array.isArray(body.items)){
       if(["approved","scheduled","completed"].includes(existing.status)||Number(existing.paidCents)>0||Number(existing.invoiceCount)>0)
@@ -84,7 +88,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         const report=await env.DB.prepare("SELECT status FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC LIMIT 1").bind(id).first<{status:string}>();
         if(report?.status!=="completed")return Response.json({error:"Complete and save the service completion report before marking this job complete."},{status:409});
       }
-      statements.push(env.DB.prepare("UPDATE estimates SET status=?, scheduled_at=? WHERE id=?").bind(nextStatus,nextSchedule,id));
+      if(nextStatus==='scheduled'&&depositPolicyEnabled(env)){
+        const row=await env.DB.prepare(`SELECT ${depositPolicyColumns} FROM estimates e WHERE e.id=?`).bind(id).first<DepositPolicyRow>();
+        if(!row)return Response.json({error:'Estimate not found.'},{status:404});
+        const policy=depositSchedulingPolicy(row,true);
+        if(!policy.canSchedule)return Response.json({error:policy.message,depositPolicy:policy},{status:409});
+        guardedSchedule=true;guardedScheduleIndex=statements.length;
+        statements.push(env.DB.prepare(`UPDATE estimates SET status=?,scheduled_at=? WHERE id=? AND EXISTS(SELECT 1 FROM (SELECT ${depositPolicyColumns} FROM estimates e WHERE e.id=?) eligibility WHERE ${depositSchedulingGuard} AND status=? AND acceptedAt IS ? AND signedAt IS ?)`).bind(nextStatus,nextSchedule,id,id,existing.status,existing.acceptedAt,existing.signedAt));
+      }else statements.push(env.DB.prepare("UPDATE estimates SET status=?, scheduled_at=? WHERE id=?").bind(nextStatus,nextSchedule,id));
       responseFields={...responseFields,status:nextStatus,scheduledAt:nextSchedule};
     }
     if (body.resolveChangeRequests === true) return Response.json({error:"Refresh the app and resolve a specific request from Customer change-request history."},{status:409});
@@ -100,9 +111,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if(!latest||["approved","scheduled","completed"].includes(latest.status)||Number(latest.paidCents)>0||Number(latest.invoiceCount)>0)return Response.json({error:"This estimate became approved or financially active while you were editing it. Refresh the job; keep the accepted estimate unchanged and make later billing changes on the final invoice."},{status:409});
       if(!Number.isSafeInteger(Number(latest.paidCents))||Number(latest.paidCents)<0)return Response.json({error:"This estimate's payment state is outside FIRE's safe accounting range. Stop and review the job before editing the estimate."},{status:409});
     }
-    if(statements.length)await env.DB.batch(statements);
+    if(statements.length){const results=await env.DB.batch(statements);if(guardedScheduleIndex>=0&&results[guardedScheduleIndex]?.meta.changes!==1)return Response.json({error:'The deposit, payment or approval state changed before scheduling was saved. Refresh the job and review its records before another deliberate attempt.'},{status:409});}
     return Response.json({ estimate: responseFields });
   } catch {
+    if(guardedSchedule)return Response.json({error:'Schedule confirmation is uncertain. Refresh the job before another attempt; the schedule may already have saved. No payment was initiated.',saveUncertain:true},{status:503});
     return Response.json({ error: "We couldn't update this estimate. Please try again." }, { status: 500 });
   }
 }

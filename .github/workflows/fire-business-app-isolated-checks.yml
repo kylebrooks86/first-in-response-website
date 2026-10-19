@@ -276,6 +276,7 @@ jobs:
           node --experimental-sqlite scripts/test-invoice-current-state.mjs
           node --experimental-sqlite scripts/test-change-request-history.mjs
           node --experimental-sqlite scripts/test-global-search.mjs
+          node --experimental-sqlite scripts/test-deposit-policy.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
           node --experimental-sqlite scripts/test-customer-create-retry.mjs
@@ -377,6 +378,7 @@ jobs:
           node --experimental-sqlite scripts/test-invoice-current-state.mjs
           node --experimental-sqlite scripts/test-change-request-history.mjs
           node --experimental-sqlite scripts/test-global-search.mjs
+          node --experimental-sqlite scripts/test-deposit-policy.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
           node --experimental-sqlite scripts/test-customer-create-retry.mjs
@@ -461,6 +463,7 @@ jobs:
           node --experimental-sqlite scripts/test-invoice-current-state.mjs
           node --experimental-sqlite scripts/test-change-request-history.mjs
           node --experimental-sqlite scripts/test-global-search.mjs
+          node --experimental-sqlite scripts/test-deposit-policy.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
           node --experimental-sqlite scripts/test-customer-create-retry.mjs
@@ -502,6 +505,7 @@ jobs:
           node scripts/test-qa-worker-http-browser.mjs --customer-lookup
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
           node scripts/test-qa-worker-http-browser.mjs --complete-ledger
+          node scripts/test-qa-worker-http-browser.mjs --deposit-policy
           node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry --invoice-state --change-history --global-search --search-metadata
       - name: Seal synthetic-only QA full-app review bundle
         run: |
