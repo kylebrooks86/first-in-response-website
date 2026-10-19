@@ -63,10 +63,14 @@ def review_export(path, *, expected_sha256):
             'journalExactlyOriginal23':journal==original,
             'schemaExactlyOriginal23':schema_matches(schema,expected(files,original)),
             'financialLedgerClean':read_only_ledger_counts(db)==[0,0,0,0],
+            'journalHasNoExecutableTriggers':db.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND tbl_name='d1_migrations'").fetchone()[0]==0,
         }
         if not all(checks.values()): raise ValueError('Private backup baseline validation failed')
         tables=[r[1] for r in schema if r[0]=='table']+['d1_migrations']
         before=data_digest(db,tables)
+        original_journal_rows=db.execute('SELECT * FROM d1_migrations ORDER BY id').fetchall()
+        app_tables=[t for t in tables if t!='d1_migrations']
+        app_before=data_digest(db,app_tables)
         db.backup(rollback)
         db.execute('PRAGMA query_only=OFF');db.execute('PRAGMA foreign_keys=ON')
         for name in additions: db.executescript(files[name].decode('utf-8'))
@@ -79,6 +83,8 @@ def review_export(path, *, expected_sha256):
         for name in additions: db.execute('INSERT INTO d1_migrations(name) VALUES(?)',(name,))
         db.commit()
         checks['local25JournalComplete']=[r[0] for r in db.execute('SELECT name FROM d1_migrations ORDER BY id')]==original+additions
+        checks['allOriginalAppRowsPreservedAfterJournal']=data_digest(db,app_tables)==app_before
+        checks['originalJournalRowsPreserved']=db.execute('SELECT * FROM d1_migrations ORDER BY id LIMIT 23').fetchall()==original_journal_rows
         checks['originalRollbackCopyUnchanged']=data_digest(rollback,tables)==before and schema_inventory(rollback)==schema
         checks['privateInputUnchanged']=hashlib.sha256(path.read_bytes()).hexdigest()==checksum
         return {'format':'fire-private-qa-restore-v1','qaWorker':qa.WORKER,'qaDatabase':qa.NAME,

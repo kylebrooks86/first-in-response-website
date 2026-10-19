@@ -35,6 +35,13 @@ class QAExportTests(unittest.TestCase):
             for key in ('hostedMigrationAuthorized','publicationAuthorized','exportOriginIndependentlyVerified','liveCompletenessVerified','remoteRollbackTested'):self.assertFalse(result[key])
             for private in ('PRIVATE QA NAME','cs_private_value','private-customer','private-estimate','private-payment'):self.assertNotIn(private,json.dumps(result))
 
+    def test_documented_provider_internal_blob_table_is_preserved(self):
+        def internal(db):
+            db.execute('CREATE TABLE _cf_KV(key TEXT PRIMARY KEY,value BLOB) WITHOUT ROWID')
+            db.execute('INSERT INTO _cf_KV VALUES(?,?)',('internal',bytes([0,255,1])))
+        with tempfile.TemporaryDirectory() as folder:
+            self.assertTrue(review(fixture(folder,internal))['offlineRestoreAndAdditiveRehearsalPassed'])
+
     def test_hash_mismatch_and_symlink_refused(self):
         with tempfile.TemporaryDirectory() as folder:
             p=fixture(folder)
@@ -47,6 +54,7 @@ class QAExportTests(unittest.TestCase):
             lambda db:db.execute("DELETE FROM d1_migrations WHERE id=23"),
             lambda db:db.execute("UPDATE d1_migrations SET name='0022_wrong.sql' WHERE id=23"),
             lambda db:db.execute('CREATE TABLE unexpected_private_table(secret TEXT)'),
+            lambda db:db.executescript("CREATE TRIGGER forged_journal AFTER INSERT ON d1_migrations BEGIN DELETE FROM payments; END;"),
             lambda db:db.execute("UPDATE estimates SET customer_id='missing'"),
             lambda db:db.execute("UPDATE payments SET estimate_id='missing'"),
             lambda db:db.executescript((verify.qa.BASE/'0023_deposit_policy_events.sql').read_text()),
