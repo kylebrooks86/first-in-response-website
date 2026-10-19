@@ -29,6 +29,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const statements=[];
     let guardedScheduleIndex=-1;
     let responseFields:Record<string,unknown>={id};
+    if(Array.isArray(body.items)&&depositPolicyEnabled(env)&&env.FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE==='synthetic-contract-tests-only'){
+      const audit=await env.DB.prepare("SELECT id FROM deposit_policy_events WHERE estimate_id=? LIMIT 1").bind(id).first();
+      if(audit)return Response.json({error:"An owner deposit exception was recorded. Reprice only through a reviewed deposit/agreement revision workflow, not a silent estimate edit."},{status:409});
+    }
     if(Array.isArray(body.items)){
       if(["approved","scheduled","completed"].includes(existing.status)||Number(existing.paidCents)>0||Number(existing.invoiceCount)>0)
         return Response.json({error:"This estimate is already approved or financially active. Keep the accepted estimate unchanged and make any final service or price changes on the invoice."},{status:409});
