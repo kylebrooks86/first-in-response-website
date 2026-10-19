@@ -27,3 +27,18 @@ export function validateSignedAgreementSnapshots(tables,required=false){
  return null;
 }
 export function signedAgreementRowsConflict(a,b){return SIGNED_AGREEMENT_COLUMNS.some(k=>a?.[k]!==b?.[k]);}
+
+/** Recheck all signed document commitments against preserved exact bytes. */
+export async function verifySignedAgreementDigests(tables){
+ const rows=tables?.deposit_agreement_snapshots;
+ if(rows===undefined)return null;
+ if(!Array.isArray(rows))return 'Signed agreement history must be an array.';
+ for(const row of rows){
+  if(!row||typeof row!=='object'||typeof row.scope_json!=='string'||typeof row.agreement_text!=='string')return 'Signed agreement source is incomplete.';
+  const source=JSON.stringify({format:'deposit-exception-v1',eventId:row.event_id,totalCents:row.total_cents,depositCents:row.deposit_cents,mode:row.mode,scope:row.scope_json,terms:row.agreement_text});
+  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(source));
+  const digest=Array.from(new Uint8Array(bytes),x=>x.toString(16).padStart(2,'0')).join('');
+  if(digest!==row.document_digest)return 'Signed agreement document digest differs from archived text or scope.';
+ }
+ return null;
+}

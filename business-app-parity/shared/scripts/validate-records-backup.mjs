@@ -1,6 +1,7 @@
 import {propertyBackupError,hasPropertyBackup} from '../lib/property-backup.mjs';
 import { assertBackupIntegrity } from "./records-backup-integrity.mjs";
 import {serviceLocationBackupError} from "../lib/service-location-backup.mjs";
+import {verifySignedAgreementDigests} from "../lib/deposit-agreement-backup.mjs";
 import { readFile, stat } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 
@@ -55,6 +56,8 @@ if(kind==="app-export"){
   }
 }
 assertBackupIntegrity(tables);
+const signedDigestError=await verifySignedAgreementDigests(tables);
+if(signedDigestError)throw Error(signedDigestError);
 const propertyError=propertyBackupError(payload,tables);
 if(propertyError)throw Error(propertyError);
 const locationError=serviceLocationBackupError(payload,tables);

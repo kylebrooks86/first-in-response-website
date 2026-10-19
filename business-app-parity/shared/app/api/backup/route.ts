@@ -6,7 +6,7 @@ import {customerPropertiesEnabled} from '../../../lib/customer-properties';
 import {propertyBackupError,hasPropertyBackup} from "../../../lib/property-backup.mjs";
 import {serviceLocationManifest,serviceLocationBackupError} from "../../../lib/service-location-backup.mjs";
 import {DEPOSIT_AUDIT_COLUMNS,validateDepositAuditIntegrity,depositAuditRowsConflict} from "../../../lib/deposit-audit-backup.mjs";
-import {SIGNED_AGREEMENT_COLUMNS,validateSignedAgreementSnapshots,signedAgreementRowsConflict} from "../../../lib/deposit-agreement-backup.mjs";
+import {SIGNED_AGREEMENT_COLUMNS,validateSignedAgreementSnapshots,verifySignedAgreementDigests,signedAgreementRowsConflict} from "../../../lib/deposit-agreement-backup.mjs";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 const TABLES = [
@@ -223,6 +223,8 @@ export async function GET() {
     if(auditError)return Response.json({error:`Records backup stopped: ${auditError}`},{status:409});
     const signatureError=validateSignedAgreementSnapshots(tables,true);
     if(signatureError)return Response.json({error:`Records backup stopped: ${signatureError}`},{status:409});
+    const commitmentError=await verifySignedAgreementDigests(tables);
+    if(commitmentError)return Response.json({error:`Records backup stopped: ${commitmentError}`},{status:409});
     if(Array.isArray(tables.customer_photos)){
       const photoIds=new Set<string>();
       const objectKeys=new Set<string>();
@@ -333,6 +335,8 @@ export async function POST(request: Request) {
     if(auditError)return Response.json({error:`This backup failed deposit-audit validation: ${auditError}`,restoreAudit},{status:400});
     const signatureError=validateSignedAgreementSnapshots(backupTables,isRecord(payload.includes)&&payload.includes.signedDepositAgreementHistory===true);
     if(signatureError)return Response.json({error:`This backup failed signed-agreement validation: ${signatureError}`,restoreAudit},{status:400});
+    const commitmentError=await verifySignedAgreementDigests(backupTables);
+    if(commitmentError)return Response.json({error:`This backup failed signed document hash validation: ${commitmentError}`,restoreAudit},{status:400});
 
     if(Array.isArray(backupTables.payments)) for(const row of backupTables.payments) {
       if(!isRecord(row))return Response.json({error:"Invalid payment record."},{status:400});

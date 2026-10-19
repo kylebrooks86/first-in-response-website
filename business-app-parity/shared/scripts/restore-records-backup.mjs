@@ -1,6 +1,7 @@
 import {propertyBackupError,hasPropertyBackup} from '../lib/property-backup.mjs';
 import { assertBackupIntegrity } from "./records-backup-integrity.mjs";
 import {serviceLocationBackupError} from "../lib/service-location-backup.mjs";
+import {verifySignedAgreementDigests} from "../lib/deposit-agreement-backup.mjs";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, resolve } from "node:path";
@@ -97,6 +98,8 @@ if(locationError)throw Error(locationError);
 if(backupTables.estimate_service_locations!==undefined)throw Error("CLI service-address snapshot apply is disabled pending native transaction verification. Use the reviewed owner API workflow; no records changed.");
 
 assertBackupIntegrity(backupTables);
+const signedDigestError=await verifySignedAgreementDigests(backupTables);
+if(signedDigestError)throw Error(signedDigestError);
 const restoredAt = new Date().toISOString();
 const plans = [];
 for (const [table, columns] of TABLES) {
