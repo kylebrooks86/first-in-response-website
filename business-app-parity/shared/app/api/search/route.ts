@@ -12,7 +12,9 @@ export async function GET(request:Request){
   if(q.length>160||!scopes.includes(scope))return Response.json({error:'Enter a search of up to 160 characters and a supported filter.'},{status:400,headers});
   if(!q)return Response.json({results:[],hasMore:false,scope},{headers});
   try{
-    const digits=q.replace(/\D/g,''),phone=digits.length===11&&digits.startsWith('1')?digits.slice(1):digits;
+    // Address/unit numbers and alphanumeric invoice IDs must not become
+    // unrelated phone matches that crowd exact results out of bounded lists.
+    const digits=/^[+()\d\s.-]+$/.test(q)?q.replace(/\D/g,''):'',phone=digits.length===11&&digits.startsWith('1')?digits.slice(1):digits;
     const phoneSql=CUSTOMER_PHONE_SQL.replaceAll('phone','c.phone');
     const contact=`instr(lower(c.name),lower(?))>0 OR instr(lower(COALESCE(c.email,'')),lower(?))>0 OR (?<>'' AND instr(${phoneSql},?)>0)`;
     const values=[q,q,phone.length>=2?phone:'',phone];

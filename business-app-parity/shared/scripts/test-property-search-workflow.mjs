@@ -3,15 +3,23 @@ import assert from 'node:assert/strict';
 export async function exercisePropertySearch({page,context,origin,request,check}){
  const make=async email=>{const r=await request('/api/customers','POST',{name:'Synthetic Property Search Twin',email});assert.equal(r.status(),201);return (await r.json()).customer;};
  const customer=await make('property-search-a@example.invalid'),other=await make('property-search-b@example.invalid'),properties=[];
- for(let offset=0;offset<52;offset+=8){const batch=await Promise.all(Array.from({length:Math.min(8,52-offset)},async(_,i)=>{const r=await request('/api/customer-properties','POST',{customerId:customer.id,address:'Synthetic Property Search '+(offset+i)+' Lane',designation:'Building '+(offset+i)});assert.equal(r.status(),201);return (await r.json()).property;}));properties.push(...batch);}
+ for(let offset=0;offset<52;offset+=8){const batch=await Promise.all(Array.from({length:Math.min(8,52-offset)},async(_,i)=>{const r=await request('/api/customer-properties','POST',{customerId:customer.id,address:'Synthetic Property Search '+(offset+i)+' Lane Unit 10',designation:'Building '+(offset+i)});assert.equal(r.status(),201);return (await r.json()).property;}));properties.push(...batch);}
  const target=properties.sort((a,b)=>a.id.localeCompare(b.id)).at(-1);
  const duplicate=await request('/api/customer-properties','POST',{customerId:other.id,address:target.address,designation:target.designation});assert.equal(duplicate.status(),201);
+ const noiseResponse=await request('/api/customers','POST',{name:'Synthetic Unrelated Phone Contact',phone:'918555'+target.address.replace(/\D/g,'').padStart(4,'0'),email:'unrelated-phone-collision@example.invalid'});assert.equal(noiseResponse.status(),201);const noise=(await noiseResponse.json()).customer;
+ assert.equal((await request('/api/customer-properties','POST',{customerId:noise.id,address:'Synthetic unrelated property location',designation:'Unrelated phone-only result'})).status(),201);
  const first=await (await request('/api/customer-properties?customerId='+customer.id)).json();check(first.properties.length===50&&!first.properties.some(p=>p.id===target.id),'Property search fixture target is beyond the first fifty retained properties');
  const original=(await (await request('/api/backup')).json()).tables;
  const search=()=>page.locator('.topbar').getByRole('combobox',{name:'Search customers, jobs, or addresses'}),panel=()=>page.getByRole('region',{name:'FIRE search results'});
  for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,900]]){
-  await page.setViewportSize({width,height});await page.goto(origin+'/');await search().fill(target.address);await panel().getByRole('button',{name:'Properties',exact:true}).click();const result=panel().getByRole('option').filter({hasText:customer.email});await result.waitFor();
-  check(await panel().getByRole('option').count()===2&&(await result.innerText()).includes(target.designation),'Property search distinguishes same-name customers and matching addresses at '+width);
+  await page.setViewportSize({width,height});await page.goto(origin+'/');await search().fill(target.address);await panel().getByRole('button',{name:'Properties',exact:true}).click();
+  // The previous All request can finish while the filter click is being
+  // dispatched. Wait for the selected filter's result kind, not any option
+  // containing this customer's email (also present in customer results).
+  await page.waitForFunction(()=>{const p=document.querySelector('.topbar .global-search-panel'),filter=[...(p?.querySelectorAll('button')??[])].find(n=>n.textContent==='Properties'),options=[...(p?.querySelectorAll('[role="option"]')??[])];return filter?.getAttribute('aria-pressed')==='true'&&options.length>0&&options.every(n=>n.querySelector('small')?.textContent?.startsWith('Property'));});
+  const result=panel().getByRole('option').filter({hasText:customer.email});await result.waitFor();
+  const optionCount=await panel().getByRole('option').count(),optionText=await result.innerText();
+  check(optionCount===2&&optionText.includes(target.designation),'Property search distinguishes same-name customers and matching addresses at '+width+' '+JSON.stringify({optionCount,designation:target.designation,optionText}));
   const box=await panel().boundingBox();check(box.x>=0&&box.x+box.width<=width+1&&box.y+box.height<=height+1,'Property filter and results fit viewport at '+width);
   await result.click();const row=page.locator('[id="customer-property-'+target.id+'"]');await row.waitFor();await page.waitForFunction(id=>document.activeElement?.id===id,'customer-property-'+target.id);
   check((await row.innerText()).includes(target.address),'Search focuses the exact owned property beyond page one at '+width);

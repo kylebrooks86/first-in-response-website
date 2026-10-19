@@ -52,6 +52,11 @@ try{
  eq((await search('Property Lookup','properties')).results[0].title,'Rear house');
  db.prepare("UPDATE customer_properties SET active=0,revision=revision+1 WHERE id='p' AND revision=1").run();eq((await search('Property Lookup','properties')).results[0].status,'archived');
  db.prepare("INSERT INTO customer_properties(id,customer_id,address,designation,created_at) VALUES('empty-title','other','Same property address','','2026-10-18')").run();eq((await search('Same property address','properties')).results[0].title,'Service property');
+ // Digits inside an address, invoice ID or email are not a phone query.
+ // The existing phone ends in 0101, so extracting "10" from these unrelated
+ // terms used to return this customer's properties, jobs and financial rows.
+ for(const q of ['No such location 10 Lane','NoSuchInvoice10Z','unmatched10@example.invalid'])for(const scope of ['all','customers','properties','estimates','invoices','jobs','payments','notes'])eq((await search(q,scope)).results.length,0);
+ for(const q of ['+1 (918) 555-0101','(918) 555.0101','555-0101','01'])eq((await search(q,'customers')).results[0].id,'c');
  for(let i=0;i<12;i++)db.prepare("INSERT INTO customer_properties(id,customer_id,address,designation,created_at) VALUES(?,'c',?,'Bounded property','2026-10-18')").run('many-'+i,'Bounded lane '+i);
  const many=await search('Bounded','properties');eq(many.results.length,8);eq(many.hasMore,true);eq(many.more,['property']);
  eq((await search('rear house')).results.some(r=>r.kind==='property'&&r.id==='p'),true);
