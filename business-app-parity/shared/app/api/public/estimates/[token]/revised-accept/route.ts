@@ -2,6 +2,7 @@ import {env} from 'cloudflare:workers';
 import {SERVICE_AGREEMENT} from '../../../../../../lib/fire-templates';
 import {agreementVersion,agreementScope,agreementDigest,validateAgreementItems} from '../../../../../../lib/deposit-agreement-commitment.mjs';
 import {describeRevisedDepositTerms} from '../../../../../../lib/deposit-agreement-revision.mjs';
+import {verifySignedAgreementDigests} from '../../../../../../lib/deposit-agreement-backup.mjs';
 const h={'Cache-Control':'no-store, private','Vary':'Cookie'};
 const reply=(data:unknown,status=200)=>Response.json(data,{status,headers:h});
 const active=(e:Cloudflare.Env)=>('FIRE_DEPOSIT_POLICY_CANDIDATE' in e&&e.FIRE_DEPOSIT_POLICY_CANDIDATE==='synthetic-tests-only')&&
@@ -37,7 +38,9 @@ export async function POST(request:Request,{params}:{params:Promise<{token:strin
    if(e.contractVersion===acceptedVersion&&e.signedName===name&&e.photoRelease===photo&&e.signedAt){
     const signed=await env.DB.prepare("SELECT * FROM deposit_agreement_snapshots WHERE estimate_id=? AND document_version=?").bind(e.id,body.version).first<Record<string,unknown>>();
     if(signed?.event_id===body.version.slice('deposit-exception-v1:'.length)&&signed?.document_digest===docHash&&
-       signed?.signed_name===name&&signed?.photo_release===photo&&signed?.signed_at===e.signedAt&&signed?.accepted_at===e.acceptedAt)
+       signed?.signed_name===name&&signed?.photo_release===photo&&signed?.signed_at===e.signedAt&&signed?.accepted_at===e.acceptedAt&&
+       signed?.total_cents===e.totalCents&&signed?.deposit_cents===e.depositCents&&
+       await verifySignedAgreementDigests({deposit_agreement_snapshots:[signed]})===null)
       return reply({...receipt,replayed:true});
     return reply({error:'Signed document snapshot could not be independently verified. No records changed.'},409);
    }
