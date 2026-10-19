@@ -52,7 +52,7 @@ try{
   const previousReads=reads,previousWrites=writes;await disconnect();
   dialog=await open('report');await dialog.locator('.offline-job-status').waitFor();
   check(await dialog.locator('textarea').inputValue()==='Synthetic saved report 1','Report survives dialog/screen unmount then offline reopen');
-  check(await dialog.locator('textarea').getAttribute('readonly')!==null&&await dialog.getByRole('button',{name:'Save job report'}).isDisabled(),'Offline report cannot edit/save');
+  check(await dialog.locator('textarea').getAttribute('readonly')!==null&&await dialog.getByRole('button',{name:/^Save (?:draft|completed) report$/}).isDisabled(),'Offline report cannot edit/save');
   check(await dialog.locator('.offline-job-status').innerText().then(t=>t.includes('last checked')&&t.includes('Not saved for offline restart')),'Snapshot freshness and restart limits explicit');
   const rect=await dialog.boundingBox();check(rect.x>=-1&&rect.x+rect.width<=width+1,`${width}/${theme}: offline dialog fits viewport`);await close();
   dialog=await open('costs');await dialog.locator('.offline-job-status').waitFor();check((await dialog.innerText()).includes('Synthetic chemicals 1'),'Offline costs readable');
@@ -76,7 +76,7 @@ try{
   mode=failure;dialog=await open('report');await dialog.getByRole('alert').waitFor();await close();await disconnect();
   dialog=await open('report');await dialog.getByRole('alert').waitFor();check(await dialog.locator('textarea').count()===0,`${failure}: rejected read invalidates stale report`);await close();
  }
- await reconnect();mode='ok';await page.reload();dialog=await open('report');await dialog.locator('textarea').waitFor();await dialog.getByRole('button',{name:'Save job report',exact:true}).click();await dialog.getByText('Synthetic uncertain save; reload before retrying.',{exact:true}).waitFor();await close();await disconnect();
+ await reconnect();mode='ok';await page.reload();dialog=await open('report');await dialog.locator('textarea').waitFor();await dialog.getByRole('button',{name:/^Save (?:draft|completed) report$/}).click();await dialog.getByText('Synthetic uncertain save; reload before retrying.',{exact:true}).waitFor();await close();await disconnect();
  dialog=await open('report');await dialog.getByRole('alert').waitFor();check(await dialog.locator('textarea').count()===0,'Uncertain write cannot resurrect pre-save snapshot');await close();await reconnect();
  check(await page.evaluate(async()=>localStorage.length===0&&sessionStorage.length===0&&(await indexedDB.databases()).length===0),'No records, keys or plaintext written to browser persistence');
  check(await page.evaluate(()=>{const a=window.newSnapshotCache(),b=window.newSnapshotCache(),value={notes:'private'};a.remember('report','j','c',value);value.notes='changed';const first=a.read('report','j','c');first.value.notes='changed again';return a.read('report','j','c').value.notes==='private'&&b.read('report','j','c')===null&&a.read('report','j','other')===null;}),'Snapshot copies cannot mutate cache or cross provider/customer boundaries');
