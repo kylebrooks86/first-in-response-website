@@ -8,7 +8,7 @@ import ts from 'typescript';
 import {validateBackupRelationships,validateRefundIntegrity,validateRecordIdentities} from './records-backup-integrity.mjs';
 import {propertyBackupError,hasPropertyBackup} from '../lib/property-backup.mjs';
 import {serviceLocationManifest,serviceLocationBackupError} from '../lib/service-location-backup.mjs';
-import {validateDepositAuditIntegrity,depositAuditRowsConflict} from '../lib/deposit-audit-backup.mjs';
+import {validateDepositAuditIntegrity,depositAuditRowsConflict,DEPOSIT_AUDIT_COLUMNS} from '../lib/deposit-audit-backup.mjs';
 const root=resolve('.'),work=mkdtempSync(join(tmpdir(),'fire-synthetic-records-'));
 let checks=0;const equal=(a,b,message)=>{assert.deepEqual(a,b,message);checks++;};
 const schema=readdirSync(join(root,'drizzle')).filter(f=>f.endsWith('.sql')).sort().map(f=>readFileSync(join(root,'drizzle',f),'utf8')).join('\n');
@@ -43,14 +43,14 @@ try{
  const ast=ts.createSourceFile('route.ts',raw,ts.ScriptTarget.Latest,true);
  const helpers=['validateBackupRelationships','validateRefundIntegrity'].map(name=>ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name).getText(ast)).join('\n');
  const semantics=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule('const isRecord=v=>!!v&&typeof v==="object"&&!Array.isArray(v);\n'+helpers+'\nexport {validateBackupRelationships,validateRefundIntegrity};',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64'));
- globalThis.__recordsRecoveryHelpers={propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError,validateDepositAuditIntegrity,depositAuditRowsConflict};
+ globalThis.__recordsRecoveryHelpers={propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError,validateDepositAuditIntegrity,depositAuditRowsConflict,DEPOSIT_AUDIT_COLUMNS};
  // Current property/location features are disabled in this legacy-format fixture.
  // Use the production validators for any included manifest rather than stubs.
  const globals=`const env={get DB(){return globalThis.__recordsRecoveryDb;}};
 const serviceLocationsEnabled=(env)=>env.FIRE_SERVICE_LOCATIONS_CANDIDATE==='synthetic-only';
 const customerPropertiesEnabled=(env)=>serviceLocationsEnabled(env)&&env.FIRE_CUSTOMER_PROPERTIES_CANDIDATE==='synthetic-only';
 const propertyRecoveryTestEnabled=(env)=>customerPropertiesEnabled(env)&&env.FIRE_PROPERTY_RECOVERY_CANDIDATE==='synthetic-tests-only';
-const {propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError,validateDepositAuditIntegrity,depositAuditRowsConflict}=globalThis.__recordsRecoveryHelpers;
+const {propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError,validateDepositAuditIntegrity,depositAuditRowsConflict,DEPOSIT_AUDIT_COLUMNS}=globalThis.__recordsRecoveryHelpers;
 const exportPropertyRecords=()=>{throw Error('Property export must not run without synthetic feature flags')};
 const restorePropertyRecords=()=>{throw Error('Property restore must not run without synthetic feature flags')};
 `;

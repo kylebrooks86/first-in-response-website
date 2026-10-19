@@ -13,6 +13,8 @@ const DB={prepare(query){return {args:[],bind(...args){this.args=args;return thi
 globalThis.__feeTestDB=DB;
 globalThis.__feeBackupHelpers={propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLocationBackupError};
 async function load(path){let source=readFileSync(root+'/'+path,'utf8').replace(/^import .*?;\n/gm,'');source=source.replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');if(path.includes('payments/route'))source=readFileSync(root+'/lib/processing-fees.ts','utf8')+'\n'+source;if(path==='app/api/backup/route.ts'){
+  // The fixture strips route imports; inline the actual pure audit validator source.
+  source=readFileSync(root+'/lib/deposit-audit-backup.mjs','utf8')+'\n'+source;
 source=`const serviceLocationsEnabled=e=>e.FIRE_SERVICE_LOCATIONS_CANDIDATE==='synthetic-only';
 const customerPropertiesEnabled=e=>serviceLocationsEnabled(e)&&e.FIRE_CUSTOMER_PROPERTIES_CANDIDATE==='synthetic-only';
 const propertyRecoveryTestEnabled=e=>customerPropertiesEnabled(e)&&e.FIRE_PROPERTY_RECOVERY_CANDIDATE==='synthetic-tests-only';
