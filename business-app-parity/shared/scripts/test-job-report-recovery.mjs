@@ -5,7 +5,7 @@ const names=[],tags=new Set();function visit(n){if(ts.isVariableDeclaration(n)&&
 let checks=0;const eq=(a,b,m)=>{assert.deepEqual(a,b,m);checks++;},flush=()=>new Promise(r=>setImmediate(r)),deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 const job=id=>({id,customerId:'customer',service:'Dryer vent'}),report=(id,notes='saved')=>({estimateId:id,customerId:'customer',checklist:'{"Before photos captured":true}',notes,airflowBefore:'1',airflowAfter:'2'}),ok=reports=>({ok:true,json:async()=>({reports})});
 function nodes(tree){const out=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;out.push(n);walk(n.props?.children);}walk(tree);return out;}
-function fixture(){let state=[],refs=[],cursor=0,refCursor=0,effect,cleanup,estimate=job('first'),fetcher;const writes=[];let post=async()=>({ok:true,json:async()=>({})}),posts=0,savedCalls=0;const context={exports:{},require,Error,navigator:{onLine:true},...Object.fromEntries([...tags].map(t=>[t,()=>null])),useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{writes.push(names[i]);state[i]=typeof v==='function'?v(state[i]):v;}];},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){effect=fn;},fetch:(url,options)=>{if(options?.method==='POST'){posts++;return post();}eq(JSON.stringify(options),JSON.stringify({cache:'no-store'}),'Private report GET bypasses browser caches; no writes');eq(url,`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`);return fetcher();}};
+function fixture(){let state=[],refs=[],cursor=0,refCursor=0,effect,cleanup,estimate=job('first'),fetcher;const writes=[];let post=async()=>({ok:true,json:async()=>({})}),posts=0,savedCalls=0;const context={exports:{},require,Error,navigator:{onLine:true},...Object.fromEntries([...tags].map(t=>[t,()=>null])),useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{writes.push(names[i]);state[i]=typeof v==='function'?v(state[i]):v;}];},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){effect=fn;},fetch:(url,options)=>{if(options?.method==='POST'){posts++;return post(JSON.parse(options.body));}eq(JSON.stringify(options),JSON.stringify({cache:'no-store'}),'Private report GET bypasses browser caches; no writes');eq(url,`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`);return fetcher();}};
 vm.runInNewContext(ts.transpileModule(constant.getText(ast)+'\n'+fn.getText(ast)+'\nexports.view=JobReport;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
 const render=()=>{cursor=0;refCursor=0;return context.exports.view({estimate,onSaved(){savedCalls++;}});};render();
 return {setPost:f=>post=f,get posts(){return posts;},get savedCalls(){return savedCalls;},get:k=>state[names.indexOf(k)],setFetcher:f=>fetcher=f,writes,render,open(value=estimate){cleanup?.();estimate=value;render().props.onOpenChange(true);render();cleanup=effect();},close(){render().props.onOpenChange(false);cleanup?.();render();cleanup=effect?.();},unmount(){cleanup?.();},retry(){const button=nodes(render()).find(n=>n.props?.children==='Retry loading report');assert.ok(button);button.props.onClick();cleanup?.();render();cleanup=effect();},assertBlocked(){const all=nodes(render());eq(all.filter(n=>n.type===context.Input||n.type===context.Textarea||n.type==='input').length,0,'Editor hidden until successful read');eq(all.some(n=>n.props?.children==='Save job report'),false);}};}
@@ -26,15 +26,29 @@ for(const response of [...invalid,'network']){
 }
 for(const outcome of ['success','failure']){
  const f=fixture();f.setFetcher(async()=>ok([]));f.open();await flush();
- const pending=deferred();f.setPost(()=>pending.promise);
+ const pending=deferred();let submitted;f.setPost(body=>{submitted=body;return pending.promise;});
  const button=nodes(f.render()).find(n=>n.props?.children==='Save draft report');assert.ok(button);
  button.props.onClick();button.props.onClick();eq(f.posts,1,'Same-frame repeated taps issue only one report POST');
  f.render().props.onOpenChange(false);eq(f.get('open'),true,'Report stays open while save pending');
  const fields=nodes(f.render()).filter(n=>n.type==='input'||n.props?.placeholder==='Before reading'||n.props?.placeholder==='After reading'||n.props?.placeholder?.startsWith('Condition,'));
  eq(fields.length>0,true);eq(fields.every(n=>n.props.disabled||n.props.readOnly),true,'Report fields freeze to the submitted snapshot');
- if(outcome==='success')pending.resolve({ok:true,json:async()=>({})});else pending.reject(Error('Network interrupted'));
+ if(outcome==='success')pending.resolve({ok:true,json:async()=>({report:{...submitted,id:'saved-report',checklist:JSON.stringify(submitted.checklist),status:'draft'}})});else pending.reject(Error('Network interrupted'));
  await flush();eq(f.get('saving'),false);eq(f.savedCalls,outcome==='success'?1:0);eq(f.get('saved'),outcome==='success');
  if(outcome==='failure')eq(f.get('error'),'Network interrupted');
  f.render().props.onOpenChange(false);eq(f.get('open'),false,'Dialog unlocks after success or failure');
+}
+for(const mutate of [()=>undefined,r=>({...r,estimateId:'other'}),r=>({...r,customerId:'other'}),r=>({...r,notes:'not submitted'}),r=>({...r,status:'completed'}),r=>({...r,checklist:'invalid'}),r=>({...r,checklist:'{}'})]){
+ const f=fixture();f.setFetcher(async()=>ok([]));f.open();await flush();
+ f.setPost(async body=>({ok:true,json:async()=>({report:mutate({...body,id:'saved',checklist:JSON.stringify(body.checklist),status:'draft'})})}));
+ nodes(f.render()).find(n=>n.props?.children==='Save draft report').props.onClick();await flush();
+ eq(f.get('saved'),false,'HTTP success alone is not confirmed persistence');eq(f.savedCalls,0,'Unconfirmed result cannot advance job completion');
+ eq(f.get('saving'),false);eq(f.get('error').includes('could not be confirmed'),true);
+}
+{
+ const f=fixture();f.setFetcher(async()=>ok([]));f.open();await flush();
+ for(const checkbox of nodes(f.render()).filter(n=>n.type==='input'&&n.props.type==='checkbox'))checkbox.props.onChange();
+ f.setPost(async body=>({ok:true,json:async()=>({report:{...body,id:'completed-report',checklist:JSON.stringify(body.checklist),status:'completed'}})}));
+ nodes(f.render()).find(n=>n.props?.children==='Save completed report').props.onClick();await flush();
+ eq(f.get('saved'),true,'Completed report requires matching server confirmation');eq(f.savedCalls,1);eq(f.get('saving'),false);
 }
 console.log(`PASS ${checks}/${checks}: actual JobReport hooks/JSX cover stale close/reopen and delayed JSON, unmount, HTTP/network/collection/checklist/ownership failures, retry and empty-report reset; synthetic GET/POST mocks only; save locking, dismissal, field freeze and failure recovery.`);

@@ -284,7 +284,9 @@ jobs:
       - name: QA deployment manifest compatibility must change exactly legacy_env=true
         run: node ../test_prepare_qa_deploy_config.mjs
       - name: Verify real Wrangler local D1 export and private SQL restoration
-        run: node scripts/test-real-wrangler-local-d1-export.mjs
+        run: |
+          node scripts/test-real-wrangler-local-d1-export.mjs
+          node scripts/test-real-wrangler-local-d1-export.mjs --qa
       - name: Protect owner-approved FIRE service rates in the shared source
         run: node --experimental-strip-types scripts/test-fire-service-catalog-pricing.mjs
       - name: Verify all thirty starting rates remain fully adjustable per job

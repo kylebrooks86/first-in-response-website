@@ -65,10 +65,42 @@ class QAExportTests(unittest.TestCase):
     def test_attach_and_sql_errors_do_not_expose_private_rows(self):
         with tempfile.TemporaryDirectory() as folder:
             p=fixture(folder);p.write_text(p.read_text()+"\nATTACH DATABASE '/tmp/FIRE-UNAUTHORIZED' AS bad;\n")
-            with self.assertRaises(sqlite3.Error):review(p)
+            with self.assertRaises(verify.QAExportStop) as stopped:review(p)
+            self.assertEqual(stopped.exception.receipt['diagnosticCode'],'SQLITE_AUTHORIZER_REFUSED')
+            self.assertEqual(stopped.exception.receipt['blockedOperation'],'ATTACH_OR_DETACH')
             p.write_text('PRIVATE QA NAME invalid SQL')
             result=subprocess.run([sys.executable,str(Path(verify.__file__)),str(p),'--expected-sha256',hashlib.sha256(p.read_bytes()).hexdigest()],capture_output=True,text=True)
             self.assertEqual(result.returncode,2);self.assertNotIn('PRIVATE QA NAME',result.stdout+result.stderr)
+
+    def test_individual_failed_checks_survive_baseline_refusal(self):
+        cases=[
+            (lambda db:db.execute("UPDATE d1_migrations SET name='0022_unknown.sql' WHERE id=23"),'journalExactlyOriginal23'),
+            (lambda db:db.execute('DROP INDEX idx_payments_stripe_provider_unique'),'schemaExactlyOriginal23'),
+            (lambda db:db.execute("UPDATE estimates SET customer_id='missing'"),'foreignKeysClean'),
+        ]
+        for mutate,key in cases:
+            with self.subTest(key=key),tempfile.TemporaryDirectory() as folder:
+                p=fixture(folder,mutate);before=p.read_bytes()
+                with self.assertRaises(verify.QAExportStop) as stopped:review(p)
+                receipt=stopped.exception.receipt
+                self.assertEqual(receipt['diagnosticCode'],'BASELINE_CHECKS_FAILED')
+                self.assertFalse(receipt['checks'][key]);self.assertIn(key,receipt['failedChecks'])
+                self.assertNotIn('local25JournalComplete',receipt['checks'])
+                self.assertEqual(before,p.read_bytes())
+                for private in ('PRIVATE QA NAME','cs_private_value','0022_unknown.sql','private-customer'):
+                    self.assertNotIn(private,json.dumps(receipt))
+
+    def test_encoding_hash_runtime_and_restore_errors_have_separate_codes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            p=fixture(folder)
+            with self.assertRaises(verify.QAExportStop) as stopped:verify.review_export(p,expected_sha256='0'*64)
+            self.assertEqual(stopped.exception.receipt['diagnosticCode'],'EXPORT_HASH_MISMATCH')
+            for contents,code in [(b'\xff\xfeinvalid','EXPORT_ENCODING_INVALID'),(b'NOT VALID PRIVATE SQL','SQLITE_STAGE_FAILED')]:
+                p.write_bytes(contents)
+                with self.assertRaises(verify.QAExportStop) as stopped:review(p)
+                self.assertEqual(stopped.exception.receipt['diagnosticCode'],code)
+                self.assertEqual(stopped.exception.receipt['stage'],'SQL_RESTORE')
+                self.assertNotIn('PRIVATE',json.dumps(stopped.exception.receipt).replace('PRIVATE_QA_RESTORE_STOP',''))
 
     def test_backup_script_is_export_only_dry_by_default_and_exact_identity(self):
         s=(Path(__file__).parent/'owner_windows_qa_backup.ps1').read_text()

@@ -4,11 +4,13 @@
  * This test exercises the actual D1 SQL format, unlike SQLite iterdump mocks.
  */
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {existsSync,mkdtempSync,mkdirSync,readdirSync,writeFileSync,copyFileSync,readFileSync,rmSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 
+const qaMode=process.argv.includes('--qa');
 const source=resolve('.');
 const parity=resolve('..');
 const wrangler=join(source,'node_modules/wrangler/bin/wrangler.js');
@@ -44,8 +46,8 @@ function invoke(args){
 }
 try{
   mkdirSync(join(root,'migrations'));
-  // Historic pre-0022 export test: omit both newer migrations, preserving original 22-file baseline.
-  for(const n of names.slice(0,-3))copyFileSync(join(parity,'adapters/doomsday/drizzle',n),join(root,'migrations',n));
+  // Preserve historic 22-migration mode; QA mode uses its exact original 23-migration baseline.
+  for(const n of names.slice(0,qaMode?-2:-3))copyFileSync(join(parity,'adapters/doomsday/drizzle',n),join(root,'migrations',n));
   writeFileSync(join(root,'noop.js'),'export default {fetch(){return new Response("synthetic");}}');
   writeFileSync(config,JSON.stringify({
     name,
@@ -73,15 +75,16 @@ try{
   invoke([wrangler,'d1','export','DB','--local','--config',config,'--output',output]);
   assert.ok(existsSync(output),'Local Wrangler export missing');
   checks++;
-  const verifier=join(parity,'verify_doomsday_d1_export.py');
-  const v=spawnSync('python3',[verifier,output],{cwd:root,env,encoding:'utf8',timeout:40000,maxBuffer:1024*1024});
-  if(v.error||v.status!==0)throw new Error('Actual local Wrangler SQL export failed offline restore validation.');
+  const verifier=join(parity,qaMode?'verify_qa_d1_export.py':'verify_doomsday_d1_export.py');
+  const verifyArgs=file=>qaMode?[file,'--expected-sha256',createHash('sha256').update(readFileSync(file)).digest('hex')]:[file];
+  const v=spawnSync('python3',[verifier,...verifyArgs(output)],{cwd:root,env,encoding:'utf8',timeout:40000,maxBuffer:1024*1024});
+  if(v.error||v.status!==0)throw new Error('Actual local Wrangler SQL export failed offline restore validation: '+v.stdout);
   const receipt=JSON.parse(v.stdout);
-  assert.equal(receipt.offlineRestorationValidated,true);
-  assert.equal(receipt.expectedBaselineMigrationCount,22);
-  assert.equal(receipt.remoteDataModified,false);
-  assert.equal(receipt.migrationAuthorized,false);
-  assert.equal(receipt.releaseGateAccepted,false);
+  assert.equal((qaMode?receipt.offlineRestoreAndAdditiveRehearsalPassed:receipt.offlineRestorationValidated),true);
+  if(!qaMode)assert.equal(receipt.expectedBaselineMigrationCount,22);
+  if(!qaMode)assert.equal(receipt.remoteDataModified,false);
+  assert.equal(qaMode?receipt.hostedMigrationAuthorized:receipt.migrationAuthorized,false);
+  assert.equal(qaMode?receipt.publicationAuthorized:receipt.releaseGateAccepted,false);
   assert.deepEqual(Object.values(receipt.checks),Array(Object.keys(receipt.checks).length).fill(true));
   checks+=7;
   // Import this actual Wrangler dump into a DIFFERENT, empty local D1
@@ -97,10 +100,10 @@ try{
   checks++;
   const restoredDump=join(root,'restored-from-real-d1.sql');
   invoke([wrangler,'d1','export','DB','--local','--config',restoredConfig,'--output',restoredDump]);
-  const second=spawnSync('python3',[verifier,restoredDump],
+  const second=spawnSync('python3',[verifier,...verifyArgs(restoredDump)],
     {cwd:root,env,encoding:'utf8',timeout:40000,maxBuffer:1024*1024});
   assert.equal(second.status,0,'Independent restored local D1 re-export must validate');
-  assert.equal(JSON.parse(second.stdout).offlineRestorationValidated,true);
+  assert.equal(JSON.parse(second.stdout)[qaMode?'offlineRestoreAndAdditiveRehearsalPassed':'offlineRestorationValidated'],true);
   assert.ok(readFileSync(output,'utf8').includes('Synthetic-only Wrangler customer'),
     'Initial export must contain full synthetic data, not schema only.');
   assert.ok(readFileSync(restoredDump,'utf8').includes('Synthetic-only Wrangler customer'),
@@ -108,7 +111,7 @@ try{
   checks+=3;
   const schemaOnly=join(root,'schema-only.sql');
   invoke([wrangler,'d1','export','DB','--local','--config',config,'--no-data','--output',schemaOnly]);
-  const noData=spawnSync('python3',[verifier,schemaOnly],{cwd:root,env,encoding:'utf8',timeout:40000,maxBuffer:1024*1024});
+  const noData=spawnSync('python3',[verifier,...verifyArgs(schemaOnly)],{cwd:root,env,encoding:'utf8',timeout:40000,maxBuffer:1024*1024});
   assert.notEqual(noData.status,0,'Schema-only export must never be accepted as verified complete data');
   checks++;
   console.log('PASS: '+checks+' real Wrangler LOCAL D1 SQL migration/export/disposable restore assertions; no remote/Stripe access or real customer records.');

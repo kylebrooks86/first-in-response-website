@@ -742,7 +742,25 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
     else{if(!transportFailed)snapshots?.records.forget('report',estimate.id,estimate.customerId);setLoadError(transportFailed?"No verified report is available in this app session. Reconnect and load it before editing or saving.":"The saved report could not be loaded. Retry before editing or saving.");}
   }}finally{if(request===loadRequest.current)setLoading(false);}})();return()=>{loadRequest.current++;};},[open,estimate.id,estimate.customerId,retry]);
   const toggle=(item:string)=>{setSaved(false);setChecks((current)=>current.includes(item)?current.filter((value)=>value!==item):[...current,item]);};
-  const save=async()=>{if(saveLock.current||saving||loading||loadError||loadedReportKey!==reportKey||readOnly||navigator.onLine===false)return;saveLock.current=true;snapshots?.records.forget('report',estimate.id,estimate.customerId);setSaved(false);setSaving(true);setError("");try{const response=await fetch("/api/job-reports",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,customerId:estimate.customerId,checklist:Object.fromEntries(reportChecks.map((item)=>[item,checks.includes(item)])),notes,airflowBefore:before,airflowAfter:after,status:checks.length===reportChecks.length?"complete":"draft"})});const result=await response.json() as {error?:string};if(!response.ok)throw new Error(result.error||"The report could not be saved.");setSaved(true);onSaved?.(checks.length===reportChecks.length);}catch(saveError){setError(saveError instanceof Error?saveError.message:"The report could not be saved.");}finally{saveLock.current=false;setSaving(false);}};
+  const save=async()=>{
+    if(saveLock.current||saving||loading||loadError||loadedReportKey!==reportKey||readOnly||navigator.onLine===false)return;
+    saveLock.current=true;snapshots?.records.forget('report',estimate.id,estimate.customerId);setSaved(false);setSaving(true);setError("");
+    const checklist=Object.fromEntries(reportChecks.map((item)=>[item,checks.includes(item)]));
+    const complete=checks.length===reportChecks.length;
+    try{
+      const response=await fetch("/api/job-reports",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,customerId:estimate.customerId,checklist,notes,airflowBefore:before,airflowAfter:after,status:complete?"complete":"draft"})});
+      const result=await response.json() as {report?:JobReportRow;error?:string};
+      if(!response.ok)throw new Error(result?.error||"The report could not be saved.");
+      const report=result?.report;
+      const unconfirmed="The saved report could not be confirmed. Keep your notes and reopen the report online before retrying.";
+      if(!report||typeof report.id!=="string"||!report.id.trim()||report.estimateId!==estimate.id||report.customerId!==estimate.customerId||report.status!==(complete?"completed":"draft")||(report.notes??"")!==notes||(report.airflowBefore??"")!==before||(report.airflowAfter??"")!==after||typeof report.checklist!=="string")throw new Error(unconfirmed);
+      let confirmed:Record<string,boolean>;
+      try{confirmed=JSON.parse(report.checklist);}catch{throw new Error(unconfirmed);}
+      if(!confirmed||typeof confirmed!=="object"||Array.isArray(confirmed)||Object.keys(confirmed).length!==reportChecks.length||reportChecks.some(item=>confirmed[item]!==checklist[item]))throw new Error(unconfirmed);
+      setSaved(true);onSaved?.(complete);
+    }catch(saveError){setError(saveError instanceof Error?saveError.message:"The report could not be saved.");}
+    finally{saveLock.current=false;setSaving(false);}
+  };
   return <Dialog open={open} onOpenChange={setOpenSafe}>
     <DialogTrigger asChild><Button variant="outline"><ClipboardList className="h-4 w-4"/> Job report</Button></DialogTrigger>
     <DialogContent className="fire-job-dialog sm:max-w-[640px]">
