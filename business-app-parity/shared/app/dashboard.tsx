@@ -716,10 +716,10 @@ function OwnerJobTools({estimate,onSaved}:{estimate:EstimateRow;onSaved:(complet
 }
 function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(complete:boolean)=>void;snapshots?:OwnerJobSnapshotAccess}){
   const [open,setOpen]=useState(false);const [checks,setChecks]=useState<string[]>([]);const [notes,setNotes]=useState("");const [before,setBefore]=useState("");const [after,setAfter]=useState("");const [saved,setSaved]=useState(false);const [saving,setSaving]=useState(false);const [loading,setLoading]=useState(false);const [error,setError]=useState("");
-  const loadRequest=useRef(0);const [retry,setRetry]=useState(0);const [loadError,setLoadError]=useState("");
+  const saveLock=useRef(false);const loadRequest=useRef(0);const [retry,setRetry]=useState(0);const [loadError,setLoadError]=useState("");
   const [snapshotAt,setSnapshotAt]=useState<string|null>(null);const [checkedEpoch,setCheckedEpoch]=useState<number|null>(null);const readOnly=Boolean(snapshotAt)||snapshots?.online===false||Boolean(snapshots&&checkedEpoch!==snapshots.networkEpoch);
   const [loadedReportKey,setLoadedReportKey]=useState<string|null>(null);const reportKey=JSON.stringify([estimate.id,estimate.customerId]);
-  const setOpenSafe=(value:boolean)=>{if(!value)loadRequest.current++;setOpen(value);};
+  const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;if(!value)loadRequest.current++;setOpen(value);};
   useEffect(()=>{if(!open)return;const request=++loadRequest.current;setLoading(true);setSaved(false);setError("");setLoadError("");setSnapshotAt(null);let transportFailed=false;void (async()=>{try{
     let response:Response;try{if(snapshots?.online===false)throw new TypeError("Offline");response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`,{cache:"no-store"});}catch(error){transportFailed=error instanceof TypeError;throw error;}
     if(response.status===401||response.status===403)snapshots?.records.revoke();
@@ -742,7 +742,7 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
     else{if(!transportFailed)snapshots?.records.forget('report',estimate.id,estimate.customerId);setLoadError(transportFailed?"No verified report is available in this app session. Reconnect and load it before editing or saving.":"The saved report could not be loaded. Retry before editing or saving.");}
   }}finally{if(request===loadRequest.current)setLoading(false);}})();return()=>{loadRequest.current++;};},[open,estimate.id,estimate.customerId,retry]);
   const toggle=(item:string)=>{setSaved(false);setChecks((current)=>current.includes(item)?current.filter((value)=>value!==item):[...current,item]);};
-  const save=async()=>{if(readOnly||navigator.onLine===false)return;snapshots?.records.forget('report',estimate.id,estimate.customerId);setSaving(true);setError("");try{const response=await fetch("/api/job-reports",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,customerId:estimate.customerId,checklist:Object.fromEntries(reportChecks.map((item)=>[item,checks.includes(item)])),notes,airflowBefore:before,airflowAfter:after,status:checks.length===reportChecks.length?"complete":"draft"})});const result=await response.json() as {error?:string};if(!response.ok)throw new Error(result.error||"The report could not be saved.");setSaved(true);onSaved?.(checks.length===reportChecks.length);}catch(saveError){setError(saveError instanceof Error?saveError.message:"The report could not be saved.");}finally{setSaving(false);}};
+  const save=async()=>{if(saveLock.current||saving||loading||loadError||loadedReportKey!==reportKey||readOnly||navigator.onLine===false)return;saveLock.current=true;snapshots?.records.forget('report',estimate.id,estimate.customerId);setSaved(false);setSaving(true);setError("");try{const response=await fetch("/api/job-reports",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,customerId:estimate.customerId,checklist:Object.fromEntries(reportChecks.map((item)=>[item,checks.includes(item)])),notes,airflowBefore:before,airflowAfter:after,status:checks.length===reportChecks.length?"complete":"draft"})});const result=await response.json() as {error?:string};if(!response.ok)throw new Error(result.error||"The report could not be saved.");setSaved(true);onSaved?.(checks.length===reportChecks.length);}catch(saveError){setError(saveError instanceof Error?saveError.message:"The report could not be saved.");}finally{saveLock.current=false;setSaving(false);}};
   return <Dialog open={open} onOpenChange={setOpenSafe}>
     <DialogTrigger asChild><Button variant="outline"><ClipboardList className="h-4 w-4"/> Job report</Button></DialogTrigger>
     <DialogContent className="fire-job-dialog sm:max-w-[640px]">
@@ -757,16 +757,17 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
             <span>{checks.length===reportChecks.length?"Ready to save as completed":"Incomplete checklist saves as draft"}</span>
           </div>
           <div className="checklist" role="group" aria-label="Completion checklist">{reportChecks.map((item)=><label key={item}>
-            <input type="checkbox" checked={checks.includes(item)} disabled={loading||readOnly}
+            <input type="checkbox" checked={checks.includes(item)} disabled={saving||loading||readOnly}
               onChange={()=>toggle(item)}/><span>{item}</span>
           </label>)}</div>
           {estimate.service.toLowerCase().includes("dryer")&&<div className="airflow-fields">
-            <label className="fire-field"><span>Airflow before (optional)</span><Input disabled={readOnly} value={before} onChange={(event)=>{setBefore(event.target.value);setSaved(false);}} placeholder="Before reading"/></label>
-            <label className="fire-field"><span>Airflow after (optional)</span><Input disabled={readOnly} value={after} onChange={(event)=>{setAfter(event.target.value);setSaved(false);}} placeholder="After reading"/></label>
+            <label className="fire-field"><span>Airflow before (optional)</span><Input disabled={saving||readOnly} value={before} onChange={(event)=>{setBefore(event.target.value);setSaved(false);}} placeholder="Before reading"/></label>
+            <label className="fire-field"><span>Airflow after (optional)</span><Input disabled={saving||readOnly} value={after} onChange={(event)=>{setAfter(event.target.value);setSaved(false);}} placeholder="After reading"/></label>
           </div>}
-          <label className="fire-field"><span>Technician notes</span><Textarea readOnly={readOnly} value={notes}
+          <label className="fire-field"><span>Technician notes</span><Textarea readOnly={saving||readOnly} value={notes}
             onChange={(event)=>{setNotes(event.target.value);setSaved(false);}}
             placeholder="Condition, work performed, exceptions, recommendations…" rows={4}/></label>
+          {saving&&<p role="status">Saving report. Keep this window open until confirmation.</p>}
           {saved&&<p className="save-success" role="status">Job report saved.</p>}
           {error&&<p className="save-error" role="alert">{error}</p>}
           <Button className="brand-button fire-job-save" onClick={()=>void save()} disabled={saving||loading||readOnly}>
@@ -784,7 +785,7 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
   const billingTotal=resolvedBillingTotalCents(estimate);
   const loadRequest=useRef(0);const currentJob=useRef<string|null>(null);const saveLock=useRef(false);const [loading,setLoading]=useState(false);const [loadError,setLoadError]=useState("");const [loadedJob,setLoadedJob]=useState<string|null>(null);
   const [snapshotAt,setSnapshotAt]=useState<string|null>(null);const [checkedEpoch,setCheckedEpoch]=useState<number|null>(null);const readOnly=Boolean(snapshotAt)||snapshots?.online===false||Boolean(snapshots&&checkedEpoch!==snapshots.networkEpoch);
-  const setOpenSafe=(value:boolean)=>{if(!value){currentJob.current=null;loadRequest.current++;}else{setLoading(true);setLoadError("");}setOpen(value);};
+  const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;if(!value){currentJob.current=null;loadRequest.current++;}else{setLoading(true);setLoadError("");}setOpen(value);};
   const load=async()=>{
     if(currentJob.current!==estimate.id)return;
     const request=++loadRequest.current;setLoading(true);setLoadError("");setSnapshotAt(null);let transportFailed=false;

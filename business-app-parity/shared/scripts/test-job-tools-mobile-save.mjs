@@ -75,6 +75,8 @@ const pending=wait();let submissions=f.outgoing.length;
 f.setPost(()=>pending.promise);const first=f.save();await flush();
 const second=f.save();await second;
 eq(f.outgoing.length,submissions+1,"Rapid repeated taps may only create one request");
+f.render().props.onOpenChange(false);
+eq(f.get("open"),true,"Dismissing costs while POST is pending must not orphan save state");
 f.setExpenses([{id:"saved",estimateId:"synthetic-job",amountCents:123,description:"Chemical",category:"Supplies"}]);
 pending.resolve({ok:true,json:async()=>({expense:{id:"saved",estimateId:"synthetic-job",amountCents:123}})});
 await first;await flush();
@@ -82,6 +84,8 @@ eq(f.get("saveError"),"","Confirmed cost must clear errors");
 eq(f.get("amount"),"","Confirmed cost clears amount");
 eq(f.get("description"),"","Confirmed cost clears description");
 eq(f.get("rows").length,1,"Confirmed cost refreshes job totals");
+eq(f.get("saving"),false,"Cost entry unlocks after confirmed refresh");
+f.render().props.onOpenChange(false);eq(f.get("open"),false,"Cost dialog closes after save settles");
 const report=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==="JobReport");
 assert.ok(report);
 for(const fragment of ['className="fire-job-dialog','className="report-progress"','role="status"','Save completed report','Save draft report','className="brand-button fire-job-save"']){assert.ok(report.getText(ast).includes(fragment),fragment);checks++;}
