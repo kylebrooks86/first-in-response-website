@@ -43,12 +43,12 @@ try{
  // An actual signed agreement, not an empty optional table, exercises the backup round trip.
  const archivedScope=JSON.stringify([['signed-item','House wash','Exterior synthetic fixture',1,'job',14000]]);
  const archivedText='FIRST IN RESPONSE EXTERIORS SYNTHETIC AGREEMENT — scope and payment must remain unchanged.';
- const archivedEvent='signed-audit';
+ const archivedEvent='00000000-0000-4000-8000-0000000000aa';
  const archivedDigest=await agreementDigest({eventId:archivedEvent,totalCents:14000,depositCents:0,mode:'waive',scope:archivedScope,terms:archivedText});
  const archivedVersion='deposit-exception-v1:'+archivedEvent;
  sourceDb.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,first_viewed_at,accepted_at,signed_name,signed_at,photo_release,contract_version,created_at) VALUES('signed-job','customer','approved',14000,14000,0,?,?,?,?,?,?,'2026-10-09')").run('2026-10-09T10:00:00Z','2026-10-09T11:00:00Z','Synthetic Customer','2026-10-09T11:00:00Z','no',archivedVersion+':sha256:'+archivedDigest);
- sourceDb.exec("INSERT INTO deposit_policy_events(id,estimate_id,confirmation_id,actor_email,mode,previous_total_cents,previous_deposit_cents,new_deposit_cents,paid_principal_cents,created_at) VALUES('signed-audit','signed-job','signed-confirmation','synthetic-owner','waive',14000,7000,0,0,'2026-10-09T09:00:00Z')");
- sourceDb.prepare("INSERT INTO deposit_agreement_snapshots(event_id,estimate_id,document_version,document_digest,total_cents,deposit_cents,mode,scope_json,agreement_text,signed_name,photo_release,signed_at,accepted_at) VALUES('signed-audit','signed-job',?,?,14000,0,'waive',?,?, 'Synthetic Customer','no','2026-10-09T11:00:00Z','2026-10-09T11:00:00Z')").run(archivedVersion,archivedDigest,archivedScope,archivedText);
+ sourceDb.exec("INSERT INTO deposit_policy_events(id,estimate_id,confirmation_id,actor_email,mode,previous_total_cents,previous_deposit_cents,new_deposit_cents,paid_principal_cents,created_at) VALUES('00000000-0000-4000-8000-0000000000aa','signed-job','signed-confirmation','synthetic-owner','waive',14000,7000,0,0,'2026-10-09T09:00:00Z')");
+ sourceDb.prepare("INSERT INTO deposit_agreement_snapshots(event_id,estimate_id,document_version,document_digest,total_cents,deposit_cents,mode,scope_json,agreement_text,signed_name,photo_release,signed_at,accepted_at) VALUES('00000000-0000-4000-8000-0000000000aa','signed-job',?,?,14000,0,'waive',?,?, 'Synthetic Customer','no','2026-10-09T11:00:00Z','2026-10-09T11:00:00Z')").run(archivedVersion,archivedDigest,archivedScope,archivedText);
  const adapter=db=>({prepare(query){return {query,args:[],bind(...args){this.args=args;return this;},async all(){return {results:db.prepare(query).all(...this.args)};}};},async batch(statements){return statements.map(s=>({results:db.prepare(s.query).all(...s.args)}));}});
  globalThis.__recordsRecoveryDb=adapter(sourceDb);
  const raw=readFileSync(join(root,'app/api/backup/route.ts'),'utf8');
