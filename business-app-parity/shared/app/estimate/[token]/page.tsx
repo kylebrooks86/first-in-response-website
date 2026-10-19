@@ -32,6 +32,21 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const ownerPreview=Boolean(previewUser?.email?.toLowerCase()==='kylebrooks8605@gmail.com');
   const row=await env.DB.prepare(`SELECT e.id,e.customer_id AS customerId,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.total_cents AS totalCents,(SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,e.deposit_cents AS depositCents,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,c.name AS customer,${serviceAddressColumns(serviceLocationsEnabled(env))},(SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,(SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending') AS pendingRefundCount FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.share_token=? LIMIT 1`).bind(token).first<{id:string;customerId:string;status:string;subtotalCents:number;discountCents:number;totalCents:number;invoiceTotalCents:number|null;depositCents:number;shareToken:string;firstViewedAt:string|null;acceptedAt:string|null;signedName:string|null;signedAt:string|null;contractInitials:string|null;photoRelease:string|null;customer:string;address:string|null;serviceAddressSource?:string;paymentOverageOpen:number;pendingRefundCount:number}>();
   if(!row)return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div><h1>Estimate not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
+  // Until revised terms appear in the actual signed customer agreement,
+  // the portal's legacy "50% deposit" label is NOT safe for owner overrides.
+  // Suppress old-link approvals, manual payment instructions and payment
+  // session verification; never show misleading or stale deposit terms.
+  const syntheticOwnerException=('FIRE_DEPOSIT_POLICY_CANDIDATE' in env&&env.FIRE_DEPOSIT_POLICY_CANDIDATE==='synthetic-tests-only')&&
+    ('FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE' in env&&env.FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE==='synthetic-contract-tests-only');
+  if(syntheticOwnerException){
+    let hold=true;
+    try{hold=Boolean(await env.DB.prepare("SELECT id FROM deposit_policy_events WHERE estimate_id=? LIMIT 1").bind(row.id).first());}
+    catch{hold=true;} // Unknown history must not expose stale payment terms.
+    if(hold)return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div>
+      <h1>Updated estimate required</h1>
+      <p>Deposit terms are under review. Please contact First In Response Exteriors for a revised agreement before approving or making a payment.</p>
+    </section></main>;
+  }
   const itemResult=await env.DB.prepare(`SELECT name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC`).bind(row.id).all<{name:string;description:string;quantity:number;unit:string;totalCents:number}>();
   const items=itemResult.results.map((item)=>({...item,quantity:Number(item.quantity),totalCents:Number(item.totalCents)}));
   const estimateItemsSafe=items.length>0&&items.every((item)=>Boolean(item.name?.trim())&&Number.isFinite(item.quantity)&&item.quantity>0&&Number.isSafeInteger(item.totalCents)&&item.totalCents>=0);
