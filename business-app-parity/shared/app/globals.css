@@ -839,3 +839,17 @@ html,body{max-width:100%;overflow-x:clip}
   .fire-job-dialog .cost-submit{width:100%}
 }
 @media(max-width:360px){.fire-job-dialog .cost-form{grid-template-columns:1fr}.fire-job-dialog .cost-description{grid-column:auto;grid-row:auto}}
+
+
+/* Service report editing: visible progress and accessible touch targets */
+.fire-job-dialog .report-progress{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card)}
+.fire-job-dialog .report-progress strong{font-size:14px}
+.fire-job-dialog .report-progress span,.fire-job-dialog .report-footnote{font-size:12px;color:var(--muted-foreground);line-height:1.5}
+.fire-job-dialog .checklist{grid-template-columns:1fr;gap:4px;min-width:0}
+.fire-job-dialog .checklist label{display:flex;align-items:center;gap:12px;min-height:44px;padding:7px 8px;border-radius:8px;cursor:pointer}
+.fire-job-dialog .checklist input{width:20px;height:20px;flex:0 0 auto}
+.fire-job-dialog .checklist label span{min-width:0;overflow-wrap:anywhere;font-size:13px}
+.fire-job-dialog .airflow-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fire-job-dialog .fire-job-save{width:100%;min-height:46px}
+.fire-job-dialog .report-footnote{margin:0}
+@media(max-width:460px){.fire-job-dialog .airflow-fields{grid-template-columns:1fr}.fire-job-dialog .report-progress{display:grid}}
