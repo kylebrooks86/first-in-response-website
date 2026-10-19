@@ -70,7 +70,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
   const latest=await env.DB.prepare(lastAuditSql).bind(id).first<{id:string}>();
   if((latest?.id??null)!==expectedLastEventId)return json({error:'Deposit audit history changed. Refresh the job before reconfirming.'},409);
   let preview;
-  try{preview=previewOwnerDepositException({current:row,request:input,verifiedOwnerEmail:user!.email});}
+  try{preview=previewOwnerDepositException({current:row,request:input as Parameters<typeof previewOwnerDepositException>[0]['request'],verifiedOwnerEmail:user!.email});}
   catch(e){return json({error:e instanceof Error?e.message:'Invalid proposed deposit exception.'},409);}
   if(preview.requiresSignedAgreementRevision)return json({error:'Customer agreement revision is required before this exception can be applied.'},409);
   const eventId=crypto.randomUUID(),createdAt=new Date().toISOString();
