@@ -23,9 +23,10 @@ const env={FIRE_DEPOSIT_POLICY_CANDIDATE:'synthetic-tests-only',FIRE_DEPOSIT_EXC
 const load=createRouteFixtureLoader(process.cwd(),env,()=>user);
 const route=load('app/api/estimates/[id]/deposit-policy/route.ts');
 const edit=load('app/api/estimates/[id]/route.ts');
+const publicAccept=load('app/api/public/estimates/[token]/accept/route.ts');
 const eq=(a,b)=>{assert.deepEqual(a,b);checks++;};
 let seq=1;const uuid=()=>('00000000-0000-4000-8000-'+String(seq++).padStart(12,'0'));
-function seed(id,{status='sent',signed=false,total=18001,deposit=9001}={}){
+function seed(id,{status='draft',signed=false,total=18001,deposit=9001}={}){
  db.prepare("INSERT INTO customers(id,name,created_at) VALUES(?,?,'2026-10-19')").run('c-'+id,'Synthetic '+id);
  db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,discount_cents,total_cents,deposit_cents,accepted_at,signed_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,'2026-10-19')").run(id,'c-'+id,status,total,0,total,deposit,signed?'2026-10-19T12:00:00Z':null,signed?'2026-10-19T12:00:00Z':null);
 }
@@ -90,6 +91,56 @@ try{
    headers:{Origin:'https://synthetic.invalid','content-type':'application/json'},body:JSON.stringify({...body,mode:mode==='waive'?'fixed':'waive'})});
   eq((await post(id,conflicting)).status,409);eq(events(id).length,1);
  }
+
+ // Owner audit view is read-only, bounded, and exposes the precise last event.
+ const ownerGet=async id=>route.GET(new Request('https://synthetic.invalid/api/estimates/'+id+'/deposit-policy'),{params:Promise.resolve({id})});
+ const history=await ownerGet('mode-fixed');eq(history.status,200);
+ const view=await history.json();
+ eq([view.exceptionReview.syntheticOnly,view.exceptionReview.readOnly,view.exceptionReview.hostedActivation],[true,true,false]);
+ eq([view.exceptionReview.latestEventId,view.exceptionReview.events.length],[events('mode-fixed')[0].id,1]);
+ eq(view.exceptionReview.approvalBlockedPendingCustomerTermsIntegration,true);
+ const readSnapshot=snapshot('mode-fixed');await ownerGet('mode-fixed');eq(snapshot('mode-fixed'),readSnapshot);
+ // Customer-facing approval must refuse any recorded owner exception until
+ // the agreement actually displays revised terms and captures reapproval.
+ const accept=async id=>publicAccept.POST(new Request('https://synthetic.invalid/api/public/estimates/'+id+'/accept',{
+  method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({signedName:'Synthetic Customer',photoRelease:'no',acceptedTerms:true})}),{params:Promise.resolve({token:'share-'+id})});
+ function share(id){
+  db.prepare("UPDATE estimates SET share_token=? WHERE id=?").run('share-'+id,id);
+  db.prepare("INSERT INTO estimate_items(id,estimate_id,name,description,quantity,unit,total_cents) VALUES(?,?,'Synthetic service','',1,'job',18001)").run('item-'+id,id);
+ }
+ share('mode-fixed');
+ eq((await accept('mode-fixed')).status,409);
+ eq(row('mode-fixed').accepted_at,null);
+ seed('unmodified-accept');share('unmodified-accept');
+ eq((await accept('unmodified-accept')).status,200);eq(row('unmodified-accept').status,'approved');
+ seed('approval-race');share('approval-race');
+ beforeBatch=()=>db.prepare("INSERT INTO deposit_policy_events(id,estimate_id,confirmation_id,actor_email,mode,previous_total_cents,previous_deposit_cents,new_deposit_cents,paid_principal_cents,created_at) VALUES(?,?,?,'synthetic','standard',18001,9001,9001,0,'2026-10-19T16:00:00Z')").run(uuid(),'approval-race',uuid());
+ eq((await accept('approval-race')).status,409);eq([row('approval-race').accepted_at,events('approval-race').length],[null,1]);
+ // Even unsigned work cannot have a deposit rewritten after being viewed,
+ // sent, communicated, or while an open change request is unresolved.
+ seed('already-sent',{status:'sent'});eq((await post('already-sent',request('already-sent')[0])).status,409);
+ seed('already-viewed');
+ db.prepare("UPDATE estimates SET first_viewed_at='2026-10-19T16:00:00Z' WHERE id='already-viewed'").run();
+ eq((await post('already-viewed',request('already-viewed')[0])).status,409);
+ const exposure=await (await ownerGet('already-viewed')).json();
+ eq([exposure.exceptionReview.customerHasViewed,exposure.exceptionReview.canReviewUnsignedDraft],[true,false]);
+ seed('communicated');
+ db.prepare("INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES('outbound','c-communicated','communicated','text_confirmed','estimate','Customer notified','2026-10-19')").run();
+ eq((await post('communicated',request('communicated')[0])).status,409);
+ seed('changes-open');
+ db.prepare("INSERT INTO estimate_change_requests(id,estimate_id,customer_id,message,status,created_at) VALUES('cr','changes-open','c-changes-open','Change requested','open','2026-10-19')").run();
+ eq((await post('changes-open',request('changes-open')[0])).status,409);
+ for(const exposed of ['already-sent','already-viewed','communicated','changes-open'])eq(events(exposed).length,0);
+ // Reusing a confirmation with a forged amount or revoked confirmation
+ // cannot claim the prior immutable event as a newly approved request.
+ const completed=events('mode-fixed')[0];
+ const [tampered]=request('mode-fixed','fixed',{fixedCents:1111,confirmationId:completed.confirmation_id,
+  expectedStatus:'draft',expectedTotalCents:18001,expectedDepositCents:9001,expectedSignedAt:null,
+  expectedContractVersion:null,expectedLastEventId:null});
+ eq((await post('mode-fixed',tampered)).status,409);
+ const [unconfirmed]=request('mode-fixed','fixed',{fixedCents:7000,confirmed:false,confirmationId:completed.confirmation_id,
+  expectedDepositCents:9001,expectedLastEventId:null});
+ eq((await post('mode-fixed',unconfirmed)).status,409);
  seed('sequence');const [w]=request('sequence');eq((await post('sequence',w)).status,201);
  const [restore]=request('sequence','restore-standard');eq((await post('sequence',restore)).status,201);
  eq([row('sequence').deposit_cents,events('sequence').length],[9001,2]);
@@ -99,7 +150,7 @@ try{
  eq((await post('paid',request('paid','waive',{expectedPaidCents:5000})[0])).status!==201,true);eq(events('paid').length,0);
  seed('pending');db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES('pending1','pending','Cash',5000,'pending','2026-10-19')").run();
  eq((await post('pending',request('pending')[0])).status,409);eq(events('pending').length,0);
- for(const kind of ['terms','signature','payment','checkout','billing','audit']){
+ for(const kind of ['terms','signature','payment','checkout','billing','audit','view','confirmed-message','open-change']){
   const id='race-'+kind;seed(id);const [req]=request(id);
   beforeBatch=()=>{
    if(kind==='terms')db.prepare('UPDATE estimates SET total_cents=24000 WHERE id=?').run(id);
@@ -107,6 +158,9 @@ try{
    if(kind==='payment')db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,'Cash',1000,'paid','2026-10-19')").run('p-'+id,id);
    if(kind==='checkout')db.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,'deposit',9001,'open','2026-10-19')").run('cs-'+id,id);
    if(kind==='billing')db.prepare("INSERT INTO invoices(id,estimate_id,customer_id,total_cents,created_at) VALUES(?,?,?,18001,'2026-10-19')").run('inv-'+id,id,'c-'+id);
+   if(kind==='view')db.prepare("UPDATE estimates SET first_viewed_at='2026-10-19T17:00:00Z' WHERE id=?").run(id);
+   if(kind==='confirmed-message')db.prepare("INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES(?,?,?,'text_confirmed','estimate','Customer notified','2026-10-19')").run('msg-'+id,'c-'+id,id);
+   if(kind==='open-change')db.prepare("INSERT INTO estimate_change_requests(id,estimate_id,customer_id,message,status,created_at) VALUES(?,?,?,'Customer requested review','open','2026-10-19')").run('cr-'+id,id,'c-'+id);
    if(kind==='audit')db.prepare("INSERT INTO deposit_policy_events(id,estimate_id,confirmation_id,actor_email,mode,previous_total_cents,previous_deposit_cents,new_deposit_cents,paid_principal_cents,created_at) VALUES(?,?,?,'synthetic-owner','standard',18001,9001,9001,0,'2026-10-19T13:00:00Z')").run(uuid(),id,uuid());
   };
   const response=await post(id,req);eq(response.status,409);eq(events(id).length,kind==='audit'?1:0);eq(row(id).deposit_cents,9001);
@@ -121,5 +175,5 @@ try{
  const editing=await edit.PATCH(new Request('https://synthetic.invalid/api/estimates/lost',{method:'PATCH',headers:{'content-type':'application/json'},
   body:JSON.stringify({items:[{name:'Updated work',description:'Synthetic',quantity:1,unit:'job',totalCents:18001}]})}),{params:Promise.resolve({id:'lost'})});
  eq(editing.status,409);eq(JSON.stringify(events('lost')),before);eq(row('lost').deposit_cents,1000);
- console.log('PASS '+checks+'/'+checks+': synthetic double-gated owner deposit writes; all six modes, replay identity, audit CAS, before-batch races, signed and paid refusal, lost acknowledgement, and edit protection. No hosted resources or payments.');
+ console.log('PASS '+checks+'/'+checks+': synthetic double-gated owner deposit writes; all six modes, owner audit, forged replay refusal, customer exposure and approval refusal, audit CAS, before-batch races, signed and paid refusal, lost acknowledgement, and edit protection. No hosted resources or payments.');
 }finally{db.close();}
