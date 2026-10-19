@@ -570,6 +570,8 @@ jobs:
         run: node scripts/test-estimate-editor-react-browser.mjs
       - name: Actual template editors and themed sidebar at phone tablet and desktop widths
         run: node scripts/test-template-layout-browser.mjs
+      - name: Actual job reports and costs survive connection loss in the current owner session
+        run: node scripts/test-job-session-offline-browser.mjs
       - name: Verify actual IndexedDB customer photos, ZIP restore and offline additions in Chrome
         run: node scripts/test-offline-photo-indexeddb-browser.mjs
       - name: Verify durable photo interruption receipts, native cross-tab locking and browser restart

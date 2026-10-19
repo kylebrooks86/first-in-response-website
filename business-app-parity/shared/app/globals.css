@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "../vendor/shadcn-tailwind-4.13.0.css";
+.offline-job-status{display:grid;gap:10px;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--secondary);color:var(--foreground);overflow-wrap:anywhere;font-size:14px;line-height:1.5}
+.offline-job-status button{min-height:44px;white-space:normal}
 
 /* Bound editors at the grid item, not by hiding overflow on the whole app.
    Native field-sizing:content must not size the page to a long agreement. */
