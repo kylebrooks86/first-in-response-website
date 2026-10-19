@@ -54,6 +54,8 @@ on:
       - 'business-app-parity/owner_windows_qa_update_review.ps1'
       - 'business-app-parity/rehearse_qa_additive_schema.py'
       - 'business-app-parity/test_rehearse_qa_additive_schema.py'
+      - 'business-app-parity/capture_existing_qa_schema_read_only.py'
+      - 'business-app-parity/test_capture_existing_qa_schema_read_only.py'
       - 'business-app-parity/test_owner_windows_qa_update_review.py'
       - 'business-app-parity/owner_windows_qa_update_publish.ps1'
       - 'business-app-parity/test_owner_windows_qa_update_publish.py'
@@ -211,6 +213,7 @@ jobs:
         run: python3 ../test_review_qa_update_schema.py
       - name: Rehearse original 23 to additive 25 QA migrations in disposable SQLite only
         run: python3 ../test_rehearse_qa_additive_schema.py
+          python3 ../test_capture_existing_qa_schema_read_only.py
       - name: Existing QA Worker update review must preserve all hosted customer records
         run: python3 ../test_owner_windows_qa_update_review.py
       - name: Code-only QA Worker updates must require distinct approval and preserve login/data
