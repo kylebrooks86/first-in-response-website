@@ -11,7 +11,7 @@ const money=(n:number)=>"$"+(n/100).toLocaleString(undefined,{minimumFractionDig
 function parseAmount(s:string):number{
  if(!/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/.test(s))throw Error("Enter a positive dollar amount using no more than two decimals.");
  const [d,c=""]=s.split(".");
- const value=BigInt(d)*100n+BigInt(c.padEnd(2,"0"));
+ const value=BigInt(d)*BigInt(100)+BigInt(c.padEnd(2,"0"));
  if(value>BigInt(Number.MAX_SAFE_INTEGER))throw Error("The amount is outside the permitted accounting range.");
  return Number(value);
 }
@@ -24,10 +24,10 @@ function parsePercent(s:string):number{
 }
 function preview(total:number,deposit:number,mode:Mode,amount:string):{required:number;basis?:number;fixed?:number}{
  if(!Number.isSafeInteger(total)||total<0||!Number.isSafeInteger(deposit)||deposit<0||deposit>total)throw Error("The stored estimate amounts need reconciliation.");
- let required=Number((BigInt(total)+1n)/2n),basis:undefined|number,fixed:undefined|number;
+ let required=Number((BigInt(total)+BigInt(1))/BigInt(2)),basis:undefined|number,fixed:undefined|number;
  if(mode==="waive")required=0;
  if(mode==="schedule-before-deposit")required=deposit;
- if(mode==="percentage"){basis=parsePercent(amount);required=Number((BigInt(total)*BigInt(basis)+5000n)/10000n);}
+ if(mode==="percentage"){basis=parsePercent(amount);required=Number((BigInt(total)*BigInt(basis)+BigInt(5000))/BigInt(10000));}
  if(mode==="fixed"){fixed=parseAmount(amount);required=fixed;}
  if(required>total)throw Error("The deposit cannot exceed the price after discounts.");
  return {required,...(basis===undefined?{}:{basis}),...(fixed===undefined?{}:{fixed})};
