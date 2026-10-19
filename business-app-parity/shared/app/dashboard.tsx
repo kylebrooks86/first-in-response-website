@@ -749,7 +749,7 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
 function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobSnapshotAccess}){
   const [open,setOpen]=useState(false);const [rows,setRows]=useState<ExpenseRow[]>([]);const [description,setDescription]=useState("");const [amount,setAmount]=useState("");const [category,setCategory]=useState("Supplies");const [saving,setSaving]=useState(false);const [saveError,setSaveError]=useState("");const [saveSuccess,setSaveSuccess]=useState("");
   const billingTotal=resolvedBillingTotalCents(estimate);
-  const loadRequest=useRef(0);const currentJob=useRef<string|null>(null);const [loading,setLoading]=useState(false);const [loadError,setLoadError]=useState("");const [loadedJob,setLoadedJob]=useState<string|null>(null);
+  const loadRequest=useRef(0);const currentJob=useRef<string|null>(null);const saveLock=useRef(false);const [loading,setLoading]=useState(false);const [loadError,setLoadError]=useState("");const [loadedJob,setLoadedJob]=useState<string|null>(null);
   const [snapshotAt,setSnapshotAt]=useState<string|null>(null);const [checkedEpoch,setCheckedEpoch]=useState<number|null>(null);const readOnly=Boolean(snapshotAt)||snapshots?.online===false||Boolean(snapshots&&checkedEpoch!==snapshots.networkEpoch);
   const setOpenSafe=(value:boolean)=>{if(!value){currentJob.current=null;loadRequest.current++;}else{setLoading(true);setLoadError("");}setOpen(value);};
   const load=async()=>{
@@ -776,11 +776,11 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
   };
   useEffect(()=>{if(!open)return;currentJob.current=estimate.id;void load();return()=>{currentJob.current=null;loadRequest.current++;};},[open,estimate.id,estimate.customerId]);const total=rows.reduce((sum,row)=>sum+row.amountCents,0);
   const add=async()=>{
-    if(saving||readOnly||navigator.onLine===false||currentJob.current!==estimate.id)return;
+    if(saveLock.current||saving||readOnly||navigator.onLine===false||currentJob.current!==estimate.id)return;
     setSaveError("");setSaveSuccess("");
     const entered=amount.trim();
     if(!description.trim()){setSaveError("Enter a description for this job cost.");return;}
-    if(!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,2})?$/.test(entered)){
+    if(!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(entered)){
       setSaveError("Enter an amount in dollars with no more than two decimal places.");return;
     }
     const [dollars,cents=""]=entered.split(".");
@@ -789,7 +789,7 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
       setSaveError("Enter a valid positive expense amount.");return;
     }
     const amountCents=Number(calculated),jobId=estimate.id,customerId=estimate.customerId;
-    setSaving(true);
+    saveLock.current=true;setSaving(true);
     try{
       const response=await fetch("/api/expenses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:jobId,category,description:description.trim(),amountCents,incurredAt:new Date().toISOString()})});
       const result=await response.json() as {expense?:ExpenseRow;error?:string};
@@ -803,7 +803,7 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
       }
     }catch(error){
       if(currentJob.current===jobId)setSaveError(error instanceof Error?error.message+" Refresh the list before attempting another entry.":"The result is uncertain. Refresh costs before attempting another entry.");
-    }finally{if(currentJob.current===jobId)setSaving(false);}
+    }finally{saveLock.current=false;if(currentJob.current===jobId)setSaving(false);}
   };
   return <Dialog open={open} onOpenChange={setOpenSafe}>
     <DialogTrigger asChild><Button variant="outline"><CircleDollarSign className="h-4 w-4"/> Job costs</Button></DialogTrigger>
