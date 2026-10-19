@@ -34,8 +34,13 @@ export async function POST(request:Request,{params}:{params:Promise<{token:strin
   if(!e)return reply({error:'Estimate not found.'},404);
   const receipt={ok:true,estimateId:e.id,version:body.version,documentDigest:docHash,acceptedAt:e.acceptedAt,signedAt:e.signedAt,signedName:e.signedName,photoRelease:e.photoRelease,canSchedule:false,automaticPayment:false};
   if(e.acceptedAt){
-   if(e.contractVersion===acceptedVersion&&e.signedName===name&&e.photoRelease===photo&&e.signedAt)
-    return reply({...receipt,replayed:true});
+   if(e.contractVersion===acceptedVersion&&e.signedName===name&&e.photoRelease===photo&&e.signedAt){
+    const signed=await env.DB.prepare("SELECT * FROM deposit_agreement_snapshots WHERE estimate_id=? AND document_version=?").bind(e.id,body.version).first<Record<string,unknown>>();
+    if(signed?.event_id===body.version.slice('deposit-exception-v1:'.length)&&signed?.document_digest===docHash&&
+       signed?.signed_name===name&&signed?.photo_release===photo&&signed?.signed_at===e.signedAt&&signed?.accepted_at===e.acceptedAt)
+      return reply({...receipt,replayed:true});
+    return reply({error:'Signed document snapshot could not be independently verified. No records changed.'},409);
+   }
    return reply({error:'A different or already accepted agreement is on file. Contact First In Response Exteriors.'},409);
   }
   if(!['draft','sent'].includes(e.status)||e.signedAt||!e.firstViewedAt)return reply({error:'The revised agreement was not viewed or is no longer signable.'},409);
@@ -56,13 +61,15 @@ export async function POST(request:Request,{params}:{params:Promise<{token:strin
   try{
    result=await env.DB.batch([
     env.DB.prepare(guardedSql).bind(now,now,name,photo,acceptedVersion,e.id,token,e.status,e.totalCents,e.depositCents,e.subtotalCents,e.discountCents,scope,audit.results[0].id),
-    env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,'estimate_accepted',?,?,customer_id,id,? FROM estimates WHERE id=? AND accepted_at=? AND contract_version=? AND NOT EXISTS(SELECT 1 FROM notifications WHERE type='estimate_accepted' AND estimate_id=?)")
-     .bind(crypto.randomUUID(),e.customer+' signed revised deposit terms','Customer signed deposit revision '+body.version+'. Scheduling still requires separate eligibility.',now,e.id,now,acceptedVersion,e.id)
+    env.DB.prepare("INSERT INTO deposit_agreement_snapshots(event_id,estimate_id,document_version,document_digest,total_cents,deposit_cents,mode,scope_json,agreement_text,signed_name,photo_release,signed_at,accepted_at) SELECT ?,id,?,?,?,?,?,?,?,?,?,?,? FROM estimates WHERE id=? AND accepted_at=? AND signed_at=? AND contract_version=? AND total_cents=? AND deposit_cents=? AND (SELECT id FROM deposit_policy_events WHERE estimate_id=estimates.id ORDER BY created_at DESC,id DESC LIMIT 1)=?")
+     .bind(audit.results[0].id,body.version,docHash,e.totalCents,e.depositCents,audit.results[0].mode,scope,SERVICE_AGREEMENT,name,photo,now,now,e.id,now,now,acceptedVersion,e.totalCents,e.depositCents,audit.results[0].id),
+    env.DB.prepare("INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,'estimate_accepted',?,?,customer_id,id,? FROM estimates WHERE id=? AND accepted_at=? AND contract_version=? AND EXISTS(SELECT 1 FROM deposit_agreement_snapshots WHERE estimate_id=? AND document_version=? AND document_digest=?) AND NOT EXISTS(SELECT 1 FROM notifications WHERE type='estimate_accepted' AND estimate_id=?)")
+     .bind(crypto.randomUUID(),e.customer+' signed revised deposit terms','Customer signed deposit revision '+body.version+'. Scheduling still requires separate eligibility.',now,e.id,now,acceptedVersion,e.id,body.version,docHash,e.id)
    ]);
   }catch{
    return reply({error:'Signature save is uncertain. Retry the same exact agreement to review its receipt; no payment was initiated.',saveUncertain:true,version:body.version},503);
   }
-  if(result[0]?.meta?.changes!==1)return reply({error:'Estimate or deposit terms changed during signing. Refresh and review before trying again.',version:body.version},409);
+  if(result[0]?.meta?.changes!==1||result[1]?.meta?.changes!==1)return reply({error:'Estimate or signed document changed during signing. Refresh and review before trying again.',version:body.version},409);
   return reply({ok:true,estimateId:e.id,version:body.version,documentDigest:docHash,acceptedAt:now,signedAt:now,signedName:name,photoRelease:photo,canSchedule:false,automaticPayment:false},201);
  }catch{return reply({error:'Cannot confirm revised agreement. Refresh and retry the exact same request; no payment was initiated.',saveUncertain:true},503);}
 }
