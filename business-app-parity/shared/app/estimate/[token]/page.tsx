@@ -8,6 +8,8 @@ import { PayButton } from "../../pay/[id]/pay-button";
 import { SERVICE_AGREEMENT, templateByKey } from "../../../lib/fire-templates";
 import { serviceDescriptionFor } from "../../../lib/fire-services";
 import { paymentHandles } from "../../../lib/payment-methods";
+import {agreementDigest,agreementScope,validateAgreementItems} from "../../../lib/deposit-agreement-commitment.mjs";
+import {RevisedDepositAcceptButton} from "./revised-deposit-accept-button";
 import {describeRevisedDepositTerms} from "../../../lib/deposit-agreement-revision.mjs";
 
 export const dynamic="force-dynamic";
@@ -39,11 +41,14 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   // session verification; never show misleading or stale deposit terms.
   const syntheticOwnerException=('FIRE_DEPOSIT_POLICY_CANDIDATE' in env&&env.FIRE_DEPOSIT_POLICY_CANDIDATE==='synthetic-tests-only')&&
     ('FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE' in env&&env.FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE==='synthetic-contract-tests-only');
+  const syntheticSignatureEnabled=syntheticOwnerException&&('FIRE_DEPOSIT_AGREEMENT_CANDIDATE' in env&&env.FIRE_DEPOSIT_AGREEMENT_CANDIDATE==='synthetic-signature-tests-only');
   if(syntheticOwnerException){
     // Read-only versioned disclosure. No legacy signature, checkout, or
     // payment instructions may leak through the stale 50% agreement.
     let held=false;
     let amendment:ReturnType<typeof describeRevisedDepositTerms>|null=null;
+    let signedScope:{id:string;name:string;description:string;quantity:number;unit:string;total_cents:number}[]=[];
+    let expectedDigest:string|null=null;
     try{
       const history=await env.DB.prepare("SELECT * FROM deposit_policy_events WHERE estimate_id=? ORDER BY created_at DESC,id DESC LIMIT 101").bind(row.id).all<Record<string,unknown>>();
       if(history.results.length){
@@ -57,6 +62,17 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
         }
       }
     }catch{held=true;amendment=null;}
+    if(held&&amendment&&syntheticSignatureEnabled){
+      try{
+        const source=await env.DB.prepare("SELECT id,name,description,quantity,unit,total_cents FROM estimate_items WHERE estimate_id=? ORDER BY rowid").bind(row.id).all<{id:string;name:string;description:string;quantity:number;unit:string;total_cents:number}>();
+        if(!validateAgreementItems(source.results,row.subtotalCents,row.discountCents,row.totalCents))
+          throw Error('Service scope is invalid');
+        signedScope=source.results;
+        const e=await env.DB.prepare("SELECT mode FROM deposit_policy_events WHERE id=? AND estimate_id=?").bind(amendment.eventId,row.id).first<{mode:string}>();
+        if(!e||e.mode!==amendment.mode)throw Error('Audit version changed');
+        expectedDigest=await agreementDigest({eventId:amendment.eventId,totalCents:amendment.totalCents,depositCents:amendment.depositCents,mode:amendment.mode,scope:agreementScope(signedScope),terms:SERVICE_AGREEMENT});
+      }catch{amendment=null;expectedDigest=null;signedScope=[];}
+    }
     // Viewing revised terms freezes the exposed draft before displaying it.
     // Without this, an owner could replace terms after the customer sees them.
     // The guarded D1 batch both records the first view and its notification;
@@ -85,9 +101,16 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
         <p>{amendment.explanation}</p>
         <p>{amendment.requirement}</p>
         <p>Revision reference: <code>{amendment.version}</code></p>
+        {expectedDigest&&<div className="portal-service-list">
+          <h2>Included services and scope</h2>
+          {signedScope.map(item=><div className="pay-line" key={item.id}><div><strong>{item.name}</strong><p>{item.description}</p><small>{item.quantity} {item.unit}</small></div><strong>{currency(item.total_cents)}</strong></div>)}
+        </div>}
         <div className="contract-box"><strong>Service Agreement &amp; Liability Waiver</strong><p>{SERVICE_AGREEMENT}</p></div>
+        {syntheticSignatureEnabled&&expectedDigest&&!ownerPreview&&
+          <RevisedDepositAcceptButton token={token} version={amendment.version} documentDigest={expectedDigest}/>}
+
       </div>:<p>Deposit terms need reconciliation. Contact First In Response Exteriors for an updated agreement before proceeding.</p>}
-      <p className="pay-note">This is not an accepted agreement. Approval, scheduling, and payments are unavailable until revised terms are formally issued and signed.</p>
+      <p className="pay-note">{syntheticSignatureEnabled&&expectedDigest?"Signing approves these exact revised terms. Scheduling and payments remain separate and disabled here.":"This is not an accepted agreement. Approval, scheduling, and payments are unavailable until revised terms are formally issued and signed."}</p>
     </section></main>;
   }
   const itemResult=await env.DB.prepare(`SELECT name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC`).bind(row.id).all<{name:string;description:string;quantity:number;unit:string;totalCents:number}>();
