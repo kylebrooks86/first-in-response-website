@@ -14,7 +14,7 @@
     "No payment initiation, automatic payment retry, ledger rewrite, new database table, migration, resource or deployed activation"
   ],
   "verification":{
-    "routeAndAtomicSql":"84/84 per QA, LIVE, Doomsday and staging candidates: auth/privacy, partial deposits, tips, pending/failed exclusion, principal refunds, odd cents, zero totals, changed terms, unsafe amounts, legacy schedule retention, active checkout/refund/billing/invoice holds, unsupported overrides, gate-off compatibility, four injected pre-commit races and committed-response uncertainty",
+    "routeAndAtomicSql":"85/85 per QA, LIVE, Doomsday and staging candidates: auth/privacy, partial deposits, tips, pending/failed exclusion, principal refunds, odd cents, zero totals, changed terms, unsafe amounts, legacy schedule retention, active checkout/refund/billing/invoice holds, unsupported overrides, gate-off compatibility, four injected pre-commit races and committed-response uncertainty; invoiced jobs with revised totals withhold scheduling balance fields rather than misreporting the original estimate balance",
     "builtQaNativeD1HttpsChromium":"63/63, including sixteen deposit-policy checks: actual native guarded scheduling, blocked saves at 320/390/768/1366 widths, retained date input, exact remaining amount, full-deposit unlock, unchanged ledger/signature/marketing refusal, existing unpaid scheduled-job rescheduling and anonymous refusal",
     "networkIsolation":"No external request dispatched or uncaught framework client errors; no map exception used",
     "financial":"194 invoice-state and 208 customer/invoice-balance checks, processing-fee and public-document suites per four candidates; final-tipping suite on LIVE candidate",
