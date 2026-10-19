@@ -215,6 +215,7 @@ jobs:
         run: |
           python3 ../test_rehearse_qa_additive_schema.py
           python3 ../test_capture_existing_qa_schema_read_only.py
+          python3 ../test_review_existing_qa_capture_offline.py
       - name: Existing QA Worker update review must preserve all hosted customer records
         run: python3 ../test_owner_windows_qa_update_review.py
       - name: Code-only QA Worker updates must require distinct approval and preserve login/data
