@@ -306,6 +306,10 @@ jobs:
         run: node --experimental-sqlite scripts/test-checkout-owner-reconciliation.mjs
       - name: Verify manual payment retries preserve same cents and ID across iPhone restarts
         run: node --experimental-strip-types scripts/test-manual-payment-retry-state.mjs
+      - name: Verify payment entry never claims an unpaid estimate has a recorded deposit
+        run: node scripts/test-payment-entry-state.mjs
+      - name: Verify invoice loading and payment refresh recover without stale payment controls
+        run: node scripts/test-invoice-load-errors.mjs
       - name: Verify refund request survives iPhone app restart and uncertain responses
         run: node --experimental-strip-types scripts/test-refund-retry-state.mjs
       - name: Synthetic Stripe refund and webhook replay regression

@@ -37,5 +37,8 @@ const form=source.slice(source.indexOf('function RecordPayment('),source.indexOf
 eq(form.includes('loadManualPaymentRetry(storage(),estimate.id)'),true,'Actual owner form restores interrupted payments on reopen');
 eq(form.indexOf('saveManualPaymentRetry(storage(),estimate.id,attempt)')<form.indexOf('fetch("/api/payments"'),true,'Actual owner form stores operation BEFORE the payment API request');
 eq(form.includes('setRetryPending(true)')&&form.includes('disabled={saving||retryPending}'),true,'Actual owner form locks edits while prior payment awaits confirmation');
-eq(form.indexOf('clearManualPaymentRetry(storage(),estimate.id)')>form.indexOf('if(confirmed!==null)'),true,'Actual owner form clears persisted ID only on confirmed server acknowledgement');
+eq(form.includes('const finishConfirmed=(paid:number)=>{\n    clearManualPaymentRetry(storage(),estimate.id)')&&form.includes('if(confirmed!==null)finishConfirmed(confirmed);')&&form.includes('if(confirmed!==null){\n      // A parent refresh failure cannot turn a confirmed payment into a retry.\n      finishConfirmed(confirmed);'),true,'Read-only review and explicit save share receipt-confirmed cleanup only');
+eq(form.includes('if(retryPending&&(!reviewedMissing||!retryConfirmed))'),true,'Retry requires a missing-receipt review and separate explicit owner confirmation');
+const review=form.slice(form.indexOf('const reviewPending=async()=>'),form.indexOf('const save=async()=>'));
+eq(review.includes('checkStored(activeManual.current)')&&!review.includes('fetch("/api/payments"'),true,'Read-only review cannot create another payment');
 console.log('PASS '+checks+'/'+checks+' actual manual payment retry and saved-identity integrity assertions.');

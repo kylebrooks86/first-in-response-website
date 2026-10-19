@@ -3,6 +3,8 @@
 @import "../vendor/shadcn-tailwind-4.13.0.css";
 .offline-job-status{display:grid;gap:10px;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--secondary);color:var(--foreground);overflow-wrap:anywhere;font-size:14px;line-height:1.5}
 .offline-job-status button{min-height:44px;white-space:normal}
+.pending-payment-review{display:grid;gap:10px;min-width:0;max-width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--secondary);color:var(--foreground);overflow-wrap:anywhere}
+.pending-payment-review p{margin:0;font-size:14px;line-height:1.5}.pending-payment-review>span{font-size:12px}.pending-payment-review label{display:flex;align-items:flex-start;gap:10px;min-height:44px;font-size:14px;line-height:1.5}.pending-payment-review input[type="checkbox"]{flex:0 0 22px;width:22px;height:22px;margin:2px 0}.pending-payment-review button{min-height:44px;white-space:normal}
 
 /* Bound editors at the grid item, not by hiding overflow on the whole app.
    Native field-sizing:content must not size the page to a long agreement. */

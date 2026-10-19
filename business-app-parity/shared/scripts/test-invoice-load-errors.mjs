@@ -7,14 +7,14 @@ const require=createRequire(import.meta.url);
 const source=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='InvoicesView');
-let state=[],cursor=0,effect,requests=[],responder;
+let state=[],refs=[],cursor=0,refCursor=0,effect,requests=[],responder;
 const Button=()=>null,RecordPayment=()=>null,Receipt=()=>null,ExternalLink=()=>null;
 const context={exports:{},require,Error,Array,Button,RecordPayment,Receipt,ExternalLink,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],value=>{state[i]=typeof value==='function'?value(state[i]):value;}];},
- useRef:initial=>({current:initial}),useEffect(fn){effect=fn;},fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,
+ useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){if(String(fn).includes('void load()'))effect=fn;},fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,
 };
 vm.runInNewContext(ts.transpileModule(view.getText(ast)+'\nexports.view=InvoicesView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
-function render(searchQuery=''){cursor=0;return context.exports.view({searchQuery});}
+function render(searchQuery=''){cursor=0;refCursor=0;return context.exports.view({searchQuery});}
 function nodes(tree){const result=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;result.push(n);walk(n.props?.children);}walk(tree);return result;}
 async function settle(){for(let i=0;i<16;i++)await Promise.resolve();assert.equal(state[1],false,'Load must settle');}
 const ok=invoices=>({ok:true,json:async()=>({invoices})});
@@ -43,7 +43,7 @@ for(const [fail,message] of failures)for(const populated of [false,true]){
  const recovered=nodes(render());equal(recovered.some(n=>n.props?.role==='alert'),false);
  const action=recovered.find(n=>n.type===RecordPayment);assert.ok(action);checks++;
  equal(action.props.estimate.id,'job-synthetic');equal(action.props.estimate.status,'completed');equal(action.props.estimate.depositCents,5000);equal(action.props.estimate.paidCents,2000);
- equal(recovered.find(n=>n.type==='a').props.href,'/invoice/synthetic-token');
+ equal(recovered.find(n=>n.type==='a').props.href,'/invoice/synthetic-token?ownerPreview=1&from=invoices');
 }
 // Search misses must not imply that loaded invoice records don't exist.
 state=[prior,false,''];let all=nodes(render('no-match'));equal(all.some(n=>n.props?.children==='No matching invoices'),true);equal(all.some(n=>n.props?.children==='No invoices yet'),false);

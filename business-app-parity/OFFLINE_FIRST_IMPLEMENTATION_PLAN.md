@@ -1,5 +1,13 @@
 # Offline-first Business App implementation handoff — 2026-10-09
 
+## Owner release-sequencing update — 2026-10-18
+
+Prioritize a thoroughly tested core online release candidate within approximately 14 days if the evidence and remaining dependencies permit; this is a target, not a delivery guarantee. Finish existing customer, estimate, scheduling, invoice, payment, agreement and job-management workflows before optional expansion. Confirmed iPhone defects, financial integrity, authentication, database isolation, backups, recovery and release approvals remain mandatory.
+
+Continue the offline-first roadmap below, but advanced persistent offline documents, cold launch, conflict-aware editing and optional enhancements must not unnecessarily delay an otherwise dependable online candidate. Preserve completed offline work. Commit 588da6d6abfe556aa7c8ac29312701373f484325 provides verified read-only job report/cost snapshots in the current owner session; it does not establish persistent encrypted offline job records or offline restart. The original audit below describes the earlier checkpoint, not the complete current implementation.
+
+The owner has confirmed smooth scrolling in existing installed apps. Do not repeat investigation of an unobserved shaking defect; new candidates still require their own mobile acceptance. Official release acceptance remains 3/10 (30%) until additional gates have actual acceptance evidence.
+
 ## Owner goal and current boundary
 
 The installed iPhone Home Screen app should support everyday business work in airplane mode while preserving the original app's smoothness and all newer capabilities. Internet-dependent services may remain online. Additional spending must remain USD 0. No deployment, migration, remote database write, Stripe action or paid provisioning is authorized by this plan.
