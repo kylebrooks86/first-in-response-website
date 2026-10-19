@@ -57,6 +57,22 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
         }
       }
     }catch{held=true;amendment=null;}
+    // Viewing revised terms freezes the exposed draft before displaying it.
+    // Without this, an owner could replace terms after the customer sees them.
+    // The guarded D1 batch both records the first view and its notification;
+    // a concurrent pricing/audit/payment change displays only a review hold.
+    if(held&&amendment&&!ownerPreview&&!row.firstViewedAt){
+      try{
+        const viewedAt=new Date().toISOString();
+        const recorded=await env.DB.batch([
+          env.DB.prepare("UPDATE estimates SET first_viewed_at=?,status=CASE WHEN status='draft' THEN 'sent' ELSE status END WHERE id=? AND first_viewed_at IS NULL AND status IN ('draft','sent') AND signed_at IS NULL AND accepted_at IS NULL AND total_cents=? AND deposit_cents=? AND (SELECT id FROM deposit_policy_events WHERE estimate_id=? ORDER BY created_at DESC,id DESC LIMIT 1)=? AND NOT EXISTS(SELECT 1 FROM payments WHERE estimate_id=?) AND NOT EXISTS(SELECT 1 FROM invoices WHERE estimate_id=?) AND NOT EXISTS(SELECT 1 FROM payment_checkout_sessions WHERE estimate_id=? AND status='open') AND NOT EXISTS(SELECT 1 FROM payment_refunds WHERE estimate_id=? AND status='pending')")
+            .bind(viewedAt,row.id,amendment.totalCents,amendment.depositCents,row.id,amendment.eventId,row.id,row.id,row.id,row.id),
+          env.DB.prepare("INSERT INTO notifications(id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,'estimate_viewed',?,?,customer_id,id,? FROM estimates WHERE id=? AND first_viewed_at=? AND NOT EXISTS(SELECT 1 FROM notifications WHERE type='estimate_viewed' AND estimate_id=?)")
+            .bind(crypto.randomUUID(),row.customer+' viewed revised deposit terms','Proposed deposit terms viewed; customer approval and payment are still pending.',viewedAt,row.id,viewedAt,row.id)
+        ]);
+        if(recorded[0]?.meta?.changes!==1)amendment=null;
+      }catch{amendment=null;}
+    }
     if(held)return <main className="pay-page"><section className="pay-card estimate-portal">
       <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
       <h1>{amendment?"Revised deposit terms for review":"Updated estimate required"}</h1>

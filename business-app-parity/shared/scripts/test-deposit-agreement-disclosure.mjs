@@ -32,6 +32,7 @@ const extreme={...audit,mode:'percentage',new_deposit_cents:2251799813685248,pre
 eq(describeRevisedDepositTerms({...base,estimate:{...estimate,totalCents:Number.MAX_SAFE_INTEGER,depositCents:extreme.new_deposit_cents},latestEvent:extreme}).totalDisplay,'$90071992547409.91');
 const page=readFileSync('app/estimate/[token]/page.tsx','utf8');
 eq(page.includes('describeRevisedDepositTerms')&&page.includes('Revision reference:'),true);
-eq(page.indexOf('if(held)return')<page.indexOf('confirmPayment(sessionId'),true);
+eq(page.indexOf('if(held)return')<page.indexOf('await confirmPayment(sessionId'),true);
 eq(page.includes('Approval, scheduling, and payments are unavailable until revised terms are formally issued and signed.'),true);
+eq(page.includes('first_viewed_at=?')&&page.includes('amendment.eventId')&&page.includes('if(recorded[0]?.meta?.changes!==1)amendment=null'),true);
 console.log('PASS '+n+'/'+n+': versioned six-mode customer deposit terms, exact cents, unchanged principal, signed/payment/refund/history refusals. Read-only; no checkout.');
