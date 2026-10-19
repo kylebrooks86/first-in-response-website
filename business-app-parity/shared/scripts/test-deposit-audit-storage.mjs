@@ -22,9 +22,14 @@ try{
  fails(()=>insert({...base,id:'event2',confirmation_id:'confirm2',new_deposit_cents:18002}),/CHECK/);
  fails(()=>insert({...base,id:'event2',confirmation_id:'confirm2',requires_customer_reapproval:0}),/CHECK/);
  fails(()=>insert({...base,id:'event2',confirmation_id:'confirm2',mode:'schedule-before-deposit',new_deposit_cents:9001,schedule_before_collection:0}),/CHECK/);
+ // Financial audit amounts near Number.MAX_SAFE_INTEGER are computed exactly,
+ // with integer-only SQL (not imprecise floating point arithmetic).
+ db.exec("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES('large','customer','approved',9007199254740991,9007199254740991,4503599627370496,'2026-10-19');");
+ const huge={...base,id:'huge',estimate_id:'large',confirmation_id:'confirm-huge',mode:'percentage',previous_total_cents:9007199254740991,previous_deposit_cents:4503599627370496,new_deposit_cents:2251799813685248,paid_principal_cents:0,percent_basis_points:2500,previous_signed_at:null,requires_customer_reapproval:0};
+ insert(huge);eq(db.prepare("SELECT new_deposit_cents AS amount FROM deposit_policy_events WHERE id='huge'").get().amount,2251799813685248);
  const def={...base,id:'event2',confirmation_id:'confirm2',mode:'schedule-before-deposit',new_deposit_cents:9001,schedule_before_collection:1};
- insert(def);eq(db.prepare('SELECT COUNT(*) c FROM deposit_policy_events').get().c,2);
- const shape=()=>({estimates:[{id:'estimate'}],deposit_policy_events:[structuredClone(base),structuredClone(def)]});
+ insert(def);eq(db.prepare('SELECT COUNT(*) c FROM deposit_policy_events').get().c,3);
+ const shape=()=>({estimates:[{id:'estimate'},{id:'large'}],deposit_policy_events:[structuredClone(base),structuredClone(def),structuredClone(huge)]});
  const corrupt=[
   t=>{t.deposit_policy_events[1].estimate_id='absent'},
   t=>{t.deposit_policy_events[1].confirmation_id='confirm1'},
@@ -39,7 +44,7 @@ try{
  eq(validateDepositAuditIntegrity({estimates:[]}),null);
  eq(validateDepositAuditIntegrity({estimates:[]},true),'Missing declared deposit audit history.');
  eq(validateDepositAuditIntegrity({estimates:[],deposit_policy_events:{}}),'Deposit audit history must be an array.');
- eq(db.prepare("SELECT COUNT(*) c FROM deposit_policy_events").get().c,2);
+ eq(db.prepare("SELECT COUNT(*) c FROM deposit_policy_events").get().c,3);
  eq(db.prepare("SELECT deposit_cents d,total_cents t FROM estimates WHERE id='estimate'").get().d,9001);
  eq(db.prepare("SELECT COUNT(*) c FROM payments").get().c,0);
  console.log('PASS '+n+'/'+n+': additive audit schema, foreign keys, append-only triggers, confirmation uniqueness, restored-history validation, corruption refusal; untouched estimate and payment ledger.');

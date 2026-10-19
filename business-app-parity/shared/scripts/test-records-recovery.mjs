@@ -36,7 +36,8 @@ try{
  ('partial','payment','job',2500,'manual','succeeded',NULL,'2026-10-09'),
  ('tip-partial','tip','job',200,'stripe','succeeded','re_synthetic_tip','2026-10-09'),
  ('pending','payment','job',1000,'stripe','pending',NULL,'2026-10-09'),
- ('failed','payment','job',9999,'stripe','failed','re_synthetic_failed','2026-10-09');`);
+ ('failed','payment','job',9999,'stripe','failed','re_synthetic_failed','2026-10-09');
+ INSERT INTO deposit_policy_events(id,estimate_id,confirmation_id,actor_email,mode,previous_total_cents,previous_deposit_cents,new_deposit_cents,paid_principal_cents,schedule_before_collection,requires_customer_reapproval,created_at) VALUES('audit-standard','job','confirm-standard','synthetic-owner@example.invalid','standard',10000,5000,5000,7500,0,0,'2026-10-09T12:00:00Z');`);
  const adapter=db=>({prepare(query){return {query,args:[],bind(...args){this.args=args;return this;},async all(){return {results:db.prepare(query).all(...this.args)};}};},async batch(statements){return statements.map(s=>({results:db.prepare(s.query).all(...s.args)}));}});
  globalThis.__recordsRecoveryDb=adapter(sourceDb);
  const raw=readFileSync(join(root,'app/api/backup/route.ts'),'utf8');
@@ -56,7 +57,7 @@ const restorePropertyRecords=()=>{throw Error('Property restore must not run wit
 `;
  const source=globals+raw.replace(/^import .*?;\n/gm,'').replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');
  const backupApi=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64'));
- const exported=await backupApi.GET();equal(exported.status,200);const backup=await exported.json();equal(backup.tables.payment_refunds.length,4);equal(validateRefundIntegrity(backup.tables),null);
+ const exported=await backupApi.GET();equal(exported.status,200);const backup=await exported.json();equal(backup.tables.payment_refunds.length,4);equal(validateRefundIntegrity(backup.tables),null);equal(backup.tables.deposit_policy_events.length,1);equal(backup.includes.depositPolicyAuditHistory,true);equal(validateDepositAuditIntegrity(backup.tables,true),null);
  const backupPath=join(work,'backup.json');const save=payload=>writeFileSync(backupPath,JSON.stringify(payload));save(backup);
  const invoke=(file,args=[],env={})=>spawnSync(process.execPath,[join(work,'scripts',file),...args],{cwd:work,encoding:'utf8',env:{...process.env,...env},maxBuffer:8*1024*1024});
  const validate=()=>invoke('validate-records-backup.mjs',[backupPath]);
@@ -66,9 +67,9 @@ const restorePropertyRecords=()=>{throw Error('Property restore must not run wit
  let result=restore(targetPath,false);equal(result.status,0,result.stderr);equal(new DatabaseSync(targetPath).prepare('SELECT COUNT(*) n FROM customers').get().n,0,'dry run writes nothing');
  result=restore(targetPath);equal(result.status,0,result.stderr);assert.match(result.stdout,/restoredAndVerified/);checks++;
  const target=new DatabaseSync(targetPath);globalThis.__recordsRecoveryDb=adapter(target);const reexport=await (await backupApi.GET()).json();
- for(const table of ['customers','estimates','payments','payment_refunds'])equal(reexport.tables[table],backup.tables[table],`${table} round trip`);
+ for(const table of ['customers','estimates','payments','payment_refunds','deposit_policy_events'])equal(reexport.tables[table],backup.tables[table],`${table} round trip`);
  equal(target.prepare("SELECT SUM(amount_cents) n FROM payments WHERE type NOT IN ('Tip','Tip Refund')").get().n,7500);equal(target.prepare("SELECT SUM(amount_cents) n FROM payments WHERE type IN ('Tip','Tip Refund')").get().n,800);
- result=restore(targetPath);equal(result.status,0,result.stderr);assert.match(result.stdout,/Nothing to restore/);checks++;equal(target.prepare('SELECT COUNT(*) n FROM payment_refunds').get().n,4,'retry does not duplicate requests');
+ result=restore(targetPath);equal(result.status,0,result.stderr);assert.match(result.stdout,/Nothing to restore/);checks++;equal(target.prepare('SELECT COUNT(*) n FROM payment_refunds').get().n,4,'retry does not duplicate requests');equal(target.prepare('SELECT COUNT(*) n FROM deposit_policy_events').get().n,1,'retry preserves immutable audit');
  // Existing mutable records survive restoration; immutable conflicts fail before writes.
  target.exec("UPDATE customers SET name='Newer customer name' WHERE id='customer'");result=restore(targetPath);equal(result.status,0,result.stderr);equal(target.prepare("SELECT name FROM customers WHERE id='customer'").get().name,'Newer customer name');
  target.exec("UPDATE payments SET amount_cents=9000 WHERE id='payment'");result=restore(targetPath);assert.notEqual(result.status,0);checks++;assert.match(result.stderr,/conflicts/);checks++;target.exec("UPDATE payments SET amount_cents=10000 WHERE id='payment'");
@@ -85,6 +86,8 @@ const restorePropertyRecords=()=>{throw Error('Property restore must not run wit
  ['duplicate ledger provider',t=>t.payments.push({...t.payments.find(r=>r.id==='partial-ledger'),id:'duplicate-ledger'})],
  ['duplicate record',t=>t.customers.push({...t.customers[0]})],
  ['malformed refund collection',t=>t.payment_refunds={}],
+ ['audit tamper',t=>t.deposit_policy_events[0].mode='waive'],
+ ['audit forged principal',t=>t.deposit_policy_events[0].new_deposit_cents=10001],
  ];
  for(const [name,mutate] of variants){
   const bad=structuredClone(backup);mutate(bad.tables);save(bad);
@@ -102,7 +105,7 @@ const restorePropertyRecords=()=>{throw Error('Property restore must not run wit
  const interrupted=new DatabaseSync(interruptedPath);equal(interrupted.prepare('SELECT COUNT(*) n FROM customers').get().n,1);equal(interrupted.prepare('SELECT COUNT(*) n FROM payments').get().n,4);equal(interrupted.prepare('SELECT COUNT(*) n FROM payment_refunds').get().n,0);
  result=restore(interruptedPath);equal(result.status,0,result.stderr);equal(interrupted.prepare('SELECT COUNT(*) n FROM payment_refunds').get().n,4);equal(interrupted.prepare('SELECT SUM(amount_cents) n FROM payments').get().n,8300);result=restore(interruptedPath);equal(result.status,0,result.stderr);
  // Verified older snapshots may omit optional recovery/refund tables and newer columns.
- const older=structuredClone(backup.tables);delete older.payment_refunds;delete older.invoice_items;delete older.invoice_revisions;delete older.payment_checkout_sessions;older.payments=older.payments.filter(r=>!String(r.provider_id).startsWith('refund:'));
+ const older=structuredClone(backup.tables);delete older.payment_refunds;delete older.invoice_items;delete older.invoice_revisions;delete older.payment_checkout_sessions;delete older.deposit_policy_events;older.payments=older.payments.filter(r=>!String(r.provider_id).startsWith('refund:'));
  for(const row of older.estimates)for(const field of ['appreciation_discount','additional_discount_type','additional_discount_value'])delete row[field];
  save({backup_format:'FIRE App live database snapshot',format_version:1,verification:{all_tables_complete:true,truncated:false},tables:Object.fromEntries(Object.entries(older).map(([k,rows])=>[k,{rows}]))});equal(validate().status,0);const legacyPath=join(work,'older.db');makeDb(legacyPath).close();result=restore(legacyPath);equal(result.status,0,result.stderr);const legacyDb=new DatabaseSync(legacyPath);equal(legacyDb.prepare('SELECT COUNT(*) n FROM payment_refunds').get().n,0);equal(legacyDb.prepare('SELECT total_cents n FROM estimates').get().n,10000);legacyDb.close();
  // Older verified exports without request metadata may retain historic refund ledgers.

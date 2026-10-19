@@ -22,7 +22,7 @@ CREATE TABLE deposit_policy_events (
  CHECK ((mode='schedule-before-deposit' AND schedule_before_collection=1 AND new_deposit_cents=previous_deposit_cents) OR (mode<>'schedule-before-deposit' AND schedule_before_collection=0)),
  CHECK (mode<>'waive' OR new_deposit_cents=0),
  CHECK (mode NOT IN ('standard','restore-standard') OR new_deposit_cents=(previous_total_cents/2)+(previous_total_cents%2)),
- CHECK (mode<>'percentage' OR new_deposit_cents=CAST((previous_total_cents*1.0*percent_basis_points/10000)+0.5 AS INTEGER)),
+ CHECK (mode<>'percentage' OR new_deposit_cents=(previous_total_cents/10000)*percent_basis_points + ((previous_total_cents%10000)*percent_basis_points+5000)/10000),
  CHECK (requires_customer_reapproval=CASE WHEN previous_signed_at IS NOT NULL AND (new_deposit_cents<>previous_deposit_cents OR schedule_before_collection=1) THEN 1 ELSE 0 END)
 );
 --> statement-breakpoint
