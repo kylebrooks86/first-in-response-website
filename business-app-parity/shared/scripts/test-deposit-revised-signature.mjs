@@ -26,6 +26,7 @@ const route=load('app/api/public/estimates/[token]/revised-accept/route.ts');
 let serial=1;const key=()=>('00000000-0000-4000-8000-'+String(serial++).padStart(12,'0'));
 const get=id=>db.prepare('SELECT * FROM estimates WHERE id=?').get(id);
 const notice=id=>db.prepare("SELECT * FROM notifications WHERE estimate_id=? AND type='estimate_accepted'").all(id);
+const signed=id=>db.prepare('SELECT * FROM deposit_agreement_snapshots WHERE estimate_id=?').all(id);
 const ledger=()=>Number(db.prepare('SELECT COUNT(*) n FROM payments').get().n);
 function seed(id,mode='waive'){
  const total=18001,dep=mode==='waive'?0:mode==='fixed'?7000:mode==='percentage'?4500:9001;
@@ -57,8 +58,15 @@ try{
   eq([get(s.id).status,get(s.id).deposit_cents,get(s.id).total_cents],['approved',s.deposit,18001]);
   eq([get(s.id).contract_version,get(s.id).signed_name,get(s.id).photo_release],[p.version+':sha256:'+p.documentDigest,'Synthetic Customer','no']);
   eq(notice(s.id).length,1);
+  const archival=signed(s.id);eq(archival.length,1);
+  eq([archival[0].event_id,archival[0].document_version,archival[0].document_digest,archival[0].total_cents,archival[0].deposit_cents],[s.eventId,p.version,p.documentDigest,18001,s.deposit]);
+  eq([archival[0].signed_name,archival[0].photo_release,archival[0].signed_at,archival[0].accepted_at],[get(s.id).signed_name,'no',get(s.id).signed_at,get(s.id).accepted_at]);
+  eq(JSON.parse(archival[0].scope_json)[0][1],'Cleaning');
+  eq(archival[0].agreement_text.includes('SERVICE AGREEMENT & LIABILITY WAIVER'),true);
+  assert.throws(()=>db.prepare("UPDATE deposit_agreement_snapshots SET signed_name='forged' WHERE event_id=?").run(s.eventId),/immutable/);n++;
+  assert.throws(()=>db.prepare("DELETE FROM deposit_agreement_snapshots WHERE event_id=?").run(s.eventId),/immutable/);n++;
   const repeat=await post(s,p);eq(repeat.status,200);eq((await repeat.json()).replayed,true);
-  eq(notice(s.id).length,1);
+  eq(notice(s.id).length,1);eq(signed(s.id).length,1);
   eq((await post(s,{...p,signedName:'A Different Signature'})).status,409);
  }
  eq(ledger(),0);
@@ -86,11 +94,11 @@ try{
    if(kind==='invoice')db.prepare("INSERT INTO invoices(id,estimate_id,customer_id,total_cents,created_at) VALUES(?,?,?,18001,'2026-10-19')").run(key(),s.id,'c-'+s.id);
    if(kind==='audit')db.prepare("INSERT INTO deposit_policy_events(id,estimate_id,confirmation_id,actor_email,mode,previous_total_cents,previous_deposit_cents,new_deposit_cents,paid_principal_cents,created_at) VALUES(?,?,?,'synthetic-owner','standard',18001,9001,9001,0,'2026-10-19T18:00:00Z')").run(key(),s.id,key());
   };
-  const res=await post(s,p);eq(res.status,409);eq(get(s.id).accepted_at,null);eq(notice(s.id).length,0);
+  const res=await post(s,p);eq(res.status,409);eq(get(s.id).accepted_at,null);eq(notice(s.id).length,0);eq(signed(s.id).length,0);
  }
  const lostCase=seed('lost'),lostBody=await payload(lostCase);lost=true;
  eq((await post(lostCase,lostBody)).status,503);
- eq(get(lostCase.id).status,'approved');eq(notice(lostCase.id).length,1);
+ eq(get(lostCase.id).status,'approved');eq(notice(lostCase.id).length,1);eq(signed(lostCase.id).length,1);
  eq((await post(lostCase,lostBody)).status,200);eq(notice(lostCase.id).length,1);
  eq(ledger(),2); // injected payment and refund-race linked payment only; signing creates no payments
  console.log('PASS '+n+'/'+n+': six exact customer agreement signatures, SHA256 commitment, atomic scope/payment/audit races, source-only receipt replay and lost acknowledgements; no writer payments or scheduling.');
