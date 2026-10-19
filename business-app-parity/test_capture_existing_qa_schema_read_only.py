@@ -145,7 +145,7 @@ class ExistingQaEvidenceTests(unittest.TestCase):
         self.assertNotIn("secret put",src)
         self.assertNotIn("d1 export",src)
         self.assertNotIn("INSERT INTO payments",src)
-        self.assertIn("approval!=\\"CAPTURE \\"+UUID",src)
+        self.assertIn('if approval!="CAPTURE "+UUID',src)
 
 if __name__=="__main__":
     unittest.main(verbosity=2)
