@@ -9,7 +9,7 @@ for(const f of readdirSync('drizzle').filter(n=>n.endsWith('.sql')).sort())db.ex
 let user={email:'kylebrooks8605@gmail.com'},beforeBatch=null,lostResponse=false,checks=0;
 const env={FIRE_DEPOSIT_POLICY_CANDIDATE:'synthetic-tests-only',FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE:'synthetic-contract-tests-only',
  DB:{prepare(sql){return {sql,values:[],bind(...values){return {...this,values};},async first(){return db.prepare(sql).get(...this.values)??null;},
- async all(){return {results:db.prepare(sql).all(...this.values)};}}}},
+ async all(){return {results:db.prepare(sql).all(...this.values)};}}},
  async batch(statements){
   if(beforeBatch){const f=beforeBatch;beforeBatch=null;f();}
   db.exec('BEGIN');
@@ -19,7 +19,7 @@ const env={FIRE_DEPOSIT_POLICY_CANDIDATE:'synthetic-tests-only',FIRE_DEPOSIT_EXC
    if(lostResponse){lostResponse=false;throw Error('Synthetic committed acknowledgement lost');}
    return result;
   }catch(e){if(db.isTransaction)db.exec('ROLLBACK');throw e;}
- }};
+ }}};
 const load=createRouteFixtureLoader(process.cwd(),env,()=>user);
 const route=load('app/api/estimates/[id]/deposit-policy/route.ts');
 const edit=load('app/api/estimates/[id]/route.ts');
