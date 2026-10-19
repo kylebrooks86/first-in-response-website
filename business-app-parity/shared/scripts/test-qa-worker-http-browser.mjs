@@ -153,21 +153,27 @@ try{
  const previewPath=await previewLink.getAttribute('href');
  check(previewPath===`/estimate/${estimate.shareToken}?ownerPreview=1`&&await previewLink.getAttribute('target')===null,'Owner Customer view opens explicit preview in same tab; shared customer link stays unchanged');
  let documentText='';
+ const customerDocumentText=locator=>locator.evaluate(node=>[...node.children].filter(element=>!element.classList.contains('owner-preview-banner')).map(element=>element.innerText.trim()).join('\n'));
  for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,900]]){
   await page.setViewportSize({width,height});
   await detail().getByRole('link',{name:'Customer view',exact:true}).click();
   await page.waitForURL(origin+previewPath);
   const close=page.getByRole('link',{name:'Close estimate preview',exact:true});await close.waitFor();
+  const previewNav=page.getByRole('complementary',{name:'Owner preview navigation'});
+  const returnToFire=previewNav.getByRole('link',{name:'Return to FIRE'});
+  const backBox=await returnToFire.boundingBox();
+  check(await previewNav.isVisible()&&await returnToFire.getAttribute('href')===`/?openEstimate=${encodeURIComponent(estimate.id)}`&&backBox.width>=44&&backBox.height>=44,
+   'Actual Customer View has a usable owner return link at '+width+'x'+height);
   const top=await close.boundingBox();
   check(top.width>=44&&top.height>=44&&top.x>=width-70&&top.x+top.width<=width&&top.y>=0,'Accessible upper-right preview X at '+width+'x'+height);
   await page.locator('.secure-note').scrollIntoViewIfNeeded();
   const bottom=await close.boundingBox();
   check(await page.evaluate(()=>window.scrollY>0)&&Math.abs(bottom.y-top.y)<1&&await close.evaluate(node=>{const r=node.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('a')===node;}),'Preview X stays fixed and tappable after scrolling long estimate at '+width+'x'+height);
   check(await page.locator('.pay-summary').innerText().then(text=>text.includes('$200.00')&&text.includes('$100.00')),'Preview preserves $200 price and $100 deposit at '+width+'x'+height);
-  documentText=await page.locator('.estimate-portal').innerText();
+  documentText=await customerDocumentText(page.locator('.estimate-portal'));
   if(width===1366){
    await page.emulateMedia({media:'print'});
-   check(!await close.isVisible(),'Owner preview X is excluded from printing and PDF output');
+   check(!await close.isVisible()&&!await previewNav.isVisible(),'Owner preview X and navigation hidden from printing and PDF output');
    await page.emulateMedia({media:'screen'});
   }
   await close.focus();await page.keyboard.press('Enter');
@@ -178,12 +184,13 @@ try{
  check(previewBackup.tables.estimates[0].first_viewed_at===null&&previewBackup.tables.notifications.every(row=>row.type!=='estimate_viewed'),'Authenticated owner previews do not mark a customer visit or send a viewed notification');
  const regular=await context.newPage();await regular.goto(origin+`/estimate/${estimate.shareToken}`);
  check(await regular.getByRole('link',{name:'Close estimate preview',exact:true}).count()===0,'Ordinary standalone estimate link omits owner navigation even in an owner browser');
- check(await regular.locator('.estimate-portal').innerText()===documentText,'Owner preview retains identical customer agreement, pricing, deposit and approval content');
+ check(await regular.getByRole('complementary',{name:'Owner preview navigation'}).count()===0,'Customer estimate link cannot see owner preview navigation');
+ check(await customerDocumentText(regular.locator('.estimate-portal'))===documentText,'Owner preview retains identical customer agreement, pricing, deposit and approval content');
  await regular.close();
  const anonymous=await browser.newContext({ignoreHTTPSErrors:true,timezoneId:'America/Chicago'});
  const anonymousResponse=await anonymous.request.get(origin+previewPath,{headers:{'oai-authenticated-user-email':'kylebrooks8605@gmail.com'}});
  const anonymousHTML=await anonymousResponse.text();
- check(anonymousResponse.status()===200&&!anonymousHTML.includes('owner-estimate-preview-close')&&!anonymousHTML.includes('openEstimate='),'Forged preview query and owner header never expose owner X or return ID to an unauthenticated customer, including after authenticated cache use');
+ check(anonymousResponse.status()===200&&!anonymousHTML.includes('owner-estimate-preview-close')&&!anonymousHTML.includes('owner-preview-banner')&&!anonymousHTML.includes('openEstimate='),'Forged preview query and owner header never expose owner X or return ID to an unauthenticated customer, including after authenticated cache use');
  await anonymous.close();
  await detail().getByRole('button',{name:'Close',exact:true}).click();
  // Actual server edit, then terminate/restart the local Worker and re-read D1.
