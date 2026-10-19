@@ -128,7 +128,7 @@ def compare_capture(document):
         "result": ("MATCH_D1_RESERVED_TABLE" if documented_system_exception and safe
                    else "MATCH" if not differences and safe else "REVIEW_REQUIRED"),
         "baselineMigrationCount": 22,
-        "currentCandidateMigrationCount": 24,
+        "currentCandidateMigrationCount": 25,
         "pre0022StructuralMatch": not app_differences,
         "differenceQueryNumbers": differences,
         "applicationSchemaDifferenceQueryNumbers": app_differences,
