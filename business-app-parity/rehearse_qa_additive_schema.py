@@ -9,7 +9,7 @@ import hashlib
 import json
 import sqlite3
 from pathlib import Path
-from review_qa_update_schema import (review, QAReviewStop, HISTORICAL_GIT_BLOBS, NEW_GIT_BLOBS)
+from review_qa_update_schema import (review, QAReviewStop, HISTORICAL_GIT_BLOBS, NEW_GIT_BLOBS, _read_sql_dir, _verify_pinned)
 
 SYNTHETIC_ESTIMATE = "synthetic-qa-existing-estimate"
 SYNTHETIC_CUSTOMER = "synthetic-qa-existing-customer"
@@ -25,21 +25,23 @@ def _archive_hash(event_id: str, total: int, deposit: int, scope: str, agreement
     }, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(serialized).hexdigest()
 
-def _apply(db: sqlite3.Connection, directory: Path, names: list[str]):
+def _apply(db: sqlite3.Connection, files: dict[str,bytes], names: list[str]):
     for name in names:
-        db.executescript((directory / name).read_text(encoding="utf-8"))
+        db.executescript(files[name].decode("utf-8"))
 
 def rehearse(baseline: Path, candidate: Path, checkpoint: str) -> dict:
     packet = review(baseline, candidate, checkpoint)
     if packet["originalSqlCount"] != 23 or packet["candidateSqlCount"] != 25:
         raise QAReviewStop("Unreviewed QA migration counts")
+    baseline_files=_verify_pinned(_read_sql_dir(baseline,"QA baseline rehearsal"),HISTORICAL_GIT_BLOBS,"QA baseline rehearsal")
+    candidate_files=_verify_pinned(_read_sql_dir(candidate,"QA candidate rehearsal"),{**HISTORICAL_GIT_BLOBS,**NEW_GIT_BLOBS},"QA candidate rehearsal")
     db = sqlite3.connect(":memory:")
     db.row_factory = sqlite3.Row
     try:
         db.execute("PRAGMA foreign_keys=ON")
         if db.execute("PRAGMA foreign_keys").fetchone()[0] != 1:
             raise QAReviewStop("SQLite foreign key enforcement unavailable")
-        _apply(db, baseline, sorted(HISTORICAL_GIT_BLOBS))
+        _apply(db, baseline_files, sorted(HISTORICAL_GIT_BLOBS))
         db.execute("INSERT INTO customers(id,name,created_at) VALUES(?,?,?)",
                    (SYNTHETIC_CUSTOMER, "Existing synthetic QA customer", "2026-10-19"))
         db.execute("""INSERT INTO estimates(id,customer_id,status,subtotal_cents,
@@ -56,7 +58,7 @@ def rehearse(baseline: Path, candidate: Path, checkpoint: str) -> dict:
         before = {name: _canonical(db.execute('SELECT * FROM "'+name+'" ORDER BY rowid'))
                   for name in old_tables}
         for name in sorted(NEW_GIT_BLOBS):
-            db.executescript((candidate / name).read_text(encoding="utf-8"))
+            db.executescript(candidate_files[name].decode("utf-8"))
         actual_objects = _canonical(db.execute(
             "SELECT type,name,tbl_name,sql FROM sqlite_master "
             "WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name"))

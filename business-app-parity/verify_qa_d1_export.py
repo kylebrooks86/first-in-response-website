@@ -83,7 +83,9 @@ def review_export(path, *, expected_sha256):
         checks['expectedExportHashMatches']=checksum==expected_sha256
         check_all('EXPORT_HASH_MISMATCH')
         stage('PINNED_SOURCE')
-        files=_read_sql_dir(qa.BASE,'QA source');_verify_pinned(files,{**HISTORICAL_GIT_BLOBS,**NEW_GIT_BLOBS},'QA source')
+        checks['pinnedMigrationSourceVerified']=False
+        files=_verify_pinned(_read_sql_dir(qa.BASE,'QA source'),{**HISTORICAL_GIT_BLOBS,**NEW_GIT_BLOBS},'QA source')
+        checks['pinnedMigrationSourceVerified']=True
         original=sorted(HISTORICAL_GIT_BLOBS);additions=sorted(NEW_GIT_BLOBS)
         # Validate the local SQLite runtime against source before blaming an export.
         stage('EXPECTED_BASELINE_SCHEMA');baseline_schema=expected(files,original)

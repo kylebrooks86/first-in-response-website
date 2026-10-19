@@ -52,6 +52,9 @@ on:
       - 'business-app-parity/qa_d1_identity_from_list.ps1'
       - 'business-app-parity/test_qa_d1_identity_from_list.ps1'
       - 'business-app-parity/owner_windows_qa_update_review.ps1'
+      - 'business-app-parity/review_qa_update_schema.py'
+      - 'business-app-parity/test_review_qa_update_schema.py'
+      - 'business-app-parity/test_qa_migration_line_endings.py'
       - 'business-app-parity/rehearse_qa_additive_schema.py'
       - 'business-app-parity/test_rehearse_qa_additive_schema.py'
       - 'business-app-parity/capture_existing_qa_schema_read_only.py'
@@ -217,7 +220,9 @@ jobs:
         shell: pwsh
         run: ../test_qa_d1_identity_from_list.ps1
       - name: "Pinned read-only QA schema delta: refuse all unreviewed original and appended SQL"
-        run: python3 ../test_review_qa_update_schema.py
+        run: |
+          python3 ../test_review_qa_update_schema.py
+          python3 ../test_qa_migration_line_endings.py
       - name: Rehearse original 23 to additive 25 QA migrations in disposable SQLite only
         run: |
           python3 ../test_rehearse_qa_additive_schema.py
@@ -654,3 +659,23 @@ jobs:
         run: node scripts/test-local-customer-pages-browser.mjs
       - name: Exercise actual guarded React offline-customer screen and synthetic auth in Chrome
         run: node scripts/test-candidate-local-customers-browser.mjs
+
+  windows-qa-migration-source:
+    name: Windows CRLF pinned migrations and private offline restore
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout development source without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Python for isolated Windows regression
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify CRLF-only equivalence, tamper refusal and unchanged private fixtures
+        working-directory: business-app-parity
+        run: |
+          python test_qa_migration_line_endings.py
+          python test_rehearse_qa_additive_schema.py
+          python test_capture_existing_qa_schema_read_only.py

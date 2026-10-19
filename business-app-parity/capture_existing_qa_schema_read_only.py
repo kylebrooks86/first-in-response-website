@@ -79,7 +79,7 @@ def rows(payload,index):
 def local_baseline():
     files=_read_sql_dir(BASE,"pinned QA baseline")
     first={k:v for k,v in files.items() if k in HISTORICAL_GIT_BLOBS}
-    _verify_pinned(first,HISTORICAL_GIT_BLOBS,"pinned QA baseline")
+    first=_verify_pinned(first,HISTORICAL_GIT_BLOBS,"pinned QA baseline")
     with sqlite3.connect(":memory:") as db:
         db.row_factory=sqlite3.Row
         for filename in sorted(HISTORICAL_GIT_BLOBS):

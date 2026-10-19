@@ -57,7 +57,7 @@ def _read_sql_dir(folder: Path, label: str) -> dict[str, bytes]:
         raise QAReviewStop(label + ": missing or linked local migration directory")
     contents: dict[str, bytes] = {}
     for item in folder.iterdir():
-        if item.suffix != ".sql":
+        if item.suffix.lower() != ".sql":
             continue
         if item.is_symlink() or not item.is_file() or not SQL_NAME.fullmatch(item.name):
             raise QAReviewStop(label + ": unexpected or linked SQL migration " + item.name)
@@ -69,19 +69,32 @@ def _read_sql_dir(folder: Path, label: str) -> dict[str, bytes]:
     return contents
 
 
-def _verify_pinned(files: dict[str, bytes], pins: dict[str, str], label: str) -> None:
+def _canonical_migration_bytes(content: bytes) -> bytes:
+    """Only paired CRLF -> LF; no trimming, decoding, BOM removal or SQL rewriting."""
+    canonical = content.replace(b"\r\n", b"\n")
+    if b"\r" in canonical:
+        raise QAReviewStop("Unreviewed bare CR in migration source")
+    return canonical
+
+
+def _verify_pinned(files: dict[str, bytes], pins: dict[str, str], label: str) -> dict[str, bytes]:
     if set(files) != set(pins):
         raise QAReviewStop(
             label + ": unreviewed missing/new migration filenames; "
             + "missing=" + repr(sorted(set(pins) - set(files)))
             + " extra=" + repr(sorted(set(files) - set(pins)))
         )
+    verified: dict[str, bytes] = {}
     for name in sorted(pins):
-        if _git_blob_id(files[name]) != pins[name]:
+        canonical = _canonical_migration_bytes(files[name])
+        if _git_blob_id(canonical) != pins[name]:
             raise QAReviewStop(label + ": migration content differs from pinned history: " + name)
+        verified[name] = canonical
     indexes = sorted(int(name[:4]) for name in files)
     if indexes != list(range(len(files))):
         raise QAReviewStop(label + ": migrations are not numbered contiguously")
+    # Return a verified memory-only snapshot. Never alter working-tree files.
+    return verified
 
 
 def review(baseline_dir: Path, candidate_dir: Path, checkpoint: str) -> dict:
@@ -90,8 +103,9 @@ def review(baseline_dir: Path, candidate_dir: Path, checkpoint: str) -> dict:
         raise QAReviewStop("A complete exact reviewed candidate SHA is required")
     first = _read_sql_dir(Path(baseline_dir), "first-hosted-QA")
     latest = _read_sql_dir(Path(candidate_dir), "current-candidate")
-    _verify_pinned(first, HISTORICAL_GIT_BLOBS, "first-hosted-QA")
-    _verify_pinned(latest, {**HISTORICAL_GIT_BLOBS, **NEW_GIT_BLOBS}, "current-candidate")
+    raw_first, raw_latest = first, latest
+    first = _verify_pinned(first, HISTORICAL_GIT_BLOBS, "first-hosted-QA")
+    latest = _verify_pinned(latest, {**HISTORICAL_GIT_BLOBS, **NEW_GIT_BLOBS}, "current-candidate")
     if any(latest[name] != first[name] for name in first):
         raise QAReviewStop("Original hosted-QA migration bytes must stay unchanged")
     append = sorted(NEW_GIT_BLOBS)
@@ -101,12 +115,17 @@ def review(baseline_dir: Path, candidate_dir: Path, checkpoint: str) -> dict:
         "pinnedOriginalSource": FIRST_QA_SOURCE,
         "originalSqlCount": len(first),
         "candidateSqlCount": len(latest),
-        "originalMigrationsByteIdentical": True,
+        "originalMigrationsByteIdentical": all(raw_first[n] == raw_latest[n] for n in first),
+        "originalMigrationsLfEquivalent": True,
+        "migrationLineEndingPolicy": "CRLF-to-LF only, then exact pinned Git blob verification",
+        "sha256Scope": "verified LF-canonical migration bytes; backup export hashes remain raw bytes",
         "additionalMigrations": [
             {"name": name, "gitBlob": NEW_GIT_BLOBS[name],
-             "sha256": hashlib.sha256(latest[name]).hexdigest()} for name in append
+             "sha256": hashlib.sha256(latest[name]).hexdigest(),
+             "workingTreeSha256": hashlib.sha256(raw_latest[name]).hexdigest(),
+             "crlfConversionObserved": raw_latest[name] != latest[name]} for name in append
         ],
-        "reviewScope": "local SQL bytes only; remote QA journal/schema and live customer records not read",
+        "reviewScope": "local verified LF/CRLF-equivalent SQL only; remote QA journal/schema and live customer records not read",
         "hostedJournalVerified": False,
         "codeOnlyUpdateEligible": False,
         "migrationPermissionGranted": False,
