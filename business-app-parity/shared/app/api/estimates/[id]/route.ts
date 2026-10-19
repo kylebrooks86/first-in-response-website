@@ -29,7 +29,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const statements=[];
     let guardedScheduleIndex=-1;
     let responseFields:Record<string,unknown>={id};
-    if(Array.isArray(body.items)&&depositPolicyEnabled(env)&&env.FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE==='synthetic-contract-tests-only'){
+    if(Array.isArray(body.items)&&depositPolicyEnabled(env)&&'FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE' in env&&env.FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE==='synthetic-contract-tests-only'){
       const audit=await env.DB.prepare("SELECT id FROM deposit_policy_events WHERE estimate_id=? LIMIT 1").bind(id).first();
       if(audit)return Response.json({error:"An owner deposit exception was recorded. Reprice only through a reviewed deposit/agreement revision workflow, not a silent estimate edit."},{status:409});
     }
