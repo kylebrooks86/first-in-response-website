@@ -4,7 +4,7 @@ import {CUSTOMER_PHONE_SQL} from '../../../lib/customer-identity';
 import {customerPropertiesEnabled} from '../../../lib/customer-properties';
 import {serviceLocationsEnabled,serviceAddressSql} from '../../../lib/service-location';
 const headers={'Cache-Control':'no-store, private','Vary':'Cookie'};
-const scopes=['all','customers','estimates','invoices','jobs'];
+const scopes=['all','customers','estimates','invoices','jobs','payments','notes'];
 export async function GET(request:Request){
   const user=await getChatGPTUser();
   if(user?.email?.toLowerCase()!=='kylebrooks8605@gmail.com')return Response.json({error:'Unauthorized'},{status:401,headers});
@@ -48,6 +48,20 @@ export async function GET(request:Request){
       WHERE ${contact} OR instr(lower(COALESCE(${address},'')),lower(?))>0 OR instr(lower(inv.id),lower(?))>0
         OR EXISTS(SELECT 1 FROM invoice_items ii WHERE ii.invoice_id=inv.id AND (instr(lower(ii.name),lower(?))>0 OR instr(lower(COALESCE(ii.description,'')),lower(?))>0))
       ORDER BY rank,inv.created_at DESC,inv.id LIMIT 9`,[number,number,...values,q,number,q,q]);
+    if(scope==='all'||scope==='payments')await collect('payment',`SELECT p.id,'Payment record · '||c.name AS title,c.id AS customerId,e.id AS estimateId,c.name AS customer,COALESCE(c.email,'') AS email,COALESCE(c.phone,'') AS phone,
+      p.type AS service,p.status,p.amount_cents AS amountCents,p.created_at AS createdAt,${address} AS address,
+      substr(COALESCE(p.provider_id,''),max(1,instr(lower(COALESCE(p.provider_id,'')),lower(?))-40),200) AS excerpt,
+      CASE WHEN lower(p.id)=lower(?) OR lower(COALESCE(p.provider_id,''))=lower(?) THEN 0 ELSE 2 END AS rank
+      FROM payments p JOIN estimates e ON e.id=p.estimate_id JOIN customers c ON c.id=e.customer_id
+      WHERE ${contact} OR instr(lower(COALESCE(${address},'')),lower(?))>0 OR instr(lower(p.id),lower(?))>0
+        OR instr(lower(COALESCE(p.provider_id,'')),lower(?))>0 OR instr(lower(p.type),lower(?))>0
+        OR EXISTS(SELECT 1 FROM estimate_items ei WHERE ei.estimate_id=e.id AND instr(lower(ei.name),lower(?))>0)
+      ORDER BY rank,p.created_at DESC,p.id LIMIT 9`,[q,q,q,...values,q,q,q,q,q]);
+    if(scope==='all'||scope==='notes')await collect('note',`SELECT n.id,'Customer note · '||c.name AS title,c.id AS customerId,c.name AS customer,COALESCE(c.email,'') AS email,COALESCE(c.phone,'') AS phone,n.created_at AS createdAt,
+      COALESCE(c.address,'') AS address,substr(n.body,max(1,instr(lower(n.body),lower(?))-60),240) AS excerpt,
+      CASE WHEN lower(n.id)=lower(?) THEN 0 ELSE 2 END AS rank FROM customer_notes n JOIN customers c ON c.id=n.customer_id
+      WHERE ${contact} OR instr(lower(COALESCE(c.address,'')),lower(?))>0 OR instr(lower(n.id),lower(?))>0 OR instr(lower(n.body),lower(?))>0
+      ORDER BY rank,n.created_at DESC,n.id LIMIT 9`,[q,q,...values,q,q,q]);
     results.sort((a,b)=>Number(a.rank)-Number(b.rank));
     return Response.json({results,hasMore:more.length>0,more,scope},{headers});
   }catch{return Response.json({error:'Search is unavailable. Check your connection and try again. No records changed.'},{status:503,headers});}

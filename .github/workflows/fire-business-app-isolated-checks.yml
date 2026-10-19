@@ -502,7 +502,7 @@ jobs:
           node scripts/test-qa-worker-http-browser.mjs --customer-lookup
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
           node scripts/test-qa-worker-http-browser.mjs --complete-ledger
-          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry --invoice-state --change-history --global-search
+          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry --invoice-state --change-history --global-search --search-metadata
       - name: Seal synthetic-only QA full-app review bundle
         run: |
           python3 business-app-parity/prepare_device_review.py \

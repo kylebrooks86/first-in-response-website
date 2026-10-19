@@ -101,6 +101,7 @@ type EstimateRow = { id:string; customerId?:string; customer:string; email?:stri
 type CustomerRow = { id:string; name:string; email:string; phone:string; address:string; leadSource?:string; createdAt:string; estimateCount:number; estimateTotal:number; paidTotal:number };
 type CustomerEstimate = { address?:string|null;serviceAddressSource?:string;id:string; customerId:string; service:string; serviceDescription?:string; items?:EstimateItemRow[]; subtotalCents?:number; discountCents?:number; appreciationDiscount?:number|boolean; additionalDiscountType?:"percent"|"dollar"; additionalDiscountValue?:number; status:string; totalCents:number; depositCents:number; paidCents:number; scheduledAt?:string|null; invoiceId?:string|null; invoiceShareToken?:string|null; invoiceTotalCents?:number|null; shareToken?:string|null; firstViewedAt?:string|null; acceptedAt?:string|null; signedName?:string|null; signedAt?:string|null; contractInitials?:string|null; photoRelease?:string|null; pendingChangeCount?:number; latestChangeRequest?:string|null; firstEstimateSentAt?:string|null; stage1At?:string|null; stage3At?:string|null; stage7At?:string|null; lastEstimateSentAt?:string|null; lastEstimateContactAt?:string|null; lastManualContactAt?:string|null;snoozeUntil?:string|null;lastReviewRequestAt?:string|null; lastRebookMessageAt?:string|null; paymentOverageOpen?:number; createdAt:string };
 type CustomerNote = { id:string; customerId:string; body:string; createdAt:string };
+type CustomerRecordFocus={id:string;customerId:string;kind:"payment"|"note"};
 type InvoiceRow = { paymentReviewPending?:boolean;pendingRefundCount?:number;storedStatus?:string; estimateStatus?:string; depositCents?:number; id:string; estimateId:string; customerId:string; customer?:string; email?:string; phone?:string; address?:string; service?:string; status:string; subtotalCents?:number; discountCents?:number; discountType?:"percent"|"dollar"; discountValue?:number; totalCents:number; paidCents?:number; dueAt?:string|null; shareToken?:string|null; firstViewedAt?:string|null; paymentOverageOpen?:number; createdAt:string };
 type CustomerPhoto = { id:string; customerId:string; category:"before"|"after"|"property"; caption?:string; filename:string; contentType:string; sizeBytes:number; createdAt:string };
 type CustomerMessage = { id:string; customerId:string; estimateId?:string|null; channel:"contact_recorded"|"followup_snoozed"|"text"|"email"|"copy"|"text_prepared"|"email_prepared"|"text_confirmed"|"email_confirmed"; template:string; body:string; createdAt:string };
@@ -1142,7 +1143,7 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
   </DialogContent></Dialog>;
 }
 
-function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSection="estimates",onFocusHandled }: { onEstimateSaved: (estimate: EstimateRow) => void; searchQuery: string;focusCustomerId?:string|null;focusSection?:"estimates"|"invoices";onFocusHandled?:(id:string)=>void }) {
+function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSection="estimates",onFocusHandled,focusRecord,recordRequestKey=0,onRecordFocusHandled }: { onEstimateSaved: (estimate: EstimateRow) => void; searchQuery: string;focusCustomerId?:string|null;focusSection?:"estimates"|"invoices"|"payments"|"notes";focusRecord?:CustomerRecordFocus|null;recordRequestKey?:number;onRecordFocusHandled?:(id:string)=>void;onFocusHandled?:(id:string)=>void }) {
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [estimates, setEstimates] = useState<CustomerEstimate[]>([]);
   const [notes, setNotes] = useState<CustomerNote[]>([]);
@@ -1159,6 +1160,11 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [activeEstimate, setActiveEstimate] = useState<EstimateRow | null>(null);
   const [section, setSection] = useState("estimates");
   const [noteText, setNoteText] = useState("");
+  const noteDrafts=useRef<Record<string,string>>({}),noteDraftCustomer=useRef<string|null>(null);
+  useEffect(()=>{if(noteDraftCustomer.current)noteDrafts.current[noteDraftCustomer.current]=noteText;noteDraftCustomer.current=selectedId;setNoteText(selectedId?noteDrafts.current[selectedId]??"":"");},[selectedId]);
+  const [loadedRecordKey,setLoadedRecordKey]=useState(-1);
+  const [recordFocusError,setRecordFocusError]=useState("");
+  useEffect(()=>{setRecordFocusError("");},[selectedId]);
   const [savingNote, setSavingNote] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -1211,6 +1217,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       setPhotos(nextPhotos);
       setMessages(nextMessages);
       setPayments(nextPayments);
+      setLoadedRecordKey(recordRequestKey);
     }catch(loadError){
       if(request!==loadRequest.current||quiet)return;
       if(mayUseOfflinePhotoDirectory({networkFailed,responseStatus,browserReportsOffline:navigator.onLine===false})){
@@ -1230,7 +1237,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     }
     finally { if(request===loadRequest.current)setLoading(false); }
   };
-  useEffect(() => { void load(); return()=>{loadRequest.current++;}; }, []);
+  useEffect(() => { void load(); return()=>{loadRequest.current++;}; }, [recordRequestKey]);
   useEffect(()=>{
     if(!focusCustomerId||loading||error||offlinePhotoOnly)return;
     const customer=customers.find(row=>row.id===focusCustomerId);
@@ -1246,6 +1253,16 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const customerMessages=messages.filter((message)=>message.customerId===selectedId);
   const historyEntries=messageHistoryEntries(customerMessages);
   const customerPayments=payments.filter((payment)=>payment.customerId===selectedId);
+  useEffect(()=>{
+    if(!focusRecord||loading||loadedRecordKey!==recordRequestKey)return;
+    if(error||offlinePhotoOnly){onRecordFocusHandled?.(focusRecord.id);return;}
+    if(selectedId!==focusRecord.customerId||section!==(focusRecord.kind==="payment"?"payments":"notes"))return;
+    const row=(focusRecord.kind==="payment"?payments:notes).find(item=>item.id===focusRecord.id&&item.customerId===focusRecord.customerId);
+    setRecordFocusError("");
+    if(row){const element=document.getElementById("customer-"+focusRecord.kind+"-"+row.id);if(!element)return;element.scrollIntoView({block:"center"});element.focus({preventScroll:true});}
+    else setRecordFocusError("The selected "+(focusRecord.kind==="payment"?"payment record":"note")+" is unavailable. Refresh the customer profile or check your connection.");
+    onRecordFocusHandled?.(focusRecord.id);
+  },[focusRecord,loading,error,offlinePhotoOnly,selectedId,section,payments,notes,loadedRecordKey,recordRequestKey]);
   const filteredCustomers = customers.filter((customer)=>[customer.name,customer.email,customer.phone,customer.address].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));
   const activeCustomerEstimate=customerEstimates.find((estimate)=>estimate.status==="scheduled")??customerEstimates.find((estimate)=>["approved","sent","draft"].includes(estimate.status))??customerEstimates.find((estimate)=>estimate.status==="completed"&&estimate.paidCents<resolvedBillingTotalCents(estimate))??customerEstimates[0];
   const customerBalances=summarizeCustomerBalances(customerEstimates);
@@ -1287,6 +1304,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={()=>{ setActiveEstimate(null); void load(); }} />
     <button className="back-link" onClick={() => { setSelectedId(null); setSection("estimates"); }}>← All customers</button>
     <section className="customer-profile">
+      {recordFocusError&&<p role="alert">{recordFocusError}</p>}
       <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><p className="eyebrow">Customer profile</p><h1>{selected.name}</h1></div><div className="profile-head-actions"><EditCustomer customer={selected} onUpdated={(updated)=>{setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item));void load(true);}}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/><NewEstimate key={selected.id} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /></div></div>
       <div className="customer-snapshot">
         <span><small>Jobs / estimates</small><strong>{customerEstimates.length}</strong></span>
@@ -1318,11 +1336,11 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     </nav>
     <section className="customer-records">
       {section === "estimates" && (customerEstimates.length ? customerEstimates.map((estimate) => <button className="customer-record record-button" key={estimate.id} onClick={()=>setActiveEstimate({...estimate,customer:selected.name,email:selected.email,phone:selected.phone,address:estimate.address??undefined})}><div><strong>{estimate.service}</strong><small>{new Date(estimate.createdAt).toLocaleDateString()} · {statusLabel(estimate.status)}{estimate.scheduledAt ? ` · ${dateTime(estimate.scheduledAt)}` : ""}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight /></button>) : <div className="record-empty"><ClipboardList /><strong>No estimates yet</strong><p>Create the first estimate from this customer profile.</p></div>)}
-      {section === "payments" && (customerPayments.length ? customerPayments.map((payment) => <article className="customer-record customer-payment-record" key={payment.id}><div><strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":`${paymentTypeLabel(payment.type)} payment`}</strong><small>{dateTime(payment.createdAt)}{payment.reference&&<span className="inline-flex max-w-full flex-wrap items-center gap-1"><span className="font-mono" title={payment.reference}> · Ref …{payment.reference.slice(-12)}</span><button type="button" aria-label="Copy full payment reference" className="rounded border px-2 py-0.5 text-xs" onClick={()=>void navigator.clipboard.writeText(payment.reference||"").catch(()=>{})}>Copy</button></span>}</small><ProcessingDetails payment={payment}/></div><strong className="customer-payment-amount">{money(payment.amountCents)}</strong><RefundPayment payment={payment} onRefunded={()=>void load()}/></article>) : <div className="record-empty"><CreditCard /><strong>No payments recorded</strong><p>Open an estimate and choose Record payment after receiving money through Wave, Cash App, Venmo, cash, check, card, or bank transfer.</p></div>)}
+      {section === "payments" && (customerPayments.length ? customerPayments.map((payment) => <article className="customer-record customer-payment-record" key={payment.id} id={"customer-payment-"+payment.id} tabIndex={-1}><div><strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":`${paymentTypeLabel(payment.type)} payment`}</strong><small>{dateTime(payment.createdAt)}{payment.reference&&<span className="inline-flex max-w-full flex-wrap items-center gap-1"><span className="font-mono" title={payment.reference}> · Ref …{payment.reference.slice(-12)}</span><button type="button" aria-label="Copy full payment reference" className="rounded border px-2 py-0.5 text-xs" onClick={()=>void navigator.clipboard.writeText(payment.reference||"").catch(()=>{})}>Copy</button></span>}</small><ProcessingDetails payment={payment}/></div><strong className="customer-payment-amount">{money(payment.amountCents)}</strong><RefundPayment payment={payment} onRefunded={()=>void load()}/></article>) : <div className="record-empty"><CreditCard /><strong>No payments recorded</strong><p>Open an estimate and choose Record payment after receiving money through Wave, Cash App, Venmo, cash, check, card, or bank transfer.</p></div>)}
       {section === "invoices" && (customerInvoices.length ? customerInvoices.map((invoice)=><a className="customer-record record-button" key={invoice.id} href={invoice.shareToken?`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=customer`:undefined}><div><strong>Invoice #{invoice.id.slice(0,6).toUpperCase()}</strong><small>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Payment review in progress":invoice.status==="paid"?"Paid in full":`${statusLabel(invoice.status)} · Due ${invoice.dueAt?new Date(invoice.dueAt).toLocaleDateString():"on receipt"}`}</small></div><strong>{money(invoice.totalCents)}</strong><ExternalLink/></a>) : <div className="record-empty"><Receipt /><strong>No invoices yet</strong><p>Open an estimate and tap Create invoice.</p></div>)}
       {section === "photos"&&<OfflineCustomerPhotos key={selected.id} customerId={selected.id} customerName={selected.name} knownCustomerIds={customers.map(item=>item.id)} legacyCloudPhotoCount={customerPhotos.length}/>}
       {section === "messages"&&<section className="customer-messages-panel" aria-label="Customer messages"><div className="customer-messages-actions"><MessageComposer key={selected.id} customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" triggerLabel="+ Compose Message" triggerClassName="brand-button" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div>{historyEntries.length?historyEntries.map(({message,prepared})=><article className="message-history" key={message.id}><span className={`message-channel ${message.channel}`}><MessageSquareText/></span><div><strong>{message.template==="followupContact"?"Customer contact recorded":message.template==="followupSnooze"?"Estimate follow-up snoozed":messageLabels[message.template]||"Customer message"}</strong><p>{message.body}</p><small>{message.channel==="contact_recorded"?"Contacted · owner recorded":message.channel==="followup_snoozed"?"Follow-up snoozed until "+dateTime(message.body):message.channel.endsWith("_prepared")?"Prepared · sending unconfirmed":message.channel.endsWith("_confirmed")?"Sent · owner confirmed; delivery unknown":message.channel==="copy"?"Copied · sending unconfirmed":"Legacy interaction · sending unconfirmed"} · {dateTime(message.createdAt)}{prepared&&<> · Prepared {dateTime(prepared.createdAt)} · 2 audit events retained</>}</small></div></article>):<div className="record-empty"><MessageSquareText/><strong>No messages prepared yet</strong><p>Compose a personalized text or email above. Prepared drafts and your send confirmations appear here.</p></div>}</section>}
-      {section === "notes" && <div className="notes-panel"><div className="note-compose"><Input value={noteText} onChange={(event)=>setNoteText(event.target.value)} placeholder="Gate code, pets, property details…" /><Button className="brand-button" onClick={()=>void saveNote()} disabled={savingNote || !noteText.trim()}><Plus className="h-4 w-4" /> Add note</Button></div>{customerNotes.length ? customerNotes.map((note)=><article className="note-row" key={note.id}><StickyNote /><div><p>{note.body}</p><small>{dateTime(note.createdAt)}</small></div></article>) : <div className="record-empty"><StickyNote /><strong>No notes yet</strong><p>Save access details and job-specific reminders here.</p></div>}</div>}
+      {section === "notes" && <div className="notes-panel"><div className="note-compose"><Input value={noteText} onChange={(event)=>setNoteText(event.target.value)} placeholder="Gate code, pets, property details…" /><Button className="brand-button" onClick={()=>void saveNote()} disabled={savingNote || !noteText.trim()}><Plus className="h-4 w-4" /> Add note</Button></div>{customerNotes.length ? customerNotes.map((note)=><article className="note-row" key={note.id} id={"customer-note-"+note.id} tabIndex={-1}><StickyNote /><div><p>{note.body}</p><small>{dateTime(note.createdAt)}</small></div></article>) : <div className="record-empty"><StickyNote /><strong>No notes yet</strong><p>Save access details and job-specific reminders here.</p></div>}</div>}
     </section>
   </div>;
   return <div className="customers-view">
@@ -1751,7 +1769,9 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   const [estimateRefreshKey,setEstimateRefreshKey]=useState(0);
   const [focusEstimateId,setFocusEstimateId]=useState<string|null>(null);
   const [focusCustomerId,setFocusCustomerId]=useState<string|null>(null);
-  const [focusCustomerSection,setFocusCustomerSection]=useState<"estimates"|"invoices">("estimates");
+  const [focusCustomerSection,setFocusCustomerSection]=useState<"estimates"|"invoices"|"payments"|"notes">("estimates");
+  const [focusCustomerRecord,setFocusCustomerRecord]=useState<CustomerRecordFocus|null>(null);
+  const [customerRecordRequestKey,setCustomerRecordRequestKey]=useState(0);
   const [focusInvoiceId,setFocusInvoiceId]=useState<string|null>(null);
   const [estimateRows, setEstimateRows] = useState(estimates);
   const [liveMetrics, setLiveMetrics] = useState(metrics);
@@ -1818,7 +1838,9 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   },[]);
   const openSearchResult=(row:SearchResult)=>{
     setSearchQuery("");setGlobalQuery("");setMobileMenu(false);
-    if(row.kind==="customer"){setFocusCustomerSection("estimates");setFocusCustomerId(row.id);setTab("customers");}
+    setFocusCustomerRecord(null);
+    if((row.kind==="payment"||row.kind==="note")&&row.customerId){setFocusCustomerRecord({id:row.id,customerId:row.customerId,kind:row.kind});setCustomerRecordRequestKey(value=>value+1);setFocusCustomerSection(row.kind==="payment"?"payments":"notes");setFocusCustomerId(row.customerId);setTab("customers");}
+    else if(row.kind==="customer"){setFocusCustomerSection("estimates");setFocusCustomerId(row.id);setTab("customers");}
     else if(row.kind==="invoice"){setFocusInvoiceId(row.id);setTab("invoices");}
     else{setFocusEstimateId(row.id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}
   };
@@ -1839,7 +1861,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
         {process.env.NODE_ENV === "development" && localCustomersCandidate && <CandidateLayoutTrace/>}
         {!interactive && <p role="status" className="app-loading-status">Loading app…</p>}
         {tab === "customers" && localCustomersCandidate && <a className="brand-button" href="/development/local-customers">Offline Customers · synthetic development</a>}
-        {tab === "dashboard" ? <DashboardView userName={userName} metrics={liveMetrics} estimates={estimateRows} onSaved={handleSaved} onNavigate={setTab} /> : tab === "contracts" ? <ContractsView searchQuery={searchQuery}/> : tab === "customers" ? <CustomersView onEstimateSaved={handleSaved} searchQuery={searchQuery} focusCustomerId={focusCustomerId} focusSection={focusCustomerSection} onFocusHandled={id=>setFocusCustomerId(current=>current===id?null:current)}/> : tab === "estimates" ? <EstimatesView key={estimateRefreshKey} onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "followups" ? <FollowUpsView searchQuery={searchQuery}/> : tab === "schedule" ? <ScheduleView searchQuery={searchQuery}/> : tab === "invoices" ? <InvoicesView searchQuery={searchQuery} focusInvoiceId={focusInvoiceId} onFocusHandled={id=>setFocusInvoiceId(current=>current===id?null:current)}/> : tab === "insights" ? <InsightsView/> : tab === "business" ? <BusinessView/> : tab === "payments" ? <PaymentsView searchQuery={searchQuery}/> : tab === "settings" ? <SettingsView/> : tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/> : <EmptyView tab={tab} onSaved={handleSaved} />}
+        {tab === "dashboard" ? <DashboardView userName={userName} metrics={liveMetrics} estimates={estimateRows} onSaved={handleSaved} onNavigate={setTab} /> : tab === "contracts" ? <ContractsView searchQuery={searchQuery}/> : tab === "customers" ? <CustomersView onEstimateSaved={handleSaved} searchQuery={searchQuery} focusCustomerId={focusCustomerId} focusSection={focusCustomerSection} focusRecord={focusCustomerRecord} recordRequestKey={customerRecordRequestKey} onRecordFocusHandled={id=>setFocusCustomerRecord(current=>current?.id===id?null:current)} onFocusHandled={id=>setFocusCustomerId(current=>current===id?null:current)}/> : tab === "estimates" ? <EstimatesView key={estimateRefreshKey} onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "followups" ? <FollowUpsView searchQuery={searchQuery}/> : tab === "schedule" ? <ScheduleView searchQuery={searchQuery}/> : tab === "invoices" ? <InvoicesView searchQuery={searchQuery} focusInvoiceId={focusInvoiceId} onFocusHandled={id=>setFocusInvoiceId(current=>current===id?null:current)}/> : tab === "insights" ? <InsightsView/> : tab === "business" ? <BusinessView/> : tab === "payments" ? <PaymentsView searchQuery={searchQuery}/> : tab === "settings" ? <SettingsView/> : tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/> : <EmptyView tab={tab} onSaved={handleSaved} />}
       </section>
       {mobileMenu && <button aria-label="Close menu overlay" className="menu-scrim" onClick={() => setMobileMenu(false)} />}
       <nav className="bottom-nav">{nav.filter(([id])=>["dashboard","contracts","customers","estimates","schedule"].includes(id)).map(([id, label, Icon]) => <button key={id} disabled={!interactive} className={tab === id ? "active" : ""} onClick={() => setTab(id)}><Icon /><span>{id==="dashboard"?"Home":label}</span></button>)}</nav>
