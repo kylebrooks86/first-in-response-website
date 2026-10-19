@@ -87,7 +87,7 @@ try{
    headers:{Origin:'https://synthetic.invalid','content-type':'application/json'},body:JSON.stringify(body)});
   eq((await post(id,repeatBody)).status,200);eq(events(id).length,1);
   const conflicting=new Request('https://synthetic.invalid/api/estimates/'+id+'/deposit-policy',{method:'POST',
-   headers:{Origin:'https://synthetic.invalid','content-type':'application/json'},body:JSON.stringify({...body,mode:'waive'})});
+   headers:{Origin:'https://synthetic.invalid','content-type':'application/json'},body:JSON.stringify({...body,mode:mode==='waive'?'fixed':'waive'})});
   eq((await post(id,conflicting)).status,409);eq(events(id).length,1);
  }
  seed('sequence');const [w]=request('sequence');eq((await post('sequence',w)).status,201);
@@ -96,7 +96,7 @@ try{
  seed('signed',{status:'approved',signed:true});eq((await post('signed',request('signed')[0])).status,409);
  seed('scheduled',{status:'scheduled',signed:true});eq((await post('scheduled',request('scheduled')[0])).status,409);
  seed('paid');db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES('paid1','paid','Cash',5000,'paid','2026-10-19')").run();
- eq((await post('paid',request('paid',{expectedPaidCents:5000})[0])).status!==201,true);eq(events('paid').length,0);
+ eq((await post('paid',request('paid','waive',{expectedPaidCents:5000})[0])).status!==201,true);eq(events('paid').length,0);
  seed('pending');db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES('pending1','pending','Cash',5000,'pending','2026-10-19')").run();
  eq((await post('pending',request('pending')[0])).status,409);eq(events('pending').length,0);
  for(const kind of ['terms','signature','payment','checkout','billing','audit']){
