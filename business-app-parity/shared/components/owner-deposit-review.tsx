@@ -2,7 +2,7 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 
 type Snapshot={status:string;totalCents:number;depositCents:number;paidCents:number;acceptedAt:string|null;signedAt:string|null;contractVersion:string|null};
-type Audit={id:string;created_at:string;mode:string;previous_deposit_cents:number;new_deposit_cents:number;actor_email:string;reason:string|null};
+type Audit={id:string;confirmation_id:string;created_at:string;mode:string;previous_deposit_cents:number;new_deposit_cents:number;actor_email:string;reason:string|null};
 type State={policy:{remainingDepositCents:number|null;canSchedule:boolean;message:string|null};currentSnapshot?:Snapshot;
  exceptionReview?:{syntheticOnly:boolean;readOnly:boolean;hostedActivation:boolean;canReviewUnsignedDraft:boolean;latestEventId:string|null;events:Audit[];customerExposureDetected:boolean;signedAgreementPresent:boolean;message:string};error?:string};
 type Mode="standard"|"waive"|"percentage"|"fixed"|"schedule-before-deposit"|"restore-standard";
@@ -95,8 +95,8 @@ export function OwnerDepositReview({estimateId}:{estimateId:string}){
    if(!r.ok||!data.exceptionReview)throw Error(data.error||"Owner audit cannot be checked.");
    if(n!==requestNo.current)return;
    setState(data);
-   const found=pending&&data.exceptionReview.events.some(e=>e.id&&data.exceptionReview?.latestEventId===e.id);
-   if(found&&data.exceptionReview.events[0]?.new_deposit_cents===data.currentSnapshot?.depositCents){
+   const found=pending&&data.exceptionReview.events.find(e=>e.confirmation_id===pending.confirmationId);
+   if(found&&found.id===data.exceptionReview.latestEventId&&found.new_deposit_cents===data.currentSnapshot?.depositCents){
     setPending(null);setUncertain(false);setReviewed(false);setExplicit(false);
    }else setError("No matching confirmation receipt was established. Review history and financial terms before taking any new action.");
   }catch(e){setError(e instanceof Error?e.message:"Audit reconciliation failed.");}

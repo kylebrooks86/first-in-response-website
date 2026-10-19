@@ -10,6 +10,7 @@ check(ui.includes('if(response.saveUncertain||r.status>=500)'),'Unknown result m
 check(ui.includes('setUncertain(true)'),'Unknown result must require reconciliation');
 check(ui.includes('No automatic retry will occur.'),'No automatic payment or write retry');
 check(ui.includes('setPending({confirmationId:id,body})'),'Preserve confirmation');
+check(ui.includes('e.confirmation_id===pending.confirmationId'),'Only exact confirmed audit may end uncertain hold');
 check(!ui.includes('stripe'),'Panel must never access payments provider');
 check(api.includes('currentSnapshot:{status:row.status'),'Owner must get server-verified snapshot');
 check(api.includes("if(!synthetic)return Response.json"),'Live owner GET must retain existing behavior');
