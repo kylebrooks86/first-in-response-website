@@ -205,7 +205,7 @@ jobs:
       - name: Cloudflare D1 list identity regression — exact UUID, protected staging and negative cases
         shell: pwsh
         run: ../test_qa_d1_identity_from_list.ps1
-      - name: Pinned read-only QA schema delta: refuse all unreviewed original and appended SQL
+      - name: "Pinned read-only QA schema delta: refuse all unreviewed original and appended SQL"
         run: python3 ../test_review_qa_update_schema.py
       - name: Existing QA Worker update review must preserve all hosted customer records
         run: python3 ../test_owner_windows_qa_update_review.py
