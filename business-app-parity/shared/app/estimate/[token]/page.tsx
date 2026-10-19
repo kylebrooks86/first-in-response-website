@@ -33,7 +33,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   // links omit it; copying/forging it cannot expose owner controls to a customer.
   const previewUser=previewRequested==='1'?await getChatGPTUser():null;
   const ownerPreview=Boolean(previewUser?.email?.toLowerCase()==='kylebrooks8605@gmail.com');
-  const row=await env.DB.prepare(`SELECT e.id,e.customer_id AS customerId,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.total_cents AS totalCents,(SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,e.deposit_cents AS depositCents,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,c.name AS customer,${serviceAddressColumns(serviceLocationsEnabled(env))},(SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,(SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending') AS pendingRefundCount FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.share_token=? LIMIT 1`).bind(token).first<{id:string;customerId:string;status:string;subtotalCents:number;discountCents:number;totalCents:number;invoiceTotalCents:number|null;depositCents:number;shareToken:string;firstViewedAt:string|null;acceptedAt:string|null;signedName:string|null;signedAt:string|null;contractInitials:string|null;photoRelease:string|null;customer:string;address:string|null;serviceAddressSource?:string;paymentOverageOpen:number;pendingRefundCount:number}>();
+  const row=await env.DB.prepare(`SELECT e.id,e.customer_id AS customerId,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.total_cents AS totalCents,(SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,e.deposit_cents AS depositCents,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_version AS contractVersion,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,c.name AS customer,${serviceAddressColumns(serviceLocationsEnabled(env))},(SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,(SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending') AS pendingRefundCount FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.share_token=? LIMIT 1`).bind(token).first<{id:string;customerId:string;status:string;subtotalCents:number;discountCents:number;totalCents:number;invoiceTotalCents:number|null;depositCents:number;shareToken:string;firstViewedAt:string|null;acceptedAt:string|null;signedName:string|null;signedAt:string|null;contractVersion:string|null;contractInitials:string|null;photoRelease:string|null;customer:string;address:string|null;serviceAddressSource?:string;paymentOverageOpen:number;pendingRefundCount:number}>();
   if(!row)return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div><h1>Estimate not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
   // Until revised terms appear in the actual signed customer agreement,
   // the portal's legacy "50% deposit" label is NOT safe for owner overrides.
@@ -49,10 +49,15 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
     let amendment:ReturnType<typeof describeRevisedDepositTerms>|null=null;
     let signedScope:{id:string;name:string;description:string;quantity:number;unit:string;total_cents:number}[]=[];
     let expectedDigest:string|null=null;
+    let acceptedRevision:string|null=null;
     try{
       const history=await env.DB.prepare("SELECT * FROM deposit_policy_events WHERE estimate_id=? ORDER BY created_at DESC,id DESC LIMIT 101").bind(row.id).all<Record<string,unknown>>();
       if(history.results.length){
         held=true;
+        const latest=history.results[0];
+        const acceptedPrefix=latest&&typeof latest.id==='string'?'deposit-exception-v1:'+latest.id+':sha256:':null;
+        if(row.acceptedAt&&row.signedAt&&row.signedName&&acceptedPrefix&&row.contractVersion?.startsWith(acceptedPrefix)&&
+          /^[a-f0-9]{64}$/.test(row.contractVersion.slice(acceptedPrefix.length)))acceptedRevision='deposit-exception-v1:'+latest.id;
         if(history.results.length<=100){
           const state=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM payments WHERE estimate_id=?) AS paymentCount,(SELECT COUNT(*) FROM invoices WHERE estimate_id=?) AS invoiceCount,(SELECT COUNT(*) FROM payment_checkout_sessions WHERE estimate_id=? AND status='open') AS openCheckoutCount,(SELECT COUNT(*) FROM payment_refunds WHERE estimate_id=? AND status='pending') AS pendingRefundCount").bind(row.id,row.id,row.id,row.id).first<{paymentCount:number;invoiceCount:number;openCheckoutCount:number;pendingRefundCount:number}>();
           if(state)amendment=describeRevisedDepositTerms({
@@ -89,6 +94,13 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
         if(recorded[0]?.meta?.changes!==1)amendment=null;
       }catch{amendment=null;}
     }
+    if(held&&acceptedRevision)return <main className="pay-page"><section className="pay-card estimate-portal">
+      <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
+      <h1>Revised agreement signed</h1>
+      <p><strong>{row.signedName}</strong> signed the revised agreement.</p>
+      <p>Accepted: {row.acceptedAt}</p><p>Revision: <code>{acceptedRevision}</code></p>
+      <p>No payment has been initiated here. First In Response Exteriors will confirm collection and scheduling separately.</p>
+    </section></main>;
     if(held)return <main className="pay-page"><section className="pay-card estimate-portal">
       <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
       <h1>{amendment?"Revised deposit terms for review":"Updated estimate required"}</h1>
