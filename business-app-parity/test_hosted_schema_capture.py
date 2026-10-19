@@ -65,7 +65,7 @@ class ReadOnlyCapture(unittest.TestCase):
         self.assertTrue(report["suppliedImmutableUuidStringsDistinct"])
         self.assertTrue(report["allThreeTargetsProvided"])
         self.assertEqual([report["targets"][target]["candidateMigrationCount"] for target in TARGETS],
-                         [21, 21, 23])
+                         [22, 22, 24]  # additive deposit_policy_events migration per target)
         self.assertFalse(report["providerAttestationVerified"])
         self.assertFalse(report["deployedRuntimeArtifactVerified"])
         self.assertFalse(report["physicalDatabaseIsolationVerified"])
