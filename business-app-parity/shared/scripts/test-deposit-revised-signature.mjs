@@ -8,11 +8,11 @@ import {SERVICE_AGREEMENT} from '../lib/fire-templates.ts';
 const db=new DatabaseSync(':memory:');
 db.exec('PRAGMA foreign_keys=ON');
 for(const f of readdirSync('drizzle').filter(n=>n.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+f,'utf8'));
-let race=null,lost=false,n=0;
+let race=null,lost=false,corruptRead=false,n=0;
 const eq=(a,b)=>{assert.deepEqual(a,b);n++;};
 const env={FIRE_DEPOSIT_POLICY_CANDIDATE:'synthetic-tests-only',FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE:'synthetic-contract-tests-only',
  FIRE_DEPOSIT_AGREEMENT_CANDIDATE:'synthetic-signature-tests-only',
- DB:{prepare(sql){return{sql,values:[],bind(...values){return {...this,values};},async first(){return db.prepare(sql).get(...this.values)??null;},async all(){return{results:db.prepare(sql).all(...this.values)};}};},
+ DB:{prepare(sql){return{sql,values:[],bind(...values){return {...this,values};},async first(){const row=db.prepare(sql).get(...this.values)??null;return corruptRead&&sql.includes('FROM deposit_agreement_snapshots')&&row?{...row,agreement_text:row.agreement_text+' forged'}:row;},async all(){return{results:db.prepare(sql).all(...this.values)};}};},
  async batch(statements){
   if(race){const fn=race;race=null;fn();}
   db.exec('BEGIN');try{
@@ -73,6 +73,10 @@ try{
   assert.throws(()=>db.prepare("DELETE FROM deposit_agreement_snapshots WHERE event_id=?").run(s.eventId),/immutable/);n++;
   const repeat=await post(s,p);eq(repeat.status,200);eq((await repeat.json()).replayed,true);
   eq(notice(s.id).length,1);eq(signed(s.id).length,1);
+  corruptRead=true;
+  eq((await post(s,p)).status,409);
+  corruptRead=false;
+  eq(signed(s.id)[0].document_digest,p.documentDigest);
   eq((await post(s,{...p,signedName:'A Different Signature'})).status,409);
   // Signing a waiver or deferred deposit is not permission to schedule.
   const noDepositSchedule=await edit(s.id,{scheduledAt:'2026-10-21T15:00:00.000Z'});
