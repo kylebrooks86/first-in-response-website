@@ -99,10 +99,15 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const serviceSummary=items.map((item)=>item.name).join(", ")||"Exterior cleaning service";
   if(!ownerPreview&&!row.firstViewedAt){
     const now=new Date().toISOString();
-    await env.DB.batch([
-      env.DB.prepare("UPDATE estimates SET first_viewed_at=?,status=CASE WHEN status='draft' THEN 'sent' ELSE status END WHERE id=? AND first_viewed_at IS NULL").bind(now,row.id),
+    // If an owner amendment won the race after our initial audit read,
+    // the legacy portal must NOT render its obsolete 50% deposit terms.
+    const unmodifiedAuditGuard=syntheticOwnerException?" AND NOT EXISTS(SELECT 1 FROM deposit_policy_events d WHERE d.estimate_id=estimates.id)":"";
+    const viewed=await env.DB.batch([
+      env.DB.prepare("UPDATE estimates SET first_viewed_at=?,status=CASE WHEN status='draft' THEN 'sent' ELSE status END WHERE id=? AND first_viewed_at IS NULL"+unmodifiedAuditGuard).bind(now,row.id),
       env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE type='estimate_viewed' AND estimate_id=?)`).bind(crypto.randomUUID(),"estimate_viewed",`${row.customer} viewed an estimate`,`${serviceSummary} estimate was opened for the first time.`,row.customerId,row.id,now,row.id),
     ]);
+    if(syntheticOwnerException&&viewed[0]?.meta?.changes!==1)
+      return <main className="pay-page"><section className="pay-card"><h1>Updated estimate required</h1><p>Deposit terms changed while this estimate was being opened. Please request the current revised agreement before signing or making a payment.</p></section></main>;
   }
   const billingTotalCents=Number(row.invoiceTotalCents??row.totalCents);
   const estimateAmountsSafe=estimateSnapshotSafe&&[billingTotalCents,Number(row.totalCents),Number(row.depositCents)].every((value)=>Number.isSafeInteger(value)&&value>=0)&&Number(row.depositCents)<=Number(row.totalCents);
