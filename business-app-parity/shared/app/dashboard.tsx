@@ -1203,6 +1203,7 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
   const [reportComplete,setReportComplete]=useState(false);
   const [checkingCloseout,setCheckingCloseout]=useState(false);
   const closeoutLock=useRef(false);
+  const mutationLock=useRef(false);
   const [refundAmount,setRefundAmount]=useState("");
   useEffect(() => {
     let active=true;
@@ -1215,17 +1216,18 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
   }, [estimate]);
   if (!estimate) return null;
   const update = async (body: Record<string, unknown>) => {
-    setSaving(true); setError("");
+    if(mutationLock.current)return;
+    mutationLock.current=true;setSaving(true); setError("");
     try {
       const response = await fetch(`/api/estimates/${estimate.id}`, { method:"PATCH", headers:{"content-type":"application/json"}, body:JSON.stringify(body) });
       const result = await response.json() as { estimate?: {status:string;scheduledAt?:string|null}; error?:string };
       if (!response.ok || !result.estimate) throw new Error(result.error || "The estimate could not be updated.");
       onChanged({ ...estimate, ...result.estimate });
     } catch (updateError) { setError(updateError instanceof Error ? updateError.message : "The estimate could not be updated."); }
-    finally { setSaving(false); }
+    finally { mutationLock.current=false;setSaving(false); }
   };
   const completeJob=async()=>{
-    if(closeoutLock.current||saving||checkingCloseout)return;
+    if(closeoutLock.current||mutationLock.current||saving||checkingCloseout)return;
     closeoutLock.current=true;setCheckingCloseout(true);setError("");
     try{
       const response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`,{cache:"no-store"});
@@ -1242,14 +1244,15 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
     }finally{closeoutLock.current=false;setCheckingCloseout(false);}
   };
   const createInvoice = async () => {
-    setSaving(true); setError("");
+    if(mutationLock.current||closeoutLock.current)return;
+    mutationLock.current=true;setSaving(true); setError("");
     try {
       const response = await fetch("/api/invoices", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({ estimateId:estimate.id }) });
       const result = await response.json() as { id?:string; shareToken?:string; error?:string };
       if (!response.ok || !result.id) throw new Error(result.error || "The invoice could not be created.");
       onChanged({ ...estimate, invoiceId:result.id, invoiceShareToken:result.shareToken, status:estimate.status === "draft" ? "approved" : estimate.status });
     } catch (invoiceError) { setError(invoiceError instanceof Error ? invoiceError.message : "The invoice could not be created."); }
-    finally { setSaving(false); }
+    finally { mutationLock.current=false;setSaving(false); }
   };
   const encodedAddress = encodeURIComponent(estimate.address || "");
   const zillowAddress = encodeURIComponent((estimate.address || "").trim().replace(/\s+/g,"-"));
@@ -1258,8 +1261,8 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
   const nextAction=Number(estimate.paymentOverageOpen)>0?"Billing exception: review the overpayment and record the refund or retained overpayment before closing out the customer record.":resolvedBillingTotalCents(estimate)<=estimate.paidCents?"Paid in full — the customer record is complete.":estimate.status==="draft"?"Next: send the estimate and service agreement.":estimate.status==="sent"?"Next: follow up until the customer approves and signs.":estimate.status==="approved"?"Next: choose the job date and save it.":estimate.status==="scheduled"?"Next: capture before photos, complete the job report, then create the invoice.":estimate.status==="completed"&&!estimate.invoiceId?"Next: create and send the final invoice.":estimate.status==="completed"?"Next: send the invoice, record payment, and request a review.":"Review the customer record and choose the next status.";
   const billingTotalCents=estimate.invoiceTotalCents??estimate.totalCents;
   const balanceCents=Math.max(0,billingTotalCents-estimate.paidCents);
-  const resolveOverpayment=async(resolutionMode:"refund"|"keep")=>{setSaving(true);setError("");try{const refundAmountCents=resolutionMode==="refund"?Math.round(Number(refundAmount)*100):undefined;if(resolutionMode==="refund"&&(!refundAmountCents||refundAmountCents<=0))throw new Error("Enter the actual refund amount before marking the refund handled.");const updateResponse=await fetch("/api/notifications",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,resolveOverpayment:true,reconciliationHandled:true,resolutionMode,refundAmountCents})});const result=await updateResponse.json() as {remainingOverpaymentCount?:number;paidCents?:number;error?:string};if(!updateResponse.ok)throw new Error(result.error||"The billing exception could not be resolved.");setRefundAmount("");onChanged({...estimate,paidCents:result.paidCents??estimate.paidCents,paymentOverageOpen:Number(result.remainingOverpaymentCount??Math.max(0,Number(estimate.paymentOverageOpen)-1))});}catch(resolveError){setError(resolveError instanceof Error?resolveError.message:"The billing exception could not be resolved.");}finally{setSaving(false);}};
-  return <Dialog open onOpenChange={(value) => { if (!value) onClose(); }}><DialogContent className="estimate-detail sm:max-w-[650px]">
+  const resolveOverpayment=async(resolutionMode:"refund"|"keep")=>{if(mutationLock.current||closeoutLock.current)return;mutationLock.current=true;setSaving(true);setError("");try{const refundAmountCents=resolutionMode==="refund"?Math.round(Number(refundAmount)*100):undefined;if(resolutionMode==="refund"&&(!refundAmountCents||refundAmountCents<=0))throw new Error("Enter the actual refund amount before marking the refund handled.");const updateResponse=await fetch("/api/notifications",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,resolveOverpayment:true,reconciliationHandled:true,resolutionMode,refundAmountCents})});const result=await updateResponse.json() as {remainingOverpaymentCount?:number;paidCents?:number;error?:string};if(!updateResponse.ok)throw new Error(result.error||"The billing exception could not be resolved.");setRefundAmount("");onChanged({...estimate,paidCents:result.paidCents??estimate.paidCents,paymentOverageOpen:Number(result.remainingOverpaymentCount??Math.max(0,Number(estimate.paymentOverageOpen)-1))});}catch(resolveError){setError(resolveError instanceof Error?resolveError.message:"The billing exception could not be resolved.");}finally{mutationLock.current=false;setSaving(false);}};
+  return <Dialog open onOpenChange={(value) => { if (!value&&!mutationLock.current&&!closeoutLock.current) onClose(); }}><DialogContent className="estimate-detail sm:max-w-[650px]">
     <DialogHeader><DialogTitle>{estimate.service}</DialogTitle></DialogHeader>
     <div className="detail-customer"><span className="customer-avatar">{estimate.customer.split(" ").map((part)=>part[0]).join("").slice(0,2).toUpperCase()}</span><div><strong>{estimate.customer}</strong><small>{estimate.address || "No service address saved"}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong></div>
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current customer address shown; the original service address was not recorded.</p>}
@@ -1293,14 +1296,15 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
     {(estimate.firstViewedAt||estimate.acceptedAt||estimate.signedAt)&&<div className="customer-activity">{estimate.firstViewedAt&&<span><Eye/><small>Viewed</small><strong>{dateTime(estimate.firstViewedAt)}</strong></span>}{estimate.signedAt?<span><PenLine/><small>Agreement signed</small><strong>{estimate.signedName} · Photos: {estimate.photoRelease==="yes"?"allowed":estimate.photoRelease==="no"?"not allowed":"not recorded"} · {dateTime(estimate.signedAt)}</strong></span>:estimate.acceptedAt&&<span><CheckCircle2/><small>Approved</small><strong>{dateTime(estimate.acceptedAt)}</strong></span>}</div>}
     <div className="detail-grid">
       <div><Label>Status</Label><div className="status-readonly" aria-label={`Job status: ${statusLabel(estimate.status)}`}><strong>{statusLabel(estimate.status)}</strong><small>Status advances through sending, customer approval, scheduling, and job completion actions.</small></div></div>
-      <div><Label htmlFor="scheduleDate">Job date and time</Label><Input id="scheduleDate" type="datetime-local" value={schedule} onChange={(event)=>setSchedule(event.target.value)} onInput={(event)=>setSchedule((event.target as HTMLInputElement).value)} /></div>
+      <div><Label htmlFor="scheduleDate">Job date and time</Label><Input id="scheduleDate" type="datetime-local" value={schedule} disabled={saving||checkingCloseout} onChange={(event)=>setSchedule(event.target.value)} onInput={(event)=>setSchedule((event.target as HTMLInputElement).value)} /></div>
     </div>
     <div className="detail-summary"><span><small>Deposit</small><strong>{money(estimate.depositCents)}</strong></span><span><small>Paid</small><strong>{money(estimate.paidCents)}</strong></span><span><small>Balance</small><strong>{money(balanceCents)}</strong></span></div>
-        {error && <p className="save-error" role="alert">{error}</p>}
+        {(saving||checkingCloseout)&&<p className="save-message" role="status" aria-live="polite">{checkingCloseout?"Verifying saved job report…":"Saving changes…"} Keep this job open until finished.</p>}
+    {error && <p className="save-error" role="alert">{error}</p>}
     <div className="detail-footer">
-      <Button variant="outline" onClick={() => void update({ scheduledAt:schedule ? new Date(schedule).toISOString() : "" })} disabled={saving || !schedule}><CalendarDays className="h-4 w-4" /> Save job date</Button>
+      <Button variant="outline" onClick={() => {if(closeoutLock.current)return;void update({ scheduledAt:schedule ? new Date(schedule).toISOString() : "" });}} disabled={saving || checkingCloseout || !schedule}><CalendarDays className="h-4 w-4" /> Save job date</Button>
       {estimate.status === "scheduled" && <Button variant="outline" onClick={() => void completeJob()} disabled={saving||checkingCloseout||!reportComplete}><CheckCircle2 className="h-4 w-4" /> {checkingCloseout?"Checking…":reportComplete?"Mark job complete":"Complete report first"}</Button>}
-      <Button className="brand-button" onClick={createInvoice} disabled={saving || Boolean(estimate.invoiceId) || estimate.status !== "completed"}><Receipt className="h-4 w-4" /> {estimate.invoiceId ? "Invoice created" : estimate.status === "completed" ? "Create invoice" : "Complete job first"}</Button>
+      <Button className="brand-button" onClick={createInvoice} disabled={saving || checkingCloseout || Boolean(estimate.invoiceId) || estimate.status !== "completed"}><Receipt className="h-4 w-4" /> {estimate.invoiceId ? "Invoice created" : estimate.status === "completed" ? "Create invoice" : "Complete job first"}</Button>
     </div>
   </DialogContent></Dialog>;
 }

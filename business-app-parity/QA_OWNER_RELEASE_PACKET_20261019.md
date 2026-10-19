@@ -1,7 +1,8 @@
 # Existing QA release packet — preparation only, no hosted write authorization
 
-Implementation checkpoint: `ccaf457bde23c968c291c2b4c7207ef86749acc0` (includes app changes from `69b7dc9ed2cbfb99e087dee49ac3f4bd84fd8570`).
-This packet is **BLOCKED PENDING ACTUAL PRIVATE BACKUP AND FULL SCHEMA EVIDENCE**. It is not a request to approve a migration now.
+Reviewed source baseline: `758e183e3c32b7040cacca65b0d478e6a0929552`; GitHub Actions run `39333820407` passed **8/8 jobs**. The next candidate includes the shared estimate/invoice save guards described below; its exact commit and CI must be attached before approval.
+
+**PREPARATION ONLY — no hosted migration or deployment authorization.** Updated October 19 from the owner's authenticated Acer results. Recovery and hosted schema checks below are completed owner observations, not independently reproduced agent access to the private export or Cloudflare account. Do not repeat the export, restore, or schema capture merely to update this packet.
 
 ## Reconciled target
 
@@ -19,32 +20,32 @@ The owner's authenticated Acer observation on October 19 supersedes the earlier 
 
 **The rollback target for the NEXT code deployment would normally be the independently rechecked CURRENT version 58a467fa, not automatically the older 5e44f843.** Retain both historical versions. Never execute rollback during this preparation.
 
-## Owner action needed: private recovery and full metadata
+## Completed recovery and schema evidence
 
-After this checkpoint's CI passes, safely refresh the existing development checkout on the Acer. From the repository root:
+| Check | Owner-observed result |
+| --- | --- |
+| Preserved original private SQL SHA-256 | MATCHED original checksum |
+| Offline restoration of the actual SQL export | PASSED |
+| Original 23 migration journal and full schema | PASSED |
+| Local application of exactly 0023 and 0024 | PASSED |
+| Financial integrity and foreign keys | PASSED |
+| Preservation of all original rows | PASSED |
+| Hosted QA metadata capture | COMPLETED; matches original 23 schema |
+| Offline release-readiness review | Capture recognized; correctly STOP pending evidence/approval |
 
-```powershell
-git pull --ff-only
-powershell -NoProfile -File .\business-app-parity\owner_windows_qa_backup.ps1
-powershell -NoProfile -File .\business-app-parity\owner_windows_qa_backup.ps1 -Export
-python .\business-app-parity\capture_existing_qa_schema_read_only.py --capture
-```
+The preserved original SQL remains the recovery source. The LF/CRLF source correction canonicalizes only verified migration source bytes; it never changes backup bytes or relaxes their original SHA-256. No hosted writes were reported.
 
-First backup command is a no-network, no-write dry run. The export command requires typing `EXPORT 8ccfb1f8-1657-4074-b1b2-47de78f95003`. Schema capture separately asks for `CAPTURE` with the same UUID. Export may temporarily pause queries on this isolated QA database; choose a quiet testing window. These operations do not migrate, publish, change secrets, or touch production.
+### Retention requirements still to confirm
 
-The helper verifies both QA and protected staging D1 identities and checks the exact QA Worker version at 100% before and after export. Export is pinned by a temporary D1-only configuration. It refuses repository output paths, linked directories, existing export/config/receipt filenames and empty files. It retains the SQL and a hash/check-only restore receipt in the owner's private backup folder; it does not upload them.
+The completed restore proves recoverability in disposable local SQLite. It does not prove storage retention. Confirm that the **existing** original SQL, original checksum, export timestamp, successful restore-review receipt, schema capture and its review receipt are retained together outside the repository on encrypted, access-controlled storage, with a second independently recoverable secure copy. Confirm both copies' SQL hashes against the already recorded original SHA-256, without overwriting or re-exporting the original. Neither a second folder on the same disk nor a GitHub artifact is an independent private recovery copy.
 
-Local restore checker:
-- Restores the trusted SQL into disposable in-memory SQLite with disk attachment/extension access blocked.
-- Requires exact original 23 migration names, application schema, clean foreign keys, integrity and financial ledger checks.
-- Allows only the already reviewed Cloudflare internal _cf_KV schema, preserving its blob values; refuses unexpected schema and executable journal triggers.
-- Applies only the two pinned additive source files LOCALLY, compares every original application row and original journal row, and verifies the resulting schema and local 25-entry journal.
-- Keeps an unchanged disposable baseline rollback copy and verifies that the private SQL input is unchanged.
-- Prints checks and file hash, never customer/payment rows or SQL exception text.
+Only sanitized hash/check results and timestamps are needed for review. Never upload SQL, record contents, tokens, credentials or authenticated browser profiles. This packet has not received the literal original hash, receipt identity/timestamp, retention confirmation or second-copy hash result; do not invent them or label them independently verified. If receipt filenames contain personal paths, redact those paths.
 
-These are now synthetic-tested capabilities, **not proof that the owner's actual QA export has already passed**. Keep the real SQL on encrypted private storage with a second secure copy. Do not paste/upload SQL, credentials, tokens or login files into chat or GitHub. Return only the check-only receipt, SHA-256, export timestamp and whether the independent secure copy was retained.
+### Cloudflare provenance requirements still to confirm
 
-Run the existing offline metadata reviewer on the newly captured JSON. Journal count alone does not establish full column/index/trigger compatibility. Any schema drift, source mismatch, financial anomaly or changed serving version is a STOP, not an invitation to reset/reinitialize data.
+Local schema JSON can be reviewed for consistency but cannot authenticate its origin. The capturer intentionally records `providerSourceAttested=false`; a local PASS does not override that flag. Retain private authenticated Cloudflare evidence tying the capture to the intended account, exact Worker and `DB` binding to the exact QA UUID, plus sole active version `58a467fa-9dbc-45a3-971e-b5a4e478f54d` at 100%. D1 inventory alone does not prove the deployed Worker's binding. Record evidence time, capture SHA-256, and owner attestation that the existing capture came from that authenticated account/database. Keep account identifiers private where possible; never provide tokens.
+
+Reuse the completed capture and receipts. The reviewer's 24-hour freshness requirement still applies at execution: recheck live identity and schema only if expired or changed, rather than repeating successful recovery work. Any different version, split traffic, database binding, pending migration list or schema drift is a STOP for investigation, not permission to repin expectations.
 
 ## Exact proposed SQL and effects
 
@@ -53,7 +54,7 @@ Run the existing offline metadata reviewer on the newly captured JSON. Journal c
 | `0023_deposit_policy_events.sql` | `b117d357a44c2ef3801e15eccd3a67bd82f701984b7658acf5d575fccb362a99` |
 | `0024_deposit_agreement_snapshots.sql` | `95a1ed3148cd0eee936ad2f8e69323c8a0f8243df226a00973adc04fbab0808e` |
 
-All 23 previous SQL blobs must remain byte-identical. Apply 0023 before 0024 only after a distinct exact owner authorization. If the pending journal contains anything else, stop. No hosted migration command is supplied by this packet.
+All 23 previous SQL blobs must match their pinned Git contents under the verified LF/CRLF equivalence rule; no SQL edits or other normalization is accepted. Apply 0023 before 0024 only after a distinct exact owner authorization. If the pending journal contains anything else, stop. The ordered procedure below remains a review specification; it is not an executable authorization.
 
 0023 adds append-only policy events, one index and two immutability triggers. 0024 adds signed agreement snapshots referencing those events, one index and two immutability triggers. Together: two tables, two indexes, four triggers; no rewrite of existing tables or rows, no charges/refunds and no retroactive signature changes. Their constraints reject invalid financial amounts and signed-document metadata. Future audit records reference estimates: once used, those references and immutable rows can restrict deletion. They are not disposable cleanup data.
 
@@ -63,26 +64,42 @@ A code rollback restores Worker code only; it does not undo schema or migration-
 
 During a future approved migration/update window, avoid QA test edits, retain the verified pre-change export/hash/current Worker version, recheck target and journal, apply only the two approved migrations, and verify exact schema/journal and unchanged pre-existing financial data before publishing. Any failure stops publication. Keep a post-change private backup if testing subsequently creates new agreements. Production and other databases remain outside this packet.
 
-## Approval fields that must be completed before asking the owner
+## Exact remaining blockers and controlled procedure
 
-| Field | State |
+| Remaining blocker | Required resolution |
 | --- | --- |
-| Owner-reported exact Worker/D1 and 23 journal | Received; runtime recheck still required |
-| Complete hosted schema/column/index/trigger/journal capture | Pending owner metadata capture |
-| Actual private export SHA-256 and timestamp | Pending |
-| Actual export local restore + additive rehearsal receipt | Pending |
-| Independent encrypted backup retention | Pending |
-| Exact release candidate commit and passing CI/build identity | Attach final verified run and sealed QA artifact |
-| Exact hosted migration mechanism and fresh pending-list review | Pending separate reviewed migration path; code-only updater still rejects 25 SQL files |
-| Current Worker retained as rollback, with limits acknowledged | Recheck before approval |
-| Explicit approval of exact migration | NOT GIVEN |
-| Explicit approval of exact QA code deployment | NOT GIVEN |
-| Physical iPhone acceptance of updated four screens | Pending deployment |
+| Private retention and receipt identity | Confirm existing original hash/timestamp, successful check-only receipt and two secure copies as above |
+| Capture provenance and deployed binding | Authenticated owner attestation/evidence tied to account, Worker, DB UUID, capture hash/time and active version |
+| Migration-aware release mechanism | Implement and test a separately reviewed path for this exact 23-to-25 transition; existing code-only reviewer/publisher must continue refusing 25 migrations |
+| Final candidate identity | Seal exact commit, passing CI run, materialized QA source verification, build/runtime manifest checks and artifact hash |
+| Explicit migration approval | NOT GIVEN; exact two SQL hashes, recovery receipt and limitations required |
+| Explicit code update approval | NOT GIVEN; exact same candidate and QA target required |
+| Hosted and physical acceptance | Pending authorized deployment; verify four priority screens on iPhone |
 
-Do not use the initial publisher, bypass the 23/25 code-only hold, reinitialize D1, or infer approval from tests. Once the pending evidence is reviewed, ask for one concrete approval covering the exact candidate, target, two SQL hashes, backup receipt and rollback limitations, with migration and code update explicitly identified.
+The existing code-only updater is **not usable for this transition**, even after local rehearsal. Do not change its 23-file condition, use the first-publish initializer, or invoke deploy directly to evade it. A migration-aware path is a remaining implementation blocker, not an owner evidence task.
+
+Future approved execution must follow this order:
+
+1. Seal a clean exact candidate from the development branch, its CI/build checks, canonical migration hashes and isolated runtime configuration. Preserve the first-release 23-migration archive and both historical Worker versions unchanged. No secrets upload or Stripe changes.
+2. Agree a quiet QA window with no test edits. Bind the existing verified backup and receipts to the approval. If QA data changed since that backup, assess the recovery gap and obtain an approved fresh recovery checkpoint; do not silently reuse a stale recovery point.
+3. Immediately before any write, authenticate the intended account; recheck sole active 58a467fa version, deployed `DB` binding, isolated QA/staging identities, exact original 23 schema/journal and pending list consisting only of 0023 then 0024. Refuse a different head, unexpected migration, expired evidence or changed binding/version.
+4. Only after explicit migration approval and a tested guarded executor, apply those two pinned migrations to QA UUID `8ccfb1f8-1657-4074-b1b2-47de78f95003`, in order. No database reset, import, seed or production command. A partial failure stops: inspect actual journal/schema read-only and do not blindly rerun or drop tables.
+5. Before publishing, perform authenticated read-only checks for exact 25 journal entries, expected columns/indexes/triggers, clean integrity/foreign keys and unchanged original row/financial snapshots. Do not retain or print customer rows in public evidence. A mismatch blocks deployment; code rollback does not restore data.
+6. Only with separate exact QA code approval, publish the sealed candidate to the same Worker, preserving existing D1, QA login secrets and synthetic records. Recheck identity immediately before publication; keep 58a467fa as the expected code rollback. Record the new serving version and verify sole 100% traffic, bindings, owner login and record persistence afterwards.
+7. Test synthetic Customer View, View Invoice, Job Report and Job Costs on the owner's iPhone: navigation, narrow layouts/light and dark, balances, draft/completed saves, expense/profit totals, double taps and recoverable online errors. Record observed results separately from automated tests. Failure stops release advancement. Remote rollback/restore requires its own explicit authorization.
+
+## Specific approval text for review — NOT YET READY TO EXECUTE
+
+Complete every bracketed evidence field first; placeholders are not authorization. Approval of database migration and code deployment must be explicit and separately identifiable:
+
+> I approve ONLY the two QA migrations 0023 (`b117d357a44c2ef3801e15eccd3a67bd82f701984b7658acf5d575fccb362a99`) then 0024 (`95a1ed3148cd0eee936ad2f8e69323c8a0f8243df226a00973adc04fbab0808e`) from candidate [full commit], CI [passed run], using reviewed executor [identity], on fire-fullapp-qa-db-20261016 / 8ccfb1f8-1657-4074-b1b2-47de78f95003. I reviewed backup [original SHA-256, timestamp, successful receipt hash], secure retention [confirmation], Cloudflare provenance [capture hash/time and binding attestation], and the no-test-edits window [time]. I understand that code rollback does not undo schema, immutable audit/signature data must be preserved, and remote database recovery could lose later writes and requires separate approval.
+
+> Separately, I approve updating ONLY fire-fullapp-qa-20261016 from sole active version 58a467fa-9dbc-45a3-971e-b5a4e478f54d to that same exact candidate [full commit / sealed artifact SHA-256], only after successful post-migration checks. Preserve its database and existing authentication. Retain 58a467fa as code rollback. No production changes are authorized.
 
 ## App work and scope
 
-Job closeout now catches report HTTP/network/JSON failures with a visible recoverable error, prevents same-frame duplicate completion requests, bypasses cached report reads, and requires the completed report to match the selected estimate and customer before issuing a status update. Actual extracted component tests cover valid completion plus failed verification and wrong-record responses (88 assertions). Shared source is inherited by LIVE, staging, Doomsday and QA candidates; no deployed parity is claimed.
+Shared estimate/job details now use synchronous request locks for date/status saves, invoice creation and overpayment reconciliation. Repeated same-frame taps cannot issue duplicate requests, conflicting saves are blocked during closeout verification, and the detail window stays open while a request is pending. Visible accessible saving feedback and disabled date input make the wait clear; failures release the lock so the owner can retry or close. Financial calculations, payment APIs and agreement data are unchanged. This does not add an offline mutation queue or solve uncertain server outcomes after a disconnected request.
 
-Production release acceptance remains **3/10 gates (30%)**. Four updated priority screens deployed in this batch: **0/4**; physically accepted on iPhone in this batch: **0/4**. No real record edits, payments, hosted migrations or deployments were performed. Next bounded batch: review the actual private recovery/metadata receipts, resolve any drift, and complete the exact release approval packet. If owner access is unavailable, preserve this checkpoint and continue a bounded online app fix.
+These improvements are implemented in shared source for isolated LIVE, staging, Doomsday and QA candidates; no deployed parity is claimed. Actual component regression tests cover pending-save dismissal, duplicate taps, visible feedback, failed-save recovery and retry as well as existing report verification cases. Attach the new candidate's CI evidence before approval.
+
+Production release acceptance remains **3/10 gates (30%)**. Updated four priority screens deployed in this batch: **0/4**; physically accepted on iPhone in this batch: **0/4**; hosted migration and code approval: **not given**. Next bounded batch: implement and test the migration-aware guarded review/execution path using synthetic fixtures, then seal the final candidate and complete the private retention/provenance evidence fields. No hosted operation is authorized by this packet.
