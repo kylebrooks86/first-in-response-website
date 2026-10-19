@@ -23,6 +23,12 @@ const env={FIRE_DEPOSIT_POLICY_CANDIDATE:'synthetic-tests-only',FIRE_DEPOSIT_EXC
  }}};
 const load=createRouteFixtureLoader(process.cwd(),env,()=>null);
 const route=load('app/api/public/estimates/[token]/revised-accept/route.ts');
+const ownerEdit=createRouteFixtureLoader(process.cwd(),env,()=>({email:'kylebrooks8605@gmail.com'}))('app/api/estimates/[id]/route.ts');
+async function edit(id,body){
+ return ownerEdit.PATCH(new Request('https://synthetic.invalid/api/estimates/'+id,{
+  method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)
+ }),{params:Promise.resolve({id})});
+}
 let serial=1;const key=()=>('00000000-0000-4000-8000-'+String(serial++).padStart(12,'0'));
 const get=id=>db.prepare('SELECT * FROM estimates WHERE id=?').get(id);
 const notice=id=>db.prepare("SELECT * FROM notifications WHERE estimate_id=? AND type='estimate_accepted'").all(id);
@@ -68,6 +74,14 @@ try{
   const repeat=await post(s,p);eq(repeat.status,200);eq((await repeat.json()).replayed,true);
   eq(notice(s.id).length,1);eq(signed(s.id).length,1);
   eq((await post(s,{...p,signedName:'A Different Signature'})).status,409);
+  // Signing a waiver or deferred deposit is not permission to schedule.
+  const noDepositSchedule=await edit(s.id,{scheduledAt:'2026-10-21T15:00:00.000Z'});
+  eq(noDepositSchedule.status,409);
+  eq([get(s.id).status,get(s.id).scheduled_at,signed(s.id).length],['approved',null,1]);
+  // Accepted service scope must remain identical to what the customer signed.
+  const changedScope=await edit(s.id,{items:[{name:'Changed service',description:'',quantity:1,unit:'job',totalCents:18001}]});
+  eq(changedScope.status,409);
+  eq(JSON.parse(signed(s.id)[0].scope_json)[0][1],'Cleaning');
  }
  eq(ledger(),0);
  const untouched=seed('untouched'),ok=await payload(untouched);
@@ -101,5 +115,5 @@ try{
  eq(get(lostCase.id).status,'approved');eq(notice(lostCase.id).length,1);eq(signed(lostCase.id).length,1);
  eq((await post(lostCase,lostBody)).status,200);eq(notice(lostCase.id).length,1);
  eq(ledger(),2); // injected payment and refund-race linked payment only; signing creates no payments
- console.log('PASS '+n+'/'+n+': six exact customer agreement signatures, SHA256 commitment, atomic scope/payment/audit races, source-only receipt replay and lost acknowledgements; no writer payments or scheduling.');
+ console.log('PASS '+n+'/'+n+': six exact customer agreement signatures, SHA256 commitment, atomic scope/payment/audit races, source-only receipt replay, blocked scheduling, immutable scope and lost acknowledgements; no writer payments or scheduling.');
 }finally{db.close();}
