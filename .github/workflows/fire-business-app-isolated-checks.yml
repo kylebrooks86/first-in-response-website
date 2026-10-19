@@ -280,6 +280,7 @@ jobs:
            node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
            node --experimental-sqlite scripts/test-deposit-exception-transaction.mjs
            node scripts/test-deposit-agreement-disclosure.mjs
+           node --experimental-sqlite scripts/test-deposit-revised-signature.mjs
            node scripts/test-deposit-exception-proposals.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
@@ -390,6 +391,7 @@ jobs:
            node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
            node --experimental-sqlite scripts/test-deposit-exception-transaction.mjs
            node scripts/test-deposit-agreement-disclosure.mjs
+           node --experimental-sqlite scripts/test-deposit-revised-signature.mjs
            node scripts/test-deposit-exception-proposals.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
@@ -479,6 +481,7 @@ jobs:
            node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
            node --experimental-sqlite scripts/test-deposit-exception-transaction.mjs
            node scripts/test-deposit-agreement-disclosure.mjs
+           node --experimental-sqlite scripts/test-deposit-revised-signature.mjs
            node scripts/test-deposit-exception-proposals.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
