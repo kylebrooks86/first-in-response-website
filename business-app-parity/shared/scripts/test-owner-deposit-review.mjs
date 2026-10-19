@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+let n=0;const check=(condition,message)=>{assert.ok(condition,message);n++;};
+const ui=readFileSync('components/owner-deposit-review.tsx','utf8');
+const dash=readFileSync('app/dashboard.tsx','utf8');
+const api=readFileSync('app/api/estimates/[id]/deposit-policy/route.ts','utf8');
+for(const token of ['OwnerDepositReview','currentSnapshot','expectedLastEventId','expectedContractVersion','expectedSignedAt','expectedPaidCents','confirmationId','crypto.randomUUID','canReviewUnsignedDraft','role="alert"'])check(ui.includes(token),token);
+check(dash.includes('<OwnerDepositReview key={estimate.id} estimateId={estimate.id}/>'),'Owner review must be in estimate detail');
+check(ui.includes('if(response.saveUncertain||r.status>=500)'),'Unknown result must block new confirmation');
+check(ui.includes('setUncertain(true)'),'Unknown result must require reconciliation');
+check(ui.includes('No automatic retry will occur.'),'No automatic payment or write retry');
+check(ui.includes('setPending({confirmationId:id,body})'),'Preserve confirmation');
+check(!ui.includes('stripe'),'Panel must never access payments provider');
+check(api.includes('currentSnapshot:{status:row.status'),'Owner must get server-verified snapshot');
+check(api.includes("if(!synthetic)return Response.json"),'Live owner GET must retain existing behavior');
+check(api.includes("row.status!=='draft'||row.firstViewedAt!==null"),'Server mutation scope strict');
+console.log('PASS '+n+'/'+n+': candidate owner deposit review and explicit confirmation integration, fail-closed source assertions; hosted mutation remains disabled.');
