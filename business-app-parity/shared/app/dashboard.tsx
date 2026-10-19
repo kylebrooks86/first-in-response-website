@@ -747,7 +747,7 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
 }
 
 function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobSnapshotAccess}){
-  const [open,setOpen]=useState(false);const [rows,setRows]=useState<ExpenseRow[]>([]);const [description,setDescription]=useState("");const [amount,setAmount]=useState("");const [category,setCategory]=useState("Supplies");
+  const [open,setOpen]=useState(false);const [rows,setRows]=useState<ExpenseRow[]>([]);const [description,setDescription]=useState("");const [amount,setAmount]=useState("");const [category,setCategory]=useState("Supplies");const [saving,setSaving]=useState(false);const [saveError,setSaveError]=useState("");const [saveSuccess,setSaveSuccess]=useState("");
   const billingTotal=resolvedBillingTotalCents(estimate);
   const loadRequest=useRef(0);const currentJob=useRef<string|null>(null);const [loading,setLoading]=useState(false);const [loadError,setLoadError]=useState("");const [loadedJob,setLoadedJob]=useState<string|null>(null);
   const [snapshotAt,setSnapshotAt]=useState<string|null>(null);const [checkedEpoch,setCheckedEpoch]=useState<number|null>(null);const readOnly=Boolean(snapshotAt)||snapshots?.online===false||Boolean(snapshots&&checkedEpoch!==snapshots.networkEpoch);
@@ -775,8 +775,61 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
     }}finally{if(request===loadRequest.current)setLoading(false);}
   };
   useEffect(()=>{if(!open)return;currentJob.current=estimate.id;void load();return()=>{currentJob.current=null;loadRequest.current++;};},[open,estimate.id,estimate.customerId]);const total=rows.reduce((sum,row)=>sum+row.amountCents,0);
-  const add=async()=>{if(readOnly||navigator.onLine===false)return;snapshots?.records.forget('costs',estimate.id,estimate.customerId);const amountCents=Math.round(Number(amount)*100);if(!description.trim()||amountCents<=0)return;const response=await fetch("/api/expenses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,category,description,amountCents,incurredAt:new Date().toISOString()})});if(response.ok){setDescription("");setAmount("");void load();}};
-  return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><Button variant="outline"><CircleDollarSign className="h-4 w-4"/> Job costs</Button></DialogTrigger><DialogContent className="sm:max-w-[600px]"><DialogHeader><DialogTitle>Job costs and profit</DialogTitle></DialogHeader><div className="job-cost">{readOnly&&!loading&&!loadError&&loadedJob===estimate.id&&<p className="offline-job-status" role="status">Read-only session snapshot{snapshotAt?` · last checked ${new Date(snapshotAt).toLocaleString()}`:""}. Costs and profit may have changed. Reconnect and reload before adding costs. Not saved for offline restart.<Button variant="outline" disabled={snapshots?.online===false} onClick={()=>void load()}>Reload costs online</Button></p>}{loading||(loadedJob!==estimate.id&&!loadError)?<p role="status">Loading job costs…</p>:loadError?<p className="save-error" role="alert">{loadError}<Button variant="outline" onClick={()=>void load()}>Retry loading costs</Button></p>:<><div className="profit-summary"><span><small>{estimate.invoiceId?"Final invoice":"Estimate"}</small><strong>{money(billingTotal)}</strong></span><span><small>Costs</small><strong>{money(total)}</strong></span><span><small>Estimated gross profit</small><strong>{money(billingTotal-total)}</strong></span></div>{!readOnly&&<div className="cost-form"><Select value={category} onValueChange={setCategory}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Supplies","Chemicals","Equipment","Fuel","Labor","Other"].map((item)=><SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent></Select><Input value={description} onChange={(event)=>setDescription(event.target.value)} placeholder="Expense description"/><Input value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="$ Amount"/><Button className="brand-button" onClick={()=>void add()}>Add cost</Button></div>}<div className="cost-list">{rows.map((row)=><div key={row.id}><span><strong>{row.description}</strong><small>{row.category}</small></span><b>{money(row.amountCents)}</b></div>)}{!rows.length&&<p>No job costs recorded yet.</p>}</div></>}</div></DialogContent></Dialog>;
+  const add=async()=>{
+    if(saving||readOnly||navigator.onLine===false||currentJob.current!==estimate.id)return;
+    setSaveError("");setSaveSuccess("");
+    const entered=amount.trim();
+    if(!description.trim()){setSaveError("Enter a description for this job cost.");return;}
+    if(!/^(?:0|[1-9]\\d*)(?:\\.\\d{1,2})?$/.test(entered)){
+      setSaveError("Enter an amount in dollars with no more than two decimal places.");return;
+    }
+    const [dollars,cents=""]=entered.split(".");
+    const calculated=BigInt(dollars)*BigInt(100)+BigInt(cents.padEnd(2,"0"));
+    if(calculated<=BigInt(0)||calculated>BigInt(Number.MAX_SAFE_INTEGER)){
+      setSaveError("Enter a valid positive expense amount.");return;
+    }
+    const amountCents=Number(calculated),jobId=estimate.id,customerId=estimate.customerId;
+    setSaving(true);
+    try{
+      const response=await fetch("/api/expenses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:jobId,category,description:description.trim(),amountCents,incurredAt:new Date().toISOString()})});
+      const result=await response.json() as {expense?:ExpenseRow;error?:string};
+      if(!response.ok)throw new Error(result.error||"This job cost could not be saved.");
+      if(!result.expense||result.expense.estimateId!==jobId||Number(result.expense.amountCents)!==amountCents||!result.expense.id)
+        throw new Error("The saved expense could not be confirmed. Review the job costs before trying again.");
+      snapshots?.records.forget('costs',jobId,customerId);
+      if(currentJob.current===jobId){
+        setDescription("");setAmount("");setSaveSuccess("Cost recorded. Refreshing job totals…");
+        await load();
+      }
+    }catch(error){
+      if(currentJob.current===jobId)setSaveError(error instanceof Error?error.message+" Refresh the list before attempting another entry.":"The result is uncertain. Refresh costs before attempting another entry.");
+    }finally{if(currentJob.current===jobId)setSaving(false);}
+  };
+  return <Dialog open={open} onOpenChange={setOpenSafe}>
+    <DialogTrigger asChild><Button variant="outline"><CircleDollarSign className="h-4 w-4"/> Job costs</Button></DialogTrigger>
+    <DialogContent className="fire-job-dialog sm:max-w-[640px]" aria-describedby={undefined}>
+      <DialogHeader><DialogTitle>Job costs &amp; profit</DialogTitle></DialogHeader>
+      <div className="job-cost">
+        {readOnly&&!loading&&!loadError&&loadedJob===estimate.id&&<p className="offline-job-status" role="status">Read-only session snapshot{snapshotAt?` · last checked ${new Date(snapshotAt).toLocaleString()}`:""}. Costs and profit may have changed. Reconnect and reload before adding costs. Not saved for offline restart.<Button variant="outline" disabled={snapshots?.online===false} onClick={()=>void load()}>Reload costs online</Button></p>}
+        {loading||(loadedJob!==estimate.id&&!loadError)?<p role="status">Loading job costs…</p>:loadError?<p className="save-error" role="alert">{loadError}<Button variant="outline" onClick={()=>void load()}>Retry loading costs</Button></p>:<>
+          <div className="profit-summary" aria-label="Job financial summary">
+            <span><small>{estimate.invoiceId?"Final invoice":"Estimate"}</small><strong>{money(billingTotal)}</strong></span>
+            <span><small>Recorded costs</small><strong>{money(total)}</strong></span>
+            <span><small>Estimated gross profit</small><strong>{money(billingTotal-total)}</strong></span>
+          </div>
+          {!readOnly&&<div className="cost-form">
+            <label className="fire-field"><span>Category</span><Select value={category} onValueChange={setCategory} disabled={saving}><SelectTrigger aria-label="Expense category"><SelectValue/></SelectTrigger><SelectContent>{["Supplies","Chemicals","Equipment","Fuel","Labor","Other"].map((item)=><SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent></Select></label>
+            <label className="fire-field cost-description"><span>What was purchased or used?</span><Input value={description} disabled={saving} maxLength={240} onChange={(event)=>{setDescription(event.target.value);setSaveError("");}} placeholder="e.g. Sodium hypochlorite"/></label>
+            <label className="fire-field"><span>Amount (USD)</span><Input value={amount} disabled={saving} onChange={(event)=>{setAmount(event.target.value);setSaveError("");}} inputMode="decimal" placeholder="0.00"/></label>
+            <Button className="brand-button cost-submit" onClick={()=>void add()} disabled={saving||!description.trim()||!amount.trim()}>{saving?"Saving cost…":"Add cost"}</Button>
+          </div>}
+          {saveError&&<p className="save-error" role="alert">{saveError}</p>}
+          {saveSuccess&&!saveError&&<p className="save-success" role="status">{saveSuccess}</p>}
+          <div className="cost-list" aria-label="Recorded expenses">{rows.map((row)=><div key={row.id}><span><strong>{row.description}</strong><small>{row.category}</small></span><b>{money(row.amountCents)}</b></div>)}{!rows.length&&<p>No job costs recorded yet.</p>}</div>
+        </>}
+      </div>
+    </DialogContent>
+  </Dialog>;
 }
 
 

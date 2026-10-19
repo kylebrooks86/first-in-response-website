@@ -817,3 +817,25 @@ html,body{max-width:100%;overflow-x:clip}
 .global-search-menu .global-search-filters button{width:auto;min-width:44px;padding:6px 10px}
 @media(min-width:761px) and (max-width:1100px){.topbar{height:auto;min-height:122px;flex-wrap:wrap;gap:10px;padding:12px 20px}.topbar>.top-actions{order:1;margin-left:auto}.topbar>.global-search{order:2;flex:1 0 100%;max-width:none}}
 @media(max-width:760px){.topbar>.global-search{grid-column:1/-1!important;grid-row:2!important;max-width:none}.global-search-panel{width:100%;max-width:100%}.topbar>.global-search .search-box{margin:0!important}.global-search-menu .search-box input{display:block!important}}
+
+
+/* FIRE estimate-detail job tools: readable, touch-friendly dialogs on iPhone */
+.fire-job-dialog{width:min(640px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+.fire-job-dialog .job-cost,.fire-job-dialog .job-report{min-width:0;overflow-wrap:anywhere}
+.fire-job-dialog .cost-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) minmax(0,.85fr);align-items:end;gap:12px}
+.fire-job-dialog .fire-field{display:grid;min-width:0;gap:6px;font-size:12px;font-weight:700;line-height:1.4}
+.fire-job-dialog .fire-field>span{color:var(--foreground)}
+.fire-job-dialog .fire-field input,.fire-job-dialog .fire-field [data-slot="select-trigger"]{width:100%;min-width:0;min-height:44px}
+.fire-job-dialog .cost-submit{grid-column:1/-1;min-height:44px}
+.fire-job-dialog .cost-list>div{gap:12px;min-width:0}
+.fire-job-dialog .cost-list>div>span{min-width:0;overflow-wrap:anywhere}
+.fire-job-dialog .cost-list>div>b{flex:0 0 auto;white-space:nowrap}
+.fire-job-dialog .profit-summary strong{font-size:clamp(14px,3.5vw,18px);overflow-wrap:anywhere}
+@media(max-width:620px){
+  .fire-job-dialog .cost-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .fire-job-dialog .cost-description{grid-column:1/-1;grid-row:1}
+  .fire-job-dialog .profit-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fire-job-dialog .profit-summary span:last-child{grid-column:1/-1}
+  .fire-job-dialog .cost-submit{width:100%}
+}
+@media(max-width:360px){.fire-job-dialog .cost-form{grid-template-columns:1fr}.fire-job-dialog .cost-description{grid-column:auto;grid-row:auto}}
