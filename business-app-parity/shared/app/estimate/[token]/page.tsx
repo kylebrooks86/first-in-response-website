@@ -8,6 +8,7 @@ import { PayButton } from "../../pay/[id]/pay-button";
 import { SERVICE_AGREEMENT, templateByKey } from "../../../lib/fire-templates";
 import { serviceDescriptionFor } from "../../../lib/fire-services";
 import { paymentHandles } from "../../../lib/payment-methods";
+import {describeRevisedDepositTerms} from "../../../lib/deposit-agreement-revision.mjs";
 
 export const dynamic="force-dynamic";
 export const metadata={robots:{index:false,follow:false,nocache:true}};
@@ -39,12 +40,38 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const syntheticOwnerException=('FIRE_DEPOSIT_POLICY_CANDIDATE' in env&&env.FIRE_DEPOSIT_POLICY_CANDIDATE==='synthetic-tests-only')&&
     ('FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE' in env&&env.FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE==='synthetic-contract-tests-only');
   if(syntheticOwnerException){
-    let hold=true;
-    try{hold=Boolean(await env.DB.prepare("SELECT id FROM deposit_policy_events WHERE estimate_id=? LIMIT 1").bind(row.id).first());}
-    catch{hold=true;} // Unknown history must not expose stale payment terms.
-    if(hold)return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div>
-      <h1>Updated estimate required</h1>
-      <p>Deposit terms are under review. Please contact First In Response Exteriors for a revised agreement before approving or making a payment.</p>
+    // Read-only versioned disclosure. No legacy signature, checkout, or
+    // payment instructions may leak through the stale 50% agreement.
+    let held=false;
+    let amendment:ReturnType<typeof describeRevisedDepositTerms>|null=null;
+    try{
+      const history=await env.DB.prepare("SELECT * FROM deposit_policy_events WHERE estimate_id=? ORDER BY created_at DESC,id DESC LIMIT 101").bind(row.id).all<Record<string,unknown>>();
+      if(history.results.length){
+        held=true;
+        if(history.results.length<=100){
+          const state=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM payments WHERE estimate_id=?) AS paymentCount,(SELECT COUNT(*) FROM invoices WHERE estimate_id=?) AS invoiceCount,(SELECT COUNT(*) FROM payment_checkout_sessions WHERE estimate_id=? AND status='open') AS openCheckoutCount,(SELECT COUNT(*) FROM payment_refunds WHERE estimate_id=? AND status='pending') AS pendingRefundCount").bind(row.id,row.id,row.id,row.id).first<{paymentCount:number;invoiceCount:number;openCheckoutCount:number;pendingRefundCount:number}>();
+          if(state)amendment=describeRevisedDepositTerms({
+            estimate:{id:row.id,status:row.status,totalCents:row.totalCents,depositCents:row.depositCents,acceptedAt:row.acceptedAt,signedAt:row.signedAt},
+            latestEvent:history.results[0],eventCount:history.results.length,...state
+          });
+        }
+      }
+    }catch{held=true;amendment=null;}
+    if(held)return <main className="pay-page"><section className="pay-card estimate-portal">
+      <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
+      <h1>{amendment?"Revised deposit terms for review":"Updated estimate required"}</h1>
+      {amendment?<div className="portal-breakdown">
+        <p><strong>{amendment.notice}</strong></p>
+        <p>{amendment.modeName}{amendment.percent!==null?(" ("+amendment.percent+"%)"):""}</p>
+        <p>Price after discounts: <strong>{amendment.totalDisplay}</strong></p>
+        <p>Required deposit: <strong>{amendment.depositDisplay}</strong></p>
+        <p>Remaining price after deposit: <strong>{amendment.balanceDisplay}</strong></p>
+        <p>{amendment.explanation}</p>
+        <p>{amendment.requirement}</p>
+        <p>Revision reference: <code>{amendment.version}</code></p>
+        <div className="contract-box"><strong>Service Agreement &amp; Liability Waiver</strong><p>{SERVICE_AGREEMENT}</p></div>
+      </div>:<p>Deposit terms need reconciliation. Contact First In Response Exteriors for an updated agreement before proceeding.</p>}
+      <p className="pay-note">This is not an accepted agreement. Approval, scheduling, and payments are unavailable until revised terms are formally issued and signed.</p>
     </section></main>;
   }
   const itemResult=await env.DB.prepare(`SELECT name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC`).bind(row.id).all<{name:string;description:string;quantity:number;unit:string;totalCents:number}>();
