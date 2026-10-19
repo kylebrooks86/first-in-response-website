@@ -80,7 +80,7 @@ try{
    if(kind==='price')db.prepare('UPDATE estimates SET total_cents=20000 WHERE id=?').run(s.id);
    if(kind==='deposit')db.prepare('UPDATE estimates SET deposit_cents=1 WHERE id=?').run(s.id);
    if(kind==='signature')db.prepare("UPDATE estimates SET signed_at='2026-10-19T13:00:00Z' WHERE id=?").run(s.id);
-   if(kind==='refund')db.prepare("INSERT INTO payment_refunds(id,estimate_id,payment_id,amount_cents,mode,status,created_at) VALUES(?,?,'historic',1,'manual','pending','2026-10-19')").run(key(),s.id);
+   if(kind==='refund'){const paymentId=key();db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,'Cash',100,'paid','2026-10-19')").run(paymentId,s.id);db.prepare("INSERT INTO payment_refunds(id,estimate_id,payment_id,amount_cents,mode,status,created_at) VALUES(?,?,?,1,'manual','pending','2026-10-19')").run(key(),s.id,paymentId);}
    if(kind==='checkout')db.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,'deposit',9001,'open','2026-10-19')").run(key(),s.id);
    if(kind==='payment')db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,'Cash',100,'paid','2026-10-19')").run(key(),s.id);
    if(kind==='invoice')db.prepare("INSERT INTO invoices(id,estimate_id,customer_id,total_cents,created_at) VALUES(?,?,?,18001,'2026-10-19')").run(key(),s.id,'c-'+s.id);
@@ -92,6 +92,6 @@ try{
  eq((await post(lostCase,lostBody)).status,503);
  eq(get(lostCase.id).status,'approved');eq(notice(lostCase.id).length,1);
  eq((await post(lostCase,lostBody)).status,200);eq(notice(lostCase.id).length,1);
- eq(ledger(),1); // injected payment race fixture only
+ eq(ledger(),2); // injected payment and refund-race linked payment only; signing creates no payments
  console.log('PASS '+n+'/'+n+': six exact customer agreement signatures, SHA256 commitment, atomic scope/payment/audit races, source-only receipt replay and lost acknowledgements; no writer payments or scheduling.');
 }finally{db.close();}

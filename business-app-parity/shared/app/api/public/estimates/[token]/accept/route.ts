@@ -11,8 +11,6 @@ export async function POST(request:Request,context:{params:Promise<{token:string
       COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Exterior cleaning service') AS service
       FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.share_token=? LIMIT 1`).bind(token).first<{id:string;customerId:string;status:string;acceptedAt:string|null;signedName:string|null;signedAt:string|null;photoRelease:string|null;customer:string;service:string}>();
     if(!estimate)return Response.json({error:"Estimate not found."},{status:404});
-    if(estimate.acceptedAt)return Response.json({ok:true,acceptedAt:estimate.acceptedAt,signedName:estimate.signedName,signedAt:estimate.signedAt,photoRelease:estimate.photoRelease});
-    if(!["draft","sent"].includes(estimate.status))return Response.json({error:"This estimate is no longer available for approval. Please contact First In Response Exteriors."},{status:409});
     // Source-only owner exceptions cannot yet be signed: the public agreement
     // still labels every deposit as 50%. Refuse old-link approval until the
     // revised financial terms are actually rendered and expressly accepted.
@@ -22,6 +20,8 @@ export async function POST(request:Request,context:{params:Promise<{token:string
       const audit=await env.DB.prepare('SELECT id FROM deposit_policy_events WHERE estimate_id=? LIMIT 1').bind(estimate.id).first();
       if(audit)return Response.json({error:'This estimate requires updated deposit terms and a new customer agreement before it can be approved. Contact First In Response Exteriors.'},{status:409});
     }
+    if(estimate.acceptedAt)return Response.json({ok:true,acceptedAt:estimate.acceptedAt,signedName:estimate.signedName,signedAt:estimate.signedAt,photoRelease:estimate.photoRelease});
+    if(!["draft","sent"].includes(estimate.status))return Response.json({error:"This estimate is no longer available for approval. Please contact First In Response Exteriors."},{status:409});
     const now=new Date().toISOString();
     const [accepted]=await env.DB.batch([
       env.DB.prepare(`UPDATE estimates SET status='approved',accepted_at=?,signed_name=?,signed_at=?,photo_release=?,contract_version='2026-09-21'
