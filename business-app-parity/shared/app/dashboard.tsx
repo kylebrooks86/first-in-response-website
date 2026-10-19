@@ -1184,6 +1184,7 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
   const [schedule, setSchedule] = useState("");
   const [reportComplete,setReportComplete]=useState(false);
   const [checkingCloseout,setCheckingCloseout]=useState(false);
+  const closeoutLock=useRef(false);
   const [refundAmount,setRefundAmount]=useState("");
   useEffect(() => {
     let active=true;
@@ -1206,15 +1207,21 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
     finally { setSaving(false); }
   };
   const completeJob=async()=>{
-    setCheckingCloseout(true);setError("");
+    if(closeoutLock.current||saving||checkingCloseout)return;
+    closeoutLock.current=true;setCheckingCloseout(true);setError("");
     try{
-      const response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`);
+      const response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`,{cache:"no-store"});
       const result=await response.json() as {reports?:JobReportRow[];error?:string};
-      const complete=result.reports?.[0]?.status==="completed";
+      if(!response.ok||!Array.isArray(result?.reports))throw new Error("Report verification unavailable.");
+      const report=result.reports[0];
+      const complete=Boolean(report&&report.estimateId===estimate.id&&report.customerId===estimate.customerId&&report.status==="completed");
       setReportComplete(complete);
-      if(!response.ok||!complete){setError("Complete and save the service completion report before marking this job complete.");return;}
+      if(!complete){setError("Complete and save the service completion report for this job before marking it complete.");return;}
       await update({status:"completed"});
-    }finally{setCheckingCloseout(false);}
+    }catch{
+      setReportComplete(false);
+      setError("The saved report could not be verified. Reconnect and reopen this job before trying again. Job status was not changed.");
+    }finally{closeoutLock.current=false;setCheckingCloseout(false);}
   };
   const createInvoice = async () => {
     setSaving(true); setError("");

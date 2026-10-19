@@ -37,7 +37,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "5e44f843-94f0-4ea4-b80f-a889bd0830ef",
+                         "58a467fa-9dbc-45a3-971e-b5a4e478f54d",
                          "deployments status --name $workerName --json",
                          "d1 list --json", "databaseInfo.qaUuid -ceq $qaId",
                          "$activeVersions.Count -eq 1",
@@ -66,7 +66,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         publisher = (Path(__file__).parent / "owner_windows_qa_update_publish.ps1").read_text(encoding="utf-8")
         for script in (S, publisher):
             pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", script, re.M)
-            self.assertEqual(pins, ["5e44f843-94f0-4ea4-b80f-a889bd0830ef"])
+            self.assertEqual(pins, ["58a467fa-9dbc-45a3-971e-b5a4e478f54d"])
             self.assertNotIn("expectedActiveVersionPrefix", script)
             self.assertNotIn("da71b08f", script)
         self.assertIn("Require ($activeVersion -ceq $expectedActiveVersion)", S)

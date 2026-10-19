@@ -77,8 +77,11 @@ class TestQaIphoneReadiness(unittest.TestCase):
         self.assertIn("QA_METADATA_CAPTURE_EXPIRED_OR_FUTURE",result["blockers"])
         # The independent input validator rejects future timestamps before
         # classification. Treat its hard stop as correct, not a test failure.
+        packet=self.fixture()
+        packet["capture"]["capturedAt"]=(datetime.now(timezone.utc)+timedelta(hours=1)).isoformat()
+        packet["review"]=qa.compare_capture(packet["capture"])
         with self.assertRaises(gate.QAReadinessStop):
-            gate.decision(self.save(self.fixture(-1)),at=self.clock)
+            gate.decision(self.save(packet),at=self.clock)
 
     def test_capture_with_private_email_or_forged_review_fails_closed(self):
         packet=self.fixture()

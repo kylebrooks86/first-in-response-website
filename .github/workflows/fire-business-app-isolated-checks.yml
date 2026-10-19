@@ -56,6 +56,9 @@ on:
       - 'business-app-parity/test_rehearse_qa_additive_schema.py'
       - 'business-app-parity/capture_existing_qa_schema_read_only.py'
       - 'business-app-parity/test_capture_existing_qa_schema_read_only.py'
+      - 'business-app-parity/verify_qa_d1_export.py'
+      - 'business-app-parity/test_qa_d1_export.py'
+      - 'business-app-parity/owner_windows_qa_backup.ps1'
       - 'business-app-parity/review_existing_qa_capture_offline.py'
       - 'business-app-parity/test_review_existing_qa_capture_offline.py'
       - 'business-app-parity/qa_iphone_release_readiness.py'
@@ -221,10 +224,21 @@ jobs:
           python3 ../test_capture_existing_qa_schema_read_only.py
           python3 ../test_review_existing_qa_capture_offline.py
           python3 ../test_qa_iphone_release_readiness.py
+          python3 ../test_qa_d1_export.py
       - name: Existing QA Worker update review must preserve all hosted customer records
         run: python3 ../test_owner_windows_qa_update_review.py
       - name: Code-only QA Worker updates must require distinct approval and preserve login/data
         run: python3 ../test_owner_windows_qa_update_publish.py
+      - name: QA private backup helper parses and defaults to no network or writes
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '../owner_windows_qa_backup.ps1'), [ref]$tokens, [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -ne 0) { throw 'QA backup helper syntax failed.' }
+          ../owner_windows_qa_backup.ps1 -PrivateFolder (Join-Path $env:RUNNER_TEMP 'FIRE-Private-Backups')
       - name: Windows QA update publisher parses without running it
         shell: pwsh
         run: |
@@ -301,6 +315,7 @@ jobs:
            node scripts/test-job-tools-mobile-save.mjs
            node scripts/test-job-report-recovery.mjs
            node scripts/test-job-cost-recovery.mjs
+           node scripts/test-estimate-detail-recovery.mjs
            node scripts/test-deposit-exception-proposals.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
@@ -416,6 +431,7 @@ jobs:
            node scripts/test-job-tools-mobile-save.mjs
            node scripts/test-job-report-recovery.mjs
            node scripts/test-job-cost-recovery.mjs
+           node scripts/test-estimate-detail-recovery.mjs
            node scripts/test-deposit-exception-proposals.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
@@ -510,6 +526,7 @@ jobs:
            node scripts/test-job-tools-mobile-save.mjs
            node scripts/test-job-report-recovery.mjs
            node scripts/test-job-cost-recovery.mjs
+           node scripts/test-estimate-detail-recovery.mjs
            node scripts/test-deposit-exception-proposals.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs

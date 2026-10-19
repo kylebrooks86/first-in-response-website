@@ -69,7 +69,8 @@ class ExistingQaEvidenceTests(unittest.TestCase):
             with self.subTest(wrong=wrong),self.assertRaises(ValueError):
                 qa.inventory(wrong)
         self.assertEqual(qa.deployment({"versions":[{"version_id":qa.ACTIVE_VERSION,"percentage":100}]}),qa.ACTIVE_VERSION)
-        for bad in ({"versions":[]},{"versions":[{"version_id":"new","percentage":100}]},
+        self.assertEqual(qa.ACTIVE_VERSION,"58a467fa-9dbc-45a3-971e-b5a4e478f54d")
+        for bad in ({"versions":[{"version_id":"5e44f843-94f0-4ea4-b80f-a889bd0830ef","percentage":100}]},{"versions":[]},{"versions":[{"version_id":"new","percentage":100}]},
                     {"versions":[{"version_id":qa.ACTIVE_VERSION,"percentage":99}]},
                     {"versions":[{"version_id":qa.ACTIVE_VERSION,"percentage":100}]*2}):
             with self.subTest(bad=bad),self.assertRaises(ValueError):
