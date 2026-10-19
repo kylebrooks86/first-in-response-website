@@ -14,8 +14,9 @@ const parity=resolve('..');
 const wrangler=join(source,'node_modules/wrangler/bin/wrangler.js');
 assert.ok(existsSync(wrangler),'Pinned local Wrangler package required; do not install on the fly.');
 const names=readdirSync(join(parity,'adapters/doomsday/drizzle')).filter(n=>/^\d{4}_.+\.sql$/.test(n)).sort();
-assert.equal(names.length,23,'Expected 23 Doomsday candidate migration files.');
-assert.equal(names.at(-1),'0022_stripe_provider_uniqueness.sql');
+assert.equal(names.length,24,'Expected 24 Doomsday candidate migration files.');
+assert.equal(names.at(-2),'0022_stripe_provider_uniqueness.sql');
+assert.equal(names.at(-1),'0023_deposit_policy_events.sql');
 const root=mkdtempSync(join(tmpdir(),'fire-wrangler-d1-export-'));
 const name='fire-synthetic-local-d1-export-no-remote';
 const config=join(root,'wrangler.jsonc'), restoredConfig=join(root,'restore.wrangler.jsonc');
@@ -42,7 +43,8 @@ function invoke(args){
 }
 try{
   mkdirSync(join(root,'migrations'));
-  for(const n of names.slice(0,-1))copyFileSync(join(parity,'adapters/doomsday/drizzle',n),join(root,'migrations',n));
+  // Historic pre-0022 export test: omit both newer migrations, preserving original 22-file baseline.
+  for(const n of names.slice(0,-2))copyFileSync(join(parity,'adapters/doomsday/drizzle',n),join(root,'migrations',n));
   writeFileSync(join(root,'noop.js'),'export default {fetch(){return new Response("synthetic");}}');
   writeFileSync(config,JSON.stringify({
     name,
