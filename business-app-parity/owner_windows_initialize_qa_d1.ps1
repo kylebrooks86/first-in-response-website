@@ -31,12 +31,13 @@ Assert-True (-not $cfg.PSObject.Properties['r2_buckets'] -and
     -not $cfg.PSObject.Properties['kv_namespaces'] -and
     -not $cfg.PSObject.Properties['services']) 'Unapproved remote resource bindings in QA D1 config.'
 $files = @(Get-ChildItem -LiteralPath $migrationDir -File -Filter '*.sql' | Sort-Object Name)
-Assert-True ($files.Count -eq 24) 'Expected exactly 24 QA schema migrations.'
-for ($i = 0; $i -lt 24; $i++) {
+Assert-True ($files.Count -eq 25) 'Expected exactly 25 QA schema migrations.'
+for ($i = 0; $i -lt 25; $i++) {
     Assert-True ($files[$i].Name -match ('^' + $i.ToString('0000') + '_[a-z0-9_]+\.sql$')) ('Migration file/order mismatch at ' + $i)
 }
 Assert-True ($files[22].Name -ceq '0022_stripe_provider_uniqueness.sql') 'QA migration 0022 is not the approved index migration.'
 Assert-True ($files[23].Name -ceq '0023_deposit_policy_events.sql') 'QA migration 0023 is not the additive deposit audit migration.'
+Assert-True ($files[24].Name -ceq '0024_deposit_agreement_snapshots.sql') 'QA migration 0024 is not the immutable signed agreement snapshot migration.'
 $wrangler = Get-Command 'wrangler.cmd' -ErrorAction SilentlyContinue
 Assert-True ($null -ne $wrangler) 'Installed Wrangler CLI is required.'
 Write-Host 'FIRE synthetic QA D1 initialization preflight (read-only by default)'

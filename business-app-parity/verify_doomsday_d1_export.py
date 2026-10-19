@@ -29,14 +29,14 @@ NEXT_INDEX = "idx_payments_stripe_provider_unique"
 
 def migration_baseline():
     files = sorted(MIGRATIONS.glob("[0-9][0-9][0-9][0-9]_*.sql"))
-    if len(files) != 24 or files[-2].name != NEXT_MIGRATION or files[-1].name != "0023_deposit_policy_events.sql":
+    if len(files) != 25 or files[-3].name != NEXT_MIGRATION or files[-2].name != "0023_deposit_policy_events.sql" or files[-1].name != "0024_deposit_agreement_snapshots.sql":
         raise ValueError("Candidate Doomsday source migrations have drifted: STOP.")
-    if [int(f.name[:4]) for f in files] != list(range(24)):
+    if [int(f.name[:4]) for f in files] != list(range(25)):
         raise ValueError("Non-contiguous candidate migration sequence: STOP.")
     digest = hashlib.sha256()
-    for file in files[:-2]:
+    for file in files[:-3]:
         digest.update(file.name.encode() + b"\0" + hashlib.sha256(file.read_bytes()).digest())
-    return files[:-2], digest.hexdigest()
+    return files[:-3], digest.hexdigest()
 
 
 def schema_inventory(db):

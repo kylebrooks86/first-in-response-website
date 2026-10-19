@@ -32,7 +32,7 @@ class HistoricalDoonsdayComparisonTest(unittest.TestCase):
         report = m.compare_capture(self.receipt())
         self.assertEqual(report["result"], "MATCH")
         self.assertEqual(report["baselineMigrationCount"], 22)
-        self.assertEqual(report["currentCandidateMigrationCount"], 24)
+        self.assertEqual(report["currentCandidateMigrationCount"], 25)
         self.assertEqual(report["differenceQueryNumbers"], [])
         self.assertTrue(report["readOnlyFinancialChecksAllZero"])
         self.assertFalse(report["gate5Accepted"])

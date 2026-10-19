@@ -24,9 +24,9 @@ EXPECTED_LAST = "0021_manual_processing_fees.sql"
 
 def expected_baseline():
     files = verifier.migration_files("doomsday")
-    if len(files) != 24 or files[-2].name != "0022_stripe_provider_uniqueness.sql" or files[-1].name != "0023_deposit_policy_events.sql":
+    if len(files) != 25 or files[-3].name != "0022_stripe_provider_uniqueness.sql" or files[-2].name != "0023_deposit_policy_events.sql" or files[-1].name != "0024_deposit_agreement_snapshots.sql":
         raise ValueError("Unreviewed candidate migration set. Stop before comparing.")
-    baseline = files[:-2]  # retain exact historical pre-0022 sequence; exclude both later migrations
+    baseline = files[:-3]  # immutable pre-0022 history excludes all newer candidate migrations  # retain exact historical pre-0022 sequence; exclude both later migrations
     if len(baseline) != 22 or baseline[-1].name != EXPECTED_LAST:
         raise ValueError("Historical Doomsday migration sequence changed.")
     with closing(sqlite3.connect(":memory:")) as db:

@@ -29,10 +29,11 @@ class IsolatedQAMigrationGuard(unittest.TestCase):
         self.assertTrue(set(CONFIG) <= {"name", "compatibility_date", "d1_databases"})
         self.assertNotIn(STAGING_UUID, json.dumps(CONFIG))
         self.assertNotIn("fire-app-staging-db", json.dumps(CONFIG))
-        self.assertEqual(len(MIGRATIONS), 24)
-        self.assertEqual([int(file.name[:4]) for file in MIGRATIONS], list(range(24)))
-        self.assertEqual(MIGRATIONS[-2].name, "0022_stripe_provider_uniqueness.sql")
-        self.assertEqual(MIGRATIONS[-1].name, "0023_deposit_policy_events.sql")
+        self.assertEqual(len(MIGRATIONS), 25)
+        self.assertEqual([int(file.name[:4]) for file in MIGRATIONS], list(range(25)))
+        self.assertEqual(MIGRATIONS[-3].name, "0022_stripe_provider_uniqueness.sql")
+        self.assertEqual(MIGRATIONS[-2].name, "0023_deposit_policy_events.sql")
+        self.assertEqual(MIGRATIONS[-1].name, "0024_deposit_agreement_snapshots.sql")
 
     def test_no_write_without_owner_explicit_apply_and_full_uuid(self):
         self.assertIn("param([switch]$Apply)", SCRIPT)
@@ -57,7 +58,7 @@ class IsolatedQAMigrationGuard(unittest.TestCase):
         self.assertIn("$_.name -ceq $oldName -and $_.uuid -ceq $oldUuid", SCRIPT)
         self.assertIn("8ccfb1f8-1657-4074-b1b2-47de78f95003", SCRIPT)
         self.assertIn(STAGING_UUID, SCRIPT)  # read-only identity comparison only
-        self.assertIn("Expected exactly 24 QA schema migrations", SCRIPT)
+        self.assertIn("Expected exactly 25 QA schema migrations", SCRIPT)
         self.assertIn("Migration file/order mismatch", SCRIPT)
         self.assertIn("0022_stripe_provider_uniqueness.sql", SCRIPT)
         self.assertLess(SCRIPT.index("d1 list --json"),
