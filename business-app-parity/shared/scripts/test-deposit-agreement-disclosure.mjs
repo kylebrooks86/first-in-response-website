@@ -36,4 +36,5 @@ eq(page.indexOf('if(held)return')<page.indexOf('await confirmPayment(sessionId')
 eq(page.includes('Approval, scheduling, and payments are unavailable until revised terms are formally issued and signed.'),true);
 eq(page.includes('first_viewed_at=?')&&page.includes('amendment.eventId')&&page.includes('if(recorded[0]?.meta?.changes!==1)amendment=null'),true);
 eq(page.includes('unmodifiedAuditGuard')&&page.includes('viewed[0]?.meta?.changes!==1')&&page.includes('Deposit terms changed while this estimate was being opened'),true);
+eq(page.includes('deposit_agreement_snapshots WHERE event_id=?')&&page.includes('verifySignedAgreementDigests')&&page.includes('stored.document_digest===row.contractVersion'),true);
 console.log('PASS '+n+'/'+n+': versioned six-mode customer deposit terms, exact cents, unchanged principal, signed/payment/refund/history refusals. Read-only; no checkout.');

@@ -11,6 +11,7 @@ import { paymentHandles } from "../../../lib/payment-methods";
 import {agreementDigest,agreementScope,validateAgreementItems} from "../../../lib/deposit-agreement-commitment.mjs";
 import {RevisedDepositAcceptButton} from "./revised-deposit-accept-button";
 import {describeRevisedDepositTerms} from "../../../lib/deposit-agreement-revision.mjs";
+import {verifySignedAgreementDigests} from "../../../lib/deposit-agreement-backup.mjs";
 
 export const dynamic="force-dynamic";
 export const metadata={robots:{index:false,follow:false,nocache:true}};
@@ -57,7 +58,16 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
         const latest=history.results[0];
         const acceptedPrefix=latest&&typeof latest.id==='string'?'deposit-exception-v1:'+latest.id+':sha256:':null;
         if(row.acceptedAt&&row.signedAt&&row.signedName&&acceptedPrefix&&row.contractVersion?.startsWith(acceptedPrefix)&&
-          /^[a-f0-9]{64}$/.test(row.contractVersion.slice(acceptedPrefix.length)))acceptedRevision='deposit-exception-v1:'+latest.id;
+          /^[a-f0-9]{64}$/.test(row.contractVersion.slice(acceptedPrefix.length))){
+          const stored=await env.DB.prepare("SELECT * FROM deposit_agreement_snapshots WHERE event_id=? AND estimate_id=?").bind(latest.id,row.id).first<Record<string,unknown>>();
+          if(stored&&stored.document_version==='deposit-exception-v1:'+latest.id&&
+             stored.document_digest===row.contractVersion.slice(acceptedPrefix.length)&&
+             stored.signed_name===row.signedName&&stored.photo_release===row.photoRelease&&
+             stored.accepted_at===row.acceptedAt&&stored.signed_at===row.signedAt&&
+             stored.total_cents===row.totalCents&&stored.deposit_cents===row.depositCents&&stored.mode===latest.mode&&
+             await verifySignedAgreementDigests({deposit_agreement_snapshots:[stored]})===null)
+            acceptedRevision='deposit-exception-v1:'+latest.id;
+        }
         if(history.results.length<=100){
           const state=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM payments WHERE estimate_id=?) AS paymentCount,(SELECT COUNT(*) FROM invoices WHERE estimate_id=?) AS invoiceCount,(SELECT COUNT(*) FROM payment_checkout_sessions WHERE estimate_id=? AND status='open') AS openCheckoutCount,(SELECT COUNT(*) FROM payment_refunds WHERE estimate_id=? AND status='pending') AS pendingRefundCount").bind(row.id,row.id,row.id,row.id).first<{paymentCount:number;invoiceCount:number;openCheckoutCount:number;pendingRefundCount:number}>();
           if(state)amendment=describeRevisedDepositTerms({
