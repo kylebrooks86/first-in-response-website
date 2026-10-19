@@ -1,5 +1,6 @@
 import {exerciseGlobalSearch} from './test-global-search-workflow.mjs';
 import {exerciseSearchMetadata} from './test-search-metadata-workflow.mjs';
+import {exercisePropertySearch} from './test-property-search-workflow.mjs';
 import {exerciseChangeRequestHistory} from './test-change-request-history-workflow.mjs';
 /** Entire BUILT QA Worker, real local workerd/D1, auth cookies and mobile UI.
  * Only a disposable loopback runtime; no remote mode, provider or deployed data.
@@ -217,7 +218,7 @@ try{
   page.once('dialog',d=>d.accept());await draft.getByRole('button',{name:'Close',exact:true}).click();
  }
  if(process.argv.includes('--business-brand'))await exerciseBusinessBrand({page,request,origin,check});
- if(lookupMode)await exerciseCustomerLookup({page,context,browser,origin,request,check,originalEstimateId:estimate.id});
+ if(lookupMode){await exerciseCustomerLookup({page,context,browser,origin,request,check,originalEstimateId:estimate.id});await exercisePropertySearch({page,context,origin,request,check});}
  if(profileMode){await exerciseCustomerProfileControls({page,context,origin,request,check,originalEstimateId:estimate.id});await exerciseCustomerBalances({page,context,origin,request,check});}
  if(ledgerMode)await exerciseCompleteLedger({page,context,origin,request,check,originalEstimateId:estimate.id});
  if(publicRetryMode)await exercisePublicEstimateRetry({page,context,origin,request,check,originalEstimateId:estimate.id});

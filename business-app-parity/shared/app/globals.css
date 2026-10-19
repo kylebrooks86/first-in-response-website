@@ -786,7 +786,8 @@ html,body{max-width:100%;overflow-x:clip}
 .global-search-panel [role=option] small{font-size:11px;text-transform:capitalize;color:var(--muted-foreground)}
 .global-search-panel [role=option][aria-selected=true],.global-search-panel [role=option]:hover{background:var(--accent)}
 .global-search-panel .global-search-coverage{font-size:11px;color:var(--muted-foreground);border-top:1px solid var(--border)}
-.customer-payment-record:focus-visible,.note-row:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+.customer-payment-record:focus-visible,.note-row:focus-visible,.customer-property-record:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+.customer-property-record{min-width:0;scroll-margin-block:6rem;overflow-wrap:anywhere}.customer-property-record>label{min-width:0;flex:1 1 12rem}.customer-property-record>label>input{flex-shrink:0}
 .global-search-menu .search-box{display:flex!important;margin:0!important;padding:0 10px!important}
 .mobile-menu-search>.global-search{max-width:none}
 .global-search-menu .search-box input{color:var(--foreground)}

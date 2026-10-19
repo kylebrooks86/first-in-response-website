@@ -45,5 +45,19 @@ try{
  for(const scope of ['customers','estimates','invoices','jobs'])eq((await search('QA-NOTE-META',scope)).results.length,0);
  eq(JSON.stringify(db.prepare('SELECT * FROM payments').all()),savedPayments);eq(JSON.stringify(db.prepare('SELECT * FROM customer_notes').all()),savedNotes);
  user=null;eq((await get('QA-NOTE-META','notes')).status,401);eq((await get('REF-META','payments')).status,401);user={email:'kylebrooks8605@gmail.com'};
- console.log(`PASS ${checks}/${checks}: actual authorized search, invoice display numbers/IDs/ranking, partial identity/phone/address/services, full-table estimate lookup beyond page one, category limits, literal SQL input, uncached failures, ownership and historical service snapshots. No external or persistent index.`);
+ // Property records remain gated; archived records are searchable but never reactivated.
+ eq((await search('Property Lookup','properties')).results.length,0);
+ env.FIRE_SERVICE_LOCATIONS_CANDIDATE='synthetic-only';env.FIRE_CUSTOMER_PROPERTIES_CANDIDATE='synthetic-only';
+ for(const q of ['lookup only','rear house','p']){const rows=(await search(q,'properties')).results;eq(rows.some(r=>r.id==='p'&&r.customerId==='c'&&r.kind==='property'&&r.status==='active'),true);}
+ eq((await search('Property Lookup','properties')).results[0].title,'Rear house');
+ db.prepare("UPDATE customer_properties SET active=0,revision=revision+1 WHERE id='p' AND revision=1").run();eq((await search('Property Lookup','properties')).results[0].status,'archived');
+ db.prepare("INSERT INTO customer_properties(id,customer_id,address,designation,created_at) VALUES('empty-title','other','Same property address','','2026-10-18')").run();eq((await search('Same property address','properties')).results[0].title,'Service property');
+ for(let i=0;i<12;i++)db.prepare("INSERT INTO customer_properties(id,customer_id,address,designation,created_at) VALUES(?,'c',?,'Bounded property','2026-10-18')").run('many-'+i,'Bounded lane '+i);
+ const many=await search('Bounded','properties');eq(many.results.length,8);eq(many.hasMore,true);eq(many.more,['property']);
+ eq((await search('rear house')).results.some(r=>r.kind==='property'&&r.id==='p'),true);
+ const snap=JSON.stringify(db.prepare('SELECT * FROM customer_properties').all());await search('Bounded');eq(JSON.stringify(db.prepare('SELECT * FROM customer_properties').all()),snap);
+ user=null;const unauthorizedReads=reads;eq((await get('Bounded','properties')).status,401);eq(reads,unauthorizedReads);user={email:'kylebrooks8605@gmail.com'};
+ env.FIRE_CUSTOMER_PROPERTIES_CANDIDATE=undefined;eq((await search('Bounded','properties')).results.length,0);eq((await search('Bounded')).results.length,0);
+ env.FIRE_CUSTOMER_PROPERTIES_CANDIDATE='synthetic-only';env.FIRE_SERVICE_LOCATIONS_CANDIDATE=undefined;eq((await search('Bounded','properties')).results.length,0);
+ console.log(`PASS ${checks}/${checks}: actual authorized universal search, exact record identities, bounded property/payment/note results, property activation gates, retained archived records and immutable search reads. No external or persistent index.`);
 }finally{db.close()}

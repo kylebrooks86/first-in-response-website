@@ -4,7 +4,7 @@ import {CUSTOMER_PHONE_SQL} from '../../../lib/customer-identity';
 import {customerPropertiesEnabled} from '../../../lib/customer-properties';
 import {serviceLocationsEnabled,serviceAddressSql} from '../../../lib/service-location';
 const headers={'Cache-Control':'no-store, private','Vary':'Cookie'};
-const scopes=['all','customers','estimates','invoices','jobs','payments','notes'];
+const scopes=['all','customers','estimates','invoices','jobs','payments','notes','properties'];
 export async function GET(request:Request){
   const user=await getChatGPTUser();
   if(user?.email?.toLowerCase()!=='kylebrooks8605@gmail.com')return Response.json({error:'Unauthorized'},{status:401,headers});
@@ -62,6 +62,13 @@ export async function GET(request:Request){
       CASE WHEN lower(n.id)=lower(?) THEN 0 ELSE 2 END AS rank FROM customer_notes n JOIN customers c ON c.id=n.customer_id
       WHERE ${contact} OR instr(lower(COALESCE(c.address,'')),lower(?))>0 OR instr(lower(n.id),lower(?))>0 OR instr(lower(n.body),lower(?))>0
       ORDER BY rank,n.created_at DESC,n.id LIMIT 9`,[q,q,...values,q,q,q]);
+    if(customerPropertiesEnabled(env)&&(scope==='all'||scope==='properties'))await collect('property',`SELECT p.id,p.designation AS title,p.address,c.id AS customerId,c.name AS customer,COALESCE(c.email,'') AS email,COALESCE(c.phone,'') AS phone,
+      CASE WHEN p.active=1 THEN 'active' ELSE 'archived' END AS status,p.created_at AS createdAt,
+      CASE WHEN lower(p.id)=lower(?) OR lower(p.address)=lower(?) THEN 0 ELSE 2 END AS rank
+      FROM customer_properties p JOIN customers c ON c.id=p.customer_id
+      WHERE ${contact} OR instr(lower(p.address),lower(?))>0 OR instr(lower(p.designation),lower(?))>0 OR instr(lower(p.id),lower(?))>0
+      ORDER BY rank,p.active DESC,p.address COLLATE NOCASE,p.id LIMIT 9`,[q,q,...values,q,q,q]);
+    for(const row of results)if(row.kind==='property'&&!row.title)row.title='Service property';
     results.sort((a,b)=>Number(a.rank)-Number(b.rank));
     return Response.json({results,hasMore:more.length>0,more,scope},{headers});
   }catch{return Response.json({error:'Search is unavailable. Check your connection and try again. No records changed.'},{status:503,headers});}

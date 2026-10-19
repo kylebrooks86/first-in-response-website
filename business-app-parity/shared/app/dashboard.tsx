@@ -101,7 +101,7 @@ type EstimateRow = { id:string; customerId?:string; customer:string; email?:stri
 type CustomerRow = { id:string; name:string; email:string; phone:string; address:string; leadSource?:string; createdAt:string; estimateCount:number; estimateTotal:number; paidTotal:number };
 type CustomerEstimate = { address?:string|null;serviceAddressSource?:string;id:string; customerId:string; service:string; serviceDescription?:string; items?:EstimateItemRow[]; subtotalCents?:number; discountCents?:number; appreciationDiscount?:number|boolean; additionalDiscountType?:"percent"|"dollar"; additionalDiscountValue?:number; status:string; totalCents:number; depositCents:number; paidCents:number; scheduledAt?:string|null; invoiceId?:string|null; invoiceShareToken?:string|null; invoiceTotalCents?:number|null; shareToken?:string|null; firstViewedAt?:string|null; acceptedAt?:string|null; signedName?:string|null; signedAt?:string|null; contractInitials?:string|null; photoRelease?:string|null; pendingChangeCount?:number; latestChangeRequest?:string|null; firstEstimateSentAt?:string|null; stage1At?:string|null; stage3At?:string|null; stage7At?:string|null; lastEstimateSentAt?:string|null; lastEstimateContactAt?:string|null; lastManualContactAt?:string|null;snoozeUntil?:string|null;lastReviewRequestAt?:string|null; lastRebookMessageAt?:string|null; paymentOverageOpen?:number; createdAt:string };
 type CustomerNote = { id:string; customerId:string; body:string; createdAt:string };
-type CustomerRecordFocus={id:string;customerId:string;kind:"payment"|"note"};
+type CustomerRecordFocus={id:string;customerId:string;kind:"payment"|"note"|"property"};
 type InvoiceRow = { paymentReviewPending?:boolean;pendingRefundCount?:number;storedStatus?:string; estimateStatus?:string; depositCents?:number; id:string; estimateId:string; customerId:string; customer?:string; email?:string; phone?:string; address?:string; service?:string; status:string; subtotalCents?:number; discountCents?:number; discountType?:"percent"|"dollar"; discountValue?:number; totalCents:number; paidCents?:number; dueAt?:string|null; shareToken?:string|null; firstViewedAt?:string|null; paymentOverageOpen?:number; createdAt:string };
 type CustomerPhoto = { id:string; customerId:string; category:"before"|"after"|"property"; caption?:string; filename:string; contentType:string; sizeBytes:number; createdAt:string };
 type CustomerMessage = { id:string; customerId:string; estimateId?:string|null; channel:"contact_recorded"|"followup_snoozed"|"text"|"email"|"copy"|"text_prepared"|"email_prepared"|"text_confirmed"|"email_confirmed"; template:string; body:string; createdAt:string };
@@ -1254,7 +1254,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const historyEntries=messageHistoryEntries(customerMessages);
   const customerPayments=payments.filter((payment)=>payment.customerId===selectedId);
   useEffect(()=>{
-    if(!focusRecord||loading||loadedRecordKey!==recordRequestKey)return;
+    if(!focusRecord||focusRecord.kind==="property"||loading||loadedRecordKey!==recordRequestKey)return;
     if(error||offlinePhotoOnly){onRecordFocusHandled?.(focusRecord.id);return;}
     if(selectedId!==focusRecord.customerId||section!==(focusRecord.kind==="payment"?"payments":"notes"))return;
     const row=(focusRecord.kind==="payment"?payments:notes).find(item=>item.id===focusRecord.id&&item.customerId===focusRecord.customerId);
@@ -1324,7 +1324,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         {selected.address && <a href={`https://www.zillow.com/homes/${encodeURIComponent(selected.address.trim().replace(/\s+/g,"-"))}_rb/`} target="_blank" rel="noreferrer"><House />Zillow</a>}
       </div>
       {selected.address && <PropertyPreview address={selected.address} />}
-      <CustomerProperties key={selected.id+'-'+propertyListRefresh} customerId={selected.id} onRecordsChange={setPropertyEstimateBlocked} onSelectionChange={setSelectedProperty} onWorkflowChange={setPropertyWorkflowReady}/>
+      <CustomerProperties key={selected.id+'-'+propertyListRefresh} customerId={selected.id} onRecordsChange={setPropertyEstimateBlocked} onSelectionChange={setSelectedProperty} onWorkflowChange={setPropertyWorkflowReady} focusPropertyId={focusRecord?.kind==="property"&&focusRecord.customerId===selected.id?focusRecord.id:undefined} onPropertyFocusHandled={onRecordFocusHandled}/>
     </section>
     <nav className="record-tabs">
       <button className={section === "estimates" ? "active" : ""} onClick={() => setSection("estimates")}>Estimates <b>{customerEstimates.length}</b></button>
@@ -1839,7 +1839,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   const openSearchResult=(row:SearchResult)=>{
     setSearchQuery("");setGlobalQuery("");setMobileMenu(false);
     setFocusCustomerRecord(null);
-    if((row.kind==="payment"||row.kind==="note")&&row.customerId){setFocusCustomerRecord({id:row.id,customerId:row.customerId,kind:row.kind});setCustomerRecordRequestKey(value=>value+1);setFocusCustomerSection(row.kind==="payment"?"payments":"notes");setFocusCustomerId(row.customerId);setTab("customers");}
+    if((row.kind==="payment"||row.kind==="note"||row.kind==="property")&&row.customerId){setFocusCustomerRecord({id:row.id,customerId:row.customerId,kind:row.kind});setCustomerRecordRequestKey(value=>value+1);setFocusCustomerSection(row.kind==="payment"?"payments":row.kind==="note"?"notes":"estimates");setFocusCustomerId(row.customerId);setTab("customers");}
     else if(row.kind==="customer"){setFocusCustomerSection("estimates");setFocusCustomerId(row.id);setTab("customers");}
     else if(row.kind==="invoice"){setFocusInvoiceId(row.id);setTab("invoices");}
     else{setFocusEstimateId(row.id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}
