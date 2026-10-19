@@ -35,3 +35,12 @@ export const depositPolicyEvents = sqliteTable("deposit_policy_events", {
   previousSignedAt:text("previous_signed_at"), requiresCustomerReapproval:integer("requires_customer_reapproval").notNull().default(0),
   reason:text("reason"),createdAt:text("created_at").notNull()
 },table=>[index("idx_deposit_policy_events_estimate_time").on(table.estimateId,table.createdAt)]);
+
+// Signed deposit agreement artifacts are immutable once recorded; see 0022/0024 triggers.
+export const depositAgreementSnapshots = sqliteTable("deposit_agreement_snapshots",{
+ eventId:text("event_id").primaryKey().references(()=>depositPolicyEvents.id),estimateId:text("estimate_id").notNull().references(()=>estimates.id),
+ documentVersion:text("document_version").notNull().unique(),documentDigest:text("document_digest").notNull(),
+ totalCents:integer("total_cents").notNull(),depositCents:integer("deposit_cents").notNull(),mode:text("mode").notNull(),
+ scopeJson:text("scope_json").notNull(),agreementText:text("agreement_text").notNull(),signedName:text("signed_name").notNull(),
+ photoRelease:text("photo_release").notNull(),signedAt:text("signed_at").notNull(),acceptedAt:text("accepted_at").notNull()
+},t=>[index("idx_deposit_agreement_snapshots_estimate").on(t.estimateId,t.acceptedAt)]);
