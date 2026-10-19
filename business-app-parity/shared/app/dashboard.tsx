@@ -835,7 +835,7 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
         await load();
       }
     }catch(error){
-      if(currentJob.current===jobId)setSaveError(error instanceof Error?error.message+" Refresh the list before attempting another entry.":"The result is uncertain. Refresh costs before attempting another entry.");
+      if(currentJob.current===jobId)setSaveError(error instanceof Error?error.message+" Refresh the list before attempting another entry.":"The result is uncertain. Refresh the list before attempting another entry.");
     }finally{saveLock.current=false;if(currentJob.current===jobId)setSaving(false);}
   };
   return <Dialog open={open} onOpenChange={setOpenSafe}>
