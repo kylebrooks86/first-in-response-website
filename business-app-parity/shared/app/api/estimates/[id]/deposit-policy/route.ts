@@ -23,6 +23,8 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
   const clearFinancialState=row.paidCents===0&&row.invalidPaymentCount===0&&row.pendingRefundCount===0&&row.openCheckoutCount===0&&row.billingExceptionCount===0&&row.invoiceCount===0;
   const canReviewUnsignedDraft=Boolean(noCustomerExposure&&clearFinancialState&&!row.signedAt&&!row.acceptedAt);
   return Response.json({estimateId:row.id,customerId:row.customerId,policy,
+    currentSnapshot:{status:row.status,totalCents:row.totalCents,depositCents:row.depositCents,paidCents:row.paidCents,
+      acceptedAt:row.acceptedAt,signedAt:row.signedAt,contractVersion:row.contractVersion??null},
     exceptionReview:{syntheticOnly:true,readOnly:true,hostedActivation:false,
       latestEventId:typeof audit.results[0]?.id==='string'?audit.results[0].id:null,
       events:audit.results,canReviewUnsignedDraft,
