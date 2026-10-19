@@ -24,9 +24,9 @@ EXPECTED_LAST = "0021_manual_processing_fees.sql"
 
 def expected_baseline():
     files = verifier.migration_files("doomsday")
-    if len(files) != 23 or files[-1].name != "0022_stripe_provider_uniqueness.sql":
+    if len(files) != 24 or files[-2].name != "0022_stripe_provider_uniqueness.sql" or files[-1].name != "0023_deposit_policy_events.sql":
         raise ValueError("Unreviewed candidate migration set. Stop before comparing.")
-    baseline = files[:-1]
+    baseline = files[:-2]  # retain exact historical pre-0022 sequence; exclude both later migrations
     if len(baseline) != 22 or baseline[-1].name != EXPECTED_LAST:
         raise ValueError("Historical Doomsday migration sequence changed.")
     with closing(sqlite3.connect(":memory:")) as db:
@@ -128,7 +128,7 @@ def compare_capture(document):
         "result": ("MATCH_D1_RESERVED_TABLE" if documented_system_exception and safe
                    else "MATCH" if not differences and safe else "REVIEW_REQUIRED"),
         "baselineMigrationCount": 22,
-        "currentCandidateMigrationCount": 23,
+        "currentCandidateMigrationCount": 24,
         "pre0022StructuralMatch": not app_differences,
         "differenceQueryNumbers": differences,
         "applicationSchemaDifferenceQueryNumbers": app_differences,
