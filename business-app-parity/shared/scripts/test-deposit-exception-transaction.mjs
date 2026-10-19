@@ -115,7 +115,7 @@ try{
  eq((await post('lost',first)).status,503);eq(events('lost').length,1);eq(row('lost').deposit_cents,1000);
  const retry=new Request('https://synthetic.invalid/api/estimates/lost/deposit-policy',{method:'POST',
   headers:{Origin:'https://synthetic.invalid','content-type':'application/json'},body:JSON.stringify(requestBody)});
- eq((await post('lost',retry)).status,200);eq(events('lost').length,1);eq(counts().payments,2); // only the synthetic paid + pending fixtures
+ eq((await post('lost',retry)).status,200);eq(events('lost').length,1);eq(counts().payments,3); // paid, pending and race-payment fixtures; no writer-created payments
  // The regular estimate edit flow must not silently reset a recorded custom deposit.
  const before=JSON.stringify(events('lost'));
  const editing=await edit.PATCH(new Request('https://synthetic.invalid/api/estimates/lost',{method:'PATCH',headers:{'content-type':'application/json'},
