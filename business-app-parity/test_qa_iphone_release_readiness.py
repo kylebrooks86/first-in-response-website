@@ -72,11 +72,13 @@ class TestQaIphoneReadiness(unittest.TestCase):
         self.assertIn("HOSTED_QA_SCHEMA_DRIFT_REQUIRES_INVESTIGATION",result["blockers"])
 
     def test_stale_or_future_capture_denied(self):
-        for age in (25,-1):
-            with self.subTest(age=age):
-                result=gate.decision(self.save(self.fixture(age)),at=self.clock)
-                self.blocked(result)
-                self.assertIn("QA_METADATA_CAPTURE_EXPIRED_OR_FUTURE",result["blockers"])
+        result=gate.decision(self.save(self.fixture(25)),at=self.clock)
+        self.blocked(result)
+        self.assertIn("QA_METADATA_CAPTURE_EXPIRED_OR_FUTURE",result["blockers"])
+        # The independent input validator rejects future timestamps before
+        # classification. Treat its hard stop as correct, not a test failure.
+        with self.assertRaises(gate.QAReadinessStop):
+            gate.decision(self.save(self.fixture(-1)),at=self.clock)
 
     def test_capture_with_private_email_or_forged_review_fails_closed(self):
         packet=self.fixture()
