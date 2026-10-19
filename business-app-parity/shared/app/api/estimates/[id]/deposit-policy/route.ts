@@ -3,9 +3,36 @@ import {getChatGPTUser} from '../../../../chatgpt-auth';
 import {depositPolicyEnabled,depositPolicyColumns,depositSchedulingPolicy,type DepositPolicyRow} from '../../../../../lib/deposit-policy';
 const headers={'Cache-Control':'no-store, private','Vary':'Cookie'};
 export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
- const owner=await getChatGPTUser();if(owner?.email?.toLowerCase()!=='kylebrooks8605@gmail.com')return Response.json({error:'Unauthorized'},{status:401,headers});
- try{const {id}=await params;const row=await env.DB.prepare(`SELECT ${depositPolicyColumns} FROM estimates e WHERE e.id=?`).bind(id).first<DepositPolicyRow>();if(!row)return Response.json({error:'Estimate not found.'},{status:404,headers});return Response.json({estimateId:row.id,customerId:row.customerId,policy:depositSchedulingPolicy(row,depositPolicyEnabled(env))},{headers});}
- catch{return Response.json({error:'Deposit and scheduling status could not be verified. No records changed.'},{status:503,headers});}
+ const user=await getChatGPTUser();
+ if(user?.email?.toLowerCase()!=='kylebrooks8605@gmail.com')return Response.json({error:'Unauthorized'},{status:401,headers});
+ try{
+  const {id}=await params;
+  const synthetic=mutationEnabled(env);
+  const reviewColumns=synthetic?",e.contract_version AS contractVersion,e.first_viewed_at AS firstViewedAt,"+
+   "(SELECT COUNT(*) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.template IN ('estimate','followUp1','followUp3','followUp7') AND cm.channel IN ('text_confirmed','email_confirmed')) AS confirmedContactCount,"+
+   "(SELECT COUNT(*) FROM estimate_change_requests cr WHERE cr.estimate_id=e.id AND cr.status='open') AS openChangeCount":"";
+  const row=await env.DB.prepare("SELECT "+depositPolicyColumns+reviewColumns+" FROM estimates e WHERE e.id=?").bind(id).first<DepositPolicyRow&{contractVersion?:string|null;firstViewedAt?:string|null;confirmedContactCount?:number;openChangeCount?:number}>();
+  if(!row)return Response.json({error:'Estimate not found.'},{status:404,headers});
+  const policy=depositSchedulingPolicy(row,depositPolicyEnabled(env));
+  if(!synthetic)return Response.json({estimateId:row.id,customerId:row.customerId,policy},{headers});
+  // Read-only audit inventory. Never infer a successful save from a timeout.
+  // Over-limit or malformed history fails closed instead of hiding an event.
+  const audit=await env.DB.prepare("SELECT * FROM deposit_policy_events WHERE estimate_id=? ORDER BY created_at DESC,id DESC LIMIT 101").bind(id).all<Record<string,unknown>>();
+  if(audit.results.length>100)throw Error('Deposit audit history exceeds safe review limit');
+  const noCustomerExposure=row.status==='draft'&&!row.firstViewedAt&&row.confirmedContactCount===0&&row.openChangeCount===0;
+  const clearFinancialState=row.paidCents===0&&row.invalidPaymentCount===0&&row.pendingRefundCount===0&&row.openCheckoutCount===0&&row.billingExceptionCount===0&&row.invoiceCount===0;
+  const canReviewUnsignedDraft=Boolean(noCustomerExposure&&clearFinancialState&&!row.signedAt&&!row.acceptedAt);
+  return Response.json({estimateId:row.id,customerId:row.customerId,policy,
+    exceptionReview:{syntheticOnly:true,readOnly:true,hostedActivation:false,
+      latestEventId:typeof audit.results[0]?.id==='string'?audit.results[0].id:null,
+      events:audit.results,canReviewUnsignedDraft,
+      approvalBlockedPendingCustomerTermsIntegration:audit.results.length>0,
+      customerExposureDetected:!noCustomerExposure,
+      signedAgreementPresent:Boolean(row.signedAt||row.acceptedAt),
+      customerHasViewed:Boolean(row.firstViewedAt),
+      confirmedContactCount:row.confirmedContactCount,openChangeCount:row.openChangeCount,
+      message:'Any changed deposit terms must be shown in a revised customer agreement before customer approval or scheduling. This view never grants an exception.'}},{headers});
+ }catch{return Response.json({error:'Deposit or complete audit history could not be verified. No records changed.'},{status:503,headers});}
 }
 
 
@@ -24,6 +51,9 @@ const mutationEnabled=(e:{FIRE_DEPOSIT_POLICY_CANDIDATE?:string,FIRE_DEPOSIT_EXC
 const confirmationPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers});
 const lastAuditSql="SELECT id FROM deposit_policy_events WHERE estimate_id=? ORDER BY created_at DESC,id DESC LIMIT 1";
+const customerExposureColumns=",e.first_viewed_at AS firstViewedAt,"+
+ "(SELECT COUNT(*) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.template IN ('estimate','followUp1','followUp3','followUp7') AND cm.channel IN ('text_confirmed','email_confirmed')) AS confirmedContactCount,"+
+ "(SELECT COUNT(*) FROM estimate_change_requests cr WHERE cr.estimate_id=e.id AND cr.status='open') AS openChangeCount";
 
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){
  const user=await getChatGPTUser();
@@ -52,7 +82,14 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
   if(previous){
    const current=await env.DB.prepare("SELECT deposit_cents AS depositCents,total_cents AS totalCents,status FROM estimates WHERE id=?").bind(id).first<{depositCents:number,totalCents:number,status:string}>();
    const same=previous.estimate_id===id&&previous.actor_email===user!.email.toLowerCase()&&
-    previous.mode===input.mode&&previous.new_deposit_cents===current?.depositCents&&
+    previous.mode===input.mode&&input.confirmed===true&&input.expectedStatus==='draft'&&
+    input.expectedPaidCents===previous.paid_principal_cents&&input.expectedSignedAt===previous.previous_signed_at&&
+    input.expectedContractVersion===previous.previous_contract_version&&
+    (input.mode!=='fixed'||input.fixedCents===previous.new_deposit_cents)&&
+    (input.mode==='fixed'||input.fixedCents===undefined)&&
+    (input.mode==='percentage'||input.percentBasisPoints===undefined)&&
+    Object.keys(input).every(k=>['mode','confirmed','expectedStatus','expectedTotalCents','expectedDepositCents','expectedPaidCents','expectedSignedAt','expectedContractVersion','percentBasisPoints','fixedCents','reason'].includes(k))&&
+    previous.new_deposit_cents===current?.depositCents&&
     previous.previous_total_cents===input.expectedTotalCents&&previous.previous_deposit_cents===input.expectedDepositCents&&
     previous.reason===((typeof input.reason==='string'&&input.reason.trim())||null)&&
     previous.percent_basis_points===(input.mode==='percentage'?input.percentBasisPoints:null)&&
@@ -61,10 +98,14 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
    if(!same)return json({error:'This confirmation ID already belongs to another or changed deposit request. Review the audit and job before another action.'},409);
    return json({recorded:true,duplicate:true,auditEventId:previous.id,estimateId:id,canSchedule:false,hostedActivation:false});
   }
-  const row=await env.DB.prepare("SELECT "+depositPolicyColumns+",e.contract_version AS contractVersion FROM estimates e WHERE e.id=?").bind(id).first<DepositPolicyRow&{contractVersion:string|null}>();
+  const row=await env.DB.prepare("SELECT "+depositPolicyColumns+",e.contract_version AS contractVersion"+customerExposureColumns+" FROM estimates e WHERE e.id=?").bind(id).first<DepositPolicyRow&{contractVersion:string|null;firstViewedAt:string|null;confirmedContactCount:number;openChangeCount:number}>();
   if(!row)return json({error:'Estimate not found.'},404);
-  if(!['draft','sent'].includes(row.status)||row.signedAt!==null||row.acceptedAt!==null||
-     Number(row.paidCents)!==0)return json({error:'Signed, approved, scheduled or financially active jobs require a separate agreement-safe owner workflow. No terms changed.'},409);
+  // Do not replace terms already made visible to a customer. Every confirmed
+  // message, first view, open change request and non-draft status requires a
+  // dedicated revision/reissue workflow, which is NOT implemented here.
+  if(row.status!=='draft'||row.firstViewedAt!==null||row.confirmedContactCount!==0||row.openChangeCount!==0||
+     row.signedAt!==null||row.acceptedAt!==null||Number(row.paidCents)!==0)
+   return json({error:'Only an unviewed, uncommunicated, unsigned draft without financial activity may change terms. Customer-facing agreement revision is not enabled.'},409);
   const paymentRecord=await env.DB.prepare("SELECT id FROM payments WHERE estimate_id=? LIMIT 1").bind(id).first();
   if(paymentRecord)return json({error:'Existing payment history requires reconciliation before any deposit adjustment.'},409);
   const latest=await env.DB.prepare(lastAuditSql).bind(id).first<{id:string}>();
@@ -79,8 +120,8 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
     "paid_principal_cents,percent_basis_points,schedule_before_collection,previous_contract_version,updated_contract_version,",
     "previous_signed_at,requires_customer_reapproval,reason,created_at)",
     "SELECT ?,elig.id,?,?,?,elig.totalCents,elig.depositCents,?,elig.paidCents,?,?,elig.contractVersion,elig.contractVersion,elig.signedAt,0,?,?",
-    "FROM (SELECT "+depositPolicyColumns+",e.contract_version AS contractVersion FROM estimates e WHERE e.id=?) elig",
-    "WHERE elig.status=? AND elig.status IN ('draft','sent') AND elig.acceptedAt IS NULL AND elig.signedAt IS NULL",
+    "FROM (SELECT "+depositPolicyColumns+",e.contract_version AS contractVersion"+customerExposureColumns+" FROM estimates e WHERE e.id=?) elig",
+    "WHERE elig.status=? AND elig.status='draft' AND elig.firstViewedAt IS NULL AND elig.confirmedContactCount=0 AND elig.openChangeCount=0 AND elig.acceptedAt IS NULL AND elig.signedAt IS NULL",
     "AND elig.totalCents=? AND elig.depositCents=? AND elig.contractVersion IS ?",
     "AND typeof(elig.totalCents)='integer' AND elig.totalCents BETWEEN 0 AND 9007199254740991",
     "AND typeof(elig.depositCents)='integer' AND elig.depositCents BETWEEN 0 AND elig.totalCents",
@@ -92,7 +133,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
   ].join(' ');
   const update=[
     "UPDATE estimates SET deposit_cents=? WHERE id=? AND status=?",
-    "AND signed_at IS NULL AND accepted_at IS NULL AND total_cents=? AND deposit_cents=? AND contract_version IS ?",
+    "AND signed_at IS NULL AND accepted_at IS NULL AND first_viewed_at IS NULL AND total_cents=? AND deposit_cents=? AND contract_version IS ?",
     "AND EXISTS(SELECT 1 FROM deposit_policy_events d WHERE d.id=? AND d.estimate_id=estimates.id",
     "AND d.previous_total_cents=estimates.total_cents AND d.previous_deposit_cents=estimates.deposit_cents",
     "AND d.new_deposit_cents=?)"

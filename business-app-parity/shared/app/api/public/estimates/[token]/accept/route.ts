@@ -13,6 +13,15 @@ export async function POST(request:Request,context:{params:Promise<{token:string
     if(!estimate)return Response.json({error:"Estimate not found."},{status:404});
     if(estimate.acceptedAt)return Response.json({ok:true,acceptedAt:estimate.acceptedAt,signedName:estimate.signedName,signedAt:estimate.signedAt,photoRelease:estimate.photoRelease});
     if(!["draft","sent"].includes(estimate.status))return Response.json({error:"This estimate is no longer available for approval. Please contact First In Response Exteriors."},{status:409});
+    // Source-only owner exceptions cannot yet be signed: the public agreement
+    // still labels every deposit as 50%. Refuse old-link approval until the
+    // revised financial terms are actually rendered and expressly accepted.
+    const exceptionPending=('FIRE_DEPOSIT_POLICY_CANDIDATE' in env&&env.FIRE_DEPOSIT_POLICY_CANDIDATE==='synthetic-tests-only')&&
+      ('FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE' in env&&env.FIRE_DEPOSIT_EXCEPTION_WRITE_CANDIDATE==='synthetic-contract-tests-only');
+    if(exceptionPending){
+      const audit=await env.DB.prepare('SELECT id FROM deposit_policy_events WHERE estimate_id=? LIMIT 1').bind(estimate.id).first();
+      if(audit)return Response.json({error:'This estimate requires updated deposit terms and a new customer agreement before it can be approved. Contact First In Response Exteriors.'},{status:409});
+    }
     const now=new Date().toISOString();
     const [accepted]=await env.DB.batch([
       env.DB.prepare(`UPDATE estimates SET status='approved',accepted_at=?,signed_name=?,signed_at=?,photo_release=?,contract_version='2026-09-21'
@@ -23,7 +32,8 @@ export async function POST(request:Request,context:{params:Promise<{token:string
         AND deposit_cents BETWEEN 0 AND 9007199254740991
         AND discount_cents<=subtotal_cents AND total_cents>=deposit_cents
         AND EXISTS (SELECT 1 FROM estimate_items ei WHERE ei.estimate_id=estimates.id)
-        AND NOT EXISTS (SELECT 1 FROM estimate_items ei WHERE ei.estimate_id=estimates.id AND (ei.name IS NULL OR TRIM(ei.name)='' OR ei.quantity<=0 OR ei.total_cents<0 OR ei.total_cents>9007199254740991))`)
+        AND NOT EXISTS (SELECT 1 FROM estimate_items ei WHERE ei.estimate_id=estimates.id AND (ei.name IS NULL OR TRIM(ei.name)='' OR ei.quantity<=0 OR ei.total_cents<0 OR ei.total_cents>9007199254740991))
+        ${exceptionPending?"AND NOT EXISTS(SELECT 1 FROM deposit_policy_events d WHERE d.estimate_id=estimates.id)":""}`)
         .bind(now,signedName,now,photoRelease,estimate.id),
       env.DB.prepare(`INSERT INTO notifications (id,type,title,body,customer_id,estimate_id,created_at)
         SELECT ?,?,?,?,?,?,?
