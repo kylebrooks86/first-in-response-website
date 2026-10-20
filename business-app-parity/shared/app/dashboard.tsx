@@ -579,6 +579,18 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
     <div className="dashboard-view">
       <section className="welcome-row"><div><p className="eyebrow">FIRE App</p><h1>Welcome to First In Response Exteriors</h1><p>Customers, estimates, jobs, and balances in one place.</p></div><NewEstimate onSaved={onSaved} /></section>
       <ScheduleWeather compact nextJobAt={upcomingJobs[0]?.scheduledAt}/>
+      {upcomingJobs[0]&&<section className="dashboard-next-job" aria-label="Next scheduled job">
+        <div className="dashboard-next-job-info">
+          <p className="eyebrow">Your next appointment</p>
+          <h2>{upcomingJobs[0].customer}</h2>
+          <p>{upcomingJobs[0].service} · {dateTime(upcomingJobs[0].scheduledAt!)}</p>
+          <small>{upcomingJobs[0].address||"No job address saved"}</small>
+        </div>
+        <div className="dashboard-next-job-actions">
+          <Button className="brand-button" onClick={()=>onOpenEstimate?onOpenEstimate(upcomingJobs[0].id):onNavigate("schedule")}>Open next job <ChevronRight className="h-4 w-4"/></Button>
+          <Button variant="outline" onClick={()=>onNavigate("schedule")}>Full schedule</Button>
+        </div>
+      </section>}
       <section className="metric-grid">
         <button className="metric-card accent" onClick={()=>onNavigate("payments")}><span className="metric-icon red"><CircleDollarSign /></span><p>Due now</p><strong>{money(metrics.outstanding)}</strong><small>Deposits and completed-job balances</small><ChevronRight className="metric-arrow"/></button>
         <button className="metric-card" onClick={()=>onNavigate("schedule")}><span className="metric-icon blue"><CalendarDays /></span><p>Upcoming jobs</p><strong>{upcoming}</strong><small>Open the schedule</small><ChevronRight className="metric-arrow"/></button>
