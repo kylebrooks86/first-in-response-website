@@ -58,6 +58,26 @@ eq(state().status,'open','Bad requests preserve saved status');
  eq(legacy.status,200,'Legacy client without expected status remains compatible');
  eq(state().status,'completed','Legacy explicit target persists');
 }
+// A redundant completion request must not overwrite the historical completion timestamp.
+{
+ const fixed='2025-01-02T03:04:05.000Z';
+ db.prepare('UPDATE tasks SET completed_at=? WHERE id=?').run(fixed,id);
+ const already=await patch({id,status:'completed',expectedStatus:'completed'});
+ eq(already.status,200,'Already-completed compare-and-swap is safely acknowledged');
+ eq(already.data.completedAt,fixed,'Already-completed request echoes original completion time');
+ eq(state().completedAt,fixed,'Already-completed request does not rewrite completion time');
+ const olderClient=await patch({id,status:'completed'});
+ eq(olderClient.status,200,'Legacy repeated completion is idempotent');
+ eq(olderClient.data.completedAt,fixed,'Legacy repetition returns original completion time');
+ eq(state().completedAt,fixed,'Legacy repeated completion never resets timestamp');
+}
+for(const raw of ['null','[]','"completed"','42','{not valid','']){
+ const before=state().completedAt;
+ const malformed=new Request('https://synthetic.invalid/api/tasks',{method:'PATCH',headers:{'content-type':'application/json'},body:raw});
+ const result=await parse(await ctx.exports.PATCH(malformed));
+ eq(result.status,400,'Malformed or non-object PATCH JSON refused: '+JSON.stringify(raw));
+ eq(state().completedAt,before,'Invalid PATCH payload never changes historical completion time');
+}
 authorized=false;
 {
  const forbidden=await patch({id,status:'open',expectedStatus:'completed'});
