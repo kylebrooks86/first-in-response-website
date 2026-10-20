@@ -683,6 +683,18 @@ jobs:
         run: node scripts/test-estimate-editor-react-browser.mjs
       - name: Actual customer writes, estimate search and Insights recovery on narrow light and dark screens
         run: node scripts/test-customer-write-browser.mjs
+      - name: Actual Business record search, task filters, older expenses and status recovery
+        env:
+          FIRE_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-business-ui
+        run: node scripts/test-business-records-browser.mjs
+      - name: Save synthetic Business UI screenshots for owner review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-business-mobile-ui
+          path: ${{ runner.temp }}/fire-business-ui/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Actual template editors and themed sidebar at phone tablet and desktop widths
         run: node scripts/test-template-layout-browser.mjs
       - name: Actual job reports and costs survive connection loss in the current owner session
