@@ -71,6 +71,11 @@ try{
     check((await scroll.locator('.job-day').getAttribute('data-forecast-date'))==='2026-10-25','Sixth day is next job, not artificially moved to front');
     check((await scroll.locator('.job-day').innerText()).toLowerCase().includes('next job'),'Job forecast is visibly labeled even when CSS uppercases day headings');
     check((await widget.locator('.weather-alert').innerText()).includes('Rain possible this week'),'Rain late in the week informs week-long alert');
+    const jobOutlook=widget.getByRole('region',{name:'Next job Tulsa weather outlook'});
+    check(await jobOutlook.isVisible(),'The next job shows a separate Tulsa weather-planning summary');
+    check((await jobOutlook.innerText()).includes('Rain 75%'),'Next job summary uses the actual appointment day, not today's rain probability');
+    check((await jobOutlook.innerText()).includes('Rain chance ≥50%'),'Next-job rain threshold prompts review before exterior work');
+    check((await jobOutlook.innerText()).includes('actual property'),'Forecast is clearly labeled as Tulsa, not a property-specific guarantee');
     check((await widget.locator('.weather-days article').last().innerText()).includes('Low')===false,'Nighttime missing low does not invent values');
     const geometry=await scroll.evaluate(n=>({client:n.clientWidth,scroll:n.scrollWidth,scrollable:getComputedStyle(n).overflowX,focusable:n.tabIndex,viewport:innerWidth,bounds:n.getBoundingClientRect().toJSON()}));
     check(geometry.focusable===0&&geometry.scrollable==='auto','Seven-day row supports mouse, swipe and keyboard scrolling');
@@ -126,6 +131,8 @@ try{
    await page.locator('.weather-days article.job-day').first().waitFor({state:'hidden'});
    check(await page.locator('.weather-days article').count()===14,'Job outside week cannot hide available forecast days');
    check(await page.locator('.weather-days article.job-day').count()===0,'Job beyond NWS horizon is not given a fabricated forecast');
+   check(await page.locator('.weather-next-job').count()===2,'Both views explain the forecast horizon rather than hiding the upcoming appointment');
+   check(await page.locator('.weather-next-job').first().innerText().then(t=>t.includes('outside the available seven-day Tulsa forecast')),'Out-of-horizon job weather is honestly unavailable');
    if(process.env.FIRE_WEATHER_WEEK_SCREENSHOT_DIR){
     mkdirSync(process.env.FIRE_WEATHER_WEEK_SCREENSHOT_DIR,{recursive:true});
     await page.screenshot({path:join(process.env.FIRE_WEATHER_WEEK_SCREENSHOT_DIR,`weather-${width}-${theme}.png`),fullPage:true});
