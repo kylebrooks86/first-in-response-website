@@ -70,7 +70,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   const prep=page.getByRole('group',{name:'Upcoming job details to review'});
   check((await prep.innerText()).includes('upcoming jobs')&&!(await prep.innerText()).includes('overdue-open'),'Job-prep summary uses upcoming verified jobs, not overdue or completed records');
   await prep.locator('summary').click();
-  check(await prep.locator('.schedule-prep-items button').count()===4,'Upcoming jobs missing phone and email are available for review');
+  check(await prep.locator('.schedule-prep-items button').count()===3,'Only three upcoming jobs with no valid phone or email are flagged; valid email-only job is not');
   await prep.getByRole('button',{name:/today-late/}).click();
   check(await page.locator('.schedule-job').count()===5,'Opening a prep issue does not change schedule filters');
   await page.keyboard.press('Escape');
