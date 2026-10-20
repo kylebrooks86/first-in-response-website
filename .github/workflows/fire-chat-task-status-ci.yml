@@ -1,0 +1,47 @@
+name: FIRE chat task completion confirm and recovery
+on:
+  push:
+    branches: [chat/fire-task-status-ci-2026-10-20]
+permissions:
+  contents: read
+jobs:
+  task-status-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable project pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: TypeScript and client/server validation
+        run: pnpm exec tsc --noEmit
+      - name: Actual task completion against disposable SQLite
+        run: node --experimental-sqlite scripts/test-task-status-confirmation.mjs
+      - name: Actual mobile task status handler recovery
+        run: node scripts/test-task-status-ui-recovery.mjs
+      - name: Existing business save, finance and follow-up regressions
+        run: |
+          node scripts/test-business-create-receipt.mjs
+          node scripts/test-business-restart-recovery.mjs
+          node scripts/test-business-write-recovery.mjs
+          node --experimental-sqlite scripts/test-business-idempotent-routes.mjs
+          node --experimental-sqlite scripts/test-expense-csv-safety.mjs
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+          node scripts/test-estimate-detail-recovery.mjs
+          node scripts/test-followup-action-retry.mjs
+          node scripts/test-notification-read-recovery.mjs
+      - name: Build complete shared app without deploying
+        run: pnpm run build
