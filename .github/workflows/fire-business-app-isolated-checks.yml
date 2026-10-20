@@ -351,6 +351,8 @@ jobs:
           node scripts/test-business-write-recovery.mjs
           node scripts/test-business-restart-recovery.mjs
           node scripts/test-business-list-recovery.mjs
+          node scripts/test-weather-photo-safety.mjs
+          node scripts/test-weather-hourly.mjs
           TZ=America/Chicago node scripts/test-task-due.mjs
           node scripts/test-expense-date.mjs
           node --experimental-sqlite scripts/test-expense-csv-safety.mjs
@@ -685,6 +687,8 @@ jobs:
         run: node scripts/test-estimate-editor-react-browser.mjs
       - name: Actual customer writes, estimate search and Insights recovery on narrow light and dark screens
         run: node scripts/test-customer-write-browser.mjs
+      - name: Full seven-day forecast, day-by-day hourly weather and official radar in real Chrome
+        run: node scripts/test-weather-week-browser.mjs
       - name: Customer history search, focused records, Schedule windows and Dashboard job targets
         env:
           FIRE_CONNECTED_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-connected-ui
