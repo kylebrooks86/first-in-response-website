@@ -1667,18 +1667,21 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
   const [selected,setSelected]=useState<EstimateRow|null>(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
+  const [lastCheckedAt,setLastCheckedAt]=useState<string|null>(null);
   const [dayFilter,setDayFilter]=useState<"all"|"today"|"week">("all");
   const loadRequest=useRef(0);
   const load=async()=>{
     const request=++loadRequest.current;
     setLoading(true);setError("");setSelected(null);
     try{
-      const response=await fetch("/api/estimate-history?limit=50");
+      const response=await fetch("/api/estimate-history?limit=50",{cache:"no-store"});
       const result=await response.json() as {estimates?:EstimateRow[];error?:string};
       if(!response.ok)throw new Error(result.error||"Schedule could not be loaded.");
       if(!Array.isArray(result.estimates))throw new Error("Schedule records could not be read. Try again.");
-      const complete=await completeEstimatePages<EstimateRow>(result,fetch,()=>request===loadRequest.current);if(!complete)return;
+      const complete=await completeEstimatePages<EstimateRow>(result,(url)=>fetch(url,{cache:"no-store"}),()=>request===loadRequest.current);if(!complete)return;
+      if(request!==loadRequest.current)return;
       setRows(complete.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)})));
+      setLastCheckedAt(new Date().toISOString());
     }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Schedule could not be loaded.");}
     finally{if(request===loadRequest.current)setLoading(false);}
   };
@@ -1699,7 +1702,7 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
   const routeJobs=routeDate?upcomingWithAddress.filter(row=>tulsaDay(row.scheduledAt!)===tulsaDay(routeDate.getTime())).slice(0,8):[];
   const routeUrl=routeJobs.length?`https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate&destination=${encodeURIComponent(routeJobs.at(-1)!.address||"")}${routeJobs.length>1?`&waypoints=${routeJobs.slice(0,-1).map((job)=>encodeURIComponent(job.address||"")).join("%7C")}`:""}`:"";
   const routeLabel=routeDate&&tulsaDay(routeDate.getTime())===tulsaDay(now)?"Route today":routeDate?`Route ${routeDate.toLocaleDateString("en-US",{weekday:"short",timeZone:"America/Chicago"})}`:"Route next jobs";
-  return <div className="workspace-view"><EstimateDetail estimate={loading||error?null:selected} onClose={()=>setSelected(null)} onChanged={(estimate)=>{setRows((current)=>current.map((row)=>row.id===estimate.id?estimate:row));setSelected(current=>current?.id===estimate.id?estimate:current);}}/><section className="workspace-head"><div><p className="eyebrow">Jobs</p><h1>Schedule</h1><p>Upcoming work, customer details, and one-tap directions. Times shown in Tulsa (Central Time).</p></div>{!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noreferrer"><Navigation/> {routeLabel}<small>{routeJobs.length} stop{routeJobs.length===1?"":"s"}</small></a>}</section><ScheduleWeather nextJobAt={!loading&&!error?upcoming[0]?.scheduledAt:undefined}/>
+  return <div className="workspace-view"><EstimateDetail estimate={loading||error?null:selected} onClose={()=>setSelected(null)} onChanged={(estimate)=>{setRows((current)=>current.map((row)=>row.id===estimate.id?estimate:row));setSelected(current=>current?.id===estimate.id?estimate:current);}}/><section className="workspace-head"><div><p className="eyebrow">Jobs</p><h1>Schedule</h1><p>Upcoming work, customer details, and one-tap directions. Times shown in Tulsa (Central Time).</p>{!loading&&!error&&lastCheckedAt&&<p className="schedule-last-checked" role="status">Last checked {new Date(lastCheckedAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})} Central Time</p>}</div><div className="schedule-header-actions"><Button variant="outline" onClick={()=>void load()} disabled={loading} aria-label="Refresh schedule">{loading?"Refreshing…":"Refresh schedule"}</Button>{!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noreferrer"><Navigation/> {routeLabel}<small>{routeJobs.length} stop{routeJobs.length===1?"":"s"}</small></a>}</div></section><ScheduleWeather nextJobAt={!loading&&!error?upcoming[0]?.scheduledAt:undefined}/>
     {loading?<div className="customers-state">Loading schedule…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:<>
       {needsAttention.length>0&&<section className="needs-attention"><header><div><h2>Needs attention</h2><p>Past job dates that still need to be completed, rescheduled, or paid.</p></div><b>{needsAttention.length}</b></header>{needsAttention.map((job)=><button key={job.id} onClick={()=>setSelected(job)}><Clock3/><span><strong>{job.customer}</strong><small>{job.service} · was scheduled {dateTime(job.scheduledAt!)}</small><b>{money(billingBalanceCents(job))} due</b></span><ChevronRight/></button>)}</section>}
       <div className="schedule-window-controls" role="group" aria-label="Schedule date range">{(["all","today","week"] as const).map(value=><Button key={value} variant={dayFilter===value?"default":"outline"} aria-pressed={dayFilter===value} onClick={()=>setDayFilter(value)}>{value==="all"?`All upcoming (${allUpcoming.length})`:value==="today"?`Today (${todayCount})`:`Next 7 days (${weekCount})`}</Button>)}</div>
