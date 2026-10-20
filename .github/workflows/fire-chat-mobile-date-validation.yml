@@ -1,0 +1,32 @@
+name: FIRE temporary chat mobile date validation
+
+on:
+  push:
+    branches:
+      - chat/fire-mobile-test-validation-2026-10-19
+
+permissions:
+  contents: read
+
+jobs:
+  verify-date-selection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check TypeScript
+        run: pnpm exec tsc --noEmit
+      - name: Test clearing unsaved mobile job date safely
+        run: node scripts/test-estimate-detail-recovery.mjs
