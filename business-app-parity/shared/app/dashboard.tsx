@@ -69,6 +69,7 @@ import {
   Phone,
   Plus,
   Receipt,
+  RefreshCw,
   Search,
   Save,
   Send,
