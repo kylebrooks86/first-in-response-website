@@ -790,9 +790,11 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
             <label className="fire-field"><span>Airflow before (optional)</span><Input disabled={saving||readOnly} value={before} onChange={(event)=>{setBefore(event.target.value);setSaved(false);}} placeholder="Before reading"/></label>
             <label className="fire-field"><span>Airflow after (optional)</span><Input disabled={saving||readOnly} value={after} onChange={(event)=>{setAfter(event.target.value);setSaved(false);}} placeholder="After reading"/></label>
           </div>}
-          <label className="fire-field"><span>Technician notes</span><Textarea readOnly={saving||readOnly} value={notes}
-            onChange={(event)=>{setNotes(event.target.value);setSaved(false);}}
-            placeholder="Condition, work performed, exceptions, recommendations…" rows={4}/></label>
+          <div className="fire-field"><label htmlFor={`fire-job-report-notes-${estimate.id}`}>Technician notes</label>
+            <Textarea id={`fire-job-report-notes-${estimate.id}`} readOnly={saving||readOnly} value={notes}
+              onChange={(event)=>{setNotes(event.target.value);setSaved(false);}}
+              placeholder="Condition, work performed, exceptions, recommendations…" rows={4}/>
+          </div>
 
         </>}
       </div></div>
