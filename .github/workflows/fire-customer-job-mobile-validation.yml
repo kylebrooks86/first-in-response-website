@@ -1,0 +1,62 @@
+name: FIRE mobile report modal transitions plus customer safety (isolated)
+
+on:
+  push:
+    branches:
+      - ci/fire-customer-job-mobile-2026-10-20
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-and-customer:
+    name: Real Chrome mobile report + synthetic customer route
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install isolated Chrome driver without browser download
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Locate existing Chrome
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: TypeScript and customer API no-write protection
+        run: |
+          pnpm exec tsc --noEmit
+          node --experimental-sqlite scripts/test-customer-create-retry.mjs
+          node scripts/test-customer-write-recovery.mjs
+      - name: Actual report and costs modal session browser checks at narrow viewports
+        env:
+          FIRE_JOB_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-job-ui
+        run: node scripts/test-job-session-offline-browser.mjs
+      - name: Record synthetic mobile screenshots after failure or success
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-job-dialog-review
+          path: ${{ runner.temp }}/fire-job-ui/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Complete shared candidate build without publication
+        run: pnpm run build
