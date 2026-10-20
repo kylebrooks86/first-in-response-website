@@ -1147,3 +1147,14 @@ html,body{max-width:100%;overflow-x:clip}
 [data-theme="dark"] .schedule-prep-alert summary small{color:#edd2ac}
 [data-theme="dark"] .schedule-prep-items button{background:#2a241e;border-color:#775c3c;color:#ffe3bd}
 @media(max-width:430px){.schedule-job-contact-panel a{flex:1 1 85px}.schedule-job-contact-panel{padding-inline:12px}}
+
+/* Highlight actionable job details only for appointments today/tomorrow. */
+.schedule-job-shell.schedule-job-needs-prep{border-inline-start:3px solid #b67725;background:rgba(183,119,37,.055)}
+.schedule-job-inline-flags{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:5px;min-width:0}
+.schedule-job-inline-flags small{display:inline-flex;align-items:center;min-height:23px;padding:3px 7px;border-radius:6px;font-size:11px;font-weight:800;line-height:1.35;overflow-wrap:anywhere}
+.schedule-job-inline-flags .schedule-job-day-chip{background:#e9f3fc;color:#164b7a}
+.schedule-job-inline-flags .schedule-job-prep-chip{background:#fff0d7;color:#79480f;border:1px solid #deae60}
+[data-theme="dark"] .schedule-job-shell.schedule-job-needs-prep{background:rgba(228,166,75,.075);border-inline-start-color:#d49d52}
+[data-theme="dark"] .schedule-job-inline-flags .schedule-job-day-chip{background:#213d57;color:#d4e9ff}
+[data-theme="dark"] .schedule-job-inline-flags .schedule-job-prep-chip{background:#49331b;color:#ffe0ac;border-color:#9b7547}
+@media(max-width:410px){.schedule-job-inline-flags small{font-size:10px}}
