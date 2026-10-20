@@ -971,3 +971,6 @@ html,body{max-width:100%;overflow-x:clip}
 .schedule-date-picker-actions input{appearance:auto;border:1px solid var(--input);border-radius:8px;background:var(--background);color:var(--foreground);padding:9px 11px;font-size:16px;line-height:1.5;max-width:100%}
 .schedule-date-picker p{margin:0;color:var(--muted-foreground);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
 @media(max-width:420px){.schedule-date-picker-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.schedule-date-picker-actions input{grid-column:1/-1;grid-row:1;width:100%}.schedule-date-picker-actions button{width:100%;font-size:12px}}
+
+/* Day-specific work history separates completed records from active stops. */
+.schedule-history-status{display:inline-flex;justify-self:start;align-items:center;margin-top:4px;padding:3px 9px;border:1px solid var(--border);border-radius:99px;background:var(--background);color:var(--foreground)!important;font-size:12px!important;font-weight:750;line-height:1.4}
