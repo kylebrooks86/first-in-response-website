@@ -1,0 +1,142 @@
+name: FIRE chat broad core candidate verification — local only
+on:
+  push:
+    branches: [chat/fire-broad-verification-2026-10-20]
+permissions:
+  contents: read
+concurrency:
+  group: fire-chat-broad-verification
+  cancel-in-progress: true
+jobs:
+  shared-finance-and-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install immutable dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck and local schema audit
+        run: |
+          pnpm exec tsc --noEmit
+          node --experimental-sqlite scripts/test-local-schema-audit.mjs
+          node --experimental-sqlite scripts/test-candidate-db-preflight.mjs
+      - name: Exact existing shared finance and mobile regression suite
+        run: |
+          node --experimental-sqlite scripts/run-ci-regression.mjs ./test-processing-fees.mjs
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+          node --experimental-sqlite scripts/test-invoice-current-state.mjs
+          node --experimental-sqlite scripts/test-change-request-history.mjs
+          node --experimental-sqlite scripts/test-global-search.mjs
+          node --experimental-sqlite scripts/test-deposit-policy.mjs
+          node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
+          node --experimental-sqlite scripts/test-deposit-exception-transaction.mjs
+          node scripts/test-deposit-agreement-disclosure.mjs
+          node --experimental-sqlite scripts/test-deposit-revised-signature.mjs
+          node scripts/test-owner-deposit-review.mjs
+          node scripts/test-job-tools-mobile-save.mjs
+          node scripts/test-job-report-recovery.mjs
+          node scripts/test-job-cost-recovery.mjs
+          node scripts/test-estimate-detail-recovery.mjs
+          node scripts/test-estimate-editor-save-recovery.mjs
+          node scripts/test-invoice-editor-load-recovery.mjs
+          node scripts/test-deposit-exception-proposals.mjs
+          node --experimental-sqlite scripts/test-public-estimate-retry.mjs
+          node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
+          node --experimental-sqlite scripts/test-customer-create-retry.mjs
+          node scripts/test-payment-load-errors.mjs
+          node scripts/test-schedule-load-errors.mjs
+          node scripts/test-agreement-load-errors.mjs
+          node scripts/test-complete-estimate-pages.mjs
+          node scripts/test-payment-mobile-ui.mjs
+          node scripts/test-customer-load-recovery.mjs
+          node scripts/test-customer-write-recovery.mjs
+          node scripts/test-estimate-history-recovery.mjs
+          node scripts/test-insights-recovery.mjs
+          node scripts/test-detail-selection-recovery.mjs
+          node scripts/test-schedule-timezones.mjs
+      - name: All new integrated Chat core reliability tests
+        run: |
+          node scripts/test-business-write-recovery.mjs
+          node scripts/test-notification-read-recovery.mjs
+          node scripts/test-followup-load-errors.mjs
+          node scripts/test-followup-action-retry.mjs
+          node scripts/test-follow-up-timing.mjs
+      - name: Finance and release safety negative controls
+        run: |
+          node scripts/test-parity-gate.mjs
+          node scripts/test-governed-deploy-guards.mjs
+          node scripts/test-stripe-isolation.mjs
+          node scripts/test-checkout-atomic-reservation.mjs
+          node --experimental-sqlite scripts/test-checkout-owner-reconciliation.mjs
+          node --experimental-sqlite scripts/run-ci-regression.mjs ./test-stripe-refunds.mjs
+          node --experimental-sqlite scripts/run-ci-regression.mjs ./test-records-recovery.mjs
+          node scripts/test-offline-photo-vault.mjs
+      - name: Build shared candidate offline without deployment
+        run: pnpm run build
+
+  isolated-qa-build-and-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Verify QA guarded migration workflow negative controls, local only
+        working-directory: business-app-parity
+        run: |
+          python3 test_qa_guarded_update.py
+          python3 test_qa_iphone_release_readiness.py
+          python3 test_review_qa_update_schema.py
+          python3 test_rehearse_qa_additive_schema.py
+          python3 test_qa_d1_export.py
+          python3 test_owner_windows_qa_update_publish.py
+      - name: Materialize QA candidate with no hosted connection
+        run: python3 business-app-parity/materialize.py qa "$RUNNER_TEMP/fire-qa-chat-candidate"
+      - name: Verify materialized candidate source and adapter
+        run: python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-chat-candidate"
+      - name: Install candidate immutable dependencies
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-chat-candidate"
+          pnpm install --frozen-lockfile
+      - name: Typecheck QA and assert local migration integrity
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-chat-candidate"
+          pnpm exec tsc --noEmit
+          node --experimental-sqlite scripts/test-local-schema-audit.mjs
+          node --experimental-sqlite scripts/test-candidate-db-preflight.mjs
+      - name: Auth and real payment route refusal tests against synthetic candidate
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-chat-candidate"
+          node scripts/test-qa-auth-adapter.mjs
+          node scripts/test-stripe-isolation.mjs
+      - name: Build complete isolated QA candidate — no publication
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-chat-candidate"
+          pnpm run build
+      - name: Verify built candidate source and isolated QA database binding
+        run: |
+          python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-chat-candidate" --built
+          node business-app-parity/check_qa_runtime_config.mjs "$RUNNER_TEMP/fire-qa-chat-candidate/dist/server/wrangler.json"
