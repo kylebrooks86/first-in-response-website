@@ -22,6 +22,10 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
   await page.setViewportSize({width,height:900});const row=page.locator('.recent-estimate-row').filter({hasText:'Synthetic Scheduled Job'});await row.waitFor();
   check(await row.locator('.recent-estimate-status').isVisible()&&await row.locator('.recent-estimate-status').innerText()==='Scheduled'&&/Oct 20, 2026.*10:00 AM/.test(await row.locator('.recent-estimate-appointment').innerText())&&/^Created /.test(await row.locator('.recent-estimate-dates').innerText()),'Home exposes current status and distinct Central service/creation dates at '+width);
  }
+ await page.setViewportSize({width:390,height:844});await page.locator('.recent-estimate-row').filter({hasText:'Synthetic Scheduled Job'}).click();
+ const directJob=page.getByRole('dialog',{name:'Synthetic Scheduled Job',exact:true});await directJob.waitFor();
+ check((await directJob.innerText()).includes(customer.name),'Home recent row opens the exact selected customer/job instead of the generic history');
+ await directJob.getByRole('button',{name:'Close',exact:true}).click();await page.goto(origin+'/');
  await page.context().request.get(origin+'/estimate/'+quote.shareToken);
  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
  const viewed=page.locator('.recent-estimate-row').filter({hasText:'Synthetic Pending Quote'}).locator('.recent-estimate-status');

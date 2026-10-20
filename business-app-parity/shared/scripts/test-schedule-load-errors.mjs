@@ -8,14 +8,14 @@ const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','
 const helpers=['resolvedBillingTotalCents','billingBalanceCents'];
 const declarations=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>helpers.includes(d.name.getText(ast))));
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleView');
-let state=[],cursor=0,effect,requests=[],responder;
+let state=[],cursor=0,effect,requests=[],responder;let scheduleNow=Date.parse('2026-10-09T12:00:00Z');
 const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','Navigation','Clock3','ChevronRight','CalendarDays'].map(name=>[name,()=>null]));
 const pagination={exports:{},require};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/estimate-pagination.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,pagination);
 const context={exports:{},require,...pagination.exports,Error,Array,...stubs,
  useRef:initial=>({current:initial}),
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},
- useEffect(fn){effect=fn;},useCurrentTime:()=>Date.parse('2026-10-09T12:00:00Z'),fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,dateTime:s=>s,
+ useEffect(fn){effect=fn;},useCurrentTime:()=>scheduleNow,fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,dateTime:s=>s,
 };
 vm.runInNewContext(ts.transpileModule(declarations.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=ScheduleView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
 function render(searchQuery=''){cursor=0;return context.exports.view({searchQuery});}
@@ -63,4 +63,10 @@ state=[[],null,true,''];responder=()=>ok(midnight);render();effect();await settl
 const midnightNodes=nodes(render()),midnightCards=midnightNodes.filter(n=>n.props?.className==='schedule-job');
 equal(nodes(midnightCards[0]).find(n=>n.type==='b').props.children,'10');equal(nodes(midnightCards[1]).find(n=>n.type==='b').props.children,'11');
 const midnightRoute=new URL(midnightNodes.find(n=>n.props?.className==='route-day-button').props.href);equal(midnightRoute.searchParams.get('destination'),'Central Saturday stop');equal(midnightRoute.searchParams.has('waypoints'),false);
+// Calendar windows remain seven Tulsa days through both DST transitions.
+for(const [clock,last,after] of [['2026-10-09T12:00:00Z','2026-10-15T15:00:00Z','2026-10-16T15:00:00Z'],['2026-10-31T05:30:00Z','2026-11-06T15:00:00Z','2026-11-07T15:00:00Z'],['2026-03-07T06:30:00Z','2026-03-13T15:00:00Z','2026-03-14T15:00:00Z']]){
+ scheduleNow=Date.parse(clock);state=[[],null,true,''];responder=()=>ok([{...job,id:'today',scheduledAt:new Date(scheduleNow+3600000).toISOString()},{...job,id:'last',scheduledAt:last},{...job,id:'after',scheduledAt:after},{...job,id:'overdue',scheduledAt:new Date(scheduleNow-86400000).toISOString()}]);render();effect();await settle();
+ const select=key=>nodes(render()).find(n=>n.type===stubs.Button&&n.key===key).props.onClick();
+ equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,3);select('today');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,1);equal(nodes(render()).some(n=>n.props?.className==='needs-attention'),true);select('week');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,2);select('all');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,3);
+}
 console.log(`PASS ${checks}/${checks}: actual schedule load/error/retry handlers preserve records, hide stale route/editor/forecast targets, recover jobs, and retain sorted same-day routes, overdue revised balances, selection/change/close callbacks and search. Mocked reads only.`);

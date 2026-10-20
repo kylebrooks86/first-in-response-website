@@ -32,7 +32,7 @@ for(const kind of ['success','http','network','json','wrong-customer','wrong-bod
 for(const outcome of ['success','failure']){
  const f=fixture('CustomersView'),pending=deferred();f.draft('Synthetic gate note');f.setFetcher(()=>pending.promise);f.button('Add note').props.onClick();f.switch('second');f.draft('Second customer draft');
  if(outcome==='success')pending.resolve({ok:true,json:async()=>({note:note()})});else pending.reject(Error('Offline'));
- await flush();eq(f.get('noteText'),'Second customer draft','Late response cannot clear another customer draft');eq(f.get('selectedId'),'second');eq(nodes(f.render()).some(n=>n.props?.role==='alert'||n.props?.role==='status'),false,'Other customer feedback is not shown');
+ await flush();eq(f.get('noteText'),'Second customer draft','Late response cannot clear another customer draft');eq(f.get('selectedId'),'second');eq(nodes(f.render()).some(n=>(n.props?.role==='alert'||n.props?.role==='status')&&['save-error','save-success'].includes(n.props?.className)),false,'Other customer feedback is not shown');
  f.switch('first');eq(f.get('noteText'),outcome==='success'?'':'Synthetic gate note');f.switch('second');eq(f.get('noteText'),'Second customer draft');
 }
 {

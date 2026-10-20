@@ -935,3 +935,12 @@ html,body{max-width:100%;overflow-x:clip}
 .fire-job-dialog .job-record-heading:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
 .fire-job-dialog .cost-list small{font-size:12px;line-height:1.45;color:var(--muted-foreground)}
 @media(max-height:500px){.fire-job-header{padding-block:10px}.fire-job-footer{padding-block:8px;gap:5px}.fire-cost-footer{grid-template-columns:repeat(3,minmax(0,1fr))}.fire-cost-footer .cost-refresh{grid-column:auto}}
+
+/* Customer record tools and daily schedule browsing keep controls readable on phones. */
+.customer-history-tools{display:grid;gap:9px;margin-top:14px;padding:15px;border:1px solid var(--border);border-radius:12px;background:var(--card);min-width:0}
+.customer-history-tools input{width:100%;min-width:0;min-height:44px;font-size:16px}
+.customer-history-tools p{margin:0;color:var(--muted-foreground);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.customer-history-tools button,.schedule-window-controls button,.profile-head-actions>button{min-height:44px;height:auto;white-space:normal}
+.record-tabs[id]{scroll-margin-top:90px}.record-tabs[id]:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.schedule-window-controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.schedule-window-controls button{flex:0 1 auto;max-width:100%;overflow-wrap:anywhere}
