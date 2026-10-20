@@ -689,6 +689,22 @@ jobs:
         env:
           FIRE_CONNECTED_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-connected-ui
         run: node scripts/test-connected-records-browser.mjs
+      - name: Seven-day NWS forecast, auth and device-timezone tests
+        run: |
+          TZ=America/Chicago node scripts/test-weather-photo-safety.mjs
+          TZ=Pacific/Auckland node scripts/test-weather-photo-safety.mjs
+      - name: Real Dashboard and Schedule full-week weather on phone, tablet and desktop in Chrome
+        env:
+          FIRE_WEATHER_WEEK_SCREENSHOT_DIR: ${{ runner.temp }}/fire-weather-week
+        run: node scripts/test-weather-week-browser.mjs
+      - name: Save synthetic seven-day weather screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-weather-week-mobile-ui
+          path: ${{ runner.temp }}/fire-weather-week/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Save synthetic customer and schedule screenshots
         if: always()
         uses: actions/upload-artifact@v4
