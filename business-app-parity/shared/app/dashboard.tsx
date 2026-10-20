@@ -1927,7 +1927,7 @@ function BusinessView(){
   const load=async()=>{
     const request=++loadRequest.current;setLoading(true);setLoadError("");
     try{
-      const responses=await Promise.all([fetch("/api/tasks"),fetch("/api/expenses"),fetch("/api/customers")]);
+      const responses=await Promise.all([fetch("/api/tasks",{cache:"no-store"}),fetch("/api/expenses",{cache:"no-store"}),fetch("/api/customers",{cache:"no-store"})]);
       const [taskResult,expenseResult,customerResult]=await Promise.all(responses.map(response=>response.json())) as [{tasks?:TaskRow[];error?:string},{expenses?:ExpenseRow[];error?:string},{customers?:CustomerRow[];estimates?:CustomerEstimate[];error?:string}];
       for(const [index,label] of ["Tasks","Expenses","Customers"].entries())if(!responses[index].ok)throw new Error([taskResult,expenseResult,customerResult][index]?.error||`${label} could not be loaded.`);
       if(!Array.isArray(taskResult.tasks)||!Array.isArray(expenseResult.expenses)||!Array.isArray(customerResult.customers)||!Array.isArray(customerResult.estimates))throw new Error("Business records could not be read. Try again.");
