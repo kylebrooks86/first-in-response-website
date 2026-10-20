@@ -1,0 +1,47 @@
+name: FIRE Dashboard exact next job driving directions (synthetic)
+
+on:
+  push:
+    branches:
+      - ci/fire-dashboard-job-directions-2026-10-20
+
+permissions:
+  contents: read
+
+jobs:
+  next-job-directions:
+    name: Safe Maps target, no missing address, phone accessibility, full build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned dependencies and type checking
+        run: |
+          corepack enable && corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+          pnpm exec tsc --noEmit
+          TZ=America/Chicago node scripts/test-schedule-load-errors.mjs
+      - name: Install isolated driver for preinstalled Chrome
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Real mobile Chrome customer, Schedule and Dashboard Maps target
+        run: node scripts/test-connected-records-browser.mjs
+      - name: Full nonpublishing shared app build
+        run: pnpm run build
