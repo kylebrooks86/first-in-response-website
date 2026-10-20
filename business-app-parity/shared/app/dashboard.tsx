@@ -1736,8 +1736,11 @@ function FollowUpsView({searchQuery}:{searchQuery:string}){
   const [nextCursor,setNextCursor]=useState<string|null>(null);
   const [reviewEstimate,setReviewEstimate]=useState<EstimateRow|null>(null);
   const [actionStatus,setActionStatus]=useState("");
+  const [actionError,setActionError]=useState(false);
   const [actionBusy,setActionBusy]=useState(false);
   const actionPending=useRef(false);
+  // Preserve one operation ID across uncertain replies, so retry cannot append a second history row.
+  const actionRetry=useRef<{customerId:string;estimateId:string;action:"contacted"|"snooze";operationId:string}|null>(null);
   const loadRequest=useRef(0);
   const loadedPages=useRef(1);
   const retryAppend=useRef(false);
@@ -1775,16 +1778,33 @@ function FollowUpsView({searchQuery}:{searchQuery:string}){
   };
   const recordAction=async(estimate:EstimateRow,action:"contacted"|"snooze")=>{
     if(actionPending.current)return;
-    actionPending.current=true;setActionBusy(true);setActionStatus("");
+    const customerId=estimate.customerId;
+    if(!customerId){setActionError(true);setActionStatus("This estimate has no verified customer. Refresh its record before recording contact or snooze.");return;}
+    const prior=actionRetry.current;
+    if(prior&&(prior.customerId!==customerId||prior.estimateId!==estimate.id||prior.action!==action)){
+      setActionError(true);
+      setActionStatus("An earlier follow-up save is unconfirmed. Retry the same action safely or refresh and review saved history before choosing a different action.");
+      return;
+    }
+    const attempt=prior??{customerId,estimateId:estimate.id,action,operationId:crypto.randomUUID()};
+    actionRetry.current=attempt;
+    actionPending.current=true;setActionBusy(true);setActionStatus("");setActionError(false);
     try{
-      const response=await fetch('/api/followup-actions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customerId:estimate.customerId,estimateId:estimate.id,action,operationId:crypto.randomUUID()})});
-      const result=await response.json() as {createdAt?:string;snoozeUntil?:string|null;error?:string};
-      if(!response.ok||!result.createdAt||(action==='snooze'&&!result.snoozeUntil))throw Error(result.error||"Action save is not confirmed. Refresh to inspect saved history before trying again.");
-      setRows(current=>current.map(row=>row.id===estimate.id?{...row,...(action==='contacted'?{lastManualContactAt:result.createdAt}:{snoozeUntil:result.snoozeUntil})}:row));
-      setActionStatus(action==='contacted'?"Contact recorded. Estimate reminders paused for 24 hours; no message send is claimed.":"Estimate reminders snoozed for 7 days. Billing reminders remain active.");
+      const response=await fetch("/api/followup-actions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(attempt)});
+      const result=await response.json() as {action?:string;createdAt?:string;snoozeUntil?:string|null;error?:string};
+      const createdAt=typeof result?.createdAt==="string"&&Number.isFinite(Date.parse(result.createdAt))?result.createdAt:null;
+      const snoozeUntil=typeof result?.snoozeUntil==="string"&&Number.isFinite(Date.parse(result.snoozeUntil))?result.snoozeUntil:null;
+      if(!response.ok||result.action!==action||!createdAt||(action==="snooze"&&(!snoozeUntil||Date.parse(snoozeUntil)<=Date.parse(createdAt))))
+        throw Error(result?.error||"Action save could not be verified.");
+      // The idempotent API has confirmed this exact attempt. No automatic POST retries.
+      actionRetry.current=null;
+      setRows(current=>current.map(row=>row.id===estimate.id?{...row,...(action==="contacted"?{lastManualContactAt:createdAt}:{snoozeUntil})}:row));
+      setActionStatus(action==="contacted"?"Contact recorded. Estimate reminders paused for 24 hours; no message send is claimed.":"Estimate reminders snoozed for 7 days. Billing reminders remain active.");
       await load();
-    }catch(failure){setActionStatus(failure instanceof Error?failure.message:"Action save is not confirmed. Inspect saved history before trying again.");}
-    finally{actionPending.current=false;setActionBusy(false);}
+    }catch{
+      setActionError(true);
+      setActionStatus("Follow-up action not confirmed. Review saved history before retrying. Retrying the same action reuses its original operation ID to avoid a duplicate.");
+    }finally{actionPending.current=false;setActionBusy(false);}
   };
   useEffect(()=>{void load();return()=>{loadRequest.current++;};},[]);
   const now=Math.max(useCurrentTime(),Date.now());
@@ -1809,10 +1829,10 @@ function FollowUpsView({searchQuery}:{searchQuery:string}){
     return items;
   }).filter((item)=>[item.estimate.customer,item.estimate.service,item.reason].join(" ").toLowerCase().includes(searchQuery.toLowerCase())).sort((a,b)=>b.priority-a.priority);
   return <div className="workspace-view"><EstimateDetail estimate={reviewEstimate} onClose={()=>setReviewEstimate(null)} onChanged={value=>{setReviewEstimate(current=>current?.id===value.id?value:current);void load();}}/><section className="workspace-head"><div><p className="eyebrow">Start workflow</p><h1>Follow-ups</h1><p>Customers who need a reminder, confirmation, review request, or payment follow-up.</p></div></section>
-    {actionStatus&&<p role="status">{actionStatus}</p>}
+    {actionStatus&&<p role={actionError?"alert":"status"}>{actionStatus}</p>}
     {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>recommended actions</small></div></span><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>Messages open prefilled and editable. Your phone still lets you review and tap Send.</p></div>}
     {loading&&rows.length===0?<div className="customers-state">Checking customer follow-ups…</div>:error&&rows.length===0?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:actions.length?<section className="followup-list">{actions.map(({estimate,template,reason,kind})=>{const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};return <article className={`followup-card ${kind}`} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><p>{reason}</p><small>{estimate.service} · {money(billingBalanceCents(estimate))}</small></div>{kind==="history"?<Button variant="outline" onClick={()=>setReviewEstimate(estimate)}>Review estimate</Button>:<MessageComposer customer={customer} estimate={estimate} initialTemplate={template} triggerLabel="Prepare message" onSent={(message,status)=>{setRows(current=>current.map(row=>row.id===estimate.id?{...row,status:status||row.status,...(message.template==="estimate"?{firstEstimateSentAt:row.firstEstimateSentAt||message.createdAt,lastEstimateSentAt:message.createdAt}:{}),...(["estimate","followUp1","followUp3","followUp7"].includes(message.template)?{lastEstimateContactAt:message.createdAt}:{}),...(message.template==="followUp1"?{stage1At:message.createdAt}:{}),...(message.template==="followUp3"?{stage3At:message.createdAt}:{}),...(message.template==="followUp7"?{stage7At:message.createdAt}:{}),...(message.template==="review"?{lastReviewRequestAt:message.createdAt}:{}),...(["winBack6","winBack11"].includes(message.template)?{lastRebookMessageAt:message.createdAt}:{})}:row));void load();}}/>}
-{["followUp1","followUp3","followUp7"].includes(template)&&<div className="col-span-full flex flex-wrap gap-2"><Button variant="outline" disabled={actionBusy||loading} onClick={()=>void recordAction(estimate,"contacted")}>Contacted</Button><Button variant="outline" disabled={actionBusy||loading} onClick={()=>void recordAction(estimate,"snooze")}>Snooze 7 days</Button></div>}
+{["followUp1","followUp3","followUp7"].includes(template)&&<div className="col-span-full flex flex-wrap gap-2"><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="contacted"))} onClick={()=>void recordAction(estimate,"contacted")}>Contacted</Button><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="snooze"))} onClick={()=>void recordAction(estimate,"snooze")}>Snooze 7 days</Button></div>}
 </article>;})}</section>:<div className="customers-state"><CheckCircle2/><strong>{nextCursor?"No reminders in loaded records":"You’re caught up"}</strong><p>No follow-ups are recommended in the loaded records. Check older records when available.</p></div>}
     <p role="status">{rows.length} records loaded. {nextCursor?"Older records are available.":"End of available records."}</p>{error&&rows.length>0&&<p role="alert">{error}</p>}{error&&!retryAppend.current&&rows.length>0&&<Button variant="outline" disabled={loading} onClick={()=>void load()}>Retry follow-up refresh</Button>}{nextCursor&&<Button variant="outline" disabled={loading||Boolean(error&&!retryAppend.current)} onClick={()=>void load(true)}>{loading?"Loading…":error&&retryAppend.current?"Retry older records":"Load older records"}</Button>}
   </div>;
