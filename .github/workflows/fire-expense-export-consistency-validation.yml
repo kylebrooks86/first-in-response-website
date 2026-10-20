@@ -1,0 +1,41 @@
+name: FIRE expense date and private CSV ordering (non-deploying)
+on:
+  push:
+    branches:
+      - ci/fire-expense-export-consistency-2026-10-20
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-export:
+    name: SQLite expense ordering, export security and full shared build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Locked pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: TypeScript, real CSV handler and SQLite owner checks
+        run: |
+          pnpm exec tsc --noEmit
+          node --experimental-sqlite scripts/test-expense-csv-safety.mjs
+          node --experimental-sqlite scripts/test-business-idempotent-routes.mjs
+          node scripts/test-expense-date.mjs
+          node scripts/test-business-write-recovery.mjs
+      - name: Full nonpublishing shared build
+        run: pnpm run build
