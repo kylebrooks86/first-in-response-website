@@ -17,7 +17,8 @@ export function deriveCustomerManualFlags(notes:readonly Note[]){
   let sign:{state:"out"|"picked_up";at:string;pickupDate:string|null;location:string}|null=null;
   for(const note of ordered){
     if(note.body===REVIEW_RECEIVED_NOTE)reviewReceivedAt=note.createdAt;
-    if(note.body===SIGN_PICKED_UP_NOTE&&sign?.state==="out")sign={...sign,state:"picked_up",at:note.createdAt};
+    const currentSign=sign as {state:"out"|"picked_up";at:string;pickupDate:string|null;location:string}|null;
+    if(note.body===SIGN_PICKED_UP_NOTE&&currentSign?.state==="out")sign={state:"picked_up",at:note.createdAt,pickupDate:currentSign.pickupDate,location:currentSign.location};
     const placed=/^\[FIRE FLAG\] YARD_SIGN_PLACED \| pickup:(\d{4}-\d{2}-\d{2}) \| location:(.{0,180})$/.exec(note.body);
     if(placed){
       const date=placed[1];
