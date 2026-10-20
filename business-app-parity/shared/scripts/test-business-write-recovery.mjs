@@ -23,6 +23,9 @@ function handler(name){
 const receiptContext={exports:{}};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/business-create-receipt.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,receiptContext);
 const receiptHelpers=receiptContext.exports;
+const expenseDateContext={exports:{}};
+vm.runInNewContext(ts.transpileModule(readFileSync('lib/expense-date.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,expenseDateContext);
+const {expenseDateInstant}=expenseDateContext.exports;
 const scripts=Object.fromEntries(['addTask','addExpense'].map(name=>[name,ts.transpileModule('exports.action='+handler(name)+';',{
   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
 }).outputText]));
@@ -36,7 +39,7 @@ function fixture(name,changes={}){
   const ctx={
     exports:{},require,
     title:'Synthetic task',dueAt:'',taskNotes:'Synthetic note',taskCustomer:'none',
-    category:'Chemicals',description:'Synthetic soap',amount:'15.25',expenseEstimate:'none',
+    category:'Chemicals',description:'Synthetic soap',amount:'15.25',expenseDate:'',expenseEstimate:'none',expenseDateInstant,
     taskCreateLock:{current:false},expenseCreateLock:{current:false},
     taskCreateAttempt:{current:null},expenseCreateAttempt:{current:null},
     setTaskRecoveryId:()=>{},setExpenseRecoveryId:()=>{},
@@ -52,6 +55,7 @@ function fixture(name,changes={}){
     setTaskCustomer:v=>{ctx.taskCustomer=v;saved.push('taskCustomer');},
     setDescription:v=>{ctx.description=v;saved.push('description');},
     setAmount:v=>{ctx.amount=v;saved.push('amount');},
+    setExpenseDate:v=>{ctx.expenseDate=v;saved.push('expenseDate');},
     setExpenseEstimate:v=>{ctx.expenseEstimate=v;saved.push('expenseEstimate');},
     fetch:(url,options)=>{calls.push({url,options});return request.promise;},
     load:async()=>{loads.push('load');}
@@ -169,6 +173,32 @@ for(const [amount,expectedCents] of [['.5',50],['0.01',1],['15.25',1525],['100',
  await work;
  eq(f.receipt.requestId,null,'Verified exact-cents expense clears receipt');
  eq(f.ctx.amount,'','Exact-cents successful expense clears draft');
+}
+
+for(const badDate of ['2026-02-30','2026-13-01','2026-2-1','2026-00-20','not-a-date']){
+ const f=fixture('addExpense',{expenseDate:badDate});await f.act();
+ eq(f.calls.length,0,'Invalid purchase date '+JSON.stringify(badDate)+' sends no POST');
+ eq(f.messages.at(-1),'Choose a valid expense purchase date.','Invalid purchase date gets clear warning');
+}
+{
+ const chosen='2026-10-16',f=fixture('addExpense',{expenseDate:chosen}),pending=deferred();
+ f.setRequest(pending);const first=f.act(),payload=f.submitted();
+ eq(payload.incurredAt,'2026-10-16T12:00:00.000Z','Backdated expense keeps selected ISO calendar date');
+ eq(f.ctx.expenseDate,chosen,'Purchase date remains editable until save is confirmed');
+ pending.reject(Error('Synthetic network response lost'));await first;
+ eq(f.ctx.expenseDate,chosen,'Interrupted expense save retains selected date');
+ const retry=deferred();f.setRequest(retry);const again=f.act();
+ eq(f.submitted().incurredAt,payload.incurredAt,'Ambiguous retry cannot silently change original purchase date');
+ eq(f.submitted().requestId,payload.requestId,'Backdated retry preserves request ID');
+ retry.resolve({ok:true,json:async()=>success('addExpense',payload)});await again;
+ eq(f.ctx.expenseDate,'','Confirmed backdated expense clears date input');
+}
+{
+ const f=fixture('addExpense',{expenseDate:'2026-10-17'}),pending=deferred();f.setRequest(pending);
+ const first=f.act();pending.reject(Error('Synthetic lost response'));await first;
+ f.ctx.expenseDate='2026-10-18';await f.act();
+ eq(f.calls.length,1,'Changed date cannot rewrite unresolved expense request');
+ eq(f.messages.at(-1).includes('previous expense save'),true,'Changed purchase date requires recovery before another submit');
 }
 
 for(const name of ['addTask','addExpense']){
