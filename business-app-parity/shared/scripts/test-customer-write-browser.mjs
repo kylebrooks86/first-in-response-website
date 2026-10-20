@@ -57,6 +57,7 @@ const check=(ok,label)=>{assert.ok(ok,label);checks++;};async function accepted(
 try{
  browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});const page=await browser.newPage();page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){outside.push(r.request().url());return r.abort();}return r.continue();});
+ await page.goto(origin+'/');await page.locator('.customer-card').first().waitFor();
  const lifecycle=await page.evaluate(()=>window.testCustomerFlags());
  check(lifecycle.out==='out'&&lifecycle.pickupDate==='2026-10-27'&&lifecycle.location==='Front lawn','Structured yard sign note records placement and pickup target');
  check(lifecycle.review&&lifecycle.retrieved==='picked_up'&&lifecycle.unverified,'Review and sign completion require exact owner-logged saved note markers');
