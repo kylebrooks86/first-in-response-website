@@ -1,0 +1,40 @@
+name: FIRE chat expense CSV safe export check
+on:
+  push:
+    branches: [chat/fire-expense-csv-ci-2026-10-20]
+permissions:
+  contents: read
+jobs:
+  csv-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify shared TypeScript
+        run: pnpm exec tsc --noEmit
+      - name: Test actual CSV export route with dangerous synthetic inputs
+        run: node --experimental-sqlite scripts/test-expense-csv-safety.mjs
+      - name: Financial and business create regressions
+        run: |
+          node --experimental-sqlite scripts/test-business-idempotent-routes.mjs
+          node scripts/test-business-write-recovery.mjs
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+          node scripts/test-followup-action-retry.mjs
+      - name: Build shared app without deployment
+        run: pnpm run build
