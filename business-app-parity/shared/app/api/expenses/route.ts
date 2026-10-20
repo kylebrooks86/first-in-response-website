@@ -13,7 +13,7 @@ export async function GET(request:Request){
     // Prefix text with an apostrophe when its first non-whitespace character is a formula operator.
     const escape=(value:unknown)=>{
       const original=String(value??"");
-      const safe=/^[\\s\\u0000-\\u001f\\uFEFF]*[=+\\-@]/u.test(original)?"'"+original:original;
+      const safe=/^[\s\u0000-\u001f\uFEFF]*[=+\-@]/u.test(original)?"'"+original:original;
       return `"${safe.replaceAll('"','""')}"`;
     };
     const csv=["Date,Category,Description,Amount,Customer,Job",...(rows.results??[]).map((item)=>[item.incurredAt.slice(0,10),item.category,item.description,(item.amountCents/100).toFixed(2),item.customer,item.service].map(escape).join(","))].join("\n");
