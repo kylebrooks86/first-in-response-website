@@ -45,6 +45,21 @@ const daily=weather.dailyWorkCautions;
 check(JSON.stringify(daily({date:'2026-10-25',rainChance:75,windMax:22,temperatureMin:29,temperatureMax:60}))===JSON.stringify(['Rain chance ≥50%','Wind ≥20 mph','Freezing low ≤32°F']),'Next-job day highlights every relevant caution');
 check(JSON.stringify(daily({date:'2026-10-25',rainChance:null,windMax:null,temperatureMin:null,temperatureMax:null}))==='[]','Unavailable daily NWS conditions are not reported as calm, dry or warm');
 check(JSON.stringify(daily({date:'2026-10-25',rainChance:49,windMax:19,temperatureMin:33,temperatureMax:60}))==='[]','Daily thresholds remain consistent with hourly work cues');
+for(const [temp,expected] of [
+ [84,[]],
+ [85,['Hot air ≥85°F — check solution drying and heat exposure']],
+ [94.9,['Hot air ≥85°F — check solution drying and heat exposure']],
+ [95,['Very hot air ≥95°F — monitor surface drying and heat exposure']],
+ [105,['Very hot air ≥95°F — monitor surface drying and heat exposure']]
+]){
+ const hourlyTips=warn({startTime:'2026-10-20T18:00:00Z',temperature:temp,description:'Sunny',rainChance:null,windMph:null});
+ check(JSON.stringify(hourlyTips)===JSON.stringify(expected),'Hourly heat thresholds classify Fahrenheit air temperature: '+temp);
+ const dailyTips=daily({date:'2026-10-25',temperatureMax:temp,temperatureMin:null,rainChance:null,windMax:null});
+ check(JSON.stringify(dailyTips)===JSON.stringify(expected),'Daily high heat thresholds classify Fahrenheit air temperature: '+temp);
+}
+check(JSON.stringify(daily({date:'2026-10-25',temperatureMax:97,temperatureMin:30,rainChance:80,windMax:25}))===JSON.stringify(['Rain chance ≥50%','Wind ≥20 mph','Freezing low ≤32°F','Very hot air ≥95°F — monitor surface drying and heat exposure']),'All daily weather risk dimensions are retained on a variable-temperature day');
+check(JSON.stringify(warn({startTime:'2026-10-20T18:00:00Z',temperature:96,description:'Sunny',rainChance:70,windMph:24}))===JSON.stringify(['Rain chance ≥50%','Wind ≥20 mph','Very hot air ≥95°F — monitor surface drying and heat exposure']),'Heat caution never suppresses rain or wind cues');
+
 
 
 let fetches=0;const hourlyUri='https://api.weather.gov/gridpoints/TSA/41,105/forecast/hourly';
