@@ -1,0 +1,62 @@
+name: FIRE Schedule chosen work-date browser safety (isolated)
+
+on:
+  push:
+    branches:
+      - ci/fire-schedule-date-picker-2026-10-20
+
+permissions:
+  contents: read
+
+jobs:
+  schedule-day:
+    name: Pick work dates, DST, exact job routing and shared candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - name: Checkout synthetic candidate, no write token
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reproducible pnpm install
+        run: |
+          corepack enable && corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Typecheck and actual Schedule day selection and DST unit tests
+        run: |
+          pnpm exec tsc --noEmit
+          TZ=America/Chicago node scripts/test-schedule-load-errors.mjs
+          node scripts/test-customer-load-recovery.mjs
+      - name: Pinned synthetic Chrome harness
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Real mobile date-filtered Schedule and route in light and dark mode
+        env:
+          FIRE_CONNECTED_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-schedule-date
+        run: node scripts/test-connected-records-browser.mjs
+      - name: Save disposable mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-schedule-date-mobile
+          path: ${{ runner.temp }}/fire-schedule-date/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Full nonpublishing shared build
+        run: pnpm run build
