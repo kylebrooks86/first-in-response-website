@@ -44,7 +44,7 @@ const check=(ok,label)=>{assert.ok(ok,label);checks++;};async function accepted(
 try{
  browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});const page=await browser.newPage();page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){outside.push(r.request().url());return r.abort();}return r.continue();});
- const open=async name=>{await page.getByRole('button',{name:new RegExp(name+' 0 estimates')}).click();await page.getByRole('button',{name:/^Notes/}).click();};
+ const open=async name=>{await page.locator('.customer-card').filter({has:page.getByText(name,{exact:true})}).click();await page.getByRole('button',{name:/^Notes/}).click();};
  for(const width of [320,390])for(const theme of ['light','dark']){
   reset();await page.setViewportSize({width,height:700});await page.goto(origin);await page.evaluate(value=>window.setTheme(value),theme);await open('Fixture First');
   const noteInput=page.getByLabel('Customer note',{exact:true});await noteInput.fill('First gate note');noteHold=true;const noteAccepted=new Promise(r=>onNote=r),beforeNotes=notePosts;
