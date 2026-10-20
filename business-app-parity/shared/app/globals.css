@@ -1061,3 +1061,8 @@ html,body{max-width:100%;overflow-x:clip}
 .weather-strip .weather-hourly{grid-row:5}
 .weather-strip .weather-radar-action{grid-row:6}
 @media(max-width:900px){.weather-strip .weather-alert{grid-row:7}}
+
+/* Hot-weather planning focuses on chemical dwell/drying and worker heat exposure. */
+.weather-strip .weather-next-job .weather-heat-advice{margin:0;padding:8px 10px;border-left:3px solid #b45e16;background:#fff3dd;color:#704015;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+[data-theme="dark"] .weather-strip .weather-next-job .weather-heat-advice{border-color:#e6a44f;background:#49321b;color:#ffe5be}
+.weather-strip .weather-next-job-cautions{overflow-wrap:anywhere}
