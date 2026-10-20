@@ -1254,3 +1254,25 @@ html,body{max-width:100%;overflow-x:clip}
 [data-theme="dark"] .dashboard-sign-reminders.needs-pickup{border-inline-start-color:#dfa454}
 [data-theme="dark"] .dashboard-sign-list .pickup-due{color:#ffd193}
 @media(max-width:390px){.dashboard-sign-list>button{align-items:flex-start;flex-direction:column}.dashboard-sign-list>button>span:last-child{align-self:flex-end}}
+
+/* Only genuinely eligible review-status checks get a visual cue; no automated outreach. */
+.customer-review-check{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px;border:1px solid #bfa16c;border-radius:10px;background:#fffaed;color:#5c421c}
+.customer-review-check>div{flex:1 1 210px}
+.customer-review-check strong{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:850}
+.customer-review-check strong svg{height:16px;width:16px}
+.customer-review-check p{margin:5px 0 0;font-size:12px;line-height:1.5}
+.customer-review-check button{min-height:44px}
+.customer-review-overview{display:grid;gap:8px;margin:0 0 12px;padding:12px;border:1px solid #bfa16c;border-radius:12px;background:#fffaed;color:#5c421c}
+.customer-review-overview>div:first-child{display:grid;gap:4px}
+.customer-review-overview>div:first-child strong{font-size:13px}
+.customer-review-overview small{font-size:11px;line-height:1.45}
+.customer-review-overview>div:nth-child(2){display:grid;gap:7px}
+.customer-review-entry{display:flex;gap:7px;align-items:stretch;flex-wrap:wrap}
+.customer-review-entry button{display:inline-flex;align-items:center;justify-content:space-between;gap:7px;min-height:44px;padding:9px 11px;border:1px solid #d1b083;border-radius:9px;background:#fff;color:#5c421c;font-size:12px;font-weight:800;cursor:pointer}
+.customer-review-entry button:first-child{flex:1 1 170px;text-align:left}
+.customer-review-entry button:last-child{flex:0 0 auto}
+.customer-review-entry svg{width:16px;height:16px;flex:none}
+.customer-review-entry button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+[data-theme="dark"] .customer-review-check,[data-theme="dark"] .customer-review-overview{background:#40321d;color:#ffe6be;border-color:#a78956}
+[data-theme="dark"] .customer-review-entry button{background:#29231c;color:#ffe7c4;border-color:#846b48}
+@media(max-width:440px){.customer-review-entry button:last-child{flex:1 1 100px}}

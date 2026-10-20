@@ -27,3 +27,25 @@ export function deriveCustomerManualFlags(notes:readonly Note[]){
   }
   return {reviewReceivedAt,sign};
 }
+
+/** A conservative internal review-status check, never permission to resend.
+ * Only recorded/confirmed review requests on completed work are eligible.
+ * Missing or invalid timestamps never create due reminders.
+ */
+export function reviewFollowupEligibility(
+ estimates:readonly {status:string;lastReviewRequestAt?:string|null}[],
+ messages:readonly {template:string;channel:string;createdAt:string}[],
+ reviewReceivedAt:string|null,
+ now:number=Date.now()
+):{status:"received"|"not-applicable"|"not-recorded"|"waiting"|"due";requestedAt:string|null;elapsedDays:number}{
+ if(reviewReceivedAt)return {status:"received",requestedAt:null,elapsedDays:0};
+ if(!estimates.some(e=>e.status==="completed"))return {status:"not-applicable",requestedAt:null,elapsedDays:0};
+ const recorded=[
+  ...estimates.map(e=>e.lastReviewRequestAt).filter((s):s is string=>typeof s==="string"),
+  ...messages.filter(m=>m.template==="review"&&(m.channel==="text_confirmed"||m.channel==="email_confirmed")).map(m=>m.createdAt)
+ ];
+ const times=recorded.map(s=>({s,at:Date.parse(s)})).filter(v=>Number.isFinite(v.at)&&v.at<=now).sort((a,b)=>b.at-a.at);
+ if(!times.length)return {status:"not-recorded",requestedAt:null,elapsedDays:0};
+ const latest=times[0],elapsedDays=Math.floor((now-latest.at)/86400000);
+ return {status:elapsedDays>=7?"due":"waiting",requestedAt:latest.s,elapsedDays};
+}
