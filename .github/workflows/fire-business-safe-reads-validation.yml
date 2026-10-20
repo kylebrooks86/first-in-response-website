@@ -1,0 +1,58 @@
+name: FIRE safe Business reads and malformed input (non-deploying)
+
+on:
+  push:
+    branches:
+      - ci/fire-business-safe-reads-2026-10-20
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-shared-checks:
+    name: Real Business handlers, synthetic SQLite and full shared build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - name: Checkout exact source without write credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Frozen dependency install
+        run: pnpm install --frozen-lockfile
+      - name: TypeScript and schema audit
+        run: |
+          pnpm exec tsc --noEmit
+          node --experimental-sqlite scripts/test-local-schema-audit.mjs
+      - name: Owner Business lists and create recovery with synthetic browser
+        run: |
+          node scripts/test-business-list-recovery.mjs
+          node scripts/test-business-create-receipt.mjs
+          node scripts/test-business-restart-recovery.mjs
+          node scripts/test-business-write-recovery.mjs
+      - name: Cloudflare task and expense API over disposable SQLite
+        run: |
+          node --experimental-sqlite scripts/test-business-idempotent-routes.mjs
+          node --experimental-sqlite scripts/test-expense-csv-safety.mjs
+          node --experimental-sqlite scripts/test-task-status-confirmation.mjs
+          node scripts/test-task-status-ui-recovery.mjs
+      - name: Financial safeguards
+        run: |
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+          node --experimental-sqlite scripts/test-global-search.mjs
+          node scripts/test-payment-mobile-ui.mjs
+      - name: Full non-publishing shared build
+        run: pnpm run build
