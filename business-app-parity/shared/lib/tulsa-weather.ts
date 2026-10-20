@@ -3,6 +3,19 @@ export type WeatherResponse = {location:string;updatedAt:string;current:{tempera
 export type WeatherHour = {startTime:string;temperature:number;description:string;rainChance:number|null;windMph:number|null};
 export type HourlyForecastResponse = {date:string;location:string;updatedAt:string;hours:WeatherHour[]};
 
+/** Find an actual NWS hourly period covering the scheduled start.
+ * Do not substitute a nearby forecast hour or guess conditions after coverage ends. */
+export function weatherHourForJobStart(hours:WeatherHour[],scheduledAt:string|null|undefined):WeatherHour|null{
+ if(!scheduledAt||!Number.isFinite(Date.parse(scheduledAt))||!Array.isArray(hours))return null;
+ const appointment=Date.parse(scheduledAt);
+ return hours.find(hour=>{
+  if(!hour||typeof hour.startTime!=="string")return false;
+  const start=Date.parse(hour.startTime);
+  return Number.isFinite(start)&&appointment>=start&&appointment<start+60*60*1000;
+ })??null;
+}
+
+
 /** Daily NWS planning cues for Tulsa, not guarantees for the customer's property. */
 export function dailyWorkCautions(day:WeatherDay):string[]{
  const cautions:string[]=[];
