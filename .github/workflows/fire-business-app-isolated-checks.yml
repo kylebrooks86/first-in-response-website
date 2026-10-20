@@ -347,6 +347,7 @@ jobs:
       - name: Guard consolidated Business saves, restart recovery and CSV exports
         run: |
           node scripts/test-business-create-receipt.mjs
+          node --experimental-sqlite scripts/test-dashboard-yard-signs.mjs
           node --experimental-sqlite scripts/test-business-idempotent-routes.mjs
           node scripts/test-business-write-recovery.mjs
           node scripts/test-business-restart-recovery.mjs
