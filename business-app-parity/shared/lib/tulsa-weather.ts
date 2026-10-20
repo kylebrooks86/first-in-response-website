@@ -3,6 +3,17 @@ export type WeatherResponse = {location:string;updatedAt:string;current:{tempera
 export type WeatherHour = {startTime:string;temperature:number;description:string;rainChance:number|null;windMph:number|null};
 export type HourlyForecastResponse = {date:string;location:string;updatedAt:string;hours:WeatherHour[]};
 
+/** Owner-facing planning cues, not a decision that outdoor work is safe.
+ * Never treat absent NWS values as a benign 0% chance or calm conditions. */
+export function hourlyWorkCautions(hour:WeatherHour):string[]{
+ const cautions:string[]=[];
+ if(hour.rainChance!=null&&Number.isFinite(hour.rainChance)&&hour.rainChance>=50)cautions.push("Rain chance ≥50%");
+ if(hour.windMph!=null&&Number.isFinite(hour.windMph)&&hour.windMph>=20)cautions.push("Wind ≥20 mph");
+ if(Number.isFinite(hour.temperature)&&hour.temperature<=32)cautions.push("Freezing ≤32°F");
+ return cautions;
+}
+
+
 /** Only dates from the seven-day NWS outlook are available for hourly drill-down.
  * Allow the next calendar week's boundary because late NWS forecast periods
  * can begin after midnight Tulsa time. */
