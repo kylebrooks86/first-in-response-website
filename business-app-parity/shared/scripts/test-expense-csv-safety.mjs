@@ -46,6 +46,8 @@ const url='https://synthetic.invalid/api/expenses?format=csv';
 const result=await context.exports.GET(new Request(url));
 eq(result.status,200,'Authorized owner export');
 eq(result.headers.get('content-type'),'text/csv; charset=utf-8','Original CSV content type');
+eq(result.headers.get('cache-control'),'private, no-store','Owner financial CSV must never be browser/proxy cached');
+eq(result.headers.get('x-content-type-options'),'nosniff','Downloaded financial CSV retains safe declared content type');
 const csv=await result.text(),rows=parseCSV(csv);
 eq(rows.length,3,'Header plus exactly two records');
 eq(rows[0].join(','),'Date,Category,Description,Amount,Customer,Job','Original six columns');
@@ -60,9 +62,22 @@ eq(database.prepare("SELECT description FROM expenses WHERE id='x1'").get().desc
 eq(database.prepare("SELECT name FROM customers WHERE id='c1'").get().name,customer,'Export does not change customer data');
 const json=await context.exports.GET(new Request('https://synthetic.invalid/api/expenses'));
 eq(json.status,200,'Normal JSON response unchanged');
+eq(json.headers.get('cache-control'),'private, no-store','Authenticated JSON expense list remains uncached');
 const parsedJson=await json.json();
 eq(parsedJson.expenses[0].description,description,'JSON text not prefixed');
 eq(parsedJson.expenses[0].customer,customer,'JSON customer unchanged');
+// Backdated purchases can share incurredAt; newest entry must consistently display
+// first, including a deterministic ID tiebreaker for identical createdAt values.
+for(const [id,amount] of [['x3',300],['x4',400]]){
+ database.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run(id,null,'Fuel',id+' same-date backdate',amount,'2026-10-20T12:00:00.000Z','2026-10-20T13:00:00.000Z');
+}
+const orderedJson=await context.exports.GET(new Request('https://synthetic.invalid/api/expenses'));
+const ordered=(await orderedJson.json()).expenses.map(row=>row.id);
+eq(ordered,['x4','x3','x1','x2'],'Stable order: same purchase day by saved time then ID');
+const orderedCSV=parseCSV(await (await context.exports.GET(new Request(url))).text());
+eq(orderedCSV.length,5,'Backdated CSV includes each expense once');
+eq(orderedCSV.slice(1).map(row=>row[3]),['4.00','3.00','15.25','2.75'],'CSV has same exact deterministic order as saved expense history');
+database.exec("DELETE FROM expenses WHERE id IN ('x3','x4')");
 // Node SQLite truncates text at a NUL byte on binding; exercise preserved whitespace and BOM inputs here.
 const samples=['=1+1','+1+1','-1+1','@SUM(1)',' \t=HYPERLINK(1)','\r\n+1','\uFEFF-2'];
 for(const [i,value] of samples.entries()){
