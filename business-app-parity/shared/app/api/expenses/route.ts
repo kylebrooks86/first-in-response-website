@@ -16,4 +16,32 @@ export async function GET(request:Request){
   return Response.json({expenses:rows.results});
 }
 
-export async function POST(request:Request){if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});const body=await request.json() as Record<string,unknown>;const description=String(body.description??"").trim();const amountCents=Math.round(Number(body.amountCents)||0);if(!description||!Number.isSafeInteger(amountCents)||amountCents<=0)return Response.json({error:"Description and a valid amount are required."},{status:400});const estimateId=String(body.estimateId??"").trim()||null;if(estimateId){const estimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=?").bind(estimateId).first<{id:string}>();if(!estimate)return Response.json({error:"Job not found. Refresh before attaching this expense."},{status:404});}const rawIncurredAt=String(body.incurredAt??new Date().toISOString());const parsedIncurredAt=new Date(rawIncurredAt);if(Number.isNaN(parsedIncurredAt.getTime()))return Response.json({error:"Choose a valid expense date."},{status:400});const expense={id:crypto.randomUUID(),estimateId,category:String(body.category??"Supplies"),description,amountCents,incurredAt:parsedIncurredAt.toISOString(),createdAt:new Date().toISOString()};await env.DB.prepare("INSERT INTO expenses (id,estimate_id,category,description,amount_cents,incurred_at,created_at) VALUES (?,?,?,?,?,?,?)").bind(expense.id,expense.estimateId,expense.category,expense.description,expense.amountCents,expense.incurredAt,expense.createdAt).run();return Response.json({expense},{status:201});}
+const v4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export async function POST(request:Request){
+ if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+ const body=await request.json() as Record<string,unknown>;
+ const description=String(body.description??"").trim();
+ const rawAmount=body.amountCents;
+ if((typeof rawAmount!=="number"&&typeof rawAmount!=="string")||(typeof rawAmount==="string"&&!rawAmount.trim())||!Number.isSafeInteger(Number(rawAmount))||Number(rawAmount)<=0||!description)
+  return Response.json({error:"Description and a valid whole-cent amount are required."},{status:400});
+ const amountCents=Number(rawAmount);
+ if(body.requestId!==undefined&&(typeof body.requestId!=="string"||!v4.test(body.requestId)))return Response.json({error:"A valid expense request ID is required."},{status:400});
+ const id=typeof body.requestId==="string"?body.requestId:crypto.randomUUID();
+ const estimateId=String(body.estimateId??"").trim()||null;
+ if(estimateId){
+  const estimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=?").bind(estimateId).first<{id:string}>();
+  if(!estimate)return Response.json({error:"Job not found. Refresh before attaching this expense."},{status:404});
+ }
+ const rawIncurredAt=String(body.incurredAt??new Date().toISOString());
+ const parsedIncurredAt=new Date(rawIncurredAt);
+ if(!Number.isFinite(parsedIncurredAt.getTime()))return Response.json({error:"Choose a valid expense date."},{status:400});
+ const category=String(body.category??"Supplies");
+ const incurredAt=parsedIncurredAt.toISOString();
+ const createdAt=new Date().toISOString();
+ // A repeated owner request must resolve to the original expense, not a duplicate.
+ const inserted=await env.DB.prepare("INSERT OR IGNORE INTO expenses (id,estimate_id,category,description,amount_cents,incurred_at,created_at) VALUES (?,?,?,?,?,?,?)").bind(id,estimateId,category,description,amountCents,incurredAt,createdAt).run();
+ const saved=await env.DB.prepare("SELECT id,estimate_id AS estimateId,category,description,amount_cents AS amountCents,incurred_at AS incurredAt,created_at AS createdAt FROM expenses WHERE id=?").bind(id).first<{id:string;estimateId:string|null;category:string;description:string;amountCents:number;incurredAt:string;createdAt:string}>();
+ if(!saved||saved.estimateId!==estimateId||saved.category!==category||saved.description!==description||Number(saved.amountCents)!==amountCents||saved.incurredAt!==incurredAt)
+  return Response.json({error:"That expense request ID is already associated with different details. Review saved expenses before trying again."},{status:409});
+ return Response.json({expense:saved,requestId:id,confirmed:true},{status:inserted.meta.changes===1?201:200});
+}
