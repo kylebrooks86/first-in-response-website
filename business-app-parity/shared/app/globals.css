@@ -942,5 +942,9 @@ html,body{max-width:100%;overflow-x:clip}
 .customer-history-tools p{margin:0;color:var(--muted-foreground);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
 .customer-history-tools button,.schedule-window-controls button,.profile-head-actions>button{min-height:44px;height:auto;white-space:normal}
 .record-tabs[id]{scroll-margin-top:90px}.record-tabs[id]:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.schedule-header-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:10px;min-width:0}
+.schedule-header-actions button,.schedule-header-actions .route-day-button{min-height:44px;height:auto;white-space:normal}
+.schedule-last-checked{margin-top:6px!important;font-size:12px!important;line-height:1.5;color:var(--muted-foreground)!important}
+@media(max-width:760px){.schedule-header-actions{justify-content:stretch}.schedule-header-actions>*{flex:1 1 130px;min-width:0;text-align:center}}
 .schedule-window-controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .schedule-window-controls button{flex:0 1 auto;max-width:100%;overflow-wrap:anywhere}
