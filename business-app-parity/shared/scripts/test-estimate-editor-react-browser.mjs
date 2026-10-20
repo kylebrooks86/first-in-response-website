@@ -97,6 +97,12 @@ try{
   invoiceLoadStatus=200;await invoice.getByRole('button',{name:'Try loading invoice again'}).click();
   const saveInvoice=invoice.getByRole('button',{name:'Save invoice changes'});await saveInvoice.waitFor();
   check(await invoice.getByLabel('Quantity',{exact:true}).inputValue()==='0.5','Retry preserves fractional quantity');
+  const invoiceScroll=invoice.locator('.estimate-edit-scroll-area');
+  check(await invoiceScroll.evaluate(n=>getComputedStyle(n).overflowY==='auto'&&n.scrollHeight>n.clientHeight),'Long invoice uses bounded native scroll area');
+  await invoiceScroll.focus();await page.keyboard.press('End');await page.waitForTimeout(50);
+  check(await invoiceScroll.evaluate(n=>n.scrollTop>0),'Invoice terms and totals are keyboard-scrollable');
+  const reachable=await saveInvoice.evaluate(n=>{const r=n.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return n===hit||n.contains(hit);});
+  check(reachable,'Invoice Save stays visible after scrolling');
   const previousPatches=invoicePatches,accepted=new Promise(resolve=>onInvoicePatch=resolve);
   await saveInvoice.click();let acceptedTimer;try{await Promise.race([accepted,new Promise((_,reject)=>{acceptedTimer=setTimeout(()=>reject(Error('Synthetic invoice save was not submitted')),5000);})]);}finally{clearTimeout(acceptedTimer);}await invoice.getByRole('button',{name:'Saving…',exact:true}).waitFor();
   check(await invoice.getByLabel('Quantity',{exact:true}).isDisabled(),'Pending invoice fields cannot change');
