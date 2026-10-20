@@ -106,6 +106,7 @@ try{
    }
    check(errors.length===0,'No React browser errors while rendering the seven-day forecast: '+errors.join(';'));
    await page.evaluate(()=>window.changeWeatherJob('2026-11-12T15:00:00Z'));
+   await page.locator('.weather-days article.job-day').first().waitFor({state:'hidden'});
    check(await page.locator('.weather-days article').count()===14,'Job outside week cannot hide available forecast days');
    check(await page.locator('.weather-days article.job-day').count()===0,'Job beyond NWS horizon is not given a fabricated forecast');
    if(process.env.FIRE_WEATHER_WEEK_SCREENSHOT_DIR){
