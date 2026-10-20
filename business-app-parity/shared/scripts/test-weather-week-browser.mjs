@@ -30,17 +30,17 @@ const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globa
 assert.ok(css.css.includes('.weather-scroll-hint')&&css.css.includes('scroll-snap-type'));
 const days=Array.from({length:7},(_,i)=>({date:`2026-10-${String(i+20).padStart(2,'0')}`,temperatureMax:70+i,temperatureMin:i===6?null:45+i,rainChance:i===5?75:15,windMax:5+i}));
 const sample={location:'Tulsa',updatedAt:'2026-10-20T17:00:00.000Z',current:{temperature:66,description:'Sunny'},daily:days};
-let requests=0,hourlyRequests=0;
+let requests=0,hourlyRequests=0;const outageCounts=new Map();
 const server=createServer((req,res)=>{
  if(req.url==='/bundle.js'){res.writeHead(200,{'content-type':'text/javascript','cache-control':'no-store'});res.end(bundle.outputFiles[0].text);return;}
  if(req.url==='/styles.css'){res.writeHead(200,{'content-type':'text/css','cache-control':'no-store'});res.end(css.css);return;}
  if(req.url==='/api/weather'){requests++;res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(sample));return;}
  if(req.url?.startsWith('/api/weather/hourly?')){
   hourlyRequests++;const day=new URL(req.url,'https://synthetic.invalid').searchParams.get('date');
-  if(day==='2026-10-23'){res.writeHead(503,{'content-type':'application/json'});res.end(JSON.stringify({error:'NWS temporarily offline'}));return;}
-  const hours=Array.from({length:3},(_,i)=>({startTime:day+'T'+String(12+i).padStart(2,'0')+':00:00-05:00',temperature:60+i,description:i===1?'Rain Showers':'Partly Sunny',rainChance:i===1?65:null,windMph:i===0?null:12}));
+  if(day==='2026-10-23'){const count=(outageCounts.get(day)||0)+1;outageCounts.set(day,count);if(count%2===1){res.writeHead(503,{'content-type':'application/json'});res.end(JSON.stringify({error:'NWS temporarily offline'}));return;}}
+  const hours=Array.from({length:3},(_,i)=>({startTime:day+'T'+String(12+i).padStart(2,'0')+':00:00-05:00',temperature:i===0?30:60+i,description:i===1?'Rain Showers':'Partly Sunny',rainChance:i===1?65:null,windMph:i===0?null:i===2?22:12}));
   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
-  res.end(JSON.stringify({date:day,location:'Tulsa',updatedAt:'2026-10-20T17:00:00Z',hours}));return;
+  res.end(JSON.stringify({date:day,location:'Tulsa',updatedAt:new Date(Date.parse('2026-10-20T17:00:00Z')+hourlyRequests*60_000).toISOString(),hours}));return;
  }
  if(req.url==='/favicon.ico'){res.writeHead(204);res.end();return;}
  res.writeHead(200,{'content-type':'text/html'});res.end('<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/styles.css"></head><body><div id="app"></div><script type="module" src="/bundle.js"></script></body></html>');
@@ -92,6 +92,19 @@ try{
     check((await hourly.innerText()).includes('Rain 65%')&&(await hourly.innerText()).includes('Wind 12 mph'),'Hourly panel shows temperature, conditions, rain and wind');
     check(await buttons.nth(1).getAttribute('aria-expanded')==='true','Selected forecast day advertises open state');
     check(hourlyRequests===beforeHourly+1,'Hourly endpoint is requested only after opening a day');
+    check(await hourly.locator('.weather-hour-cautions').count()===3,'Freezing, rainy, and windy hours are visibly distinguished');
+    check((await hourly.locator('.weather-hour-cautions').allTextContents()).join(' ').includes('Freezing ≤32°F'),'First-hour freezing conditions get a specific caution');
+    check((await hourly.locator('.weather-hour-cautions').allTextContents()).join(' ').includes('Wind ≥20 mph'),'High-wind conditions are marked');
+    check((await hourly.innerText()).includes('Check radar and conditions at the actual job site'),'Weather never certifies exterior work as safe');
+    const previousCheck=await hourly.locator('.weather-hourly-checked').innerText();
+    await hourly.getByRole('button',{name:'Refresh hourly forecast'}).click();
+    await page.waitForFunction(({i,previousCheck})=>{
+      const item=[...document.querySelectorAll('.weather-strip:not(.loading):not(.unavailable)')][i];
+      const next=item?.querySelector('.weather-hourly-checked')?.textContent;
+      return !!next&&next!==previousCheck;
+    },{i,previousCheck});
+    check(hourlyRequests===beforeHourly+2,'Refresh rereads the selected hourly forecast without closing it');
+    check(await hourly.locator('.weather-hour').count()===3,'Refreshing does not duplicate or remove hourly periods');
     await buttons.nth(2).click();
     await hourly.locator('.weather-hour').first().waitFor();
     check((await hourly.innerText()).includes('October 22'),'Changing day replaces old hourly heading and results');
@@ -99,6 +112,10 @@ try{
     await hourly.getByRole('alert').waitFor();
     check((await hourly.getByRole('alert').innerText()).includes('seven-day forecast remains available'),'Hourly failure stays independent of the seven-day weather');
     check(await cards.count()===7,'Outage never hides the entire weather outlook');
+    await hourly.getByRole('button',{name:'Retry hourly forecast'}).click();
+    await hourly.locator('.weather-hour').first().waitFor();
+    check(await hourly.getByRole('alert').count()===0,'Hourly retry clears transient NWS outage');
+    check(await hourly.locator('.weather-hour').count()===3,'Retry restores requested day's actual hours');
     const bounds=await hourly.evaluate(n=>({rect:n.getBoundingClientRect().toJSON(),width:innerWidth}));
     check(bounds.rect.left>=-1&&bounds.rect.right<=bounds.width+1,'Expanded hourly panel cannot overflow a phone viewport');
     await hourly.getByRole('button',{name:'Close hourly forecast'}).click();
