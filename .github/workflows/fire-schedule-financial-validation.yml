@@ -1,0 +1,50 @@
+name: FIRE Schedule fail-closed money and appointment dates (non-deploying)
+
+on:
+  push:
+    branches:
+      - ci/fire-schedule-financial-validation-2026-10-20
+
+permissions:
+  contents: read
+
+jobs:
+  safe-schedule:
+    name: Exact financial amounts, mobile Chrome and full shared build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Strict schedule load, corrupted amount and recovery with synthetic records
+        run: |
+          pnpm exec tsc --noEmit
+          TZ=America/Chicago node scripts/test-schedule-load-errors.mjs
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+      - name: Pinned isolated browser harness
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Real mobile Schedule browser refuses unsafe route or balance
+        run: node scripts/test-connected-records-browser.mjs
+      - name: Full shared candidate build only
+        run: pnpm run build
