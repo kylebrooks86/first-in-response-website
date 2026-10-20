@@ -58,4 +58,27 @@ for(const kind of ['schedule','invoice']){
  pending=deferred();button.props.onClick();eq(sent.length,2,'Failed save releases synchronous request lock');
  pending.resolve({ok:true,json:async()=>kind==='invoice'?{id:'synthetic-invoice'}:{estimate:{status:'scheduled'}}});await flush();eq(f.changedRows.length,1);eq(f.get('saving'),false);
 }
+
+for(const hasSavedAppointment of [false,true]){
+ const f=fixture();f.setFetcher(async()=>ok(false));
+ f.open({...job('date-selection'),scheduledAt:hasSavedAppointment?'2026-10-21T16:30:00.000Z':null});
+ await flush();
+ const dateField=f.nodes().find(n=>n.props?.id==='scheduleDate');
+ eq(Boolean(dateField),true,'The job date field is present');
+ dateField.props.onChange({target:{value:'2026-10-21T10:45'}});
+ eq(f.get('schedule'),'2026-10-21T10:45','Selecting an appointment updates only the local draft');
+ const clear=f.nodes().find(n=>n.props?.onClick&&n.props.children==='Clear date/time selection');
+ eq(Boolean(clear),true,'The Clear selection action appears for an entered date');
+ eq(clear.props.disabled,false,'Clear selection is available while no save is pending');
+ const priorRequests=f.requests.length;
+ clear.props.onClick();
+ eq(f.get('schedule'),'','Clearing the draft resets the date/time field');
+ eq(f.requests.length,priorRequests,'Clearing a draft sends no request to the database');
+ eq(f.changedRows.length,0,'Existing saved appointment and estimate state remain unchanged');
+ const save=f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).some(c=>typeof c==='string'&&c.trim()==='Save job date'));
+ eq(save.props.disabled,true,'Empty date cannot be saved as an accidental unscheduling');
+ eq(f.nodes().some(n=>n.props?.onClick&&n.props.children==='Clear date/time selection'),false,'Clear option hides with empty selection');
+ if(hasSavedAppointment)eq(f.nodes().some(n=>n.type==='small'&&n.props?.children==='Clearing this selection does not cancel the saved appointment.'),true,'Existing appointment is explicitly protected');
+}
+
 console.log(`PASS ${checks}/${checks}: actual estimate-detail effect/button state guards report loads across estimate switches, pending reads, close/unmount, failed/malformed responses and retry; synthetic reads/PATCH only; closeout failures, ownership validation and duplicate taps.`);
