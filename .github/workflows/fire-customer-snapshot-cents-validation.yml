@@ -1,0 +1,51 @@
+name: FIRE customer financial views fail-closed (isolated non-deploying)
+
+on:
+  push:
+    branches:
+      - ci/fire-customer-snapshot-cents-2026-10-20
+
+permissions:
+  contents: read
+
+jobs:
+  customer-financial-safe:
+    name: Exact customer totals, real Chrome profile recovery, non-publishing build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+      - name: TypeScript and customer-specific read/recovery failure paths
+        run: |
+          pnpm exec tsc --noEmit
+          node scripts/test-customer-load-recovery.mjs
+          node scripts/test-customer-write-recovery.mjs
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+      - name: Isolated real Chrome driver, no browser downloads
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Mobile customer financial error and no-write recovery in Chrome
+        run: node scripts/test-connected-records-browser.mjs
+      - name: Shared full build only, no hosting
+        run: pnpm run build
