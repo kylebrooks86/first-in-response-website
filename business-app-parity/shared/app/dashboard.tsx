@@ -1778,13 +1778,15 @@ function FollowUpsView({searchQuery}:{searchQuery:string}){
   };
   const recordAction=async(estimate:EstimateRow,action:"contacted"|"snooze")=>{
     if(actionPending.current)return;
+    const customerId=estimate.customerId;
+    if(!customerId){setActionError(true);setActionStatus("This estimate has no verified customer. Refresh its record before recording contact or snooze.");return;}
     const prior=actionRetry.current;
-    if(prior&&(prior.customerId!==estimate.customerId||prior.estimateId!==estimate.id||prior.action!==action)){
+    if(prior&&(prior.customerId!==customerId||prior.estimateId!==estimate.id||prior.action!==action)){
       setActionError(true);
       setActionStatus("An earlier follow-up save is unconfirmed. Retry the same action safely or refresh and review saved history before choosing a different action.");
       return;
     }
-    const attempt=prior??{customerId:estimate.customerId,estimateId:estimate.id,action,operationId:crypto.randomUUID()};
+    const attempt=prior??{customerId,estimateId:estimate.id,action,operationId:crypto.randomUUID()};
     actionRetry.current=attempt;
     actionPending.current=true;setActionBusy(true);setActionStatus("");setActionError(false);
     try{
