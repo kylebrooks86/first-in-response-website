@@ -1680,7 +1680,27 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
       if(!Array.isArray(result.estimates))throw new Error("Schedule records could not be read. Try again.");
       const complete=await completeEstimatePages<EstimateRow>(result,(url)=>fetch(url,{cache:"no-store"}),()=>request===loadRequest.current);if(!complete)return;
       if(request!==loadRequest.current)return;
-      setRows(complete.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents)})));
+      // Do not publish partial schedules, routes or currency figures from unverified reads.
+      // Cents must remain exact integers; financial strings from D1 are normal, fractional
+      // cents and unsafe numeric conversions are not.
+      const exactCents=(raw:unknown)=>{
+        if((typeof raw!=="number"&&typeof raw!=="string")||(typeof raw==="string"&&!raw.trim())||!Number.isSafeInteger(Number(raw)))
+          throw new Error("Schedule amounts could not be verified. Refresh before using balances or routes.");
+        return Number(raw);
+      };
+      const verified=complete.map((item)=>{
+        if(item.scheduledAt&&(!Number.isFinite(Date.parse(item.scheduledAt))||typeof item.scheduledAt!=="string"))
+          throw new Error("A job appointment date could not be verified. Refresh the schedule before using directions.");
+        return {...item,
+          subtotalCents:exactCents(item.subtotalCents??item.totalCents),
+          discountCents:exactCents(item.discountCents??0),
+          totalCents:exactCents(item.totalCents),
+          depositCents:exactCents(item.depositCents),
+          paidCents:exactCents(item.paidCents),
+          invoiceTotalCents:item.invoiceTotalCents==null?null:exactCents(item.invoiceTotalCents)
+        };
+      });
+      setRows(verified);
       setLastCheckedAt(new Date().toISOString());
     }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Schedule could not be loaded.");}
     finally{if(request===loadRequest.current)setLoading(false);}
