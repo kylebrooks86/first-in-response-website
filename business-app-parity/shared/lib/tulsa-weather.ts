@@ -31,7 +31,7 @@ export function weatherIconKind(description:string):WeatherIconKind {
 export function weatherDayHeading(day:WeatherDay,now=Date.now()):string {
  // Midnight rollover is based on Tulsa time, not the browser's device zone.
  if(day.date===dateKey(new Date(now).toISOString())&&day.temperatureMax==null&&day.temperatureMin!=null)return "Tonight";
- return new Date(`${day.date}T12:00:00`).toLocaleDateString("en-US",{weekday:"short",timeZone:"America/Chicago"});
+ return new Date(`${day.date}T12:00:00Z`).toLocaleDateString("en-US",{weekday:"short",timeZone:"America/Chicago"});
 }
 
 const dateKey=(value:string)=>new Date(value).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
