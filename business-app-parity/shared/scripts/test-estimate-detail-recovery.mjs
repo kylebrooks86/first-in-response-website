@@ -75,7 +75,7 @@ for(const hasSavedAppointment of [false,true]){
  eq(f.get('schedule'),'','Clearing the draft resets the date/time field');
  eq(f.requests.length,priorRequests,'Clearing a draft sends no request to the database');
  eq(f.changedRows.length,0,'Existing saved appointment and estimate state remain unchanged');
- const save=f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).some(c=>c==='Save job date'));
+ const save=f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).some(c=>typeof c==='string'&&c.trim()==='Save job date'));
  eq(save.props.disabled,true,'Empty date cannot be saved as an accidental unscheduling');
  eq(f.nodes().some(n=>n.props?.onClick&&n.props.children==='Clear date/time selection'),false,'Clear option hides with empty selection');
  if(hasSavedAppointment)eq(f.nodes().some(n=>n.type==='small'&&n.props?.children==='Clearing this selection does not cancel the saved appointment.'),true,'Existing appointment is explicitly protected');
