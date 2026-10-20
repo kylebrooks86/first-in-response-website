@@ -94,6 +94,13 @@ try{
       size,theme,mode,version,reads,writes,
       dialogText:(await dialog.innerText()).slice(0,3500),
       online:await page.evaluate(()=>window.sessionAccess.online),
+      textareas:await dialog.locator('textarea').evaluateAll(nodes=>nodes.map(n=>({
+        outerHTML:n.outerHTML.slice(0,700),
+        labels:Array.from(n.labels??[]).map(label=>label.textContent?.trim()),
+        rect:{width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height},
+        display:getComputedStyle(n).display,visibility:getComputedStyle(n).visibility
+      }))),
+      labelMatches:await dialog.getByLabel('Technician notes',{exact:true}).count(),
       errors:errors.slice(-5)
     }));
     if(process.env.FIRE_JOB_UI_SCREENSHOT_DIR){mkdirSync(process.env.FIRE_JOB_UI_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.FIRE_JOB_UI_SCREENSHOT_DIR,`report-failure-${size.width}x${size.height}-${theme}.png`)});}
