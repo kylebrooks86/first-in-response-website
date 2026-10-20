@@ -42,8 +42,19 @@ try{
  browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
  const context=await browser.newContext();const page=await context.newPage();page.setDefaultTimeout(5000);page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',r=>new URL(r.request().url()).origin===origin?r.continue():(outside.push(r.request().url()),r.abort()));
- const open=async kind=>{await page.getByRole('button',{name:kind==='report'?'Job report':'Job costs',exact:true}).click();return page.getByRole('dialog');};
- const close=async()=>page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
+ const open=async kind=>{
+  await page.getByRole('button',{name:kind==='report'?'Job report':'Job costs',exact:true}).click();
+  const dialog=page.getByRole('dialog');
+  await dialog.getByRole('heading',{name:kind==='report'?'Service completion report':'Job costs & profit'}).waitFor();
+  return dialog;
+ };
+ const close=async()=>{
+  const dialog=page.getByRole('dialog');
+  await dialog.getByRole('button',{name:'Close',exact:true}).click();
+  // Radix keeps closing content mounted during its exit animation. Do not open
+  // the next modal until this one has actually disappeared.
+  await dialog.waitFor({state:'hidden'});
+ };
  const disconnect=async()=>{await context.setOffline(true);await page.waitForFunction(()=>window.sessionAccess.online===false);};
  const reconnect=async()=>{await context.setOffline(false);await page.waitForFunction(()=>window.sessionAccess.online===true);};
  for(const width of [320,390,768,1366])for(const theme of ['light','dark']){
@@ -76,7 +87,26 @@ try{
   await dialog.getByRole('button',{name:'Saved costs',exact:true}).click();check(await page.evaluate(()=>document.activeElement.id)==='job-cost-records-job-a','Saved costs shortcut transfers keyboard focus');await dialog.locator('.fire-job-scroll').evaluate(n=>n.scrollTop=n.scrollHeight);check(await dialog.getByText('Synthetic cost 24',{exact:true}).isVisible(),'Oldest cost remains in scrollable history');await reachable(dialog,'[data-slot=dialog-close]','Cost Close');await reachable(dialog,'.fire-job-header','Cost title');await reachable(dialog,'.fire-job-footer','Cost footer');
   const beforeJumpWrites=writes;await dialog.getByRole('button',{name:'Cost entry',exact:true}).click();check(await page.evaluate(()=>document.activeElement.id)==='job-cost-entry-job-a','Cost entry shortcut focuses the draft input');check(writes===beforeJumpWrites,'Cost navigation never submits');const width=await dialog.locator('.fire-job-scroll').evaluate(n=>({actual:n.scrollWidth,width:n.clientWidth}));check(width.actual<=width.width,'Long cost descriptions do not create horizontal scrolling');
   if(process.env.FIRE_JOB_UI_SCREENSHOT_DIR){mkdirSync(process.env.FIRE_JOB_UI_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.FIRE_JOB_UI_SCREENSHOT_DIR,`costs-${size.width}x${size.height}-${theme}.png`)});}await close();
-  dialog=await open('report');await dialog.getByLabel('Technician notes',{exact:true}).waitFor();await stable(dialog);check((await dialog.locator('.fire-job-context').innerText()).includes('Synthetic Job Customer'),'Report dialog identifies its customer/job');await dialog.getByLabel('Technician notes',{exact:true}).fill('Synthetic report draft');await dialog.locator('.fire-job-scroll').focus();await page.keyboard.press('End');await dialog.locator('.fire-job-scroll').evaluate(n=>n.scrollTop=n.scrollHeight);await reachable(dialog,'[data-slot=dialog-close]','Report Close');await reachable(dialog,'.fire-job-header','Report title');await reachable(dialog,'.fire-job-footer','Report save footer');
+  dialog=await open('report');
+  try{await dialog.getByLabel('Technician notes',{exact:true}).waitFor();}
+  catch(error){
+    console.error('SYNTHETIC_REPORT_LOAD_DIAGNOSTIC',JSON.stringify({
+      size,theme,mode,version,reads,writes,
+      dialogText:(await dialog.innerText()).slice(0,3500),
+      online:await page.evaluate(()=>window.sessionAccess.online),
+      textareas:await dialog.locator('textarea').evaluateAll(nodes=>nodes.map(n=>({
+        outerHTML:n.outerHTML.slice(0,700),
+        labels:Array.from(n.labels??[]).map(label=>label.textContent?.trim()),
+        rect:{width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height},
+        display:getComputedStyle(n).display,visibility:getComputedStyle(n).visibility
+      }))),
+      labelMatches:await dialog.getByLabel('Technician notes',{exact:true}).count(),
+      errors:errors.slice(-5)
+    }));
+    if(process.env.FIRE_JOB_UI_SCREENSHOT_DIR){mkdirSync(process.env.FIRE_JOB_UI_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.FIRE_JOB_UI_SCREENSHOT_DIR,`report-failure-${size.width}x${size.height}-${theme}.png`)});}
+    throw error;
+  }
+  await stable(dialog);check((await dialog.locator('.fire-job-context').innerText()).includes('Synthetic Job Customer'),'Report dialog identifies its customer/job');await dialog.getByLabel('Technician notes',{exact:true}).fill('Synthetic report draft');await dialog.locator('.fire-job-scroll').focus();await page.keyboard.press('End');await dialog.locator('.fire-job-scroll').evaluate(n=>n.scrollTop=n.scrollHeight);await reachable(dialog,'[data-slot=dialog-close]','Report Close');await reachable(dialog,'.fire-job-header','Report title');await reachable(dialog,'.fire-job-footer','Report save footer');
   reportPostMode='hold';releaseReport=null;const beforeSave=writes;await dialog.getByRole('button',{name:'Save draft report',exact:true}).evaluate(n=>{n.click();n.click();});const deadline=Date.now()+5000;while(!releaseReport){if(Date.now()>deadline)throw Error('Report POST not submitted');await new Promise(r=>setTimeout(r,10));}check(writes===beforeSave+1,'Fixed report save still locks rapid taps');await dialog.getByRole('button',{name:'Close',exact:true}).click();await page.keyboard.press('Escape');check(await dialog.isVisible(),'Pending report cannot be dismissed');releaseReport();await dialog.getByText('Job report saved.',{exact:true}).waitFor();await reachable(dialog,'.fire-job-save','Confirmed report save');check(await dialog.getByLabel('Technician notes',{exact:true}).inputValue()==='Synthetic report draft','Confirmed save preserves visible report content');
   if(process.env.FIRE_JOB_UI_SCREENSHOT_DIR)await page.screenshot({path:join(process.env.FIRE_JOB_UI_SCREENSHOT_DIR,`report-${size.width}x${size.height}-${theme}.png`)});await close();
  }

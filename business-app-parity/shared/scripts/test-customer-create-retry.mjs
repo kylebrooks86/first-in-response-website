@@ -18,6 +18,16 @@ try{
  owner=null;eq((await get(original.requestId)).status,401);eq((await post(original)).status,401);owner={email:'other@example.invalid'};eq((await get(original.requestId)).status,401);owner={email:'kylebrooks8605@gmail.com'};
  for(const requestId of ['bad',null,42,'A'.repeat(36)])eq((await post({...original,requestId})).status,400);
  eq((await get('bad')).status,400);let response=await get(original.requestId);eq(response.headers.get('cache-control'),'no-store, private');eq((await response.json()).confirmed,false);eq(writes,0);
+ // Invalid JSON and non-object bodies cannot be confused with uncertain database writes.
+ for(const [method,handler] of [['POST',customers.POST],['PATCH',customers.PATCH]]){
+  for(const raw of ['null','[]','"synthetic"','42','{malformed','']){
+   const beforeWrites=writes;
+   const request=new Request('https://synthetic.invalid/api/customers',{method,headers:{'content-type':'application/json'},body:raw});
+   const response=await handler(request);
+   eq(response.status,400);
+   eq(writes,beforeWrites);
+  }
+ }
  failAfterInsert=true;eq((await post(original)).status,500);let receipt=await (await get(original.requestId)).json();const customer=confirmedCreatedCustomer(receipt,original.requestId);assert.ok(customer);checks++;eq(customer.name,original.name);eq(customer.estimateCount,0);eq(db.prepare('SELECT COUNT(*) AS n FROM customers').get().n,1);
  const snapshot=JSON.stringify(db.prepare('SELECT * FROM customers').all());response=await post(original);eq(response.status,200);eq((await response.json()).customer.id,original.requestId);eq(db.prepare('SELECT COUNT(*) AS n FROM customers').get().n,1);
  for(const field of ['name','email','phone','address','leadSource'])eq((await post({...original,[field]:'Different '+field})).status,409);eq(JSON.stringify(db.prepare('SELECT * FROM customers').all()),snapshot);
