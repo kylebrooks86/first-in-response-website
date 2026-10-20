@@ -1171,3 +1171,21 @@ html,body{max-width:100%;overflow-x:clip}
 .schedule-job-message-preview small{flex:none}
 [data-theme="dark"] .schedule-job-message-tools button{background:#1b3753;border-color:#5b84a9;color:#e5f4ff}
 @media(max-width:430px){.schedule-job-message-tools button{flex:1 1 130px}}
+
+/* Route coverage is emphasized only when mapping cannot show every scheduled stop. */
+.schedule-route-review{display:grid;gap:10px;min-width:0;margin:14px 0;padding:13px 15px;border:1px solid #93adc6;border-radius:12px;background:#f0f6fc;color:#1b3a58}
+.schedule-route-review.schedule-route-missing{border-color:#c99a5d;background:#fff5e6;color:#64451b}
+.schedule-route-review>div>strong,.schedule-route-missing-list>strong,.schedule-route-extra-links>strong{font-size:13px;font-weight:850}
+.schedule-route-review p{margin:5px 0 0;font-size:12px;line-height:1.5}
+.schedule-route-review>small{font-size:11px;line-height:1.45;opacity:.85}
+.schedule-route-missing-list,.schedule-route-extra-links{display:grid;gap:6px}
+.schedule-route-missing-list button,.schedule-route-extra-links a{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:44px;padding:9px 12px;border:1px solid #c8a57a;border-radius:9px;background:#fff;color:#634419;font-size:12px;font-weight:800;text-align:left;text-decoration:none;cursor:pointer}
+.schedule-route-extra-links a{border-color:#9bb4cf;color:#1b456d}
+.schedule-route-missing-list svg,.schedule-route-extra-links svg{width:16px;height:16px;flex:0 0 auto}
+.schedule-route-extra-links a small{margin-left:auto;text-align:right;font-size:11px;font-weight:600}
+.schedule-route-missing-list button:focus-visible,.schedule-route-extra-links a:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+[data-theme="dark"] .schedule-route-review{background:#1d344a;color:#e4f0fd;border-color:#55728e}
+[data-theme="dark"] .schedule-route-review.schedule-route-missing{background:#3b2e1d;color:#ffe7c4;border-color:#a47d4e}
+[data-theme="dark"] .schedule-route-missing-list button{background:#29231c;color:#ffe4c0;border-color:#816343}
+[data-theme="dark"] .schedule-route-extra-links a{background:#1c3145;color:#dcedff;border-color:#627f9d}
+@media(max-width:420px){.schedule-route-extra-links a{flex-wrap:wrap}.schedule-route-extra-links a small{flex:1 1 100%;text-align:left}}

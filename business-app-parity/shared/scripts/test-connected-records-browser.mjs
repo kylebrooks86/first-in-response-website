@@ -209,6 +209,34 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
  await collision.waitFor({state:'hidden'});
  check(await page.locator('.schedule-conflict-chip').count()===0,'Resolved time collision no longer shows an advisory');
+ // Eleven scheduled next-day stops: ten mapped, one missing address.
+ // The second Maps link must continue from stop eight, not quietly drop two jobs.
+ const addedStops=Array.from({length:9},(_,i)=>scheduleJob('batch-'+i,new Date(Date.parse('2026-10-21T16:00:00Z')+i*300000).toISOString()));
+ const missingStop={...scheduleJob('missing-route-address','2026-10-21T06:00:00Z'),address:''};
+ scheduled.push(missingStop,...addedStops);
+ const readsBeforeRoutes=reads;
+ await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
+ await page.getByRole('button',{name:'Tomorrow (11)',exact:true}).click();
+ const review=page.getByRole('region',{name:'Route coverage review'});
+ await review.waitFor();
+ check((await review.innerText()).includes('10 of 11 upcoming jobs'),'Route coverage counts scheduled jobs missing an address');
+ check((await review.innerText()).includes('1 stop not mapped'),'Missing-address appointments never disappear silently');
+ check(await review.getByRole('button',{name:/missing-route-address/}).count()===1,'Missing-address review opens exact job rather than inventing directions');
+ const firstGroup=new URL(await page.locator('.route-day-button').getAttribute('href'));
+ check(firstGroup.searchParams.get('destination')==='Address batch-6','Primary route has first eight addressed stops only');
+ check(firstGroup.searchParams.get('waypoints')?.split('|').length===7,'First Maps segment limits waypoints to seven');
+ check((await page.locator('.route-day-button').innerText()).includes('8 of 10 mapped stops'),'Primary route button exposes partial-coverage count');
+ const continuation=review.getByRole('link',{name:'Route stops 9 to 10'});
+ const secondGroup=new URL(await continuation.getAttribute('href'));
+ check(secondGroup.searchParams.get('origin')==='Address batch-6'&&secondGroup.searchParams.get('destination')==='Address batch-8','Continuation route starts from previous last stop and ends at final mapped job');
+ check(secondGroup.searchParams.get('waypoints')==='Address batch-7','Continuation preserves scheduled order of remaining jobs');
+ check(!firstGroup.toString().includes('missing-route-address')&&!secondGroup.toString().includes('missing-route-address'),'Missing addresses cannot be inserted into Maps URLs');
+ check((await continuation.evaluate(e=>e.getBoundingClientRect().height))>=44,'Continuation link stays touch friendly');
+ check(reads===readsBeforeRoutes+1,'Route inspection is local with one explicit schedule GET and no writes');
+ scheduled.splice(scheduled.length-10,10);
+ await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
+ await review.waitFor({state:'hidden'});
+ check(await page.locator('.route-day-button').count()===1,'Normal single-job tomorrow route remains after route-review resolution');
  mode='badCustomer';await page.goto(origin+'/customers');await page.getByRole('alert').filter({hasText:'exact whole cents'}).waitFor();check(await page.locator('.customer-list,.customer-snapshot').count()===0,'Fractional customer account cents never render as valid profile totals');
  mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await page.locator('.customer-card').first().waitFor();check(await page.locator('.customer-card').count()===2,'Read-only customer retry restores verified profiles');
  check(writes===0&&outside.length===0&&errors.length===0,'No customer writes, external requests or browser errors: '+errors.join(';'));console.log(JSON.stringify({passed:checks,actualCustomerHistory:true,actualScheduleWindows:true,actualDashboardRows:true,syntheticLocalhost:true,lightDark:true,hostedWrites:false,iPhoneAccepted:false}));
