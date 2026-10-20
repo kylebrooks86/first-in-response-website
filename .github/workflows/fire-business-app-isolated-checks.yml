@@ -689,10 +689,11 @@ jobs:
         env:
           FIRE_CONNECTED_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-connected-ui
         run: node scripts/test-connected-records-browser.mjs
-      - name: Seven-day NWS forecast, auth and device-timezone tests
+      - name: Seven-day NWS forecast, hourly auth, safe dates and device timezones
         run: |
           TZ=America/Chicago node scripts/test-weather-photo-safety.mjs
           TZ=Pacific/Auckland node scripts/test-weather-photo-safety.mjs
+          TZ=America/Chicago node scripts/test-weather-hourly.mjs
       - name: Real Dashboard and Schedule full-week weather on phone, tablet and desktop in Chrome
         env:
           FIRE_WEATHER_WEEK_SCREENSHOT_DIR: ${{ runner.temp }}/fire-weather-week
