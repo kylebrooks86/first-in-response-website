@@ -575,6 +575,14 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
   const upcomingJobs=estimates.filter((estimate)=>estimate.status==="scheduled"&&estimate.scheduledAt&&Number.isFinite(Date.parse(estimate.scheduledAt))&&Date.parse(estimate.scheduledAt)>=now).sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
   const upcoming=upcomingJobs.length;
   const completed = estimates.filter((estimate)=>estimate.status === "completed").length;
+  const nextJob=upcomingJobs[0];
+  // Native dial/compose shortcuts never submit or send through FIRE.
+  // Reject malformed contact details instead of constructing ambiguous URLs.
+  const rawPhone=nextJob?.phone?.trim()??"";
+  const digits=/^[+0-9().\s-]+$/.test(rawPhone)?rawPhone.replace(/\D/g,""):"";
+  const nextJobPhone=digits.length===10?"+1"+digits:digits.length===11&&digits.startsWith("1")?"+"+digits:null;
+  const nextJobEmail=nextJob?.email?.trim()??"";
+  const canEmailNextJob=/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(nextJobEmail);
   return (
     <div className="dashboard-view">
       <section className="welcome-row"><div><p className="eyebrow">FIRE App</p><h1>Welcome to First In Response Exteriors</h1><p>Customers, estimates, jobs, and balances in one place.</p></div><NewEstimate onSaved={onSaved} /></section>
@@ -589,6 +597,9 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
         <div className="dashboard-next-job-actions">
           <Button className="brand-button" onClick={()=>onOpenEstimate?onOpenEstimate(upcomingJobs[0].id):onNavigate("schedule")}>Open next job <ChevronRight className="h-4 w-4"/></Button>
           {upcomingJobs[0].address?.trim()&&<a className="dashboard-next-directions" aria-label="Directions to next job" href={`https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate&destination=${encodeURIComponent(upcomingJobs[0].address.trim())}`} target="_blank" rel="noopener noreferrer"><Navigation className="h-4 w-4"/> Directions</a>}
+          {nextJobPhone&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Call next job customer" href={"tel:"+nextJobPhone}><Phone className="h-4 w-4"/> Call</a>}
+          {nextJobPhone&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Text next job customer" href={"sms:"+nextJobPhone}><MessageSquareText className="h-4 w-4"/> Text</a>}
+          {canEmailNextJob&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Email next job customer" href={"mailto:"+encodeURIComponent(nextJobEmail)}><Mail className="h-4 w-4"/> Email</a>}
           <Button variant="outline" onClick={()=>onNavigate("schedule")}>Full schedule</Button>
         </div>
       </section>}

@@ -10,12 +10,12 @@ ${[...tags].filter(t=>!['Button','Input','Label','ScheduleWeather'].includes(t))
 ${views.map(n=>n.getText(ast)).join('\n')}
 const ScheduleWeather=({nextJobAt})=><output data-testid="schedule-weather-target">{nextJobAt??""}</output>;
 function Screen(){const[query,setQuery]=useState(''),[focus,setFocus]=useState(null),[key,setKey]=useState(0);window.setQuery=setQuery;window.focusSavedRecord=(kind,id)=>{setFocus({kind,id,customerId:'first'});setKey(v=>v+1)};
-return location.pathname==='/schedule'?<ScheduleView searchQuery={query}/>:['/dashboard','/dashboard-no-address'].includes(location.pathname)?<DashboardView userName="Synthetic owner" metrics={{estimates:2,openValue:0,outstanding:0}} estimates={[
+return location.pathname==='/schedule'?<ScheduleView searchQuery={query}/>:['/dashboard','/dashboard-no-address','/dashboard-bad-contact'].includes(location.pathname)?<DashboardView userName="Synthetic owner" metrics={{estimates:2,openValue:0,outstanding:0}} estimates={[
 {id:'later-dashboard-job',customer:'Later customer',service:'Second scheduled',status:'scheduled',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T20:00:00Z',totalCents:12000,paidCents:0},
 {id:'declined-dashboard-job',customer:'Declined customer',service:'Cancelled',status:'declined',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T14:15:00Z',totalCents:8000,paidCents:0},
 {id:'completed-dashboard-job',customer:'Finished customer',service:'Completed work',status:'completed',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T14:30:00Z',totalCents:9000,paidCents:0},
 {id:'past-dashboard-job',customer:'Old customer',service:'Past appointment',status:'scheduled',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-19T18:00:00Z',totalCents:9500,paidCents:0},
-{id:'exact-dashboard-job',customer:'Exact customer',service:'Exact job',status:'scheduled',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T15:00:00Z',address:location.pathname==='/dashboard-no-address'?'':'101 Exterior Ave, Tulsa, OK',totalCents:10000,paidCents:0}
+{id:'exact-dashboard-job',customer:'Exact customer',service:'Exact job',status:'scheduled',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T15:00:00Z',address:location.pathname==='/dashboard-no-address'?'':'101 Exterior Ave, Tulsa, OK',phone:location.pathname==='/dashboard-bad-contact'?'not-a-phone':'(918) 555-0146',email:location.pathname==='/dashboard-bad-contact'?'customer@@example.invalid':'customer@example.invalid',totalCents:10000,paidCents:0}
 ]} onSaved={()=>{}} onNavigate={tab=>window.openedTab=tab} onOpenEstimate={id=>window.openedEstimate=id}/>:<CustomersView searchQuery="" onEstimateSaved={()=>{}} focusCustomerId={focus?.customerId} focusSection={focus?.kind==='payment'?'payments':'notes'} focusRecord={focus} recordRequestKey={key} onRecordFocusHandled={()=>setFocus(null)}/>;}
 window.setTheme=t=>document.documentElement.dataset.theme=t;createRoot(document.getElementById('app')).render(<Screen/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
@@ -71,6 +71,13 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   const nextJob=page.getByRole('region',{name:'Next scheduled job'});
   check((await nextJob.innerText()).includes('Exact customer')&&!(await nextJob.innerText()).includes('Declined customer'),'Next appointment card identifies the correct active customer');
   check((await nextJob.innerText()).includes('Exact job'),'Next appointment card includes selected service');
+  const call=nextJob.getByRole('link',{name:'Call next job customer',exact:true});
+  const sms=nextJob.getByRole('link',{name:'Text next job customer',exact:true});
+  const email=nextJob.getByRole('link',{name:'Email next job customer',exact:true});
+  check(await call.getAttribute('href')==='tel:+19185550146','Dashboard call shortcut is a normalized native dial link');
+  check(await sms.getAttribute('href')==='sms:+19185550146','Dashboard text shortcut only opens a draft in the native composer');
+  check(await email.getAttribute('href')==='mailto:customer%40example.invalid','Dashboard email shortcut encodes its recipient');
+  check(await nextJob.locator('.dashboard-next-contact').count()===3,'Valid phone and email show three usable actions');
   const directions=nextJob.getByRole('link',{name:'Directions to next job',exact:true});
   check(await directions.isVisible(),'Next scheduled job with address offers direct driving directions');
   const directionsUrl=new URL(await directions.getAttribute('href'));
@@ -84,6 +91,9 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(nextBounds.left>=-1&&nextBounds.right<=nextBounds.width+1,'Next appointment card fits each phone and tablet viewport');
   check(await nextJob.locator('button,a').evaluateAll(nodes=>nodes.every(n=>n.getBoundingClientRect().height>=44)),'Next appointment shortcuts and driving directions remain touch friendly');
   await page.locator('.recent-estimate-row').filter({hasText:'Exact customer'}).click();check(await page.evaluate(()=>window.openedEstimate)==='exact-dashboard-job','Dashboard row chooses exact job identity');
+  await page.goto(origin+'/dashboard-bad-contact');
+  await page.getByRole('region',{name:'Next scheduled job'}).waitFor();
+  check(await page.locator('.dashboard-next-contact').count()===0,'Malformed contact details cannot create dial, SMS or email links');
   await page.goto(origin+'/dashboard-no-address');
   await page.getByRole('region',{name:'Next scheduled job'}).waitFor();
   check(await page.getByRole('link',{name:'Directions to next job',exact:true}).count()===0,'Dashboard never offers directions for an unsaved job address');

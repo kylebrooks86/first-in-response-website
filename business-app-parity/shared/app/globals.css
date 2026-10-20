@@ -1100,3 +1100,8 @@ html,body{max-width:100%;overflow-x:clip}
 [data-theme="dark"] .schedule-start-conflicts button{border-color:#806240;background:#241f1a;color:#ffe6c3}
 [data-theme="dark"] .schedule-conflict-chip{background:#49341b;color:#ffdeb0!important}
 @media(max-width:420px){.schedule-start-conflicts button{flex-wrap:wrap}.schedule-start-conflicts button span:last-child{margin-left:auto}}
+
+/* Next job customer shortcuts open native apps without writing to FIRE. */
+.dashboard-next-contact{border-color:#bed0e2;background:#f1f7fd}
+.dashboard-next-contact:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+[data-theme="dark"] .dashboard-next-contact{background:#183249;border-color:#577995;color:#e9f5ff}
