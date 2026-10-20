@@ -21,6 +21,7 @@ import {mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory} from "../lib
 import { estimateFollowUpTiming, estimateReminderStage } from "../lib/follow-up-timing";
 import { messageHistoryEntries } from "../lib/message-history";
 import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote} from "../lib/customer-activity-flags";
+import type {DashboardYardSign} from "../lib/dashboard-yard-signs";
 import { summarizeProcessing } from "../lib/processing-fees";
 import { loadRefundRetry, saveRefundRetry, clearRefundRetry, type RefundRetryAttempt } from "../lib/refund-retry-state";
 import { confirmedManualPayment,loadManualPaymentRetry, saveManualPaymentRetry, clearManualPaymentRetry, type ManualPaymentAttempt } from "../lib/manual-payment-retry-state";
@@ -570,8 +571,30 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   </Dialog>;
 }
 
-function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEstimate}:{userName:string;metrics:{estimates:number;openValue:number;outstanding:number};estimates:EstimateRow[];onSaved:(estimate:EstimateRow)=>void;onNavigate:(tab:string)=>void;onOpenEstimate?:(id:string)=>void}) {
+function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEstimate,onOpenCustomer}:{userName:string;metrics:{estimates:number;openValue:number;outstanding:number};estimates:EstimateRow[];onSaved:(estimate:EstimateRow)=>void;onNavigate:(tab:string)=>void;onOpenEstimate?:(id:string)=>void;onOpenCustomer?:(id:string)=>void}) {
   const now = useCurrentTime();
+  const [signs,setSigns]=useState<DashboardYardSign[]>([]);
+  const [signStatus,setSignStatus]=useState<"loading"|"ready"|"error">("loading");
+  const [signReload,setSignReload]=useState(0);
+  useEffect(()=>{
+    let cancelled=false;
+    const controller=new AbortController();
+    const read=async()=>{
+      try{
+        const response=await fetch("/api/dashboard-yard-signs",{cache:"no-store",signal:controller.signal});
+        if(!response.ok)throw new Error("Yard sign read unavailable");
+        const data=await response.json() as {signs?:unknown};
+        if(!Array.isArray(data.signs)||data.signs.some((row:unknown)=>!row||typeof row!=="object"||typeof (row as DashboardYardSign).customerId!=="string"||typeof (row as DashboardYardSign).customerName!=="string"||typeof (row as DashboardYardSign).pickupDate!=="string"||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test((row as DashboardYardSign).pickupDate)||typeof (row as DashboardYardSign).location!=="string"))throw new Error("Unverified yard sign response");
+        if(!cancelled){setSigns(data.signs as DashboardYardSign[]);setSignStatus("ready");}
+      }catch{if(!cancelled){setSigns([]);setSignStatus("error");}}
+    };
+    void read();
+    const refresh=()=>{if(document.visibilityState==="visible")void read();};
+    window.addEventListener("focus",refresh);
+    return()=>{cancelled=true;controller.abort();window.removeEventListener("focus",refresh);};
+  },[signReload]);
+  const localDay=new Date(now).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+  const pickupDue=signs.filter(sign=>sign.pickupDate<=localDay).length;
   // Match Schedule: future completed/declined jobs are not upcoming appointments.
   // The first supplied record is not necessarily the next appointment.
   const upcomingJobs=estimates.filter((estimate)=>estimate.status==="scheduled"&&estimate.scheduledAt&&Number.isFinite(Date.parse(estimate.scheduledAt))&&Date.parse(estimate.scheduledAt)>=now).sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
@@ -611,6 +634,11 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
         <button className="metric-card" onClick={()=>onNavigate("estimates")}><span className="metric-icon gold"><ClipboardList /></span><p>Saved estimates</p><strong>{metrics.estimates}</strong><small>{money(metrics.openValue)} potential estimate value</small><ChevronRight className="metric-arrow"/></button>
         <button className="metric-card" onClick={()=>onNavigate("estimates")}><span className="metric-icon green"><CheckCircle2 /></span><p>Completed jobs</p><strong>{completed}</strong><small>Review completed work</small><ChevronRight className="metric-arrow"/></button>
       </section>
+      {(signStatus==="error"||signStatus==="ready"&&signs.length>0)&&<section className={`dashboard-sign-reminders${pickupDue?" needs-pickup":""}`} role="region" aria-label="Outstanding yard sign pickups">
+        <header><div><h2><MapPin aria-hidden="true"/> Yard signs to pick up</h2>{signStatus==="ready"&&<p>{signs.length} outstanding · {pickupDue?pickupDue+" due or overdue":"No pickups due yet"}</p>}</div><button type="button" onClick={()=>setSignReload(n=>n+1)} aria-label="Refresh yard sign reminders"><RefreshCw aria-hidden="true"/> Refresh</button></header>
+        {signStatus==="error"?<p role="alert">Yard sign status could not be verified. Refresh to try again; no signs are marked cleared.</p>:<div className="dashboard-sign-list">{signs.slice(0,3).map(sign=><button type="button" key={sign.customerId} onClick={()=>onOpenCustomer?onOpenCustomer(sign.customerId):onNavigate("customers")}><span><strong>{sign.customerName}</strong><small>{sign.location}</small></span><span className={sign.pickupDate<=localDay?"pickup-due":"pickup-planned"}>{sign.pickupDate<=localDay?"Pickup due":"Pickup"} · {sign.pickupDate}<ChevronRight aria-hidden="true"/></span></button>)}</div>}
+        {signStatus==="ready"&&<div className="dashboard-sign-footer"><small>Owner-logged placements only · pickup is not automatically confirmed{signs.length>3?` · ${signs.length-3} more in Customers`:""}</small><button type="button" onClick={()=>onNavigate("customers")}>View all in Customers <ChevronRight aria-hidden="true"/></button></div>}
+      </section>}
       <section className="attention-card">
         <div><span className="spark"><Sparkles /></span><div><strong>Keep every job moving</strong><p>Use Follow-ups for reminders and Payments to record money received through Wave, Cash App, Venmo, cash, check, card, or bank transfer.</p></div></div>
         <Button variant="outline" onClick={() => onNavigate("followups")}>Review follow-ups <ChevronRight className="h-4 w-4" /></Button>
@@ -2612,7 +2640,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
         {process.env.NODE_ENV === "development" && localCustomersCandidate && <CandidateLayoutTrace/>}
         {!interactive && <p role="status" className="app-loading-status">Loading app…</p>}
         {tab === "customers" && localCustomersCandidate && <a className="brand-button" href="/development/local-customers">Offline Customers · synthetic development</a>}
-        {tab === "dashboard" ? <DashboardView userName={userName} metrics={liveMetrics} estimates={estimateRows} onSaved={handleSaved} onNavigate={setTab} onOpenEstimate={id=>{setSearchQuery("");setGlobalQuery("");setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}} /> : tab === "contracts" ? <ContractsView searchQuery={searchQuery}/> : tab === "customers" ? <CustomersView onEstimateSaved={handleSaved} searchQuery={searchQuery} focusCustomerId={focusCustomerId} focusSection={focusCustomerSection} focusRecord={focusCustomerRecord} recordRequestKey={customerRecordRequestKey} onRecordFocusHandled={id=>setFocusCustomerRecord(current=>current?.id===id?null:current)} onPreparePickupTask={draft=>{setPickupTaskDraft(draft);setTab("business");}} onFocusHandled={id=>setFocusCustomerId(current=>current===id?null:current)}/> : tab === "estimates" ? <EstimatesView key={estimateRefreshKey} onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "followups" ? <FollowUpsView searchQuery={searchQuery}/> : tab === "schedule" ? <ScheduleView searchQuery={searchQuery}/> : tab === "invoices" ? <InvoicesView searchQuery={searchQuery} focusInvoiceId={focusInvoiceId} onFocusHandled={id=>setFocusInvoiceId(current=>current===id?null:current)}/> : tab === "insights" ? <InsightsView/> : tab === "business" ? <BusinessView initialPickupDraft={pickupTaskDraft} onPickupDraftConsumed={()=>setPickupTaskDraft(null)}/> : tab === "payments" ? <PaymentsView searchQuery={searchQuery}/> : tab === "settings" ? <SettingsView/> : tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/> : <EmptyView tab={tab} onSaved={handleSaved} />}
+        {tab === "dashboard" ? <DashboardView userName={userName} metrics={liveMetrics} estimates={estimateRows} onSaved={handleSaved} onNavigate={setTab} onOpenEstimate={id=>{setSearchQuery("");setGlobalQuery("");setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}} onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}} /> : tab === "contracts" ? <ContractsView searchQuery={searchQuery}/> : tab === "customers" ? <CustomersView onEstimateSaved={handleSaved} searchQuery={searchQuery} focusCustomerId={focusCustomerId} focusSection={focusCustomerSection} focusRecord={focusCustomerRecord} recordRequestKey={customerRecordRequestKey} onRecordFocusHandled={id=>setFocusCustomerRecord(current=>current?.id===id?null:current)} onPreparePickupTask={draft=>{setPickupTaskDraft(draft);setTab("business");}} onFocusHandled={id=>setFocusCustomerId(current=>current===id?null:current)}/> : tab === "estimates" ? <EstimatesView key={estimateRefreshKey} onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "followups" ? <FollowUpsView searchQuery={searchQuery}/> : tab === "schedule" ? <ScheduleView searchQuery={searchQuery}/> : tab === "invoices" ? <InvoicesView searchQuery={searchQuery} focusInvoiceId={focusInvoiceId} onFocusHandled={id=>setFocusInvoiceId(current=>current===id?null:current)}/> : tab === "insights" ? <InsightsView/> : tab === "business" ? <BusinessView initialPickupDraft={pickupTaskDraft} onPickupDraftConsumed={()=>setPickupTaskDraft(null)}/> : tab === "payments" ? <PaymentsView searchQuery={searchQuery}/> : tab === "settings" ? <SettingsView/> : tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/> : <EmptyView tab={tab} onSaved={handleSaved} />}
       </section>
       {mobileMenu && <button aria-label="Close menu overlay" className="menu-scrim" onClick={() => setMobileMenu(false)} />}
       <nav className="bottom-nav">{nav.filter(([id])=>["dashboard","contracts","customers","estimates","schedule"].includes(id)).map(([id, label, Icon]) => <button key={id} disabled={!interactive} className={tab === id ? "active" : ""} onClick={() => setTab(id)}><Icon /><span>{id==="dashboard"?"Home":label}</span></button>)}</nav>
