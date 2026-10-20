@@ -88,4 +88,32 @@ responder=()=>ok([job]);const retry=nodes(render()).find(node=>node.props?.role=
 retry.props.onClick();await settle();
 equal(state[3],'');equal(state[0].length,1);equal(nodes(render()).some(node=>node.props?.className==='schedule-board'),true);
 
+// Financial and appointment corruption must never show unsafe balances, stale routes
+// or a falsely successful refresh. Valid saved records remain recoverable with GET only.
+for(const [field,value] of [
+ ['totalCents','1.25'],
+ ['totalCents',''],
+ ['totalCents','9007199254740992'],
+ ['subtotalCents','2.50'],
+ ['depositCents',false],
+ ['paidCents',null],
+ ['discountCents','not-money'],
+ ['invoiceTotalCents','12.01'],
+ ['scheduledAt','not-a-date'],
+ ['scheduledAt',12345]
+]){
+ state=[[job],null,true,''];responder=()=>ok([{...job,[field]:value}]);
+ render();effect();await settle();
+ equal(Boolean(state[3]),true);
+ equal(state[0].length,1);
+ equal(nodes(render()).some(n=>n.props?.className==='schedule-board'),false);
+ equal(nodes(render()).some(n=>n.props?.className==='route-day-button'),false);
+ equal(nodes(render()).some(n=>n.props?.className==='needs-attention'),false);
+ responder=()=>ok([{...job,totalCents:'10000',paidCents:'2000',depositCents:'5000',invoiceTotalCents:'8000'}]);
+ const retry=nodes(render()).find(n=>n.props?.role==='alert').props.children[1];
+ retry.props.onClick();await settle();
+ equal(state[3],'');equal(state[0].length,1);
+ equal(state[0][0].invoiceTotalCents,8000);
+ equal(nodes(render()).some(n=>n.props?.className==='schedule-board'),true);
+}
 console.log(`PASS ${checks}/${checks}: actual schedule load/error/retry handlers preserve records, hide stale route/editor/forecast targets, recover jobs, and retain sorted same-day routes, overdue revised balances, selection/change/close callbacks and search. Mocked reads only.`);
