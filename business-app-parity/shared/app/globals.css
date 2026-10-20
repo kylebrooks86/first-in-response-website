@@ -1158,3 +1158,16 @@ html,body{max-width:100%;overflow-x:clip}
 [data-theme="dark"] .schedule-job-inline-flags .schedule-job-day-chip{background:#213d57;color:#d4e9ff}
 [data-theme="dark"] .schedule-job-inline-flags .schedule-job-prep-chip{background:#49331b;color:#ffe0ac;border-color:#9b7547}
 @media(max-width:410px){.schedule-job-inline-flags small{font-size:10px}}
+
+/* Reusable job messages remain explicit, copy-only actions with readable fallback. */
+.schedule-job-message-tools{display:flex;flex-wrap:wrap;align-items:center;gap:7px;flex:1 1 100%}
+.schedule-job-message-tools button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:9px 12px;border:1px solid #4e779f;border-radius:9px;background:#eef6ff;color:#1a4876;font-size:12px;font-weight:800;cursor:pointer}
+.schedule-job-message-tools button svg{width:15px;height:15px}
+.schedule-job-message-tools button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.schedule-job-message-preview{display:grid;gap:7px;min-width:0;flex:1 1 100%;padding:10px;border:1px solid var(--border);border-radius:9px;background:var(--card)}
+.schedule-job-message-preview strong{font-size:12px;line-height:1.45;color:var(--foreground)}
+.schedule-job-message-preview textarea{display:block;min-height:78px;width:100%;resize:vertical;padding:10px;border:1px solid var(--border);border-radius:7px;background:var(--background);color:var(--foreground);font-size:13px;line-height:1.5}
+.schedule-job-message-preview textarea:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.schedule-job-message-preview small{flex:none}
+[data-theme="dark"] .schedule-job-message-tools button{background:#1b3753;border-color:#5b84a9;color:#e5f4ff}
+@media(max-width:430px){.schedule-job-message-tools button{flex:1 1 130px}}

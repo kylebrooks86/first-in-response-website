@@ -27,7 +27,15 @@ const scheduleJob=(id,date,status='scheduled')=>({id,customer:id,customerId:'fir
 const scheduled=[{...scheduleJob('today-morning','2026-10-20T15:00:00Z'),phone:'(918) 555-0146',email:'first@example.invalid'}, {...scheduleJob('today-late','2026-10-21T04:30:00Z'),phone:'invalid-call-me',email:'bad@@example.invalid'},scheduleJob('tomorrow-midnight','2026-10-21T05:30:00Z'),{...scheduleJob('last-week-day','2026-10-26T15:00:00Z'),email:'valid@example.invalid'},scheduleJob('beyond-week','2026-10-27T15:00:00Z'),scheduleJob('overdue-open','2026-10-19T15:00:00Z'),{...scheduleJob('completed-before','2026-10-19T18:00:00Z','completed'),paidCents:10000},scheduleJob('declined-future','2026-10-20T16:00:00Z','declined')];
 let reads=0,writes=0,mode='ok';const server=createServer((req,res)=>{res.setHeader('cache-control','no-store');const send=(status,body)=>{res.writeHead(status,{'content-type':'application/json'});res.end(JSON.stringify(body));};if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);return;}if(req.url==='/style.css'){res.setHeader('content-type','text/css');res.end(css.css);return;}if(req.url.startsWith('/api/')){if(req.method!=='GET'){writes++;send(400,{error:'Unexpected write'});return;}reads++;if(mode==='error'){send(503,{error:'Synthetic read interrupted'});return;}if(mode==='badCustomer'&&req.url==='/api/customers'){send(200,{...payload,customers:payload.customers.map((row,i)=>i===0?{...row,estimateTotal:'1.5'}:row)});return;}if(mode==='corrupt'&&req.url.startsWith('/api/estimate-history')){send(200,{estimates:[{...scheduled[0],totalCents:'1.75'}],nextCursor:null});return;}send(200,req.url.startsWith('/api/estimate-history')?{estimates:scheduled,nextCursor:null}:payload);return;}res.setHeader('content-type','text/html');res.end('<!doctype html><html data-theme="light"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script></html>');});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;let browser,checks=0;const errors=[],outside=[];const check=(ok,label)=>{assert.ok(ok,label);checks++;};
-try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});const page=await browser.newPage();page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){outside.push(r.request().url());return r.abort();}return r.continue();});
+try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});const page=await browser.newPage();
+ await page.addInitScript(()=>{
+   window.__fireCopiedMessages=[];
+   window.__fireCopyShouldFail=false;
+   Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+     writeText:async text=>{if(window.__fireCopyShouldFail)throw new Error('Synthetic clipboard refusal');window.__fireCopiedMessages.push(text);}
+   }});
+ });
+ page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){outside.push(r.request().url());return r.abort();}return r.continue();});
  for(const size of [{width:320,height:568},{width:390,height:844},{width:844,height:390}])for(const theme of ['light','dark']){
   mode='ok';await page.setViewportSize(size);await page.goto(origin+'/customers');await page.evaluate(t=>window.setTheme(t),theme);await page.locator('.customer-card').filter({hasText:'Fixture first'}).click();await page.getByRole('heading',{name:'Fixture first',exact:true}).waitFor();const balances=await page.locator('.customer-snapshot').innerText(),startReads=reads;
   await page.getByRole('button',{name:'Customer history',exact:true}).click();check(await page.evaluate(()=>document.activeElement.id)==='customer-history-first','History shortcut moves focus');const sections=page.getByRole('navigation',{name:'Customer record sections'});
@@ -93,10 +101,31 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(await contactPanel.getByRole('link',{name:'Text today-morning about scheduled job'}).getAttribute('href')==='sms:+19185550146','Text action opens SMS without sending');
   check(await contactPanel.getByRole('link',{name:'Email today-morning about scheduled job'}).getAttribute('href')==='mailto:first%40example.invalid','Email action encodes selected job recipient');
   check((await contactPanel.innerText()).includes('nothing is sent automatically'),'Native actions explicitly avoid auto-sending');
+  const writesBeforeDrafts=writes,readsBeforeDrafts=reads;
+  await contactPanel.getByRole('button',{name:'Copy appointment reminder for today-morning'}).click();
+  await contactPanel.getByRole('status').getByText('Message copied — paste into a text or email.').waitFor();
+  const reminder=await page.evaluate(()=>window.__fireCopiedMessages.at(-1));
+  check(reminder.includes('today-morning')&&reminder.includes('Synthetic wash')&&reminder.includes('Tuesday, Oct 20')&&reminder.includes('10:00 AM'),'Reminder contains synthetic customer, service and Tulsa appointment time');
+  check(reminder.includes('First In Response Exteriors')&&!reminder.includes('Tomorrow'),'Reminder is branded, not a fabricated weather or status assertion');
+  await contactPanel.getByRole('button',{name:'Copy on-my-way message for today-morning'}).click();
+  await contactPanel.getByRole('status').getByText('Message copied — paste into a text or email.').waitFor();
+  const arrival=await page.evaluate(()=>window.__fireCopiedMessages.at(-1));
+  check(arrival.includes("I'm on my way")&&arrival.includes('today-morning')&&!arrival.includes('appointment for'),'Separate travel template is never conflated with a confirmation');
+  check(writes===writesBeforeDrafts&&reads===readsBeforeDrafts,'Draft copying never contacts the app API or sends messages');
+  await page.evaluate(()=>window.__fireCopyShouldFail=true);
+  await contactPanel.getByRole('button',{name:'Copy appointment reminder for today-morning'}).click();
+  await contactPanel.getByRole('status').getByText('Clipboard unavailable — select and copy this message manually.').waitFor();
+  check((await contactPanel.getByRole('textbox',{name:'Prepared message for today-morning'}).inputValue()).includes('Tuesday, Oct 20'),'Copy failure visibly preserves selectable message text');
+  await page.evaluate(()=>window.__fireCopyShouldFail=false);
   check(await page.locator('.schedule-job-contact-panel a').evaluateAll(ns=>ns.every(n=>n.getBoundingClientRect().height>=44)),'Contact options are touch-friendly');
   await contact.click();
   check(await contactPanel.count()===0,'Contact panel can be collapsed');
   check(await page.getByRole('button',{name:'Contact today-late for scheduled job'}).count()===0,'Malformed contact data never produces native links');
+  await page.getByRole('button',{name:'Contact last-week-day for scheduled job'}).click();
+  const futurePanel=page.getByRole('group',{name:'Contact options for last-week-day'});
+  check(await futurePanel.getByRole('button',{name:'Copy appointment reminder for last-week-day'}).count()===1,'Valid email-only future job supports appointment reminder');
+  check(await futurePanel.getByRole('button',{name:/Copy on-my-way message/}).count()===0,'On-my-way action is hidden for jobs on future days');
+  await page.getByRole('button',{name:'Contact last-week-day for scheduled job'}).click();
   check(await page.locator('.schedule-job-directions-action').count()===5,'Only current saved addresses receive Maps shortcuts');
   const firstWeatherShortcut=page.getByRole('button',{name:'Check hourly weather for today-morning job'});
   await firstWeatherShortcut.click();
