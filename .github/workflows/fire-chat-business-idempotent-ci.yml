@@ -1,0 +1,46 @@
+name: FIRE task expense request ID regression (synthetic only)
+on:
+  push:
+    branches: [chat/fire-business-idempotent-ci-2026-10-20]
+permissions:
+  contents: read
+jobs:
+  task-expense-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: TypeScript
+        run: pnpm exec tsc --noEmit
+      - name: Actual Business UI lost-response retry and duplicate-prevention tests
+        run: node scripts/test-business-write-recovery.mjs
+      - name: Actual task and expense POST handlers against disposable SQLite
+        run: node --experimental-sqlite scripts/test-business-idempotent-routes.mjs
+      - name: Existing payment and business safety regressions
+        run: |
+          node scripts/test-estimate-detail-recovery.mjs
+          node scripts/test-notification-read-recovery.mjs
+          node scripts/test-followup-action-retry.mjs
+          node scripts/test-followup-load-errors.mjs
+          node scripts/test-customer-write-recovery.mjs
+          node scripts/test-estimate-editor-save-recovery.mjs
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+          node --experimental-sqlite scripts/test-local-schema-audit.mjs
+      - name: Build shared app candidate without hosting
+        run: pnpm run build
