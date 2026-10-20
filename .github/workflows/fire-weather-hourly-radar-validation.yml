@@ -1,0 +1,61 @@
+name: FIRE hourly forecast and live radar mobile validation (synthetic)
+
+on:
+  push:
+    branches:
+      - ci/fire-weather-hourly-radar-2026-10-20
+
+permissions:
+  contents: read
+
+jobs:
+  hourly-and-radar:
+    name: NWS hourly date security, real Chrome interaction, shared app build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned dependencies
+        run: |
+          corepack enable && corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: TypeScript, NWS daily/hourly security, auth and time zones
+        run: |
+          pnpm exec tsc --noEmit
+          TZ=America/Chicago node scripts/test-weather-photo-safety.mjs
+          TZ=America/Chicago node scripts/test-weather-hourly.mjs
+          TZ=Pacific/Auckland node scripts/test-weather-photo-safety.mjs
+      - name: Real Chrome harness, existing browser only
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Seven-day card, hourly drill-down, official radar, offline handling on real phone sizes
+        env:
+          FIRE_WEATHER_WEEK_SCREENSHOT_DIR: ${{ runner.temp }}/fire-weather-hourly
+        run: node scripts/test-weather-week-browser.mjs
+      - name: Keep synthetic mobile forecast screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-seven-day-hourly-radar-phone
+          path: ${{ runner.temp }}/fire-weather-hourly/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Full shared build, no hosted publishing
+        run: pnpm run build
