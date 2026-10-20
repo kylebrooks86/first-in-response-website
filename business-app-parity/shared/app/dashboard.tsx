@@ -22,6 +22,7 @@ import { estimateFollowUpTiming, estimateReminderStage } from "../lib/follow-up-
 import { messageHistoryEntries } from "../lib/message-history";
 import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility} from "../lib/customer-activity-flags";
 import type {DashboardYardSign} from "../lib/dashboard-yard-signs";
+import type {DashboardReviewCheck} from "../lib/dashboard-review-checks";
 import { summarizeProcessing } from "../lib/processing-fees";
 import { loadRefundRetry, saveRefundRetry, clearRefundRetry, type RefundRetryAttempt } from "../lib/refund-retry-state";
 import { confirmedManualPayment,loadManualPaymentRetry, saveManualPaymentRetry, clearManualPaymentRetry, type ManualPaymentAttempt } from "../lib/manual-payment-retry-state";
@@ -597,6 +598,31 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
   },[signReload]);
   const localDay=new Date(now).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
   const pickupDue=signs.filter(sign=>sign.pickupDate<=localDay).length;
+  const [reviewChecks,setReviewChecks]=useState<DashboardReviewCheck[]>([]);
+  const [reviewChecksStatus,setReviewChecksStatus]=useState<"loading"|"ready"|"error">("loading");
+  const [reviewChecksReload,setReviewChecksReload]=useState(0);
+  useEffect(()=>{
+    let cancelled=false;
+    const controller=new AbortController();
+    const loadChecks=async()=>{
+      try{
+        const response=await fetch("/api/dashboard-review-checks",{cache:"no-store",signal:controller.signal});
+        if(!response.ok)throw new Error("Review checks unavailable");
+        const data=await response.json() as {checks?:unknown};
+        if(!Array.isArray(data.checks)||data.checks.some((row:unknown)=>!row||typeof row!=="object"||
+          typeof (row as DashboardReviewCheck).customerId!=="string"||typeof (row as DashboardReviewCheck).customerName!=="string"||
+          typeof (row as DashboardReviewCheck).requestedAt!=="string"||
+          !Number.isFinite(Date.parse((row as DashboardReviewCheck).requestedAt))||
+          !Number.isInteger((row as DashboardReviewCheck).elapsedDays)||(row as DashboardReviewCheck).elapsedDays<7))
+          throw new Error("Invalid review check response");
+        if(!cancelled){setReviewChecks(data.checks as DashboardReviewCheck[]);setReviewChecksStatus("ready");}
+      }catch{if(!cancelled){setReviewChecks([]);setReviewChecksStatus("error");}}
+    };
+    void loadChecks();
+    const refresh=()=>{if(document.visibilityState==="visible")void loadChecks();};
+    window.addEventListener("focus",refresh);
+    return()=>{cancelled=true;controller.abort();window.removeEventListener("focus",refresh);};
+  },[reviewChecksReload]);
   // Match Schedule: future completed/declined jobs are not upcoming appointments.
   // The first supplied record is not necessarily the next appointment.
   const upcomingJobs=estimates.filter((estimate)=>estimate.status==="scheduled"&&estimate.scheduledAt&&Number.isFinite(Date.parse(estimate.scheduledAt))&&Date.parse(estimate.scheduledAt)>=now).sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
@@ -640,6 +666,11 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
         <header><div><h2><MapPin aria-hidden="true"/> Yard signs to pick up</h2>{signStatus==="ready"&&<p>{signs.length} outstanding · {pickupDue?pickupDue+" due or overdue":"No pickups due yet"}</p>}</div><button type="button" onClick={()=>setSignReload(n=>n+1)} aria-label="Refresh yard sign reminders"><RefreshCw aria-hidden="true"/> Refresh</button></header>
         {signStatus==="error"?<p role="alert">Yard sign status could not be verified. Refresh to try again; no signs are marked cleared.</p>:<div className="dashboard-sign-list">{signs.slice(0,3).map(sign=><button type="button" key={sign.customerId} onClick={()=>onOpenCustomer?onOpenCustomer(sign.customerId):onNavigate("customers")}><span><strong>{sign.customerName}</strong><small>{sign.location}</small></span><span className={sign.pickupDate<=localDay?"pickup-due":"pickup-planned"}>{sign.pickupDate<=localDay?"Pickup due":"Pickup"} · {sign.pickupDate}<ChevronRight aria-hidden="true"/></span></button>)}</div>}
         {signStatus==="ready"&&<div className="dashboard-sign-footer"><small>Owner-logged placements only · pickup is not automatically confirmed{signs.length>3?` · ${signs.length-3} more in Customers`:""}</small><button type="button" onClick={()=>onNavigate("customers")}>View all in Customers <ChevronRight aria-hidden="true"/></button></div>}
+      </section>}
+      {(reviewChecksStatus==="error"||reviewChecksStatus==="ready"&&reviewChecks.length>0)&&<section className="dashboard-review-reminders" role="region" aria-label="Review status checks on dashboard">
+        <header><div><h2><Star aria-hidden="true"/> Review status checks</h2>{reviewChecksStatus==="ready"&&<p>{reviewChecks.length} customer{reviewChecks.length===1?"":"s"} to review · not automatic outreach</p>}</div><button type="button" aria-label="Refresh review status checks" onClick={()=>setReviewChecksReload(n=>n+1)}><RefreshCw aria-hidden="true"/> Refresh</button></header>
+        {reviewChecksStatus==="error"?<p role="alert">Review check status could not be verified. Refresh to try again; no customers are marked cleared.</p>:<div className="dashboard-review-list">{reviewChecks.slice(0,3).map(row=><button type="button" key={row.customerId} onClick={()=>onOpenCustomer?onOpenCustomer(row.customerId):onNavigate("customers")}><span><strong>{row.customerName}</strong><small>Review request recorded {row.elapsedDays} days ago</small></span><span>Check status <ChevronRight aria-hidden="true"/></span></button>)}</div>}
+        {reviewChecksStatus==="ready"&&<div className="dashboard-review-footer"><small>Only confirmed requests on completed work. Logged reviews are excluded.{reviewChecks.length>3?` ${reviewChecks.length-3} more in Customers.`:""}</small><button type="button" onClick={()=>onNavigate("customers")}>Review in Customers <ChevronRight aria-hidden="true"/></button></div>}
       </section>}
       <section className="attention-card">
         <div><span className="spark"><Sparkles /></span><div><strong>Keep every job moving</strong><p>Use Follow-ups for reminders and Payments to record money received through Wave, Cash App, Venmo, cash, check, card, or bank transfer.</p></div></div>

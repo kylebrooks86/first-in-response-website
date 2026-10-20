@@ -348,6 +348,7 @@ jobs:
         run: |
           node scripts/test-business-create-receipt.mjs
           node --experimental-sqlite scripts/test-dashboard-yard-signs.mjs
+          node --experimental-sqlite scripts/test-dashboard-review-checks.mjs
           node --experimental-sqlite scripts/test-business-idempotent-routes.mjs
           node scripts/test-business-write-recovery.mjs
           node scripts/test-business-restart-recovery.mjs
