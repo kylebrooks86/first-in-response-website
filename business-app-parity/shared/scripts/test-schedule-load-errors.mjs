@@ -69,6 +69,46 @@ for(const [clock,last,after] of [['2026-10-09T12:00:00Z','2026-10-15T15:00:00Z',
  const select=key=>nodes(render()).find(n=>n.type===stubs.Button&&n.key===key).props.onClick();
  equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,3);select('today');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,1);equal(nodes(render()).some(n=>n.props?.className==='needs-attention'),true);select('week');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,2);select('all');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,3);
 }
+// Specific-day navigation uses Tulsa calendar days, including late-night jobs.
+// Selection only changes local React state; no extra reads or writes are performed.
+scheduleNow=Date.parse('2026-10-20T14:00:00Z');
+const customJobs=[
+ {...job,id:'today-a',scheduledAt:'2026-10-20T15:00:00Z',address:'Today first stop'},
+ {...job,id:'today-late',scheduledAt:'2026-10-21T04:30:00Z',address:'Today late stop'},
+ {...job,id:'tomorrow',scheduledAt:'2026-10-21T05:30:00Z',address:'Tomorrow stop'},
+ {...job,id:'day-after',scheduledAt:'2026-10-22T15:00:00Z',address:'Day after stop'}
+];
+state=[[],null,true,''];responder=()=>ok(customJobs);requests=[];render();effect();await settle();
+const chosenDay=()=>nodes(render()).find(n=>n.props?.id==='schedule-specific-date');
+const dayButton=name=>nodes(render()).find(n=>n.type===stubs.Button&&n.props?.['aria-label']===name);
+assert.ok(chosenDay()&&dayButton('Previous work date')&&dayButton('Next work date'));checks++;
+chosenDay().props.onChange({target:{value:'2026-10-20'}});
+equal(state[5],'date');equal(state[6],'2026-10-20');
+equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,2);
+let exactRoute=new URL(nodes(render()).find(n=>n.props?.className==='route-day-button').props.href);
+equal(exactRoute.searchParams.get('destination'),'Today late stop');
+equal(exactRoute.searchParams.get('waypoints'),'Today first stop');
+dayButton('Next work date').props.onClick();
+equal(state[6],'2026-10-21');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,1);
+exactRoute=new URL(nodes(render()).find(n=>n.props?.className==='route-day-button').props.href);
+equal(exactRoute.searchParams.get('destination'),'Tomorrow stop');equal(exactRoute.searchParams.has('waypoints'),false);
+dayButton('Next work date').props.onClick();
+equal(state[6],'2026-10-22');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,1);
+dayButton('Previous work date').props.onClick();equal(state[6],'2026-10-21');
+chosenDay().props.onChange({target:{value:'2026-10-25'}});
+equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,0);
+equal(nodes(render()).some(n=>n.props?.children==='No upcoming jobs on this date'),true);
+equal(nodes(render()).some(n=>n.props?.className==='route-day-button'),false);
+equal(nodes(render()).some(n=>n.props?.className==='needs-attention'),false);
+chosenDay().props.onChange({target:{value:''}});equal(state[5],'all');
+equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,4);
+equal(requests.length,1,'Changing schedule days never creates a network request');
+// Day increments are UTC calendar operations, not 24-hour elapsed local-time offsets.
+for(const [start,next] of [['2026-03-07','2026-03-08'],['2026-03-08','2026-03-09'],['2026-10-31','2026-11-01'],['2026-11-01','2026-11-02']]){
+ chosenDay().props.onChange({target:{value:start}});
+ dayButton('Next work date').props.onClick();equal(state[6],next);
+}
+
 // Owner-initiated refresh performs one read without a browser cache and never submits writes.
 state=[[],null,true,''];responder=()=>ok([job]);requests=[];fetchOptions=[];
 render();effect();await settle();
