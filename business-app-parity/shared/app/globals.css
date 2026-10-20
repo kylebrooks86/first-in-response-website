@@ -1066,3 +1066,14 @@ html,body{max-width:100%;overflow-x:clip}
 .weather-strip .weather-next-job .weather-heat-advice{margin:0;padding:8px 10px;border-left:3px solid #b45e16;background:#fff3dd;color:#704015;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
 [data-theme="dark"] .weather-strip .weather-next-job .weather-heat-advice{border-color:#e6a44f;background:#49321b;color:#ffe5be}
 .weather-strip .weather-next-job-cautions{overflow-wrap:anywhere}
+
+/* Forecast for the exact scheduled start hour, with explicit no-coverage fallback. */
+.weather-strip .weather-job-hour-button{justify-self:start;min-height:44px;margin:5px 0 2px;padding:10px 14px;border:1px solid #6d92b8;border-radius:9px;background:#fff;color:#173d68;font-size:12px;font-weight:800;cursor:pointer}
+.weather-strip .weather-job-hour-button:focus-visible{outline:2px solid #2874be;outline-offset:2px}
+.weather-strip .weather-job-hour-summary{margin:0;padding:9px 11px;border-left:3px solid #2770b8;background:#eef5fd;color:#193d64;font-size:12px;font-weight:800;line-height:1.5;overflow-wrap:anywhere}
+.weather-strip .weather-hour-job-time{outline:2px solid #2874be;outline-offset:-2px}
+.weather-strip .weather-hour strong .weather-job-hour-label{display:block;max-width:100%;font-size:10px;line-height:1.5;font-weight:850;color:#2a5d92}
+[data-theme="dark"] .weather-strip .weather-job-hour-button{border-color:#557b9f;background:#1b3450;color:#eef6ff}
+[data-theme="dark"] .weather-strip .weather-job-hour-summary{border-color:#79bfff;background:#1d3953;color:#eef6ff}
+[data-theme="dark"] .weather-strip .weather-hour-job-time{outline-color:#79bfff}
+[data-theme="dark"] .weather-strip .weather-hour strong .weather-job-hour-label{color:#c4e2ff}
