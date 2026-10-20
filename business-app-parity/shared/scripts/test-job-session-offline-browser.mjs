@@ -42,8 +42,19 @@ try{
  browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
  const context=await browser.newContext();const page=await context.newPage();page.setDefaultTimeout(5000);page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',r=>new URL(r.request().url()).origin===origin?r.continue():(outside.push(r.request().url()),r.abort()));
- const open=async kind=>{await page.getByRole('button',{name:kind==='report'?'Job report':'Job costs',exact:true}).click();return page.getByRole('dialog');};
- const close=async()=>page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
+ const open=async kind=>{
+  await page.getByRole('button',{name:kind==='report'?'Job report':'Job costs',exact:true}).click();
+  const dialog=page.getByRole('dialog');
+  await dialog.getByRole('heading',{name:kind==='report'?'Service completion report':'Job costs & profit'}).waitFor();
+  return dialog;
+ };
+ const close=async()=>{
+  const dialog=page.getByRole('dialog');
+  await dialog.getByRole('button',{name:'Close',exact:true}).click();
+  // Radix keeps closing content mounted during its exit animation. Do not open
+  // the next modal until this one has actually disappeared.
+  await dialog.waitFor({state:'hidden'});
+ };
  const disconnect=async()=>{await context.setOffline(true);await page.waitForFunction(()=>window.sessionAccess.online===false);};
  const reconnect=async()=>{await context.setOffline(false);await page.waitForFunction(()=>window.sessionAccess.online===true);};
  for(const width of [320,390,768,1366])for(const theme of ['light','dark']){
