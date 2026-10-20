@@ -17,11 +17,14 @@ database.exec(`
  INSERT INTO customers(id,name) VALUES ('synthetic-customer','Synthetic owner fixture');
  INSERT INTO estimates(id,customer_id) VALUES ('synthetic-estimate','synthetic-customer');
 `);
-const db={prepare(sql){const stmt=database.prepare(sql);return {bind(...params){return {
- first:async()=>stmt.get(...params)||null,
- all:async()=>({results:stmt.all(...params)}),
- run:async()=>({meta:{changes:Number(stmt.run(...params).changes)}})
-};}};}};
+const db={prepare(sql){const stmt=database.prepare(sql);return {
+ all:async()=>({results:stmt.all()}),
+ bind(...params){return {
+  first:async()=>stmt.get(...params)||null,
+  all:async()=>({results:stmt.all(...params)}),
+  run:async()=>({meta:{changes:Number(stmt.run(...params).changes)}})
+ };}
+};}};
 const routeEmail=readFileSync('app/api/tasks/route.ts','utf8').match(/OWNER_EMAIL="([^"]+)"/)?.[1];
 assert.ok(routeEmail,'Existing owner authentication rule present');
 let authorized=true,calls=0;
