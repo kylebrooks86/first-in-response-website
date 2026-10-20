@@ -1189,3 +1189,30 @@ html,body{max-width:100%;overflow-x:clip}
 [data-theme="dark"] .schedule-route-missing-list button{background:#29231c;color:#ffe4c0;border-color:#816343}
 [data-theme="dark"] .schedule-route-extra-links a{background:#1c3145;color:#dcedff;border-color:#627f9d}
 @media(max-width:420px){.schedule-route-extra-links a{flex-wrap:wrap}.schedule-route-extra-links a small{flex:1 1 100%;text-align:left}}
+
+/* Compact owner-recorded customer flags. Unverified events never appear as confirmed. */
+.customer-flag-panel{display:grid;gap:12px;margin:14px 0;padding:15px;border:1px solid var(--border);border-radius:12px;background:var(--card);min-width:0}
+.customer-flag-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.customer-flag-heading h2{margin:0;font-size:16px;font-weight:850}
+.customer-flag-heading p,.customer-flag-help,.customer-flag-sign-location{margin:4px 0 0;font-size:12px;line-height:1.5;color:var(--muted-foreground)}
+.customer-flag-heading svg{height:22px;width:22px;flex:none}
+.customer-flag-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.customer-flag-grid>span{display:grid;align-content:start;gap:3px;min-width:0;padding:9px;border:1px solid var(--border);border-radius:9px;background:var(--background)}
+.customer-flag-grid small{font-size:11px;color:var(--muted-foreground)}
+.customer-flag-grid strong{font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+.customer-flag-grid .customer-flag-action-needed{border-color:#c48a42;background:#fff1d8;color:#74400a}
+.customer-flag-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:start}
+.customer-flag-actions button{min-height:44px}
+.customer-sign-form{padding:8px 11px;border:1px solid var(--border);border-radius:9px;min-width:min(100%,240px)}
+.customer-sign-form summary{min-height:30px;font-weight:800;cursor:pointer}
+.customer-sign-form label{display:grid;gap:5px;margin:9px 0;font-size:12px;font-weight:700}
+.customer-sign-form input{min-height:44px;width:100%;min-width:0;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:14px}
+.customer-sign-overview{margin:0 0 12px;padding:12px;border:1px solid #be925c;border-radius:12px;background:#fff4e4;color:#704312}
+.customer-sign-overview>strong{display:block;margin-bottom:8px;font-size:13px}
+.customer-sign-overview>div{display:flex;flex-wrap:wrap;gap:8px}
+.customer-sign-overview button{display:inline-flex;align-items:center;justify-content:space-between;gap:5px;min-height:44px;padding:8px 10px;border:1px solid #d6b38b;border-radius:9px;background:#fff;color:#704312;font-size:12px;font-weight:750}
+.customer-sign-overview button svg{width:16px;height:16px}
+[data-theme="dark"] .customer-flag-grid .customer-flag-action-needed,[data-theme="dark"] .customer-sign-overview{background:#40301d;color:#ffe2b9;border-color:#af8752}
+[data-theme="dark"] .customer-sign-overview button{background:#29231d;color:#ffe2bd;border-color:#826442}
+@media(max-width:620px){.customer-flag-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:350px){.customer-flag-grid{grid-template-columns:1fr}}

@@ -20,6 +20,7 @@ import {saveOfflinePhotoCustomerDirectory,loadOfflinePhotoCustomerDirectory,clea
 import {mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory} from "../lib/offline-photo-availability";
 import { estimateFollowUpTiming, estimateReminderStage } from "../lib/follow-up-timing";
 import { messageHistoryEntries } from "../lib/message-history";
+import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote} from "../lib/customer-activity-flags";
 import { summarizeProcessing } from "../lib/processing-fees";
 import { loadRefundRetry, saveRefundRetry, clearRefundRetry, type RefundRetryAttempt } from "../lib/refund-retry-state";
 import { confirmedManualPayment,loadManualPaymentRetry, saveManualPaymentRetry, clearManualPaymentRetry, type ManualPaymentAttempt } from "../lib/manual-payment-retry-state";
@@ -1394,6 +1395,9 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [recordSearch,setRecordSearch]=useState("");
   useEffect(()=>{setRecordSearch("");},[selectedId,section,recordRequestKey]);
   const [noteText, setNoteText] = useState("");
+  const [signPickupDate,setSignPickupDate]=useState("");
+  const [signLocation,setSignLocation]=useState("");
+  useEffect(()=>{setSignPickupDate("");setSignLocation("");},[selectedId]);
   const noteDrafts=useRef<Record<string,string>>({}),noteDraftCustomer=useRef<string|null>(null);
   useEffect(()=>{if(noteDraftCustomer.current)noteDrafts.current[noteDraftCustomer.current]=noteText;noteDraftCustomer.current=selectedId;setNoteText(selectedId?noteDrafts.current[selectedId]??"":"");},[selectedId]);
   const [loadedRecordKey,setLoadedRecordKey]=useState(-1);
@@ -1489,11 +1493,25 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const selected = customers.find((customer) => customer.id === selectedId) ?? null;
   const customerEstimates = estimates.filter((estimate) => estimate.customerId === selectedId);
   const customerNotes = notes.filter((note)=>note.customerId === selectedId);
+  const manualFlags=deriveCustomerManualFlags(customerNotes);
+  const flaggedSignCustomers=customers.map(customer=>({customer,...deriveCustomerManualFlags(notes.filter(note=>note.customerId===customer.id))})).filter(item=>item.sign?.state==="out");
+  const tulsaToday=new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
   const customerInvoices = invoices.filter((invoice)=>invoice.customerId === selectedId);
   const customerPhotos=photos.filter((photo)=>photo.customerId===selectedId);
   const customerMessages=messages.filter((message)=>message.customerId===selectedId);
   const historyEntries=messageHistoryEntries(customerMessages);
   const customerPayments=payments.filter((payment)=>payment.customerId===selectedId);
+  const confirmedMessage=(templates:string[])=>customerMessages.some(message=>(message.channel==="text_confirmed"||message.channel==="email_confirmed")&&templates.includes(message.template));
+  const customerEstimateSent=customerEstimates.some(estimate=>Boolean(estimate.firstEstimateSentAt)||estimate.status==="sent")||confirmedMessage(["estimate"]);
+  const invoiceSent=confirmedMessage(["invoice"]);
+  const anyFollowupSent=customerEstimates.some(estimate=>Boolean(estimate.stage1At||estimate.stage3At||estimate.stage7At))||confirmedMessage(["followUp1","followUp3","followUp7","invoiceReminder","overdue"]);
+  const reviewRequestSent=customerEstimates.some(estimate=>Boolean(estimate.lastReviewRequestAt))||confirmedMessage(["review"]);
+  const prepareManualFlag=(draft:string)=>{
+    if(!selected||savingNote)return;
+    if(noteText.trim()&&noteText.trim()!==draft&&!window.confirm("Replace your unsaved customer note draft?"))return;
+    noteDrafts.current[selected.id]=draft;
+    setNoteText(draft);setNoteFeedback(null);setRecordSearch("");setSection("notes");
+  };
   useEffect(()=>{
     if(!focusRecord||focusRecord.kind==="property"||loading||loadedRecordKey!==recordRequestKey)return;
     if(error||offlinePhotoOnly){onRecordFocusHandled?.(focusRecord.id);return;}
@@ -1575,6 +1593,24 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         <span><small>Current stage</small><strong>{activeCustomerEstimate?statusLabel(activeCustomerEstimate.status):"No active job"}</strong></span>
       </div>
       <p className="customer-balance-explanation">Collectible balances include approved or scheduled jobs and issued invoices, including amounts due on completion. Draft and sent estimates remain potential work. Deposits are part of the job balance; tips are separate.</p>
+      <section className="customer-flag-panel" aria-label="Customer activity and yard sign flags">
+        <div className="customer-flag-heading"><div><h2>Activity & flags</h2><p>Quick summary from saved records and your own notes. A prepared message is not treated as sent.</p></div><ClipboardList aria-hidden="true"/></div>
+        <div className="customer-flag-grid">
+          <span><small>Estimate</small><strong>{customerEstimateSent?"Sent recorded":"Not recorded"}</strong></span>
+          <span><small>Invoice</small><strong>{invoiceSent?"Send confirmed":customerInvoices.length?"Created · send not confirmed":"Not created"}</strong></span>
+          <span><small>Follow-up</small><strong>{anyFollowupSent?"Sent recorded":"Not recorded"}</strong></span>
+          <span><small>Review request</small><strong>{reviewRequestSent?"Sent recorded":"Not recorded"}</strong></span>
+          <span><small>Review received</small><strong>{manualFlags.reviewReceivedAt?"Owner logged":"Not logged"}</strong></span>
+          <span className={manualFlags.sign?.state==="out"&&manualFlags.sign.pickupDate&&manualFlags.sign.pickupDate<=tulsaToday?"customer-flag-action-needed":""}><small>Yard sign</small><strong>{manualFlags.sign?.state==="out"?(manualFlags.sign.pickupDate&&manualFlags.sign.pickupDate<=tulsaToday?"Pickup due":"Placed · pickup "+manualFlags.sign.pickupDate):manualFlags.sign?.state==="picked_up"?"Picked up":"Not logged"}</strong></span>
+        </div>
+        <div className="customer-flag-actions">
+          {!manualFlags.reviewReceivedAt&&<Button variant="outline" aria-label="Prepare review received note" onClick={()=>prepareManualFlag(REVIEW_RECEIVED_NOTE)}>Log review received</Button>}
+          {manualFlags.sign?.state==="out"?<Button variant="outline" aria-label="Prepare yard sign pickup note" onClick={()=>prepareManualFlag(SIGN_PICKED_UP_NOTE)}>Log yard sign pickup</Button>:
+          <details className="customer-sign-form"><summary>Track a yard sign</summary><label>Pickup target <input type="date" aria-label="Yard sign pickup date" value={signPickupDate} onChange={event=>setSignPickupDate(event.target.value)}/></label><label>Sign location <input aria-label="Yard sign location" value={signLocation} onChange={event=>setSignLocation(event.target.value)} placeholder={selected.address||"Address / where placed"}/></label><Button variant="outline" disabled={!signPickupDate} aria-label="Prepare yard sign placed note" onClick={()=>{try{prepareManualFlag(signPlacedNote(signPickupDate,signLocation.trim()||selected.address||"Location not specified"));}catch{}}}>Prepare placement note</Button></details>}
+        </div>
+        {manualFlags.sign?.state==="out"&&<p className="customer-flag-sign-location">Last placement: {manualFlags.sign.location||"Location not specified"}. Pickup target: {manualFlags.sign.pickupDate}. This is an in-app tracking cue, not a push notification.</p>}
+        <p className="customer-flag-help">Manual actions prepare a note; select <strong>Add note</strong> in Notes to save the flag. Review receipt is owner-reported, not verified against Google.</p>
+      </section>
       {activeCustomerEstimate&&<button className="customer-next-job" onClick={()=>setActiveEstimate({...activeCustomerEstimate,customer:selected.name,email:selected.email,phone:selected.phone,address:activeCustomerEstimate.address??undefined})}><span><Sparkles/><span><small>Continue current job</small><strong>{activeCustomerEstimate.service}</strong></span></span><span>{activeCustomerEstimate.scheduledAt?dateTime(activeCustomerEstimate.scheduledAt):statusLabel(activeCustomerEstimate.status)} <ChevronRight/></span></button>}
       <div className="customer-contact">
         {selected.phone ? <a href={`tel:${selected.phone}`}><Phone />Call</a> : <span><Phone />No phone</span>}
@@ -1608,6 +1644,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   </div>;
   return <div className="customers-view">
     <section className="customers-head"><div><p className="eyebrow">Customer records</p><h1>Customers</h1><p>Contact details and job history in one place.</p></div><AddCustomer onAdded={(customer) => { setCustomers((current) => [customer, ...current.filter(item=>item.id!==customer.id)]); setSelectedId(customer.id);void load(true); }} /></section>
+    {flaggedSignCustomers.length>0&&<section className="customer-sign-overview" role="region" aria-label="Outstanding yard signs"><strong>{flaggedSignCustomers.length} yard sign{flaggedSignCustomers.length===1?"":"s"} to pick up</strong><div>{flaggedSignCustomers.map(({customer,sign})=><button type="button" key={customer.id} onClick={()=>setSelectedId(customer.id)}>{customer.name} · {sign?.pickupDate&&sign.pickupDate<=tulsaToday?"Pickup due":"Pickup "+sign?.pickupDate}<ChevronRight aria-hidden="true"/></button>)}</div></section>}
     {loading ? <div className="customers-state">Loading customers…</div> : error ? <div className="customers-state"><p>{error}</p><Button variant="outline" onClick={() => void load()}>Try again</Button></div> : filteredCustomers.length ? <section className="customer-list">{filteredCustomers.map((customer) => <button className="customer-card" key={customer.id} onClick={() => setSelectedId(customer.id)}><span className="customer-avatar">{customer.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><span className="customer-main"><strong>{customer.name}</strong><small>{customer.phone || customer.email || "No contact details saved"}</small></span><span className="customer-totals"><strong>{customer.estimateCount} estimate{customer.estimateCount === 1 ? "" : "s"}</strong><small>{money(customer.estimateTotal)}</small></span><ChevronRight /></button>)}</section> : <div className="customers-state"><Users /><strong>{searchQuery ? "No matching customers" : "No customers yet"}</strong><p>{searchQuery ? "Try a name, phone number, email, or address." : "Add your first customer to start their permanent record."}</p></div>}
   </div>;
 }
