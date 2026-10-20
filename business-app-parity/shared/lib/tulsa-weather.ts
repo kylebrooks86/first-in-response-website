@@ -9,6 +9,12 @@ export function dailyWorkCautions(day:WeatherDay):string[]{
  if(day.rainChance!=null&&Number.isFinite(day.rainChance)&&day.rainChance>=50)cautions.push("Rain chance ≥50%");
  if(day.windMax!=null&&Number.isFinite(day.windMax)&&day.windMax>=20)cautions.push("Wind ≥20 mph");
  if(day.temperatureMin!=null&&Number.isFinite(day.temperatureMin)&&day.temperatureMin<=32)cautions.push("Freezing low ≤32°F");
+ // NWS Fahrenheit air temperature is a planning cue, not surface heat or heat index.
+ // High solar radiation, humidity and physical workload can raise heat risk below these values.
+ if(day.temperatureMax!=null&&Number.isFinite(day.temperatureMax)){
+  if(day.temperatureMax>=95)cautions.push("Very hot air ≥95°F — monitor surface drying and heat exposure");
+  else if(day.temperatureMax>=85)cautions.push("Hot air ≥85°F — check solution drying and heat exposure");
+ }
  return cautions;
 }
 
@@ -20,6 +26,10 @@ export function hourlyWorkCautions(hour:WeatherHour):string[]{
  if(hour.rainChance!=null&&Number.isFinite(hour.rainChance)&&hour.rainChance>=50)cautions.push("Rain chance ≥50%");
  if(hour.windMph!=null&&Number.isFinite(hour.windMph)&&hour.windMph>=20)cautions.push("Wind ≥20 mph");
  if(Number.isFinite(hour.temperature)&&hour.temperature<=32)cautions.push("Freezing ≤32°F");
+ if(Number.isFinite(hour.temperature)){
+  if(hour.temperature>=95)cautions.push("Very hot air ≥95°F — monitor surface drying and heat exposure");
+  else if(hour.temperature>=85)cautions.push("Hot air ≥85°F — check solution drying and heat exposure");
+ }
  return cautions;
 }
 
