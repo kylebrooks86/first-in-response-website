@@ -33,4 +33,4 @@ jobs:
       - name: Run existing customer and payment view regressions
         run: |
           node scripts/test-customer-write-recovery.mjs
-          node scripts/test-payment-review-online-stability.mjs
+          node scripts/test-estimate-editor-save-recovery.mjs
