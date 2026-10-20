@@ -675,36 +675,43 @@ function AddCustomer({ onAdded }: { onAdded: (customer: CustomerRow) => void }) 
 
 function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdated: (customer: CustomerRow) => void }) {
   const [open,setOpen]=useState(false);
+  const saveLock=useRef(false);
+  const currentCustomer=useRef(customer.id);currentCustomer.current=customer.id;
+  useEffect(()=>{currentCustomer.current=customer.id;return()=>{currentCustomer.current="";};},[customer.id]);
   const [name,setName]=useState(customer.name);const [email,setEmail]=useState(customer.email);const [phone,setPhone]=useState(customer.phone);const [address,setAddress]=useState(customer.address);
   const [leadSource,setLeadSource]=useState(customer.leadSource||"Unknown");
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
   const reset=()=>{setName(customer.name);setEmail(customer.email);setPhone(customer.phone);setAddress(customer.address);setLeadSource(customer.leadSource||"Unknown");setError("");};
   const save=async()=>{
+    if(saveLock.current||currentCustomer.current!==customer.id)return;
     if(!name.trim()){setError("Customer name is required.");return;}
-    setSaving(true);setError("");
+    const id=customer.id;const payload={id,name:name.trim(),email:email.trim(),phone:phone.trim(),address:address.trim(),leadSource};
+    saveLock.current=true;setSaving(true);setError("");
     try{
-      const response=await fetch("/api/customers",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:customer.id,name:name.trim(),email:email.trim(),phone:phone.trim(),address:address.trim(),leadSource})});
+      const response=await fetch("/api/customers",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
       const result=await response.json() as {customer?:CustomerRow;error?:string};
-      if(!response.ok||!result.customer)throw new Error(result.error||"The customer could not be updated.");
+      if(currentCustomer.current!==id)return;
+      if(!response.ok)throw new Error(result?.error||"The customer could not be updated.");
+      if(!result?.customer||Object.entries(payload).some(([key,value])=>result.customer?.[key as keyof CustomerRow]!==value))throw new Error("The saved customer could not be verified. Reopen this profile to check its details before trying again.");
       onUpdated({...customer,...result.customer});
       setOpen(false);
-    }catch(saveError){setError(saveError instanceof Error?saveError.message:"The customer could not be updated.");}
-    finally{setSaving(false);}
+    }catch(saveError){if(currentCustomer.current===id)setError(saveError instanceof Error?saveError.message:"The customer could not be updated.");}
+    finally{saveLock.current=false;if(currentCustomer.current===id)setSaving(false);}
   };
-  return <Dialog open={open} onOpenChange={(value)=>{setOpen(value);if(value)reset();else setError("");}}>
+  return <Dialog open={open} onOpenChange={(value)=>{if(saveLock.current||currentCustomer.current!==customer.id)return;setOpen(value);if(value)reset();else setError("");}}>
     <DialogTrigger asChild><Button variant="outline"><PenLine className="h-4 w-4"/> Edit customer</Button></DialogTrigger>
-    <DialogContent className="sm:max-w-[520px]">
+    <DialogContent className="customer-edit-dialog sm:max-w-[520px] max-h-[90dvh] overflow-y-auto">
       <DialogHeader><DialogTitle>Edit customer</DialogTitle></DialogHeader>
-      <div className="customer-form">
-        <div><Label>Customer name</Label><Input placeholder="Full name" value={name} onChange={(event)=>setName(event.target.value)}/></div>
-        <div><Label>Email</Label><Input type="email" placeholder="customer@email.com" value={email} onChange={(event)=>setEmail(event.target.value)}/></div>
-        <div><Label>Phone</Label><Input inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={(event)=>setPhone(event.target.value)}/></div>
-        <div><Label>Service address</Label><Input placeholder="Tulsa-area address" value={address} onChange={(event)=>setAddress(event.target.value)}/></div>
-        <div><Label>How they found FIRE</Label><Select value={leadSource} onValueChange={setLeadSource}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Referral","Google","Facebook","Website","Repeat customer","Door knocking","Other","Unknown"].map((source)=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div>
+      <div className="customer-form"><fieldset disabled={saving} className="contents">
+        <div><Label htmlFor={`edit-customer-${customer.id}-name`}>Customer name</Label><Input id={`edit-customer-${customer.id}-name`} placeholder="Full name" value={name} onChange={(event)=>setName(event.target.value)}/></div>
+        <div><Label htmlFor={`edit-customer-${customer.id}-email`}>Email</Label><Input id={`edit-customer-${customer.id}-email`} type="email" placeholder="customer@email.com" value={email} onChange={(event)=>setEmail(event.target.value)}/></div>
+        <div><Label htmlFor={`edit-customer-${customer.id}-phone`}>Phone</Label><Input id={`edit-customer-${customer.id}-phone`} inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={(event)=>setPhone(event.target.value)}/></div>
+        <div><Label htmlFor={`edit-customer-${customer.id}-address`}>Service address</Label><Input id={`edit-customer-${customer.id}-address`} placeholder="Tulsa-area address" value={address} onChange={(event)=>setAddress(event.target.value)}/></div>
+        <div><Label htmlFor={`edit-customer-${customer.id}-source`}>How they found FIRE</Label><Select value={leadSource} onValueChange={setLeadSource}><SelectTrigger id={`edit-customer-${customer.id}-source`}><SelectValue/></SelectTrigger><SelectContent>{["Referral","Google","Facebook","Website","Repeat customer","Door knocking","Other","Unknown"].map((source)=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div>
         {error&&<p className="save-error" role="alert">{error}</p>}
         <Button className="brand-button" onClick={()=>void save()} disabled={saving}>{saving?"Saving…":"Save changes"}</Button>
-      </div>
+      </fieldset></div>
     </DialogContent>
   </Dialog>;
 }
@@ -1316,7 +1323,7 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
     {(estimate.firstViewedAt||estimate.acceptedAt||estimate.signedAt)&&<div className="customer-activity">{estimate.firstViewedAt&&<span><Eye/><small>Viewed</small><strong>{dateTime(estimate.firstViewedAt)}</strong></span>}{estimate.signedAt?<span><PenLine/><small>Agreement signed</small><strong>{estimate.signedName} · Photos: {estimate.photoRelease==="yes"?"allowed":estimate.photoRelease==="no"?"not allowed":"not recorded"} · {dateTime(estimate.signedAt)}</strong></span>:estimate.acceptedAt&&<span><CheckCircle2/><small>Approved</small><strong>{dateTime(estimate.acceptedAt)}</strong></span>}</div>}
     <div className="detail-grid">
       <div><Label>Status</Label><div className="status-readonly" aria-label={`Job status: ${statusLabel(estimate.status)}`}><strong>{statusLabel(estimate.status)}</strong><small>Status advances through sending, customer approval, scheduling, and job completion actions.</small></div></div>
-      <div><Label htmlFor="scheduleDate">Job date and time</Label><Input id="scheduleDate" type="datetime-local" value={schedule} disabled={saving||checkingCloseout} onChange={(event)=>setSchedule(event.target.value)} onInput={(event)=>setSchedule((event.target as HTMLInputElement).value)} /></div>
+      <div><Label htmlFor="scheduleDate">Job date and time (this device’s local time)</Label><Input id="scheduleDate" type="datetime-local" value={schedule} disabled={saving||checkingCloseout} onChange={(event)=>setSchedule(event.target.value)} onInput={(event)=>setSchedule((event.target as HTMLInputElement).value)} /></div>
     </div>
     <div className="detail-summary"><span><small>Deposit</small><strong>{money(estimate.depositCents)}</strong></span><span><small>Paid</small><strong>{money(estimate.paidCents)}</strong></span><span><small>Balance</small><strong>{money(balanceCents)}</strong></span></div>
         {(saving||checkingCloseout)&&<p className="save-message" role="status" aria-live="polite">{checkingCloseout?"Verifying saved job report…":"Saving changes…"} Keep this job open until finished.</p>}
@@ -1352,6 +1359,11 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [recordFocusError,setRecordFocusError]=useState("");
   useEffect(()=>{setRecordFocusError("");},[selectedId]);
   const [savingNote, setSavingNote] = useState(false);
+  const noteSaveLock=useRef(false),noteSavingCustomer=useRef<string|null>(null);
+  const noteSelection=useRef(selectedId);noteSelection.current=selectedId;
+  const noteMounted=useRef(true),noteAccessEpoch=useRef(0);
+  const [noteFeedback,setNoteFeedback]=useState<{customerId:string;kind:"error"|"success";text:string}|null>(null);
+  useEffect(()=>{noteMounted.current=true;return()=>{noteMounted.current=false;};},[]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [offlinePhotoOnly,setOfflinePhotoOnly]=useState(false);
@@ -1369,6 +1381,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       if(mustClearOfflinePhotoDirectory(response.status)&&request===loadRequest.current){
         // Authentication denial takes precedence over any previously visible
         // offline fallback. Never keep stale customer names rendered.
+        noteAccessEpoch.current++;setNoteFeedback(null);
         setOfflinePhotoOnly(false);setOfflinePhotoCustomers([]);
         setSelectedId(null);setCustomers([]);setEstimates([]);setInvoices([]);
         setPhotos([]);setMessages([]);setNotes([]);setPayments([]);
@@ -1455,13 +1468,26 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const customerPaidTotal=customerPayments.filter((payment)=>!['Tip','Tip Refund'].includes(payment.type)).reduce((sum,payment)=>sum+payment.amountCents,0);
   const handleEstimateSaved = (estimate: EstimateRow) => { onEstimateSaved(estimate); void load(true); };
   const saveNote = async () => {
-    if (!selected || !noteText.trim()) return;
-    setSavingNote(true);
+    if(!noteMounted.current||noteSaveLock.current||!selected||noteSelection.current!==selected.id||!noteText.trim())return;
+    const customerId=selected.id,draft=noteText,body=draft.trim(),epoch=noteAccessEpoch.current;
+    noteDrafts.current[customerId]=draft;noteSaveLock.current=true;noteSavingCustomer.current=customerId;
+    setSavingNote(true);setNoteFeedback(null);
     try {
-      const response = await fetch("/api/customer-notes", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({customerId:selected.id,body:noteText}) });
-      const result = await response.json() as {note?:CustomerNote};
-      if (response.ok && result.note) { setNotes((current)=>[result.note!,...current]); setNoteText(""); }
-    } finally { setSavingNote(false); }
+      const response=await fetch("/api/customer-notes",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerId,body})});
+      const result=await response.json() as {note?:CustomerNote;error?:string};
+      if(!noteMounted.current||noteAccessEpoch.current!==epoch)return;
+      const note=result?.note;
+      if(!response.ok||!note||typeof note.id!=="string"||!note.id||note.customerId!==customerId||note.body!==body||typeof note.createdAt!=="string"||!Number.isFinite(Date.parse(note.createdAt)))throw new Error("Unconfirmed note save.");
+      setNotes((current)=>[note,...current.filter(row=>row.id!==note.id)]);
+      if(noteDrafts.current[customerId]===draft)delete noteDrafts.current[customerId];
+      if(noteSelection.current===customerId)setNoteText(current=>current===draft?"":current);
+      setNoteFeedback({customerId,kind:"success",text:"Note saved."});
+    }catch{
+      if(noteMounted.current&&noteAccessEpoch.current===epoch)setNoteFeedback({customerId,kind:"error",text:"Note save was not confirmed. Your draft is kept. Refresh saved notes before retrying to avoid a duplicate."});
+    }finally{
+      noteSaveLock.current=false;noteSavingCustomer.current=null;
+      if(noteMounted.current)setSavingNote(false);
+    }
   };
   // The server-backed customer workflow is intentionally NOT rendered when
   // offline. Only a previously authenticated, minimally cached photo directory
@@ -1491,7 +1517,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     <button className="back-link" onClick={() => { setSelectedId(null); setSection("estimates"); }}>← All customers</button>
     <section className="customer-profile">
       {recordFocusError&&<p role="alert">{recordFocusError}</p>}
-      <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><p className="eyebrow">Customer profile</p><h1>{selected.name}</h1></div><div className="profile-head-actions"><EditCustomer customer={selected} onUpdated={(updated)=>{setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item));void load(true);}}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/><NewEstimate key={selected.id} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /></div></div>
+      <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><p className="eyebrow">Customer profile</p><h1>{selected.name}</h1></div><div className="profile-head-actions"><EditCustomer key={selected.id} customer={selected} onUpdated={(updated)=>{setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item));void load(true);}}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/><NewEstimate key={selected.id} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /></div></div>
       <div className="customer-snapshot">
         <span><small>Jobs / estimates</small><strong>{customerEstimates.length}</strong></span>
         <span><small>Paid</small><strong>{money(customerPaidTotal)}</strong></span>
@@ -1526,7 +1552,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       {section === "invoices" && (customerInvoices.length ? customerInvoices.map((invoice)=><a className="customer-record record-button" key={invoice.id} href={invoice.shareToken?`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=customer`:undefined}><div><strong>Invoice #{invoice.id.slice(0,6).toUpperCase()}</strong><small>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Payment review in progress":invoice.status==="paid"?"Paid in full":`${statusLabel(invoice.status)} · Due ${invoice.dueAt?new Date(invoice.dueAt).toLocaleDateString():"on receipt"}`}</small></div><strong>{money(invoice.totalCents)}</strong><ExternalLink/></a>) : <div className="record-empty"><Receipt /><strong>No invoices yet</strong><p>Open an estimate and tap Create invoice.</p></div>)}
       {section === "photos"&&<OfflineCustomerPhotos key={selected.id} customerId={selected.id} customerName={selected.name} knownCustomerIds={customers.map(item=>item.id)} legacyCloudPhotoCount={customerPhotos.length}/>}
       {section === "messages"&&<section className="customer-messages-panel" aria-label="Customer messages"><div className="customer-messages-actions"><MessageComposer key={selected.id} customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" triggerLabel="+ Compose Message" triggerClassName="brand-button" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div>{historyEntries.length?historyEntries.map(({message,prepared})=><article className="message-history" key={message.id}><span className={`message-channel ${message.channel}`}><MessageSquareText/></span><div><strong>{message.template==="followupContact"?"Customer contact recorded":message.template==="followupSnooze"?"Estimate follow-up snoozed":messageLabels[message.template]||"Customer message"}</strong><p>{message.body}</p><small>{message.channel==="contact_recorded"?"Contacted · owner recorded":message.channel==="followup_snoozed"?"Follow-up snoozed until "+dateTime(message.body):message.channel.endsWith("_prepared")?"Prepared · sending unconfirmed":message.channel.endsWith("_confirmed")?"Sent · owner confirmed; delivery unknown":message.channel==="copy"?"Copied · sending unconfirmed":"Legacy interaction · sending unconfirmed"} · {dateTime(message.createdAt)}{prepared&&<> · Prepared {dateTime(prepared.createdAt)} · 2 audit events retained</>}</small></div></article>):<div className="record-empty"><MessageSquareText/><strong>No messages prepared yet</strong><p>Compose a personalized text or email above. Prepared drafts and your send confirmations appear here.</p></div>}</section>}
-      {section === "notes" && <div className="notes-panel"><div className="note-compose"><Input value={noteText} onChange={(event)=>setNoteText(event.target.value)} placeholder="Gate code, pets, property details…" /><Button className="brand-button" onClick={()=>void saveNote()} disabled={savingNote || !noteText.trim()}><Plus className="h-4 w-4" /> Add note</Button></div>{customerNotes.length ? customerNotes.map((note)=><article className="note-row" key={note.id} id={"customer-note-"+note.id} tabIndex={-1}><StickyNote /><div><p>{note.body}</p><small>{dateTime(note.createdAt)}</small></div></article>) : <div className="record-empty"><StickyNote /><strong>No notes yet</strong><p>Save access details and job-specific reminders here.</p></div>}</div>}
+      {section === "notes" && <div className="notes-panel"><div className="note-compose"><Label className="sr-only" htmlFor={`customer-note-draft-${selected.id}`}>Customer note</Label><Input id={`customer-note-draft-${selected.id}`} value={noteText} disabled={savingNote&&noteSavingCustomer.current===selected.id} onChange={(event)=>{const value=event.target.value;noteDrafts.current[selected.id]=value;setNoteText(value);setNoteFeedback(null);}} placeholder="Gate code, pets, property details…" /><Button className="brand-button" onClick={()=>void saveNote()} disabled={savingNote || !noteText.trim()}><Plus className="h-4 w-4" /> {savingNote?"Saving note…":"Add note"}</Button></div>{noteFeedback?.customerId===selected.id&&<p className={noteFeedback.kind==="error"?"save-error":"save-success"} role={noteFeedback.kind==="error"?"alert":"status"}>{noteFeedback.text}</p>}{noteFeedback?.customerId===selected.id&&noteFeedback.kind==="error"&&<Button variant="outline" className="min-h-11" onClick={()=>void load()} disabled={savingNote}>Refresh saved notes</Button>}{customerNotes.length ? customerNotes.map((note)=><article className="note-row" key={note.id} id={"customer-note-"+note.id} tabIndex={-1}><StickyNote /><div><p>{note.body}</p><small>{dateTime(note.createdAt)}</small></div></article>) : <div className="record-empty"><StickyNote /><strong>No notes yet</strong><p>Save access details and job-specific reminders here.</p></div>}</div>}
     </section>
   </div>;
   return <div className="customers-view">
@@ -1574,7 +1600,7 @@ function EstimatesView({ onSaved, searchQuery, focusEstimateId, onFocusHandled }
     {key:"paid",label:"Paid",rows:searched.filter((row)=>resolvedBillingTotalCents(row)>0&&row.paidCents>=resolvedBillingTotalCents(row))},
     {key:"declined",label:"Lost",rows:searched.filter((row)=>row.status==="declined"&&row.paidCents<resolvedBillingTotalCents(row))},
   ];
-  const changed=(estimate:EstimateRow)=>{setRows((current)=>current.some(row=>row.id===estimate.id)?current.map((row)=>row.id===estimate.id?estimate:row):[...current,estimate]);setSelected(estimate);};
+  const changed=(estimate:EstimateRow)=>{setRows((current)=>current.some(row=>row.id===estimate.id)?current.map((row)=>row.id===estimate.id?estimate:row):[...current,estimate]);setSelected(current=>current?.id===estimate.id?estimate:current);};
   return <div className="workspace-view">
     <EstimateDetail estimate={selected} onClose={()=>setSelected(null)} onChanged={changed}/>
     <section className="workspace-head"><div><p className="eyebrow">Quote to job</p><h1>Estimates</h1><p>See every opportunity, move it forward, and know what needs attention.</p></div><div className="workspace-head-actions"><div className="view-switch" aria-label="Estimate view"><button className={view==="pipeline"?"active":""} onClick={()=>{setView("pipeline");setFilter("all");}}><SquareKanban/> Pipeline</button><button className={view==="list"?"active":""} onClick={()=>setView("list")}><List/> List</button></div><NewEstimate onSaved={(estimate)=>{onSaved(estimate);setRows((current)=>[estimate,...current]);}}/></div></section>
@@ -1636,13 +1662,14 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
   const upcoming=scheduled.filter((row)=>new Date(row.scheduledAt!).getTime()>=now&&row.status==="scheduled");
   const upcomingWithAddress=upcoming.filter((row)=>row.address);
   const routeDate=upcomingWithAddress[0]?.scheduledAt?new Date(upcomingWithAddress[0].scheduledAt):null;
-  const routeJobs=routeDate?upcomingWithAddress.filter((row)=>{const date=new Date(row.scheduledAt!);return date.getFullYear()===routeDate.getFullYear()&&date.getMonth()===routeDate.getMonth()&&date.getDate()===routeDate.getDate();}).slice(0,8):[];
+  const tulsaDay=(value:string|number)=>new Date(value).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+  const routeJobs=routeDate?upcomingWithAddress.filter(row=>tulsaDay(row.scheduledAt!)===tulsaDay(routeDate.getTime())).slice(0,8):[];
   const routeUrl=routeJobs.length?`https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate&destination=${encodeURIComponent(routeJobs.at(-1)!.address||"")}${routeJobs.length>1?`&waypoints=${routeJobs.slice(0,-1).map((job)=>encodeURIComponent(job.address||"")).join("%7C")}`:""}`:"";
-  const routeLabel=routeDate&&routeDate.toDateString()===new Date().toDateString()?"Route today":routeDate?`Route ${routeDate.toLocaleDateString("en-US",{weekday:"short"})}`:"Route next jobs";
-  return <div className="workspace-view"><EstimateDetail estimate={loading||error?null:selected} onClose={()=>setSelected(null)} onChanged={(estimate)=>{setRows((current)=>current.map((row)=>row.id===estimate.id?estimate:row));setSelected(estimate);}}/><section className="workspace-head"><div><p className="eyebrow">Jobs</p><h1>Schedule</h1><p>Upcoming work, customer details, and one-tap directions.</p></div>{!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noreferrer"><Navigation/> {routeLabel}<small>{routeJobs.length} stop{routeJobs.length===1?"":"s"}</small></a>}</section><ScheduleWeather nextJobAt={!loading&&!error?upcoming[0]?.scheduledAt:undefined}/>
+  const routeLabel=routeDate&&tulsaDay(routeDate.getTime())===tulsaDay(now)?"Route today":routeDate?`Route ${routeDate.toLocaleDateString("en-US",{weekday:"short",timeZone:"America/Chicago"})}`:"Route next jobs";
+  return <div className="workspace-view"><EstimateDetail estimate={loading||error?null:selected} onClose={()=>setSelected(null)} onChanged={(estimate)=>{setRows((current)=>current.map((row)=>row.id===estimate.id?estimate:row));setSelected(current=>current?.id===estimate.id?estimate:current);}}/><section className="workspace-head"><div><p className="eyebrow">Jobs</p><h1>Schedule</h1><p>Upcoming work, customer details, and one-tap directions. Times shown in Tulsa (Central Time).</p></div>{!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noreferrer"><Navigation/> {routeLabel}<small>{routeJobs.length} stop{routeJobs.length===1?"":"s"}</small></a>}</section><ScheduleWeather nextJobAt={!loading&&!error?upcoming[0]?.scheduledAt:undefined}/>
     {loading?<div className="customers-state">Loading schedule…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:<>
       {needsAttention.length>0&&<section className="needs-attention"><header><div><h2>Needs attention</h2><p>Past job dates that still need to be completed, rescheduled, or paid.</p></div><b>{needsAttention.length}</b></header>{needsAttention.map((job)=><button key={job.id} onClick={()=>setSelected(job)}><Clock3/><span><strong>{job.customer}</strong><small>{job.service} · was scheduled {dateTime(job.scheduledAt!)}</small><b>{money(billingBalanceCents(job))} due</b></span><ChevronRight/></button>)}</section>}
-      <section className="schedule-board"><header><h2>Upcoming jobs</h2><span>{upcoming.length}</span></header>{upcoming.length?upcoming.map((job)=><button className="schedule-job" key={job.id} onClick={()=>setSelected(job)}><span className="schedule-date"><b>{new Date(job.scheduledAt!).getDate()}</b><small>{new Date(job.scheduledAt!).toLocaleString("en-US",{month:"short"}).toUpperCase()}</small></span><span><strong>{job.customer}</strong><small>{job.service} · {new Date(job.scheduledAt!).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}</small><em>{job.address||"No address saved"}</em></span><strong>{money(resolvedBillingTotalCents(job))}</strong><ChevronRight/></button>):<div className="record-empty"><CalendarDays/><strong>No upcoming jobs</strong><p>Open an approved estimate and save a job date.</p></div>}</section>
+      <section className="schedule-board"><header><h2>Upcoming jobs</h2><span>{upcoming.length}</span></header>{upcoming.length?upcoming.map((job)=><button className="schedule-job" key={job.id} onClick={()=>setSelected(job)}><span className="schedule-date"><b>{new Date(job.scheduledAt!).toLocaleDateString("en-US",{day:"numeric",timeZone:"America/Chicago"})}</b><small>{new Date(job.scheduledAt!).toLocaleString("en-US",{month:"short",timeZone:"America/Chicago"}).toUpperCase()}</small></span><span><strong>{job.customer}</strong><small>{job.service} · {new Date(job.scheduledAt!).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})}</small><em>{job.address||"No address saved"}</em></span><strong>{money(resolvedBillingTotalCents(job))}</strong><ChevronRight/></button>):<div className="record-empty"><CalendarDays/><strong>No upcoming jobs</strong><p>Open an approved estimate and save a job date.</p></div>}</section>
     </>}
   </div>;
 }
@@ -1777,7 +1804,7 @@ function FollowUpsView({searchQuery}:{searchQuery:string}){
     if(estimate.status==="completed"&&Number(estimate.paymentOverageOpen)===0&&!estimate.lastRebookMessageAt){const cadence=repeatCadenceMonths(estimate.service);const due=addMonths(serviceDate,cadence);const daysUntil=Math.ceil((due.getTime()-now)/86400000);if(daysUntil<=45)items.push({estimate,template:cadence<=6?"winBack6":"winBack11",reason:daysUntil<0?`Repeat service is ${Math.abs(daysUntil)} days overdue`:`Repeat service is due in ${daysUntil} days`,priority:daysUntil<0?4:2,kind:"repeat"});}
     return items;
   }).filter((item)=>[item.estimate.customer,item.estimate.service,item.reason].join(" ").toLowerCase().includes(searchQuery.toLowerCase())).sort((a,b)=>b.priority-a.priority);
-  return <div className="workspace-view"><EstimateDetail estimate={reviewEstimate} onClose={()=>setReviewEstimate(null)} onChanged={value=>{setReviewEstimate(value);void load();}}/><section className="workspace-head"><div><p className="eyebrow">Start workflow</p><h1>Follow-ups</h1><p>Customers who need a reminder, confirmation, review request, or payment follow-up.</p></div></section>
+  return <div className="workspace-view"><EstimateDetail estimate={reviewEstimate} onClose={()=>setReviewEstimate(null)} onChanged={value=>{setReviewEstimate(current=>current?.id===value.id?value:current);void load();}}/><section className="workspace-head"><div><p className="eyebrow">Start workflow</p><h1>Follow-ups</h1><p>Customers who need a reminder, confirmation, review request, or payment follow-up.</p></div></section>
     {actionStatus&&<p role="status">{actionStatus}</p>}
     {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>recommended actions</small></div></span><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>Messages open prefilled and editable. Your phone still lets you review and tap Send.</p></div>}
     {loading&&rows.length===0?<div className="customers-state">Checking customer follow-ups…</div>:error&&rows.length===0?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:actions.length?<section className="followup-list">{actions.map(({estimate,template,reason,kind})=>{const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};return <article className={`followup-card ${kind}`} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><p>{reason}</p><small>{estimate.service} · {money(billingBalanceCents(estimate))}</small></div>{kind==="history"?<Button variant="outline" onClick={()=>setReviewEstimate(estimate)}>Review estimate</Button>:<MessageComposer customer={customer} estimate={estimate} initialTemplate={template} triggerLabel="Prepare message" onSent={(message,status)=>{setRows(current=>current.map(row=>row.id===estimate.id?{...row,status:status||row.status,...(message.template==="estimate"?{firstEstimateSentAt:row.firstEstimateSentAt||message.createdAt,lastEstimateSentAt:message.createdAt}:{}),...(["estimate","followUp1","followUp3","followUp7"].includes(message.template)?{lastEstimateContactAt:message.createdAt}:{}),...(message.template==="followUp1"?{stage1At:message.createdAt}:{}),...(message.template==="followUp3"?{stage3At:message.createdAt}:{}),...(message.template==="followUp7"?{stage7At:message.createdAt}:{}),...(message.template==="review"?{lastReviewRequestAt:message.createdAt}:{}),...(["winBack6","winBack11"].includes(message.template)?{lastRebookMessageAt:message.createdAt}:{})}:row));void load();}}/>}

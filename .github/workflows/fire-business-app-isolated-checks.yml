@@ -339,6 +339,9 @@ jobs:
           node scripts/test-complete-estimate-pages.mjs
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
+          node scripts/test-customer-write-recovery.mjs
+          node scripts/test-detail-selection-recovery.mjs
+          node scripts/test-schedule-timezones.mjs
       - name: Verify on-device customer photo ZIP integrity and owner UI integration
         run: node scripts/test-offline-photo-vault.mjs
       - name: Shared photo storage integrity regression
@@ -457,6 +460,9 @@ jobs:
           node scripts/test-complete-estimate-pages.mjs
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
+          node scripts/test-customer-write-recovery.mjs
+          node scripts/test-detail-selection-recovery.mjs
+          node scripts/test-schedule-timezones.mjs
       - name: Physical SQLite rollback, journal/index preservation, and anti-tamper checks
         env:
           FIRE_SYNTHETIC_TARGET: ${{ matrix.target }}
@@ -554,6 +560,9 @@ jobs:
           node scripts/test-complete-estimate-pages.mjs
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
+          node scripts/test-customer-write-recovery.mjs
+          node scripts/test-detail-selection-recovery.mjs
+          node scripts/test-schedule-timezones.mjs
           node scripts/test-qa-auth-adapter.mjs
       - name: Real QA payment route guards reject checkout/refund/webhooks before provider or DB
         run: |
@@ -649,6 +658,8 @@ jobs:
         run: node scripts/test-estimate-editor-geometry-browser.mjs
       - name: Actual nested React editor, Radix portals, compiled Tailwind, keyboard and save recovery
         run: node scripts/test-estimate-editor-react-browser.mjs
+      - name: Actual customer notes and edit recovery across narrow light and dark screens
+        run: node scripts/test-customer-write-browser.mjs
       - name: Actual template editors and themed sidebar at phone tablet and desktop widths
         run: node scripts/test-template-layout-browser.mjs
       - name: Actual job reports and costs survive connection loss in the current owner session
