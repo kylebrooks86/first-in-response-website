@@ -352,6 +352,7 @@ jobs:
           node scripts/test-business-restart-recovery.mjs
           node scripts/test-business-list-recovery.mjs
           TZ=America/Chicago node scripts/test-task-due.mjs
+          node scripts/test-expense-date.mjs
           node --experimental-sqlite scripts/test-expense-csv-safety.mjs
       - name: Confirm task status safely with SQLite and real BusinessView handlers
         run: |
