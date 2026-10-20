@@ -141,7 +141,7 @@ for(const name of ['addTask','addExpense']){
  const f=fixture('addTask',{dueAt:'invalid timestamp'});await f.act();
  eq(f.calls.length,0,'Invalid task date never sends a POST');
 }
-for(const amount of ['','0','abc','NaN','Infinity','100000000000000000']){
+for(const amount of ['','0','abc','NaN','Infinity','100000000000000000','1.005','1.999','0.009','1e3','+2','-2','1,000.00','1.234','90071992547409.99']){
  const f=fixture('addExpense',{amount});await f.act();
  eq(f.calls.length,0,'Invalid amount '+JSON.stringify(amount)+' never sends a POST');
  eq(f.saving,false,'Invalid amount never locks the expense form');
@@ -156,6 +156,19 @@ for(const name of ['addTask','addExpense']){
  eq(f.calls.length,1,name+' blocks modified draft while original request is unconfirmed');
  eq(f.attempt.requestId,key,name+' preserves the original operation ID after draft changes');
  eq(Boolean(f.messages.at(-1).includes('previous')),true,name+' explains why a modified draft cannot be submitted');
+}
+
+
+for(const [amount,expectedCents] of [['.5',50],['0.01',1],['15.25',1525],['100',10000],['001.20',120],['  2.40  ',240]]){
+ const f=fixture('addExpense',{amount}),pending=deferred();f.setRequest(pending);
+ const work=f.act();
+ eq(f.calls.length,1,'Valid exact-cents amount '+JSON.stringify(amount)+' sends one POST');
+ const payload=f.submitted();
+ eq(payload.amountCents,expectedCents,'Exact amount '+JSON.stringify(amount)+' saves without rounding');
+ pending.resolve({ok:true,json:async()=>success('addExpense',payload)});
+ await work;
+ eq(f.receipt.requestId,null,'Verified exact-cents expense clears receipt');
+ eq(f.ctx.amount,'','Exact-cents successful expense clears draft');
 }
 
 for(const name of ['addTask','addExpense']){
