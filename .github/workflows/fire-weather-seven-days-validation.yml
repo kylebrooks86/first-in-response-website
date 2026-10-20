@@ -36,5 +36,25 @@ jobs:
           pnpm exec tsc --noEmit
           TZ=America/Chicago node scripts/test-weather-photo-safety.mjs
           TZ=Pacific/Auckland node scripts/test-weather-photo-safety.mjs
+      - name: Install isolated browser driver using preinstalled Chrome
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Real seven-day mobile browser in dark and light themes
+        env:
+          FIRE_WEATHER_WEEK_SCREENSHOT_DIR: ${{ runner.temp }}/fire-weather-week
+        run: node scripts/test-weather-week-browser.mjs
+      - name: Preserve synthetic weather screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-weather-full-week-mobile
+          path: ${{ runner.temp }}/fire-weather-week/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Full shared build without any deployment
         run: pnpm run build
