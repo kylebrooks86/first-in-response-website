@@ -73,7 +73,7 @@ try{
     check((await widget.locator('.weather-alert').innerText()).includes('Rain possible this week'),'Rain late in the week informs week-long alert');
     const jobOutlook=widget.getByRole('region',{name:'Next job Tulsa weather outlook'});
     check(await jobOutlook.isVisible(),'The next job shows a separate Tulsa weather-planning summary');
-    check((await jobOutlook.innerText()).includes('Rain 75%'),'Next job summary uses the actual appointment day, not today's rain probability');
+    check((await jobOutlook.innerText()).includes('Rain 75%'),"Next job summary uses the actual appointment day, not today's rain probability");
     check((await jobOutlook.innerText()).includes('Rain chance ≥50%'),'Next-job rain threshold prompts review before exterior work');
     check((await jobOutlook.innerText()).includes('actual property'),'Forecast is clearly labeled as Tulsa, not a property-specific guarantee');
     check((await widget.locator('.weather-days article').last().innerText()).includes('Low')===false,'Nighttime missing low does not invent values');
