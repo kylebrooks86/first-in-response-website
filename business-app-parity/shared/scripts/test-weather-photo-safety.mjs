@@ -86,6 +86,7 @@ assert.equal(weekly.daily[0].date,'2026-10-08');assert.equal(weekly.daily[6].dat
 const walk=(node,result=[])=>{if(Array.isArray(node)){node.forEach(n=>walk(n,result));return result;}if(!node||typeof node!=='object')return result;result.push(node);walk(node.props?.children,result);return result;};
 hooks[0]=weekly;
 for(const job of [undefined,'2026-10-13T14:00:00Z','2026-11-12T15:00:00Z']){
+ cursor=0; // Simulate React starting a fresh hook render, rather than allocating new hooks.
  const nodes=walk(widgetExports.ScheduleWeather({nextJobAt:job,compact:true}));
  const cards=nodes.filter(n=>n.type==='article');
  assert.equal(cards.length,7,'Compact and next-job modes must keep all seven forecast cards');
