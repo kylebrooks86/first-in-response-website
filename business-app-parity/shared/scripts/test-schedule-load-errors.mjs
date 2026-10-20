@@ -76,7 +76,8 @@ const customJobs=[
  {...job,id:'today-a',scheduledAt:'2026-10-20T15:00:00Z',address:'Today first stop'},
  {...job,id:'today-late',scheduledAt:'2026-10-21T04:30:00Z',address:'Today late stop'},
  {...job,id:'tomorrow',scheduledAt:'2026-10-21T05:30:00Z',address:'Tomorrow stop'},
- {...job,id:'day-after',scheduledAt:'2026-10-22T15:00:00Z',address:'Day after stop'}
+ {...job,id:'day-after',scheduledAt:'2026-10-22T15:00:00Z',address:'Day after stop'},
+ {...job,id:'completed-yesterday',status:'completed',scheduledAt:'2026-10-19T15:00:00Z',address:'Finished job',paidCents:8000}
 ];
 state=[[],null,true,''];responder=()=>ok(customJobs);requests=[];render();effect();await settle();
 const chosenDay=()=>nodes(render()).find(n=>n.props?.id==='schedule-specific-date');
@@ -100,6 +101,13 @@ equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,0);
 equal(nodes(render()).some(n=>n.props?.children==='No upcoming jobs on this date'),true);
 equal(nodes(render()).some(n=>n.props?.className==='route-day-button'),false);
 equal(nodes(render()).some(n=>n.props?.className==='needs-attention'),false);
+chosenDay().props.onChange({target:{value:'2026-10-19'}});
+equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,1);
+equal(nodes(render()).some(n=>n.props?.className==='schedule-history-status'&&n.props?.children==='completed'),true);
+equal(nodes(render()).some(n=>n.props?.className==='route-day-button'),false);
+equal(nodes(render()).find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,undefined);
+nodes(render()).find(n=>n.props?.className==='schedule-job').props.onClick();
+equal(state[1].id,'completed-yesterday');
 chosenDay().props.onChange({target:{value:''}});equal(state[5],'all');
 equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,4);
 equal(requests.length,1,'Changing schedule days never creates a network request');
