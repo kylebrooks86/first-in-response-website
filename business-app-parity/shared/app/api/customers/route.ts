@@ -11,6 +11,17 @@ async function authorized() {
   return Boolean(user && user.email.toLowerCase() === OWNER_EMAIL);
 }
 
+async function readCustomerRequest(request: Request): Promise<Record<string, unknown> | null> {
+  try {
+    const body: unknown = await request.json();
+    return body !== null && typeof body === "object" && !Array.isArray(body)
+      ? body as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET() {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
@@ -61,8 +72,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const body = await readCustomerRequest(request);
+  if (!body) return Response.json({ error: "A valid customer request is required." }, { status: 400 });
   try {
-    const body = await request.json() as Record<string, unknown>;
     const name = String(body.name ?? "").trim();
     const email = String(body.email ?? "").trim();
     const phone = String(body.phone ?? "").trim();
@@ -92,8 +104,9 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const body = await readCustomerRequest(request);
+  if (!body) return Response.json({ error: "A valid customer update is required." }, { status: 400 });
   try {
-    const body = await request.json() as Record<string, unknown>;
     const id = String(body.id ?? "").trim();
     const name = String(body.name ?? "").trim();
     const email = String(body.email ?? "").trim();
