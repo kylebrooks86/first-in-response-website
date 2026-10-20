@@ -902,6 +902,8 @@ html,body{max-width:100%;overflow-x:clip}
 .expense-list>div{gap:12px}.expense-list>div>span{min-width:0;overflow-wrap:anywhere}.expense-list>div>b{flex-shrink:0;white-space:nowrap}
 [data-theme="dark"] .business-record-tools{border-color:#2a3d54}
 [data-theme="dark"] .business-record-tools p{color:#b7c6d9}
+/* Mobile-friendly optional purchase date, without changing existing expense fields. */
+#business-expense-date{min-height:44px;min-width:0;font-size:16px}
 /* Deadline-focused owner task lists on phones, tablets and desktop. */
 .business-operations-metrics{grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr))}
 .business-due-chip{display:inline-flex;align-items:center;justify-self:start;margin-top:4px;border-radius:999px;padding:3px 9px;font-size:12px;font-style:normal;font-weight:800;line-height:1.45}
