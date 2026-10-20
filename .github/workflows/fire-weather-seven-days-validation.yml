@@ -1,0 +1,40 @@
+name: FIRE full seven-day NWS outlook (synthetic only)
+
+on:
+  push:
+    branches:
+      - ci/fire-weather-seven-days-2026-10-20
+
+permissions:
+  contents: read
+
+jobs:
+  weather-week:
+    name: Seven-day forecast, owner auth, NWS safety and shared build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Frozen dependencies
+        run: |
+          corepack enable && corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: TypeScript and real weather UI/7-day source regression
+        run: |
+          pnpm exec tsc --noEmit
+          TZ=America/Chicago node scripts/test-weather-photo-safety.mjs
+          TZ=Pacific/Auckland node scripts/test-weather-photo-safety.mjs
+      - name: Full shared build without any deployment
+        run: pnpm run build
