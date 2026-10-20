@@ -3,6 +3,16 @@ export type WeatherResponse = {location:string;updatedAt:string;current:{tempera
 export type WeatherHour = {startTime:string;temperature:number;description:string;rainChance:number|null;windMph:number|null};
 export type HourlyForecastResponse = {date:string;location:string;updatedAt:string;hours:WeatherHour[]};
 
+/** Daily NWS planning cues for Tulsa, not guarantees for the customer's property. */
+export function dailyWorkCautions(day:WeatherDay):string[]{
+ const cautions:string[]=[];
+ if(day.rainChance!=null&&Number.isFinite(day.rainChance)&&day.rainChance>=50)cautions.push("Rain chance ≥50%");
+ if(day.windMax!=null&&Number.isFinite(day.windMax)&&day.windMax>=20)cautions.push("Wind ≥20 mph");
+ if(day.temperatureMin!=null&&Number.isFinite(day.temperatureMin)&&day.temperatureMin<=32)cautions.push("Freezing low ≤32°F");
+ return cautions;
+}
+
+
 /** Owner-facing planning cues, not a decision that outdoor work is safe.
  * Never treat absent NWS values as a benign 0% chance or calm conditions. */
 export function hourlyWorkCautions(hour:WeatherHour):string[]{
