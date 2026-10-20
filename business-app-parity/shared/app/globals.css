@@ -948,3 +948,14 @@ html,body{max-width:100%;overflow-x:clip}
 @media(max-width:760px){.schedule-header-actions{justify-content:stretch}.schedule-header-actions>*{flex:1 1 130px;min-width:0;text-align:center}}
 .schedule-window-controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .schedule-window-controls button{flex:0 1 auto;max-width:100%;overflow-wrap:anywhere}
+
+/* Dashboard's nearest scheduled appointment: a direct, readable field shortcut. */
+.dashboard-next-job{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:18px 0;padding:18px;border:1px solid var(--border);border-radius:15px;background:var(--card);min-width:0}
+.dashboard-next-job-info{min-width:0;display:grid;gap:5px}
+.dashboard-next-job-info .eyebrow{margin:0;color:var(--muted-foreground);font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.dashboard-next-job-info h2{margin:0;font-size:19px;line-height:1.3;color:var(--foreground);overflow-wrap:anywhere}
+.dashboard-next-job-info p,.dashboard-next-job-info small{margin:0;font-size:13px;line-height:1.5;color:var(--muted-foreground);overflow-wrap:anywhere}
+.dashboard-next-job-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;flex:0 0 auto}
+.dashboard-next-job-actions button{min-height:44px;height:auto;white-space:normal}
+@media(max-width:760px){.dashboard-next-job{display:grid;gap:14px}.dashboard-next-job-actions{justify-content:stretch}.dashboard-next-job-actions button{flex:1 1 130px}}
+@media(max-width:420px){.dashboard-next-job-actions{display:grid;grid-template-columns:minmax(0,1fr)}.dashboard-next-job-actions button{width:100%}}
