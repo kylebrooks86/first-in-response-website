@@ -1216,3 +1216,16 @@ html,body{max-width:100%;overflow-x:clip}
 [data-theme="dark"] .customer-sign-overview button{background:#29231d;color:#ffe2bd;border-color:#826442}
 @media(max-width:620px){.customer-flag-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:350px){.customer-flag-grid{grid-template-columns:1fr}}
+
+/* Yard sign pickup tasks are explicit drafts using the existing task save path. */
+.customer-sign-entry{display:flex;align-items:stretch;flex-wrap:wrap;gap:7px;min-width:0}
+.customer-sign-entry button{min-height:44px}
+.customer-sign-entry button:first-child{flex:1 1 170px}
+.customer-sign-entry button:last-child{flex:0 0 auto}
+.business-pickup-draft{display:grid;gap:5px;margin:0 0 12px;padding:12px 14px;border:1px solid #8baac7;border-radius:11px;background:#eff6ff;color:#153a5c}
+.business-pickup-draft strong{display:flex;align-items:center;gap:7px;font-size:14px}
+.business-pickup-draft strong svg{width:17px;height:17px}
+.business-pickup-draft p{margin:0;font-size:12px;line-height:1.5}
+.business-pickup-draft small{font-size:11px;line-height:1.5}
+[data-theme="dark"] .business-pickup-draft{background:#203b55;color:#e2f1ff;border-color:#577b9e}
+@media(max-width:430px){.customer-sign-entry button:last-child{flex:1 1 100px}}
