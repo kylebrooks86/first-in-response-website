@@ -13,7 +13,7 @@ const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playw
 const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const component=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleWeather');
 assert.ok(component,'Must execute actual ScheduleWeather, never a copied mock');
-const fixture=`import React,{useEffect,useState}from'react';
+const fixture=`import React,{useEffect,useState,useRef}from'react';
 import{createRoot}from'react-dom/client';
 import{formatDailyTemperatures,weatherDayHeading,weatherIconKind,hourlyWorkCautions,dailyWorkCautions,weatherHourForJobStart}from'./lib/tulsa-weather';
 const CloudRain=()=> <span aria-hidden="true">☔</span>,Wind=()=> <span aria-hidden="true">↗</span>;
@@ -21,8 +21,10 @@ const WeatherConditionIcon=({description})=> <span role="img" aria-label={descri
 ${component.getText(ast)}
 function Screen(){
  const[job,setJob]=useState('2026-10-25T18:00:00Z');
+ const[review,setReview]=useState({at:null,key:0});
  window.changeWeatherJob=setJob;
- return <main style={{width:'100%',maxWidth:1250,margin:'0 auto',padding:'8px'}}><h1>FIRE owner weather</h1><ScheduleWeather compact nextJobAt={job}/><ScheduleWeather nextJobAt={job}/></main>;
+ window.reviewWeatherJob=at=>setReview(current=>({at,key:current.key+1}));
+ return <main style={{width:'100%',maxWidth:1250,margin:'0 auto',padding:'8px'}}><h1>FIRE owner weather</h1><ScheduleWeather compact nextJobAt={review.at??job} requestedJobAt={review.at} reviewKey={review.key}/><ScheduleWeather nextJobAt={review.at??job} requestedJobAt={review.at} reviewKey={review.key}/></main>;
 }
 createRoot(document.getElementById('app')).render(<Screen/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
@@ -170,6 +172,20 @@ try{
    await context.close();
   }
  }
+ // Review a specific booked job and confirm the NWS coverage boundary in real Chrome.
+ const jobContext=await browser.newContext({viewport:{width:390,height:800}});
+ const jobPage=await jobContext.newPage();
+ await jobPage.goto(address);
+ const reviewedWidget=jobPage.locator('.weather-strip:not(.loading):not(.unavailable)').first();
+ await reviewedWidget.locator('.weather-days article').first().waitFor();
+ await jobPage.evaluate(()=>window.reviewWeatherJob('2026-10-25T18:00:00Z'));
+ await reviewedWidget.locator('.weather-hour-job-time').waitFor();
+ check((await reviewedWidget.locator('.weather-next-job strong').innerText()).includes('Selected job'),'Deliberate per-job weather review is distinguished from generic next-job weather');
+ check((await reviewedWidget.locator('.weather-job-hour-summary').innerText()).includes('1:00 PM'),'Selected job gets exact NWS appointment-hour forecast');
+ await jobPage.evaluate(()=>window.reviewWeatherJob('2026-11-12T15:00:00Z'));
+ await reviewedWidget.locator('.weather-hourly').waitFor({state:'hidden'});
+ check((await reviewedWidget.locator('.weather-next-job').innerText()).includes('outside the available seven-day'),'Booked job outside NWS week receives honest unavailable message, not fabricated hourly data');
+ await jobContext.close();
  // Exercise last-good-data recovery in real Chrome rather than assuming a successful API response.
  const recoveryContext=await browser.newContext({viewport:{width:320,height:800},colorScheme:'dark'});
  const recoveryPage=await recoveryContext.newPage();

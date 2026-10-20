@@ -1684,17 +1684,6 @@ function ScheduleWeather({nextJobAt,compact=false,requestedJobAt=null,reviewKey=
  const [hourlyLoading,setHourlyLoading]=useState(false);
  const [hourlyError,setHourlyError]=useState("");
  const [hourlyReload,setHourlyReload]=useState(0);
- const lastHandledReviewKey=useRef(0);
- // Deliberate per-job review, never automatically invent a missing NWS forecast hour.
- useEffect(()=>{
-  if(!reviewKey||lastHandledReviewKey.current===reviewKey||!requestedJobAt||!weather)return;
-  lastHandledReviewKey.current=reviewKey;
-  const date=Number.isFinite(Date.parse(requestedJobAt))?new Date(requestedJobAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"}):"";
-  if(date&&weather.daily.some(day=>day.date===date)){
-   setSelectedHourlyDate(date);
-   setHourlyReload(n=>n+1);
-  }else setSelectedHourlyDate("");
- },[requestedJobAt,reviewKey,weather]);
  useEffect(()=>{let cancelled=false;let running=false;const controller=new AbortController();
  const load=async()=>{if(running||cancelled)return;running=true;setWeatherRefreshing(true);try{const response=await fetch("/api/weather",{cache:"no-store",signal:controller.signal});if(!response.ok)throw Error("weather");const result=await response.json() as WeatherResponse;if(!Number.isFinite(result.current?.temperature)||!result.daily?.length)throw Error("weather");if(!cancelled){setWeather(result);setUnavailable(false);}}catch{if(!cancelled)setUnavailable(true);}finally{running=false;if(!cancelled)setWeatherRefreshing(false);}};
  const resume=()=>{if(document.visibilityState==="visible")void load();};void load();const timer=window.setInterval(()=>void load(),15*60*1000);window.addEventListener("focus",resume);document.addEventListener("visibilitychange",resume);
@@ -1719,6 +1708,17 @@ function ScheduleWeather({nextJobAt,compact=false,requestedJobAt=null,reviewKey=
   void read();
   return()=>{active=false;controller.abort();};
  },[selectedHourlyDate,hourlyReload]);
+ const lastHandledReviewKey=useRef(0);
+ // Deliberate per-job review, never automatically invent a missing NWS forecast hour.
+ useEffect(()=>{
+  if(!reviewKey||lastHandledReviewKey.current===reviewKey||!requestedJobAt||!weather)return;
+  lastHandledReviewKey.current=reviewKey;
+  const date=Number.isFinite(Date.parse(requestedJobAt))?new Date(requestedJobAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"}):"";
+  if(date&&weather.daily.some(day=>day.date===date)){
+   setSelectedHourlyDate(date);
+   setHourlyReload(n=>n+1);
+  }else setSelectedHourlyDate("");
+ },[requestedJobAt,reviewKey,weather]);
  if(unavailable&&!weather)return <section className="weather-strip unavailable"><CloudRain/><div><strong>Weather unavailable</strong><small>The schedule is still fully available. Check your connection and retry.</small><button type="button" className="weather-week-retry" disabled={weatherRefreshing} onClick={()=>setWeatherReload(n=>n+1)} aria-label="Retry seven-day Tulsa forecast">{weatherRefreshing?"Checking…":"Try again"}</button></div></section>;
  if(!weather)return <section className="weather-strip loading"><CloudRain/><div><strong>Loading Tulsa weather…</strong></div></section>;
  const jobDate=nextJobAt&&Number.isFinite(Date.parse(nextJobAt))?new Date(nextJobAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"}):"";
