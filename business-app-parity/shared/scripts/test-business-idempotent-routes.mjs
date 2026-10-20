@@ -13,6 +13,7 @@ database.exec(`
  CREATE TABLE estimates(id TEXT PRIMARY KEY,customer_id TEXT NOT NULL REFERENCES customers(id));
  CREATE TABLE tasks(id TEXT PRIMARY KEY,title TEXT NOT NULL,customer_id TEXT,estimate_id TEXT,due_at TEXT,status TEXT NOT NULL,notes TEXT,created_at TEXT,completed_at TEXT);
  CREATE TABLE expenses(id TEXT PRIMARY KEY,estimate_id TEXT,category TEXT NOT NULL,description TEXT NOT NULL,amount_cents INTEGER NOT NULL,incurred_at TEXT NOT NULL,created_at TEXT NOT NULL);
+ CREATE TABLE estimate_items(id TEXT PRIMARY KEY,estimate_id TEXT,name TEXT);
  INSERT INTO customers(id,name) VALUES ('synthetic-customer','Synthetic owner fixture');
  INSERT INTO estimates(id,customer_id) VALUES ('synthetic-estimate','synthetic-customer');
 `);
@@ -80,6 +81,21 @@ for(const [kind,handler,id,payload,table] of [
    eq(result.status,400,'Expense rejects invalid or fractional cents '+String(amount));
   }
  }
+}
+// Malformed input is a client error, never an unhandled server exception or a new record.
+for(const [kind,handler,table] of [['task',tasks.POST,'tasks'],['expense',expenses.POST,'expenses']]){
+ for(const raw of ['{bad json','null','[]','"text"','42','']){
+  const previous=count(table);
+  const request=new Request('https://synthetic.fire.invalid/api/create',{method:'POST',headers:{'content-type':'application/json'},body:raw});
+  const result=await read(await handler(request));
+  eq(result.status,400,kind+' refuses malformed or non-object JSON '+JSON.stringify(raw));
+  eq(count(table),previous,kind+' malformed request has no database mutation');
+ }
+}
+for(const [kind,handler] of [['task',tasks.GET],['expense',expenses.GET]]){
+ const result=await handler(new Request('https://synthetic.fire.invalid/api/create'));
+ eq(result.status,200,kind+' authenticated GET still works');
+ eq(result.headers.get('cache-control'),'private, no-store',kind+' sensitive record list cannot be cached');
 }
 const prevTasks=count('tasks'),prevExpenses=count('expenses');
 authorized=false;
