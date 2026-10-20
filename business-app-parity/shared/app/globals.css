@@ -974,3 +974,27 @@ html,body{max-width:100%;overflow-x:clip}
 
 /* Day-specific work history separates completed records from active stops. */
 .schedule-history-status{display:inline-flex;justify-self:start;align-items:center;margin-top:4px;padding:3px 9px;border:1px solid var(--border);border-radius:99px;background:var(--background);color:var(--foreground)!important;font-size:12px!important;font-weight:750;line-height:1.4}
+
+/* Full 7-day NWS outlook: the forecast scrolls inside the weather panel
+ * instead of clipping cards or causing horizontal page overflow on iPhones. */
+.weather-strip:not(.unavailable):not(.loading){grid-template-columns:minmax(0,1fr) auto;align-items:center;padding-bottom:27px}
+.weather-strip .weather-current{grid-column:1;min-width:0}
+.weather-strip .weather-days{grid-column:1/-1;grid-row:2;display:flex;min-width:0;max-width:100%;width:100%;gap:9px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;scroll-snap-type:x proximity;scroll-padding-inline:4px;padding:3px 1px 10px}
+.weather-strip .weather-days:focus-visible{outline:2px solid #2874be;outline-offset:2px;border-radius:8px}
+.weather-strip .weather-days article{flex:0 0 132px;min-width:0;scroll-snap-align:start;gap:7px}
+.weather-strip .weather-days article>small{font-size:11px;letter-spacing:.02em;line-height:1.35;min-height:16px}
+.weather-strip .weather-days article>strong{font-size:15px;line-height:1.3}
+.weather-strip .weather-days article>span{flex-wrap:wrap;line-height:1.35;font-size:11px;gap:4px}
+.weather-strip .weather-days article>span>span{white-space:nowrap}
+.weather-strip .weather-alert{grid-column:2;grid-row:1;white-space:normal;max-width:230px;line-height:1.4}
+.weather-strip .weather-scroll-hint{grid-column:1/-1;grid-row:3;margin:0;font-size:11px;line-height:1.35;color:#4d647f}
+[data-theme="dark"] .weather-strip .weather-current small,
+[data-theme="dark"] .weather-strip .weather-days small,
+[data-theme="dark"] .weather-strip .weather-days article>span,
+[data-theme="dark"] .weather-strip .weather-scroll-hint{color:#c2d1e3}
+@media(max-width:900px){
+ .weather-strip:not(.unavailable):not(.loading){grid-template-columns:minmax(0,1fr)}
+ .weather-strip .weather-current{grid-column:1;grid-row:1}
+ .weather-strip .weather-alert{grid-column:1;grid-row:4;justify-self:start}
+}
+@media(min-width:1200px){.weather-strip .weather-scroll-hint{font-size:10px}}
