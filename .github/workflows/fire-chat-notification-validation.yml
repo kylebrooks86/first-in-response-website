@@ -1,0 +1,36 @@
+name: FIRE chat notification read recovery checks
+on:
+  push:
+    branches: [chat/fire-notification-validation-2026-10-19]
+permissions:
+  contents: read
+jobs:
+  verify-notification-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: TypeScript
+        run: pnpm exec tsc --noEmit
+      - name: Run actual notification bell failure and race tests
+        run: node scripts/test-notification-read-recovery.mjs
+      - name: Run existing customer and payment view regressions
+        run: |
+          node scripts/test-customer-write-recovery.mjs
+          node scripts/test-payment-review-online-stability.mjs
