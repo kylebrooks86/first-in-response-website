@@ -907,3 +907,22 @@ html,body{max-width:100%;overflow-x:clip}
 .task-list>button.completed strong{color:#52647a}
 .task-list small,.expense-list small{font-size:12px;line-height:1.45;color:#52647a}
 [data-theme="dark"] .task-list>button.completed strong,[data-theme="dark"] .task-list small,[data-theme="dark"] .expense-list small{color:#b7c6d9}
+
+/* Job tools keep their title, Close and primary actions outside the scrolling fields. */
+.fire-job-dialog{display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden}
+.fire-job-header{flex:0 0 auto;padding:18px 64px 14px 18px;border-bottom:1px solid var(--border);background:var(--background);text-align:left}
+.fire-job-context{margin:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;font-size:12px;font-weight:400;line-height:1.45;color:var(--muted-foreground)}
+.fire-job-dialog>[data-slot="dialog-close"]{top:8px;right:8px;width:44px;height:44px;display:grid;place-items:center}
+.fire-job-scroll{min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:16px 18px;flex:1 1 auto;scroll-padding-block:12px}
+.fire-job-scroll:focus-visible{outline:2px solid var(--primary);outline-offset:-3px}
+.fire-job-footer{flex:0 0 auto;display:grid;gap:8px;padding:12px 18px;border-top:1px solid var(--border);background:var(--background)}
+.fire-job-feedback{max-height:18dvh;overflow-y:auto;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.fire-job-feedback p{margin:0}
+.fire-cost-footer{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fire-cost-footer .cost-refresh{grid-column:1/-1}
+.fire-job-footer button{min-height:44px;height:auto;white-space:normal;overflow-wrap:anywhere}
+.fire-job-footer .report-footnote{font-size:11px;line-height:1.35}
+.fire-job-dialog .job-record-heading{margin:0;font-size:14px;scroll-margin-block:12px}
+.fire-job-dialog .job-record-heading:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.fire-job-dialog .cost-list small{font-size:12px;line-height:1.45;color:var(--muted-foreground)}
+@media(max-height:500px){.fire-job-header{padding-block:10px}.fire-job-footer{padding-block:8px;gap:5px}.fire-cost-footer{grid-template-columns:repeat(3,minmax(0,1fr))}.fire-cost-footer .cost-refresh{grid-column:auto}}

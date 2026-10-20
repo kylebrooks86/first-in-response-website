@@ -772,8 +772,8 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
   return <Dialog open={open} onOpenChange={setOpenSafe}>
     <DialogTrigger asChild><Button variant="outline"><ClipboardList className="h-4 w-4"/> Job report</Button></DialogTrigger>
     <DialogContent className="fire-job-dialog sm:max-w-[640px]">
-      <DialogHeader><DialogTitle>Service completion report</DialogTitle></DialogHeader>
-      <div className="job-report">
+      <DialogHeader className="fire-job-header"><DialogTitle>Service completion report</DialogTitle><p className="fire-job-context" title={`${estimate.customer} · ${estimate.service}`}>{estimate.customer} · {estimate.service}</p></DialogHeader>
+      <div className="fire-job-scroll" role="region" aria-label="Job report fields" tabIndex={0}><div className="job-report">
         {readOnly&&!loading&&!loadError&&loadedReportKey===reportKey&&<p className="offline-job-status" role="status">Read-only session snapshot{snapshotAt?` · last checked ${new Date(snapshotAt).toLocaleString()}`:""}. Reconnect and reload before editing. Not saved for offline restart.<Button variant="outline" disabled={snapshots?.online===false} onClick={()=>setRetry(value=>value+1)}>Reload report online</Button></p>}
         <p>{loading||loadedReportKey!==reportKey?"Loading saved report…":"Document completed work before leaving the property. Reopening updates this same report."}</p>
         {loadError&&<p className="save-error" role="alert">{loadError}<Button variant="outline" onClick={()=>setRetry(value=>value+1)}>Retry loading report</Button></p>}
@@ -793,15 +793,17 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
           <label className="fire-field"><span>Technician notes</span><Textarea readOnly={saving||readOnly} value={notes}
             onChange={(event)=>{setNotes(event.target.value);setSaved(false);}}
             placeholder="Condition, work performed, exceptions, recommendations…" rows={4}/></label>
-          {saving&&<p role="status">Saving report. Keep this window open until confirmation.</p>}
+
+        </>}
+      </div></div>
+      {!loading&&!loadError&&loadedReportKey===reportKey&&<div className="fire-job-footer">          <div className="fire-job-feedback">{saving&&<p role="status">Saving report. Keep this window open until confirmation.</p>}
           {saved&&<p className="save-success" role="status">Job report saved.</p>}
           {error&&<p className="save-error" role="alert">{error}</p>}
-          <Button className="brand-button fire-job-save" onClick={()=>void save()} disabled={saving||loading||readOnly}>
+          </div><Button className="brand-button fire-job-save" onClick={()=>void save()} disabled={saving||loading||readOnly}>
             {saving?"Saving…":checks.length===reportChecks.length?"Save completed report":"Save draft report"}
           </Button>
           <p className="report-footnote">This form does not charge the customer or create an invoice.</p>
-        </>}
-      </div>
+      </div>}
     </DialogContent>
   </Dialog>;
 }
@@ -858,7 +860,7 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
         throw new Error("The saved expense could not be confirmed. Review the job costs before trying again.");
       snapshots?.records.forget('costs',jobId,customerId);
       if(currentJob.current===jobId){
-        setDescription("");setAmount("");setSaveSuccess("Cost recorded. Refreshing job totals…");
+        setDescription("");setAmount("");setSaveSuccess("Cost recorded.");
         await load();
       }
     }catch(error){
@@ -868,8 +870,8 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
   return <Dialog open={open} onOpenChange={setOpenSafe}>
     <DialogTrigger asChild><Button variant="outline"><CircleDollarSign className="h-4 w-4"/> Job costs</Button></DialogTrigger>
     <DialogContent className="fire-job-dialog sm:max-w-[640px]" aria-describedby={undefined}>
-      <DialogHeader><DialogTitle>Job costs &amp; profit</DialogTitle></DialogHeader>
-      <div className="job-cost">
+      <DialogHeader className="fire-job-header"><DialogTitle>Job costs &amp; profit</DialogTitle><p className="fire-job-context" title={`${estimate.customer} · ${estimate.service}`}>{estimate.customer} · {estimate.service}</p></DialogHeader>
+      <div className="fire-job-scroll" role="region" aria-label="Job cost details" tabIndex={0}><div className="job-cost">
         {readOnly&&!loading&&!loadError&&loadedJob===estimate.id&&<p className="offline-job-status" role="status">Read-only session snapshot{snapshotAt?` · last checked ${new Date(snapshotAt).toLocaleString()}`:""}. Costs and profit may have changed. Reconnect and reload before adding costs. Not saved for offline restart.<Button variant="outline" disabled={snapshots?.online===false} onClick={()=>void load()}>Reload costs online</Button></p>}
         {loading||(loadedJob!==estimate.id&&!loadError)?<p role="status">Loading job costs…</p>:loadError?<p className="save-error" role="alert">{loadError}<Button variant="outline" onClick={()=>void load()}>Retry loading costs</Button></p>:<>
           <div className="profit-summary" aria-label="Job financial summary">
@@ -879,14 +881,19 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
           </div>
           {!readOnly&&<div className="cost-form">
             <label className="fire-field"><span>Category</span><Select value={category} onValueChange={setCategory} disabled={saving}><SelectTrigger aria-label="Expense category"><SelectValue/></SelectTrigger><SelectContent>{["Supplies","Chemicals","Equipment","Fuel","Labor","Other"].map((item)=><SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent></Select></label>
-            <label className="fire-field cost-description"><span>What was purchased or used?</span><Input value={description} disabled={saving} maxLength={240} onChange={(event)=>{setDescription(event.target.value);setSaveError("");}} placeholder="e.g. Sodium hypochlorite"/></label>
+            <label className="fire-field cost-description"><span>What was purchased or used?</span><Input id={`job-cost-entry-${estimate.id}`} value={description} disabled={saving} maxLength={240} onChange={(event)=>{setDescription(event.target.value);setSaveError("");}} placeholder="e.g. Sodium hypochlorite"/></label>
             <label className="fire-field"><span>Amount (USD)</span><Input value={amount} disabled={saving} onChange={(event)=>{setAmount(event.target.value);setSaveError("");}} inputMode="decimal" placeholder="0.00"/></label>
             <Button className="brand-button cost-submit" onClick={()=>void add()} disabled={saving||!description.trim()||!amount.trim()}>{saving?"Saving cost…":"Add cost"}</Button>
           </div>}
           {saveError&&<p className="save-error" role="alert">{saveError}</p>}
           {saveSuccess&&!saveError&&<p className="save-success" role="status">{saveSuccess}</p>}
-          <div className="cost-list" aria-label="Recorded expenses">{rows.map((row)=><div key={row.id}><span><strong>{row.description}</strong><small>{row.category}</small></span><b>{money(row.amountCents)}</b></div>)}{!rows.length&&<p>No job costs recorded yet.</p>}</div>
+          <h3 id={`job-cost-records-${estimate.id}`} className="job-record-heading" tabIndex={-1}>Saved costs ({rows.length})</h3><div className="cost-list" aria-label="Recorded expenses">{rows.map((row)=><div key={row.id}><span><strong>{row.description}</strong><small>{row.category}</small></span><b>{money(row.amountCents)}</b></div>)}{!rows.length&&<p>No job costs recorded yet.</p>}</div>
         </>}
+      </div></div>
+      <div className="fire-job-footer fire-cost-footer">
+        {!readOnly&&!loadError&&loadedJob===estimate.id&&<Button variant="outline" disabled={saving||loading} onClick={()=>{const input=document.getElementById(`job-cost-entry-${estimate.id}`);input?.scrollIntoView({block:"center"});input?.focus({preventScroll:true});}}>Cost entry</Button>}
+        {!loadError&&loadedJob===estimate.id&&<Button variant="outline" disabled={loading} onClick={()=>{const heading=document.getElementById(`job-cost-records-${estimate.id}`);heading?.scrollIntoView({block:"start"});heading?.focus({preventScroll:true});}}>Saved costs</Button>}
+        <Button variant="outline" className="cost-refresh" disabled={saving||loading||snapshots?.online===false} onClick={()=>void load()}>Refresh saved costs</Button>
       </div>
     </DialogContent>
   </Dialog>;

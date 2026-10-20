@@ -1,9 +1,9 @@
 /** Actual report/cost dialogs with real owner-session provider. No remote data. */
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,mkdirSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {createServer} from 'node:http';
-import {resolve} from 'node:path';
+import {resolve,join} from 'node:path';
 const require=createRequire(import.meta.url),esbuild=require('../node_modules/.pnpm/esbuild@0.28.0/node_modules/esbuild');
 const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),tailwind=require('@tailwindcss/postcss');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
@@ -13,23 +13,25 @@ import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./compon
 import{OwnerJobSnapshotsProvider,useOwnerJobSnapshots,createOwnerJobSnapshots}from'./components/owner-job-snapshots';
 const money=c=>'$'+(c/100).toFixed(2),resolvedBillingTotalCents=e=>e.totalCents;
 ${source.slice(start,end)}
-const base={id:'job-a',customerId:'customer-a',service:'Dryer vent',status:'scheduled',totalCents:20000,paidCents:0};
+const base={id:'job-a',customerId:'customer-a',customer:'Synthetic Job Customer',service:'Dryer vent',status:'scheduled',totalCents:20000,paidCents:0};
 function Screen(){const[shown,setShown]=useState(true),[job,setJob]=useState(base);window.sessionAccess=useOwnerJobSnapshots();window.setSyntheticJob=setJob;window.newSnapshotCache=createOwnerJobSnapshots;
 return <><button onClick={()=>setShown(!shown)}>Toggle job screen</button>{shown&&<OwnerJobTools estimate={job} onSaved={()=>{window.completed=true}}/>}</>}
 function Fixture(){return <OwnerJobSnapshotsProvider><Screen/></OwnerJobSnapshotsProvider>}
 createRoot(document.getElementById('app')).render(<Fixture/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,loader:'tsx',resolveDir:process.cwd()},bundle:true,write:false,platform:'browser',format:'esm',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const css=await postcss([tailwind({base:process.cwd()})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
+if(process.argv.includes('--compile-only')){assert.ok(bundle.outputFiles[0].text.length>1000&&css.css.includes('.fire-job-footer'));console.log('PASS: actual Job Report/Cost browser fixture compiles; browser not executed.');process.exit(0);}
 let mode='ok',version=1,reads=0,writes=0;
+let longCosts=false,reportPostMode='fail',releaseReport=null;
 const report=()=>({id:'report-a',estimateId:'job-a',customerId:mode==='mismatch'?'customer-b':'customer-a',checklist:'{"Before photos captured":true}',notes:'Synthetic saved report '+version,airflowBefore:'1',airflowAfter:'2',status:'draft'});
 const server=createServer((req,res)=>{
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundle.outputFiles[0].text);}
  if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(css.css);}
  if(req.url?.startsWith('/api/')){
   res.setHeader('content-type','application/json');
-  if(req.method==='POST'){writes++;res.statusCode=503;return res.end(JSON.stringify({error:'Synthetic uncertain save; reload before retrying.'}));}
+  if(req.method==='POST'){writes++;if(req.url==='/api/job-reports'&&reportPostMode==='hold'){let raw='';req.on('data',d=>raw+=d);req.on('end',()=>{const body=JSON.parse(raw);releaseReport=()=>{res.statusCode=201;res.end(JSON.stringify({report:{id:'synthetic-saved-report',estimateId:body.estimateId,customerId:body.customerId,checklist:JSON.stringify(body.checklist),notes:body.notes,airflowBefore:body.airflowBefore,airflowAfter:body.airflowAfter,status:body.status==='complete'?'completed':'draft'}}));};});return;}res.statusCode=503;return res.end(JSON.stringify({error:'Synthetic uncertain save; reload before retrying.'}));}
   reads++;res.statusCode=mode==='denied'?401:mode==='missing'?404:mode==='server'?503:200;
-  return res.end(JSON.stringify(req.url.startsWith('/api/job-reports')?{reports:mode==='empty'?[]:[report()]}:{expenses:[{id:'cost-a',estimateId:'job-a',description:'Synthetic chemicals '+version,category:'Chemicals',amountCents:1500},{id:'cost-b',estimateId:'job-b',description:'Other customer private cost',category:'Supplies',amountCents:9999}]}));
+  return res.end(JSON.stringify(req.url.startsWith('/api/job-reports')?{reports:mode==='empty'?[]:[report()]}:{expenses:longCosts?Array.from({length:25},(_,i)=>({id:'long-cost-'+i,estimateId:'job-a',description:'Synthetic cost '+i+(i===0?' '+('LongCost'.repeat(35)):''),category:'Chemicals',amountCents:100})):[{id:'cost-a',estimateId:'job-a',description:'Synthetic chemicals '+version,category:'Chemicals',amountCents:1500},{id:'cost-b',estimateId:'job-b',description:'Other customer private cost',category:'Supplies',amountCents:9999}]}));
  }
  res.setHeader('content-type','text/html');res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script>');
 });
@@ -63,6 +65,22 @@ try{
   check(await dialog.locator('.cost-form').count()===0,'Going offline while dialog open immediately disables writes');
   await reconnect();check(await dialog.locator('.cost-form').count()===0,'Reconnect alone cannot re-enable writes without a fresh verified GET');await dialog.getByRole('button',{name:'Reload costs online',exact:true}).click();await dialog.locator('.cost-form').waitFor();check(await dialog.locator('.offline-job-status').count()===0,'Explicit successful reload restores online editing');await close();
  }
+ // Short owner-phone layouts: the title, Close and footer controls stay out of the scrolling body.
+ const stable=dialog=>dialog.evaluate(n=>Promise.all(n.getAnimations({subtree:true}).map(a=>a.finished.catch(()=>{}))));
+ const reachable=async(dialog,selector,label)=>{const box=await dialog.locator(selector).boundingBox(),viewport=page.viewportSize();check(box&&box.x>=-1&&box.y>=-1&&box.x+box.width<=viewport.width+1&&box.y+box.height<=viewport.height+1,label+' stays within viewport');};
+ for(const size of [{width:320,height:568},{width:390,height:844},{width:844,height:390}])for(const theme of ['light','dark']){
+  mode='ok';longCosts=true;reportPostMode='fail';await page.setViewportSize(size);await page.goto(origin);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
+  let dialog=await open('costs');await dialog.getByRole('heading',{name:'Saved costs (25)',exact:true}).waitFor();await stable(dialog);check((await dialog.locator('.fire-job-context').innerText()).includes('Synthetic Job Customer'),'Cost dialog identifies its customer/job');
+  await dialog.getByLabel('What was purchased or used?',{exact:true}).fill('Retained cost draft');await dialog.getByLabel('Amount (USD)',{exact:true}).fill('9.87');const oldWrites=writes;await dialog.getByRole('button',{name:'Add cost',exact:true}).click();await dialog.getByRole('alert').waitFor();check(await dialog.getByLabel('Amount (USD)',{exact:true}).inputValue()==='9.87','Interrupted cost save retains amount');
+  const beforeReads=reads;await dialog.getByRole('button',{name:'Refresh saved costs',exact:true}).click();await dialog.getByRole('heading',{name:'Saved costs (25)',exact:true}).waitFor();check(reads===beforeReads+1&&writes===oldWrites+1,'Cost recovery performs one GET and never repeats POST');check(await dialog.getByLabel('What was purchased or used?',{exact:true}).inputValue()==='Retained cost draft','Read-only cost refresh retains draft');
+  await dialog.getByRole('button',{name:'Saved costs',exact:true}).click();check(await page.evaluate(()=>document.activeElement.id)==='job-cost-records-job-a','Saved costs shortcut transfers keyboard focus');await dialog.locator('.fire-job-scroll').evaluate(n=>n.scrollTop=n.scrollHeight);check(await dialog.getByText('Synthetic cost 24',{exact:true}).isVisible(),'Oldest cost remains in scrollable history');await reachable(dialog,'[data-slot=dialog-close]','Cost Close');await reachable(dialog,'.fire-job-header','Cost title');await reachable(dialog,'.fire-job-footer','Cost footer');
+  const beforeJumpWrites=writes;await dialog.getByRole('button',{name:'Cost entry',exact:true}).click();check(await page.evaluate(()=>document.activeElement.id)==='job-cost-entry-job-a','Cost entry shortcut focuses the draft input');check(writes===beforeJumpWrites,'Cost navigation never submits');const width=await dialog.locator('.fire-job-scroll').evaluate(n=>({actual:n.scrollWidth,width:n.clientWidth}));check(width.actual<=width.width,'Long cost descriptions do not create horizontal scrolling');
+  if(process.env.FIRE_JOB_UI_SCREENSHOT_DIR){mkdirSync(process.env.FIRE_JOB_UI_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.FIRE_JOB_UI_SCREENSHOT_DIR,`costs-${size.width}x${size.height}-${theme}.png`)});}await close();
+  dialog=await open('report');await dialog.getByLabel('Technician notes',{exact:true}).waitFor();await stable(dialog);check((await dialog.locator('.fire-job-context').innerText()).includes('Synthetic Job Customer'),'Report dialog identifies its customer/job');await dialog.getByLabel('Technician notes',{exact:true}).fill('Synthetic report draft');await dialog.locator('.fire-job-scroll').focus();await page.keyboard.press('End');await dialog.locator('.fire-job-scroll').evaluate(n=>n.scrollTop=n.scrollHeight);await reachable(dialog,'[data-slot=dialog-close]','Report Close');await reachable(dialog,'.fire-job-header','Report title');await reachable(dialog,'.fire-job-footer','Report save footer');
+  reportPostMode='hold';releaseReport=null;const beforeSave=writes;await dialog.getByRole('button',{name:'Save draft report',exact:true}).evaluate(n=>{n.click();n.click();});const deadline=Date.now()+5000;while(!releaseReport){if(Date.now()>deadline)throw Error('Report POST not submitted');await new Promise(r=>setTimeout(r,10));}check(writes===beforeSave+1,'Fixed report save still locks rapid taps');await dialog.getByRole('button',{name:'Close',exact:true}).click();await page.keyboard.press('Escape');check(await dialog.isVisible(),'Pending report cannot be dismissed');releaseReport();await dialog.getByText('Job report saved.',{exact:true}).waitFor();await reachable(dialog,'.fire-job-save','Confirmed report save');check(await dialog.getByLabel('Technician notes',{exact:true}).inputValue()==='Synthetic report draft','Confirmed save preserves visible report content');
+  if(process.env.FIRE_JOB_UI_SCREENSHOT_DIR)await page.screenshot({path:join(process.env.FIRE_JOB_UI_SCREENSHOT_DIR,`report-${size.width}x${size.height}-${theme}.png`)});await close();
+ }
+ longCosts=false;reportPostMode='fail';
  // Cache records never cross customer associations or owner-session lifetimes.
  await page.evaluate(()=>window.setSyntheticJob({id:'job-a',customerId:'customer-b',service:'Dryer',status:'scheduled',totalCents:20000}));await disconnect();
  let dialog=await open('report');await dialog.getByRole('alert').waitFor();check((await dialog.innerText()).includes('No verified report'),'Different customer cannot read same-job cached report');await close();

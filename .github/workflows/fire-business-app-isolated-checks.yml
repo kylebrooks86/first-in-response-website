@@ -697,8 +697,18 @@ jobs:
           retention-days: 7
       - name: Actual template editors and themed sidebar at phone tablet and desktop widths
         run: node scripts/test-template-layout-browser.mjs
-      - name: Actual job reports and costs survive connection loss in the current owner session
+      - name: Actual job reports and costs retain mobile controls and survive session connection loss
+        env:
+          FIRE_JOB_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-job-ui
         run: node scripts/test-job-session-offline-browser.mjs
+      - name: Save synthetic job dialog screenshots for owner review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-job-mobile-ui
+          path: ${{ runner.temp }}/fire-job-ui/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Verify actual IndexedDB customer photos, ZIP restore and offline additions in Chrome
         run: node scripts/test-offline-photo-indexeddb-browser.mjs
       - name: Verify durable photo interruption receipts, native cross-tab locking and browser restart
