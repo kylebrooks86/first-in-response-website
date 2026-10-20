@@ -1,0 +1,61 @@
+name: FIRE weather hourly refresh and exterior work planning (synthetic)
+
+on:
+  push:
+    branches:
+      - ci/fire-weather-hourly-refresh-2026-10-20
+
+permissions:
+  contents: read
+
+jobs:
+  hourly-refresh:
+    name: Hourly retry, wind/rain/freeze cues, mobile Chrome and full build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned dependencies
+        run: |
+          corepack enable && corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: TypeScript and real NWS daily/hourly safety tests
+        run: |
+          pnpm exec tsc --noEmit
+          TZ=America/Chicago node scripts/test-weather-photo-safety.mjs
+          TZ=America/Chicago node scripts/test-weather-hourly.mjs
+          TZ=Pacific/Auckland node scripts/test-weather-photo-safety.mjs
+      - name: Isolated browser harness with preinstalled Chrome
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Real Dashboard and Schedule hourly refresh, retry and job planning cautions
+        env:
+          FIRE_WEATHER_WEEK_SCREENSHOT_DIR: ${{ runner.temp }}/fire-weather-refresh-ui
+        run: node scripts/test-weather-week-browser.mjs
+      - name: Synthetic hourly weather screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-weather-refresh-mobile
+          path: ${{ runner.temp }}/fire-weather-refresh-ui/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Full nonpublishing shared build
+        run: pnpm run build
