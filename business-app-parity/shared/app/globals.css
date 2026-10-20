@@ -1119,3 +1119,31 @@ html,body{max-width:100%;overflow-x:clip}
 [data-theme="dark"] .schedule-job-utilities button,[data-theme="dark"] .schedule-job-utilities a{background:var(--card);color:var(--foreground)}
 @media(max-width:920px){.schedule-job-shell{grid-template-columns:minmax(0,1fr)}.schedule-job-utilities{padding:0 16px 12px}.schedule-job-utilities button,.schedule-job-utilities a{flex:1 1 120px}}
 @media(max-width:360px){.schedule-job-utilities{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.schedule-job-utilities button,.schedule-job-utilities a{padding-inline:6px;font-size:11px}}
+
+/* Owner schedule readiness cues: passive and expandable, no guessed job duration or external lookup. */
+.schedule-prep-alert{min-width:0;margin:16px 0;padding:0;border:1px solid #d7aa6c;border-radius:12px;background:#fff9ed;color:#60421c}
+.schedule-prep-alert summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:50px;padding:12px 14px;cursor:pointer;list-style:none}
+.schedule-prep-alert summary::-webkit-details-marker{display:none}
+.schedule-prep-alert summary>span{display:grid;gap:3px;min-width:0}
+.schedule-prep-alert summary strong{font-size:14px;font-weight:850}
+.schedule-prep-alert summary small{font-size:12px;line-height:1.5;color:#735123}
+.schedule-prep-alert summary svg{flex:0 0 auto;width:18px;height:18px;transition:transform .2s}
+.schedule-prep-alert[open] summary svg{transform:rotate(90deg)}
+.schedule-prep-alert summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.schedule-prep-items{display:grid;gap:7px;padding:0 12px 9px}
+.schedule-prep-items button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:44px;padding:10px 12px;border:1px solid #e6c99f;border-radius:9px;background:#fff;color:#5f421d;text-align:left;cursor:pointer}
+.schedule-prep-items button>span:first-child{display:grid;gap:2px;min-width:0}
+.schedule-prep-items button strong{font-size:12px}
+.schedule-prep-items button small{font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+.schedule-prep-items button>span:last-child{display:flex;align-items:center;gap:3px;white-space:nowrap;font-size:11px;font-weight:850}
+.schedule-prep-items button svg{height:15px;width:15px}
+.schedule-prep-alert>p{margin:0;padding:4px 14px 12px;font-size:11px;line-height:1.5}
+.schedule-job-contact-panel{grid-column:1/-1;display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:0 16px 12px}
+.schedule-job-contact-panel a{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:12px;font-weight:800;text-decoration:none}
+.schedule-job-contact-panel a svg{width:16px;height:16px}
+.schedule-job-contact-panel a:focus-visible,.schedule-job-contact-toggle:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.schedule-job-contact-panel small{flex:1 1 100%;font-size:11px;color:var(--muted-foreground)}
+[data-theme="dark"] .schedule-prep-alert{background:#392c1e;color:#ffe6c4;border-color:#a98351}
+[data-theme="dark"] .schedule-prep-alert summary small{color:#edd2ac}
+[data-theme="dark"] .schedule-prep-items button{background:#2a241e;border-color:#775c3c;color:#ffe3bd}
+@media(max-width:430px){.schedule-job-contact-panel a{flex:1 1 85px}.schedule-job-contact-panel{padding-inline:12px}}
