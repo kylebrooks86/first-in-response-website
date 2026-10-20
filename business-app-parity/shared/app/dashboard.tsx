@@ -2016,9 +2016,15 @@ function BusinessView(){
   };
   const addExpense=async()=>{
     if(expenseCreateLock.current)return;
-    const submittedDescription=description.trim(),amountCents=Math.round(Number(amount)*100),estimateId=expenseEstimate==="none"?null:expenseEstimate;
+    const submittedDescription=description.trim(),estimateId=expenseEstimate==="none"?null:expenseEstimate;
+    // Money is exact to cents. Never silently round a third decimal place or accept exponent notation.
+    const amountParts=/^(?:(\d+)(?:\.(\d{1,2}))?|\.(\d{1,2}))$/.exec(amount.trim());
+    const dollars=amountParts?Number(amountParts[1]??"0"):NaN;
+    const cents=amountParts?Number((amountParts[2]??amountParts[3]??"").padEnd(2,"0")):NaN;
+    const amountCents=Number.isSafeInteger(dollars)&&dollars>=0&&dollars<=Math.floor(Number.MAX_SAFE_INTEGER/100)
+      ?dollars*100+cents:NaN;
     if(!submittedDescription){setBusinessMessage("Enter what the expense was for.");return;}
-    if(!amount.trim()||!Number.isSafeInteger(amountCents)||amountCents<=0){setBusinessMessage("Enter a valid expense amount.");return;}
+    if(!Number.isSafeInteger(amountCents)||amountCents<=0){setBusinessMessage("Enter a positive dollar amount with no more than two decimal places.");return;}
     const fields={category,description:submittedDescription,amountCents,estimateId};
     const fingerprint=JSON.stringify(fields);
     const previous=expenseCreateAttempt.current;
