@@ -350,6 +350,7 @@ jobs:
           node --experimental-sqlite scripts/test-business-idempotent-routes.mjs
           node scripts/test-business-write-recovery.mjs
           node scripts/test-business-restart-recovery.mjs
+          node scripts/test-business-list-recovery.mjs
           node --experimental-sqlite scripts/test-expense-csv-safety.mjs
       - name: Confirm task status safely with SQLite and real BusinessView handlers
         run: |
