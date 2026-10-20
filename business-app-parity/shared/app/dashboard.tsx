@@ -1986,14 +1986,55 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
   const [items,setItems]=useState<AppNotification[]>([]);
   const [unread,setUnread]=useState(0);
   const [open,setOpen]=useState(false);
-  const load=async()=>{try{const response=await fetch("/api/notifications");const result=await response.json() as {notifications?:AppNotification[];unread?:number};if(response.ok){setItems(result.notifications??[]);setUnread(Number(result.unread??0));}}catch{}};
-  useEffect(()=>{void load();const timer=window.setInterval(()=>void load(),30000);return()=>window.clearInterval(timer);},[]);
-  const mark=async(id:string)=>{setItems((current)=>current.map((item)=>item.id===id?{...item,readAt:new Date().toISOString()}:item));setUnread((current)=>Math.max(0,current-1));await fetch("/api/notifications",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id})});};
-  const markAll=async()=>{const now=new Date().toISOString();setItems((current)=>current.map((item)=>({...item,readAt:item.readAt||now})));setUnread(0);await fetch("/api/notifications",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({all:true})});};
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState("");
+  const mutationLock=useRef(false),loadRequest=useRef(0);
+  const load=async()=>{
+    if(mutationLock.current)return;
+    const request=++loadRequest.current;
+    try{
+      const response=await fetch("/api/notifications",{cache:"no-store"});
+      const result=await response.json() as {notifications?:AppNotification[];unread?:number;error?:string};
+      if(request!==loadRequest.current||mutationLock.current)return;
+      if(!response.ok)throw Error(result?.error||"Notifications could not be refreshed.");
+      if(!Array.isArray(result?.notifications)||result.notifications.some(item=>!item||typeof item.id!=="string"||!item.id||typeof item.title!=="string"||typeof item.body!=="string"||typeof item.createdAt!=="string")||!Number.isSafeInteger(result.unread)||Number(result.unread)<0||Number(result.unread)>result.notifications.length)throw Error("Notification records could not be verified.");
+      setItems(result.notifications);setUnread(Number(result.unread));
+      // A failed write remains visible until the owner deliberately retries it.
+      setError(current=>current.startsWith("Notification update not confirmed")?current:"");
+    }catch{
+      if(request===loadRequest.current&&!mutationLock.current)setError("Notifications could not be refreshed. Check your connection and try again.");
+    }
+  };
+  useEffect(()=>{void load();const timer=window.setInterval(()=>void load(),30000);return()=>{loadRequest.current++;window.clearInterval(timer);};},[]);
+  const updateRead=async(change:{id?:string;all?:boolean})=>{
+    if(mutationLock.current)return;
+    mutationLock.current=true;loadRequest.current++;setBusy(true);setError("");
+    let confirmed=false;
+    try{
+      const response=await fetch("/api/notifications",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(change)});
+      const result=await response.json() as {ok?:boolean;readAt?:string;error?:string};
+      if(!response.ok||result?.ok!==true||typeof result.readAt!=="string"||!Number.isFinite(Date.parse(result.readAt)))throw Error("Update unconfirmed.");
+      if(change.all){
+        setItems(current=>current.map(item=>({...item,readAt:item.readAt||result.readAt!})));setUnread(0);
+      }else if(change.id){
+        const previouslyUnread=items.some(item=>item.id===change.id&&!item.readAt);
+        setItems(current=>current.map(item=>item.id===change.id?{...item,readAt:item.readAt||result.readAt!}:item));
+        if(previouslyUnread)setUnread(current=>Math.max(0,current-1));
+      }
+      confirmed=true;
+    }catch{
+      setError("Notification update not confirmed. It may have saved; refresh the list before retrying.");
+    }finally{
+      mutationLock.current=false;setBusy(false);
+      if(confirmed)void load();
+    }
+  };
   const icon=(type:string)=>type==="estimate_change_requested"?<MessageSquareText/>:type==="estimate_viewed"?<Eye/>:type==="invoice_viewed"?<Receipt/>:type==="estimate_accepted"?<CheckCircle2/>:<CircleDollarSign/>;
   return <Popover open={open} onOpenChange={(value)=>{setOpen(value);if(value)void load();}}><PopoverTrigger asChild><button className="notification-button" aria-label={unread?`${unread} unread notifications`:"Notifications"}><Bell/>{unread>0&&<b>{unread>9?"9+":unread}</b>}</button></PopoverTrigger><PopoverContent className="notification-popover" align="end">
-    <header><div><strong>Notifications</strong><small>{unread?`${unread} unread`:"You’re all caught up"}</small></div>{unread>0&&<button onClick={()=>void markAll()}>Mark all read</button>}</header>
-    <div className="notification-list">{items.length?items.map((item)=><button key={item.id} className={item.readAt?"":"unread"} onClick={()=>{if(!item.readAt)void mark(item.id);setOpen(false);onNavigate(item.type.startsWith("invoice_")&&item.invoiceId?"invoices":item.estimateId?"estimates":"customers",item.estimateId,item.type.startsWith("invoice_")?item.invoiceId:null,item.customerId);}}><span className={`notification-icon ${item.type}`}>{icon(item.type)}</span><span><strong>{item.title}</strong><p>{item.body}</p><small>{dateTime(item.createdAt)}</small></span></button>):<div className="notification-empty"><Bell/><strong>No notifications yet</strong><p>Customer views, approvals, and confirmed payments will appear here.</p></div>}</div>
+    <header><div><strong>Notifications</strong><small>{unread?`${unread} unread`:"You’re all caught up"}</small></div>{unread>0&&<button disabled={busy} onClick={()=>void updateRead({all:true})}>Mark all read</button>}</header>
+    {error&&<p className="save-error" role="alert">{error}</p>}
+    {busy&&<p role="status" aria-live="polite">Confirming notification update…</p>}
+    <div className="notification-list">{items.length?items.map((item)=><button key={item.id} className={item.readAt?"":"unread"} onClick={()=>{if(!item.readAt)void updateRead({id:item.id});setOpen(false);onNavigate(item.type.startsWith("invoice_")&&item.invoiceId?"invoices":item.estimateId?"estimates":"customers",item.estimateId,item.type.startsWith("invoice_")?item.invoiceId:null,item.customerId);}}><span className={`notification-icon ${item.type}`}>{icon(item.type)}</span><span><strong>{item.title}</strong><p>{item.body}</p><small>{dateTime(item.createdAt)}</small></span></button>):<div className="notification-empty"><Bell/><strong>No notifications yet</strong><p>Customer views, approvals, and confirmed payments will appear here.</p></div>}</div>
   </PopoverContent></Popover>;
 }
 
