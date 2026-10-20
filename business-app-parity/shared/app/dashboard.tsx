@@ -1684,7 +1684,8 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [lastCheckedAt,setLastCheckedAt]=useState<string|null>(null);
-  const [dayFilter,setDayFilter]=useState<"all"|"today"|"week">("all");
+  const [dayFilter,setDayFilter]=useState<"all"|"today"|"week"|"date">("all");
+  const [selectedDate,setSelectedDate]=useState("");
   const loadRequest=useRef(0);
   const load=async()=>{
     const request=++loadRequest.current;
@@ -1729,10 +1730,21 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
   const tulsaDay=(value:string|number)=>new Date(value).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
   const today=tulsaDay(now),weekEnd=new Date(today+"T12:00:00Z");weekEnd.setUTCDate(weekEnd.getUTCDate()+6);
   const lastWeekDay=weekEnd.toISOString().slice(0,10);
+  const selectAdjacentDay=(step:-1|1)=>{
+    const base=dayFilter==="date"&&selectedDate?selectedDate:today;
+    const day=new Date(base+"T12:00:00Z");
+    if(!Number.isFinite(day.getTime()))return;
+    day.setUTCDate(day.getUTCDate()+step);
+    const next=day.toISOString().slice(0,10);
+    setSelectedDate(next);setDayFilter("date");
+  };
   const allUpcoming=scheduled.filter((row)=>new Date(row.scheduledAt!).getTime()>=now&&row.status==="scheduled");
   const todayCount=allUpcoming.filter(row=>tulsaDay(row.scheduledAt!)===today).length;
   const weekCount=allUpcoming.filter(row=>tulsaDay(row.scheduledAt!)>=today&&tulsaDay(row.scheduledAt!)<=lastWeekDay).length;
-  const upcoming=allUpcoming.filter(row=>dayFilter==="all"||(dayFilter==="today"?tulsaDay(row.scheduledAt!)===today:tulsaDay(row.scheduledAt!)>=today&&tulsaDay(row.scheduledAt!)<=lastWeekDay));
+  const upcoming=allUpcoming.filter(row=>dayFilter==="all"||
+    (dayFilter==="today"?tulsaDay(row.scheduledAt!)===today:
+    dayFilter==="week"?tulsaDay(row.scheduledAt!)>=today&&tulsaDay(row.scheduledAt!)<=lastWeekDay:
+    dayFilter==="date"&&selectedDate!==""&&tulsaDay(row.scheduledAt!)===selectedDate));
   const upcomingWithAddress=upcoming.filter((row)=>row.address);
   const routeDate=upcomingWithAddress[0]?.scheduledAt?new Date(upcomingWithAddress[0].scheduledAt):null;
   const routeJobs=routeDate?upcomingWithAddress.filter(row=>tulsaDay(row.scheduledAt!)===tulsaDay(routeDate.getTime())).slice(0,8):[];
@@ -1742,7 +1754,16 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
     {loading?<div className="customers-state">Loading schedule…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:<>
       {needsAttention.length>0&&<section className="needs-attention"><header><div><h2>Needs attention</h2><p>Past job dates that still need to be completed, rescheduled, or paid.</p></div><b>{needsAttention.length}</b></header>{needsAttention.map((job)=><button key={job.id} onClick={()=>setSelected(job)}><Clock3/><span><strong>{job.customer}</strong><small>{job.service} · was scheduled {dateTime(job.scheduledAt!)}</small><b>{money(billingBalanceCents(job))} due</b></span><ChevronRight/></button>)}</section>}
       <div className="schedule-window-controls" role="group" aria-label="Schedule date range">{(["all","today","week"] as const).map(value=><Button key={value} variant={dayFilter===value?"default":"outline"} aria-pressed={dayFilter===value} onClick={()=>setDayFilter(value)}>{value==="all"?`All upcoming (${allUpcoming.length})`:value==="today"?`Today (${todayCount})`:`Next 7 days (${weekCount})`}</Button>)}</div>
-      <section className="schedule-board"><header><h2>Upcoming jobs</h2><span>{upcoming.length}</span></header>{upcoming.length?upcoming.map((job)=><button className="schedule-job" key={job.id} onClick={()=>setSelected(job)}><span className="schedule-date"><b>{new Date(job.scheduledAt!).toLocaleDateString("en-US",{day:"numeric",timeZone:"America/Chicago"})}</b><small>{new Date(job.scheduledAt!).toLocaleString("en-US",{month:"short",timeZone:"America/Chicago"}).toUpperCase()}</small></span><span><strong>{job.customer}</strong><small>{job.service} · {new Date(job.scheduledAt!).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})}</small><em>{job.address||"No address saved"}</em></span><strong>{money(resolvedBillingTotalCents(job))}</strong><ChevronRight/></button>):<div className="record-empty"><CalendarDays/><strong>{dayFilter==="all"?"No upcoming jobs":dayFilter==="today"?"No upcoming jobs today":"No upcoming jobs in the next 7 days"}</strong><p>{dayFilter==="all"?"Open an approved estimate and save a job date.":"Choose All upcoming to see later appointments. Past-due work remains under Needs attention."}</p></div>}</section>
+      <div className="schedule-date-picker" role="group" aria-label="Browse a specific schedule date">
+        <label htmlFor="schedule-specific-date">Choose a work date</label>
+        <div className="schedule-date-picker-actions">
+          <Button variant="outline" aria-label="Previous work date" onClick={()=>selectAdjacentDay(-1)}>Previous day</Button>
+          <input id="schedule-specific-date" aria-label="Choose a work date" type="date" value={dayFilter==="date"?selectedDate:""} onChange={event=>{setSelectedDate(event.target.value);setDayFilter(event.target.value?"date":"all");}}/>
+          <Button variant="outline" aria-label="Next work date" onClick={()=>selectAdjacentDay(1)}>Next day</Button>
+        </div>
+        {dayFilter==="date"&&selectedDate&&<p role="status">Showing upcoming appointments for {new Date(selectedDate+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric",timeZone:"UTC"})}. Past-due work remains above.</p>}
+      </div>
+      <section className="schedule-board"><header><h2>{dayFilter==="date"?"Selected day’s jobs":"Upcoming jobs"}</h2><span>{upcoming.length}</span></header>{upcoming.length?upcoming.map((job)=><button className="schedule-job" key={job.id} onClick={()=>setSelected(job)}><span className="schedule-date"><b>{new Date(job.scheduledAt!).toLocaleDateString("en-US",{day:"numeric",timeZone:"America/Chicago"})}</b><small>{new Date(job.scheduledAt!).toLocaleString("en-US",{month:"short",timeZone:"America/Chicago"}).toUpperCase()}</small></span><span><strong>{job.customer}</strong><small>{job.service} · {new Date(job.scheduledAt!).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})}</small><em>{job.address||"No address saved"}</em></span><strong>{money(resolvedBillingTotalCents(job))}</strong><ChevronRight/></button>):<div className="record-empty"><CalendarDays/><strong>{dayFilter==="all"?"No upcoming jobs":dayFilter==="today"?"No upcoming jobs today":dayFilter==="date"?"No upcoming jobs on this date":"No upcoming jobs in the next 7 days"}</strong><p>{dayFilter==="all"?"Open an approved estimate and save a job date.":"Choose All upcoming to see later appointments. Past-due work remains under Needs attention."}</p></div>}</section>
     </>}
   </div>;
 }
