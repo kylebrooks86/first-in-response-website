@@ -19,7 +19,7 @@ REAL_CI=q.verify_ci
 def plan():
     return {'format':q.FORMAT,'qaWorker':q.qa.WORKER,'qaDatabase':q.qa.NAME,'qaUuid':q.qa.UUID,
         'expectedActiveVersion':q.qa.ACTIVE_VERSION,'candidateCommit':'a'*40,'buildSha256':'b'*64,
-        'evidence':{'ciRunId':123,'accountId':'c'*32},
+        'evidence':{'ciRunId':123,'accountId':'c'*32,'windowEndsUtc':(datetime.now(timezone.utc)+timedelta(minutes=30)).isoformat()},
         'migrations':{n:hashlib.sha256(q.pinned()[n]).hexdigest() for n in sorted(q.NEW_GIT_BLOBS)},
         'ownerAttestationOnly':True,'hostedMigrationAuthorized':False,'publicationAuthorized':False}
 
@@ -46,7 +46,7 @@ class FakeProvider(q.Provider):
             assert self.db.total_changes==before
             return [{'success':True,'results':rows}]
         raise AssertionError('Unexpected fake command')
-    def publish(self,candidate):self.publications+=1;return '12345678-1234-4234-8234-123456789abc'
+    def publish(self,candidate,*,before_deploy=lambda:None):before_deploy();self.publications+=1;return '12345678-1234-4234-8234-123456789abc'
     def close(self):self.db.close()
 
 class GuardedQaTests(unittest.TestCase):
@@ -201,10 +201,36 @@ class GuardedQaTests(unittest.TestCase):
             q.Provider.publish(self.provider,candidate)
         self.assertEqual(len(calls),1,'Changed bundle stops after dry-run before publication')
         self.assertEqual(list(server.glob('wrangler.fire-qa-*')),[])
+        calls.clear()
+        def expired():raise q.Stop('WRITE_WINDOW_EXPIRED')
+        with patch.object(q,'build_identity',return_value='sealed'),patch.object(self.provider,'identity'),self.assertRaisesRegex(q.Stop,'WRITE_WINDOW_EXPIRED'):
+            q.Provider.publish(self.provider,candidate,before_deploy=expired)
+        self.assertEqual(len(calls),1,'Expired approval after dry-run must prevent real publication')
+        self.assertEqual(list(server.glob('wrangler.fire-qa-*')),[])
     def test_windows_tee_receipt_encoding_and_raw_hash_are_preserved(self):
         path=Path(self.tmp.name)/'tee-receipt.json';raw=json.dumps({'passed':True}).encode('utf-16');path.write_bytes(raw)
         self.assertEqual(q.read_json(path),{'passed':True});self.assertEqual(q.file_hash(path),hashlib.sha256(raw).hexdigest())
         self.assertEqual(path.read_bytes(),raw)
+    def test_expired_window_after_slow_reads_blocks_first_write(self):
+        state={'now':datetime.now(timezone.utc)}
+        class Clock(datetime):
+            @classmethod
+            def now(cls,tz=None):return state['now']
+        calls=[]
+        def recheck():
+            calls.append(1)
+            if len(calls)==3:state['now']+=timedelta(hours=2)
+        with patch.object(q,'datetime',Clock),self.assertRaisesRegex(q.Stop,'WRITE_WINDOW_EXPIRED'):
+            q.run_workflow(self.plan,self.provider,action='MIGRATE',typed=q.approval(self.plan,'MIGRATE'),recheck=recheck)
+        self.assertFalse(self.provider.writes)
+    def test_publication_window_is_checked_at_final_callback(self):
+        receipt=self.migrate();calls=[]
+        def recheck():
+            calls.append(1)
+            if len(calls)==3:raise q.Stop('WRITE_WINDOW_EXPIRED')
+        with self.assertRaisesRegex(q.Stop,'WRITE_WINDOW_EXPIRED'):
+            self.action('PUBLISH',typed=q.approval(self.plan,'PUBLISH',q.digest(receipt)),migration_receipt=receipt,candidate='synthetic',recheck=recheck)
+        self.assertEqual(self.provider.publications,0)
     def test_complete_offline_plan_reuses_passed_receipts_and_binds_all_evidence(self):
         from test_capture_existing_qa_schema_read_only import sample
         now=datetime.now(timezone.utc);folder=Path(self.tmp.name)

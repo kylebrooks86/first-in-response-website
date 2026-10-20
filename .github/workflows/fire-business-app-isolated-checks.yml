@@ -328,6 +328,7 @@ jobs:
            node scripts/test-job-cost-recovery.mjs
            node scripts/test-estimate-detail-recovery.mjs
            node scripts/test-estimate-editor-save-recovery.mjs
+           node scripts/test-invoice-editor-load-recovery.mjs
            node scripts/test-deposit-exception-proposals.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
@@ -445,6 +446,7 @@ jobs:
            node scripts/test-job-cost-recovery.mjs
            node scripts/test-estimate-detail-recovery.mjs
            node scripts/test-estimate-editor-save-recovery.mjs
+           node scripts/test-invoice-editor-load-recovery.mjs
            node scripts/test-deposit-exception-proposals.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs
@@ -541,6 +543,7 @@ jobs:
            node scripts/test-job-cost-recovery.mjs
            node scripts/test-estimate-detail-recovery.mjs
            node scripts/test-estimate-editor-save-recovery.mjs
+           node scripts/test-invoice-editor-load-recovery.mjs
            node scripts/test-deposit-exception-proposals.mjs
           node --experimental-sqlite scripts/test-public-estimate-retry.mjs
           node --experimental-sqlite scripts/test-manual-payment-confirmation.mjs

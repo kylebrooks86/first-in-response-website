@@ -19,14 +19,14 @@ for(const name of ['EditEstimateDialog','EditInvoiceDialog']){
    ...Object.fromEntries([...tags].map(t=>[t,()=>null])),useEffect(){},useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},fetch:(url,options)=>{requests.push({url,options});return fetcher(url,options);}};
   const code=readFileSync('lib/editable-line-totals.ts','utf8')+'\n'+discount.getText(ast)+'\n'+fn.getText(ast)+`\nexports.view=${name};`;
   vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
-  const estimate={id:'synthetic-job',invoiceId:'synthetic-invoice',service:'Wash',totalCents:20001,paidCents:5000,items:[]};
+  const estimate={id:'synthetic-job',invoiceId:'synthetic-invoice',customerId:'synthetic-customer',service:'Wash',totalCents:20001,paidCents:5000,items:[]};
   const render=()=>{cursor=0;refCursor=0;return context.exports.view({estimate,onSaved:v=>saved.push(v)});};
   const set=(key,value)=>state[names.indexOf(key)]=value;
   render();set('open',true);set('items',[{id:'synthetic-line',name:'Wash',description:'Synthetic',quantity:3,unit:'job',unitRateCents:6667,preservedLineTotalCents:20001}]);
-  return {render,set,requests,saved,setFetcher:f=>fetcher=f,get:key=>state[names.indexOf(key)],button:()=>nodes(render()).find(n=>n.type===context.Button&&[n.props.children].flat(Infinity).some(c=>typeof c==='string'&&c.startsWith('Save ')))};
+  return {render,set,requests,saved,async load(quantity=3){if(name!=='EditInvoiceDialog'){estimate.items=[{id:'synthetic-line',name:'Wash',description:'Synthetic',quantity,unit:'hour',totalCents:20001}];render().props.onOpenChange(true);return;}fetcher=async()=>({ok:true,json:async()=>({invoice:{id:estimate.invoiceId,estimateId:estimate.id,customerId:estimate.customerId,items:[{id:'synthetic-line',name:'Wash',description:'Synthetic',quantity,unit:'job',totalCents:20001}],revisions:[]}})});render().props.onOpenChange(true);await flush();requests.length=0;},setFetcher:f=>fetcher=f,get:key=>state[names.indexOf(key)],button:()=>nodes(render()).find(n=>n.type===context.Button&&[n.props.children].flat(Infinity).some(c=>typeof c==='string'&&c.startsWith('Save ')))};
  }
  for(const outcome of ['success','http','network','bad-json']){
-  const f=fixture(),pending=deferred();f.setFetcher(()=>pending.promise);const button=f.button();
+  const f=fixture(),pending=deferred();await f.load();f.setFetcher(()=>pending.promise);const button=f.button();
   button.props.onClick();button.props.onClick();eq(f.requests.length,1,name+' same-frame taps submit once');
   f.render().props.onOpenChange(false);eq(f.get('open'),true,'Pending edit cannot be dismissed');
   eq(nodes(f.render()).some(n=>n.type==='fieldset'&&n.props.disabled===true),true,'Pending form fields are disabled');
@@ -34,7 +34,7 @@ for(const name of ['EditEstimateDialog','EditInvoiceDialog']){
   eq(f.requests[0].url,name==='EditInvoiceDialog'?'/api/invoices/synthetic-invoice':'/api/estimates/synthetic-job');
   if(outcome==='network')pending.reject(Error('Synthetic connection lost'));
   else if(outcome==='bad-json')pending.resolve({ok:true,json:async()=>{throw Error('Synthetic invalid response');}});
-  else pending.resolve({ok:outcome==='success',json:async()=>outcome==='success'?(name==='EditInvoiceDialog'?{invoice:{totalCents:20001}}:{estimate:{id:'synthetic-job',totalCents:20001}}):{error:'Synthetic save failed'}});
+  else pending.resolve({ok:outcome==='success',json:async()=>outcome==='success'?(name==='EditInvoiceDialog'?{invoice:{id:'synthetic-invoice',totalCents:20001}}:{estimate:{id:'synthetic-job',totalCents:20001}}):{error:'Synthetic save failed'}});
   await flush();eq(f.get('saving'),false,'Save lock state recovers');
   if(outcome==='success'){eq(f.saved.length,1);eq(f.get('open'),false);}
   else {
@@ -45,5 +45,11 @@ for(const name of ['EditEstimateDialog','EditInvoiceDialog']){
    f.render().props.onOpenChange(false);eq(f.get('open'),false,'Failed edit can be closed safely');
   }
  }
+ for(const quantity of [.25,.5,.75]){
+  const f=fixture();await f.load(quantity);eq(f.get('items')[0].quantity,quantity,name+' hydration preserves fractional work');
+  f.setFetcher(async(_url,options)=>{const payload=JSON.parse(options.body);eq(payload.items[0].quantity,quantity);eq(payload.items[0].totalCents,20001);return {ok:true,json:async()=>name==='EditInvoiceDialog'?{invoice:{id:'synthetic-invoice',totalCents:20001}}:{estimate:{id:'synthetic-job',totalCents:20001}}};});
+  f.button().props.onClick();await flush();eq(f.saved.length,1);
+ }
+
 }
 console.log(`PASS ${checks}/${checks}: actual estimate and invoice editors reject duplicate taps, keep pending edits open, freeze fields, preserve cents, recover from HTTP/network/JSON failures, and retry.`);

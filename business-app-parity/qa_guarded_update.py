@@ -245,7 +245,7 @@ class Provider:
         with path.open('xb') as stream:
             stream.write(content + ("\nINSERT INTO d1_migrations(name) VALUES ('" + name + "');\n").encode())
         self.call(['d1','execute',qa.NAME,'--remote','--file',str(path),'--yes','--json'])
-    def publish(self, candidate):
+    def publish(self, candidate, *, before_deploy=lambda:None):
         require(candidate is not None, 'CANDIDATE_REQUIRED')
         sealed = build_identity(candidate)
         manifest = Path(candidate)/'dist/server/wrangler.json'
@@ -265,6 +265,7 @@ class Provider:
                 # already validated temporary manifest, which is not an asset.
                 saved = temporary.read_bytes(); temporary.unlink()
                 require(build_identity(candidate) == sealed, 'BUILD_CHANGED_DURING_DRY_RUN')
+                before_deploy()
                 with temporary.open('xb') as stream: stream.write(saved)
                 self.call(['deploy','--name',qa.WORKER], json_output=False)
                 status = self.call(['deployments','status','--name',qa.WORKER,'--json'])
@@ -351,6 +352,8 @@ def run_workflow(plan, provider, *, action='PREFLIGHT', typed=None, migration_re
         for index, name in enumerate(sorted(NEW_GIT_BLOBS)):
             recheck(); provider.identity(); schema_check(provider,files,23+index)
             require(row_fingerprints(provider,files) == before, 'QA_ROWS_CHANGED_BEFORE_WRITE')
+            recheck()
+            require(datetime.now(timezone.utc) < utc(plan['evidence']['windowEndsUtc']), 'WRITE_WINDOW_EXPIRED')
             provider.migrate_one(name,files[name])
             # Any timeout/partial failure propagates STOP; never retries or deploys.
             schema_check(provider,files,24+index)
@@ -361,7 +364,10 @@ def run_workflow(plan, provider, *, action='PREFLIGHT', typed=None, migration_re
             'previousWorkerVersion':qa.ACTIVE_VERSION,'publicationAuthorized':False}
     require(before == migration_receipt.get('originalRowFingerprints'), 'QA_ROWS_CHANGED_SINCE_MIGRATION')
     recheck(); provider.identity()
-    version = provider.publish(candidate)
+    def before_deploy():
+        recheck()
+        require(datetime.now(timezone.utc) < utc(plan['evidence']['windowEndsUtc']), 'WRITE_WINDOW_EXPIRED')
+    version = provider.publish(candidate,before_deploy=before_deploy)
     schema_check(provider,files,25)
     require(row_fingerprints(provider,files) == before, 'QA_ROWS_CHANGED_DURING_PUBLICATION')
     # Provider version/binding are re-read; owner login/iPhone remain pending.

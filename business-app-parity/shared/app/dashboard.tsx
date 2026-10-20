@@ -1099,7 +1099,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   const [saving,setSaving]=useState(false);const [error,setError]=useState("");
   const hydrate=()=>{
     const source=estimate.items?.length?estimate.items:[{id:"",name:estimate.service,description:estimate.serviceDescription||serviceDescriptionFor(estimate.service),quantity:1,unit:"job",totalCents:estimate.totalCents}];
-    setItems(source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Math.max(1,Number(item.quantity)||1);return {id:item.id||undefined,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents))};}));
+    setItems(source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity)||1;return {id:item.id||undefined,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents))};}));
     const appreciation=Boolean(Number(estimate.appreciationDiscount||0));setAppreciationDiscount(appreciation);
     const mode:DiscountMode=estimate.additionalDiscountType==="dollar"?"dollar":"percent";setDiscountMode(mode);
     const stored=Number(estimate.additionalDiscountValue||0);setDiscountValue(stored?mode==="percent"?(stored/100).toString():(stored/100).toFixed(2):"");setError("");
@@ -1150,47 +1150,57 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
   const [expandedRevisionId,setExpandedRevisionId]=useState<string|null>(null);
   const [loading,setLoading]=useState(false);const [saving,setSaving]=useState(false);const [error,setError]=useState("");
   const loadRequest=useRef(0);
-  useEffect(()=>()=>{loadRequest.current++;},[]);
+  const loadedInvoice=useRef<string|null>(null);
+  const invoiceKey=JSON.stringify([estimate.id,estimate.invoiceId,estimate.customerId||null]);
+  const currentInvoice=useRef(invoiceKey);currentInvoice.current=invoiceKey;
+  const [loadError,setLoadError]=useState("");
+  useEffect(()=>{currentInvoice.current=invoiceKey;loadedInvoice.current=null;setOpen(false);setItems([]);setRevisions([]);setLoadError("");setLoading(false);return()=>{loadRequest.current++;loadedInvoice.current=null;if(currentInvoice.current===invoiceKey)currentInvoice.current="";};},[invoiceKey]);
   const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
   const invoiceDiscount=(()=>{if(discountMode==="percent"){const percent=Math.min(50,Math.max(0,Number(discountValue)||0));return Math.round(subtotal*(percent/100));}return Math.min(subtotal,Math.max(0,Math.round((Number(discountValue)||0)*100)));})();
   const total=subtotal>0?Math.max(15000,subtotal-invoiceDiscount):0;
   const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?editMoneyLine(item,patch):item));
   const addService=()=>setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);
   const hydrate=async()=>{
-    const request=++loadRequest.current;
-    if(!estimate.invoiceId)return;
+    const request=++loadRequest.current;const key=invoiceKey;
+    loadedInvoice.current=null;setItems([]);setRevisions([]);setExpandedRevisionId(null);setLoadError("");
+    if(!estimate.invoiceId){setLoadError("This job does not have an invoice to edit.");return;}
     setLoading(true);setError("");
     try{
-      const response=await fetch(`/api/invoices/${estimate.invoiceId}`);const result=await response.json() as {invoice?:{discountType?:DiscountMode;discountValue?:number;dueAt?:string|null;createdAt?:string;items?:EstimateItemRow[];revisions?:InvoiceRevisionRow[]};error?:string};
-      if(request!==loadRequest.current)return;
-      if(!response.ok||!result.invoice)throw new Error(result.error||"Invoice could not be loaded.");
-      const source=result.invoice.items??[];
-      setItems(source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Math.max(1,Number(item.quantity)||1);return {id:item.id,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents))};}));
+      const response=await fetch(`/api/invoices/${encodeURIComponent(estimate.invoiceId)}`,{cache:"no-store"});const result=await response.json() as {invoice?:{id?:string;estimateId?:string;customerId?:string;discountType?:DiscountMode;discountValue?:number;dueAt?:string|null;createdAt?:string;items?:EstimateItemRow[];revisions?:InvoiceRevisionRow[]};error?:string};
+      if(request!==loadRequest.current||currentInvoice.current!==key)return;
+      if(!response.ok||!result?.invoice||result.invoice.id!==estimate.invoiceId||result.invoice.estimateId!==estimate.id||(estimate.customerId&&result.invoice.customerId!==estimate.customerId))throw new Error("Saved invoice identity could not be verified.");
+      const source=result.invoice.items;
+      if(!Array.isArray(source)||!source.length||source.some((item)=>!item||typeof item.name!=="string"||!item.name.trim()||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0))throw new Error("Saved invoice services could not be verified.");
+      setItems(source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity);return {id:item.id,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents))};}));
       const mode=result.invoice.discountType==="percent"?"percent":"dollar";setDiscountMode(mode);const stored=Number(result.invoice.discountValue||0);setDiscountValue(stored?mode==="percent"?(stored/100).toString():(stored/100).toFixed(2):"");
       const rawDue=String(result.invoice.dueAt||"");const dueDay=rawDue?rawDue.slice(0,10):"";const createdDay=String(result.invoice.createdAt||"").slice(0,10);if(!rawDue||(createdDay&&dueDay===createdDay)){setDueMode("receipt");setDueDate("");}else{setDueMode("date");setDueDate(dueDay);}
       setRevisions((result.invoice.revisions??[]).map((revision)=>({...revision,subtotalCents:Number(revision.subtotalCents||0),totalCents:Number(revision.totalCents||0),discountCents:Number(revision.discountCents||0),discountValue:Number(revision.discountValue||0),discountType:revision.discountType==="percent"?"percent":"dollar",items:Array.isArray(revision.items)?revision.items:[]})));
-      setExpandedRevisionId(null);
-    }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Invoice could not be loaded.");}finally{if(request===loadRequest.current)setLoading(false);}
+      setExpandedRevisionId(null);loadedInvoice.current=key;setError("");
+    }catch{if(request===loadRequest.current&&currentInvoice.current===key){loadedInvoice.current=null;setItems([]);setLoadError("The saved invoice could not be loaded. Reconnect and try again. No invoice changes were submitted.");}}finally{if(request===loadRequest.current&&currentInvoice.current===key)setLoading(false);}
   };
-  const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;if(!value){loadRequest.current++;setLoading(false);}setOpen(value);if(value)void hydrate();};
+  const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;if(!value){loadRequest.current++;loadedInvoice.current=null;setLoading(false);}setOpen(value);if(value)void hydrate();};
   const save=async()=>{
     if(saveLock.current)return;
     if(!estimate.invoiceId)return;
+    if(loadedInvoice.current!==invoiceKey||currentInvoice.current!==invoiceKey){setError("Load the saved invoice before making changes.");return;}
     if(!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isFinite(item.unitRateCents)||item.unitRateCents<0)){setError("Every invoice service needs a service, quantity, and valid price.");return;}
     if(discountMode==="percent"&&(Number(discountValue)||0)>50){setError("Percentage discount cannot exceed 50%.");return;}
     if(discountMode==="dollar"&&Math.round((Number(discountValue)||0)*100)>subtotal){setError("Dollar discount cannot exceed the invoice subtotal.");return;}
-    saveLock.current=true;setSaving(true);setError("");
+    const key=invoiceKey;saveLock.current=true;setSaving(true);setError("");
     try{
       const payloadItems=items.map((item)=>({id:item.id,name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:editableLineTotalCents(item)}));
       if(dueMode==="date"&&!dueDate){setError("Choose an invoice due date or select Due on receipt.");setSaving(false);return;}
       const response=await fetch(`/api/invoices/${estimate.invoiceId}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({items:payloadItems,discountType:discountMode,discountValue:Math.round((Number(discountValue)||0)*100),dueAt:dueMode==="receipt"?"receipt":dueDate})});
-      const result=await response.json() as {invoice?:{totalCents?:number};error?:string};if(!response.ok||!result.invoice)throw new Error(result.error||"Invoice changes could not be saved.");
-      onSaved(Number(result.invoice.totalCents??total));setOpen(false);
-    }catch(saveError){setError(saveError instanceof Error?saveError.message:"Invoice changes could not be saved.");}finally{saveLock.current=false;setSaving(false);}
+      const result=await response.json() as {invoice?:{id?:string;totalCents?:number};error?:string};
+      if(currentInvoice.current!==key)return;
+      if(!response.ok)throw new Error(result?.error||"Invoice changes could not be saved.");
+      if(!result?.invoice||result.invoice.id!==estimate.invoiceId||!Number.isSafeInteger(result.invoice.totalCents)||Number(result.invoice.totalCents)<0)throw new Error("The save response could not be verified. Reopen this invoice to check its saved values before trying again.");
+      onSaved(Number(result.invoice.totalCents));setOpen(false);
+    }catch(saveError){if(currentInvoice.current===key)setError(saveError instanceof Error?saveError.message:"Invoice changes could not be saved.");}finally{saveLock.current=false;setSaving(false);}
   };
   return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><button type="button"><PenLine/> Edit invoice</button></DialogTrigger><DialogContent className="estimate-edit-dialog invoice-edit-fields sm:max-w-[650px]"><DialogHeader><DialogTitle>Edit final invoice</DialogTitle></DialogHeader>
     <fieldset disabled={saving} className="contents">
-    {loading?<div className="customers-state">Loading invoice…</div>:<>
+    {loading?<div className="customers-state" role="status">Loading saved invoice…</div>:loadError?<div className="customers-state"><p className="save-error" role="alert">{loadError}</p><Button variant="outline" onClick={()=>void hydrate()}>Try loading invoice again</Button></div>:loadedInvoice.current!==invoiceKey?<div className="customers-state" role="status">Loading saved invoice…</div>:<>
     <p className="service-description-help">Add last-minute services or adjust the final discount without changing the original accepted estimate. Recorded payments are preserved.</p>
     <div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.id||index}><header><strong>Service {index+1}</strong>{items.length>1&&<button type="button" onClick={()=>setItems((current)=>current.filter((_,i)=>i!==index))} aria-label={`Remove invoice service ${index+1}`}><Trash2/></button>}</header><div><Label htmlFor={`invoice-${estimate.invoiceId}-${index}-service`}>Service</Label><Select value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,quantity:svc.unit==="job"?1:0});}}><SelectTrigger id={`invoice-${estimate.invoiceId}-${index}-service`}><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent>{services.map((svc)=><SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}</SelectContent></Select></div><div><Label htmlFor={`invoice-${estimate.invoiceId}-${index}-description`}>Service description and expectations</Label><Textarea id={`invoice-${estimate.invoiceId}-${index}-description`} rows={6} value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/></div><div className="edit-quantity-row"><div><Label htmlFor={`invoice-${estimate.invoiceId}-${index}-quantity`}>Quantity</Label><Input id={`invoice-${estimate.invoiceId}-${index}-quantity`} inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit}</span></div><div><Label htmlFor={`invoice-${estimate.invoiceId}-${index}-rate`}>Price per unit — adjustable for this invoice</Label><div className="discount-input"><span>$</span><Input id={`invoice-${estimate.invoiceId}-${index}-rate`} inputMode="decimal" value={item.unitRateCents?String(item.unitRateCents/100):""} onChange={(event)=>updateItem(index,{unitRateCents:Math.max(0,Math.round((Number(event.target.value)||0)*100))})}/></div></div><p className="service-description-help">Adjust this job-specific rate if the work or scope changes. Your starting service rate stays unchanged.</p><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>{item.preservedLineTotalCents!==undefined&&item.preservedLineTotalCents!==Math.round(item.quantity*item.unitRateCents)&&<p className="service-description-help">This saved line total is preserved exactly. Changing its service, quantity, or price will recalculate it.</p>}</section>)}</div>
     <Button variant="outline" className="w-full" onClick={addService}><Plus className="h-4 w-4"/> Add another service</Button>
