@@ -1,0 +1,46 @@
+name: FIRE chat core reliability combined verification
+on:
+  push:
+    branches: [chat/fire-core-reliability-ci-2026-10-19]
+permissions:
+  contents: read
+jobs:
+  verify-integrated-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Shared TypeScript
+        run: pnpm exec tsc --noEmit
+      - name: Combined actual-component reliability regressions
+        run: |
+          node scripts/test-estimate-detail-recovery.mjs
+          node scripts/test-business-write-recovery.mjs
+          node scripts/test-notification-read-recovery.mjs
+      - name: Existing save and cost recovery regressions
+        run: |
+          node scripts/test-customer-write-recovery.mjs
+          node scripts/test-estimate-editor-save-recovery.mjs
+          node scripts/test-job-report-recovery.mjs
+          node scripts/test-job-cost-recovery.mjs
+      - name: Existing scheduling and follow-up recovery
+        run: |
+          node scripts/test-schedule-timezones.mjs
+          node scripts/test-followup-load-errors.mjs
+          node scripts/test-follow-up-timing.mjs
