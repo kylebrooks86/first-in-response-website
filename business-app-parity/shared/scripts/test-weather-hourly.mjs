@@ -41,6 +41,11 @@ check(JSON.stringify(warn({temperature:60,rainChance:49,windMph:19,description:'
 check(JSON.stringify(warn({temperature:32,rainChance:50,windMph:20,description:'Windy',startTime:'2026-10-20T18:00:00Z'}))===JSON.stringify(['Rain chance ≥50%','Wind ≥20 mph','Freezing ≤32°F']),'Rain, wind and freezing thresholds produce explicit planning cautions');
 check(JSON.stringify(warn({temperature:70,rainChance:99,windMph:null,description:'Storm',startTime:'2026-10-20T18:00:00Z'}))===JSON.stringify(['Rain chance ≥50%']),'Only known risk dimensions are labeled');
 check(JSON.stringify(warn({temperature:40,rainChance:null,windMph:25,description:'Windy',startTime:'2026-10-20T18:00:00Z'}))===JSON.stringify(['Wind ≥20 mph']),'Wind-only risk remains visible without invented precipitation');
+const daily=weather.dailyWorkCautions;
+check(JSON.stringify(daily({date:'2026-10-25',rainChance:75,windMax:22,temperatureMin:29,temperatureMax:60}))===JSON.stringify(['Rain chance ≥50%','Wind ≥20 mph','Freezing low ≤32°F']),'Next-job day highlights every relevant caution');
+check(JSON.stringify(daily({date:'2026-10-25',rainChance:null,windMax:null,temperatureMin:null,temperatureMax:null}))==='[]','Unavailable daily NWS conditions are not reported as calm, dry or warm');
+check(JSON.stringify(daily({date:'2026-10-25',rainChance:49,windMax:19,temperatureMin:33,temperatureMax:60}))==='[]','Daily thresholds remain consistent with hourly work cues');
+
 
 let fetches=0;const hourlyUri='https://api.weather.gov/gridpoints/TSA/41,105/forecast/hourly';
 const fake=async(url,options)=>{
