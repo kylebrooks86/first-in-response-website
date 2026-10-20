@@ -1,0 +1,44 @@
+name: FIRE chat integration targeted safe checks
+
+on:
+  push:
+    branches:
+      - chat/fire-mobile-closeout-integration-2026-10-19
+
+permissions:
+  contents: read
+
+jobs:
+  integrated-mobile-closeout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable project pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install shared dependencies from locked versions
+        run: pnpm install --frozen-lockfile
+      - name: Shared TypeScript check
+        run: pnpm exec tsc --noEmit
+      - name: Regression - job completion ownership and safe date clearing
+        run: node scripts/test-estimate-detail-recovery.mjs
+      - name: Regression - estimate and invoice save recovery
+        run: node scripts/test-estimate-editor-save-recovery.mjs
+      - name: Regression - completed job report and costs recovery
+        run: |
+          node scripts/test-job-report-recovery.mjs
+          node scripts/test-job-cost-recovery.mjs
+      - name: Regression - device time zones and schedule loading
+        run: node scripts/test-schedule-timezones.mjs
