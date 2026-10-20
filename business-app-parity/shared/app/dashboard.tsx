@@ -570,12 +570,15 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
 
 function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEstimate}:{userName:string;metrics:{estimates:number;openValue:number;outstanding:number};estimates:EstimateRow[];onSaved:(estimate:EstimateRow)=>void;onNavigate:(tab:string)=>void;onOpenEstimate?:(id:string)=>void}) {
   const now = useCurrentTime();
-  const upcoming = estimates.filter((estimate)=>estimate.scheduledAt && new Date(estimate.scheduledAt).getTime() >= now).length;
+  // Match Schedule: future completed/declined jobs are not upcoming appointments.
+  // The first supplied record is not necessarily the next appointment.
+  const upcomingJobs=estimates.filter((estimate)=>estimate.status==="scheduled"&&estimate.scheduledAt&&Number.isFinite(Date.parse(estimate.scheduledAt))&&Date.parse(estimate.scheduledAt)>=now).sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
+  const upcoming=upcomingJobs.length;
   const completed = estimates.filter((estimate)=>estimate.status === "completed").length;
   return (
     <div className="dashboard-view">
       <section className="welcome-row"><div><p className="eyebrow">FIRE App</p><h1>Welcome to First In Response Exteriors</h1><p>Customers, estimates, jobs, and balances in one place.</p></div><NewEstimate onSaved={onSaved} /></section>
-      <ScheduleWeather compact nextJobAt={estimates.find((estimate)=>estimate.status==="scheduled"&&estimate.scheduledAt&&new Date(estimate.scheduledAt).getTime()>=now)?.scheduledAt}/>
+      <ScheduleWeather compact nextJobAt={upcomingJobs[0]?.scheduledAt}/>
       <section className="metric-grid">
         <button className="metric-card accent" onClick={()=>onNavigate("payments")}><span className="metric-icon red"><CircleDollarSign /></span><p>Due now</p><strong>{money(metrics.outstanding)}</strong><small>Deposits and completed-job balances</small><ChevronRight className="metric-arrow"/></button>
         <button className="metric-card" onClick={()=>onNavigate("schedule")}><span className="metric-icon blue"><CalendarDays /></span><p>Upcoming jobs</p><strong>{upcoming}</strong><small>Open the schedule</small><ChevronRight className="metric-arrow"/></button>
