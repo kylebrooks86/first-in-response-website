@@ -1,0 +1,48 @@
+name: FIRE task status no-op safety (synthetic only)
+
+on:
+  push:
+    branches:
+      - ci/fire-task-status-noop-2026-10-20
+
+permissions:
+  contents: read
+
+jobs:
+  task-status:
+    name: Task PATCH reliability, payment safeguards and full shared build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Frozen dependency install
+        run: pnpm install --frozen-lockfile
+      - name: TypeScript
+        run: pnpm exec tsc --noEmit
+      - name: Actual task route and UI status recovery
+        run: |
+          node --experimental-sqlite scripts/test-task-status-confirmation.mjs
+          node scripts/test-task-status-ui-recovery.mjs
+          node --experimental-sqlite scripts/test-business-idempotent-routes.mjs
+          node scripts/test-business-list-recovery.mjs
+      - name: Payment and Business safeguards
+        run: |
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+          node --experimental-sqlite scripts/test-expense-csv-safety.mjs
+          node scripts/test-business-write-recovery.mjs
+      - name: Full shared app build without deployment
+        run: pnpm run build
