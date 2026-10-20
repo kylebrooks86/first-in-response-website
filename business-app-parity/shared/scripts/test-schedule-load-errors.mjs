@@ -8,14 +8,14 @@ const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','
 const helpers=['resolvedBillingTotalCents','billingBalanceCents'];
 const declarations=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>helpers.includes(d.name.getText(ast))));
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleView');
-let state=[],cursor=0,effect,requests=[],responder;let scheduleNow=Date.parse('2026-10-09T12:00:00Z');
+let state=[],cursor=0,effect,requests=[],fetchOptions=[],responder;let scheduleNow=Date.parse('2026-10-09T12:00:00Z');
 const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','Navigation','Clock3','ChevronRight','CalendarDays'].map(name=>[name,()=>null]));
 const pagination={exports:{},require};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/estimate-pagination.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,pagination);
 const context={exports:{},require,...pagination.exports,Error,Array,...stubs,
  useRef:initial=>({current:initial}),
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},
- useEffect(fn){effect=fn;},useCurrentTime:()=>scheduleNow,fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,dateTime:s=>s,
+ useEffect(fn){effect=fn;},useCurrentTime:()=>scheduleNow,fetch:async (url,options)=>{requests.push(url);fetchOptions.push(options);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,dateTime:s=>s,
 };
 vm.runInNewContext(ts.transpileModule(declarations.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=ScheduleView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
 function render(searchQuery=''){cursor=0;return context.exports.view({searchQuery});}
@@ -39,7 +39,7 @@ for(const [fail,message] of failures)for(const populated of [false,true]){
  effect();await settle();equal(state[3],message);equal(state[0].length,populated?1:0);equal(state[1],null);
  const all=nodes(render());const alert=all.find(n=>n.props?.role==='alert');assert.ok(alert);checks++;
  equal(alert.props.children[0].props.children,message);equal(all.some(n=>n.props?.className==='schedule-board'),false);equal(all.some(n=>n.props?.className==='route-day-button'),false);equal(all.some(n=>n.props?.children==='No upcoming jobs'),false);equal(all.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,undefined);
- responder=()=>ok([job]);requests=[];alert.props.children[1].props.onClick();await settle();equal(state[3],'');equal(requests.length,1);equal(requests[0],'/api/estimate-history?limit=50');
+ responder=()=>ok([job]);requests=[];alert.props.children[1].props.onClick();await settle();equal(state[3],'');equal(requests.length,1);equal(requests[0],'/api/estimate-history?limit=50');equal(fetchOptions.at(-1)?.cache,'no-store');
  const recovered=nodes(render());equal(recovered.some(n=>n.props?.role==='alert'),false);equal(recovered.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,job.scheduledAt);
  const card=recovered.find(n=>n.props?.className==='schedule-job');assert.ok(card);checks++;card.props.onClick();equal(state[1].id,job.id);
  const route=recovered.find(n=>n.props?.className==='route-day-button');equal(new URL(route.props.href).searchParams.get('destination'),job.address);
@@ -69,4 +69,23 @@ for(const [clock,last,after] of [['2026-10-09T12:00:00Z','2026-10-15T15:00:00Z',
  const select=key=>nodes(render()).find(n=>n.type===stubs.Button&&n.key===key).props.onClick();
  equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,3);select('today');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,1);equal(nodes(render()).some(n=>n.props?.className==='needs-attention'),true);select('week');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,2);select('all');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,3);
 }
+// Owner-initiated refresh performs one read without a browser cache and never submits writes.
+state=[[],null,true,''];responder=()=>ok([job]);requests=[];fetchOptions=[];
+render();effect();await settle();
+equal(typeof state[4],'string');equal(Number.isFinite(Date.parse(state[4])),true);
+const refreshButton=()=>nodes(render()).find(node=>node.type===stubs.Button&&node.props?.['aria-label']==='Refresh schedule');
+assert.ok(refreshButton());checks++;equal(refreshButton().props.disabled,false);
+responder=()=>ok([job,{...job,id:'newly-booked',address:'Updated appointment',scheduledAt:'2026-10-10T18:00:00Z'}]);
+requests=[];fetchOptions=[];
+refreshButton().props.onClick();equal(state[2],true);equal(refreshButton().props.disabled,true);
+await settle();equal(requests.length,1);equal(requests[0],'/api/estimate-history?limit=50');equal(fetchOptions[0]?.cache,'no-store');
+equal(state[0].length,2);equal(nodes(render()).filter(node=>node.props?.className==='schedule-job').length,2);
+const previous=state[4];responder=()=>{throw new Error('Synthetic offline during refresh');};requests=[];refreshButton().props.onClick();await settle();
+equal(state[3],'Synthetic offline during refresh');equal(state[0].length,2);equal(state[4],previous);
+equal(nodes(render()).some(node=>node.props?.className==='schedule-board'),false);
+equal(nodes(render()).some(node=>node.props?.className==='route-day-button'),false);
+responder=()=>ok([job]);const retry=nodes(render()).find(node=>node.props?.role==='alert').props.children[1];
+retry.props.onClick();await settle();
+equal(state[3],'');equal(state[0].length,1);equal(nodes(render()).some(node=>node.props?.className==='schedule-board'),true);
+
 console.log(`PASS ${checks}/${checks}: actual schedule load/error/retry handlers preserve records, hide stale route/editor/forecast targets, recover jobs, and retain sorted same-day routes, overdue revised balances, selection/change/close callbacks and search. Mocked reads only.`);
