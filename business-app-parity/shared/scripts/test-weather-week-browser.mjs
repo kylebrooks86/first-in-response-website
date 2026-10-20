@@ -81,6 +81,19 @@ try{
     check((await jobOutlook.innerText()).includes('surface')&&(await jobOutlook.innerText()).includes('solution drying'),'Job outlook explains the need to manage cleaning solution dwell/drying');
     check((await jobOutlook.innerText()).includes('not surface temperature or heat index'),'Job outlook never presents NWS air temperature as measured surface heat');
     check((await jobOutlook.innerText()).includes('actual property'),'Forecast is clearly labeled as Tulsa, not a property-specific guarantee');
+    const jobStartAction=jobOutlook.getByRole('button',{name:'Check weather at next job start time'});
+    check(await jobStartAction.isVisible(),'Next appointment has an explicit hourly weather shortcut');
+    const startingHourlyReads=hourlyRequests;
+    await jobStartAction.click();
+    const jobDetail=widget.getByRole('region',{name:'Hourly Tulsa weather forecast'});
+    await jobDetail.locator('.weather-hour-job-time').waitFor();
+    check(hourlyRequests===startingHourlyReads+1,'Next-job shortcut loads one selected-day hourly forecast on demand');
+    check(await jobDetail.locator('.weather-hour-job-time').count()===1,'Only the exact scheduled hour is highlighted');
+    check((await jobDetail.locator('.weather-hour-job-time').innerText()).includes('Job start hour'),'Matching NWS hour is visibly named');
+    const startSummary=await jobDetail.locator('.weather-job-hour-summary').innerText();
+    check(startSummary.includes('1:00 PM')&&startSummary.includes('61°F')&&startSummary.includes('Rain 65%'),'Job start summary shows verified Central clock, Fahrenheit and real NWS rain chance');
+    await jobDetail.getByRole('button',{name:'Close hourly forecast'}).click();
+    check(await widget.getByRole('region',{name:'Hourly Tulsa weather forecast'}).count()===0,'Job-time details close without losing next job outlook');
     check((await widget.locator('.weather-days article').last().innerText()).includes('Low')===false,'Nighttime missing low does not invent values');
     const geometry=await scroll.evaluate(n=>({client:n.clientWidth,scroll:n.scrollWidth,scrollable:getComputedStyle(n).overflowX,focusable:n.tabIndex,viewport:innerWidth,bounds:n.getBoundingClientRect().toJSON()}));
     check(geometry.focusable===0&&geometry.scrollable==='auto','Seven-day row supports mouse, swipe and keyboard scrolling');
@@ -134,6 +147,14 @@ try{
     check(await widget.getByRole('region',{name:'Hourly Tulsa weather forecast'}).count()===0,'Close control hides hourly forecast without losing the seven-day panel');
    }
    check(errors.length===0,'No React browser errors while rendering the seven-day forecast: '+errors.join(';'));
+   await page.evaluate(()=>window.changeWeatherJob('2026-10-25T22:00:00Z'));
+   const firstWeather=page.locator('.weather-strip:not(.loading):not(.unavailable)').first();
+   await firstWeather.getByRole('button',{name:'Check weather at next job start time'}).click();
+   const missingHour=firstWeather.getByRole('region',{name:'Hourly Tulsa weather forecast'});
+   await missingHour.locator('.weather-hour').first().waitFor();
+   check((await missingHour.locator('.weather-job-hour-summary').innerText()).includes('exact job start are not available yet'),'No fabricated forecast for an appointment beyond supplied hourly coverage');
+   check(await missingHour.locator('.weather-hour-job-time').count()===0,'Missing NWS hour does not highlight a substitute');
+   await missingHour.getByRole('button',{name:'Close hourly forecast'}).click();
    await page.evaluate(()=>window.changeWeatherJob('2026-11-12T15:00:00Z'));
    await page.locator('.weather-days article.job-day').first().waitFor({state:'hidden'});
    check(await page.locator('.weather-days article').count()===14,'Job outside week cannot hide available forecast days');
