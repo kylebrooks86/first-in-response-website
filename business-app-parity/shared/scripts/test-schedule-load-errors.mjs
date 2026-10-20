@@ -9,7 +9,7 @@ const helpers=['resolvedBillingTotalCents','billingBalanceCents'];
 const declarations=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>helpers.includes(d.name.getText(ast))));
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleView');
 let state=[],cursor=0,effect,requests=[],fetchOptions=[],responder;let scheduleNow=Date.parse('2026-10-09T12:00:00Z');
-const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','Navigation','Clock3','ChevronRight','CalendarDays'].map(name=>[name,()=>null]));
+const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','Navigation','Clock3','ChevronRight','CalendarDays','CloudSun'].map(name=>[name,()=>null]));
 const pagination={exports:{},require};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/estimate-pagination.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,pagination);
 const context={exports:{},require,...pagination.exports,Error,Array,...stubs,

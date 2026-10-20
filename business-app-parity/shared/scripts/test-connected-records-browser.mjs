@@ -8,7 +8,7 @@ const money=c=>'$'+(c/100).toFixed(2),dateTime=v=>v,statusLabel=v=>v,paymentType
 const saveOfflinePhotoCustomerDirectory=async()=>{},loadOfflinePhotoCustomerDirectory=async()=>[],clearOfflinePhotoCustomerDirectory=async()=>{};
 ${[...tags].filter(t=>!['Button','Input','Label','ScheduleWeather'].includes(t)).map(t=>`const ${t}=()=>null;`).join('\n')}
 ${views.map(n=>n.getText(ast)).join('\n')}
-const ScheduleWeather=({nextJobAt})=><output data-testid="schedule-weather-target">{nextJobAt??""}</output>;
+const ScheduleWeather=({nextJobAt,requestedJobAt,reviewKey})=><output data-testid="schedule-weather-target" data-requested-job={requestedJobAt??""} data-review-key={reviewKey??0}>{nextJobAt??""}</output>;
 function Screen(){const[query,setQuery]=useState(''),[focus,setFocus]=useState(null),[key,setKey]=useState(0);window.setQuery=setQuery;window.focusSavedRecord=(kind,id)=>{setFocus({kind,id,customerId:'first'});setKey(v=>v+1)};
 return location.pathname==='/schedule'?<ScheduleView searchQuery={query}/>:['/dashboard','/dashboard-no-address','/dashboard-bad-contact'].includes(location.pathname)?<DashboardView userName="Synthetic owner" metrics={{estimates:2,openValue:0,outstanding:0}} estimates={[
 {id:'later-dashboard-job',customer:'Later customer',service:'Second scheduled',status:'scheduled',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T20:00:00Z',totalCents:12000,paidCents:0},
@@ -65,6 +65,20 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await page.getByRole('button',{name:'All upcoming (5)',exact:true}).waitFor();
   check(await page.locator('.schedule-job').count()===5,'Clearing date selection restores all upcoming records');
   await page.evaluate(()=>window.setQuery('beyond-week'));await page.getByRole('button',{name:'Today (0)',exact:true}).click();await page.getByText('No upcoming jobs today',{exact:true}).waitFor();check(await page.locator('.route-day-button').count()===0,'Empty date window has no stale route');await page.getByRole('button',{name:'All upcoming (1)',exact:true}).click();check(await page.locator('.schedule-job').count()===1,'All upcoming recovers appointment outside current week');await page.evaluate(()=>window.setQuery(''));await page.getByRole('button',{name:'All upcoming (5)',exact:true}).waitFor();check(await page.locator('.schedule-window-controls button').evaluateAll(ns=>ns.every(n=>n.getBoundingClientRect().height>=44)),'Schedule window controls have 44px targets');if(process.env.FIRE_CONNECTED_UI_SCREENSHOT_DIR)await page.screenshot({path:join(process.env.FIRE_CONNECTED_UI_SCREENSHOT_DIR,`schedule-${size.width}-${theme}.png`)});
+  await page.goto(origin+'/schedule');await page.getByRole('button',{name:'All upcoming (5)',exact:true}).waitFor();
+  check(await page.locator('.schedule-job-weather-action').count()===5,'Every upcoming scheduled job has a direct weather review action');
+  check(await page.locator('.schedule-job-directions-action').count()===5,'Only current saved addresses receive Maps shortcuts');
+  const firstWeatherShortcut=page.getByRole('button',{name:'Check hourly weather for today-morning job'});
+  await firstWeatherShortcut.click();
+  check(await page.getByTestId('schedule-weather-target').getAttribute('data-requested-job')==='2026-10-20T15:00:00Z','Weather review selects exact clicked job appointment');
+  const individualDirections=page.getByRole('link',{name:'Directions to today-morning job'});
+  const individualDirectionsUrl=new URL(await individualDirections.getAttribute('href'));
+  check(individualDirectionsUrl.searchParams.get('destination')==='Address today-morning'&&individualDirectionsUrl.searchParams.get('travelmode')==='driving','Job Maps shortcut does not route another address');
+  check(await individualDirections.getAttribute('target')==='_blank'&&(await individualDirections.getAttribute('rel')).includes('noopener'),'Per-job directions link opens safely');
+  await page.getByRole('button',{name:'Today (2)',exact:true}).click();
+  check(await page.getByTestId('schedule-weather-target').getAttribute('data-requested-job')==='','Date filter clears pinned job forecast');
+  await page.getByLabel('Choose a work date',{exact:true}).fill('2026-10-19');
+  check(await page.locator('.schedule-job-weather-action,.schedule-job-directions-action').count()===0,'Historical jobs never show future weather or navigation shortcuts');
   await page.goto(origin+'/dashboard');await page.evaluate(t=>window.setTheme(t),theme);const dashboardUpcoming=page.locator('.metric-card').filter({hasText:'Upcoming jobs'});
   check(await dashboardUpcoming.locator('strong').innerText()==='2','Dashboard only counts scheduled jobs, not finished or declined');
   check(await page.getByTestId('schedule-weather-target').textContent()==='2026-10-20T15:00:00Z','Weather targets earliest future scheduled appointment regardless of record order');

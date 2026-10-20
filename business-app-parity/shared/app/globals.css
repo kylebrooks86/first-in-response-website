@@ -1105,3 +1105,17 @@ html,body{max-width:100%;overflow-x:clip}
 .dashboard-next-contact{border-color:#bed0e2;background:#f1f7fd}
 .dashboard-next-contact:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
 [data-theme="dark"] .dashboard-next-contact{background:#183249;border-color:#577995;color:#e9f5ff}
+
+/* Per-job Schedule actions are siblings of the row button, never nested interactive elements. */
+.schedule-weather-anchor{min-width:0;scroll-margin-top:78px}
+.schedule-job-shell{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;border-bottom:1px solid var(--border);min-width:0}
+.schedule-job-shell:last-child{border-bottom:0}
+.schedule-job-shell>.schedule-job{min-width:0;border-bottom:0}
+.schedule-job-utilities{display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:8px 12px 8px 0}
+.schedule-job-utilities button,.schedule-job-utilities a{display:inline-flex;gap:6px;align-items:center;justify-content:center;min-height:44px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);text-decoration:none;font-size:12px;font-weight:800;cursor:pointer}
+.schedule-job-utilities button:hover,.schedule-job-utilities a:hover{border-color:var(--primary)}
+.schedule-job-utilities button:focus-visible,.schedule-job-utilities a:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.schedule-job-utilities svg{height:16px;width:16px;flex:0 0 auto}
+[data-theme="dark"] .schedule-job-utilities button,[data-theme="dark"] .schedule-job-utilities a{background:var(--card);color:var(--foreground)}
+@media(max-width:920px){.schedule-job-shell{grid-template-columns:minmax(0,1fr)}.schedule-job-utilities{padding:0 16px 12px}.schedule-job-utilities button,.schedule-job-utilities a{flex:1 1 120px}}
+@media(max-width:360px){.schedule-job-utilities{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.schedule-job-utilities button,.schedule-job-utilities a{padding-inline:6px;font-size:11px}}
