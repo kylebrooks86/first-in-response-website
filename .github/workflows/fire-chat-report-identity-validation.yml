@@ -1,0 +1,32 @@
+name: FIRE temporary chat review app validation
+
+on:
+  push:
+    branches:
+      - chat/fire-report-test-validation-2026-10-19
+
+permissions:
+  contents: read
+
+jobs:
+  verify-report-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install dependencies without changing lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Verify TypeScript
+        run: pnpm exec tsc --noEmit
+      - name: Test selected job report identity and completion recovery
+        run: node scripts/test-estimate-detail-recovery.mjs
