@@ -28,7 +28,7 @@ createRoot(document.getElementById('app')).render(<Screen/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 assert.ok(css.css.includes('.weather-scroll-hint')&&css.css.includes('scroll-snap-type'));
-const days=Array.from({length:7},(_,i)=>({date:`2026-10-${String(i+20).padStart(2,'0')}`,temperatureMax:70+i,temperatureMin:i===6?null:45+i,rainChance:i===5?75:15,windMax:5+i}));
+const days=Array.from({length:7},(_,i)=>({date:`2026-10-${String(i+20).padStart(2,'0')}`,temperatureMax:i===5?98:i===6?86:70+i,temperatureMin:i===6?null:45+i,rainChance:i===5?75:15,windMax:5+i}));
 const sample={location:'Tulsa',updatedAt:'2026-10-20T17:00:00.000Z',current:{temperature:66,description:'Sunny'},daily:days};
 let requests=0,hourlyRequests=0;const outageCounts=new Map();
 const server=createServer((req,res)=>{
@@ -38,7 +38,7 @@ const server=createServer((req,res)=>{
  if(req.url?.startsWith('/api/weather/hourly?')){
   hourlyRequests++;const day=new URL(req.url,'https://synthetic.invalid').searchParams.get('date');
   if(day==='2026-10-23'){const count=(outageCounts.get(day)||0)+1;outageCounts.set(day,count);if(count%2===1){res.writeHead(503,{'content-type':'application/json'});res.end(JSON.stringify({error:'NWS temporarily offline'}));return;}}
-  const hours=Array.from({length:3},(_,i)=>({startTime:day+'T'+String(12+i).padStart(2,'0')+':00:00-05:00',temperature:i===0?30:60+i,description:i===1?'Rain Showers':'Partly Sunny',rainChance:i===1?65:null,windMph:i===0?null:i===2?22:12}));
+  const hours=Array.from({length:3},(_,i)=>({startTime:day+'T'+String(12+i).padStart(2,'0')+':00:00-05:00',temperature:i===0?30:i===2?97:60+i,description:i===1?'Rain Showers':'Partly Sunny',rainChance:i===1?65:null,windMph:i===0?null:i===2?22:12}));
   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
   res.end(JSON.stringify({date:day,location:'Tulsa',updatedAt:new Date(Date.parse('2026-10-20T17:00:00Z')+hourlyRequests*60_000).toISOString(),hours}));return;
  }
@@ -71,10 +71,15 @@ try{
     check((await scroll.locator('.job-day').getAttribute('data-forecast-date'))==='2026-10-25','Sixth day is next job, not artificially moved to front');
     check((await scroll.locator('.job-day').innerText()).toLowerCase().includes('next job'),'Job forecast is visibly labeled even when CSS uppercases day headings');
     check((await widget.locator('.weather-alert').innerText()).includes('Rain possible this week'),'Rain late in the week informs week-long alert');
+    check((await widget.locator('.weather-alert').innerText()).includes('Hot air possible this week'),'Weekly outlook shows heat when NWS air temperature reaches the heat planning threshold');
     const jobOutlook=widget.getByRole('region',{name:'Next job Tulsa weather outlook'});
     check(await jobOutlook.isVisible(),'The next job shows a separate Tulsa weather-planning summary');
     check((await jobOutlook.innerText()).includes('Rain 75%'),"Next job summary uses the actual appointment day, not today's rain probability");
     check((await jobOutlook.innerText()).includes('Rain chance ≥50%'),'Next-job rain threshold prompts review before exterior work');
+    check((await jobOutlook.innerText()).includes('High 98°F'),'Next-job forecast visibly uses the actual daily air-temperature high');
+    check((await jobOutlook.innerText()).includes('Very hot air ≥95°F'),'Next job prominently flags high-temperature conditions');
+    check((await jobOutlook.innerText()).includes('surface')&&(await jobOutlook.innerText()).includes('solution drying'),'Job outlook explains the need to manage cleaning solution dwell/drying');
+    check((await jobOutlook.innerText()).includes('not surface temperature or heat index'),'Job outlook never presents NWS air temperature as measured surface heat');
     check((await jobOutlook.innerText()).includes('actual property'),'Forecast is clearly labeled as Tulsa, not a property-specific guarantee');
     check((await widget.locator('.weather-days article').last().innerText()).includes('Low')===false,'Nighttime missing low does not invent values');
     const geometry=await scroll.evaluate(n=>({client:n.clientWidth,scroll:n.scrollWidth,scrollable:getComputedStyle(n).overflowX,focusable:n.tabIndex,viewport:innerWidth,bounds:n.getBoundingClientRect().toJSON()}));
@@ -100,6 +105,8 @@ try{
     check(await hourly.locator('.weather-hour-cautions').count()===3,'Freezing, rainy, and windy hours are visibly distinguished');
     check((await hourly.locator('.weather-hour-cautions').allTextContents()).join(' ').includes('Freezing ≤32°F'),'First-hour freezing conditions get a specific caution');
     check((await hourly.locator('.weather-hour-cautions').allTextContents()).join(' ').includes('Wind ≥20 mph'),'High-wind conditions are marked');
+    check((await hourly.locator('.weather-hour-cautions').allTextContents()).join(' ').includes('Very hot air ≥95°F'),'Hourly NWS hot-air temperatures show surface drying and worker heat caution');
+    check((await hourly.locator('.weather-hourly-note').innerText()).includes('Air temperature is not a heat-index or surface reading'),'Hourly work advice explains the limits of air-temperature data');
     check((await hourly.innerText()).includes('Check radar and conditions at the actual job site'),'Weather never certifies exterior work as safe');
     const previousCheck=await hourly.locator('.weather-hourly-checked').innerText();
     await hourly.getByRole('button',{name:'Refresh hourly forecast'}).click();
