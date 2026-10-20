@@ -1045,3 +1045,13 @@ html,body{max-width:100%;overflow-x:clip}
 [data-theme="dark"] .weather-strip .weather-hourly-checked,
 [data-theme="dark"] .weather-strip .weather-hourly-note{color:#c2d1e3}
 @media(max-width:430px){.weather-strip .weather-hourly-title{align-items:start}.weather-strip .weather-hourly-actions{width:100%}.weather-strip .weather-hourly-actions button{flex:1 1 110px}}
+
+/* Forecast for the next scheduled exterior job, explicitly Tulsa-area only. */
+.weather-strip .weather-next-job{grid-column:1/-1;grid-row:auto;display:grid;gap:4px;min-width:0;padding:12px 14px;border:1px solid #adc5dd;border-radius:10px;background:#f2f8ff;color:#213c59}
+.weather-strip .weather-next-job>strong{font-size:12px;font-weight:850}
+.weather-strip .weather-next-job>p{margin:0;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.weather-strip .weather-next-job>small{font-size:11px;line-height:1.5;color:#455e78}
+.weather-strip .weather-next-job .weather-next-job-cautions{font-weight:800;color:#87410f}
+[data-theme="dark"] .weather-strip .weather-next-job{background:#1a344d;border-color:#527fa5;color:#eef6ff}
+[data-theme="dark"] .weather-strip .weather-next-job>small{color:#c2d1e3}
+[data-theme="dark"] .weather-strip .weather-next-job .weather-next-job-cautions{color:#ffe3bc}
