@@ -9,7 +9,13 @@ export async function GET(request:Request){
     COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'') AS service
     FROM expenses x LEFT JOIN estimates e ON e.id=x.estimate_id LEFT JOIN customers c ON c.id=e.customer_id ORDER BY x.incurred_at DESC`).all<{id:string;estimateId:string|null;category:string;description:string;amountCents:number;incurredAt:string;createdAt:string;customer:string|null;service:string|null}>();
   if(new URL(request.url).searchParams.get("format")==="csv"){
-    const escape=(value:unknown)=>`"${String(value??"").replaceAll('"','""')}"`;
+    // Excel and other spreadsheet tools can evaluate formula-looking CSV cells even when quoted.
+    // Prefix text with an apostrophe when its first non-whitespace character is a formula operator.
+    const escape=(value:unknown)=>{
+      const original=String(value??"");
+      const safe=/^[\s\u0000-\u001f\uFEFF]*[=+\-@]/u.test(original)?"'"+original:original;
+      return `"${safe.replaceAll('"','""')}"`;
+    };
     const csv=["Date,Category,Description,Amount,Customer,Job",...(rows.results??[]).map((item)=>[item.incurredAt.slice(0,10),item.category,item.description,(item.amountCents/100).toFixed(2),item.customer,item.service].map(escape).join(","))].join("\n");
     return new Response(csv,{headers:{"content-type":"text/csv; charset=utf-8","content-disposition":"attachment; filename=fire-expenses-wave.csv"}});
   }
