@@ -32,6 +32,7 @@ import {weatherIconKind,formatDailyTemperatures,weatherDayHeading,hourlyWorkCaut
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
+  AlertTriangle,
   Bell,
   BarChart3,
   ArrowLeft,
