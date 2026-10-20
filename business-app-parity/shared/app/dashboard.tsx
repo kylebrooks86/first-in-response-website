@@ -1894,6 +1894,8 @@ function BusinessView(){
   const [tasks,setTasks]=useState<TaskRow[]>([]);const [expenses,setExpenses]=useState<ExpenseRow[]>([]);const [customers,setCustomers]=useState<CustomerRow[]>([]);const [estimates,setEstimates]=useState<CustomerEstimate[]>([]);const [title,setTitle]=useState("");const [dueAt,setDueAt]=useState("");const [taskNotes,setTaskNotes]=useState("");const [taskCustomer,setTaskCustomer]=useState("none");const [description,setDescription]=useState("");const [amount,setAmount]=useState("");const [category,setCategory]=useState("Supplies");const [expenseEstimate,setExpenseEstimate]=useState("none");
   const [taskSaving,setTaskSaving]=useState(false);const [expenseSaving,setExpenseSaving]=useState(false);const [taskToggling,setTaskToggling]=useState<string|null>(null);const [businessMessage,setBusinessMessage]=useState("");
   const taskCreateLock=useRef(false),expenseCreateLock=useRef(false);
+  const taskCreateAttempt=useRef<{requestId:string;fingerprint:string}|null>(null);
+  const expenseCreateAttempt=useRef<{requestId:string;fingerprint:string;incurredAt:string}|null>(null);
   const [pendingBackup,setPendingBackup]=useState<Record<string,unknown>|null>(null);const [restoreMessage,setRestoreMessage]=useState("");const [restoreBusy,setRestoreBusy]=useState(false);const restoreInput=useRef<HTMLInputElement>(null);
   const [loading,setLoading]=useState(true);const [loadError,setLoadError]=useState("");const loadRequest=useRef(0);
   const load=async()=>{
@@ -1920,17 +1922,24 @@ function BusinessView(){
     if(!submittedTitle){setBusinessMessage("Enter a task or reminder first.");return;}
     const parsedDueAt=dueAt?new Date(dueAt):null;
     if(parsedDueAt&&!Number.isFinite(parsedDueAt.getTime())){setBusinessMessage("Choose a valid task due date.");return;}
+    const fields={title:submittedTitle,dueAt:parsedDueAt?.toISOString()??null,notes:taskNotes,customerId};
+    const fingerprint=JSON.stringify(fields);
+    const previous=taskCreateAttempt.current;
+    if(previous&&previous.fingerprint!==fingerprint){setBusinessMessage("A previous task save may have succeeded. Restore its original details and retry, or refresh the saved tasks before starting a different task.");return;}
+    const attempt=previous??{requestId:crypto.randomUUID(),fingerprint};
+    taskCreateAttempt.current=attempt;
     taskCreateLock.current=true;setTaskSaving(true);setBusinessMessage("");
     try{
-      const response=await fetch("/api/tasks",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({title:submittedTitle,dueAt:parsedDueAt?.toISOString()??null,notes:taskNotes,customerId})});
-      const result=await response.json() as {task?:TaskRow;error?:string};
+      const response=await fetch("/api/tasks",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...fields,requestId:attempt.requestId})});
+      const result=await response.json() as {task?:TaskRow;requestId?:string;confirmed?:boolean;error?:string};
       if(!response.ok)throw new Error(result?.error||"Task save was rejected.");
       const task=result?.task;
-      if(!task||typeof task.id!=="string"||!task.id||task.title!==submittedTitle||task.customerId!==customerId||task.status!=="open")throw new Error("The saved task response could not be verified.");
+      if(result?.confirmed!==true||result.requestId!==attempt.requestId||!task||task.id!==attempt.requestId||task.title!==submittedTitle||task.customerId!==customerId||task.status!=="open")throw new Error("The saved task response could not be verified.");
+      taskCreateAttempt.current=null;
       setTitle("");setDueAt("");setTaskNotes("");setTaskCustomer("none");setBusinessMessage("Task added.");
       await load();
     }catch(error){
-      setBusinessMessage(`Task save not confirmed: ${error instanceof Error?error.message:"Connection unavailable."} Your draft is kept. Refresh saved tasks before retrying to avoid a duplicate.`);
+      setBusinessMessage(`Task save not confirmed: ${error instanceof Error?error.message:"Connection unavailable."} Your draft is kept. Retry unchanged details to reuse the same request ID, or check saved tasks first.`);
     }finally{taskCreateLock.current=false;setTaskSaving(false);}
   };
   const toggleTask=async(task:TaskRow)=>{if(taskToggling)return;setTaskToggling(task.id);setBusinessMessage("");const nextStatus=task.status==="open"?"completed":"open";setTasks((current)=>current.map((item)=>item.id===task.id?{...item,status:nextStatus}:item));try{const response=await fetch("/api/tasks",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:task.id,status:nextStatus})});const result=await response.json() as {error?:string};if(!response.ok)throw new Error(result.error||"The task could not be updated.");}catch(error){setTasks((current)=>current.map((item)=>item.id===task.id?{...item,status:task.status}:item));setBusinessMessage(error instanceof Error?error.message:"The task could not be updated.");}finally{setTaskToggling(null);}};
@@ -1939,17 +1948,24 @@ function BusinessView(){
     const submittedDescription=description.trim(),amountCents=Math.round(Number(amount)*100),estimateId=expenseEstimate==="none"?null:expenseEstimate;
     if(!submittedDescription){setBusinessMessage("Enter what the expense was for.");return;}
     if(!amount.trim()||!Number.isSafeInteger(amountCents)||amountCents<=0){setBusinessMessage("Enter a valid expense amount.");return;}
+    const fields={category,description:submittedDescription,amountCents,estimateId};
+    const fingerprint=JSON.stringify(fields);
+    const previous=expenseCreateAttempt.current;
+    if(previous&&previous.fingerprint!==fingerprint){setBusinessMessage("A previous expense save may have succeeded. Restore its original details and retry, or refresh saved expenses before entering a different expense.");return;}
+    const attempt=previous??{requestId:crypto.randomUUID(),fingerprint,incurredAt:new Date().toISOString()};
+    expenseCreateAttempt.current=attempt;
     expenseCreateLock.current=true;setExpenseSaving(true);setBusinessMessage("");
     try{
-      const response=await fetch("/api/expenses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({category,description:submittedDescription,amountCents,incurredAt:new Date().toISOString(),estimateId})});
-      const result=await response.json() as {expense?:ExpenseRow;error?:string};
+      const response=await fetch("/api/expenses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...fields,incurredAt:attempt.incurredAt,requestId:attempt.requestId})});
+      const result=await response.json() as {expense?:ExpenseRow;requestId?:string;confirmed?:boolean;error?:string};
       if(!response.ok)throw new Error(result?.error||"Expense save was rejected.");
       const saved=result?.expense;
-      if(!saved||typeof saved.id!=="string"||!saved.id||saved.description!==submittedDescription||saved.category!==category||saved.estimateId!==estimateId||saved.amountCents!==amountCents)throw new Error("The saved expense response could not be verified.");
+      if(result?.confirmed!==true||result.requestId!==attempt.requestId||!saved||saved.id!==attempt.requestId||saved.description!==submittedDescription||saved.category!==category||saved.estimateId!==estimateId||saved.amountCents!==amountCents||saved.incurredAt!==attempt.incurredAt)throw new Error("The saved expense response could not be verified.");
+      expenseCreateAttempt.current=null;
       setDescription("");setAmount("");setExpenseEstimate("none");setBusinessMessage("Expense recorded.");
       await load();
     }catch(error){
-      setBusinessMessage(`Expense save not confirmed: ${error instanceof Error?error.message:"Connection unavailable."} Your draft is kept. Refresh expenses before retrying to avoid a duplicate.`);
+      setBusinessMessage(`Expense save not confirmed: ${error instanceof Error?error.message:"Connection unavailable."} Your draft is kept. Retry unchanged details to reuse the same request ID, or check saved expenses first.`);
     }finally{expenseCreateLock.current=false;setExpenseSaving(false);}
   };
   const chooseBackup=async(file:File)=>{setRestoreMessage("");try{if(file.size>5_000_000)throw new Error("That backup is larger than 5 MB.");const parsed=JSON.parse(await file.text()) as Record<string,unknown>;const normal=parsed?.format==="fire-app-records-backup"&&parsed?.version===1;const snapshot=parsed?.backup_format==="FIRE App live database snapshot"&&parsed?.format_version===1&&typeof parsed?.verification==="object"&&parsed?.verification!==null&&(parsed.verification as Record<string,unknown>).all_tables_complete===true&&(parsed.verification as Record<string,unknown>).truncated===false;if(!normal&&!snapshot)throw new Error("This is not a valid or complete FIRE App records backup.");setPendingBackup(parsed);}catch(error){setRestoreMessage(error instanceof Error?error.message:"The backup could not be opened.");}finally{if(restoreInput.current)restoreInput.current.value="";}};
