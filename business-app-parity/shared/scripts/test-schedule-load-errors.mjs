@@ -109,6 +109,8 @@ for(const [start,next] of [['2026-03-07','2026-03-08'],['2026-03-08','2026-03-09
  dayButton('Next work date').props.onClick();equal(state[6],next);
 }
 
+// Restore the baseline test clock before running pre-existing refresh assertions.
+scheduleNow=Date.parse('2026-10-09T12:00:00Z');
 // Owner-initiated refresh performs one read without a browser cache and never submits writes.
 state=[[],null,true,''];responder=()=>ok([job]);requests=[];fetchOptions=[];
 render();effect();await settle();
