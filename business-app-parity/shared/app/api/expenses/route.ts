@@ -19,7 +19,7 @@ export async function GET(request:Request){
     const csv=["Date,Category,Description,Amount,Customer,Job",...(rows.results??[]).map((item)=>[item.incurredAt.slice(0,10),item.category,item.description,(item.amountCents/100).toFixed(2),item.customer,item.service].map(escape).join(","))].join("\n");
     return new Response(csv,{headers:{"content-type":"text/csv; charset=utf-8","content-disposition":"attachment; filename=fire-expenses-wave.csv"}});
   }
-  return Response.json({expenses:rows.results});
+  return Response.json({expenses:rows.results},{headers:{"cache-control":"private, no-store"}});
 }
 
 const v4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
