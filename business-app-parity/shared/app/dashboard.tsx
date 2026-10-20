@@ -1238,7 +1238,7 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
     if (!estimate?.scheduledAt) setSchedule("");
     else { const date = new Date(estimate.scheduledAt); setSchedule(new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16)); }
     if(!estimate?.id)return ()=>{active=false;};
-    void (async()=>{try{const response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`);const result=await response.json() as {reports?:JobReportRow[]};if(active)setReportComplete(response.ok&&Array.isArray(result?.reports)&&result.reports[0]?.status==="completed");}catch{if(active)setReportComplete(false);}})();
+    void (async()=>{try{const response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`,{cache:"no-store"});const result=await response.json() as {reports?:JobReportRow[]};const report=Array.isArray(result?.reports)?result.reports[0]:undefined;if(active)setReportComplete(Boolean(response.ok&&report&&report.estimateId===estimate.id&&report.customerId===estimate.customerId&&report.status==="completed"));}catch{if(active)setReportComplete(false);}})();
     return ()=>{active=false;};
   }, [estimate]);
   if (!estimate) return null;
