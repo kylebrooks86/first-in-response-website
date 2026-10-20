@@ -40,4 +40,22 @@ export async function POST(request:Request){
  return Response.json({task:{...saved,customer:null},requestId:id,confirmed:true},{status:inserted.meta.changes===1?201:200});
 }
 
-export async function PATCH(request:Request){if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});const body=await request.json() as {id?:string;status?:string};const id=String(body.id??"");const status=body.status==="completed"?"completed":"open";const completedAt=status==="completed"?new Date().toISOString():null;const updated=await env.DB.prepare("UPDATE tasks SET status=?,completed_at=? WHERE id=?").bind(status,completedAt,id).run();if(!updated.meta.changes)return Response.json({error:"Task not found."},{status:404});return Response.json({ok:true,status,completedAt});}
+export async function PATCH(request:Request){
+ if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+ let body:{id?:unknown;status?:unknown;expectedStatus?:unknown};
+ try{body=await request.json() as typeof body;}catch{return Response.json({error:"Task update requires valid JSON."},{status:400});}
+ const id=typeof body.id==="string"?body.id.trim():"";
+ if(!id||!(body.status==="completed"||body.status==="open")||(body.expectedStatus!==undefined&&body.expectedStatus!=="open"&&body.expectedStatus!=="completed"))
+  return Response.json({error:"Choose a valid task and status."},{status:400});
+ const status=body.status;
+ const completedAt=status==="completed"?new Date().toISOString():null;
+ const statement=body.expectedStatus===undefined
+  ?env.DB.prepare("UPDATE tasks SET status=?,completed_at=? WHERE id=?").bind(status,completedAt,id)
+  :env.DB.prepare("UPDATE tasks SET status=?,completed_at=? WHERE id=? AND status=?").bind(status,completedAt,id,body.expectedStatus);
+ const result=await statement.run();
+ if(result.meta.changes===1)return Response.json({ok:true,status,completedAt});
+ const saved=await env.DB.prepare("SELECT status,completed_at AS completedAt FROM tasks WHERE id=?").bind(id).first<{status:string;completedAt:string|null}>();
+ if(!saved)return Response.json({error:"Task not found. Refresh the task list."},{status:404});
+ if(saved.status===status)return Response.json({ok:true,status:saved.status,completedAt:saved.completedAt});
+ return Response.json({error:"The task changed elsewhere. Refresh the task list before updating it again.",currentStatus:saved.status},{status:409});
+}
