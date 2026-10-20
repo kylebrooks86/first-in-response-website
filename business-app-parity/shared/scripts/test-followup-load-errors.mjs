@@ -9,7 +9,7 @@ const helperNames=['resolvedBillingTotalCents','billingBalanceCents'];
 const helpers=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>helperNames.includes(d.name.getText(ast)))||ts.isFunctionDeclaration(n)&&['repeatCadenceMonths','addMonths'].includes(n.name?.text));
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='FollowUpsView');
 let state=[],cursor=0,effect,requests=[],responder;
-const stubs=Object.fromEntries(['Button','MessageComposer','Clock3','Star','CalendarDays','CheckCircle2'].map(name=>[name,()=>null]));
+const stubs=Object.fromEntries(['Button','MessageComposer','Clock3','Star','CalendarDays','CheckCircle2','EstimateDetail'].map(name=>[name,()=>null]));
 const context={exports:{},require,Error,Array,...stubs,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},
  useRef:initial=>({current:initial}),useEffect(fn){effect=fn;},useCurrentTime:()=>Date.parse('2026-10-09T12:00:00Z'),fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),
