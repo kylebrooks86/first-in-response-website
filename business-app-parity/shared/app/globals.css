@@ -902,3 +902,8 @@ html,body{max-width:100%;overflow-x:clip}
 .expense-list>div{gap:12px}.expense-list>div>span{min-width:0;overflow-wrap:anywhere}.expense-list>div>b{flex-shrink:0;white-space:nowrap}
 [data-theme="dark"] .business-record-tools{border-color:#2a3d54}
 [data-theme="dark"] .business-record-tools p{color:#b7c6d9}
+/* Completed work stays readable; strike-through carries its status instead of faded text. */
+.task-list>button.completed{opacity:1}
+.task-list>button.completed strong{color:#52647a}
+.task-list small,.expense-list small{font-size:12px;line-height:1.45;color:#52647a}
+[data-theme="dark"] .task-list>button.completed strong,[data-theme="dark"] .task-list small,[data-theme="dark"] .expense-list small{color:#b7c6d9}
