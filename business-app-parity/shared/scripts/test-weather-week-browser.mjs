@@ -81,7 +81,7 @@ try{
     check(visible,'Last forecast day is reachable by horizontal scroll');
     const radar=widget.getByRole('link',{name:'Open live National Weather Service radar'});
     check(await radar.getAttribute('href')==='https://radar.weather.gov/','Radar points to official interactive NWS radar');
-    check(await radar.getAttribute('target')==='_blank'&&(await radar.getAttribute('rel')).includes('noopener'),'Radar safely opens separately from the owner's app');
+    check(await radar.getAttribute('target')==='_blank'&&(await radar.getAttribute('rel')).includes('noopener'),"Radar safely opens separately from the owner\'s app");
     const buttons=scroll.getByRole('button',{name:/Show hourly forecast for/});
     check(await buttons.count()===7,'Each forecast day has an accessible tap-to-expand hourly action');
     const beforeHourly=hourlyRequests;
