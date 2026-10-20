@@ -4,9 +4,9 @@ const require=createRequire(import.meta.url),root=process.cwd(),esbuild=require(
 const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),tailwind=require('@tailwindcss/postcss');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const source=readFileSync('app/dashboard.tsx','utf8'),ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
-const functions=['CustomersView','EditCustomer'].map(name=>ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name));const tags=new Set();
+const functions=['CustomersView','EditCustomer','EstimatesView'].map(name=>ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name));const tags=new Set();
 function visit(n){if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}functions.forEach(visit);
-const actual=['EditCustomer','Button','Label','Input','Dialog','DialogTrigger','DialogContent','DialogHeader','DialogTitle','Select','SelectTrigger','SelectValue','SelectContent','SelectItem'];
+const actual=['EstimatesView','EditCustomer','Button','Label','Input','Dialog','DialogTrigger','DialogContent','DialogHeader','DialogTitle','Select','SelectTrigger','SelectValue','SelectContent','SelectItem'];
 const stubs=[...tags].filter(t=>!actual.includes(t)).map(t=>`const ${t}=()=>null;`).join('\n');
 const fixture=`import React,{useState,useRef,useEffect}from'react';import{createRoot}from'react-dom/client';
 import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';
@@ -18,18 +18,20 @@ const saveOfflinePhotoCustomerDirectory=async()=>{},loadOfflinePhotoCustomerDire
 const money=c=>'$'+(c/100).toFixed(2),dateTime=v=>v,statusLabel=v=>v,resolvedBillingTotalCents=e=>e.invoiceTotalCents??e.totalCents,billingBalanceCents=e=>Math.max(0,resolvedBillingTotalCents(e)-e.paidCents);
 ${stubs}\n${functions.map(f=>f.getText(ast)).join('\n')}
 window.setTheme=value=>document.documentElement.dataset.theme=value;
-createRoot(document.getElementById('app')).render(<CustomersView searchQuery="" onEstimateSaved={()=>{}}/>);`;
+createRoot(document.getElementById('app')).render(location.pathname==='/history'?<EstimatesView searchQuery="" onSaved={()=>{}}/>:<CustomersView searchQuery="" onEstimateSaved={()=>{}}/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 if(process.argv.includes('--compile-only')){assert.ok(bundle.outputFiles[0].text.length>1000&&css.css.includes('.customer-profile'));console.log('PASS: actual customer write browser fixture and shared CSS compile; browser assertions not executed.');process.exit(0);}
 const customer=id=>({id,name:'Fixture '+(id==='first'?'First':'Second'),email:id+'@example.invalid',phone:'',address:'Synthetic only',leadSource:'Unknown',createdAt:'2026-10-19',estimateCount:0,estimateTotal:0,paidTotal:0});
+let historyFailure=false,historyReads=[];
 let customers,notes,noteStatus=201,noteHold=false,customerHold=false,releaseNote,releaseCustomer,onNote,onCustomer,notePosts=0,customerPatches=0;
 function reset(){customers=[customer('first'),customer('second')];notes=[];noteStatus=201;noteHold=false;customerHold=false;releaseNote=null;releaseCustomer=null;}
 reset();const server=createServer((req,res)=>{res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);return;}
  if(req.url==='/style.css'){res.setHeader('content-type','text/css');res.end(css.css);return;}
- if(req.url==='/'){res.setHeader('content-type','text/html');res.end('<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script></html>');return;}
+ if(req.url==='/'||req.url==='/history'){res.setHeader('content-type','text/html');res.end('<!doctype html><html data-theme="dark"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script></html>');return;}
  const send=(status,data)=>{res.writeHead(status,{'content-type':'application/json'});res.end(JSON.stringify(data));};
+ if(req.url.startsWith('/api/estimate-history?')){historyReads.push(req.url);if(historyFailure){send(503,{error:'Synthetic history refresh failed'});return;}const query=new URL(req.url, 'http://local.invalid').searchParams.get('q');send(200,{estimates:[{id:query?'new-history':'old-history',customer:query?'Latest query customer':'Prior query customer',service:'Synthetic wash',status:'approved',totalCents:10000,depositCents:5000,paidCents:0,createdAt:'2026-10-20'}],nextCursor:null});return;}
  if(req.url==='/api/customers'&&req.method==='GET'){send(200,{customers,estimates:[],notes,invoices:[],photos:[],messages:[],payments:[]});return;}
  if((req.url==='/api/customers'&&req.method==='PATCH')||(req.url==='/api/customer-notes'&&req.method==='POST')){
   let body='';req.on('data',c=>body+=c);req.on('end',()=>{const data=JSON.parse(body);
@@ -63,6 +65,15 @@ try{
   releaseCustomer();customerHold=false;await dialog.waitFor({state:'detached'});await page.getByRole('heading',{name:'Fixture First Updated',exact:true}).waitFor();check(true,'Confirmed edit updates correct profile');
   const bounds=await page.locator('.customer-profile').evaluate(n=>({width:n.scrollWidth,viewport:innerWidth}));check(bounds.width<=bounds.viewport,'Customer profile stays within narrow viewport');
  }
+ for(const width of [320,390])for(const theme of ['light','dark']){
+  historyFailure=false;await page.setViewportSize({width,height:700});await page.goto(origin+'/history');await page.evaluate(value=>window.setTheme(value),theme);await page.locator('.pipeline-card').filter({hasText:'Prior query customer'}).waitFor();
+  for(const mode of ['Pipeline','List']){
+   await page.getByRole('button',{name:mode,exact:true}).click();historyFailure=true;await page.getByLabel('Search estimate history',{exact:true}).fill('Latest '+mode);
+   await page.getByRole('alert').filter({hasText:'Synthetic history refresh failed'}).waitFor();
+   check(await page.locator('.pipeline-card,.estimate-card').count()===0,'Fresh failed search hides prior query cards in '+mode);check(await page.getByRole('status').count()===0,'Fresh failed search hides old totals/counts');
+   historyFailure=false;await page.getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('status').filter({hasText:'1 estimate records loaded'}).waitFor();check(await page.getByText('Latest query customer',{exact:true}).isVisible(),'Fresh search retry restores correct result');check(historyReads.at(-1).includes('q=Latest%20'+mode),'Retry preserves the entered query');
+  }
+ }
  check(errors.length===0,'No runtime errors: '+errors.join(';'));check(outside.length===0,'No external requests');
- console.log(JSON.stringify({passed:checks,actualCustomerNotes:true,actualEditCustomer:true,actualRadix:true,compiledTailwind:true,syntheticLocalhostOnly:true,hostedDataTouched:false,iPhoneTested:false}));
+ console.log(JSON.stringify({passed:checks,actualCustomerNotes:true,actualEditCustomer:true,actualEstimateHistory:true,actualRadix:true,compiledTailwind:true,syntheticLocalhostOnly:true,hostedDataTouched:false,iPhoneTested:false}));
 }finally{await browser?.close();await new Promise(r=>server.close(r));}
