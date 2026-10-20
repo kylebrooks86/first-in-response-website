@@ -344,6 +344,22 @@ jobs:
           node scripts/test-insights-recovery.mjs
           node scripts/test-detail-selection-recovery.mjs
           node scripts/test-schedule-timezones.mjs
+      - name: Guard consolidated Business saves, restart recovery and CSV exports
+        run: |
+          node scripts/test-business-create-receipt.mjs
+          node --experimental-sqlite scripts/test-business-idempotent-routes.mjs
+          node scripts/test-business-write-recovery.mjs
+          node scripts/test-business-restart-recovery.mjs
+          node --experimental-sqlite scripts/test-expense-csv-safety.mjs
+      - name: Confirm task status safely with SQLite and real BusinessView handlers
+        run: |
+          node --experimental-sqlite scripts/test-task-status-confirmation.mjs
+          node scripts/test-task-status-ui-recovery.mjs
+      - name: Verify follow-up retry, authenticated list recovery and notification receipts
+        run: |
+          node scripts/test-followup-action-retry.mjs
+          node scripts/test-followup-load-errors.mjs
+          node scripts/test-notification-read-recovery.mjs
       - name: Verify on-device customer photo ZIP integrity and owner UI integration
         run: node scripts/test-offline-photo-vault.mjs
       - name: Shared photo storage integrity regression
