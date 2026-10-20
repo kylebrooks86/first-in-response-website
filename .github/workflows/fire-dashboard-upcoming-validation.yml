@@ -1,0 +1,49 @@
+name: FIRE Dashboard upcoming appointment accuracy (non-deploying)
+
+on:
+  push:
+    branches:
+      - ci/fire-dashboard-upcoming-accuracy-2026-10-20
+
+permissions:
+  contents: read
+
+jobs:
+  dashboard-upcoming:
+    name: Accurate owner Dashboard counts and next weather target in mobile Chrome
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned dependencies
+        run: |
+          corepack enable && corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: TypeScript and schedule recovery
+        run: |
+          pnpm exec tsc --noEmit
+          TZ=America/Chicago node scripts/test-schedule-load-errors.mjs
+      - name: Isolated Chrome driver and preinstalled browser
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Dashboard KPI and next weather in real mobile Chrome
+        run: node scripts/test-connected-records-browser.mjs
+      - name: Non-publishing full shared build
+        run: pnpm run build
