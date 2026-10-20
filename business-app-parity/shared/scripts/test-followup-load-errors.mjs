@@ -51,7 +51,7 @@ function fixture(){
   mount(){render();cleanup=effect();},
   refresh(){render();effect();},
   unmount(){cleanup?.();},
-  clickText(label){const button=lookup(n=>n.type==='button'&&n.props?.children===label);assert.ok(button,'Missing button '+label);button.props.onClick();},
+  clickText(label){const button=lookup(n=>typeof n.props?.onClick==='function'&&n.props?.children===label);assert.ok(button,'Missing button '+label);button.props.onClick();},
   messageCards:()=>nodes(render()).filter(n=>n.type===stubs.MessageComposer),
  };
 }
