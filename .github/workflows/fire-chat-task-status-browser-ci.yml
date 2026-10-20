@@ -1,0 +1,91 @@
+name: FIRE chat mobile browser and offline QA Worker verification
+on:
+  push:
+    branches: [chat/fire-task-status-browser-ci-2026-10-20]
+permissions:
+  contents: read
+jobs:
+  actual-mobile-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable locked pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install locked app dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install pinned browser driver without browser download
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-chat-browser"
+          npm --prefix "$RUNNER_TEMP/fire-chat-browser" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-chat-browser/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Use runner preinstalled Chrome
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || { echo "Runner Chrome missing, refusing unreviewed install"; exit 1; }
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Real React estimate editor, mobile saving and viewport geometry
+        run: |
+          node scripts/test-estimate-editor-geometry-browser.mjs
+          node scripts/test-estimate-editor-react-browser.mjs
+      - name: Customer writes, search and Insights on light and dark narrow screens
+        run: node scripts/test-customer-write-browser.mjs
+      - name: Job report and costs recover from interrupted mobile session
+        run: node scripts/test-job-session-offline-browser.mjs
+      - name: Message template editor and sidebar mobile visibility
+        run: node scripts/test-template-layout-browser.mjs
+
+  qa-worker-http-local:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable locked pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Materialize disposable QA worker
+        run: python3 business-app-parity/materialize.py qa "$RUNNER_TEMP/fire-qa-ui-local"
+      - name: Install locked QA dependencies
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-ui-local"
+          pnpm install --frozen-lockfile
+      - name: Build QA Worker for isolated local runtime
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-ui-local"
+          pnpm run build
+      - name: Install pinned browser driver into temporary directory
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-qa-ui-browser"
+          npm --prefix "$RUNNER_TEMP/fire-qa-ui-browser" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-qa-ui-browser/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || { echo "Preinstalled Chrome unavailable"; exit 1; }
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Complete synthetic QA Worker browser session over localhost
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-ui-local"
+          node scripts/test-qa-worker-http-browser.mjs
+          node scripts/test-qa-worker-http-browser.mjs --customer-profile
+          node scripts/test-qa-worker-http-browser.mjs --business-brand
+          node scripts/test-qa-worker-http-browser.mjs --complete-ledger
+          node scripts/test-qa-worker-http-browser.mjs --deposit-policy
