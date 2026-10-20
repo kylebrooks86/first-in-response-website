@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';import {readFileSync,mkdirSync} from 'no
 const require=createRequire(import.meta.url),root=process.cwd(),esbuild=require('../node_modules/.pnpm/esbuild@0.28.0/node_modules/esbuild'),postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),tailwind=require('@tailwindcss/postcss');const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX),views=['CustomersView','ScheduleView','DashboardView'].map(name=>ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name)),tags=new Set();
 function visit(n){if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const t=n.tagName.getText(ast);if(/^[A-Z]/.test(t))tags.add(t);}ts.forEachChild(n,visit);}views.forEach(visit);
-const fixture=`import React,{useState,useEffect,useRef}from'react';import{createRoot}from'react-dom/client';import{Button}from'./components/ui/button';import{Input}from'./components/ui/input';import{Label}from'./components/ui/label';import{summarizeCustomerBalances}from'./lib/customer-balance-summary';import{messageHistoryEntries}from'./lib/message-history';import{completeEstimatePages}from'./lib/estimate-pagination';import{deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote}from'./lib/customer-activity-flags';import{mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory}from'./lib/offline-photo-availability';
+const fixture=`import React,{useState,useEffect,useRef}from'react';import{createRoot}from'react-dom/client';import{Button}from'./components/ui/button';import{Input}from'./components/ui/input';import{Label}from'./components/ui/label';import{summarizeCustomerBalances}from'./lib/customer-balance-summary';import{messageHistoryEntries}from'./lib/message-history';import{completeEstimatePages}from'./lib/estimate-pagination';import{deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility}from'./lib/customer-activity-flags';import{mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory}from'./lib/offline-photo-availability';
 const money=c=>'$'+(c/100).toFixed(2),dateTime=v=>v,statusLabel=v=>v,paymentTypeLabel=v=>v,messageLabels={},resolvedBillingTotalCents=e=>e.invoiceTotalCents??e.totalCents,billingBalanceCents=e=>Math.max(0,resolvedBillingTotalCents(e)-e.paidCents),useCurrentTime=()=>Date.parse('2026-10-20T14:00:00Z');
 const saveOfflinePhotoCustomerDirectory=async()=>{},loadOfflinePhotoCustomerDirectory=async()=>[],clearOfflinePhotoCustomerDirectory=async()=>{};
 ${[...tags].filter(t=>!['Button','Input','Label','ScheduleWeather'].includes(t)).map(t=>`const ${t}=()=>null;`).join('\n')}
@@ -16,7 +16,7 @@ return location.pathname==='/schedule'?<ScheduleView searchQuery={query}/>:['/da
 {id:'completed-dashboard-job',customer:'Finished customer',service:'Completed work',status:'completed',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T14:30:00Z',totalCents:9000,paidCents:0},
 {id:'past-dashboard-job',customer:'Old customer',service:'Past appointment',status:'scheduled',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-19T18:00:00Z',totalCents:9500,paidCents:0},
 {id:'exact-dashboard-job',customer:'Exact customer',service:'Exact job',status:'scheduled',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T15:00:00Z',address:location.pathname==='/dashboard-no-address'?'':'101 Exterior Ave, Tulsa, OK',phone:location.pathname==='/dashboard-bad-contact'?'not-a-phone':'(918) 555-0146',email:location.pathname==='/dashboard-bad-contact'?'customer@@example.invalid':'customer@example.invalid',totalCents:10000,paidCents:0}
-]} onSaved={()=>{}} onNavigate={tab=>window.openedTab=tab} onOpenEstimate={id=>window.openedEstimate=id} onOpenCustomer={id=>window.openedCustomer=id}/>:<CustomersView searchQuery="" onEstimateSaved={()=>{}} onPreparePickupTask={draft=>window.preparedPickupTask=draft} focusCustomerId={focus?.customerId} focusSection={focus?.kind==='payment'?'payments':'notes'} focusRecord={focus} recordRequestKey={key} onRecordFocusHandled={()=>setFocus(null)}/>;}
+]} onSaved={()=>{}} onNavigate={tab=>window.openedTab=tab} onOpenEstimate={id=>window.openedEstimate=id} onOpenCustomer={id=>window.openedCustomer=id}/>:<CustomersView searchQuery="" onEstimateSaved={()=>{}} onPreparePickupTask={draft=>window.preparedPickupTask=draft} onPrepareReviewTask={draft=>window.preparedReviewTask=draft} focusCustomerId={focus?.customerId} focusSection={focus?.kind==='payment'?'payments':'notes'} focusRecord={focus} recordRequestKey={key} onRecordFocusHandled={()=>setFocus(null)}/>;}
 window.setTheme=t=>document.documentElement.dataset.theme=t;createRoot(document.getElementById('app')).render(<Screen/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 if(process.argv.includes('--compile-only')){assert.ok(bundle.outputFiles[0].text.length>1000&&css.css.includes('.customer-history-tools'));console.log('PASS: connected records browser fixture compiles; no rendered assertions run.');process.exit(0);}
@@ -46,6 +46,29 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(preparedPickup?.customerId==='first'&&preparedPickup.pickupDate==='2026-10-27'&&preparedPickup.location==='Front lawn by driveway'&&preparedPickup.placedAt==='2026-10-20T12:00:00Z','Saved placement hands off the exact customer, date and location for pickup task');
   check(writes===0,'Pickup task preparation never writes a task or sends a message');
   payload.notes.pop();await page.reload();
+  await page.locator('.customer-card').filter({hasText:'Fixture first'}).click();
+  // A completed job and a recorded review request older than seven days
+  // offer an internal status check, never a second customer message.
+  payload.estimates[0].status='completed';
+  payload.estimates[0].lastReviewRequestAt='2026-09-30T12:00:00Z';
+  await page.reload();
+  await page.locator('.customer-card').filter({hasText:'Fixture first'}).click();
+  const dueReview=page.getByRole('region',{name:'Review follow-up check due'});
+  await dueReview.waitFor();
+  check((await dueReview.innerText()).includes('Check whether a review has appeared'),'Overdue review requests prompt verification before customer contact');
+  await dueReview.getByRole('button',{name:'Prepare review status check task'}).click();
+  const reviewDraft=await page.evaluate(()=>window.preparedReviewTask);
+  check(reviewDraft?.customerId==='first'&&reviewDraft.requestedAt==='2026-09-30T12:00:00Z','Internal review check uses exact confirmed request event and customer');
+  check(writes===0,'Preparing a review check task never sends another request or saves a task');
+  payload.notes.push({id:'owner-review-log',customerId:'first',body:'[FIRE FLAG] REVIEW_RECEIVED',createdAt:'2026-10-19T15:00:00Z'});
+  await page.reload();
+  await page.locator('.customer-card').filter({hasText:'Fixture first'}).click();
+  check(await page.getByRole('region',{name:'Review follow-up check due'}).count()===0,'A saved review received log suppresses status check prompts');
+  check(await page.getByRole('region',{name:'Review checks to consider'}).count()===0,'Saved review also suppresses list-wide review nudges');
+  payload.notes.pop();
+  delete payload.estimates[0].lastReviewRequestAt;
+  payload.estimates[0].status='approved';
+  await page.reload();
   await page.locator('.customer-card').filter({hasText:'Fixture first'}).click();
   const balances=await page.locator('.customer-snapshot').innerText(),startReads=reads;
   const flags=page.getByRole('region',{name:'Customer activity and yard sign flags'});

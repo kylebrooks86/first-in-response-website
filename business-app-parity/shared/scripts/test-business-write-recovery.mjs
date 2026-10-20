@@ -38,7 +38,7 @@ function fixture(name,changes={}){
   const storage={getItem:key=>localData.has(key)?localData.get(key):null,setItem:(key,value)=>localData.set(key,value),removeItem:key=>localData.delete(key)};
   const ctx={
     exports:{},require,
-    title:'Synthetic task',dueAt:'',taskNotes:'Synthetic note',taskCustomer:'none',duplicatePickupDraft:false,
+    title:'Synthetic task',dueAt:'',taskNotes:'Synthetic note',taskCustomer:'none',duplicatePickupDraft:false,duplicateReviewDraft:false,
     category:'Chemicals',description:'Synthetic soap',amount:'15.25',expenseDate:'',expenseEstimate:'none',expenseDateInstant,
     taskCreateLock:{current:false},expenseCreateLock:{current:false},
     taskCreateAttempt:{current:null},expenseCreateAttempt:{current:null},

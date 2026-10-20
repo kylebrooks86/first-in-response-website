@@ -16,7 +16,7 @@ const a=dashboard.indexOf('function CustomersView('),b=dashboard.indexOf('\nfunc
 if(a<0||b<0||!dashboard.slice(a,b).includes('if(offlinePhotoOnly)'))throw Error('Missing actual CustomersView offline source.');
 const imports=[
 "import {summarizeCustomerBalances} from './lib/customer-balance-summary';",
-"import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote} from './lib/customer-activity-flags';",
+"import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility} from './lib/customer-activity-flags';",
 "import React,{useState,useRef,useEffect} from 'react';",
 "import {createRoot} from 'react-dom/client';",
 "import {ChevronRight} from 'lucide-react';",

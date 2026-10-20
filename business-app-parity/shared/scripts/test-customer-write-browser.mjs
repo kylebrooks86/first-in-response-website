@@ -13,11 +13,23 @@ import{Button}from'./components/ui/button';import{Label}from'./components/ui/lab
 import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./components/ui/dialog';
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
 import{summarizeCustomerBalances}from'./lib/customer-balance-summary';import{messageHistoryEntries}from'./lib/message-history';
-import{deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote}from'./lib/customer-activity-flags';
+import{deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility}from'./lib/customer-activity-flags';
 import{mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory}from'./lib/offline-photo-availability';
 const saveOfflinePhotoCustomerDirectory=async()=>{},loadOfflinePhotoCustomerDirectory=async()=>[],clearOfflinePhotoCustomerDirectory=async()=>{};
 const money=c=>'$'+(c/100).toFixed(2),dateTime=v=>v,statusLabel=v=>v,resolvedBillingTotalCents=e=>e.invoiceTotalCents??e.totalCents,billingBalanceCents=e=>Math.max(0,resolvedBillingTotalCents(e)-e.paidCents);
 ${stubs}\n${functions.map(f=>f.getText(ast)).join('\n')}
+window.testReviewEligibility=()=>{
+ const now=Date.parse('2026-10-20T12:00:00Z'),completed=[{status:'completed'}],date='2026-10-13T12:00:00Z';
+ const due=reviewFollowupEligibility([{status:'completed',lastReviewRequestAt:date}],[],null,now);
+ const waiting=reviewFollowupEligibility([{status:'completed',lastReviewRequestAt:'2026-10-14T12:00:00Z'}],[],null,now);
+ const prepared=reviewFollowupEligibility(completed,[{template:'review',channel:'text_prepared',createdAt:date}],null,now);
+ const confirmed=reviewFollowupEligibility(completed,[{template:'review',channel:'text_confirmed',createdAt:date}],null,now);
+ const received=reviewFollowupEligibility([{status:'completed',lastReviewRequestAt:date}],[],'2026-10-19T12:00:00Z',now);
+ const noJob=reviewFollowupEligibility([{status:'approved',lastReviewRequestAt:date}],[],null,now);
+ const badDate=reviewFollowupEligibility([{status:'completed',lastReviewRequestAt:'bad-date'}],[],null,now);
+ const futureDate=reviewFollowupEligibility([{status:'completed',lastReviewRequestAt:'2026-12-25T12:00:00Z'}],[],null,now);
+ return {due:due.status,days:due.elapsedDays,waiting:waiting.status,prepared:prepared.status,confirmed:confirmed.status,received:received.status,noJob:noJob.status,badDate:badDate.status,futureDate:futureDate.status};
+};
 window.testCustomerFlags=()=>{
  const placement={id:'placed',createdAt:'2026-10-20T12:00:00Z',body:signPlacedNote('2026-10-27','Front lawn')};
  const review={id:'review',createdAt:'2026-10-20T13:00:00Z',body:REVIEW_RECEIVED_NOTE};
@@ -58,6 +70,11 @@ try{
  browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});const page=await browser.newPage();page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){outside.push(r.request().url());return r.abort();}return r.continue();});
  await page.goto(origin+'/');await page.locator('.customer-card').first().waitFor();
+ const state=await page.evaluate(()=>window.testReviewEligibility());
+ check(state.due==='due'&&state.days===7&&state.waiting==='waiting','Review eligibility waits seven full days after a real request');
+ check(state.prepared==='not-recorded'&&state.confirmed==='due','Prepared review messages do not count as confirmed requests');
+ check(state.received==='received'&&state.noJob==='not-applicable','A received review or unfinished job always suppresses status-check cue');
+ check(state.badDate==='not-recorded'&&state.futureDate==='not-recorded','Malformed and future dates never create stale reminders');
  const lifecycle=await page.evaluate(()=>window.testCustomerFlags());
  check(lifecycle.out==='out'&&lifecycle.pickupDate==='2026-10-27'&&lifecycle.location==='Front lawn','Structured yard sign note records placement and pickup target');
  check(lifecycle.review&&lifecycle.retrieved==='picked_up'&&lifecycle.unverified,'Review and sign completion require exact owner-logged saved note markers');
