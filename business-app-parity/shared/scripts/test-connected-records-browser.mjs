@@ -235,6 +235,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  check(reads===readsBeforeRoutes+1,'Route inspection is local with one explicit schedule GET and no writes');
  scheduled.splice(scheduled.length-10,10);
  await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
+ await page.getByRole('button',{name:'Tomorrow (1)',exact:true}).waitFor();
  await review.waitFor({state:'hidden'});
  check(await page.locator('.route-day-button').count()===1,'Normal single-job tomorrow route remains after route-review resolution');
  mode='badCustomer';await page.goto(origin+'/customers');await page.getByRole('alert').filter({hasText:'exact whole cents'}).waitFor();check(await page.locator('.customer-list,.customer-snapshot').count()===0,'Fractional customer account cents never render as valid profile totals');
