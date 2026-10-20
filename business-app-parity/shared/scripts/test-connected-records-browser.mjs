@@ -110,6 +110,22 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  check(await page.locator('.schedule-job,.route-day-button').count()===0,'Malformed financial cents cannot display route or wrong totals');
  mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).waitFor();
  check(await page.locator('.schedule-job').count()===5,'Valid schedule returns after unsafe amount refusal');
+ // Same-minute reservations are advisory, and never alter scheduled records.
+ scheduled.push(scheduleJob('second-at-same-minute','2026-10-20T15:00:30Z'));
+ const beforeCollisionReads=reads;
+ await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
+ const collision=page.getByRole('region',{name:'Appointments sharing a start time'});
+ await collision.waitFor();
+ check(reads===beforeCollisionReads+1,'Conflict review reads jobs without any write');
+ check((await collision.innerText()).includes('2 jobs')&&(await collision.innerText()).includes('not a confirmed overlap'),'Potential collision wording is precise and non-alarmist');
+ check(await page.locator('.schedule-conflict-chip').count()===2,'Both same-minute active jobs are visually flagged');
+ await collision.getByRole('button',{name:/Review day/}).click();
+ check(await page.getByLabel('Choose a work date',{exact:true}).inputValue()==='2026-10-20','Review day navigates to Tulsa appointment date');
+ check(await page.locator('.schedule-conflict-chip').count()===2,'Conflict markers remain visible on the selected day');
+ scheduled.pop();
+ await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
+ await collision.waitFor({state:'hidden'});
+ check(await page.locator('.schedule-conflict-chip').count()===0,'Resolved time collision no longer shows an advisory');
  mode='badCustomer';await page.goto(origin+'/customers');await page.getByRole('alert').filter({hasText:'exact whole cents'}).waitFor();check(await page.locator('.customer-list,.customer-snapshot').count()===0,'Fractional customer account cents never render as valid profile totals');
  mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await page.locator('.customer-card').first().waitFor();check(await page.locator('.customer-card').count()===2,'Read-only customer retry restores verified profiles');
  check(writes===0&&outside.length===0&&errors.length===0,'No customer writes, external requests or browser errors: '+errors.join(';'));console.log(JSON.stringify({passed:checks,actualCustomerHistory:true,actualScheduleWindows:true,actualDashboardRows:true,syntheticLocalhost:true,lightDark:true,hostedWrites:false,iPhoneAccepted:false}));
