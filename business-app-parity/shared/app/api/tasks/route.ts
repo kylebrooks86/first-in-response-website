@@ -8,7 +8,12 @@ export async function GET(){if(!await authorized())return Response.json({error:"
 const v4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export async function POST(request:Request){
  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
- const body=await request.json() as Record<string,unknown>;
+ let body:Record<string,unknown>;
+ try{
+  const parsed:unknown=await request.json();
+  if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error("Invalid payload");
+  body=parsed as Record<string,unknown>;
+ }catch{return Response.json({error:"A valid task request is required."},{status:400});}
  const title=String(body.title??"").trim();
  if(!title)return Response.json({error:"Task title is required."},{status:400});
  if(body.requestId!==undefined&&(typeof body.requestId!=="string"||!v4.test(body.requestId)))return Response.json({error:"A valid task request ID is required."},{status:400});
