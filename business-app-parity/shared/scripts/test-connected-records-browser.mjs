@@ -43,6 +43,16 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await page.goto(origin+'/dashboard');await page.evaluate(t=>window.setTheme(t),theme);const dashboardUpcoming=page.locator('.metric-card').filter({hasText:'Upcoming jobs'});
   check(await dashboardUpcoming.locator('strong').innerText()==='2','Dashboard only counts scheduled jobs, not finished or declined');
   check(await page.getByTestId('schedule-weather-target').textContent()==='2026-10-20T15:00:00Z','Weather targets earliest future scheduled appointment regardless of record order');
+  const nextJob=page.getByRole('region',{name:'Next scheduled job'});
+  check((await nextJob.innerText()).includes('Exact customer')&&!(await nextJob.innerText()).includes('Declined customer'),'Next appointment card identifies the correct active customer');
+  check((await nextJob.innerText()).includes('Exact job'),'Next appointment card includes selected service');
+  await nextJob.getByRole('button',{name:'Open next job',exact:true}).click();
+  check(await page.evaluate(()=>window.openedEstimate)==='exact-dashboard-job','Next job shortcut opens exact current appointment');
+  await nextJob.getByRole('button',{name:'Full schedule',exact:true}).click();
+  check(await page.evaluate(()=>window.openedTab)==='schedule','Secondary shortcut opens full Schedule');
+  const nextBounds=await nextJob.evaluate(n=>({left:n.getBoundingClientRect().left,right:n.getBoundingClientRect().right,width:innerWidth}));
+  check(nextBounds.left>=-1&&nextBounds.right<=nextBounds.width+1,'Next appointment card fits each phone and tablet viewport');
+  check(await nextJob.locator('button').evaluateAll(nodes=>nodes.every(n=>n.getBoundingClientRect().height>=44)),'Next appointment shortcuts remain touch friendly');
   await page.locator('.recent-estimate-row').filter({hasText:'Exact customer'}).click();check(await page.evaluate(()=>window.openedEstimate)==='exact-dashboard-job','Dashboard row chooses exact job identity');
  }
  mode='error';await page.goto(origin+'/schedule');await page.getByRole('alert').waitFor();check(await page.locator('.schedule-window-controls,.schedule-job,.route-day-button').count()===0,'Failed schedule read hides counts/routes/cards');mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).waitFor();check(await page.locator('.schedule-job').count()===5,'Explicit schedule retry restores all appointments');
