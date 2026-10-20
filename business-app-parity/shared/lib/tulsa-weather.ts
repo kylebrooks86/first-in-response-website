@@ -1,5 +1,44 @@
 export type WeatherDay = {date:string;temperatureMax:number|null;temperatureMin:number|null;rainChance:number|null;windMax:number|null};
 export type WeatherResponse = {location:string;updatedAt:string;current:{temperature:number;description:string};daily:WeatherDay[]};
+export type WeatherHour = {startTime:string;temperature:number;description:string;rainChance:number|null;windMph:number|null};
+export type HourlyForecastResponse = {date:string;location:string;updatedAt:string;hours:WeatherHour[]};
+
+/** Only dates from the seven-day NWS outlook are available for hourly drill-down.
+ * Allow the next calendar week's boundary because late NWS forecast periods
+ * can begin after midnight Tulsa time. */
+export function isValidHourlyForecastDate(date:string,now=Date.now()):boolean{
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return false;
+ const parsed=new Date(date+"T12:00:00.000Z");
+ if(!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==date)return false;
+ const today=dateKey(new Date(now).toISOString());
+ const difference=(Date.parse(date+"T00:00:00Z")-Date.parse(today+"T00:00:00Z"))/86400000;
+ return Number.isInteger(difference)&&difference>=0&&difference<=7;
+}
+
+/** Select actual hourly NWS periods for the requested Tulsa calendar day.
+ * Missing rain and wind information stays unknown rather than becoming 0%. */
+export function normalizeHourlyForecast(periods:Period[],date:string,now=Date.now()):HourlyForecastResponse{
+ if(!isValidHourlyForecastDate(date,now))throw Error("Invalid hourly forecast date");
+ if(!Array.isArray(periods))throw Error("Missing hourly forecast periods");
+ const hours:WeatherHour[]=[];
+ const seen=new Set<string>();
+ for(const period of periods){
+  if(!period||typeof period!=="object"||!period.startTime||!period.endTime)continue;
+  const start=Date.parse(period.startTime),end=Date.parse(period.endTime);
+  if(!Number.isFinite(start)||!Number.isFinite(end)||end<=now||end<=start||dateKey(period.startTime)!==date||seen.has(period.startTime))continue;
+  if(typeof period.temperature!=="number"||!Number.isFinite(period.temperature)||period.temperatureUnit!=="F")continue;
+  seen.add(period.startTime);
+  const rain=period.probabilityOfPrecipitation?.value;
+  const rainChance=typeof rain==="number"&&Number.isFinite(rain)&&rain>=0&&rain<=100?rain:null;
+  const wind=period.windSpeed?.includes("mph")?period.windSpeed.match(/\d+(?:\.\d+)?/g)?.map(Number):undefined;
+  const windMph=wind?.length?Math.max(...wind):null;
+  hours.push({startTime:period.startTime,temperature:period.temperature,
+   description:period.shortForecast||"Conditions unavailable",rainChance,windMph});
+ }
+ hours.sort((a,b)=>Date.parse(a.startTime)-Date.parse(b.startTime));
+ return {date,location:"Tulsa",updatedAt:new Date(now).toISOString(),hours:hours.slice(0,25)};
+}
+
 type Period = {startTime?:string;endTime?:string;isDaytime?:boolean;temperature?:number;temperatureUnit?:string;shortForecast?:string;windSpeed?:string;probabilityOfPrecipitation?:{value?:number|null}};
 
 /** The NWS forecast is made from partial daytime/nighttime periods. A missing
@@ -49,10 +88,10 @@ export function normalizeForecast(periods:Period[],now=Date.now()):WeatherRespon
 /** NWS may canonicalize coordinates with a 301/302 redirect. Follow ONLY
  * same-origin HTTPS api.weather.gov locations, never arbitrary upstream URLs.
  * Cloudflare Workers' redirect:"error" used to reject valid NWS responses. */
-export async function loadTulsaWeather(fetcher:typeof fetch=fetch):Promise<WeatherResponse>{
+/** Only allow NWS-hosted HTTPS links, including validated canonical redirects. */
+async function readNwsWeather(address:string,fetcher:typeof fetch){
  const origin="https://api.weather.gov";
  const validate=(address:string)=>{const u=new URL(address);if(u.origin!==origin||u.username||u.password||u.port)throw Error("Invalid forecast source");return u;};
- const read=async(address:string)=>{
   let url=validate(address);
   const seen=new Set<string>();
   for(let attempt=0;attempt<3;attempt++){
@@ -66,11 +105,22 @@ export async function loadTulsaWeather(fetcher:typeof fetch=fetch):Promise<Weath
     continue;
    }
    if(!response.ok)throw Error("Weather unavailable");
-   return await response.json() as {properties?:{forecast?:string;periods?:Period[]}};
+   return await response.json() as {properties?:{forecast?:string;forecastHourly?:string;periods?:Period[]}};
   }
   throw Error("Too many forecast redirects");
- };
- const point=await read("https://api.weather.gov/points/36.15398,-95.99277");if(typeof point.properties?.forecast!=="string")throw Error("Missing forecast URL");
- const forecast=await read(point.properties.forecast);if(!Array.isArray(forecast.properties?.periods))throw Error("Missing forecast periods");
+}
+export async function loadTulsaWeather(fetcher:typeof fetch=fetch):Promise<WeatherResponse>{
+ const point=await readNwsWeather("https://api.weather.gov/points/36.15398,-95.99277",fetcher);
+ if(typeof point.properties?.forecast!=="string")throw Error("Missing forecast URL");
+ const forecast=await readNwsWeather(point.properties.forecast,fetcher);
+ if(!Array.isArray(forecast.properties?.periods))throw Error("Missing forecast periods");
  return normalizeForecast(forecast.properties.periods);
+}
+export async function loadTulsaHourlyForecast(date:string,fetcher:typeof fetch=fetch,now=Date.now()):Promise<HourlyForecastResponse>{
+ if(!isValidHourlyForecastDate(date,now))throw Error("Invalid hourly forecast date");
+ const point=await readNwsWeather("https://api.weather.gov/points/36.15398,-95.99277",fetcher);
+ if(typeof point.properties?.forecastHourly!=="string")throw Error("Missing hourly forecast URL");
+ const forecast=await readNwsWeather(point.properties.forecastHourly,fetcher);
+ if(!Array.isArray(forecast.properties?.periods))throw Error("Missing hourly forecast periods");
+ return normalizeHourlyForecast(forecast.properties.periods,date,now);
 }
