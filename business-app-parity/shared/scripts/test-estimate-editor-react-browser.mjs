@@ -15,7 +15,7 @@ const source=readFileSync('app/dashboard.tsx','utf8');
 const section=(a,b)=>{const start=source.indexOf(a),end=source.indexOf(b,start);assert.ok(start>=0&&end>start);return source.slice(start,end);};
 const editor=section('function EditEstimateDialog(','function EditInvoiceDialog(');
 const discount=section('function discountMath(','function NewEstimate(');
-const fixture=`import React,{useState}from'react';import{createRoot}from'react-dom/client';
+const fixture=`import React,{useState,useRef}from'react';import{createRoot}from'react-dom/client';
 import{PenLine,Trash2,Plus,Check}from'lucide-react';
 import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./components/ui/dialog';
 import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';
