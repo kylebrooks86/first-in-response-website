@@ -902,6 +902,13 @@ html,body{max-width:100%;overflow-x:clip}
 .expense-list>div{gap:12px}.expense-list>div>span{min-width:0;overflow-wrap:anywhere}.expense-list>div>b{flex-shrink:0;white-space:nowrap}
 [data-theme="dark"] .business-record-tools{border-color:#2a3d54}
 [data-theme="dark"] .business-record-tools p{color:#b7c6d9}
+/* Deadline-focused owner task lists on phones, tablets and desktop. */
+.business-operations-metrics{grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr))}
+.business-due-chip{display:inline-flex;align-items:center;justify-self:start;margin-top:4px;border-radius:999px;padding:3px 9px;font-size:12px;font-style:normal;font-weight:800;line-height:1.45}
+.business-due-chip.overdue{background:#fff0f1;color:#92232d;border:1px solid #efb6bd}
+.business-due-chip.today{background:#fff3dc;color:#7b4600;border:1px solid #e7ca8f}
+[data-theme="dark"] .business-due-chip.overdue{background:#432027;color:#ffe0e4;border-color:#975461}
+[data-theme="dark"] .business-due-chip.today{background:#3e2d14;color:#ffe7ac;border-color:#947143}
 /* Completed work stays readable; strike-through carries its status instead of faded text. */
 .task-list>button.completed{opacity:1}
 .task-list>button.completed strong{color:#52647a}
