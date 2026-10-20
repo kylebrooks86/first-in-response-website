@@ -35,6 +35,19 @@ check(hourly.hours[0].rainChance===null&&hourly.hours[0].windMph===null,'Missing
 check(hourly.hours[1].rainChance===70&&hourly.hours[1].windMph===11,'Hourly rain and wind preserve valid NWS data');
 check(hourly.hours[1].description==='Rain Showers','Conditions preserve official NWS text');
 check(hourly.hours[2].temperature===62,'Temperature remains Fahrenheit and exact source hour');
+const selectHour=weather.weatherHourForJobStart;
+const selectionHours=[
+ {startTime:'2026-10-25T18:00:00Z',temperature:86,description:'Sunny',rainChance:20,windMph:5},
+ {startTime:'2026-10-25T17:00:00Z',temperature:80,description:'Cloudy',rainChance:null,windMph:null}
+];
+check(selectHour(selectionHours,'2026-10-25T18:00:00Z')?.temperature===86,'Exact job-start forecast matches hour beginning at appointment');
+check(selectHour(selectionHours,'2026-10-25T18:59:59Z')?.temperature===86,'Appointment later in hour matches covering NWS hour');
+check(selectHour(selectionHours,'2026-10-25T17:59:59Z')?.temperature===80,'Previous hour stays distinct');
+check(selectHour(selectionHours,'2026-10-25T19:00:00Z')===null,'Never extrapolate one hour after last available NWS period');
+check(selectHour(selectionHours,'2026-10-25T16:00:00Z')===null,'Never extrapolate before NWS coverage');
+check(selectHour(selectionHours,'bad appointment')===null&&selectHour(selectionHours,null)===null,'Invalid or absent appointment never receives invented conditions');
+check(selectHour([], '2026-10-25T18:00:00Z')===null,'Missing NWS hours cannot produce a job-time forecast');
+
 const warn=weather.hourlyWorkCautions;
 check(JSON.stringify(warn({temperature:50,rainChance:null,windMph:null,description:'Unknown',startTime:'2026-10-20T18:00:00Z'}))==='[]','Unknown rain and wind are never classified as safe or dangerous numbers');
 check(JSON.stringify(warn({temperature:60,rainChance:49,windMph:19,description:'Calm',startTime:'2026-10-20T18:00:00Z'}))==='[]','Risk cues below advisory thresholds remain empty');
