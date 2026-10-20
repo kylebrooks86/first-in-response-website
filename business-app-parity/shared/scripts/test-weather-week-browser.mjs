@@ -28,13 +28,13 @@ createRoot(document.getElementById('app')).render(<Screen/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 assert.ok(css.css.includes('.weather-scroll-hint')&&css.css.includes('scroll-snap-type'));
-const days=Array.from({length:7},(_,i)=>({date:`2026-10-${String(i+20).padStart(2,'0')}`,temperatureMax:i===5?98:i===6?86:70+i,temperatureMin:i===6?null:45+i,rainChance:i===5?75:15,windMax:5+i}));
+const days=Array.from({length:7},(_,i)=>({date:`2026-10-${String(i+20).padStart(2,'0')}`,temperatureMax:i===5?98:i===6?86:70+i,temperatureMin:i===6?null:45+i,rainChance:i===5?75:15,windMax:i===4?25:5+i}));
 const sample={location:'Tulsa',updatedAt:'2026-10-20T17:00:00.000Z',current:{temperature:66,description:'Sunny'},daily:days};
-let requests=0,hourlyRequests=0;const outageCounts=new Map();
+let requests=0,hourlyRequests=0,weatherOutage=false;const outageCounts=new Map();
 const server=createServer((req,res)=>{
  if(req.url==='/bundle.js'){res.writeHead(200,{'content-type':'text/javascript','cache-control':'no-store'});res.end(bundle.outputFiles[0].text);return;}
  if(req.url==='/styles.css'){res.writeHead(200,{'content-type':'text/css','cache-control':'no-store'});res.end(css.css);return;}
- if(req.url==='/api/weather'){requests++;res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(sample));return;}
+ if(req.url==='/api/weather'){requests++;if(weatherOutage){res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({error:'Synthetic NWS outage'}));return;}res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(sample));return;}
  if(req.url?.startsWith('/api/weather/hourly?')){
   hourlyRequests++;const day=new URL(req.url,'https://synthetic.invalid').searchParams.get('date');
   if(day==='2026-10-23'){const count=(outageCounts.get(day)||0)+1;outageCounts.set(day,count);if(count%2===1){res.writeHead(503,{'content-type':'application/json'});res.end(JSON.stringify({error:'NWS temporarily offline'}));return;}}
@@ -72,6 +72,7 @@ try{
     check((await scroll.locator('.job-day').innerText()).toLowerCase().includes('next job'),'Job forecast is visibly labeled even when CSS uppercases day headings');
     check((await widget.locator('.weather-alert').innerText()).includes('Rain possible this week'),'Rain late in the week informs week-long alert');
     check((await widget.locator('.weather-alert').innerText()).includes('Hot air possible this week'),'Weekly outlook shows heat when NWS air temperature reaches the heat planning threshold');
+    check((await widget.locator('.weather-alert').innerText()).includes('Wind ≥20 mph possible this week'),'Weekly forecast displays wind and spray drift caution');
     const jobOutlook=widget.getByRole('region',{name:'Next job Tulsa weather outlook'});
     check(await jobOutlook.isVisible(),'The next job shows a separate Tulsa weather-planning summary');
     check((await jobOutlook.innerText()).includes('Rain 75%'),"Next job summary uses the actual appointment day, not today's rain probability");
@@ -92,6 +93,7 @@ try{
     check((await jobDetail.locator('.weather-hour-job-time').innerText()).includes('Job start hour'),'Matching NWS hour is visibly named');
     const startSummary=await jobDetail.locator('.weather-job-hour-summary').innerText();
     check(startSummary.includes('1:00 PM')&&startSummary.includes('61°F')&&startSummary.includes('Rain 65%'),'Job start summary shows verified Central clock, Fahrenheit and real NWS rain chance');
+    check((await jobDetail.locator('.weather-job-hour-cautions').innerText()).includes('At the scheduled job start: Rain chance ≥50%'),'Exact scheduled hour visibly flags rain risk when NWS covers the appointment');
     await jobDetail.getByRole('button',{name:'Close hourly forecast'}).click();
     check(await widget.getByRole('region',{name:'Hourly Tulsa weather forecast'}).count()===0,'Job-time details close without losing next job outlook');
     check((await widget.locator('.weather-days article').last().innerText()).includes('Low')===false,'Nighttime missing low does not invent values');
@@ -168,6 +170,37 @@ try{
    await context.close();
   }
  }
+ // Exercise last-good-data recovery in real Chrome rather than assuming a successful API response.
+ const recoveryContext=await browser.newContext({viewport:{width:320,height:800},colorScheme:'dark'});
+ const recoveryPage=await recoveryContext.newPage();
+ await recoveryPage.goto(address);
+ const lastGood=recoveryPage.locator('.weather-strip:not(.loading):not(.unavailable)').first();
+ await lastGood.locator('.weather-days article').first().waitFor();
+ weatherOutage=true;
+ const readsBeforeFailure=requests;
+ await lastGood.getByRole('button',{name:'Refresh seven-day Tulsa weather forecast'}).click();
+ await lastGood.locator('.weather-refresh-action [role="alert"]').waitFor();
+ check(requests>readsBeforeFailure,'Manual week refresh makes a new API call even after initial load');
+ check(await lastGood.locator('.weather-days article').count()===7,'NWS outage retains all seven last-good forecast cards');
+ check((await lastGood.locator('.weather-refresh-action [role="alert"]').innerText()).includes('may be outdated'),'Last-good weather is conspicuously marked as potentially outdated');
+ weatherOutage=false;
+ await lastGood.getByRole('button',{name:'Retry seven-day Tulsa forecast'}).click();
+ await lastGood.locator('.weather-refresh-action [role="alert"]').waitFor({state:'hidden'});
+ check(await lastGood.locator('.weather-days article').count()===7,'Owner retry restores fresh daily data without wiping forecast cards');
+ await recoveryContext.close();
+ // A cold start with no successful NWS read must not falsely present the old week.
+ weatherOutage=true;
+ const coldContext=await browser.newContext({viewport:{width:390,height:800}});
+ const coldPage=await coldContext.newPage();
+ await coldPage.goto(address);
+ const cold=coldPage.locator('.weather-strip.unavailable').first();
+ await cold.getByRole('button',{name:'Retry seven-day Tulsa forecast'}).waitFor();
+ check(await coldPage.locator('.weather-days article').count()===0,'Initial NWS outage never fabricates a prior forecast');
+ weatherOutage=false;
+ await cold.getByRole('button',{name:'Retry seven-day Tulsa forecast'}).click();
+ await coldPage.locator('.weather-strip:not(.loading):not(.unavailable) .weather-days article').first().waitFor();
+ check(await coldPage.locator('.weather-days article').count()===14,'Cold-start weather retry restores both seven-day panels');
+ await coldContext.close();
  check(requests>=16&&hourlyRequests>=48,'Both weather panels use only synthetic seven-day and hourly NWS responses');
  console.log(`PASS ${checks}/${checks}: actual seven-day Dashboard/Schedule, tapped hourly forecasts, outage fallback, official radar, iPhone and tablet light/dark and no overflow. Synthetic localhost only.`);
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}

@@ -1077,3 +1077,13 @@ html,body{max-width:100%;overflow-x:clip}
 [data-theme="dark"] .weather-strip .weather-job-hour-summary{border-color:#79bfff;background:#1d3953;color:#eef6ff}
 [data-theme="dark"] .weather-strip .weather-hour-job-time{outline-color:#79bfff}
 [data-theme="dark"] .weather-strip .weather-hour strong .weather-job-hour-label{color:#c4e2ff}
+
+/* Manual seven-day NWS refresh preserves a clearly labelled last-good forecast on outages. */
+.weather-strip .weather-refresh-action{grid-column:1/-1;grid-row:8;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-width:0}
+.weather-strip .weather-refresh-action button,.weather-strip .weather-week-retry{min-height:44px;padding:9px 13px;border:1px solid #6d92b8;border-radius:9px;background:#fff;color:#173d68;font-size:12px;font-weight:800;cursor:pointer}
+.weather-strip .weather-refresh-action button:disabled,.weather-strip .weather-week-retry:disabled{opacity:.7;cursor:progress}
+.weather-strip .weather-refresh-action p{flex:1 1 220px;margin:0;padding:9px 11px;border:1px solid #b87928;border-radius:8px;background:#fff0d6;color:#703e0b;font-size:12px;font-weight:800;line-height:1.5}
+.weather-strip .weather-job-hour-cautions{margin:0;padding:9px 11px;border-left:3px solid #ad6a1e;background:#ffedd2;color:#70400f;font-size:12px;font-weight:800;line-height:1.5}
+[data-theme="dark"] .weather-strip .weather-refresh-action button,[data-theme="dark"] .weather-strip .weather-week-retry{background:#1b3450;border-color:#557b9f;color:#eef6ff}
+[data-theme="dark"] .weather-strip .weather-refresh-action p,[data-theme="dark"] .weather-strip .weather-job-hour-cautions{background:#48341d;border-color:#c68b42;color:#ffe4bd}
+@media(max-width:430px){.weather-strip .weather-refresh-action button{width:100%}}
