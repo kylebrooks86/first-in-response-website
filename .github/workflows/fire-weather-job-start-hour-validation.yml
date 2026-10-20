@@ -1,0 +1,61 @@
+name: FIRE exact next-job start-hour weather (synthetic, non-deploying)
+
+on:
+  push:
+    branches:
+      - ci/fire-weather-job-start-hour-2026-10-20
+
+permissions:
+  contents: read
+
+jobs:
+  job-hour:
+    name: Exact NWS appointment hour, mobile job shortcut and full build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned dependencies
+        run: |
+          corepack enable && corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Typecheck exact appointment-hour source, owner access and NWS boundaries
+        run: |
+          pnpm exec tsc --noEmit
+          TZ=America/Chicago node scripts/test-weather-photo-safety.mjs
+          TZ=America/Chicago node scripts/test-weather-hourly.mjs
+          TZ=Pacific/Auckland node scripts/test-weather-photo-safety.mjs
+      - name: Real Chrome harness, pinned isolated browser driver
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Actual Dashboard and Schedule job-time selection on light and dark phone sizes
+        env:
+          FIRE_WEATHER_WEEK_SCREENSHOT_DIR: ${{ runner.temp }}/fire-weather-job-hour
+        run: node scripts/test-weather-week-browser.mjs
+      - name: Save synthetic mobile proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-job-start-hour-weather-mobile
+          path: ${{ runner.temp }}/fire-weather-job-hour/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Full non-publishing shared build
+        run: pnpm run build
