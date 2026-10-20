@@ -38,7 +38,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){outside.push(r.request().url());return r.abort();}return r.continue();});
  for(const size of [{width:320,height:568},{width:390,height:844},{width:844,height:390}])for(const theme of ['light','dark']){
   mode='ok';await page.setViewportSize(size);await page.goto(origin+'/customers');await page.evaluate(t=>window.setTheme(t),theme);await page.locator('.customer-card').filter({hasText:'Fixture first'}).click();await page.getByRole('heading',{name:'Fixture first',exact:true}).waitFor();
-  payload.notes.push({id:'synthetic-sign-placement',customerId:'first',body:signPlacedNote('2026-10-27','Front lawn by driveway'),createdAt:'2026-10-20T12:00:00Z'});
+  payload.notes.push({id:'synthetic-sign-placement',customerId:'first',body:'[FIRE FLAG] YARD_SIGN_PLACED | pickup:2026-10-27 | location:Front lawn by driveway',createdAt:'2026-10-20T12:00:00Z'});
   await page.reload();
   await page.locator('.customer-card').filter({hasText:'Fixture first'}).click();
   await page.getByRole('button',{name:'Prepare yard sign pickup reminder'}).click();
