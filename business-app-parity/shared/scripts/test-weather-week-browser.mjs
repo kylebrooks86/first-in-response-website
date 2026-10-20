@@ -115,7 +115,7 @@ try{
     await hourly.getByRole('button',{name:'Retry hourly forecast'}).click();
     await hourly.locator('.weather-hour').first().waitFor();
     check(await hourly.getByRole('alert').count()===0,'Hourly retry clears transient NWS outage');
-    check(await hourly.locator('.weather-hour').count()===3,'Retry restores requested day's actual hours');
+    check(await hourly.locator('.weather-hour').count()===3,"Retry restores requested day's actual hours");
     const bounds=await hourly.evaluate(n=>({rect:n.getBoundingClientRect().toJSON(),width:innerWidth}));
     check(bounds.rect.left>=-1&&bounds.rect.right<=bounds.width+1,'Expanded hourly panel cannot overflow a phone viewport');
     await hourly.getByRole('button',{name:'Close hourly forecast'}).click();
