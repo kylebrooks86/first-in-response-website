@@ -62,7 +62,7 @@ try{
     check((await cards.evaluateAll(ns=>ns.map(n=>n.dataset.forecastDate))).join(',')===days.map(d=>d.date).join(','),'All 7 calendar dates stay in order');
     check(await scroll.locator('.job-day').count()===1,'Week outlook retains the next-job marker');
     check((await scroll.locator('.job-day').getAttribute('data-forecast-date'))==='2026-10-25','Sixth day is next job, not artificially moved to front');
-    check((await scroll.locator('.job-day').innerText()).includes('Next job'),'Job forecast is visibly labeled');
+    check((await scroll.locator('.job-day').innerText()).toLowerCase().includes('next job'),'Job forecast is visibly labeled even when CSS uppercases day headings');
     check((await widget.locator('.weather-alert').innerText()).includes('Rain possible this week'),'Rain late in the week informs week-long alert');
     check((await widget.locator('.weather-days article').last().innerText()).includes('Low')===false,'Nighttime missing low does not invent values');
     const geometry=await scroll.evaluate(n=>({client:n.clientWidth,scroll:n.scrollWidth,scrollable:getComputedStyle(n).overflowX,focusable:n.tabIndex,viewport:innerWidth,bounds:n.getBoundingClientRect().toJSON()}));
