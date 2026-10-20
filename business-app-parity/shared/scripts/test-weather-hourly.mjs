@@ -35,6 +35,13 @@ check(hourly.hours[0].rainChance===null&&hourly.hours[0].windMph===null,'Missing
 check(hourly.hours[1].rainChance===70&&hourly.hours[1].windMph===11,'Hourly rain and wind preserve valid NWS data');
 check(hourly.hours[1].description==='Rain Showers','Conditions preserve official NWS text');
 check(hourly.hours[2].temperature===62,'Temperature remains Fahrenheit and exact source hour');
+const warn=weather.hourlyWorkCautions;
+check(JSON.stringify(warn({temperature:50,rainChance:null,windMph:null,description:'Unknown',startTime:'2026-10-20T18:00:00Z'}))==='[]','Unknown rain and wind are never classified as safe or dangerous numbers');
+check(JSON.stringify(warn({temperature:60,rainChance:49,windMph:19,description:'Calm',startTime:'2026-10-20T18:00:00Z'}))==='[]','Risk cues below advisory thresholds remain empty');
+check(JSON.stringify(warn({temperature:32,rainChance:50,windMph:20,description:'Windy',startTime:'2026-10-20T18:00:00Z'}))===JSON.stringify(['Rain chance ≥50%','Wind ≥20 mph','Freezing ≤32°F']),'Rain, wind and freezing thresholds produce explicit planning cautions');
+check(JSON.stringify(warn({temperature:70,rainChance:99,windMph:null,description:'Storm',startTime:'2026-10-20T18:00:00Z'}))===JSON.stringify(['Rain chance ≥50%']),'Only known risk dimensions are labeled');
+check(JSON.stringify(warn({temperature:40,rainChance:null,windMph:25,description:'Windy',startTime:'2026-10-20T18:00:00Z'}))===JSON.stringify(['Wind ≥20 mph']),'Wind-only risk remains visible without invented precipitation');
+
 let fetches=0;const hourlyUri='https://api.weather.gov/gridpoints/TSA/41,105/forecast/hourly';
 const fake=async(url,options)=>{
  fetches++;check(new URL(url).origin==='https://api.weather.gov','All NWS upstream requests must be same-origin');
