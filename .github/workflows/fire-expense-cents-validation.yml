@@ -1,0 +1,54 @@
+name: FIRE isolated expense-cents validation (no deployment)
+
+on:
+  push:
+    branches:
+      - ci/fire-expense-cents-2026-10-20
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fire-expense-cents-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-shared-app:
+    name: Exact-cents validation and full shared build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - name: Checkout synthetic source only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Use pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: TypeScript
+        run: pnpm exec tsc --noEmit
+      - name: Real BusinessView expense precision, restart and double-tap handlers
+        run: |
+          node scripts/test-business-create-receipt.mjs
+          node scripts/test-business-write-recovery.mjs
+          node scripts/test-business-restart-recovery.mjs
+      - name: SQLite task and expense routes with safe CSV
+        run: |
+          node --experimental-sqlite scripts/test-business-idempotent-routes.mjs
+          node --experimental-sqlite scripts/test-expense-csv-safety.mjs
+          node --experimental-sqlite scripts/test-task-status-confirmation.mjs
+          node scripts/test-task-status-ui-recovery.mjs
+      - name: Full non-deploying shared app build
+        run: pnpm run build
