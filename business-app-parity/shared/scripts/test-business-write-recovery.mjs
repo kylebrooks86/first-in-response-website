@@ -33,6 +33,8 @@ function fixture(name,changes={}){
     title:'Synthetic task',dueAt:'',taskNotes:'Synthetic note',taskCustomer:'none',
     category:'Chemicals',description:'Synthetic soap',amount:'15.25',expenseEstimate:'none',
     taskCreateLock:{current:false},expenseCreateLock:{current:false},
+    taskCreateAttempt:{current:null},expenseCreateAttempt:{current:null},
+    crypto:{randomUUID:()=> '10000000-0000-4000-8000-000000000001'},
     setTaskSaving:v=>{taskSaving=v;},setExpenseSaving:v=>{expenseSaving=v;},
     setBusinessMessage:v=>{messages.push(v);},
     setTitle:v=>{ctx.title=v;saved.push('title');},
@@ -50,12 +52,13 @@ function fixture(name,changes={}){
   return {ctx,calls,messages,saved,loads,act:()=>ctx.exports.action(),setRequest:next=>{request=next;},
     get saving(){return name==='addTask'?taskSaving:expenseSaving;},
     get lock(){return name==='addTask'?ctx.taskCreateLock.current:ctx.expenseCreateLock.current;},
+    get attempt(){return name==='addTask'?ctx.taskCreateAttempt.current:ctx.expenseCreateAttempt.current;},
     submitted(){return JSON.parse(calls.at(-1).options.body);}};
 }
 function success(name,payload){
   return name==='addTask'
-    ?{task:{id:'synthetic-task-id',title:payload.title,customerId:payload.customerId,status:'open',createdAt:'2026-10-19T12:00:00Z'}}
-    :{expense:{id:'synthetic-expense-id',description:payload.description,category:payload.category,estimateId:payload.estimateId,amountCents:payload.amountCents}};
+    ?{requestId:payload.requestId,confirmed:true,task:{id:payload.requestId,title:payload.title,customerId:payload.customerId,status:'open',createdAt:'2026-10-19T12:00:00Z'}}
+    :{requestId:payload.requestId,confirmed:true,expense:{id:payload.requestId,description:payload.description,category:payload.category,estimateId:payload.estimateId,amountCents:payload.amountCents,incurredAt:payload.incurredAt}};
 }
 for(const name of ['addTask','addExpense']){
   const url=name==='addTask'?'/api/tasks':'/api/expenses';
@@ -72,12 +75,14 @@ for(const name of ['addTask','addExpense']){
     eq(f.calls[0].options.headers['content-type'],'application/json',name+' sends JSON');
     const payload=f.submitted();
     eq(payload.title??payload.description,name==='addTask'?'Synthetic task':'Synthetic soap','submitted draft is preserved');
+    eq(payload.requestId,'10000000-0000-4000-8000-000000000001',name+' sends a valid stable idempotency key');
     pending.resolve({ok:true,json:async()=>success(name,payload)});
     await Promise.all([first,second]);
     eq(f.saving,false,name+' releases saving after success');
     eq(f.lock,false,name+' releases lock after success');
     eq(f.loads.length,1,name+' refreshes saved records once');
     eq(f.ctx[field],'',name+' only clears after verified server response');
+    eq(f.attempt,null,name+' releases the request ID only after confirmation');
     eq(f.messages.at(-1),name==='addTask'?'Task added.':'Expense recorded.',name+' reports success only after confirmation');
   }
   for(const mode of ['network','http','bad-json','missing-record','wrong-id','wrong-amount']){
@@ -100,12 +105,15 @@ for(const name of ['addTask','addExpense']){
     eq(f.lock,false,name+' '+mode+' releases lock');
     eq(f.ctx[field],name==='addTask'?'Synthetic task':'Synthetic soap',name+' '+mode+' retains draft');
     eq(f.loads.length,0,name+' '+mode+' does not reload as success');
-    eq(f.messages.at(-1).includes('Refresh')&&f.messages.at(-1).includes('duplicate'),true,name+' '+mode+' warns about possible duplicates');
+    eq(f.messages.at(-1).includes('not confirmed')&&f.messages.at(-1).includes('same request ID'),true,name+' '+mode+' warns about safe retries');
     // After a failed response the owner can retry deliberately, but not accidentally.
     const retry=deferred();f.setRequest(retry);const again=f.act();
     eq(f.calls.length,2,name+' '+mode+' permits explicit retry');
+    eq(f.submitted().requestId,payload.requestId,name+' '+mode+' retry uses identical request ID');
+    if(name==='addExpense')eq(f.submitted().incurredAt,payload.incurredAt,name+' '+mode+' retry preserves original incurred date');
     retry.resolve({ok:true,json:async()=>success(name,f.submitted())});await again;
     eq(f.loads.length,1,name+' '+mode+' can recover after deliberate retry');
+    eq(f.attempt,null,name+' '+mode+' clears pending request after verified retry');
   }
 }
 {
@@ -122,6 +130,18 @@ for(const amount of ['','0','abc','NaN','Infinity','100000000000000000']){
  eq(f.calls.length,0,'Invalid amount '+JSON.stringify(amount)+' never sends a POST');
  eq(f.saving,false,'Invalid amount never locks the expense form');
 }
+
+for(const name of ['addTask','addExpense']){
+ const f=fixture(name),pending=deferred();f.setRequest(pending);
+ const action=f.act(),key=f.submitted().requestId;pending.reject(Error('Ambiguous'));
+ await action;
+ if(name==='addTask')f.ctx.title='Different task';else f.ctx.description='Different expense';
+ await f.act();
+ eq(f.calls.length,1,name+' blocks modified draft while original request is unconfirmed');
+ eq(f.attempt.requestId,key,name+' preserves the original operation ID after draft changes');
+ eq(Boolean(f.messages.at(-1).includes('previous')),true,name+' explains why a modified draft cannot be submitted');
+}
+
 eq(source.includes('disabled={taskSaving} value={title}'),true,'Task draft input disabled during save');
 eq(source.includes('disabled={expenseSaving} value={amount}'),true,'Expense amount disabled during save');
 console.log('PASS '+checks+'/'+checks+': actual BusinessView creation handlers guard duplicate taps, validate saved responses, retain drafts and recover safely. Synthetic fetch only.');
