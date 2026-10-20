@@ -1,0 +1,46 @@
+name: FIRE chat restart-safe Business receipts — synthetic validation
+on:
+  push:
+    branches: [chat/fire-business-restart-ci-2026-10-20]
+permissions:
+  contents: read
+jobs:
+  restart-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install immutable dependencies
+        run: pnpm install --frozen-lockfile
+      - name: TypeScript and client component boundary
+        run: pnpm exec tsc --noEmit
+      - name: Test opaque-only durable recovery and browser storage refusal
+        run: node scripts/test-business-create-receipt.mjs
+      - name: Exercise actual task expense create handlers and restart refusal
+        run: |
+          node scripts/test-business-write-recovery.mjs
+          node scripts/test-business-restart-recovery.mjs
+      - name: Existing server idempotency CSV and finance safeguards
+        run: |
+          node --experimental-sqlite scripts/test-business-idempotent-routes.mjs
+          node --experimental-sqlite scripts/test-expense-csv-safety.mjs
+          node --experimental-sqlite scripts/test-customer-invoice-balances.mjs
+          node scripts/test-estimate-detail-recovery.mjs
+          node scripts/test-followup-action-retry.mjs
+          node scripts/test-notification-read-recovery.mjs
+      - name: Verify complete shared app build without deploy
+        run: pnpm run build
