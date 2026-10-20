@@ -69,9 +69,36 @@ console.log('PASS: Tulsa forecast timezone, temperature/precipitation/wind norma
 // Execute the actual mounted weather effect, including foreground events and cleanup.
 const component=source.slice(source.indexOf('function ScheduleWeather('),source.indexOf('\nfunction ScheduleView'));
 const hooks=[];let cursor=0,effect,networkCalls=0,interval,cleared=false,mode='ok',visible='visible';const listeners=new Map();const widgetExports={};
-const context={exports:widgetExports,require:createRequire(import.meta.url),useState:initial=>{const i=cursor++;if(!(i in hooks))hooks[i]=initial;return [hooks[i],value=>hooks[i]=value];},useEffect:fn=>{effect??=fn;},CloudRain:()=>null,Wind:()=>null,AbortController,Date,Math,Number,Error,fetch:async()=>{networkCalls++;return mode==='ok'?Response.json(result):new Response('',{status:503});},window:{setInterval:fn=>{interval=fn;return 11;},clearInterval:id=>{assert.equal(id,11);cleared=true;},addEventListener:(event,fn)=>listeners.set(event,fn),removeEventListener:event=>listeners.delete(event)},document:{get visibilityState(){return visible;},addEventListener:(event,fn)=>listeners.set(event,fn),removeEventListener:event=>listeners.delete(event)}};
+const context={exports:widgetExports,require:createRequire(import.meta.url),weatherIconKind:weather.weatherIconKind,weatherDayHeading:weather.weatherDayHeading,formatDailyTemperatures:weather.formatDailyTemperatures,WeatherConditionIcon:()=>null,useState:initial=>{const i=cursor++;if(!(i in hooks))hooks[i]=initial;return [hooks[i],value=>hooks[i]=value];},useEffect:fn=>{effect??=fn;},CloudRain:()=>null,Wind:()=>null,AbortController,Date,Math,Number,Error,fetch:async()=>{networkCalls++;return mode==='ok'?Response.json(result):new Response('',{status:503});},window:{setInterval:fn=>{interval=fn;return 11;},clearInterval:id=>{assert.equal(id,11);cleared=true;},addEventListener:(event,fn)=>listeners.set(event,fn),removeEventListener:event=>listeners.delete(event)},document:{get visibilityState(){return visible;},addEventListener:(event,fn)=>listeners.set(event,fn),removeEventListener:event=>listeners.delete(event)}};
 vm.runInNewContext(ts.transpileModule('export '+component,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
 widgetExports.ScheduleWeather({compact:true});const cleanup=effect();const settle=()=>new Promise(resolve=>setImmediate(resolve));await settle();assert.equal(networkCalls,1);assert.equal(hooks[0].location,'Tulsa');assert.equal(hooks[1],false);
+// Render the ACTUAL weather React function from dashboard.tsx with a full NWS week.
+const weekPeriods=[];
+for(let i=0;i<8;i++){
+ const day=new Date(Date.UTC(2026,9,8+i,17,0));
+ const night=new Date(Date.UTC(2026,9,8+i,23,0));
+ weekPeriods.push({startTime:day.toISOString(),endTime:new Date(day.getTime()+5*3600000).toISOString(),isDaytime:true,temperature:75-i,temperatureUnit:'F',shortForecast:'Partly Sunny',windSpeed:'5 mph',probabilityOfPrecipitation:{value:i===5?70:10}});
+ weekPeriods.push({startTime:night.toISOString(),endTime:new Date(night.getTime()+8*3600000).toISOString(),isDaytime:false,temperature:51-i,temperatureUnit:'F',shortForecast:'Mostly Clear',windSpeed:'10 mph',probabilityOfPrecipitation:{value:20}});
+}
+const weekly=weather.normalizeForecast(weekPeriods,now);
+assert.equal(weekly.daily.length,7,'NWS normalization must cap seven calendar days, not the old 2 or 3 visible days');
+assert.equal(weekly.daily[0].date,'2026-10-08');assert.equal(weekly.daily[6].date,'2026-10-14');
+const walk=(node,result=[])=>{if(Array.isArray(node)){node.forEach(n=>walk(n,result));return result;}if(!node||typeof node!=='object')return result;result.push(node);walk(node.props?.children,result);return result;};
+hooks[0]=weekly;
+for(const job of [undefined,'2026-10-13T14:00:00Z','2026-11-12T15:00:00Z']){
+ const nodes=walk(widgetExports.ScheduleWeather({nextJobAt:job,compact:true}));
+ const cards=nodes.filter(n=>n.type==='article');
+ assert.equal(cards.length,7,'Compact and next-job modes must keep all seven forecast cards');
+ assert.deepEqual(cards.map(n=>n.props['data-forecast-date']),weekly.daily.map(d=>d.date),'Forecast days must stay chronological, with no gaps');
+ const region=nodes.find(n=>n.props?.className==='weather-days');
+ assert.equal(region.props.tabIndex,0,'Full week must be keyboard scrollable');
+ assert.equal(region.props['aria-label'],'Seven-day Tulsa weather forecast');
+ assert.equal(cards.filter(n=>n.props.className==='job-day').length,job?.startsWith('2026-10-13')?1:0,'Highlight next job without hiding other days');
+ if(job?.startsWith('2026-10-13'))assert.ok(walk(cards[5]).some(n=>n.type==='small'&&String(n.props.children).startsWith('Next job ·')),'Next-job card must identify its date');
+ assert.ok(nodes.some(n=>n.props?.className==='weather-scroll-hint'),'Full-week scrolling hint should render');
+}
+assert.equal(weather.weatherDayHeading({date:'2026-10-14',temperatureMax:76,temperatureMin:48,rainChance:20,windMax:10},now),'Wed','The Tulsa weekday does not inherit host timezone');
+hooks[0]=result;
 listeners.get('focus')();await settle();assert.equal(networkCalls,2);visible='hidden';listeners.get('visibilitychange')();await settle();assert.equal(networkCalls,2);visible='visible';listeners.get('visibilitychange')();await settle();assert.equal(networkCalls,3);
 mode='unavailable';interval();await settle();assert.equal(hooks[1],true);mode='ok';listeners.get('focus')();await settle();assert.equal(hooks[1],false);const beforeCleanup=networkCalls;cleanup();assert.equal(cleared,true);assert.equal(listeners.size,0);interval();await settle();assert.equal(networkCalls,beforeCleanup);
 console.log('PASS: actual weather mount/focus/visibility/timer refresh, hidden-page behavior, outage/recovery, no requests after cleanup.');
