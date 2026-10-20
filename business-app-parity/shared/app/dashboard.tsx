@@ -1389,7 +1389,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     let networkFailed=false,responseStatus:number|undefined;
     try {
       let response:Response;
-      try{response=await fetch("/api/customers");}
+      try{response=await fetch("/api/customers",{cache:"no-store"});}
       catch(networkError){networkFailed=true;throw networkError;}
       responseStatus=response.status;
       if(mustClearOfflinePhotoDirectory(response.status)&&request===loadRequest.current){
@@ -1407,8 +1407,9 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       if (!response.ok) throw new Error(result?.error || "Customer records could not be loaded.");
       const keys=["customers","estimates","notes","invoices","photos","messages","payments"] as const;
       if(!result||keys.some((key)=>!Array.isArray(result[key])||result[key]!.some((row)=>!row||typeof row!=="object"||Array.isArray(row)||typeof row.id!=="string"||!row.id)))throw new Error("Customer records could not be read. Try again.");
+      if(keys.some((key)=>new Set(result[key]!.map((row)=>row.id)).size!==result[key]!.length))throw new Error("Duplicate customer history records were returned. Refresh before using totals.");
       if(result.customers!.some((row)=>typeof row.name!=="string"))throw new Error("Customer names could not be read. Try again.");
-      const asNumber=(value:unknown)=>{if((typeof value!=="number"&&typeof value!=="string")||(typeof value==="string"&&!value.trim())||!Number.isFinite(Number(value)))throw new Error("Customer amounts could not be read. Try again.");return Number(value);};
+      const asNumber=(value:unknown)=>{if((typeof value!=="number"&&typeof value!=="string")||(typeof value==="string"&&!value.trim())||!Number.isSafeInteger(Number(value)))throw new Error("Customer amounts could not be verified as exact whole cents. Refresh before using totals.");return Number(value);};
       const nextCustomers=(result.customers ?? []).map((item) => ({ ...item, estimateCount: asNumber(item.estimateCount), estimateTotal: asNumber(item.estimateTotal), paidTotal: asNumber(item.paidTotal) }));
       const nextEstimates=(result.estimates ?? []).map((item) => ({ ...item, totalCents: asNumber(item.totalCents), depositCents: asNumber(item.depositCents), paidCents: asNumber(item.paidCents) }));
       const nextNotes=result.notes ?? [];
