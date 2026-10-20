@@ -114,5 +114,21 @@ try{
   const noData=spawnSync('python3',[verifier,...verifyArgs(schemaOnly)],{cwd:root,env,encoding:'utf8',timeout:40000,maxBuffer:1024*1024});
   assert.notEqual(noData.status,0,'Schema-only export must never be accepted as verified complete data');
   checks++;
+  if(qaMode){
+    // Exercise the guarded executor's exact file+journal format against native
+    // D1/workerd, separately from the mocked provider workflow tests.
+    const query=sql=>JSON.parse(invoke([wrangler,'d1','execute','DB','--local','--config',config,'--json','--command',sql]));
+    const snapshotSql="SELECT id,name,created_at FROM customers ORDER BY id; SELECT id,customer_id,total_cents,deposit_cents FROM estimates ORDER BY id; SELECT id,estimate_id,amount_cents,status FROM payments ORDER BY id;";
+    const snapshot=JSON.stringify(query(snapshotSql).map(r=>r.results));
+    for(const name of names.slice(-2)){
+      const exact=readFileSync(join(parity,'adapters/doomsday/drizzle',name),'utf8').replaceAll('\r\n','\n');
+      const file=join(root,'guarded-'+name);
+      writeFileSync(file,exact+"\nINSERT INTO d1_migrations(name) VALUES ('"+name+"');\n");
+      invoke([wrangler,'d1','execute','DB','--local','--config',config,'--file',file,'--yes','--json']);checks++;
+    }
+    assert.equal(JSON.stringify(query(snapshotSql).map(r=>r.results)),snapshot,'Native file migrations preserve synthetic customer/job/payment values');checks++;
+    const observed=query("SELECT COUNT(*) AS count FROM d1_migrations; SELECT COUNT(*) AS count FROM sqlite_master WHERE type='trigger' AND name LIKE 'deposit_%'; SELECT COUNT(*) AS count FROM deposit_policy_events; SELECT COUNT(*) AS count FROM deposit_agreement_snapshots; SELECT quick_check FROM pragma_quick_check;");
+    assert.deepEqual(observed.map(r=>r.results),[[{count:25}],[{count:4}],[{count:0}],[{count:0}],[{quick_check:'ok'}]]);checks++;
+  }
   console.log('PASS: '+checks+' real Wrangler LOCAL D1 SQL migration/export/disposable restore assertions; no remote/Stripe access or real customer records.');
 }finally{rmSync(root,{recursive:true,force:true});}

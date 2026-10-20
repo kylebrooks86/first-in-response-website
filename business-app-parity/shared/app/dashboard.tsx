@@ -1091,6 +1091,7 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
 
 function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(estimate:EstimateRow)=>void}){
   const [open,setOpen]=useState(false);
+  const saveLock=useRef(false);
   const [items,setItems]=useState<EditableEstimateItem[]>([]);
   const [appreciationDiscount,setAppreciationDiscount]=useState(false);
   const [discountMode,setDiscountMode]=useState<DiscountMode>("percent");
@@ -1103,30 +1104,33 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
     const mode:DiscountMode=estimate.additionalDiscountType==="dollar"?"dollar":"percent";setDiscountMode(mode);
     const stored=Number(estimate.additionalDiscountValue||0);setDiscountValue(stored?mode==="percent"?(stored/100).toString():(stored/100).toFixed(2):"");setError("");
   };
-  const setOpenSafe=(value:boolean)=>{setOpen(value);if(value)hydrate();};
+  const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;setOpen(value);if(value)hydrate();};
   const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?editMoneyLine(item,patch):item));
   const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
   const discount=discountMath(subtotal,appreciationDiscount,discountMode,Number(discountValue));
   const addService=()=>setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);
   const save=async()=>{
+    if(saveLock.current)return;
     if(!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isFinite(item.unitRateCents)||item.unitRateCents<0)){setError("Every service needs a service, quantity, and valid price.");return;}
     const maxPercent=appreciationDiscount?45:50;if(discountMode==="percent"&&(Number(discountValue)||0)>maxPercent){setError(`Additional percentage discount cannot exceed ${maxPercent}% with the current appreciation-discount setting.`);return;}
     if(discountMode==="dollar"&&Math.round((Number(discountValue)||0)*100)>subtotal){setError("Dollar discount cannot exceed the service subtotal.");return;}
-    setSaving(true);setError("");try{
+    saveLock.current=true;setSaving(true);setError("");try{
       const payloadItems=items.map((item)=>({id:item.id,name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:editableLineTotalCents(item)}));
       const response=await fetch(`/api/estimates/${estimate.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({items:payloadItems,appreciationDiscount,additionalDiscountType:discountMode,additionalDiscountValue:Math.round((Number(discountValue)||0)*100)})});
       const result=await response.json() as {estimate?:Partial<EstimateRow>;error?:string};if(!response.ok||!result.estimate)throw new Error(result.error||"Estimate changes could not be saved.");
       onSaved({...estimate,...result.estimate,items:payloadItems.map((item,index)=>({...item,id:item.id||`new-${index}`}))});setOpen(false);
-    }catch(saveError){setError(saveError instanceof Error?saveError.message:"Estimate changes could not be saved.");}finally{setSaving(false);}
+    }catch(saveError){setError(saveError instanceof Error?saveError.message:"Estimate changes could not be saved.");}finally{saveLock.current=false;setSaving(false);}
   };
   return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><button type="button"><PenLine/> Edit estimate</button></DialogTrigger><DialogContent className="estimate-edit-dialog sm:max-w-[650px]"><div className="estimate-edit-modal-header"><DialogHeader><DialogTitle>Edit estimate</DialogTitle></DialogHeader></div>
     <div className="estimate-edit-scroll-area" role="region" aria-label="Estimate services and pricing" tabIndex={0}>
+    <fieldset disabled={saving} className="contents">
     <div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.id||index}><header><strong>Service {index+1}</strong><button type="button" onClick={()=>setItems((current)=>current.filter((_,i)=>i!==index))} aria-label={`Remove service ${index+1}`}><Trash2/></button></header><div><Label>Service</Label><Select value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,quantity:svc.unit==="job"?1:0});}}><SelectTrigger><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent>{services.map((svc)=><SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}</SelectContent></Select></div><div><Label>Service description and expectations</Label><Textarea rows={7} value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/></div><div className="edit-quantity-row"><div><Label>Quantity</Label><Input inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit}</span></div><div><Label>Price per unit — adjustable for this job</Label><div className="discount-input"><span>$</span><Input inputMode="decimal" value={item.unitRateCents?String(item.unitRateCents/100):""} onChange={(event)=>updateItem(index,{unitRateCents:Math.max(0,Math.round((Number(event.target.value)||0)*100))})}/></div></div><p className="service-description-help">Adjust this job-specific rate if the work or scope changes. Your starting service rate stays unchanged.</p><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>{item.preservedLineTotalCents!==undefined&&item.preservedLineTotalCents!==Math.round(item.quantity*item.unitRateCents)&&<p className="service-description-help">This saved line total is preserved exactly. Changing its service, quantity, or price will recalculate it.</p>}</section>)}</div>
     <Button variant="outline" className="w-full" onClick={addService}><Plus className="h-4 w-4"/> Add another service</Button>
     <button type="button" onClick={()=>setAppreciationDiscount((value)=>!value)} className={`discount-row ${appreciationDiscount?"selected":""}`}><span><strong>5% First Responder & Military</strong><small>Year-round appreciation discount</small></span><span className="check-box">{appreciationDiscount&&<Check className="h-4 w-4"/>}</span></button>
     <section className="edit-discount-card"><Label>Additional bundle, promotion, or family discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} onChange={(event)=>setDiscountValue(event.target.value)} placeholder="0"/></div><p className="service-description-help">Choose percentage or dollar amount. Percentage discounts stack with the 5% appreciation discount, up to 50% total.</p></section>
     <div className="edit-totals"><span>Service subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(discount.appliedDiscount)}</strong></span><span>Estimate total<strong>{money(discount.total)}</strong></span><span>50% deposit<strong>{money(discount.deposit)}</strong></span></div>
     {subtotal>0&&subtotal-discount.requestedDiscount<15000&&<p className="service-description-help">The $150 minimum job charge is applied automatically.</p>}{error&&<p className="save-error" role="alert">{error}</p>}
+    </fieldset>
     </div>
     <div className="estimate-edit-modal-footer"><Button className="brand-button w-full" onClick={()=>void save()} disabled={saving}>{saving?"Saving…":"Save estimate changes"}</Button></div>
   </DialogContent></Dialog>;
@@ -1135,6 +1139,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
 
 function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(totalCents:number)=>void}){
   const [open,setOpen]=useState(false);
+  const saveLock=useRef(false);
   const [items,setItems]=useState<EditableEstimateItem[]>([]);
   const [discountMode,setDiscountMode]=useState<DiscountMode>("dollar");
   const [discountValue,setDiscountValue]=useState("");
@@ -1167,22 +1172,24 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
       setExpandedRevisionId(null);
     }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Invoice could not be loaded.");}finally{if(request===loadRequest.current)setLoading(false);}
   };
-  const setOpenSafe=(value:boolean)=>{if(!value){loadRequest.current++;setLoading(false);}setOpen(value);if(value)void hydrate();};
+  const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;if(!value){loadRequest.current++;setLoading(false);}setOpen(value);if(value)void hydrate();};
   const save=async()=>{
+    if(saveLock.current)return;
     if(!estimate.invoiceId)return;
     if(!items.length||items.some((item)=>!item.name||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isFinite(item.unitRateCents)||item.unitRateCents<0)){setError("Every invoice service needs a service, quantity, and valid price.");return;}
     if(discountMode==="percent"&&(Number(discountValue)||0)>50){setError("Percentage discount cannot exceed 50%.");return;}
     if(discountMode==="dollar"&&Math.round((Number(discountValue)||0)*100)>subtotal){setError("Dollar discount cannot exceed the invoice subtotal.");return;}
-    setSaving(true);setError("");
+    saveLock.current=true;setSaving(true);setError("");
     try{
       const payloadItems=items.map((item)=>({id:item.id,name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:editableLineTotalCents(item)}));
       if(dueMode==="date"&&!dueDate){setError("Choose an invoice due date or select Due on receipt.");setSaving(false);return;}
       const response=await fetch(`/api/invoices/${estimate.invoiceId}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({items:payloadItems,discountType:discountMode,discountValue:Math.round((Number(discountValue)||0)*100),dueAt:dueMode==="receipt"?"receipt":dueDate})});
       const result=await response.json() as {invoice?:{totalCents?:number};error?:string};if(!response.ok||!result.invoice)throw new Error(result.error||"Invoice changes could not be saved.");
       onSaved(Number(result.invoice.totalCents??total));setOpen(false);
-    }catch(saveError){setError(saveError instanceof Error?saveError.message:"Invoice changes could not be saved.");}finally{setSaving(false);}
+    }catch(saveError){setError(saveError instanceof Error?saveError.message:"Invoice changes could not be saved.");}finally{saveLock.current=false;setSaving(false);}
   };
   return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><button type="button"><PenLine/> Edit invoice</button></DialogTrigger><DialogContent className="estimate-edit-dialog invoice-edit-fields sm:max-w-[650px]"><DialogHeader><DialogTitle>Edit final invoice</DialogTitle></DialogHeader>
+    <fieldset disabled={saving} className="contents">
     {loading?<div className="customers-state">Loading invoice…</div>:<>
     <p className="service-description-help">Add last-minute services or adjust the final discount without changing the original accepted estimate. Recorded payments are preserved.</p>
     <div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.id||index}><header><strong>Service {index+1}</strong>{items.length>1&&<button type="button" onClick={()=>setItems((current)=>current.filter((_,i)=>i!==index))} aria-label={`Remove invoice service ${index+1}`}><Trash2/></button>}</header><div><Label htmlFor={`invoice-${estimate.invoiceId}-${index}-service`}>Service</Label><Select value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,quantity:svc.unit==="job"?1:0});}}><SelectTrigger id={`invoice-${estimate.invoiceId}-${index}-service`}><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent>{services.map((svc)=><SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}</SelectContent></Select></div><div><Label htmlFor={`invoice-${estimate.invoiceId}-${index}-description`}>Service description and expectations</Label><Textarea id={`invoice-${estimate.invoiceId}-${index}-description`} rows={6} value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/></div><div className="edit-quantity-row"><div><Label htmlFor={`invoice-${estimate.invoiceId}-${index}-quantity`}>Quantity</Label><Input id={`invoice-${estimate.invoiceId}-${index}-quantity`} inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit}</span></div><div><Label htmlFor={`invoice-${estimate.invoiceId}-${index}-rate`}>Price per unit — adjustable for this invoice</Label><div className="discount-input"><span>$</span><Input id={`invoice-${estimate.invoiceId}-${index}-rate`} inputMode="decimal" value={item.unitRateCents?String(item.unitRateCents/100):""} onChange={(event)=>updateItem(index,{unitRateCents:Math.max(0,Math.round((Number(event.target.value)||0)*100))})}/></div></div><p className="service-description-help">Adjust this job-specific rate if the work or scope changes. Your starting service rate stays unchanged.</p><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>{item.preservedLineTotalCents!==undefined&&item.preservedLineTotalCents!==Math.round(item.quantity*item.unitRateCents)&&<p className="service-description-help">This saved line total is preserved exactly. Changing its service, quantity, or price will recalculate it.</p>}</section>)}</div>
@@ -1193,7 +1200,7 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
     {subtotal>0&&subtotal-invoiceDiscount<15000&&<p className="service-description-help">The $150 minimum job charge is applied automatically.</p>}
     {revisions.length>0&&<section className="edit-discount-card"><Label>Invoice revision history</Label><p className="service-description-help">Previous invoice versions are retained automatically before each edit. Open a revision to review its prior services and discount.</p><div className="invoice-revision-list">{revisions.slice(0,5).map((revision)=>{const expanded=expandedRevisionId===revision.id;return <div className={expanded?"invoice-revision-row expanded":"invoice-revision-row"} key={revision.id}><button type="button" className="invoice-revision-summary" onClick={()=>setExpandedRevisionId(expanded?null:revision.id)} aria-expanded={expanded}><span><strong>{money(revision.totalCents)}</strong><small>{revision.status} · {dateTime(revision.createdAt)}</small></span><span className="invoice-revision-due"><small>{revision.dueAt?`Due ${new Date(revision.dueAt).toLocaleDateString()}`:"Due on receipt"}</small><ChevronRight className={expanded?"revision-chevron open":"revision-chevron"}/></span></button>{expanded&&<div className="invoice-revision-details"><div className="revision-item-list">{revision.items.map((item,index)=><div key={`${revision.id}-${item.id||index}`}><span><strong>{item.name}</strong><small>{item.description||"No description"}</small></span><small>{Number(item.quantity)||0} {item.unit} · {money(Number(item.totalCents)||0)}</small></div>)}</div><div className="revision-totals"><span>Subtotal<strong>{money(revision.subtotalCents)}</strong></span><span>Discount<strong>−{money(revision.discountCents)}</strong></span><span>Discount mode<strong>{revision.discountType==="percent"?`${(revision.discountValue/100).toFixed(2).replace(/\.00$/,'')}%`:`${money(revision.discountValue)}`}</strong></span><span>Total<strong>{money(revision.totalCents)}</strong></span></div></div>}</div>;})}</div></section>}
     {error&&<p className="save-error" role="alert">{error}</p>}<Button className="brand-button w-full" onClick={()=>void save()} disabled={saving}>{saving?"Saving…":"Save invoice changes"}</Button></>}
-  </DialogContent></Dialog>;
+  </fieldset></DialogContent></Dialog>;
 }
 
 function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRow | null; onClose: () => void; onChanged: (estimate: EstimateRow) => void }) {

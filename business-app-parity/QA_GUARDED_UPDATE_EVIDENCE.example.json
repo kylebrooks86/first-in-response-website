@@ -1,0 +1,14 @@
+{
+  "accountId": "REPLACE_WITH_PRIVATE_AUTHENTICATED_ACCOUNT_ID",
+  "backupSha256": "REPLACE_WITH_ORIGINAL_PRESERVED_SQL_SHA256",
+  "backupUtc": "REPLACE_WITH_ORIGINAL_EXPORT_TIME_WITH_TIMEZONE",
+  "restoreReceiptSha256": "REPLACE_WITH_RAW_SUCCESSFUL_RECEIPT_FILE_SHA256",
+  "captureSha256": "REPLACE_WITH_EXISTING_SCHEMA_CAPTURE_FILE_SHA256",
+  "secondCopySha256": "REPLACE_WITH_VERIFIED_INDEPENDENT_COPY_SHA256",
+  "encryptedAccessControlled": false,
+  "independentSecondCopyRetained": false,
+  "authenticatedCaptureAttested": false,
+  "noQaWritesSinceBackup": false,
+  "windowEndsUtc": "REPLACE_WITH_AGREED_QUIET_WINDOW_END_WITH_TIMEZONE",
+  "ciRunId": 0
+}

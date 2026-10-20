@@ -1,6 +1,6 @@
 # Existing QA release packet — preparation only, no hosted write authorization
 
-Reviewed source baseline: `758e183e3c32b7040cacca65b0d478e6a0929552`; GitHub Actions run `39333820407` passed **8/8 jobs**. The next candidate includes the shared estimate/invoice save guards described below; its exact commit and CI must be attached before approval.
+Reviewed starting checkpoint: `0bb1c4f92d858387317d14680816343795cdbca4`; GitHub Actions run `39340207587` passed **8/8 jobs**. The migration-aware workflow and editor fixes are in this packet's development commit: use its full `git rev-parse HEAD`, exact passed eight-job CI run and sealed local build digest in the generated approval plan. Never approve the starting checkpoint as though it included this new workflow.
 
 **PREPARATION ONLY — no hosted migration or deployment authorization.** Updated October 19 from the owner's authenticated Acer results. Recovery and hosted schema checks below are completed owner observations, not independently reproduced agent access to the private export or Cloudflare account. Do not repeat the export, restore, or schema capture merely to update this packet.
 
@@ -70,13 +70,13 @@ During a future approved migration/update window, avoid QA test edits, retain th
 | --- | --- |
 | Private retention and receipt identity | Confirm existing original hash/timestamp, successful check-only receipt and two secure copies as above |
 | Capture provenance and deployed binding | Authenticated owner attestation/evidence tied to account, Worker, DB UUID, capture hash/time and active version |
-| Migration-aware release mechanism | Implement and test a separately reviewed path for this exact 23-to-25 transition; existing code-only reviewer/publisher must continue refusing 25 migrations |
+| Migration-aware release mechanism | Implemented as `qa_guarded_update.py`; local adversarial and native workerd tests below. Authenticated read-only preflight and final candidate CI/build/evidence must pass before any approval |
 | Final candidate identity | Seal exact commit, passing CI run, materialized QA source verification, build/runtime manifest checks and artifact hash |
 | Explicit migration approval | NOT GIVEN; exact two SQL hashes, recovery receipt and limitations required |
 | Explicit code update approval | NOT GIVEN; exact same candidate and QA target required |
 | Hosted and physical acceptance | Pending authorized deployment; verify four priority screens on iPhone |
 
-The existing code-only updater is **not usable for this transition**, even after local rehearsal. Do not change its 23-file condition, use the first-publish initializer, or invoke deploy directly to evade it. A migration-aware path is a remaining implementation blocker, not an owner evidence task.
+The existing code-only updater is **not usable for this transition**, even after local rehearsal. Do not change its 23-file condition, use the first-publish initializer, or invoke deploy directly to evade it. The separate migration-aware path now exists; it grants no authority and does not modify either old script. An authenticated preflight failure remains a blocker, never a reason to change protected identities.
 
 Future approved execution must follow this order:
 
@@ -88,18 +88,55 @@ Future approved execution must follow this order:
 6. Only with separate exact QA code approval, publish the sealed candidate to the same Worker, preserving existing D1, QA login secrets and synthetic records. Recheck identity immediately before publication; keep 58a467fa as the expected code rollback. Record the new serving version and verify sole 100% traffic, bindings, owner login and record persistence afterwards.
 7. Test synthetic Customer View, View Invoice, Job Report and Job Costs on the owner's iPhone: navigation, narrow layouts/light and dark, balances, draft/completed saves, expense/profit totals, double taps and recoverable online errors. Record observed results separately from automated tests. Failure stops release advancement. Remote rollback/restore requires its own explicit authorization.
 
-## Specific approval text for review — NOT YET READY TO EXECUTE
+## Implemented guarded workflow and final evidence fields
 
-Complete every bracketed evidence field first; placeholders are not authorization. Approval of database migration and code deployment must be explicit and separately identifiable:
+`qa_guarded_update.py` has four distinct modes. No flags is an offline dry run. Evidence inputs without an action produce an offline exact plan, its canonical SHA-256 and the full migration approval string. `--preflight` performs authenticated reads only. `--migrate` and `--publish` require **different exact approval strings** bound to the same commit, build digest, original backup, account, evidence, quiet window, SQL hashes and rollback version. Migration never calls publication.
 
-> I approve ONLY the two QA migrations 0023 (`b117d357a44c2ef3801e15eccd3a67bd82f701984b7658acf5d575fccb362a99`) then 0024 (`95a1ed3148cd0eee936ad2f8e69323c8a0f8243df226a00973adc04fbab0808e`) from candidate [full commit], CI [passed run], using reviewed executor [identity], on fire-fullapp-qa-db-20261016 / 8ccfb1f8-1657-4074-b1b2-47de78f95003. I reviewed backup [original SHA-256, timestamp, successful receipt hash], secure retention [confirmation], Cloudflare provenance [capture hash/time and binding attestation], and the no-test-edits window [time]. I understand that code rollback does not undo schema, immutable audit/signature data must be preserved, and remote database recovery could lose later writes and requires separate approval.
+The workflow:
 
-> Separately, I approve updating ONLY fire-fullapp-qa-20261016 from sole active version 58a467fa-9dbc-45a3-971e-b5a4e478f54d to that same exact candidate [full commit / sealed artifact SHA-256], only after successful post-migration checks. Preserve its database and existing authentication. Retain 58a467fa as code rollback. No production changes are authorized.
+- Uses the candidate's tested Wrangler **4.92.0**, invoked directly through Node (avoids Windows `.cmd` SQL quoting); reuses the owner's authenticated profile. It does not install anything or switch accounts automatically.
+- Creates only an isolated temporary configuration with the reviewed account, QA Worker and exact QA DB UUID. It reads the actual serving version's `resources.bindings`, requires the exact `DB` UUID and both QA login secret names, and refuses foreign services, buckets and privileged public variables. No token/secret value is read or uploaded.
+- Independently reads the exact GitHub CI run and all eight job results before hosted actions; refuses wrong commit, branch, workflow, failed/skipped jobs or unavailable evidence. Requires a clean source checkout equal to fetched origin and the unchanged QA source/runtime verifier results. It hashes every compiled `dist` file and rechecks all release inputs before writes.
+- Never calls `d1 migrations list` or `apply` (even Wrangler's list initializes the journal). It verifies the existing journal using SELECT, then executes one pinned migration file at a time with the reviewed journal append. No journal reset, initialization, SQL normalization of backups, arbitrary SQL input or target override is available.
+- Rechecks exact 23/24/25 schema, indexes, full trigger definitions, journal ordering, clean foreign keys and ledger anomaly counts, D1 `quick_check`, and empty new audit tables. Full offline backup `integrity_check` remains required by the existing receipt. D1 does not authorize the full SQLite integrity query; quick_check is the documented hosted physical consistency check, not a claim of equivalent full index verification. Reference: https://developers.cloudflare.com/d1/sql-api/sql-statements/#pragma-quick_check
+- Reads original synthetic QA application values and full original journal rows **only into process memory** for per-table SHA-256 comparison; supports BLOBs, checks row counts for truncation, and saves only hashes. This is broader than the existing metadata-only capture. No row contents, SQL exceptions or raw CLI output are printed or written to the receipt. Metrics/CLI log files are disabled.
+- Reserves a new private receipt outside the repository before hosted activity. A failure leaves a STOP receipt; it does not retry, resume a partial migration, publish, reset or roll back. A 24-entry partial journal requires separate review. Do not retry a timed-out write based on its exit status alone.
+- Publication requires the migration receipt's canonical SHA-256 in its separate approval. It independently rechecks hosted schema 25 and unchanged original rows, performs a no-upload dry run, rehashes the bundle, preserves existing authentication and D1, and verifies a new sole-100% serving version and its binding after deploy. Owner login and physical iPhone acceptance remain separate outstanding checks. A failed post-deploy check does not automatically roll back code or data.
 
-## App work and scope
+### Owner evidence preparation — no repeated SQL export or restore
 
-Shared estimate/job details now use synchronous request locks for date/status saves, invoice creation and overpayment reconciliation. Repeated same-frame taps cannot issue duplicate requests, conflicting saves are blocked during closeout verification, and the detail window stays open while a request is pending. Visible accessible saving feedback and disabled date input make the wait clear; failures release the lock so the owner can retry or close. Financial calculations, payment APIs and agreement data are unchanged. This does not add an offline mutation queue or solve uncertain server outcomes after a disconnected request.
+Copy `QA_GUARDED_UPDATE_EVIDENCE.example.json` to a **private folder outside the repository**. Fill its fields from the already completed receipts and authenticated owner observation. The template intentionally fails until completed. Do not commit the private copy. Its four boolean confirmations must reflect actual retention/provenance/no-write facts; a local JSON file is owner attestation, not independent proof of encryption or Cloudflare origin.
 
-These improvements are implemented in shared source for isolated LIVE, staging, Doomsday and QA candidates; no deployed parity is claimed. Actual component regression tests cover pending-save dismissal, duplicate taps, visible feedback, failed-save recovery and retry as well as existing report verification cases. Attach the new candidate's CI evidence before approval.
+Remaining private facts: original SQL hash and export time, successful restore receipt's raw file hash (UTF-8 or PowerShell UTF-16 BOM JSON accepted without modifying it), existing schema capture hash, confirmed encrypted/access-controlled retention and independent matching second copy, exact authenticated Cloudflare account ID and origin attestation, no QA writes since that recovery point, agreed quiet-window end and this exact candidate's passed CI run ID. The workflow freshly rechecks the actual Worker-to-DB binding; do not repeat the existing capture unless genuinely expired (>24h) or changed.
 
-Production release acceptance remains **3/10 gates (30%)**. Updated four priority screens deployed in this batch: **0/4**; physically accepted on iPhone in this batch: **0/4**; hosted migration and code approval: **not given**. Next bounded batch: implement and test the migration-aware guarded review/execution path using synthetic fixtures, then seal the final candidate and complete the private retention/provenance evidence fields. No hosted operation is authorized by this packet.
+The original SQL is **not an input** to this workflow. Preserve it unchanged. Existing receipts are consumed without rerunning the successful restoration/rehearsal. Do not paste/upload the SQL, tokens or private evidence file into chat/GitHub.
+
+Build the isolated candidate using the existing `owner_windows_build_qa_candidate.ps1` only after this exact commit passes CI. Then, from the repository root, the following is **offline only** (replace the three private filenames with their existing exact paths):
+
+```powershell
+$qaCandidateCommit = (git rev-parse HEAD).Trim()
+$qaCandidateDirectory = Join-Path $env:LOCALAPPDATA ('FIRE-QA-Builds\qa-' + $qaCandidateCommit)
+python .\business-app-parity\qa_guarded_update.py `
+  --evidence 'C:\PRIVATE\qa-update-evidence.json' `
+  --restore-receipt 'C:\PRIVATE\EXISTING-PASSED.restore-review.json' `
+  --capture-file 'C:\PRIVATE\EXISTING-QA-SCHEMA-ONLY.json' `
+  --candidate $qaCandidateDirectory
+```
+
+This prints the exact plan and `migrationApprovalText`; it does not contact Cloudflare or authorize writes. Review and retain its plan hash privately. The optional `--preflight --output <new-private-receipt>` performs the newly implemented read-only checks, including in-memory synthetic row hashing; it does not repeat the export/restore. No `--migrate` or `--publish` command is authorized or requested now.
+
+## Specific approval packet — blocked pending private evidence and live preflight
+
+The exact migration approval is the generated **`migrationApprovalText`**, beginning `MIGRATE QA fire-fullapp-qa-20261016 8ccfb1f8-1657-4074-b1b2-47de78f95003 ... PLAN ... FROM 58a467fa-9dbc-45a3-971e-b5a4e478f54d`. Review its full commit and plan hash, two SQL hashes above, successful CI run, build digest, backup/retention/provenance evidence and rollback limits before providing it. Generic "continue", passing tests or owner observations are not migration approval.
+
+After an explicitly approved migration, adding the resulting private migration receipt to the same **offline** plan command with `--migration-receipt <existing-private-file>` produces `publicationApprovalText`. It begins `PUBLISH QA ...` and additionally pins the **canonical JSON receipt SHA-256** (not the raw file hash). The workflow does not infer publication approval from migration approval. Changes to the source, build, evidence, receipt, account, window or version invalidate the old exact approval. Expired windows or partial/uncertain writes require a new reviewed recovery decision; never bypass the hold.
+
+For approval review, the owner must acknowledge: only isolated QA is in scope; code rollback to 58a467fa does not undo schema; append-only audit/signature records must survive; a remote database restore can lose writes and needs separate authorization; LIVE, Doomsday and protected staging are excluded. **Neither migration nor publication approval has been given.** This packet deliberately does not invent missing hashes or attestations.
+
+## Verification and app work
+
+The workflow regression suite uses real pinned SQLite schemas with a fake provider: correct 23->25, protected targets, prior/split versions, wrong binding/resources, absent/changed approvals, CI failures, missing/altered SQL, schema/journal/ledger drift, missing immutable triggers, journal trigger injection, row mutation despite identical counts, truncated reads, partial failure/no retry, changed receipts, publication dry-run/build changes, UTF-16 receipts, and redacted provider errors. Native Wrangler/workerd tests exercise the exact SQL-file-plus-journal format, retain synthetic customer/job/payment values, and verify 25 journal entries, four triggers, empty new tables and quick_check. No hosted integration is claimed.
+
+Estimate and final-invoice editors now prevent same-frame duplicate submissions, keep unsaved edits open while saving and freeze fields until the response. Error paths recover for retry or safe close. Actual extracted React-component tests cover successful saves and HTTP/network/malformed JSON failures, with exact original cents preserved. The prior job-details guards remain intact. Shared source applies to every isolated target; deployment parity is not claimed.
+
+Production release acceptance remains **3/10 gates (30%)**. Four priority screens deployed in this batch: **0/4**; physically accepted on iPhone: **0/4**; hosted migration/publication approvals: **not given**. Next bounded batch: review the completed private evidence fields and authenticated read-only preflight, seal this exact candidate's approval plan, and continue core app fixes until explicit hosted authorization. No hosted operation is authorized by this packet.
