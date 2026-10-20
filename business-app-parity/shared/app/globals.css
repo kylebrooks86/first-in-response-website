@@ -1032,3 +1032,16 @@ html,body{max-width:100%;overflow-x:clip}
 [data-theme="dark"] .weather-strip .weather-radar-action a{background:#1b3450;border-color:#557b9f;color:#ecf5ff}
 @media(max-width:900px){.weather-strip .weather-alert{grid-row:6}}
 @media(max-width:430px){.weather-strip .weather-hourly-hours{grid-template-columns:minmax(0,1fr)}.weather-strip .weather-hour{grid-template-columns:75px 60px minmax(0,1fr)}}
+
+/* Field-friendly hour refresh and weather conditions worth checking before washing. */
+.weather-strip .weather-hourly-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.weather-strip .weather-hourly-actions button{min-height:44px;height:auto;white-space:normal}
+.weather-strip .weather-hourly-actions button:disabled{opacity:.65;cursor:progress}
+.weather-strip .weather-hourly-checked,.weather-strip .weather-hourly-note{margin:0;font-size:11px;line-height:1.5;color:#455e78}
+.weather-strip .weather-hour-caution{border-color:#b67b30;background:#fff7e7}
+.weather-strip .weather-hour-cautions{grid-column:1/-1;margin:2px 0 0;padding:5px 7px;border-radius:6px;background:#ffedd2;color:#71400b;font-size:11px;line-height:1.4;font-weight:800}
+[data-theme="dark"] .weather-strip .weather-hour-caution{border-color:#ba8b45;background:#35291b}
+[data-theme="dark"] .weather-strip .weather-hour-cautions{background:#4a361d;color:#ffe2b5}
+[data-theme="dark"] .weather-strip .weather-hourly-checked,
+[data-theme="dark"] .weather-strip .weather-hourly-note{color:#c2d1e3}
+@media(max-width:430px){.weather-strip .weather-hourly-title{align-items:start}.weather-strip .weather-hourly-actions{width:100%}.weather-strip .weather-hourly-actions button{flex:1 1 110px}}
