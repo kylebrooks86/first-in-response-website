@@ -1,0 +1,41 @@
+name: FIRE chat follow-up action safe retries
+on:
+  push:
+    branches: [chat/fire-followup-action-ci-2026-10-19]
+permissions:
+  contents: read
+jobs:
+  followup-retry-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install from frozen lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Shared TypeScript
+        run: pnpm exec tsc --noEmit
+      - name: Actual follow-up action duplicate retry regression
+        run: node scripts/test-followup-action-retry.mjs
+      - name: Follow-up list loading, timing and safety
+        run: |
+          node scripts/test-followup-load-errors.mjs
+          node scripts/test-follow-up-timing.mjs
+      - name: Combined business iPhone and notifications
+        run: |
+          node scripts/test-estimate-detail-recovery.mjs
+          node scripts/test-business-write-recovery.mjs
+          node scripts/test-notification-read-recovery.mjs
