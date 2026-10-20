@@ -15,7 +15,7 @@ const component=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text
 assert.ok(component,'Must execute actual ScheduleWeather, never a copied mock');
 const fixture=`import React,{useEffect,useState}from'react';
 import{createRoot}from'react-dom/client';
-import{formatDailyTemperatures,weatherDayHeading,weatherIconKind,hourlyWorkCautions}from'./lib/tulsa-weather';
+import{formatDailyTemperatures,weatherDayHeading,weatherIconKind,hourlyWorkCautions,dailyWorkCautions}from'./lib/tulsa-weather';
 const CloudRain=()=> <span aria-hidden="true">☔</span>,Wind=()=> <span aria-hidden="true">↗</span>;
 const WeatherConditionIcon=({description})=> <span role="img" aria-label={description}>☀</span>;
 ${component.getText(ast)}
