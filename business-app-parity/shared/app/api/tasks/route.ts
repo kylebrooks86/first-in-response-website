@@ -48,15 +48,21 @@ export async function POST(request:Request){
 export async function PATCH(request:Request){
  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
  let body:{id?:unknown;status?:unknown;expectedStatus?:unknown};
- try{body=await request.json() as typeof body;}catch{return Response.json({error:"Task update requires valid JSON."},{status:400});}
+ try{
+  const parsed:unknown=await request.json();
+  if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error("Invalid task update");
+  body=parsed as typeof body;
+ }catch{return Response.json({error:"Task update requires a valid JSON object."},{status:400});}
  const id=typeof body.id==="string"?body.id.trim():"";
  if(!id||!(body.status==="completed"||body.status==="open")||(body.expectedStatus!==undefined&&body.expectedStatus!=="open"&&body.expectedStatus!=="completed"))
   return Response.json({error:"Choose a valid task and status."},{status:400});
  const status=body.status;
  const completedAt=status==="completed"?new Date().toISOString():null;
+ // A repeated request that already reached the target must never rewrite completed_at.
+ // The expected-status condition still rejects stale changes by another device.
  const statement=body.expectedStatus===undefined
-  ?env.DB.prepare("UPDATE tasks SET status=?,completed_at=? WHERE id=?").bind(status,completedAt,id)
-  :env.DB.prepare("UPDATE tasks SET status=?,completed_at=? WHERE id=? AND status=?").bind(status,completedAt,id,body.expectedStatus);
+  ?env.DB.prepare("UPDATE tasks SET status=?,completed_at=? WHERE id=? AND status<>?").bind(status,completedAt,id,status)
+  :env.DB.prepare("UPDATE tasks SET status=?,completed_at=? WHERE id=? AND status=? AND status<>?").bind(status,completedAt,id,body.expectedStatus,status);
  const result=await statement.run();
  if(result.meta.changes===1)return Response.json({ok:true,status,completedAt});
  const saved=await env.DB.prepare("SELECT status,completed_at AS completedAt FROM tasks WHERE id=?").bind(id).first<{status:string;completedAt:string|null}>();
