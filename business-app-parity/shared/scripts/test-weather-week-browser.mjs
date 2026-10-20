@@ -198,8 +198,11 @@ try{
  check(await coldPage.locator('.weather-days article').count()===0,'Initial NWS outage never fabricates a prior forecast');
  weatherOutage=false;
  await cold.getByRole('button',{name:'Retry seven-day Tulsa forecast'}).click();
+ await coldPage.waitForFunction(()=>document.querySelectorAll('.weather-strip:not(.loading):not(.unavailable) .weather-days article').length===7);
+ check(await coldPage.locator('.weather-strip.unavailable').count()===1,'Refreshing one independently mounted weather panel does not silently refresh another');
+ await coldPage.locator('.weather-strip.unavailable').getByRole('button',{name:'Retry seven-day Tulsa forecast'}).click();
  await coldPage.waitForFunction(()=>document.querySelectorAll('.weather-strip:not(.loading):not(.unavailable) .weather-days article').length===14);
- check(await coldPage.locator('.weather-days article').count()===14,'Cold-start weather retry restores both seven-day panels');
+ check(await coldPage.locator('.weather-days article').count()===14,'Explicit cold-start retries restore both independently mounted seven-day panels');
  await coldContext.close();
  check(requests>=16&&hourlyRequests>=48,'Both weather panels use only synthetic seven-day and hourly NWS responses');
  console.log(`PASS ${checks}/${checks}: actual seven-day Dashboard/Schedule, tapped hourly forecasts, outage fallback, official radar, iPhone and tablet light/dark and no overflow. Synthetic localhost only.`);
