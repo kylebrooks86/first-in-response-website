@@ -8,7 +8,7 @@ const sharedHelpers={};
 {const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/message-history.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
 {const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/offline-photo-availability.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
 function fixture(){let state=[],refs=[],cursor=0,refCursor=0,effect,fetcher;const writes=[];const context={exports:{},require,...sharedHelpers,navigator:{onLine:true},saveOfflinePhotoCustomerDirectory:async()=>0,loadOfflinePhotoCustomerDirectory:async()=>[],clearOfflinePhotoCustomerDirectory:async()=>{},...Object.fromEntries([...tags].map(t=>[t,()=>null])),money:c=>String(c),dateTime:v=>v,statusLabel:v=>v,resolvedBillingTotalCents:e=>e.totalCents,billingBalanceCents:e=>Math.max(0,e.totalCents-e.paidCents),
-useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{writes.push(names[i]);state[i]=typeof v==='function'?v(state[i]):v;}];},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){if(String(fn).includes("void load()"))effect=fn;},fetch:(url,options)=>{eq(url,'/api/customers');eq(options,undefined,'Synthetic GET only');return fetcher();}};
+useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{writes.push(names[i]);state[i]=typeof v==='function'?v(state[i]):v;}];},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){if(String(fn).includes("void load()"))effect=fn;},fetch:(url,options)=>{eq(url,'/api/customers');eq(options?.cache,'no-store','Owner customer GET cannot read cached private records');return fetcher();}};
 const source=fn.getText(ast).replace('  useEffect(() => { void load();','  exports.load=load;\n  useEffect(() => { void load();');vm.runInNewContext(ts.transpileModule(source+'\nexports.view=CustomersView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);const render=()=>{cursor=0;refCursor=0;return context.exports.view({searchQuery:'',onEstimateSaved(){throw Error('No writes allowed');}});};render();return {render,load:()=>context.exports.load(),get:k=>state[names.indexOf(k)],set:(k,v)=>state[names.indexOf(k)]=v,snapshot:()=>JSON.stringify(keys.map(k=>state[names.indexOf(k)])),setFetcher:f=>fetcher=f,cleanup:()=>effect(),writes};}
 for(const scenario of ['older success','older failure while pending','older success after latest error','unmount']){
  const f=fixture(),old=defer(),latest=defer();let round=old;f.setFetcher(()=>round.promise);const pending=f.load();round=latest;
@@ -23,6 +23,18 @@ for(const key of keys)for(const value of [undefined,{},[null],[{}]])failures.pus
 for(const value of [null,'',false,NaN,{}])failures.push(()=>ok({...body('broken'),customers:[{...body('broken').customers[0],estimateTotal:value}]}));
 failures.push(()=>ok({...body('broken'),customers:[{...body('broken').customers[0],name:null}]}));
 for(const [key,row] of [['estimates',{id:'bad',totalCents:100,depositCents:50,paidCents:null}],['invoices',{id:'bad',totalCents:''}],['photos',{id:'bad',sizeBytes:false}],['payments',{id:'bad',amountCents:{}}]])failures.push(()=>ok({...body('broken'),[key]:[row]}));
+for(const value of ['1.5','9007199254740992',1.25])failures.push(()=>ok({...body('broken'),customers:[{...body('broken').customers[0],estimateTotal:value}]}));
+for(const [key,row] of [
+ ['estimates',{id:'e-fraction',totalCents:'99.5',depositCents:100,paidCents:0}],
+ ['estimates',{id:'e-overflow',totalCents:'9007199254740992',depositCents:100,paidCents:0}],
+ ['invoices',{id:'i-fraction',totalCents:0.75}],
+ ['payments',{id:'p-overflow',amountCents:'9007199254740992'}],
+ ['photos',{id:'ph-fraction',sizeBytes:0.5}]
+])failures.push(()=>ok({...body('broken'),[key]:[row]}));
+for(const key of keys){
+ const item=key==='customers'?body('broken').customers[0]:{id:'duplicate',customerId:'broken'};
+ failures.push(()=>ok({...body('broken'),[key]:[item,{...item}]}));
+}
 for(const failure of failures)for(const selected of [false,true]){
  const f=fixture();f.setFetcher(async()=>ok(body('saved')));await f.load();if(selected)f.set('selectedId','saved');const before=f.snapshot();f.setFetcher(failure);await f.load();eq(f.get('loading'),false);eq(Boolean(f.get('error')),true,'Bad collections must fail');eq(f.snapshot(),before,'Failure must preserve all prior collections atomically');
  const tree=nodes(f.render());eq(tree.some(n=>n.props?.className==='customer-snapshot'),false,'Failed profile must hide totals');eq(tree.some(n=>n.props?.className==='customer-list'),false);const retry=tree.find(n=>n.props?.children==='Try again');assert.ok(retry);checks++;
