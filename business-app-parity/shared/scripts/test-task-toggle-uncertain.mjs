@@ -56,6 +56,7 @@ for(const mode of ['network','http','bad-json','wrong-status','missing-confirmat
  eq(f.pending,task.id,mode+' blocks future toggles pending saved-list refresh');
  eq(f.lock.current,false,mode+' releases network lock');
  eq(f.messages.at(-1).includes('may have succeeded'),true,mode+' explains uncertain outcome');
+ f.ctx.taskToggleUncertain=f.pending; // Simulate React rerender with the updated uncertainty state.
  const again=f.act();await again;
  eq(f.calls.length,1,mode+' refuses another status PATCH until verified refresh');
 }
