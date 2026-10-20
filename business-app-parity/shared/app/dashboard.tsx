@@ -636,16 +636,26 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
   const nextJobPhone=digits.length===10?"+1"+digits:digits.length===11&&digits.startsWith("1")?"+"+digits:null;
   const nextJobEmail=nextJob?.email?.trim()??"";
   const canEmailNextJob=/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(nextJobEmail);
+  // The customer profile may hold other details, so report only fields
+  // available on THIS scheduled appointment. Highlight today/tomorrow only.
+  const nextJobCentralDay=nextJob?.scheduledAt?new Date(nextJob.scheduledAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"}):null;
+  const tomorrowDate=new Date(localDay+"T12:00:00Z");tomorrowDate.setUTCDate(tomorrowDate.getUTCDate()+1);
+  const tomorrowDay=tomorrowDate.toISOString().slice(0,10);
+  const nearTermNextJob=nextJobCentralDay===localDay||nextJobCentralDay===tomorrowDay;
+  const nextJobNeedsAddress=Boolean(nearTermNextJob&&nextJob&&!nextJob.address?.trim());
+  const nextJobNeedsContact=Boolean(nearTermNextJob&&nextJob&&!nextJobPhone&&!canEmailNextJob);
+  const nextJobNeedsPrep=nextJobNeedsAddress||nextJobNeedsContact;
   return (
     <div className="dashboard-view">
       <section className="welcome-row"><div><p className="eyebrow">FIRE App</p><h1>Welcome to First In Response Exteriors</h1><p>Customers, estimates, jobs, and balances in one place.</p></div><NewEstimate onSaved={onSaved} /></section>
       <ScheduleWeather compact nextJobAt={upcomingJobs[0]?.scheduledAt}/>
-      {upcomingJobs[0]&&<section className="dashboard-next-job" aria-label="Next scheduled job">
+      {upcomingJobs[0]&&<section className={`dashboard-next-job${nextJobNeedsPrep?" dashboard-next-job-needs-prep":""}`} aria-label="Next scheduled job">
         <div className="dashboard-next-job-info">
           <p className="eyebrow">Your next appointment</p>
           <h2>{upcomingJobs[0].customer}</h2>
           <p>{upcomingJobs[0].service} · {dateTime(upcomingJobs[0].scheduledAt!)}</p>
           <small>{upcomingJobs[0].address||"No job address saved"}</small>
+          {nextJobNeedsPrep&&<div className="dashboard-next-prep" role="status" aria-label="Next job details to review"><strong><AlertTriangle aria-hidden="true"/> Check before this appointment</strong><div>{nextJobNeedsAddress&&<span>Service address not saved on job</span>}{nextJobNeedsContact&&<span>No usable phone or email on job</span>}</div><small>Open this job to verify details. The customer profile may contain more information.</small></div>}
         </div>
         <div className="dashboard-next-job-actions">
           <Button className="brand-button" onClick={()=>onOpenEstimate?onOpenEstimate(upcomingJobs[0].id):onNavigate("schedule")}>Open next job <ChevronRight className="h-4 w-4"/></Button>

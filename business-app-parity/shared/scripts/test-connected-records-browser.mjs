@@ -223,6 +223,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(await sms.getAttribute('href')==='sms:+19185550146','Dashboard text shortcut only opens a draft in the native composer');
   check(await email.getAttribute('href')==='mailto:customer%40example.invalid','Dashboard email shortcut encodes its recipient');
   check(await nextJob.locator('.dashboard-next-contact').count()===3,'Valid phone and email show three usable actions');
+  check(await nextJob.locator('.dashboard-next-prep').count()===0,'Next appointment with contact and address has no distracting warning');
   const directions=nextJob.getByRole('link',{name:'Directions to next job',exact:true});
   check(await directions.isVisible(),'Next scheduled job with address offers direct driving directions');
   const directionsUrl=new URL(await directions.getAttribute('href'));
@@ -239,10 +240,19 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await page.goto(origin+'/dashboard-bad-contact');
   await page.getByRole('region',{name:'Next scheduled job'}).waitFor();
   check(await page.locator('.dashboard-next-contact').count()===0,'Malformed contact details cannot create dial, SMS or email links');
+  const contactCue=page.getByRole('status',{name:'Next job details to review'});
+  check((await contactCue.innerText()).includes('No usable phone or email on job'),'Malformed next-job contact yields a clear day-of review cue');
+  check(!(await contactCue.innerText()).includes('Service address not saved'),'Valid address is not falsely flagged');
+  check((await page.locator('.dashboard-next-job-needs-prep').count())===1,'Near-term contact warning is visible on appointment card');
   await page.goto(origin+'/dashboard-no-address');
   await page.getByRole('region',{name:'Next scheduled job'}).waitFor();
   check(await page.getByRole('link',{name:'Directions to next job',exact:true}).count()===0,'Dashboard never offers directions for an unsaved job address');
   check((await page.getByRole('region',{name:'Next scheduled job'}).innerText()).includes('No job address saved'),'Dashboard explains why directions are unavailable');
+  const addressCue=page.getByRole('status',{name:'Next job details to review'});
+  check((await addressCue.innerText()).includes('Service address not saved on job'),'Missing near-term service address is highlighted before driving');
+  check(!(await addressCue.innerText()).includes('No usable phone or email'),'Valid contact options are never falsely flagged');
+  await page.getByRole('region',{name:'Next scheduled job'}).getByRole('button',{name:'Open next job'}).click();
+  check(await page.evaluate(()=>window.openedEstimate)==='exact-dashboard-job','Missing-detail warning retains direct route to correct job');
  }
  mode='error';await page.goto(origin+'/schedule');await page.getByRole('alert').waitFor();check(await page.locator('.schedule-window-controls,.schedule-job,.route-day-button').count()===0,'Failed schedule read hides counts/routes/cards');mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).waitFor();check(await page.locator('.schedule-job').count()===5,'Explicit schedule retry restores all appointments');
  const freshButton=page.getByRole('button',{name:'Refresh schedule',exact:true});

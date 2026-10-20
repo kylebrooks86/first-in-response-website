@@ -1298,3 +1298,16 @@ html,body{max-width:100%;overflow-x:clip}
 [data-theme="dark"] .dashboard-review-reminders{border-color:#856d46}
 [data-theme="dark"] .dashboard-review-list>button>span:last-child{color:#f2cc8c}
 @media(max-width:390px){.dashboard-review-list>button{align-items:flex-start;flex-direction:column}.dashboard-review-list>button>span:last-child{align-self:flex-end}}
+
+/* A restrained action-needed cue only for the next appointment today or tomorrow. */
+.dashboard-next-job.dashboard-next-job-needs-prep{border-inline-start:4px solid #bf883f}
+.dashboard-next-prep{display:grid;gap:7px;max-width:100%;margin-top:10px;padding:10px 12px;border:1px solid #d4b179;border-radius:10px;background:#fff7e8;color:#6d451b}
+.dashboard-next-prep>strong{display:flex;align-items:center;gap:7px;font-size:12px;line-height:1.4;font-weight:850}
+.dashboard-next-prep>strong svg{width:16px;height:16px;flex:0 0 auto}
+.dashboard-next-prep>div{display:flex;flex-wrap:wrap;gap:5px}
+.dashboard-next-prep>div>span{display:inline-flex;align-items:center;min-height:26px;padding:4px 8px;border:1px solid #dcb98b;border-radius:7px;background:#fffdfa;font-size:11px;font-weight:800;line-height:1.4;overflow-wrap:anywhere}
+.dashboard-next-prep>small{font-size:11px;line-height:1.45;color:inherit;opacity:.9}
+[data-theme="dark"] .dashboard-next-job.dashboard-next-job-needs-prep{border-inline-start-color:#d7a35d}
+[data-theme="dark"] .dashboard-next-prep{background:#3c2e1e;color:#ffe6c5;border-color:#a78451}
+[data-theme="dark"] .dashboard-next-prep>div>span{background:#2a251f;border-color:#8c6f4c}
+@media(max-width:390px){.dashboard-next-prep{padding:9px}.dashboard-next-prep>div>span{font-size:10px}}
