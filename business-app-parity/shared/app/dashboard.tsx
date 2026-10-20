@@ -25,7 +25,7 @@ import { loadRefundRetry, saveRefundRetry, clearRefundRetry, type RefundRetryAtt
 import { confirmedManualPayment,loadManualPaymentRetry, saveManualPaymentRetry, clearManualPaymentRetry, type ManualPaymentAttempt } from "../lib/manual-payment-retry-state";
 import { editMoneyLine, editableLineTotalCents, restoreEditableLineMoney } from "../lib/editable-line-totals";
 
-import {weatherIconKind,formatDailyTemperatures,weatherDayHeading} from "../lib/tulsa-weather";
+import {weatherIconKind,formatDailyTemperatures,weatherDayHeading,type HourlyForecastResponse} from "../lib/tulsa-weather";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
@@ -1667,10 +1667,34 @@ function WeatherConditionIcon({description}:{description:string}){
 }
 function ScheduleWeather({nextJobAt,compact=false}:{nextJobAt?:string|null;compact?:boolean}){
  const [weather,setWeather]=useState<WeatherResponse|null>(null);const [unavailable,setUnavailable]=useState(false);
+ const [selectedHourlyDate,setSelectedHourlyDate]=useState("");
+ const [hourly,setHourly]=useState<HourlyForecastResponse|null>(null);
+ const [hourlyLoading,setHourlyLoading]=useState(false);
+ const [hourlyError,setHourlyError]=useState("");
  useEffect(()=>{let cancelled=false;let running=false;const controller=new AbortController();
  const load=async()=>{if(running||cancelled)return;running=true;try{const response=await fetch("/api/weather",{cache:"no-store",signal:controller.signal});if(!response.ok)throw Error("weather");const result=await response.json() as WeatherResponse;if(!Number.isFinite(result.current?.temperature)||!result.daily?.length)throw Error("weather");if(!cancelled){setWeather(result);setUnavailable(false);}}catch{if(!cancelled)setUnavailable(true);}finally{running=false;}};
  const resume=()=>{if(document.visibilityState==="visible")void load();};void load();const timer=window.setInterval(()=>void load(),15*60*1000);window.addEventListener("focus",resume);document.addEventListener("visibilitychange",resume);
  return()=>{cancelled=true;controller.abort();window.clearInterval(timer);window.removeEventListener("focus",resume);document.removeEventListener("visibilitychange",resume);};},[]);
+ // Hourly NWS data is fetched only when the owner opens a specific day.
+ // An aborted/stale request may never replace another day's results.
+ useEffect(()=>{
+  if(!selectedHourlyDate){setHourly(null);setHourlyError("");setHourlyLoading(false);return;}
+  let active=true;const controller=new AbortController();
+  setHourly(null);setHourlyError("");setHourlyLoading(true);
+  const read=async()=>{
+   try{
+    const response=await fetch(`/api/weather/hourly?date=${encodeURIComponent(selectedHourlyDate)}`,{cache:"no-store",signal:controller.signal});
+    if(!response.ok)throw Error("Hourly weather unavailable");
+    const parsed=await response.json() as HourlyForecastResponse;
+    if(parsed.date!==selectedHourlyDate||!Array.isArray(parsed.hours))throw Error("Hourly weather unavailable");
+    if(active){setHourly(parsed);setHourlyError("");}
+   }catch{
+    if(active){setHourly(null);setHourlyError("Hourly details are unavailable right now. The seven-day forecast remains available.");}
+   }finally{if(active)setHourlyLoading(false);}
+  };
+  void read();
+  return()=>{active=false;controller.abort();};
+ },[selectedHourlyDate]);
  if(unavailable)return <section className="weather-strip unavailable"><CloudRain/><div><strong>Weather unavailable</strong><small>The schedule is still fully available.</small></div></section>;
  if(!weather)return <section className="weather-strip loading"><CloudRain/><div><strong>Loading Tulsa weather…</strong></div></section>;
  const jobDate=nextJobAt?new Date(nextJobAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"}):"";
@@ -1678,7 +1702,7 @@ function ScheduleWeather({nextJobAt,compact=false}:{nextJobAt?:string|null;compa
  // visible in date order even when the next appointment is later in the week.
  const days=weather.daily.slice(0,7);
  const freeze=days.some(day=>day.temperatureMin!=null&&day.temperatureMin<=32);const rain=days.some(day=>day.rainChance!=null&&day.rainChance>=50);const degrees=(value:number|null)=>value==null?"—":`${Math.round(value)}°`;
- return <section className={`weather-strip ${compact?"home-weather":""}`}><div className={`weather-current condition-${weatherIconKind(weather.current.description)}`}><WeatherConditionIcon description={weather.current.description}/><span><small>{weather.location} · 7-day forecast</small><strong>{degrees(weather.current.temperature)} · {weather.current.description}</strong><small>Updated {new Date(weather.updatedAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})} Central Time</small></span></div><div className="weather-days" role="region" aria-label="Seven-day Tulsa weather forecast" tabIndex={0}>{days.map(day=><article key={day.date} data-forecast-date={day.date} aria-label={new Date(day.date+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric",timeZone:"UTC"})} className={day.date===jobDate?"job-day":""}><small>{day.date===jobDate?`Next job · ${weatherDayHeading(day,new Date(weather.updatedAt).getTime())}`:weatherDayHeading(day,new Date(weather.updatedAt).getTime())}</small><strong>{formatDailyTemperatures(day)}</strong><span><CloudRain aria-hidden="true"/><span aria-label="Chance of rain">{day.rainChance==null?"—":`${Math.round(day.rainChance)}%`}</span> <Wind aria-hidden="true"/><span aria-label="Maximum wind speed">{day.windMax==null?"—":Math.round(day.windMax)} mph</span></span></article>)}</div><p className="weather-scroll-hint">Swipe or scroll to explore the full week →</p><div className={`weather-alert ${freeze||rain?"show":""}`}>{freeze&&rain?"Rain and freezing temperatures possible this week":freeze?"Freezing temperatures possible this week":rain?"Rain possible this week":""}</div><a href="https://www.weather.gov/" target="_blank" rel="noopener noreferrer">National Weather Service</a></section>;
+ return <section className={`weather-strip ${compact?"home-weather":""}`}><div className={`weather-current condition-${weatherIconKind(weather.current.description)}`}><WeatherConditionIcon description={weather.current.description}/><span><small>{weather.location} · 7-day forecast</small><strong>{degrees(weather.current.temperature)} · {weather.current.description}</strong><small>Updated {new Date(weather.updatedAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})} Central Time</small></span></div><div className="weather-days" role="region" aria-label="Seven-day Tulsa weather forecast" tabIndex={0}>{days.map(day=><article key={day.date} data-forecast-date={day.date} aria-label={new Date(day.date+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric",timeZone:"UTC"})} className={day.date===jobDate?"job-day":""}><button type="button" className="weather-day-toggle" aria-expanded={selectedHourlyDate===day.date} aria-label={`Show hourly forecast for ${new Date(day.date+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric",timeZone:"UTC"})}`} onClick={()=>setSelectedHourlyDate(current=>current===day.date?"":day.date)}><small>{day.date===jobDate?`Next job · ${weatherDayHeading(day,new Date(weather.updatedAt).getTime())}`:weatherDayHeading(day,new Date(weather.updatedAt).getTime())}</small><strong>{formatDailyTemperatures(day)}</strong><span><CloudRain aria-hidden="true"/><span aria-label="Chance of rain">{day.rainChance==null?"—":`${Math.round(day.rainChance)}%`}</span> <Wind aria-hidden="true"/><span aria-label="Maximum wind speed">{day.windMax==null?"—":Math.round(day.windMax)} mph</span></span><span className="weather-hourly-cue">{selectedHourlyDate===day.date?"Hide hours ▲":"View hours ▼"}</span></button></article>)}</div><p className="weather-scroll-hint">Swipe or scroll through the week; tap a day for its hourly forecast →</p>{selectedHourlyDate&&days.some(day=>day.date===selectedHourlyDate)&&<div className="weather-hourly" role="region" aria-label="Hourly Tulsa weather forecast"><div className="weather-hourly-title"><strong>Hourly · {new Date(selectedHourlyDate+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",timeZone:"UTC"})}</strong><button type="button" onClick={()=>setSelectedHourlyDate("")} aria-label="Close hourly forecast">Close ×</button></div>{hourlyLoading?<p role="status">Loading hour-by-hour weather…</p>:hourlyError?<p role="alert">{hourlyError}</p>:hourly?.date===selectedHourlyDate?(hourly.hours.length?<div className="weather-hourly-hours">{hourly.hours.map(hour=><article key={hour.startTime} className="weather-hour"><strong>{new Date(hour.startTime).toLocaleTimeString("en-US",{hour:"numeric",timeZone:"America/Chicago"})}</strong><span>{Math.round(hour.temperature)}°F</span><span>{hour.description}</span><span>Rain {hour.rainChance==null?"—":`${Math.round(hour.rainChance)}%`}</span><span>Wind {hour.windMph==null?"—":`${Math.round(hour.windMph)} mph`}</span></article>)}</div>:<p>National Weather Service hourly details are not available for this day yet.</p>):<p>Choose a day to view its forecast.</p>}</div>}<div className={`weather-alert ${freeze||rain?"show":""}`}>{freeze&&rain?"Rain and freezing temperatures possible this week":freeze?"Freezing temperatures possible this week":rain?"Rain possible this week":""}</div><div className="weather-radar-action"><a href="https://radar.weather.gov/" target="_blank" rel="noopener noreferrer" aria-label="Open live National Weather Service radar">View live radar ↗</a><small>Search Tulsa in the radar map</small></div><a href="https://www.weather.gov/" target="_blank" rel="noopener noreferrer">National Weather Service</a></section>;
 }
 
 function ScheduleView({ searchQuery }:{searchQuery:string}) {

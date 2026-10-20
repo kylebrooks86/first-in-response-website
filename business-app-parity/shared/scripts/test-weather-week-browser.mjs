@@ -30,11 +30,18 @@ const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globa
 assert.ok(css.css.includes('.weather-scroll-hint')&&css.css.includes('scroll-snap-type'));
 const days=Array.from({length:7},(_,i)=>({date:`2026-10-${String(i+20).padStart(2,'0')}`,temperatureMax:70+i,temperatureMin:i===6?null:45+i,rainChance:i===5?75:15,windMax:5+i}));
 const sample={location:'Tulsa',updatedAt:'2026-10-20T17:00:00.000Z',current:{temperature:66,description:'Sunny'},daily:days};
-let requests=0;
+let requests=0,hourlyRequests=0;
 const server=createServer((req,res)=>{
  if(req.url==='/bundle.js'){res.writeHead(200,{'content-type':'text/javascript','cache-control':'no-store'});res.end(bundle.outputFiles[0].text);return;}
  if(req.url==='/styles.css'){res.writeHead(200,{'content-type':'text/css','cache-control':'no-store'});res.end(css.css);return;}
  if(req.url==='/api/weather'){requests++;res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(sample));return;}
+ if(req.url?.startsWith('/api/weather/hourly?')){
+  hourlyRequests++;const day=new URL(req.url,'https://synthetic.invalid').searchParams.get('date');
+  if(day==='2026-10-23'){res.writeHead(503,{'content-type':'application/json'});res.end(JSON.stringify({error:'NWS temporarily offline'}));return;}
+  const hours=Array.from({length:3},(_,i)=>({startTime:day+'T'+String(12+i).padStart(2,'0')+':00:00-05:00',temperature:60+i,description:i===1?'Rain Showers':'Partly Sunny',rainChance:i===1?65:null,windMph:i===0?null:12}));
+  res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+  res.end(JSON.stringify({date:day,location:'Tulsa',updatedAt:'2026-10-20T17:00:00Z',hours}));return;
+ }
  if(req.url==='/favicon.ico'){res.writeHead(204);res.end();return;}
  res.writeHead(200,{'content-type':'text/html'});res.end('<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/styles.css"></head><body><div id="app"></div><script type="module" src="/bundle.js"></script></body></html>');
 });
@@ -72,6 +79,30 @@ try{
     await scroll.evaluate(n=>n.scrollLeft=n.scrollWidth);
     const visible=await scroll.evaluate(n=>{const card=n.querySelector('article:last-child').getBoundingClientRect(),rect=n.getBoundingClientRect();return card.right<=rect.right+2&&card.left>=rect.left-2;});
     check(visible,'Last forecast day is reachable by horizontal scroll');
+    const radar=widget.getByRole('link',{name:'Open live National Weather Service radar'});
+    check(await radar.getAttribute('href')==='https://radar.weather.gov/','Radar points to official interactive NWS radar');
+    check(await radar.getAttribute('target')==='_blank'&&(await radar.getAttribute('rel')).includes('noopener'),'Radar safely opens separately from the owner's app');
+    const buttons=scroll.getByRole('button',{name:/Show hourly forecast for/});
+    check(await buttons.count()===7,'Each forecast day has an accessible tap-to-expand hourly action');
+    const beforeHourly=hourlyRequests;
+    await buttons.nth(1).click();
+    const hourly=widget.getByRole('region',{name:'Hourly Tulsa weather forecast'});
+    await hourly.locator('.weather-hour').first().waitFor();
+    check(await hourly.locator('.weather-hour').count()===3,'Tapped day opens only its actual hourly breakdown');
+    check((await hourly.innerText()).includes('Rain 65%')&&(await hourly.innerText()).includes('Wind 12 mph'),'Hourly panel shows temperature, conditions, rain and wind');
+    check(await buttons.nth(1).getAttribute('aria-expanded')==='true','Selected forecast day advertises open state');
+    check(hourlyRequests===beforeHourly+1,'Hourly endpoint is requested only after opening a day');
+    await buttons.nth(2).click();
+    await hourly.locator('.weather-hour').first().waitFor();
+    check((await hourly.innerText()).includes('October 22'),'Changing day replaces old hourly heading and results');
+    await buttons.nth(3).click();
+    await hourly.getByRole('alert').waitFor();
+    check((await hourly.getByRole('alert').innerText()).includes('seven-day forecast remains available'),'Hourly failure stays independent of the seven-day weather');
+    check(await cards.count()===7,'Outage never hides the entire weather outlook');
+    const bounds=await hourly.evaluate(n=>({rect:n.getBoundingClientRect().toJSON(),width:innerWidth}));
+    check(bounds.rect.left>=-1&&bounds.rect.right<=bounds.width+1,'Expanded hourly panel cannot overflow a phone viewport');
+    await hourly.getByRole('button',{name:'Close hourly forecast'}).click();
+    check(await widget.getByRole('region',{name:'Hourly Tulsa weather forecast'}).count()===0,'Close control hides hourly forecast without losing the seven-day panel');
    }
    check(errors.length===0,'No React browser errors while rendering the seven-day forecast: '+errors.join(';'));
    await page.evaluate(()=>window.changeWeatherJob('2026-11-12T15:00:00Z'));
@@ -84,6 +115,6 @@ try{
    await context.close();
   }
  }
- check(requests>=16,'Both weather panels use the synthetic NWS response, no public weather calls');
- console.log(`PASS ${checks}/${checks}: actual Dashboard/Schedule seven-day React cards, later next-job weather, 320px swipe, dark/light, keyboard scrolling, no fake outside-horizon days, and no UI overflow. Synthetic localhost only.`);
+ check(requests>=16&&hourlyRequests>=48,'Both weather panels use only synthetic seven-day and hourly NWS responses');
+ console.log(`PASS ${checks}/${checks}: actual seven-day Dashboard/Schedule, tapped hourly forecasts, outage fallback, official radar, iPhone and tablet light/dark and no overflow. Synthetic localhost only.`);
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
