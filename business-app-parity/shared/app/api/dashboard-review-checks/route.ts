@@ -15,6 +15,12 @@ export async function GET(){
      WHERE m.customer_id=c.id AND m.template='review'
        AND m.channel IN ('text_confirmed','email_confirmed')
        AND EXISTS(SELECT 1 FROM estimates e WHERE e.id=m.estimate_id AND e.customer_id=c.id AND e.status='completed')) AS requestedAt,
+   (SELECT m.created_at FROM customer_messages m WHERE m.customer_id=c.id
+     AND m.template='reviewCheckSnooze' AND m.channel='review_check_snoozed'
+     ORDER BY m.created_at DESC,m.id DESC LIMIT 1) AS snoozedAt,
+   (SELECT m.body FROM customer_messages m WHERE m.customer_id=c.id
+     AND m.template='reviewCheckSnooze' AND m.channel='review_check_snoozed'
+     ORDER BY m.created_at DESC,m.id DESC LIMIT 1) AS snoozeUntil,
    (SELECT MAX(n.created_at) FROM customer_notes n
      WHERE n.customer_id=c.id AND n.body='[FIRE FLAG] REVIEW_RECEIVED') AS reviewReceivedAt
    FROM customers c

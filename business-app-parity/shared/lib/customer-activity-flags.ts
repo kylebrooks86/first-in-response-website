@@ -34,7 +34,7 @@ export function deriveCustomerManualFlags(notes:readonly Note[]){
  */
 export function reviewFollowupEligibility(
  estimates:readonly {id?:string;status:string;lastReviewRequestAt?:string|null}[],
- messages:readonly {estimateId?:string|null;template:string;channel:string;createdAt:string}[],
+ messages:readonly {estimateId?:string|null;template:string;channel:string;createdAt:string;body?:string}[],
  reviewReceivedAt:string|null,
  now:number=Date.now()
 ):{status:"received"|"not-applicable"|"not-recorded"|"waiting"|"due";requestedAt:string|null;elapsedDays:number}{
@@ -53,5 +53,13 @@ export function reviewFollowupEligibility(
  const times=recorded.map(s=>({s,at:Date.parse(s)})).filter(v=>Number.isFinite(v.at)&&v.at<=now).sort((a,b)=>b.at-a.at);
  if(!times.length)return {status:"not-recorded",requestedAt:null,elapsedDays:0};
  const latest=times[0],elapsedDays=Math.floor((now-latest.at)/86400000);
- return {status:elapsedDays>=7?"due":"waiting",requestedAt:latest.s,elapsedDays};
+ // A deliberate OWNER review-status check deferral is independent of asking for
+ // a review. It never indicates a review was received or a text was sent.
+ // A newer review request always overrides a prior check deferral.
+ const deferred=messages.some(m=>{
+  if(m.template!=="reviewCheckSnooze"||m.channel!=="review_check_snoozed"||typeof m.body!=="string")return false;
+  const created=Date.parse(m.createdAt),until=Date.parse(m.body);
+  return Number.isFinite(created)&&created>=latest.at&&created<=now&&Number.isFinite(until)&&until>now;
+ });
+ return {status:deferred||elapsedDays<7?"waiting":"due",requestedAt:latest.s,elapsedDays};
 }
