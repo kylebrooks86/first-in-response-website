@@ -189,6 +189,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(await page.getByTestId('schedule-weather-target').textContent()==='2026-10-20T15:00:00Z','Weather targets earliest future scheduled appointment regardless of record order');
   const priorities=page.getByRole('region',{name:'Needs attention'});
   await priorities.waitFor();
+  await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('4 known checks'));
   check((await priorities.innerText()).includes('4 known checks'),'Priority strip counts one later same-day job gap, one due sign and two review checks');
   check(await priorities.locator('.dashboard-priority-actions>button').count()===3,'Priority strip uses three actionable categories rather than another long record list');
   await priorities.getByRole('button',{name:'Review upcoming appointment preparation'}).click();
