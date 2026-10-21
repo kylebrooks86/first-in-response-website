@@ -1540,6 +1540,64 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       needs
     };
   }
+  /** Chronological, read-only receipts. Never render note bodies or infer delivery from prepared messages. */
+  function buildCustomerTimeline(input:{
+    estimates:readonly CustomerEstimate[];invoices:readonly InvoiceRow[];
+    messages:readonly {message:CustomerMessage;prepared?:CustomerMessage}[];
+    notes:readonly CustomerNote[];payments:readonly PaymentRow[]
+  }){
+    type Section="estimates"|"invoices"|"payments"|"messages"|"notes";
+    type Event={key:string;id:string;section:Section;title:string;detail:string;at:string;timestamp:number};
+    const events:Event[]=[];
+    const add=(section:Section,id:string,at:string|undefined|null,title:string,detail:string)=>{
+      if(!id||!at)return;
+      const timestamp=Date.parse(at);
+      if(!Number.isFinite(timestamp))return;
+      events.push({key:section+":"+id+":"+timestamp+":"+title,id,section,title,detail,at,timestamp});
+    };
+    for(const estimate of input.estimates){
+      add("estimates",estimate.id,estimate.createdAt,"Estimate created",estimate.service||"Saved estimate");
+      add("estimates",estimate.id,estimate.acceptedAt,"Estimate accepted",estimate.service||"Saved estimate");
+      add("estimates",estimate.id,estimate.signedAt,"Agreement signed",estimate.service||"Saved estimate");
+      // An owner-confirmed message is a separate, stronger audit event.
+      if(estimate.firstEstimateSentAt&&!input.messages.some(row=>
+        row.message.estimateId===estimate.id&&row.message.template==="estimate"&&
+        (row.message.channel==="text_confirmed"||row.message.channel==="email_confirmed")))
+        add("estimates",estimate.id,estimate.firstEstimateSentAt,"Estimate send recorded","Saved status · delivery not verified");
+    }
+    for(const invoice of input.invoices)
+      add("invoices",invoice.id,invoice.createdAt,"Invoice created","Created · send not confirmed");
+    for(const payment of input.payments)
+      add("payments",payment.id,payment.createdAt,"Payment entry recorded",
+        (payment.type||"Payment")+" · "+(payment.status||"status unverified"));
+    const subject=(template:string)=>
+      template==="estimate"?"Estimate":template==="invoice"?"Invoice":
+      template==="review"?"Review request":template.startsWith("followUp")?"Estimate follow-up":
+      template==="invoiceReminder"||template==="overdue"?"Invoice follow-up":"Customer message";
+    for(const {message} of input.messages){
+      const isConfirmed=message.channel==="text_confirmed"||message.channel==="email_confirmed";
+      const isPrepared=message.channel==="text_prepared"||message.channel==="email_prepared";
+      const kind=subject(message.template);
+      const title=message.channel==="contact_recorded"?"Customer contact recorded":
+        message.channel==="followup_snoozed"?"Follow-up snoozed":
+        isConfirmed?kind+" send confirmed":isPrepared?kind+" prepared":
+        message.channel==="copy"?kind+" copied":"Communication record";
+      const detail=isConfirmed?"Owner-confirmed send · delivery unverified":
+        isPrepared||message.channel==="copy"?"Sending unconfirmed":
+        message.channel==="contact_recorded"?"Owner logged contact":
+        message.channel==="followup_snoozed"?"Follow-up deferred · owner recorded":"Legacy entry · delivery unverified";
+      add("messages",message.id,message.createdAt,title,detail);
+    }
+    for(const note of input.notes){
+      const title=note.body==="[FIRE FLAG] REVIEW_RECEIVED"?"Review received (owner logged)":
+        note.body==="[FIRE FLAG] YARD_SIGN_PICKED_UP"?"Yard sign pickup logged":
+        note.body.startsWith("[FIRE FLAG] YARD_SIGN_PLACED | pickup:")?"Yard sign placement logged":
+        "Customer note saved";
+      // Never copy arbitrary note body into a timeline (access codes, private details).
+      add("notes",note.id,note.createdAt,title,"Saved note · view original in Notes");
+    }
+    return events.sort((a,b)=>b.timestamp-a.timestamp||a.key.localeCompare(b.key)).slice(0,100);
+  }
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [estimates, setEstimates] = useState<CustomerEstimate[]>([]);
   const [notes, setNotes] = useState<CustomerNote[]>([]);
@@ -1552,6 +1610,9 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [propertyListRefresh,setPropertyListRefresh]=useState(0);
   const [payments,setPayments]=useState<PaymentRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [timelineShown,setTimelineShown]=useState(6);
+  const [timelineTarget,setTimelineTarget]=useState<{customerId:string;section:"estimates"|"invoices"|"payments"|"messages"|"notes";id:string}|null>(null);
+  useEffect(()=>{setTimelineShown(6);setTimelineTarget(null);},[selectedId]);
   useEffect(()=>{setPropertyEstimateBlocked(true);setSelectedProperty(null);setPropertyWorkflowReady(false);},[selectedId]);
   const [activeEstimate, setActiveEstimate] = useState<EstimateRow | null>(null);
   const [section, setSection] = useState("estimates");
@@ -1679,6 +1740,22 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const customerMessages=messages.filter((message)=>message.customerId===selectedId);
   const historyEntries=messageHistoryEntries(customerMessages);
   const customerPayments=payments.filter((payment)=>payment.customerId===selectedId);
+  const timelineEntries=buildCustomerTimeline({estimates:customerEstimates,invoices:customerInvoices,
+    messages:historyEntries,notes:customerNotes,payments:customerPayments});
+  const openTimelineEntry=(entry:{section:"estimates"|"invoices"|"payments"|"messages"|"notes";id:string})=>{
+    if(!selected)return;
+    setRecordSearch("");
+    setSection(entry.section);
+    setTimelineTarget({customerId:selected.id,section:entry.section,id:entry.id});
+  };
+  useEffect(()=>{
+    if(!timelineTarget||timelineTarget.customerId!==selectedId||timelineTarget.section!==section||recordSearch)return;
+    const target=document.getElementById("customer-"+timelineTarget.section.slice(0,-1)+"-"+timelineTarget.id);
+    if(!target)return;
+    target.scrollIntoView({block:"center",behavior:"instant"});
+    target.focus({preventScroll:true});
+    setTimelineTarget(null);
+  },[timelineTarget,selectedId,section,recordSearch]);
   const confirmedMessage=(templates:string[])=>customerMessages.some(message=>(message.channel==="text_confirmed"||message.channel==="email_confirmed")&&templates.includes(message.template));
   const customerEstimateSent=customerEstimates.some(estimate=>Boolean(estimate.firstEstimateSentAt)||estimate.status==="sent")||confirmedMessage(["estimate"]);
   const invoiceSent=confirmedMessage(["invoice"]);
@@ -1818,6 +1895,16 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         {manualFlags.sign?.state==="out"&&<p className="customer-flag-sign-location">Last placement: {manualFlags.sign.location||"Location not specified"}. Pickup target: {manualFlags.sign.pickupDate}. This is an in-app tracking cue, not a push notification.</p>}
         <p className="customer-flag-help">Manual flag actions prepare a note; select <strong>Add note</strong> in Notes to save the flag. Pickup tasks open as drafts in Business and are saved only when you choose Add task. Review receipt is owner-reported, not verified against Google.</p>
       </section>
+      <section className="customer-timeline" role="region" aria-label="Recent customer activity">
+        <div className="customer-timeline-heading"><div><h2>Recent activity</h2><p>Saved records only · newest first · no private note text shown</p></div><span>{timelineEntries.length} event{timelineEntries.length===1?"":"s"}{timelineEntries.length===100?"+":""}</span></div>
+        {timelineEntries.length>0?<ol className="customer-timeline-list">
+          {timelineEntries.slice(0,timelineShown).map(entry=><li key={entry.key}><button type="button" onClick={()=>openTimelineEntry(entry)} aria-label={"Open "+entry.title+" in "+entry.section}>
+            <span className="customer-timeline-copy"><strong>{entry.title}</strong><small>{entry.detail}</small></span>
+            <span className="customer-timeline-meta"><time dateTime={entry.at}>{dateTime(entry.at)}</time><ChevronRight aria-hidden="true"/></span>
+          </button></li>)}
+        </ol>:<p className="customer-timeline-empty">No dated activity has been recorded for this customer yet.</p>}
+        {timelineEntries.length>timelineShown&&<button type="button" className="customer-timeline-more" onClick={()=>setTimelineShown(current=>Math.min(current+6,timelineEntries.length))}>Show next {Math.min(6,timelineEntries.length-timelineShown)} events · {timelineEntries.length-timelineShown} remaining</button>}
+      </section>
       {activeCustomerEstimate&&<button className="customer-next-job" onClick={()=>setActiveEstimate({...activeCustomerEstimate,customer:selected.name,email:selected.email,phone:selected.phone,address:activeCustomerEstimate.address??undefined})}><span><Sparkles/><span><small>Continue current job</small><strong>{activeCustomerEstimate.service}</strong></span></span><span>{activeCustomerEstimate.scheduledAt?dateTime(activeCustomerEstimate.scheduledAt):statusLabel(activeCustomerEstimate.status)} <ChevronRight/></span></button>}
       <div className="customer-contact">
         {selected.phone ? <a href={`tel:${selected.phone}`}><Phone />Call</a> : <span><Phone />No phone</span>}
@@ -1841,11 +1928,11 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     </nav>
     {section!=="photos"&&<div className="customer-history-tools"><Label htmlFor={`customer-history-search-${selected.id}`}>Search this customer’s {section}</Label><Input id={`customer-history-search-${selected.id}`} type="search" value={recordSearch} onChange={event=>setRecordSearch(event.target.value)} placeholder="Service, status, reference, or text"/>{recordSearch&&<Button variant="outline" onClick={()=>setRecordSearch("")}>Clear history search</Button>}<p role="status">Showing {recordCounts[0]} of {recordCounts[1]} {section}. Profile balances include all saved records.</p></div>}
     <section className="customer-records">
-      {section === "estimates" && (matchingEstimates.length ? matchingEstimates.map((estimate) => <button className="customer-record record-button" key={estimate.id} onClick={()=>setActiveEstimate({...estimate,customer:selected.name,email:selected.email,phone:selected.phone,address:estimate.address??undefined})}><div><strong>{estimate.service}</strong><small>{new Date(estimate.createdAt).toLocaleDateString()} · {statusLabel(estimate.status)}{estimate.scheduledAt ? ` · ${dateTime(estimate.scheduledAt)}` : ""}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight /></button>) : <div className="record-empty"><ClipboardList /><strong>{customerEstimates.length?"No matching estimates":"No estimates yet"}</strong><p>{customerEstimates.length?"Clear the history search to see all saved estimates.":"Create the first estimate from this customer profile."}</p></div>)}
+      {section === "estimates" && (matchingEstimates.length ? matchingEstimates.map((estimate) => <button className="customer-record record-button" id={"customer-estimate-"+estimate.id} key={estimate.id} onClick={()=>setActiveEstimate({...estimate,customer:selected.name,email:selected.email,phone:selected.phone,address:estimate.address??undefined})}><div><strong>{estimate.service}</strong><small>{new Date(estimate.createdAt).toLocaleDateString()} · {statusLabel(estimate.status)}{estimate.scheduledAt ? ` · ${dateTime(estimate.scheduledAt)}` : ""}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight /></button>) : <div className="record-empty"><ClipboardList /><strong>{customerEstimates.length?"No matching estimates":"No estimates yet"}</strong><p>{customerEstimates.length?"Clear the history search to see all saved estimates.":"Create the first estimate from this customer profile."}</p></div>)}
       {section === "payments" && (matchingPayments.length ? matchingPayments.map((payment) => <article className="customer-record customer-payment-record" key={payment.id} id={"customer-payment-"+payment.id} tabIndex={-1}><div><strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":`${paymentTypeLabel(payment.type)} payment`}</strong><small>{dateTime(payment.createdAt)}{payment.reference&&<span className="inline-flex max-w-full flex-wrap items-center gap-1"><span className="font-mono" title={payment.reference}> · Ref …{payment.reference.slice(-12)}</span><button type="button" aria-label="Copy full payment reference" className="rounded border px-2 py-0.5 text-xs" onClick={()=>void navigator.clipboard.writeText(payment.reference||"").catch(()=>{})}>Copy</button></span>}</small><ProcessingDetails payment={payment}/></div><strong className="customer-payment-amount">{money(payment.amountCents)}</strong><RefundPayment payment={payment} onRefunded={()=>void load()}/></article>) : <div className="record-empty"><CreditCard /><strong>{customerPayments.length?"No matching payments":"No payments recorded"}</strong><p>{customerPayments.length?"Clear the history search to see all saved payments.":"Open an estimate and choose Record payment after receiving money through Wave, Cash App, Venmo, cash, check, card, or bank transfer."}</p></div>)}
-      {section === "invoices" && (matchingInvoices.length ? matchingInvoices.map((invoice)=><a className="customer-record record-button" key={invoice.id} href={invoice.shareToken?`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=customer`:undefined}><div><strong>Invoice #{invoice.id.slice(0,6).toUpperCase()}</strong><small>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Payment review in progress":invoice.status==="paid"?"Paid in full":`${statusLabel(invoice.status)} · Due ${invoice.dueAt?new Date(invoice.dueAt).toLocaleDateString():"on receipt"}`}</small></div><strong>{money(invoice.totalCents)}</strong><ExternalLink/></a>) : <div className="record-empty"><Receipt /><strong>{customerInvoices.length?"No matching invoices":"No invoices yet"}</strong><p>{customerInvoices.length?"Clear the history search to see all saved invoices.":"Open an estimate and tap Create invoice."}</p></div>)}
+      {section === "invoices" && (matchingInvoices.length ? matchingInvoices.map((invoice)=><a className="customer-record record-button" id={"customer-invoice-"+invoice.id} tabIndex={-1} key={invoice.id} href={invoice.shareToken?`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=customer`:undefined}><div><strong>Invoice #{invoice.id.slice(0,6).toUpperCase()}</strong><small>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Payment review in progress":invoice.status==="paid"?"Paid in full":`${statusLabel(invoice.status)} · Due ${invoice.dueAt?new Date(invoice.dueAt).toLocaleDateString():"on receipt"}`}</small></div><strong>{money(invoice.totalCents)}</strong><ExternalLink/></a>) : <div className="record-empty"><Receipt /><strong>{customerInvoices.length?"No matching invoices":"No invoices yet"}</strong><p>{customerInvoices.length?"Clear the history search to see all saved invoices.":"Open an estimate and tap Create invoice."}</p></div>)}
       {section === "photos"&&<OfflineCustomerPhotos key={selected.id} customerId={selected.id} customerName={selected.name} knownCustomerIds={customers.map(item=>item.id)} legacyCloudPhotoCount={customerPhotos.length}/>}
-      {section === "messages"&&<section className="customer-messages-panel" aria-label="Customer messages"><div className="customer-messages-actions"><MessageComposer key={selected.id} customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" triggerLabel="+ Compose Message" triggerClassName="brand-button" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div>{matchingMessages.length?matchingMessages.map(({message,prepared})=><article className="message-history" key={message.id}><span className={`message-channel ${message.channel}`}><MessageSquareText/></span><div><strong>{message.template==="followupContact"?"Customer contact recorded":message.template==="followupSnooze"?"Estimate follow-up snoozed":messageLabels[message.template]||"Customer message"}</strong><p>{message.body}</p><small>{message.channel==="contact_recorded"?"Contacted · owner recorded":message.channel==="followup_snoozed"?"Follow-up snoozed until "+dateTime(message.body):message.channel.endsWith("_prepared")?"Prepared · sending unconfirmed":message.channel.endsWith("_confirmed")?"Sent · owner confirmed; delivery unknown":message.channel==="copy"?"Copied · sending unconfirmed":"Legacy interaction · sending unconfirmed"} · {dateTime(message.createdAt)}{prepared&&<> · Prepared {dateTime(prepared.createdAt)} · 2 audit events retained</>}</small></div></article>):<div className="record-empty"><MessageSquareText/><strong>{historyEntries.length?"No matching messages":"No messages prepared yet"}</strong><p>{historyEntries.length?"Clear the history search to see all saved messages.":"Compose a personalized text or email above. Prepared drafts and your send confirmations appear here."}</p></div>}</section>}
+      {section === "messages"&&<section className="customer-messages-panel" aria-label="Customer messages"><div className="customer-messages-actions"><MessageComposer key={selected.id} customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" triggerLabel="+ Compose Message" triggerClassName="brand-button" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div>{matchingMessages.length?matchingMessages.map(({message,prepared})=><article className="message-history" id={"customer-message-"+message.id} tabIndex={-1} key={message.id}><span className={`message-channel ${message.channel}`}><MessageSquareText/></span><div><strong>{message.template==="followupContact"?"Customer contact recorded":message.template==="followupSnooze"?"Estimate follow-up snoozed":messageLabels[message.template]||"Customer message"}</strong><p>{message.body}</p><small>{message.channel==="contact_recorded"?"Contacted · owner recorded":message.channel==="followup_snoozed"?"Follow-up snoozed until "+dateTime(message.body):message.channel.endsWith("_prepared")?"Prepared · sending unconfirmed":message.channel.endsWith("_confirmed")?"Sent · owner confirmed; delivery unknown":message.channel==="copy"?"Copied · sending unconfirmed":"Legacy interaction · sending unconfirmed"} · {dateTime(message.createdAt)}{prepared&&<> · Prepared {dateTime(prepared.createdAt)} · 2 audit events retained</>}</small></div></article>):<div className="record-empty"><MessageSquareText/><strong>{historyEntries.length?"No matching messages":"No messages prepared yet"}</strong><p>{historyEntries.length?"Clear the history search to see all saved messages.":"Compose a personalized text or email above. Prepared drafts and your send confirmations appear here."}</p></div>}</section>}
       {section === "notes" && <div className="notes-panel"><div className="note-compose"><Label className="sr-only" htmlFor={`customer-note-draft-${selected.id}`}>Customer note</Label><Input id={`customer-note-draft-${selected.id}`} value={noteText} disabled={savingNote&&noteSavingCustomer.current===selected.id} onChange={(event)=>{const value=event.target.value;noteDrafts.current[selected.id]=value;setNoteText(value);setNoteFeedback(null);}} placeholder="Gate code, pets, property details…" /><Button className="brand-button" onClick={()=>void saveNote()} disabled={savingNote || !noteText.trim()}><Plus className="h-4 w-4" /> {savingNote?"Saving note…":"Add note"}</Button></div>{noteFeedback?.customerId===selected.id&&<p className={noteFeedback.kind==="error"?"save-error":"save-success"} role={noteFeedback.kind==="error"?"alert":"status"}>{noteFeedback.text}</p>}{noteFeedback?.customerId===selected.id&&noteFeedback.kind==="error"&&<Button variant="outline" className="min-h-11" onClick={()=>void load()} disabled={savingNote}>Refresh saved notes</Button>}{matchingNotes.length ? matchingNotes.map((note)=><article className="note-row" key={note.id} id={"customer-note-"+note.id} tabIndex={-1}><StickyNote /><div><p>{note.body}</p><small>{dateTime(note.createdAt)}</small></div></article>) : <div className="record-empty"><StickyNote /><strong>{customerNotes.length?"No matching notes":"No notes yet"}</strong><p>{customerNotes.length?"Clear the history search to see all saved notes.":"Save access details and job-specific reminders here."}</p></div>}</div>}
     </section>
   </div>;

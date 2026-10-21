@@ -354,3 +354,63 @@ console.log('PASS '+(checks+2)+' notification and Dashboard attention checks; ex
  eq(draft,'[FIRE FLAG] REVIEW_RECEIVED','Declined action makes no unexpected replacement');
 }
 console.log('PASS customer Activity & Flags presentation: contact vs send, due signals, safe note preparation and mobile focus.');
+
+
+// Real CustomersView helper: confirmed-vs-prepared audit and dated, safe timeline.
+// No customer note text or payment references may leak into the summary.
+{
+ const customer=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='CustomersView');
+ let helper=null;function locate(node){if(ts.isFunctionDeclaration(node)&&node.name?.text==='buildCustomerTimeline')helper=node;ts.forEachChild(node,locate);}
+ locate(customer);assert.ok(helper,'Source-extracted CustomersView contains its own timeline builder');
+ const code=ts.transpileModule(helper.getText(ast)+'\nexports.timeline=buildCustomerTimeline;',{
+   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+ const ctx={exports:{}};vm.runInNewContext(code,ctx);
+ const base={estimates:[],invoices:[],messages:[],notes:[],payments:[]};
+ const iso='2026-10-20T12:00:00Z';
+ const dated=[
+  {id:'n1',customerId:'c1',body:'Gate code 1234',createdAt:'2026-10-20T19:00:00Z'},
+  {id:'sign',customerId:'c1',body:'[FIRE FLAG] YARD_SIGN_PICKED_UP',createdAt:'2026-10-20T18:00:00Z'},
+  {id:'review',customerId:'c1',body:'[FIRE FLAG] REVIEW_RECEIVED',createdAt:'2026-10-20T17:00:00Z'}
+ ];
+ const timeline=ctx.exports.timeline({
+  estimates:[{id:'e1',service:'House wash',createdAt:iso,firstEstimateSentAt:'2026-10-20T12:20:00Z',acceptedAt:'2026-10-20T16:00:00Z'}],
+  invoices:[{id:'i1',createdAt:'2026-10-20T15:00:00Z'}],
+  payments:[{id:'p1',createdAt:'2026-10-20T14:00:00Z',type:'Card',status:'pending',reference:'SECRET-REFERENCE'}],
+  messages:[
+   {message:{id:'m1:owner-confirmed',estimateId:'e1',template:'estimate',channel:'text_confirmed',createdAt:'2026-10-20T12:20:00Z'}},
+   {message:{id:'m2',estimateId:'e1',template:'review',channel:'text_prepared',createdAt:'2026-10-20T13:00:00Z'}},
+   {message:{id:'m3',estimateId:'e1',template:'followUp1',channel:'contact_recorded',createdAt:'2026-10-20T14:30:00Z'}}
+  ],notes:dated
+ });
+ const titles=timeline.map(x=>x.title);
+ eq(titles[0],'Customer note saved','Latest saved note appears first, not last inserted');
+ eq(timeline.some(x=>x.title==='Yard sign pickup logged'),true,'Owner-logged sign pickup appears in timeline');
+ eq(timeline.some(x=>x.title==='Review received (owner logged)'),true,'Review receipt makes no claim of external verification');
+ eq(timeline.some(x=>x.title==='Customer contact recorded'),true,'Contact recording is not a message send');
+ eq(timeline.some(x=>x.title==='Review request prepared'),true,'Prepared review request does not imply a send');
+ eq(timeline.some(x=>x.title==='Estimate send confirmed'),true,'Owner-confirmed estimate send appears as one audited event');
+ eq(timeline.some(x=>x.title==='Estimate send recorded'),false,'Estimate send marker is not duplicated beside confirmed message');
+ eq(timeline.some(x=>x.title==='Invoice created'&&x.detail==='Created · send not confirmed'),true,'Invoice creation is not a sent invoice');
+ eq(timeline.some(x=>x.title==='Payment entry recorded'&&x.detail.includes('pending')),true,'Pending payment entry never claims settlement');
+ eq(timeline.every((x,i)=>i===0||timeline[i-1].timestamp>=x.timestamp),true,'Events sort newest first deterministically');
+ eq(timeline.find(x=>x.title==='Customer note saved').section,'notes','Note opens exact Notes record');
+ eq(timeline.find(x=>x.title==='Estimate send confirmed').id,'m1:owner-confirmed','Message target retains saved audit identity');
+ eq(JSON.stringify(timeline).includes('Gate code'),false,'Private free-form note body never appears in timeline');
+ eq(JSON.stringify(timeline).includes('SECRET-REFERENCE'),false,'Payment reference is not exposed in activity summary');
+ eq(ctx.exports.timeline({...base,notes:[{id:'bad',body:'X',createdAt:'not-a-date'}]}).length,0,'Invalid timestamps do not invent activity');
+ eq(ctx.exports.timeline({...base,messages:[{message:{id:'legacy',template:'estimate',channel:'copy',createdAt:iso}}]})[0].detail,'Sending unconfirmed','Copied message is not counted as delivered');
+ eq(ctx.exports.timeline({...base,messages:[{message:{id:'legacy',template:'estimate',channel:'text',createdAt:iso}}]})[0].detail,'Legacy entry · delivery unverified','Unverified legacy message stays unverified');
+ eq(ctx.exports.timeline({...base,estimates:[{id:'e',createdAt:iso,service:'Test',firstEstimateSentAt:iso}]}).find(x=>x.title==='Estimate send recorded')?.section,'estimates','Unconfirmed historical estimate marker links to actual record');
+ eq(ctx.exports.timeline({...base,notes:Array.from({length:120},(_,i)=>({id:'n'+i,body:'note',createdAt:new Date(Date.parse(iso)+i*1000).toISOString()}))}).length,100,'Large timelines are capped at 100 recent source records');
+ const source=readFileSync('app/dashboard.tsx','utf8');
+ for(const [anchor,label] of [
+  ['aria-label="Recent customer activity"','Accessible read-only timeline region'],
+  ['id={"customer-message-"+message.id}','Source message rows accept exact timeline focus'],
+  ['id={"customer-estimate-"+estimate.id}','Estimate history accepts exact timeline focus'],
+  ['id={"customer-invoice-"+invoice.id}','Invoice history accepts exact timeline focus'],
+  ['setTimelineTarget({customerId:selected.id,section:entry.section,id:entry.id})','Timeline jump retains exact customer, record and section'],
+  ['target.focus({preventScroll:true})','Timeline moves keyboard focus to saved record'],
+  ['setTimelineShown(current=>Math.min(current+6,timelineEntries.length))','Progressive reveal avoids long mobile timelines']
+ ]){assert.ok(source.includes(anchor),label);}
+}
+console.log('PASS customer timeline: chronology, private note restraint, confirmed vs prepared messaging, bounded mobile record navigation.');

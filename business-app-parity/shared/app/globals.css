@@ -1396,3 +1396,25 @@ html,body{max-width:100%;overflow-x:clip}
 .customer-flag-next strong{font-size:12px;line-height:1.35}
 .customer-flag-next small{font-size:12px;line-height:1.45;overflow-wrap:anywhere}
 [data-theme="dark"] .customer-flag-next{background:#40301d;color:#ffe2b9;border-color:#af8752}
+
+/* Read-only customer activity stream reuses existing record views and saves. */
+.customer-timeline{display:grid;gap:10px;min-width:0;margin:12px 0 20px;padding:15px;border:1px solid var(--border);border-radius:12px;background:var(--card)}
+.customer-timeline-heading{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.customer-timeline-heading h2{margin:0;font-size:16px;font-weight:850}
+.customer-timeline-heading p,.customer-timeline-empty{margin:3px 0 0;color:var(--muted-foreground);font-size:12px;line-height:1.5}
+.customer-timeline-heading>span{font-size:11px;color:var(--muted-foreground);white-space:nowrap}
+.customer-timeline-list{list-style:none;padding:0;margin:0;display:grid;gap:6px;min-width:0}
+.customer-timeline-list li{margin:0;min-width:0}
+.customer-timeline-list button{display:flex;gap:8px;justify-content:space-between;align-items:center;width:100%;text-align:left;min-height:52px;padding:10px;border:1px solid var(--border);border-radius:9px;background:var(--background);color:var(--foreground);cursor:pointer;min-width:0}
+.customer-timeline-list button:hover{border-color:var(--ring)}
+.customer-timeline-list button:focus-visible,.customer-timeline-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.customer-timeline-copy{min-width:0;display:grid;gap:3px;flex:1 1 auto}
+.customer-timeline-copy strong{font-size:12px;line-height:1.35;overflow-wrap:anywhere}
+.customer-timeline-copy small{font-size:11px;color:var(--muted-foreground);line-height:1.4;overflow-wrap:anywhere}
+.customer-timeline-meta{display:flex;align-items:center;gap:6px;min-width:0;flex:0 1 145px;justify-content:flex-end;text-align:right;color:var(--muted-foreground)}
+.customer-timeline-meta time{font-size:11px;line-height:1.35}
+.customer-timeline-meta svg{height:15px;width:15px;flex:none}
+.customer-timeline-more{min-height:44px;padding:8px 12px;border:1px solid var(--border);border-radius:9px;color:var(--foreground);background:var(--muted);font-size:12px;font-weight:700;cursor:pointer}
+[id^="customer-estimate-"],[id^="customer-invoice-"],[id^="customer-message-"],[id^="customer-note-"],[id^="customer-payment-"]{scroll-margin-top:100px}
+[id^="customer-message-"]:focus-visible,[id^="customer-invoice-"]:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+@media(max-width:380px){.customer-timeline-meta{flex-basis:110px}.customer-timeline-list button{padding:9px}.customer-timeline{padding:12px}}
