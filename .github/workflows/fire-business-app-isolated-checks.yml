@@ -365,6 +365,7 @@ jobs:
       - name: Verify follow-up retry, authenticated list recovery and notification receipts
         run: |
           node scripts/test-followup-action-retry.mjs
+          node --experimental-sqlite scripts/test-followup-concurrent-idempotency.mjs
            node scripts/test-followup-triage.mjs
           node scripts/test-followup-exact-lookup.mjs
           node scripts/test-followup-today-actions.mjs
