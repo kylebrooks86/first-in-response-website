@@ -196,7 +196,7 @@ for(const [name,handler] of [
 // High-priority owner triage and one-tap contact must be read-only and preserve the exact customer.
 {
  const f=fixture();
- const lower=job('lower-quote');
+ const lower={...job('lower-quote'),firstEstimateSentAt:'2026-10-08T12:00:00Z',lastEstimateSentAt:'2026-10-08T12:00:00Z'};
  const billing={...job('urgent-billing'),status:'accepted',invoiceId:'invoice-billing'};
  f.response(async()=>response([lower,billing]));
  f.mount();await flush();
@@ -220,6 +220,22 @@ for(const [name,handler] of [
  eq(f.get(10),false,'Bell deep-link resets priority view to reveal exact due follow-up');
  f.focus('lower-quote');
  eq(f.focusCalls.includes('followup-action-lower-quote'),true,'Due estimate focus lookup uses exact saved ID after priority reset');
+ f.unmount();
+}
+// Synthetic priority split: a past suggested target cannot be hidden as low priority.
+{
+ const f=fixture();
+ const past=job('past-target-quote');
+ const recent={...job('recent-target-quote'),firstEstimateSentAt:'2026-10-08T12:00:00Z',lastEstimateSentAt:'2026-10-08T12:00:00Z'};
+ f.response(async()=>response([past,recent]));
+ f.mount();await flush();
+ eq(f.messageCards().length,2,'Due and missed-target actions both appear without filters');
+ const high=f.lookup(n=>n.props?.['aria-label']==='Show high priority follow-ups');
+ assert.ok(high,'High-priority owner filter remains accessible');
+ high.props.onClick();
+ eq(f.messageCards().length,1,'Past-target action stays high priority; routine day-one action does not');
+ eq(f.messageCards()[0].props.estimate.id,'past-target-quote','High-priority filter preserves exact estimate ID');
+ eq(f.requests.filter(req=>req.options?.method==='POST').length,0,'Filtering recommendations cannot record customer actions');
  f.unmount();
 }
 const source=readFileSync('app/dashboard.tsx','utf8');
