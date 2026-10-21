@@ -365,6 +365,7 @@ jobs:
           node scripts/test-followup-action-retry.mjs
           node scripts/test-followup-load-errors.mjs
           node scripts/test-notification-read-recovery.mjs
+          node scripts/test-notification-attention.mjs
       - name: Verify on-device customer photo ZIP integrity and owner UI integration
         run: node scripts/test-offline-photo-vault.mjs
       - name: Shared photo storage integrity regression
