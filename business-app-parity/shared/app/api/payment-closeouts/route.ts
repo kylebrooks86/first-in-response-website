@@ -24,6 +24,14 @@ export async function GET(){
     AND EXISTS(SELECT 1 FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.amount_cents>0 AND p.type NOT IN ('Tip','Tip Refund'))
     AND NOT EXISTS(SELECT 1 FROM customer_messages m WHERE m.estimate_id=e.id AND m.template='review' AND m.channel IN ('text_confirmed','email_confirmed'))
     AND NOT EXISTS(SELECT 1 FROM customer_notes n WHERE n.customer_id=e.customer_id AND n.body='[FIRE FLAG] REVIEW_RECEIVED')
+    -- Filter the ledger BEFORE LIMIT so newer partial payments cannot hide
+    -- an older eligible paid-in-full job from the owner action queue.
+    AND COALESCE((SELECT i.total_cents FROM invoices i WHERE i.estimate_id=e.id LIMIT 1),e.total_cents)>0
+    AND COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0)
+      =COALESCE((SELECT i.total_cents FROM invoices i WHERE i.estimate_id=e.id LIMIT 1),e.total_cents)
+    AND NOT EXISTS(SELECT 1 FROM payment_refunds x WHERE x.estimate_id=e.id AND x.status='pending')
+    AND NOT EXISTS(SELECT 1 FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL)
+    AND NOT EXISTS(SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open')
    ORDER BY lastPaidAt DESC,e.id DESC LIMIT 201
   `).all<CloseoutRow>();
   const rows=result.results??[];

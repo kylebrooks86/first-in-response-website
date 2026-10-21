@@ -48,9 +48,16 @@ try{
  db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,?,?,?,?)").run("refund-ledger","e-refunded","Refund",-1000,"paid",stamp(1));
  job("tip-only",{paid:0});
  db.prepare("INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,?,?,?,?)").run("tip-ledger","e-tip-only","Tip",10000,"paid",stamp(1));
+ // A high-volume payment history must not bury an older, valid closeout.
+ // Without filtering BEFORE the SQL LIMIT, 210 newer partials hide all ready jobs.
+ for(let i=0;i<210;i++){
+  job("partial-"+i,{paid:5000});
+  db.prepare("UPDATE payments SET created_at=? WHERE id=?").run(stamp(0),"p-partial-"+i);
+ }
  let {response,data}=await read();
  check(response.status===200&&response.headers.get("cache-control").includes("no-store"),"Private owner-only successful read");
- check(data.actions.length===3,"Only fully paid ready, prepared, copied jobs appear");
+ check(data.actions.length===3,"Only fully paid ready, prepared, copied jobs appear, even with 210 newer partial payments");
+ check(data.mayHaveMore===false,"Partial payment history cannot masquerade as more valid review actions");
  check(data.actions.find(x=>x.estimateId==="e-ready")?.state==="ready","Unrequested job marked ready");
  check(data.actions.find(x=>x.estimateId==="e-prepared")?.state==="prepared","Prepared message not called sent");
  check(data.actions.find(x=>x.estimateId==="e-copy")?.state==="ready","Copy-only history never claims sent");
