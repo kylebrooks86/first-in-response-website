@@ -98,7 +98,7 @@ states[0]=[
   estimate('open-checkout','checkout-customer',{openCheckoutCount:1,firstViewedAt:at(-2)})
 ];
 const financeCards=nodes(render());
-eq(financeCards.filter(n=>n.type===stubs.MessageComposer).length,2,'Fully paid invoice is not treated as a fresh quote; financial exceptions remain reviews');
+eq(financeCards.filter(n=>n.type===stubs.MessageComposer).length,0,'Fully paid invoices and unresolved financial exceptions cannot be treated as ordinary outreach; review exceptions are retained in the owner history lane');
 eq(JSON.stringify(financeCards.find(n=>n.props?.['aria-label']==='Filter follow-ups: Viewed 24h+')).includes('(0)'),true,'Billing and paid jobs excluded from viewed-ready count');
 eq(requests.every(x=>x.opts?.method!=='POST'&&x.opts?.method!=='PATCH'),true,'New triage controls never send or write customer data');
 console.log('PASS '+assertions+'/'+assertions+' synthetic daily action queue, communication-state and real component interaction checks. No sends or customer writes.');
