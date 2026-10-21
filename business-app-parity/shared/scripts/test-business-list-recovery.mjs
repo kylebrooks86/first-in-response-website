@@ -98,7 +98,7 @@ for(const scenario of ['network','http','bad-shape','invalid-expense']){
  f.setNotice({id:'unknown-task',status:'missing',customerId:'c1',activity:'review'});
  await f.load();
  eq(f.state.notice?.status,'missing','Absent task remains explicitly unverified after full read');
- eq(f.state.expanded.length,0,'No arbitrary task details are opened on missing recovery');
+ eq(f.state.expanded.at(-1),null,'Missing saved task clears stale details instead of opening an arbitrary record');
 }
 {
  const f=fixture();
