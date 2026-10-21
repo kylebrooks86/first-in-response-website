@@ -31,4 +31,28 @@ assert.match(view,/Owner-confirmed message:/);assert.match(view,/Last prepared\/
 assert.match(view,/Timing: /);assert.match(view,/setUrgencyFilter\("all"\)/);
 assert.match(view,/followupUrgency\(item,now\)\.bucket==="past-target"/);
 assert.match(view,/followupUrgency\(item,now\)\.rank<=1/);
-console.log('PASS '+n+'/'+n+' timing cases, channel separation and follow-up mobile filters (synthetic).');
+// Review prompts in Follow-ups must follow verified financial/review safety state.
+const reviewSource=readFileSync('lib/review-followup-eligibility.ts','utf8');
+const reviewContext={exports:{},Date,Number};
+vm.runInNewContext(ts.transpileModule(reviewSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,reviewContext);
+const canReview=reviewContext.exports.reviewFollowupEligible;
+const good={status:'completed',billingTotalCents:20000,paidCents:20000,paymentOverageOpen:0,pendingRefundCount:0,openCheckoutCount:0};
+assert.equal(canReview(good,5,now),true,'Paid-in-full completed job may appear in review workflow');
+for(const [name,change] of Object.entries({
+ unconfirmedPayment:{paidCents:10000},overpaid:{paidCents:25000},pendingRefund:{pendingRefundCount:1},
+ unresolvedCheckout:{openCheckoutCount:1},openOverage:{paymentOverageOpen:1},
+ missingCheckoutVerification:{openCheckoutCount:undefined},missingRefundVerification:{pendingRefundCount:undefined},
+ alreadyRequested:{lastReviewRequestAt:at(-3)},received:{reviewReceivedAt:at(-1)},
+ futureSnooze:{reviewSnoozeUntil:at(7)},invalidSnooze:{reviewSnoozeUntil:'unknown'},
+ unfinished:{status:'scheduled'},zeroPrice:{paidCents:0,billingTotalCents:0}
+})){
+ assert.equal(canReview({...good,...change},5,now),false,name+' cannot create a premature or repeat review follow-up');
+ n++;
+}
+assert.equal(canReview({...good,reviewSnoozeUntil:at(-1)},5,now),true,'Elapsed snooze reopens safe review reminder');
+assert.equal(canReview(good,31,now),false,'General Follow-ups review cadence stays limited to 30 days');
+for(const key of ['pendingRefundCount','openCheckoutCount','reviewReceivedAt','reviewSnoozeUntil']){
+ assert.ok(api.includes('AS '+key),key+' is read from real owner-scoped follow-up records');
+}
+assert.ok(view.includes('reviewFollowupEligible({...estimate,billingTotalCents:resolvedBillingTotalCents(estimate)},serviceAgeDays,now)'), 'Actual Follow-ups screen uses guarded helper');
+console.log('PASS '+n+' synthetic timing and review safety cases, channel separation and mobile filters.');
