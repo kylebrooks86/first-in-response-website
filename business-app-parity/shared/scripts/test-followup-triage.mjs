@@ -48,6 +48,9 @@ assert.equal(invoiced[0].invoiceId,'invoice-123','Billing reminder retains exact
 const overage=attentionContext.exports.estimateAttentionItems([{...baseViewed,id:'overage',customer:'Account issue',createdAt:at(-5),paymentOverageOpen:1}],now);
 assert.equal(overage.length,1,'Overpayment exception suppresses secondary viewed reminder');n++;
 assert.equal(overage[0].kind,'invoice','Owner sees billing exception first');n++;
+const connectedBrowser=readFileSync('scripts/test-connected-records-browser.mjs','utf8');
+assert.ok(connectedBrowser.includes("from'./lib/customer-job-journey'"),'Isolated customer browser fixture imports actual job journey helper');n++;
+assert.ok(connectedBrowser.includes('estimateReminderStage,viewedEstimateReminderCue'),'Synthetic customer browser includes actual owner timing helpers');n++;
 const customerApi=readFileSync('app/api/customers/route.ts','utf8');
 for(const column of ['firstEstimateSentAt','stage1At','stage3At','stage7At','lastManualContactAt','snoozeUntil']){
  assert.ok(customerApi.includes('AS '+column),'Customer profile receives canonical reminder history: '+column);n++;
