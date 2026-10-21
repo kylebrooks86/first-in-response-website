@@ -142,7 +142,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const estimateItemsSafe=items.length>0&&items.every((item)=>Boolean(item.name?.trim())&&Number.isFinite(item.quantity)&&item.quantity>0&&Number.isSafeInteger(item.totalCents)&&item.totalCents>=0);
   const itemSubtotalCents=estimateItemsSafe?items.reduce((sum,item)=>sum+item.totalCents,0):0;
   const estimateSnapshotSafe=estimateItemsSafe&&Number.isSafeInteger(itemSubtotalCents)&&itemSubtotalCents===Number(row.subtotalCents)&&Number.isSafeInteger(Number(row.discountCents))&&Number(row.discountCents)>=0&&Number(row.discountCents)<=itemSubtotalCents;
-  const paymentReviewPending=Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0||Number(row.openCheckoutCount??0)>0;
+  const paymentExceptionsPending=Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0;
   const serviceSummary=items.map((item)=>item.name).join(", ")||"Exterior cleaning service";
   if(!ownerPreview&&!row.firstViewedAt){
     const now=new Date().toISOString();
@@ -158,7 +158,15 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   }
   const billingTotalCents=Number(row.invoiceTotalCents??row.totalCents);
   const estimateAmountsSafe=estimateSnapshotSafe&&[billingTotalCents,Number(row.totalCents),Number(row.depositCents)].every((value)=>Number.isSafeInteger(value)&&value>=0)&&Number(row.depositCents)<=Number(row.totalCents);
-  const paymentConfirmed=sessionId&&estimateAmountsSafe&&!paymentReviewPending?await confirmPayment(sessionId,{id:row.id}):false;
+  // A successful Stripe redirect can arrive before the locally tracked
+  // checkout changes from open to reconciled. Verify the exact Stripe session
+  // server-side first; otherwise the new account hold would prevent its own
+  // payment confirmation.
+  const paymentConfirmed=sessionId&&estimateAmountsSafe&&!paymentExceptionsPending?await confirmPayment(sessionId,{id:row.id}):false;
+  const checkedOpenCheckout=paymentConfirmed?await env.DB.prepare(
+    "SELECT COUNT(*) AS count FROM payment_checkout_sessions WHERE estimate_id=? AND status='open'"
+  ).bind(row.id).first<{count:number}>():null;
+  const paymentReviewPending=paymentExceptionsPending||Number(checkedOpenCheckout?.count??row.openCheckoutCount??0)>0;
   const runtime=env as RuntimeEnv;
   const paymentsReady=Boolean(runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY);
   const handles=paymentHandles(runtime);

@@ -36,6 +36,9 @@ for (const [name,source] of [["estimate",estimate],["invoice",invoice]]) {
   assert.ok(source.includes("paymentReviewPending"),name+" recognizes account review holds");
 }
 assert.ok(estimate.includes("paymentConfirmed") && estimate.includes("balance===0"),"Stripe success uses its existing verified checkout flow");
+assert.ok(estimate.includes("!paymentExceptionsPending?await confirmPayment(sessionId,{id:row.id})"),"Valid Stripe return is verified even when tracked checkout was still open");
+assert.ok(estimate.includes("const checkedOpenCheckout=paymentConfirmed?await env.DB.prepare("),"After verification, recheck remaining open Stripe sessions before a review invite");
+assert.ok(estimate.includes("const paymentReviewPending=paymentExceptionsPending||Number(checkedOpenCheckout?.count??row.openCheckoutCount??0)>0"),"Remaining unresolved checkouts still block review and new payment");
 assert.ok(invoice.includes("invoicePaymentState(row)") && invoice.includes("row.estimateStatus"),"Invoice uses existing validated ledger and job state");
 assert.ok(component.includes("FIRE_CUSTOMER_REVIEW_URL") && component.includes("honest experience"),"Non-incentivized review request uses existing hub");
 assert.ok(component.includes('target="_blank"') && component.includes('noopener noreferrer'),"External navigation is customer-initiated and safe");
