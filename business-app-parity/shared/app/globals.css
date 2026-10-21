@@ -1367,3 +1367,10 @@ html,body{max-width:100%;overflow-x:clip}
 
 .notification-attention-more{min-height:40px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:11px;font-weight:750;cursor:pointer}
 .notification-attention-more:hover{background:var(--muted)}
+
+/* Reminder attention is independent of unread customer activity. */
+.notification-attention-dot{position:absolute;right:2px;top:2px;width:9px;height:9px;border:2px solid var(--card);border-radius:50%;background:#bc7120;pointer-events:none}
+.notification-attention-dot.unavailable{background:#8491a5}
+.notification-popover[data-state="closed"]{display:none!important}
+.customer-flag-panel[id],.customer-review-check[id],.customer-flag-grid [id^="customer-sign-flag-"]{scroll-margin-top:85px}
+.customer-flag-panel:focus-visible,.customer-review-check:focus-visible,.customer-flag-grid [id^="customer-sign-flag-"]:focus-visible{outline:3px solid var(--ring);outline-offset:3px}

@@ -42,7 +42,7 @@ function elements(node){
  const all=[];function walk(n){if(Array.isArray(n)){for(const x of n)walk(x);return;}if(!n||typeof n!=='object')return;all.push(n);walk(n.props?.children);}walk(node);return all;
 }
 function fixture(){
- let state=[],cursor=0,effect,clean,failed=null;const calls=[],nav=[],closed=[];
+ let state=[],cursor=0,effect,clean,failed=null;const calls=[],nav=[],closed=[],summaries=[];
  const context={
   exports:{},require,useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}]},
   useEffect(fn){effect=fn;},taskDueBucket:taskLib.exports.taskDueBucket,
@@ -55,13 +55,15 @@ function fixture(){
   ...Object.fromEntries([...tags].map(name=>[name,()=>null]))
  };
  vm.runInNewContext(compiled,context);
- const render=()=>{cursor=0;return context.exports.renderAttention({onNavigate:(...args)=>nav.push(args),onClose:()=>closed.push(true)});};
- return {render,get:name=>state[stateNames.indexOf(name)],calls,nav,closed,fail:url=>{failed=url;},mount:()=>{render();clean=effect();},refresh:()=>{clean?.();render();clean=effect();},unmount:()=>clean?.(),buttons:()=>elements(render()).filter(n=>n.type==='button')};
+ const render=()=>{cursor=0;return context.exports.renderAttention({onNavigate:(...args)=>nav.push(args),onClose:()=>closed.push(true),onSummary:value=>summaries.push(value)});};
+ return {render,get:name=>state[stateNames.indexOf(name)],calls,nav,closed,summaries,fail:url=>{failed=url;},mount:()=>{render();clean=effect();},refresh:()=>{clean?.();render();clean=effect();},unmount:()=>clean?.(),buttons:()=>elements(render()).filter(n=>n.type==='button')};
 }
 {
  const f=fixture();f.mount();await flush();await flush();
  eq(f.get('status'),'ready','All three owner feeds verified');
  eq(f.get('rows').length,6,'Tasks, signs, review checks, follow-up, invoice and appointment');
+ eq(f.summaries.at(-1).status,'ready','Bell is notified that attention read succeeded');
+ eq(f.summaries.at(-1).count,6,'Bell receives exact action count independent of unread activity');
  eq(f.get('rows').some(i=>i.key==='task:task-closed'),false,'Completed task never appears');
  eq(f.get('rows').some(i=>i.key==='sign:sign-later'),false,'Future pickup is not falsely overdue');
  eq(f.calls.length,4,'Read-only fetch for four existing owner feeds');
@@ -70,9 +72,9 @@ function fixture(){
  assert.ok(task);task.props.onClick();
  eq(f.nav.at(-1).join('|'),'business||||task-due','Task shortcut passes exact saved task ID');
  const sign=f.buttons().find(b=>b.props?.['aria-label']==='Open yard sign: Sign customer');
- assert.ok(sign);sign.props.onClick();eq(f.nav.at(-1).join('|'),'customers|||customer-sign','Yard sign shortcut passes exact customer ID');
+ assert.ok(sign);sign.props.onClick();eq(f.nav.at(-1).join('|'),'customers|||customer-sign||sign','Yard sign shortcut targets saved customer flag');
  const review=f.buttons().find(b=>b.props?.['aria-label']==='Open review check: Review customer');
- assert.ok(review);review.props.onClick();eq(f.nav.at(-1).join('|'),'customers|||customer-review','Review check shortcut passes correct customer');
+ assert.ok(review);review.props.onClick();eq(f.nav.at(-1).join('|'),'customers|||customer-review||review','Review check shortcut targets saved review status');
  const invoice=f.buttons().find(b=>b.props?.['aria-label']==='Open invoice: Invoice customer');
  assert.ok(invoice);invoice.props.onClick();eq(f.nav.at(-1).join('|'),'invoices||inv-exact','Invoice shortcut opens exact invoice');
  const quote=f.buttons().find(b=>b.props?.['aria-label']==='Open follow-up: Quote customer');
@@ -85,6 +87,8 @@ function fixture(){
 {
  const f=fixture();f.fail('/api/dashboard-review-checks');f.mount();await flush();await flush();
  eq(f.get('status'),'error','A failed feed never reports clear status');
+ eq(f.summaries.at(-1).status,'error','Bell is told its reminder count is unavailable, not falsely zero');
+ eq(f.summaries.at(-1).count,0,'Failed feeds never claim verified action count');
  eq(f.get('rows').length,0,'Cannot show falsely complete partial attention results');
  const alert=elements(f.render()).find(n=>n.props?.role==='alert');
  assert.ok(alert&&String(alert.props.children).includes("couldn't be verified"));
@@ -94,7 +98,12 @@ function fixture(){
  eq(f.get('rows').length,6,'Recovered attention items reappear');
  f.unmount();
 }
-assert.ok(source.includes('<NotificationAttention onNavigate={onNavigate} onClose={()=>setOpen(false)}/>'),'Bell mounts Needs Attention before activity');
+assert.ok(source.includes('<NotificationAttention onNavigate={onNavigate} onClose={()=>setOpen(false)} onSummary={setAttentionSummary}/>'),'Bell mounts single Needs Attention feed before activity');
+assert.ok(source.includes('<PopoverContent forceMount className="notification-popover"'),'Bell reminder feed remains mounted while popover is closed');
+assert.ok(source.includes('className="notification-attention-dot"'),'Bell shows attention separately from unread events');
+assert.ok(source.includes('activityFocus={customerActivityFocus}'),'Customer page accepts exact flag navigation');
+assert.ok(source.includes('target.scrollIntoView({block:"start",behavior:"instant"})'),'Flag jump scrolls to exact saved customer flag');
+assert.ok(source.includes('target.focus({preventScroll:true})'),'Flag jump also supports keyboard focus');
 assert.ok(source.includes('if(taskId){setPickupTaskDraft(null);setReviewTaskDraft(null);setFocusBusinessTaskId(taskId);setTab("business");}'),'Bell task click invokes focused Business navigation, not generic Business tab');
 {
  const now=Date.parse('2026-10-20T18:00:00Z'),ago=d=>new Date(now-d*86400000).toISOString();
