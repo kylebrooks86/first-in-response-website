@@ -157,4 +157,47 @@ assert.ok(source.includes('if(taskId){setPickupTaskDraft(null);setReviewTaskDraf
  eq(attentionLib.exports.estimateAttentionItems([{...sent,status:'accepted',invoiceId:'unpaid',totalCents:20000,paidCents:0}],now)[0]?.priority,55,'Unpaid invoice appears after immediate concerns');
  eq(attentionLib.exports.estimateAttentionItems([{...sent,status:'accepted',paymentOverageOpen:1,totalCents:20000,paidCents:21000}],now)[0]?.priority,120,'Payment overage reconciliation is highest attention priority');
 }
-console.log('PASS '+(checks+2)+' notification attention checks; existing feeds, new estimate reminders, exact record navigation, and recovery.');
+// Exercise the actual Dashboard priority action callbacks, not just string matches.
+const dashboardFn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='DashboardView');
+assert.ok(dashboardFn);
+const priorityActions={};
+function collectDashboardActions(n){
+ if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){
+  const aria=n.attributes.properties.find(p=>ts.isJsxAttribute(p)&&p.name.text==='aria-label');
+  const click=n.attributes.properties.find(p=>ts.isJsxAttribute(p)&&p.name.text==='onClick');
+  if(aria&&click&&ts.isStringLiteral(aria.initializer)&&click.initializer&&ts.isJsxExpression(click.initializer)){
+   const label=aria.initializer.text;
+   if(['Review overdue yard sign pickup','Review customer review-status checks'].includes(label))priorityActions[label]=click.initializer.expression.getText(ast);
+  }
+ }
+ ts.forEachChild(n,collectDashboardActions);
+}
+collectDashboardActions(dashboardFn);
+function invokeDashboardPriority(label,values){
+ const expression=priorityActions[label];assert.ok(expression,label+' source callback must exist');
+ const code=ts.transpileModule('exports.action='+expression+';',{
+   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
+ }).outputText;
+ const captured=[],fallback=[];
+ const context={exports:{},...values,
+   onOpenCustomerActivity:(...args)=>captured.push(args),
+   onOpenCustomer:id=>fallback.push(id),
+   onNavigate:tab=>fallback.push(tab)};
+ vm.runInNewContext(code,context);context.exports.action();
+ return {captured,fallback};
+}
+{
+ const s=invokeDashboardPriority('Review overdue yard sign pickup',{dueSign:{customerId:'sign-older',pickupDate:'2026-10-10'}});
+ eq(s.captured[0]?.join('|'),'sign-older|sign','Dashboard due pickup opens its actual customer flag');
+ eq(s.fallback.length,0,'Dashboard does not go to generic Customers when flag navigation exists');
+ const r=invokeDashboardPriority('Review customer review-status checks',{oldestReviewCheck:{customerId:'review-longest',elapsedDays:19,requestedAt:'2026-10-01'}});
+ eq(r.captured[0]?.join('|'),'review-longest|review','Dashboard review check opens its actual customer review flag');
+ eq(r.fallback.length,0,'Review shortcut does not lose the exact customer destination');
+ assert.ok(source.includes('onOpenCustomerActivity={(id,kind)=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind,request:++customerActivityRequest.current})'),
+  'Dashboard wires direct flag focus into the existing CustomersView request');
+ checks++;
+ assert.ok(source.includes('signs.filter(sign=>sign.pickupDate<=localDay)'),'Only due pickups qualify for Dashboard action');
+ assert.ok(source.includes('b.elapsedDays-a.elapsedDays'),'Oldest review requests take priority independent of API order');
+ checks+=2;
+}
+console.log('PASS '+(checks+2)+' notification and Dashboard attention checks; exact customer flags, safe priority callbacks and recovery.');
