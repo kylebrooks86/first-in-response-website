@@ -653,9 +653,9 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
     const day=new Date(job.scheduledAt!).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
     if(day!==localDay&&day!==tomorrowDay)return false;
     const phone=job.phone?.trim()??"";
-    const phoneDigits=/^[+0-9().\\s-]+$/.test(phone)?phone.replace(/\\D/g,""):"";
+    const phoneDigits=/^[+0-9().\s-]+$/.test(phone)?phone.replace(/\D/g,""):"";
     const validPhone=phoneDigits.length===10||phoneDigits.length===11&&phoneDigits.startsWith("1");
-    const validEmail=/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$/i.test(job.email?.trim()??"");
+    const validEmail=/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(job.email?.trim()??"");
     return !job.address?.trim()||!validPhone&&!validEmail;
   });
   const dueSign=signStatus==="ready"?signs.find(sign=>sign.pickupDate<=localDay):undefined;
