@@ -394,6 +394,8 @@ jobs:
         run: node --experimental-strip-types scripts/test-manual-payment-retry-state.mjs
       - name: Verify payment entry never claims an unpaid estimate has a recorded deposit
         run: node scripts/test-payment-entry-state.mjs
+      - name: Verify customer review invitations only after verified final payment
+        run: node scripts/test-review-after-payment.mjs
       - name: Verify invoice loading and payment refresh recover without stale payment controls
         run: node scripts/test-invoice-load-errors.mjs
       - name: Verify refund request survives iPhone app restart and uncertain responses

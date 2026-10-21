@@ -8,6 +8,8 @@ import { PayButton } from "../../pay/[id]/pay-button";
 import { SERVICE_AGREEMENT, templateByKey } from "../../../lib/fire-templates";
 import { serviceDescriptionFor } from "../../../lib/fire-services";
 import { paymentHandles } from "../../../lib/payment-methods";
+import { shouldOfferReviewAfterPayment } from "../../../lib/customer-review-invite.mjs";
+import { CustomerReviewInvitation } from "../../../components/customer-review-invitation";
 import {agreementDigest,agreementScope,validateAgreementItems} from "../../../lib/deposit-agreement-commitment.mjs";
 import {RevisedDepositAcceptButton} from "./revised-deposit-accept-button";
 import {describeRevisedDepositTerms} from "../../../lib/deposit-agreement-revision.mjs";
@@ -165,6 +167,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const billingStateSafe=estimateAmountsSafe&&Number.isSafeInteger(paidCents)&&paidCents>=0;
   const balance=billingStateSafe?Math.max(0,billingTotalCents-paidCents):0;
   const depositRemaining=billingStateSafe?Math.max(0,row.depositCents-paidCents):0;
+  const showReviewInvitation=!ownerPreview&&billingStateSafe&&balance===0&&shouldOfferReviewAfterPayment({status:row.status,totalCents:billingTotalCents,paidCents,paymentReviewPending});
   const estimateApproved=Boolean(row.acceptedAt)||["approved","scheduled","completed"].includes(row.status);
   const canPayDeposit=billingStateSafe&&!paymentReviewPending&&estimateApproved&&row.status!=="completed"&&depositRemaining>0;
   const canPayBalance=billingStateSafe&&!paymentReviewPending&&row.status==="completed"&&balance>0;
@@ -176,6 +179,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
     {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><div><strong>Customer view preview</strong><span>Customer-facing estimate · opening your preview does not count as a customer view.</span></div><a href={`/?openEstimate=${encodeURIComponent(row.id)}`}>Return to FIRE <span aria-hidden="true">↗</span></a></aside>}
     <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
     {paymentConfirmed&&<div className="portal-payment-success"><CheckCircle2/><div><strong>Payment received</strong><p>Thank you, {row.customer}. First In Response Exteriors has been notified.</p></div></div>}
+    {showReviewInvitation&&<CustomerReviewInvitation/>}
     <div className="pay-title"><p>ESTIMATE FOR</p><h1>{row.customer}</h1>{row.address&&<span><MapPin/>{row.address}</span>}{row.serviceAddressSource==="legacy-current-unverified"&&<small>Current customer address; original service address unverified.</small>}</div>
     <div className="portal-service-list">{items.map((item,index)=><div className="pay-line" key={`${item.name}-${index}`}><div><strong>{item.name}</strong>{item.quantity&&<span>{item.quantity} {item.unit}</span>}<p className="portal-service-description">{item.description||serviceDescriptionFor(item.name)}</p></div><strong>{currency(item.totalCents)}</strong></div>)}</div>
     <div className="portal-breakdown"><span><small>Services subtotal</small><strong>{currency(row.subtotalCents)}</strong></span><span><small>Discount</small><strong className="green-text">−{currency(row.discountCents)}</strong></span></div>
