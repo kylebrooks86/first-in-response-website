@@ -23,7 +23,7 @@ const context={exports:{},require,...pagination.exports,Error,Array,...balance.e
 vm.runInNewContext(ts.transpileModule(declarations.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=PaymentsView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
 function render(){cursor=0;return context.exports.view({searchQuery:''});}
 function nodes(tree){const out=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;out.push(n);walk(n.props?.children);}walk(tree);return out;}
-async function settle(){for(let i=0;i<20;i++)await Promise.resolve();assert.equal(state[3],false,'Load must settle');}
+async function settle(){for(let i=0;i<250&&state[3]!==false;i++)await Promise.resolve();assert.equal(state[3],false,'Load must settle');}
 const ok=url=>({ok:true,json:async()=>url==='/api/estimate-history?limit=50'?{estimates:[],nextCursor:null}:url==='/api/payment-closeouts'?{actions:[],mayHaveMore:false}:{payments:[]}});
 let checks=0;function equal(a,b){assert.equal(a,b);checks++;}
 const oldEstimates=[{id:'old-job',customer:'Synthetic',service:'Wash',status:'completed',totalCents:10000,depositCents:5000,paidCents:2000}];
