@@ -41,7 +41,16 @@ try{
  assert.equal(eligibility([{status:"completed",lastReviewRequestAt:stamp("prepared")}],[],null,now).status,"not-recorded");
  assert.equal(eligibility([{status:"completed",lastReviewRequestAt:stamp("confirmed")}],[],null,now).status,"due");
  assert.equal(eligibility([{status:"completed",lastReviewRequestAt:stamp("mixed")}],[],null,now).status,"waiting");
+ assert.equal(eligibility([
+  {id:"completed-a",status:"completed",lastReviewRequestAt:null},
+  {id:"pending-b",status:"approved",lastReviewRequestAt:date(12)}
+ ],[{estimateId:"pending-b",template:"review",channel:"text_confirmed",createdAt:date(12)}],null,now).status,"not-recorded","Review for unfinished different job cannot trigger completed-job reminder");
+ assert.equal(eligibility([
+  {id:"completed-a",status:"completed"},
+  {id:"completed-b",status:"completed",lastReviewRequestAt:date(12)}
+ ],[{estimateId:"completed-b",template:"review",channel:"email_confirmed",createdAt:date(12)}],null,now).status,"due","Confirmed review request on completed job still triggers eligible check");
+ assert.equal(eligibility([{id:"completed-a",status:"completed"}],[{estimateId:null,template:"review",channel:"text_confirmed",createdAt:date(12)}],null,now).status,"not-recorded","Unlinked message cannot create a false real-job due flag");
  const detail=readFileSync("app/dashboard.tsx","utf8");
  assert.ok(detail.includes('estimate.lastReviewRequestAt?"Review requested":"Request review"'),"Owner action label uses the verified timestamp");
- console.log("PASS 10 review-proof checks: confirmed channels only, legacy/prepared/copy never imply sent; real SQLite plus customer follow-up flags.");
+ console.log("PASS 13 review-proof checks: confirmed channels only, legacy/prepared/copy never imply sent; real SQLite plus customer follow-up flags.");
 }finally{db.close();}

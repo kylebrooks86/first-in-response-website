@@ -33,16 +33,22 @@ export function deriveCustomerManualFlags(notes:readonly Note[]){
  * Missing or invalid timestamps never create due reminders.
  */
 export function reviewFollowupEligibility(
- estimates:readonly {status:string;lastReviewRequestAt?:string|null}[],
- messages:readonly {template:string;channel:string;createdAt:string}[],
+ estimates:readonly {id?:string;status:string;lastReviewRequestAt?:string|null}[],
+ messages:readonly {estimateId?:string|null;template:string;channel:string;createdAt:string}[],
  reviewReceivedAt:string|null,
  now:number=Date.now()
 ):{status:"received"|"not-applicable"|"not-recorded"|"waiting"|"due";requestedAt:string|null;elapsedDays:number}{
  if(reviewReceivedAt)return {status:"received",requestedAt:null,elapsedDays:0};
- if(!estimates.some(e=>e.status==="completed"))return {status:"not-applicable",requestedAt:null,elapsedDays:0};
+ const completed=estimates.filter(e=>e.status==="completed");
+ if(!completed.length)return {status:"not-applicable",requestedAt:null,elapsedDays:0};
+ const completedIds=new Set(completed.map(e=>e.id).filter((id):id is string=>typeof id==="string"&&id.length>0));
+ // A confirmed request on an unfinished DIFFERENT job is not a completed-job
+ // review follow-up. Legacy simplified check fixtures have no IDs; preserve
+ // their independent caller behavior without weakening real linked records.
  const recorded=[
-  ...estimates.map(e=>e.lastReviewRequestAt).filter((s):s is string=>typeof s==="string"),
-  ...messages.filter(m=>m.template==="review"&&(m.channel==="text_confirmed"||m.channel==="email_confirmed")).map(m=>m.createdAt)
+  ...completed.map(e=>e.lastReviewRequestAt).filter((s):s is string=>typeof s==="string"),
+  ...messages.filter(m=>m.template==="review"&&(m.channel==="text_confirmed"||m.channel==="email_confirmed")&&
+    (!completedIds.size||(typeof m.estimateId==="string"&&completedIds.has(m.estimateId)))).map(m=>m.createdAt)
  ];
  const times=recorded.map(s=>({s,at:Date.parse(s)})).filter(v=>Number.isFinite(v.at)&&v.at<=now).sort((a,b)=>b.at-a.at);
  if(!times.length)return {status:"not-recorded",requestedAt:null,elapsedDays:0};
