@@ -1388,3 +1388,11 @@ html,body{max-width:100%;overflow-x:clip}
 .followup-focus-notice{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--muted)}
 .followup-focus-notice p{margin:0;flex:1 1 220px;font-size:13px}
 .followup-focus-notice button{min-height:44px}
+
+/* Saved-record customer attention, not a new checklist or an automatic action. */
+.customer-flag-next{display:flex;align-items:flex-start;gap:9px;padding:10px 11px;border:1px solid #c48a42;border-radius:9px;background:#fff7e9;color:#74400a;min-width:0}
+.customer-flag-next>svg{width:17px;height:17px;flex:none;margin-top:2px}
+.customer-flag-next>span{display:grid;gap:3px;min-width:0}
+.customer-flag-next strong{font-size:12px;line-height:1.35}
+.customer-flag-next small{font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+[data-theme="dark"] .customer-flag-next{background:#40301d;color:#ffe2b9;border-color:#af8752}

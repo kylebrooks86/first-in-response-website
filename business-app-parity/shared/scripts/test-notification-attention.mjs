@@ -292,3 +292,62 @@ console.log('PASS '+(checks+2)+' notification and Dashboard attention checks; ex
    eq(f.requests.every(x=>x.url===endpoint&&!x.options.method&&x.options.cache==='no-store'),true,endpoint+' all refreshes remain GET-only');
  }
 }
+
+// The actual customer status helper distinguishes recorded contact from confirmed
+// sending and never makes unsaved drafts or future pickups "due".
+{
+ const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='customerFlagPresentation');
+ assert.ok(fn,'Read-only customer activity state model exists');
+ const compiled=ts.transpileModule(fn.getText(ast)+'\nexports.flag=customerFlagPresentation;',{
+   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
+ }).outputText;
+ const ctx={exports:{}};vm.runInNewContext(compiled,ctx);
+ const base={estimateSent:false,invoiceCreated:false,invoiceSendConfirmed:false,followupContactRecorded:false,
+  followupSendConfirmed:false,reviewRequestRecorded:false,reviewSendConfirmed:false,reviewReceivedAt:null,
+  sign:null,reviewDue:false,today:'2026-10-20'};
+ eq(ctx.exports.flag(base).followup,'Not recorded','No follow-up action is assumed from drafts');
+ eq(ctx.exports.flag({...base,followupContactRecorded:true}).followup,'Contact recorded','Owner contact log never claims a message was sent');
+ eq(ctx.exports.flag({...base,followupSendConfirmed:true}).followup,'Send confirmed','Confirmed external send recorded separately');
+ eq(ctx.exports.flag({...base,followupContactRecorded:true,followupSendConfirmed:true}).followup,'Send confirmed','Confirmed send is preferred over contact-only status');
+ eq(ctx.exports.flag({...base,invoiceCreated:true}).invoice,'Created · send unconfirmed','Creating an invoice is not sending it');
+ eq(ctx.exports.flag({...base,invoiceCreated:true,invoiceSendConfirmed:true}).invoice,'Send confirmed','Confirmed invoice send preserved');
+ eq(ctx.exports.flag({...base,reviewRequestRecorded:true}).reviewRequest,'Request recorded','Saved review-request marker is not claimed as delivered');
+ eq(ctx.exports.flag({...base,reviewSendConfirmed:true}).reviewRequest,'Send confirmed','Confirmed review send is distinct from owner marker');
+ eq(ctx.exports.flag({...base,reviewReceivedAt:'2026-10-20T12:00:00Z'}).reviewReceived,'Owner logged','Review receipt remains owner-reported');
+ eq(ctx.exports.flag({...base,sign:{state:'out',pickupDate:'2026-10-19'}}).needs.join('|'),'Yard sign pickup is due','Only overdue saved pickup generates sign action');
+ eq(ctx.exports.flag({...base,sign:{state:'out',pickupDate:'2026-10-21'}}).needs.length,0,'Future pickup is not due');
+ eq(ctx.exports.flag({...base,sign:{state:'picked_up',pickupDate:'2026-10-19'}}).needs.length,0,'Picked-up yard sign stays cleared');
+ eq(ctx.exports.flag({...base,reviewDue:true}).needs.join('|'),'Review status needs checking','Due review status appears as a read-only check');
+ eq(ctx.exports.flag({...base,reviewDue:true,reviewReceivedAt:'2026-10-20T12:00:00Z'}).needs.length,0,'Logged review receipt ends the check');
+ eq(ctx.exports.flag({...base,reviewDue:true,sign:{state:'out',pickupDate:'2026-10-19'}}).needs.length,2,'Two distinct real customer needs are counted once each');
+}
+// Confirm the actual manual-flag button callback opens the existing Notes save
+// field. A conflicting unsaved note is protected, and no POST occurs on prepare.
+{
+ const customers=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='CustomersView');
+ assert.ok(customers);
+ let prepare=null;
+ function find(n){if(ts.isVariableDeclaration(n)&&n.name.getText(ast)==='prepareManualFlag')prepare=n.initializer.getText(ast);ts.forEachChild(n,find);}
+ find(customers);assert.ok(prepare);
+ const code=ts.transpileModule('exports.action='+prepare+';',{
+  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+ const record=[],frames=[];
+ let savedDraft='',draft='',accepted=true;
+ const ctx={exports:{},selected:{id:'customer-a'},savingNote:false,noteText:'',noteDrafts:{current:{}},
+  setNoteText:v=>{draft=v;record.push('prepare');},setNoteFeedback:()=>record.push('reset'),setRecordSearch:()=>record.push('search'),
+  setSection:v=>record.push('section:'+v),
+  window:{confirm:()=>accepted,requestAnimationFrame:fn=>{frames.push(fn);}},
+  document:{getElementById:id=>{record.push('input:'+id);return {scrollIntoView:()=>record.push('scroll'),focus:()=>record.push('focus')};}}
+ };
+ vm.runInNewContext(code,ctx);ctx.exports.action('[FIRE FLAG] REVIEW_RECEIVED');
+ eq(draft,'[FIRE FLAG] REVIEW_RECEIVED','Flag action prepares a note without saving or sending');
+ eq(ctx.noteDrafts.current['customer-a'],draft,'Existing per-customer draft is preserved');
+ eq(record.includes('section:notes'),true,'Flag action switches to existing Notes tab');
+ eq(frames.length,1,'Flag action schedules native in-app focus');
+ frames[0]();
+ eq(record.slice(-3).join('|'),'input:customer-note-draft-customer-a|scroll|focus','Flag action scrolls and focuses Add note field');
+ accepted=false;ctx.noteText='Existing important unsaved note';ctx.exports.action('[FIRE FLAG] YARD_SIGN_PICKED_UP');
+ eq(frames.length,1,'Declining draft replacement preserves unsaved user input');
+ eq(draft,'[FIRE FLAG] REVIEW_RECEIVED','Declined action makes no unexpected replacement');
+}
+console.log('PASS customer Activity & Flags presentation: contact vs send, due signals, safe note preparation and mobile focus.');

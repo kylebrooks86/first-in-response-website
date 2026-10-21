@@ -1517,6 +1517,29 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
   </DialogContent></Dialog>;
 }
 
+
+/** Read-only customer flag presentation: owner actions are not automatically external sends. */
+function customerFlagPresentation(input:{
+  estimateSent:boolean;invoiceCreated:boolean;invoiceSendConfirmed:boolean;
+  followupContactRecorded:boolean;followupSendConfirmed:boolean;
+  reviewRequestRecorded:boolean;reviewSendConfirmed:boolean;reviewReceivedAt:string|null;
+  sign:{state:"out"|"picked_up";pickupDate:string|null}|null;
+  reviewDue:boolean;today:string
+}){
+  const needs:string[]=[];
+  if(input.sign?.state==="out"&&input.sign.pickupDate&&input.sign.pickupDate<=input.today)needs.push("Yard sign pickup is due");
+  if(input.reviewDue&&!input.reviewReceivedAt)needs.push("Review status needs checking");
+  return {
+    estimate:input.estimateSent?"Sent recorded":"Not recorded",
+    invoice:input.invoiceSendConfirmed?"Send confirmed":input.invoiceCreated?"Created · send unconfirmed":"Not created",
+    followup:input.followupSendConfirmed?"Send confirmed":input.followupContactRecorded?"Contact recorded":"Not recorded",
+    reviewRequest:input.reviewSendConfirmed?"Send confirmed":input.reviewRequestRecorded?"Request recorded":"Not recorded",
+    reviewReceived:input.reviewReceivedAt?"Owner logged":"Not logged",
+    sign:input.sign?.state==="out"?(input.sign.pickupDate&&input.sign.pickupDate<=input.today?"Pickup due":"Placed · pickup "+(input.sign.pickupDate||"not specified")):input.sign?.state==="picked_up"?"Picked up":"Not logged",
+    needs
+  };
+}
+
 function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSection="estimates",onFocusHandled,focusRecord,recordRequestKey=0,onRecordFocusHandled,onPreparePickupTask,onPrepareReviewTask,activityFocus,onActivityFocusHandled }: { onEstimateSaved: (estimate: EstimateRow) => void; searchQuery: string;focusCustomerId?:string|null;focusSection?:"estimates"|"invoices"|"payments"|"notes";focusRecord?:CustomerRecordFocus|null;recordRequestKey?:number;onRecordFocusHandled?:(id:string)=>void;onFocusHandled?:(id:string)=>void;onPreparePickupTask?:(draft:YardSignPickupDraft)=>void;onPrepareReviewTask?:(draft:ReviewCheckDraft)=>void;activityFocus?:{customerId:string;kind:"sign"|"review";request:number}|null;onActivityFocusHandled?:(request:number)=>void }) {
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [estimates, setEstimates] = useState<CustomerEstimate[]>([]);
@@ -1660,9 +1683,17 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const confirmedMessage=(templates:string[])=>customerMessages.some(message=>(message.channel==="text_confirmed"||message.channel==="email_confirmed")&&templates.includes(message.template));
   const customerEstimateSent=customerEstimates.some(estimate=>Boolean(estimate.firstEstimateSentAt)||estimate.status==="sent")||confirmedMessage(["estimate"]);
   const invoiceSent=confirmedMessage(["invoice"]);
-  const anyFollowupSent=customerEstimates.some(estimate=>Boolean(estimate.stage1At||estimate.stage3At||estimate.stage7At))||confirmedMessage(["followUp1","followUp3","followUp7","invoiceReminder","overdue"]);
-  const reviewRequestSent=customerEstimates.some(estimate=>Boolean(estimate.lastReviewRequestAt))||confirmedMessage(["review"]);
+  const followupContactRecorded=customerEstimates.some(estimate=>Boolean(estimate.stage1At||estimate.stage3At||estimate.stage7At));
+  const followupSendConfirmed=confirmedMessage(["followUp1","followUp3","followUp7","invoiceReminder","overdue"]);
+  const reviewRequestRecorded=customerEstimates.some(estimate=>Boolean(estimate.lastReviewRequestAt));
+  const reviewSendConfirmed=confirmedMessage(["review"]);
   const reviewCheck=reviewFollowupEligibility(customerEstimates,customerMessages,manualFlags.reviewReceivedAt,Date.now());
+  const activitySummary=customerFlagPresentation({
+    estimateSent:customerEstimateSent,invoiceCreated:customerInvoices.length>0,invoiceSendConfirmed:invoiceSent,
+    followupContactRecorded,followupSendConfirmed,reviewRequestRecorded,reviewSendConfirmed,
+    reviewReceivedAt:manualFlags.reviewReceivedAt,
+    sign:manualFlags.sign,reviewDue:reviewCheck.status==="due",today:tulsaToday
+  });
   const dueReviewChecks=customers.map(customer=>{
     const customerNotesForReview=notes.filter(note=>note.customerId===customer.id);
     const customerReview=deriveCustomerManualFlags(customerNotesForReview);
@@ -1679,6 +1710,13 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     if(noteText.trim()&&noteText.trim()!==draft&&!window.confirm("Replace your unsaved customer note draft?"))return;
     noteDrafts.current[selected.id]=draft;
     setNoteText(draft);setNoteFeedback(null);setRecordSearch("");setSection("notes");
+    // The note is only prepared. Bring its existing save control into view on
+    // narrow phones, without changing the owner-confirmed Add note workflow.
+    if(typeof window.requestAnimationFrame==="function")window.requestAnimationFrame(()=>{
+      const input=document.getElementById("customer-note-draft-"+selected.id);
+      input?.scrollIntoView({block:"center",behavior:"instant"});
+      input?.focus({preventScroll:true});
+    });
   };
   useEffect(()=>{
     if(!focusRecord||focusRecord.kind==="property"||loading||loadedRecordKey!==recordRequestKey)return;
@@ -1762,15 +1800,16 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       </div>
       <p className="customer-balance-explanation">Collectible balances include approved or scheduled jobs and issued invoices, including amounts due on completion. Draft and sent estimates remain potential work. Deposits are part of the job balance; tips are separate.</p>
       <section id={`customer-flags-${selected.id}`} tabIndex={-1} className="customer-flag-panel" aria-label="Customer activity and yard sign flags">
-        <div className="customer-flag-heading"><div><h2>Activity & flags</h2><p>Quick summary from saved records and your own notes. A prepared message is not treated as sent.</p></div><ClipboardList aria-hidden="true"/></div>
+        <div className="customer-flag-heading"><div><h2>Activity & flags</h2><p>Quick summary from saved records and your own notes. Logged contact is not proof a message was sent; review receipt is owner-reported.</p></div><ClipboardList aria-hidden="true"/></div>
         <div className="customer-flag-grid">
-          <span><small>Estimate</small><strong>{customerEstimateSent?"Sent recorded":"Not recorded"}</strong></span>
-          <span><small>Invoice</small><strong>{invoiceSent?"Send confirmed":customerInvoices.length?"Created · send not confirmed":"Not created"}</strong></span>
-          <span><small>Follow-up</small><strong>{anyFollowupSent?"Sent recorded":"Not recorded"}</strong></span>
-          <span><small>Review request</small><strong>{reviewRequestSent?"Sent recorded":"Not recorded"}</strong></span>
-          <span><small>Review received</small><strong>{manualFlags.reviewReceivedAt?"Owner logged":"Not logged"}</strong></span>
-          <span id={`customer-sign-flag-${selected.id}`} tabIndex={-1} className={manualFlags.sign?.state==="out"&&manualFlags.sign.pickupDate&&manualFlags.sign.pickupDate<=tulsaToday?"customer-flag-action-needed":""}><small>Yard sign</small><strong>{manualFlags.sign?.state==="out"?(manualFlags.sign.pickupDate&&manualFlags.sign.pickupDate<=tulsaToday?"Pickup due":"Placed · pickup "+manualFlags.sign.pickupDate):manualFlags.sign?.state==="picked_up"?"Picked up":"Not logged"}</strong></span>
+          <span><small>Estimate</small><strong>{activitySummary.estimate}</strong></span>
+          <span><small>Invoice</small><strong>{activitySummary.invoice}</strong></span>
+          <span><small>Follow-up</small><strong>{activitySummary.followup}</strong></span>
+          <span><small>Review request</small><strong>{activitySummary.reviewRequest}</strong></span>
+          <span><small>Review received</small><strong>{activitySummary.reviewReceived}</strong></span>
+          <span id={`customer-sign-flag-${selected.id}`} tabIndex={-1} className={activitySummary.needs.includes("Yard sign pickup is due")?"customer-flag-action-needed":""}><small>Yard sign</small><strong>{activitySummary.sign}</strong></span>
         </div>
+        {activitySummary.needs.length>0&&<div className="customer-flag-next" role="status" aria-label="Customer action checks"><AlertTriangle aria-hidden="true"/><span><strong>{activitySummary.needs.length} action{activitySummary.needs.length===1?"":"s"} to review</strong><small>{activitySummary.needs.join(" · ")}</small></span></div>}
         {reviewCheck.status==="due"&&<div id={`customer-review-check-${selected.id}`} tabIndex={-1} className="customer-review-check" role="region" aria-label="Review follow-up check due"><div><strong><Star aria-hidden="true"/> Review status check available</strong><p>Review request recorded {reviewCheck.elapsedDays} days ago; no review is logged. Check whether a review has appeared before contacting the customer again.</p></div>{onPrepareReviewTask&&<Button variant="outline" aria-label="Prepare review status check task" onClick={()=>stageReviewCheck(selected,reviewCheck.requestedAt)}>Create check task</Button>}</div>}
         <div className="customer-flag-actions">
           {!manualFlags.reviewReceivedAt&&<Button variant="outline" aria-label="Prepare review received note" onClick={()=>prepareManualFlag(REVIEW_RECEIVED_NOTE)}>Log review received</Button>}
