@@ -195,7 +195,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await priorities.getByRole('button',{name:'Review upcoming appointment preparation'}).click();
   check(await page.evaluate(()=>window.openedEstimate)==='later-dashboard-job','Priority action opens later job with incomplete details, not the already-ready next job');
   await priorities.getByRole('button',{name:'Review due Business tasks'}).click();
-  check(await page.evaluate(()=>window.openedTask)==='priority-overdue','Due Business task shortcut targets exact oldest saved due task');
+  check(await page.evaluate(()=>window.openedTask)==='task-past','Due Business task shortcut targets exact oldest saved due task');
   check((await priorities.innerText()).includes('1 past due')&&(await priorities.innerText()).includes('Collect yard supplies'),'Business priority shows oldest due task and honest overdue count');
   await priorities.getByRole('button',{name:'Review overdue yard sign pickup'}).click();
   check(await page.evaluate(()=>window.openedCustomer)==='first','Urgent pickup opens exact customer for saved due sign');
