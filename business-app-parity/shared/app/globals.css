@@ -1480,3 +1480,11 @@ html,body{max-width:100%;overflow-x:clip}
 .followup-card-tools a:hover{border-color:var(--ring)}
 .followup-card-tools a:focus-visible,.followup-priority-toggle button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
 .followup-card-tools a svg{height:14px;width:14px}
+
+.followup-contact-panel{grid-column:1/-1;min-width:0;display:grid;gap:8px;padding:12px;border:1px solid var(--border);border-radius:9px;background:var(--card)}
+.followup-contact-panel>strong{font-size:13px}.followup-contact-panel small,.followup-contact-panel p{font-size:12px;line-height:1.4;color:var(--muted-foreground);margin:0}
+.followup-contact-panel ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.followup-contact-panel li{display:flex;justify-content:space-between;align-items:flex-start;gap:9px;padding:7px 0;border-bottom:1px solid var(--border);min-width:0}
+.followup-contact-panel li span{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere}.followup-contact-panel li strong{font-size:12px}
+.followup-contact-panel time{font-size:11px;color:var(--muted-foreground);text-align:right;flex:0 0 90px}
+.followup-contact-panel button{min-height:44px}

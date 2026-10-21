@@ -226,3 +226,33 @@ const source=readFileSync('app/dashboard.tsx','utf8');
 assert.ok(source.includes('onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/>'),'Follow-up shortcut lands on the actual customer profile, not generic Customers list');
 
 console.log('PASS '+checks+'/'+checks+': actual FollowUpsView paginated endpoint, failure/retry, priority navigation, refresh listeners and stale read protection. Mock GET only.');
+
+// Real follow-up action card fetch: exact estimate, no writes, and strict response validation.
+{
+ const f=fixture();const events=[{id:'logged-1',channel:'contact_recorded',template:'followupContact',createdAt:'2026-10-08T12:00:00Z'}];
+ f.response(async url=>url.startsWith('/api/followup-contact-history?')?
+  {ok:true,json:async()=>({estimateId:'synthetic-job',customerId:'synthetic-customer',events,hasMore:false})}:response([job()]));
+ f.mount();await flush();
+ const trigger=()=>f.lookup(n=>n.props?.['aria-label']==='Toggle saved contact history for Synthetic QA followUp7');
+ assert.ok(trigger(),'Saved contact history action is available on due estimate');
+ const before=f.requests.length;trigger().props.onClick();await flush();await flush();
+ eq(f.requests.length,before+1,'Only one read is started when history opens');
+ eq(f.requests.at(-1).url,'/api/followup-contact-history?estimateId=synthetic-job&customerId=synthetic-customer','Exact saved estimate/customer pair is required');
+ eq(f.requests.at(-1).options.cache,'no-store','Private contact history bypasses browser cache');
+ eq(trigger().props['aria-expanded'],true,'Expanded state is accessible');
+ eq(f.nodes().some(n=>n.props?.['aria-label']==='Saved contact history for Synthetic QA followUp7'),true,'Contact history visible in its own named region');
+ trigger().props.onClick();
+ eq(f.nodes().some(n=>n.props?.['aria-label']==='Saved contact history for Synthetic QA followUp7'),false,'Owner can collapse evidence without a write');
+ eq(f.requests.filter(x=>x.options?.method==='POST').length,0,'Reviewing contact history never writes customer data');
+ f.unmount();
+}
+{
+ const f=fixture();
+ f.response(async url=>url.startsWith('/api/followup-contact-history?')?
+  {ok:true,json:async()=>({estimateId:'another-estimate',customerId:'synthetic-customer',events:[],hasMore:false})}:response([job()]));
+ f.mount();await flush();
+ f.lookup(n=>n.props?.['aria-label']==='Toggle saved contact history for Synthetic QA followUp7').props.onClick();await flush();await flush();
+ eq(f.nodes().some(n=>n.props?.role==='alert'),true,'Wrong estimate identity fails closed');
+ eq(f.nodes().some(n=>n.props?.children==='No saved activity for this estimate. Full customer history may contain other contact.'),false,'Bad response never claims no contact');
+ f.unmount();
+}

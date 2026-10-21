@@ -500,3 +500,31 @@ console.log('PASS customer action review: due priority, confirmed sends, no fals
  eq(groups.exports.group('history','history'),'history','History needs manual review, never auto-sends');
 }
 console.log('PASS follow-up triage: verified estimate milestones, six categories, filtered empty state, safe exact-record navigation.');
+
+// Owner-only contact history metadata contract: never expose private message bodies.
+{
+ const endpoint=readFileSync('app/api/followup-contact-history/route.ts','utf8');
+ for(const needle of [
+  'if(!user||user.email.toLowerCase()!==OWNER_EMAIL)',
+  'SELECT id FROM estimates WHERE id=? AND customer_id=? LIMIT 1',
+  'SELECT id,channel,template,created_at AS createdAt',
+  'WHERE estimate_id=? AND customer_id=? ORDER BY created_at DESC,id DESC LIMIT 13',
+  'result.results.slice(0,12)',
+  '"Cache-Control":"no-store, private"'
+ ])assert.ok(endpoint.includes(needle),'Required private read guard: '+needle);
+ assert.ok(!/INSERT INTO|UPDATE |DELETE FROM|SELECT[^\n]*body/i.test(endpoint),'History endpoint does not write or select private message bodies');
+ const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='FollowUpsView');
+ let fn;const find=n=>{if(ts.isFunctionDeclaration(n)&&n.name?.text==='contactLabel')fn=n;ts.forEachChild(n,find);};find(view);
+ assert.ok(fn,'Contact presentation helper is self-contained in FollowUpsView');
+ const code=ts.transpileModule(fn.getText(ast)+'\nexports.format=contactLabel;',{
+  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
+ }).outputText;
+ const ctx={exports:{}};vm.runInNewContext(code,ctx);
+ for(const [channel,result] of [
+  ['text_confirmed','Owner confirmed send · delivery unverified'],['email_confirmed','Owner confirmed send · delivery unverified'],
+  ['text_prepared','Sending unconfirmed'],['email_prepared','Sending unconfirmed'],['copy','Sending unconfirmed'],
+  ['contact_recorded','Owner recorded contact · no send claimed'],['followup_snoozed','No customer message claimed'],
+  ['legacy','Sending and delivery unverified']
+ ])eq(ctx.exports.format({channel,template:'followUp3'}).detail,result,'Contact history never exaggerates '+channel);
+}
+console.log('PASS secure follow-up contact history: owner auth, exact estimate scope, bounded metadata, clear evidence labels.');

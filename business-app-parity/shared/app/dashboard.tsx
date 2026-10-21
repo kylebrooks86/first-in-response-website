@@ -2351,6 +2351,21 @@ function ContractsView({searchQuery}:{searchQuery:string}){
 }
 
 function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimate,onOpenCustomer}:{searchQuery:string;focusEstimateId?:string|null;onFocusHandled?:(id:string)=>void;onOpenEstimate?:(id:string)=>void;onOpenCustomer?:(id:string)=>void}){
+  /** Read-only presentation: prepared/recorded never means sent or delivered. */
+  function contactLabel(event:{channel:string;template:string}){
+    const about=event.template==="estimate"?"Estimate":event.template==="invoice"?"Invoice":
+      event.template==="review"?"Review request":event.template.startsWith("followUp")?"Estimate follow-up":
+      event.template==="appointmentReminder"?"Appointment reminder":"Customer communication";
+    switch(event.channel){
+      case "text_confirmed":return {title:about+" · owner-confirmed text",detail:"Owner confirmed send · delivery unverified"};
+      case "email_confirmed":return {title:about+" · owner-confirmed email",detail:"Owner confirmed send · delivery unverified"};
+      case "text_prepared":case "email_prepared":return {title:about+" prepared",detail:"Sending unconfirmed"};
+      case "copy":return {title:about+" copied",detail:"Sending unconfirmed"};
+      case "contact_recorded":return {title:"Contact logged",detail:"Owner recorded contact · no send claimed"};
+      case "followup_snoozed":return {title:"Reminder snoozed",detail:"No customer message claimed"};
+      default:return {title:"Legacy communication record",detail:"Sending and delivery unverified"};
+    }
+  }
   /** Read-only saved estimate milestones: a timestamp is not proof of external delivery. */
   function followupMilestones(estimate:EstimateRow){
     const events:{key:string;at:string;title:string;time:number}[]=[];
@@ -2384,6 +2399,29 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   const [actionBusy,setActionBusy]=useState(false);
   const [actionFilter,setActionFilter]=useState<"all"|"quotes"|"billing"|"schedule"|"reviews"|"repeat"|"history">("all");
   const [highPriorityOnly,setHighPriorityOnly]=useState(false);
+  const [contactHistory,setContactHistory]=useState<{key:string;status:"loading"|"ready"|"error";events:{id:string;channel:string;template:string;createdAt:string}[];hasMore:boolean}|null>(null);
+  const contactReadId=useRef(0);
+  const readContactHistory=(estimate:EstimateRow,template:string)=>{
+    if(!estimate.customerId)return;
+    const key=estimate.id+":"+template,request=++contactReadId.current;
+    setContactHistory({key,status:"loading",events:[],hasMore:false});
+    void (async()=>{
+      try{
+        const url="/api/followup-contact-history?estimateId="+encodeURIComponent(estimate.id)+"&customerId="+encodeURIComponent(estimate.customerId);
+        const response=await fetch(url,{cache:"no-store"});
+        const data=await response.json() as {estimateId?:string;customerId?:string;events?:{id:string;channel:string;template:string;createdAt:string}[];hasMore?:boolean};
+        if(!response.ok||data.estimateId!==estimate.id||data.customerId!==estimate.customerId||!Array.isArray(data.events)||
+          data.events.length>12||typeof data.hasMore!=="boolean"||data.events.some(item=>!item||typeof item.id!=="string"||!item.id||
+            typeof item.channel!=="string"||typeof item.template!=="string"||typeof item.createdAt!=="string"||!Number.isFinite(Date.parse(item.createdAt))))
+          throw Error("History could not be verified");
+        if(request===contactReadId.current)setContactHistory({key,status:"ready",events:data.events,hasMore:data.hasMore});
+      }catch{if(request===contactReadId.current)setContactHistory({key,status:"error",events:[],hasMore:false});}
+    })();
+  };
+  const toggleContactHistory=(estimate:EstimateRow,template:string)=>{
+    if(contactHistory?.key===estimate.id+":"+template){contactReadId.current++;setContactHistory(null);return;}
+    readContactHistory(estimate,template);
+  };
   const actionPending=useRef(false);
   // Preserve one operation ID across uncertain replies, so retry cannot append a second history row.
   const actionRetry=useRef<{customerId:string;estimateId:string;action:"contacted"|"snooze";operationId:string}|null>(null);
@@ -2541,7 +2579,16 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     </section>}
     {loading&&rows.length===0?<div className="customers-state">Checking customer follow-ups…</div>:error&&rows.length===0?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visibleActions.length?<section className="followup-list">{visibleActions.map(({estimate,template,reason,kind})=>{const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};const milestones=followupMilestones(estimate);return <article className={`followup-card ${kind}${focusEstimateId===estimate.id?" followup-card-focused":""}`} id={cardTarget(estimate.id,template)} tabIndex={-1} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><p>{reason}</p><small>{estimate.service} · {money(billingBalanceCents(estimate))}</small></div>{kind==="history"?<Button variant="outline" onClick={()=>setReviewEstimate(estimate)}>Review estimate</Button>:<MessageComposer customer={customer} estimate={estimate} initialTemplate={template} triggerLabel="Prepare message" onSent={(message,status)=>{setRows(current=>current.map(row=>row.id===estimate.id?{...row,status:status||row.status,...(message.template==="estimate"?{firstEstimateSentAt:row.firstEstimateSentAt||message.createdAt,lastEstimateSentAt:message.createdAt}:{}),...(["estimate","followUp1","followUp3","followUp7"].includes(message.template)?{lastEstimateContactAt:message.createdAt}:{}),...(message.template==="followUp1"?{stage1At:message.createdAt}:{}),...(message.template==="followUp3"?{stage3At:message.createdAt}:{}),...(message.template==="followUp7"?{stage7At:message.createdAt}:{}),...(message.template==="review"?{lastReviewRequestAt:message.createdAt}:{}),...(["winBack6","winBack11"].includes(message.template)?{lastRebookMessageAt:message.createdAt}:{})}:row));void load();}}/>}
 {["followUp1","followUp3","followUp7"].includes(template)&&<div className="col-span-full flex flex-wrap gap-2"><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="contacted"))} onClick={()=>void recordAction(estimate,"contacted")}>Contacted</Button><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="snooze"))} onClick={()=>void recordAction(estimate,"snooze")}>Snooze 7 days</Button></div>}
-<div className="followup-card-tools">{milestones.length>0&&<span className="followup-latest-activity">Latest saved activity: {milestones[0].title} · {new Date(milestones[0].at).toLocaleDateString("en-US",{timeZone:"America/Chicago"})}</span>}{onOpenEstimate&&<button type="button" onClick={()=>onOpenEstimate(estimate.id)} aria-label={"Open saved estimate for "+estimate.customer}><FileText aria-hidden="true"/> Open estimate</button>}{onOpenCustomer&&customer.id&&<button type="button" onClick={()=>onOpenCustomer(customer.id)} aria-label={"Open saved customer history for "+estimate.customer}><Users aria-hidden="true"/> Customer history</button>}{customer.phone&&<a href={"tel:"+customer.phone} aria-label={"Call "+estimate.customer}><Phone aria-hidden="true"/> Call</a>}{customer.phone&&<a href={"sms:"+customer.phone} aria-label={"Open text app for "+estimate.customer}><MessageSquareText aria-hidden="true"/> Text</a>}{customer.email&&<a href={"mailto:"+customer.email} aria-label={"Open email app for "+estimate.customer}><Mail aria-hidden="true"/> Email</a>}{milestones.length>0&&<details className="followup-milestones"><summary>Saved estimate activity ({milestones.length})</summary><ol>{milestones.map(item=><li key={item.key}><strong>{item.title}</strong><time dateTime={item.at}>{new Date(item.at).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</time></li>)}</ol><small>Owner-side saved status only. Open the estimate for more detail; a recorded timestamp does not prove delivery.</small></details>}</div>
+<div className="followup-card-tools"><button type="button" aria-label={"Toggle saved contact history for "+estimate.customer+" "+template} aria-expanded={contactHistory?.key===estimate.id+":"+template} onClick={()=>toggleContactHistory(estimate,template)}><MessageSquareText aria-hidden="true"/> Recent contact</button>{milestones.length>0&&<span className="followup-latest-activity">Latest saved activity: {milestones[0].title} · {new Date(milestones[0].at).toLocaleDateString("en-US",{timeZone:"America/Chicago"})}</span>}{onOpenEstimate&&<button type="button" onClick={()=>onOpenEstimate(estimate.id)} aria-label={"Open saved estimate for "+estimate.customer}><FileText aria-hidden="true"/> Open estimate</button>}{onOpenCustomer&&customer.id&&<button type="button" onClick={()=>onOpenCustomer(customer.id)} aria-label={"Open saved customer history for "+estimate.customer}><Users aria-hidden="true"/> Customer history</button>}{customer.phone&&<a href={"tel:"+customer.phone} aria-label={"Call "+estimate.customer}><Phone aria-hidden="true"/> Call</a>}{customer.phone&&<a href={"sms:"+customer.phone} aria-label={"Open text app for "+estimate.customer}><MessageSquareText aria-hidden="true"/> Text</a>}{customer.email&&<a href={"mailto:"+customer.email} aria-label={"Open email app for "+estimate.customer}><Mail aria-hidden="true"/> Email</a>}{milestones.length>0&&<details className="followup-milestones"><summary>Saved estimate activity ({milestones.length})</summary><ol>{milestones.map(item=><li key={item.key}><strong>{item.title}</strong><time dateTime={item.at}>{new Date(item.at).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</time></li>)}</ol><small>Owner-side saved status only. Open the estimate for more detail; a recorded timestamp does not prove delivery.</small></details>}</div>
+{contactHistory?.key===estimate.id+":"+template&&<section className="followup-contact-panel" role="region" aria-label={"Saved contact history for "+estimate.customer+" "+template}>
+  <strong>Saved contact history</strong><small>Exact estimate only · message bodies hidden · opening never sends</small>
+  {contactHistory.status==="loading"?<p role="status">Checking saved contact…</p>:contactHistory.status==="error"?
+    <div role="alert"><p>Saved contact activity couldn't be verified. Do not assume there was no contact.</p><Button variant="outline" onClick={()=>readContactHistory(estimate,template)}>Retry history</Button></div>:
+    contactHistory.events.length?<ol>{contactHistory.events.map(entry=>{const label=contactLabel(entry);return <li key={entry.id}><span><strong>{label.title}</strong><small>{label.detail}</small></span><time dateTime={entry.createdAt}>{new Date(entry.createdAt).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</time></li>;})}</ol>:
+    <p>No saved activity for this estimate. Full customer history may contain other contact.</p>}
+  {contactHistory.status==="ready"&&contactHistory.hasMore&&<p>Showing 12 most recent saved events. Open customer history for older records.</p>}
+  {contactHistory.status==="ready"&&<Button variant="outline" onClick={()=>readContactHistory(estimate,template)}>Refresh history</Button>}
+</section>}
 </article>;})}</section>:actions.length?<div className="customers-state"><Clock3/><strong>No matches in this filter</strong><p>Choose All to view the other {actions.length} recommended actions. Nothing has been changed or sent.</p><Button variant="outline" onClick={()=>{setActionFilter("all");setHighPriorityOnly(false);}}>Show all follow-ups</Button></div>:<div className="customers-state"><CheckCircle2/><strong>{nextCursor?"No reminders in loaded records":"You’re caught up"}</strong><p>No follow-ups are recommended in the loaded records. Check older records when available.</p></div>}
     <p role="status">{rows.length} records loaded. {nextCursor?"Older records are available.":"End of available records."}</p>{error&&rows.length>0&&<p role="alert">{error}</p>}{error&&!retryAppend.current&&rows.length>0&&<Button variant="outline" disabled={loading} onClick={()=>void load()}>Retry follow-up refresh</Button>}{nextCursor&&<Button variant="outline" disabled={loading||Boolean(error&&!retryAppend.current)} onClick={()=>void load(true)}>{loading?"Loading…":error&&retryAppend.current?"Retry older records":"Load older records"}</Button>}
   </div>;
