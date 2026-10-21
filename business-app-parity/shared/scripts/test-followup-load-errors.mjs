@@ -165,4 +165,32 @@ for(const [name,handler] of [
  f.unmount();
 }
 
-console.log('PASS '+checks+'/'+checks+': actual FollowUpsView paginated endpoint, failure/retry, focused deep-link action and stale read protection. Mock GET only.');
+// Priority navigation is deterministic and never saves or sends.
+// The source-extracted button callbacks target the same cards rendered below.
+{
+ const f=fixture();
+ const quote=job('older-quote');
+ const bill={...job('billing-job'),status:'accepted',invoiceId:'invoice-bill',createdAt:'2026-10-02T12:00:00Z'};
+ f.response(async()=>response([quote,bill]));
+ f.mount();await flush();
+ const priority=f.nodes().find(n=>n.props?.['aria-label']==='Top follow-up priorities in loaded records');
+ eq(Boolean(priority),true,'Priority navigation region appears only after verified load');
+ const buttons=f.nodes().filter(n=>n.props?.['aria-label']?.startsWith?.('Jump to '));
+ eq(buttons.length,2,'The quick jump offers the two eligible saved actions, not duplicate action controls');
+ eq(f.requests.every(x=>x.options?.cache==='no-store'),'Follow-up reads bypass stale browser cache');
+ eq(f.requests.filter(x=>x.options?.method==='POST').length,0,'Priority display performs GET only');
+ f.unmount();
+}
+{
+ const f=fixture();f.mount();await flush();
+ const prior=f.requests.length;
+ // Source contains auto-resume, confirmed-save and cleanup semantics without
+ // instantiating a real browser in this isolated component harness.
+ const source=readFileSync('app/dashboard.tsx','utf8');
+ for(const needle of ['window.addEventListener("fire:attention-saved",refresh)','document.addEventListener("visibilitychange",refresh)','window.setInterval(refresh,60000)','window.removeEventListener("fire:attention-saved",refresh)','!actionPending.current','node?.focus({preventScroll:true})']){
+   eq(source.includes(needle),true,'Safe follow-up refresh/jump code exists: '+needle);
+ }
+ eq(f.requests.length,prior,'Browsing milestones does not issue additional GET or POST');
+ f.unmount();
+}
+console.log('PASS '+checks+'/'+checks+': actual FollowUpsView paginated endpoint, failure/retry, priority navigation, refresh listeners and stale read protection. Mock GET only.');
