@@ -646,9 +646,36 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
   const nextJobNeedsAddress=Boolean(nearTermNextJob&&nextJob&&!nextJob.address?.trim());
   const nextJobNeedsContact=Boolean(nearTermNextJob&&nextJob&&!nextJobPhone&&!canEmailNextJob);
   const nextJobNeedsPrep=nextJobNeedsAddress||nextJobNeedsContact;
+  // More than the next job may need preparation. Only the currently loaded
+  // scheduled appointments for today/tomorrow qualify; other screens have
+  // the full record history. Do not treat bad phone/email as usable contact.
+  const nearTermPrepJobs=upcomingJobs.filter(job=>{
+    const day=new Date(job.scheduledAt!).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+    if(day!==localDay&&day!==tomorrowDay)return false;
+    const phone=job.phone?.trim()??"";
+    const phoneDigits=/^[+0-9().\\s-]+$/.test(phone)?phone.replace(/\\D/g,""):"";
+    const validPhone=phoneDigits.length===10||phoneDigits.length===11&&phoneDigits.startsWith("1");
+    const validEmail=/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$/i.test(job.email?.trim()??"");
+    return !job.address?.trim()||!validPhone&&!validEmail;
+  });
+  const dueSign=signStatus==="ready"?signs.find(sign=>sign.pickupDate<=localDay):undefined;
+  const dueReviews=reviewChecksStatus==="ready"?reviewChecks.length:0;
+  const priorityCount=nearTermPrepJobs.length+(signStatus==="ready"?pickupDue:0)+dueReviews;
+  const incompletePrioritySources=signStatus==="error"||reviewChecksStatus==="error";
   return (
     <div className="dashboard-view">
       <section className="welcome-row"><div><p className="eyebrow">FIRE App</p><h1>Welcome to First In Response Exteriors</h1><p>Customers, estimates, jobs, and balances in one place.</p></div><NewEstimate onSaved={onSaved} /></section>
+      {(priorityCount>0||incompletePrioritySources)&&<section className="dashboard-priority-strip" aria-label="Needs attention" role="region">
+        <header><div><h2><AlertTriangle aria-hidden="true"/> Needs attention <span>{priorityCount} known check{priorityCount===1?"":"s"}</span></h2><p>Act on saved activity and visible appointments. No messages or updates happen automatically.</p></div></header>
+        <div className="dashboard-priority-actions">
+          {nearTermPrepJobs.length>0&&<button type="button" aria-label="Review upcoming appointment preparation" onClick={()=>onOpenEstimate?onOpenEstimate(nearTermPrepJobs[0].id):onNavigate("schedule")}><CalendarDays aria-hidden="true"/><span><strong>{nearTermPrepJobs.length} job{nearTermPrepJobs.length===1?"":"s"} need details</strong><small>Today or tomorrow · missing service address or usable contact on job</small></span><ChevronRight aria-hidden="true"/></button>}
+          {dueSign&&<button type="button" aria-label="Review overdue yard sign pickup" onClick={()=>onOpenCustomer?onOpenCustomer(dueSign.customerId):onNavigate("customers")}><MapPin aria-hidden="true"/><span><strong>{pickupDue} yard sign pickup{pickupDue===1?"":"s"} due</strong><small>Open {dueSign.customerName} · target {dueSign.pickupDate}</small></span><ChevronRight aria-hidden="true"/></button>}
+          {dueReviews>0&&<button type="button" aria-label="Review customer review-status checks" onClick={()=>onOpenCustomer?onOpenCustomer(reviewChecks[0].customerId):onNavigate("customers")}><Star aria-hidden="true"/><span><strong>{dueReviews} review status check{dueReviews===1?"":"s"}</strong><small>Confirm whether reviews appeared before any follow-up</small></span><ChevronRight aria-hidden="true"/></button>}
+          {signStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable yard sign status" onClick={()=>setSignReload(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>Yard sign status unavailable</strong><small>Retry — pickup counts may be incomplete</small></span><ChevronRight aria-hidden="true"/></button>}
+          {reviewChecksStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable review checks" onClick={()=>setReviewChecksReload(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>Review checks unavailable</strong><small>Retry — follow-up counts may be incomplete</small></span><ChevronRight aria-hidden="true"/></button>}
+        </div>
+        <div className="dashboard-priority-foot"><small>Job checks cover loaded Dashboard appointments; open Schedule for all jobs.</small><button type="button" onClick={()=>onNavigate("schedule")}>Full schedule <ChevronRight aria-hidden="true"/></button></div>
+      </section>}
       <ScheduleWeather compact nextJobAt={upcomingJobs[0]?.scheduledAt}/>
       {upcomingJobs[0]&&<section className={`dashboard-next-job${nextJobNeedsPrep?" dashboard-next-job-needs-prep":""}`} aria-label="Next scheduled job">
         <div className="dashboard-next-job-info">

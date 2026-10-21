@@ -187,6 +187,20 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await page.goto(origin+'/dashboard');await page.evaluate(t=>window.setTheme(t),theme);const dashboardUpcoming=page.locator('.metric-card').filter({hasText:'Upcoming jobs'});
   check(await dashboardUpcoming.locator('strong').innerText()==='2','Dashboard only counts scheduled jobs, not finished or declined');
   check(await page.getByTestId('schedule-weather-target').textContent()==='2026-10-20T15:00:00Z','Weather targets earliest future scheduled appointment regardless of record order');
+  const priorities=page.getByRole('region',{name:'Needs attention'});
+  await priorities.waitFor();
+  check((await priorities.innerText()).includes('4 known checks'),'Priority strip counts one later same-day job gap, one due sign and two review checks');
+  check(await priorities.locator('.dashboard-priority-actions>button').count()===3,'Priority strip uses three actionable categories rather than another long record list');
+  await priorities.getByRole('button',{name:'Review upcoming appointment preparation'}).click();
+  check(await page.evaluate(()=>window.openedEstimate)==='later-dashboard-job','Priority action opens later job with incomplete details, not the already-ready next job');
+  await priorities.getByRole('button',{name:'Review overdue yard sign pickup'}).click();
+  check(await page.evaluate(()=>window.openedCustomer)==='first','Urgent pickup opens exact customer for saved due sign');
+  await priorities.getByRole('button',{name:'Review customer review-status checks'}).click();
+  check(await page.evaluate(()=>window.openedCustomer)==='first','Review-check priority navigates directly to selected customer');
+  check(writes===0,'Dashboard priority shortcuts are navigation only with no messages or saved changes');
+  const priorityBounds=await priorities.evaluate(n=>({left:n.getBoundingClientRect().left,right:n.getBoundingClientRect().right,width:innerWidth}));
+  check(priorityBounds.left>=-1&&priorityBounds.right<=priorityBounds.width+1,'Priority strip fits portrait and landscape mobile screens');
+  check(await priorities.locator('button').evaluateAll(nodes=>nodes.every(node=>node.getBoundingClientRect().height>=44)),'All priority actions meet minimum touch target height');
   const signRegion=page.getByRole('region',{name:'Outstanding yard sign pickups'});
   await signRegion.waitFor();
   check((await signRegion.innerText()).includes('2 outstanding')&&(await signRegion.innerText()).includes('1 due or overdue'),'Dashboard displays live active yard sign count and actual pickup urgency');
@@ -196,6 +210,9 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(writes===0,'Yard sign dashboard never edits records or marks pickup completed');
   signMode='error';await signRegion.getByRole('button',{name:'Refresh yard sign reminders'}).click();
   await signRegion.getByRole('alert').waitFor();
+  check((await priorities.innerText()).includes('Yard sign status unavailable')&&!(await priorities.innerText()).includes('yard sign pickup due'),'Unverified sign feed shows an actionable retry, never a false zero or stale pickup');
+  await priorities.getByRole('button',{name:'Retry unavailable yard sign status'}).click();
+  check(await priorities.getByRole('button',{name:'Retry unavailable yard sign status'}).count()===1,'An unsuccessful priority retry leaves the failed source visible');
   check((await signRegion.innerText()).includes('could not be verified'),'Failed sign read never reports zero or clears pickups');
   signMode='ready';await signRegion.getByRole('button',{name:'Refresh yard sign reminders'}).click();
   await signRegion.locator('.dashboard-sign-list button').first().waitFor();
@@ -209,6 +226,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(writes===0,'Dashboard review checks never write or send customer communications');
   reviewMode='error';await reviews.getByRole('button',{name:'Refresh review status checks'}).click();
   await reviews.getByRole('alert').waitFor();
+  check((await priorities.innerText()).includes('Review checks unavailable')&&!(await priorities.innerText()).includes('2 review status checks'),'Failed review feed cannot masquerade as verified review reminders');
   check((await reviews.innerText()).includes('could not be verified'),'Unavailable review data does not appear cleared');
   reviewMode='ready';await reviews.getByRole('button',{name:'Refresh review status checks'}).click();
   await reviews.locator('.dashboard-review-list button').first().waitFor();
