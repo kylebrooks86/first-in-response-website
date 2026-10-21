@@ -32,6 +32,7 @@ const items={
  tasks:[{id:'task-due',title:'Pick up yard sign',status:'open',dueAt:new Date(Date.now()-86400000).toISOString(),createdAt:'2026-10-18T12:00:00Z'},{id:'task-closed',title:'Already finished',status:'completed',dueAt:new Date(Date.now()-86400000).toISOString(),createdAt:'2026-10-18T12:00:00Z'}],
  signs:[{customerId:'customer-sign',customerName:'Sign customer',location:'Driveway',pickupDate:yesterday,placedAt:'2026-10-01T12:00:00Z'},{customerId:'sign-later',customerName:'Later sign',location:'Lawn',pickupDate:'2099-12-31',placedAt:'2026-10-01T12:00:00Z'}],
  checks:[{customerId:'customer-review',customerName:'Review customer',requestedAt:'2026-10-01T12:00:00Z',elapsedDays:12}],
+ closeouts:[],
  estimates:[
  {id:'est-follow',customer:'Quote customer',status:'sent',createdAt:new Date(Date.now()-4*86400000).toISOString(),firstEstimateSentAt:new Date(Date.now()-4*86400000).toISOString(),lastEstimateSentAt:new Date(Date.now()-4*86400000).toISOString()},
  {id:'est-invoice',customer:'Invoice customer',status:'accepted',createdAt:'2026-10-10T12:00:00Z',invoiceId:'inv-exact',totalCents:20000,paidCents:0},
@@ -44,7 +45,7 @@ function elements(node){
  const all=[];function walk(n){if(Array.isArray(n)){for(const x of n)walk(x);return;}if(!n||typeof n!=='object')return;all.push(n);walk(n.props?.children);}walk(node);return all;
 }
 function fixture(){
- let state=[],cursor=0,effect,clean,failed=null,refreshKey=0,firstCursor=null;const olderPages=new Map();const calls=[],nav=[],closed=[],summaries=[],documentListeners={},windowListeners={},savedRows={tasks:items.tasks.map(x=>({...x})),signs:items.signs.map(x=>({...x})),checks:items.checks.map(x=>({...x})),estimates:items.estimates.map(x=>({...x}))};
+ let state=[],cursor=0,effect,clean,failed=null,refreshKey=0,firstCursor=null;const olderPages=new Map();const calls=[],nav=[],closed=[],summaries=[],documentListeners={},windowListeners={},savedRows={tasks:items.tasks.map(x=>({...x})),signs:items.signs.map(x=>({...x})),checks:items.checks.map(x=>({...x})),closeouts:items.closeouts.map(x=>({...x})),estimates:items.estimates.map(x=>({...x}))};
  const context={
   exports:{},require,useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}]},
   useEffect(fn){effect=fn;},taskDueBucket:taskLib.exports.taskDueBucket,flagHasMatchingDueTask:flagDedupe.exports.flagHasMatchingDueTask,taskLinkedFlag:taskContext.exports.taskLinkedFlag,
@@ -56,9 +57,9 @@ function fixture(){
       if(!olderPages.has(cursor))throw Error('Unexpected synthetic cursor: '+cursor);
       return {ok:true,json:async()=>olderPages.get(cursor)};
     }
-    const name=url==='/api/tasks'?'tasks':url==='/api/dashboard-yard-signs'?'signs':url==='/api/dashboard-review-checks'?'checks':url==='/api/followups?limit=50'?'estimates':null;
+    const name=url==='/api/tasks'?'tasks':url==='/api/dashboard-yard-signs'?'signs':url==='/api/dashboard-review-checks'?'checks':url==='/api/followups?limit=50'?'estimates':url==='/api/payment-closeouts'?'closeouts':null;
     if(!name)throw Error('Unexpected endpoint '+url);
-    return {ok:true,json:async()=>name==='estimates'?{estimates:savedRows.estimates,nextCursor:firstCursor}:{[name]:savedRows[name]}};},
+    return {ok:true,json:async()=>name==='estimates'?{estimates:savedRows.estimates,nextCursor:firstCursor}:name==='closeouts'?{actions:savedRows.closeouts,mayHaveMore:false}:{[name]:savedRows[name]}};},
   ...Object.fromEntries([...tags].map(name=>[name,()=>null]))
  };
  vm.runInNewContext(compiled,context);
@@ -83,7 +84,7 @@ function fixture(){
  eq(f.get('view'),'all','All reminders can be restored in one tap');
  eq(f.get('rows').some(i=>i.key==='task:task-closed'),false,'Completed task never appears');
  eq(f.get('rows').some(i=>i.key==='sign:sign-later'),false,'Future pickup is not falsely overdue');
- eq(f.calls.length,4,'Read-only fetch for four existing owner feeds');
+ eq(f.calls.length,5,'Read-only fetch for five owner feeds, including verified paid closeouts');
  eq(f.calls.every(c=>c.options.cache==='no-store'&&!c.options.method),true,'Never submits writes or cached attention reads');
  const task=f.buttons().find(b=>b.props?.['aria-label']==='Open task: Pick up yard sign');
  assert.ok(task);task.props.onClick();
@@ -100,10 +101,10 @@ function fixture(){
  assert.ok(prep);prep.props.onClick();eq(f.nav.at(-1).join('|'),'estimates|est-prep','Prep shortcut opens exact estimate');
  eq(f.closed.length,6,'Each shortcut closes bell for focused navigation');
  f.openAgain();await flush();await flush();
- eq(f.calls.length,8,'Opening bell again triggers uncached refresh of all four owner feeds');
+ eq(f.calls.length,10,'Opening bell again triggers uncached refresh of all five owner feeds');
  eq(f.get('status'),'ready','Reopened bell completes a fresh verified attention read');
  f.visibleAgain();await flush();await flush();
- eq(f.calls.length,12,'Returning to installed app through visibilitychange refreshes saved reminders');
+ eq(f.calls.length,15,'Returning to installed app through visibilitychange refreshes saved reminders');
  eq(f.calls.every(c=>c.options.cache==='no-store'&&!c.options.method),true,'Reopen and visibility refresh remain strictly read-only');
  f.confirmSaved(saved=>{saved.tasks[0].status='completed';saved.tasks[0].completedAt=new Date().toISOString();});
  await flush();await flush();
@@ -113,7 +114,7 @@ function fixture(){
  await flush();await flush();
  eq(f.get('rows').some(x=>['sign:customer-sign','review:customer-review','followup:est-follow'].includes(x.key)),false,'Saved notes and confirmed follow-up clear corresponding attention items');
  eq(f.get('rows').length,2,'Unrelated invoice and job-preparation reminders remain visible');
- eq(f.calls.length,20,'Each owner-confirmed signal triggers one read of four feeds');
+ eq(f.calls.length,25,'Each owner-confirmed signal triggers one read of five feeds');
  eq(f.calls.every(c=>c.options.cache==='no-store'&&!c.options.method),true,'Confirmed changes trigger GETs only, no duplicate writes');
  f.unmount();
 }
@@ -129,6 +130,34 @@ function fixture(){
  f.fail(null);f.refresh();await flush();await flush();
  eq(f.get('status'),'ready','Owner retry recovers all three verified feeds');
  eq(f.get('rows').length,6,'Recovered attention items reappear');
+ f.unmount();
+}
+// Paid closeouts enter the notification bell without automatic sends.
+{
+ const f=fixture();f.mount();await flush();await flush();
+ const paid=new Date(Date.now()-3600000).toISOString();
+ f.confirmSaved(saved=>{saved.closeouts=[
+  {estimateId:'paid-job',customerId:'paid-customer',customerName:'Paid customer',totalCents:18000,lastPaidAt:paid,state:'ready',reviewPreparedAt:null},
+  {estimateId:'prepared-job',customerId:'prepared-customer',customerName:'Prepared customer',totalCents:24500,lastPaidAt:paid,state:'prepared',reviewPreparedAt:paid}
+ ];});await flush();await flush();
+ eq(f.get('rows').length,8,'Verified paid review requests appear alongside current reminders');
+ eq(f.summaries.at(-1).count,8,'Bell badge reflects paid closeout requests');
+ eq(f.get('rows').some(row=>row.key==='closeout:paid-job'&&row.detail.includes('request an honest review')),true,'Ready job identifies an honest review request');
+ eq(f.get('rows').some(row=>row.key==='closeout:prepared-job'&&row.detail.includes('sending not confirmed')),true,'Prepared review is never counted as sent');
+ const button=f.buttons().find(row=>row.props?.['aria-label']==='Open review request: Paid customer');
+ assert.ok(button,'Review request button exists');button.props.onClick();
+ eq(f.nav.at(-1).join('|'),'estimates|paid-job','Bell opens the exact completed paid job');
+ f.confirmSaved(saved=>{saved.closeouts=saved.closeouts.filter(row=>row.estimateId!=='paid-job');});await flush();await flush();
+ eq(f.get('rows').some(row=>row.key==='closeout:paid-job'),false,'Confirmed review request disappears after saved refresh');
+ eq(f.get('rows').some(row=>row.key==='closeout:prepared-job'),true,'Prepared unconfirmed message remains actionable');
+ f.unmount();
+}
+{
+ const f=fixture();f.fail('/api/payment-closeouts');f.mount();await flush();await flush();
+ eq(f.get('status'),'error','Unavailable closeout feed cannot falsely clear bell attention');
+ eq(f.summaries.at(-1).status,'error','Failed payment-closeout feed cannot publish a verified reminder count');
+ f.fail(null);f.refresh();await flush();await flush();
+ eq(f.get('status'),'ready','Refresh restores closeout reminder verification');
  f.unmount();
 }
 // Existing due task replaces its exact customer flag in bell, but future or completed
