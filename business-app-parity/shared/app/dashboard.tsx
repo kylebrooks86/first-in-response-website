@@ -2855,6 +2855,13 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     item.kind==="followup"&&["followUp1","followUp3","followUp7"].includes(item.template)&&
     !item.estimate.invoiceId&&Number(item.estimate.paymentOverageOpen)===0&&Number(item.estimate.pendingRefundCount)===0&&Number(item.estimate.openCheckoutCount)===0&&
     viewedEstimateReminderCue(item.estimate,now)!==null;
+  // A separate count for viewed-but-unverified jobs lets owners spot data that
+  // needs a status check without falsely recommending another message.
+  const viewedReviewCount=actionRows.filter(estimate=>estimate.status==="sent"&&!estimate.invoiceId&&
+    Number(estimate.paymentOverageOpen)===0&&Number(estimate.pendingRefundCount)===0&&Number(estimate.openCheckoutCount)===0&&
+    typeof estimate.firstViewedAt==="string"&&Number.isFinite(Date.parse(estimate.firstViewedAt))&&
+    Date.parse(estimate.firstViewedAt)<=now-86400000&&
+    !actions.some(item=>item.estimate.id===estimate.id&&isViewedReady(item))).length;
   const viewedReadyCount=actions.filter(isViewedReady).length;
   const visibleActions=actions.filter(item=>(actionFilter==="all"||(actionFilter==="viewed"?isViewedReady(item):followupGroup(item.template,item.kind)===actionFilter))&&(!highPriorityOnly||isHighPriority(item))&&(urgencyFilter==="all"||followupUrgency(item,now).bucket===urgencyFilter));
   // Same saved actions as the full list; one preview per verified customer, no extra API or writes.
@@ -2941,7 +2948,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     {focusError&&<div className="followup-focus-notice" role="status"><p>{focusError.message}</p>{onOpenEstimate&&<Button variant="outline" onClick={()=>{const id=focusError.id;setFocusError(null);onOpenEstimate(id);}}>Open saved estimate</Button>}</div>}
     {actionStatus&&<p role={actionError?"alert":"status"}>{actionStatus}</p>}
     {focusedRecord&&!rows.some(row=>row.id===focusedRecord.id)&&<p role="status" className="followup-coverage-complete">An older notification estimate is shown separately from the {rows.length} scanned records. Opening it does not verify the remaining historical pages.</p>}
-    {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>recommended actions</small></div></span><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>{bucketCount("past-target")} past suggested target · {bucketCount("due")} due now · {bucketCount("upcoming")} upcoming · {bucketCount("review")} needs review. Planning cues only—not verified customer deadlines. Preparing or copying isn’t sending.</p></div>}
+    {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>recommended actions</small></div></span><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>{bucketCount("past-target")} past suggested target · {bucketCount("due")} due now · {bucketCount("upcoming")} upcoming · {bucketCount("review")} needs review. {viewedReadyCount} viewed quotes ready for a check-in · {viewedReviewCount} viewed quotes need status verification. Counts cover loaded records. Planning cues only—not verified customer deadlines. Preparing or copying isn’t sending.</p></div>}
     {!loading&&!error&&nextCursor&&<section className="followup-backlog-coverage" aria-label="Older customer record coverage">
       <div><strong>Older records still unchecked</strong><p>Today's queue and counts include only {rows.length} loaded estimates. More saved estimates remain outside this view. Check up to 200 older records per scan; no messages are sent or customer records changed.</p></div>
       <Button variant="outline" onClick={()=>void load(true,4)}>Scan next 200 older records</Button>
