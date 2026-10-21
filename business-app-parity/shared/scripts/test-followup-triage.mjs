@@ -48,12 +48,19 @@ assert.equal(invoiced[0].invoiceId,'invoice-123','Billing reminder retains exact
 const overage=attentionContext.exports.estimateAttentionItems([{...baseViewed,id:'overage',customer:'Account issue',createdAt:at(-5),paymentOverageOpen:1}],now);
 assert.equal(overage.length,1,'Overpayment exception suppresses secondary viewed reminder');n++;
 assert.equal(overage[0].kind,'invoice','Owner sees billing exception first');n++;
+const customerApi=readFileSync('app/api/customers/route.ts','utf8');
+for(const column of ['firstEstimateSentAt','stage1At','stage3At','stage7At','lastManualContactAt','snoozeUntil']){
+ assert.ok(customerApi.includes('AS '+column),'Customer profile receives canonical reminder history: '+column);n++;
+}
 const api=readFileSync('app/api/followups/route.ts','utf8'),view=readFileSync('app/dashboard.tsx','utf8');
 assert.match(api,/channel IN \('text_confirmed','email_confirmed'\)\) AS lastConfirmedMessageAt/);
 assert.match(api,/channel IN \('text_prepared','email_prepared','copy'\)\) AS lastPreparedAt/);
 assert.match(api,/e\.first_viewed_at AS firstViewedAt/);
 assert.match(view,/Estimate viewed · approval not implied/);
 assert.match(view,/viewedEstimateReminderCue\(estimate,now\)/);
+assert.match(view,/Viewed estimate · check in/);
+assert.match(view,/Link opened .*hours ago · approval not recorded/);
+assert.match(view,/estimate\.invoiceId\)continue/);
 assert.match(view,/Owner-confirmed message:/);assert.match(view,/Last prepared\/copied:/);
 assert.match(view,/Timing: /);assert.match(view,/setUrgencyFilter\("all"\)/);
 assert.match(view,/followupUrgency\(item,now\)\.bucket==="past-target"/);

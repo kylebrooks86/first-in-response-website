@@ -1809,7 +1809,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     if(input.reviewDue)
       actions.push({key:"review",kind:"review",title:"Review status check due",detail:"Verify before logging a review or sending anything",priority:80});
     for(const estimate of input.estimates){
-      if(!estimate.id||!["draft","sent"].includes(estimate.status))continue;
+      if(!estimate.id||!["draft","sent"].includes(estimate.status)||estimate.invoiceId)continue;
       // An in-app send receipt is stronger than a status label; a copied or
       // prepared message never proves delivery. Avoid false follow-up urgency
       // for estimates explicitly snoozed to a future local calendar date.
@@ -1831,9 +1831,11 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
           title:"Review follow-up history",detail:stage.reviewReason,priority:52});
         else if(stage.template){
           const days=stage.template==="followUp7"?7:stage.template==="followUp3"?3:1;
+          const viewed=viewedEstimateReminderCue(estimate,input.now);
           actions.push({key:"followup:"+estimate.id,kind:"followup",estimateId:estimate.id,
-            title:"Estimate follow-up ready",detail:"Suggested day "+days+" · review confirmed contact before any outreach",
-            priority:days===7?78:days===3?70:62});
+            title:viewed?"Viewed estimate · check in":"Estimate follow-up ready",
+            detail:viewed?"Link opened "+viewed.hoursSinceView+" hours ago · approval not recorded; consider a friendly follow-up":"Suggested day "+days+" · review confirmed contact before any outreach",
+            priority:viewed?76:days===7?78:days===3?70:62});
         }
       }
     }
