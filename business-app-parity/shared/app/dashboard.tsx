@@ -1,6 +1,7 @@
 "use client";
 import {businessReceiptStorage,readBusinessReceipt,reserveBusinessReceipt,releaseBusinessReceipt,type BusinessCreateKind} from "../lib/business-create-receipt";
 import {taskDueBucket} from "../lib/task-due";
+import {estimateAttentionItems,type AttentionEstimate,type AttentionEstimateItem} from "../lib/attention-estimates";
 import {expenseDateInstant} from "../lib/expense-date";
 import {loadCustomerCreateRequest,saveCustomerCreateRequest,clearCustomerCreateRequest,confirmedCreatedCustomer,sameCustomerCreateInput,type CreatedCustomer,type CustomerCreateInput} from "../lib/customer-create-retry";
 import {completeEstimatePages} from "@/lib/estimate-pagination";
@@ -2611,7 +2612,7 @@ function EmptyView({ tab, onSaved }: { tab: string; onSaved: (estimate: Estimate
   return <section className="empty-view"><span>{view.icon}</span><h1>{view.title}</h1><p>{view.text}</p>{tab === "estimates" && <NewEstimate onSaved={onSaved} />}{tab === "payments" && <Button disabled>Stripe connection coming later</Button>}</section>;
 }
 
-type NotificationAttentionItem={key:string;kind:"task"|"sign"|"review";title:string;detail:string;taskId?:string;customerId?:string;urgent:boolean};
+type NotificationAttentionItem=AttentionEstimateItem|{key:string;kind:"task"|"sign"|"review";title:string;detail:string;taskId?:string;customerId?:string;urgent:boolean};
 /** Live attention remains separate from persisted activity notifications.
  * Clicking navigates to the actual task/customer; reading never resolves it.
  */
@@ -2619,23 +2620,26 @@ function NotificationAttention({onNavigate,onClose}:{onNavigate:(tab:string,esti
  const [rows,setRows]=useState<NotificationAttentionItem[]>([]);
  const [status,setStatus]=useState<"loading"|"ready"|"error">("loading");
  const [reload,setReload]=useState(0);
+ const [shown,setShown]=useState(8);
+ const [hasOlder,setHasOlder]=useState(false);
  useEffect(()=>{
    let stopped=false;
    const controller=new AbortController();
    const read=async()=>{
      try{
-       const urls=["/api/tasks","/api/dashboard-yard-signs","/api/dashboard-review-checks"];
+       const urls=["/api/tasks","/api/dashboard-yard-signs","/api/dashboard-review-checks","/api/followups?limit=50"];
        const responses=await Promise.all(urls.map(url=>fetch(url,{cache:"no-store",signal:controller.signal})));
        if(responses.some(r=>!r.ok))throw Error("Attention read unavailable");
-       const [taskData,signData,reviewData]=await Promise.all(responses.map(r=>r.json())) as [{tasks?:TaskRow[]},{signs?:DashboardYardSign[]},{checks?:DashboardReviewCheck[]}];
-       if(!Array.isArray(taskData.tasks)||!Array.isArray(signData.signs)||!Array.isArray(reviewData.checks))throw Error("Unverified attention response");
-       if(taskData.tasks.some(t=>!t||typeof t.id!=="string"||!t.id||typeof t.title!=="string"||!["open","completed"].includes(t.status)||t.dueAt!=null&&(typeof t.dueAt!=="string"||!Number.isFinite(Date.parse(t.dueAt))))||signData.signs.some(s=>!s||typeof s.customerId!=="string"||!s.customerId||typeof s.customerName!=="string"||typeof s.pickupDate!=="string"||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s.pickupDate))||reviewData.checks.some(c=>!c||typeof c.customerId!=="string"||!c.customerId||typeof c.customerName!=="string"||!Number.isFinite(Date.parse(c.requestedAt))||!Number.isFinite(c.elapsedDays)))throw Error("Malformed attention records");
+       const [taskData,signData,reviewData,followupData]=await Promise.all(responses.map(r=>r.json())) as [{tasks?:TaskRow[]},{signs?:DashboardYardSign[]},{checks?:DashboardReviewCheck[]},{estimates?:AttentionEstimate[];nextCursor?:string|null}];
+       if(!Array.isArray(taskData.tasks)||!Array.isArray(signData.signs)||!Array.isArray(reviewData.checks)||!Array.isArray(followupData.estimates)||!(followupData.nextCursor==null||typeof followupData.nextCursor==="string"))throw Error("Unverified attention response");
+       if(taskData.tasks.some(t=>!t||typeof t.id!=="string"||!t.id||typeof t.title!=="string"||!["open","completed"].includes(t.status)||t.dueAt!=null&&(typeof t.dueAt!=="string"||!Number.isFinite(Date.parse(t.dueAt))))||signData.signs.some(s=>!s||typeof s.customerId!=="string"||!s.customerId||typeof s.customerName!=="string"||typeof s.pickupDate!=="string"||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s.pickupDate))||reviewData.checks.some(c=>!c||typeof c.customerId!=="string"||!c.customerId||typeof c.customerName!=="string"||!Number.isFinite(Date.parse(c.requestedAt))||!Number.isFinite(c.elapsedDays))||followupData.estimates.some(e=>!e||typeof e.id!=="string"||!e.id||typeof e.customer!=="string"||typeof e.status!=="string"||typeof e.createdAt!=="string"))throw Error("Malformed attention records");
        const now=new Date(),localDay=now.toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
        const dueTasks:NotificationAttentionItem[]=taskData.tasks.filter(t=>["today","overdue"].includes(taskDueBucket(t,now))).map(t=>({key:"task:"+t.id,kind:"task",taskId:t.id,title:t.title,detail:taskDueBucket(t,now)==="overdue"?"Business task overdue":"Business task due today",urgent:taskDueBucket(t,now)==="overdue"}));
        const dueSigns:NotificationAttentionItem[]=signData.signs.filter(s=>s.pickupDate<=localDay).map(s=>({key:"sign:"+s.customerId,kind:"sign",customerId:s.customerId,title:s.customerName,detail:"Yard sign pickup due · "+s.pickupDate,urgent:true}));
        const dueReviews:NotificationAttentionItem[]=reviewData.checks.map(c=>({key:"review:"+c.customerId,kind:"review",customerId:c.customerId,title:c.customerName,detail:"Check review status · "+c.elapsedDays+" days since request",urgent:false}));
-       if(!stopped){setRows([...dueTasks,...dueSigns,...dueReviews].sort((a,b)=>Number(b.urgent)-Number(a.urgent)||a.key.localeCompare(b.key)));setStatus("ready");}
-     }catch{if(!stopped){setRows([]);setStatus("error");}}
+       const estimateChecks=estimateAttentionItems(followupData.estimates,now.getTime());
+       if(!stopped){setRows([...dueTasks,...dueSigns,...dueReviews,...estimateChecks].sort((a,b)=>Number(b.urgent)-Number(a.urgent)||a.key.localeCompare(b.key)));setHasOlder(Boolean(followupData.nextCursor));setShown(8);setStatus("ready");}
+     }catch{if(!stopped){setRows([]);setHasOlder(false);setStatus("error");}}
    };
    void read();
    const refresh=()=>{if(document.visibilityState==="visible")void read();};
@@ -2643,11 +2647,13 @@ function NotificationAttention({onNavigate,onClose}:{onNavigate:(tab:string,esti
    const timer=window.setInterval(refresh,60000);
    return()=>{stopped=true;controller.abort();window.removeEventListener("focus",refresh);window.clearInterval(timer);};
  },[reload]);
+ const kindLabel=(kind:NotificationAttentionItem["kind"])=>kind==="task"?"task":kind==="sign"?"yard sign":kind==="review"?"review check":kind==="followup"?"follow-up":kind==="review-request"?"review request":kind;
  return <section className="notification-attention" aria-label="Needs attention">
    <header><strong><AlertTriangle aria-hidden="true"/> Needs attention{status==="ready"&&rows.length>0?` · ${rows.length}`:""}</strong><button type="button" aria-label="Refresh attention items" onClick={()=>{setStatus("loading");setReload(n=>n+1);}}><RefreshCw aria-hidden="true"/> Refresh</button></header>
-   {status==="loading"?<p role="status">Checking saved tasks, signs and reviews…</p>:status==="error"?<p role="alert">Attention items couldn't be verified. Refresh to try again; don't assume they are cleared.</p>:rows.length?<div className="notification-attention-list">{rows.slice(0,8).map(item=><button key={item.key} type="button" className={item.urgent?"urgent":""} aria-label={`Open ${item.kind==="task"?"task":item.kind==="sign"?"yard sign":"review check"}: ${item.title}`} onClick={()=>{onClose();if(item.taskId)onNavigate("business",null,null,null,item.taskId);else onNavigate("customers",null,null,item.customerId);}}><span>{item.kind==="task"?<ClipboardList aria-hidden="true"/>:item.kind==="sign"?<MapPin aria-hidden="true"/>:<Star aria-hidden="true"/>}</span><span><strong>{item.title}</strong><small>{item.detail}</small></span><ChevronRight aria-hidden="true"/></button>)}</div>:<p>No outstanding due tasks, sign pickups or review checks were found.</p>}
-   {status==="ready"&&rows.length>8&&<small>{rows.length-8} additional items · see Dashboard and Customers for more</small>}
-   <small>These are live reminders, separate from unread activity. They clear only when the underlying records are updated.</small>
+   {status==="loading"?<p role="status">Checking saved tasks, signs, reviews, and follow-ups…</p>:status==="error"?<p role="alert">Attention items couldn't be verified. Refresh to try again; don't assume they are cleared.</p>:rows.length?<div className="notification-attention-list">{rows.slice(0,shown).map(item=><button key={item.key} type="button" className={item.urgent?"urgent":""} aria-label={`Open ${kindLabel(item.kind)}: ${item.title}`} onClick={()=>{onClose();if("taskId" in item&&item.taskId)onNavigate("business",null,null,null,item.taskId);else if("invoiceId" in item&&item.invoiceId)onNavigate("invoices",null,item.invoiceId);else if("estimateId" in item&&item.estimateId)onNavigate("estimates",item.estimateId);else if("customerId" in item&&item.customerId)onNavigate("customers",null,null,item.customerId);}}><span>{item.kind==="task"?<ClipboardList aria-hidden="true"/>:item.kind==="sign"?<MapPin aria-hidden="true"/>:item.kind==="invoice"?<Receipt aria-hidden="true"/>:item.kind==="appointment"?<CalendarDays aria-hidden="true"/>:item.kind==="followup"||item.kind==="draft"?<Clock3 aria-hidden="true"/>:<Star aria-hidden="true"/>}</span><span><strong>{item.title}</strong><small>{item.detail}</small></span><ChevronRight aria-hidden="true"/></button>)}</div>:<p>No due items in checked records. Older estimates may still need review.</p>}
+   {status==="ready"&&rows.length>shown&&<button type="button" className="notification-attention-more" onClick={()=>setShown(n=>n+8)}>Show next {Math.min(8,rows.length-shown)} reminders · {rows.length-shown} remaining</button>}
+   {status==="ready"&&hasOlder&&<small>Newest 50 estimates checked. Open Follow-ups for older records.</small>}
+   <small>Live reminders are separate from unread activity. Nothing is sent or changed automatically.</small>
  </section>;
 }
 

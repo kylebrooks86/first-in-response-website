@@ -1364,3 +1364,6 @@ html,body{max-width:100%;overflow-x:clip}
 .notification-attention button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
 .notification-activity-title{padding:10px 14px 6px;font-size:12px;font-weight:850;border-bottom:1px solid var(--border)}
 [data-theme="dark"] .notification-attention>p[role="alert"]{color:#ffcb84}
+
+.notification-attention-more{min-height:40px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:11px;font-weight:750;cursor:pointer}
+.notification-attention-more:hover{background:var(--muted)}
