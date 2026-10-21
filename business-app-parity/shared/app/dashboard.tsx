@@ -296,7 +296,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const sendEmail=async()=>{if(!await log("email_prepared"))return;window.location.href=`mailto:${customer.email}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(body)}`;};
   const confirmSent=async()=>{
     if(!preparedMessage)return;setWorking(true);setMessageStatus("");
-    try{const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:preparedMessage.id,customerId:customer.id,ownerConfirmedSent:true})});const result=await response.json() as {message?:CustomerMessage;estimateStatus?:string;error?:string};if(!response.ok||!result.message)throw new Error(result.error||"Send confirmation could not be saved.");onLogged?.(result.message);setPreparedMessage(null);setMessageStatus("Sent — confirmed by you. Delivery and read status are unknown.");if(preparedMessage.template===initialTemplate)await onSent?.(result.message,result.estimateStatus);}catch(error){setMessageStatus(error instanceof Error?error.message:"Send confirmation could not be saved.");}finally{setWorking(false);}
+    try{const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:preparedMessage.id,customerId:customer.id,ownerConfirmedSent:true})});const result=await response.json() as {message?:CustomerMessage;estimateStatus?:string;error?:string};if(!response.ok||!result.message)throw new Error(result.error||"Send confirmation could not be saved.");onLogged?.(result.message);setPreparedMessage(null);setMessageStatus("Sent — confirmed by you. Delivery and read status are unknown.");if(typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));if(preparedMessage.template===initialTemplate)await onSent?.(result.message,result.estimateStatus);}catch(error){setMessageStatus(error instanceof Error?error.message:"Send confirmation could not be saved.");}finally{setWorking(false);}
   };
   const copy=async()=>{try{await navigator.clipboard.writeText(body);await log("copy");}catch{setMessageStatus("Copy failed. No sending is confirmed.");}};
   return <Dialog open={open} onOpenChange={(value)=>{setOpen(value);if(value){setSiteOrigin(window.location.origin);}}}>
@@ -1701,7 +1701,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       setNotes((current)=>[note,...current.filter(row=>row.id!==note.id)]);
       if(noteDrafts.current[customerId]===draft)delete noteDrafts.current[customerId];
       if(noteSelection.current===customerId)setNoteText(current=>current===draft?"":current);
-      setNoteFeedback({customerId,kind:"success",text:"Note saved."});
+      setNoteFeedback({customerId,kind:"success",text:"Note saved."});if(typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
     }catch{
       if(noteMounted.current&&noteAccessEpoch.current===epoch)setNoteFeedback({customerId,kind:"error",text:"Note save was not confirmed. Your draft is kept. Refresh saved notes before retrying to avoid a duplicate."});
     }finally{
@@ -2220,6 +2220,7 @@ function FollowUpsView({searchQuery}:{searchQuery:string}){
         throw Error(result?.error||"Action save could not be verified.");
       // The idempotent API has confirmed this exact attempt. No automatic POST retries.
       actionRetry.current=null;
+      if(typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
       setRows(current=>current.map(row=>row.id===estimate.id?{...row,...(action==="contacted"?{lastManualContactAt:createdAt}:{snoozeUntil})}:row));
       setActionStatus(action==="contacted"?"Contact recorded. Estimate reminders paused for 24 hours; no message send is claimed.":"Estimate reminders snoozed for 7 days. Billing reminders remain active.");
       await load();
@@ -2430,6 +2431,7 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
       const task=result?.task;
       if(result?.confirmed!==true||result.requestId!==attempt.requestId||!task||task.id!==attempt.requestId||task.title!==submittedTitle||task.customerId!==customerId||task.status!=="open")throw new Error("The saved task response could not be verified.");
       taskCreateAttempt.current=null;
+      if(typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
       if(releaseBusinessReceipt(storage,"task",attempt.requestId))setTaskRecoveryId(null);
       setTitle("");setDueAt("");setTaskNotes("");setTaskCustomer("none");setBusinessMessage("Task added.");
       await load();
@@ -2447,6 +2449,7 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
       const result=await response.json() as {ok?:boolean;status?:string;completedAt?:string|null;error?:string};
       if(!response.ok||result?.ok!==true||result.status!==nextStatus||(nextStatus==="completed"&&(typeof result.completedAt!=="string"||!Number.isFinite(Date.parse(result.completedAt))))||(nextStatus==="open"&&result.completedAt!==null))throw new Error(result?.error||"The task update was not confirmed.");
       setTasks(current=>current.map(item=>item.id===task.id?{...item,status:nextStatus,completedAt:result.completedAt}:item));
+      if(typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
       setTaskStatusMessage("Task status confirmed.");
     }catch{
       setTaskStatusUncertain(true);
@@ -2463,6 +2466,7 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
       const result=await response.json() as {tasks?:TaskRow[];error?:string};
       if(!response.ok||!Array.isArray(result.tasks)||result.tasks.some(row=>!row||typeof row.id!=="string"||!row.id||typeof row.title!=="string"||(row.status!=="open"&&row.status!=="completed")||(row.status==="completed"&&(!row.completedAt||!Number.isFinite(Date.parse(row.completedAt))))))throw new Error("Task statuses could not be verified.");
       setTasks(result.tasks);
+      if(typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
       setTaskStatusUncertain(false);
       setTaskStatusMessage("Task statuses refreshed from saved records.");
     }catch{
@@ -2662,10 +2666,11 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
    void read();
    const refresh=()=>{if(document.visibilityState==="visible")void read();};
    window.addEventListener("focus",refresh);
+   window.addEventListener("fire:attention-saved",refresh);
    // Installed iPhone Home Screen apps can resume via visibilitychange without focus.
    document.addEventListener("visibilitychange",refresh);
    const timer=window.setInterval(refresh,60000);
-   return()=>{stopped=true;requestId++;controller.abort();window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh);window.clearInterval(timer);};
+   return()=>{stopped=true;requestId++;controller.abort();window.removeEventListener("focus",refresh);window.removeEventListener("fire:attention-saved",refresh);document.removeEventListener("visibilitychange",refresh);window.clearInterval(timer);};
  },[reload,refreshKey]);
  const priorityCount=rows.filter(item=>item.urgent).length;
  const visibleRows=view==="priority"?rows.filter(item=>item.urgent):rows;
@@ -2834,6 +2839,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
     else{setFocusEstimateId(row.id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}
   };
   const handleSaved = (estimate: EstimateRow) => {
+    if(typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
     setEstimateRows((current) => [estimate, ...current]);
     setLiveMetrics((current) => ({ estimates: current.estimates + 1, openValue: current.openValue + estimate.totalCents, outstanding: current.outstanding }));
   };

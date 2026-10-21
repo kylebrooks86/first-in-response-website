@@ -42,21 +42,21 @@ function elements(node){
  const all=[];function walk(n){if(Array.isArray(n)){for(const x of n)walk(x);return;}if(!n||typeof n!=='object')return;all.push(n);walk(n.props?.children);}walk(node);return all;
 }
 function fixture(){
- let state=[],cursor=0,effect,clean,failed=null,refreshKey=0;const calls=[],nav=[],closed=[],summaries=[],documentListeners={};
+ let state=[],cursor=0,effect,clean,failed=null,refreshKey=0;const calls=[],nav=[],closed=[],summaries=[],documentListeners={},windowListeners={},savedRows={tasks:items.tasks.map(x=>({...x})),signs:items.signs.map(x=>({...x})),checks:items.checks.map(x=>({...x})),estimates:items.estimates.map(x=>({...x}))};
  const context={
   exports:{},require,useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}]},
   useEffect(fn){effect=fn;},taskDueBucket:taskLib.exports.taskDueBucket,
   document:{visibilityState:'visible',addEventListener(name,fn){documentListeners[name]=fn;},removeEventListener(name){delete documentListeners[name];}},AbortController,estimateAttentionItems:attentionLib.exports.estimateAttentionItems,
-  window:{addEventListener(){},removeEventListener(){},setInterval(){return 1;},clearInterval(){}},
+  window:{addEventListener(name,fn){windowListeners[name]=fn;},removeEventListener(name){delete windowListeners[name];},setInterval(){return 1;},clearInterval(){}},
   fetch:async(url,options)=>{calls.push({url,options});if(failed===url)return {ok:false,json:async()=>({error:'Synthetic outage'})};
     const name=url==='/api/tasks'?'tasks':url==='/api/dashboard-yard-signs'?'signs':url==='/api/dashboard-review-checks'?'checks':url==='/api/followups?limit=50'?'estimates':null;
     if(!name)throw Error('Unexpected endpoint '+url);
-    return {ok:true,json:async()=>name==='estimates'?{estimates:items.estimates,nextCursor:null}:{[name]:items[name]}};},
+    return {ok:true,json:async()=>name==='estimates'?{estimates:savedRows.estimates,nextCursor:null}:{[name]:savedRows[name]}};},
   ...Object.fromEntries([...tags].map(name=>[name,()=>null]))
  };
  vm.runInNewContext(compiled,context);
  const render=()=>{cursor=0;return context.exports.renderAttention({onNavigate:(...args)=>nav.push(args),onClose:()=>closed.push(true),onSummary:value=>summaries.push(value),refreshKey});};
- return {render,get:name=>state[stateNames.indexOf(name)],calls,nav,closed,summaries,fail:url=>{failed=url;},mount:()=>{render();clean=effect();},refresh:()=>{clean?.();render();clean=effect();},openAgain:()=>{refreshKey++;clean?.();render();clean=effect();},visibleAgain:()=>documentListeners.visibilitychange?.(),unmount:()=>clean?.(),buttons:()=>elements(render()).filter(n=>n.type==='button')};
+ return {render,get:name=>state[stateNames.indexOf(name)],calls,nav,closed,summaries,fail:url=>{failed=url;},mount:()=>{render();clean=effect();},refresh:()=>{clean?.();render();clean=effect();},openAgain:()=>{refreshKey++;clean?.();render();clean=effect();},visibleAgain:()=>documentListeners.visibilitychange?.(),confirmSaved:update=>{update(savedRows);windowListeners['fire:attention-saved']?.();},unmount:()=>clean?.(),buttons:()=>elements(render()).filter(n=>n.type==='button')};
 }
 {
  const f=fixture();f.mount();await flush();await flush();
@@ -98,6 +98,16 @@ function fixture(){
  f.visibleAgain();await flush();await flush();
  eq(f.calls.length,12,'Returning to installed app through visibilitychange refreshes saved reminders');
  eq(f.calls.every(c=>c.options.cache==='no-store'&&!c.options.method),true,'Reopen and visibility refresh remain strictly read-only');
+ f.confirmSaved(saved=>{saved.tasks[0].status='completed';saved.tasks[0].completedAt=new Date().toISOString();});
+ await flush();await flush();
+ eq(f.get('rows').some(x=>x.key==='task:task-due'),false,'Confirmed task completion disappears from bell without waiting 60 seconds');
+ eq(f.summaries.at(-1).count,5,'Bell count reconciles after confirmed task completion');
+ f.confirmSaved(saved=>{saved.signs[0].pickupDate='2099-12-31';saved.checks=[];saved.estimates[0].lastManualContactAt=new Date().toISOString();});
+ await flush();await flush();
+ eq(f.get('rows').some(x=>['sign:customer-sign','review:customer-review','followup:est-follow'].includes(x.key)),false,'Saved notes and confirmed follow-up clear corresponding attention items');
+ eq(f.get('rows').length,2,'Unrelated invoice and job-preparation reminders remain visible');
+ eq(f.calls.length,20,'Each owner-confirmed signal triggers one read of four feeds');
+ eq(f.calls.every(c=>c.options.cache==='no-store'&&!c.options.method),true,'Confirmed changes trigger GETs only, no duplicate writes');
  f.unmount();
 }
 {
@@ -118,6 +128,10 @@ assert.ok(source.includes('<NotificationAttention onNavigate={onNavigate} onClos
 assert.ok(source.includes('setAttentionRefreshKey(n=>n+1)'),'Opening bell forces new saved reminder verification');
 assert.ok(source.includes('thisRequest===requestId'),'Earlier overlapping reads cannot replace fresher reminder results');
 assert.ok(source.includes('document.addEventListener("visibilitychange",refresh)'),'iPhone Home Screen resume refreshes saved reminders');
+assert.ok(source.includes('window.addEventListener("fire:attention-saved",refresh)'),'Live reminder feed listens for confirmed saved changes');
+assert.ok(source.includes('window.removeEventListener("fire:attention-saved",refresh)'),'Live reminder feed unsubscribes on teardown');
+assert.ok(source.includes('setTaskStatusMessage("Task status confirmed.")'),'Task status changes still require confirmed save before refresh');
+assert.ok(source.includes('setNoteFeedback({customerId,kind:"success",text:"Note saved."})'),'Customer activity flags only refresh after verified note save');
 assert.ok(source.includes('<PopoverContent forceMount className="notification-popover"'),'Bell reminder feed remains mounted while popover is closed');
 assert.ok(source.includes('className="notification-attention-dot"'),'Bell shows attention separately from unread events');
 assert.ok(source.includes('aria-label={unread?\`${unread} unread notifications\`:"Notifications"}'),'Legacy Notifications accessible button label remains stable for end-to-end navigation');
