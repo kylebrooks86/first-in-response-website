@@ -410,7 +410,7 @@ console.log('PASS customer Activity & Flags presentation: contact vs send, due s
   ['id={"customer-invoice-"+invoice.id}','Invoice history accepts exact timeline focus'],
   ['setTimelineTarget({customerId:selected.id,section:entry.section,id:entry.id})','Timeline jump retains exact customer, record and section'],
   ['target.focus({preventScroll:true})','Timeline moves keyboard focus to saved record'],
-  ['setTimelineShown(current=>Math.min(current+6,timelineEntries.length))','Progressive reveal avoids long mobile timelines']
+  ['setTimelineShown(current=>Math.min(current+6,filteredTimelineEntries.length))','Progressive reveal avoids long mobile timelines']
  ]){assert.ok(source.includes(anchor),label);}
 }
 console.log('PASS customer timeline: chronology, private note restraint, confirmed vs prepared messaging, bounded mobile record navigation.');
