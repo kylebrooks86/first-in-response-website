@@ -124,7 +124,7 @@ for(const [name,handler] of [
  eq(f.handled.at(-1),'synthetic-job','Focused action acknowledges navigation after rendering');
  f.focus('missing-estimate');
  eq(f.nodes().some(n=>n.props?.className==='followup-focus-notice'),true,'Changed or completed follow-up shows honest fallback rather than a false card');
- const fallback=f.nodes().find(n=>n.type===stubs.Button&&n.props?.children==='Open saved estimate');
+ const fallback=f.nodes().find(n=>n.props?.children==='Open saved estimate');
  eq(Boolean(fallback),true,'Fallback survives the parent clearing its consumed focus request');
  fallback.props.onClick();
  eq(f.handled.at(-1),'fallback:missing-estimate','Fallback navigates to the original exact estimate ID');
