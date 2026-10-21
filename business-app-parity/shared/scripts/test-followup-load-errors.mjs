@@ -177,7 +177,7 @@ for(const [name,handler] of [
  eq(Boolean(priority),true,'Priority navigation region appears only after verified load');
  const buttons=f.nodes().filter(n=>n.props?.['aria-label']?.startsWith?.('Jump to '));
  eq(buttons.length,2,'The quick jump offers the two eligible saved actions, not duplicate action controls');
- eq(f.requests.every(x=>x.options?.cache==='no-store'),'Follow-up reads bypass stale browser cache');
+ eq(f.requests.every(x=>x.options?.cache==='no-store'),true,'Follow-up reads bypass stale browser cache');
  eq(f.requests.filter(x=>x.options?.method==='POST').length,0,'Priority display performs GET only');
  f.unmount();
 }
