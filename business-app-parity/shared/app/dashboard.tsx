@@ -2517,7 +2517,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   }).filter((item)=>[item.estimate.customer,item.estimate.service,item.reason].join(" ").toLowerCase().includes(searchQuery.toLowerCase())).sort((a,b)=>followupUrgency(a,now).rank-followupUrgency(b,now).rank||b.priority-a.priority||(Date.parse(a.estimate.createdAt)||0)-(Date.parse(b.estimate.createdAt)||0)||a.estimate.id.localeCompare(b.estimate.id));
   // Owner-side triage: high priority is an ordering cue, never an overdue or
   // delivery claim. Saved-record exceptions always remain reviewable.
-  const isHighPriority=(item:{priority:number;kind:string;template:string;estimate:EstimateRow;dueAt?:string|null})=>item.priority>=4||item.kind==="history"||followupUrgency(item,now).bucket==="past-target"||followupUrgency(item,now).rank<=1;
+  const isHighPriority=(item:{priority:number;kind:"followup"|"repeat"|"review"|"history";template:string;estimate:EstimateRow;dueAt?:string|null})=>item.priority>=4||item.kind==="history"||followupUrgency(item,now).bucket==="past-target"||followupUrgency(item,now).rank<=1;
   const highPriorityCount=actions.filter(isHighPriority).length;
   const bucketCount=(bucket:"past-target"|"due"|"upcoming"|"review")=>actions.filter(item=>followupUrgency(item,now).bucket===bucket).length;
   const visibleActions=actions.filter(item=>(actionFilter==="all"||followupGroup(item.template,item.kind)===actionFilter)&&(!highPriorityOnly||isHighPriority(item))&&(urgencyFilter==="all"||followupUrgency(item,now).bucket===urgencyFilter));
