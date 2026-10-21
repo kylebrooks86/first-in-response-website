@@ -1264,6 +1264,9 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
     clearManualPaymentRetry(storage(),estimate.id);manualRequestId.current=null;activeManual.current=null;
     if(!mounted.current)return;
     setRetryPending(false);setReviewedMissing(false);setRetryConfirmed(false);setOpen(false);
+    // The ledger was confirmed on this save/recovery path. Update owner
+    // attention sources only now; uncertain requests must not look paid.
+    if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
     onRecorded?.(paid);
   };
   const reviewPending=async()=>{

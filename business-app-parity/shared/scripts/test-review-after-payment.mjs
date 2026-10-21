@@ -47,4 +47,10 @@ assert.ok(paymentPage.includes("payment_refunds r")&&paymentPage.includes("pendi
 assert.ok(paymentPage.includes("billingNumbersSafe&&!paymentReviewPending&&dueNow>0"),"Invalid amounts and active payment holds hide card checkout");
 assert.ok(paymentPage.includes("<CustomerReviewInvitation/>"),"Paid-in-full customer page offers existing review link");
 assert.ok(paymentPage.includes('payment or refund')||paymentPage.includes('Payment or refund'),"Active account review receives a clear hold message");
-console.log("PASS review-after-payment: 13 eligibility cases, Stripe confirmation, verified invoice state and optional no-write link (source contracts only).");
+const dashboard=readFileSync("app/dashboard.tsx","utf8");
+const confirmed=dashboard.slice(dashboard.indexOf("const finishConfirmed=(paid:number)"),dashboard.indexOf("const reviewPending=async()=>",dashboard.indexOf("const finishConfirmed=(paid:number)")));
+assert.ok(confirmed.startsWith("const finishConfirmed=(paid:number)"),"Ledger confirmation handler exists");
+assert.ok(confirmed.includes('window.dispatchEvent(new Event("fire:attention-saved"))'),"Confirmed manual payments immediately refresh owner review and bell attention");
+assert.ok(confirmed.indexOf('fire:attention-saved')<confirmed.indexOf("onRecorded?.(paid)"),"Refresh is dispatched as part of the confirmed receipt before UI callback");
+assert.ok(!/fetch\(|POST|manualRequestId\.current\s*=\s*crypto/.test(confirmed),"Notification refresh never creates another financial write");
+console.log("PASS review-after-payment: 13 eligibility cases, payment page holds, manual receipt attention refresh and optional no-write link (source contracts only).");
