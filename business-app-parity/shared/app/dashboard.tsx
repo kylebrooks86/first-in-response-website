@@ -2402,8 +2402,6 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   const [urgencyFilter,setUrgencyFilter]=useState<"all"|"past-target"|"due"|"upcoming"|"review">("all");
   const [contactHistory,setContactHistory]=useState<{key:string;status:"loading"|"ready"|"error";events:{id:string;channel:string;template:string;createdAt:string}[];hasMore:boolean}|null>(null);
   const [focusedRecord,setFocusedRecord]=useState<EstimateRow|null>(null);
-  const focusedLookup=useRef<{id:string;token:number}|null>(null);
-  const focusedLookupSequence=useRef(0);
   const contactReadId=useRef(0);
   const readContactHistory=(estimate:EstimateRow,template:string)=>{
     const customerId:string=typeof estimate.customerId==="string"?estimate.customerId:"";
@@ -2433,6 +2431,8 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   const loadRequest=useRef(0);
   const loadedPages=useRef(1);
   const retryAppend=useRef(false);
+  const focusedLookup=useRef<{id:string;token:number}|null>(null);
+  const focusedLookupSequence=useRef(0);
   const load=async(append=false,scanPages=1)=>{
     const request=++loadRequest.current;
     retryAppend.current=append;
