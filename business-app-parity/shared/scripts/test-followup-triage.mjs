@@ -1,0 +1,32 @@
+/** Read-only recommended follow-up triage using synthetic timestamps. */
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import vm from 'node:vm';
+import ts from 'typescript';
+const require=createRequire(import.meta.url);
+const compiled=ts.transpileModule(readFileSync('lib/follow-up-timing.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+const context={exports:{},require,Date,Number,Math};vm.runInNewContext(compiled,context);
+const triage=context.exports.followupUrgency;assert.equal(typeof triage,'function');
+const now=Date.parse('2026-10-21T12:00:00Z'),day=86400000,at=d=>new Date(now+d*day).toISOString();
+const job=(template,kind='followup',extra={})=>({kind,template,priority:2,estimate:{status:'sent',firstEstimateSentAt:at(-8),...extra.estimate},...extra});
+let n=0;function check(action,bucket,pattern,rank){const r=triage(action,now);assert.equal(r.bucket,bucket);assert.match(r.label,pattern);if(rank!==undefined)assert.equal(r.rank,rank);n++;}
+check(job('followUp7'),'past-target',/Past suggested day 7 by 1d/,2);
+check(job('followUp3'),'past-target',/Past suggested day 3 by 5d/);
+check(job('followUp1','followup',{estimate:{firstEstimateSentAt:at(-1)}}),'due',/Suggested day 1/);
+check(job('followUp7','followup',{estimate:{firstEstimateSentAt:null}}),'review',/Confirm estimate send date/);
+check(job('invoiceReminder'),'review',/invoice due date unverified/);
+check(job('appointmentReminder','followup',{estimate:{scheduledAt:new Date(now+3*3600000).toISOString()}}),'upcoming',/within 3h/,1);
+check(job('appointmentReminder','followup',{estimate:{scheduledAt:'invalid'}}),'review',/verification/);
+check(job('winBack6','repeat',{dueAt:at(-4)}),'past-target',/passed by 4d/);
+check(job('winBack6','repeat',{dueAt:at(10)}),'upcoming',/in 10d/);
+check(job('winBack11','repeat',{dueAt:at(0)}),'due',/target reached/);
+check(job('review','review'),'review',/Review request suggested/);
+check(job('history','history',{estimate:{paymentOverageOpen:1}}),'review',/Billing exception/,0);
+check(job('estimate','followup',{estimate:{status:'draft'}}),'review',/Unsent estimate draft/);
+const api=readFileSync('app/api/followups/route.ts','utf8'),view=readFileSync('app/dashboard.tsx','utf8');
+assert.match(api,/channel IN \('text_confirmed','email_confirmed'\)\) AS lastConfirmedMessageAt/);
+assert.match(api,/channel IN \('text_prepared','email_prepared','copy'\)\) AS lastPreparedAt/);
+assert.match(view,/Owner-confirmed message:/);assert.match(view,/Last prepared\/copied:/);
+assert.match(view,/Timing: /);assert.match(view,/setUrgencyFilter\("all"\)/);
+console.log('PASS '+n+'/'+n+' timing cases, channel separation and follow-up mobile filters (synthetic).');

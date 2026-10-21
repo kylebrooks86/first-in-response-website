@@ -363,6 +363,7 @@ jobs:
       - name: Verify follow-up retry, authenticated list recovery and notification receipts
         run: |
           node scripts/test-followup-action-retry.mjs
+           node scripts/test-followup-triage.mjs
           node scripts/test-followup-load-errors.mjs
           node scripts/test-notification-read-recovery.mjs
           node scripts/test-notification-attention.mjs

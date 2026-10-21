@@ -32,3 +32,45 @@ export function estimateReminderStage(record:ReminderRecord,now:number):{templat
   if(stages[0]!==null)return none;
   return days>=1?{template:"followUp1",reviewReason:null}:none;
 }
+
+
+/** Read-only prioritization. "Past target" is a suggested outreach window,
+ * never a contract deadline, an invoice due date, or proof of message delivery. */
+export type FollowupUrgencyInput={
+  kind:"followup"|"repeat"|"review"|"history";template:string;priority:number;
+  dueAt?:string|null;
+  estimate:{status:string;firstEstimateSentAt?:string|null;scheduledAt?:string|null;paymentOverageOpen?:number|null};
+};
+export type FollowupUrgencyBucket="past-target"|"due"|"upcoming"|"review";
+export function followupUrgency(item:FollowupUrgencyInput,now:number):{bucket:FollowupUrgencyBucket;label:string;rank:number}{
+ const date=(value?:string|null)=>{const n=value?Date.parse(value):NaN;return Number.isFinite(n)?n:null;};
+ const day=86400000;
+ if(Number(item.estimate.paymentOverageOpen)>0)return {bucket:"review",label:"Billing exception · check saved records",rank:0};
+ if(item.template==="appointmentReminder"){
+   const at=date(item.estimate.scheduledAt);
+   if(at===null||!Number.isFinite(now))return {bucket:"review",label:"Appointment time needs verification",rank:4};
+   const hours=Math.max(0,Math.ceil((at-now)/3600000));
+   return {bucket:"upcoming",label:`Appointment within ${hours}h`,rank:hours<=24?1:5};
+ }
+ if(["followUp1","followUp3","followUp7"].includes(item.template)){
+   const first=date(item.estimate.firstEstimateSentAt);
+   if(first===null||!Number.isFinite(now))return {bucket:"review",label:"Confirm estimate send date first",rank:4};
+   const stage=item.template==="followUp7"?7:item.template==="followUp3"?3:1;
+   const lag=now-(first+stage*day);
+   if(lag>=day)return {bucket:"past-target",label:`Past suggested day ${stage} by ${Math.floor(lag/day)}d`,rank:2};
+   return {bucket:"due",label:`Suggested day ${stage} follow-up due`,rank:3};
+ }
+ if(item.kind==="repeat"){
+   const due=date(item.dueAt);
+   if(due===null||!Number.isFinite(now))return {bucket:"review",label:"Repeat service date needs verification",rank:6};
+   const lag=now-due;
+   if(lag>=day)return {bucket:"past-target",label:`Repeat-service target passed by ${Math.floor(lag/day)}d`,rank:2};
+   if(lag>=0)return {bucket:"due",label:"Repeat-service target reached",rank:3};
+   return {bucket:"upcoming",label:`Repeat-service target in ${Math.ceil(-lag/day)}d`,rank:7};
+ }
+ if(item.template==="invoiceReminder")return {bucket:"review",label:"Billing review · invoice due date unverified",rank:4};
+ if(item.estimate.status==="draft")return {bucket:"review",label:"Unsent estimate draft · review next",rank:5};
+ if(item.kind==="history")return {bucket:"review",label:"Saved history needs owner review",rank:4};
+ if(item.kind==="review")return {bucket:"review",label:"Review request suggested",rank:6};
+ return {bucket:"review",label:"Review next action",rank:6};
+}
