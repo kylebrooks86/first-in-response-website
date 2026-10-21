@@ -25,4 +25,23 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
 {
  const f=fixture();let resolve;f.fetch(()=>new Promise(r=>resolve=r));const old=f.load();f.fetch(()=>ok([row('latest')]));await f.load();resolve(ok([row('stale')]));await old;eq(f.get('rows')[0].id,'latest');eq(f.get('loading'),false);
 }
-console.log(`PASS ${checks}/${checks}: real estimate-history refresh failures hide stale query cards/totals, explicit retry uses current query, append failures retain open details, invalid records/cursors/amounts refuse publication and late reads stay ignored. Synthetic reads only.`);
+{
+ const f=fixture(),age=36*3600000,now=Date.now();
+ const sent=(id,hours,extra={})=>({...row(id),status:'sent',firstViewedAt:new Date(now-hours*3600000).toISOString(),...extra});
+ f.set('loading',false);
+ f.set('error','');
+ f.set('view','list');
+ f.set('rows',[sent('viewed-48',48),sent('viewed-36',36),sent('too-new',8),sent('approved',72,{status:'approved'}),sent('invoice',60,{invoiceId:'inv-1'}),sent('no-view',4,{firstViewedAt:null})]);
+ const button=nodes(f.render()).find(n=>n.props?.['aria-pressed']===false&&String(n.props?.children).includes('Viewed 24h+'));
+ assert.ok(button,'Viewed-estimate filter is available on mobile');
+ button.props.onClick();
+ eq(f.get('viewedOnly'),true,'Owner controls viewed filter without mutating records');
+ eq(f.get('view'),'list','Filter opens mobile-friendly list');
+ eq(f.get('filter'),'all','Old status chip filters do not hide selected viewed jobs');
+ const cards=nodes(f.render()).filter(n=>n.props?.className==='estimate-card');
+ eq(cards.length,2,'Only older viewed, unapproved, uninvoiced jobs are visible');
+ eq(String(cards[0].props.children[1]?.props?.children?.[0]?.props?.children??'').length>0,true,'Cards retain saved job identity');
+ const off=nodes(f.render()).find(n=>n.props?.['aria-pressed']===true&&String(n.props?.children).includes('Viewed 24h+'));
+ off.props.onClick();eq(f.get('viewedOnly'),false,'Owner can restore full list without touching status or billing');
+}
+console.log(`PASS ${checks}/${checks}: real estimate-history recovery, viewed 24h+ mobile filters and guarded paging. Synthetic reads only.`);
