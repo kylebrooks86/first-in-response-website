@@ -1534,3 +1534,9 @@ html,body{max-width:100%;overflow-x:clip}
 .business-task-context-link{display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:9px;color:var(--foreground);font-weight:750;font-size:12px;text-align:center;cursor:pointer}
 .business-task-context-link svg{width:15px;height:15px;flex:none}
 @media(max-width:390px){.business-task-row{flex-wrap:wrap}.task-list .business-task-toggle{flex-basis:100%}.task-list .business-task-details-button{margin:0 10px 10px 15px;flex:1 1 auto;min-height:44px}}
+
+/* Read-only detail buttons sit alongside high-contrast guarded task controls. */
+.task-list .business-task-toggle{min-height:44px}
+.task-list .business-task-toggle.completed strong{color:#52647a}
+[data-theme="dark"] .task-list .business-task-toggle.completed strong{color:#b7c6d9}
+.task-list .business-task-details-button{min-height:44px}
