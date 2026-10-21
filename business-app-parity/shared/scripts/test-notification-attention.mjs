@@ -101,6 +101,8 @@ function fixture(){
 assert.ok(source.includes('<NotificationAttention onNavigate={onNavigate} onClose={()=>setOpen(false)} onSummary={setAttentionSummary}/>'),'Bell mounts single Needs Attention feed before activity');
 assert.ok(source.includes('<PopoverContent forceMount className="notification-popover"'),'Bell reminder feed remains mounted while popover is closed');
 assert.ok(source.includes('className="notification-attention-dot"'),'Bell shows attention separately from unread events');
+assert.ok(source.includes('aria-label={unread?\`${unread} unread notifications\`:"Notifications"}'),'Legacy Notifications accessible button label remains stable for end-to-end navigation');
+assert.ok(source.includes('aria-description={attentionDescription}'),'Business reminder count remains accessible without renaming the bell');
 assert.ok(source.includes('activityFocus={customerActivityFocus}'),'Customer page accepts exact flag navigation');
 assert.ok(source.includes('target.scrollIntoView({block:"start",behavior:"instant"})'),'Flag jump scrolls to exact saved customer flag');
 assert.ok(source.includes('target.focus({preventScroll:true})'),'Flag jump also supports keyboard focus');
