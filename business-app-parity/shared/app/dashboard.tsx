@@ -577,6 +577,28 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
 
 function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEstimate,onOpenCustomer}:{userName:string;metrics:{estimates:number;openValue:number;outstanding:number};estimates:EstimateRow[];onSaved:(estimate:EstimateRow)=>void;onNavigate:(tab:string)=>void;onOpenEstimate?:(id:string)=>void;onOpenCustomer?:(id:string)=>void}) {
   const now = useCurrentTime();
+  const [priorityTasks,setPriorityTasks]=useState<TaskRow[]>([]);
+  const [priorityTaskStatus,setPriorityTaskStatus]=useState<"loading"|"ready"|"error">("loading");
+  const [taskRefresh,setTaskRefresh]=useState(0);
+  useEffect(()=>{
+    let cancelled=false;const controller=new AbortController();
+    const load=async()=>{
+      try{
+        const response=await fetch("/api/tasks",{cache:"no-store",signal:controller.signal});
+        if(!response.ok)throw new Error("Task read unavailable");
+        const data=await response.json() as {tasks?:unknown};
+        if(!Array.isArray(data.tasks)||data.tasks.some((task:unknown)=>!task||typeof task!=="object"||typeof (task as TaskRow).id!=="string"||typeof (task as TaskRow).title!=="string"||!["open","completed"].includes((task as TaskRow).status)||((task as TaskRow).dueAt!=null&&(typeof (task as TaskRow).dueAt!=="string"||!Number.isFinite(Date.parse((task as TaskRow).dueAt!))))))throw new Error("Invalid task response");
+        if(!cancelled){setPriorityTasks(data.tasks as TaskRow[]);setPriorityTaskStatus("ready");}
+      }catch{if(!cancelled){setPriorityTasks([]);setPriorityTaskStatus("error");}}
+    };
+    void load();
+    const refresh=()=>{if(document.visibilityState==="visible")void load();};
+    window.addEventListener("focus",refresh);
+    return()=>{cancelled=true;controller.abort();window.removeEventListener("focus",refresh);};
+  },[taskRefresh]);
+  // Exactly the same owner-local due-time classification as Business → Tasks.
+  const dueTasks=priorityTaskStatus==="ready"?priorityTasks.filter(task=>{const state=taskDueBucket(task,new Date(now));return state==="overdue"||state==="today";}).sort((a,b)=>Date.parse(a.dueAt!)-Date.parse(b.dueAt!)||a.id.localeCompare(b.id)):[];
+  const pastDueTasks=dueTasks.filter(task=>taskDueBucket(task,new Date(now))==="overdue").length;
   const [signs,setSigns]=useState<DashboardYardSign[]>([]);
   const [signStatus,setSignStatus]=useState<"loading"|"ready"|"error">("loading");
   const [signReload,setSignReload]=useState(0);
@@ -660,17 +682,19 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
   });
   const dueSign=signStatus==="ready"?signs.find(sign=>sign.pickupDate<=localDay):undefined;
   const dueReviews=reviewChecksStatus==="ready"?reviewChecks.length:0;
-  const priorityCount=nearTermPrepJobs.length+(signStatus==="ready"?pickupDue:0)+dueReviews;
-  const incompletePrioritySources=signStatus==="error"||reviewChecksStatus==="error";
+  const priorityCount=nearTermPrepJobs.length+(signStatus==="ready"?pickupDue:0)+dueReviews+dueTasks.length;
+  const incompletePrioritySources=signStatus==="error"||reviewChecksStatus==="error"||priorityTaskStatus==="error";
   return (
     <div className="dashboard-view">
       <section className="welcome-row"><div><p className="eyebrow">FIRE App</p><h1>Welcome to First In Response Exteriors</h1><p>Customers, estimates, jobs, and balances in one place.</p></div><NewEstimate onSaved={onSaved} /></section>
       {(priorityCount>0||incompletePrioritySources)&&<section className="dashboard-priority-strip" aria-label="Needs attention" role="region">
-        <header><div><h2><AlertTriangle aria-hidden="true"/> Needs attention <span>{priorityCount} known check{priorityCount===1?"":"s"}</span></h2><p>Act on saved activity and visible appointments. No messages or updates happen automatically.</p></div></header>
+        <header><div><h2><AlertTriangle aria-hidden="true"/> Needs attention <span>{priorityCount} known check{priorityCount===1?"":"s"}</span></h2><p>Act on saved activity and visible appointments. Categories may overlap; no messages or updates happen automatically.</p></div></header>
         <div className="dashboard-priority-actions">
           {nearTermPrepJobs.length>0&&<button type="button" aria-label="Review upcoming appointment preparation" onClick={()=>onOpenEstimate?onOpenEstimate(nearTermPrepJobs[0].id):onNavigate("schedule")}><CalendarDays aria-hidden="true"/><span><strong>{nearTermPrepJobs.length} job{nearTermPrepJobs.length===1?"":"s"} need details</strong><small>Today or tomorrow · missing service address or usable contact on job</small></span><ChevronRight aria-hidden="true"/></button>}
           {dueSign&&<button type="button" aria-label="Review overdue yard sign pickup" onClick={()=>onOpenCustomer?onOpenCustomer(dueSign.customerId):onNavigate("customers")}><MapPin aria-hidden="true"/><span><strong>{pickupDue} yard sign pickup{pickupDue===1?"":"s"} due</strong><small>Open {dueSign.customerName} · target {dueSign.pickupDate}</small></span><ChevronRight aria-hidden="true"/></button>}
+          {dueTasks.length>0&&<button type="button" className={pastDueTasks?"priority-task-overdue":""} aria-label="Review due Business tasks" onClick={()=>onNavigate("business")}><ClipboardList aria-hidden="true"/><span><strong>{dueTasks.length} Business task{dueTasks.length===1?"":"s"} due</strong><small>{pastDueTasks?pastDueTasks+" past due":"Due today"}{pastDueTasks&&dueTasks.length>pastDueTasks?" · "+(dueTasks.length-pastDueTasks)+" later today":""} · {dueTasks[0].title}</small></span><ChevronRight aria-hidden="true"/></button>}
           {dueReviews>0&&<button type="button" aria-label="Review customer review-status checks" onClick={()=>onOpenCustomer?onOpenCustomer(reviewChecks[0].customerId):onNavigate("customers")}><Star aria-hidden="true"/><span><strong>{dueReviews} review status check{dueReviews===1?"":"s"}</strong><small>Confirm whether reviews appeared before any follow-up</small></span><ChevronRight aria-hidden="true"/></button>}
+          {priorityTaskStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable Business tasks" onClick={()=>setTaskRefresh(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>Business task status unavailable</strong><small>Retry — due task counts may be incomplete</small></span><ChevronRight aria-hidden="true"/></button>}
           {signStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable yard sign status" onClick={()=>setSignReload(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>Yard sign status unavailable</strong><small>Retry — pickup counts may be incomplete</small></span><ChevronRight aria-hidden="true"/></button>}
           {reviewChecksStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable review checks" onClick={()=>setReviewChecksReload(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>Review checks unavailable</strong><small>Retry — follow-up counts may be incomplete</small></span><ChevronRight aria-hidden="true"/></button>}
         </div>
