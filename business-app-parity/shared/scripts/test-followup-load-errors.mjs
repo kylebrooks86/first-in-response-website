@@ -130,4 +130,39 @@ for(const [name,handler] of [
  eq(f.handled.at(-1),'fallback:missing-estimate','Fallback navigates to the original exact estimate ID');
  f.unmount();
 }
+
+// Actual JSX filter buttons retain exact estimate actions and never write on navigation.
+{
+ const f=fixture();
+ const quote=job('synthetic-job');
+ const billing={...job('invoice-job'),status:'accepted',invoiceId:'invoice-exact'};
+ f.response(async()=>response([quote,billing]));
+ f.mount();await flush();
+ eq(f.messageCards().length,2,'Unfiltered follow-up view includes estimate and billing actions');
+ const select=label=>{
+   const b=f.lookup(n=>n.props?.['aria-label']==='Filter follow-ups: '+label&&typeof n.props?.onClick==='function');
+   assert.ok(b,'Accessible '+label+' filter exists');b.props.onClick();
+ };
+ select('Billing');
+ eq(f.get(9),'billing','Billing button updates explicit owner filter');
+ eq(f.messageCards().length,1,'Billing filter shows one invoice action');
+ eq(f.nodes().filter(n=>n.props?.className?.startsWith?.('followup-card ')).length,1,'Unrelated estimate cards are hidden');
+ const target=f.lookup(n=>n.props?.['aria-label']==='Open saved estimate for Synthetic QA'&&typeof n.props?.onClick==='function');
+ assert.ok(target,'Exact saved estimate navigation is present on billing card');
+ target.props.onClick();
+ eq(f.handled.at(-1),'fallback:invoice-job','Billing card navigates to exact linked estimate');
+ select('Reviews');
+ eq(f.messageCards().length,0,'Empty category does not display unrelated outreach');
+ eq(f.nodes().some(n=>n.props?.children==='No matches in this filter'),true,'Empty category is not falsely called caught up');
+ f.clickText('Show all follow-ups');
+ eq(f.messageCards().length,2,'All control restores original actions without refresh');
+ select('Billing');
+ f.focus('synthetic-job');
+ eq(f.get(9),'all','Exact bell deep link resets an old category filter safely');
+ f.focus('synthetic-job');
+ eq(f.focusCalls.includes('followup-action-synthetic-job'),true,'Reset filter allows exact quote focus');
+ eq(f.requests.some(x=>x.options?.method==='POST'),false,'Filtering, history inspection and navigation are GET-only');
+ f.unmount();
+}
+
 console.log('PASS '+checks+'/'+checks+': actual FollowUpsView paginated endpoint, failure/retry, focused deep-link action and stale read protection. Mock GET only.');
