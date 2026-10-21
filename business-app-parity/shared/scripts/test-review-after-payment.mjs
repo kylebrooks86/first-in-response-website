@@ -25,6 +25,7 @@ for (const [name,input] of Object.entries({
 const estimate=readFileSync("app/estimate/[token]/page.tsx","utf8");
 const invoice=readFileSync("app/invoice/[token]/page.tsx","utf8");
 const component=readFileSync("components/customer-review-invitation.tsx","utf8");
+const paymentPage=readFileSync("app/pay/[id]/page.tsx","utf8");
 for (const [name,source] of [["estimate",estimate],["invoice",invoice]]) {
   assert.ok(source.includes("shouldOfferReviewAfterPayment("),name+" gates the invitation with saved payment state");
   assert.ok(source.includes("{showReviewInvitation&&<CustomerReviewInvitation/>}"),name+" displays only gated invitation");
@@ -35,4 +36,11 @@ assert.ok(invoice.includes("invoicePaymentState(row)") && invoice.includes("row.
 assert.ok(component.includes("FIRE_CUSTOMER_REVIEW_URL") && component.includes("honest experience"),"Non-incentivized review request uses existing hub");
 assert.ok(component.includes('target="_blank"') && component.includes('noopener noreferrer'),"External navigation is customer-initiated and safe");
 assert.ok(!/fetch\(|auto.?send|window\.location/.test(component),"Review UI never performs message/payment operations");
+assert.ok(paymentPage.includes("shouldOfferReviewAfterPayment("),"Legacy customer payment path reuses the verified closeout rule");
+assert.ok(paymentPage.includes("showRecordedSuccess=paid===\"1\"&&showReviewInvitation"),"Paid query parameter alone never implies success");
+assert.ok(!paymentPage.includes('paid === "1" ?'),"Legacy unguarded paid-state branch is eliminated");
+assert.ok(paymentPage.includes("payment_refunds r")&&paymentPage.includes("pendingRefundCount"),"Pending refund blocks premature customer review and checkout");
+assert.ok(paymentPage.includes("billingNumbersSafe&&!paymentReviewPending&&dueNow>0"),"Invalid amounts and active payment holds hide card checkout");
+assert.ok(paymentPage.includes("<CustomerReviewInvitation/>"),"Paid-in-full customer page offers existing review link");
+assert.ok(paymentPage.includes('payment or refund')||paymentPage.includes('Payment or refund'),"Active account review receives a clear hold message");
 console.log("PASS review-after-payment: 13 eligibility cases, Stripe confirmation, verified invoice state and optional no-write link (source contracts only).");
