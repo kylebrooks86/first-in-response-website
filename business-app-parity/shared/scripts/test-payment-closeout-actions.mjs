@@ -90,6 +90,8 @@ try{
  const queries=statements.length;
  owner=null;
  check((await api.GET()).status===401&&statements.length===queries,"Unauthenticated cannot inspect private payment closeouts");
+ check((await api.GET(new Request("https://fire.test/api/payment-closeouts?cursor=malformed"))).status===401&&statements.length===queries,
+  "Unauthenticated cursor requests are denied before validating private query parameters");
  owner={email:"notowner@example.invalid"};
  check((await api.GET()).status===401&&statements.length===queries,"Other user denied before database read");
  owner={email:"kylebrooks8605@gmail.com"};
@@ -103,5 +105,9 @@ try{
  check(ui.includes('onRecorded={()=>void load()}'),"Manual payment refresh includes closeout queue");
  check(ui.includes("Other payment records remain available."),"Review-feed failure does not hide payment history");
  check(ui.includes("sending not confirmed")&&ui.includes("Nothing is sent automatically"),"Unverified delivery never claimed");
+ check(ui.includes('fetch("/api/payment-closeouts?cursor="+encodeURIComponent(cursor)')&&ui.includes("Load older paid jobs"),
+  "Payments screen loads older closeouts with encoded cursor only on owner click");
+ check(ui.includes("reviewPageRequest.current++")&&ui.includes("reviewOlderLock.current")&&ui.includes("Previously loaded jobs are still available."),
+  "Review queue handles stale loads, double-clicks and failed older-page requests without hiding existing jobs");
  console.log("PASS "+count+" owner closeout action checks, synthetic SQLite, authorization, lifecycle and payments screen contracts.");
 }finally{db.close();}

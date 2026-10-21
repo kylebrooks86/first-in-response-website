@@ -8,6 +8,8 @@ const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{"Cac
  * Query parameters never change financial records or send messages.
  */
 export async function GET(request?:Request){
+ const user=await getChatGPTUser();
+ if(!user||user.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
  const rawCursor=request?new URL(request.url).searchParams.get("cursor"):null;
  let cursor:{lastPaidAt:string;estimateId:string}|null=null;
  if(rawCursor!==null){
@@ -16,8 +18,6 @@ export async function GET(request?:Request){
   if(!match||!Number.isFinite(Date.parse(match[1])))return json({error:"Invalid review queue cursor."},400);
   cursor={lastPaidAt:match[1],estimateId:match[2]};
  }
- const user=await getChatGPTUser();
- if(!user||user.email.toLowerCase()!=="kylebrooks8605@gmail.com")return json({error:"Unauthorized"},401);
  try{
   const paymentDateSql="(SELECT MAX(p.created_at) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund') AND p.amount_cents>0)";
   const result=await env.DB.prepare(`
