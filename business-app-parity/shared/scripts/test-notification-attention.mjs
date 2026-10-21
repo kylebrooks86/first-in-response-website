@@ -201,3 +201,94 @@ function invokeDashboardPriority(label,values){
  checks+=2;
 }
 console.log('PASS '+(checks+2)+' notification and Dashboard attention checks; exact customer flags, safe priority callbacks and recovery.');
+
+
+// Validate the three actual Dashboard attention effects using synthetic HTTP only.
+// A confirmed save must trigger fresh GETs without extra writes. Late GETs cannot
+// revert a verified cleanup or falsely show zero after a read outage.
+{
+ const effects={};
+ function captureEffects(n){
+   if(ts.isCallExpression(n)&&n.expression.getText(ast)==='useEffect'&&n.arguments[0]){
+     const code=n.arguments[0].getText(ast);
+     for(const endpoint of ['/api/tasks','/api/dashboard-yard-signs','/api/dashboard-review-checks']){
+       if(code.includes('fetch("'+endpoint+'"'))effects[endpoint]=code;
+     }
+   }
+   ts.forEachChild(n,captureEffects);
+ }
+ captureEffects(dashboardFn);
+ eq(Object.keys(effects).length,3,'All three real Dashboard due-item effects are testable');
+ const syntheticFor={
+   '/api/tasks':{tasks:[{id:'due-task',title:'Call customer',status:'open',dueAt:new Date(Date.now()-3600000).toISOString()}]},
+   '/api/dashboard-yard-signs':{signs:[{customerId:'sign-a',customerName:'Sign A',pickupDate:yesterday,location:'Front'}]},
+   '/api/dashboard-review-checks':{checks:[{customerId:'review-a',customerName:'Review A',requestedAt:'2026-10-01T12:00:00Z',elapsedDays:12}]}
+ };
+ const propFor={
+   '/api/tasks':['priorityTasks','priorityTaskStatus'],
+   '/api/dashboard-yard-signs':['signs','signStatus'],
+   '/api/dashboard-review-checks':['reviewChecks','reviewChecksStatus']
+ };
+ const pause=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
+ function dashboardFixture(endpoint){
+   const changes={},requests=[],events={},docEvents={},intervals=new Map(),saved=structuredClone(syntheticFor[endpoint]);let fail=false,delayed=null;
+   const [rowsName,statusName]=propFor[endpoint];changes[rowsName]=[];changes[statusName]='loading';
+   const setters={
+     setPriorityTasks:v=>changes.priorityTasks=v,setPriorityTaskStatus:v=>changes.priorityTaskStatus=v,
+     setSigns:v=>changes.signs=v,setSignStatus:v=>changes.signStatus=v,
+     setReviewChecks:v=>changes.reviewChecks=v,setReviewChecksStatus:v=>changes.reviewChecksStatus=v
+   };
+   const js=ts.transpileModule('exports.effect='+effects[endpoint]+';',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+   const context={exports:{},AbortController,...setters,
+      window:{addEventListener:(name,fn)=>events[name]=fn,removeEventListener:name=>delete events[name],
+        setInterval:(fn,ms)=>{intervals.set(1,{fn,ms});return 1;},clearInterval:id=>intervals.delete(id)},
+      document:{visibilityState:'visible',addEventListener:(name,fn)=>docEvents[name]=fn,removeEventListener:name=>delete docEvents[name]},
+      fetch:async(url,options)=>{
+        requests.push({url,options});assert.equal(url,endpoint);
+        if(delayed){const hold=delayed;delayed=null;return hold.promise;}
+        if(fail)return {ok:false,json:async()=>({error:'Synthetic read outage'})};
+        const snapshot=structuredClone(saved);
+        return {ok:true,json:async()=>snapshot};
+      }
+   };
+   vm.runInNewContext(js,context);
+   const cleanup=context.exports.effect();
+   return {saved,changes,requests,events,docEvents,intervals,
+     refresh:()=>events['fire:attention-saved']?.(),focus:()=>events.focus?.(),resume:()=>docEvents.visibilitychange?.(),
+     hide:()=>context.document.visibilityState='hidden',show:()=>context.document.visibilityState='visible',
+     fail:value=>fail=value,delay:()=>{delayed=pause();return delayed;},cleanup};
+ }
+ for(const endpoint of Object.keys(effects)){
+   const f=dashboardFixture(endpoint),[rowsName,statusName]=propFor[endpoint];
+   await flush();await flush();
+   eq(f.changes[statusName],'ready',endpoint+' initial load confirmed');
+   eq(f.changes[rowsName].length,1,endpoint+' initial due item visible');
+   eq(f.requests.length,1,endpoint+' one initial GET');
+   eq(f.requests[0].options.cache,'no-store',endpoint+' cached attention reads disabled');
+   eq(f.intervals.get(1)?.ms,60000,endpoint+' periodic verification while dashboard remains open');
+   f.saved[rowsName==='priorityTasks'?'tasks':rowsName==='signs'?'signs':'checks']=[];
+   f.refresh();await flush();await flush();
+   eq(f.changes[rowsName].length,0,endpoint+' saved completion clears Dashboard due item');
+   eq(f.changes[statusName],'ready',endpoint+' reports confirmed empty state only on verified read');
+   eq(f.requests.length,2,endpoint+' confirmed event prompts exactly one GET');
+   f.fail(true);f.refresh();await flush();await flush();
+   eq(f.changes[statusName],'error',endpoint+' failed read does not claim all clear');
+   f.fail(false);f.saved[rowsName==='priorityTasks'?'tasks':rowsName==='signs'?'signs':'checks'].push(structuredClone(syntheticFor[endpoint][rowsName==='priorityTasks'?'tasks':rowsName==='signs'?'signs':'checks'][0]));
+   f.resume();await flush();await flush();
+   eq(f.changes[rowsName].length,1,endpoint+' app-resume refresh recovers saved due item');
+   const delayed=f.delay();f.focus();await flush();
+   f.saved[rowsName==='priorityTasks'?'tasks':rowsName==='signs'?'signs':'checks']=[];
+   f.refresh();await flush();await flush();
+   eq(f.changes[rowsName].length,0,endpoint+' newer GET updates owner view');
+   delayed.resolve({ok:true,json:async()=>structuredClone(syntheticFor[endpoint])});
+   await flush();await flush();
+   eq(f.changes[rowsName].length,0,endpoint+' stale late response cannot resurrect resolved reminder');
+   f.hide();f.refresh();f.resume();await flush();
+   eq(f.requests.length,6,endpoint+' hidden app never polls confirmed-save or visibility events');
+   f.cleanup();
+   eq(Boolean(f.events['fire:attention-saved']),false,endpoint+' event unsubscribed on unmount');
+   eq(Boolean(f.docEvents.visibilitychange),false,endpoint+' visibility listener cleaned');
+   eq(f.intervals.size,0,endpoint+' interval cleaned');
+   eq(f.requests.every(x=>x.url===endpoint&&!x.options.method&&x.options.cache==='no-store'),true,endpoint+' all refreshes remain GET-only');
+ }
+}

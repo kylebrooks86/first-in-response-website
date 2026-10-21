@@ -582,20 +582,24 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
   const [priorityTaskStatus,setPriorityTaskStatus]=useState<"loading"|"ready"|"error">("loading");
   const [taskRefresh,setTaskRefresh]=useState(0);
   useEffect(()=>{
-    let cancelled=false;const controller=new AbortController();
+    let cancelled=false,generation=0;const controller=new AbortController();
     const load=async()=>{
+      const request=++generation;
       try{
         const response=await fetch("/api/tasks",{cache:"no-store",signal:controller.signal});
         if(!response.ok)throw new Error("Task read unavailable");
         const data=await response.json() as {tasks?:unknown};
         if(!Array.isArray(data.tasks)||data.tasks.some((task:unknown)=>!task||typeof task!=="object"||typeof (task as TaskRow).id!=="string"||typeof (task as TaskRow).title!=="string"||!["open","completed"].includes((task as TaskRow).status)||((task as TaskRow).dueAt!=null&&(typeof (task as TaskRow).dueAt!=="string"||!Number.isFinite(Date.parse((task as TaskRow).dueAt!))))))throw new Error("Invalid task response");
-        if(!cancelled){setPriorityTasks(data.tasks as TaskRow[]);setPriorityTaskStatus("ready");}
-      }catch{if(!cancelled){setPriorityTasks([]);setPriorityTaskStatus("error");}}
+        if(!cancelled&&request===generation){setPriorityTasks(data.tasks as TaskRow[]);setPriorityTaskStatus("ready");}
+      }catch{if(!cancelled&&request===generation){setPriorityTasks([]);setPriorityTaskStatus("error");}}
     };
     void load();
     const refresh=()=>{if(document.visibilityState==="visible")void load();};
     window.addEventListener("focus",refresh);
-    return()=>{cancelled=true;controller.abort();window.removeEventListener("focus",refresh);};
+    window.addEventListener("fire:attention-saved",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    const timer=window.setInterval(refresh,60000);
+    return()=>{cancelled=true;generation++;controller.abort();window.removeEventListener("focus",refresh);window.removeEventListener("fire:attention-saved",refresh);document.removeEventListener("visibilitychange",refresh);window.clearInterval(timer);};
   },[taskRefresh]);
   // Exactly the same owner-local due-time classification as Business → Tasks.
   const dueTasks=priorityTaskStatus==="ready"?priorityTasks.filter(task=>{const state=taskDueBucket(task,new Date(now));return state==="overdue"||state==="today";}).sort((a,b)=>Date.parse(a.dueAt!)-Date.parse(b.dueAt!)||a.id.localeCompare(b.id)):[];
@@ -604,21 +608,25 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
   const [signStatus,setSignStatus]=useState<"loading"|"ready"|"error">("loading");
   const [signReload,setSignReload]=useState(0);
   useEffect(()=>{
-    let cancelled=false;
+    let cancelled=false,generation=0;
     const controller=new AbortController();
     const read=async()=>{
+      const request=++generation;
       try{
         const response=await fetch("/api/dashboard-yard-signs",{cache:"no-store",signal:controller.signal});
         if(!response.ok)throw new Error("Yard sign read unavailable");
         const data=await response.json() as {signs?:unknown};
         if(!Array.isArray(data.signs)||data.signs.some((row:unknown)=>!row||typeof row!=="object"||typeof (row as DashboardYardSign).customerId!=="string"||typeof (row as DashboardYardSign).customerName!=="string"||typeof (row as DashboardYardSign).pickupDate!=="string"||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test((row as DashboardYardSign).pickupDate)||typeof (row as DashboardYardSign).location!=="string"))throw new Error("Unverified yard sign response");
-        if(!cancelled){setSigns(data.signs as DashboardYardSign[]);setSignStatus("ready");}
-      }catch{if(!cancelled){setSigns([]);setSignStatus("error");}}
+        if(!cancelled&&request===generation){setSigns(data.signs as DashboardYardSign[]);setSignStatus("ready");}
+      }catch{if(!cancelled&&request===generation){setSigns([]);setSignStatus("error");}}
     };
     void read();
     const refresh=()=>{if(document.visibilityState==="visible")void read();};
     window.addEventListener("focus",refresh);
-    return()=>{cancelled=true;controller.abort();window.removeEventListener("focus",refresh);};
+    window.addEventListener("fire:attention-saved",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    const timer=window.setInterval(refresh,60000);
+    return()=>{cancelled=true;generation++;controller.abort();window.removeEventListener("focus",refresh);window.removeEventListener("fire:attention-saved",refresh);document.removeEventListener("visibilitychange",refresh);window.clearInterval(timer);};
   },[signReload]);
   const localDay=new Date(now).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
   const pickupDue=signs.filter(sign=>sign.pickupDate<=localDay).length;
@@ -626,9 +634,10 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
   const [reviewChecksStatus,setReviewChecksStatus]=useState<"loading"|"ready"|"error">("loading");
   const [reviewChecksReload,setReviewChecksReload]=useState(0);
   useEffect(()=>{
-    let cancelled=false;
+    let cancelled=false,generation=0;
     const controller=new AbortController();
     const loadChecks=async()=>{
+      const request=++generation;
       try{
         const response=await fetch("/api/dashboard-review-checks",{cache:"no-store",signal:controller.signal});
         if(!response.ok)throw new Error("Review checks unavailable");
@@ -639,13 +648,16 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
           !Number.isFinite(Date.parse((row as DashboardReviewCheck).requestedAt))||
           !Number.isInteger((row as DashboardReviewCheck).elapsedDays)||(row as DashboardReviewCheck).elapsedDays<7))
           throw new Error("Invalid review check response");
-        if(!cancelled){setReviewChecks(data.checks as DashboardReviewCheck[]);setReviewChecksStatus("ready");}
-      }catch{if(!cancelled){setReviewChecks([]);setReviewChecksStatus("error");}}
+        if(!cancelled&&request===generation){setReviewChecks(data.checks as DashboardReviewCheck[]);setReviewChecksStatus("ready");}
+      }catch{if(!cancelled&&request===generation){setReviewChecks([]);setReviewChecksStatus("error");}}
     };
     void loadChecks();
     const refresh=()=>{if(document.visibilityState==="visible")void loadChecks();};
     window.addEventListener("focus",refresh);
-    return()=>{cancelled=true;controller.abort();window.removeEventListener("focus",refresh);};
+    window.addEventListener("fire:attention-saved",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    const timer=window.setInterval(refresh,60000);
+    return()=>{cancelled=true;generation++;controller.abort();window.removeEventListener("focus",refresh);window.removeEventListener("fire:attention-saved",refresh);document.removeEventListener("visibilitychange",refresh);window.clearInterval(timer);};
   },[reviewChecksReload]);
   // Match Schedule: future completed/declined jobs are not upcoming appointments.
   // The first supplied record is not necessarily the next appointment.
