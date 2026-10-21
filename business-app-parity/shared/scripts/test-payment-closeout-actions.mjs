@@ -79,7 +79,7 @@ try{
  }
  const firstPage=(await read()).data;
  check(firstPage.actions.length===200&&firstPage.mayHaveMore===true&&typeof firstPage.nextCursor==="string","200 eligible rows expose a real next-page cursor");
- check(firstPage.actions[0].estimateId==="e-older-page-204","Same-timestamp page sort is newest ID first");
+ check(firstPage.actions[0].estimateId==="e-unpaid"&&firstPage.actions[1].estimateId==="e-older-page-204","Most recent manual payment sorts first; same-timestamp older-page IDs sort descending");
  const secondResponse=await api.GET(new Request("https://fire.test/api/payment-closeouts?cursor="+encodeURIComponent(firstPage.nextCursor)));
  const second=await secondResponse.json();
  check(secondResponse.status===200&&second.actions.length>=5&&second.actions.some(x=>x.estimateId==="e-older-page-000"),"The 201st and later eligible closeouts are reachable");
