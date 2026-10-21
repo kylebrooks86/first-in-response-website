@@ -14,7 +14,7 @@ const money=c=>'$'+(c/100).toFixed(2),dateTime=v=>v;
 ${[...tags].filter(t=>!actual.includes(t)).map(t=>`const ${t}=()=>null;`).join('\n')}
 ${view.getText(ast)}
 window.setTheme=v=>document.documentElement.dataset.theme=v;
-createRoot(document.getElementById('app')).render(<BusinessView/>);`;
+createRoot(document.getElementById('app')).render(<BusinessView focusTaskId={new URLSearchParams(location.search).get('focusTask')} onFocusTaskHandled={()=>window.focusTaskConsumed=(window.focusTaskConsumed||0)+1}/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 if(process.argv.includes('--compile-only')){assert.ok(bundle.outputFiles[0].text.length>1000&&css.css.includes('.business-record-tools'));console.log('PASS: Business records React/Radix browser fixture compiles; no browser assertions run.');process.exit(0);}
@@ -30,6 +30,15 @@ reset();const server=createServer((req,res)=>{res.setHeader('cache-control','no-
 async function until(fn){const end=Date.now()+5000;while(!fn()){if(Date.now()>end)throw Error('Synthetic PATCH not accepted');await new Promise(r=>setTimeout(r,10));}}
 function contrast(a,b){const lum=v=>{const c=v.match(/[\d.]+/g).slice(0,3).map(n=>Number(n)/255).map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4);return c[0]*.2126+c[1]*.7152+c[2]*.0722;};const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);}
 try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});const page=await browser.newPage();page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){outside.push(r.request().url());return r.abort();}return r.continue();});
+ // The Dashboard shortcut opens an existing saved task without toggling its status.
+ reset();await page.setViewportSize({width:390,height:844});await page.goto(origin+'/?focusTask=t4');
+ await page.locator('#business-task-t4.task-dashboard-focus').waitFor();
+ check(await page.evaluate(()=>document.activeElement?.id)==='business-task-t4','Task deep-link focuses the saved task without requiring search');
+ check(await page.evaluate(()=>window.focusTaskConsumed)===1,'Task deep-link clears parent navigation request once');
+ check((await page.locator('#business-task-t4').getAttribute('aria-pressed'))==='false','A focused due task is not marked completed');
+ check(patches===0&&posts===0,'Task deep-link performs no task updates or new submissions');
+ const focusedBounds=await page.locator('#business-task-t4').boundingBox();
+ check(focusedBounds.y>=0&&focusedBounds.y<844,'Task focus scrolls into the phone viewport');
  for(const size of [{width:320,height:568},{width:390,height:844},{width:844,height:390}])for(const theme of ['light','dark']){
   reset();await page.setViewportSize(size);await page.goto(origin);await page.evaluate(v=>window.setTheme(v),theme);await page.getByRole('status').filter({hasText:'Showing 16 of 16 tasks.'}).waitFor();const beforePosts=posts,beforePatches=patches,beforeReads=reads;await page.getByLabel('Task or reminder',{exact:true}).fill('Unsaved synthetic reminder');await page.getByLabel('Amount ($)',{exact:true}).fill('42.17');await page.getByLabel('Purchase date (optional)',{exact:true}).fill('2026-10-16');
   const nav=page.getByRole('navigation',{name:'Business sections'});await nav.getByRole('button',{name:'Expenses',exact:true}).click();check(await page.evaluate(()=>document.activeElement.id)==='business-expenses-heading','Expense jump transfers focus');const heading=await page.locator('#business-expenses-heading').boundingBox();check(heading.y>=0&&heading.y<size.height,'Expense heading remains in viewport');

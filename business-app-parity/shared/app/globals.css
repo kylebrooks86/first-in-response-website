@@ -1341,3 +1341,7 @@ html,body{max-width:100%;overflow-x:clip}
 /* One restrained accent for genuinely overdue open Business tasks. */
 .dashboard-priority-actions>button.priority-task-overdue{border-inline-start:3px solid #b98135}
 [data-theme="dark"] .dashboard-priority-actions>button.priority-task-overdue{border-inline-start-color:#dba65a}
+
+/* Direct Dashboard→Business task focus, no automatic task completion. */
+.task-list>button.task-dashboard-focus{outline:3px solid #be862e;outline-offset:2px;scroll-margin-block:120px;background:rgba(190,134,46,.07)}
+[data-theme="dark"] .task-list>button.task-dashboard-focus{outline-color:#e0b06d;background:rgba(224,176,109,.10)}
