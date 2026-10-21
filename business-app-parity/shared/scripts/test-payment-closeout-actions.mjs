@@ -8,11 +8,11 @@ const db=new DatabaseSync(":memory:");
 for(const file of readdirSync("drizzle").filter(name=>name.endsWith(".sql")).sort())db.exec(readFileSync("drizzle/"+file,"utf8"));
 const statements=[];
 let owner={email:"kylebrooks8605@gmail.com"};
-const env={DB:{prepare(sql){statements.push(sql);return {all:async()=>({results:db.prepare(sql).all()})};}}};
+const env={DB:{prepare(sql){statements.push(sql);return {bind(...args){return {all:async()=>({results:db.prepare(sql).all(...args)})};}};}}};
 function load(file,imports){
  const exports={};
  const code=ts.transpileModule(readFileSync(file,"utf8"),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
- vm.runInNewContext(code,{exports,require:name=>{if(!(name in imports))throw Error("Unexpected dependency "+name);return imports[name]},Response});
+ vm.runInNewContext(code,{exports,require:name=>{if(!(name in imports))throw Error("Unexpected dependency "+name);return imports[name]},Response,URL});
  return exports;
 }
 const helpers=load("lib/payment-closeout-actions.ts",{});
@@ -70,6 +70,23 @@ try{
  review("ready","text_confirmed");
  data=(await read()).data;
  check(!data.actions.some(x=>x.estimateId==="e-ready"),"Confirmation of actual review request clears ready action");
+ // More than 200 eligible closeouts must remain reachable in stable pages.
+ // Same payment timestamps exercise the estimate-ID cursor tie-breaker.
+ const sameStamp=stamp(-0.02);
+ for(let i=0;i<205;i++){
+  job("older-page-"+String(i).padStart(3,"0"));
+  db.prepare("UPDATE payments SET created_at=? WHERE id=?").run(sameStamp,"p-older-page-"+String(i).padStart(3,"0"));
+ }
+ const firstPage=(await read()).data;
+ check(firstPage.actions.length===200&&firstPage.mayHaveMore===true&&typeof firstPage.nextCursor==="string","200 eligible rows expose a real next-page cursor");
+ check(firstPage.actions[0].estimateId==="e-older-page-204","Same-timestamp page sort is newest ID first");
+ const secondResponse=await api.GET(new Request("https://fire.test/api/payment-closeouts?cursor="+encodeURIComponent(firstPage.nextCursor)));
+ const second=await secondResponse.json();
+ check(secondResponse.status===200&&second.actions.length>=5&&second.actions.some(x=>x.estimateId==="e-older-page-000"),"The 201st and later eligible closeouts are reachable");
+ check(second.actions.every(x=>!firstPage.actions.some(y=>x.estimateId===y.estimateId)),"Keyset pages never duplicate rows with identical payment timestamps");
+ check(second.mayHaveMore===false&&second.nextCursor===null,"Final page ends with no next cursor");
+ const broken=await api.GET(new Request("https://fire.test/api/payment-closeouts?cursor="+encodeURIComponent("not-a-cursor")));
+ check(broken.status===400,"Malformed cursor fails closed before the ledger is read");
  const queries=statements.length;
  owner=null;
  check((await api.GET()).status===401&&statements.length===queries,"Unauthenticated cannot inspect private payment closeouts");
