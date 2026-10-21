@@ -2611,7 +2611,47 @@ function EmptyView({ tab, onSaved }: { tab: string; onSaved: (estimate: Estimate
   return <section className="empty-view"><span>{view.icon}</span><h1>{view.title}</h1><p>{view.text}</p>{tab === "estimates" && <NewEstimate onSaved={onSaved} />}{tab === "payments" && <Button disabled>Stripe connection coming later</Button>}</section>;
 }
 
-function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:string|null,invoiceId?:string|null,customerId?:string|null)=>void}){
+type NotificationAttentionItem={key:string;kind:"task"|"sign"|"review";title:string;detail:string;taskId?:string;customerId?:string;urgent:boolean};
+/** Live attention remains separate from persisted activity notifications.
+ * Clicking navigates to the actual task/customer; reading never resolves it.
+ */
+function NotificationAttention({onNavigate,onClose}:{onNavigate:(tab:string,estimateId?:string|null,invoiceId?:string|null,customerId?:string|null,taskId?:string|null)=>void;onClose:()=>void}){
+ const [rows,setRows]=useState<NotificationAttentionItem[]>([]);
+ const [status,setStatus]=useState<"loading"|"ready"|"error">("loading");
+ const [reload,setReload]=useState(0);
+ useEffect(()=>{
+   let stopped=false;
+   const controller=new AbortController();
+   const read=async()=>{
+     try{
+       const urls=["/api/tasks","/api/dashboard-yard-signs","/api/dashboard-review-checks"];
+       const responses=await Promise.all(urls.map(url=>fetch(url,{cache:"no-store",signal:controller.signal})));
+       if(responses.some(r=>!r.ok))throw Error("Attention read unavailable");
+       const [taskData,signData,reviewData]=await Promise.all(responses.map(r=>r.json())) as [{tasks?:TaskRow[]},{signs?:DashboardYardSign[]},{checks?:DashboardReviewCheck[]}];
+       if(!Array.isArray(taskData.tasks)||!Array.isArray(signData.signs)||!Array.isArray(reviewData.checks))throw Error("Unverified attention response");
+       if(taskData.tasks.some(t=>!t||typeof t.id!=="string"||!t.id||typeof t.title!=="string"||!["open","completed"].includes(t.status)||t.dueAt!=null&&(typeof t.dueAt!=="string"||!Number.isFinite(Date.parse(t.dueAt))))||signData.signs.some(s=>!s||typeof s.customerId!=="string"||!s.customerId||typeof s.customerName!=="string"||typeof s.pickupDate!=="string"||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s.pickupDate))||reviewData.checks.some(c=>!c||typeof c.customerId!=="string"||!c.customerId||typeof c.customerName!=="string"||!Number.isFinite(Date.parse(c.requestedAt))||!Number.isFinite(c.elapsedDays)))throw Error("Malformed attention records");
+       const now=new Date(),localDay=now.toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+       const dueTasks:NotificationAttentionItem[]=taskData.tasks.filter(t=>["today","overdue"].includes(taskDueBucket(t,now))).map(t=>({key:"task:"+t.id,kind:"task",taskId:t.id,title:t.title,detail:taskDueBucket(t,now)==="overdue"?"Business task overdue":"Business task due today",urgent:taskDueBucket(t,now)==="overdue"}));
+       const dueSigns:NotificationAttentionItem[]=signData.signs.filter(s=>s.pickupDate<=localDay).map(s=>({key:"sign:"+s.customerId,kind:"sign",customerId:s.customerId,title:s.customerName,detail:"Yard sign pickup due · "+s.pickupDate,urgent:true}));
+       const dueReviews:NotificationAttentionItem[]=reviewData.checks.map(c=>({key:"review:"+c.customerId,kind:"review",customerId:c.customerId,title:c.customerName,detail:"Check review status · "+c.elapsedDays+" days since request",urgent:false}));
+       if(!stopped){setRows([...dueTasks,...dueSigns,...dueReviews].sort((a,b)=>Number(b.urgent)-Number(a.urgent)||a.key.localeCompare(b.key)));setStatus("ready");}
+     }catch{if(!stopped){setRows([]);setStatus("error");}}
+   };
+   void read();
+   const refresh=()=>{if(document.visibilityState==="visible")void read();};
+   window.addEventListener("focus",refresh);
+   const timer=window.setInterval(refresh,60000);
+   return()=>{stopped=true;controller.abort();window.removeEventListener("focus",refresh);window.clearInterval(timer);};
+ },[reload]);
+ return <section className="notification-attention" aria-label="Needs attention">
+   <header><strong><AlertTriangle aria-hidden="true"/> Needs attention{status==="ready"&&rows.length>0?` · ${rows.length}`:""}</strong><button type="button" aria-label="Refresh attention items" onClick={()=>{setStatus("loading");setReload(n=>n+1);}}><RefreshCw aria-hidden="true"/> Refresh</button></header>
+   {status==="loading"?<p role="status">Checking saved tasks, signs and reviews…</p>:status==="error"?<p role="alert">Attention items couldn't be verified. Refresh to try again; don't assume they are cleared.</p>:rows.length?<div className="notification-attention-list">{rows.slice(0,8).map(item=><button key={item.key} type="button" className={item.urgent?"urgent":""} aria-label={`Open ${item.kind==="task"?"task":item.kind==="sign"?"yard sign":"review check"}: ${item.title}`} onClick={()=>{onClose();if(item.taskId)onNavigate("business",null,null,null,item.taskId);else onNavigate("customers",null,null,item.customerId);}}><span>{item.kind==="task"?<ClipboardList aria-hidden="true"/>:item.kind==="sign"?<MapPin aria-hidden="true"/>:<Star aria-hidden="true"/>}</span><span><strong>{item.title}</strong><small>{item.detail}</small></span><ChevronRight aria-hidden="true"/></button>)}</div>:<p>No outstanding due tasks, sign pickups or review checks were found.</p>}
+   {status==="ready"&&rows.length>8&&<small>{rows.length-8} additional items · see Dashboard and Customers for more</small>}
+   <small>These are live reminders, separate from unread activity. They clear only when the underlying records are updated.</small>
+ </section>;
+}
+
+function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:string|null,invoiceId?:string|null,customerId?:string|null,taskId?:string|null)=>void}){
   const [items,setItems]=useState<AppNotification[]>([]);
   const [unread,setUnread]=useState(0);
   const [open,setOpen]=useState(false);
@@ -2663,6 +2703,8 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
     <header><div><strong>Notifications</strong><small>{unread?`${unread} unread`:"You’re all caught up"}</small></div>{unread>0&&<button disabled={busy} onClick={()=>void updateRead({all:true})}>Mark all read</button>}</header>
     {error&&<p className="save-error" role="alert">{error}</p>}
     {busy&&<p role="status" aria-live="polite">Confirming notification update…</p>}
+    <NotificationAttention onNavigate={onNavigate} onClose={()=>setOpen(false)}/>
+    <div className="notification-activity-title">Recent activity · {items.length}</div>
     <div className="notification-list">{items.length?items.map((item)=><button key={item.id} className={item.readAt?"":"unread"} onClick={()=>{if(!item.readAt)void updateRead({id:item.id});setOpen(false);onNavigate(item.type.startsWith("invoice_")&&item.invoiceId?"invoices":item.estimateId?"estimates":"customers",item.estimateId,item.type.startsWith("invoice_")?item.invoiceId:null,item.customerId);}}><span className={`notification-icon ${item.type}`}>{icon(item.type)}</span><span><strong>{item.title}</strong><p>{item.body}</p><small>{dateTime(item.createdAt)}</small></span></button>):<div className="notification-empty"><Bell/><strong>No notifications yet</strong><p>Customer views, approvals, and confirmed payments will appear here.</p></div>}</div>
   </PopoverContent></Popover>;
 }
@@ -2769,7 +2811,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
         <button type="button" disabled={!interactive} className="sidebar-foot" onClick={() => { setTab("owner-account"); setMobileMenu(false); }} aria-label="Open owner account"><div className="owner-avatar">FIRE</div><div><strong>First In Response Exteriors</strong><small>Owner · Account</small></div><ChevronRight /></button>
       </aside>
       <section className="main-area">
-        <header className={`topbar `}><div className="mobile-brand"><FireMark small /><strong>FIRE</strong></div><div className="mobile-primary-actions"><button disabled={!interactive} className="mobile-back-button" onClick={goBack} aria-label="Back" title="Back"><ArrowLeft /></button><button disabled={!interactive} className={`mobile-home-button ${tab==="dashboard"?"active":""}`} onClick={goHome} aria-label="Home" title="Home"><House /></button><button disabled={!interactive} className="mobile-theme-button" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}</button><button disabled={!interactive} className="menu-button" onClick={() => setMobileMenu(true)} aria-label="Open menu" title="Menu"><Menu /></button></div><GlobalSearch query={globalQuery} onQuery={setGlobalQuery} onSelect={openSearchResult} active={!mobileMenu} disabled={!interactive}/><div className="top-actions"><button disabled={!interactive} type="button" className="payments-quick-action" onClick={()=>setTab("payments")} aria-label="Record payments" title="Record payments"><span aria-hidden="true">$</span></button><StrideButton top/><NotificationBell onNavigate={(next,estimateId,invoiceId,customerId)=>{setSearchQuery("");if(invoiceId){setFocusInvoiceId(invoiceId);setTab("invoices");}else if(estimateId){setFocusEstimateId(estimateId);setEstimateRefreshKey(value=>value+1);setTab("estimates");}else if(customerId){setFocusCustomerSection("estimates");setFocusCustomerId(customerId);setTab("customers");}else{if(next==="estimates")setEstimateRefreshKey(value=>value+1);setTab(next);}}}/><button disabled={!interactive} className="theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}<span>{theme==="dark"?"Light":"Dark"}</span></button><button disabled={!interactive} className="avatar-button" onClick={() => setTab("owner-account")} aria-label="Open owner account">FIRE</button></div></header>
+        <header className={`topbar `}><div className="mobile-brand"><FireMark small /><strong>FIRE</strong></div><div className="mobile-primary-actions"><button disabled={!interactive} className="mobile-back-button" onClick={goBack} aria-label="Back" title="Back"><ArrowLeft /></button><button disabled={!interactive} className={`mobile-home-button ${tab==="dashboard"?"active":""}`} onClick={goHome} aria-label="Home" title="Home"><House /></button><button disabled={!interactive} className="mobile-theme-button" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}</button><button disabled={!interactive} className="menu-button" onClick={() => setMobileMenu(true)} aria-label="Open menu" title="Menu"><Menu /></button></div><GlobalSearch query={globalQuery} onQuery={setGlobalQuery} onSelect={openSearchResult} active={!mobileMenu} disabled={!interactive}/><div className="top-actions"><button disabled={!interactive} type="button" className="payments-quick-action" onClick={()=>setTab("payments")} aria-label="Record payments" title="Record payments"><span aria-hidden="true">$</span></button><StrideButton top/><NotificationBell onNavigate={(next,estimateId,invoiceId,customerId,taskId)=>{setSearchQuery("");setGlobalQuery("");if(taskId){setPickupTaskDraft(null);setReviewTaskDraft(null);setFocusBusinessTaskId(taskId);setTab("business");}else if(invoiceId){setFocusInvoiceId(invoiceId);setTab("invoices");}else if(estimateId){setFocusEstimateId(estimateId);setEstimateRefreshKey(value=>value+1);setTab("estimates");}else if(customerId){setFocusCustomerSection("estimates");setFocusCustomerId(customerId);setTab("customers");}else{if(next==="estimates")setEstimateRefreshKey(value=>value+1);setTab(next);}}}/><button disabled={!interactive} className="theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}<span>{theme==="dark"?"Light":"Dark"}</span></button><button disabled={!interactive} className="avatar-button" onClick={() => setTab("owner-account")} aria-label="Open owner account">FIRE</button></div></header>
         {process.env.NODE_ENV === "development" && localCustomersCandidate && <CandidateLayoutTrace/>}
         {!interactive && <p role="status" className="app-loading-status">Loading app…</p>}
         {tab === "customers" && localCustomersCandidate && <a className="brand-button" href="/development/local-customers">Offline Customers · synthetic development</a>}

@@ -1345,3 +1345,22 @@ html,body{max-width:100%;overflow-x:clip}
 /* Direct Dashboard→Business task focus, no automatic task completion. */
 .task-list>button.task-dashboard-focus{outline:3px solid #be862e;outline-offset:2px;scroll-margin-block:120px;background:rgba(190,134,46,.07)}
 [data-theme="dark"] .task-list>button.task-dashboard-focus{outline-color:#e0b06d;background:rgba(224,176,109,.10)}
+
+/* Bell action reminders remain separate from persistent read/unread activity. */
+.notification-attention{display:grid;gap:8px;padding:11px 13px;border-bottom:1px solid var(--border);min-width:0}
+.notification-attention>header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.notification-attention>header strong{display:inline-flex;align-items:center;gap:6px;font-size:13px}
+.notification-attention>header svg{width:15px;height:15px}
+.notification-attention>header button{display:inline-flex;align-items:center;gap:4px;min-height:36px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:11px;cursor:pointer}
+.notification-attention>p,.notification-attention>small{margin:0;font-size:11px;line-height:1.5;color:var(--muted-foreground)}
+.notification-attention>p[role="alert"]{color:#a95f12}
+.notification-attention-list{display:grid;gap:6px;max-height:260px;overflow:auto}
+.notification-attention-list>button{display:grid;grid-template-columns:20px minmax(0,1fr) 16px;align-items:center;gap:8px;min-height:50px;padding:9px;border:1px solid var(--border);border-radius:9px;background:var(--background);color:var(--foreground);text-align:left;cursor:pointer}
+.notification-attention-list>button.urgent{border-inline-start:3px solid #b98135}
+.notification-attention-list>button>span:nth-child(2){display:grid;gap:3px;min-width:0}
+.notification-attention-list strong{font-size:12px;overflow-wrap:anywhere}
+.notification-attention-list small{font-size:11px;line-height:1.45;color:var(--muted-foreground);overflow-wrap:anywhere}
+.notification-attention-list svg{width:16px;height:16px}
+.notification-attention button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.notification-activity-title{padding:10px 14px 6px;font-size:12px;font-weight:850;border-bottom:1px solid var(--border)}
+[data-theme="dark"] .notification-attention>p[role="alert"]{color:#ffcb84}
