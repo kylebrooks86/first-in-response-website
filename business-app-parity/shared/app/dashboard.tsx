@@ -240,6 +240,8 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const [invoiceShareToken,setInvoiceShareToken]=useState(estimate?.invoiceShareToken||"");
   const [siteOrigin,setSiteOrigin]=useState("");
   const [working,setWorking]=useState(false);
+  const preparationLock=useRef(false);
+  const uncertainPreparation=useRef<{requestId:string;signature:string}|null>(null);
   const [preparedMessage,setPreparedMessage]=useState<CustomerMessage|null>(null);
   const [pendingMessages,setPendingMessages]=useState<CustomerMessage[]>([]);
   const [pendingLoading,setPendingLoading]=useState(false);
@@ -311,13 +313,38 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     draftEdited.current=false;setTemplate(value);setBody("");
   };
   const log=async(channel:"text_prepared"|"email_prepared"|"copy")=>{
-    setWorking(true);
+    if(preparationLock.current)return false;
+    const payload={customerId:customer.id,estimateId:estimate?.id,channel,template,body};
+    const signature=JSON.stringify(payload);
+    if(uncertainPreparation.current&&uncertainPreparation.current.signature!==signature){
+      setMessageStatus("A previous message preparation is unconfirmed. Restore its original text and retry the same request, or reopen saved drafts to verify it first.");
+      return false;
+    }
+    if(!uncertainPreparation.current)uncertainPreparation.current={requestId:crypto.randomUUID(),signature};
+    const operation=uncertainPreparation.current;
+    preparationLock.current=true;setWorking(true);
     try{
-      const response=await fetch("/api/customer-messages",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerId:customer.id,estimateId:estimate?.id,channel,template,body})});
+      const response=await fetch("/api/customer-messages",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...payload,requestId:operation.requestId})});
       const result=await response.json() as {message?:CustomerMessage;error?:string};
-      if(!response.ok||!result.message){setMessageStatus(result.error||"Message preparation could not be saved.");return false;}
-      onLogged?.(result.message);if(channel!=="copy"){setPreparedMessage(result.message);setPendingMessages(current=>[result.message!,...current.filter(item=>item.id!==result.message!.id)].slice(0,10));}setMessageStatus(channel==="copy"?"Copied; sending is not confirmed.":"Prepared — sending is not confirmed. Return here after sending to confirm.");return true;
-    }catch{setMessageStatus("Message preparation could not be saved.");return false;}finally{setWorking(false);}
+      const saved=result.message;
+      if(!response.ok||!saved){
+        setMessageStatus(result.error||"Message preparation is unconfirmed. Retry the unchanged draft using the same request.");
+        return false;
+      }
+      if(saved.id!=="owner-message-prep:"+operation.requestId||saved.customerId!==customer.id||
+        (saved.estimateId??"")!==(estimate?.id??"")||saved.channel!==channel||saved.template!==template||saved.body!==body){
+        setMessageStatus("The saved message receipt does not match this preparation. Review saved drafts before trying again.");
+        return false;
+      }
+      uncertainPreparation.current=null;
+      onLogged?.(saved);
+      if(channel!=="copy"){setPreparedMessage(saved);setPendingMessages(current=>[saved,...current.filter(item=>item.id!==saved.id)].slice(0,10));}
+      setMessageStatus(channel==="copy"?"Copied; sending is not confirmed.":"Prepared — sending is not confirmed. Return here after sending to confirm.");
+      return true;
+    }catch{
+      setMessageStatus("Message preparation may already be saved. Retry the unchanged draft with the same request or reopen saved drafts.");
+      return false;
+    }finally{preparationLock.current=false;setWorking(false);}
   };
   const sendText=async()=>{if(!await log("text_prepared"))return;window.location.href=`sms:${customer.phone}&body=${encodeURIComponent(body)}`;};
   const sendEmail=async()=>{if(!await log("email_prepared"))return;window.location.href=`mailto:${customer.email}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(body)}`;};

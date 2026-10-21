@@ -55,11 +55,29 @@ export async function POST(request: Request) {
     const template = String(value.template ?? "custom").trim();
     const body = String(value.body ?? "").trim();
     if (!customerId || !body || !["text_prepared","email_prepared","copy"].includes(channel)) return Response.json({ error: "Customer, channel, and message are required." }, { status: 400 });
+    // New mobile clients keep the same operation UUID across uncertain POST
+    // acknowledgements. Legacy clients without a UUID remain supported.
+    const requestId=value.requestId;
+    if(requestId!==undefined&&(typeof requestId!=="string"||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)))
+      return Response.json({error:"Invalid message preparation request identifier."},{status:400});
+    const stableId=typeof requestId==="string"?"owner-message-prep:"+requestId:null;
+    const matches=(row:{customerId:string;estimateId:string|null;channel:string;template:string;body:string})=>
+      row.customerId===customerId&&(row.estimateId??"")===(estimateId||"")&&row.channel===channel&&row.template===template&&row.body===body;
     const customer=await env.DB.prepare("SELECT id FROM customers WHERE id=? LIMIT 1").bind(customerId).first<{id:string}>();
     if(!customer)return Response.json({error:"Customer not found."},{status:404});
     if(estimateId){
       const linkedEstimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(estimateId,customerId).first<{id:string}>();
       if(!linkedEstimate)return Response.json({error:"That estimate does not belong to this customer."},{status:409});
+    }
+    if(stableId){
+      const existing=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=?").bind(stableId).first<{
+        id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string
+      }>();
+      if(existing){
+        if(!matches(existing))return Response.json({error:"That message operation already belongs to different content. Review saved messages before retrying."},{status:409});
+        return Response.json({message:existing,duplicate:true},{status:200});
+      }
     }
     if(template==="review"){
       if(!estimateId)return Response.json({error:"A completed paid job is required before requesting a review."},{status:409});
@@ -76,11 +94,18 @@ export async function POST(request: Request) {
       }))
         return Response.json({error:"Complete the job, verify exact final payment and resolve any checkout, refund or billing hold before preparing a review request."},{status:409});
     }
-    const id = crypto.randomUUID();
-    const createdAt = new Date().toISOString();
-    await env.DB.prepare("INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)")
-      .bind(id, customerId, estimateId || null, channel, template, body, createdAt).run();
-    return Response.json({ message: { id, customerId, estimateId: estimateId || null, channel, template, body, createdAt } }, { status: 201 });
+    const id=stableId??crypto.randomUUID();
+    const createdAt=new Date().toISOString();
+    // A concurrent double POST with the same operation ID can commit once only.
+    // Read back the actual immutable row and refuse conflicting attempts.
+    const write=await env.DB.prepare("INSERT OR IGNORE INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) VALUES (?,?,?,?,?,?,?)")
+      .bind(id,customerId,estimateId||null,channel,template,body,createdAt).run();
+    const saved=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=?").bind(id).first<{
+      id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string
+    }>();
+    if(!saved)return Response.json({error:"Message preparation is not verified. Check saved drafts before retrying."},{status:503});
+    if(!matches(saved))return Response.json({error:"This message operation was already used with different content. No second preparation was created."},{status:409});
+    return Response.json({message:saved,duplicate:write.meta.changes!==1},{status:write.meta.changes===1?201:200});
   } catch {
     return Response.json({ error: "We couldn't save this communication." }, { status: 500 });
   }
