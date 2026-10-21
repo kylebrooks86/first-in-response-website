@@ -396,6 +396,8 @@ jobs:
         run: node scripts/test-payment-entry-state.mjs
       - name: Verify customer review invitations only after verified final payment
         run: node scripts/test-review-after-payment.mjs
+      - name: Verify paid-job review action center on synthetic SQLite
+        run: node --experimental-sqlite scripts/test-payment-closeout-actions.mjs
       - name: Verify invoice loading and payment refresh recover without stale payment controls
         run: node scripts/test-invoice-load-errors.mjs
       - name: Verify refund request survives iPhone app restart and uncertain responses
