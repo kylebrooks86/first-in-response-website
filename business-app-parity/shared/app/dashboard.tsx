@@ -1523,7 +1523,7 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
 function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSection="estimates",onFocusHandled,focusRecord,recordRequestKey=0,onRecordFocusHandled,onPreparePickupTask,onPrepareReviewTask,activityFocus,onActivityFocusHandled }: { onEstimateSaved: (estimate: EstimateRow) => void; searchQuery: string;focusCustomerId?:string|null;focusSection?:"estimates"|"invoices"|"payments"|"notes";focusRecord?:CustomerRecordFocus|null;recordRequestKey?:number;onRecordFocusHandled?:(id:string)=>void;onFocusHandled?:(id:string)=>void;onPreparePickupTask?:(draft:YardSignPickupDraft)=>void;onPrepareReviewTask?:(draft:ReviewCheckDraft)=>void;activityFocus?:{customerId:string;kind:"sign"|"review";request:number}|null;onActivityFocusHandled?:(request:number)=>void }) {
   /** Read-only customer flag presentation: owner actions are not automatically external sends. */
   function customerFlagPresentation(input:{
-    estimateSent:boolean;invoiceCreated:boolean;invoiceSendConfirmed:boolean;
+    estimateSent:boolean;estimateMarkedSent?:boolean;hasDraftEstimate?:boolean;invoiceCreated:boolean;invoiceSendConfirmed:boolean;
     followupContactRecorded:boolean;followupSendConfirmed:boolean;
     reviewRequestRecorded:boolean;reviewSendConfirmed:boolean;reviewReceivedAt:string|null;
     sign:{state:"out"|"picked_up";pickupDate:string|null}|null;
@@ -1533,7 +1533,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     if(input.sign?.state==="out"&&input.sign.pickupDate&&input.sign.pickupDate<=input.today)needs.push("Yard sign pickup is due");
     if(input.reviewDue&&!input.reviewReceivedAt)needs.push("Review status needs checking");
     return {
-      estimate:input.estimateSent?"Sent recorded":"Not recorded",
+      estimate:input.estimateSent?"Sent recorded":input.estimateMarkedSent?"Marked sent · verify":input.hasDraftEstimate?"Draft · not sent":"Not recorded",
       invoice:input.invoiceSendConfirmed?"Send confirmed":input.invoiceCreated?"Created · send not confirmed":"Not created",
       followup:input.followupSendConfirmed?"Send confirmed":input.followupContactRecorded?"Contact recorded":"Not recorded",
       reviewRequest:input.reviewSendConfirmed?"Send confirmed":input.reviewRequestRecorded?"Request recorded":"Not recorded",
@@ -1606,9 +1606,9 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   function buildCustomerNextActions(input:{
     sign:{state:"out"|"picked_up";pickupDate:string|null}|null;
     reviewDue:boolean;invoices:readonly InvoiceRow[];estimates:readonly CustomerEstimate[];
-    messages:readonly CustomerMessage[];today:string;
+    messages:readonly CustomerMessage[];today:string;now:number;
   }){
-    type Action={key:string;kind:"sign"|"review"|"invoice"|"estimate";title:string;detail:string;invoiceId?:string;estimateId?:string;priority:number};
+    type Action={key:string;kind:"sign"|"review"|"invoice"|"estimate"|"followup"|"billing";title:string;detail:string;invoiceId?:string;estimateId?:string;priority:number};
     const actions:Action[]=[];
     if(input.sign?.state==="out"&&input.sign.pickupDate&&input.sign.pickupDate<=input.today)
       actions.push({key:"sign",kind:"sign",title:"Yard sign pickup due",detail:"Review pickup and record it when completed",priority:100});
@@ -1629,13 +1629,38 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       else if(!confirmed&&!savedSend&&estimate.status==="sent"&&!snoozed)
         actions.push({key:"estimate:"+estimate.id,kind:"estimate",estimateId:estimate.id,title:"Verify estimate send",
           detail:"Estimate marked sent · no saved send timestamp or confirmed message",priority:50});
+      // Reuse the Follow-up Action Center's timing, not another reminder system.
+      // A prepared message or active snooze never becomes a due-send claim.
+      if(estimate.status==="sent"&&(confirmed||savedSend)){
+        const stage=estimateReminderStage(estimate,input.now);
+        if(stage.reviewReason)actions.push({key:"followup:"+estimate.id,kind:"followup",estimateId:estimate.id,
+          title:"Review follow-up history",detail:stage.reviewReason,priority:52});
+        else if(stage.template){
+          const days=stage.template==="followUp7"?7:stage.template==="followUp3"?3:1;
+          actions.push({key:"followup:"+estimate.id,kind:"followup",estimateId:estimate.id,
+            title:"Estimate follow-up ready",detail:"Suggested day "+days+" · review confirmed contact before any outreach",
+            priority:days===7?78:days===3?70:62});
+        }
+      }
     }
     for(const invoice of input.invoices){
-      if(!invoice.id||!invoice.estimateId||["paid","void","cancelled","draft"].includes(invoice.status))continue;
+      if(!invoice.id||!invoice.estimateId||["void","cancelled"].includes(invoice.status))continue;
+      // Refund/payment exceptions remain reviewable even for paid invoices.
+      if(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0||Number(invoice.pendingRefundCount)>0){
+        actions.push({key:"billing:"+invoice.id,kind:"billing",invoiceId:invoice.id,title:"Review payment exception",
+          detail:"Check saved payment and refund records before contacting the customer",priority:95});
+        continue;
+      }
+      if(["paid","draft"].includes(invoice.status))continue;
       const confirmed=input.messages.some(message=>message.estimateId===invoice.estimateId&&message.template==="invoice"&&
         (message.channel==="text_confirmed"||message.channel==="email_confirmed"));
       if(!confirmed)actions.push({key:"invoice:"+invoice.id,kind:"invoice",invoiceId:invoice.id,title:"Check invoice send record",
         detail:"Created invoice · owner send not confirmed in app",priority:45});
+      else if(invoice.dueAt&&Number.isFinite(Date.parse(invoice.dueAt))&&Date.parse(invoice.dueAt)<input.now&&
+        Number.isSafeInteger(invoice.totalCents)&&Number.isSafeInteger(invoice.paidCents)&&invoice.totalCents>invoice.paidCents){
+        actions.push({key:"billing:"+invoice.id,kind:"billing",invoiceId:invoice.id,title:"Review past-due invoice",
+          detail:"Saved due date passed · confirm balance before a reminder",priority:72});
+      }
     }
     return actions.sort((a,b)=>b.priority-a.priority||a.key.localeCompare(b.key)).slice(0,8);
   }
@@ -1804,27 +1829,29 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     setTimelineTarget(null);
   },[timelineTarget,selectedId,section,recordSearch]);
   const confirmedMessage=(templates:string[])=>customerMessages.some(message=>(message.channel==="text_confirmed"||message.channel==="email_confirmed")&&templates.includes(message.template));
-  const customerEstimateSent=customerEstimates.some(estimate=>Boolean(estimate.firstEstimateSentAt)||estimate.status==="sent")||confirmedMessage(["estimate"]);
+  const customerEstimateSent=customerEstimates.some(estimate=>Boolean(estimate.firstEstimateSentAt||estimate.lastEstimateSentAt))||confirmedMessage(["estimate"]);
+  const customerEstimateMarkedSent=customerEstimates.some(estimate=>estimate.status==="sent");
   const invoiceSent=confirmedMessage(["invoice"]);
-  const followupContactRecorded=customerEstimates.some(estimate=>Boolean(estimate.stage1At||estimate.stage3At||estimate.stage7At));
+  const followupContactRecorded=customerEstimates.some(estimate=>Boolean(estimate.stage1At||estimate.stage3At||estimate.stage7At||estimate.lastManualContactAt))||
+    customerMessages.some(message=>message.channel==="contact_recorded");
   const followupSendConfirmed=confirmedMessage(["followUp1","followUp3","followUp7","invoiceReminder","overdue"]);
   const reviewRequestRecorded=customerEstimates.some(estimate=>Boolean(estimate.lastReviewRequestAt));
   const reviewSendConfirmed=confirmedMessage(["review"]);
   const reviewCheck=reviewFollowupEligibility(customerEstimates,customerMessages,manualFlags.reviewReceivedAt,Date.now());
   const activitySummary=customerFlagPresentation({
-    estimateSent:customerEstimateSent,invoiceCreated:customerInvoices.length>0,invoiceSendConfirmed:invoiceSent,
+    estimateSent:customerEstimateSent,estimateMarkedSent:customerEstimateMarkedSent,hasDraftEstimate:customerEstimates.some(estimate=>estimate.status==="draft"),invoiceCreated:customerInvoices.length>0,invoiceSendConfirmed:invoiceSent,
     followupContactRecorded,followupSendConfirmed,reviewRequestRecorded,reviewSendConfirmed,
     reviewReceivedAt:manualFlags.reviewReceivedAt,
     sign:manualFlags.sign,reviewDue:reviewCheck.status==="due",today:tulsaToday
   });
   const nextCustomerActions=buildCustomerNextActions({
     sign:manualFlags.sign,reviewDue:reviewCheck.status==="due",
-    invoices:customerInvoices,estimates:customerEstimates,messages:customerMessages,today:tulsaToday
+    invoices:customerInvoices,estimates:customerEstimates,messages:customerMessages,today:tulsaToday,now:Date.now()
   });
-  const openCustomerAction=(action:{kind:"sign"|"review"|"invoice"|"estimate";invoiceId?:string;estimateId?:string})=>{
+  const openCustomerAction=(action:{kind:"sign"|"review"|"invoice"|"estimate"|"followup"|"billing";invoiceId?:string;estimateId?:string})=>{
     if(!selected)return;
-    if(action.kind==="invoice"&&action.invoiceId){openTimelineEntry({section:"invoices",id:action.invoiceId});return;}
-    if(action.kind==="estimate"&&action.estimateId){openTimelineEntry({section:"estimates",id:action.estimateId});return;}
+    if((action.kind==="invoice"||action.kind==="billing")&&action.invoiceId){openTimelineEntry({section:"invoices",id:action.invoiceId});return;}
+    if((action.kind==="estimate"||action.kind==="followup")&&action.estimateId){openTimelineEntry({section:"estimates",id:action.estimateId});return;}
     const element=document.getElementById(action.kind==="sign"?
       "customer-sign-flag-"+selected.id:"customer-review-check-"+selected.id);
     element?.scrollIntoView({block:"center",behavior:"instant"});
@@ -1960,7 +1987,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         {nextCustomerActions.length?<div className="customer-action-items">{nextCustomerActions.map(action=><button type="button" key={action.key} onClick={()=>openCustomerAction(action)} aria-label={"Open "+action.title}>
           <span className="customer-timeline-copy"><strong>{action.title}</strong><small>{action.detail}</small></span><ChevronRight aria-hidden="true"/>
         </button>)}</div>:<p className="customer-timeline-empty">No saved-record actions need review right now. This does not verify external messages, reviews, or payments.</p>}
-        {nextCustomerActions.length===8&&<p className="customer-timeline-empty">Showing the first eight checks. Open Invoices for other saved records.</p>}
+        {nextCustomerActions.length===8&&<p className="customer-timeline-empty">Showing the first eight checks. Review the saved records below for other actions.</p>}
       </section>
       <section className="customer-timeline" role="region" aria-label="Recent customer activity">
         <div className="customer-timeline-heading"><div><h2>Recent activity</h2><p>Saved records only · newest first · no private note text shown</p></div><span>{timelineEntries.length} event{timelineEntries.length===1?"":"s"}{timelineEntries.length===100?"+":""}</span></div>

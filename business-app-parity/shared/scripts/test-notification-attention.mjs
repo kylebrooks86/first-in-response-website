@@ -361,10 +361,13 @@ console.log('PASS '+(checks+2)+' notification and Dashboard attention checks; ex
    compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
  }).outputText;
  const ctx={exports:{}};vm.runInNewContext(compiled,ctx);
- const base={estimateSent:false,invoiceCreated:false,invoiceSendConfirmed:false,followupContactRecorded:false,
+ const base={estimateSent:false,estimateMarkedSent:false,hasDraftEstimate:false,invoiceCreated:false,invoiceSendConfirmed:false,followupContactRecorded:false,
   followupSendConfirmed:false,reviewRequestRecorded:false,reviewSendConfirmed:false,reviewReceivedAt:null,
   sign:null,reviewDue:false,today:'2026-10-20'};
  eq(ctx.exports.flag(base).followup,'Not recorded','No follow-up action is assumed from drafts');
+  eq(ctx.exports.flag({...base,hasDraftEstimate:true}).estimate,'Draft · not sent','Draft estimate is not presented as sent');
+  eq(ctx.exports.flag({...base,estimateMarkedSent:true}).estimate,'Marked sent · verify','Legacy status alone is not proof of sending');
+  eq(ctx.exports.flag({...base,estimateSent:true}).estimate,'Sent recorded','Saved send evidence is distinct from a status label');
  eq(ctx.exports.flag({...base,followupContactRecorded:true}).followup,'Contact recorded','Owner contact log never claims a message was sent');
  eq(ctx.exports.flag({...base,followupSendConfirmed:true}).followup,'Send confirmed','Confirmed external send recorded separately');
  eq(ctx.exports.flag({...base,followupContactRecorded:true,followupSendConfirmed:true}).followup,'Send confirmed','Confirmed send is preferred over contact-only status');
@@ -477,16 +480,27 @@ console.log('PASS customer timeline: chronology, private note restraint, confirm
  const customer=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='CustomersView');
  let fn;function findActions(n){if(ts.isFunctionDeclaration(n)&&n.name?.text==='buildCustomerNextActions')fn=n;ts.forEachChild(n,findActions);}
  findActions(customer);assert.ok(fn);
- const compiled=ts.transpileModule(fn.getText(ast)+'\nexports.review=buildCustomerNextActions;',{
+ const compiled=ts.transpileModule(readFileSync('lib/follow-up-timing.ts','utf8')+'\n'+fn.getText(ast)+'\nexports.review=buildCustomerNextActions;',{
    compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
  }).outputText;
  const ctx={exports:{}};vm.runInNewContext(compiled,ctx);
- const base={today:"2026-10-20",sign:null,reviewDue:false,invoices:[],messages:[]};
+ const now=Date.parse("2026-10-20T12:00:00Z");
+  const base={today:"2026-10-20",now,sign:null,reviewDue:false,estimates:[],invoices:[],messages:[]};
  eq(ctx.exports.review(base).length,0,'Empty verified customer records create no review actions');
  const both=ctx.exports.review({...base,sign:{state:"out",pickupDate:"2026-10-19"},reviewDue:true,
   invoices:[{id:"i1",estimateId:"e1",status:"sent"},{id:"i2",estimateId:"e2",status:"paid"},{id:"i3",estimateId:"e3",status:"draft"}]});
  eq(both.map(x=>x.kind).join('|'),'sign|review|invoice','Due sign and review precede unconfirmed active invoice');
  eq(both[2].invoiceId,'i1','Invoice action retains exact saved invoice ID');
+  const sent={id:'estimate-sent',status:'sent',createdAt:'2026-10-07T12:00:00Z',firstEstimateSentAt:'2026-10-12T12:00:00Z',lastEstimateSentAt:'2026-10-12T12:00:00Z'};
+  eq(ctx.exports.review({...base,estimates:[sent]})[0].kind,'followup','Saved day-seven timing feeds customer review');
+  eq(ctx.exports.review({...base,estimates:[sent]})[0].estimateId,sent.id,'Follow-up opens the exact estimate');
+  eq(ctx.exports.review({...base,estimates:[{...sent,snoozeUntil:'2026-10-22T12:00:00Z'}]}).length,0,'Future snooze suppresses routine follow-up');
+  eq(ctx.exports.review({...base,estimates:[{...sent,lastManualContactAt:'2026-10-20T10:00:00Z'}]}).length,0,'Recent logged contact pauses reminders');
+  eq(ctx.exports.review({...base,estimates:[{...sent,firstEstimateSentAt:null,lastEstimateSentAt:null}],messages:[{estimateId:sent.id,template:'estimate',channel:'text_prepared'}]})[0].title,'Verify estimate send','Prepared text cannot verify estimate send');
+  eq(ctx.exports.review({...base,estimates:[{...sent,status:'draft',firstEstimateSentAt:null,lastEstimateSentAt:null}]})[0].title,'Review unsent estimate','Draft has one explicit action');
+  eq(ctx.exports.review({...base,invoices:[{id:'i-review',estimateId:'e2',status:'paid',paymentReviewPending:true}]} )[0].kind,'billing','Refund/payment exception visible even on paid invoices');
+  eq(ctx.exports.review({...base,invoices:[{id:'i-due',estimateId:'e3',status:'sent',dueAt:'2026-10-18T12:00:00Z',totalCents:10000,paidCents:1000}],messages:[{estimateId:'e3',template:'invoice',channel:'email_confirmed'}]})[0].kind,'billing','Confirmed past-due invoice gets balance verification');
+  eq(ctx.exports.review({...base,invoices:[{id:'i-no-paid',estimateId:'e3',status:'sent',dueAt:'2026-10-18T12:00:00Z',totalCents:10000}],messages:[{estimateId:'e3',template:'invoice',channel:'email_confirmed'}]}).length,0,'Missing paid amount cannot invent a balance');
  eq(ctx.exports.review({...base,sign:{state:"picked_up",pickupDate:"2026-10-19"}}).length,0,'Picked up sign never remains actionable');
  eq(ctx.exports.review({...base,sign:{state:"out",pickupDate:"2026-10-21"}}).length,0,'Future pickup is not called overdue');
  eq(ctx.exports.review({...base,invoices:[{id:"i1",estimateId:"e1",status:"sent"}],
