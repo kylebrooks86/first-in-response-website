@@ -1547,13 +1547,15 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     notes:readonly CustomerNote[];payments:readonly PaymentRow[]
   }){
     type Section="estimates"|"invoices"|"payments"|"messages"|"notes";
-    type Event={key:string;id:string;section:Section;title:string;detail:string;at:string;timestamp:number};
+    type Event={key:string;id:string;section:Section;category:"estimates"|"messages"|"billing"|"notes";title:string;detail:string;at:string;day:string;timestamp:number};
     const events:Event[]=[];
     const add=(section:Section,id:string,at:string|undefined|null,title:string,detail:string)=>{
       if(!id||!at)return;
       const timestamp=Date.parse(at);
       if(!Number.isFinite(timestamp))return;
-      events.push({key:section+":"+id+":"+timestamp+":"+title,id,section,title,detail,at,timestamp});
+      const category=section==="invoices"||section==="payments"?"billing":section;
+      const day=new Date(timestamp).toLocaleDateString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",year:"numeric"});
+      events.push({key:section+":"+id+":"+timestamp+":"+title,id,section,category,title,detail,at,day,timestamp});
     };
     for(const estimate of input.estimates){
       add("estimates",estimate.id,estimate.createdAt,"Estimate created",estimate.service||"Saved estimate");
@@ -1598,6 +1600,27 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     }
     return events.sort((a,b)=>b.timestamp-a.timestamp||a.key.localeCompare(b.key)).slice(0,100);
   }
+  /** Only flags that require owner review, never automatic sends, payments or notes. */
+  function buildCustomerNextActions(input:{
+    sign:{state:"out"|"picked_up";pickupDate:string|null}|null;
+    reviewDue:boolean;invoices:readonly InvoiceRow[];
+    messages:readonly CustomerMessage[];today:string;
+  }){
+    type Action={key:string;kind:"sign"|"review"|"invoice";title:string;detail:string;invoiceId?:string;priority:number};
+    const actions:Action[]=[];
+    if(input.sign?.state==="out"&&input.sign.pickupDate&&input.sign.pickupDate<=input.today)
+      actions.push({key:"sign",kind:"sign",title:"Yard sign pickup due",detail:"Review pickup and record it when completed",priority:100});
+    if(input.reviewDue)
+      actions.push({key:"review",kind:"review",title:"Review status check due",detail:"Verify before logging a review or sending anything",priority:80});
+    for(const invoice of input.invoices){
+      if(!invoice.id||!invoice.estimateId||["paid","void","cancelled","draft"].includes(invoice.status))continue;
+      const confirmed=input.messages.some(message=>message.estimateId===invoice.estimateId&&message.template==="invoice"&&
+        (message.channel==="text_confirmed"||message.channel==="email_confirmed"));
+      if(!confirmed)actions.push({key:"invoice:"+invoice.id,kind:"invoice",invoiceId:invoice.id,title:"Check invoice send record",
+        detail:"Created invoice · owner send not confirmed in app",priority:45});
+    }
+    return actions.sort((a,b)=>b.priority-a.priority||a.key.localeCompare(b.key)).slice(0,8);
+  }
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [estimates, setEstimates] = useState<CustomerEstimate[]>([]);
   const [notes, setNotes] = useState<CustomerNote[]>([]);
@@ -1611,8 +1634,10 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [payments,setPayments]=useState<PaymentRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [timelineShown,setTimelineShown]=useState(6);
+  const [timelineFilter,setTimelineFilter]=useState<"all"|"estimates"|"messages"|"billing"|"notes">("all");
+  const [timelineSearch,setTimelineSearch]=useState("");
   const [timelineTarget,setTimelineTarget]=useState<{customerId:string;section:"estimates"|"invoices"|"payments"|"messages"|"notes";id:string}|null>(null);
-  useEffect(()=>{setTimelineShown(6);setTimelineTarget(null);},[selectedId]);
+  useEffect(()=>{setTimelineShown(6);setTimelineFilter("all");setTimelineSearch("");setTimelineTarget(null);},[selectedId]);
   useEffect(()=>{setPropertyEstimateBlocked(true);setSelectedProperty(null);setPropertyWorkflowReady(false);},[selectedId]);
   const [activeEstimate, setActiveEstimate] = useState<EstimateRow | null>(null);
   const [section, setSection] = useState("estimates");
@@ -1742,6 +1767,10 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const customerPayments=payments.filter((payment)=>payment.customerId===selectedId);
   const timelineEntries=buildCustomerTimeline({estimates:customerEstimates,invoices:customerInvoices,
     messages:historyEntries,notes:customerNotes,payments:customerPayments});
+  const safeTimelineQuery=timelineSearch.trim().toLocaleLowerCase();
+  const filteredTimelineEntries=timelineEntries.filter(entry=>(timelineFilter==="all"||entry.category===timelineFilter)&&
+    (!safeTimelineQuery||[entry.title,entry.detail,entry.day].join(" ").toLocaleLowerCase().includes(safeTimelineQuery)));
+  const visibleTimelineEntries=filteredTimelineEntries.slice(0,timelineShown);
   const openTimelineEntry=(entry:{section:"estimates"|"invoices"|"payments"|"messages"|"notes";id:string})=>{
     if(!selected)return;
     setRecordSearch("");
@@ -1770,6 +1799,18 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     reviewReceivedAt:manualFlags.reviewReceivedAt,
     sign:manualFlags.sign,reviewDue:reviewCheck.status==="due",today:tulsaToday
   });
+  const nextCustomerActions=buildCustomerNextActions({
+    sign:manualFlags.sign,reviewDue:reviewCheck.status==="due",
+    invoices:customerInvoices,messages:customerMessages,today:tulsaToday
+  });
+  const openCustomerAction=(action:{kind:"sign"|"review"|"invoice";invoiceId?:string})=>{
+    if(!selected)return;
+    if(action.kind==="invoice"&&action.invoiceId){openTimelineEntry({section:"invoices",id:action.invoiceId});return;}
+    const element=document.getElementById(action.kind==="sign"?
+      "customer-sign-flag-"+selected.id:"customer-review-check-"+selected.id);
+    element?.scrollIntoView({block:"center",behavior:"instant"});
+    element?.focus({preventScroll:true});
+  };
   const dueReviewChecks=customers.map(customer=>{
     const customerNotesForReview=notes.filter(note=>note.customerId===customer.id);
     const customerReview=deriveCustomerManualFlags(customerNotesForReview);
@@ -1895,15 +1936,32 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         {manualFlags.sign?.state==="out"&&<p className="customer-flag-sign-location">Last placement: {manualFlags.sign.location||"Location not specified"}. Pickup target: {manualFlags.sign.pickupDate}. This is an in-app tracking cue, not a push notification.</p>}
         <p className="customer-flag-help">Manual flag actions prepare a note; select <strong>Add note</strong> in Notes to save the flag. Pickup tasks open as drafts in Business and are saved only when you choose Add task. Review receipt is owner-reported, not verified against Google.</p>
       </section>
+      <section className="customer-action-review" role="region" aria-label="Review next customer actions">
+        <div className="customer-timeline-heading"><div><h2>Review next</h2><p>Derived from saved records · opens existing controls · no automatic actions</p></div><span>{nextCustomerActions.length} to check</span></div>
+        {nextCustomerActions.length?<div className="customer-action-items">{nextCustomerActions.map(action=><button type="button" key={action.key} onClick={()=>openCustomerAction(action)} aria-label={"Open "+action.title}>
+          <span className="customer-timeline-copy"><strong>{action.title}</strong><small>{action.detail}</small></span><ChevronRight aria-hidden="true"/>
+        </button>)}</div>:<p className="customer-timeline-empty">No saved-record actions need review right now. This does not verify external messages, reviews, or payments.</p>}
+        {nextCustomerActions.length===8&&<p className="customer-timeline-empty">Showing the first eight checks. Open Invoices for other saved records.</p>}
+      </section>
       <section className="customer-timeline" role="region" aria-label="Recent customer activity">
         <div className="customer-timeline-heading"><div><h2>Recent activity</h2><p>Saved records only · newest first · no private note text shown</p></div><span>{timelineEntries.length} event{timelineEntries.length===1?"":"s"}{timelineEntries.length===100?"+":""}</span></div>
-        {timelineEntries.length>0?<ol className="customer-timeline-list">
-          {timelineEntries.slice(0,timelineShown).map(entry=><li key={entry.key}><button type="button" onClick={()=>openTimelineEntry(entry)} aria-label={"Open "+entry.title+" in "+entry.section}>
-            <span className="customer-timeline-copy"><strong>{entry.title}</strong><small>{entry.detail}</small></span>
-            <span className="customer-timeline-meta"><time dateTime={entry.at}>{dateTime(entry.at)}</time><ChevronRight aria-hidden="true"/></span>
-          </button></li>)}
-        </ol>:<p className="customer-timeline-empty">No dated activity has been recorded for this customer yet.</p>}
-        {timelineEntries.length>timelineShown&&<button type="button" className="customer-timeline-more" onClick={()=>setTimelineShown(current=>Math.min(current+6,timelineEntries.length))}>Show next {Math.min(6,timelineEntries.length-timelineShown)} events · {timelineEntries.length-timelineShown} remaining</button>}
+        <div className="customer-timeline-controls">
+          <div className="customer-timeline-filters" role="group" aria-label="Filter customer activity">
+            {([["all","All"],["estimates","Estimates"],["messages","Messages"],["billing","Billing"],["notes","Notes & flags"]] as const).map(([key,label])=><button key={key} type="button" aria-pressed={timelineFilter===key} onClick={()=>{setTimelineFilter(key);setTimelineShown(6);}}>{label}</button>)}
+          </div>
+          <label className="customer-timeline-search">Search activity titles <input type="search" aria-label="Search recent activity" value={timelineSearch} onChange={event=>{setTimelineSearch(event.target.value);setTimelineShown(6);}} placeholder="Example: review, invoice, Oct 20"/></label>
+          <p role="status">Showing {Math.min(timelineShown,filteredTimelineEntries.length)} of {filteredTimelineEntries.length} matching events · searches labels, not private note text</p>
+        </div>
+        {visibleTimelineEntries.length>0?<ol className="customer-timeline-list">
+          {visibleTimelineEntries.map((entry,index)=><li key={entry.key}>
+            {(index===0||visibleTimelineEntries[index-1].day!==entry.day)&&<p className="customer-timeline-day">{entry.day}</p>}
+            <button type="button" onClick={()=>openTimelineEntry(entry)} aria-label={"Open "+entry.title+" in "+entry.section}>
+              <span className="customer-timeline-copy"><strong>{entry.title}</strong><small>{entry.detail}</small></span>
+              <span className="customer-timeline-meta"><time dateTime={entry.at}>{dateTime(entry.at)}</time><ChevronRight aria-hidden="true"/></span>
+            </button>
+          </li>)}
+        </ol>:<p className="customer-timeline-empty">{timelineEntries.length?"No matching activity. Choose All or clear the search.":"No dated activity has been recorded for this customer yet."}</p>}
+        {filteredTimelineEntries.length>timelineShown&&<button type="button" className="customer-timeline-more" onClick={()=>setTimelineShown(current=>Math.min(current+6,filteredTimelineEntries.length))}>Show next {Math.min(6,filteredTimelineEntries.length-timelineShown)} events · {filteredTimelineEntries.length-timelineShown} remaining</button>}
       </section>
       {activeCustomerEstimate&&<button className="customer-next-job" onClick={()=>setActiveEstimate({...activeCustomerEstimate,customer:selected.name,email:selected.email,phone:selected.phone,address:activeCustomerEstimate.address??undefined})}><span><Sparkles/><span><small>Continue current job</small><strong>{activeCustomerEstimate.service}</strong></span></span><span>{activeCustomerEstimate.scheduledAt?dateTime(activeCustomerEstimate.scheduledAt):statusLabel(activeCustomerEstimate.status)} <ChevronRight/></span></button>}
       <div className="customer-contact">

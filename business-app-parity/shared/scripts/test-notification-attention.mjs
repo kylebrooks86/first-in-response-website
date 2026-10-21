@@ -414,3 +414,40 @@ console.log('PASS customer Activity & Flags presentation: contact vs send, due s
  ]){assert.ok(source.includes(anchor),label);}
 }
 console.log('PASS customer timeline: chronology, private note restraint, confirmed vs prepared messaging, bounded mobile record navigation.');
+
+
+// Actual self-contained CustomersView review queue: read-only, no false sends.
+{
+ const customer=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='CustomersView');
+ let fn;function findActions(n){if(ts.isFunctionDeclaration(n)&&n.name?.text==='buildCustomerNextActions')fn=n;ts.forEachChild(n,findActions);}
+ findActions(customer);assert.ok(fn);
+ const compiled=ts.transpileModule(fn.getText(ast)+'\nexports.review=buildCustomerNextActions;',{
+   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
+ }).outputText;
+ const ctx={exports:{}};vm.runInNewContext(compiled,ctx);
+ const base={today:"2026-10-20",sign:null,reviewDue:false,invoices:[],messages:[]};
+ eq(ctx.exports.review(base).length,0,'Empty verified customer records create no review actions');
+ const both=ctx.exports.review({...base,sign:{state:"out",pickupDate:"2026-10-19"},reviewDue:true,
+  invoices:[{id:"i1",estimateId:"e1",status:"sent"},{id:"i2",estimateId:"e2",status:"paid"},{id:"i3",estimateId:"e3",status:"draft"}]});
+ eq(both.map(x=>x.kind).join('|'),'sign|review|invoice','Due sign and review precede unconfirmed active invoice');
+ eq(both[2].invoiceId,'i1','Invoice action retains exact saved invoice ID');
+ eq(ctx.exports.review({...base,sign:{state:"picked_up",pickupDate:"2026-10-19"}}).length,0,'Picked up sign never remains actionable');
+ eq(ctx.exports.review({...base,sign:{state:"out",pickupDate:"2026-10-21"}}).length,0,'Future pickup is not called overdue');
+ eq(ctx.exports.review({...base,invoices:[{id:"i1",estimateId:"e1",status:"sent"}],
+  messages:[{estimateId:"e1",template:"invoice",channel:"email_confirmed"}]}).length,0,'Confirmed invoice send clears its own action');
+ eq(ctx.exports.review({...base,invoices:[{id:"i1",estimateId:"e1",status:"sent"}],
+  messages:[{estimateId:"e1",template:"invoice",channel:"email_prepared"}]}).length,1,'Prepared invoice is not confirmed sent');
+ eq(ctx.exports.review({...base,invoices:[{id:"i1",estimateId:"e1",status:"sent"}],
+  messages:[{estimateId:"e2",template:"invoice",channel:"text_confirmed"}]}).length,1,'Another estimate send does not clear this invoice action');
+ eq(ctx.exports.review({...base,invoices:[{id:"i1",estimateId:"e1",status:"void"}]}).length,0,'Void invoice is not presented for outreach');
+ const many=ctx.exports.review({...base,invoices:Array.from({length:20},(_,i)=>({id:'invoice-'+i,estimateId:'e'+i,status:'sent'}))});
+ eq(many.length,8,'Review queue is bounded on mobile');
+ assert.ok(source.includes('role="group" aria-label="Filter customer activity"'));
+ assert.ok(source.includes('aria-label="Search recent activity"'));
+ assert.ok(source.includes('timelineEntries.filter(entry=>(timelineFilter==="all"||entry.category===timelineFilter)'));
+ assert.ok(source.includes('entry.title,entry.detail,entry.day'));
+ assert.ok(source.includes('visibleTimelineEntries[index-1].day!==entry.day'));
+ assert.ok(source.includes('onClick={()=>openCustomerAction(action)}'));
+ assert.ok(source.includes('setTimelineShown(6);setTimelineFilter("all");setTimelineSearch("")'));
+}
+console.log('PASS customer action review: due priority, confirmed sends, no false invoice outreach, privacy-first activity filtering.');

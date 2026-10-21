@@ -1418,3 +1418,20 @@ html,body{max-width:100%;overflow-x:clip}
 [id^="customer-estimate-"],[id^="customer-invoice-"],[id^="customer-message-"],[id^="customer-note-"],[id^="customer-payment-"]{scroll-margin-top:100px}
 [id^="customer-message-"]:focus-visible,[id^="customer-invoice-"]:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
 @media(max-width:380px){.customer-timeline-meta{flex-basis:110px}.customer-timeline-list button{padding:9px}.customer-timeline{padding:12px}}
+
+/* Read-only owner triage and searchable, date-grouped activity history. */
+.customer-action-review{display:grid;gap:10px;min-width:0;margin:12px 0;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--card)}
+.customer-action-items{display:grid;gap:7px}
+.customer-action-items button{display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;padding:12px;min-height:48px;border:1px solid var(--border);border-radius:9px;background:var(--background);color:var(--foreground);cursor:pointer}
+.customer-action-items button svg{height:16px;width:16px;flex:none}
+.customer-action-items button:hover,.customer-timeline-filters button:hover{border-color:var(--ring)}
+.customer-action-items button:focus-visible,.customer-timeline-filters button:focus-visible,.customer-timeline-search input:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.customer-timeline-controls{display:grid;gap:9px;min-width:0}
+.customer-timeline-filters{display:flex;gap:6px;flex-wrap:wrap}
+.customer-timeline-filters button{min-height:40px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;color:var(--foreground);background:var(--background);font-size:12px;font-weight:650}
+.customer-timeline-filters button[aria-pressed="true"]{border-color:var(--ring);background:var(--muted);font-weight:800}
+.customer-timeline-search{display:grid;gap:4px;font-size:12px;font-weight:700}
+.customer-timeline-search input{max-width:100%;width:100%;height:42px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);padding:9px 10px;font-size:13px}
+.customer-timeline-controls>p{font-size:11px;color:var(--muted-foreground);margin:0}
+.customer-timeline-day{font-size:11px;font-weight:750;color:var(--muted-foreground);margin:9px 0 6px;padding-inline:2px}
+@media(max-width:390px){.customer-timeline-filters button{min-height:44px;padding:8px 9px}.customer-action-review{padding:12px}}
