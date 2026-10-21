@@ -9,6 +9,20 @@ export function estimateFollowUpTiming(estimate: FollowUpEstimate, now: number) 
   return { ageDays:anchor===null||!Number.isFinite(now)?0:Math.max(0,Math.floor((now-anchor)/86400000)), confirmedContact:confirmed.length>0 };
 }
 
+/** A view is only evidence that a link was opened, never that the price is the
+ * objection or that a message was delivered. Reuse the existing 1/3/7-day
+ * reminder stage so a viewed estimate cannot spawn a duplicate action.
+ */
+export type ViewedEstimateReminderRecord=ReminderRecord & {firstViewedAt?:string|null};
+export function viewedEstimateReminderCue(record:ViewedEstimateReminderRecord,now:number):{hoursSinceView:number}|null{
+ if(!record||record.status!=="sent"||!Number.isFinite(now))return null;
+ const viewed=timestamp(record.firstViewedAt),first=timestamp(record.firstEstimateSentAt),last=timestamp(record.lastEstimateSentAt);
+ if(viewed===null||first===null||last===null||viewed<first||viewed<last||viewed>now||now-viewed<86400000||
+   !estimateReminderStage(record,now).template)return null;
+ const contacted=[record.lastEstimateContactAt,record.lastManualContactAt,record.stage1At,record.stage3At,record.stage7At];
+ if(contacted.some(at=>at&&(timestamp(at)===null||timestamp(at)!==null&&timestamp(at)!>=viewed)))return null;
+ return {hoursSinceView:Math.floor((now-viewed)/3600000)};
+}
 export type ReminderRecord = {status:string;lastEstimateSentAt?:string|null;firstEstimateSentAt?:string|null;lastEstimateContactAt?:string|null;stage1At?:string|null;stage3At?:string|null;stage7At?:string|null;lastManualContactAt?:string|null;snoozeUntil?:string|null};
 export function estimateReminderStage(record:ReminderRecord,now:number):{template:"followUp1"|"followUp3"|"followUp7"|null;reviewReason:string|null} {
   const none={template:null,reviewReason:null};if(record.status!=="sent")return none;

@@ -24,9 +24,29 @@ check(job('winBack11','repeat',{dueAt:at(0)}),'due',/target reached/);
 check(job('review','review'),'review',/Review request suggested/);
 check(job('history','history',{estimate:{paymentOverageOpen:1}}),'review',/Billing exception/,0);
 check(job('estimate','followup',{estimate:{status:'draft'}}),'review',/Unsent estimate draft/);
+const viewCue=context.exports.viewedEstimateReminderCue;
+const baseViewed={status:'sent',firstEstimateSentAt:at(-5),lastEstimateSentAt:at(-5),firstViewedAt:at(-1)};
+assert.equal(viewCue(baseViewed,now).hoursSinceView,24,'Viewed 24h ago surfaces one owner-side check-in cue');n++;
+for(const [name,fields] of Object.entries({
+ premature:{firstViewedAt:at(-.9)},unsent:{status:'draft'},approved:{status:'approved'},
+ noVerifiedSend:{lastEstimateSentAt:null},oldViewBeforeResend:{lastEstimateSentAt:at(-.5)},
+ futureView:{firstViewedAt:at(.1)},malformedView:{firstViewedAt:'unknown'},
+ manualContact:{lastManualContactAt:at(-.5)},confirmedFollowup:{lastEstimateContactAt:at(-.5)},
+ stageRecorded:{stage3At:at(-.5)},snoozed:{snoozeUntil:at(2)}
+})){assert.equal(viewCue({...baseViewed,...fields},now),null,name+' cannot prompt duplicate/premature viewed reminder');n++;}
+const attentionJs=ts.transpileModule(readFileSync('lib/attention-estimates.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+const attentionContext={exports:{},require:()=>context.exports,Date,Number,Math};
+vm.runInNewContext(attentionJs,attentionContext);
+const bell=attentionContext.exports.estimateAttentionItems([{...baseViewed,id:'viewed-1',customer:'Synthetic customer',createdAt:at(-5),phone:'9185550000'}],now);
+assert.equal(bell.length,1,'Bell produces a single stage-based item for a viewed estimate');n++;
+assert.match(bell[0].detail,/Estimate viewed 24h ago · decision not recorded/);n++;
+assert.equal(bell[0].estimateId,'viewed-1','Bell retains exact job target');n++;
 const api=readFileSync('app/api/followups/route.ts','utf8'),view=readFileSync('app/dashboard.tsx','utf8');
 assert.match(api,/channel IN \('text_confirmed','email_confirmed'\)\) AS lastConfirmedMessageAt/);
 assert.match(api,/channel IN \('text_prepared','email_prepared','copy'\)\) AS lastPreparedAt/);
+assert.match(api,/e\.first_viewed_at AS firstViewedAt/);
+assert.match(view,/Estimate viewed · approval not implied/);
+assert.match(view,/viewedEstimateReminderCue\(estimate,now\)/);
 assert.match(view,/Owner-confirmed message:/);assert.match(view,/Last prepared\/copied:/);
 assert.match(view,/Timing: /);assert.match(view,/setUrgencyFilter\("all"\)/);
 assert.match(view,/followupUrgency\(item,now\)\.bucket==="past-target"/);

@@ -21,7 +21,7 @@ import { OwnerAccountView } from "./owner-account";
 import {OfflineCustomerPhotos} from "../components/offline-customer-photos";
 import {saveOfflinePhotoCustomerDirectory,loadOfflinePhotoCustomerDirectory,clearOfflinePhotoCustomerDirectory,type OfflinePhotoCustomer} from "../lib/offline-photo-customer-directory";
 import {mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory} from "../lib/offline-photo-availability";
-import { estimateFollowUpTiming, estimateReminderStage, followupUrgency, todayActionLane, todayCustomerQueue, followupLatestContact } from "../lib/follow-up-timing";
+import { estimateFollowUpTiming, estimateReminderStage, viewedEstimateReminderCue, followupUrgency, todayActionLane, todayCustomerQueue, followupLatestContact } from "../lib/follow-up-timing";
 import { messageHistoryEntries } from "../lib/message-history";
 import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility} from "../lib/customer-activity-flags";
 import type {DashboardYardSign} from "../lib/dashboard-yard-signs";
@@ -2652,6 +2652,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
       if(Number.isFinite(time))events.push({key,at:at!,title,time});
     };
     add("created",estimate.createdAt,"Estimate created");
+    add("viewed",estimate.firstViewedAt,"Estimate viewed · approval not implied");
     add("send-recorded",estimate.firstEstimateSentAt,"Estimate send recorded · delivery unverified");
     add("last-send",estimate.lastEstimateSentAt,"Most recent estimate send recorded · delivery unverified");
     add("contact",estimate.lastEstimateContactAt,"Estimate contact recorded");
@@ -2792,7 +2793,10 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     else if(estimate.status==="sent"){
       const stage=estimateReminderStage(estimate,now);
       if(stage.reviewReason)items.push({estimate,template:"history",reason:stage.reviewReason,priority:2,kind:"history"});
-      else if(stage.template)items.push({estimate,template:stage.template,reason:`Confirmed estimate follow-up: ${stage.template==="followUp7"?7:stage.template==="followUp3"?3:1}-day stage`,priority:stage.template==="followUp7"?3:stage.template==="followUp3"?2:1,kind:"followup"});
+      else if(stage.template){
+         const viewed=viewedEstimateReminderCue(estimate,now);
+         items.push({estimate,template:stage.template,reason:viewed?`Estimate viewed ${viewed.hoursSinceView}h ago; approval not recorded. Consider a friendly check-in — no reason for delay is assumed.`:`Confirmed estimate follow-up: ${stage.template==="followUp7"?7:stage.template==="followUp3"?3:1}-day stage`,priority:viewed?4:stage.template==="followUp7"?3:stage.template==="followUp3"?2:1,kind:"followup"});
+       }
     }
     const serviceDate=estimate.scheduledAt||estimate.createdAt;
     const serviceAgeDays=Math.max(0,Math.floor((now-new Date(serviceDate).getTime())/86400000));

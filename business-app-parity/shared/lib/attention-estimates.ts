@@ -1,13 +1,13 @@
 /** Read-only, owner-side candidate reminders from the same saved follow-up history.
  * These are suggestions, never proof of message delivery or automatic writes.
  */
-import {estimateReminderStage} from "./follow-up-timing";
+import {estimateReminderStage,viewedEstimateReminderCue} from "./follow-up-timing";
 export type AttentionEstimate={
  id:string;customer:string;status:string;createdAt:string;
  scheduledAt?:string|null;address?:string|null;phone?:string|null;email?:string|null;
  totalCents?:number|null;invoiceTotalCents?:number|null;paidCents?:number|null;
  invoiceId?:string|null;paymentOverageOpen?:number|null;
- firstEstimateSentAt?:string|null;lastEstimateSentAt?:string|null;lastEstimateContactAt?:string|null;
+ firstEstimateSentAt?:string|null;lastEstimateSentAt?:string|null;lastEstimateContactAt?:string|null;firstViewedAt?:string|null;
  stage1At?:string|null;stage3At?:string|null;stage7At?:string|null;lastManualContactAt?:string|null;snoozeUntil?:string|null;
  lastReviewRequestAt?:string|null;
 };
@@ -39,7 +39,10 @@ export function estimateAttentionItems(estimates:readonly AttentionEstimate[],no
   if(e.status==="sent"){
    const stage=estimateReminderStage(e,now);
    if(stage.reviewReason)add("followup","Estimate history needs manual review");
-   else if(stage.template)add("followup",stage.template==="followUp7"?"7-day estimate follow-up ready":stage.template==="followUp3"?"3-day estimate follow-up ready":"1-day estimate follow-up ready",stage.template==="followUp7");
+   else if(stage.template){
+    const viewed=viewedEstimateReminderCue(e,now);
+    add("followup",viewed?`Estimate viewed ${viewed.hoursSinceView}h ago · decision not recorded · consider a friendly follow-up`:stage.template==="followUp7"?"7-day estimate follow-up ready":stage.template==="followUp3"?"3-day estimate follow-up ready":"1-day estimate follow-up ready",stage.template==="followUp7");
+   }
   }else if(e.status==="draft"){
    const created=date(e.createdAt);
    if(Number.isFinite(created)&&created<=now-day)add("draft","Unsent estimate draft · review before sending");
