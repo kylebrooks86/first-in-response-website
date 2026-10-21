@@ -48,7 +48,7 @@ export function estimateAttentionItems(estimates:readonly AttentionEstimate[],no
    }
   }else if(e.status==="completed"){
    const finished=date(e.scheduledAt??e.createdAt);
-   if(Number(e.paymentOverageOpen)===0&&!e.lastReviewRequestAt&&Number.isFinite(finished)&&finished<=now&&now-finished<=30*day&&Number.isFinite(total)&&Number.isFinite(paid)&&total>0&&paid>=total)
+   if(Number(e.paymentOverageOpen??0)===0&&!e.lastReviewRequestAt&&Number.isFinite(finished)&&finished<=now&&now-finished<=30*day&&Number.isFinite(total)&&Number.isFinite(paid)&&total>0&&paid>=total)
     add("review-request","Completed and paid · review request not recorded");
   }
  }
