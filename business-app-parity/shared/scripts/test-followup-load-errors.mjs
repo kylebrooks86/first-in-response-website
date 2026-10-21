@@ -43,7 +43,7 @@ function fixture(){
   fetch:(url,options)=>{requests.push({url,options});return handler(url,options);},
  };
  vm.runInNewContext(compiled,context);
- const render=(searchQuery='')=>{cursor=0;refCursor=0;effectCursor=0;return context.exports.view({searchQuery,focusEstimateId:focusId,onFocusHandled:id=>handled.push(id),onOpenEstimate:id=>handled.push("fallback:"+id)});};
+ const render=(searchQuery='')=>{cursor=0;refCursor=0;effectCursor=0;return context.exports.view({searchQuery,focusEstimateId:focusId,onFocusHandled:id=>{handled.push(id);focusId=null;},onOpenEstimate:id=>handled.push("fallback:"+id)});};
  const lookup=(predicate)=>nodes(render()).find(predicate);
  return {requests,render,nodes:()=>nodes(render()),lookup,focusCalls,handled,focus(id){focusId=id;render();focusEffect?.();},
   get:idx=>state[idx],
@@ -124,7 +124,10 @@ for(const [name,handler] of [
  eq(f.handled.at(-1),'synthetic-job','Focused action acknowledges navigation after rendering');
  f.focus('missing-estimate');
  eq(f.nodes().some(n=>n.props?.className==='followup-focus-notice'),true,'Changed or completed follow-up shows honest fallback rather than a false card');
- eq(Boolean(f.nodes().find(n=>n.type===stubs.Button&&n.props?.children==='Open saved estimate')),true,'Missing follow-up can open exact estimate for owner review');
+ const fallback=f.nodes().find(n=>n.type===stubs.Button&&n.props?.children==='Open saved estimate');
+ eq(Boolean(fallback),true,'Fallback survives the parent clearing its consumed focus request');
+ fallback.props.onClick();
+ eq(f.handled.at(-1),'fallback:missing-estimate','Fallback navigates to the original exact estimate ID');
  f.unmount();
 }
 console.log('PASS '+checks+'/'+checks+': actual FollowUpsView paginated endpoint, failure/retry, focused deep-link action and stale read protection. Mock GET only.');

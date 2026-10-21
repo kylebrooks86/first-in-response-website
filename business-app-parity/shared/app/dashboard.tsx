@@ -2157,7 +2157,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   const [error,setError]=useState("");
   const [nextCursor,setNextCursor]=useState<string|null>(null);
   const [reviewEstimate,setReviewEstimate]=useState<EstimateRow|null>(null);
-  const [focusError,setFocusError]=useState("");
+  const [focusError,setFocusError]=useState<{id:string;message:string}|null>(null);
   const [actionStatus,setActionStatus]=useState("");
   const [actionError,setActionError]=useState(false);
   const [actionBusy,setActionBusy]=useState(false);
@@ -2256,19 +2256,19 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     if(!focusEstimateId||loading||error)return;
     const target=actions.find(item=>item.estimate.id===focusEstimateId&&["followUp1","followUp3","followUp7"].includes(item.template));
     if(!target){
-      setFocusError("That follow-up is not currently due in the loaded records. It may already be handled; review the saved estimate to verify.");
+      setFocusError({id:focusEstimateId,message:"That follow-up is not currently due in the loaded records. It may already be handled; review the saved estimate to verify."});
       onFocusHandled?.(focusEstimateId);
       return;
     }
     const element=document.getElementById("followup-action-"+target.estimate.id);
     if(!element)return;
-    setFocusError("");
+    setFocusError(null);
     element.scrollIntoView({block:"center",behavior:"instant"});
     element.focus({preventScroll:true});
     onFocusHandled?.(focusEstimateId);
   },[focusEstimateId,loading,error,rows,searchQuery]);
   return <div className="workspace-view"><EstimateDetail estimate={reviewEstimate} onClose={()=>setReviewEstimate(null)} onChanged={value=>{setReviewEstimate(current=>current?.id===value.id?value:current);void load();}}/><section className="workspace-head"><div><p className="eyebrow">Start workflow</p><h1>Follow-ups</h1><p>Customers who need a reminder, confirmation, review request, or payment follow-up.</p></div></section>
-    {focusError&&<div className="followup-focus-notice" role="status"><p>{focusError}</p>{focusEstimateId&&onOpenEstimate&&<Button variant="outline" onClick={()=>{setFocusError("");onOpenEstimate(focusEstimateId);}}>Open saved estimate</Button>}</div>}
+    {focusError&&<div className="followup-focus-notice" role="status"><p>{focusError.message}</p>{onOpenEstimate&&<Button variant="outline" onClick={()=>{const id=focusError.id;setFocusError(null);onOpenEstimate(id);}}>Open saved estimate</Button>}</div>}
     {actionStatus&&<p role={actionError?"alert":"status"}>{actionStatus}</p>}
     {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>recommended actions</small></div></span><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>Messages open prefilled and editable. Your phone still lets you review and tap Send.</p></div>}
     {loading&&rows.length===0?<div className="customers-state">Checking customer follow-ups…</div>:error&&rows.length===0?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:actions.length?<section className="followup-list">{actions.map(({estimate,template,reason,kind})=>{const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};return <article className={`followup-card ${kind}${focusEstimateId===estimate.id?" followup-card-focused":""}`} id={["followUp1","followUp3","followUp7"].includes(template)?`followup-action-${estimate.id}`:undefined} tabIndex={["followUp1","followUp3","followUp7"].includes(template)?-1:undefined} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><p>{reason}</p><small>{estimate.service} · {money(billingBalanceCents(estimate))}</small></div>{kind==="history"?<Button variant="outline" onClick={()=>setReviewEstimate(estimate)}>Review estimate</Button>:<MessageComposer customer={customer} estimate={estimate} initialTemplate={template} triggerLabel="Prepare message" onSent={(message,status)=>{setRows(current=>current.map(row=>row.id===estimate.id?{...row,status:status||row.status,...(message.template==="estimate"?{firstEstimateSentAt:row.firstEstimateSentAt||message.createdAt,lastEstimateSentAt:message.createdAt}:{}),...(["estimate","followUp1","followUp3","followUp7"].includes(message.template)?{lastEstimateContactAt:message.createdAt}:{}),...(message.template==="followUp1"?{stage1At:message.createdAt}:{}),...(message.template==="followUp3"?{stage3At:message.createdAt}:{}),...(message.template==="followUp7"?{stage7At:message.createdAt}:{}),...(message.template==="review"?{lastReviewRequestAt:message.createdAt}:{}),...(["winBack6","winBack11"].includes(message.template)?{lastRebookMessageAt:message.createdAt}:{})}:row));void load();}}/>}
