@@ -1503,3 +1503,11 @@ html,body{max-width:100%;overflow-x:clip}
 .followup-today-actions>button:first-child small{overflow-wrap:anywhere;line-height:1.45}
 .followup-priority-buttons .followup-today-customer{font-size:12px;font-weight:700;white-space:nowrap}
 @media(max-width:390px){.followup-today-actions{grid-template-columns:minmax(0,1fr)}.followup-priority-buttons .followup-today-customer{justify-content:center}}
+
+/* Incremental and honest historical follow-up coverage; avoids per-record manual paging. */
+.followup-backlog-coverage{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.followup-backlog-coverage>div{flex:1 1 220px;min-width:0}
+.followup-backlog-coverage strong{font-size:13px}
+.followup-backlog-coverage p,.followup-coverage-complete{font-size:12px;line-height:1.5;color:var(--muted-foreground);margin:4px 0 0}
+.followup-backlog-coverage button{min-height:44px;flex:none}
+@media(max-width:390px){.followup-backlog-coverage button{width:100%}}

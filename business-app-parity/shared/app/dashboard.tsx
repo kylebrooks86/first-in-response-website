@@ -2430,14 +2430,16 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   const loadRequest=useRef(0);
   const loadedPages=useRef(1);
   const retryAppend=useRef(false);
-  const load=async(append=false)=>{
+  const load=async(append=false,scanPages=1)=>{
     const request=++loadRequest.current;
     retryAppend.current=append;
     setLoading(true);setError("");
     try{
       // Refresh every page already loaded; publish only after the full read succeeds.
       // Each request remains bounded to 50 records. Never write or retry a send here.
-      const pageLimit=append?1:loadedPages.current;
+      // Explicit older-record scans read no more than four 50-item cursor pages.
+      // Publish only when every requested page succeeds; never save partial batches.
+      const pageLimit=append?Math.max(1,Math.min(4,Math.floor(scanPages))):loadedPages.current;
       let cursor=append?nextCursor:null;
       const incoming:EstimateRow[]=[];
       let pagesRead=0;
@@ -2571,6 +2573,11 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     {focusError&&<div className="followup-focus-notice" role="status"><p>{focusError.message}</p>{onOpenEstimate&&<Button variant="outline" onClick={()=>{const id=focusError.id;setFocusError(null);onOpenEstimate(id);}}>Open saved estimate</Button>}</div>}
     {actionStatus&&<p role={actionError?"alert":"status"}>{actionStatus}</p>}
     {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>recommended actions</small></div></span><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>{bucketCount("past-target")} past suggested target · {bucketCount("due")} due now · {bucketCount("upcoming")} upcoming · {bucketCount("review")} needs review. Planning cues only—not verified customer deadlines. Preparing or copying isn’t sending.</p></div>}
+    {!loading&&!error&&nextCursor&&<section className="followup-backlog-coverage" aria-label="Older customer record coverage">
+      <div><strong>Older records still unchecked</strong><p>Today's queue and counts include only {rows.length} loaded estimates. More saved estimates remain outside this view. Check up to 200 older records per scan; no messages are sent or customer records changed.</p></div>
+      <Button variant="outline" onClick={()=>void load(true,4)}>Scan next 200 older records</Button>
+    </section>}
+    {!loading&&!error&&!nextCursor&&rows.length>0&&<p className="followup-coverage-complete" role="status">All currently available estimate pages checked in this view. The queue and counts reflect {rows.length} loaded records as of the last read.</p>}
     {!loading&&!error&&<div className="followup-filter-panel" role="group" aria-label="Filter recommended follow-up actions">
       {([["all","All"],["quotes","Estimates"],["billing","Billing"],["schedule","Appointments"],["reviews","Reviews"],["repeat","Repeat jobs"],["history","Needs review"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label}</button>)}
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filter follow-ups by timing">
@@ -2611,7 +2618,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   {contactHistory.status==="ready"&&<Button variant="outline" onClick={()=>readContactHistory(estimate,template)}>Refresh history</Button>}
 </section>}
 </article>;})}</section>:actions.length?<div className="customers-state"><Clock3/><strong>No matches in this filter</strong><p>Choose All to view the other {actions.length} recommended actions. Nothing has been changed or sent.</p><Button variant="outline" onClick={()=>{setActionFilter("all");setHighPriorityOnly(false);setUrgencyFilter("all");}}>Show all follow-ups</Button></div>:<div className="customers-state"><CheckCircle2/><strong>{nextCursor?"No reminders in loaded records":"You’re caught up"}</strong><p>No follow-ups are recommended in the loaded records. Check older records when available.</p></div>}
-    <p role="status">{rows.length} records loaded. {nextCursor?"Older records are available.":"End of available records."}</p>{error&&rows.length>0&&<p role="alert">{error}</p>}{error&&!retryAppend.current&&rows.length>0&&<Button variant="outline" disabled={loading} onClick={()=>void load()}>Retry follow-up refresh</Button>}{nextCursor&&<Button variant="outline" disabled={loading||Boolean(error&&!retryAppend.current)} onClick={()=>void load(true)}>{loading?"Loading…":error&&retryAppend.current?"Retry older records":"Load older records"}</Button>}
+    <p role="status">{rows.length} records loaded. {nextCursor?"Older records are available.":"End of available records."}</p>{error&&rows.length>0&&<p role="alert">{error}</p>}{error&&!retryAppend.current&&rows.length>0&&<Button variant="outline" disabled={loading} onClick={()=>void load()}>Retry follow-up refresh</Button>}{nextCursor&&error&&retryAppend.current&&<Button variant="outline" disabled={loading} onClick={()=>void load(true,4)}>Retry older-record scan</Button>}
   </div>;
 }
 

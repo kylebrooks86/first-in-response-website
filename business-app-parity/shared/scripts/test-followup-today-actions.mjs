@@ -82,4 +82,5 @@ assert.ok(profile);profile.props.onClick();
 eq(opens[0],'one','Customer shortcut targets the exact profile');
 eq(requests.every(r=>r.opts?.method!=='POST'&&r.opts?.method!=='PATCH'),true,'Preview performs reads only');
 eq(requests[0].url,'/api/followups?limit=50','Preview uses the existing paginated endpoint');
+eq(v.some(n=>n.props?.['aria-label']==='Older customer record coverage'),false,'No false unchecked warning after a final-page response');
 console.log('PASS '+assertions+'/'+assertions+' synthetic daily action queue, communication-state and real component interaction checks. No sends or customer writes.');

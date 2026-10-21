@@ -97,12 +97,64 @@ for(const [name,handler] of [
  f.mount();await flush();
  eq(f.get(0).length,1,'First page loads');
  eq(f.get(3),'next','Next cursor is retained');
- f.clickText('Load older records');await flush();
+ f.clickText('Scan next 200 older records');await flush();
  eq(f.get(0).length,2,'Append deduplicates the older page');
  eq(f.get(3),null,'End of paging is recognized');
  eq(f.requests.at(-1).url,'/api/followups?limit=50&cursor=next','Append uses the saved continuation cursor');
  f.unmount();
 }
+
+// Four sequential older-record pages per owner tap; scanning continues at the verified cursor.
+{
+ const f=fixture();const urls=[];
+ f.response(async url=>{
+  urls.push(url);
+  const cursor=decodeURIComponent(url.split('cursor=')[1]??'');
+  if(!cursor)return response([job('recent')],'page-1');
+  const page=Number(cursor.split('-')[1]);
+  return response([job('older-'+page)],page===6?null:'page-'+(page+1));
+ });
+ f.mount();await flush();
+ eq(f.get(0).length,1,'Initial page contains one recent record');
+ eq(f.get(3),'page-1','Older cursor is retained');
+ eq(f.nodes().some(n=>n.props?.['aria-label']==='Older customer record coverage'),true,'Partial coverage is declared');
+ f.clickText('Scan next 200 older records');await flush();
+ eq(f.get(0).length,5,'Four historical pages append without replacing existing records');
+ eq(f.get(3),'page-5','One tap stops at the four-page continuation cursor');
+ eq(urls.length,5,'Bounded scan made exactly four older GET requests');
+ eq(f.nodes().some(n=>n.props?.['aria-label']==='Older customer record coverage'),true,'Remaining historical pages are still flagged');
+ f.clickText('Scan next 200 older records');await flush();
+ eq(f.get(0).length,7,'Second scan reads final two pages');
+ eq(f.get(3),null,'Verified server end clears the cursor');
+ eq(urls.length,7,'Final scan does not request extra pages after the end');
+ eq(f.nodes().some(n=>n.props?.className==='followup-coverage-complete'),true,'Last-page state displays as-of-read coverage');
+ eq(f.requests.every(x=>x.options?.cache==='no-store'),true,'All scan reads bypass browser cache');
+ eq(f.requests.some(x=>x.options?.method==='POST'),false,'Scanning cannot send or mutate');
+ f.unmount();
+}
+// Failed second page must not commit the successful first page or advance cursor.
+{
+ const f=fixture();let fail=true;
+ f.response(async url=>{
+  const cursor=decodeURIComponent(url.split('cursor=')[1]??'');
+  if(!cursor)return response([job('recent')],'next-1');
+  if(cursor==='next-1')return response([job('old-1')],'next-2');
+  if(cursor==='next-2'&&fail)throw Error('Temporary offline read failure');
+  return response([job('old-2')]);
+ });
+ f.mount();await flush();
+ f.clickText('Scan next 200 older records');await flush();
+ eq(f.get(0).length,1,'Failed scan never publishes partial older page');
+ eq(f.get(3),'next-1','Failed scan preserves exact original cursor');
+ eq(Boolean(f.get(2)),true,'Failed scan shows error instead of completeness');
+ eq(f.nodes().some(n=>n.props?.['aria-label']==='Older customer record coverage'),false,'Failed scan hides the fresh coverage claim');
+ fail=false;f.clickText('Retry older-record scan');await flush();
+ eq(f.get(0).length,3,'Explicit retry appends both records after successful scan');
+ eq(f.get(3),null,'Recovered batch reaches verified end');
+ eq(f.requests.some(x=>x.options?.method==='POST'),false,'Retries never create customer actions');
+ f.unmount();
+}
+
 // An older server response cannot overwrite a later successful read.
 {
  const f=fixture(),old=deferred();
