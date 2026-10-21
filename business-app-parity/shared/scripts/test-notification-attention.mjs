@@ -45,7 +45,7 @@ function elements(node){
  const all=[];function walk(n){if(Array.isArray(n)){for(const x of n)walk(x);return;}if(!n||typeof n!=='object')return;all.push(n);walk(n.props?.children);}walk(node);return all;
 }
 function fixture(){
- let state=[],cursor=0,effect,clean,failed=null,refreshKey=0,firstCursor=null;const olderPages=new Map();const calls=[],nav=[],closed=[],summaries=[],documentListeners={},windowListeners={},savedRows={tasks:items.tasks.map(x=>({...x})),signs:items.signs.map(x=>({...x})),checks:items.checks.map(x=>({...x})),closeouts:items.closeouts.map(x=>({...x})),estimates:items.estimates.map(x=>({...x}))};
+ let state=[],cursor=0,effect,clean,failed=null,refreshKey=0,firstCursor=null,firstReviewCursor=null,firstReviewMore=false;const olderPages=new Map(),olderReviews=new Map();const calls=[],nav=[],closed=[],summaries=[],documentListeners={},windowListeners={},savedRows={tasks:items.tasks.map(x=>({...x})),signs:items.signs.map(x=>({...x})),checks:items.checks.map(x=>({...x})),closeouts:items.closeouts.map(x=>({...x})),estimates:items.estimates.map(x=>({...x}))};
  const context={
   exports:{},require,useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}]},
   useEffect(fn){effect=fn;},taskDueBucket:taskLib.exports.taskDueBucket,flagHasMatchingDueTask:flagDedupe.exports.flagHasMatchingDueTask,taskLinkedFlag:taskContext.exports.taskLinkedFlag,
@@ -57,14 +57,19 @@ function fixture(){
       if(!olderPages.has(cursor))throw Error('Unexpected synthetic cursor: '+cursor);
       return {ok:true,json:async()=>olderPages.get(cursor)};
     }
+    if(url.startsWith('/api/payment-closeouts?cursor=')){
+     const cursor=decodeURIComponent(url.split('cursor=')[1]||'');
+     if(!olderReviews.has(cursor))throw Error('Unexpected review cursor '+cursor);
+     return {ok:true,json:async()=>olderReviews.get(cursor)};
+    }
     const name=url==='/api/tasks'?'tasks':url==='/api/dashboard-yard-signs'?'signs':url==='/api/dashboard-review-checks'?'checks':url==='/api/followups?limit=50'?'estimates':url==='/api/payment-closeouts'?'closeouts':null;
     if(!name)throw Error('Unexpected endpoint '+url);
-    return {ok:true,json:async()=>name==='estimates'?{estimates:savedRows.estimates,nextCursor:firstCursor}:name==='closeouts'?{actions:savedRows.closeouts,mayHaveMore:false}:{[name]:savedRows[name]}};},
+    return {ok:true,json:async()=>name==='estimates'?{estimates:savedRows.estimates,nextCursor:firstCursor}:name==='closeouts'?{actions:savedRows.closeouts,mayHaveMore:firstReviewMore,nextCursor:firstReviewCursor}:{[name]:savedRows[name]}};},
   ...Object.fromEntries([...tags].map(name=>[name,()=>null]))
  };
  vm.runInNewContext(compiled,context);
  const render=()=>{cursor=0;return context.exports.renderAttention({onNavigate:(...args)=>nav.push(args),onClose:()=>closed.push(true),onSummary:value=>summaries.push(value),refreshKey});};
- return {render,get:name=>state[stateNames.indexOf(name)],calls,nav,closed,summaries,initialCursor:value=>{firstCursor=value;},olderPage:(cursor,value)=>olderPages.set(cursor,value),fail:url=>{failed=url;},mount:()=>{render();clean=effect();},refresh:()=>{clean?.();render();clean=effect();},openAgain:()=>{refreshKey++;clean?.();render();clean=effect();},visibleAgain:()=>documentListeners.visibilitychange?.(),confirmSaved:update=>{update(savedRows);windowListeners['fire:attention-saved']?.();},unmount:()=>clean?.(),buttons:()=>elements(render()).filter(n=>n.type==='button')};
+ return {render,get:name=>state[stateNames.indexOf(name)],calls,nav,closed,summaries,initialCursor:value=>{firstCursor=value;},olderPage:(cursor,value)=>olderPages.set(cursor,value),reviewCursor:(value,more=true)=>{firstReviewCursor=value;firstReviewMore=more;},olderReview:(cursor,value)=>olderReviews.set(cursor,value),fail:url=>{failed=url;},mount:()=>{render();clean=effect();},refresh:()=>{clean?.();render();clean=effect();},openAgain:()=>{refreshKey++;clean?.();render();clean=effect();},visibleAgain:()=>documentListeners.visibilitychange?.(),confirmSaved:update=>{update(savedRows);windowListeners['fire:attention-saved']?.();},unmount:()=>clean?.(),buttons:()=>elements(render()).filter(n=>n.type==='button')};
 }
 {
  const f=fixture();f.mount();await flush();await flush();
@@ -158,6 +163,39 @@ function fixture(){
  eq(f.summaries.at(-1).status,'error','Failed payment-closeout feed cannot publish a verified reminder count');
  f.fail(null);f.refresh();await flush();await flush();
  eq(f.get('status'),'ready','Refresh restores closeout reminder verification');
+ f.unmount();
+}
+// Older review queue is scanned by owner and exact-job navigation remains intact.
+{
+ const f=fixture(),at=new Date(Date.now()-3600000).toISOString();
+ const closeout=(id,state='ready')=>({estimateId:id,customerId:'customer-'+id,customerName:'Customer '+id,totalCents:12000,lastPaidAt:at,state,reviewPreparedAt:state==='prepared'?at:null});
+ f.reviewCursor('cursor-1');
+ f.olderReview('cursor-1',{actions:[closeout('older-1','prepared')],mayHaveMore:true,nextCursor:'cursor-2'});
+ f.olderReview('cursor-2',{actions:[closeout('older-2')],mayHaveMore:false,nextCursor:null});
+ f.mount();await flush();await flush();
+ eq(f.get('hasMoreReviewCloseouts'),true,'First review page flags unscanned older jobs');
+ let older=f.buttons().find(b=>b.props?.children==='Check 200 older paid jobs');assert.ok(older);
+ older.props.onClick();f.refresh();await flush();await flush();
+ eq(f.get('checkedReviewCount'),1,'Owner tap verifies older prepared review job');
+ eq(f.get('rows').some(x=>x.key==='closeout:older-1'&&x.detail.includes('sending not confirmed')),true,'Prepared older review not called sent');
+ const target=f.buttons().find(b=>b.props?.['aria-label']==='Open review request: Customer older-1');assert.ok(target);
+ target.props.onClick();eq(f.nav.at(-1).join('|'),'estimates|older-1','Bell opens exact older job');
+ older=f.buttons().find(b=>b.props?.children==='Check 200 older paid jobs');older.props.onClick();f.refresh();await flush();await flush();
+ eq(f.get('hasMoreReviewCloseouts'),false,'Verified end of older pages clears truncated warning');
+ eq(f.get('checkedReviewCount'),2,'Bell includes all scanned paid jobs');
+ eq(f.calls.filter(x=>x.url.startsWith('/api/payment-closeouts?cursor=')).length,3,'Older pages fetched only after owner taps');
+ eq(f.calls.every(x=>!x.options.method&&x.options.cache==='no-store'),true,'Paging makes only private read requests');
+ f.unmount();
+}
+{
+ const f=fixture(),at=new Date(Date.now()-3600000).toISOString();
+ f.reviewCursor('cursor-loop');
+ f.olderReview('cursor-loop',{actions:[{estimateId:'broken',customerId:'customer-broken',customerName:'Broken',totalCents:12000,lastPaidAt:at,state:'ready'}],mayHaveMore:true,nextCursor:'cursor-loop'});
+ f.mount();await flush();await flush();
+ f.buttons().find(b=>b.props?.children==='Check 200 older paid jobs').props.onClick();f.refresh();await flush();await flush();
+ eq(f.get('status'),'error','Repeated review cursor fails closed');
+ eq(f.get('rows').length,0,'Malformed older page never publishes misleading reminder count');
+ eq(f.summaries.at(-1).status,'error','Broken page marks summary unavailable');
  f.unmount();
 }
 // Existing due task replaces its exact customer flag in bell, but future or completed

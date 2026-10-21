@@ -3455,6 +3455,8 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
  const [view,setView]=useState<"all"|"priority">("all");
  const [hasOlder,setHasOlder]=useState(false);
  const [hasMoreReviewCloseouts,setHasMoreReviewCloseouts]=useState(false);
+ const [reviewPageDepth,setReviewPageDepth]=useState(1);
+ const [checkedReviewCount,setCheckedReviewCount]=useState(0);
  const [checkedEstimateCount,setCheckedEstimateCount]=useState(0);
  // First 50, then 200 older per owner tap; cap at 450 records inside the bell.
  const [followupPageDepth,setFollowupPageDepth]=useState(1);
@@ -3470,8 +3472,8 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
        const urls=["/api/tasks","/api/dashboard-yard-signs","/api/dashboard-review-checks","/api/followups?limit=50","/api/payment-closeouts"];
        const responses=await Promise.all(urls.map(url=>fetch(url,{cache:"no-store",signal:controller.signal})));
        if(responses.some(r=>!r.ok))throw Error("Attention read unavailable");
-       const [taskData,signData,reviewData,followupData,closeoutData]=await Promise.all(responses.map(r=>r.json())) as [{tasks?:TaskRow[]},{signs?:DashboardYardSign[]},{checks?:DashboardReviewCheck[]},{estimates?:AttentionEstimate[];nextCursor?:string|null},{actions?:PaymentCloseoutAction[];mayHaveMore?:boolean}];
-       if(!Array.isArray(taskData.tasks)||!Array.isArray(signData.signs)||!Array.isArray(reviewData.checks)||!Array.isArray(followupData.estimates)||!(followupData.nextCursor==null||typeof followupData.nextCursor==="string")||!Array.isArray(closeoutData.actions)||typeof closeoutData.mayHaveMore!=="boolean")throw Error("Unverified attention response");
+       const [taskData,signData,reviewData,followupData,closeoutData]=await Promise.all(responses.map(r=>r.json())) as [{tasks?:TaskRow[]},{signs?:DashboardYardSign[]},{checks?:DashboardReviewCheck[]},{estimates?:AttentionEstimate[];nextCursor?:string|null},{actions?:PaymentCloseoutAction[];mayHaveMore?:boolean;nextCursor?:string|null}];
+       if(!Array.isArray(taskData.tasks)||!Array.isArray(signData.signs)||!Array.isArray(reviewData.checks)||!Array.isArray(followupData.estimates)||!(followupData.nextCursor==null||typeof followupData.nextCursor==="string")||!Array.isArray(closeoutData.actions)||typeof closeoutData.mayHaveMore!=="boolean"||!(closeoutData.nextCursor==null||typeof closeoutData.nextCursor==="string"))throw Error("Unverified attention response");
         const malformedTask=taskData.tasks.some(t=>!t||typeof t.id!=="string"||!t.id||
          typeof t.title!=="string"||!["open","completed"].includes(t.status)||
          (t.dueAt!=null&&(typeof t.dueAt!=="string"||!Number.isFinite(Date.parse(t.dueAt)))));
@@ -3506,6 +3508,29 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
             (extra.nextCursor!=null&&(extra.nextCursor===cursor||cursors.has(extra.nextCursor))))throw Error("Older follow-up page not verified");
          checked[0].push(...extra.estimates);checked[1]=extra.nextCursor??null;checked[2]++;
        }
+       // Read-only, owner-invoked keyset expansion. No partial result is
+       // published if an older page is malformed or unavailable.
+       const reviewRows=[...closeoutData.actions],seenReviews=new Set(reviewRows.map(x=>x.estimateId));
+       const seenReviewCursors=new Set<string>();
+       let reviewCursor=closeoutData.nextCursor??null,reviewMore=closeoutData.mayHaveMore,reviewPages=1;
+       while(reviewMore&&reviewCursor&&reviewPages<reviewPageDepth){
+         if(reviewCursor.length>210||seenReviewCursors.has(reviewCursor))throw Error("Review cursor did not advance");
+         const cursor=reviewCursor;seenReviewCursors.add(cursor);
+         const moreResponse=await fetch("/api/payment-closeouts?cursor="+encodeURIComponent(cursor),{cache:"no-store",signal:controller.signal});
+         if(!moreResponse.ok)throw Error("Older paid-job review page unavailable");
+         const extra=await moreResponse.json() as {actions?:PaymentCloseoutAction[];mayHaveMore?:boolean;nextCursor?:string|null};
+         if(!Array.isArray(extra.actions)||extra.actions.length>200||typeof extra.mayHaveMore!=="boolean"||
+           !(extra.nextCursor==null||typeof extra.nextCursor==="string")||
+           extra.actions.some(x=>!x||typeof x.estimateId!=="string"||!x.estimateId||
+             typeof x.customerId!=="string"||!x.customerId||typeof x.customerName!=="string"||!x.customerName.trim()||
+             !["ready","prepared"].includes(x.state)||!Number.isSafeInteger(x.totalCents)||x.totalCents<=0||
+             typeof x.lastPaidAt!=="string"||!Number.isFinite(Date.parse(x.lastPaidAt))||
+             seenReviews.has(x.estimateId))||
+           (extra.nextCursor!=null&&(extra.nextCursor===cursor||seenReviewCursors.has(extra.nextCursor))))
+             throw Error("Older review page not verified");
+         extra.actions.forEach(x=>{seenReviews.add(x.estimateId);reviewRows.push(x);});
+         reviewMore=extra.mayHaveMore;reviewCursor=extra.nextCursor??null;reviewPages++;
+       }
        const seenEstimates=new Set<string>();
        const verifiedEstimates=checked[0].filter(e=>{if(seenEstimates.has(e.id))return false;seenEstimates.add(e.id);return true;});
        const now=new Date(),localDay=now.toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
@@ -3517,7 +3542,7 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
        const dueReviews:NotificationAttentionItem[]=reviewData.checks.filter(c=>
          !flagHasMatchingDueTask(verifiedTasks,dueTaskIds,c.customerId,"review",c.requestedAt)).map(c=>({key:"review:"+c.customerId,kind:"review",customerId:c.customerId,title:c.customerName,detail:"Check review status · "+c.elapsedDays+" days since request",urgent:false,priority:40,sortAt:Date.parse(c.requestedAt)}));
        // Read-only post-payment reminders; never claim messages were sent.
-       const closeoutItems:NotificationAttentionItem[]=closeoutData.actions.map(c=>({
+       const closeoutItems:NotificationAttentionItem[]=reviewRows.map(c=>({
          key:"closeout:"+c.estimateId,kind:"closeout",estimateId:c.estimateId,customerId:c.customerId,
          title:c.customerName,detail:c.state==="prepared"?"Review request prepared · sending not confirmed":"Paid in full · request an honest review",
          urgent:false,priority:c.state==="prepared"?35:55,sortAt:Date.parse(c.lastPaidAt)
@@ -3527,8 +3552,8 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
        const estimateChecks=estimateAttentionItems(verifiedEstimates,now.getTime()).filter(item=>item.kind!=="review-request");
        if(!stopped&&thisRequest===requestId){const timeOf=(item:NotificationAttentionItem)=>item.sortAt??Number.MAX_SAFE_INTEGER;
          const next=[...dueTasks,...dueSigns,...closeoutItems,...dueReviews,...estimateChecks].sort((a,b)=>b.priority-a.priority||timeOf(a)-timeOf(b)||a.key.localeCompare(b.key));
-         setRows(next);setHasOlder(Boolean(checked[1]));setHasMoreReviewCloseouts(closeoutData.mayHaveMore);setCheckedEstimateCount(verifiedEstimates.length);setShown(8);setStatus("ready");onSummary?.({status:"ready",count:next.length});}
-     }catch{if(!stopped&&thisRequest===requestId){setRows([]);setHasOlder(false);setHasMoreReviewCloseouts(false);setStatus("error");onSummary?.({status:"error",count:0});}}
+         setRows(next);setHasOlder(Boolean(checked[1]));setHasMoreReviewCloseouts(reviewMore);setCheckedReviewCount(reviewRows.length);setCheckedEstimateCount(verifiedEstimates.length);setShown(8);setStatus("ready");onSummary?.({status:"ready",count:next.length});}
+     }catch{if(!stopped&&thisRequest===requestId){setRows([]);setHasOlder(false);setHasMoreReviewCloseouts(false);setCheckedReviewCount(0);setStatus("error");onSummary?.({status:"error",count:0});}}
    };
    void read();
    const refresh=()=>{if(document.visibilityState==="visible")void read();};
@@ -3538,7 +3563,7 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
    document.addEventListener("visibilitychange",refresh);
    const timer=window.setInterval(refresh,60000);
    return()=>{stopped=true;requestId++;controller.abort();window.removeEventListener("focus",refresh);window.removeEventListener("fire:attention-saved",refresh);document.removeEventListener("visibilitychange",refresh);window.clearInterval(timer);};
- },[reload,refreshKey,followupPageDepth]);
+ },[reload,refreshKey,followupPageDepth,reviewPageDepth]);
  const priorityCount=rows.filter(item=>item.urgent).length;
  const visibleRows=view==="priority"?rows.filter(item=>item.urgent):rows;
  const kindLabel=(kind:NotificationAttentionItem["kind"])=>kind==="task"?"task":kind==="sign"?"yard sign":kind==="review"?"review check":kind==="closeout"?"review request":kind==="followup"?"follow-up":kind==="review-request"?"review request":kind;
@@ -3549,7 +3574,7 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
    {status==="ready"&&visibleRows.length>shown&&<button type="button" className="notification-attention-more" onClick={()=>setShown(n=>n+8)}>Show next {Math.min(8,visibleRows.length-shown)} reminders · {visibleRows.length-shown} remaining</button>}
    {status==="ready"&&hasOlder&&<div className="notification-attention-coverage" role="status"><small>{checkedEstimateCount} estimates checked. Older estimates remain outside these reminder counts.</small>{followupPageDepth<9?<button type="button" className="notification-attention-more" onClick={()=>{setFollowupPageDepth(n=>Math.min(9,n+4));setStatus("loading");}}>Check up to 200 older estimates</button>:<small>Bell scan limit reached. Open Follow-ups to check remaining older records.</small>}</div>}
    {status==="ready"&&!hasOlder&&<small>All available estimate pages checked in this view as of the last successful read ({checkedEstimateCount} records).</small>}
-   {status==="ready"&&hasMoreReviewCloseouts&&<small>Review-request reminders include the 200 most recent eligible paid jobs. Open Payments for other completed jobs.</small>}
+   {status==="ready"&&hasMoreReviewCloseouts&&<div className="notification-attention-coverage" role="status"><small>{checkedReviewCount} eligible paid jobs verified. Older review requests are still outside this bell count.</small>{reviewPageDepth<10?<button type="button" className="notification-attention-more" onClick={()=>{setReviewPageDepth(n=>Math.min(10,n+1));setStatus("loading");}}>Check 200 older paid jobs</button>:<button type="button" className="notification-attention-more" onClick={()=>{onClose();onNavigate("payments");}}>Open Payments to load remaining jobs</button>}</div>}
    {status==="ready"&&<small>Matching open due tasks consolidate duplicate sign and review reminders. Open the exact task to review its linked customer event; completed tasks never mark a sign picked up or review received.</small>}
    <small>Live reminders are separate from unread activity. Nothing is sent or changed automatically.</small>
  </section>;
