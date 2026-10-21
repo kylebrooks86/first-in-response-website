@@ -1657,7 +1657,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       if(!confirmed)actions.push({key:"invoice:"+invoice.id,kind:"invoice",invoiceId:invoice.id,title:"Check invoice send record",
         detail:"Created invoice · owner send not confirmed in app",priority:45});
       else if(invoice.dueAt&&Number.isFinite(Date.parse(invoice.dueAt))&&Date.parse(invoice.dueAt)<input.now&&
-        Number.isSafeInteger(invoice.totalCents)&&Number.isSafeInteger(invoice.paidCents)&&invoice.totalCents>invoice.paidCents){
+        Number.isSafeInteger(invoice.totalCents)&&typeof invoice.paidCents==="number"&&Number.isSafeInteger(invoice.paidCents)&&invoice.totalCents>invoice.paidCents){
         actions.push({key:"billing:"+invoice.id,kind:"billing",invoiceId:invoice.id,title:"Review past-due invoice",
           detail:"Saved due date passed · confirm balance before a reminder",priority:72});
       }
