@@ -55,11 +55,26 @@ try{
  const id3="owner-message-prep:"+uid(3);
  const race=await Promise.all([post({...payload,body:"Version A",requestId:uid(3)}),post({...payload,body:"Version B",requestId:uid(3)})]);
  check(race.some(x=>x.status===201)&&race.some(x=>x.status===409)&&count(id3)===1,"Concurrent conflicting preparations do not overwrite one another");
+ const closedId=id2+":owner-cancelled";
+ db.prepare("INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES(?,?,?,?,?,?,?)")
+   .run(closedId,"alice","job1","send_cancelled","review","Explicit owner discarded unsent draft",at);
+ check((await post({...payload,channel:"email_prepared",requestId:uid(2)})).status===409,
+   "A discarded draft is not resurrected or handed off by retrying an old operation");
  const id4="owner-message-prep:"+uid(4);
  first=await post({...payload,channel:"copy",requestId:uid(4)});
  const copyAgain=await post({...payload,channel:"copy",requestId:uid(4)});
  check(first.status===201&&copyAgain.status===200&&count(id4)===1&&first.data.message.channel==="copy","Copy logs idempotently without being marked sent");
  check(db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE channel IN ('text_confirmed','email_confirmed')").get().n===0,"No send receipt is created by preparing text, email, or copy");
+ db.prepare("INSERT INTO payment_refunds(id,payment_id,estimate_id,amount_cents,mode,status,created_at) VALUES(?,?,?,?,?,?,?)")
+   .run("pending-after-prep","p-job1","job1",1000,"Stripe","pending",at);
+ check((await post({...payload,requestId:uid(1)})).status===409&&count(id)===1,
+   "A later pending refund blocks replay handoff of a previously authorized review draft");
+ db.prepare("UPDATE payment_refunds SET status='failed' WHERE id=?").run("pending-after-prep");
+ db.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES(?,?,?,?,?,?)")
+   .run("checkout-after-prep","job1","balance",10000,"open",at);
+ check((await post({...payload,requestId:uid(1)})).status===409,
+   "A subsequently opened card checkout blocks retry of a previously prepared review message");
+ db.prepare("UPDATE payment_checkout_sessions SET status='expired' WHERE id=?").run("checkout-after-prep");
  let q=queries;
  owner=null;check((await post({...payload,requestId:uid(5)})).status===401&&queries===q,"Anonymous cannot read or write private draft receipts");
  owner={email:"attacker@example.invalid"};check((await post({...payload,requestId:uid(5)})).status===401&&queries===q,"Non-owner cannot read or write private draft receipts");

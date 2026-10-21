@@ -70,15 +70,6 @@ export async function POST(request: Request) {
       const linkedEstimate=await env.DB.prepare("SELECT id FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(estimateId,customerId).first<{id:string}>();
       if(!linkedEstimate)return Response.json({error:"That estimate does not belong to this customer."},{status:409});
     }
-    if(stableId){
-      const existing=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=?").bind(stableId).first<{
-        id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string
-      }>();
-      if(existing){
-        if(!matches(existing))return Response.json({error:"That message operation already belongs to different content. Review saved messages before retrying."},{status:409});
-        return Response.json({message:existing,duplicate:true},{status:200});
-      }
-    }
     if(template==="review"){
       if(!estimateId)return Response.json({error:"A completed paid job is required before requesting a review."},{status:409});
       const reviewState=await env.DB.prepare(`SELECT e.status,
@@ -93,6 +84,20 @@ export async function POST(request: Request) {
         paidCents:Number(reviewState.paidCents),paymentReviewPending:Number(reviewState.paymentOverageOpen)>0||Number(reviewState.pendingRefundCount)>0||Number(reviewState.openCheckoutCount)>0
       }))
         return Response.json({error:"Complete the job, verify exact final payment and resolve any checkout, refund or billing hold before preparing a review request."},{status:409});
+    }
+    // Review eligibility must be revalidated even for an old identical
+    // request. A later refund or open checkout cannot authorize a handoff.
+    if(stableId){
+      const existing=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=?").bind(stableId).first<{
+        id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string
+      }>();
+      if(existing){
+        if(!matches(existing))return Response.json({error:"That message operation already belongs to different content. Review saved messages before retrying."},{status:409});
+        const closed=await env.DB.prepare("SELECT id FROM customer_messages WHERE id IN (?,?) AND channel IN ('text_confirmed','email_confirmed','send_cancelled') LIMIT 1")
+          .bind(stableId+":owner-confirmed",stableId+":owner-cancelled").first();
+        if(closed)return Response.json({error:"This prepared message has already been marked sent or discarded. Review saved history; no new handoff was started."},{status:409});
+        return Response.json({message:existing,duplicate:true},{status:200});
+      }
     }
     const id=stableId??crypto.randomUUID();
     const createdAt=new Date().toISOString();
