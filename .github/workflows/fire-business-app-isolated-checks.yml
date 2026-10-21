@@ -397,6 +397,8 @@ jobs:
         run: node scripts/test-payment-entry-state.mjs
       - name: Verify customer review invitations only after verified final payment
         run: node scripts/test-review-after-payment.mjs
+      - name: Verify mobile SMS and email prepared-message recovery with scoped owner history
+        run: node --experimental-sqlite scripts/test-pending-customer-messages.mjs
       - name: Verify paid-job review action center on synthetic SQLite
         run: node --experimental-sqlite scripts/test-payment-closeout-actions.mjs
       - name: Verify owner-only review snoozes on synthetic paid jobs
