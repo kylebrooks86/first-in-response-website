@@ -18,7 +18,7 @@ const compiled=ts.transpileModule(readFileSync('lib/follow-up-timing.ts','utf8')
 }).outputText;
 const fixedTime=Date.parse('2026-10-09T12:00:00Z');
 class FixedDate extends Date {static now(){return fixedTime;}}
-const components=['EstimateDetail','Button','MessageComposer','Clock3','Star','CalendarDays','CheckCircle2'];
+const components=['EstimateDetail','Button','MessageComposer','Clock3','Star','CalendarDays','CheckCircle2','FileText'];
 const job=(id='synthetic-job')=>({
  id,customerId:'synthetic-customer',customer:'Synthetic QA',email:'qa@example.test',phone:'9185550100',
  service:'House Wash',status:'sent',createdAt:'2026-10-01T12:00:00Z',
