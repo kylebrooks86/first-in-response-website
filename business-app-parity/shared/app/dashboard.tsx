@@ -246,6 +246,10 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const [pendingMessages,setPendingMessages]=useState<CustomerMessage[]>([]);
   const [pendingLoading,setPendingLoading]=useState(false);
   const [pendingError,setPendingError]=useState("");
+  const [pendingNextCursor,setPendingNextCursor]=useState<string|null>(null);
+  const [pendingOlderLoading,setPendingOlderLoading]=useState(false);
+  const [pendingOlderError,setPendingOlderError]=useState("");
+  const pendingOlderLock=useRef(false),pendingPageRequest=useRef(0);
   const [messageStatus,setMessageStatus]=useState("");
   const firstName=customer.name.trim().split(/\s+/)[0] || customer.name;
   const service=estimate?.service || "exterior cleaning service";
@@ -267,26 +271,30 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const needsInvoiceLink=["invoice","invoiceReminder","overdue"].includes(template);
   const needsEstimateLink=["estimate","followUp1","followUp3","followUp7"].includes(template);
   useEffect(()=>{
+    pendingPageRequest.current++;pendingOlderLock.current=false;
     setPreparedMessage(null);setPendingMessages([]);setPendingError("");
+    setPendingNextCursor(null);setPendingOlderLoading(false);setPendingOlderError("");
   },[customer.id,estimate?.id]);
   // Recover only owner-scoped unconfirmed drafts after SMS/Mail switches apps.
   // These are not proof of an actual send or delivery.
   useEffect(()=>{
     if(!open)return;
-    let active=true;setPendingLoading(true);setPendingError("");
+    let active=true;const request=++pendingPageRequest.current;
+    pendingOlderLock.current=false;setPendingOlderLoading(false);setPendingOlderError("");
+    setPendingLoading(true);setPendingError("");
     const query=new URLSearchParams({customerId:customer.id,estimateId:estimate?.id??""});
     void (async()=>{
       try{
         const response=await fetch("/api/customer-messages?"+query.toString(),{cache:"no-store"});
-        const result=await response.json() as {pending?:CustomerMessage[];error?:string};
+        const result=await response.json() as {pending?:CustomerMessage[];nextCursor?:string|null;mayHaveMore?:boolean;error?:string};
         if(!response.ok||!Array.isArray(result.pending))throw Error(result.error||"Unconfirmed messages could not be checked.");
-        if(active)setPendingMessages(result.pending.filter(item=>
+        if(active&&request===pendingPageRequest.current){setPendingNextCursor(typeof result.nextCursor==="string"?result.nextCursor:null);setPendingMessages(result.pending.filter(item=>
           item.customerId===customer.id&&(item.estimateId??"")===(estimate?.id??"")&&
-          ["text_prepared","email_prepared"].includes(item.channel)));
-      }catch(reason){if(active)setPendingError(reason instanceof Error?reason.message:"Unconfirmed message history is unavailable.");}
+          ["text_prepared","email_prepared"].includes(item.channel)));}
+      }catch(reason){if(active&&request===pendingPageRequest.current)setPendingError(reason instanceof Error?reason.message:"Unconfirmed message history is unavailable.");}
       finally{if(active)setPendingLoading(false);}
     })();
-    return()=>{active=false;};
+    return()=>{active=false;pendingPageRequest.current++;pendingOlderLock.current=false;};
   },[open,customer.id,estimate?.id]);
   useEffect(()=>{
     if(!open)return;
@@ -307,6 +315,34 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     return()=>{active=false;};
   },[open,estimate,invoiceShareToken,needsInvoiceLink]);
   useEffect(()=>{if(open&&!draftEdited.current)setBody(renderedBody);},[open,renderedBody]);
+  const loadOlderPendingMessages=async()=>{
+    const cursor=pendingNextCursor;
+    if(!open||!cursor||pendingOlderLock.current||pendingOlderLoading||pendingLoading||working)return;
+    pendingOlderLock.current=true;
+    const page=++pendingPageRequest.current,scopeCustomer=customer.id,scopeJob=estimate?.id??"";
+    setPendingOlderLoading(true);setPendingOlderError("");
+    try{
+      const query=new URLSearchParams({customerId:scopeCustomer,estimateId:scopeJob,cursor});
+      const response=await fetch("/api/customer-messages?"+query.toString(),{cache:"no-store"});
+      const result=await response.json() as {pending?:CustomerMessage[];nextCursor?:string|null;mayHaveMore?:boolean;error?:string};
+      if(!response.ok||!Array.isArray(result.pending)||Boolean(result.mayHaveMore)&&typeof result.nextCursor!=="string")
+        throw Error(result.error||"Older prepared messages could not be verified.");
+      if(page!==pendingPageRequest.current)return;
+      const verified=result.pending.filter(item=>
+        item.customerId===scopeCustomer&&(item.estimateId??"")===scopeJob&&
+        ["text_prepared","email_prepared"].includes(item.channel));
+      if(verified.length!==result.pending.length)throw Error("Older message scope could not be verified.");
+      setPendingMessages(current=>{
+        const ids=new Set(current.map(item=>item.id));
+        return [...current,...verified.filter(item=>{if(ids.has(item.id))return false;ids.add(item.id);return true;})];
+      });
+      setPendingNextCursor(typeof result.nextCursor==="string"?result.nextCursor:null);
+    }catch(reason){
+      if(page===pendingPageRequest.current)setPendingOlderError(reason instanceof Error?reason.message:"Older prepared messages are unavailable.");
+    }finally{
+      if(page===pendingPageRequest.current){pendingOlderLock.current=false;setPendingOlderLoading(false);}
+    }
+  };
   const chooseTemplate=(value:string)=>{
     if(value===template)return;
     if(draftEdited.current&&!window.confirm("Replace your edited message with another template?"))return;
@@ -338,7 +374,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       }
       uncertainPreparation.current=null;
       onLogged?.(saved);
-      if(channel!=="copy"){setPreparedMessage(saved);setPendingMessages(current=>[saved,...current.filter(item=>item.id!==saved.id)].slice(0,10));}
+      if(channel!=="copy"){setPreparedMessage(saved);setPendingMessages(current=>[saved,...current.filter(item=>item.id!==saved.id)]);}
       setMessageStatus(channel==="copy"?"Copied; sending is not confirmed.":"Prepared — sending is not confirmed. Return here after sending to confirm.");
       return true;
     }catch{
@@ -385,7 +421,10 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
             draftEdited.current=true;setTemplate(item.template);setBody(item.body);
             setPreparedMessage(item);setMessageStatus("Recovered an unconfirmed prepared message. Check the text before confirming a send.");
           }}>Resume {item.channel==="text_prepared"?"text":"email"} · {new Date(item.createdAt).toLocaleString()} · {item.template}</Button>)}</div>
+          {pendingNextCursor&&<Button variant="outline" disabled={pendingOlderLoading||working} onClick={()=>void loadOlderPendingMessages()}>{pendingOlderLoading?"Loading older drafts…":"Load older prepared messages"}</Button>}
+          {pendingOlderError&&<p role="alert">{pendingOlderError} Previously loaded drafts remain available.</p>}
         </section>}
+        {!preparedMessage&&pendingMessages.length===0&&pendingNextCursor&&<Button variant="outline" onClick={()=>void loadOlderPendingMessages()} disabled={pendingOlderLoading}>{pendingOlderLoading?"Loading older drafts…":"Load older prepared messages"}</Button>}
         {preparedMessage&&<div><p>After sending the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}, confirm here. Opening the other app does not send it.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button><Button variant="outline" disabled={working} onClick={()=>void cancelPrepared()}>Discard unsent draft</Button></div>}
         <div><Label>Message type</Label><Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{composerTemplates.map((item)=><SelectItem key={item.key} value={item.key}>{item.name}</SelectItem>)}</SelectContent></Select></div>
         <div><Label htmlFor="customerMessage">Personalized message</Label><Textarea id="customerMessage" disabled={working||Boolean(preparedMessage)} value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={8}/><small>Customer, service, price, date, address, and the private estimate or invoice link are filled in automatically when available. You can edit anything before sending.</small></div>
