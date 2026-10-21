@@ -70,8 +70,6 @@ const tick=()=>new Promise(resolve=>setImmediate(resolve));
 }
 {
  const selected=[],fallback=[];
- const navigate=compile(action);
- navigate.call(null);
  // Arrow is evaluated against the variable names captured in the real callback.
  const js=ts.transpileModule("exports.fn="+action+";",{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
  const ctx={exports:{},oldestPaidReview:{estimateId:"paid-1"},onOpenEstimate:id=>selected.push(id),onNavigate:tab=>fallback.push(tab)};
