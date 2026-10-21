@@ -364,6 +364,7 @@ jobs:
         run: |
           node scripts/test-followup-action-retry.mjs
            node scripts/test-followup-triage.mjs
+          node scripts/test-followup-exact-lookup.mjs
           node scripts/test-followup-today-actions.mjs
           node scripts/test-followup-load-errors.mjs
           node scripts/test-notification-read-recovery.mjs

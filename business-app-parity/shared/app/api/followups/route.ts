@@ -5,8 +5,13 @@ const OWNER_EMAIL="kylebrooks8605@gmail.com";
 export async function GET(request:Request){
  const user=await getChatGPTUser();if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401});
  const url=new URL(request.url),sizeText=url.searchParams.get("limit")??"50";
+ // Owner-only single saved estimate lookup for notification navigation.
+ // Do not combine exact lookups with cursor paging or custom page size.
+ const focusedId=url.searchParams.get("estimateId");
+ if(focusedId!==null&&(!/^[A-Za-z0-9_-]{1,128}$/.test(focusedId)||url.searchParams.has("cursor")||url.searchParams.has("limit")))
+  return Response.json({error:"Invalid exact follow-up lookup."},{status:400});
  if(!/^(?:[1-9]|[1-4][0-9]|50)$/.test(sizeText))return Response.json({error:"Page size must be 1 through 50."},{status:400});
- const size=Number(sizeText),encoded=url.searchParams.get("cursor");let cursor:{createdAt:string;id:string}|null=null;
+ const size=focusedId!==null?1:Number(sizeText),encoded=url.searchParams.get("cursor");let cursor:{createdAt:string;id:string}|null=null;
  if(encoded!==null){try{
   if(!encoded||encoded.length>512||!/^[A-Za-z0-9_-]+$/.test(encoded))throw Error();
   const value=JSON.parse(atob(encoded.replace(/-/g,"+").replace(/_/g,"/"))) as Record<string,unknown>;
@@ -39,11 +44,11 @@ export async function GET(request:Request){
                (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
                (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.template IN ('winBack6','winBack11') AND cm.channel IN ('text','email','text_confirmed','email_confirmed')) AS lastRebookMessageAt
         FROM estimates e JOIN customers c ON c.id = e.customer_id
-        WHERE (? IS NULL OR e.created_at < ? OR (e.created_at = ? AND e.id < ?))
+        WHERE ${focusedId!==null?"e.id = ?":"(? IS NULL OR e.created_at < ? OR (e.created_at = ? AND e.id < ?))"}
         ORDER BY e.created_at DESC,e.id DESC LIMIT ?
-      `).bind(cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null,size+1).all<{id:string;createdAt:string}>();
+      `).bind(...(focusedId!==null?[focusedId,2]:[cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null,size+1])).all<{id:string;createdAt:string}>();
   const estimates=result.results.slice(0,size),last=estimates.at(-1);
   const nextCursor=result.results.length>size&&last?btoa(JSON.stringify({createdAt:last.createdAt,id:last.id})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,""):null;
-  return Response.json({estimates,nextCursor,pageSize:size});
+  return Response.json({estimates,nextCursor,pageSize:size,...(focusedId!==null?{estimateId:focusedId}:{})});
  }catch{return Response.json({error:"Follow-up records could not be read."},{status:503});}
 }
