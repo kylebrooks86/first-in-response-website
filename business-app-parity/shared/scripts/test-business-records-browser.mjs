@@ -9,7 +9,7 @@ const fixture=`import React,{useState,useRef,useEffect}from'react';import{create
 import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
 import{businessReceiptStorage,readBusinessReceipt,reserveBusinessReceipt,releaseBusinessReceipt}from'./lib/business-create-receipt';
 import{taskDueBucket}from'./lib/task-due';
-import{businessTaskContext}from'./lib/business-task-context';
+import{businessTaskContext,taskLinkedFlag}from'./lib/business-task-context';
 import{expenseDateInstant}from'./lib/expense-date';
 const money=c=>'$'+(c/100).toFixed(2),dateTime=v=>v;
 ${[...tags].filter(t=>!actual.includes(t)).map(t=>`const ${t}=()=>null;`).join('\n')}

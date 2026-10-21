@@ -23,6 +23,7 @@ const followSource=ts.transpileModule(readFileSync('lib/follow-up-timing.ts','ut
 const followLib={exports:{}};vm.runInNewContext(followSource,followLib);
 const attentionSource=ts.transpileModule(readFileSync('lib/attention-estimates.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
 const attentionLib={exports:{},require:()=>followLib.exports};vm.runInNewContext(attentionSource,attentionLib);
+const taskContext={exports:{}};vm.runInNewContext(ts.transpileModule(readFileSync('lib/business-task-context.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:taskContext.exports,Date});
 const flagDedupe={exports:{}};vm.runInNewContext(ts.transpileModule(readFileSync('lib/attention-flag-dedupe.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:flagDedupe.exports,Date,Set});
 const today=new Date().toLocaleDateString('en-CA',{timeZone:'America/Chicago'});
 const dayBefore=new Date(today+'T12:00:00Z');dayBefore.setUTCDate(dayBefore.getUTCDate()-1);
@@ -46,7 +47,7 @@ function fixture(){
  let state=[],cursor=0,effect,clean,failed=null,refreshKey=0,firstCursor=null;const olderPages=new Map();const calls=[],nav=[],closed=[],summaries=[],documentListeners={},windowListeners={},savedRows={tasks:items.tasks.map(x=>({...x})),signs:items.signs.map(x=>({...x})),checks:items.checks.map(x=>({...x})),estimates:items.estimates.map(x=>({...x}))};
  const context={
   exports:{},require,useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}]},
-  useEffect(fn){effect=fn;},taskDueBucket:taskLib.exports.taskDueBucket,flagHasMatchingDueTask:flagDedupe.exports.flagHasMatchingDueTask,
+  useEffect(fn){effect=fn;},taskDueBucket:taskLib.exports.taskDueBucket,flagHasMatchingDueTask:flagDedupe.exports.flagHasMatchingDueTask,taskLinkedFlag:taskContext.exports.taskLinkedFlag,
   document:{visibilityState:'visible',addEventListener(name,fn){documentListeners[name]=fn;},removeEventListener(name){delete documentListeners[name];}},AbortController,estimateAttentionItems:attentionLib.exports.estimateAttentionItems,
   window:{addEventListener(name,fn){windowListeners[name]=fn;},removeEventListener(name){delete windowListeners[name];},setInterval(){return 1;},clearInterval(){}},
   fetch:async(url,options)=>{calls.push({url,options});if(failed===url)return {ok:false,json:async()=>({error:'Synthetic outage'})};
