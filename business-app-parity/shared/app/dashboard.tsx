@@ -107,6 +107,7 @@ import { FIRE_TEMPLATES, fillTemplate, type FireTemplate } from "@/lib/fire-temp
 import { FIRE_SERVICES as services, serviceDescriptionFor } from "@/lib/fire-services";
 import { DEFAULT_CASH_APP_HANDLE, DEFAULT_VENMO_HANDLE } from "@/lib/payment-methods";
 import { reviewFollowupEligible } from "@/lib/review-followup-eligibility";
+import { customerJobJourney } from "@/lib/customer-job-journey";
 
 const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
 
@@ -1734,6 +1735,8 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     };
     for(const estimate of input.estimates){
       add("estimates",estimate.id,estimate.createdAt,"Estimate created",estimate.service||"Saved estimate");
+      add("estimates",estimate.id,estimate.firstViewedAt,"Estimate link viewed","Link opened · viewer identity and intent unverified");
+      if(estimate.scheduledAt&&["scheduled","completed"].includes(estimate.status))add("estimates",estimate.id,estimate.scheduledAt,"Job scheduled","Saved scheduling status · open exact job");
       add("estimates",estimate.id,estimate.acceptedAt,"Estimate accepted",estimate.service||"Saved estimate");
       add("estimates",estimate.id,estimate.signedAt,"Agreement signed",estimate.service||"Saved estimate");
       // An owner-confirmed message is a separate, stronger audit event.
@@ -1868,10 +1871,11 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [payments,setPayments]=useState<PaymentRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [timelineShown,setTimelineShown]=useState(6);
+  const [journeyShown,setJourneyShown]=useState(3);
   const [timelineFilter,setTimelineFilter]=useState<"all"|"estimates"|"messages"|"billing"|"notes">("all");
   const [timelineSearch,setTimelineSearch]=useState("");
   const [timelineTarget,setTimelineTarget]=useState<{customerId:string;section:"estimates"|"invoices"|"payments"|"messages"|"notes";id:string}|null>(null);
-  useEffect(()=>{setTimelineShown(6);setTimelineFilter("all");setTimelineSearch("");setTimelineTarget(null);},[selectedId]);
+  useEffect(()=>{setTimelineShown(6);setTimelineFilter("all");setTimelineSearch("");setTimelineTarget(null);setJourneyShown(3);},[selectedId]);
   useEffect(()=>{setPropertyEstimateBlocked(true);setSelectedProperty(null);setPropertyWorkflowReady(false);},[selectedId]);
   const [activeEstimate, setActiveEstimate] = useState<EstimateRow | null>(null);
   const [section, setSection] = useState("estimates");
@@ -2017,6 +2021,8 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const customerMessages=messages.filter((message)=>message.customerId===selectedId);
   const historyEntries=messageHistoryEntries(customerMessages);
   const customerPayments=payments.filter((payment)=>payment.customerId===selectedId);
+  const customerJourneys=customerEstimates.slice().sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)||a.id.localeCompare(b.id))
+    .map(estimate=>({estimate,journey:customerJobJourney(estimate,customerMessages)}));
   const timelineEntries=buildCustomerTimeline({estimates:customerEstimates,invoices:customerInvoices,
     messages:historyEntries,notes:customerNotes,payments:customerPayments});
   const safeTimelineQuery=timelineSearch.trim().toLocaleLowerCase();
@@ -2194,6 +2200,23 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         <span><small>Current stage</small><strong>{activeCustomerEstimate?statusLabel(activeCustomerEstimate.status):"No active job"}</strong></span>
       </div>
       <p className="customer-balance-explanation">Collectible balances include approved or scheduled jobs and issued invoices, including amounts due on completion. Draft and sent estimates remain potential work. Deposits are part of the job balance; tips are separate.</p>
+      <section className="business-panel" role="region" aria-label="Customer estimate to scheduled job journey">
+        <header><div><h2>Estimate → scheduled job</h2><p>Six job-specific milestones derived from saved records. Views do not prove approval, and a payment total is not a separate deposit receipt.</p></div></header>
+        {customerJourneys.length?<div className="flex flex-col gap-3">
+          {customerJourneys.slice(0,journeyShown).map(({estimate,journey})=><article key={estimate.id} className="rounded-xl border border-border p-3 sm:p-4" aria-label={"Job journey for "+estimate.service}>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><strong className="block">{estimate.service||"Saved job"}</strong><small className="block text-muted-foreground">{journey.headline} · {new Date(estimate.createdAt).toLocaleDateString()}</small></div>
+              <Button variant="outline" onClick={()=>setActiveEstimate({...estimate,customer:selected.name,email:selected.email,phone:selected.phone,address:estimate.address??undefined})}>Open exact job</Button></div>
+            <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {journey.steps.map(step=><li key={step.key} className="rounded-lg border border-border p-2">
+                <span className="flex items-center gap-1 text-xs font-semibold">{step.state==="done"?<CheckCircle2 className="h-4 w-4 text-emerald-600"/>:step.state==="verify"?<AlertTriangle className="h-4 w-4 text-amber-600"/>:<Clock3 className="h-4 w-4 text-muted-foreground"/>}{step.title}</span>
+                <small className="mt-1 block text-muted-foreground">{step.detail}</small>
+                {step.at&&<time className="mt-1 block text-xs" dateTime={step.at}>{dateTime(step.at)}</time>}
+              </li>)}
+            </ol>
+          </article>)}
+          {customerJourneys.length>journeyShown&&<Button variant="outline" onClick={()=>setJourneyShown(n=>Math.min(n+3,customerJourneys.length))}>Show {Math.min(3,customerJourneys.length-journeyShown)} older job journeys</Button>}
+        </div>:<p className="customer-timeline-empty">No estimates recorded for this customer yet.</p>}
+      </section>
       <section id={`customer-flags-${selected.id}`} tabIndex={-1} className="customer-flag-panel" aria-label="Customer activity and yard sign flags">
         <div className="customer-flag-heading"><div><h2>Activity & flags</h2><p>Quick summary from saved records and your own notes. Logged contact is not proof a message was sent; review receipt is owner-reported.</p></div><ClipboardList aria-hidden="true"/></div>
         <div className="customer-flag-grid">

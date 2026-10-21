@@ -82,4 +82,26 @@ for(const key of ['pendingRefundCount','openCheckoutCount','reviewReceivedAt','r
  assert.ok(api.includes('AS '+key),key+' is read from real owner-scoped follow-up records');
 }
 assert.ok(view.includes('reviewFollowupEligible({...estimate,billingTotalCents:resolvedBillingTotalCents(estimate)},serviceAgeDays,now)'), 'Actual Follow-ups screen uses guarded helper');
-console.log('PASS '+n+' synthetic timing and review safety cases, channel separation and mobile filters.');
+const journeyContext={exports:{},Date,Number};
+vm.runInNewContext(ts.transpileModule(readFileSync('lib/customer-job-journey.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,journeyContext);
+const journey=journeyContext.exports.customerJobJourney;
+const sample={id:'e1',service:'House wash',status:'sent',createdAt:at(-3),firstEstimateSentAt:at(-3),firstViewedAt:at(-2),depositCents:5000,paidCents:0,paymentOverageOpen:0};
+const initial=journey(sample,[]);
+assert.equal(initial.headline,'Viewed · awaiting approval');
+assert.deepEqual(Array.from(initial.steps.map(s=>s.key)),['sent','viewed','followup','approved','deposit','scheduled']);
+assert.equal(initial.steps.find(s=>s.key==='viewed').state,'done');
+assert.equal(initial.steps.find(s=>s.key==='approved').state,'pending');n+=4;
+assert.equal(journey(sample,[{estimateId:'e1',template:'followUp3',channel:'text_prepared',createdAt:at(-1)}]).steps[2].state,'pending','Prepared text not sent');n++;
+assert.equal(journey(sample,[{estimateId:'e1',template:'followUp3',channel:'contact_recorded',createdAt:at(-1)}]).steps[2].state,'verify','Manual contact not message sent');n++;
+assert.equal(journey(sample,[{estimateId:'foreign',template:'followUp3',channel:'text_confirmed',createdAt:at(-1)}]).steps[2].state,'pending','Other job cannot count as send');n++;
+const approvedJourney=journey({...sample,status:'approved',acceptedAt:at(-1),paidCents:5000},[{estimateId:'e1',template:'followUp3',channel:'email_confirmed',createdAt:at(-2)}]);
+assert.equal(approvedJourney.steps[2].state,'done');
+assert.equal(approvedJourney.steps[3].state,'done');
+assert.equal(approvedJourney.steps[4].state,'done');
+assert.match(approvedJourney.steps[4].detail,/not a separate deposit receipt/);n+=4;
+assert.equal(journey({...sample,status:'scheduled',scheduledAt:at(2),paidCents:5000},[]).steps[5].state,'done');n++;
+assert.equal(journey({...sample,status:'sent',scheduledAt:at(2)},[]).steps[5].state,'verify');n++;
+assert.equal(journey({...sample,status:'approved',paidCents:5000,paymentOverageOpen:1},[]).steps[4].state,'verify');n++;
+assert.ok(view.includes('Customer estimate to scheduled job journey')&&view.includes('customerJobJourney(estimate,customerMessages)'),'Customer profile uses existing job records');n++;
+assert.ok(view.includes('Estimate link viewed')&&view.includes('Link opened · viewer identity and intent unverified'),'Timeline labels views correctly');n++;
+console.log('PASS '+n+' timing, reviewed journey milestones, billing guards, and mobile source contracts.');
