@@ -2,6 +2,7 @@
 import {businessReceiptStorage,readBusinessReceipt,reserveBusinessReceipt,releaseBusinessReceipt,type BusinessCreateKind} from "../lib/business-create-receipt";
 import {taskDueBucket} from "../lib/task-due";
 import {estimateAttentionItems,type AttentionEstimate,type AttentionEstimateItem} from "../lib/attention-estimates";
+import {flagHasMatchingDueTask} from "../lib/attention-flag-dedupe";
 import {expenseDateInstant} from "../lib/expense-date";
 import {loadCustomerCreateRequest,saveCustomerCreateRequest,clearCustomerCreateRequest,confirmedCreatedCustomer,sameCustomerCreateInput,type CreatedCustomer,type CustomerCreateInput} from "../lib/customer-create-retry";
 import {completeEstimatePages} from "@/lib/estimate-pagination";
@@ -3039,6 +3040,9 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
  const [shown,setShown]=useState(8);
  const [view,setView]=useState<"all"|"priority">("all");
  const [hasOlder,setHasOlder]=useState(false);
+ const [checkedEstimateCount,setCheckedEstimateCount]=useState(0);
+ // First 50, then 200 older per owner tap; cap at 450 records inside the bell.
+ const [followupPageDepth,setFollowupPageDepth]=useState(1);
  useEffect(()=>{
    let stopped=false,requestId=0;
    const controller=new AbortController();
@@ -3054,14 +3058,35 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
        const [taskData,signData,reviewData,followupData]=await Promise.all(responses.map(r=>r.json())) as [{tasks?:TaskRow[]},{signs?:DashboardYardSign[]},{checks?:DashboardReviewCheck[]},{estimates?:AttentionEstimate[];nextCursor?:string|null}];
        if(!Array.isArray(taskData.tasks)||!Array.isArray(signData.signs)||!Array.isArray(reviewData.checks)||!Array.isArray(followupData.estimates)||!(followupData.nextCursor==null||typeof followupData.nextCursor==="string"))throw Error("Unverified attention response");
        if(taskData.tasks.some(t=>!t||typeof t.id!=="string"||!t.id||typeof t.title!=="string"||!["open","completed"].includes(t.status)||t.dueAt!=null&&(typeof t.dueAt!=="string"||!Number.isFinite(Date.parse(t.dueAt))))||signData.signs.some(s=>!s||typeof s.customerId!=="string"||!s.customerId||typeof s.customerName!=="string"||typeof s.pickupDate!=="string"||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s.pickupDate))||reviewData.checks.some(c=>!c||typeof c.customerId!=="string"||!c.customerId||typeof c.customerName!=="string"||!Number.isFinite(Date.parse(c.requestedAt))||!Number.isFinite(c.elapsedDays))||followupData.estimates.some(e=>!e||typeof e.id!=="string"||!e.id||typeof e.customer!=="string"||typeof e.status!=="string"||typeof e.createdAt!=="string"))throw Error("Malformed attention records");
+       // Re-read a bounded number of cursor pages as a single atomic owner snapshot.
+       // Any failed/invalid page makes the whole attention read unavailable, never "all clear".
+       const checked:[AttentionEstimate[],string|null,number]=[[...followupData.estimates],followupData.nextCursor??null,1];
+       const cursors=new Set<string>();
+       while(checked[1]&&checked[2]<followupPageDepth){
+         const cursor=checked[1];
+         if(!cursor||cursors.has(cursor)||cursor.length>512)throw Error("Follow-up cursor did not advance");
+         cursors.add(cursor);
+         const extraResponse=await fetch("/api/followups?limit=50&cursor="+encodeURIComponent(cursor),{cache:"no-store",signal:controller.signal});
+         if(!extraResponse.ok)throw Error("Older follow-up page unavailable");
+         const extra=await extraResponse.json() as {estimates?:AttentionEstimate[];nextCursor?:string|null};
+         if(!Array.isArray(extra.estimates)||!(extra.nextCursor==null||typeof extra.nextCursor==="string")||
+            extra.estimates.some(e=>!e||typeof e.id!=="string"||!e.id||typeof e.customer!=="string"||typeof e.status!=="string"||typeof e.createdAt!=="string")||
+            (extra.nextCursor!=null&&(extra.nextCursor===cursor||cursors.has(extra.nextCursor))))throw Error("Older follow-up page not verified");
+         checked[0].push(...extra.estimates);checked[1]=extra.nextCursor??null;checked[2]++;
+       }
+       const seenEstimates=new Set<string>();
+       const verifiedEstimates=checked[0].filter(e=>{if(seenEstimates.has(e.id))return false;seenEstimates.add(e.id);return true;});
        const now=new Date(),localDay=now.toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
        const dueTasks:NotificationAttentionItem[]=taskData.tasks.filter(t=>["today","overdue"].includes(taskDueBucket(t,now))).map(t=>({key:"task:"+t.id,kind:"task",taskId:t.id,title:t.title,detail:taskDueBucket(t,now)==="overdue"?"Business task overdue":"Business task due today",urgent:true,priority:taskDueBucket(t,now)==="overdue"?110:85,sortAt:Date.parse(t.dueAt!)}));
-       const dueSigns:NotificationAttentionItem[]=signData.signs.filter(s=>s.pickupDate<=localDay).map(s=>({key:"sign:"+s.customerId,kind:"sign",customerId:s.customerId,title:s.customerName,detail:(s.pickupDate<localDay?"Yard sign pickup overdue · ":"Yard sign pickup due today · ")+s.pickupDate,urgent:true,priority:s.pickupDate<localDay?105:75,sortAt:Date.parse(s.pickupDate+"T12:00:00Z")}));
-       const dueReviews:NotificationAttentionItem[]=reviewData.checks.map(c=>({key:"review:"+c.customerId,kind:"review",customerId:c.customerId,title:c.customerName,detail:"Check review status · "+c.elapsedDays+" days since request",urgent:false,priority:40,sortAt:Date.parse(c.requestedAt)}));
-       const estimateChecks=estimateAttentionItems(followupData.estimates,now.getTime());
+       const dueTaskIds=new Set(dueTasks.flatMap(item=>item.taskId?[item.taskId]:[]));
+       const dueSigns:NotificationAttentionItem[]=signData.signs.filter(s=>s.pickupDate<=localDay&&
+         !flagHasMatchingDueTask(taskData.tasks,dueTaskIds,s.customerId,"sign",s.placedAt)).map(s=>({key:"sign:"+s.customerId,kind:"sign",customerId:s.customerId,title:s.customerName,detail:(s.pickupDate<localDay?"Yard sign pickup overdue · ":"Yard sign pickup due today · ")+s.pickupDate,urgent:true,priority:s.pickupDate<localDay?105:75,sortAt:Date.parse(s.pickupDate+"T12:00:00Z")}));
+       const dueReviews:NotificationAttentionItem[]=reviewData.checks.filter(c=>
+         !flagHasMatchingDueTask(taskData.tasks,dueTaskIds,c.customerId,"review",c.requestedAt)).map(c=>({key:"review:"+c.customerId,kind:"review",customerId:c.customerId,title:c.customerName,detail:"Check review status · "+c.elapsedDays+" days since request",urgent:false,priority:40,sortAt:Date.parse(c.requestedAt)}));
+       const estimateChecks=estimateAttentionItems(verifiedEstimates,now.getTime());
        if(!stopped&&thisRequest===requestId){const timeOf=(item:NotificationAttentionItem)=>item.sortAt??Number.MAX_SAFE_INTEGER;
          const next=[...dueTasks,...dueSigns,...dueReviews,...estimateChecks].sort((a,b)=>b.priority-a.priority||timeOf(a)-timeOf(b)||a.key.localeCompare(b.key));
-         setRows(next);setHasOlder(Boolean(followupData.nextCursor));setShown(8);setStatus("ready");onSummary?.({status:"ready",count:next.length});}
+         setRows(next);setHasOlder(Boolean(checked[1]));setCheckedEstimateCount(verifiedEstimates.length);setShown(8);setStatus("ready");onSummary?.({status:"ready",count:next.length});}
      }catch{if(!stopped&&thisRequest===requestId){setRows([]);setHasOlder(false);setStatus("error");onSummary?.({status:"error",count:0});}}
    };
    void read();
@@ -3072,7 +3097,7 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
    document.addEventListener("visibilitychange",refresh);
    const timer=window.setInterval(refresh,60000);
    return()=>{stopped=true;requestId++;controller.abort();window.removeEventListener("focus",refresh);window.removeEventListener("fire:attention-saved",refresh);document.removeEventListener("visibilitychange",refresh);window.clearInterval(timer);};
- },[reload,refreshKey]);
+ },[reload,refreshKey,followupPageDepth]);
  const priorityCount=rows.filter(item=>item.urgent).length;
  const visibleRows=view==="priority"?rows.filter(item=>item.urgent):rows;
  const kindLabel=(kind:NotificationAttentionItem["kind"])=>kind==="task"?"task":kind==="sign"?"yard sign":kind==="review"?"review check":kind==="followup"?"follow-up":kind==="review-request"?"review request":kind;
@@ -3081,7 +3106,9 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
    {status==="ready"&&rows.length>0&&<div className="notification-attention-filters" role="group" aria-label="Filter business reminders"><button type="button" aria-pressed={view==="all"} onClick={()=>{setView("all");setShown(8);}}>All · {rows.length}</button><button type="button" aria-pressed={view==="priority"} onClick={()=>{setView("priority");setShown(8);}}>Priority · {priorityCount}</button></div>}
    {status==="loading"?<p role="status">Checking saved tasks, signs, reviews, and follow-ups…</p>:status==="error"?<p role="alert">Attention items couldn't be verified. Refresh to try again; don't assume they are cleared.</p>:visibleRows.length?<div className="notification-attention-list">{visibleRows.slice(0,shown).map(item=><button key={item.key} type="button" className={item.urgent?"urgent":""} aria-label={`Open ${kindLabel(item.kind)}: ${item.title}`} onClick={()=>{onClose();if("taskId" in item&&item.taskId)onNavigate("business",null,null,null,item.taskId);else if("invoiceId" in item&&item.invoiceId)onNavigate("invoices",null,item.invoiceId);else if("estimateId" in item&&item.estimateId)onNavigate(item.kind==="followup"?"followups":"estimates",item.estimateId);else if("customerId" in item&&item.customerId)onNavigate("customers",null,null,item.customerId,null,item.kind==="sign"?"sign":item.kind==="review"?"review":undefined);}}><span>{item.kind==="task"?<ClipboardList aria-hidden="true"/>:item.kind==="sign"?<MapPin aria-hidden="true"/>:item.kind==="invoice"?<Receipt aria-hidden="true"/>:item.kind==="appointment"?<CalendarDays aria-hidden="true"/>:item.kind==="followup"||item.kind==="draft"?<Clock3 aria-hidden="true"/>:<Star aria-hidden="true"/>}</span><span><strong>{item.title}</strong><small>{item.detail}</small></span><ChevronRight aria-hidden="true"/></button>)}</div>:<p>{view==="priority"&&rows.length?"No priority reminders in checked records. Choose All to see routine follow-ups.":"No due items in checked records. Older estimates may still need review."}</p>}
    {status==="ready"&&visibleRows.length>shown&&<button type="button" className="notification-attention-more" onClick={()=>setShown(n=>n+8)}>Show next {Math.min(8,visibleRows.length-shown)} reminders · {visibleRows.length-shown} remaining</button>}
-   {status==="ready"&&hasOlder&&<small>Newest 50 estimates checked. Open Follow-ups for older records.</small>}
+   {status==="ready"&&hasOlder&&<div className="notification-attention-coverage" role="status"><small>{checkedEstimateCount} estimates checked. Older estimates remain outside these reminder counts.</small>{followupPageDepth<9?<button type="button" className="notification-attention-more" onClick={()=>{setFollowupPageDepth(n=>Math.min(9,n+4));setStatus("loading");}}>Check up to 200 older estimates</button>:<small>Bell scan limit reached. Open Follow-ups to check remaining older records.</small>}</div>}
+   {status==="ready"&&!hasOlder&&<small>All available estimate pages checked in this view as of the last successful read ({checkedEstimateCount} records).</small>}
+   {status==="ready"&&<small>Matching open due tasks consolidate duplicate sign and review reminders. Open the exact task to review its linked customer event; completed tasks never mark a sign picked up or review received.</small>}
    <small>Live reminders are separate from unread activity. Nothing is sent or changed automatically.</small>
  </section>;
 }

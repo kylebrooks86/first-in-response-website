@@ -23,6 +23,7 @@ const followSource=ts.transpileModule(readFileSync('lib/follow-up-timing.ts','ut
 const followLib={exports:{}};vm.runInNewContext(followSource,followLib);
 const attentionSource=ts.transpileModule(readFileSync('lib/attention-estimates.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
 const attentionLib={exports:{},require:()=>followLib.exports};vm.runInNewContext(attentionSource,attentionLib);
+const flagDedupe={exports:{}};vm.runInNewContext(ts.transpileModule(readFileSync('lib/attention-flag-dedupe.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:flagDedupe.exports,Date,Set});
 const today=new Date().toLocaleDateString('en-CA',{timeZone:'America/Chicago'});
 const dayBefore=new Date(today+'T12:00:00Z');dayBefore.setUTCDate(dayBefore.getUTCDate()-1);
 const yesterday=dayBefore.toISOString().slice(0,10);
@@ -42,13 +43,18 @@ function elements(node){
  const all=[];function walk(n){if(Array.isArray(n)){for(const x of n)walk(x);return;}if(!n||typeof n!=='object')return;all.push(n);walk(n.props?.children);}walk(node);return all;
 }
 function fixture(){
- let state=[],cursor=0,effect,clean,failed=null,refreshKey=0;const calls=[],nav=[],closed=[],summaries=[],documentListeners={},windowListeners={},savedRows={tasks:items.tasks.map(x=>({...x})),signs:items.signs.map(x=>({...x})),checks:items.checks.map(x=>({...x})),estimates:items.estimates.map(x=>({...x}))};
+ let state=[],cursor=0,effect,clean,failed=null,refreshKey=0;const olderPages=new Map();const calls=[],nav=[],closed=[],summaries=[],documentListeners={},windowListeners={},savedRows={tasks:items.tasks.map(x=>({...x})),signs:items.signs.map(x=>({...x})),checks:items.checks.map(x=>({...x})),estimates:items.estimates.map(x=>({...x}))};
  const context={
   exports:{},require,useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}]},
-  useEffect(fn){effect=fn;},taskDueBucket:taskLib.exports.taskDueBucket,
+  useEffect(fn){effect=fn;},taskDueBucket:taskLib.exports.taskDueBucket,flagHasMatchingDueTask:flagDedupe.exports.flagHasMatchingDueTask,
   document:{visibilityState:'visible',addEventListener(name,fn){documentListeners[name]=fn;},removeEventListener(name){delete documentListeners[name];}},AbortController,estimateAttentionItems:attentionLib.exports.estimateAttentionItems,
   window:{addEventListener(name,fn){windowListeners[name]=fn;},removeEventListener(name){delete windowListeners[name];},setInterval(){return 1;},clearInterval(){}},
   fetch:async(url,options)=>{calls.push({url,options});if(failed===url)return {ok:false,json:async()=>({error:'Synthetic outage'})};
+    if(url.startsWith('/api/followups?limit=50&cursor=')){
+      const cursor=decodeURIComponent(url.split('cursor=')[1]||'');
+      if(!olderPages.has(cursor))throw Error('Unexpected synthetic cursor: '+cursor);
+      return {ok:true,json:async()=>olderPages.get(cursor)};
+    }
     const name=url==='/api/tasks'?'tasks':url==='/api/dashboard-yard-signs'?'signs':url==='/api/dashboard-review-checks'?'checks':url==='/api/followups?limit=50'?'estimates':null;
     if(!name)throw Error('Unexpected endpoint '+url);
     return {ok:true,json:async()=>name==='estimates'?{estimates:savedRows.estimates,nextCursor:null}:{[name]:savedRows[name]}};},
@@ -56,7 +62,7 @@ function fixture(){
  };
  vm.runInNewContext(compiled,context);
  const render=()=>{cursor=0;return context.exports.renderAttention({onNavigate:(...args)=>nav.push(args),onClose:()=>closed.push(true),onSummary:value=>summaries.push(value),refreshKey});};
- return {render,get:name=>state[stateNames.indexOf(name)],calls,nav,closed,summaries,fail:url=>{failed=url;},mount:()=>{render();clean=effect();},refresh:()=>{clean?.();render();clean=effect();},openAgain:()=>{refreshKey++;clean?.();render();clean=effect();},visibleAgain:()=>documentListeners.visibilitychange?.(),confirmSaved:update=>{update(savedRows);windowListeners['fire:attention-saved']?.();},unmount:()=>clean?.(),buttons:()=>elements(render()).filter(n=>n.type==='button')};
+ return {render,get:name=>state[stateNames.indexOf(name)],calls,nav,closed,summaries,olderPage:(cursor,value)=>olderPages.set(cursor,value),fail:url=>{failed=url;},mount:()=>{render();clean=effect();},refresh:()=>{clean?.();render();clean=effect();},openAgain:()=>{refreshKey++;clean?.();render();clean=effect();},visibleAgain:()=>documentListeners.visibilitychange?.(),confirmSaved:update=>{update(savedRows);windowListeners['fire:attention-saved']?.();},unmount:()=>clean?.(),buttons:()=>elements(render()).filter(n=>n.type==='button')};
 }
 {
  const f=fixture();f.mount();await flush();await flush();
@@ -122,6 +128,32 @@ function fixture(){
  f.fail(null);f.refresh();await flush();await flush();
  eq(f.get('status'),'ready','Owner retry recovers all three verified feeds');
  eq(f.get('rows').length,6,'Recovered attention items reappear');
+ f.unmount();
+}
+// Existing due task replaces its exact customer flag in bell, but future or completed
+// task never suppresses physical pickup/review status.
+{
+ const f=fixture();f.mount();await flush();await flush();
+ f.confirmSaved(saved=>{
+  saved.tasks[0].customerId='customer-sign';
+  saved.tasks[0].notes='FIRE yard sign placement: 2026-10-01T12:00:00Z';
+ });await flush();await flush();
+ eq(f.get('rows').some(r=>r.key==='task:task-due'),true,'Linked due task retains exact saved task shortcut');
+ eq(f.get('rows').some(r=>r.key==='sign:customer-sign'),false,'Same sign event is not a duplicate bell item');
+ const task=f.buttons().find(b=>b.props?.['aria-label']==='Open task: Pick up yard sign');task.props.onClick();
+ eq(f.nav.at(-1).join('|'),'business||||task-due','Consolidated sign reminder opens original saved task');
+ f.confirmSaved(saved=>{saved.tasks[0].status='completed';saved.tasks[0].completedAt=new Date().toISOString();});await flush();await flush();
+ eq(f.get('rows').some(r=>r.key==='sign:customer-sign'),true,'Completed task does not falsely claim sign was physically picked up');
+ f.unmount();
+}
+// One-tap bounded older estimate scans and failure-closed rechecks.
+{
+ const f=fixture();f.mount();await flush();await flush();
+ f.olderPage('p1',{estimates:[{...items.estimates[0],id:'older-follow'}],nextCursor:'p2'});
+ f.olderPage('p2',{estimates:[],nextCursor:null});
+ f.confirmSaved(saved=>{saved.estimates=[...items.estimates];});await flush();await flush();
+ // Cursor present in first page: a new owner click checks up to 200 older estimates.
+ const first=f.calls.length;
  f.unmount();
 }
 assert.ok(source.includes('<NotificationAttention onNavigate={onNavigate} onClose={()=>setOpen(false)} onSummary={setAttentionSummary} refreshKey={attentionRefreshKey}/>'),'Bell mounts and forwards refresh generation to its read-only attention feed');
