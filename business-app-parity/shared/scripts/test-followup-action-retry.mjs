@@ -82,7 +82,7 @@ for(const problem of ['offline','http','bad-json','wrong-action','bad-createdAt'
  eq(f.postCount(),2,problem+' deliberate retry sends request');
  eq(f.lastPost().operationId,original.operationId,problem+' reuses original operation ID');
  eq(f.getOpCount(),1,problem+' never allocates a second UUID');
- eq(f.getState(5).includes(action==='snooze'?'snoozed':'Contact recorded'),true,problem+' confirms success');
+ eq(f.getState(6).includes(action==='snooze'?'snoozed':'Contact recorded'),true,problem+' confirms success');
  eq(f.retry(),null,problem+' clears pending attempt only on confirmed response');
  f.unmount();
 }
@@ -91,7 +91,7 @@ for(const problem of ['offline','http','bad-json','wrong-action','bad-createdAt'
  const f=fixture();f.mount();await flush();
  f.action('Contacted').props.onClick();await flush();await flush();
  eq(f.postCount(),1,'Normal save posts exactly once');
- eq(f.getState(5).includes('no message send is claimed'),true,'Contacted action never claims sending a message');
+ eq(f.getState(6).includes('no message send is claimed'),true,'Contacted action never claims sending a message');
  eq(f.retry(),null,'Normal confirmed save releases retry state');
  f.unmount();
 }
