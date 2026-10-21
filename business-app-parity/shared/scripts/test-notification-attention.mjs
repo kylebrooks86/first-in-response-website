@@ -42,11 +42,11 @@ function elements(node){
  const all=[];function walk(n){if(Array.isArray(n)){for(const x of n)walk(x);return;}if(!n||typeof n!=='object')return;all.push(n);walk(n.props?.children);}walk(node);return all;
 }
 function fixture(){
- let state=[],cursor=0,effect,clean,failed=null;const calls=[],nav=[],closed=[],summaries=[];
+ let state=[],cursor=0,effect,clean,failed=null,refreshKey=0;const calls=[],nav=[],closed=[],summaries=[],documentListeners={};
  const context={
   exports:{},require,useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}]},
   useEffect(fn){effect=fn;},taskDueBucket:taskLib.exports.taskDueBucket,
-  document:{visibilityState:'visible'},AbortController,estimateAttentionItems:attentionLib.exports.estimateAttentionItems,
+  document:{visibilityState:'visible',addEventListener(name,fn){documentListeners[name]=fn;},removeEventListener(name){delete documentListeners[name];}},AbortController,estimateAttentionItems:attentionLib.exports.estimateAttentionItems,
   window:{addEventListener(){},removeEventListener(){},setInterval(){return 1;},clearInterval(){}},
   fetch:async(url,options)=>{calls.push({url,options});if(failed===url)return {ok:false,json:async()=>({error:'Synthetic outage'})};
     const name=url==='/api/tasks'?'tasks':url==='/api/dashboard-yard-signs'?'signs':url==='/api/dashboard-review-checks'?'checks':url==='/api/followups?limit=50'?'estimates':null;
@@ -55,8 +55,8 @@ function fixture(){
   ...Object.fromEntries([...tags].map(name=>[name,()=>null]))
  };
  vm.runInNewContext(compiled,context);
- const render=()=>{cursor=0;return context.exports.renderAttention({onNavigate:(...args)=>nav.push(args),onClose:()=>closed.push(true),onSummary:value=>summaries.push(value)});};
- return {render,get:name=>state[stateNames.indexOf(name)],calls,nav,closed,summaries,fail:url=>{failed=url;},mount:()=>{render();clean=effect();},refresh:()=>{clean?.();render();clean=effect();},unmount:()=>clean?.(),buttons:()=>elements(render()).filter(n=>n.type==='button')};
+ const render=()=>{cursor=0;return context.exports.renderAttention({onNavigate:(...args)=>nav.push(args),onClose:()=>closed.push(true),onSummary:value=>summaries.push(value),refreshKey});};
+ return {render,get:name=>state[stateNames.indexOf(name)],calls,nav,closed,summaries,fail:url=>{failed=url;},mount:()=>{render();clean=effect();},refresh:()=>{clean?.();render();clean=effect();},openAgain:()=>{refreshKey++;clean?.();render();clean=effect();},visibleAgain:()=>documentListeners.visibilitychange?.(),unmount:()=>clean?.(),buttons:()=>elements(render()).filter(n=>n.type==='button')};
 }
 {
  const f=fixture();f.mount();await flush();await flush();
@@ -92,6 +92,12 @@ function fixture(){
  const prep=f.buttons().find(b=>b.props?.['aria-label']==='Open appointment: Prep customer');
  assert.ok(prep);prep.props.onClick();eq(f.nav.at(-1).join('|'),'estimates|est-prep','Prep shortcut opens exact estimate');
  eq(f.closed.length,6,'Each shortcut closes bell for focused navigation');
+ f.openAgain();await flush();await flush();
+ eq(f.calls.length,8,'Opening bell again triggers uncached refresh of all four owner feeds');
+ eq(f.get('status'),'ready','Reopened bell completes a fresh verified attention read');
+ f.visibleAgain();await flush();await flush();
+ eq(f.calls.length,12,'Returning to installed app through visibilitychange refreshes saved reminders');
+ eq(f.calls.every(c=>c.options.cache==='no-store'&&!c.options.method),true,'Reopen and visibility refresh remain strictly read-only');
  f.unmount();
 }
 {
@@ -108,7 +114,10 @@ function fixture(){
  eq(f.get('rows').length,6,'Recovered attention items reappear');
  f.unmount();
 }
-assert.ok(source.includes('<NotificationAttention onNavigate={onNavigate} onClose={()=>setOpen(false)} onSummary={setAttentionSummary}/>'),'Bell mounts single Needs Attention feed before activity');
+assert.ok(source.includes('<NotificationAttention onNavigate={onNavigate} onClose={()=>setOpen(false)} onSummary={setAttentionSummary} refreshKey={attentionRefreshKey}/>'),'Bell mounts and forwards refresh generation to its read-only attention feed');
+assert.ok(source.includes('setAttentionRefreshKey(n=>n+1)'),'Opening bell forces new saved reminder verification');
+assert.ok(source.includes('thisRequest===requestId'),'Earlier overlapping reads cannot replace fresher reminder results');
+assert.ok(source.includes('document.addEventListener("visibilitychange",refresh)'),'iPhone Home Screen resume refreshes saved reminders');
 assert.ok(source.includes('<PopoverContent forceMount className="notification-popover"'),'Bell reminder feed remains mounted while popover is closed');
 assert.ok(source.includes('className="notification-attention-dot"'),'Bell shows attention separately from unread events');
 assert.ok(source.includes('aria-label={unread?\`${unread} unread notifications\`:"Notifications"}'),'Legacy Notifications accessible button label remains stable for end-to-end navigation');

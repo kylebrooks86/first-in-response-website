@@ -2627,7 +2627,7 @@ type NotificationAttentionItem=AttentionEstimateItem|{key:string;kind:"task"|"si
 /** Live attention remains separate from persisted activity notifications.
  * Clicking navigates to the actual task/customer; reading never resolves it.
  */
-function NotificationAttention({onNavigate,onClose,onSummary}:{onNavigate:(tab:string,estimateId?:string|null,invoiceId?:string|null,customerId?:string|null,taskId?:string|null,customerActivity?:"sign"|"review")=>void;onClose:()=>void;onSummary?:(summary:{status:"ready"|"loading"|"error";count:number})=>void}){
+function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNavigate:(tab:string,estimateId?:string|null,invoiceId?:string|null,customerId?:string|null,taskId?:string|null,customerActivity?:"sign"|"review")=>void;onClose:()=>void;onSummary?:(summary:{status:"ready"|"loading"|"error";count:number})=>void;refreshKey?:number}){
  const [rows,setRows]=useState<NotificationAttentionItem[]>([]);
  const [status,setStatus]=useState<"loading"|"ready"|"error">("loading");
  const [reload,setReload]=useState(0);
@@ -2635,9 +2635,13 @@ function NotificationAttention({onNavigate,onClose,onSummary}:{onNavigate:(tab:s
  const [view,setView]=useState<"all"|"priority">("all");
  const [hasOlder,setHasOlder]=useState(false);
  useEffect(()=>{
-   let stopped=false;
+   let stopped=false,requestId=0;
    const controller=new AbortController();
+   setStatus("loading");
    const read=async()=>{
+     // Focus, visibility and 60-second reads may overlap; only the newest result
+     // may replace the currently verified reminder collection.
+     const thisRequest=++requestId;
      try{
        const urls=["/api/tasks","/api/dashboard-yard-signs","/api/dashboard-review-checks","/api/followups?limit=50"];
        const responses=await Promise.all(urls.map(url=>fetch(url,{cache:"no-store",signal:controller.signal})));
@@ -2650,17 +2654,19 @@ function NotificationAttention({onNavigate,onClose,onSummary}:{onNavigate:(tab:s
        const dueSigns:NotificationAttentionItem[]=signData.signs.filter(s=>s.pickupDate<=localDay).map(s=>({key:"sign:"+s.customerId,kind:"sign",customerId:s.customerId,title:s.customerName,detail:(s.pickupDate<localDay?"Yard sign pickup overdue · ":"Yard sign pickup due today · ")+s.pickupDate,urgent:true,priority:s.pickupDate<localDay?105:75,sortAt:Date.parse(s.pickupDate+"T12:00:00Z")}));
        const dueReviews:NotificationAttentionItem[]=reviewData.checks.map(c=>({key:"review:"+c.customerId,kind:"review",customerId:c.customerId,title:c.customerName,detail:"Check review status · "+c.elapsedDays+" days since request",urgent:false,priority:40,sortAt:Date.parse(c.requestedAt)}));
        const estimateChecks=estimateAttentionItems(followupData.estimates,now.getTime());
-       if(!stopped){const timeOf=(item:NotificationAttentionItem)=>item.sortAt??Number.MAX_SAFE_INTEGER;
+       if(!stopped&&thisRequest===requestId){const timeOf=(item:NotificationAttentionItem)=>item.sortAt??Number.MAX_SAFE_INTEGER;
          const next=[...dueTasks,...dueSigns,...dueReviews,...estimateChecks].sort((a,b)=>b.priority-a.priority||timeOf(a)-timeOf(b)||a.key.localeCompare(b.key));
          setRows(next);setHasOlder(Boolean(followupData.nextCursor));setShown(8);setStatus("ready");onSummary?.({status:"ready",count:next.length});}
-     }catch{if(!stopped){setRows([]);setHasOlder(false);setStatus("error");onSummary?.({status:"error",count:0});}}
+     }catch{if(!stopped&&thisRequest===requestId){setRows([]);setHasOlder(false);setStatus("error");onSummary?.({status:"error",count:0});}}
    };
    void read();
    const refresh=()=>{if(document.visibilityState==="visible")void read();};
    window.addEventListener("focus",refresh);
+   // Installed iPhone Home Screen apps can resume via visibilitychange without focus.
+   document.addEventListener("visibilitychange",refresh);
    const timer=window.setInterval(refresh,60000);
-   return()=>{stopped=true;controller.abort();window.removeEventListener("focus",refresh);window.clearInterval(timer);};
- },[reload]);
+   return()=>{stopped=true;requestId++;controller.abort();window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh);window.clearInterval(timer);};
+ },[reload,refreshKey]);
  const priorityCount=rows.filter(item=>item.urgent).length;
  const visibleRows=view==="priority"?rows.filter(item=>item.urgent):rows;
  const kindLabel=(kind:NotificationAttentionItem["kind"])=>kind==="task"?"task":kind==="sign"?"yard sign":kind==="review"?"review check":kind==="followup"?"follow-up":kind==="review-request"?"review request":kind;
@@ -2678,6 +2684,7 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
   const [items,setItems]=useState<AppNotification[]>([]);
   const [unread,setUnread]=useState(0);
   const [attentionSummary,setAttentionSummary]=useState<{status:"loading"|"ready"|"error";count:number}>({status:"loading",count:0});
+  const [attentionRefreshKey,setAttentionRefreshKey]=useState(0);
   const [open,setOpen]=useState(false);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
@@ -2725,11 +2732,11 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
   const icon=(type:string)=>type==="estimate_change_requested"?<MessageSquareText/>:type==="estimate_viewed"?<Eye/>:type==="invoice_viewed"?<Receipt/>:type==="estimate_accepted"?<CheckCircle2/>:<CircleDollarSign/>;
   const attentionCount=attentionSummary.status==="ready"?attentionSummary.count:0;
   const attentionDescription=attentionCount?`${attentionCount} business reminders need attention`:attentionSummary.status==="error"?"Business reminders could not be verified":undefined;
-  return <Popover open={open} onOpenChange={(value)=>{setOpen(value);if(value)void load();}}><PopoverTrigger asChild><button className="notification-button" aria-label={unread?`${unread} unread notifications`:"Notifications"} aria-description={attentionDescription} title={attentionDescription}><Bell/>{unread>0&&<b>{unread>9?"9+":unread}</b>}{unread===0&&attentionCount>0&&<span aria-hidden="true" className="notification-attention-dot"/>}{unread===0&&attentionSummary.status==="error"&&<span aria-hidden="true" className="notification-attention-dot unavailable"/>}</button></PopoverTrigger><PopoverContent forceMount className="notification-popover" align="end">
+  return <Popover open={open} onOpenChange={(value)=>{setOpen(value);if(value){setAttentionSummary({status:"loading",count:0});setAttentionRefreshKey(n=>n+1);void load();}}}><PopoverTrigger asChild><button className="notification-button" aria-label={unread?`${unread} unread notifications`:"Notifications"} aria-description={attentionDescription} title={attentionDescription}><Bell/>{unread>0&&<b>{unread>9?"9+":unread}</b>}{unread===0&&attentionCount>0&&<span aria-hidden="true" className="notification-attention-dot"/>}{unread===0&&attentionSummary.status==="error"&&<span aria-hidden="true" className="notification-attention-dot unavailable"/>}</button></PopoverTrigger><PopoverContent forceMount className="notification-popover" align="end">
     <header><div><strong>Notifications</strong><small>{unread?`${unread} unread activity`:attentionSummary.status==="error"?"Reminders unavailable":attentionCount?`${attentionCount} business reminder${attentionCount===1?"":"s"}`:attentionSummary.status==="loading"?"Checking business reminders…":"No outstanding reminders in checked records"}</small></div>{unread>0&&<button disabled={busy} onClick={()=>void updateRead({all:true})}>Mark all read</button>}</header>
     {error&&<p className="save-error" role="alert">{error}</p>}
     {busy&&<p role="status" aria-live="polite">Confirming notification update…</p>}
-    <NotificationAttention onNavigate={onNavigate} onClose={()=>setOpen(false)} onSummary={setAttentionSummary}/>
+    <NotificationAttention onNavigate={onNavigate} onClose={()=>setOpen(false)} onSummary={setAttentionSummary} refreshKey={attentionRefreshKey}/>
     <div className="notification-activity-title">Recent activity · {items.length}</div>
     <div className="notification-list">{items.length?items.map((item)=><button key={item.id} className={item.readAt?"":"unread"} onClick={()=>{if(!item.readAt)void updateRead({id:item.id});setOpen(false);onNavigate(item.type.startsWith("invoice_")&&item.invoiceId?"invoices":item.estimateId?"estimates":"customers",item.estimateId,item.type.startsWith("invoice_")?item.invoiceId:null,item.customerId);}}><span className={`notification-icon ${item.type}`}>{icon(item.type)}</span><span><strong>{item.title}</strong><p>{item.body}</p><small>{dateTime(item.createdAt)}</small></span></button>):<div className="notification-empty"><Bell/><strong>No notifications yet</strong><p>Customer views, approvals, and confirmed payments will appear here.</p></div>}</div>
   </PopoverContent></Popover>;
