@@ -3262,7 +3262,24 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
        if(responses.some(r=>!r.ok))throw Error("Attention read unavailable");
        const [taskData,signData,reviewData,followupData,closeoutData]=await Promise.all(responses.map(r=>r.json())) as [{tasks?:TaskRow[]},{signs?:DashboardYardSign[]},{checks?:DashboardReviewCheck[]},{estimates?:AttentionEstimate[];nextCursor?:string|null},{actions?:PaymentCloseoutAction[];mayHaveMore?:boolean}];
        if(!Array.isArray(taskData.tasks)||!Array.isArray(signData.signs)||!Array.isArray(reviewData.checks)||!Array.isArray(followupData.estimates)||!(followupData.nextCursor==null||typeof followupData.nextCursor==="string")||!Array.isArray(closeoutData.actions)||typeof closeoutData.mayHaveMore!=="boolean")throw Error("Unverified attention response");
-       if(taskData.tasks.some(t=>!t||typeof t.id!=="string"||!t.id||typeof t.title!=="string"||!["open","completed"].includes(t.status)||t.dueAt!=null&&(typeof t.dueAt!=="string"||!Number.isFinite(Date.parse(t.dueAt))))||signData.signs.some(s=>!s||typeof s.customerId!=="string"||!s.customerId||typeof s.customerName!=="string"||typeof s.pickupDate!=="string"||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s.pickupDate))||reviewData.checks.some(c=>!c||typeof c.customerId!=="string"||!c.customerId||typeof c.customerName!=="string"||!Number.isFinite(Date.parse(c.requestedAt))||!Number.isFinite(c.elapsedDays))||followupData.estimates.some(e=>!e||typeof e.id!=="string"||!e.id||typeof e.customer!=="string"||typeof e.status!=="string"||typeof e.createdAt!=="string")||closeoutData.actions.some(c=>!c||typeof c.estimateId!=="string"||!c.estimateId||typeof c.customerId!=="string"||!c.customerId||typeof c.customerName!=="string"||!c.customerName||!["ready","prepared"].includes(c.state)||!Number.isSafeInteger(c.totalCents)||c.totalCents<=0||typeof c.lastPaidAt!=="string"||!Number.isFinite(Date.parse(c.lastPaidAt)))||closeoutData.actions.length>200)throw Error("Malformed attention records");
+        const malformedTask=taskData.tasks.some(t=>!t||typeof t.id!=="string"||!t.id||
+         typeof t.title!=="string"||!["open","completed"].includes(t.status)||
+         (t.dueAt!=null&&(typeof t.dueAt!=="string"||!Number.isFinite(Date.parse(t.dueAt)))));
+        const malformedSign=signData.signs.some(s=>!s||typeof s.customerId!=="string"||!s.customerId||
+         typeof s.customerName!=="string"||typeof s.pickupDate!=="string"||
+         !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s.pickupDate));
+        const malformedReview=reviewData.checks.some(c=>!c||typeof c.customerId!=="string"||!c.customerId||
+         typeof c.customerName!=="string"||!Number.isFinite(Date.parse(c.requestedAt))||
+         !Number.isFinite(c.elapsedDays));
+        const malformedFollowup=followupData.estimates.some(e=>!e||typeof e.id!=="string"||!e.id||
+         typeof e.customer!=="string"||typeof e.status!=="string"||typeof e.createdAt!=="string");
+        const malformedCloseout=closeoutData.actions.length>200||closeoutData.actions.some(c=>!c||
+         typeof c.estimateId!=="string"||!c.estimateId||typeof c.customerId!=="string"||!c.customerId||
+         typeof c.customerName!=="string"||!c.customerName.trim()||
+         !["ready","prepared"].includes(c.state)||!Number.isSafeInteger(c.totalCents)||c.totalCents<=0||
+         typeof c.lastPaidAt!=="string"||!Number.isFinite(Date.parse(c.lastPaidAt)));
+        if(malformedTask||malformedSign||malformedReview||malformedFollowup||malformedCloseout)
+          throw Error("Malformed attention records");
        // Re-read a bounded number of cursor pages as a single atomic owner snapshot.
        // Any failed/invalid page makes the whole attention read unavailable, never "all clear".
        const checked:[AttentionEstimate[],string|null,number]=[[...followupData.estimates],followupData.nextCursor??null,1];
@@ -3295,7 +3312,9 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
          title:c.customerName,detail:c.state==="prepared"?"Review request prepared · sending not confirmed":"Paid in full · request an honest review",
          urgent:false,priority:c.state==="prepared"?35:55,sortAt:Date.parse(c.lastPaidAt)
        }));
-       const estimateChecks=estimateAttentionItems(verifiedEstimates,now.getTime());
+       // Review-request reminders come from the canonical, verified closeout ledger,
+       // not the older partial estimate scan: no duplicate or premature nudge.
+       const estimateChecks=estimateAttentionItems(verifiedEstimates,now.getTime()).filter(item=>item.kind!=="review-request");
        if(!stopped&&thisRequest===requestId){const timeOf=(item:NotificationAttentionItem)=>item.sortAt??Number.MAX_SAFE_INTEGER;
          const next=[...dueTasks,...dueSigns,...closeoutItems,...dueReviews,...estimateChecks].sort((a,b)=>b.priority-a.priority||timeOf(a)-timeOf(b)||a.key.localeCompare(b.key));
          setRows(next);setHasOlder(Boolean(checked[1]));setHasMoreReviewCloseouts(closeoutData.mayHaveMore);setCheckedEstimateCount(verifiedEstimates.length);setShown(8);setStatus("ready");onSummary?.({status:"ready",count:next.length});}
