@@ -47,7 +47,7 @@ eq(evidence(null,null,null).kind,'unverified','Missing status remains unknown');
 eq(evidence('not-a-time',null,null).kind,'unverified','Malformed time fails closed');
 eq(evidence(at(2),null,null).kind,'unverified','Future contact timestamp fails closed');
 const stubs=Object.fromEntries(['EstimateDetail','Button','MessageComposer','Clock3','Star','CalendarDays','CheckCircle2','FileText','ChevronRight','Users','Phone','MessageSquareText','Mail','AlertTriangle'].map(x=>[x,()=>null]));
-const estimate=(id,customerId,extra={})=>({id,customerId,customer:id==='q1'||id==='q2'?'Same Customer':'Another Customer',service:'House Wash',status:'sent',createdAt:at(-8),firstEstimateSentAt:at(-8),lastEstimateSentAt:at(-8),totalCents:12000,depositCents:6000,paidCents:0,paymentOverageOpen:0,...extra});
+const estimate=(id,customerId,extra={})=>({id,customerId,customer:id==='q1'||id==='q2'?'Same Customer':'Another Customer',service:'House Wash',status:'sent',createdAt:at(-8),firstEstimateSentAt:at(-8),lastEstimateSentAt:at(-8),totalCents:12000,depositCents:6000,paidCents:0,paymentOverageOpen:0,pendingRefundCount:0,openCheckoutCount:0,...extra});
 const saved=[
  estimate('q1','one',{lastConfirmedMessageAt:at(-2),lastPreparedAt:at(-1),firstViewedAt:at(-2)}),
  estimate('q2','one',{lastConfirmedMessageAt:at(-3)}),
