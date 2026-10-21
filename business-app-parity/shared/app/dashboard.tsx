@@ -19,7 +19,7 @@ import { OwnerAccountView } from "./owner-account";
 import {OfflineCustomerPhotos} from "../components/offline-customer-photos";
 import {saveOfflinePhotoCustomerDirectory,loadOfflinePhotoCustomerDirectory,clearOfflinePhotoCustomerDirectory,type OfflinePhotoCustomer} from "../lib/offline-photo-customer-directory";
 import {mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory} from "../lib/offline-photo-availability";
-import { estimateFollowUpTiming, estimateReminderStage, followupUrgency } from "../lib/follow-up-timing";
+import { estimateFollowUpTiming, estimateReminderStage, followupUrgency, todayActionLane, todayCustomerQueue, followupLatestContact } from "../lib/follow-up-timing";
 import { messageHistoryEntries } from "../lib/message-history";
 import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility} from "../lib/customer-activity-flags";
 import type {DashboardYardSign} from "../lib/dashboard-yard-signs";
@@ -2521,6 +2521,9 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   const highPriorityCount=actions.filter(isHighPriority).length;
   const bucketCount=(bucket:"past-target"|"due"|"upcoming"|"review")=>actions.filter(item=>followupUrgency(item,now).bucket===bucket).length;
   const visibleActions=actions.filter(item=>(actionFilter==="all"||followupGroup(item.template,item.kind)===actionFilter)&&(!highPriorityOnly||isHighPriority(item))&&(urgencyFilter==="all"||followupUrgency(item,now).bucket===urgencyFilter));
+  // Same saved actions as the full list; one preview per verified customer, no extra API or writes.
+  const todayQueue=todayCustomerQueue(visibleActions,now);
+  const actionableCount=visibleActions.filter(item=>todayActionLane(item,now)!==null).length;
   const cardTarget=(id:string,template:string)=>["followUp1","followUp3","followUp7"].includes(template)?"followup-action-"+id:"followup-card-"+id+"-"+template;
   const jumpToAction=(id:string,template:string)=>{
     const node=document.getElementById(cardTarget(id,template));
@@ -2575,12 +2578,22 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
       </div><div className="followup-priority-toggle"><button type="button" aria-label="Show high priority follow-ups" aria-pressed={highPriorityOnly} onClick={()=>setHighPriorityOnly(current=>!current)}><AlertTriangle aria-hidden="true"/> High priority only ({highPriorityCount})</button><small>Includes higher-ranked due actions and records requiring owner review; not a claim that all are overdue.</small></div>
       <p role="status">Showing {visibleActions.length} of {actions.length} recommended actions from {rows.length} loaded records. Saved activity is for owner review; no message is sent by opening it.</p>
     </div>}
-    {!loading&&!error&&visibleActions.length>0&&<section className="followup-priority-jumps" aria-label="Top follow-up priorities in loaded records">
-      <div><strong>Jump to next action</strong><small>Top {Math.min(3,visibleActions.length)} of {visibleActions.length} matching saved-record recommendations · opening doesn't send or record contact</small></div>
-      <div className="followup-priority-buttons">{visibleActions.slice(0,3).map(({estimate,template,kind,reason})=>
-        <button type="button" key={estimate.id+":"+template} onClick={()=>jumpToAction(estimate.id,template)} aria-label={"Jump to "+estimate.customer+" "+template+" action"}>
-          <span><strong>{estimate.customer}</strong><small>{kind==="history"?"Needs owner review":reason}</small></span><ChevronRight aria-hidden="true"/>
-        </button>)}</div>
+    {!loading&&!error&&todayQueue.length>0&&<section className="followup-priority-jumps" aria-label="Top follow-up priorities in loaded records">
+      <div><strong>Today's customer actions</strong><small>{todayQueue.length} customer{todayQueue.length===1?"":"s"} highlighted from {actionableCount} matching action{actionableCount===1?"":"s"} in loaded records · suggested timing, not contractual deadlines · opening never saves or sends</small></div>
+      <div className="followup-priority-buttons">{todayQueue.map(({item,lane,additionalCustomerActions})=>{
+        const {estimate,template,reason,kind}=item;
+        const latest=followupLatestContact(estimate,now);
+        return <div className="followup-today-item" key={estimate.id+":"+template}>
+          <span className={"followup-today-lane "+(lane==="now"?"now":"verify")}>{lane==="now"?"Act now":"Verify first"}</span>
+          <div className="followup-today-actions">
+            <button type="button" onClick={()=>jumpToAction(estimate.id,template)} aria-label={"Jump to "+estimate.customer+" "+template+" action"}>
+              <span><strong>{estimate.customer}</strong><small>{kind==="history"?"Check saved history before outreach":reason}</small><small>{latest.label}{latest.at?" · "+new Date(latest.at).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):""}</small>{additionalCustomerActions>0&&<small>{additionalCustomerActions} more saved action{additionalCustomerActions===1?"":"s"} for this customer in full list</small>}</span><ChevronRight aria-hidden="true"/>
+            </button>
+            {onOpenCustomer&&estimate.customerId&&<button className="followup-today-customer" type="button" onClick={()=>onOpenCustomer(estimate.customerId!)} aria-label={"Open customer profile for "+estimate.customer}>Customer</button>}
+          </div>
+        </div>;
+      })}</div>
+      <small>Prepared/copied and manually logged contact are not proof a message was sent. Full action controls and recent history remain in the cards below.</small>
     </section>}
     {loading&&rows.length===0?<div className="customers-state">Checking customer follow-ups…</div>:error&&rows.length===0?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visibleActions.length?<section className="followup-list">{visibleActions.map(({estimate,template,reason,kind,dueAt})=>{const urgency=followupUrgency({estimate,template,kind,dueAt,priority:0},now);const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};const milestones=followupMilestones(estimate);return <article className={`followup-card ${kind}${focusEstimateId===estimate.id?" followup-card-focused":""}`} id={cardTarget(estimate.id,template)} tabIndex={-1} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><div className="flex flex-wrap items-center gap-2 py-1"><span className={"rounded-full px-2 py-0.5 text-xs font-semibold "+(urgency.bucket==="past-target"?"bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-200":urgency.bucket==="upcoming"?"bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200":"bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200")}>{urgency.label}</span></div><p>{reason}</p><small>{estimate.service} · {money(billingBalanceCents(estimate))}</small>
       {estimate.lastConfirmedMessageAt&&Number.isFinite(Date.parse(estimate.lastConfirmedMessageAt))&&<small className="block">Owner-confirmed message: {new Date(estimate.lastConfirmedMessageAt).toLocaleDateString("en-US",{timeZone:"America/Chicago"})} · delivery unverified</small>}

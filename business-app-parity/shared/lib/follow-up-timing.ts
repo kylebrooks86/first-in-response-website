@@ -74,3 +74,52 @@ export function followupUrgency(item:FollowupUrgencyInput,now:number):{bucket:Fo
  if(item.kind==="review")return {bucket:"review",label:"Review request suggested",rank:6};
  return {bucket:"review",label:"Review next action",rank:6};
 }
+
+
+/** Display-only queue based on existing recommendation records.
+ * Repeat recommendations beyond today and review requests remain in the full list. */
+export type TodayQueueAction = FollowupUrgencyInput & {
+ estimate:FollowupUrgencyInput["estimate"] & {id:string;customerId?:string|null};
+};
+export type TodayQueueLane = "now"|"verify";
+export function todayActionLane(item:TodayQueueAction,now:number):TodayQueueLane|null {
+ const urgency=followupUrgency(item,now);
+ if(urgency.rank<=3)return "now";
+ if(item.kind==="history"||item.template==="invoiceReminder"||item.estimate.status==="draft")return "verify";
+ return null;
+}
+export function todayCustomerQueue<T extends TodayQueueAction>(items:readonly T[],now:number,limit=5) {
+ const candidates=items.map(item=>({item,lane:todayActionLane(item,now)})).filter(
+   (entry):entry is {item:T;lane:TodayQueueLane}=>entry.lane!==null
+ );
+ const keyFor=(item:T)=>item.estimate.customerId?.trim()?`customer:${item.estimate.customerId}`:`estimate:${item.estimate.id}`;
+ const counts=new Map<string,number>(),seen=new Set<string>();
+ for(const entry of candidates){const key=keyFor(entry.item);counts.set(key,(counts.get(key)??0)+1);}
+ const queue:{item:T;lane:TodayQueueLane;additionalCustomerActions:number}[]=[];
+ for(const entry of candidates){
+   const key=keyFor(entry.item);
+   if(seen.has(key))continue;
+   seen.add(key);
+   if(queue.length>=Math.max(0,Math.min(5,limit)))break;
+   queue.push({...entry,additionalCustomerActions:(counts.get(key)??1)-1});
+ }
+ return queue;
+}
+
+/** Do not promote a copied/prepared message or contact note into a sent claim. */
+export type FollowupContactEvidence={
+ lastConfirmedMessageAt?:string|null;lastPreparedAt?:string|null;lastManualContactAt?:string|null;
+};
+export function followupLatestContact(record:FollowupContactEvidence,now:number){
+ const entries=[
+   {key:"confirmed" as const,value:record.lastConfirmedMessageAt,label:"Owner-confirmed message · delivery unverified"},
+   {key:"prepared" as const,value:record.lastPreparedAt,label:"Prepared/copied · sending unconfirmed"},
+   {key:"logged" as const,value:record.lastManualContactAt,label:"Contact logged · no send claimed"}
+ ];
+ if(!Number.isFinite(now))return {kind:"unverified" as const,at:null,label:"Contact timing could not be checked"};
+ const parsed=entries.map((e)=>({...e,at:timestamp(e.value)}));
+ if(parsed.some(e=>e.value&&(e.at===null||e.at>now+300000)))return {kind:"unverified" as const,at:null,label:"Contact date needs review"};
+ const latest=parsed.filter((e):e is typeof e & {at:number}=>e.at!==null).sort((a,b)=>b.at-a.at)[0];
+ return latest?{kind:latest.key,at:new Date(latest.at).toISOString(),label:latest.label}:
+   {kind:"unverified" as const,at:null,label:"No confirmed contact status in saved records"};
+}

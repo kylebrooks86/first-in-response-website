@@ -170,7 +170,7 @@ for(const [name,handler] of [
 {
  const f=fixture();
  const quote=job('older-quote');
- const bill={...job('billing-job'),status:'accepted',invoiceId:'invoice-bill',createdAt:'2026-10-02T12:00:00Z'};
+ const bill={...job('billing-job'),customerId:'billing-customer',status:'accepted',invoiceId:'invoice-bill',createdAt:'2026-10-02T12:00:00Z'};
  f.response(async()=>response([quote,bill]));
  f.mount();await flush();
  const priority=f.nodes().find(n=>n.props?.['aria-label']==='Top follow-up priorities in loaded records');

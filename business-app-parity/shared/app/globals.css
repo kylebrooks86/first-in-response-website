@@ -1488,3 +1488,18 @@ html,body{max-width:100%;overflow-x:clip}
 .followup-contact-panel li span{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere}.followup-contact-panel li strong{font-size:12px}
 .followup-contact-panel time{font-size:11px;color:var(--muted-foreground);text-align:right;flex:0 0 90px}
 .followup-contact-panel button{min-height:44px}
+
+
+/* Today preview extends the existing Follow-ups jump region; no duplicate workflow. */
+.followup-today-item{min-width:0;display:grid;align-content:start;gap:7px;border:1px solid var(--border);border-radius:11px;background:var(--card);padding:10px}
+.followup-today-lane{justify-self:start;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:750;background:var(--muted);color:var(--foreground)}
+.followup-today-lane.now{background:#e9f5ed;color:#225c38}
+.followup-today-lane.verify{background:#fff1d5;color:#754813}
+[data-theme="dark"] .followup-today-lane.now{background:#173529;color:#c6efd5}
+[data-theme="dark"] .followup-today-lane.verify{background:#402e14;color:#ffde9c}
+.followup-today-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;min-width:0}
+.followup-priority-buttons .followup-today-actions>button{min-height:48px}
+.followup-today-actions>button:first-child{min-width:0}
+.followup-today-actions>button:first-child small{overflow-wrap:anywhere;line-height:1.45}
+.followup-priority-buttons .followup-today-customer{font-size:12px;font-weight:700;white-space:nowrap}
+@media(max-width:390px){.followup-today-actions{grid-template-columns:minmax(0,1fr)}.followup-priority-buttons .followup-today-customer{justify-content:center}}
