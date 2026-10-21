@@ -241,6 +241,9 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const [siteOrigin,setSiteOrigin]=useState("");
   const [working,setWorking]=useState(false);
   const [preparedMessage,setPreparedMessage]=useState<CustomerMessage|null>(null);
+  const [pendingMessages,setPendingMessages]=useState<CustomerMessage[]>([]);
+  const [pendingLoading,setPendingLoading]=useState(false);
+  const [pendingError,setPendingError]=useState("");
   const [messageStatus,setMessageStatus]=useState("");
   const firstName=customer.name.trim().split(/\s+/)[0] || customer.name;
   const service=estimate?.service || "exterior cleaning service";
@@ -261,6 +264,28 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const composerTemplates=templates.filter((item)=>item.channel!=="document");
   const needsInvoiceLink=["invoice","invoiceReminder","overdue"].includes(template);
   const needsEstimateLink=["estimate","followUp1","followUp3","followUp7"].includes(template);
+  useEffect(()=>{
+    setPreparedMessage(null);setPendingMessages([]);setPendingError("");
+  },[customer.id,estimate?.id]);
+  // Recover only owner-scoped unconfirmed drafts after SMS/Mail switches apps.
+  // These are not proof of an actual send or delivery.
+  useEffect(()=>{
+    if(!open)return;
+    let active=true;setPendingLoading(true);setPendingError("");
+    const query=new URLSearchParams({customerId:customer.id,estimateId:estimate?.id??""});
+    void (async()=>{
+      try{
+        const response=await fetch("/api/customer-messages?"+query.toString(),{cache:"no-store"});
+        const result=await response.json() as {pending?:CustomerMessage[];error?:string};
+        if(!response.ok||!Array.isArray(result.pending))throw Error(result.error||"Unconfirmed messages could not be checked.");
+        if(active)setPendingMessages(result.pending.filter(item=>
+          item.customerId===customer.id&&(item.estimateId??"")===(estimate?.id??"")&&
+          ["text_prepared","email_prepared"].includes(item.channel)));
+      }catch(reason){if(active)setPendingError(reason instanceof Error?reason.message:"Unconfirmed message history is unavailable.");}
+      finally{if(active)setPendingLoading(false);}
+    })();
+    return()=>{active=false;};
+  },[open,customer.id,estimate?.id]);
   useEffect(()=>{
     if(!open)return;
     let active=true;
@@ -291,14 +316,14 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       const response=await fetch("/api/customer-messages",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerId:customer.id,estimateId:estimate?.id,channel,template,body})});
       const result=await response.json() as {message?:CustomerMessage;error?:string};
       if(!response.ok||!result.message){setMessageStatus(result.error||"Message preparation could not be saved.");return false;}
-      onLogged?.(result.message);if(channel!=="copy")setPreparedMessage(result.message);setMessageStatus(channel==="copy"?"Copied; sending is not confirmed.":"Prepared — sending is not confirmed. Return here after sending to confirm.");return true;
+      onLogged?.(result.message);if(channel!=="copy"){setPreparedMessage(result.message);setPendingMessages(current=>[result.message!,...current.filter(item=>item.id!==result.message!.id)].slice(0,10));}setMessageStatus(channel==="copy"?"Copied; sending is not confirmed.":"Prepared — sending is not confirmed. Return here after sending to confirm.");return true;
     }catch{setMessageStatus("Message preparation could not be saved.");return false;}finally{setWorking(false);}
   };
   const sendText=async()=>{if(!await log("text_prepared"))return;window.location.href=`sms:${customer.phone}&body=${encodeURIComponent(body)}`;};
   const sendEmail=async()=>{if(!await log("email_prepared"))return;window.location.href=`mailto:${customer.email}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(body)}`;};
   const confirmSent=async()=>{
     if(!preparedMessage)return;setWorking(true);setMessageStatus("");
-    try{const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:preparedMessage.id,customerId:customer.id,ownerConfirmedSent:true})});const result=await response.json() as {message?:CustomerMessage;estimateStatus?:string;error?:string};if(!response.ok||!result.message)throw new Error(result.error||"Send confirmation could not be saved.");onLogged?.(result.message);setPreparedMessage(null);setMessageStatus("Sent — confirmed by you. Delivery and read status are unknown.");if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));if(preparedMessage.template===initialTemplate)await onSent?.(result.message,result.estimateStatus);}catch(error){setMessageStatus(error instanceof Error?error.message:"Send confirmation could not be saved.");}finally{setWorking(false);}
+    try{const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:preparedMessage.id,customerId:customer.id,ownerConfirmedSent:true})});const result=await response.json() as {message?:CustomerMessage;estimateStatus?:string;error?:string};if(!response.ok||!result.message)throw new Error(result.error||"Send confirmation could not be saved.");onLogged?.(result.message);setPreparedMessage(null);setPendingMessages(current=>current.filter(item=>item.id!==preparedMessage.id));setMessageStatus("Sent — confirmed by you. Delivery and read status are unknown.");if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));if(preparedMessage.template===initialTemplate)await onSent?.(result.message,result.estimateStatus);}catch(error){setMessageStatus(error instanceof Error?error.message:"Send confirmation could not be saved.");}finally{setWorking(false);}
   };
   const copy=async()=>{try{await navigator.clipboard.writeText(body);await log("copy");}catch{setMessageStatus("Copy failed. No sending is confirmed.");}};
   return <Dialog open={open} onOpenChange={(value)=>{setOpen(value);if(value){setSiteOrigin(window.location.origin);}}}>
@@ -306,7 +331,18 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     <DialogContent className="message-dialog sm:max-w-[620px]">
       <DialogHeader><DialogTitle>Message {customer.name}</DialogTitle></DialogHeader>
       <div className="message-builder">
-        {messageStatus&&<p role="status">{messageStatus}</p>}{preparedMessage&&<div><p>After sending the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}, confirm here. Opening the other app does not send it.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button></div>}
+        {messageStatus&&<p role="status">{messageStatus}</p>}
+        {!preparedMessage&&pendingLoading&&<p role="status">Checking saved unconfirmed messages…</p>}
+        {!preparedMessage&&pendingError&&<p role="alert">{pendingError} Sending is not confirmed.</p>}
+        {!preparedMessage&&pendingMessages.length>0&&<section aria-label="Saved unconfirmed messages" className="rounded-lg border p-3">
+          <strong>Saved messages awaiting confirmation ({pendingMessages.length})</strong>
+          <p className="text-sm">After returning from Messages or Mail, resume the exact prepared message. Only confirm if you actually sent it.</p>
+          <div className="flex flex-col gap-2">{pendingMessages.map(item=><Button key={item.id} variant="outline" disabled={working} onClick={()=>{
+            draftEdited.current=true;setTemplate(item.template);setBody(item.body);
+            setPreparedMessage(item);setMessageStatus("Recovered an unconfirmed prepared message. Check the text before confirming a send.");
+          }}>Resume {item.channel==="text_prepared"?"text":"email"} · {new Date(item.createdAt).toLocaleString()} · {item.template}</Button>)}</div>
+        </section>}
+        {preparedMessage&&<div><p>After sending the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}, confirm here. Opening the other app does not send it.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button></div>}
         <div><Label>Message type</Label><Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{composerTemplates.map((item)=><SelectItem key={item.key} value={item.key}>{item.name}</SelectItem>)}</SelectContent></Select></div>
         <div><Label htmlFor="customerMessage">Personalized message</Label><Textarea id="customerMessage" disabled={working||Boolean(preparedMessage)} value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={8}/><small>Customer, service, price, date, address, and the private estimate or invoice link are filled in automatically when available. You can edit anything before sending.</small></div>
         <div className="message-actions"><Button variant="outline" onClick={()=>void copy()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Copy className="h-4 w-4"/> Copy</Button>{customer.email&&activeTemplate?.channel!=="sms"&&<Button variant="outline" onClick={()=>void sendEmail()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Mail className="h-4 w-4"/> Email</Button>}{customer.phone&&activeTemplate?.channel!=="email"&&<Button className="brand-button" onClick={()=>void sendText()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Send className="h-4 w-4"/> Text</Button>}</div>
