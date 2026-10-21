@@ -2821,18 +2821,24 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   const [reviewCloseouts,setReviewCloseouts]=useState<PaymentCloseoutAction[]>([]);
   const [reviewCloseoutError,setReviewCloseoutError]=useState("");
   const [reviewMoreAvailable,setReviewMoreAvailable]=useState(false);
+  const [reviewNextCursor,setReviewNextCursor]=useState<string|null>(null);
+  const [reviewOlderError,setReviewOlderError]=useState("");
+  const [reviewOlderLoading,setReviewOlderLoading]=useState(false);
   const [showAllReviewCloseouts,setShowAllReviewCloseouts]=useState(false);
+  const reviewOlderLock=useRef(false),reviewPageRequest=useRef(0);
   const loadRequest=useRef(0);
   const load=async()=>{
     const request=++loadRequest.current;
+    reviewPageRequest.current++;reviewOlderLock.current=false;
+    setReviewOlderLoading(false);setReviewOlderError("");
     setLoading(true);setError("");
     try{
       const [estimateResponse,paymentResponse,reviewRead]=await Promise.all([
         fetch("/api/estimate-history?limit=50"),fetch("/api/payments"),
         fetch("/api/payment-closeouts",{cache:"no-store"}).then(async response=>{
-          const result=await response.json() as {actions?:PaymentCloseoutAction[];mayHaveMore?:boolean;error?:string};
+          const result=await response.json() as {actions?:PaymentCloseoutAction[];mayHaveMore?:boolean;nextCursor?:string|null;error?:string};
           if(!response.ok||!Array.isArray(result.actions))throw Error(result.error||"Review follow-up queue could not be checked.");
-          return {actions:result.actions,mayHaveMore:Boolean(result.mayHaveMore)};
+          return {actions:result.actions,mayHaveMore:Boolean(result.mayHaveMore),nextCursor:typeof result.nextCursor==="string"?result.nextCursor:null};
         }).catch((reason:unknown)=>({error:reason instanceof Error?reason.message:"Review follow-up queue is unavailable."}))
       ]);
       const estimateResult=await estimateResponse.json() as {estimates?:EstimateRow[];error?:string};
@@ -2848,14 +2854,40 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
       if(request!==loadRequest.current)return;
       setEstimates(nextEstimates);setPayments(nextPayments);setCheckoutIssues(Array.isArray(paymentResult.checkoutIssues)?paymentResult.checkoutIssues:[]);
       if("error" in reviewRead){
-        setReviewCloseouts([]);setReviewMoreAvailable(false);setReviewCloseoutError(reviewRead.error);
+        setReviewCloseouts([]);setReviewMoreAvailable(false);setReviewNextCursor(null);setReviewCloseoutError(reviewRead.error);
       }else{
-        setReviewCloseouts(reviewRead.actions);setReviewMoreAvailable(reviewRead.mayHaveMore);setReviewCloseoutError("");
+        setReviewCloseouts(reviewRead.actions);setReviewMoreAvailable(reviewRead.mayHaveMore);setReviewNextCursor(reviewRead.nextCursor);setReviewCloseoutError("");
       }
     }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Payment records could not be loaded.");}
     finally{if(request===loadRequest.current)setLoading(false);}
   };
-  useEffect(()=>{void load();return()=>{loadRequest.current++;};},[]);
+  const loadOlderReviewCloseouts=async()=>{
+    const cursor=reviewNextCursor;
+    if(!cursor||reviewOlderLock.current||loading||error)return;
+    reviewOlderLock.current=true;
+    const page=++reviewPageRequest.current,mainRequest=loadRequest.current;
+    setReviewOlderLoading(true);setReviewOlderError("");
+    try{
+      const response=await fetch("/api/payment-closeouts?cursor="+encodeURIComponent(cursor),{cache:"no-store"});
+      const result=await response.json() as {actions?:PaymentCloseoutAction[];mayHaveMore?:boolean;nextCursor?:string|null;error?:string};
+      if(!response.ok||!Array.isArray(result.actions))throw Error(result.error||"Older review follow-ups could not be loaded.");
+      if(page!==reviewPageRequest.current||mainRequest!==loadRequest.current)return;
+      setReviewCloseouts(current=>{
+        const seen=new Set(current.map(item=>item.estimateId));
+        return [...current,...result.actions!.filter(item=>{if(seen.has(item.estimateId))return false;seen.add(item.estimateId);return true;})];
+      });
+      setReviewMoreAvailable(Boolean(result.mayHaveMore));
+      setReviewNextCursor(typeof result.nextCursor==="string"?result.nextCursor:null);
+      setShowAllReviewCloseouts(true);
+    }catch(loadError){
+      if(page===reviewPageRequest.current&&mainRequest===loadRequest.current)setReviewOlderError(loadError instanceof Error?loadError.message:"Older review follow-ups could not be loaded.");
+    }finally{
+      if(page===reviewPageRequest.current&&mainRequest===loadRequest.current){
+        reviewOlderLock.current=false;setReviewOlderLoading(false);
+      }
+    }
+  };
+  useEffect(()=>{void load();return()=>{loadRequest.current++;reviewPageRequest.current++;reviewOlderLock.current=false;};},[]);
   const remainingBalance=(estimate:EstimateRow)=>billingBalanceCents(estimate);
   const matchingReviewCloseouts=reviewCloseouts.filter(item=>item.customerName.toLowerCase().includes(searchQuery.toLowerCase()));
   const shownReviewCloseouts=showAllReviewCloseouts?matchingReviewCloseouts:matchingReviewCloseouts.slice(0,5);
@@ -2873,7 +2905,9 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
     <a className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-current px-3 py-2 text-sm font-semibold" href={`/?openEstimate=${encodeURIComponent(item.estimateId)}`}><ExternalLink className="h-4 w-4"/> Open job · request review</a>
   </article>)}</div>:<p className="record-empty">{reviewCloseouts.length?"No matching customers need a review request.":"No verified paid jobs awaiting review requests."}</p>}
   {matchingReviewCloseouts.length>5&&<Button variant="outline" onClick={()=>setShowAllReviewCloseouts(value=>!value)}>{showAllReviewCloseouts?"Show fewer":`Show all ${matchingReviewCloseouts.length} ready jobs`}</Button>}
-  {reviewMoreAvailable&&<p className="pay-note">Showing the most recent 200 candidate jobs. Older records may need a separate check.</p>}
+  {reviewMoreAvailable&&reviewNextCursor&&<Button variant="outline" disabled={reviewOlderLoading} onClick={()=>void loadOlderReviewCloseouts()}>{reviewOlderLoading?"Loading older jobs…":"Load older paid jobs"}</Button>}
+  {reviewOlderError&&<p role="alert" className="save-error">{reviewOlderError} Previously loaded jobs are still available.</p>}
+  {reviewMoreAvailable&&!reviewNextCursor&&<p className="pay-note">Older review records require an additional verification. Refresh this list or inspect the original job.</p>}
 </section>}{!loading&&!error&&<section className="business-metrics"><article><small>Principal paid (net refunds)</small><strong>{money(collected)}</strong></article><article><small>Collectible job balance</small><strong>{money(outstanding)}</strong></article><article><small>Jobs with collectible balance</small><strong>{open.length}</strong></article><article><small>Deposit still required</small><strong>{money(balanceSummary.depositRemainingCents)}</strong></article><article><small>Potential estimate value</small><strong>{money(balanceSummary.potentialCents)}</strong></article><article><small>Net tips</small><strong>{money(netTips)}</strong></article></section>}{!loading&&!error&&<ProcessingReport payments={receivedPayments}/>}{loading?<div className="customers-state">Loading balances…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:<div className="payment-layout"><section className="business-panel"><header><div><h2>Collectible job balances</h2><p>Approved or scheduled jobs and issued invoices, including amounts due on completion. Unapproved quotes remain potential work. Record payment uses the amount currently due.</p></div></header><div className="balance-list">{open.length?open.map((estimate)=><article key={estimate.id}><div><strong>{estimate.customer}</strong><small>{estimate.service} · {statusLabel(estimate.status)}</small></div><span><strong>{money(remainingBalance(estimate))}</strong><small>full remaining balance</small></span><RecordPayment key={estimate.id} estimate={estimate} onRecorded={()=>void load()}/></article>):<div className="record-empty"><CheckCircle2/><strong>All caught up</strong><p>No unpaid job balances.</p></div>}</div></section><section className="business-panel"><header><div><h2>Payment history</h2><p>Every recorded transaction, newest first.</p></div></header><div className="payment-history">{payments.length?payments.map((payment)=><article key={payment.id}><span className="payment-method"><CircleDollarSign/></span><div><strong>{payment.customer||"Customer"}</strong><small>{payment.type} · {statusLabel(payment.status)} · {payment.service||"Service"} · {new Date(payment.createdAt).toLocaleDateString()}</small>{payment.reference&&<span className="inline-flex max-w-full flex-wrap items-center gap-1"><em title={payment.reference}>Ref …{payment.reference.slice(-12)}</em><button type="button" aria-label="Copy full payment reference" className="rounded border px-2 py-0.5 text-xs" onClick={()=>void navigator.clipboard.writeText(payment.reference||"").catch(()=>{})}>Copy</button></span>}{payment.status==="paid"&&<ProcessingDetails payment={payment}/>}</div><strong className="payment-history-amount">{money(payment.amountCents)}</strong>{payment.status==="paid"&&<RefundPayment payment={payment} onRefunded={()=>void load()}/>}</article>):<div className="record-empty"><CreditCard/><strong>No payments recorded</strong><p>Use Record payment on an estimate or open balance.</p></div>}</div></section></div>}</div>;
 }
 

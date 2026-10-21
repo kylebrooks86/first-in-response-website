@@ -72,7 +72,7 @@ try{
  check(!data.actions.some(x=>x.estimateId==="e-ready"),"Confirmation of actual review request clears ready action");
  // More than 200 eligible closeouts must remain reachable in stable pages.
  // Same payment timestamps exercise the estimate-ID cursor tie-breaker.
- const sameStamp=stamp(-0.02);
+ const sameStamp=stamp(0.02);
  for(let i=0;i<205;i++){
   job("older-page-"+String(i).padStart(3,"0"));
   db.prepare("UPDATE payments SET created_at=? WHERE id=?").run(sameStamp,"p-older-page-"+String(i).padStart(3,"0"));
