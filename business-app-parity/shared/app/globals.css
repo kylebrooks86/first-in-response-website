@@ -1380,3 +1380,11 @@ html,body{max-width:100%;overflow-x:clip}
 .notification-attention-filters>button{min-height:36px;padding:7px 10px;font-size:11px;font-weight:750;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);cursor:pointer}
 .notification-attention-filters>button[aria-pressed="true"]{border-color:var(--ring);box-shadow:inset 0 0 0 1px var(--ring);background:var(--muted)}
 .notification-attention-filters>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Accessible record target from notification → Follow-ups, including narrow iPhones. */
+.followup-card[id^="followup-action-"]{scroll-margin-block:96px}
+.followup-card-focused{border-inline-start:3px solid #b98135}
+.followup-card[id^="followup-action-"]:focus-visible{outline:3px solid var(--ring);outline-offset:3px}
+.followup-focus-notice{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--muted)}
+.followup-focus-notice p{margin:0;flex:1 1 220px;font-size:13px}
+.followup-focus-notice button{min-height:44px}

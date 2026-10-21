@@ -34,18 +34,18 @@ function nodes(tree){
 let checks=0;
 function eq(a,b,label){assert.deepEqual(a,b,label);checks++;}
 function fixture(){
- let state=[],refs=[],cursor=0,refCursor=0,effect,cleanup,handler=async()=>response([job()]);
+ let state=[],refs=[],cursor=0,refCursor=0,effect,focusEffect,cleanup,focusId=null,effectCursor=0,handler=async()=>response([job()]);const focusCalls=[],handled=[];
  const requests=[],stubs=Object.fromEntries(components.map(k=>[k,()=>null]));
  const context={exports:{},require,...stubs,Date:FixedDate,Math,Error,Array,Number,JSON,
   useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}]},
   useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},
-  useEffect(fn){effect=fn;},useCurrentTime:()=>fixedTime,money:c=>'$'+(c/100).toFixed(2),
+  useEffect(fn){if(effectCursor++===0)effect=fn;else focusEffect=fn;},document:{getElementById(id){focusCalls.push(id);if(id!=="followup-action-synthetic-job")return null;return {scrollIntoView(){focusCalls.push("scroll");},focus(){focusCalls.push("keyboard");}};}},useCurrentTime:()=>fixedTime,money:c=>'$'+(c/100).toFixed(2),
   fetch:(url,options)=>{requests.push({url,options});return handler(url,options);},
  };
  vm.runInNewContext(compiled,context);
- const render=(searchQuery='')=>{cursor=0;refCursor=0;return context.exports.view({searchQuery});};
+ const render=(searchQuery='')=>{cursor=0;refCursor=0;effectCursor=0;return context.exports.view({searchQuery,focusEstimateId:focusId,onFocusHandled:id=>handled.push(id),onOpenEstimate:id=>handled.push("fallback:"+id)});};
  const lookup=(predicate)=>nodes(render()).find(predicate);
- return {requests,render,nodes:()=>nodes(render()),lookup,
+ return {requests,render,nodes:()=>nodes(render()),lookup,focusCalls,handled,focus(id){focusId=id;render();focusEffect?.();},
   get:idx=>state[idx],
   response(fn){handler=fn;},
   mount(){render();cleanup=effect();},
@@ -115,4 +115,16 @@ for(const [name,handler] of [
  eq(f.get(0)[0].id,'latest-job','Stale earlier GET never overwrites newer rows');
  f.unmount();
 }
-console.log('PASS '+checks+'/'+checks+': actual FollowUpsView paginated endpoint, failure/retry, retained existing rows, deduplicated append and stale read protection. Mock GET only.');
+{
+ const f=fixture();f.mount();await flush();
+ f.focus('synthetic-job');
+ eq(f.focusCalls.includes('followup-action-synthetic-job'),true,'Bell deep-link identifies the exact saved follow-up card');
+ eq(f.focusCalls.includes('scroll'),true,'Focused follow-up scrolls into view on mobile');
+ eq(f.focusCalls.includes('keyboard'),true,'Focused follow-up receives keyboard focus');
+ eq(f.handled.at(-1),'synthetic-job','Focused action acknowledges navigation after rendering');
+ f.focus('missing-estimate');
+ eq(f.nodes().some(n=>n.props?.className==='followup-focus-notice'),true,'Changed or completed follow-up shows honest fallback rather than a false card');
+ eq(Boolean(f.nodes().find(n=>n.type===stubs.Button&&n.props?.children==='Open saved estimate')),true,'Missing follow-up can open exact estimate for owner review');
+ f.unmount();
+}
+console.log('PASS '+checks+'/'+checks+': actual FollowUpsView paginated endpoint, failure/retry, focused deep-link action and stale read protection. Mock GET only.');

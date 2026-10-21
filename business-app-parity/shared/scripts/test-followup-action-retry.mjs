@@ -30,16 +30,16 @@ function nodes(tree){const out=[];function scan(n){if(Array.isArray(n))return n.
 let count=0;
 function eq(a,b,msg){assert.deepEqual(a,b,msg);count++;}
 function fixture(){
- let state=[],refs=[],cursor=0,refCursor=0,effect,cleanup,handler=(url,options)=>options?.method==='POST'?postOk('contacted'):getOk(),operations=0;
+ let state=[],refs=[],cursor=0,refCursor=0,effect,cleanup,effectCursor=0,handler=(url,options)=>options?.method==='POST'?postOk('contacted'):getOk(),operations=0;
  const requests=[],context={exports:{},require,Date:FixedDate,Error,Array,Number,JSON,Math,...stubs,
    useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}]},
    useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},
-   useEffect(fn){effect=fn;},useCurrentTime:()=>fixedTime,money:c=>'$'+(c/100).toFixed(2),
+   useEffect(fn){if(effectCursor++===0)effect=fn;},useCurrentTime:()=>fixedTime,money:c=>'$'+(c/100).toFixed(2),
    crypto:{randomUUID:()=>{operations++;return '10000000-0000-4000-8000-'+String(operations).padStart(12,'0');}},
    fetch:(url,options)=>{requests.push({url,options});return handler(url,options);}
  };
  vm.runInNewContext(compiled,context);
- const render=()=>{cursor=0;refCursor=0;return context.exports.view({searchQuery:''});};
+ const render=()=>{cursor=0;refCursor=0;effectCursor=0;return context.exports.view({searchQuery:''});};
  return {requests,render,getState:i=>state[i],getOpCount:()=>operations,response:fn=>{handler=fn;},
   mount(){render();cleanup=effect();},unmount(){cleanup?.();},
   action(name){const button=nodes(render()).find(n=>n.type===stubs.Button&&n.props?.children===name);assert.ok(button,'Expected '+name+' button');return button;},
