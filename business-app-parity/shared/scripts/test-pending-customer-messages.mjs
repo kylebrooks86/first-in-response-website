@@ -29,7 +29,7 @@ const stamp=n=>new Date(Date.now()-n*3600000).toISOString();
 const customer=id=>db.prepare("INSERT INTO customers(id,name,created_at) VALUES(?,?,?)").run(id,"Synthetic "+id,stamp(120));
 const job=(id,c)=>db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,?,?,?,?,?,?)").run(id,c,"completed",20000,20000,10000,stamp(96));
 const message=(id,c,e,channel,at=1)=>db.prepare("INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES(?,?,?,?,?,?,?)").run(id,c,e,channel,"review","Review my exact prepared text "+id,stamp(at));
-const read=async(c,e)=>{const q="https://fire.example.invalid/api/customer-messages?customerId="+encodeURIComponent(c)+"&estimateId="+encodeURIComponent(e??"");const r=await api.GET(new Request(q));return {response:r,data:await r.json()}};
+const read=async(c,e,cursor)=>{const params=new URLSearchParams({customerId:c,estimateId:e??""});if(cursor!==undefined)params.set("cursor",cursor);const q="https://fire.example.invalid/api/customer-messages?"+params.toString();const r=await api.GET(new Request(q));return {response:r,data:await r.json()}};
 let n=0;const check=(truth,label)=>{assert.ok(truth,label);n++};
 try{
  customer("c1");customer("c2");job("e1","c1");job("e2","c1");job("foreign","c2");
@@ -80,6 +80,17 @@ try{
  for(let i=0;i<13;i++)message("many-"+i,"c1","e1","text_prepared",0);
  ({response,data}=await read("c1","e1"));
  check(data.pending.length===10,"Large message history remains bounded to the latest ten prepared messages");
+ check(data.mayHaveMore===true&&typeof data.nextCursor==="string","First prepared page advertises older drafts with an exact cursor");
+ const firstIds=data.pending.map(item=>item.id);
+ const older=await read("c1","e1",data.nextCursor);
+ check(older.response.status===200&&older.data.pending.length>=4,"Unconfirmed drafts beyond the first 10 remain recoverable");
+ check(older.data.pending.some(item=>item.id==="first"),"Oldest saved unconfirmed message remains accessible");
+ check(older.data.pending.every(item=>!firstIds.includes(item.id)&&item.customerId==="c1"&&item.estimateId==="e1"),"Keyset pages stay scoped and never duplicate prepared messages");
+ check(older.data.nextCursor===null&&older.data.mayHaveMore===false,"Final pending-message page ends without a false next cursor");
+ const rejectedCursor=await read("c1","e1","wrong-cursor");
+ check(rejectedCursor.response.status===400&&((rejectedCursor.data.error??"").includes("cursor")),"Malformed cursor fails closed");
+ const foreignCursor=await read("c2","foreign",data.nextCursor);
+ check(foreignCursor.response.status===200&&foreignCursor.data.pending.every(item=>item.customerId==="c2"),"A valid cursor cannot reveal another customer's message history");
  check(queries.some(q=>q.includes("INSERT OR IGNORE"))&&db.prepare("SELECT channel FROM customer_messages WHERE id=?").get("unconfirmed-email:owner-cancelled").channel==="send_cancelled","Only explicit owner cancellation adds one audit event");
  const outage=loadRoute({prepare(){throw Error("Database unavailable");}});
  const fail=await outage.GET(new Request("https://fire.example.invalid/api/customer-messages?customerId=c1&estimateId=e1"));
@@ -88,6 +99,9 @@ try{
  const a=dashboard.indexOf("function MessageComposer("),z=dashboard.indexOf("\nfunction ",a+20),ui=dashboard.slice(a,z);
  check(ui.includes('fetch("/api/customer-messages?"+query.toString()')&&ui.includes('cache:"no-store"'),"Composer fetches fresh exact-owner saved draft history on reopening");
  check(ui.includes("Saved messages awaiting confirmation")&&ui.includes("Resume ")&&ui.includes("setPreparedMessage(item)"),"Mobile owner can resume selected message without generating a new send event");
+ check(ui.includes("Load older prepared messages")&&ui.includes("loadOlderPendingMessages")&&ui.includes("pendingNextCursor"),"Mobile owner can deliberately retrieve older saved drafts");
+ check(ui.includes("pendingPageRequest.current++")&&ui.includes("pendingOlderLock.current"),"Late page results cannot replace a newer customer/job scope");
+ check(ui.includes("Previously loaded drafts remain available.")&&ui.includes("setPendingMessages(current=>{"),"Interrupted older-page read preserves confirmed existing draft history");
  check(ui.includes('Only confirm if you actually sent it.')&&ui.includes('Sending is not confirmed.'),"Resumed draft is not recorded as delivered automatically");
  check(ui.includes('current.filter(item=>item.id!==preparedMessage.id)'),"Confirmed messages leave the pending recovery UI only after owner save");
  check(ui.includes("Discard unsent draft")&&ui.includes("ownerConfirmedNotSent:true")&&ui.includes("draft.id+\":owner-cancelled\""),"Mobile composer offers explicit owner-only discard with linked server receipt");
