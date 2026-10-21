@@ -25,7 +25,7 @@ const getOk=(row=starter)=>({ok:true,json:async()=>({estimates:[row],nextCursor:
 const postOk=(action,when='2026-10-09T12:00:00.000Z')=>({ok:true,status:201,json:async()=>({action,createdAt:when,snoozeUntil:action==='snooze'?'2026-10-16T12:00:00.000Z':null})});
 const later=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
 const flush=()=>new Promise(r=>setImmediate(r));
-const stubs=Object.fromEntries(['EstimateDetail','Button','MessageComposer','Clock3','Star','CalendarDays','CheckCircle2','ChevronRight'].map(n=>[n,()=>null]));
+const stubs=Object.fromEntries(['EstimateDetail','Button','MessageComposer','Clock3','Star','CalendarDays','CheckCircle2','ChevronRight','AlertTriangle','FileText','Users','Phone','MessageSquareText','Mail'].map(n=>[n,()=>null]));
 function nodes(tree){const out=[];function scan(n){if(Array.isArray(n))return n.forEach(scan);if(!n||typeof n!=='object')return;out.push(n);scan(n.props?.children);}scan(tree);return out;}
 let count=0;
 function eq(a,b,msg){assert.deepEqual(a,b,msg);count++;}
