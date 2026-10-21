@@ -2718,7 +2718,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   const [actionStatus,setActionStatus]=useState("");
   const [actionError,setActionError]=useState(false);
   const [actionBusy,setActionBusy]=useState(false);
-  const [actionFilter,setActionFilter]=useState<"all"|"quotes"|"billing"|"schedule"|"reviews"|"repeat"|"history">("all");
+  const [actionFilter,setActionFilter]=useState<"all"|"viewed"|"quotes"|"billing"|"schedule"|"reviews"|"repeat"|"history">("all");
   const [highPriorityOnly,setHighPriorityOnly]=useState(false);
   const [urgencyFilter,setUrgencyFilter]=useState<"all"|"past-target"|"due"|"upcoming"|"review">("all");
   const [contactHistory,setContactHistory]=useState<{key:string;status:"loading"|"ready"|"error";events:{id:string;channel:string;template:string;createdAt:string}[];hasMore:boolean}|null>(null);
@@ -2828,11 +2828,11 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     const quoteReason=(days:number)=>estimate.status==="draft"?`Unsent draft is at least ${days} day${days===1?"":"s"} old — prepare the estimate`:confirmedContact?`No confirmed estimate contact for at least ${days} day${days===1?"":"s"}`:`Estimate has been open at least ${days} day${days===1?"":"s"}; send date unconfirmed`;
     const scheduledTime=estimate.scheduledAt?new Date(estimate.scheduledAt).getTime():0;
     const items:{estimate:EstimateRow;template:string;reason:string;priority:number;kind:"followup"|"repeat"|"review"|"history";dueAt?:string|null}[]=[];
-    if(Number(estimate.paymentOverageOpen)>0)items.push({estimate,template:"invoiceReminder",reason:"Billing exception: overpayment needs refund or retained-overpayment review before customer outreach",priority:6,kind:"history"});
+    if(Number(estimate.paymentOverageOpen)>0||Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)items.push({estimate,template:"invoiceReminder",reason:"Billing exception: open overpayment, refund or checkout needs verification before customer outreach",priority:6,kind:"history"});
     else if(estimate.invoiceId&&billingBalanceCents(estimate)>0)items.push({estimate,template:"invoiceReminder",reason:"Invoice balance needs a reminder",priority:4,kind:"followup"});
     else if(estimate.status==="scheduled"&&scheduledTime>now&&scheduledTime-now<=36*3600000)items.push({estimate,template:"appointmentReminder",reason:"Job is coming up within 36 hours",priority:5,kind:"followup"});
-    else if(estimate.status==="draft"&&ageDays>=1)items.push({estimate,template:"estimate",reason:quoteReason(ageDays>=7?7:ageDays>=3?3:1),priority:1,kind:"followup"});
-    else if(estimate.status==="sent"){
+    else if(estimate.status==="draft"&&!estimate.invoiceId&&estimate.paidCents<resolvedBillingTotalCents(estimate)&&ageDays>=1)items.push({estimate,template:"estimate",reason:quoteReason(ageDays>=7?7:ageDays>=3?3:1),priority:1,kind:"followup"});
+    else if(estimate.status==="sent"&&!estimate.invoiceId&&estimate.paidCents<resolvedBillingTotalCents(estimate)){
       const stage=estimateReminderStage(estimate,now);
       if(stage.reviewReason)items.push({estimate,template:"history",reason:stage.reviewReason,priority:2,kind:"history"});
       else if(stage.template){
@@ -2851,7 +2851,12 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   const isHighPriority=(item:{priority:number;kind:"followup"|"repeat"|"review"|"history";template:string;estimate:EstimateRow;dueAt?:string|null})=>item.priority>=4||item.kind==="history"||followupUrgency(item,now).bucket==="past-target"||followupUrgency(item,now).rank<=1;
   const highPriorityCount=actions.filter(isHighPriority).length;
   const bucketCount=(bucket:"past-target"|"due"|"upcoming"|"review")=>actions.filter(item=>followupUrgency(item,now).bucket===bucket).length;
-  const visibleActions=actions.filter(item=>(actionFilter==="all"||followupGroup(item.template,item.kind)===actionFilter)&&(!highPriorityOnly||isHighPriority(item))&&(urgencyFilter==="all"||followupUrgency(item,now).bucket===urgencyFilter));
+  const isViewedReady=(item:{estimate:EstimateRow;template:string;kind:"followup"|"repeat"|"review"|"history"})=>
+    item.kind==="followup"&&["followUp1","followUp3","followUp7"].includes(item.template)&&
+    !item.estimate.invoiceId&&Number(item.estimate.paymentOverageOpen)===0&&Number(item.estimate.pendingRefundCount)===0&&Number(item.estimate.openCheckoutCount)===0&&
+    viewedEstimateReminderCue(item.estimate,now)!==null;
+  const viewedReadyCount=actions.filter(isViewedReady).length;
+  const visibleActions=actions.filter(item=>(actionFilter==="all"||(actionFilter==="viewed"?isViewedReady(item):followupGroup(item.template,item.kind)===actionFilter))&&(!highPriorityOnly||isHighPriority(item))&&(urgencyFilter==="all"||followupUrgency(item,now).bucket===urgencyFilter));
   // Same saved actions as the full list; one preview per verified customer, no extra API or writes.
   const todayQueue=todayCustomerQueue(visibleActions,now);
   const actionableCount=visibleActions.filter(item=>todayActionLane(item,now)!==null).length;
@@ -2943,11 +2948,11 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     </section>}
     {!loading&&!error&&!nextCursor&&rows.length>0&&<p className="followup-coverage-complete" role="status">All currently available estimate pages checked in this view. The queue and counts reflect {rows.length} loaded records as of the last read.</p>}
     {!loading&&!error&&<div className="followup-filter-panel" role="group" aria-label="Filter recommended follow-up actions">
-      {([["all","All"],["quotes","Estimates"],["billing","Billing"],["schedule","Appointments"],["reviews","Reviews"],["repeat","Repeat jobs"],["history","Needs review"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label}</button>)}
+      {([["all","All"],["viewed","Viewed 24h+"],["quotes","Estimates"],["billing","Billing"],["schedule","Appointments"],["reviews","Reviews"],["repeat","Repeat jobs"],["history","Needs review"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label}{key==="viewed"?` (${viewedReadyCount})`:""}</button>)}
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filter follow-ups by timing">
       {([["all","All timing"],["past-target","Past target"],["due","Due now"],["upcoming","Upcoming"],["review","Needs review"]] as const).map(([bucket,label])=><button type="button" key={bucket} aria-label={"Timing: "+label} aria-pressed={urgencyFilter===bucket} onClick={()=>setUrgencyFilter(bucket)}>{label} ({bucket==="all"?actions.length:bucketCount(bucket)})</button>)}
       </div><div className="followup-priority-toggle"><button type="button" aria-label="Show high priority follow-ups" aria-pressed={highPriorityOnly} onClick={()=>setHighPriorityOnly(current=>!current)}><AlertTriangle aria-hidden="true"/> High priority only ({highPriorityCount})</button><small>Includes higher-ranked due actions and records requiring owner review; not a claim that all are overdue.</small></div>
-      <p role="status">Showing {visibleActions.length} of {actions.length} recommended actions from {rows.length} scanned records{focusedRecord&&!rows.some(row=>row.id===focusedRecord.id)?" plus one exact notification estimate":""}. Saved activity is for owner review; no message is sent by opening it.</p>
+      <p role="status">Showing {visibleActions.length} of {actions.length} recommended actions from {rows.length} scanned records{focusedRecord&&!rows.some(row=>row.id===focusedRecord.id)?" plus one exact notification estimate":""}. {viewedReadyCount} viewed estimates qualify for a 24h+ owner check-in; an opened link never implies approval or a reason for delay. Counts cover loaded records only. No message is sent by opening this view.</p>
     </div>}
     {!loading&&!error&&todayQueue.length>0&&<section className="followup-priority-jumps" aria-label="Top follow-up priorities in loaded records">
       <div><strong>Today's customer actions</strong><small>{todayQueue.length} customer{todayQueue.length===1?"":"s"} highlighted from {actionableCount} matching action{actionableCount===1?"":"s"} in loaded records · suggested timing, not contractual deadlines · opening never saves or sends</small></div>

@@ -49,7 +49,7 @@ eq(evidence(at(2),null,null).kind,'unverified','Future contact timestamp fails c
 const stubs=Object.fromEntries(['EstimateDetail','Button','MessageComposer','Clock3','Star','CalendarDays','CheckCircle2','FileText','ChevronRight','Users','Phone','MessageSquareText','Mail','AlertTriangle'].map(x=>[x,()=>null]));
 const estimate=(id,customerId,extra={})=>({id,customerId,customer:id==='q1'||id==='q2'?'Same Customer':'Another Customer',service:'House Wash',status:'sent',createdAt:at(-8),firstEstimateSentAt:at(-8),lastEstimateSentAt:at(-8),totalCents:12000,depositCents:6000,paidCents:0,paymentOverageOpen:0,...extra});
 const saved=[
- estimate('q1','one',{lastConfirmedMessageAt:at(-2),lastPreparedAt:at(-1)}),
+ estimate('q1','one',{lastConfirmedMessageAt:at(-2),lastPreparedAt:at(-1),firstViewedAt:at(-2)}),
  estimate('q2','one',{lastConfirmedMessageAt:at(-3)}),
  estimate('q3','three',{lastManualContactAt:at(-2),status:'accepted',invoiceId:'invoice-three'})
 ];
@@ -83,4 +83,22 @@ eq(opens[0],'one','Customer shortcut targets the exact profile');
 eq(requests.every(r=>r.opts?.method!=='POST'&&r.opts?.method!=='PATCH'),true,'Preview performs reads only');
 eq(requests[0].url,'/api/followups?limit=50','Preview uses the existing paginated endpoint');
 eq(v.some(n=>n.props?.['aria-label']==='Older customer record coverage'),false,'No false unchecked warning after a final-page response');
+const viewedFilter=v.find(n=>n.props?.['aria-label']==='Filter follow-ups: Viewed 24h+');
+assert.ok(viewedFilter,'Viewed estimates have a real mobile follow-up filter');assertions++;
+eq(JSON.stringify(viewedFilter).includes('(1)'),true,'Viewed 24h+ count reflects only eligible loaded records');
+viewedFilter.props.onClick();
+const viewedOnly=nodes(render());
+eq(viewedOnly.filter(n=>n.type===stubs.MessageComposer).length,1,'Viewed filter only shows the qualified quote action');
+eq(viewedOnly.find(n=>n.props?.['aria-label']==='Filter follow-ups: Viewed 24h+').props['aria-pressed'],true,'Viewed filter is keyboard/readback identifiable');
+viewedOnly.find(n=>n.props?.['aria-label']==='Filter follow-ups: All').props.onClick();
+eq(nodes(render()).filter(n=>n.type===stubs.MessageComposer).length,3,'All restores original follow-ups after viewed filter');
+states[0]=[
+  estimate('paid-invoice','paid-customer',{invoiceId:'inv-1',invoiceTotalCents:12000,paidCents:12000,firstViewedAt:at(-2)}),
+  estimate('refund-pending','refund-customer',{pendingRefundCount:1,firstViewedAt:at(-2)}),
+  estimate('open-checkout','checkout-customer',{openCheckoutCount:1,firstViewedAt:at(-2)})
+];
+const financeCards=nodes(render());
+eq(financeCards.filter(n=>n.type===stubs.MessageComposer).length,2,'Fully paid invoice is not treated as a fresh quote; financial exceptions remain reviews');
+eq(JSON.stringify(financeCards.find(n=>n.props?.['aria-label']==='Filter follow-ups: Viewed 24h+')).includes('(0)'),true,'Billing and paid jobs excluded from viewed-ready count');
+eq(requests.every(x=>x.opts?.method!=='POST'&&x.opts?.method!=='PATCH'),true,'New triage controls never send or write customer data');
 console.log('PASS '+assertions+'/'+assertions+' synthetic daily action queue, communication-state and real component interaction checks. No sends or customer writes.');
