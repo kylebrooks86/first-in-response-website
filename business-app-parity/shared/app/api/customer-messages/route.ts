@@ -13,6 +13,14 @@ export async function GET(request:Request) {
   const params=new URL(request.url).searchParams;
   const customerId=params.get("customerId")??"";
   const estimateId=params.get("estimateId")??"";
+  const rawCursor=params.get("cursor");
+  let cursor:{createdAt:string;id:string}|null=null;
+  if(rawCursor!==null){
+    if(rawCursor.length>210)return Response.json({error:"Invalid prepared-message cursor."},{status:400});
+    const match=/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z)\|([A-Za-z0-9:._-]{1,128})$/.exec(rawCursor);
+    if(!match||!Number.isFinite(Date.parse(match[1])))return Response.json({error:"Invalid prepared-message cursor."},{status:400});
+    cursor={createdAt:match[1],id:match[2]};
+  }
   if(!customerId||customerId.length>128||estimateId.length>128)
     return Response.json({error:"A customer and optional job ID are required."},{status:400});
   try {
@@ -39,9 +47,15 @@ export async function GET(request:Request) {
           WHERE cancelled.id=m.id||':owner-cancelled' AND cancelled.customer_id=m.customer_id
             AND cancelled.channel='send_cancelled'
         )
-      ORDER BY m.created_at DESC,m.id DESC LIMIT 10
-    `).bind(customerId,estimateId,estimateId,estimateId).all();
-    return Response.json({pending:result.results??[]},{headers:{"Cache-Control":"no-store, private"}});
+        AND (? IS NULL OR m.created_at<? OR (m.created_at=? AND m.id<?))
+      ORDER BY m.created_at DESC,m.id DESC LIMIT 11
+    `).bind(customerId,estimateId,estimateId,estimateId,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null).all<{id:string;createdAt:string}>();
+    const rows=result.results??[],page=rows.slice(0,10),last=page.at(-1);
+    const nextCursor=rows.length>10&&last&&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(last.createdAt)&&
+      /^[A-Za-z0-9:._-]{1,128}$/.test(last.id)
+        ?last.createdAt+"|"+last.id:null;
+    return Response.json({pending:page,mayHaveMore:rows.length>10,nextCursor},{headers:{"Cache-Control":"no-store, private"}});
   }catch{return Response.json({error:"Unconfirmed message history is unavailable. No send is assumed."},{status:503,headers:{"Cache-Control":"no-store, private"}});}
 }
 
