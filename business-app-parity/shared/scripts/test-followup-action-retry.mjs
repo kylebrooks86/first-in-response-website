@@ -46,7 +46,7 @@ function fixture(){
   postCount:()=>requests.filter(x=>x.options?.method==='POST').length,
   lastPost:()=>JSON.parse(requests.filter(x=>x.options?.method==='POST').at(-1).options.body),
   alert:()=>nodes(render()).find(n=>n.props?.role==='alert')?.props.children,
-  retry:()=>refs[1]?.current
+  retry:()=>refs[2]?.current
  };
 }
 // A lost reply may still represent a committed DB write. Reuse exactly the same UUID after a deliberate retry.
