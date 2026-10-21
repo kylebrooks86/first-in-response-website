@@ -92,7 +92,7 @@ assert.ok(view.includes('reviewFollowupEligible({...estimate,billingTotalCents:r
 const journeyContext={exports:{},Date,Number};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/customer-job-journey.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,journeyContext);
 const journey=journeyContext.exports.customerJobJourney;
-const sample={id:'e1',service:'House wash',status:'sent',createdAt:at(-3),firstEstimateSentAt:at(-3),firstViewedAt:at(-2),depositCents:5000,paidCents:0,paymentOverageOpen:0};
+const sample={id:'e1',service:'House wash',status:'sent',createdAt:at(-3),firstEstimateSentAt:at(-3),firstViewedAt:at(-2),depositCents:5000,paidCents:0,paymentOverageOpen:0,pendingRefundCount:0,openCheckoutCount:0};
 const initial=journey(sample,[]);
 assert.equal(initial.headline,'Viewed · awaiting approval');
 assert.deepEqual(Array.from(initial.steps.map(s=>s.key)),['sent','viewed','followup','approved','deposit','scheduled']);
@@ -109,6 +109,10 @@ assert.match(approvedJourney.steps[4].detail,/not a separate deposit receipt/);n
 assert.equal(journey({...sample,status:'scheduled',scheduledAt:at(2),paidCents:5000},[]).steps[5].state,'done');n++;
 assert.equal(journey({...sample,status:'sent',scheduledAt:at(2)},[]).steps[5].state,'verify');n++;
 assert.equal(journey({...sample,status:'approved',paidCents:5000,paymentOverageOpen:1},[]).steps[4].state,'verify');n++;
+assert.equal(journey({...sample,status:'approved',paidCents:5000,pendingRefundCount:1},[]).steps[4].state,'verify','Pending refund prevents verified deposit milestone');n++;
+assert.equal(journey({...sample,status:'approved',paidCents:5000,openCheckoutCount:1},[]).steps[4].state,'verify','Open Stripe checkout prevents verified deposit milestone');n++;
+assert.equal(journey({...sample,status:'approved',paidCents:5000,openCheckoutCount:undefined},[]).steps[4].state,'verify','Missing checkout status fails closed');n++;
+for(const key of ['pendingRefundCount','openCheckoutCount']){assert.ok(customerApi.includes('AS '+key),'Customer job includes '+key+' safety state');n++;}
 assert.ok(view.includes('Customer estimate to scheduled job journey')&&view.includes('customerJobJourney(estimate,customerMessages)'),'Customer profile uses existing job records');n++;
 assert.ok(view.includes('Estimate link viewed')&&view.includes('Link opened · viewer identity and intent unverified'),'Timeline labels views correctly');n++;
 console.log('PASS '+n+' timing, reviewed journey milestones, billing guards, and mobile source contracts.');
