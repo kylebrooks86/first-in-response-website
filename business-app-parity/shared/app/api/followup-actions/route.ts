@@ -25,8 +25,19 @@ export async function POST(request:Request){
    FROM estimates e WHERE e.id=? AND e.customer_id=? AND NOT EXISTS(SELECT 1 FROM invoices WHERE estimate_id=e.id) AND NOT EXISTS(SELECT 1 FROM notifications WHERE estimate_id=e.id AND type='payment_overage' AND resolved_at IS NULL)`).bind(estimateId,customerId).first<ReminderRecord>();
   const now=Date.now();if(!record||!estimateReminderStage(record,now).template)return Response.json({error:"Refresh and review this estimate before recording a follow-up action."},{status:409});
   const createdAt=new Date(now).toISOString(),body=action==='snooze'?new Date(now+7*86400000).toISOString():'Owner recorded customer contact. No message send or delivery is claimed.';
-  const result=await env.DB.prepare(`INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM estimates e WHERE e.id=? AND e.customer_id=? AND e.status='sent' AND NOT EXISTS(SELECT 1 FROM invoices WHERE estimate_id=e.id) AND NOT EXISTS(SELECT 1 FROM notifications WHERE estimate_id=e.id AND type='payment_overage' AND resolved_at IS NULL))`).bind(id,customerId,estimateId,channel,template,body,createdAt,estimateId,customerId).run();
-  if(result.meta.changes!==1)return Response.json({error:"The estimate changed. Refresh before recording an action."},{status:409});
+  const result=await env.DB.prepare(`INSERT OR IGNORE INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM estimates e WHERE e.id=? AND e.customer_id=? AND e.status='sent' AND NOT EXISTS(SELECT 1 FROM invoices WHERE estimate_id=e.id) AND NOT EXISTS(SELECT 1 FROM notifications WHERE estimate_id=e.id AND type='payment_overage' AND resolved_at IS NULL))`).bind(id,customerId,estimateId,channel,template,body,createdAt,estimateId,customerId).run();
+  if(result.meta.changes!==1){
+   // Concurrent taps may both pass the initial read. The winning insert is
+   // authoritative; recover the same immutable operation without a second
+   // contact/snooze event or an unconfirmed-save error.
+   const raced=await env.DB.prepare('SELECT customer_id AS customerId,estimate_id AS estimateId,channel,created_at AS createdAt,body FROM customer_messages WHERE id=?').bind(id).first<{customerId:string;estimateId:string;channel:string;createdAt:string;body:string}>();
+   if(raced){
+    if(raced.customerId!==customerId||raced.estimateId!==estimateId||raced.channel!==channel)
+     return Response.json({error:"That operation belongs to a different action."},{status:409});
+    return Response.json({action,createdAt:raced.createdAt,snoozeUntil:action==='snooze'?raced.body:null},{status:200});
+   }
+   return Response.json({error:"The estimate changed. Refresh before recording an action."},{status:409});
+  }
   return Response.json({action,createdAt,snoozeUntil:action==='snooze'?body:null},{status:201});
  }catch{return Response.json({error:"Action save is not confirmed. Refresh to inspect saved history before trying again."},{status:503});}
 }
