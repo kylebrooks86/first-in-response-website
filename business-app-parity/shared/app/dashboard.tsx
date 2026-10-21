@@ -1518,29 +1518,28 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
 }
 
 
-/** Read-only customer flag presentation: owner actions are not automatically external sends. */
-function customerFlagPresentation(input:{
-  estimateSent:boolean;invoiceCreated:boolean;invoiceSendConfirmed:boolean;
-  followupContactRecorded:boolean;followupSendConfirmed:boolean;
-  reviewRequestRecorded:boolean;reviewSendConfirmed:boolean;reviewReceivedAt:string|null;
-  sign:{state:"out"|"picked_up";pickupDate:string|null}|null;
-  reviewDue:boolean;today:string
-}){
-  const needs:string[]=[];
-  if(input.sign?.state==="out"&&input.sign.pickupDate&&input.sign.pickupDate<=input.today)needs.push("Yard sign pickup is due");
-  if(input.reviewDue&&!input.reviewReceivedAt)needs.push("Review status needs checking");
-  return {
-    estimate:input.estimateSent?"Sent recorded":"Not recorded",
-    invoice:input.invoiceSendConfirmed?"Send confirmed":input.invoiceCreated?"Created · send unconfirmed":"Not created",
-    followup:input.followupSendConfirmed?"Send confirmed":input.followupContactRecorded?"Contact recorded":"Not recorded",
-    reviewRequest:input.reviewSendConfirmed?"Send confirmed":input.reviewRequestRecorded?"Request recorded":"Not recorded",
-    reviewReceived:input.reviewReceivedAt?"Owner logged":"Not logged",
-    sign:input.sign?.state==="out"?(input.sign.pickupDate&&input.sign.pickupDate<=input.today?"Pickup due":"Placed · pickup "+(input.sign.pickupDate||"not specified")):input.sign?.state==="picked_up"?"Picked up":"Not logged",
-    needs
-  };
-}
-
 function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSection="estimates",onFocusHandled,focusRecord,recordRequestKey=0,onRecordFocusHandled,onPreparePickupTask,onPrepareReviewTask,activityFocus,onActivityFocusHandled }: { onEstimateSaved: (estimate: EstimateRow) => void; searchQuery: string;focusCustomerId?:string|null;focusSection?:"estimates"|"invoices"|"payments"|"notes";focusRecord?:CustomerRecordFocus|null;recordRequestKey?:number;onRecordFocusHandled?:(id:string)=>void;onFocusHandled?:(id:string)=>void;onPreparePickupTask?:(draft:YardSignPickupDraft)=>void;onPrepareReviewTask?:(draft:ReviewCheckDraft)=>void;activityFocus?:{customerId:string;kind:"sign"|"review";request:number}|null;onActivityFocusHandled?:(request:number)=>void }) {
+  /** Read-only customer flag presentation: owner actions are not automatically external sends. */
+  function customerFlagPresentation(input:{
+    estimateSent:boolean;invoiceCreated:boolean;invoiceSendConfirmed:boolean;
+    followupContactRecorded:boolean;followupSendConfirmed:boolean;
+    reviewRequestRecorded:boolean;reviewSendConfirmed:boolean;reviewReceivedAt:string|null;
+    sign:{state:"out"|"picked_up";pickupDate:string|null}|null;
+    reviewDue:boolean;today:string
+  }){
+    const needs:string[]=[];
+    if(input.sign?.state==="out"&&input.sign.pickupDate&&input.sign.pickupDate<=input.today)needs.push("Yard sign pickup is due");
+    if(input.reviewDue&&!input.reviewReceivedAt)needs.push("Review status needs checking");
+    return {
+      estimate:input.estimateSent?"Sent recorded":"Not recorded",
+      invoice:input.invoiceSendConfirmed?"Send confirmed":input.invoiceCreated?"Created · send unconfirmed":"Not created",
+      followup:input.followupSendConfirmed?"Send confirmed":input.followupContactRecorded?"Contact recorded":"Not recorded",
+      reviewRequest:input.reviewSendConfirmed?"Send confirmed":input.reviewRequestRecorded?"Request recorded":"Not recorded",
+      reviewReceived:input.reviewReceivedAt?"Owner logged":"Not logged",
+      sign:input.sign?.state==="out"?(input.sign.pickupDate&&input.sign.pickupDate<=input.today?"Pickup due":"Placed · pickup "+(input.sign.pickupDate||"not specified")):input.sign?.state==="picked_up"?"Picked up":"Not logged",
+      needs
+    };
+  }
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [estimates, setEstimates] = useState<CustomerEstimate[]>([]);
   const [notes, setNotes] = useState<CustomerNote[]>([]);

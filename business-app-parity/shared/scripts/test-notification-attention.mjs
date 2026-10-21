@@ -296,8 +296,11 @@ console.log('PASS '+(checks+2)+' notification and Dashboard attention checks; ex
 // The actual customer status helper distinguishes recorded contact from confirmed
 // sending and never makes unsaved drafts or future pickups "due".
 {
- const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='customerFlagPresentation');
- assert.ok(fn,'Read-only customer activity state model exists');
+ const component=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='CustomersView');
+ let fn=null;
+ function findHelper(node){if(ts.isFunctionDeclaration(node)&&node.name?.text==='customerFlagPresentation')fn=node;ts.forEachChild(node,findHelper);}
+ findHelper(component);
+ assert.ok(fn,'Customer flags helper belongs to the CustomersView extracted by isolated regression suites');
  const compiled=ts.transpileModule(fn.getText(ast)+'\nexports.flag=customerFlagPresentation;',{
    compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
  }).outputText;
