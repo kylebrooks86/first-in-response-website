@@ -867,8 +867,9 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
     .sort((a,b)=>a.pickupDate.localeCompare(b.pickupDate)||a.customerId.localeCompare(b.customerId))[0]:undefined;
   const dueReviews=reviewChecksStatus==="ready"?reviewChecks.length:0;
   const oldestReviewCheck=reviewChecksStatus==="ready"?reviewChecks.slice().sort((a,b)=>b.elapsedDays-a.elapsedDays||a.requestedAt.localeCompare(b.requestedAt)||a.customerId.localeCompare(b.customerId))[0]:undefined;
+  // Unconfirmed prepared messages need an owner send/receipt check before newer requests.
   const oldestPaidReview=paidReviewStatus==="ready"?paidReviewActions.slice()
-    .sort((a,b)=>Date.parse(a.lastPaidAt)-Date.parse(b.lastPaidAt)||a.estimateId.localeCompare(b.estimateId))[0]:undefined;
+    .sort((a,b)=>(a.state==="prepared"?0:1)-(b.state==="prepared"?0:1)||Date.parse(a.lastPaidAt)-Date.parse(b.lastPaidAt)||a.estimateId.localeCompare(b.estimateId))[0]:undefined;
   const preparedPaidReviewCount=paidReviewActions.filter(row=>row.state==="prepared").length;
   const priorityCount=nearTermPrepJobs.length+(signStatus==="ready"?pickupDue:0)+dueReviews+dueTasks.length+(paidReviewStatus==="ready"?paidReviewActions.length:0);
   const incompletePrioritySources=signStatus==="error"||reviewChecksStatus==="error"||priorityTaskStatus==="error"||paidReviewStatus==="error";
