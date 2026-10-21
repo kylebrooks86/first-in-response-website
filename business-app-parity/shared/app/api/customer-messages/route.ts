@@ -34,6 +34,11 @@ export async function GET(request:Request) {
           WHERE confirmed.id=m.id||':owner-confirmed' AND confirmed.customer_id=m.customer_id
             AND confirmed.channel IN ('text_confirmed','email_confirmed')
         )
+        AND NOT EXISTS (
+          SELECT 1 FROM customer_messages cancelled
+          WHERE cancelled.id=m.id||':owner-cancelled' AND cancelled.customer_id=m.customer_id
+            AND cancelled.channel='send_cancelled'
+        )
       ORDER BY m.created_at DESC,m.id DESC LIMIT 10
     `).bind(customerId,estimateId,estimateId,estimateId).all();
     return Response.json({pending:result.results??[]},{headers:{"Cache-Control":"no-store, private"}});
@@ -88,17 +93,32 @@ export async function PATCH(request: Request) {
     const value=await request.json() as Record<string,unknown>;
     const id=String(value.preparedMessageId??"").trim();
     const customerId=String(value.customerId??"").trim();
-    if(!id||!customerId||value.ownerConfirmedSent!==true)return Response.json({error:"Explicit owner send confirmation is required."},{status:400});
+    const confirmed=value.ownerConfirmedSent===true, cancelled=value.ownerConfirmedNotSent===true;
+    if(!id||!customerId||confirmed===cancelled)return Response.json({error:"Explicitly confirm either sent or not sent, but never both."},{status:400});
     const prepared=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1").bind(id,customerId).first<{id:string;customerId:string;estimateId:string|null;channel:string;template:string;body:string;createdAt:string}>();
     if(!prepared||!["text_prepared","email_prepared"].includes(prepared.channel))return Response.json({error:"A matching prepared message is required."},{status:409});
     const confirmedId=prepared.id+":owner-confirmed";
+    const cancelledId=prepared.id+":owner-cancelled";
     const channel=prepared.channel==="text_prepared"?"text_confirmed":"email_confirmed";
     const createdAt=new Date().toISOString();
+    if(cancelled){
+      // Never delete the prepared message. Its cancellation is a separate,
+      // idempotent owner event that is impossible after a confirmed send.
+      await env.DB.prepare(`INSERT OR IGNORE INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at)
+        SELECT ?,m.customer_id,m.estimate_id,'send_cancelled',m.template,'Owner confirmed this prepared message was not sent.',?
+        FROM customer_messages m WHERE m.id=? AND m.customer_id=? AND m.channel IN ('text_prepared','email_prepared')
+        AND NOT EXISTS(SELECT 1 FROM customer_messages c WHERE c.id=? AND c.channel IN ('text_confirmed','email_confirmed'))`)
+        .bind(cancelledId,createdAt,prepared.id,customerId,confirmedId).run();
+      const receipt=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? AND channel='send_cancelled' LIMIT 1").bind(cancelledId,customerId).first();
+      if(!receipt)return Response.json({error:"This draft has already been confirmed sent or changed. Refresh saved message history."},{status:409});
+      return Response.json({message:receipt,cancelled:true});
+    }
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) SELECT ?,customer_id,estimate_id,?,template,body,? FROM customer_messages WHERE id=? AND customer_id=? AND channel=? AND NOT EXISTS (SELECT 1 FROM customer_messages WHERE id=?)").bind(confirmedId,channel,createdAt,prepared.id,customerId,prepared.channel,confirmedId),
+      env.DB.prepare("INSERT INTO customer_messages (id,customer_id,estimate_id,channel,template,body,created_at) SELECT ?,customer_id,estimate_id,?,template,body,? FROM customer_messages WHERE id=? AND customer_id=? AND channel=? AND NOT EXISTS (SELECT 1 FROM customer_messages WHERE id=?) AND NOT EXISTS (SELECT 1 FROM customer_messages WHERE id=? AND channel='send_cancelled')").bind(confirmedId,channel,createdAt,prepared.id,customerId,prepared.channel,confirmedId,cancelledId),
       env.DB.prepare("UPDATE estimates SET status='sent' WHERE id=? AND customer_id=? AND status='draft' AND NOT EXISTS (SELECT 1 FROM invoices WHERE estimate_id=estimates.id) AND EXISTS (SELECT 1 FROM customer_messages WHERE id=? AND customer_id=? AND estimate_id=estimates.id AND template='estimate' AND channel IN ('text_confirmed','email_confirmed'))").bind(prepared.estimateId,customerId,confirmedId,customerId),
     ]);
     const message=await env.DB.prepare("SELECT id,customer_id AS customerId,estimate_id AS estimateId,channel,template,body,created_at AS createdAt FROM customer_messages WHERE id=? AND customer_id=? LIMIT 1").bind(confirmedId,customerId).first();
+    if(!message)return Response.json({error:"This prepared message was marked not sent or changed. No send confirmation was recorded."},{status:409});
     const estimate=prepared.estimateId?await env.DB.prepare("SELECT status FROM estimates WHERE id=? AND customer_id=? LIMIT 1").bind(prepared.estimateId,customerId).first<{status:string}>():null;
     return Response.json({message,estimateStatus:estimate?.status});
   }catch{return Response.json({error:"Send confirmation could not be saved. No delivery is claimed."},{status:500});}

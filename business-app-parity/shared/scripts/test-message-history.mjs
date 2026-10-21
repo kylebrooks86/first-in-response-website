@@ -10,4 +10,10 @@ check('identical bodies with distinct operations remain separate',()=>assert.equ
 check('confirmation without loaded preparation stays visible',()=>assert.deepEqual(messageHistoryEntries([confirmed]),[{message:confirmed}]));
 check('legacy interactions are not inferred sent',()=>assert.equal(messageHistoryEntries([{...prepared,channel:'text'},confirmed]).length,2));
 check('email uses exact same audit linkage',()=>assert.equal(messageHistoryEntries([{...prepared,channel:'email_prepared'},{...confirmed,channel:'email_confirmed'}]).length,1));
+check('cancelled unsent draft groups with original immutable message',()=>{
+ const cancelled={...prepared,id:'prepare-1:owner-cancelled',channel:'send_cancelled',body:'Owner confirmed this prepared message was not sent.',createdAt:'2026-10-14T12:00:00Z'};
+ assert.deepEqual(messageHistoryEntries([cancelled,prepared]),[{message:cancelled,prepared}]);
+ assert.equal(messageHistoryEntries([cancelled,{...prepared,customerId:'another-customer'}]).length,2);
+ assert.equal(messageHistoryEntries([cancelled,{...prepared,estimateId:'another-job'}]).length,2);
+});
 console.log(`PASS ${passed}/${passed} message audit presentation checks`);

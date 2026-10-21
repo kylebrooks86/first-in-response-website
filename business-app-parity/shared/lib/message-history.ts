@@ -6,10 +6,13 @@ export function messageHistoryEntries<T extends AuditMessage>(messages:T[]):{mes
   const byId=new Map(messages.map(message=>[message.id,message]));
   const paired=new Set<string>();
   const entries=messages.map(message=>{
-    if(message.channel!=="text_confirmed"&&message.channel!=="email_confirmed")return {message};
-    const suffix=":owner-confirmed";
+    if(message.channel!=="text_confirmed"&&message.channel!=="email_confirmed"&&message.channel!=="send_cancelled")return {message};
+    const cancelled=message.channel==="send_cancelled";
+    const suffix=cancelled?":owner-cancelled":":owner-confirmed";
     const prepared=message.id.endsWith(suffix)?byId.get(message.id.slice(0,-suffix.length)):undefined;
-    if(!prepared||prepared.channel!==message.channel.replace("_confirmed","_prepared")||prepared.customerId!==message.customerId||prepared.estimateId!==message.estimateId||prepared.template!==message.template||prepared.body!==message.body)return {message};
+    if(!prepared||!(["text_prepared","email_prepared"].includes(prepared.channel))||
+      (!cancelled&&(prepared.channel!==message.channel.replace("_confirmed","_prepared")||prepared.body!==message.body))||
+      prepared.customerId!==message.customerId||prepared.estimateId!==message.estimateId||prepared.template!==message.template)return {message};
     paired.add(prepared.id);
     return {message,prepared};
   });

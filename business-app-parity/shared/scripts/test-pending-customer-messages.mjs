@@ -10,7 +10,8 @@ for(const file of readdirSync("drizzle").filter(x=>x.endsWith(".sql")).sort())db
 let owner={email:"kylebrooks8605@gmail.com"},queries=[];
 const DB={prepare(sql){queries.push(sql);return {bind(...args){return {
  first:async()=>db.prepare(sql).get(...args),
- all:async()=>({results:db.prepare(sql).all(...args)})
+ all:async()=>({results:db.prepare(sql).all(...args)}),
+ run:async()=>{const result=db.prepare(sql).run(...args);return {meta:{changes:result.changes}}}
 };}};}};
 function loadRoute(dbResource=DB) {
  const code=ts.transpileModule(readFileSync("app/api/customer-messages/route.ts","utf8"),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
@@ -43,8 +44,28 @@ try{
  let {response,data}=await read("c1","e1");
  check(response.status===200&&response.headers.get("cache-control").includes("no-store"),"Private owner-only no-store response");
  check(data.pending.length===2&&data.pending[0].id==="unconfirmed-email"&&data.pending[1].id==="first","Only correct customer/job, unconfirmed prepared messages sorted newest first");
- check(data.pending[0].body==="Review my exact prepared text unconfirmed-email","Exact saved body available for owner to review before manual confirmation");
- check(!data.pending.some(m=>m.id==="confirmed-prep"||m.id==="copied"||m.id==="other-job"||m.id==="other-customer"),"Already-confirmed, copied, wrong-job and wrong-customer data excluded");
+ const cancel=async(messageId,customerId,flags={ownerConfirmedNotSent:true})=>{
+  const request=new Request("https://fire.example.invalid/api/customer-messages",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({preparedMessageId:messageId,customerId,...flags})});
+  const response=await api.PATCH(request);return {response,data:await response.json()};
+ };
+ let discard=await cancel("unconfirmed-email","c1");
+ check(discard.response.status===200&&discard.data.cancelled===true&&discard.data.message.channel==="send_cancelled","Explicit owner cancel saves immutable audit receipt");
+ check(discard.data.message.id==="unconfirmed-email:owner-cancelled","Cancel receipt uses exact linked identity");
+ check(db.prepare("SELECT body FROM customer_messages WHERE id=?").get("unconfirmed-email").body.includes("Review my exact"),"Original prepared text is never deleted");
+ discard=await cancel("unconfirmed-email","c1");
+ check(discard.response.status===200&&db.prepare("SELECT COUNT(*) AS c FROM customer_messages WHERE id=?").get("unconfirmed-email:owner-cancelled").c===1,"Uncertain retry cannot duplicate a cancellation");
+ let rejected=await cancel("unconfirmed-email","c2");
+ check(rejected.response.status===409,"Other customer cannot cancel prepared messages");
+ rejected=await cancel("confirmed-prep","c1");
+ check(rejected.response.status===409,"Confirmed sent messages cannot later be discarded");
+ rejected=await cancel("unconfirmed-email","c1",{ownerConfirmedSent:true,ownerConfirmedNotSent:true});
+ check(rejected.response.status===400,"Contradictory owner intent is refused");
+ ({response,data}=await read("c1","e1"));
+ check(data.pending.length===1&&data.pending[0].id==="first","Canceled draft is hidden from pending recovery, other drafts remain");
+ const confirmation=await cancel("unconfirmed-email","c1",{ownerConfirmedSent:true,ownerConfirmedNotSent:false});
+ check(confirmation.response.status===409,"Canceled unsent draft cannot later receive a sent-confirmed receipt");
+ check(data.pending[0].body==="Review my exact prepared text first","Exact remaining prepared body available for owner to review before manual confirmation");
+ check(!data.pending.some(m=>m.id==="confirmed-prep"||m.id==="unconfirmed-email"||m.id==="copied"||m.id==="other-job"||m.id==="other-customer"),"Already-confirmed, copied, wrong-job and wrong-customer data excluded");
  ({response,data}=await read("c1",""));
  check(response.status===200&&data.pending.length===1&&data.pending[0].id==="no-job","Customer-only composer sees only its customer-level prepared messages");
  ({response,data}=await read("c2","foreign"));
@@ -59,7 +80,7 @@ try{
  for(let i=0;i<13;i++)message("many-"+i,"c1","e1","text_prepared",0);
  ({response,data}=await read("c1","e1"));
  check(data.pending.length===10,"Large message history remains bounded to the latest ten prepared messages");
- check(queries.every(q=>/^SELECT\s/i.test(q.trim())),"Owner draft recovery performs zero writes");
+ check(queries.some(q=>q.includes("INSERT OR IGNORE"))&&db.prepare("SELECT channel FROM customer_messages WHERE id=?").get("unconfirmed-email:owner-cancelled").channel==="send_cancelled","Only explicit owner cancellation adds one audit event");
  const outage=loadRoute({prepare(){throw Error("Database unavailable");}});
  const fail=await outage.GET(new Request("https://fire.example.invalid/api/customer-messages?customerId=c1&estimateId=e1"));
  check(fail.status===503&&((await fail.json()).error??"").includes("No send is assumed"),"Database outage never claims delivery or shows stale records");
@@ -69,5 +90,7 @@ try{
  check(ui.includes("Saved messages awaiting confirmation")&&ui.includes("Resume ")&&ui.includes("setPreparedMessage(item)"),"Mobile owner can resume selected message without generating a new send event");
  check(ui.includes('Only confirm if you actually sent it.')&&ui.includes('Sending is not confirmed.'),"Resumed draft is not recorded as delivered automatically");
  check(ui.includes('current.filter(item=>item.id!==preparedMessage.id)'),"Confirmed messages leave the pending recovery UI only after owner save");
+ check(ui.includes("Discard unsent draft")&&ui.includes("ownerConfirmedNotSent:true")&&ui.includes("draft.id+\":owner-cancelled\""),"Mobile composer offers explicit owner-only discard with linked server receipt");
+ check(dashboard.includes('draft discarded')&&dashboard.includes('Owner-confirmed not sent'),"Customer timeline shows discarded-not-sent status, never delivered");
  console.log("PASS "+n+" synthetic scoped SMS/email prepared-message recovery, authorization, history, no-write and mobile composer contracts.");
 }finally{db.close();}

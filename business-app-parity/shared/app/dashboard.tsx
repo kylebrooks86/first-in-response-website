@@ -119,7 +119,7 @@ type YardSignPickupDraft={customerId:string;customerName:string;pickupDate:strin
 type ReviewCheckDraft={customerId:string;customerName:string;requestedAt:string;dueDate:string};
 type InvoiceRow = { paymentReviewPending?:boolean;pendingRefundCount?:number;storedStatus?:string; estimateStatus?:string; depositCents?:number; id:string; estimateId:string; customerId:string; customer?:string; email?:string; phone?:string; address?:string; service?:string; status:string; subtotalCents?:number; discountCents?:number; discountType?:"percent"|"dollar"; discountValue?:number; totalCents:number; paidCents?:number; dueAt?:string|null; shareToken?:string|null; firstViewedAt?:string|null; paymentOverageOpen?:number; createdAt:string };
 type CustomerPhoto = { id:string; customerId:string; category:"before"|"after"|"property"; caption?:string; filename:string; contentType:string; sizeBytes:number; createdAt:string };
-type CustomerMessage = { id:string; customerId:string; estimateId?:string|null; channel:"contact_recorded"|"followup_snoozed"|"review_snoozed"|"review_check_snoozed"|"text"|"email"|"copy"|"text_prepared"|"email_prepared"|"text_confirmed"|"email_confirmed"; template:string; body:string; createdAt:string };
+type CustomerMessage = { id:string; customerId:string; estimateId?:string|null; channel:"contact_recorded"|"followup_snoozed"|"review_snoozed"|"review_check_snoozed"|"text"|"email"|"copy"|"text_prepared"|"email_prepared"|"text_confirmed"|"email_confirmed"|"send_cancelled"; template:string; body:string; createdAt:string };
 type AppNotification = { id:string; type:string; title:string; body:string; customerId?:string|null; estimateId?:string|null; invoiceId?:string|null; readAt?:string|null; resolvedAt?:string|null; createdAt:string };
 type TaskRow = { id:string; title:string; customerId?:string|null; customer?:string|null; dueAt?:string|null; status:string; notes?:string|null; createdAt:string; completedAt?:string|null };
 type ExpenseRow = { id:string; estimateId?:string|null; category:string; description:string; amountCents:number; incurredAt:string; customer?:string|null; service?:string|null };
@@ -325,6 +325,23 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     if(!preparedMessage)return;setWorking(true);setMessageStatus("");
     try{const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:preparedMessage.id,customerId:customer.id,ownerConfirmedSent:true})});const result=await response.json() as {message?:CustomerMessage;estimateStatus?:string;error?:string};if(!response.ok||!result.message)throw new Error(result.error||"Send confirmation could not be saved.");onLogged?.(result.message);setPreparedMessage(null);setPendingMessages(current=>current.filter(item=>item.id!==preparedMessage.id));setMessageStatus("Sent — confirmed by you. Delivery and read status are unknown.");if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));if(preparedMessage.template===initialTemplate)await onSent?.(result.message,result.estimateStatus);}catch(error){setMessageStatus(error instanceof Error?error.message:"Send confirmation could not be saved.");}finally{setWorking(false);}
   };
+  const cancelPrepared=async()=>{
+    if(!preparedMessage||working||!window.confirm("Mark this prepared message as NOT sent? It will leave your pending list but stay in the customer audit history."))return;
+    const draft=preparedMessage;
+    setWorking(true);setMessageStatus("");
+    try{
+      const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:draft.id,customerId:customer.id,ownerConfirmedNotSent:true})});
+      const result=await response.json() as {message?:CustomerMessage;cancelled?:boolean;error?:string};
+      if(!response.ok||result.cancelled!==true||result.message?.id!==draft.id+":owner-cancelled"||result.message.customerId!==customer.id)
+        throw Error(result.error||"Could not verify that the unsent message was discarded. Refresh its saved status.");
+      onLogged?.(result.message);
+      setPendingMessages(current=>current.filter(item=>item.id!==draft.id));
+      setPreparedMessage(null);draftEdited.current=false;setBody(renderedBody);
+      setMessageStatus("Marked not sent. Removed from pending messages; original draft remains in customer history.");
+      if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
+    }catch(err){setMessageStatus(err instanceof Error?err.message:"Cannot confirm that the unsent draft was discarded.");}
+    finally{setWorking(false);}
+  };
   const copy=async()=>{try{await navigator.clipboard.writeText(body);await log("copy");}catch{setMessageStatus("Copy failed. No sending is confirmed.");}};
   return <Dialog open={open} onOpenChange={(value)=>{setOpen(value);if(value){setSiteOrigin(window.location.origin);}}}>
     <DialogTrigger asChild><Button variant="outline" className={triggerClassName}><MessageSquareText className="h-4 w-4" /> {triggerLabel}</Button></DialogTrigger>
@@ -342,7 +359,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
             setPreparedMessage(item);setMessageStatus("Recovered an unconfirmed prepared message. Check the text before confirming a send.");
           }}>Resume {item.channel==="text_prepared"?"text":"email"} · {new Date(item.createdAt).toLocaleString()} · {item.template}</Button>)}</div>
         </section>}
-        {preparedMessage&&<div><p>After sending the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}, confirm here. Opening the other app does not send it.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button></div>}
+        {preparedMessage&&<div><p>After sending the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}, confirm here. Opening the other app does not send it.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button><Button variant="outline" disabled={working} onClick={()=>void cancelPrepared()}>Discard unsent draft</Button></div>}
         <div><Label>Message type</Label><Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{composerTemplates.map((item)=><SelectItem key={item.key} value={item.key}>{item.name}</SelectItem>)}</SelectContent></Select></div>
         <div><Label htmlFor="customerMessage">Personalized message</Label><Textarea id="customerMessage" disabled={working||Boolean(preparedMessage)} value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={8}/><small>Customer, service, price, date, address, and the private estimate or invoice link are filled in automatically when available. You can edit anything before sending.</small></div>
         <div className="message-actions"><Button variant="outline" onClick={()=>void copy()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Copy className="h-4 w-4"/> Copy</Button>{customer.email&&activeTemplate?.channel!=="sms"&&<Button variant="outline" onClick={()=>void sendEmail()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Mail className="h-4 w-4"/> Email</Button>}{customer.phone&&activeTemplate?.channel!=="email"&&<Button className="brand-button" onClick={()=>void sendText()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Send className="h-4 w-4"/> Text</Button>}</div>
@@ -1691,9 +1708,9 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       const kind=subject(message.template);
       const title=message.channel==="contact_recorded"?"Customer contact recorded":
         message.channel==="followup_snoozed"?"Follow-up snoozed":
-        isConfirmed?kind+" send confirmed":isPrepared?kind+" prepared":
+        message.channel==="send_cancelled"?kind+" draft discarded":isConfirmed?kind+" send confirmed":isPrepared?kind+" prepared":
         message.channel==="copy"?kind+" copied":"Communication record";
-      const detail=isConfirmed?"Owner-confirmed send · delivery unverified":
+      const detail=message.channel==="send_cancelled"?"Owner-confirmed not sent · saved draft retained":isConfirmed?"Owner-confirmed send · delivery unverified":
         isPrepared||message.channel==="copy"?"Sending unconfirmed":
         message.channel==="contact_recorded"?"Owner logged contact":
         message.channel==="followup_snoozed"?"Follow-up deferred · owner recorded":"Legacy entry · delivery unverified";
