@@ -2351,6 +2351,28 @@ function ContractsView({searchQuery}:{searchQuery:string}){
 }
 
 function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimate}:{searchQuery:string;focusEstimateId?:string|null;onFocusHandled?:(id:string)=>void;onOpenEstimate?:(id:string)=>void}){
+  /** Read-only saved estimate milestones: a timestamp is not proof of external delivery. */
+  function followupMilestones(estimate:EstimateRow){
+    const events:{key:string;at:string;title:string;time:number}[]=[];
+    const add=(key:string,at:string|null|undefined,title:string)=>{
+      const time=at?Date.parse(at):NaN;
+      if(Number.isFinite(time))events.push({key,at:at!,title,time});
+    };
+    add("created",estimate.createdAt,"Estimate created");
+    add("send-recorded",estimate.firstEstimateSentAt,"Estimate send recorded · delivery unverified");
+    add("last-send",estimate.lastEstimateSentAt,"Most recent estimate send recorded · delivery unverified");
+    add("contact",estimate.lastEstimateContactAt,"Estimate contact recorded");
+    add("manual",estimate.lastManualContactAt,"Manual contact logged · no message send claimed");
+    add("stage1",estimate.stage1At,"Day 1 follow-up stage recorded");
+    add("stage3",estimate.stage3At,"Day 3 follow-up stage recorded");
+    add("stage7",estimate.stage7At,"Day 7 follow-up stage recorded");
+    add("snooze",estimate.snoozeUntil,"Reminder snooze-until date recorded");
+    add("review",estimate.lastReviewRequestAt,"Review request status recorded");
+    return events.sort((a,b)=>b.time-a.time||a.key.localeCompare(b.key)).slice(0,6);
+  }
+  const followupGroup=(template:string,kind:"followup"|"repeat"|"review"|"history")=>
+    kind==="history"?"history":kind==="review"?"reviews":kind==="repeat"?"repeat":
+    ["invoiceReminder","overdue"].includes(template)?"billing":template==="appointmentReminder"?"schedule":"quotes";
   const [rows,setRows]=useState<EstimateRow[]>([]);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
@@ -2360,6 +2382,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   const [actionStatus,setActionStatus]=useState("");
   const [actionError,setActionError]=useState(false);
   const [actionBusy,setActionBusy]=useState(false);
+  const [actionFilter,setActionFilter]=useState<"all"|"quotes"|"billing"|"schedule"|"reviews"|"repeat"|"history">("all");
   const actionPending=useRef(false);
   // Preserve one operation ID across uncertain replies, so retry cannot append a second history row.
   const actionRetry=useRef<{customerId:string;estimateId:string;action:"contacted"|"snooze";operationId:string}|null>(null);
@@ -2451,8 +2474,11 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     if(estimate.status==="completed"&&Number(estimate.paymentOverageOpen)===0&&!estimate.lastRebookMessageAt){const cadence=repeatCadenceMonths(estimate.service);const due=addMonths(serviceDate,cadence);const daysUntil=Math.ceil((due.getTime()-now)/86400000);if(daysUntil<=45)items.push({estimate,template:cadence<=6?"winBack6":"winBack11",reason:daysUntil<0?`Repeat service is ${Math.abs(daysUntil)} days overdue`:`Repeat service is due in ${daysUntil} days`,priority:daysUntil<0?4:2,kind:"repeat"});}
     return items;
   }).filter((item)=>[item.estimate.customer,item.estimate.service,item.reason].join(" ").toLowerCase().includes(searchQuery.toLowerCase())).sort((a,b)=>b.priority-a.priority);
+  const visibleActions=actions.filter(item=>actionFilter==="all"||followupGroup(item.template,item.kind)===actionFilter);
   useEffect(()=>{
     if(!focusEstimateId||loading||error)return;
+    // A bell deep link overrides an old on-screen filter without losing the exact record.
+    if(actionFilter!=="all"){setActionFilter("all");return;}
     const target=actions.find(item=>item.estimate.id===focusEstimateId&&["followUp1","followUp3","followUp7"].includes(item.template));
     if(!target){
       setFocusError({id:focusEstimateId,message:"That follow-up is not currently due in the loaded records. It may already be handled; review the saved estimate to verify."});
@@ -2465,14 +2491,19 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     element.scrollIntoView({block:"center",behavior:"instant"});
     element.focus({preventScroll:true});
     onFocusHandled?.(focusEstimateId);
-  },[focusEstimateId,loading,error,rows,searchQuery]);
+  },[focusEstimateId,loading,error,rows,searchQuery,actionFilter]);
   return <div className="workspace-view"><EstimateDetail estimate={reviewEstimate} onClose={()=>setReviewEstimate(null)} onChanged={value=>{setReviewEstimate(current=>current?.id===value.id?value:current);void load();}}/><section className="workspace-head"><div><p className="eyebrow">Start workflow</p><h1>Follow-ups</h1><p>Customers who need a reminder, confirmation, review request, or payment follow-up.</p></div></section>
     {focusError&&<div className="followup-focus-notice" role="status"><p>{focusError.message}</p>{onOpenEstimate&&<Button variant="outline" onClick={()=>{const id=focusError.id;setFocusError(null);onOpenEstimate(id);}}>Open saved estimate</Button>}</div>}
     {actionStatus&&<p role={actionError?"alert":"status"}>{actionStatus}</p>}
     {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>recommended actions</small></div></span><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>Messages open prefilled and editable. Your phone still lets you review and tap Send.</p></div>}
-    {loading&&rows.length===0?<div className="customers-state">Checking customer follow-ups…</div>:error&&rows.length===0?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:actions.length?<section className="followup-list">{actions.map(({estimate,template,reason,kind})=>{const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};return <article className={`followup-card ${kind}${focusEstimateId===estimate.id?" followup-card-focused":""}`} id={["followUp1","followUp3","followUp7"].includes(template)?`followup-action-${estimate.id}`:undefined} tabIndex={["followUp1","followUp3","followUp7"].includes(template)?-1:undefined} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><p>{reason}</p><small>{estimate.service} · {money(billingBalanceCents(estimate))}</small></div>{kind==="history"?<Button variant="outline" onClick={()=>setReviewEstimate(estimate)}>Review estimate</Button>:<MessageComposer customer={customer} estimate={estimate} initialTemplate={template} triggerLabel="Prepare message" onSent={(message,status)=>{setRows(current=>current.map(row=>row.id===estimate.id?{...row,status:status||row.status,...(message.template==="estimate"?{firstEstimateSentAt:row.firstEstimateSentAt||message.createdAt,lastEstimateSentAt:message.createdAt}:{}),...(["estimate","followUp1","followUp3","followUp7"].includes(message.template)?{lastEstimateContactAt:message.createdAt}:{}),...(message.template==="followUp1"?{stage1At:message.createdAt}:{}),...(message.template==="followUp3"?{stage3At:message.createdAt}:{}),...(message.template==="followUp7"?{stage7At:message.createdAt}:{}),...(message.template==="review"?{lastReviewRequestAt:message.createdAt}:{}),...(["winBack6","winBack11"].includes(message.template)?{lastRebookMessageAt:message.createdAt}:{})}:row));void load();}}/>}
+    {!loading&&!error&&<div className="followup-filter-panel" role="group" aria-label="Filter recommended follow-up actions">
+      {([["all","All"],["quotes","Estimates"],["billing","Billing"],["schedule","Appointments"],["reviews","Reviews"],["repeat","Repeat jobs"],["history","Needs review"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label}</button>)}
+      <p role="status">Showing {visibleActions.length} of {actions.length} recommended actions from {rows.length} loaded records. Saved activity is for owner review; no message is sent by opening it.</p>
+    </div>}
+    {loading&&rows.length===0?<div className="customers-state">Checking customer follow-ups…</div>:error&&rows.length===0?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visibleActions.length?<section className="followup-list">{visibleActions.map(({estimate,template,reason,kind})=>{const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};const milestones=followupMilestones(estimate);return <article className={`followup-card ${kind}${focusEstimateId===estimate.id?" followup-card-focused":""}`} id={["followUp1","followUp3","followUp7"].includes(template)?`followup-action-${estimate.id}`:undefined} tabIndex={["followUp1","followUp3","followUp7"].includes(template)?-1:undefined} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><p>{reason}</p><small>{estimate.service} · {money(billingBalanceCents(estimate))}</small></div>{kind==="history"?<Button variant="outline" onClick={()=>setReviewEstimate(estimate)}>Review estimate</Button>:<MessageComposer customer={customer} estimate={estimate} initialTemplate={template} triggerLabel="Prepare message" onSent={(message,status)=>{setRows(current=>current.map(row=>row.id===estimate.id?{...row,status:status||row.status,...(message.template==="estimate"?{firstEstimateSentAt:row.firstEstimateSentAt||message.createdAt,lastEstimateSentAt:message.createdAt}:{}),...(["estimate","followUp1","followUp3","followUp7"].includes(message.template)?{lastEstimateContactAt:message.createdAt}:{}),...(message.template==="followUp1"?{stage1At:message.createdAt}:{}),...(message.template==="followUp3"?{stage3At:message.createdAt}:{}),...(message.template==="followUp7"?{stage7At:message.createdAt}:{}),...(message.template==="review"?{lastReviewRequestAt:message.createdAt}:{}),...(["winBack6","winBack11"].includes(message.template)?{lastRebookMessageAt:message.createdAt}:{})}:row));void load();}}/>}
 {["followUp1","followUp3","followUp7"].includes(template)&&<div className="col-span-full flex flex-wrap gap-2"><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="contacted"))} onClick={()=>void recordAction(estimate,"contacted")}>Contacted</Button><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="snooze"))} onClick={()=>void recordAction(estimate,"snooze")}>Snooze 7 days</Button></div>}
-</article>;})}</section>:<div className="customers-state"><CheckCircle2/><strong>{nextCursor?"No reminders in loaded records":"You’re caught up"}</strong><p>No follow-ups are recommended in the loaded records. Check older records when available.</p></div>}
+<div className="followup-card-tools">{onOpenEstimate&&<button type="button" onClick={()=>onOpenEstimate(estimate.id)} aria-label={"Open saved estimate for "+estimate.customer}><FileText aria-hidden="true"/> Open estimate</button>}{milestones.length>0&&<details className="followup-milestones"><summary>Saved estimate activity ({milestones.length})</summary><ol>{milestones.map(item=><li key={item.key}><strong>{item.title}</strong><time dateTime={item.at}>{new Date(item.at).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</time></li>)}</ol><small>Owner-side saved status only. Open the estimate for more detail; a recorded timestamp does not prove delivery.</small></details>}</div>
+</article>;})}</section>:actions.length?<div className="customers-state"><Clock3/><strong>No matches in this filter</strong><p>Choose All to view the other {actions.length} recommended actions. Nothing has been changed or sent.</p><Button variant="outline" onClick={()=>setActionFilter("all")}>Show all follow-ups</Button></div>:<div className="customers-state"><CheckCircle2/><strong>{nextCursor?"No reminders in loaded records":"You’re caught up"}</strong><p>No follow-ups are recommended in the loaded records. Check older records when available.</p></div>}
     <p role="status">{rows.length} records loaded. {nextCursor?"Older records are available.":"End of available records."}</p>{error&&rows.length>0&&<p role="alert">{error}</p>}{error&&!retryAppend.current&&rows.length>0&&<Button variant="outline" disabled={loading} onClick={()=>void load()}>Retry follow-up refresh</Button>}{nextCursor&&<Button variant="outline" disabled={loading||Boolean(error&&!retryAppend.current)} onClick={()=>void load(true)}>{loading?"Loading…":error&&retryAppend.current?"Retry older records":"Load older records"}</Button>}
   </div>;
 }

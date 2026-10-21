@@ -451,3 +451,52 @@ console.log('PASS customer timeline: chronology, private note restraint, confirm
  assert.ok(source.includes('setTimelineShown(6);setTimelineFilter("all");setTimelineSearch("")'));
 }
 console.log('PASS customer action review: due priority, confirmed sends, no false invoice outreach, privacy-first activity filtering.');
+
+
+// Actual FollowUpsView source: saved milestones never claim external delivery.
+// Category filters and exact estimate navigation are read-only owner controls.
+{
+ const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='FollowUpsView');
+ let helper=null;
+ function find(n){if(ts.isFunctionDeclaration(n)&&n.name?.text==='followupMilestones')helper=n;ts.forEachChild(n,find);}
+ find(fn);assert.ok(helper,'Follow-ups chronology helper is self-contained');
+ const c=ts.transpileModule(helper.getText(ast)+'\nexports.milestones=followupMilestones;',{
+   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
+ }).outputText;
+ const ctx={exports:{},Date};vm.runInNewContext(c,ctx);
+ const e={id:'e1',createdAt:'2026-10-01T12:00:00Z',firstEstimateSentAt:'2026-10-01T13:00:00Z',
+  lastEstimateSentAt:'2026-10-02T12:00:00Z',lastEstimateContactAt:'2026-10-05T12:00:00Z',
+  lastManualContactAt:'2026-10-06T12:00:00Z',stage1At:'2026-10-05T12:00:00Z',
+  stage3At:'2026-10-07T12:00:00Z',snoozeUntil:'2026-10-12T12:00:00Z'};
+ const milestones=ctx.exports.milestones(e);
+ eq(milestones.length,6,'Follow-up history stays compact on small phones');
+ eq(milestones[0].key,'snooze','Latest saved milestone sorts to top');
+ eq(milestones.some(x=>x.title.includes('Manual contact logged · no message send claimed')),true,'Manual contact never implies delivery');
+ eq(milestones.some(x=>x.title.includes('delivery unverified')),true,'Estimate send timestamps do not claim external delivery');
+ eq(ctx.exports.milestones({...e,snoozeUntil:'garbage'}).some(x=>x.key==='snooze'),false,'Invalid source timestamps skipped');
+ eq(ctx.exports.milestones({id:'e',createdAt:'not-a-date'}).length,0,'Empty/invalid saved history does not invent events');
+ const body=fn.getText(ast);
+ for(const a of [
+  'aria-label="Filter recommended follow-up actions"',
+  'aria-label={"Filter follow-ups: "+label}',
+  'const visibleActions=actions.filter(item=>actionFilter==="all"',
+  'if(actionFilter!=="all"){setActionFilter("all");return;}',
+  'aria-label={"Open saved estimate for "+estimate.customer}',
+  'onOpenEstimate(estimate.id)',
+  '<details className="followup-milestones">',
+  'Show all follow-ups'
+ ])assert.ok(body.includes(a),'Follow-up UI safety or deep link missing: '+a);
+ const groupNode=fn.body.statements.find(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(x=>x.name.getText(ast)==='followupGroup'));
+ assert.ok(groupNode);
+ const g=ts.transpileModule(groupNode.getText(ast)+'\nexports.group=followupGroup;',{
+   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
+ }).outputText;
+ const groups={exports:{}};vm.runInNewContext(g,groups);
+ eq(groups.exports.group('followUp3','followup'),'quotes','Estimate follow-ups have own filter');
+ eq(groups.exports.group('invoiceReminder','followup'),'billing','Billing reminders are distinguished');
+ eq(groups.exports.group('appointmentReminder','followup'),'schedule','Appointment reminders are separate');
+ eq(groups.exports.group('review','review'),'reviews','Review requests are separate');
+ eq(groups.exports.group('winBack6','repeat'),'repeat','Repeat customers are distinct');
+ eq(groups.exports.group('history','history'),'history','History needs manual review, never auto-sends');
+}
+console.log('PASS follow-up triage: verified estimate milestones, six categories, filtered empty state, safe exact-record navigation.');

@@ -1435,3 +1435,21 @@ html,body{max-width:100%;overflow-x:clip}
 .customer-timeline-controls>p{font-size:11px;color:var(--muted-foreground);margin:0}
 .customer-timeline-day{font-size:11px;font-weight:750;color:var(--muted-foreground);margin:9px 0 6px;padding-inline:2px}
 @media(max-width:390px){.customer-timeline-filters button{min-height:44px;padding:8px 9px}.customer-action-review{padding:12px}}
+
+/* Responsive follow-up triage, no secondary writes or automatic delivery. */
+.followup-filter-panel{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:14px 0 4px}
+.followup-filter-panel button{min-height:44px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);padding:8px 11px;font-size:12px;font-weight:700}
+.followup-filter-panel button[aria-pressed="true"]{background:var(--muted);border-color:var(--ring)}
+.followup-filter-panel button:focus-visible,.followup-card-tools button:focus-visible,.followup-milestones summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.followup-filter-panel>p{flex-basis:100%;margin:1px 0 4px;font-size:11px;line-height:1.5;color:var(--muted-foreground)}
+.followup-card-tools{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:flex-start;gap:9px;border-top:1px solid var(--border);padding-top:10px;min-width:0}
+.followup-card-tools>button{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:12px;font-weight:700}
+.followup-card-tools>button svg{width:15px;height:15px}
+.followup-milestones{flex:1 1 200px;min-width:0;font-size:12px}
+.followup-milestones summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:750;padding:11px;border-radius:8px;background:var(--muted);color:var(--foreground)}
+.followup-milestones ol{list-style:none;padding:0;margin:8px 0;display:grid;gap:5px}
+.followup-milestones li{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding:7px 2px}
+.followup-milestones li strong{font-size:12px;font-weight:600}
+.followup-milestones time{font-size:11px;color:var(--muted-foreground)}
+.followup-milestones>small{display:block;font-size:11px;line-height:1.5}
+@media(max-width:390px){.followup-filter-panel button{flex:1 1 auto}.followup-card-tools>button{width:100%;justify-content:center}}
