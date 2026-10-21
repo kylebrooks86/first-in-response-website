@@ -402,6 +402,8 @@ jobs:
         run: node scripts/test-dashboard-paid-review-attention.mjs
       - name: Verify review message preparation requires settled job payments
         run: node --experimental-sqlite scripts/test-review-message-eligibility.mjs
+      - name: Verify review-sent flags require confirmed owner message receipts
+        run: node --experimental-sqlite scripts/test-review-sent-proof.mjs
       - name: Verify invoice loading and payment refresh recover without stale payment controls
         run: node scripts/test-invoice-load-errors.mjs
       - name: Verify refund request survives iPhone app restart and uncertain responses
