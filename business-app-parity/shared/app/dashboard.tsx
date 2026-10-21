@@ -1947,7 +1947,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         <div className="customer-timeline-heading"><div><h2>Recent activity</h2><p>Saved records only · newest first · no private note text shown</p></div><span>{timelineEntries.length} event{timelineEntries.length===1?"":"s"}{timelineEntries.length===100?"+":""}</span></div>
         <div className="customer-timeline-controls">
           <div className="customer-timeline-filters" role="group" aria-label="Filter customer activity">
-            {([["all","All"],["estimates","Estimates"],["messages","Messages"],["billing","Billing"],["notes","Notes & flags"]] as const).map(([key,label])=><button key={key} type="button" aria-pressed={timelineFilter===key} onClick={()=>{setTimelineFilter(key);setTimelineShown(6);}}>{label}</button>)}
+            {([["all","All"],["estimates","Estimates"],["messages","Messages"],["billing","Billing"],["notes","Notes & flags"]] as const).map(([key,label])=><button key={key} type="button" aria-label={"Filter activity: "+label} aria-pressed={timelineFilter===key} onClick={()=>{setTimelineFilter(key);setTimelineShown(6);}}>{label}</button>)}
           </div>
           <label className="customer-timeline-search">Search activity titles <input type="search" aria-label="Search recent activity" value={timelineSearch} onChange={event=>{setTimelineSearch(event.target.value);setTimelineShown(6);}} placeholder="Example: review, invoice, Oct 20"/></label>
           <p role="status">Showing {Math.min(timelineShown,filteredTimelineEntries.length)} of {filteredTimelineEntries.length} matching events · searches labels, not private note text</p>
