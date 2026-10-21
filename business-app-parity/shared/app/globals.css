@@ -1511,3 +1511,26 @@ html,body{max-width:100%;overflow-x:clip}
 .followup-backlog-coverage p,.followup-coverage-complete{font-size:12px;line-height:1.5;color:var(--muted-foreground);margin:4px 0 0}
 .followup-backlog-coverage button{min-height:44px;flex:none}
 @media(max-width:390px){.followup-backlog-coverage button{width:100%}}
+
+/* Business tasks: reviewing a linked customer is separate from confirming task completion. */
+.business-task-item{min-width:0;border-bottom:1px solid var(--border)}
+.business-task-row{display:flex;align-items:stretch;min-width:0;gap:0}
+.task-list .business-task-toggle{display:flex;flex:1 1 auto;min-width:0;align-items:center;gap:10px;border:0;background:var(--card);padding:12px 15px;color:var(--foreground);text-align:left;cursor:pointer}
+.task-list .business-task-toggle>span:last-child{min-width:0;display:grid;gap:3px;overflow-wrap:anywhere}
+.task-list .business-task-toggle.completed strong{text-decoration:line-through}
+.task-list .business-task-toggle.completed{opacity:1}
+.task-list .business-task-details-button{display:flex;flex:0 0 118px;align-items:center;justify-content:center;gap:6px;margin:8px 10px 8px 0;border:1px solid var(--border);border-radius:9px;background:var(--background);color:var(--foreground);font-size:12px;font-weight:750;cursor:pointer}
+.task-list .business-task-details-button svg{height:15px;width:15px;flex:none}
+.task-list .business-task-details-button:hover{border-color:var(--ring)}
+.task-list .business-task-details-button:focus-visible,.task-list .business-task-toggle:focus-visible,.business-task-context-link:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.task-list .business-task-item.task-dashboard-focus{outline:2px solid var(--ring);outline-offset:-2px;scroll-margin-block:120px}
+.business-task-context{display:grid;gap:9px;padding:12px 15px 15px;background:var(--background);border-top:1px solid var(--border);min-width:0}
+.business-task-context-heading{display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:6px;font-size:13px}
+.business-task-context-heading>span{font-size:11px;color:var(--muted-foreground);font-weight:700}
+.business-task-context p{font-size:12px;line-height:1.5;margin:0;color:var(--muted-foreground);overflow-wrap:anywhere}
+.business-task-customer-summary{display:grid;gap:3px;border:1px solid var(--border);background:var(--card);border-radius:9px;padding:10px}
+.business-task-customer-summary strong{font-size:13px}
+.business-task-customer-summary small{font-size:12px;color:var(--muted-foreground);overflow-wrap:anywhere}
+.business-task-context-link{display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:9px;color:var(--foreground);font-weight:750;font-size:12px;text-align:center;cursor:pointer}
+.business-task-context-link svg{width:15px;height:15px;flex:none}
+@media(max-width:390px){.business-task-row{flex-wrap:wrap}.task-list .business-task-toggle{flex-basis:100%}.task-list .business-task-details-button{margin:0 10px 10px 15px;flex:1 1 auto;min-height:44px}}
