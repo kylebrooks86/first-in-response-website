@@ -366,6 +366,7 @@ jobs:
           node --experimental-strip-types scripts/test-follow-up-timing.mjs
           node --experimental-sqlite scripts/test-followup-center-data.mjs
           node scripts/test-followup-action-retry.mjs
+           node scripts/test-followup-triage.mjs
           node scripts/test-followup-load-errors.mjs
           node scripts/test-notification-read-recovery.mjs
           node scripts/test-notification-attention.mjs

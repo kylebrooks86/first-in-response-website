@@ -29,4 +29,6 @@ Feature branch only; not merged, deployed or physically accepted on iPhone. Prod
 
 Owner-observed original-backup restoration, original 23-migration schema comparison and local 23-to-25 rehearsal remain completed; do not repeat them merely for this UI feature. Before any future hosted release, retain the original private export/checksum/receipts on encrypted access-controlled storage plus an independently recoverable secure copy, verify both copies against the recorded original hash, and retain authenticated Cloudflare account/Worker/D1-binding provenance. Execution freshness still applies to read-only identity/schema evidence. Exact migration and Worker-publication approvals remain separate and absent. Physical iPhone testing remains outstanding.
 
+Concurrent development through `42abfe41c6b8dd5ed359217adb29475c353714eb` was reviewed and reconciled on this feature branch, preserving urgency ranking, timing filters, confirmed/prepared timestamps and deep-link filter reset alongside saved-state queues. The development branch itself was not updated.
+
 Next bounded review: finish exact-commit CI and inspect mobile screenshots, then review integration against the current development head. Do not auto-merge this overlapping feature branch. Follow with physical QA usability once the separate hosted release safeguards and approvals are satisfied.

@@ -196,7 +196,7 @@ for(const [name,handler] of [
 // High-priority owner triage and one-tap contact must be read-only and preserve the exact customer.
 {
  const f=fixture();
- const lower=job('lower-quote');
+ const lower={...job('lower-quote'),firstEstimateSentAt:'2026-10-08T00:00:00Z',lastEstimateSentAt:'2026-10-08T00:00:00Z',lastEstimateContactAt:'2026-10-08T00:00:00Z'};
  const billing={...job('urgent-billing'),status:'accepted',invoiceId:'invoice-billing'};
  f.response(async()=>response([lower,billing]));
  f.mount();await flush();

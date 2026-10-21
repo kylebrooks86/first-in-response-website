@@ -480,7 +480,7 @@ console.log('PASS customer action review: due priority, confirmed sends, no fals
   'aria-label="Filter recommended follow-up actions"',
   'aria-label={"Filter follow-ups: "+label}',
   'const visibleActions=stateActions.filter(item=>queueState!=="due"||((actionFilter==="all"',
-  'if(actionFilter!=="all"||highPriorityOnly||queueState!=="due"){setActionFilter("all");setHighPriorityOnly(false);setQueueState("due");return;}',
+  'if(actionFilter!=="all"||highPriorityOnly||queueState!=="due"||urgencyFilter!=="all"){setActionFilter("all");setHighPriorityOnly(false);setQueueState("due");setUrgencyFilter("all");return;}',
   'aria-label={"Open saved estimate for "+estimate.customer}',
   'onOpenEstimate(estimate.id)',
   '<details className="followup-milestones">',
