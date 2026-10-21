@@ -198,7 +198,7 @@ assert.ok(source.includes('onOpenEstimate={id=>{setFocusFollowupEstimateId(null)
 assert.ok(source.includes('id={cardTarget(estimate.id,template)}')&&source.includes('["followUp1","followUp3","followUp7"].includes(template)?"followup-action-"+id'),'Due follow-up retains exact keyboard-focusable DOM target through shared ID helper');
 assert.ok(source.includes('target.scrollIntoView({block:"start",behavior:"instant"})'),'Flag jump scrolls to exact saved customer flag');
 assert.ok(source.includes('target.focus({preventScroll:true})'),'Flag jump also supports keyboard focus');
-assert.ok(source.includes('if(taskId){setPickupTaskDraft(null);setReviewTaskDraft(null);setFocusBusinessTaskId(taskId);setTab("business");}'),'Bell task click invokes focused Business navigation, not generic Business tab');
+assert.ok(source.includes('if(taskId){setPickupTaskDraft(null);setReviewTaskDraft(null);setFocusBusinessTaskHint({customerId:customerId??null,activity:customerActivity??null});setFocusBusinessTaskId(taskId);setTab("business");}'),'Bell task click invokes focused Business navigation, not generic Business tab');
 {
  const now=Date.parse('2026-10-20T18:00:00Z'),ago=d=>new Date(now-d*86400000).toISOString();
  const sent={id:'safe',customer:'Synthetic',status:'sent',createdAt:ago(10),firstEstimateSentAt:ago(10),lastEstimateSentAt:ago(10)};
