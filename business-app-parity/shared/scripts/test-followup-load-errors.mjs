@@ -39,7 +39,7 @@ function fixture(){
  const context={exports:{},require,...stubs,Date:FixedDate,Math,Error,Array,Number,JSON,
   useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}]},
   useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},
-  useEffect(fn){const slot=effectCursor++;if(slot===0)effect=fn;else if(slot===1)focusEffect=fn;},document:{getElementById(id){focusCalls.push(id);if(id!=="followup-action-synthetic-job")return null;return {scrollIntoView(){focusCalls.push("scroll");},focus(){focusCalls.push("keyboard");}};}},useCurrentTime:()=>fixedTime,money:c=>'$'+(c/100).toFixed(2),
+  useEffect(fn){const slot=effectCursor++;if(slot===0)effect=fn;else if(slot===1)focusEffect=fn;},document:{getElementById(id){focusCalls.push(id);if(!["followup-action-synthetic-job","followup-action-older-due","followup-action-newer-due"].includes(id))return null;return {scrollIntoView(){focusCalls.push("scroll");},focus(){focusCalls.push("keyboard");}};}},useCurrentTime:()=>fixedTime,money:c=>'$'+(c/100).toFixed(2),
   fetch:(url,options)=>{requests.push({url,options});return handler(url,options);},
  };
  vm.runInNewContext(compiled,context);
@@ -174,12 +174,62 @@ for(const [name,handler] of [
  eq(f.focusCalls.includes('scroll'),true,'Focused follow-up scrolls into view on mobile');
  eq(f.focusCalls.includes('keyboard'),true,'Focused follow-up receives keyboard focus');
  eq(f.handled.at(-1),'synthetic-job','Focused action acknowledges navigation after rendering');
- f.focus('missing-estimate');
+ f.response(async url=>url.startsWith('/api/followups?estimateId=missing-estimate')?
+  {ok:true,json:async()=>({estimateId:'missing-estimate',estimates:[],nextCursor:null,pageSize:1})}:response([job()]));
+ f.focus('missing-estimate');await flush();
  eq(f.nodes().some(n=>n.props?.className==='followup-focus-notice'),true,'Changed or completed follow-up shows honest fallback rather than a false card');
  const fallback=f.nodes().find(n=>n.props?.children==='Open saved estimate');
  eq(Boolean(fallback),true,'Fallback survives the parent clearing its consumed focus request');
  fallback.props.onClick();
  eq(f.handled.at(-1),'fallback:missing-estimate','Fallback navigates to the original exact estimate ID');
+ f.unmount();
+}
+
+
+// Notification can open a due follow-up outside the initially loaded cursor page.
+{
+ const f=fixture(),old=job('older-due');
+ f.response(async url=>url.startsWith('/api/followups?estimateId=older-due')?
+  {ok:true,json:async()=>({estimateId:'older-due',estimates:[old],nextCursor:null,pageSize:1})}:
+  response([job()], 'older-cursor'));
+ f.mount();await flush();
+ eq(f.get(0).length,1,'Initial page has one record');
+ f.focus('older-due');await flush();
+ eq(f.requests.at(-1).url,'/api/followups?estimateId=older-due','One exact GET replaces unbounded history scans');
+ eq(f.requests.at(-1).options.cache,'no-store','Exact customer lookup uses no browser cache');
+ eq(f.get(0).length,1,'Targeted record never changes loaded cursor-page count');
+ eq(f.get(3),'older-cursor','Targeted record preserves historical continuation cursor');
+ eq(f.messageCards().length,2,'Verified old due action appears alongside existing cards');
+ f.focus('older-due');
+ eq(f.focusCalls.includes('followup-action-older-due'),true,'Old notification targets the exact DOM card');
+ eq(f.handled.at(-1),'older-due','Exact focus acknowledged only after card was verified');
+ eq(f.requests.some(x=>x.options?.method==='POST'),false,'Deep link never records, sends or snoozes');
+ f.unmount();
+}
+// Mismatched endpoint responses cannot inject an unrelated customer record.
+{
+ const f=fixture();
+ f.response(async url=>url.includes('estimateId=wrong-target')?
+  {ok:true,json:async()=>({estimateId:'other',estimates:[job('wrong-target')],nextCursor:null,pageSize:1})}:
+  response([job()]));
+ f.mount();await flush();f.focus('wrong-target');await flush();
+ eq(f.nodes().some(n=>n.props?.className==='followup-focus-notice'),true,'Mismatched response displays review fallback');
+ eq(f.messageCards().length,1,'Mismatched response never inserts a customer recommendation');
+ eq(f.requests.some(x=>x.options?.method==='POST'),false,'Invalid lookup never writes');
+ f.unmount();
+}
+// A delayed older notification reply must not replace the subsequent notification.
+{
+ const f=fixture(),pending=deferred();
+ f.response(async url=>url.includes('estimateId=older-due')?pending.promise:
+  url.includes('estimateId=newer-due')?{ok:true,json:async()=>({estimateId:'newer-due',estimates:[job('newer-due')],nextCursor:null,pageSize:1})}:
+  response([job()]));
+ f.mount();await flush();f.focus('older-due');f.focus('newer-due');await flush();
+ pending.resolve({ok:true,json:async()=>({estimateId:'older-due',estimates:[job('older-due')],nextCursor:null,pageSize:1})});await flush();
+ f.focus('newer-due');
+ eq(f.focusCalls.includes('followup-action-newer-due'),true,'Newest notification focuses exact updated target');
+ eq(f.messageCards().length,2,'Late obsolete lookup cannot inject another estimate');
+ eq(f.handled.includes('older-due'),false,'Superseded lookup does not acknowledge obsolete notification');
  f.unmount();
 }
 

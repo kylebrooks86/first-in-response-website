@@ -2401,6 +2401,9 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   const [highPriorityOnly,setHighPriorityOnly]=useState(false);
   const [urgencyFilter,setUrgencyFilter]=useState<"all"|"past-target"|"due"|"upcoming"|"review">("all");
   const [contactHistory,setContactHistory]=useState<{key:string;status:"loading"|"ready"|"error";events:{id:string;channel:string;template:string;createdAt:string}[];hasMore:boolean}|null>(null);
+  const [focusedRecord,setFocusedRecord]=useState<EstimateRow|null>(null);
+  const focusedLookup=useRef<{id:string;token:number}|null>(null);
+  const focusedLookupSequence=useRef(0);
   const contactReadId=useRef(0);
   const readContactHistory=(estimate:EstimateRow,template:string)=>{
     const customerId:string=typeof estimate.customerId==="string"?estimate.customerId:"";
@@ -2495,9 +2498,11 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
       setActionStatus("Follow-up action not confirmed. Review saved history before retrying. Retrying the same action reuses its original operation ID to avoid a duplicate.");
     }finally{actionPending.current=false;setActionBusy(false);}
   };
-  useEffect(()=>{void load();return()=>{loadRequest.current++;};},[]);
+  useEffect(()=>{void load();return()=>{loadRequest.current++;focusedLookup.current=null;};},[]);
   const now=Math.max(useCurrentTime(),Date.now());
-  const actions=rows.flatMap((estimate)=>{
+  // A notification's exact older record is displayed separately from page scans.
+  const actionRows=focusedRecord&&!rows.some(row=>row.id===focusedRecord.id)?[...rows,focusedRecord]:rows;
+  const actions=actionRows.flatMap((estimate)=>{
     const {ageDays,confirmedContact}=estimateFollowUpTiming(estimate,now);
     const quoteReason=(days:number)=>estimate.status==="draft"?`Unsent draft is at least ${days} day${days===1?"":"s"} old — prepare the estimate`:confirmedContact?`No confirmed estimate contact for at least ${days} day${days===1?"":"s"}`:`Estimate has been open at least ${days} day${days===1?"":"s"}; send date unconfirmed`;
     const scheduledTime=estimate.scheduledAt?new Date(estimate.scheduledAt).getTime():0;
@@ -2516,7 +2521,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     if(estimate.status==="completed"&&Number(estimate.paymentOverageOpen)===0&&estimate.paidCents>=resolvedBillingTotalCents(estimate)&&serviceAgeDays<=30&&!estimate.lastReviewRequestAt)items.push({estimate,template:"review",reason:"Paid and complete — ask for a Google-first review",priority:4,kind:"review"});
     if(estimate.status==="completed"&&Number(estimate.paymentOverageOpen)===0&&!estimate.lastRebookMessageAt){const cadence=repeatCadenceMonths(estimate.service);const due=addMonths(serviceDate,cadence);const daysUntil=Math.ceil((due.getTime()-now)/86400000);if(daysUntil<=45)items.push({estimate,template:cadence<=6?"winBack6":"winBack11",reason:daysUntil<0?`Suggested repeat-service target was ${Math.abs(daysUntil)} days ago`:`Repeat service is suggested in ${daysUntil} days`,priority:daysUntil<0?4:2,kind:"repeat",dueAt:due.toISOString()});}
     return items;
-  }).filter((item)=>[item.estimate.customer,item.estimate.service,item.reason].join(" ").toLowerCase().includes(searchQuery.toLowerCase())).sort((a,b)=>followupUrgency(a,now).rank-followupUrgency(b,now).rank||b.priority-a.priority||(Date.parse(a.estimate.createdAt)||0)-(Date.parse(b.estimate.createdAt)||0)||a.estimate.id.localeCompare(b.estimate.id));
+  }).filter((item)=>item.estimate.id===focusedRecord?.id||[item.estimate.customer,item.estimate.service,item.reason].join(" ").toLowerCase().includes(searchQuery.toLowerCase())).sort((a,b)=>followupUrgency(a,now).rank-followupUrgency(b,now).rank||b.priority-a.priority||(Date.parse(a.estimate.createdAt)||0)-(Date.parse(b.estimate.createdAt)||0)||a.estimate.id.localeCompare(b.estimate.id));
   // Owner-side triage: high priority is an ordering cue, never an overdue or
   // delivery claim. Saved-record exceptions always remain reviewable.
   const isHighPriority=(item:{priority:number;kind:"followup"|"repeat"|"review"|"history";template:string;estimate:EstimateRow;dueAt?:string|null})=>item.priority>=4||item.kind==="history"||followupUrgency(item,now).bucket==="past-target"||followupUrgency(item,now).rank<=1;
@@ -2533,12 +2538,46 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     node?.focus({preventScroll:true});
   };
   useEffect(()=>{
+    // A superseded notification must never inject an old customer's result.
+    if(focusedLookup.current&&focusedLookup.current.id!==focusEstimateId)focusedLookup.current=null;
     if(!focusEstimateId||loading||error)return;
-    // A bell deep link overrides an old on-screen filter without losing the exact record.
+    // Exact deep links override stale on-screen filters, without saving or sending.
     if(actionFilter!=="all"||highPriorityOnly||urgencyFilter!=="all"){setActionFilter("all");setHighPriorityOnly(false);setUrgencyFilter("all");return;}
     const target=actions.find(item=>item.estimate.id===focusEstimateId&&["followUp1","followUp3","followUp7"].includes(item.template));
     if(!target){
-      setFocusError({id:focusEstimateId,message:"That follow-up is not currently due in the loaded records. It may already be handled; review the saved estimate to verify."});
+      if(!actionRows.some(row=>row.id===focusEstimateId)){
+        if(focusedLookup.current?.id===focusEstimateId)return;
+        const id=focusEstimateId,token=++focusedLookupSequence.current;
+        focusedLookup.current={id,token};setFocusError(null);
+        // One owner-authenticated read of this exact estimate; no cursor scan.
+        void (async()=>{
+          try{
+            const response=await fetch("/api/followups?estimateId="+encodeURIComponent(id),{cache:"no-store"});
+            const result=await response.json() as {estimateId?:string;estimates?:EstimateRow[];nextCursor?:string|null;pageSize?:number};
+            if(focusedLookup.current?.id!==id||focusedLookup.current?.token!==token)return;
+            if(!response.ok||result.estimateId!==id||result.pageSize!==1||result.nextCursor!==null||
+               !Array.isArray(result.estimates)||result.estimates.length>1)throw Error("Unverified exact estimate response");
+            const record=result.estimates[0];
+            if(!record){
+              setFocusError({id,message:"This saved estimate was not found for the notification. No contact or completion has been recorded."});
+              onFocusHandled?.(id);return;
+            }
+            if(record.id!==id||typeof record.customerId!=="string"||!record.customerId||
+              typeof record.createdAt!=="string"||!Number.isFinite(Date.parse(record.createdAt))||
+              ![record.totalCents,record.depositCents,record.paidCents].every(value=>Number.isFinite(Number(value))))
+              throw Error("Unverified saved estimate identity");
+            setFocusedRecord({...record,subtotalCents:Number(record.subtotalCents??record.totalCents),
+              discountCents:Number(record.discountCents??0),totalCents:Number(record.totalCents),
+              depositCents:Number(record.depositCents),paidCents:Number(record.paidCents)});
+          }catch{
+            if(focusedLookup.current?.id!==id||focusedLookup.current?.token!==token)return;
+            setFocusError({id,message:"Could not verify this older follow-up. No message was sent or action recorded. Open the saved estimate to check its status."});
+            onFocusHandled?.(id);
+          }
+        })();
+        return;
+      }
+      setFocusError({id:focusEstimateId,message:"This saved estimate was found, but no day 1/3/7 follow-up is currently recommended. Open its record to verify the latest status."});
       onFocusHandled?.(focusEstimateId);
       return;
     }
@@ -2548,7 +2587,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     element.scrollIntoView({block:"center",behavior:"instant"});
     element.focus({preventScroll:true});
     onFocusHandled?.(focusEstimateId);
-  },[focusEstimateId,loading,error,rows,searchQuery,actionFilter,highPriorityOnly,urgencyFilter]);
+  },[focusEstimateId,loading,error,rows,focusedRecord,searchQuery,actionFilter,highPriorityOnly,urgencyFilter]);
   // Read-only reconciliation: keep active Follow-ups aligned with confirmed
   // customer actions elsewhere. Preserve all loaded pages, never POST or
   // retry an ambiguous outbound message. The load request counter rejects
@@ -2572,6 +2611,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   return <div className="workspace-view"><EstimateDetail estimate={reviewEstimate} onClose={()=>setReviewEstimate(null)} onChanged={value=>{setReviewEstimate(current=>current?.id===value.id?value:current);void load();}}/><section className="workspace-head"><div><p className="eyebrow">Start workflow</p><h1>Follow-ups</h1><p>Customers who need a reminder, confirmation, review request, or payment follow-up.</p></div></section>
     {focusError&&<div className="followup-focus-notice" role="status"><p>{focusError.message}</p>{onOpenEstimate&&<Button variant="outline" onClick={()=>{const id=focusError.id;setFocusError(null);onOpenEstimate(id);}}>Open saved estimate</Button>}</div>}
     {actionStatus&&<p role={actionError?"alert":"status"}>{actionStatus}</p>}
+    {focusedRecord&&!rows.some(row=>row.id===focusedRecord.id)&&<p role="status" className="followup-coverage-complete">An older notification estimate is shown separately from the {rows.length} scanned records. Opening it does not verify the remaining historical pages.</p>}
     {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>recommended actions</small></div></span><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>{bucketCount("past-target")} past suggested target · {bucketCount("due")} due now · {bucketCount("upcoming")} upcoming · {bucketCount("review")} needs review. Planning cues only—not verified customer deadlines. Preparing or copying isn’t sending.</p></div>}
     {!loading&&!error&&nextCursor&&<section className="followup-backlog-coverage" aria-label="Older customer record coverage">
       <div><strong>Older records still unchecked</strong><p>Today's queue and counts include only {rows.length} loaded estimates. More saved estimates remain outside this view. Check up to 200 older records per scan; no messages are sent or customer records changed.</p></div>
@@ -2583,7 +2623,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filter follow-ups by timing">
       {([["all","All timing"],["past-target","Past target"],["due","Due now"],["upcoming","Upcoming"],["review","Needs review"]] as const).map(([bucket,label])=><button type="button" key={bucket} aria-label={"Timing: "+label} aria-pressed={urgencyFilter===bucket} onClick={()=>setUrgencyFilter(bucket)}>{label} ({bucket==="all"?actions.length:bucketCount(bucket)})</button>)}
       </div><div className="followup-priority-toggle"><button type="button" aria-label="Show high priority follow-ups" aria-pressed={highPriorityOnly} onClick={()=>setHighPriorityOnly(current=>!current)}><AlertTriangle aria-hidden="true"/> High priority only ({highPriorityCount})</button><small>Includes higher-ranked due actions and records requiring owner review; not a claim that all are overdue.</small></div>
-      <p role="status">Showing {visibleActions.length} of {actions.length} recommended actions from {rows.length} loaded records. Saved activity is for owner review; no message is sent by opening it.</p>
+      <p role="status">Showing {visibleActions.length} of {actions.length} recommended actions from {rows.length} scanned records{focusedRecord&&!rows.some(row=>row.id===focusedRecord.id)?" plus one exact notification estimate":""}. Saved activity is for owner review; no message is sent by opening it.</p>
     </div>}
     {!loading&&!error&&todayQueue.length>0&&<section className="followup-priority-jumps" aria-label="Top follow-up priorities in loaded records">
       <div><strong>Today's customer actions</strong><small>{todayQueue.length} customer{todayQueue.length===1?"":"s"} highlighted from {actionableCount} matching action{actionableCount===1?"":"s"} in loaded records · suggested timing, not contractual deadlines · opening never saves or sends</small></div>
