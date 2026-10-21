@@ -218,7 +218,8 @@ for(const [name,handler] of [
  eq(posts.length,0,'Priority filter and contact navigation never POST');
  f.focus('lower-quote');
  eq(f.get(10),false,'Bell deep-link resets priority view to reveal exact due follow-up');
- eq(f.focusCalls.includes('followup-action-lower-quote'),true,'Due estimate focus lookup uses exact saved ID');
+ f.focus('lower-quote');
+ eq(f.focusCalls.includes('followup-action-lower-quote'),true,'Due estimate focus lookup uses exact saved ID after priority reset');
  f.unmount();
 }
 const source=readFileSync('app/dashboard.tsx','utf8');

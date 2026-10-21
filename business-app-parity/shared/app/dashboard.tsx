@@ -2531,7 +2531,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
       {([["all","All"],["quotes","Estimates"],["billing","Billing"],["schedule","Appointments"],["reviews","Reviews"],["repeat","Repeat jobs"],["history","Needs review"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label}</button>)}
       <div className="followup-priority-toggle"><button type="button" aria-label="Show high priority follow-ups" aria-pressed={highPriorityOnly} onClick={()=>setHighPriorityOnly(current=>!current)}><AlertTriangle aria-hidden="true"/> High priority only ({highPriorityCount})</button><small>Includes higher-ranked due actions and records requiring owner review; not a claim that all are overdue.</small></div>
       <p role="status">Showing {visibleActions.length} of {actions.length} recommended actions from {rows.length} loaded records. Saved activity is for owner review; no message is sent by opening it.</p>
-    </div>
+    </div>}
     {!loading&&!error&&visibleActions.length>0&&<section className="followup-priority-jumps" aria-label="Top follow-up priorities in loaded records">
       <div><strong>Jump to next action</strong><small>Top {Math.min(3,visibleActions.length)} of {visibleActions.length} matching saved-record recommendations · opening doesn't send or record contact</small></div>
       <div className="followup-priority-buttons">{visibleActions.slice(0,3).map(({estimate,template,kind,reason})=>
