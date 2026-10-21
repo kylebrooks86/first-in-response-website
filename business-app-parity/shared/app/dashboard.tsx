@@ -2402,15 +2402,16 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   const [contactHistory,setContactHistory]=useState<{key:string;status:"loading"|"ready"|"error";events:{id:string;channel:string;template:string;createdAt:string}[];hasMore:boolean}|null>(null);
   const contactReadId=useRef(0);
   const readContactHistory=(estimate:EstimateRow,template:string)=>{
-    if(!estimate.customerId)return;
+    const customerId=estimate.customerId;
+    if(!customerId)return;
     const key=estimate.id+":"+template,request=++contactReadId.current;
     setContactHistory({key,status:"loading",events:[],hasMore:false});
     void (async()=>{
       try{
-        const url="/api/followup-contact-history?estimateId="+encodeURIComponent(estimate.id)+"&customerId="+encodeURIComponent(estimate.customerId);
+        const url="/api/followup-contact-history?estimateId="+encodeURIComponent(estimate.id)+"&customerId="+encodeURIComponent(customerId);
         const response=await fetch(url,{cache:"no-store"});
         const data=await response.json() as {estimateId?:string;customerId?:string;events?:{id:string;channel:string;template:string;createdAt:string}[];hasMore?:boolean};
-        if(!response.ok||data.estimateId!==estimate.id||data.customerId!==estimate.customerId||!Array.isArray(data.events)||
+        if(!response.ok||data.estimateId!==estimate.id||data.customerId!==customerId||!Array.isArray(data.events)||
           data.events.length>12||typeof data.hasMore!=="boolean"||data.events.some(item=>!item||typeof item.id!=="string"||!item.id||
             typeof item.channel!=="string"||typeof item.template!=="string"||typeof item.createdAt!=="string"||!Number.isFinite(Date.parse(item.createdAt))))
           throw Error("History could not be verified");
