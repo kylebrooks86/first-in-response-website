@@ -2864,6 +2864,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     !estimate.acceptedAt&&!estimate.scheduledAt&&
     !estimate.stage1At&&!estimate.stage3At&&!estimate.stage7At&&
     !estimate.lastEstimateContactAt&&!estimate.lastManualContactAt&&
+    !estimate.lastConfirmedMessageAt&&
     !actions.some(item=>item.estimate.id===estimate.id&&isViewedReady(item))).length;
   const viewedReadyCount=actions.filter(isViewedReady).length;
   const visibleActions=actions.filter(item=>(actionFilter==="all"||(actionFilter==="viewed"?isViewedReady(item):followupGroup(item.template,item.kind)===actionFilter))&&(!highPriorityOnly||isHighPriority(item))&&(urgencyFilter==="all"||followupUrgency(item,now).bucket===urgencyFilter));
