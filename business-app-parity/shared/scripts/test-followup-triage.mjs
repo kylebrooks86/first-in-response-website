@@ -29,4 +29,6 @@ assert.match(api,/channel IN \('text_confirmed','email_confirmed'\)\) AS lastCon
 assert.match(api,/channel IN \('text_prepared','email_prepared','copy'\)\) AS lastPreparedAt/);
 assert.match(view,/Owner-confirmed message:/);assert.match(view,/Last prepared\/copied:/);
 assert.match(view,/Timing: /);assert.match(view,/setUrgencyFilter\("all"\)/);
+assert.match(view,/followupUrgency\(item,now\)\.bucket==="past-target"/);
+assert.match(view,/followupUrgency\(item,now\)\.rank<=1/);
 console.log('PASS '+n+'/'+n+' timing cases, channel separation and follow-up mobile filters (synthetic).');
