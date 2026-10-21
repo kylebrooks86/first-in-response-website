@@ -1703,6 +1703,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   useEffect(()=>{noteMounted.current=true;return()=>{noteMounted.current=false;};},[]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshIssue,setRefreshIssue]=useState(false);
   const [offlinePhotoOnly,setOfflinePhotoOnly]=useState(false);
   const [offlinePhotoCustomers,setOfflinePhotoCustomers]=useState<OfflinePhotoCustomer[]>([]);
   const loadRequest=useRef(0);
@@ -1754,9 +1755,14 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       setPhotos(nextPhotos);
       setMessages(nextMessages);
       setPayments(nextPayments);
+      setRefreshIssue(false);
       setLoadedRecordKey(recordRequestKey);
     }catch(loadError){
-      if(request!==loadRequest.current||quiet)return;
+      if(request!==loadRequest.current)return;
+      // Keep confirmed local records visible on transient refresh failures, but
+      // never silently imply that dependent activity is up to date.
+      // Authorization denials must still hide owner-only history entirely.
+      if(quiet&&!mustClearOfflinePhotoDirectory(responseStatus??0)){setRefreshIssue(true);return;}
       if(mayUseOfflinePhotoDirectory({networkFailed,responseStatus,browserReportsOffline:navigator.onLine===false})){
         try{
           const cached=await loadOfflinePhotoCustomerDirectory();
@@ -1775,6 +1781,14 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     finally { if(request===loadRequest.current)setLoading(false); }
   };
   useEffect(() => { void load(); return()=>{loadRequest.current++;}; }, [recordRequestKey]);
+  // All confirmed message/contact/flag changes broadcast this owner-only event.
+  // Refresh the same authenticated API instead of tracking a second copy of
+  // the customer's activity, invoices or review/yard-sign statuses.
+  useEffect(()=>{
+    const refresh=()=>{void load(true);};
+    window.addEventListener("fire:attention-saved",refresh);
+    return()=>window.removeEventListener("fire:attention-saved",refresh);
+  },[recordRequestKey]);
   useEffect(()=>{
     if(!focusCustomerId||loading||error||offlinePhotoOnly)return;
     const customer=customers.find(row=>row.id===focusCustomerId);
@@ -1952,6 +1966,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   if (selected) return <div className="customers-view">
     <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={()=>{ setActiveEstimate(null); void load(); }} />
     <button className="back-link" onClick={() => { setSelectedId(null); setSection("estimates"); }}>← All customers</button>
+    {refreshIssue&&<div className="customer-flag-next" role="alert"><AlertTriangle aria-hidden="true"/><span><strong>Customer activity needs refreshing</strong><small>A saved change could not be rechecked. Review current records before acting on these statuses.</small></span><Button variant="outline" onClick={()=>void load()}>Refresh customer history</Button></div>}
     <section className="customer-profile">
       {recordFocusError&&<p role="alert">{recordFocusError}</p>}
       <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><p className="eyebrow">Customer profile</p><h1>{selected.name}</h1></div><div className="profile-head-actions"><Button variant="outline" onClick={()=>{const target=document.getElementById(`customer-history-${selected.id}`);target?.scrollIntoView({block:"start"});target?.focus({preventScroll:true});}}>Customer history</Button><EditCustomer key={selected.id} customer={selected} onUpdated={(updated)=>{setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item));void load(true);}}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/><NewEstimate key={selected.id} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /></div></div>
