@@ -1622,7 +1622,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       const confirmed=input.messages.some(message=>message.estimateId===estimate.id&&message.template==="estimate"&&
         (message.channel==="text_confirmed"||message.channel==="email_confirmed"));
       const savedSend=Boolean(estimate.firstEstimateSentAt||estimate.lastEstimateSentAt);
-      const snoozed=Boolean(estimate.snoozeUntil&&Number.isFinite(Date.parse(estimate.snoozeUntil))&&Date.parse(estimate.snoozeUntil)>Date.now());
+      const snoozed=Boolean(estimate.snoozeUntil&&Number.isFinite(Date.parse(estimate.snoozeUntil))&&Date.parse(estimate.snoozeUntil)>input.now);
       if(!confirmed&&!savedSend&&estimate.status==="draft")
         actions.push({key:"estimate:"+estimate.id,kind:"estimate",estimateId:estimate.id,title:"Review unsent estimate",
           detail:"Draft estimate · sending not confirmed in app",priority:55});
