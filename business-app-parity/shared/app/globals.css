@@ -1469,3 +1469,14 @@ html,body{max-width:100%;overflow-x:clip}
 .followup-latest-activity{display:block;color:var(--muted-foreground);font-size:11px;line-height:1.4;grid-column:1/-1}
 .followup-card[id^="followup-card-"],.followup-card[id^="followup-action-"]{scroll-margin-block:110px}
 .followup-card[id^="followup-card-"]:focus-visible,.followup-card[id^="followup-action-"]:focus-visible{outline:3px solid var(--ring);outline-offset:3px}
+
+/* Accessible, read-only follow-up priority triage and explicit customer contact. */
+.followup-priority-toggle{display:flex;align-items:center;flex-wrap:wrap;gap:8px;width:100%;padding-block:5px}
+.followup-priority-toggle button{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:8px 12px;border:1px solid var(--border);border-radius:9px;color:var(--foreground);background:var(--background);font-size:12px;font-weight:750;cursor:pointer}
+.followup-priority-toggle button[aria-pressed="true"]{border-color:var(--ring);background:var(--muted)}
+.followup-priority-toggle button svg{width:15px;height:15px}
+.followup-priority-toggle small{color:var(--muted-foreground);font-size:11px;line-height:1.5;flex:1 1 180px}
+.followup-card-tools a{display:inline-flex;align-items:center;gap:5px;min-height:42px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;color:var(--foreground);font-size:12px;font-weight:700;text-decoration:none}
+.followup-card-tools a:hover{border-color:var(--ring)}
+.followup-card-tools a:focus-visible,.followup-priority-toggle button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.followup-card-tools a svg{height:14px;width:14px}

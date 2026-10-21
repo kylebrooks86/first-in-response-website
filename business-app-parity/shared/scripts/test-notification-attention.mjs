@@ -139,7 +139,7 @@ assert.ok(source.includes('aria-description={attentionDescription}'),'Business r
 assert.ok(source.includes('activityFocus={customerActivityFocus}'),'Customer page accepts exact flag navigation');
 assert.ok(source.includes('onNavigate(item.kind==="followup"?"followups":"estimates",item.estimateId)'),'Only due estimate follow-ups switch to the actionable Follow-ups screen');
 assert.ok(source.includes('onOpenEstimate={id=>{setFocusFollowupEstimateId(null);'),'Missing/changed follow-ups retain a shortcut to the exact saved estimate');
-assert.ok(source.includes('id={["followUp1","followUp3","followUp7"].includes(template)?'),'Due follow-up has exact keyboard-focusable DOM target');
+assert.ok(source.includes('id={cardTarget(estimate.id,template)}')&&source.includes('["followUp1","followUp3","followUp7"].includes(template)?"followup-action-"+id'),'Due follow-up retains exact keyboard-focusable DOM target through shared ID helper');
 assert.ok(source.includes('target.scrollIntoView({block:"start",behavior:"instant"})'),'Flag jump scrolls to exact saved customer flag');
 assert.ok(source.includes('target.focus({preventScroll:true})'),'Flag jump also supports keyboard focus');
 assert.ok(source.includes('if(taskId){setPickupTaskDraft(null);setReviewTaskDraft(null);setFocusBusinessTaskId(taskId);setTab("business");}'),'Bell task click invokes focused Business navigation, not generic Business tab');

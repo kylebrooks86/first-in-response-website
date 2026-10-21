@@ -18,7 +18,7 @@ const compiled=ts.transpileModule(readFileSync('lib/follow-up-timing.ts','utf8')
 }).outputText;
 const fixedTime=Date.parse('2026-10-09T12:00:00Z');
 class FixedDate extends Date {static now(){return fixedTime;}}
-const components=['EstimateDetail','Button','MessageComposer','Clock3','Star','CalendarDays','CheckCircle2','FileText','ChevronRight'];
+const components=['EstimateDetail','Button','MessageComposer','Clock3','Star','CalendarDays','CheckCircle2','FileText','ChevronRight','Users','Phone','MessageSquareText','Mail','AlertTriangle'];
 const job=(id='synthetic-job')=>({
  id,customerId:'synthetic-customer',customer:'Synthetic QA',email:'qa@example.test',phone:'9185550100',
  service:'House Wash',status:'sent',createdAt:'2026-10-01T12:00:00Z',
@@ -43,7 +43,7 @@ function fixture(){
   fetch:(url,options)=>{requests.push({url,options});return handler(url,options);},
  };
  vm.runInNewContext(compiled,context);
- const render=(searchQuery='')=>{cursor=0;refCursor=0;effectCursor=0;return context.exports.view({searchQuery,focusEstimateId:focusId,onFocusHandled:id=>{handled.push(id);focusId=null;},onOpenEstimate:id=>handled.push("fallback:"+id)});};
+ const render=(searchQuery='')=>{cursor=0;refCursor=0;effectCursor=0;return context.exports.view({searchQuery,focusEstimateId:focusId,onFocusHandled:id=>{handled.push(id);focusId=null;},onOpenEstimate:id=>handled.push("fallback:"+id),onOpenCustomer:id=>handled.push("customer:"+id)});};
  const lookup=(predicate)=>nodes(render()).find(predicate);
  return {requests,render,nodes:()=>nodes(render()),lookup,focusCalls,handled,focus(id){focusId=id;render();focusEffect?.();},
   get:idx=>state[idx],
@@ -193,4 +193,35 @@ for(const [name,handler] of [
  eq(f.requests.length,prior,'Browsing milestones does not issue additional GET or POST');
  f.unmount();
 }
+// High-priority owner triage and one-tap contact must be read-only and preserve the exact customer.
+{
+ const f=fixture();
+ const lower=job('lower-quote');
+ const billing={...job('urgent-billing'),status:'accepted',invoiceId:'invoice-billing'};
+ f.response(async()=>response([lower,billing]));
+ f.mount();await flush();
+ eq(f.messageCards().length,2,'All follow-up categories are shown by default');
+ const high=f.lookup(n=>n.props?.['aria-label']==='Show high priority follow-ups'&&typeof n.props?.onClick==='function');
+ assert.ok(high,'Accessible high-priority filter exists');
+ high.props.onClick();
+ eq(f.get(10),true,'Owner can switch to high priority actions');
+ eq(f.messageCards().length,1,'Priority view excludes lower-ranked estimate without changing saved data');
+ const customer=f.lookup(n=>n.props?.['aria-label']==='Open saved customer history for Synthetic QA'&&typeof n.props?.onClick==='function');
+ assert.ok(customer,'Saved customer shortcut appears in priority card');
+ customer.props.onClick();
+ eq(f.handled.at(-1),'customer:synthetic-customer','Follow-up shortcut targets exact saved customer profile');
+ const links=f.nodes().filter(n=>n.type==='a'&&typeof n.props?.href==='string').map(n=>n.props.href);
+ eq(links.includes('tel:9185550100'),true,'Manual call opens phone app without tracking contact');
+ eq(links.includes('sms:9185550100'),true,'Manual text opens SMS composer without sending');
+ eq(links.includes('mailto:qa@example.test'),true,'Manual email opens mail composer without sending');
+ const posts=f.requests.filter(x=>x.options?.method==='POST');
+ eq(posts.length,0,'Priority filter and contact navigation never POST');
+ f.focus('lower-quote');
+ eq(f.get(10),false,'Bell deep-link resets priority view to reveal exact due follow-up');
+ eq(f.focusCalls.includes('followup-action-lower-quote'),true,'Due estimate focus lookup uses exact saved ID');
+ f.unmount();
+}
+const source=readFileSync('app/dashboard.tsx','utf8');
+assert.ok(source.includes('onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/>'),'Follow-up shortcut lands on the actual customer profile, not generic Customers list');
+
 console.log('PASS '+checks+'/'+checks+': actual FollowUpsView paginated endpoint, failure/retry, priority navigation, refresh listeners and stale read protection. Mock GET only.');
