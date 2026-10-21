@@ -456,6 +456,31 @@ console.log('PASS customer Activity & Flags presentation: contact vs send, due s
  eq(timeline.find(x=>x.title==='Estimate send confirmed').id,'m1:owner-confirmed','Message target retains saved audit identity');
  eq(JSON.stringify(timeline).includes('Gate code'),false,'Private free-form note body never appears in timeline');
  eq(JSON.stringify(timeline).includes('SECRET-REFERENCE'),false,'Payment reference is not exposed in activity summary');
+ // Saved follow-up/history markers supplement communication receipts without
+ // inventing external delivery, exposing private text, or breaking exact jumps.
+ const stageEstimate={id:'e-history',service:'Gutters',createdAt:iso,
+  stage1At:'2026-10-20T13:00:00Z',stage3At:'2026-10-20T14:00:00Z',
+  stage7At:'invalid-time',lastManualContactAt:'2026-10-20T15:00:00Z',
+  lastReviewRequestAt:'2026-10-20T16:00:00Z'};
+ const markers=ctx.exports.timeline({...base,estimates:[stageEstimate],
+  messages:[{message:{id:'prepared',estimateId:'e-history',template:'review',channel:'text_prepared',createdAt:iso}}]});
+ eq(markers.some(x=>x.title==='Day 1 follow-up milestone'),true,'Saved follow-up milestones remain visible without a confirmed message');
+ eq(markers.some(x=>x.title==='Day 3 follow-up milestone'),true,'Historical stage-three action appears');
+ eq(markers.some(x=>x.title==='Day 7 follow-up milestone'),false,'Bad milestone timestamp cannot invent history');
+ eq(markers.some(x=>x.title==='Manual contact logged'),true,'Manual contact fallback appears when message history is unavailable');
+ eq(markers.some(x=>x.title==='Review request recorded'),true,'Prepared review message does not hide saved request marker');
+ eq(markers.filter(x=>x.title.includes('milestone')||x.title==='Review request recorded').every(x=>x.section==='estimates'&&x.id==='e-history'),true,'Historical markers navigate to their exact saved estimate');
+ eq(markers.every(x=>!x.detail.includes('delivered')&&!x.detail.includes('Gate code')),true,'History never claims delivery or exposes note text');
+ const receiptBacked=ctx.exports.timeline({...base,estimates:[stageEstimate],messages:[
+  {message:{id:'m-stage',estimateId:'e-history',template:'followUp1',channel:'text_confirmed',createdAt:'2026-10-20T13:00:00Z'}},
+  {message:{id:'m-contact',estimateId:'e-history',template:'followUp3',channel:'contact_recorded',createdAt:'2026-10-20T14:00:00Z'}},
+  {message:{id:'m-manual',estimateId:'e-history',template:'followUp3',channel:'contact_recorded',createdAt:'2026-10-20T15:00:00Z'}},
+  {message:{id:'m-review',estimateId:'e-history',template:'review',channel:'email_confirmed',createdAt:'2026-10-20T16:00:00Z'}}
+ ]});
+ eq(receiptBacked.some(x=>x.title==='Day 1 follow-up milestone'),false,'Confirmed follow-up receipt replaces legacy stage marker');
+ eq(receiptBacked.some(x=>x.title==='Day 3 follow-up milestone'),false,'Logged contact replaces matching legacy stage marker');
+ eq(receiptBacked.some(x=>x.title==='Manual contact logged'),false,'Saved contact message avoids duplicate manual contact timeline row');
+ eq(receiptBacked.some(x=>x.title==='Review request recorded'),false,'Confirmed review message replaces saved request marker');
  eq(ctx.exports.timeline({...base,notes:[{id:'bad',body:'X',createdAt:'not-a-date'}]}).length,0,'Invalid timestamps do not invent activity');
  eq(ctx.exports.timeline({...base,messages:[{message:{id:'legacy',template:'estimate',channel:'copy',createdAt:iso}}]})[0].detail,'Sending unconfirmed','Copied message is not counted as delivered');
  eq(ctx.exports.timeline({...base,messages:[{message:{id:'legacy',template:'estimate',channel:'text',createdAt:iso}}]})[0].detail,'Legacy entry · delivery unverified','Unverified legacy message stays unverified');

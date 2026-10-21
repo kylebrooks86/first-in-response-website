@@ -1568,6 +1568,24 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         row.message.estimateId===estimate.id&&row.message.template==="estimate"&&
         (row.message.channel==="text_confirmed"||row.message.channel==="email_confirmed")))
         add("estimates",estimate.id,estimate.firstEstimateSentAt,"Estimate send recorded","Saved status · delivery not verified");
+      // Surface older saved follow-up milestones when no corresponding confirmed
+      // send/contact receipt is available. These are history markers, not proof
+      // that a text or email was delivered, and always open the saved estimate.
+      for(const [template,at,title] of [
+        ["followUp1",estimate.stage1At,"Day 1 follow-up milestone"],
+        ["followUp3",estimate.stage3At,"Day 3 follow-up milestone"],
+        ["followUp7",estimate.stage7At,"Day 7 follow-up milestone"]
+      ] as const){
+        const audited=input.messages.some(({message})=>message.estimateId===estimate.id&&message.template===template&&
+          (message.channel==="text_confirmed"||message.channel==="email_confirmed"||message.channel==="contact_recorded"));
+        if(!audited)add("estimates",estimate.id,at,title,"Saved follow-up history · delivery unverified");
+      }
+      if(estimate.lastManualContactAt&&!input.messages.some(({message})=>message.estimateId===estimate.id&&
+        message.channel==="contact_recorded"&&message.createdAt===estimate.lastManualContactAt))
+        add("estimates",estimate.id,estimate.lastManualContactAt,"Manual contact logged","Saved owner contact · delivery unverified");
+      if(estimate.lastReviewRequestAt&&!input.messages.some(({message})=>message.estimateId===estimate.id&&
+        message.template==="review"&&(message.channel==="text_confirmed"||message.channel==="email_confirmed")))
+        add("estimates",estimate.id,estimate.lastReviewRequestAt,"Review request recorded","Saved owner request · delivery unverified");
     }
     for(const invoice of input.invoices)
       add("invoices",invoice.id,invoice.createdAt,"Invoice created","Created · send not confirmed");
