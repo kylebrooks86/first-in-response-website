@@ -399,6 +399,8 @@ jobs:
         run: node scripts/test-review-after-payment.mjs
       - name: Verify paid-job review action center on synthetic SQLite
         run: node --experimental-sqlite scripts/test-payment-closeout-actions.mjs
+      - name: Verify owner-only review snoozes on synthetic paid jobs
+        run: node --experimental-sqlite scripts/test-paid-review-snooze.mjs
       - name: Verify Dashboard paid-in-full review attention and exact customer navigation
         run: node scripts/test-dashboard-paid-review-attention.mjs
       - name: Verify review message preparation requires settled job payments

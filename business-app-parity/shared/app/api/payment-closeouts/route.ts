@@ -44,9 +44,10 @@ export async function GET(request?:Request){
     AND NOT EXISTS(SELECT 1 FROM payment_refunds x WHERE x.estimate_id=e.id AND x.status='pending')
     AND NOT EXISTS(SELECT 1 FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL)
     AND NOT EXISTS(SELECT 1 FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open')
+    AND NOT EXISTS(SELECT 1 FROM customer_messages m WHERE m.estimate_id=e.id AND m.channel='review_snoozed' AND m.template='reviewSnooze' AND m.body>?)
     AND (? IS NULL OR ${paymentDateSql}<? OR (${paymentDateSql}=? AND e.id<?))
    ORDER BY lastPaidAt DESC,e.id DESC LIMIT 201
-  `).bind(cursor?.lastPaidAt??null,cursor?.lastPaidAt??null,cursor?.lastPaidAt??null,cursor?.estimateId??null).all<CloseoutRow>();
+  `).bind(new Date().toISOString(),cursor?.lastPaidAt??null,cursor?.lastPaidAt??null,cursor?.lastPaidAt??null,cursor?.estimateId??null).all<CloseoutRow>();
   const rows=result.results??[],hasOlder=rows.length>200;
   const page=rows.slice(0,200);
   const last=page.at(-1);

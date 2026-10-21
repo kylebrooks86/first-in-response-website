@@ -2824,6 +2824,10 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   const [reviewNextCursor,setReviewNextCursor]=useState<string|null>(null);
   const [reviewOlderError,setReviewOlderError]=useState("");
   const [reviewOlderLoading,setReviewOlderLoading]=useState(false);
+  const [reviewSnoozingId,setReviewSnoozingId]=useState<string|null>(null);
+  const [reviewSnoozeError,setReviewSnoozeError]=useState("");
+  const reviewSnoozeOps=useRef<Record<string,string>>({});
+  const reviewSnoozeLock=useRef(false);
   const [showAllReviewCloseouts,setShowAllReviewCloseouts]=useState(false);
   const reviewOlderLock=useRef(false),reviewPageRequest=useRef(0);
   const loadRequest=useRef(0);
@@ -2888,6 +2892,26 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
     }
   };
   useEffect(()=>{void load();return()=>{loadRequest.current++;reviewPageRequest.current++;reviewOlderLock.current=false;};},[]);
+  const snoozeReviewCloseout=async(item:PaymentCloseoutAction)=>{
+    if(reviewSnoozeLock.current||reviewSnoozingId||loading||error)return;
+    reviewSnoozeLock.current=true;setReviewSnoozingId(item.estimateId);setReviewSnoozeError("");
+    const operationId=reviewSnoozeOps.current[item.estimateId]??crypto.randomUUID();
+    reviewSnoozeOps.current[item.estimateId]=operationId;
+    try{
+      const response=await fetch("/api/payment-closeouts/snooze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        estimateId:item.estimateId,customerId:item.customerId,operationId
+      })});
+      const result=await response.json() as {saved?:boolean;estimateId?:string;customerId?:string;snoozeUntil?:string;error?:string};
+      if(!response.ok||result.saved!==true||result.estimateId!==item.estimateId||result.customerId!==item.customerId||
+        !result.snoozeUntil||!Number.isFinite(Date.parse(result.snoozeUntil)))
+        throw Error(result.error||"Snooze status is unconfirmed. Keep this job on your review list and retry.");
+      delete reviewSnoozeOps.current[item.estimateId];
+      setReviewCloseouts(current=>current.filter(row=>row.estimateId!==item.estimateId));
+      window.dispatchEvent(new Event("fire:attention-saved"));
+    }catch(reason){
+      setReviewSnoozeError(reason instanceof Error?reason.message:"Review snooze status is uncertain. Retry with the same request.");
+    }finally{reviewSnoozeLock.current=false;setReviewSnoozingId(null);}
+  };
   const remainingBalance=(estimate:EstimateRow)=>billingBalanceCents(estimate);
   const matchingReviewCloseouts=reviewCloseouts.filter(item=>item.customerName.toLowerCase().includes(searchQuery.toLowerCase()));
   const shownReviewCloseouts=showAllReviewCloseouts?matchingReviewCloseouts:matchingReviewCloseouts.slice(0,5);
@@ -2902,11 +2926,15 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   matchingReviewCloseouts.length?<div className="balance-list">{shownReviewCloseouts.map(item=><article key={item.estimateId}>
     <div><strong>{item.customerName}</strong><small>{money(item.totalCents)} paid in full · {new Date(item.lastPaidAt).toLocaleDateString()}</small>
       <small>{item.state==="prepared"?"Review message prepared · sending not confirmed":"Review request not yet confirmed"}</small></div>
-    <a className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-current px-3 py-2 text-sm font-semibold" href={`/?openEstimate=${encodeURIComponent(item.estimateId)}`}><ExternalLink className="h-4 w-4"/> Open job · request review</a>
+    <div className="flex flex-wrap items-center gap-2">
+      <a className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-current px-3 py-2 text-sm font-semibold" href={`/?openEstimate=${encodeURIComponent(item.estimateId)}`}><ExternalLink className="h-4 w-4"/> Open job · request review</a>
+      <Button variant="outline" disabled={Boolean(reviewSnoozingId)} onClick={()=>void snoozeReviewCloseout(item)}>{reviewSnoozingId===item.estimateId?"Saving snooze…":"Snooze 7 days"}</Button>
+    </div>
   </article>)}</div>:<p className="record-empty">{reviewCloseouts.length?"No matching customers need a review request.":"No verified paid jobs awaiting review requests."}</p>}
   {matchingReviewCloseouts.length>5&&<Button variant="outline" onClick={()=>setShowAllReviewCloseouts(value=>!value)}>{showAllReviewCloseouts?"Show fewer":`Show all ${matchingReviewCloseouts.length} ready jobs`}</Button>}
   {reviewMoreAvailable&&reviewNextCursor&&<Button variant="outline" disabled={reviewOlderLoading} onClick={()=>void loadOlderReviewCloseouts()}>{reviewOlderLoading?"Loading older jobs…":"Load older paid jobs"}</Button>}
   {reviewOlderError&&<p role="alert" className="save-error">{reviewOlderError} Previously loaded jobs are still available.</p>}
+  {reviewSnoozeError&&<p role="alert" className="save-error">{reviewSnoozeError} No customer message was sent.</p>}
   {reviewMoreAvailable&&!reviewNextCursor&&<p className="pay-note">Older review records require an additional verification. Refresh this list or inspect the original job.</p>}
 </section>}{!loading&&!error&&<section className="business-metrics"><article><small>Principal paid (net refunds)</small><strong>{money(collected)}</strong></article><article><small>Collectible job balance</small><strong>{money(outstanding)}</strong></article><article><small>Jobs with collectible balance</small><strong>{open.length}</strong></article><article><small>Deposit still required</small><strong>{money(balanceSummary.depositRemainingCents)}</strong></article><article><small>Potential estimate value</small><strong>{money(balanceSummary.potentialCents)}</strong></article><article><small>Net tips</small><strong>{money(netTips)}</strong></article></section>}{!loading&&!error&&<ProcessingReport payments={receivedPayments}/>}{loading?<div className="customers-state">Loading balances…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:<div className="payment-layout"><section className="business-panel"><header><div><h2>Collectible job balances</h2><p>Approved or scheduled jobs and issued invoices, including amounts due on completion. Unapproved quotes remain potential work. Record payment uses the amount currently due.</p></div></header><div className="balance-list">{open.length?open.map((estimate)=><article key={estimate.id}><div><strong>{estimate.customer}</strong><small>{estimate.service} · {statusLabel(estimate.status)}</small></div><span><strong>{money(remainingBalance(estimate))}</strong><small>full remaining balance</small></span><RecordPayment key={estimate.id} estimate={estimate} onRecorded={()=>void load()}/></article>):<div className="record-empty"><CheckCircle2/><strong>All caught up</strong><p>No unpaid job balances.</p></div>}</div></section><section className="business-panel"><header><div><h2>Payment history</h2><p>Every recorded transaction, newest first.</p></div></header><div className="payment-history">{payments.length?payments.map((payment)=><article key={payment.id}><span className="payment-method"><CircleDollarSign/></span><div><strong>{payment.customer||"Customer"}</strong><small>{payment.type} · {statusLabel(payment.status)} · {payment.service||"Service"} · {new Date(payment.createdAt).toLocaleDateString()}</small>{payment.reference&&<span className="inline-flex max-w-full flex-wrap items-center gap-1"><em title={payment.reference}>Ref …{payment.reference.slice(-12)}</em><button type="button" aria-label="Copy full payment reference" className="rounded border px-2 py-0.5 text-xs" onClick={()=>void navigator.clipboard.writeText(payment.reference||"").catch(()=>{})}>Copy</button></span>}{payment.status==="paid"&&<ProcessingDetails payment={payment}/>}</div><strong className="payment-history-amount">{money(payment.amountCents)}</strong>{payment.status==="paid"&&<RefundPayment payment={payment} onRefunded={()=>void load()}/>}</article>):<div className="record-empty"><CreditCard/><strong>No payments recorded</strong><p>Use Record payment on an estimate or open balance.</p></div>}</div></section></div>}</div>;
 }
