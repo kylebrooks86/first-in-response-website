@@ -28,7 +28,12 @@ const component=readFileSync("components/customer-review-invitation.tsx","utf8")
 const paymentPage=readFileSync("app/pay/[id]/page.tsx","utf8");
 for(const [name,source] of [["estimate",estimate],["invoice",invoice],["legacy payment",paymentPage]]){
   assert.ok(source.includes("payment_checkout_sessions")&&source.includes("openCheckoutCount"),name+" verifies unresolved Stripe checkouts");
-  assert.ok(source.includes("Number(row.openCheckoutCount??0)>0"),name+" holds review requests when a checkout is open");
+  // After a verified Stripe return the estimate page rechecks the live
+  // checkout count; invoice and legacy pay read their current row directly.
+  const openCheckoutGate=name==="estimate"
+    ? "Number(checkedOpenCheckout?.count??row.openCheckoutCount??0)>0"
+    : "Number(row.openCheckoutCount??0)>0";
+  assert.ok(source.includes(openCheckoutGate),name+" blocks reviews while any checkout remains unresolved");
 }
 for (const [name,source] of [["estimate",estimate],["invoice",invoice]]) {
   assert.ok(source.includes("shouldOfferReviewAfterPayment("),name+" gates the invitation with saved payment state");
