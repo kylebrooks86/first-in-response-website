@@ -39,7 +39,7 @@ function fixture(){
  const context={exports:{},require,...stubs,Date:FixedDate,Math,Error,Array,Number,JSON,
   useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}]},
   useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},
-  useEffect(fn){if(effectCursor++===0)effect=fn;else focusEffect=fn;},document:{getElementById(id){focusCalls.push(id);if(id!=="followup-action-synthetic-job")return null;return {scrollIntoView(){focusCalls.push("scroll");},focus(){focusCalls.push("keyboard");}};}},useCurrentTime:()=>fixedTime,money:c=>'$'+(c/100).toFixed(2),
+  useEffect(fn){const slot=effectCursor++;if(slot===0)effect=fn;else if(slot===1)focusEffect=fn;},document:{getElementById(id){focusCalls.push(id);if(id!=="followup-action-synthetic-job")return null;return {scrollIntoView(){focusCalls.push("scroll");},focus(){focusCalls.push("keyboard");}};}},useCurrentTime:()=>fixedTime,money:c=>'$'+(c/100).toFixed(2),
   fetch:(url,options)=>{requests.push({url,options});return handler(url,options);},
  };
  vm.runInNewContext(compiled,context);
