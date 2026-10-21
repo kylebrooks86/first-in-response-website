@@ -1374,3 +1374,9 @@ html,body{max-width:100%;overflow-x:clip}
 .notification-popover[data-state="closed"]{display:none!important}
 .customer-flag-panel[id],.customer-review-check[id],.customer-flag-grid [id^="customer-sign-flag-"]{scroll-margin-top:85px}
 .customer-flag-panel:focus-visible,.customer-review-check:focus-visible,.customer-flag-grid [id^="customer-sign-flag-"]:focus-visible{outline:3px solid var(--ring);outline-offset:3px}
+
+/* Compact owner reminder filters: accessible pressed state, no extra iPhone rows. */
+.notification-attention-filters{display:flex;gap:6px;min-width:0}
+.notification-attention-filters>button{min-height:36px;padding:7px 10px;font-size:11px;font-weight:750;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);cursor:pointer}
+.notification-attention-filters>button[aria-pressed="true"]{border-color:var(--ring);box-shadow:inset 0 0 0 1px var(--ring);background:var(--muted)}
+.notification-attention-filters>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}

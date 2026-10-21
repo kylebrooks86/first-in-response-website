@@ -64,6 +64,16 @@ function fixture(){
  eq(f.get('rows').length,6,'Tasks, signs, review checks, follow-up, invoice and appointment');
  eq(f.summaries.at(-1).status,'ready','Bell is notified that attention read succeeded');
  eq(f.summaries.at(-1).count,6,'Bell receives exact action count independent of unread activity');
+ eq(f.get('rows').map(item=>item.key).slice(0,3).join('|'),'task:task-due|sign:customer-sign|appointment:est-prep','Overdue task and overdue sign sort ahead of job-prep attention');
+ eq(f.get('rows').every((row,index,list)=>index===0||list[index-1].priority>=row.priority),true,'Reminder sorting uses business priority, not alphabetic record IDs');
+ const priorityFilter=f.buttons().find(b=>b.props?.['aria-pressed']===false&&String(b.props.children).includes('Priority'));
+ assert.ok(priorityFilter,'Owner can filter to immediate priorities on iPhone');
+ priorityFilter.props.onClick();
+ eq(f.get('view'),'priority','Priority filter activates without a network write');
+ eq(elements(f.render()).filter(e=>e.type==='button'&&String(e.props?.['aria-label']??'').startsWith('Open ')).length,3,'Priority filter displays only overdue and near-term items');
+ const allFilter=f.buttons().find(b=>b.props?.['aria-pressed']===false&&String(b.props.children).includes('All'));
+ assert.ok(allFilter);allFilter.props.onClick();
+ eq(f.get('view'),'all','All reminders can be restored in one tap');
  eq(f.get('rows').some(i=>i.key==='task:task-closed'),false,'Completed task never appears');
  eq(f.get('rows').some(i=>i.key==='sign:sign-later'),false,'Future pickup is not falsely overdue');
  eq(f.calls.length,4,'Read-only fetch for four existing owner feeds');
@@ -118,5 +128,7 @@ assert.ok(source.includes('if(taskId){setPickupTaskDraft(null);setReviewTaskDraf
  eq(attentionLib.exports.estimateAttentionItems([{...sent,status:'completed',createdAt:ago(3),totalCents:20000,paidCents:20000}],now)[0]?.kind,'review-request','Unrequested paid work flagged');
  eq(attentionLib.exports.estimateAttentionItems([{...sent,status:'accepted',invoiceId:'paid',totalCents:20000,paidCents:20000}],now).length,0,'Paid invoice not flagged');
  eq(attentionLib.exports.estimateAttentionItems([{...sent,status:'scheduled',scheduledAt:ago(-1),address:'123 Main',phone:'9185551234'}],now).length,0,'Prepared appointment stays quiet');
+ eq(attentionLib.exports.estimateAttentionItems([{...sent,status:'accepted',invoiceId:'unpaid',totalCents:20000,paidCents:0}],now)[0]?.priority,55,'Unpaid invoice appears after immediate concerns');
+ eq(attentionLib.exports.estimateAttentionItems([{...sent,status:'accepted',paymentOverageOpen:1,totalCents:20000,paidCents:21000}],now)[0]?.priority,120,'Payment overage reconciliation is highest attention priority');
 }
 console.log('PASS '+(checks+2)+' notification attention checks; existing feeds, new estimate reminders, exact record navigation, and recovery.');

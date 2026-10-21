@@ -13,7 +13,7 @@ export type AttentionEstimate={
 };
 export type AttentionEstimateItem={
  key:string;kind:"followup"|"draft"|"invoice"|"appointment"|"review-request";
- title:string;detail:string;estimateId:string;invoiceId?:string;urgent:boolean;
+ title:string;detail:string;estimateId:string;invoiceId?:string;urgent:boolean;priority:number;sortAt?:number;
 };
 const day=86400000;
 const date=(s?:string|null)=>s?Date.parse(s):NaN;
@@ -27,7 +27,10 @@ export function estimateAttentionItems(estimates:readonly AttentionEstimate[],no
  for(const e of estimates){
   if(!e||typeof e.id!=="string"||!e.id||typeof e.customer!=="string"||!e.customer.trim())continue;
   const add=(kind:AttentionEstimateItem["kind"],detail:string,urgent=false,invoiceId?:string)=>{
-   items.push({key:kind+":"+e.id,kind,title:e.customer.trim(),detail,urgent,estimateId:e.id,...(invoiceId?{invoiceId}:{})});
+   // Business impact and immediate job preparation sort ahead of routine outreach.
+   const priority=kind==="invoice"?(urgent?120:55):kind==="appointment"?100:kind==="followup"?(urgent?80:45):kind==="draft"?35:25;
+   const sortAt=date(kind==="appointment"?e.scheduledAt:e.createdAt);
+   items.push({key:kind+":"+e.id,kind,title:e.customer.trim(),detail,urgent,priority,estimateId:e.id,...(Number.isFinite(sortAt)?{sortAt}:{}),...(invoiceId?{invoiceId}:{})});
   };
   const total=Number(e.invoiceTotalCents??e.totalCents),paid=Number(e.paidCents);
   if(Number(e.paymentOverageOpen)>0)add("invoice","Payment overage needs owner reconciliation",true,e.invoiceId??undefined);
