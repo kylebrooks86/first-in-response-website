@@ -25,5 +25,5 @@ export function buildPaymentCloseoutActions(rows:readonly CloseoutRow[],now=Date
   out.push({estimateId:row.estimateId,customerId:row.customerId,customerName:row.customerName,totalCents:row.totalCents,
    lastPaidAt:row.lastPaidAt!,state:prepared===null?"ready":"prepared",reviewPreparedAt:prepared===null?null:row.reviewPreparedAt});
  }
- return out.sort((a,b)=>Date.parse(b.lastPaidAt)-Date.parse(a.lastPaidAt)||a.estimateId.localeCompare(b.estimateId));
+ return out.sort((a,b)=>Date.parse(b.lastPaidAt)-Date.parse(a.lastPaidAt)||b.estimateId.localeCompare(a.estimateId));
 }
