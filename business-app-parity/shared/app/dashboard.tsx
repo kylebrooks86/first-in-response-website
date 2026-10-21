@@ -2315,6 +2315,18 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
   const [taskSaving,setTaskSaving]=useState(false);const [expenseSaving,setExpenseSaving]=useState(false);const [taskToggling,setTaskToggling]=useState<string|null>(null);const [businessMessage,setBusinessMessage]=useState("");
   const taskFocusHandled=useRef(false);
   const [highlightTaskId]=useState(focusTaskId??null);
+  const [taskSearch,setTaskSearch]=useState("");const [taskFilter,setTaskFilter]=useState<"all"|"open"|"completed"|"overdue"|"today">("all");
+  const [expenseSearch,setExpenseSearch]=useState("");const [expenseLimit,setExpenseLimit]=useState(12);
+  const taskCreateLock=useRef(false),expenseCreateLock=useRef(false);
+  const taskStatusLock=useRef(false),taskStatusRefreshLock=useRef(false);
+  const [taskStatusUncertain,setTaskStatusUncertain]=useState(false);
+  const [taskStatusMessage,setTaskStatusMessage]=useState("");
+  const taskCreateAttempt=useRef<{requestId:string;fingerprint:string}|null>(null);
+  const expenseCreateAttempt=useRef<{requestId:string;fingerprint:string;incurredAt:string}|null>(null);
+  const [taskRecoveryId,setTaskRecoveryId]=useState<string|null>(null),[expenseRecoveryId,setExpenseRecoveryId]=useState<string|null>(null);
+  const [receiptError,setReceiptError]=useState(""),[discardReceipt,setDiscardReceipt]=useState<BusinessCreateKind|null>(null);
+  const [pendingBackup,setPendingBackup]=useState<Record<string,unknown>|null>(null);const [restoreMessage,setRestoreMessage]=useState("");const [restoreBusy,setRestoreBusy]=useState(false);const restoreInput=useRef<HTMLInputElement>(null);
+  const [loading,setLoading]=useState(true);const [loadError,setLoadError]=useState("");const loadRequest=useRef(0);
   // A Dashboard shortcut may select a saved task, but never toggles completion.
   // Wait for authoritative task records before scrolling, and do this once.
   useEffect(()=>{
@@ -2330,18 +2342,7 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
       onFocusTaskHandled?.();
     }
   },[focusTaskId,loading,loadError,tasks,onFocusTaskHandled]);
-  const [taskSearch,setTaskSearch]=useState("");const [taskFilter,setTaskFilter]=useState<"all"|"open"|"completed"|"overdue"|"today">("all");
-  const [expenseSearch,setExpenseSearch]=useState("");const [expenseLimit,setExpenseLimit]=useState(12);
-  const taskCreateLock=useRef(false),expenseCreateLock=useRef(false);
-  const taskStatusLock=useRef(false),taskStatusRefreshLock=useRef(false);
-  const [taskStatusUncertain,setTaskStatusUncertain]=useState(false);
-  const [taskStatusMessage,setTaskStatusMessage]=useState("");
-  const taskCreateAttempt=useRef<{requestId:string;fingerprint:string}|null>(null);
-  const expenseCreateAttempt=useRef<{requestId:string;fingerprint:string;incurredAt:string}|null>(null);
-  const [taskRecoveryId,setTaskRecoveryId]=useState<string|null>(null),[expenseRecoveryId,setExpenseRecoveryId]=useState<string|null>(null);
-  const [receiptError,setReceiptError]=useState(""),[discardReceipt,setDiscardReceipt]=useState<BusinessCreateKind|null>(null);
-  const [pendingBackup,setPendingBackup]=useState<Record<string,unknown>|null>(null);const [restoreMessage,setRestoreMessage]=useState("");const [restoreBusy,setRestoreBusy]=useState(false);const restoreInput=useRef<HTMLInputElement>(null);
-  const [loading,setLoading]=useState(true);const [loadError,setLoadError]=useState("");const loadRequest=useRef(0);
+
   const reconcileReceipts=(savedTasks:TaskRow[],savedExpenses:ExpenseRow[])=>{
     const storage=businessReceiptStorage();
     const taskReceipt=readBusinessReceipt(storage,"task"),expenseReceipt=readBusinessReceipt(storage,"expense");
