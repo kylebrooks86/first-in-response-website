@@ -312,7 +312,7 @@ console.log('PASS '+(checks+2)+' notification and Dashboard attention checks; ex
  eq(ctx.exports.flag({...base,followupContactRecorded:true}).followup,'Contact recorded','Owner contact log never claims a message was sent');
  eq(ctx.exports.flag({...base,followupSendConfirmed:true}).followup,'Send confirmed','Confirmed external send recorded separately');
  eq(ctx.exports.flag({...base,followupContactRecorded:true,followupSendConfirmed:true}).followup,'Send confirmed','Confirmed send is preferred over contact-only status');
- eq(ctx.exports.flag({...base,invoiceCreated:true}).invoice,'Created · send unconfirmed','Creating an invoice is not sending it');
+ eq(ctx.exports.flag({...base,invoiceCreated:true}).invoice,'Created · send not confirmed','Creating an invoice is not sending it');
  eq(ctx.exports.flag({...base,invoiceCreated:true,invoiceSendConfirmed:true}).invoice,'Send confirmed','Confirmed invoice send preserved');
  eq(ctx.exports.flag({...base,reviewRequestRecorded:true}).reviewRequest,'Request recorded','Saved review-request marker is not claimed as delivered');
  eq(ctx.exports.flag({...base,reviewSendConfirmed:true}).reviewRequest,'Send confirmed','Confirmed review send is distinct from owner marker');

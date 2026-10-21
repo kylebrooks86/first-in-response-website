@@ -1532,7 +1532,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     if(input.reviewDue&&!input.reviewReceivedAt)needs.push("Review status needs checking");
     return {
       estimate:input.estimateSent?"Sent recorded":"Not recorded",
-      invoice:input.invoiceSendConfirmed?"Send confirmed":input.invoiceCreated?"Created · send unconfirmed":"Not created",
+      invoice:input.invoiceSendConfirmed?"Send confirmed":input.invoiceCreated?"Created · send not confirmed":"Not created",
       followup:input.followupSendConfirmed?"Send confirmed":input.followupContactRecorded?"Contact recorded":"Not recorded",
       reviewRequest:input.reviewSendConfirmed?"Send confirmed":input.reviewRequestRecorded?"Request recorded":"Not recorded",
       reviewReceived:input.reviewReceivedAt?"Owner logged":"Not logged",
