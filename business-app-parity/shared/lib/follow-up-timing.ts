@@ -43,6 +43,7 @@ export function followupDisposition(record:ReminderRecord,now:number):{state:"sn
   if(manual!==null&&manual<=now&&now-manual<86400000)return {state:"recorded",reason:"Contact recorded · estimate reminders paused for 24 hours"};
   const sent=timestamp(record.lastEstimateSentAt);
   const confirmed=[record.stage1At,record.stage3At,record.stage7At].map(timestamp).filter((at):at is number=>at!==null&&at<=now&&sent!==null&&at>=sent);
-  if(confirmed.length)return {state:"recorded",reason:timestamp(record.stage7At)!==null&&timestamp(record.stage7At)!>=sent!?"Final estimate reminder recorded · no further stage suggested":"Follow-up recorded · next estimate reminder stage not due"};
+  const final=timestamp(record.stage7At);
+  if(confirmed.length)return {state:"recorded",reason:final!==null&&sent!==null&&final>=sent?"Final estimate reminder recorded · no further stage suggested":"Follow-up recorded · next estimate reminder stage not due"};
   return null;
 }

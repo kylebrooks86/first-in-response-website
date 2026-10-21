@@ -2354,7 +2354,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   /** Read-only presentation: prepared/recorded never means sent or delivered. */
   function contactLabel(event:{channel:string;template:string}){
     const about=event.template==="estimate"?"Estimate":event.template==="invoice"?"Invoice":
-      event.template==="review"?"Review request":event.template.startsWith("followUp")?"Estimate follow-up":
+      event.template==="review"?"Review request":["invoiceReminder","overdue"].includes(event.template)?"Invoice follow-up":event.template.startsWith("followUp")?"Estimate follow-up":
       event.template==="appointmentReminder"?"Appointment reminder":"Customer communication";
     switch(event.channel){
       case "text_confirmed":return {title:about+" · owner-confirmed text",detail:"Owner confirmed send · delivery unverified"};
@@ -2585,14 +2585,14 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     {confirmation&&<section id="followup-confirmation" tabIndex={-1} className="followup-confirmation" role="region" aria-label="Confirm follow-up action">
       <strong>{confirmation.action==="contacted"?"Record contact with ":"Snooze estimate reminders for "}{confirmation.estimate.customer}?</strong>
       <p>{confirmation.estimate.service} · {confirmation.action==="contacted"?"Confirm you contacted this customer. This records contact and pauses estimate reminders for 24 hours; it does not claim a message was sent.":"Pause estimate reminders for 7 days. Billing reminders stay active. No message will be sent."}</p>
-      <div><Button disabled={actionBusy||loading||Boolean(error)} onClick={()=>void recordAction(confirmation.estimate,confirmation.action)}>{actionBusy?"Saving…":confirmation.action==="contacted"?"Confirm contact":"Confirm snooze"}</Button><Button variant="outline" disabled={actionBusy} onClick={()=>setConfirmation(null)}>Cancel</Button></div>
+      <div><Button disabled={actionBusy||loading||Boolean(error)} onClick={()=>void recordAction(confirmation.estimate,confirmation.action)}>{actionBusy?"Saving…":confirmation.action==="contacted"?"Confirm contact":"Confirm snooze"}</Button><Button variant="outline" disabled={actionBusy} onClick={()=>{const target=document.getElementById("followup-action-"+confirmation.estimate.id);setConfirmation(null);target?.focus({preventScroll:true});target?.scrollIntoView({block:"center",behavior:"instant"});}}>Cancel</Button></div>
     </section>}
     {!loading&&!error&&<nav className="followup-state-tabs" aria-label="Follow-up status">
       {([["due","Due",actions.length],["snoozed","Snoozed",savedActions.filter(item=>item.state==="snoozed").length],["recorded","Recorded",savedActions.filter(item=>item.state==="recorded").length]] as const).map(([key,label,count])=><button type="button" key={key} aria-pressed={queueState===key} onClick={()=>setQueueState(key)}>{label} ({count})</button>)}
       <p>Counts cover loaded records. Recorded means saved contact or a completed reminder stage, not customer delivery or a finished job.</p>
     </nav>}
 
-    {!loading&&!error&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>recommended actions</small></div></span><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>Messages open prefilled and editable. Your phone still lets you review and tap Send.</p></div>}
+    {!loading&&!error&&queueState==="due"&&<div className="followup-summary"><span><Clock3/><div><strong>{actions.length}</strong><small>recommended actions</small></div></span><div className="followup-breakdown"><b>{actions.filter((item)=>item.kind==="followup").length} follow-ups</b><b>{actions.filter((item)=>item.kind==="review").length} reviews</b><b>{actions.filter((item)=>item.kind==="repeat").length} repeat jobs</b></div><p>Messages open prefilled and editable. Your phone still lets you review and tap Send.</p></div>}
     {!loading&&!error&&queueState==="due"&&<div className="followup-filter-panel" role="group" aria-label="Filter recommended follow-up actions">
       {([["all","All"],["quotes","Estimates"],["billing","Billing"],["schedule","Appointments"],["reviews","Reviews"],["repeat","Repeat jobs"],["history","Needs review"]] as const).map(([key,label])=><button type="button" key={key} aria-label={"Filter follow-ups: "+label} aria-pressed={actionFilter===key} onClick={()=>setActionFilter(key)}>{label}</button>)}
       <div className="followup-priority-toggle"><button type="button" aria-label="Show high priority follow-ups" aria-pressed={highPriorityOnly} onClick={()=>setHighPriorityOnly(current=>!current)}><AlertTriangle aria-hidden="true"/> High priority only ({highPriorityCount})</button><small>Includes higher-ranked due actions and records requiring owner review; not a claim that all are overdue.</small></div>
