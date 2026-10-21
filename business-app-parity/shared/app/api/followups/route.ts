@@ -26,6 +26,7 @@ export async function GET(request:Request){
                (SELECT COUNT(*) FROM estimate_change_requests cr WHERE cr.estimate_id=e.id AND cr.status='open') AS pendingChangeCount,
                (SELECT message FROM estimate_change_requests cr WHERE cr.estimate_id=e.id ORDER BY cr.created_at DESC LIMIT 1) AS latestChangeRequest,
                (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.template='estimate' AND cm.channel IN ('text_confirmed','email_confirmed')) AS lastEstimateSentAt,
+               (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.customer_id=e.customer_id AND cm.template='invoice' AND cm.channel IN ('text_confirmed','email_confirmed')) AS lastInvoiceSentAt,
                (SELECT MIN(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.template='estimate' AND cm.channel IN ('text_confirmed','email_confirmed')) AS firstEstimateSentAt,
                (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.template='followUp1' AND cm.channel IN ('text_confirmed','email_confirmed')) AS stage1At,
                (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.template='followUp3' AND cm.channel IN ('text_confirmed','email_confirmed')) AS stage3At,

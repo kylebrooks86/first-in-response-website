@@ -43,6 +43,7 @@ function fixture(){
  return {requests,render,getState:i=>state[i],getOpCount:()=>operations,response:fn=>{handler=fn;},
   mount(){render();cleanup=effect();},unmount(){cleanup?.();},
   action(name){const button=nodes(render()).find(n=>n.type===stubs.Button&&n.props?.children===name);assert.ok(button,'Expected '+name+' button');return button;},
+  confirm(action){const label=action==='snooze'?'Confirm snooze':'Confirm contact';const button=nodes(render()).find(n=>n.type===stubs.Button&&n.props?.children===label);assert.ok(button,'Confirmation required');return button;},
   postCount:()=>requests.filter(x=>x.options?.method==='POST').length,
   lastPost:()=>JSON.parse(requests.filter(x=>x.options?.method==='POST').at(-1).options.body),
   alert:()=>nodes(render()).find(n=>n.props?.role==='alert')?.props.children,
@@ -56,6 +57,8 @@ for(const problem of ['offline','http','bad-json','wrong-action','bad-createdAt'
  const f=fixture();f.mount();await flush();
  const pending=later();f.response((url,options)=>options?.method==='POST'?pending.promise:getOk());
  const button=f.action(name);button.props.onClick();button.props.onClick();
+ eq(f.postCount(),0,problem+' preview does not write before confirmation');
+ const confirm=f.confirm(action);confirm.props.onClick();confirm.props.onClick();
  eq(f.postCount(),1,problem+' sends only one POST during rapid taps');
  eq(f.action(name).props.disabled,true,problem+' disables buttons while saving');
  const original=f.lastPost();
@@ -74,11 +77,11 @@ for(const problem of ['offline','http','bad-json','wrong-action','bad-createdAt'
  eq(f.action(name).props.disabled,false,problem+' unlocks same safe action');
  const other=f.action(action==='contacted'?'Snooze 7 days':'Contacted');
  eq(other.props.disabled,true,problem+' blocks conflicting new action');
- other.props.onClick();
+ other.props.onClick();f.confirm(action==='contacted'?'snooze':'contacted').props.onClick();
  eq(f.postCount(),1,problem+' conflicting click cannot bypass guard');
  // The deliberate retry uses an identical idempotency key, including after ambiguous HTTP outcomes.
  f.response((url,options)=>options?.method==='POST'?postOk(action):getOk());
- f.action(name).props.onClick();await flush();await flush();
+ f.action(name).props.onClick();f.confirm(action).props.onClick();await flush();await flush();
  eq(f.postCount(),2,problem+' deliberate retry sends request');
  eq(f.lastPost().operationId,original.operationId,problem+' reuses original operation ID');
  eq(f.getOpCount(),1,problem+' never allocates a second UUID');
@@ -89,7 +92,7 @@ for(const problem of ['offline','http','bad-json','wrong-action','bad-createdAt'
 // An already confirmed action uses exactly one POST and reports no external message delivery.
 {
  const f=fixture();f.mount();await flush();
- f.action('Contacted').props.onClick();await flush();await flush();
+ f.action('Contacted').props.onClick();eq(f.postCount(),0,'Contact preview never writes');f.confirm('contacted').props.onClick();await flush();await flush();
  eq(f.postCount(),1,'Normal save posts exactly once');
  eq(f.getState(6).includes('no message send is claimed'),true,'Contacted action never claims sending a message');
  eq(f.retry(),null,'Normal confirmed save releases retry state');

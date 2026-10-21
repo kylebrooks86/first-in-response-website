@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - work/fire-business-app-parity-2026-10-08
+      - work/customer-followup-action-center-2026-10-21
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
@@ -362,6 +363,7 @@ jobs:
           node scripts/test-task-status-ui-recovery.mjs
       - name: Verify follow-up retry, authenticated list recovery and notification receipts
         run: |
+          node --experimental-sqlite scripts/test-followup-center-data.mjs
           node scripts/test-followup-action-retry.mjs
           node scripts/test-followup-load-errors.mjs
           node scripts/test-notification-read-recovery.mjs
@@ -688,6 +690,18 @@ jobs:
         run: node scripts/test-estimate-editor-react-browser.mjs
       - name: Actual customer writes, estimate search and Insights recovery on narrow light and dark screens
         run: node scripts/test-customer-write-browser.mjs
+      - name: Customer Follow-up Action Center, real composer, confirmed saves and mobile recovery
+        env:
+          FIRE_FOLLOWUP_SCREENSHOT_DIR: ${{ runner.temp }}/fire-followup-center-ui
+        run: node scripts/test-followup-center-browser.mjs
+      - name: Save synthetic Action Center mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-followup-center-mobile-ui
+          path: ${{ runner.temp }}/fire-followup-center-ui
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Customer history search, focused records, Schedule windows and Dashboard job targets
         env:
           FIRE_CONNECTED_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-connected-ui

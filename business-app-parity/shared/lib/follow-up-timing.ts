@@ -32,3 +32,17 @@ export function estimateReminderStage(record:ReminderRecord,now:number):{templat
   if(stages[0]!==null)return none;
   return days>=1?{template:"followUp1",reviewReason:null}:none;
 }
+
+// Classify saved history; no new checklist, mutation, or delivery claim.
+export function followupDisposition(record:ReminderRecord,now:number):{state:"snoozed"|"recorded";reason:string}|null {
+  if(record.status!=="sent"||!Number.isFinite(now))return null;
+  const stage=estimateReminderStage(record,now);
+  if(stage.reviewReason||stage.template)return null;
+  const snooze=timestamp(record.snoozeUntil),manual=timestamp(record.lastManualContactAt);
+  if(snooze!==null&&snooze>now)return {state:"snoozed",reason:"Estimate reminders snoozed until "+new Date(snooze).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})};
+  if(manual!==null&&manual<=now&&now-manual<86400000)return {state:"recorded",reason:"Contact recorded · estimate reminders paused for 24 hours"};
+  const sent=timestamp(record.lastEstimateSentAt);
+  const confirmed=[record.stage1At,record.stage3At,record.stage7At].map(timestamp).filter((at):at is number=>at!==null&&at<=now&&sent!==null&&at>=sent);
+  if(confirmed.length)return {state:"recorded",reason:timestamp(record.stage7At)!==null&&timestamp(record.stage7At)!>=sent!?"Final estimate reminder recorded · no further stage suggested":"Follow-up recorded · next estimate reminder stage not due"};
+  return null;
+}

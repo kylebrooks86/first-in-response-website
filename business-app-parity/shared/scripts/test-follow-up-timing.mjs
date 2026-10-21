@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {estimateFollowUpTiming,estimateReminderStage} from '../lib/follow-up-timing.ts';
+import {estimateFollowUpTiming,estimateReminderStage,followupDisposition} from '../lib/follow-up-timing.ts';
 const now=Date.parse('2026-10-14T00:00:00Z'),day=86400000;
 const ago=days=>new Date(now-days*day).toISOString();
 const base={status:'sent',createdAt:ago(30)};
@@ -47,3 +47,19 @@ const stages=[
 ];
 for(const [name,value,template,review] of stages){const result=estimateReminderStage(value,now);assert.equal(result.template,template,name);assert.equal(Boolean(result.reviewReason),review,name);}
 console.log(JSON.stringify({passed:cases.length+stages.length,total:cases.length+stages.length,checks:[...cases.map(c=>c[0]),...stages.map(c=>c[0])]}));
+
+for(const [name,value,state] of [
+ ['active snooze',record(8,{snoozeUntil:ago(-7)}),'snoozed'],
+ ['expired snooze returns due',record(8,{snoozeUntil:ago(0)}),null],
+ ['recent manual contact',record(8,{lastManualContactAt:ago(.5)}),'recorded'],
+ ['manual cooldown boundary',record(8,{lastManualContactAt:ago(1)}),null],
+ ['final stage recorded',record(10,{stage7At:ago(3),lastEstimateContactAt:ago(3)}),'recorded'],
+ ['resend starts new cycle',record(2,{firstEstimateSentAt:ago(20),stage7At:ago(10)}),null],
+ ['future stage never completed',record(8,{stage7At:ago(-1)}),null],
+ ['legacy send not invented',record(8,{firstEstimateSentAt:null}),null],
+ ['invalid snooze needs review',record(8,{snoozeUntil:'bad'}),null],
+ ['completed job is not contact',record(8,{status:'completed',stage7At:ago(1)}),null]
+])assert.equal(followupDisposition(value,now)?.state??null,state,name);
+console.log('PASS: 10 saved-history dispositions including snooze/cooldown expiry, resend cycles and invalid/future history.');
+
+assert.equal(followupDisposition(record(2,{firstEstimateSentAt:ago(20),stage7At:ago(10),stage1At:ago(.5),lastEstimateContactAt:ago(.5)}),now)?.reason,'Follow-up recorded · next estimate reminder stage not due','An old final-stage receipt never completes the new send cycle');
