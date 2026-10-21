@@ -64,7 +64,7 @@ function fixture({id='missing',hint='customer-a',activity='sign',tasks=[],loadin
 }
 eq(s.includes('customer=taskFocusNotice.customerId?customers.find(row=>row.id===taskFocusNotice.customerId):null'),true,'Customer fallback ID is verified against successful owner list');
 eq(s.includes('This does not prove it was deleted.'),true,'Missing notification never claims task deletion');
-eq(s.includes('This notification\\'s task could not be verified.'),true,'Unavailable owner feed explains uncertainty');
+eq(s.includes("This notification\'s task could not be verified."),true,'Unavailable owner feed explains uncertainty');
 eq(s.includes('if(taskFocusNotice?.status==="missing"&&taskResult.tasks.some(row=>row.id===taskFocusNotice.id))'),true,'Explicit recheck reconciles restored tasks');
 eq(s.includes('setFocusBusinessTaskHint({customerId:null,activity:null});setFocusBusinessTaskId(id);'),true,'Dashboard task navigation cannot inherit a bell customer hint');
 eq(s.includes('onClick={()=>void toggleTask(task)}'),true,'Owner completion remains separately guarded');
