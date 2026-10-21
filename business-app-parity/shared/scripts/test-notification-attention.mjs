@@ -86,7 +86,7 @@ function fixture(){
  eq(f.calls.every(c=>c.options.cache==='no-store'&&!c.options.method),true,'Never submits writes or cached attention reads');
  const task=f.buttons().find(b=>b.props?.['aria-label']==='Open task: Pick up yard sign');
  assert.ok(task);task.props.onClick();
- eq(f.nav.at(-1).join('|'),'business||||task-due','Task shortcut passes exact saved task ID');
+ eq(f.nav.at(-1).join('|'),'business||||task-due|','Task shortcut passes exact saved task ID and optional owner-scoped fallback metadata');
  const sign=f.buttons().find(b=>b.props?.['aria-label']==='Open yard sign: Sign customer');
  assert.ok(sign);sign.props.onClick();eq(f.nav.at(-1).join('|'),'customers|||customer-sign||sign','Yard sign shortcut targets saved customer flag');
  const review=f.buttons().find(b=>b.props?.['aria-label']==='Open review check: Review customer');
@@ -141,7 +141,7 @@ function fixture(){
  eq(f.get('rows').some(r=>r.key==='task:task-due'),true,'Linked due task retains exact saved task shortcut');
  eq(f.get('rows').some(r=>r.key==='sign:customer-sign'),false,'Same sign event is not a duplicate bell item');
  const task=f.buttons().find(b=>b.props?.['aria-label']==='Open task: Pick up yard sign');task.props.onClick();
- eq(f.nav.at(-1).join('|'),'business||||task-due','Consolidated sign reminder opens original saved task');
+ eq(f.nav.at(-1).join('|'),'business|||customer-sign|task-due|sign','Consolidated sign reminder preserves exact saved task and fallback customer flag');
  f.confirmSaved(saved=>{saved.tasks[0].status='completed';saved.tasks[0].completedAt=new Date().toISOString();});await flush();await flush();
  eq(f.get('rows').some(r=>r.key==='sign:customer-sign'),true,'Completed task does not falsely claim sign was physically picked up');
  f.unmount();

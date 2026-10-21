@@ -361,6 +361,7 @@ jobs:
           node --experimental-sqlite scripts/test-task-status-confirmation.mjs
           node scripts/test-task-status-ui-recovery.mjs
           node scripts/test-business-task-context.mjs
+          node scripts/test-business-task-focus-recovery.mjs
       - name: Verify follow-up retry, authenticated list recovery and notification receipts
         run: |
           node scripts/test-followup-action-retry.mjs

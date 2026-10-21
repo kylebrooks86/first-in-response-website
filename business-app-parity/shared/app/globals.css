@@ -1540,3 +1540,12 @@ html,body{max-width:100%;overflow-x:clip}
 .task-list .business-task-toggle.completed strong{color:#52647a}
 [data-theme="dark"] .task-list .business-task-toggle.completed strong{color:#b7c6d9}
 .task-list .business-task-details-button{min-height:44px}
+
+/* Owner-verifiable task recovery: never hide a missing or changed notification. */
+.business-task-recovery{display:grid;gap:9px;margin:14px 0;padding:14px;border:1px solid var(--border);border-radius:11px;background:var(--card)}
+.business-task-recovery>strong{font-size:14px}
+.business-task-recovery p{font-size:12px;line-height:1.5;color:var(--muted-foreground);margin:0}
+.business-task-recovery-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.business-task-recovery-actions button{min-height:44px}
+.business-task-recovery-actions small{color:var(--muted-foreground);font-size:12px}
+@media(max-width:390px){.business-task-recovery-actions button{width:100%}}
