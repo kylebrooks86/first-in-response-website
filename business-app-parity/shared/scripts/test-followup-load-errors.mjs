@@ -256,3 +256,21 @@ console.log('PASS '+checks+'/'+checks+': actual FollowUpsView paginated endpoint
  eq(f.nodes().some(n=>n.props?.children==='No saved activity for this estimate. Full customer history may contain other contact.'),false,'Bad response never claims no contact');
  f.unmount();
 }
+
+
+// Financial safety: a customer overpayment is owner review, never an automatic
+// invoice-reminder suggestion. Normal collectible invoice reminders still work.
+{
+ const f=fixture();
+ const overage={...job('overpaid-estimate'),status:'accepted',invoiceId:'overpaid-invoice',paidCents:14000,paymentOverageOpen:4000};
+ const collectible={...job('collectible-estimate'),status:'accepted',invoiceId:'collectible-invoice',paidCents:2000,paymentOverageOpen:0};
+ f.response(async()=>response([overage,collectible]));
+ f.mount();await flush();
+ eq(f.messageCards().length,1,'Payment overage never renders a customer reminder composer');
+ eq(f.nodes().some(n=>n.props?.className==='followup-card history'&&n.props?.id==='followup-card-overpaid-estimate-invoiceReminder'),true,'Overpayment instead appears as an owner-only review card');
+ eq(f.nodes().some(n=>n.props?.children==='Review estimate'),true,'Overpayment has an explicit saved-estimate review control');
+ eq(f.nodes().some(n=>n.props?.className==='followup-card followup'&&n.props?.id==='followup-card-collectible-estimate-invoiceReminder'),true,'Normal collectible invoice reminder remains available');
+ eq(f.requests.filter(x=>x.options?.method==='POST').length,0,'Showing exception makes no external request or financial write');
+ f.unmount();
+}
+console.log('PASS follow-up billing exception: refund-review first, no outgoing payment reminder, ordinary invoices preserved.');

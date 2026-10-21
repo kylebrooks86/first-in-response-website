@@ -2498,7 +2498,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     const quoteReason=(days:number)=>estimate.status==="draft"?`Unsent draft is at least ${days} day${days===1?"":"s"} old — prepare the estimate`:confirmedContact?`No confirmed estimate contact for at least ${days} day${days===1?"":"s"}`:`Estimate has been open at least ${days} day${days===1?"":"s"}; send date unconfirmed`;
     const scheduledTime=estimate.scheduledAt?new Date(estimate.scheduledAt).getTime():0;
     const items:{estimate:EstimateRow;template:string;reason:string;priority:number;kind:"followup"|"repeat"|"review"|"history"}[]=[];
-    if(Number(estimate.paymentOverageOpen)>0)items.push({estimate,template:"invoiceReminder",reason:"Billing exception: overpayment needs refund or retained-overpayment review",priority:6,kind:"followup"});
+    if(Number(estimate.paymentOverageOpen)>0)items.push({estimate,template:"invoiceReminder",reason:"Billing exception: overpayment needs refund or retained-overpayment review before customer outreach",priority:6,kind:"history"});
     else if(estimate.invoiceId&&billingBalanceCents(estimate)>0)items.push({estimate,template:"invoiceReminder",reason:"Invoice balance needs a reminder",priority:4,kind:"followup"});
     else if(estimate.status==="scheduled"&&scheduledTime>now&&scheduledTime-now<=36*3600000)items.push({estimate,template:"appointmentReminder",reason:"Job is coming up within 36 hours",priority:5,kind:"followup"});
     else if(estimate.status==="draft"&&ageDays>=1)items.push({estimate,template:"estimate",reason:quoteReason(ageDays>=7?7:ageDays>=3?3:1),priority:1,kind:"followup"});
