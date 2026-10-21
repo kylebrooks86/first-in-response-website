@@ -3078,11 +3078,12 @@ function NotificationAttention({onNavigate,onClose,onSummary,refreshKey=0}:{onNa
        const verifiedEstimates=checked[0].filter(e=>{if(seenEstimates.has(e.id))return false;seenEstimates.add(e.id);return true;});
        const now=new Date(),localDay=now.toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
        const dueTasks:NotificationAttentionItem[]=taskData.tasks.filter(t=>["today","overdue"].includes(taskDueBucket(t,now))).map(t=>({key:"task:"+t.id,kind:"task",taskId:t.id,title:t.title,detail:taskDueBucket(t,now)==="overdue"?"Business task overdue":"Business task due today",urgent:true,priority:taskDueBucket(t,now)==="overdue"?110:85,sortAt:Date.parse(t.dueAt!)}));
-       const dueTaskIds=new Set(dueTasks.flatMap(item=>item.taskId?[item.taskId]:[]));
+       const verifiedTasks=taskData.tasks??[];
+       const dueTaskIds=new Set(verifiedTasks.filter(task=>["today","overdue"].includes(taskDueBucket(task,now))).map(task=>task.id));
        const dueSigns:NotificationAttentionItem[]=signData.signs.filter(s=>s.pickupDate<=localDay&&
-         !flagHasMatchingDueTask(taskData.tasks,dueTaskIds,s.customerId,"sign",s.placedAt)).map(s=>({key:"sign:"+s.customerId,kind:"sign",customerId:s.customerId,title:s.customerName,detail:(s.pickupDate<localDay?"Yard sign pickup overdue · ":"Yard sign pickup due today · ")+s.pickupDate,urgent:true,priority:s.pickupDate<localDay?105:75,sortAt:Date.parse(s.pickupDate+"T12:00:00Z")}));
+         !flagHasMatchingDueTask(verifiedTasks,dueTaskIds,s.customerId,"sign",s.placedAt)).map(s=>({key:"sign:"+s.customerId,kind:"sign",customerId:s.customerId,title:s.customerName,detail:(s.pickupDate<localDay?"Yard sign pickup overdue · ":"Yard sign pickup due today · ")+s.pickupDate,urgent:true,priority:s.pickupDate<localDay?105:75,sortAt:Date.parse(s.pickupDate+"T12:00:00Z")}));
        const dueReviews:NotificationAttentionItem[]=reviewData.checks.filter(c=>
-         !flagHasMatchingDueTask(taskData.tasks,dueTaskIds,c.customerId,"review",c.requestedAt)).map(c=>({key:"review:"+c.customerId,kind:"review",customerId:c.customerId,title:c.customerName,detail:"Check review status · "+c.elapsedDays+" days since request",urgent:false,priority:40,sortAt:Date.parse(c.requestedAt)}));
+         !flagHasMatchingDueTask(verifiedTasks,dueTaskIds,c.customerId,"review",c.requestedAt)).map(c=>({key:"review:"+c.customerId,kind:"review",customerId:c.customerId,title:c.customerName,detail:"Check review status · "+c.elapsedDays+" days since request",urgent:false,priority:40,sortAt:Date.parse(c.requestedAt)}));
        const estimateChecks=estimateAttentionItems(verifiedEstimates,now.getTime());
        if(!stopped&&thisRequest===requestId){const timeOf=(item:NotificationAttentionItem)=>item.sortAt??Number.MAX_SAFE_INTEGER;
          const next=[...dueTasks,...dueSigns,...dueReviews,...estimateChecks].sort((a,b)=>b.priority-a.priority||timeOf(a)-timeOf(b)||a.key.localeCompare(b.key));

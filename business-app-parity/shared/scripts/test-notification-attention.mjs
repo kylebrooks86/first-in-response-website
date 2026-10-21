@@ -43,7 +43,7 @@ function elements(node){
  const all=[];function walk(n){if(Array.isArray(n)){for(const x of n)walk(x);return;}if(!n||typeof n!=='object')return;all.push(n);walk(n.props?.children);}walk(node);return all;
 }
 function fixture(){
- let state=[],cursor=0,effect,clean,failed=null,refreshKey=0;const olderPages=new Map();const calls=[],nav=[],closed=[],summaries=[],documentListeners={},windowListeners={},savedRows={tasks:items.tasks.map(x=>({...x})),signs:items.signs.map(x=>({...x})),checks:items.checks.map(x=>({...x})),estimates:items.estimates.map(x=>({...x}))};
+ let state=[],cursor=0,effect,clean,failed=null,refreshKey=0,firstCursor=null;const olderPages=new Map();const calls=[],nav=[],closed=[],summaries=[],documentListeners={},windowListeners={},savedRows={tasks:items.tasks.map(x=>({...x})),signs:items.signs.map(x=>({...x})),checks:items.checks.map(x=>({...x})),estimates:items.estimates.map(x=>({...x}))};
  const context={
   exports:{},require,useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}]},
   useEffect(fn){effect=fn;},taskDueBucket:taskLib.exports.taskDueBucket,flagHasMatchingDueTask:flagDedupe.exports.flagHasMatchingDueTask,
@@ -57,12 +57,12 @@ function fixture(){
     }
     const name=url==='/api/tasks'?'tasks':url==='/api/dashboard-yard-signs'?'signs':url==='/api/dashboard-review-checks'?'checks':url==='/api/followups?limit=50'?'estimates':null;
     if(!name)throw Error('Unexpected endpoint '+url);
-    return {ok:true,json:async()=>name==='estimates'?{estimates:savedRows.estimates,nextCursor:null}:{[name]:savedRows[name]}};},
+    return {ok:true,json:async()=>name==='estimates'?{estimates:savedRows.estimates,nextCursor:firstCursor}:{[name]:savedRows[name]}};},
   ...Object.fromEntries([...tags].map(name=>[name,()=>null]))
  };
  vm.runInNewContext(compiled,context);
  const render=()=>{cursor=0;return context.exports.renderAttention({onNavigate:(...args)=>nav.push(args),onClose:()=>closed.push(true),onSummary:value=>summaries.push(value),refreshKey});};
- return {render,get:name=>state[stateNames.indexOf(name)],calls,nav,closed,summaries,olderPage:(cursor,value)=>olderPages.set(cursor,value),fail:url=>{failed=url;},mount:()=>{render();clean=effect();},refresh:()=>{clean?.();render();clean=effect();},openAgain:()=>{refreshKey++;clean?.();render();clean=effect();},visibleAgain:()=>documentListeners.visibilitychange?.(),confirmSaved:update=>{update(savedRows);windowListeners['fire:attention-saved']?.();},unmount:()=>clean?.(),buttons:()=>elements(render()).filter(n=>n.type==='button')};
+ return {render,get:name=>state[stateNames.indexOf(name)],calls,nav,closed,summaries,initialCursor:value=>{firstCursor=value;},olderPage:(cursor,value)=>olderPages.set(cursor,value),fail:url=>{failed=url;},mount:()=>{render();clean=effect();},refresh:()=>{clean?.();render();clean=effect();},openAgain:()=>{refreshKey++;clean?.();render();clean=effect();},visibleAgain:()=>documentListeners.visibilitychange?.(),confirmSaved:update=>{update(savedRows);windowListeners['fire:attention-saved']?.();},unmount:()=>clean?.(),buttons:()=>elements(render()).filter(n=>n.type==='button')};
 }
 {
  const f=fixture();f.mount();await flush();await flush();
@@ -146,14 +146,37 @@ function fixture(){
  eq(f.get('rows').some(r=>r.key==='sign:customer-sign'),true,'Completed task does not falsely claim sign was physically picked up');
  f.unmount();
 }
-// One-tap bounded older estimate scans and failure-closed rechecks.
+// One bell scan checks bounded older pages, does not send, and preserves the
+// incomplete-coverage warning until it reaches a verified final cursor.
 {
- const f=fixture();f.mount();await flush();await flush();
+ const f=fixture();
+ f.initialCursor('p1');
  f.olderPage('p1',{estimates:[{...items.estimates[0],id:'older-follow'}],nextCursor:'p2'});
  f.olderPage('p2',{estimates:[],nextCursor:null});
- f.confirmSaved(saved=>{saved.estimates=[...items.estimates];});await flush();await flush();
- // Cursor present in first page: a new owner click checks up to 200 older estimates.
- const first=f.calls.length;
+ f.mount();await flush();await flush();
+ eq(f.get('hasOlder'),true,'First page reveals older unscanned follow-up records');
+ const action=f.buttons().find(b=>b.props?.children==='Check up to 200 older estimates');assert.ok(action);
+ action.props.onClick();f.refresh();await flush();await flush();
+ eq(f.get('status'),'ready','Multiple page scan reaches a verified ready state');
+ eq(f.get('hasOlder'),false,'True end cursor clears the older-record warning');
+ eq(f.get('checkedEstimateCount'),4,'Coverage counts three original and one distinct old estimate');
+ eq(f.get('rows').some(x=>x.key==='followup:older-follow'),true,'Old due follow-up enters bell with exact estimate ID');
+ eq(f.calls.filter(x=>x.url.includes('&cursor=')).length,2,'Scan reads only two older pages before end, not 200 blindly');
+ eq(f.calls.every(c=>!c.options.method&&c.options.cache==='no-store'),true,'Scanning never writes customer records');
+ f.unmount();
+}
+{
+ const f=fixture();
+ f.initialCursor('broken-p1');
+ f.olderPage('broken-p1',{estimates:[{...items.estimates[0],id:'partial-item'}],nextCursor:'broken-p2'});
+ f.olderPage('broken-p2',{estimates:{bad:true},nextCursor:null});
+ f.mount();await flush();await flush();
+ f.buttons().find(b=>b.props?.children==='Check up to 200 older estimates').props.onClick();
+ f.refresh();await flush();await flush();
+ eq(f.get('status'),'error','Unverified second page fails closed');
+ eq(f.get('rows').length,0,'Partial scan does not publish unverified reminder count');
+ eq(f.summaries.at(-1).status,'error','Bell count becomes unavailable, never false zero');
+ eq(f.calls.every(c=>!c.options.method),true,'Failure and retry produce no POST or PATCH');
  f.unmount();
 }
 assert.ok(source.includes('<NotificationAttention onNavigate={onNavigate} onClose={()=>setOpen(false)} onSummary={setAttentionSummary} refreshKey={attentionRefreshKey}/>'),'Bell mounts and forwards refresh generation to its read-only attention feed');
