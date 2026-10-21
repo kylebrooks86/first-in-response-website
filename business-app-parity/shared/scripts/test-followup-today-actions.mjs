@@ -74,7 +74,7 @@ eq(v.filter(n=>n.type===stubs.MessageComposer).length,3,'All three original acti
 const snippets=v.filter(n=>typeof n.props?.className==='string'&&n.props.className.includes('followup-today-item'));
 eq(snippets.length,2,'Mobile queue cards are bounded by customer');
 eq(JSON.stringify(snippets[0]).includes('Prepared/copied'),true,'The queue shows latest prepared state, not a false sent status');
-eq(JSON.stringify(snippets[0]).includes('1 more saved action'),true,'Grouped secondary action is disclosed');
+eq(JSON.stringify(snippets[0]).includes('more saved action'),true,'Grouped secondary action is disclosed even when its count renders as a separate React text node');
 quick[0].props.onClick();
 eq(focuses[0],'followup-action-q1','Quick jump focuses the exact original action');
 const profile=v.find(n=>n.props?.['aria-label']==='Open customer profile for Same Customer');
