@@ -11,7 +11,7 @@ const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='F
 assert.ok(view,'Real FollowUpsView exists');
 const required=['resolvedBillingTotalCents','billingBalanceCents'];
 const helpers=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>required.includes(d.name.getText(ast)))||ts.isFunctionDeclaration(n)&&['repeatCadenceMonths','addMonths'].includes(n.name?.text));
-const transpiled=ts.transpileModule(readFileSync('lib/follow-up-timing.ts','utf8')+'\n'+helpers.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=FollowUpsView;',{
+const transpiled=ts.transpileModule(readFileSync('lib/follow-up-timing.ts','utf8')+'\n'+readFileSync('lib/review-followup-eligibility.ts','utf8')+'\n'+helpers.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=FollowUpsView;',{
  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}
 }).outputText;
 const fixed=Date.parse('2026-10-21T12:00:00Z');

@@ -13,7 +13,7 @@ assert.ok(view,'Actual FollowUpsView exists');
 const names=[];
 const needed=['resolvedBillingTotalCents','billingBalanceCents'];
 const helpers=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>needed.includes(d.name.getText(ast)))||ts.isFunctionDeclaration(n)&&['repeatCadenceMonths','addMonths'].includes(n.name?.text));
-const compiled=ts.transpileModule(readFileSync('lib/follow-up-timing.ts','utf8')+'\n'+helpers.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=FollowUpsView;',{
+const compiled=ts.transpileModule(readFileSync('lib/follow-up-timing.ts','utf8')+'\n'+readFileSync('lib/review-followup-eligibility.ts','utf8')+'\n'+helpers.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=FollowUpsView;',{
  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}
 }).outputText;
 const fixedTime=Date.parse('2026-10-09T12:00:00Z');
