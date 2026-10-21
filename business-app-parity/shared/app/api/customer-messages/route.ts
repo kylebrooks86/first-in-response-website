@@ -5,6 +5,41 @@ import {shouldOfferReviewAfterPayment} from "../../../lib/customer-review-invite
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
 
+
+// An interrupted SMS/Mail handoff can reload FIRE before the owner confirms
+// the send. Recover only exact scoped prepared records; no delivery is inferred.
+export async function GET(request:Request) {
+  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  const params=new URL(request.url).searchParams;
+  const customerId=params.get("customerId")??"";
+  const estimateId=params.get("estimateId")??"";
+  if(!customerId||customerId.length>128||estimateId.length>128)
+    return Response.json({error:"A customer and optional job ID are required."},{status:400});
+  try {
+    const customer=await env.DB.prepare("SELECT id FROM customers WHERE id=?").bind(customerId).first();
+    if(!customer)return Response.json({error:"Customer not found."},{status:404});
+    if(estimateId){
+      const linked=await env.DB.prepare("SELECT id FROM estimates WHERE id=? AND customer_id=?").bind(estimateId,customerId).first();
+      if(!linked)return Response.json({error:"That job does not belong to the selected customer."},{status:409});
+    }
+    const result=await env.DB.prepare(`
+      SELECT m.id,m.customer_id AS customerId,m.estimate_id AS estimateId,
+       m.channel,m.template,m.body,m.created_at AS createdAt
+      FROM customer_messages m
+      WHERE m.customer_id=?
+        AND ((?='' AND m.estimate_id IS NULL) OR (?<>'' AND m.estimate_id=?))
+        AND m.channel IN ('text_prepared','email_prepared')
+        AND NOT EXISTS (
+          SELECT 1 FROM customer_messages confirmed
+          WHERE confirmed.id=m.id||':owner-confirmed' AND confirmed.customer_id=m.customer_id
+            AND confirmed.channel IN ('text_confirmed','email_confirmed')
+        )
+      ORDER BY m.created_at DESC,m.id DESC LIMIT 10
+    `).bind(customerId,estimateId,estimateId,estimateId).all();
+    return Response.json({pending:result.results??[]},{headers:{"Cache-Control":"no-store, private"}});
+  }catch{return Response.json({error:"Unconfirmed message history is unavailable. No send is assumed."},{status:503,headers:{"Cache-Control":"no-store, private"}});}
+}
+
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
