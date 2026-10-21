@@ -26,6 +26,10 @@ const estimate=readFileSync("app/estimate/[token]/page.tsx","utf8");
 const invoice=readFileSync("app/invoice/[token]/page.tsx","utf8");
 const component=readFileSync("components/customer-review-invitation.tsx","utf8");
 const paymentPage=readFileSync("app/pay/[id]/page.tsx","utf8");
+for(const [name,source] of [["estimate",estimate],["invoice",invoice],["legacy payment",paymentPage]]){
+  assert.ok(source.includes("payment_checkout_sessions")&&source.includes("openCheckoutCount"),name+" verifies unresolved Stripe checkouts");
+  assert.ok(source.includes("Number(row.openCheckoutCount??0)>0"),name+" holds review requests when a checkout is open");
+}
 for (const [name,source] of [["estimate",estimate],["invoice",invoice]]) {
   assert.ok(source.includes("shouldOfferReviewAfterPayment("),name+" gates the invitation with saved payment state");
   assert.ok(source.includes("{showReviewInvitation&&<CustomerReviewInvitation/>}"),name+" displays only gated invitation");

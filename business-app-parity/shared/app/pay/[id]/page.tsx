@@ -18,10 +18,11 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
            c.name AS customer, ${serviceAddressColumns(serviceLocationsEnabled(env))},
            COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
            COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen,
-           COALESCE((SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending'),0) AS pendingRefundCount
+           COALESCE((SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending'),0) AS pendingRefundCount,
+           COALESCE((SELECT COUNT(*) FROM payment_checkout_sessions s WHERE s.estimate_id=e.id AND s.status='open'),0) AS openCheckoutCount
     FROM estimates e JOIN customers c ON c.id=e.customer_id
     WHERE e.share_token=? LIMIT 1
-  `).bind(shareToken).first<{ id:string; estimateTotalCents:number; totalCents:number; depositCents:number; status:string; acceptedAt:string|null; paidCents:number; paymentOverageOpen:number; pendingRefundCount:number; customer:string; address:string|null;serviceAddressSource?:string }>();
+  `).bind(shareToken).first<{ id:string; estimateTotalCents:number; totalCents:number; depositCents:number; status:string; acceptedAt:string|null; paidCents:number; paymentOverageOpen:number; pendingRefundCount:number; openCheckoutCount:number; customer:string; address:string|null;serviceAddressSource?:string }>();
   if (!row) return <main className="pay-page"><section className="pay-card"><div className="pay-logo">F</div><h1>Estimate not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
   const itemResult = await env.DB.prepare(`SELECT name,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC`).bind(row.id).all<{name:string;quantity:number;unit:string;totalCents:number}>();
   const items = itemResult.results.map((item)=>({...item,quantity:Number(item.quantity),totalCents:Number(item.totalCents)}));
@@ -31,7 +32,7 @@ export default async function PaymentPage({ params, searchParams }: { params: Pr
   const billingNumbersSafe = [row.totalCents,row.depositCents,paidCents].every(value=>Number.isSafeInteger(value)&&value>=0)&&row.totalCents>0&&row.depositCents<=row.totalCents;
   const depositRemaining = billingNumbersSafe?Math.max(0,row.depositCents-paidCents):0;
   const balance = billingNumbersSafe?Math.max(0,row.totalCents-paidCents):0;
-  const paymentReviewPending = Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0;
+  const paymentReviewPending = Number(row.paymentOverageOpen??0)>0||Number(row.pendingRefundCount??0)>0||Number(row.openCheckoutCount??0)>0;
   const approved = Boolean(row.acceptedAt)||["approved","scheduled","completed"].includes(row.status);
   const paymentType: "deposit"|"balance" = row.status==="completed"?"balance":"deposit";
   const dueNow = paymentType==="deposit"?depositRemaining:balance;

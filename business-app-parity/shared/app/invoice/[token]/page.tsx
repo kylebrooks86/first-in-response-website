@@ -34,10 +34,11 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
       inv.due_at AS dueAt,inv.created_at AS createdAt,inv.first_viewed_at AS firstViewedAt,c.name AS customer,${serviceAddressColumns(serviceLocationsEnabled(env))},e.share_token AS estimateShareToken,e.status AS estimateStatus,
       COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=inv.estimate_id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
       (SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=inv.estimate_id AND n.type='payment_overage' AND n.resolved_at IS NULL) AS paymentOverageOpen,
-      (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=inv.estimate_id AND r.status='pending') AS pendingRefundCount
+      (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=inv.estimate_id AND r.status='pending') AS pendingRefundCount,
+      (SELECT COUNT(*) FROM payment_checkout_sessions s WHERE s.estimate_id=inv.estimate_id AND s.status='open') AS openCheckoutCount
     FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id
     WHERE inv.share_token=? LIMIT 1
-  `).bind(token).first<{id:string;estimateId:string;customerId:string;status:string;totalCents:number;dueAt:string|null;createdAt:string;firstViewedAt:string|null;customer:string;address:string|null;serviceAddressSource?:string;estimateShareToken:string|null;estimateStatus:string;paidCents:number;paymentOverageOpen:number;pendingRefundCount:number}>();
+  `).bind(token).first<{id:string;estimateId:string;customerId:string;status:string;totalCents:number;dueAt:string|null;createdAt:string;firstViewedAt:string|null;customer:string;address:string|null;serviceAddressSource?:string;estimateShareToken:string|null;estimateStatus:string;paidCents:number;paymentOverageOpen:number;pendingRefundCount:number;openCheckoutCount:number}>();
   if (!row) return <main className="pay-page invoice-page"><section className="pay-card"><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><h1>Invoice not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
   const itemResult=await env.DB.prepare(`SELECT name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC`).bind(row.id).all<{name:string;description:string;quantity:number;unit:string;totalCents:number}>();
   const items=itemResult.results.map((item)=>({...item,quantity:Number(item.quantity),totalCents:Number(item.totalCents)}));
@@ -51,7 +52,7 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
   }
   const state=invoicePaymentState(row);
   const balance=state.balanceCents??0;
-  const paymentReviewPending=state.review;
+  const paymentReviewPending=state.review||Number(row.openCheckoutCount??0)>0;
   const showReviewInvitation=!ownerPreview&&state.safe&&balance===0&&shouldOfferReviewAfterPayment({status:row.estimateStatus,totalCents:Number(row.totalCents),paidCents:Number(row.paidCents),paymentReviewPending});
   const returnHref=from==='customer'?`/?openCustomer=${encodeURIComponent(row.customerId)}&customerSection=invoices`:from==='invoices'?`/?openInvoice=${encodeURIComponent(row.id)}`:`/?openEstimate=${encodeURIComponent(row.estimateId)}`;
   const close=ownerPreview?<a className="owner-estimate-preview-close owner-invoice-preview-close" href={returnHref} aria-label="Close invoice preview" title="Return to FIRE"><X aria-hidden="true"/></a>:null;
