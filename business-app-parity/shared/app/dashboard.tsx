@@ -2803,11 +2803,21 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
       if(nextExpenses.some(row=>!Number.isSafeInteger(row.amountCents)||row.amountCents<0||!Number.isFinite(Date.parse(row.incurredAt))))throw new Error("Expense records need review before totals can be shown.");
       if(request!==loadRequest.current)return;
       setTasks(taskResult.tasks);setExpenses(nextExpenses);setCustomers(customerResult.customers);setEstimates(customerResult.estimates);
-      // If the owner explicitly rechecks a missing notification task, reconcile
-      // against the latest complete saved list without resurrecting stale actions.
-      if(taskFocusNotice?.status==="missing"&&taskResult.tasks.some(row=>row.id===taskFocusNotice.id)){
-        setTaskFocusNotice({...taskFocusNotice,status:"restored"});
-        setTaskSearch("");setTaskFilter("all");setContextTaskId(taskFocusNotice.id);setHighlightTaskId(taskFocusNotice.id);
+      // Reconcile every visible notification-task explanation after each complete,
+      // successful owner read. A previously recovered task may disappear again,
+      // become completed, or become due; never keep a stale "found" message.
+      if(taskFocusNotice){
+        const savedTask=taskResult.tasks.find(row=>row.id===taskFocusNotice.id);
+        const dueNow=Boolean(savedTask?.status==="open"&&["today","overdue"].includes(taskDueBucket(savedTask,new Date())));
+        const currentStatus=!savedTask?"missing":dueNow?"restored":"changed";
+        setTaskFocusNotice({id:taskFocusNotice.id,status:currentStatus,
+          customerId:savedTask?(savedTask.customerId??null):taskFocusNotice.customerId,
+          activity:savedTask?(taskLinkedFlag(savedTask)?.kind??null):taskFocusNotice.activity});
+        if(savedTask){
+          setTaskSearch("");setTaskFilter("all");setContextTaskId(savedTask.id);setHighlightTaskId(savedTask.id);
+        }else{
+          setContextTaskId(null);setHighlightTaskId(null);
+        }
       }
       reconcileReceipts(taskResult.tasks,nextExpenses);
     }catch(error){if(request===loadRequest.current)setLoadError(error instanceof Error?error.message:"Business records could not be loaded.");}

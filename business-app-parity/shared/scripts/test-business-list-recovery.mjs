@@ -16,7 +16,7 @@ const script=ts.transpileModule('exports.load='+declaration.initializer.getText(
 }).outputText;
 let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
-const task=(id='task-new')=>({id,title:'Synthetic reminder',status:'open'});
+const task=(id='task-new',extras={})=>({id,title:'Synthetic reminder',status:'open',...extras});
 const expense=(amountCents='425')=>({id:'expense-new',description:'Synthetic supply',amountCents,incurredAt:'2026-10-20T12:00:00Z'});
 const json=(value,status=200)=>({ok:status===200,json:async()=>value});
 const valid=(id='task-new')=>({
@@ -28,6 +28,8 @@ function fixture(){
  const state={loading:null,error:null,tasks:null,expenses:null,customers:null,estimates:null,receipts:[],requests:[],notice:null,expanded:[],highlighted:[]};
  const loadRequest={current:0};let handler=(url)=>valid()[url];
  const ctx={exports:{},loadRequest,taskFocusNotice:null,
+  taskDueBucket:(row)=>row.status!=='open'?'none':row.dueAt&&Date.parse(row.dueAt)<=Date.now()?'overdue':'none',
+  taskLinkedFlag:(row)=>row.notes?.includes('FIRE review request: 2026-10-20T12:00:00Z')?{kind:'review'}:null,
   setTaskFocusNotice:v=>{state.notice=v;ctx.taskFocusNotice=v;},
   setTaskSearch:()=>{},setTaskFilter:()=>{},
   setContextTaskId:id=>state.expanded.push(id),setHighlightTaskId:id=>state.highlighted.push(id),
@@ -82,8 +84,11 @@ for(const scenario of ['network','http','bad-shape','invalid-expense']){
 {
  const f=fixture();
  f.setNotice({id:'task-new',status:'missing',customerId:'c1',activity:'sign'});
+ f.setHandler(url=>url==='/api/tasks'?json({tasks:[task('task-new',{dueAt:'2026-10-01T12:00:00Z',customerId:'c1',notes:'FIRE review request: 2026-10-20T12:00:00Z'})]}):valid()[url]);
  await f.load();
- eq(f.state.notice?.status,'restored','Verified saved task makes a missing notification recoverable');
+ eq(f.state.notice?.status,'restored','Verified open due task makes a missing notification recoverable');
+ eq(f.state.notice?.activity,'review','Recovered authoritative task notes supersede stale notification flag hint');
+ eq(f.state.notice?.customerId,'c1','Verified task customer ID supersedes old notification identity');
  eq(f.state.expanded.at(-1),'task-new','Recovered task reopens exact read-only details');
  eq(f.state.highlighted.at(-1),'task-new','Recovered task is highlighted without toggling completion');
  eq(f.state.requests.every(r=>!r.options?.method),true,'Recovery checks saved GETs only');
@@ -104,4 +109,56 @@ for(const scenario of ['network','http','bad-shape','invalid-expense']){
  eq(f.state.expanded.length,0,'Partial lists do not focus unverified records');
  eq(f.state.receipts.length,0,'Failed task recovery never reconciles pending save receipts');
 }
+// Every subsequent verified read reconciles a task notice. A once-restored
+// task can disappear, be completed, or become due again without false claims.
+{
+ const f=fixture();
+ f.setNotice({id:'task-new',status:'restored',customerId:'c1',activity:'review'});
+ f.setHandler(url=>url==='/api/tasks'?json({tasks:[]}):valid()[url]);
+ await f.load();
+ eq(f.state.notice?.status,'missing','Previously recovered task no longer claims it was found when absent');
+ eq(f.state.expanded.at(-1),null,'Absent task closes old details safely');
+ eq(f.state.highlighted.at(-1),null,'Absent task loses stale highlight');
+ eq(f.state.notice?.customerId,'c1','Missing task retains candidate ID for owner-verified fallback');
+}
+{
+ const f=fixture();
+ f.setNotice({id:'task-new',status:'restored',customerId:'old-customer',activity:'sign'});
+ f.setHandler(url=>url==='/api/tasks'?json({tasks:[task('task-new',{status:'completed',completedAt:'2026-10-21T15:00:00Z',customerId:'c1',notes:'FIRE review request: 2026-10-20T12:00:00Z'})]}):valid()[url]);
+ await f.load();
+ eq(f.state.notice?.status,'changed','Completed task replaces earlier due/restored claim');
+ eq(f.state.notice?.customerId,'c1','Saved task customer displaces stale hint');
+ eq(f.state.notice?.activity,'review','Saved task event displaces stale sign hint');
+ eq(f.state.expanded.at(-1),'task-new','Changed task remains available for read-only review');
+}
+{
+ const f=fixture();
+ f.setNotice({id:'task-new',status:'changed',customerId:'c1',activity:null});
+ f.setHandler(url=>url==='/api/tasks'?json({tasks:[task('task-new',{dueAt:'2026-10-01T12:00:00Z'})]}):valid()[url]);
+ await f.load();
+ eq(f.state.notice?.status,'restored','Task becomes due again after its saved due date changes');
+ eq(f.state.notice?.customerId,null,'Saved task without customer cannot inherit earlier customer hint');
+ eq(f.state.notice?.activity,null,'Generic saved task cannot inherit earlier event marker');
+}
+{
+ const f=fixture();f.setNotice({id:'task-new',status:'restored',customerId:'c1',activity:'sign'});
+ f.setHandler(url=>url==='/api/tasks'?json({tasks:[]},503):valid()[url]);
+ await f.load();
+ eq(f.state.notice?.status,'restored','Failed recheck leaves previous verified state rather than inventing absence');
+ eq(f.state.highlighted.length,0,'Failed recheck does not disturb task focus');
+}
+{
+ const f=fixture(),old=deferred();let first=true;
+ f.setNotice({id:'task-new',status:'missing',customerId:'c1',activity:'review'});
+ f.setHandler(url=>{
+  if(url==='/api/tasks'&&first){first=false;return old.promise;}
+  return url==='/api/tasks'?json({tasks:[]}):valid()[url];
+ });
+ const outdated=f.load();await f.load();
+ old.resolve(json({tasks:[task('task-new',{dueAt:'2026-10-01T12:00:00Z'})]}));await outdated;
+ eq(f.state.notice?.status,'missing','Out-of-order old success cannot restore a newer missing result');
+ eq(f.state.expanded.length,1,'Only newest verified missing-state read reconciles details');
+ eq(f.state.expanded.at(-1),null,'Late stale read cannot open a previously missing task');
+}
+
 console.log('PASS '+checks+'/'+checks+': actual BusinessView owner-only list recovery, stale reads, task-notification rechecks and no automatic writes. Synthetic data only.');
