@@ -2402,7 +2402,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   const [contactHistory,setContactHistory]=useState<{key:string;status:"loading"|"ready"|"error";events:{id:string;channel:string;template:string;createdAt:string}[];hasMore:boolean}|null>(null);
   const contactReadId=useRef(0);
   const readContactHistory=(estimate:EstimateRow,template:string)=>{
-    const customerId=estimate.customerId;
+    const customerId:string=typeof estimate.customerId==="string"?estimate.customerId:"";
     if(!customerId)return;
     const key=estimate.id+":"+template,request=++contactReadId.current;
     setContactHistory({key,status:"loading",events:[],hasMore:false});
