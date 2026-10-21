@@ -25,9 +25,12 @@ const valid=(id='task-new')=>({
  '/api/customers':json({customers:[{id:'c1',name:'Synthetic customer'}],estimates:[{id:'e1'}]})
 });
 function fixture(){
- const state={loading:null,error:null,tasks:null,expenses:null,customers:null,estimates:null,receipts:[],requests:[]};
+ const state={loading:null,error:null,tasks:null,expenses:null,customers:null,estimates:null,receipts:[],requests:[],notice:null,expanded:[],highlighted:[]};
  const loadRequest={current:0};let handler=(url)=>valid()[url];
- const ctx={exports:{},loadRequest,
+ const ctx={exports:{},loadRequest,taskFocusNotice:null,
+  setTaskFocusNotice:v=>{state.notice=v;ctx.taskFocusNotice=v;},
+  setTaskSearch:()=>{},setTaskFilter:()=>{},
+  setContextTaskId:id=>state.expanded.push(id),setHighlightTaskId:id=>state.highlighted.push(id),
   setLoading:v=>{state.loading=v;},setLoadError:v=>{state.error=v;},
   setTasks:v=>{state.tasks=v;},setExpenses:v=>{state.expenses=v;},
   setCustomers:v=>{state.customers=v;},setEstimates:v=>{state.estimates=v;},
@@ -35,7 +38,7 @@ function fixture(){
   fetch:(url,options)=>{state.requests.push({url,options});return handler(url,options);}
  };
  vm.runInNewContext(script,ctx);
- return {state,load:()=>ctx.exports.load(),setHandler:fn=>{handler=fn;},loadRequest};
+ return {state,load:()=>ctx.exports.load(),setHandler:fn=>{handler=fn;},setNotice:v=>{ctx.taskFocusNotice=v;state.notice=v;},loadRequest};
 }
 {
  const f=fixture();await f.load();
@@ -74,4 +77,31 @@ for(const scenario of ['network','http','bad-shape','invalid-expense']){
  eq(f.state.receipts.length,1,'Stale response cannot reconcile or clear saved operation IDs');
  eq(f.state.loading,false,'Stale completion cannot strand UI in loading state');
 }
-console.log('PASS '+checks+'/'+checks+': actual BusinessView uncached GET, complete response validation and stale-load refusal. Synthetic data only.');
+// A missing task notification is only restored after the full owner-scoped list
+// finishes correctly; a failed or stale read must not claim a found task.
+{
+ const f=fixture();
+ f.setNotice({id:'task-new',status:'missing',customerId:'c1',activity:'sign'});
+ await f.load();
+ eq(f.state.notice?.status,'restored','Verified saved task makes a missing notification recoverable');
+ eq(f.state.expanded.at(-1),'task-new','Recovered task reopens exact read-only details');
+ eq(f.state.highlighted.at(-1),'task-new','Recovered task is highlighted without toggling completion');
+ eq(f.state.requests.every(r=>!r.options?.method),true,'Recovery checks saved GETs only');
+}
+{
+ const f=fixture();
+ f.setNotice({id:'unknown-task',status:'missing',customerId:'c1',activity:'review'});
+ await f.load();
+ eq(f.state.notice?.status,'missing','Absent task remains explicitly unverified after full read');
+ eq(f.state.expanded.length,0,'No arbitrary task details are opened on missing recovery');
+}
+{
+ const f=fixture();
+ f.setNotice({id:'task-new',status:'missing',customerId:'c1',activity:'sign'});
+ f.setHandler(url=>url==='/api/customers'?json({customers:null,estimates:[]}):valid()[url]);
+ await f.load();
+ eq(f.state.notice?.status,'missing','Failed owner list cannot claim task restored');
+ eq(f.state.expanded.length,0,'Partial lists do not focus unverified records');
+ eq(f.state.receipts.length,0,'Failed task recovery never reconciles pending save receipts');
+}
+console.log('PASS '+checks+'/'+checks+': actual BusinessView owner-only list recovery, stale reads, task-notification rechecks and no automatic writes. Synthetic data only.');
