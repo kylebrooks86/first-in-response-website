@@ -1605,15 +1605,31 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   /** Only flags that require owner review, never automatic sends, payments or notes. */
   function buildCustomerNextActions(input:{
     sign:{state:"out"|"picked_up";pickupDate:string|null}|null;
-    reviewDue:boolean;invoices:readonly InvoiceRow[];
+    reviewDue:boolean;invoices:readonly InvoiceRow[];estimates:readonly CustomerEstimate[];
     messages:readonly CustomerMessage[];today:string;
   }){
-    type Action={key:string;kind:"sign"|"review"|"invoice";title:string;detail:string;invoiceId?:string;priority:number};
+    type Action={key:string;kind:"sign"|"review"|"invoice"|"estimate";title:string;detail:string;invoiceId?:string;estimateId?:string;priority:number};
     const actions:Action[]=[];
     if(input.sign?.state==="out"&&input.sign.pickupDate&&input.sign.pickupDate<=input.today)
       actions.push({key:"sign",kind:"sign",title:"Yard sign pickup due",detail:"Review pickup and record it when completed",priority:100});
     if(input.reviewDue)
       actions.push({key:"review",kind:"review",title:"Review status check due",detail:"Verify before logging a review or sending anything",priority:80});
+    for(const estimate of input.estimates){
+      if(!estimate.id||!["draft","sent"].includes(estimate.status))continue;
+      // An in-app send receipt is stronger than a status label; a copied or
+      // prepared message never proves delivery. Avoid false follow-up urgency
+      // for estimates explicitly snoozed to a future local calendar date.
+      const confirmed=input.messages.some(message=>message.estimateId===estimate.id&&message.template==="estimate"&&
+        (message.channel==="text_confirmed"||message.channel==="email_confirmed"));
+      const savedSend=Boolean(estimate.firstEstimateSentAt||estimate.lastEstimateSentAt);
+      const snoozed=Boolean(estimate.snoozeUntil&&Number.isFinite(Date.parse(estimate.snoozeUntil))&&Date.parse(estimate.snoozeUntil)>Date.now());
+      if(!confirmed&&!savedSend&&estimate.status==="draft")
+        actions.push({key:"estimate:"+estimate.id,kind:"estimate",estimateId:estimate.id,title:"Review unsent estimate",
+          detail:"Draft estimate · sending not confirmed in app",priority:55});
+      else if(!confirmed&&!savedSend&&estimate.status==="sent"&&!snoozed)
+        actions.push({key:"estimate:"+estimate.id,kind:"estimate",estimateId:estimate.id,title:"Verify estimate send",
+          detail:"Estimate marked sent · no saved send timestamp or confirmed message",priority:50});
+    }
     for(const invoice of input.invoices){
       if(!invoice.id||!invoice.estimateId||["paid","void","cancelled","draft"].includes(invoice.status))continue;
       const confirmed=input.messages.some(message=>message.estimateId===invoice.estimateId&&message.template==="invoice"&&
@@ -1803,11 +1819,12 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   });
   const nextCustomerActions=buildCustomerNextActions({
     sign:manualFlags.sign,reviewDue:reviewCheck.status==="due",
-    invoices:customerInvoices,messages:customerMessages,today:tulsaToday
+    invoices:customerInvoices,estimates:customerEstimates,messages:customerMessages,today:tulsaToday
   });
-  const openCustomerAction=(action:{kind:"sign"|"review"|"invoice";invoiceId?:string})=>{
+  const openCustomerAction=(action:{kind:"sign"|"review"|"invoice"|"estimate";invoiceId?:string;estimateId?:string})=>{
     if(!selected)return;
     if(action.kind==="invoice"&&action.invoiceId){openTimelineEntry({section:"invoices",id:action.invoiceId});return;}
+    if(action.kind==="estimate"&&action.estimateId){openTimelineEntry({section:"estimates",id:action.estimateId});return;}
     const element=document.getElementById(action.kind==="sign"?
       "customer-sign-flag-"+selected.id:"customer-review-check-"+selected.id);
     element?.scrollIntoView({block:"center",behavior:"instant"});
