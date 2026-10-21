@@ -85,5 +85,5 @@ const tick=()=>new Promise(resolve=>setImmediate(resolve));
  check(n===2,"Retry explicitly triggers a new owner read");
 }
 check(source.includes('paidReviewActions.length+(signStatus')===false||source.includes('+(paidReviewStatus==="ready"?paidReviewActions.length:0)'),"Known paid-job reminders contribute to Dashboard attention count");
-check(source.includes("paidReviewMore?\"+\"")&&source.includes("prepared but sending unconfirmed"),"Truncation and prepared-not-sent remain visible");
+check(source.includes("paidReviewMore?\"+\"")&&source.includes("Prepared review message — confirm whether it was actually sent"),"Truncation and selected customer prepared-not-sent state remain visible");
 console.log("PASS "+checks+" synthetic Dashboard paid review request and exact navigation checks.");
