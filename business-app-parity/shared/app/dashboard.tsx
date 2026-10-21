@@ -661,6 +661,51 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
     const timer=window.setInterval(refresh,60000);
     return()=>{cancelled=true;generation++;controller.abort();window.removeEventListener("focus",refresh);window.removeEventListener("fire:attention-saved",refresh);document.removeEventListener("visibilitychange",refresh);window.clearInterval(timer);};
   },[reviewChecksReload]);
+  // Paid-closeout review requests and 7-day review STATUS checks are distinct.
+  // A prepared text/email is not a confirmed send, and reading creates no action.
+  const [paidReviewActions,setPaidReviewActions]=useState<PaymentCloseoutAction[]>([]);
+  const [paidReviewStatus,setPaidReviewStatus]=useState<"loading"|"ready"|"error">("loading");
+  const [paidReviewMore,setPaidReviewMore]=useState(false);
+  const [paidReviewReload,setPaidReviewReload]=useState(0);
+  useEffect(()=>{
+    let cancelled=false,generation=0;
+    const controller=new AbortController();
+    const read=async()=>{
+      const request=++generation;
+      try{
+        const response=await fetch("/api/payment-closeouts",{cache:"no-store",signal:controller.signal});
+        if(!response.ok)throw Error("Review request queue unavailable");
+        const data=await response.json() as {actions?:PaymentCloseoutAction[];mayHaveMore?:boolean};
+        if(!Array.isArray(data.actions)||typeof data.mayHaveMore!=="boolean"||data.actions.length>200||
+          data.actions.some(row=>!row||typeof row.estimateId!=="string"||!row.estimateId||
+            typeof row.customerId!=="string"||!row.customerId||
+            typeof row.customerName!=="string"||!row.customerName.trim()||
+            !Number.isSafeInteger(row.totalCents)||row.totalCents<=0||
+            typeof row.lastPaidAt!=="string"||!Number.isFinite(Date.parse(row.lastPaidAt))||
+            !["ready","prepared"].includes(row.state))||
+          new Set(data.actions.map(row=>row.estimateId)).size!==data.actions.length)
+            throw Error("Review request queue not verified");
+        if(!cancelled&&request===generation){
+          setPaidReviewActions(data.actions);setPaidReviewMore(data.mayHaveMore);
+          setPaidReviewStatus("ready");
+        }
+      }catch{
+        if(!cancelled&&request===generation){
+          setPaidReviewActions([]);setPaidReviewMore(false);setPaidReviewStatus("error");
+        }
+      }
+    };
+    void read();
+    const refresh=()=>{if(document.visibilityState==="visible")void read();};
+    window.addEventListener("focus",refresh);
+    window.addEventListener("fire:attention-saved",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    const timer=window.setInterval(refresh,60000);
+    return()=>{cancelled=true;generation++;controller.abort();window.clearInterval(timer);
+      window.removeEventListener("focus",refresh);
+      window.removeEventListener("fire:attention-saved",refresh);
+      document.removeEventListener("visibilitychange",refresh);};
+  },[paidReviewReload]);
   // Match Schedule: future completed/declined jobs are not upcoming appointments.
   // The first supplied record is not necessarily the next appointment.
   const upcomingJobs=estimates.filter((estimate)=>estimate.status==="scheduled"&&estimate.scheduledAt&&Number.isFinite(Date.parse(estimate.scheduledAt))&&Date.parse(estimate.scheduledAt)>=now).sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
@@ -701,8 +746,11 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
     .sort((a,b)=>a.pickupDate.localeCompare(b.pickupDate)||a.customerId.localeCompare(b.customerId))[0]:undefined;
   const dueReviews=reviewChecksStatus==="ready"?reviewChecks.length:0;
   const oldestReviewCheck=reviewChecksStatus==="ready"?reviewChecks.slice().sort((a,b)=>b.elapsedDays-a.elapsedDays||a.requestedAt.localeCompare(b.requestedAt)||a.customerId.localeCompare(b.customerId))[0]:undefined;
-  const priorityCount=nearTermPrepJobs.length+(signStatus==="ready"?pickupDue:0)+dueReviews+dueTasks.length;
-  const incompletePrioritySources=signStatus==="error"||reviewChecksStatus==="error"||priorityTaskStatus==="error";
+  const oldestPaidReview=paidReviewStatus==="ready"?paidReviewActions.slice()
+    .sort((a,b)=>Date.parse(a.lastPaidAt)-Date.parse(b.lastPaidAt)||a.estimateId.localeCompare(b.estimateId))[0]:undefined;
+  const preparedPaidReviewCount=paidReviewActions.filter(row=>row.state==="prepared").length;
+  const priorityCount=nearTermPrepJobs.length+(signStatus==="ready"?pickupDue:0)+dueReviews+dueTasks.length+(paidReviewStatus==="ready"?paidReviewActions.length:0);
+  const incompletePrioritySources=signStatus==="error"||reviewChecksStatus==="error"||priorityTaskStatus==="error"||paidReviewStatus==="error";
   return (
     <div className="dashboard-view">
       <section className="welcome-row"><div><p className="eyebrow">FIRE App</p><h1>Welcome to First In Response Exteriors</h1><p>Customers, estimates, jobs, and balances in one place.</p></div><NewEstimate onSaved={onSaved} /></section>
@@ -712,9 +760,11 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
           {nearTermPrepJobs.length>0&&<button type="button" aria-label="Review upcoming appointment preparation" onClick={()=>onOpenEstimate?onOpenEstimate(nearTermPrepJobs[0].id):onNavigate("schedule")}><CalendarDays aria-hidden="true"/><span><strong>{nearTermPrepJobs.length} job{nearTermPrepJobs.length===1?"":"s"} need details</strong><small>Today or tomorrow · missing service address or usable contact on job</small></span><ChevronRight aria-hidden="true"/></button>}
           {dueSign&&<button type="button" aria-label="Review overdue yard sign pickup" onClick={()=>onOpenCustomerActivity?onOpenCustomerActivity(dueSign.customerId,"sign"):onOpenCustomer?onOpenCustomer(dueSign.customerId):onNavigate("customers")}><MapPin aria-hidden="true"/><span><strong>{pickupDue} yard sign pickup{pickupDue===1?"":"s"} due</strong><small>Open {dueSign.customerName} · target {dueSign.pickupDate}</small></span><ChevronRight aria-hidden="true"/></button>}
           {dueTasks.length>0&&<button type="button" className={pastDueTasks?"priority-task-overdue":""} aria-label="Review due Business tasks" onClick={()=>onOpenTask?onOpenTask(dueTasks[0].id):onNavigate("business")}><ClipboardList aria-hidden="true"/><span><strong>{dueTasks.length} Business task{dueTasks.length===1?"":"s"} due</strong><small>{pastDueTasks?pastDueTasks+" past due":"Due today"}{pastDueTasks&&dueTasks.length>pastDueTasks?" · "+(dueTasks.length-pastDueTasks)+" later today":""} · {dueTasks[0].title}</small></span><ChevronRight aria-hidden="true"/></button>}
+          {oldestPaidReview&&<button type="button" aria-label="Review paid jobs awaiting review requests" onClick={()=>onOpenEstimate?onOpenEstimate(oldestPaidReview.estimateId):onNavigate("payments")}><Star aria-hidden="true"/><span><strong>{paidReviewActions.length}{paidReviewMore?"+":""} paid job{paidReviewActions.length===1&&!paidReviewMore?"":"s"} awaiting review request</strong><small>Open {oldestPaidReview.customerName} · {preparedPaidReviewCount?preparedPaidReviewCount+" message"+(preparedPaidReviewCount===1?"":"s")+" prepared but sending unconfirmed":"no confirmed request yet"}{paidReviewMore?" · More in Payments":""}</small></span><ChevronRight aria-hidden="true"/></button>}
           {oldestReviewCheck&&<button type="button" aria-label="Review customer review-status checks" onClick={()=>onOpenCustomerActivity?onOpenCustomerActivity(oldestReviewCheck.customerId,"review"):onOpenCustomer?onOpenCustomer(oldestReviewCheck.customerId):onNavigate("customers")}><Star aria-hidden="true"/><span><strong>{dueReviews} review status check{dueReviews===1?"":"s"}</strong><small>Confirm whether reviews appeared before any follow-up</small></span><ChevronRight aria-hidden="true"/></button>}
           {priorityTaskStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable Business tasks" onClick={()=>setTaskRefresh(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>Business task status unavailable</strong><small>Retry — due task counts may be incomplete</small></span><ChevronRight aria-hidden="true"/></button>}
           {signStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable yard sign status" onClick={()=>setSignReload(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>Yard sign status unavailable</strong><small>Retry — pickup counts may be incomplete</small></span><ChevronRight aria-hidden="true"/></button>}
+          {paidReviewStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable paid-job review requests" onClick={()=>setPaidReviewReload(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>Paid-job review requests unavailable</strong><small>Retry — completed paid jobs may need requests</small></span><ChevronRight aria-hidden="true"/></button>}
           {reviewChecksStatus==="error"&&<button type="button" className="priority-data-error" aria-label="Retry unavailable review checks" onClick={()=>setReviewChecksReload(n=>n+1)}><RefreshCw aria-hidden="true"/><span><strong>Review checks unavailable</strong><small>Retry — follow-up counts may be incomplete</small></span><ChevronRight aria-hidden="true"/></button>}
         </div>
         <div className="dashboard-priority-foot"><small>Job checks cover loaded Dashboard appointments; open Schedule for all jobs.</small><button type="button" onClick={()=>onNavigate("schedule")}>Full schedule <ChevronRight aria-hidden="true"/></button></div>
