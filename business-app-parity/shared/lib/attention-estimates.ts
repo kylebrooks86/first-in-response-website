@@ -36,7 +36,8 @@ export function estimateAttentionItems(estimates:readonly AttentionEstimate[],no
   if(Number(e.paymentOverageOpen)>0)add("invoice","Payment overage needs owner reconciliation",true,e.invoiceId??undefined);
   else if(e.invoiceId&&Number.isFinite(total)&&Number.isFinite(paid)&&total>paid&&total>=0&&paid>=0)
    add("invoice","Invoice balance open · review before contacting",false,e.invoiceId);
-  if(e.status==="sent"){
+  // An issued invoice or payment exception is a billing action, not a second estimate nudge.
+  if(e.status==="sent"&&!e.invoiceId&&Number(e.paymentOverageOpen??0)===0){
    const stage=estimateReminderStage(e,now);
    if(stage.reviewReason)add("followup","Estimate history needs manual review");
    else if(stage.template){

@@ -41,6 +41,13 @@ const bell=attentionContext.exports.estimateAttentionItems([{...baseViewed,id:'v
 assert.equal(bell.length,1,'Bell produces a single stage-based item for a viewed estimate');n++;
 assert.match(bell[0].detail,/Estimate viewed 24h ago · decision not recorded/);n++;
 assert.equal(bell[0].estimateId,'viewed-1','Bell retains exact job target');n++;
+const invoiced=attentionContext.exports.estimateAttentionItems([{...baseViewed,id:'invoiced',customer:'Invoiced customer',createdAt:at(-5),invoiceId:'invoice-123',invoiceTotalCents:20000,paidCents:0}],now);
+assert.equal(invoiced.length,1,'Invoiced viewed estimate does not spawn competing estimate follow-up');n++;
+assert.equal(invoiced[0].kind,'invoice','Billing takes precedence over estimate outreach');n++;
+assert.equal(invoiced[0].invoiceId,'invoice-123','Billing reminder retains exact invoice navigation');n++;
+const overage=attentionContext.exports.estimateAttentionItems([{...baseViewed,id:'overage',customer:'Account issue',createdAt:at(-5),paymentOverageOpen:1}],now);
+assert.equal(overage.length,1,'Overpayment exception suppresses secondary viewed reminder');n++;
+assert.equal(overage[0].kind,'invoice','Owner sees billing exception first');n++;
 const api=readFileSync('app/api/followups/route.ts','utf8'),view=readFileSync('app/dashboard.tsx','utf8');
 assert.match(api,/channel IN \('text_confirmed','email_confirmed'\)\) AS lastConfirmedMessageAt/);
 assert.match(api,/channel IN \('text_prepared','email_prepared','copy'\)\) AS lastPreparedAt/);
