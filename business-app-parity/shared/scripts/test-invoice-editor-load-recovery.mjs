@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';import vm from 'node:vm';import ts from 'typescript';
 const require=createRequire(import.meta.url),ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='EditInvoiceDialog'),names=[],tags=new Set();
+const discountParser=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='parseDiscountCents');assert.ok(discountParser);
 function visit(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')names.push(n.name.elements[0].getText(ast));if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const t=n.tagName.getText(ast);if(/^[A-Z]/.test(t))tags.add(t);}ts.forEachChild(n,visit);}visit(fn);
 const flush=()=>new Promise(r=>setImmediate(r)),deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
@@ -11,7 +12,7 @@ function nodes(tree){const out=[];function walk(n){if(Array.isArray(n))return n.
 function fixture(){let state=[],cursor=0,refs=[],refCursor=0,effect,cleanup,estimate=job(),fetcher;const requests=[],saved=[],writes=[];
  const context={require,exports:{},services:[],serviceDescriptionFor:()=>'',money:v=>String(v),dateTime:v=>v,...Object.fromEntries([...tags].map(t=>[t,()=>null])),
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],value=>{writes.push(names[i]);state[i]=typeof value==='function'?value(state[i]):value;}];},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){effect=fn;},fetch:(url,options)=>{requests.push({url,options});if(!options?.method)eq(JSON.stringify(options),JSON.stringify({cache:'no-store'}),'Reload bypasses cached invoice');return fetcher(url,options);}};
- vm.runInNewContext(ts.transpileModule(readFileSync('lib/editable-line-totals.ts','utf8')+'\n'+fn.getText(ast)+'\nexports.view=EditInvoiceDialog;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
+ vm.runInNewContext(ts.transpileModule(readFileSync('lib/editable-line-totals.ts','utf8')+'\n'+discountParser.getText(ast)+'\n'+fn.getText(ast)+'\nexports.view=EditInvoiceDialog;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
  const render=()=>{cursor=0;refCursor=0;return context.exports.view({estimate,onSaved:value=>saved.push(value)});};render();cleanup=effect();
  return {requests,saved,writes,render,get:key=>state[names.indexOf(key)],setFetcher:f=>fetcher=f,open:()=>render().props.onOpenChange(true),close:()=>render().props.onOpenChange(false),switch(id){cleanup?.();estimate=job(id);render();cleanup=effect();},unmount:()=>cleanup?.(),nodes:()=>nodes(render()),button(label){return nodes(render()).find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).includes(label));}};
 }

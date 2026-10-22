@@ -6,6 +6,7 @@ import ts from 'typescript';
 const require=createRequire(import.meta.url);
 const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='EditInvoiceDialog');assert.ok(fn);
+const discountParser=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='parseDiscountCents');assert.ok(discountParser);
 const stateNames=[],tags=new Set();
 function visit(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&n.initializer&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')stateNames.push(n.name.elements[0].getText(ast));if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}visit(fn);
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
@@ -18,7 +19,7 @@ function fixture(){let state=[],refs=[],cursor=0,refCursor=0,effect,fetcher;cons
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{writes.push(stateNames[i]);state[i]=typeof v==='function'?v(state[i]):v;}];},
  useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){if(!effect)effect=fn;},
  fetch:(url,options)=>{eq(url,'/api/invoices/synthetic-invoice');eq(options,undefined,'Only mocked invoice reads allowed');return fetcher();}};
- vm.runInNewContext(ts.transpileModule(fn.getText(ast).replace('  const setOpenSafe=', '  exports.hydrate=hydrate;\n  const setOpenSafe=')+'\nexports.view=EditInvoiceDialog;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
+ vm.runInNewContext(ts.transpileModule(discountParser.getText(ast)+'\n'+fn.getText(ast).replace('  const setOpenSafe=', '  exports.hydrate=hydrate;\n  const setOpenSafe=')+'\nexports.view=EditInvoiceDialog;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
  const render=()=>{cursor=0;refCursor=0;return context.exports.view({estimate:{invoiceId:'synthetic-invoice',paidCents:0},onSaved(){throw Error('Saving is forbidden in loader recovery checks');}});};
  render();return {render,setFetcher:f=>fetcher=f,load:()=>context.exports.hydrate(),get:k=>state[stateNames.indexOf(k)],snapshot:()=>JSON.stringify(state),writes,close:()=>render().props.onOpenChange(false),reopen:()=>render().props.onOpenChange(true),unmount:()=>effect?.()()};
 }
