@@ -43,7 +43,7 @@ let fail=false,reads=0,held=null;const server=createServer(async(req,res)=>{
   const qualifies=value.serviceIds.includes('house-wash')&&value.serviceIds.includes('gutters');
   const bookingApplies=typeof value.bookingConfirmedOn==='string'&&value.bookingConfirmedOn>='2026-10-01'&&value.bookingConfirmedOn<='2026-10-31';
   const dollars=qualifies?2500:0;
-  const pendingBooking=bookingApplies?[]:[{id:'promo-oct',name:'October 15% booking offer',type:'percent',valueCents:1500,startOn:'2026-10-01',endOn:'2026-10-31'}];
+  const pendingBooking=typeof value.bookingConfirmedOn==='string'?[]:[{id:'promo-oct',name:'October 15% booking offer',type:'percent',valueCents:1500,startOn:'2026-10-01',endOn:'2026-10-31'}];
   const percent=bookingApplies?1500:0;
   const resultTotal=Math.max(15000,value.subtotalCents-Math.round(value.subtotalCents*percent/10000)-dollars);
   return res.end(JSON.stringify({revision:'synthetic-revision',checkedOn:'2026-10-22',bookingConfirmedOn:value.bookingConfirmedOn??null,
@@ -80,8 +80,10 @@ try{
  check(await page.getByText('Booking required:',{exact:false}).count()===0,'Confirmed date unlocks booking-only offer');
  check(await page.getByRole('button',{name:'Save synthetic estimate'}).isEnabled(),'Confirmed booking preview unlocks current scope save');
  await page.getByLabel('Owner-confirmed booking date (Tulsa)').fill('2026-09-30');
- await page.getByText('Booking required:',{exact:false}).waitFor();
+ await page.waitForFunction(()=>document.querySelector('[aria-label="Percentage chosen"]')?.textContent==='');
+ await page.getByText('Owner-confirmed booking:',{exact:false}).waitFor();
  check(await page.getByLabel('Percentage chosen').textContent()==='','Date before promotion window does not earn October 15%');
+ check(await page.getByText('Booking required:',{exact:false}).count()===0,'A confirmed but ineligible date is not falsely described as unconfirmed');
  await page.getByLabel('Owner-confirmed booking date (Tulsa)').fill('2026-10-20');
  await page.getByLabel('Percentage chosen').filter({hasText:'15'}).waitFor();
  check(await page.getByLabel('Percentage chosen').textContent()==='15','October booking restored on verified date');
