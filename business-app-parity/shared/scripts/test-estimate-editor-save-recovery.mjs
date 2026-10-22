@@ -13,11 +13,13 @@ for(const name of ['EditEstimateDialog','EditInvoiceDialog']){
  const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name),names=[],tags=new Set();
  function visit(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')names.push(n.name.elements[0].getText(ast));if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const t=n.tagName.getText(ast);if(/^[A-Z]/.test(t))tags.add(t);}ts.forEachChild(n,visit);}visit(fn);
  const discount=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='discountMath');
+ const discountParser=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='parseDiscountCents');
+ assert.ok(discountParser,'Editor fixture requires strict discount parsing');
  function fixture(){
   let state=[],cursor=0,refs=[],refCursor=0,fetcher;const requests=[],saved=[];
   const context={useServicePricing:()=>({services:[],rates:null,error:"",loading:false}),EstimateLinePricing:()=>null,require,exports:{},services:[],serviceDescriptionFor:()=>'',money:v=>String(v),dateTime:v=>v,
    ...Object.fromEntries([...tags].map(t=>[t,()=>null])),useEffect(){},useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},fetch:(url,options)=>{requests.push({url,options});return fetcher(url,options);}};
-  const code=readFileSync('lib/editable-line-totals.ts','utf8')+'\n'+discount.getText(ast)+'\n'+fn.getText(ast)+`\nexports.view=${name};`;
+  const code=readFileSync('lib/editable-line-totals.ts','utf8')+'\n'+discount.getText(ast)+'\n'+discountParser.getText(ast)+'\n'+fn.getText(ast)+`\nexports.view=${name};`;
   vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
   const estimate={id:'synthetic-job',invoiceId:'synthetic-invoice',customerId:'synthetic-customer',service:'Wash',totalCents:20001,paidCents:5000,items:[]};
   const render=()=>{cursor=0;refCursor=0;return context.exports.view({estimate,onSaved:v=>saved.push(v)});};
