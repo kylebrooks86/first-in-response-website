@@ -598,7 +598,11 @@ function parseDiscountCents(raw:string,mode:DiscountMode,maxPercent=50):number|n
   if(!/^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(raw))return null;
   const [whole,fraction='']=raw.split('.');
   const cents=Number(whole||0)*100+Number(fraction.padEnd(2,'0'));
-  if(!Number.isSafeInteger(cents)||cents<0)return nufunction NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClosed }: { onSaved?: (estimate: EstimateRow) => void; customer?: CustomerRow;disabledReason?:string;propertySelection?:PropertyEstimateSelection|null;propertyWorkflowReady?:boolean;onClosed?:()=>void }) {
+  if(!Number.isSafeInteger(cents)||cents<0)return null;
+  if(mode==='percent'&&cents>maxPercent*100)return null;
+  return cents;
+}
+function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClosed }: { onSaved?: (estimate: EstimateRow) => void; customer?: CustomerRow;disabledReason?:string;propertySelection?:PropertyEstimateSelection|null;propertyWorkflowReady?:boolean;onClosed?:()=>void }) {
   const [open, setOpen] = useState(false);
   const pricing=useServicePricing(open);
   const services=pricing.services;
@@ -774,12 +778,6 @@ function parseDiscountCents(raw:string,mode:DiscountMode,maxPercent=50):number|n
     </DialogContent>
   </Dialog>;
 }
-
-.totalCents)} · {row.id}</p>)}</section>}
-    </DialogContent>
-  </Dialog>;
-}
-
 function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEstimate,onOpenCustomer,onOpenCustomerActivity,onOpenTask}:{userName:string;metrics:{estimates:number;openValue:number;outstanding:number};estimates:EstimateRow[];onSaved:(estimate:EstimateRow)=>void;onNavigate:(tab:string)=>void;onOpenEstimate?:(id:string)=>void;onOpenCustomer?:(id:string)=>void;onOpenCustomerActivity?:(id:string,kind:"sign"|"review")=>void;onOpenTask?:(id:string)=>void}) {
   const now = useCurrentTime();
   const [priorityTasks,setPriorityTasks]=useState<TaskRow[]>([]);
