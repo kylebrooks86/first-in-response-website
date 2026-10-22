@@ -744,6 +744,10 @@ jobs:
         env:
           FIRE_PROMOTION_SCREENSHOT_DIR: ${{ runner.temp }}/fire-saved-promo-ui
         run: node scripts/test-saved-promotions-browser.mjs
+      - name: New estimate saved promotion suggestions on mobile and booking hold
+        env:
+          FIRE_PROMOTION_ESTIMATE_SCREENSHOT_DIR: ${{ runner.temp }}/fire-promotions-new-estimate-ui
+        run: node scripts/test-new-estimate-promotions-browser.mjs
       - name: Stacked promotion and bundle mobile save and recovery
         env:
           FIRE_STACKED_SCREENSHOT_DIR: ${{ runner.temp }}/fire-stacked-ui
