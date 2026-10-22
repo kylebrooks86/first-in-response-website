@@ -84,6 +84,14 @@ try{
  await page.getByRole('button',{name:'Add promotion'}).click();
  await page.locator('#fire-promo-amount').fill('-1');
  check(await page.getByRole('button',{name:'Keep promotion in draft'}).isDisabled(),'Malformed discount disabled before save');
+ stored={revision:null,promotions:[]};const beforePresets=puts;await page.goto(origin);
+ await page.getByRole('button',{name:'Add FIRE October + bundle examples'}).click();
+ check(puts===beforePresets,'Preset suggestions are drafts, not automatic server writes');
+ check(await page.locator('article').count()===2,'Two familiar FIRE preset suggestions staged');
+ await page.getByRole('button',{name:'Save promotion changes'}).click();
+ await page.getByText('Saved promotion rules are verified',{exact:false}).waitFor();
+ check(stored.promotions.length===2&&stored.promotions[0].dateBasis==='booking-confirmed','October preset keeps booking deadline rather than promising immediate savings');
+ check(stored.promotions[1].valueCents===2500&&stored.promotions[1].requiredServiceIds.includes('gutters'),'Bundle preset requires house wash and gutters');
  check(errors.length===0,'No browser exceptions: '+errors.join(';'));
  console.log('PASS '+checks+' actual saved promotions Settings Chrome checks: mobile light/dark, add, save, duplicate tap, reload, booking, multi-rule services, pause and invalid entry.');
 }finally{await browser?.close();await new Promise(r=>server.close(r));}

@@ -62,6 +62,17 @@ export function SavedPromotionsSettings(){
   }catch(e){setUncertain(true);setError((e instanceof Error?e.message:'The save was not confirmed.')+' Your entries remain here. Refresh and verify before another save.');}
   finally{saveLock.current=false;setSaving(false);}
  };
+ const addFirePresets=()=>{
+  if(!catalog||catalog.promotions.length||rules.length||editing)return;
+  setRules([
+   {id:crypto.randomUUID(),name:'October 15% booking special',type:'percent',valueCents:1500,
+    enabled:true,autoApply:true,startOn:'2026-10-01',endOn:'2026-10-31',
+    dateBasis:'booking-confirmed',requiredServiceIds:[]},
+   {id:crypto.randomUUID(),name:'House wash + gutters bundle',type:'dollar',valueCents:2500,
+    enabled:true,autoApply:true,startOn:null,endOn:null,
+    dateBasis:'estimate-created',requiredServiceIds:['house-wash','gutters']}
+  ]);setMessage('Two FIRE example promotions staged. Review them, then Save promotion changes. Nothing is active until saved.');setError('');
+ };
  const today=fireDate(new Date());
  const dirty=!!catalog&&JSON.stringify(rules)!==JSON.stringify(catalog.promotions);
  return <section className="mt-6 space-y-4" aria-label="Saved promotions">
@@ -73,6 +84,7 @@ export function SavedPromotionsSettings(){
   <div className="flex flex-wrap gap-2">
    <Button variant="outline" className="min-h-11" onClick={()=>void load(true)} disabled={loading||saving}>Refresh saved promotions</Button>
    {catalog&&!editing&&<Button className="min-h-11" onClick={()=>startEdit(newRule())} disabled={loading||saving||rules.length>=40}>Add promotion</Button>}
+   {catalog&&!editing&&catalog.promotions.length===0&&rules.length===0&&<Button variant="outline" className="min-h-11" onClick={addFirePresets} disabled={loading||saving}>Add FIRE October + bundle examples</Button>}
    {dirty&&!editing&&<Button className="min-h-11" onClick={()=>void save()} disabled={saving||loading||uncertain||!validPromotions(rules)}>{saving?'Saving…':'Save promotion changes'}</Button>}
   </div>
   {catalog&&!editing&&<div className="space-y-3">{rules.length===0&&<p className="service-description-help">No saved promotions yet. Nothing will be automatically discounted until you add and save a rule.</p>}
