@@ -569,7 +569,7 @@ function CustomerPhotos({customer,photos,setPhotos}:{customer:CustomerRow;photos
 type DiscountMode = "percent" | "dollar";
 type EditableEstimateItem={id?:string;serviceId:string;name:string;description:string;quantity:number;unit:string;unitRateCents:number;flatPriceCents?:number;preservedLineTotalCents?:number};
 
-function discountMath(subtotal:number, appreciation:boolean, mode:DiscountMode, rawValue:number){
+function discountMath(subtotal:number, appreciation:boolean, mode:DiscountMode, rawValue:number, hasPricedService=false){
   const appreciationCents=appreciation?Math.round(subtotal*0.05):0;
   let additionalCents=0;
   if(mode==="percent") {
@@ -580,7 +580,7 @@ function discountMath(subtotal:number, appreciation:boolean, mode:DiscountMode, 
     additionalCents=Math.min(subtotal,Math.max(0,Math.round((Number(rawValue)||0)*100)));
   }
   const requestedDiscount=Math.min(subtotal,appreciationCents+additionalCents);
-  const total=subtotal>0?Math.max(15000,subtotal-requestedDiscount):0;
+  const total=subtotal>0||hasPricedService?Math.max(15000,subtotal-requestedDiscount):0;
   const appliedDiscount=Math.max(0,subtotal-total);
   return {appreciationCents,additionalCents,requestedDiscount,total,appliedDiscount,deposit:Math.round(total/2)};
 }
@@ -636,7 +636,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   const resolvedAddress=estimateProperty&&estimateProperty.property.customerId===selectedCustomer?.id?estimateProperty.property.address+(estimateProperty.property.designation?' · '+estimateProperty.property.designation:''):address;
   const reviewStored=async()=>{setReviewingRecords(true);try{const response=await fetch('/api/customers');const data=await response.json() as {estimates?:EstimateRow[]};if(!response.ok||!Array.isArray(data.estimates))throw Error('Stored estimates could not be read.');setReviewedRecords(data.estimates.filter(row=>selectedCustomer?row.customerId===selectedCustomer.id:true));}catch(e){setError(e instanceof Error?e.message:'Stored estimates unavailable.');}finally{setReviewingRecords(false);}};
   const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
-  const discount=discountMath(subtotal,appreciationDiscount,discountMode,Number(discountValue));
+  const discount=discountMath(subtotal,appreciationDiscount,discountMode,Number(discountValue),items.some(item=>Boolean(item.name)&&item.quantity>0&&validEditablePrice(item)));
   const total=discount.total;
   const deposit=discount.deposit;
   const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?editMoneyLine(item,patch):item));
@@ -726,7 +726,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         <button type="button" onClick={()=>setAppreciationDiscount((value)=>!value)} className={`discount-row ${appreciationDiscount?"selected":""}`}><span><strong>5% First Responder & Military</strong><small>Year-round appreciation discount</small></span><span className="check-box">{appreciationDiscount&&<Check className="h-4 w-4"/>}</span></button>
         <section className="edit-discount-card"><Label>Additional bundle, promotion, or family discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} onChange={(event)=>setDiscountValue(event.target.value)} placeholder="0"/></div><p className="service-description-help">Choose percentage or dollar amount. Percentage discounts stack with the 5% appreciation discount, up to 50% total.</p></section>
         <div className="edit-totals"><span>Service subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(discount.appliedDiscount)}</strong></span><span>Customer total<strong>{money(total)}</strong></span><span>50% deposit to schedule<strong>{money(deposit)}</strong></span></div>
-        {subtotal>0&&subtotal-discount.requestedDiscount<15000&&<p className="service-description-help">The $150 minimum job charge is applied automatically.</p>}{error&&<p className="save-error" role="alert">{error}</p>}
+        {items.some(item=>Boolean(item.name)&&item.quantity>0)&&subtotal-discount.requestedDiscount<15000&&<p className="service-description-help">The $150 minimum job charge is applied automatically.</p>}{error&&<p className="save-error" role="alert">{error}</p>}
         <div className="flex gap-3"><Button variant="outline" onClick={()=>setStep(1)} disabled={saving}>Back</Button><Button className="brand-button flex-1" onClick={()=>void saveEstimate()} disabled={saving||uncertainSave||customerLoading||!identityConfirmed||Boolean(selectedCustomer)&&propertyBlocked}>{saving?"Saving…":`Save ${money(total)} estimate`}</Button></div>
       </div>}
       {uncertainSave&&<section className="px-6 pb-6" aria-label="Unconfirmed estimate save"><p role="status">Save was not confirmed. Another save is blocked to prevent duplicate estimates.</p><Button variant="outline" disabled={reviewingRecords} onClick={()=>void reviewStored()}>Review stored estimates</Button>{reviewedRecords.map(row=><p key={row.id}>{row.service} · {row.address} · {money(row.totalCents)} · {row.id}</p>)}</section>}
@@ -1513,7 +1513,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;setOpen(value);if(value)hydrate();};
   const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?editMoneyLine(item,patch):item));
   const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
-  const discount=discountMath(subtotal,appreciationDiscount,discountMode,Number(discountValue));
+  const discount=discountMath(subtotal,appreciationDiscount,discountMode,Number(discountValue),items.some(item=>Boolean(item.name)&&item.quantity>0&&validEditablePrice(item)));
   const addService=()=>setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);
   const save=async()=>{
     if(saveLock.current)return;
@@ -1535,7 +1535,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
     <button type="button" onClick={()=>setAppreciationDiscount((value)=>!value)} className={`discount-row ${appreciationDiscount?"selected":""}`}><span><strong>5% First Responder & Military</strong><small>Year-round appreciation discount</small></span><span className="check-box">{appreciationDiscount&&<Check className="h-4 w-4"/>}</span></button>
     <section className="edit-discount-card"><Label>Additional bundle, promotion, or family discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} onChange={(event)=>setDiscountValue(event.target.value)} placeholder="0"/></div><p className="service-description-help">Choose percentage or dollar amount. Percentage discounts stack with the 5% appreciation discount, up to 50% total.</p></section>
     <div className="edit-totals"><span>Service subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(discount.appliedDiscount)}</strong></span><span>Estimate total<strong>{money(discount.total)}</strong></span><span>50% deposit<strong>{money(discount.deposit)}</strong></span></div>
-    {subtotal>0&&subtotal-discount.requestedDiscount<15000&&<p className="service-description-help">The $150 minimum job charge is applied automatically.</p>}{error&&<p className="save-error" role="alert">{error}</p>}
+    {items.some(item=>Boolean(item.name)&&item.quantity>0)&&subtotal-discount.requestedDiscount<15000&&<p className="service-description-help">The $150 minimum job charge is applied automatically.</p>}{error&&<p className="save-error" role="alert">{error}</p>}
     </fieldset>
     </div>
     <div className="estimate-edit-modal-footer"><Button className="brand-button w-full" onClick={()=>void save()} disabled={saving}>{saving?"Saving…":"Save estimate changes"}</Button></div>
