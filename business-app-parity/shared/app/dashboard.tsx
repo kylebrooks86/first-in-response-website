@@ -3043,6 +3043,7 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   const reviewSnoozeLock=useRef(false);
   const [showAllReviewCloseouts,setShowAllReviewCloseouts]=useState(false);
   const [reviewCloseoutFilter,setReviewCloseoutFilter]=useState<"all"|"prepared"|"unprepared">("all");
+  const [reviewCloseoutOrder,setReviewCloseoutOrder]=useState<"priority"|"newest"|"customer">("priority");
   const reviewOlderLock=useRef(false),reviewPageRequest=useRef(0);
   const loadRequest=useRef(0);
   const load=async()=>{
@@ -3130,9 +3131,10 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   const matchingReviewCloseouts=reviewCloseouts.filter(item=>item.customerName.toLowerCase().includes(searchQuery.toLowerCase())&&
     (reviewCloseoutFilter==="all"||(reviewCloseoutFilter==="prepared"?item.state==="prepared":item.state!=="prepared")));
   // Prepared drafts require owner verification first; within each state, handle the oldest payment first.
-  const prioritizedReviewCloseouts=matchingReviewCloseouts.slice().sort((a,b)=>
-    (a.state==="prepared"?0:1)-(b.state==="prepared"?0:1)||
-    Date.parse(a.lastPaidAt)-Date.parse(b.lastPaidAt)||a.estimateId.localeCompare(b.estimateId));
+  const prioritizedReviewCloseouts=matchingReviewCloseouts.slice().sort((a,b)=>reviewCloseoutOrder==="customer"?
+    a.customerName.localeCompare(b.customerName)||a.estimateId.localeCompare(b.estimateId):reviewCloseoutOrder==="newest"?
+    Date.parse(b.lastPaidAt)-Date.parse(a.lastPaidAt)||a.estimateId.localeCompare(b.estimateId):
+    (a.state==="prepared"?0:1)-(b.state==="prepared"?0:1)||Date.parse(a.lastPaidAt)-Date.parse(b.lastPaidAt)||a.estimateId.localeCompare(b.estimateId));
   const shownReviewCloseouts=showAllReviewCloseouts?prioritizedReviewCloseouts:prioritizedReviewCloseouts.slice(0,5);
   const preparedReviewVisible=matchingReviewCloseouts.filter(item=>item.state==="prepared").length;
   const unpreparedReviewVisible=matchingReviewCloseouts.length-preparedReviewVisible;
@@ -3145,6 +3147,9 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   </header>
   <div className="flex flex-wrap gap-2" role="group" aria-label="Filter paid review requests">
     {([["all","All"],["prepared","Prepared · verify send"],["unprepared","Not prepared"]] as const).map(([key,label])=><Button key={key} variant={reviewCloseoutFilter===key?"default":"outline"} aria-pressed={reviewCloseoutFilter===key} onClick={()=>{setReviewCloseoutFilter(key);setShowAllReviewCloseouts(false);}}>{label} ({key==="all"?reviewCloseouts.length:reviewCloseouts.filter(item=>key==="prepared"?item.state==="prepared":item.state!=="prepared").length})</Button>)}
+  </div>
+  <div className="flex flex-wrap gap-2" role="group" aria-label="Sort paid review requests">
+    {([["priority","Needs action first"],["newest","Newest paid"],["customer","Customer A–Z"]] as const).map(([key,label])=><Button key={key} variant={reviewCloseoutOrder===key?"default":"outline"} aria-pressed={reviewCloseoutOrder===key} onClick={()=>{setReviewCloseoutOrder(key);setShowAllReviewCloseouts(false);}}>{label}</Button>)}
   </div>
   {!reviewCloseoutError&&<p className="pay-note" role="status">{matchingReviewCloseouts.length} matching loaded job{matchingReviewCloseouts.length===1?"":"s"} · {preparedReviewVisible} prepared, awaiting send verification · {unpreparedReviewVisible} not prepared{reviewMoreAvailable?" · Older jobs may remain unloaded":""}. Prepared drafts are not proof of delivery.</p>}
   {reviewCloseoutError?<p role="alert" className="save-error">{reviewCloseoutError} Other payment records remain available.</p>:
