@@ -1,3 +1,4 @@
+import {quoteDiscounts} from './discount-input';
 import {FIRE_SERVICES} from './fire-services';
 
 export const SAVED_PROMOTIONS_KEY = 'fire:saved-promotions:v1';
@@ -75,13 +76,13 @@ export function evaluateSavedPromotions(catalog:SavedPromotionCatalog,quote:Prom
   const dollarCents=offered.filter(p=>p.type==='dollar').reduce((sum,p)=>sum+p.valueCents,0);
   const cap=(quote.appreciationDiscount?45:50)*100;
   const blocked=percentBasisPoints>cap?'Combined percentage promotions exceed FIRE discount limits. Review before applying.':dollarCents>quote.subtotalCents?'Combined flat promotions exceed the service subtotal. Review before applying.':null;
-  const appreciationCents=quote.appreciationDiscount?Math.round(quote.subtotalCents*.05):0;
-  const percentageCents=Math.round(quote.subtotalCents*percentBasisPoints/10000);
-  const requestedCents=Math.min(quote.subtotalCents,appreciationCents+percentageCents+dollarCents);
-  const totalCents=quote.serviceIds.length||quote.subtotalCents>0?Math.max(15000,quote.subtotalCents-requestedCents):0;
+  // Share the authoritative quote calculation, including existing rounding.
+  // A multiply-then-divide preview can disagree by a cent at half-cent inputs.
+  const pricing=blocked?null:quoteDiscounts(quote.subtotalCents,Boolean(quote.appreciationDiscount),'percent',percentBasisPoints,dollarCents);
+  const totalCents=pricing&&(quote.serviceIds.length||quote.subtotalCents>0)?pricing.total:0;
   return{offered,pendingBooking,percentBasisPoints,dollarCents,blocked,
-    requestedDiscountCents:blocked?null:requestedCents,
-    appliedDiscountCents:blocked?null:Math.max(0,quote.subtotalCents-totalCents),
+    requestedDiscountCents:pricing?.requestedDiscount??null,
+    appliedDiscountCents:pricing?Math.max(0,quote.subtotalCents-totalCents):null,
     totalCents:blocked?null:totalCents,
     depositCents:blocked?null:Math.round(totalCents/2)};
 }

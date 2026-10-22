@@ -579,7 +579,7 @@ function discountMath(subtotal:number, appreciation:boolean, mode:DiscountMode, 
   if(mode==="percent") {
     const maxPercent=appreciation?45:50;
     const percent=Math.min(maxPercent,Math.max(0,Number(rawValue)||0));
-    additionalCents=Math.round(subtotal*(percent/100));
+    additionalCents=Math.round(subtotal*(Math.round(percent*100)/10000));
   } else {
     additionalCents=Math.min(subtotal,Math.max(0,Math.round((Number(rawValue)||0)*100)));
   }

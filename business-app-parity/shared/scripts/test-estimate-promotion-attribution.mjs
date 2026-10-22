@@ -88,5 +88,11 @@ try{
  r.setOwner({email:'kylebrooks8605@gmail.com'});
  response=await r.post({...quote,customer:'Legacy manual discount',email:'legacy-'+Date.now()+'@example.invalid'});same(response.status,201,'Legacy manual quote remains permitted');
  const legacy=(await response.json()).id;response=await read(legacy);same((await response.json()).attribution,null,'Legacy quote has no invented automatic attribution');
+ // Half-cent percentage boundaries must agree across preview, save and history.
+ const fractionalCatalog={revision:id(77),promotions:[{...percent,valueCents:2900}]};insertCatalog(fractionalCatalog);
+ const fractional=model.evaluateSavedPromotions(fractionalCatalog,{serviceIds:['house-wash'],subtotalCents:22850,appreciationDiscount:false,estimateOn:createdOn});
+ const boundary=await r.post({...quote,customer:'Synthetic rounding boundary',address:'Synthetic unique boundary street',email:'boundary@example.invalid',items:[{...quote.items[0],totalCents:22850}],additionalDiscountValue:2900,bundleDiscountCents:0,promotionEvidence:{revision:fractionalCatalog.revision,checkedOn:createdOn,ruleIds:[percent.id],serviceIds:['house-wash']}});
+ same(boundary.status,201,'Half-cent boundary saves rather than rejecting preview against authoritative arithmetic');
+ const boundaryQuote=await boundary.json();same(fractional.totalCents,boundaryQuote.totalCents);same(fractional.depositCents,boundaryQuote.depositCents);same((await read(boundaryQuote.id)).status,200,'Boundary history agrees with actual saved cents');
  console.log('PASS '+checks+' real SQLite promotion attribution API: forged dates/services/terms rejected, $366 quote, frozen rule names, catalog edits, corrupt reads, signed holds, legacy/manual compatibility and owner-only audit.');
 }finally{r.db.close();}

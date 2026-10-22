@@ -15,7 +15,7 @@ function load(path,imports){const exports={};
  return exports;
 }
 const services=load('lib/fire-services.ts',{});
-const model=load('lib/saved-promotions.ts',{'./fire-services':services});
+const model=load('lib/saved-promotions.ts',{'./fire-services':services,'./discount-input':load('lib/discount-input.ts',{})});
 const api=load('app/api/saved-promotions/preview/route.ts',{
  'cloudflare:workers':{env},'../../../chatgpt-auth':{getChatGPTUser:async()=>owner},
  '../../../../lib/fire-services':services,'../../../../lib/saved-promotions':model});
