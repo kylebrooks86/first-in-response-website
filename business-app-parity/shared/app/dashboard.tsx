@@ -3042,6 +3042,7 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   const reviewSnoozeOps=useRef<Record<string,string>>({});
   const reviewSnoozeLock=useRef(false);
   const [showAllReviewCloseouts,setShowAllReviewCloseouts]=useState(false);
+  const [reviewCloseoutFilter,setReviewCloseoutFilter]=useState<"all"|"prepared"|"unprepared">("all");
   const reviewOlderLock=useRef(false),reviewPageRequest=useRef(0);
   const loadRequest=useRef(0);
   const load=async()=>{
@@ -3126,7 +3127,8 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
     }finally{reviewSnoozeLock.current=false;setReviewSnoozingId(null);}
   };
   const remainingBalance=(estimate:EstimateRow)=>billingBalanceCents(estimate);
-  const matchingReviewCloseouts=reviewCloseouts.filter(item=>item.customerName.toLowerCase().includes(searchQuery.toLowerCase()));
+  const matchingReviewCloseouts=reviewCloseouts.filter(item=>item.customerName.toLowerCase().includes(searchQuery.toLowerCase())&&
+    (reviewCloseoutFilter==="all"||(reviewCloseoutFilter==="prepared"?item.state==="prepared":item.state!=="prepared")));
   const shownReviewCloseouts=showAllReviewCloseouts?matchingReviewCloseouts:matchingReviewCloseouts.slice(0,5);
   const open=estimates.filter((item)=>hasCollectibleJobValue(item)&&remainingBalance(item)>0&&[item.customer,item.service,item.status].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));
   const receivedPayments=payments.filter((item)=>item.status==="paid");
@@ -3135,6 +3137,9 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   <header><div><h2>Paid jobs · review follow-up</h2><p>Completed, paid-in-full jobs that still need a confirmed review request. Nothing is sent automatically.</p></div>
     <Button variant="outline" onClick={()=>void load()}>Refresh review queue</Button>
   </header>
+  <div className="flex flex-wrap gap-2" role="group" aria-label="Filter paid review requests">
+    {([["all","All"],["prepared","Prepared · verify send"],["unprepared","Not prepared"]] as const).map(([key,label])=><Button key={key} variant={reviewCloseoutFilter===key?"default":"outline"} aria-pressed={reviewCloseoutFilter===key} onClick={()=>{setReviewCloseoutFilter(key);setShowAllReviewCloseouts(false);}}>{label} ({key==="all"?reviewCloseouts.length:reviewCloseouts.filter(item=>key==="prepared"?item.state==="prepared":item.state!=="prepared").length})</Button>)}
+  </div>
   {reviewCloseoutError?<p role="alert" className="save-error">{reviewCloseoutError} Other payment records remain available.</p>:
   matchingReviewCloseouts.length?<div className="balance-list">{shownReviewCloseouts.map(item=><article key={item.estimateId}>
     <div><strong>{item.customerName}</strong><small>{money(item.totalCents)} paid in full · {new Date(item.lastPaidAt).toLocaleDateString()}</small>
