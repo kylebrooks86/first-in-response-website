@@ -2,6 +2,7 @@
 import {JobCloseoutHistory} from "../components/job-closeout-history";
 import {NewEstimatePromotions} from "../components/new-estimate-promotions";
 import type {PromotionEvidence} from "../lib/estimate-promotion-attribution";
+import {EstimatePromotionHistory} from "../components/estimate-promotion-history";
 import {businessReceiptStorage,readBusinessReceipt,reserveBusinessReceipt,releaseBusinessReceipt,type BusinessCreateKind} from "../lib/business-create-receipt";
 import {taskDueBucket} from "../lib/task-due";
 import {estimateAttentionItems,type AttentionEstimate,type AttentionEstimateItem} from "../lib/attention-estimates";
@@ -1732,6 +1733,7 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
     <div className="detail-customer"><span className="customer-avatar">{estimate.customer.split(" ").map((part)=>part[0]).join("").slice(0,2).toUpperCase()}</span><div><strong>{estimate.customer}</strong><small>{estimate.address || "No service address saved"}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong></div>
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current customer address shown; the original service address was not recorded.</p>}
     <div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>
+    <EstimatePromotionHistory key={estimate.id} estimateId={estimate.id} totalCents={estimate.totalCents}/>
     <div className="next-action"><Sparkles/><div><strong>Recommended next step</strong><p>{nextAction}</p></div></div>
 
     <div className="detail-actions">
