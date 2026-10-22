@@ -3129,7 +3129,11 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   const remainingBalance=(estimate:EstimateRow)=>billingBalanceCents(estimate);
   const matchingReviewCloseouts=reviewCloseouts.filter(item=>item.customerName.toLowerCase().includes(searchQuery.toLowerCase())&&
     (reviewCloseoutFilter==="all"||(reviewCloseoutFilter==="prepared"?item.state==="prepared":item.state!=="prepared")));
-  const shownReviewCloseouts=showAllReviewCloseouts?matchingReviewCloseouts:matchingReviewCloseouts.slice(0,5);
+  // Prepared drafts require owner verification first; within each state, handle the oldest payment first.
+  const prioritizedReviewCloseouts=matchingReviewCloseouts.slice().sort((a,b)=>
+    (a.state==="prepared"?0:1)-(b.state==="prepared"?0:1)||
+    Date.parse(a.lastPaidAt)-Date.parse(b.lastPaidAt)||a.estimateId.localeCompare(b.estimateId));
+  const shownReviewCloseouts=showAllReviewCloseouts?prioritizedReviewCloseouts:prioritizedReviewCloseouts.slice(0,5);
   const open=estimates.filter((item)=>hasCollectibleJobValue(item)&&remainingBalance(item)>0&&[item.customer,item.service,item.status].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));
   const receivedPayments=payments.filter((item)=>item.status==="paid");
   const balanceSummary=summarizeCustomerBalances(estimates);const collected=receivedPayments.filter(item=>!["Tip","Tip Refund"].includes(item.type)).reduce((sum,item)=>sum+item.amountCents,0);const netTips=receivedPayments.filter((item)=>item.type==="Tip"||item.type==="Tip Refund").reduce((sum,item)=>sum+item.amountCents,0);const outstanding=balanceSummary.collectibleCents;
