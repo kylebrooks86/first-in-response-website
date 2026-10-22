@@ -37,6 +37,7 @@ import { confirmedManualPayment,loadManualPaymentRetry, saveManualPaymentRetry, 
 import { editMoneyLine, editableLineTotalCents, restoreEditableLineMoney, validEditablePrice } from "../lib/editable-line-totals";
 import { reuseEstimateServiceLine } from "../lib/reuse-estimate-service-line";
 import { matchesReviewedEstimateReceipt } from "../lib/estimate-quote-receipt";
+import { moveEstimateServiceLine } from "../lib/reorder-estimate-service-line";
 
 import {weatherIconKind,formatDailyTemperatures,weatherDayHeading,hourlyWorkCautions,dailyWorkCautions,weatherHourForJobStart,type HourlyForecastResponse} from "../lib/tulsa-weather";
 
@@ -574,7 +575,7 @@ function CustomerPhotos({customer,photos,setPhotos}:{customer:CustomerRow;photos
 }
 
 type DiscountMode = "percent" | "dollar";
-type EditableEstimateItem={id?:string;serviceId:string;name:string;description:string;quantity:number;unit:string;unitRateCents:number;flatPriceCents?:number;preservedLineTotalCents?:number};
+type EditableEstimateItem={id?:string;serviceId:string;name:string;description:string;quantity:number;unit:string;unitRateCents:number;flatPriceCents?:number;preservedLineTotalCents?:number;draftKey?:string};
 
 function discountMath(subtotal:number, appreciation:boolean, mode:DiscountMode, rawValue:number, hasPricedService=false, bundleDiscountCents=0){
   const appreciationCents=appreciation?Math.round(subtotal*0.05):0;
@@ -618,7 +619,9 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   const [email,setEmail]=useState(customer?.email??"");
   const [phone,setPhone]=useState(customer?.phone??"");
   const [address,setAddress]=useState(customer?.address??"");
-  const [items,setItems]=useState<EditableEstimateItem[]>([{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);
+  const nextDraftKey=useRef(0);
+  const blankServiceLine=():EditableEstimateItem=>({serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0,draftKey:"new-line-"+(++nextDraftKey.current)});
+  const [items,setItems]=useState<EditableEstimateItem[]>(()=>[blankServiceLine()]);
   const [appreciationDiscount,setAppreciationDiscount]=useState(false);
   const [discountMode,setDiscountMode]=useState<DiscountMode>("percent");
   const [discountValue,setDiscountValue]=useState("");
@@ -651,7 +654,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
       let fresh:LookupCustomer|null=null;
       if(input){const response=await fetch('/api/customers/lookup?customerId='+encodeURIComponent(input.id),{cache:'no-store'});const data=await response.json() as {customer?:unknown;error?:string};if(!response.ok||!validLookupCustomer(data.customer)||data.customer.id!==input.id)throw Error(data.error||'Selected customer could not be verified.');fresh=data.customer;}
       if(generation!==customerRequest.current)return;
-      if(!initial){setItems([{serviceId:'',name:'',description:'',quantity:0,unit:'unit',unitRateCents:0}]);setAppreciationDiscount(false);setDiscountMode('percent');setDiscountValue('');setBundleValue('');setPromotionsVerifiedFor(null);setPromotionOwnerOverride(false);setPromotionEvidence(null);setBookingConfirmedOn(null);}
+      if(!initial){setItems([blankServiceLine()]);setAppreciationDiscount(false);setDiscountMode('percent');setDiscountValue('');setBundleValue('');setPromotionsVerifiedFor(null);setPromotionOwnerOverride(false);setPromotionEvidence(null);setBookingConfirmedOn(null);}
       setSelectedCustomer(fresh);setCustomerMode(fresh?'existing':'new');setCustomerName(fresh?.name??'');setEmail(fresh?.email??'');setPhone(fresh?.phone??'');setAddress(fresh?.address??'');
       setEstimateProperty(null);setPropertyBlocked(Boolean(fresh));setPropertyWorkflowReady(false);setForcePropertyReview(!initial);setPropertyRefresh(count=>count+1);setIdentityConfirmed(true);setStep(1);
     }catch(err){if(generation===customerRequest.current){setIdentityConfirmed(false);setError(err instanceof Error?err.message:'Customer verification failed.');}}
@@ -670,13 +673,18 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   const total=discount.total;
   const deposit=discount.deposit;
   const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?editMoneyLine(item,patch):item));
-  const addService=()=>setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);
+  const addService=()=>setItems((current)=>[...current,blankServiceLine()]);
+  const moveService=(index:number,direction:-1|1)=>{
+    if(saving||uncertainSave)return;
+    setItems(current=>moveEstimateServiceLine(current,index,index+direction));
+    setError("");
+  };
   const reuseService=(index:number)=>{
     if(saving||uncertainSave)return;
     setItems(current=>{
       const source=current[index];
       if(!source||!source.name.trim())return current;
-      return [...current.slice(0,index+1),reuseEstimateServiceLine(source),...current.slice(index+1)];
+      return [...current.slice(0,index+1),{...reuseEstimateServiceLine(source),draftKey:"new-line-"+(++nextDraftKey.current)},...current.slice(index+1)];
     });
     setError("");
   };
@@ -719,7 +727,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
     finally { setSaving(false);saveLock.current=false; }
   };
 
-  const initialItem = {serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0};
+  const initialItem = {serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0,draftKey:items[0]?.draftKey};
   const hasUnsavedChanges = !saved && ((selectedCustomer?.id??null)!==(customer?.id??null) || Boolean(estimateProperty&&estimateProperty.property.id!==propertySelection?.property.id) || customerName !== (customer?.name??"") || email !== (customer?.email??"")
     || phone !== (customer?.phone??"") || address !== (customer?.address??"")
     || JSON.stringify(items) !== JSON.stringify([initialItem]) || appreciationDiscount || discountMode !== "percent" || discountValue !== "" || bundleValue !== "" || bookingConfirmedOn!==null);
@@ -732,7 +740,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
       customerRequest.current++;setCustomerLoading(false);setIdentityConfirmed(false);setSelectedCustomer(customer??null);setCustomerMode(customer?'existing':'lookup');setPropertyWorkflowReady(false);setEstimateProperty(null);
       onClosed?.();
       // No delayed reset: reopening cannot be wiped by a timer from the prior dialog.
-      setStep(1);setSaved(false);setSavedReceipt(null);setUncertainSave(false);setReviewedRecords([]);setError("");setItems([initialItem]);setAppreciationDiscount(false);setDiscountMode("percent");setDiscountValue("");setBundleValue("");setPromotionsVerifiedFor(null);setPromotionOwnerOverride(false);setPromotionEvidence(null);setBookingConfirmedOn(null);
+      setStep(1);setSaved(false);setSavedReceipt(null);setUncertainSave(false);setReviewedRecords([]);setError("");setItems([blankServiceLine()]);setAppreciationDiscount(false);setDiscountMode("percent");setDiscountValue("");setBundleValue("");setPromotionsVerifiedFor(null);setPromotionOwnerOverride(false);setPromotionEvidence(null);setBookingConfirmedOn(null);
       setCustomerName(customer?.name??"");setEmail(customer?.email??"");setPhone(customer?.phone??"");setAddress(customer?.address??"");
     }
   };
@@ -758,17 +766,21 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         <Button className="brand-button w-full" disabled={customerMode==='lookup'||!identityConfirmed||customerLoading||Boolean(selectedCustomer)&&propertyBlocked||uncertainSave} onClick={()=>{if(!customerName.trim()){setError('Customer name is required.');return;}setError('');setStep(2);}}>Continue to services <ChevronRight className="h-4 w-4"/></Button>
       </div>
       :<div className="space-y-5 px-6 py-6">
-        {pricing.loading&&<p role="status">Loading standard prices…</p>}{pricing.error&&<div role="alert"><p>{pricing.error}</p><Button variant="outline" onClick={()=>void pricing.reload()}>Retry standard prices</Button></div>}<div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.id||index}><header><strong>Service {index+1}</strong><div className="flex items-center gap-2">
+        {pricing.loading&&<p role="status">Loading standard prices…</p>}{pricing.error&&<div role="alert"><p>{pricing.error}</p><Button variant="outline" onClick={()=>void pricing.reload()}>Retry standard prices</Button></div>}<div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.draftKey||item.id||index}><header><strong>Service {index+1}</strong><div className="flex items-center gap-2">
           {Boolean(item.name.trim())&&<button type="button" className="inline-flex min-h-11 items-center gap-1 rounded-md border px-2 text-xs font-semibold" disabled={saving||uncertainSave} onClick={()=>reuseService(index)} aria-label={`Reuse service setup from line ${index+1}`} title="Copy this service and price setup into a new line with an empty quantity"><Copy className="h-4 w-4"/> Reuse setup</button>}
           {items.length>1&&<button type="button" className="min-h-11 min-w-11" disabled={saving||uncertainSave} onClick={()=>setItems((current)=>current.filter((_,i)=>i!==index))} aria-label={`Remove service ${index+1}`}><Trash2/></button>}
           </div></header>
+          {items.length>1&&<div className="flex flex-wrap gap-2" aria-label={"Arrange service "+(index+1)}>
+            {index>0&&<button type="button" className="min-h-11 rounded-md border px-3 text-sm font-semibold" disabled={saving||uncertainSave} onClick={()=>moveService(index,-1)} aria-label={"Move service "+(index+1)+" up"}>↑ Move up</button>}
+            {index<items.length-1&&<button type="button" className="min-h-11 rounded-md border px-3 text-sm font-semibold" disabled={saving||uncertainSave} onClick={()=>moveService(index,1)} aria-label={"Move service "+(index+1)+" down"}>↓ Move down</button>}
+          </div>}
           <div><Label>Service</Label><Select disabled={!pricing.rates||pricing.loading||Boolean(pricing.error)||saving} value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,flatPriceCents:undefined,quantity:svc.unit==="job"?1:0});setError("");}}><SelectTrigger><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent>{services.map((svc)=><SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}</SelectContent></Select></div>
           <div><Label htmlFor={`estimate-service-name-${index}`}>Service name</Label><Input id={`estimate-service-name-${index}`} value={item.name} onChange={event=>setItems(current=>current.map((line,i)=>i===index?{...line,name:event.target.value}:line))}/></div><div><Label>Service description and expectations</Label><Textarea rows={7} value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/><p className="service-description-help">This wording appears beneath this service on the estimate and invoice.</p></div>
           <div className="edit-quantity-row"><div><Label htmlFor={`estimate-quantity-${index}`}>Quantity</Label><Input id={`estimate-quantity-${index}`} inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit||"unit"}</span></div>
           <EstimateLinePricing label={`estimate-service-${index}`} item={item} standardUnit={services.find(svc=>svc.id===item.serviceId)?.unit} standardRate={pricing.rates&&!pricing.loading&&!pricing.error?services.find(svc=>svc.id===item.serviceId)?.rate:undefined} onChange={patch=>updateItem(index,patch)}/><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>
         </section>)}</div>
         <Button variant="outline" className="w-full" disabled={saving||uncertainSave} onClick={addService}><Plus className="h-4 w-4"/> Add another service</Button>
-        <p className="text-xs text-muted-foreground">Reuse setup copies the service details and rate for another area, but leaves quantity blank. Enter and review the new quantity before saving.</p>
+        <p className="text-xs text-muted-foreground">Reuse setup copies the service details and rate for another area, but leaves quantity blank. Enter and review the new quantity before saving. Move lines up or down to control their order on the customer quote.</p>
         <NewEstimatePromotions active={open&&step===2&&items.some(item=>Boolean(item.name)&&item.quantity>0)} quoteKey={promotionQuoteKey} serviceIds={promotionServiceIds} subtotalCents={subtotal} appreciationDiscount={appreciationDiscount} bookingConfirmedOn={bookingConfirmedOn} onBookingConfirmedOn={setBookingConfirmedOn} manualOverride={promotionOwnerOverride} onApply={(basisPoints,dollars,evidence)=>{setPromotionEvidence(evidence);setDiscountMode("percent");setDiscountValue(basisPoints?String(basisPoints/100):"");setBundleValue(dollars?(dollars/100).toFixed(2):"");setPromotionOwnerOverride(false);}} onVerified={setPromotionsVerifiedFor}/>
         <button type="button" onClick={()=>setAppreciationDiscount((value)=>!value)} className={`discount-row ${appreciationDiscount?"selected":""}`}><span><strong>5% First Responder & Military</strong><small>Year-round appreciation discount</small></span><span className="check-box">{appreciationDiscount&&<Check className="h-4 w-4"/>}</span></button>
         <section className="edit-discount-card"><Label>Promotion or other discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");setPromotionEvidence(null);setPromotionOwnerOverride(true);}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");setPromotionEvidence(null);setPromotionOwnerOverride(true);}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} aria-invalid={discountInvalid} onChange={(event)=>{setDiscountValue(event.target.value);setPromotionEvidence(null);setPromotionOwnerOverride(true);}} placeholder="0"/>{discountInvalid&&<p role="alert" className="service-description-help">Enter a nonnegative discount with at most two decimals. Percentages are limited to {appreciationDiscount?45:50}%, and dollar discounts cannot exceed the subtotal.</p>}</div><p className="service-description-help">Choose the promotion type here; use the separate bundle field below to stack a dollar discount. Percentage discounts stack with the 5% appreciation discount, up to 50% total.</p></section>
