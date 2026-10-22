@@ -70,6 +70,15 @@ try{
  review("ready","text_confirmed");
  data=(await read()).data;
  check(!data.actions.some(x=>x.estimateId==="e-ready"),"Confirmation of actual review request clears ready action");
+ // Discard is an immutable owner event, not deletion of the prepared audit record.
+ db.prepare("INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES(?,?,?,?,?,?,?)").run('m-prepared:owner-cancelled','c-copy','e-copy','send_cancelled','review','Owner marked not sent',stamp(0));
+ check((await read()).data.actions.find(x=>x.estimateId==='e-prepared')?.state==='prepared','Unrelated customer/job cancellation cannot clear prepared status');
+ db.prepare("UPDATE customer_messages SET customer_id='c-prepared',estimate_id='e-prepared' WHERE id='m-prepared:owner-cancelled'").run();
+ const cancelled=(await read()).data.actions.find(x=>x.estimateId==='e-prepared');
+ check(cancelled?.state==='ready'&&cancelled.reviewPreparedAt===null,'Exact owner cancellation clears misleading prepared status');
+ check(db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE id IN ('m-prepared','m-prepared:owner-cancelled')").get().n===2,'Prepared and cancellation audit records remain immutable');
+ db.prepare("INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES(?,?,?,?,?,?,?)").run('new-prepared','c-prepared','e-prepared','email_prepared','review','New owner draft',stamp(0));
+ check((await read()).data.actions.find(x=>x.estimateId==='e-prepared')?.state==='prepared','One canceled draft cannot hide a different active prepared message');
  // More than 200 eligible closeouts must remain reachable in stable pages.
  // Same payment timestamps exercise the estimate-ID cursor tie-breaker.
  const sameStamp=stamp(0.02);

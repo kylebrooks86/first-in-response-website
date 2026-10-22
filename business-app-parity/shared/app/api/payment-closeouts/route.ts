@@ -25,7 +25,11 @@ export async function GET(request?:Request){
     COALESCE((SELECT i.total_cents FROM invoices i WHERE i.estimate_id=e.id LIMIT 1),e.total_cents) AS totalCents,
     COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
     (SELECT MAX(p.created_at) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund') AND p.amount_cents>0) AS lastPaidAt,
-    (SELECT MAX(m.created_at) FROM customer_messages m WHERE m.estimate_id=e.id AND m.template='review' AND m.channel IN ('text_prepared','email_prepared')) AS reviewPreparedAt,
+    (SELECT MAX(m.created_at) FROM customer_messages m WHERE m.estimate_id=e.id AND m.customer_id=e.customer_id
+      AND m.template='review' AND m.channel IN ('text_prepared','email_prepared')
+      AND NOT EXISTS(SELECT 1 FROM customer_messages cancelled WHERE cancelled.id=m.id||':owner-cancelled'
+        AND cancelled.customer_id=m.customer_id AND cancelled.estimate_id=m.estimate_id
+        AND cancelled.template=m.template AND cancelled.channel='send_cancelled')) AS reviewPreparedAt,
     (SELECT MAX(m.created_at) FROM customer_messages m WHERE m.estimate_id=e.id AND m.template='review' AND m.channel IN ('text_confirmed','email_confirmed')) AS reviewConfirmedAt,
     (SELECT MAX(n.created_at) FROM customer_notes n WHERE n.customer_id=e.customer_id AND n.body='[FIRE FLAG] REVIEW_RECEIVED') AS reviewReceivedAt,
     (SELECT COUNT(*) FROM payment_refunds x WHERE x.estimate_id=e.id AND x.status='pending') AS pendingRefundCount,

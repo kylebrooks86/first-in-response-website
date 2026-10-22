@@ -129,6 +129,11 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check((await dialog.getByLabel('Personalized message',{exact:true}).inputValue()).includes('https://firstinresponseexteriors.com/review'),'Existing review URL is used in actual personalized template');
   check((await readAllReady()).actions.some(x=>x.estimateId==='job-ready'&&x.state==='prepared'),'Preparation remains eligible and unconfirmed');
   check(!(await readAllHistory()).items.some(x=>x.customerId==='ready'),'Preparing a message never starts a review-received clock');
+  page.once('dialog',event=>event.accept());await dialog.getByRole('button',{name:'Discard unsent draft',exact:true}).click();
+  await dialog.getByRole('status').filter({hasText:'Marked not sent.'}).waitFor();
+  check((await readAllReady()).actions.find(x=>x.estimateId==='job-ready')?.state==='ready','Discarded draft clears misleading prepared reminder');
+  check(db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE customer_id='ready' AND channel='send_cancelled'").get().n===1,'Discard keeps immutable cancellation evidence');
+  await dialog.getByRole('button',{name:'Text',exact:true}).click();await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).waitFor();
   for(const field of ['id','customerId','estimateId','template','body','channel','createdAt','lost']){
    messageMode=field;await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).click();
    await dialog.getByRole('status').filter({hasText:field==='lost'?'Synthetic confirmation reply lost':'The send receipt does not match'}).waitFor();

@@ -7,6 +7,7 @@ Implemented:
 - Share a synchronous mutation lock across preparation, confirmation and discard. Duplicate confirmation taps cannot issue competing writes. Keep the dialog open while saving.
 - Reject late preparation/confirmation/discard replies after the customer/job scope changes or unmounts. A failed post-save refresh is reported as a saved confirmation needing refresh, rather than an unconfirmed write.
 - Refresh attention after verified preparation, so other open queues can show prepared versus confirmed status accurately.
+- Recognize exact linked unsent-draft cancellations in the read-only paid queue. A discarded draft returns to ready unless another active prepared message exists; both audit events remain unchanged.
 - Label request and status-check snoozes separately in both customer timeline and message history, without claiming a send or received review.
 - Keep mobile message and confirmation controls at least 44px tall, with wrapping and a 16px narrow-phone textarea.
 
