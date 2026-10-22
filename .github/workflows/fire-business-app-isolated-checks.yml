@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - work/fire-business-app-parity-2026-10-08
+      - work/fire-saved-promotion-catalog-2026-10-22
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
@@ -307,6 +308,8 @@ jobs:
         run: node --experimental-strip-types scripts/test-fire-service-catalog-pricing.mjs
       - name: Custom standard pricing, real SQLite persistence, conflicts and historical protection
         run: node --experimental-sqlite scripts/test-custom-service-pricing.mjs
+      - name: Saved promotion catalog, date windows, stacking and owner-only SQLite persistence
+        run: node --experimental-sqlite scripts/test-saved-promotions.mjs
       - name: Strict invoice and estimate discount entry, caps and exact-cent preview
         run: node --experimental-strip-types scripts/test-quote-discount-input.mjs
       - name: Verify all thirty starting rates remain fully adjustable per job
