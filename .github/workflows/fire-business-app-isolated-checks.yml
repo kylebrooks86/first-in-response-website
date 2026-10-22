@@ -305,6 +305,8 @@ jobs:
           node scripts/test-real-wrangler-local-d1-export.mjs --qa
       - name: Protect owner-approved FIRE service rates in the shared source
         run: node --experimental-strip-types scripts/test-fire-service-catalog-pricing.mjs
+      - name: Custom standard pricing, real SQLite persistence, conflicts and historical protection
+        run: node --experimental-sqlite scripts/test-custom-service-pricing.mjs
       - name: Verify all thirty starting rates remain fully adjustable per job
         run: node --experimental-strip-types scripts/test-per-job-price-overrides.mjs
       - name: Preserve historical estimate and invoice line totals during no-op edits
@@ -725,6 +727,16 @@ jobs:
         run: node scripts/test-estimate-editor-geometry-browser.mjs
       - name: Actual nested React editor, Radix portals, compiled Tailwind, keyboard and save recovery
         run: node scripts/test-estimate-editor-react-browser.mjs
+      - name: Actual customizable pricing on mobile light and dark with synthetic SQLite
+        env:
+          FIRE_PRICING_SCREENSHOT_DIR: ${{ runner.temp }}/fire-pricing-ui
+        run: node --experimental-sqlite scripts/test-custom-service-pricing-browser.mjs
+      - name: Retain synthetic mobile pricing screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-custom-pricing-mobile-ui
+          path: ${{ runner.temp }}/fire-pricing-ui
+          retention-days: 7
       - name: Actual customer writes, estimate search and Insights recovery on narrow light and dark screens
         run: node scripts/test-customer-write-browser.mjs
       - name: Job Closeout Center over real synthetic SQLite owner APIs on mobile light and dark

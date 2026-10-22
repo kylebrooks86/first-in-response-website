@@ -11,6 +11,7 @@ const esbuild=require('../node_modules/.pnpm/esbuild@0.28.0/node_modules/esbuild
 const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss');
 const tailwind=require('@tailwindcss/postcss');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
+import{FIRE_SERVICES}from'../lib/fire-services.ts';
 const source=readFileSync('app/dashboard.tsx','utf8');
 const section=(a,b)=>{const start=source.indexOf(a),end=source.indexOf(b,start);assert.ok(start>=0&&end>start);return source.slice(start,end);};
 const editor=section('function EditEstimateDialog(','function EditInvoiceDialog(');
@@ -22,7 +23,8 @@ import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./compon
 import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
 import{FIRE_SERVICES as services,serviceDescriptionFor}from'./lib/fire-services';
-import{editMoneyLine,editableLineTotalCents,restoreEditableLineMoney}from'./lib/editable-line-totals';
+import{useServicePricing}from'./components/service-pricing';import{EstimateLinePricing}from'./components/estimate-line-pricing';
+import{editMoneyLine,editableLineTotalCents,restoreEditableLineMoney,validEditablePrice}from'./lib/editable-line-totals';
 const money=cents=>'$'+(cents/100).toFixed(2);
 ${discount}\n${editor}\n${invoiceEditor}
 const estimate={id:'synthetic-editor-only',invoiceId:'synthetic-invoice',customerId:'synthetic-editor-customer',service:services[0].name,totalCents:20000,paidCents:0,items:Array.from({length:16},(_,i)=>({id:'item-'+i,name:services[0].name,description:'Synthetic long description '+i+' '+('Cleaning and flushing; excluded repairs and inaccessible areas. '.repeat(6)),quantity:1,unit:'job',totalCents:1250}))};
@@ -40,6 +42,7 @@ let patches=0,saveStatus=503,invoiceLoadStatus=503,invoicePatches=0,releaseInvoi
 const server=createServer((req,res)=>{res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);}
  else if(req.url==='/style.css'){res.setHeader('content-type','text/css');res.end(compiled.css);}
+ else if(req.url==='/api/service-pricing'){res.setHeader('content-type','application/json');res.end(JSON.stringify({rates:FIRE_SERVICES.map(s=>({id:s.id,rateCents:s.rate,revision:null}))}));}
  else if(req.url==='/api/estimates/synthetic-editor-only'&&req.method==='PATCH'){patches++;let body='';req.on('data',c=>body+=c);req.on('end',()=>{const data=JSON.parse(body);assert.equal(data.items.reduce((sum,i)=>sum+i.totalCents,0),20000);res.writeHead(saveStatus,{'content-type':'application/json'});res.end(JSON.stringify(saveStatus===200?{estimate:{totalCents:20000}}:{error:'Synthetic save unavailable; draft retained'}));});}
  else if(req.url==='/api/invoices/synthetic-invoice'&&req.method==='GET'){
   res.writeHead(invoiceLoadStatus,{'content-type':'application/json'});res.end(JSON.stringify(invoiceLoadStatus===200?{invoice:{id:'synthetic-invoice',estimateId:'synthetic-editor-only',customerId:'synthetic-editor-customer',discountType:'dollar',discountValue:0,createdAt:'2026-10-19',dueAt:null,items:[{id:'synthetic-invoice-line',name:'Synthetic hourly service',description:'Synthetic fraction preserved',quantity:.5,unit:'hour',totalCents:20001}],revisions:[]}}:{error:'Synthetic load unavailable'}));

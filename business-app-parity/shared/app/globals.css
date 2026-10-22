@@ -1573,3 +1573,8 @@ html,body{max-width:100%;overflow-x:clip}
 /* Saved message recovery must not widen the iPhone composer. */
 .message-dialog .message-builder,.message-dialog .message-builder>*{min-width:0;max-width:100%}
 .message-dialog .message-builder button{min-width:0;max-width:100%;height:auto;min-height:44px;white-space:normal;overflow-wrap:anywhere}
+
+/* Owner pricing uses the existing FIRE theme. */
+.pricing-settings{margin-bottom:2rem;display:grid;gap:.75rem;min-width:0}.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:1rem}.pricing-grid article{border:1px solid var(--border);border-radius:12px;padding:1rem;display:grid;gap:.5rem;min-width:0}.pricing-grid article>div{display:flex;align-items:center;gap:.5rem}.pricing-grid input{min-width:0;min-height:44px;font-size:16px}.pricing-grid button,.line-pricing button{min-height:44px;white-space:normal;height:auto}.line-pricing{display:grid;gap:.5rem}.line-pricing-actions{display:flex;gap:.5rem;flex-wrap:wrap}.line-pricing input{min-height:44px;font-size:16px}.pricing-grid small,.pricing-grid p{overflow-wrap:anywhere}
+
+.pricing-disclosure{margin-bottom:1.5rem;border:1px solid var(--border);border-radius:12px;padding:1rem}.pricing-disclosure>summary{min-height:44px;cursor:pointer;font-weight:700}.pricing-disclosure[open]>.pricing-settings{margin-top:1rem}

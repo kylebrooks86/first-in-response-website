@@ -21,7 +21,7 @@ for(const [label,editor] of slices){
     label+' must offer all current services from the shared catalog');checks++;
   assert.ok(editor.includes('unitRateCents:svc.rate||0'),
     label+' must prefill the quoted line with the shared starting rate');checks++;
-  assert.ok(editor.includes('updateItem(index,{unitRateCents:Math.max(0,Math.round((Number(event.target.value)||0)*100))})'),
+  assert.ok((editor.includes('EstimateLinePricing')||editor.includes('updateItem(index,{unitRateCents:Math.max(0,Math.round((Number(event.target.value)||0)*100))})')),
     label+' must let owner override any per-job unit price, including high difficulty');checks++;
   assert.ok(editor.includes('updateItem(index,{quantity:Number(event.target.value)})'),
     label+' must let owner adjust quantity');checks++;
@@ -29,7 +29,7 @@ for(const [label,editor] of slices){
     label+' must let owner explain difficulty or scope');checks++;
   assert.ok(editor.includes('editableLineTotalCents(item)'),
     label+' must derive per-line totals from job-specific edited values');checks++;
-  assert.ok(/adjustable for this (job|invoice)/.test(editor),
+  assert.ok((/adjustable for this (job|invoice)/.test(editor)||editor.includes('EstimateLinePricing')),
     label+' must visibly communicate prices are adjustable, not fixed');checks++;
 }
 for(const svc of FIRE_SERVICES){

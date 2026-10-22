@@ -9,6 +9,7 @@
  * existing integer-cent calculation; descriptive edits preserve money.
  */
 export type EditableMoneyLine = {
+  flatPriceCents?: number;
   quantity: number;
   unitRateCents: number;
   preservedLineTotalCents?: number;
@@ -31,13 +32,14 @@ export function restoreEditableLineMoney(quantity: number, lineTotalCents: numbe
 }
 
 export function editMoneyLine<T extends EditableMoneyLine>(item: T, patch: Partial<T>): T {
-  const explicitReprice = ['quantity','unitRateCents','serviceId','name','unit']
+  const explicitReprice = ['quantity','unitRateCents','serviceId','name','unit','flatPriceCents']
     .some(key => Object.prototype.hasOwnProperty.call(patch,key));
   return { ...item, ...patch,
     ...(explicitReprice ? { preservedLineTotalCents: undefined } : {}) };
 }
 
 export function editableLineTotalCents(item: EditableMoneyLine): number {
+  if (item.flatPriceCents !== undefined) return Number.isSafeInteger(item.flatPriceCents) && item.flatPriceCents >= 0 ? item.flatPriceCents : 0;
   if (item.preservedLineTotalCents !== undefined) return cents(item.preservedLineTotalCents);
   // Draft UI may temporarily contain an empty, incomplete or invalid field.
   // Retain the existing zero-preview behavior; API save validation must reject
@@ -46,4 +48,8 @@ export function editableLineTotalCents(item: EditableMoneyLine): number {
       || !Number.isFinite(item.unitRateCents) || item.unitRateCents < 0) return 0;
   const computed = Math.round(item.quantity * item.unitRateCents);
   return Number.isSafeInteger(computed) && computed >= 0 ? computed : 0;
+}
+
+export function validEditablePrice(item: EditableMoneyLine): boolean {
+  return item.flatPriceCents !== undefined ? Number.isSafeInteger(item.flatPriceCents) && item.flatPriceCents >= 0 : Number.isSafeInteger(item.unitRateCents) && item.unitRateCents >= 0 && (item.preservedLineTotalCents !== undefined || Number.isSafeInteger(Math.round(item.quantity * item.unitRateCents)));
 }

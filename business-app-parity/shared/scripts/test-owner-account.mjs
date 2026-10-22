@@ -42,7 +42,7 @@ for(const theme of ['light','dark']){
  assert.equal(buttons.length,1);buttons[0].props.onClick();assert.equal(clicks,1);
  assert.ok(html.includes(`Switch to ${theme==='light'?'dark':'light'} mode`));
 }
-for(const marker of ['["settings", "Templates", Settings]','tab === "settings" ? <SettingsView/>','tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/>','className="mobile-back-button"','className={`mobile-home-button','className="bottom-nav"'])assert.ok(dashboard.includes(marker));
+for(const marker of ['["settings", "Settings", Settings]','tab === "settings" ? <SettingsView/>','tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/>','className="mobile-back-button"','className={`mobile-home-button','className="bottom-nav"'])assert.ok(dashboard.includes(marker));
 // Public documents must never render owner-only floating navigation.
 for(const path of ['app/estimate/[token]/page.tsx','app/invoice/[token]/page.tsx','app/pay/[id]/page.tsx']){
  const current=readFileSync(path,'utf8');

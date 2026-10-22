@@ -15,7 +15,7 @@ for(const name of ['EditEstimateDialog','EditInvoiceDialog']){
  const discount=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='discountMath');
  function fixture(){
   let state=[],cursor=0,refs=[],refCursor=0,fetcher;const requests=[],saved=[];
-  const context={require,exports:{},services:[],serviceDescriptionFor:()=>'',money:v=>String(v),dateTime:v=>v,
+  const context={useServicePricing:()=>({services:[],rates:null,error:"",loading:false}),EstimateLinePricing:()=>null,require,exports:{},services:[],serviceDescriptionFor:()=>'',money:v=>String(v),dateTime:v=>v,
    ...Object.fromEntries([...tags].map(t=>[t,()=>null])),useEffect(){},useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},fetch:(url,options)=>{requests.push({url,options});return fetcher(url,options);}};
   const code=readFileSync('lib/editable-line-totals.ts','utf8')+'\n'+discount.getText(ast)+'\n'+fn.getText(ast)+`\nexports.view=${name};`;
   vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);

@@ -16,6 +16,7 @@ const sidebar=section('<aside className={`sidebar ', '</aside>')+'</aside>';
 const fixture=`import React,{useState,useEffect}from'react';import{createRoot}from'react-dom/client';
 import{FileText,MessageSquareText,ChevronRight,Save,X,Settings}from'lucide-react';
 import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';
+import{PricingSettings}from'./components/service-pricing';
 import{FIRE_TEMPLATES,type FireTemplate}from'./lib/fire-templates';import{GlobalSearch}from'./components/global-search';
 const statusLabel=(v:string)=>v.replaceAll('_',' ').replace(/^./,v=>v.toUpperCase());
 function FireMark(){return <span className="fire-mark">F</span>}
