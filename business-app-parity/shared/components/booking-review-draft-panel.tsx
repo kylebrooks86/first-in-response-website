@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {Button} from './ui/button';
+import {AmendmentReviewWorksheet} from './amendment-review-worksheet';
 type Draft={estimateId:string;revision:string;ownerNote:string;bookingConfirmedOn:string;
  originalTotalCents:number;originalDepositCents:number;proposedTotalCents:number;proposedDepositCents:number;possibleSavingsCents:number};
 type VerifiedPreview={bookingConfirmedOn:string;current:{totalCents:number};proposed:{totalCents:number};possibleSavingsCents:number};
@@ -75,6 +76,7 @@ export function BookingReviewDraftPanel({estimateId,totalCents,preview}:{estimat
    <p>Original {money(draft.originalTotalCents)} · Possible {money(draft.proposedTotalCents)} · Booking date {draft.bookingConfirmedOn}</p>
    <p>{stale?'Original quote, promotion rules or financial state changed. Recheck before preparing a new review.':'Not a revised customer agreement, payment, booking record or sent message.'}</p>
   </div>}
+  {phase==='ready'&&draft&&!stale&&<AmendmentReviewWorksheet key={draft.revision} estimateId={estimateId} revision={draft.revision} totalCents={totalCents}/>}
   {phase==='ready'&&!draft&&<p>No internal review saved for this estimate.</p>}
   {phase==='ready'&&<>
    <label htmlFor={'fire-review-note-'+estimateId} className="block font-semibold">Private owner note (never sent automatically)</label>
