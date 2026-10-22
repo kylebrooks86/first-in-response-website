@@ -80,14 +80,13 @@ try{
  check(await page.getByText('Booking required:',{exact:false}).count()===0,'Confirmed date unlocks booking-only offer');
  check(await page.getByRole('button',{name:'Save synthetic estimate'}).isEnabled(),'Confirmed booking preview unlocks current scope save');
  await page.getByLabel('Owner-confirmed booking date (Tulsa)').fill('2026-09-30');
- await page.getByLabel('Percentage chosen').filter({hasText:''}).waitFor();
  await page.getByText('Booking required:',{exact:false}).waitFor();
  check(await page.getByLabel('Percentage chosen').textContent()==='','Date before promotion window does not earn October 15%');
  await page.getByLabel('Owner-confirmed booking date (Tulsa)').fill('2026-10-20');
  await page.getByLabel('Percentage chosen').filter({hasText:'15'}).waitFor();
  check(await page.getByLabel('Percentage chosen').textContent()==='15','October booking restored on verified date');
  await page.getByLabel('Customer booking already confirmed').uncheck();
- await page.getByLabel('Percentage chosen').filter({hasText:''}).waitFor();
+ await page.getByText('Booking required:',{exact:false}).waitFor();
  check(await page.getByLabel('Percentage chosen').textContent()==='','Removing owner booking assertion removes booking-only savings');
  await page.getByRole('button',{name:'Remove gutters'}).click();
  await page.getByText('No saved promotions qualify',{exact:false}).waitFor();
