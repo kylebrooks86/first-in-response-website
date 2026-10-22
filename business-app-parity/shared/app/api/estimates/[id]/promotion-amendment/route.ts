@@ -26,14 +26,14 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
  if(!validOwnerConfirmedBookingDate(bookingDate,now))return json({error:'The booking date must be a valid Tulsa-local date no later than today.'},400);
  try{
   const estimate=await env.DB.prepare(
-   \`SELECT e.id,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,
+   `SELECT e.id,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,
    e.total_cents AS totalCents,e.deposit_cents AS depositCents,
    e.appreciation_discount AS appreciationDiscount,e.additional_discount_type AS additionalDiscountType,
    e.additional_discount_value AS additionalDiscountValue,
    e.accepted_at AS acceptedAt,e.signed_at AS signedAt,
    COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
    (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id) AS invoiceCount
-   FROM estimates e WHERE e.id=?\`
+   FROM estimates e WHERE e.id=?`
   ).bind(id).first<FinancialRow>();
   if(!estimate)return json({error:'Estimate not found.'},404);
   const meta=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX+id).first<{body:string}>();
