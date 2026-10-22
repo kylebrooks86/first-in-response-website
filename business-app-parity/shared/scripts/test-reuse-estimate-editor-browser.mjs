@@ -5,11 +5,13 @@ const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),
 const bundle=await esbuild.build({stdin:{contents:`import React from'react';import{createRoot}from'react-dom/client';import{NewEstimate}from'./app/dashboard';createRoot(document.getElementById('app')).render(<NewEstimate/>);`,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'},plugins:[{name:'real-editor',setup(b){b.onLoad({filter:/app\/dashboard\.tsx$/},a=>({contents:readFileSync(a.path,'utf8')+'\nexport {NewEstimate};',loader:'tsx'}));}}]});
 const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 let previews=0,saves=0,hold=false,release,posted,receiptMismatch=null;
+const confirmedQuotes=new Map();
 const server=createServer(async(req,res)=>{res.setHeader('content-type','application/json');
  if(req.url==='/api/service-pricing')return res.end(JSON.stringify({rates:FIRE_SERVICES.map(s=>({id:s.id,rateCents:s.rate,revision:null}))}));
  if(req.url.startsWith('/api/customers/lookup'))return res.end(JSON.stringify({customers:[]}));
  if(req.url==='/api/saved-promotions/preview'){previews++;let body='';for await(const c of req)body+=c;const v=JSON.parse(body);if(hold)await new Promise(r=>release=r);return res.end(JSON.stringify({revision:'synthetic',checkedOn:'2026-10-22',bookingConfirmedOn:null,eligible:[],pendingBooking:[],percentBasisPoints:0,dollarCents:0,blocked:null,previewTotalCents:Math.max(15000,v.subtotalCents),previewDepositCents:Math.round(Math.max(15000,v.subtotalCents)/2)}));}
- if(req.url==='/api/estimates'){saves++;let body='';for await(const c of req)body+=c;posted=JSON.parse(body);const total=posted.items.reduce((n,i)=>n+i.totalCents,0);const mismatch=receiptMismatch;receiptMismatch=null;return res.end(JSON.stringify({id:'synthetic',customerId:'synthetic-customer',address:posted.address,subtotalCents:total,discountCents:0,totalCents:total+(mismatch==='total'?1:0),depositCents:Math.round(total/2)+(mismatch==='deposit'?1:0),promotionAttributionSaved:true,bundleDiscountCents:0}));}
+ if(req.url?.startsWith('/api/estimates/create-status?')){const requestId=new URL(req.url,'http://localhost').searchParams.get('requestId'),item=confirmedQuotes.get(requestId);res.setHeader('cache-control','private, no-store');return res.end(JSON.stringify(item?{found:true,recognized:true,requestId,estimate:{id:requestId,customer:item.customer,status:'draft',totalCents:item.total,depositCents:item.deposit}}:{found:false,requestId}));}
+ if(req.url==='/api/estimates'){saves++;let body='';for await(const c of req)body+=c;posted=JSON.parse(body);const total=posted.items.reduce((n,i)=>n+i.totalCents,0);const mismatch=receiptMismatch;receiptMismatch=null;confirmedQuotes.set(posted.requestId,{customer:posted.customer,total,deposit:Math.round(total/2)});return res.end(JSON.stringify({id:posted.requestId,requestId:posted.requestId,customerId:'synthetic-customer',address:posted.address,subtotalCents:total,discountCents:0,totalCents:total+(mismatch==='total'?1:0),depositCents:Math.round(total/2)+(mismatch==='deposit'?1:0),promotionAttributionSaved:true,bundleDiscountCents:0}));}
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundle.outputFiles[0].text);}if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(css.css);}
  if(req.url==='/'){res.setHeader('content-type','text/html');return res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script>');}res.statusCode=404;res.end('{}');});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;let browser,checks=0;const errors=[],check=(v,s)=>{assert.ok(v,s);checks++;};
@@ -53,5 +55,16 @@ for(const mismatch of ['total','deposit']){
  check(await page.getByRole('button',{name:'Save $220 estimate'}).isDisabled(),'Mismatch '+mismatch+' blocks duplicate save');
  check(await page.getByText('Saved estimate amounts or 50% deposit did not match this reviewed quote.',{exact:false}).count()===1,'Mismatch '+mismatch+' shows correct safety warning');
  check(await page.getByRole('button',{name:'Review stored estimates'}).count()===1,'Mismatch '+mismatch+' provides recovery path');
+ const pendingId=await page.evaluate(()=>localStorage.getItem('fire:estimate:create-request:v1'));
+ check(typeof pendingId==='string'&&/^[a-f0-9-]{36}$/i.test(pendingId),'Mismatch '+mismatch+' persists only an opaque ID');
+ await page.goto(origin);await page.getByRole('button',{name:'New estimate',exact:true}).click();
+ await page.getByRole('region',{name:'Unresolved new estimate request'}).waitFor();
+ check((await page.getByText(pendingId,{exact:false}).count())>0,'Mismatch '+mismatch+' restart preserves recovery marker');
+ check(saves===before+1,'Mismatch '+mismatch+' page restart never auto-retries quote');
+ await page.getByRole('button',{name:'Check saved quote by request ID'}).click();
+ await page.getByText('A saved estimate exists:',{exact:false}).waitFor();
+ check((await page.getByText('A saved estimate exists:',{exact:false}).count())===1,'Mismatch '+mismatch+' exact lookup recovers existing record');
+ page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Release recovery hold after owner review'}).click();
+ check(await page.evaluate(()=>localStorage.getItem('fire:estimate:create-request:v1'))===null,'Mismatch '+mismatch+' explicitly reviewed marker cleared');
 }
 check(errors.length===0,'No React errors '+errors.join(';'));console.log('PASS '+checks+' real NewEstimate reuse browser checks.');}finally{release?.();await browser?.close();await new Promise(r=>server.close(r));}
