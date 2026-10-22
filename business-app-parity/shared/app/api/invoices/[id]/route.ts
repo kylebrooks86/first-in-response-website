@@ -1,3 +1,4 @@
+import {submittedDiscountCents} from '../../../../lib/discount-input';
 import {currentInvoice} from "../../../../lib/invoice-state.mjs";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
@@ -66,8 +67,8 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     const subtotalCents=normalized.reduce((sum,item)=>sum+item.totalCents,0);
     if(!Number.isSafeInteger(subtotalCents))return Response.json({error:"The invoice total is too large to store safely."},{status:400});
     const discountType=String(body.discountType??"dollar")==="percent"?"percent":"dollar";
-    const discountValue=Math.max(0,Math.round(Number(body.discountValue??0)));
-    if(!Number.isSafeInteger(discountValue))return Response.json({error:"Enter a valid discount amount."},{status:400});
+    const discountValue=submittedDiscountCents(body.discountValue);
+    if(discountValue===null)return Response.json({error:"Enter a valid nonnegative discount in exact cents."},{status:400});
     let discountCents=0;
     if(discountType==="percent"){
       if(discountValue>5000)return Response.json({error:"Percentage discount cannot exceed 50%."},{status:400});

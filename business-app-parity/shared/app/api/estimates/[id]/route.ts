@@ -1,3 +1,4 @@
+import {submittedDiscountCents} from '../../../../lib/discount-input';
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
 import {depositPolicyEnabled,depositPolicyColumns,depositSchedulingPolicy,depositSchedulingGuard,type DepositPolicyRow} from '../../../../lib/deposit-policy';
@@ -49,8 +50,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if(!Number.isSafeInteger(subtotal))return Response.json({error:"The estimate total is too large to store safely."},{status:400});
       const appreciationDiscount=body.appreciationDiscount===true?1:0;
       const additionalDiscountType=String(body.additionalDiscountType??"percent")==="dollar"?"dollar":"percent";
-      const additionalDiscountValue=Math.max(0,Math.round(Number(body.additionalDiscountValue??0)));
-      if(!Number.isSafeInteger(additionalDiscountValue))return Response.json({error:"Enter a valid discount amount."},{status:400});
+      const additionalDiscountValue=submittedDiscountCents(body.additionalDiscountValue);
+      if(additionalDiscountValue===null)return Response.json({error:"Enter a valid nonnegative discount in exact cents."},{status:400});
       let additionalDiscountCents=0;
       if(additionalDiscountType==="percent"){
         const maxBasisPoints=(appreciationDiscount?45:50)*100;

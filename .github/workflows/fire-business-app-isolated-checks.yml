@@ -308,7 +308,7 @@ jobs:
       - name: Custom standard pricing, real SQLite persistence, conflicts and historical protection
         run: node --experimental-sqlite scripts/test-custom-service-pricing.mjs
       - name: Strict invoice and estimate discount entry, caps and exact-cent preview
-        run: node scripts/test-quote-discount-input.mjs
+        run: node --experimental-strip-types scripts/test-quote-discount-input.mjs
       - name: Verify all thirty starting rates remain fully adjustable per job
         run: node --experimental-strip-types scripts/test-per-job-price-overrides.mjs
       - name: Preserve historical estimate and invoice line totals during no-op edits

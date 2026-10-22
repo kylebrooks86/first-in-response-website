@@ -1,3 +1,4 @@
+import {submittedDiscountCents} from '../lib/discount-input.ts';
 /** Test the production parser and discount math using synthetic values only. */
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -21,6 +22,18 @@ for(const [raw,mode,max,expected] of [
  ['46','percent',45,null],['51','percent',50,null],['12.','percent',50,null],
  ['90071992547410','dollar',50,null]
 ])eq(parse(raw,mode,max),expected,raw+' in '+mode);
+for(const [raw,expected] of [
+ [undefined,0],[null,0],[0,0],[1,1],['2500',2500],[5000,5000],
+ [-1,null],[-0.5,null],[0.25,null],[NaN,null],[Infinity,null],
+ ['-10',null],['1.2',null],['',null],[' ',null],['0x20',null],
+ ['9e3',null],['Infinity',null],[{},null],[[],null],
+ [Number.MAX_SAFE_INTEGER+1,null]
+])eq(submittedDiscountCents(raw),expected,'API value '+String(raw));
+for(const path of ['app/api/estimates/route.ts','app/api/estimates/[id]/route.ts','app/api/invoices/[id]/route.ts']){
+ const source=readFileSync(path,'utf8');
+ eq(source.includes('submittedDiscountCents('),true,'Actual route uses exact integer guard: '+path);
+ eq(source.includes('Math.max(0,Math.round(Number(body.'),false,'No legacy coercion left: '+path);
+}
 const subtotal=46000;
 eq(discountMath(subtotal,false,'percent',parse('15','percent')/100,true).total,39100,'15% discount on $460');
 eq(discountMath(subtotal,false,'percent',parse('15','percent')/100,true).deposit,19550,'50% deposit');
