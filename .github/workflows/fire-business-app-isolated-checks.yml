@@ -11,6 +11,7 @@ on:
       - work/fire-revised-estimate-review-packet-2026-10-22
       - work/fire-release-candidate-hardening-2026-10-22
       - work/fire-quote-line-efficiency-2026-10-22
+      - work/fire-service-reuse-canvassing-2026-10-22
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
@@ -762,6 +763,8 @@ jobs:
         env:
           FIRE_PROMOTION_SCREENSHOT_DIR: ${{ runner.temp }}/fire-saved-promo-ui
         run: node scripts/test-saved-promotions-browser.mjs
+      - name: Actual New Estimate service reuse on mobile light and dark
+        run: node scripts/test-reuse-estimate-editor-browser.mjs
       - name: New estimate saved promotion suggestions on mobile and booking hold
         env:
           FIRE_PROMOTION_ESTIMATE_SCREENSHOT_DIR: ${{ runner.temp }}/fire-promotions-new-estimate-ui
