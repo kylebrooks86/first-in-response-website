@@ -46,6 +46,24 @@ try{
  eq(Boolean(rejected.blocked),true,'Oversubscribed dollar offers are clearly blocked');
  eq(rejected.previewTotalCents,null,'Unsafe flat promotions never show a misleading total');
  save([booking,bundle,free]);
+ // Booking-only savings are unlocked solely by an explicit owner-provided date.
+ const alwaysBooking={...booking,startOn:null,endOn:null};
+ save([alwaysBooking,bundle]);
+ response=await preview(valid);data=await response.json();
+ eq(data.pendingBooking.length,1,'Booking-only offer remains pending without owner attestation');
+ const tulsaToday=data.checkedOn;
+ response=await preview({...valid,bookingConfirmedOn:tulsaToday});eq(response.status,200,'Explicit owner booking date is accepted');
+ data=await response.json();eq(data.bookingConfirmedOn,tulsaToday,'Verified booking date echoed for quote evidence');
+ eq(data.pendingBooking.length,0,'Confirmed booking no longer pending');
+ eq(data.percentBasisPoints,1500,'Booking-confirmed 15% applies to quote');
+ eq(data.dollarCents,2500,'Existing $25 service bundle stacks');
+ eq(data.previewTotalCents,36600,'Booking 15% plus $25 gives $366');
+ eq(data.previewDepositCents,18300,'Confirmed booking quote requires $183 half deposit');
+ const farFuture='2099-12-31';
+ for(const invalid of [null,'',false,'2026-02-30',farFuture,'2026-10-22T00:00:00Z']){
+  eq((await preview({...valid,bookingConfirmedOn:invalid})).status,400,'Unverified booking date rejected');
+ }
+ save([booking,bundle,free]);
  response=await preview({...valid,serviceIds:['house-wash']});data=await response.json();eq(data.dollarCents,0,'Missing gutters disqualifies bundle');
  for(const bad of [
   {...valid,subtotalCents:-5},{...valid,subtotalCents:0.1},{...valid,serviceIds:['bad-service']},

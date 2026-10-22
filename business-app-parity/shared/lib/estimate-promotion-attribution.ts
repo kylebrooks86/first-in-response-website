@@ -1,14 +1,14 @@
 import {quoteDiscounts} from './discount-input';
 import {FIRE_SERVICES} from './fire-services';
-import {type SavedPromotionCatalog,evaluateSavedPromotions,fireDate,validPromotionDate} from './saved-promotions';
+import {type SavedPromotionCatalog,evaluateSavedPromotions,fireDate,validPromotionDate,validOwnerConfirmedBookingDate} from './saved-promotions';
 
 export const ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX='fire:estimate-promotion-attribution:v1:';
-export type PromotionEvidence={revision:string|null;checkedOn:string;ruleIds:string[];serviceIds:string[]};
+export type PromotionEvidence={revision:string|null;checkedOn:string;ruleIds:string[];serviceIds:string[];bookingConfirmedOn?:string};
 export type PromotionAttribution={
  format:'fire-estimate-promotions-v1';estimateId:string;catalogRevision:string|null;checkedOn:string;
  selectedServices:string[];rules:{id:string;name:string;type:'percent'|'dollar';valueCents:number}[];
  subtotalCents:number;percentBasisPoints:number;flatDiscountCents:number;
- totalCents:number;depositCents:number;
+ totalCents:number;depositCents:number;bookingConfirmedOn?:string;
 };
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const exactKeys=(x:Record<string,unknown>,keys:string[])=>Object.keys(x).sort().join(',')===keys.slice().sort().join(',');
@@ -17,7 +17,9 @@ const safe=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)
 export function validPromotionEvidence(x:unknown):x is PromotionEvidence{
  if(!x||typeof x!=='object'||Array.isArray(x))return false;
  const p=x as Record<string,unknown>;
- if(!exactKeys(p,['revision','checkedOn','ruleIds','serviceIds'])||
+ if(!exactKeys(p,['revision','checkedOn','ruleIds','serviceIds',...(Object.prototype.hasOwnProperty.call(p,'bookingConfirmedOn')?['bookingConfirmedOn']:[])])||
+  (Object.prototype.hasOwnProperty.call(p,'bookingConfirmedOn')&&!validPromotionDate(p.bookingConfirmedOn))||
+  (Object.prototype.hasOwnProperty.call(p,'bookingConfirmedOn')&&p.bookingConfirmedOn===null)||
   !(p.revision===null||typeof p.revision==='string'&&uuid.test(p.revision))||
   !validPromotionDate(p.checkedOn)||p.checkedOn===null||
   !Array.isArray(p.ruleIds)||p.ruleIds.length>40||
@@ -37,11 +39,13 @@ export function buildPromotionAttribution(input:{
  const {estimateId,rawEvidence,catalog,now,items,subtotalCents,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents,totalCents,depositCents}=input;
  if(!validPromotionEvidence(rawEvidence))throw Error('Saved promotion attribution must be verified with the current estimate.');
  const evidence=rawEvidence;
+ if(evidence.bookingConfirmedOn!==undefined&&!validOwnerConfirmedBookingDate(evidence.bookingConfirmedOn,now))
+  throw Error('Booking confirmation must use a valid date no later than today in Tulsa.');
  if(evidence.revision!==catalog.revision||evidence.checkedOn!==fireDate(now))
   throw Error('Saved promotions changed or the local promotion date rolled over. Refresh before saving.');
  if(!evidence.serviceIds.every(id=>items.some(item=>item.name===known.get(id))))
   throw Error('Service names changed since the promotion check. Refresh selected services or apply discounts manually.');
- const result=evaluateSavedPromotions(catalog,{serviceIds:evidence.serviceIds,subtotalCents,appreciationDiscount,estimateOn:evidence.checkedOn});
+ const result=evaluateSavedPromotions(catalog,{serviceIds:evidence.serviceIds,subtotalCents,appreciationDiscount,estimateOn:evidence.checkedOn,bookedOn:evidence.bookingConfirmedOn});
  if(result.blocked)throw Error(result.blocked);
  if(evidence.ruleIds.join(',')!==result.offered.map(p=>p.id).join(','))
   throw Error('Promotion eligibility changed. Refresh current rules before saving.');
@@ -51,7 +55,7 @@ export function buildPromotionAttribution(input:{
  return {format:'fire-estimate-promotions-v1',estimateId,catalogRevision:evidence.revision,checkedOn:evidence.checkedOn,
   selectedServices:[...evidence.serviceIds],rules:result.offered.map(p=>({id:p.id,name:p.name,type:p.type,valueCents:p.valueCents})),
   subtotalCents,percentBasisPoints:result.percentBasisPoints,flatDiscountCents:result.dollarCents,
-  totalCents,depositCents};
+  totalCents,depositCents,...(evidence.bookingConfirmedOn?{bookingConfirmedOn:evidence.bookingConfirmedOn}:{} )};
 }
 /** Read the original evidence without re-evaluating current rules, which may have changed. */
 export function readPromotionAttribution(estimateId:string,raw:string|null,financials:{subtotalCents:number;totalCents:number;depositCents:number;appreciationDiscount?:number|boolean;additionalDiscountType?:string;additionalDiscountValue?:number}):PromotionAttribution|null{
@@ -60,7 +64,8 @@ export function readPromotionAttribution(estimateId:string,raw:string|null,finan
  const x=JSON.parse(raw) as unknown;
  if(!x||typeof x!=='object'||Array.isArray(x))throw Error('Invalid saved promotion evidence.');
  const p=x as Record<string,unknown>;
- if(!exactKeys(p,['format','estimateId','catalogRevision','checkedOn','selectedServices','rules','subtotalCents','percentBasisPoints','flatDiscountCents','totalCents','depositCents'])||
+ if(!exactKeys(p,['format','estimateId','catalogRevision','checkedOn','selectedServices','rules','subtotalCents','percentBasisPoints','flatDiscountCents','totalCents','depositCents',...(Object.prototype.hasOwnProperty.call(p,'bookingConfirmedOn')?['bookingConfirmedOn']:[])])||
+  (Object.prototype.hasOwnProperty.call(p,'bookingConfirmedOn')&&(!validPromotionDate(p.bookingConfirmedOn)||p.bookingConfirmedOn===null||typeof p.checkedOn==='string'&&p.bookingConfirmedOn>p.checkedOn))||
   p.format!=='fire-estimate-promotions-v1'||p.estimateId!==estimateId||
   !(p.catalogRevision===null||typeof p.catalogRevision==='string'&&uuid.test(p.catalogRevision))||
   !validPromotionDate(p.checkedOn)||p.checkedOn===null||
