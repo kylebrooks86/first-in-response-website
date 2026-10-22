@@ -13,7 +13,7 @@ Implemented:
 
 Validation:
 - New source-extracted actual confirmation-handler regression tests cover seven mismatched receipt fields, missing/error/offline responses, synchronous duplicate taps, stale scope responses and failed refresh callbacks.
-- Existing Chrome closeout fixture now includes actual MessageComposer/Radix controls and actual customer-message/note/review-check APIs over disposable SQLite. Tests connect preparation, confirmed send, immutable retries, waiting/due/received states and reminder removal in light/dark iPhone-sized views.
+- Existing Chrome closeout fixture now includes actual MessageComposer/Radix controls and actual customer-message/note/review-check APIs over disposable SQLite. External SMS/Mail handoffs are captured at the platform boundary so tests cannot open or send through another app. Each malformed-receipt test waits for its own response and unlocked control before advancing. Tests connect preparation, confirmed send, immutable retries, waiting/due/received states and reminder removal in light/dark iPhone-sized views.
 - Completion/payment transitions in that fixture are synthetic ledger setup; these assertions do not constitute completion/payment UI or physical iPhone acceptance.
 - The same API lifecycle can run locally with `node --experimental-sqlite scripts/test-job-closeout-center-browser.mjs --api-only`. `--compile-only` compiles fixtures without asserting rendered behavior.
 - GitHub Actions runs the new handler regressions and expanded existing browser suite. Consult the exact candidate's completed run before claiming CI acceptance.

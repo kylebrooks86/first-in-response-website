@@ -7,7 +7,7 @@ const fixture=`import React,{useState,useEffect,useRef}from'react';import{create
 ${[...tags].filter(t=>!['Button','JobCloseoutHistory'].includes(t)).map(t=>`const ${t}=()=>null;`).join('\n')}
 ${helpers.map(n=>n.getText(ast)).join('\n')}
 ${view.getText(ast)}
-${composer.getText(ast)}
+${composer.getText(ast).replaceAll('window.location.href=', 'window.syntheticExternalHandoff=')}
 window.setTheme=t=>document.documentElement.dataset.theme=t;createRoot(document.getElementById('app')).render(location.pathname==='/composer'?<MessageComposer customer={{id:'ready',name:'Synthetic ready',phone:'5550100999',email:'synthetic@example.invalid',address:'Synthetic address'}} estimate={{id:'job-ready',status:'completed',totalCents:10000,paidCents:10000,service:'Synthetic wash'}} initialTemplate="review" triggerLabel="Prepare review request" onLogged={m=>window.loggedMessage=m} onSent={()=>{window.confirmedSend=true;if(window.failRefresh)throw Error('Synthetic refresh failure')}}/>:<PaymentsView searchQuery="" onOpenEstimate={id=>window.openedJob=id} onOpenCustomerReview={id=>window.openedCustomer=id}/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}}),css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 if(process.argv.includes('--compile-only')){assert.ok(bundle.outputFiles[0].text.length>1000);console.log('PASS: real Payments and Job Closeout History browser fixture compiles; rendered assertions not run.');process.exit(0);}
@@ -49,7 +49,10 @@ if(process.argv.includes('--api-only')){
  const historyData=readAllHistory;
  const post=async(method,data)=>await messages[method](new Request('http://fixture.local/api/customer-messages',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}));
  const prepared=await post('POST',{customerId:'ready',estimateId:'job-ready',template:'review',channel:'text_prepared',body:'Synthetic review URL https://firstinresponseexteriors.com/review',requestId:crypto.randomUUID()});
- assert.equal(prepared.status,201);const draft=(await prepared.json()).message;
+ assert.equal(prepared.status,201);let draft=(await prepared.json()).message;
+ const cancelled=await post('PATCH',{customerId:'ready',preparedMessageId:draft.id,ownerConfirmedNotSent:true});assert.equal(cancelled.status,200);
+ assert.equal((await readAllReady()).actions.find(x=>x.customerId==='ready').state,'ready');
+ const replacement=await post('POST',{customerId:'ready',estimateId:'job-ready',template:'review',channel:'text_prepared',body:'Synthetic review URL https://firstinresponseexteriors.com/review',requestId:crypto.randomUUID()});assert.equal(replacement.status,201);draft=(await replacement.json()).message;
  assert.equal((await historyData()).items.some(x=>x.customerId==='ready'),false);
  const payload={customerId:'ready',preparedMessageId:draft.id,ownerConfirmedSent:true};
  const sent=await post('PATCH',payload);assert.equal(sent.status,200);assert.equal((await sent.json()).message.id,draft.id+':owner-confirmed');
@@ -126,6 +129,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check((await readAllReady()).actions.some(x=>x.estimateId==='job-ready'&&x.state==='ready'),'Confirmed exact payment makes completed job eligible');
   await page.goto(origin+'/composer');await page.evaluate(t=>window.setTheme(t),theme);await page.getByRole('button',{name:'Prepare review request',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'Message Synthetic ready',exact:true});await dialog.getByRole('button',{name:'Text',exact:true}).click();await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).waitFor();
+  check(await page.evaluate(()=>window.syntheticExternalHandoff?.startsWith('sms:5550100999')),'External SMS handoff captured without opening or sending to another app');
   check((await dialog.getByLabel('Personalized message',{exact:true}).inputValue()).includes('https://firstinresponseexteriors.com/review'),'Existing review URL is used in actual personalized template');
   check((await readAllReady()).actions.some(x=>x.estimateId==='job-ready'&&x.state==='prepared'),'Preparation remains eligible and unconfirmed');
   check(!(await readAllHistory()).items.some(x=>x.customerId==='ready'),'Preparing a message never starts a review-received clock');
@@ -137,7 +141,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   try{await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).waitFor();}
   catch(error){throw Error('Synthetic reprepare diagnostic: '+JSON.stringify({statuses:await dialog.getByRole('status').allTextContents(),browserErrors:errors,requests:requests.slice(-4).map(r=>({method:r.method,path:r.path,channel:r.body?.channel,operation:r.body?.requestId}))}),{cause:error});}
   for(const field of ['id','customerId','estimateId','template','body','channel','createdAt','lost']){
-   messageMode=field;await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).click();
+   messageMode=field;const reply=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/customer-messages'&&r.request().method()==='PATCH');await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).click();await reply;await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(n=>n.textContent==='I sent the prepared message'&&!n.disabled));
    await dialog.getByRole('status').filter({hasText:field==='lost'?'Synthetic confirmation reply lost':'The send receipt does not match'}).waitFor();
    check(await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).isEnabled(),'Unverified '+field+' keeps exact prepared message recoverable');
    check(await page.evaluate(()=>window.confirmedSend!==true),'Unverified '+field+' cannot invoke confirmed-save callbacks');
