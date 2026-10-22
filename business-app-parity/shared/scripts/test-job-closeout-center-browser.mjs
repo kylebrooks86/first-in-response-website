@@ -35,6 +35,11 @@ function load(file,imports){const exports={};vm.runInNewContext(ts.transpileModu
 const flags=load('lib/customer-activity-flags.ts',{}),historyLib=load('lib/job-closeout-history.ts',{'./customer-activity-flags':flags}),paymentLib=load('lib/payment-closeout-actions.ts',{}),auth={'cloudflare:workers':{env},'../../chatgpt-auth':{getChatGPTUser:async()=>owner}};
 const history=load('app/api/job-closeout-history/route.ts',{...auth,'../../../lib/job-closeout-history':historyLib}),ready=load('app/api/payment-closeouts/route.ts',{...auth,'../../../lib/payment-closeout-actions':paymentLib}),snooze=load('app/api/dashboard-review-checks/snooze/route.ts',{'cloudflare:workers':{env},'../../../chatgpt-auth':{getChatGPTUser:async()=>owner}});seed();
 const messages=load('app/api/customer-messages/route.ts',{...auth,'../../../lib/customer-review-invite.mjs':{shouldOfferReviewAfterPayment}}),notes=load('app/api/customer-notes/route.ts',auth),checkLib=load('lib/dashboard-review-checks.ts',{'./customer-activity-flags':flags}),reviewChecks=load('app/api/dashboard-review-checks/route.ts',{...auth,'../../../lib/dashboard-review-checks':checkLib});let messageMode='ok';
+async function readAllReady(){
+ const actions=[];let cursor=null;const visited=new Set();
+ do{assert.ok(!visited.has(cursor),'Ready cursor advances');visited.add(cursor);const response=await ready.GET(new Request('http://fixture.local/api/payment-closeouts'+(cursor?'?cursor='+encodeURIComponent(cursor):'')));assert.equal(response.status,200);const data=await response.json();actions.push(...data.actions);cursor=data.nextCursor;}while(cursor);
+ return {actions};
+}
 async function readAllHistory(){
  const items=[];let cursor=null;const visited=new Set();
  do{assert.ok(!visited.has(cursor),'History cursor advances');visited.add(cursor);const response=await history.GET(new Request('http://fixture.local/api/job-closeout-history'+(cursor?'?cursor='+encodeURIComponent(cursor):'')));assert.equal(response.status,200);const data=await response.json();items.push(...data.items);cursor=data.nextCursor;}while(cursor);
@@ -50,7 +55,7 @@ if(process.argv.includes('--api-only')){
  const sent=await post('PATCH',payload);assert.equal(sent.status,200);assert.equal((await sent.json()).message.id,draft.id+':owner-confirmed');
  assert.equal((await post('PATCH',payload)).status,200);
  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE customer_id='ready' AND channel='text_confirmed'").get().n,1);
- assert.equal((await(await ready.GET()).json()).actions.some(x=>x.customerId==='ready'),false);
+ assert.equal((await readAllReady()).actions.some(x=>x.customerId==='ready'),false);
  assert.equal((await historyData()).items.find(x=>x.customerId==='ready').state,'waiting');
  db.prepare("UPDATE customer_messages SET created_at=? WHERE customer_id='ready' AND channel='text_confirmed'").run(stamp(8));
  assert.equal((await(await reviewChecks.GET()).json()).checks.some(x=>x.customerId==='ready'),true);
@@ -113,16 +118,16 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  for(const theme of ['light','dark']){
   await page.goto('about:blank');seed();messageMode='ok';await page.setViewportSize({width:390,height:844});
   db.prepare("UPDATE estimates SET status='scheduled' WHERE id='job-ready'").run();
-  check(!(await (await ready.GET()).json()).actions.some(x=>x.estimateId==='job-ready'),'A paid but unfinished job is not eligible');
+  check(!(await readAllReady()).actions.some(x=>x.estimateId==='job-ready'),'A paid but unfinished job is not eligible');
   db.prepare("UPDATE estimates SET status='completed' WHERE id='job-ready'").run();
   db.prepare("UPDATE payments SET amount_cents=5000 WHERE id='paid-ready'").run();
-  check(!(await (await ready.GET()).json()).actions.some(x=>x.estimateId==='job-ready'),'Completion with only deposit cannot request a review');
+  check(!(await readAllReady()).actions.some(x=>x.estimateId==='job-ready'),'Completion with only deposit cannot request a review');
   db.prepare("UPDATE payments SET amount_cents=10000 WHERE id='paid-ready'").run();
-  check((await (await ready.GET()).json()).actions.some(x=>x.estimateId==='job-ready'&&x.state==='ready'),'Confirmed exact payment makes completed job eligible');
+  check((await readAllReady()).actions.some(x=>x.estimateId==='job-ready'&&x.state==='ready'),'Confirmed exact payment makes completed job eligible');
   await page.goto(origin+'/composer');await page.evaluate(t=>window.setTheme(t),theme);await page.getByRole('button',{name:'Prepare review request',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'Message Synthetic ready',exact:true});await dialog.getByRole('button',{name:'Text',exact:true}).click();await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).waitFor();
   check((await dialog.getByLabel('Personalized message',{exact:true}).inputValue()).includes('https://firstinresponseexteriors.com/review'),'Existing review URL is used in actual personalized template');
-  check((await (await ready.GET()).json()).actions.some(x=>x.estimateId==='job-ready'&&x.state==='prepared'),'Preparation remains eligible and unconfirmed');
+  check((await readAllReady()).actions.some(x=>x.estimateId==='job-ready'&&x.state==='prepared'),'Preparation remains eligible and unconfirmed');
   check(!(await readAllHistory()).items.some(x=>x.customerId==='ready'),'Preparing a message never starts a review-received clock');
   for(const field of ['id','customerId','estimateId','template','body','channel','createdAt','lost']){
    messageMode=field;await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).click();
@@ -136,7 +141,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await dialog.getByRole('status').filter({hasText:'Send confirmation saved. Customer records could not be refreshed'}).waitFor();
   check(requests.filter(x=>x.method==='PATCH').length===before+1,'Rapid duplicate taps issue exactly one confirmation');
   check(await page.evaluate(()=>window.confirmedSend===true),'Only verified saved receipt invokes confirmed callback');
-  check(!(await (await ready.GET()).json()).actions.some(x=>x.customerId==='ready'),'Confirmed send clears paid request queue');
+  check(!(await readAllReady()).actions.some(x=>x.customerId==='ready'),'Confirmed send clears paid request queue');
   check((await readAllHistory()).items.find(x=>x.customerId==='ready')?.state==='waiting','Confirmed send advances review progress to awaiting review');
   check(await dialog.locator('.message-actions button').evaluateAll(ns=>ns.every(n=>n.getBoundingClientRect().height>=44)),'Actual composer controls preserve 44px touch targets');
   check(await dialog.evaluate(n=>n.scrollWidth<=n.clientWidth),'Composer fits iPhone width in both themes');
@@ -148,7 +153,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(received.status===201,'Explicit owner note records review receipt via existing writer');
   check(!(await (await reviewChecks.GET()).json()).checks.some(x=>x.customerId==='ready'),'Received flag clears outstanding Dashboard review check');
   check((await readAllHistory()).items.find(x=>x.customerId==='ready')?.state==='received','Same saved flag updates closeout progress');
-  check(!(await (await ready.GET()).json()).actions.some(x=>x.customerId==='ready'),'Received flag cannot reintroduce an outreach request');
+  check(!(await readAllReady()).actions.some(x=>x.customerId==='ready'),'Received flag cannot reintroduce an outreach request');
   if(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR)await dialog.screenshot({path:join(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR,`closeout-message-${theme}.png`)});
  }
 check(errors.length===0&&outside.length===0,'Lifecycle has no browser errors or external HTTP requests: '+errors.join(';'));console.log(JSON.stringify({passed:checks,actualMessageComposer:true,actualPaymentsView:true,actualCloseoutHistory:true,actualSqliteAndOwnerApis:true,lightDark:true,hostedWrites:false,physicalIPhone:false}));
