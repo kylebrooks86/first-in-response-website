@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {Button} from './ui/button';
+import type {PromotionEvidence} from '../lib/estimate-promotion-attribution';
 type Offer={id:string;name:string;type:'percent'|'dollar';valueCents:number;startOn?:string|null;endOn?:string|null};
 type Preview={revision:string|null;checkedOn:string;eligible:Offer[];pendingBooking:Offer[];percentBasisPoints:number;dollarCents:number;blocked:string|null;previewTotalCents:number|null;previewDepositCents:number|null};
 const safe=(v:unknown):v is number=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0;
@@ -19,7 +20,7 @@ function validPreview(v:unknown):v is Preview{
 }
 export function NewEstimatePromotions({active,quoteKey,serviceIds,subtotalCents,appreciationDiscount,manualOverride,onApply,onVerified}:
 {active:boolean;quoteKey:string;serviceIds:string[];subtotalCents:number;appreciationDiscount:boolean;manualOverride:boolean;
- onApply:(percentBasisPoints:number,dollarCents:number)=>void;onVerified:(key:string|null)=>void}){
+ onApply:(percentBasisPoints:number,dollarCents:number,evidence:PromotionEvidence|null)=>void;onVerified:(key:string|null)=>void}){
  const [status,setStatus]=useState<'idle'|'loading'|'ready'|'error'>('idle'),[preview,setPreview]=useState<Preview|null>(null);
  const [message,setMessage]=useState(''),[skipped,setSkipped]=useState(false),[refresh,setRefresh]=useState(0);
  const serial=JSON.stringify(serviceIds);
@@ -30,7 +31,7 @@ export function NewEstimatePromotions({active,quoteKey,serviceIds,subtotalCents,
   const id=++seq.current,expectedKey=quoteKey;
   setStatus('loading');setPreview(null);setMessage('');setSkipped(false);verifiedRef.current(null);
   // No verified offer may survive a changed scope, expired window or failed refresh.
-  if(!overrideRef.current)applyRef.current(0,0);
+  if(!overrideRef.current)applyRef.current(0,0,null);
   const timer=setTimeout(async()=>{
    try{
     const response=await fetch('/api/saved-promotions/preview',{method:'POST',cache:'no-store',
@@ -40,7 +41,7 @@ export function NewEstimatePromotions({active,quoteKey,serviceIds,subtotalCents,
     if(seq.current!==id||keyRef.current!==expectedKey)return;
     setPreview(body);setStatus('ready');
     if(body.blocked){setMessage(body.blocked);verifiedRef.current(null);return;}
-    if(!overrideRef.current)applyRef.current(body.percentBasisPoints,body.dollarCents);
+    if(!overrideRef.current)applyRef.current(body.percentBasisPoints,body.dollarCents,{revision:body.revision,checkedOn:body.checkedOn,ruleIds:body.eligible.map(p=>p.id),serviceIds:JSON.parse(serial) as string[]});
     verifiedRef.current(expectedKey);
    }catch{
     if(seq.current!==id||keyRef.current!==expectedKey)return;
@@ -61,7 +62,7 @@ export function NewEstimatePromotions({active,quoteKey,serviceIds,subtotalCents,
     preview.eligible.length+' eligible saved offer(s): '+preview.eligible.map(p=>p.name).join(' + ')+'. '+(manualOverride?'Your custom amount is preserved.':'Qualifying amounts were filled in automatically.'):
     'No saved promotions qualify for these services and the estimate date.'}</p>
    {preview.pendingBooking.length>0&&<p className="text-sm"><strong>Booking required:</strong> {preview.pendingBooking.map(p=>p.name+(p.endOn?' (book by '+p.endOn+')':'')).join('; ')}. These remain reminders until booking is confirmed.</p>}
-   {manualOverride&&preview.eligible.length>0&&<Button className="min-h-11" variant="outline" onClick={()=>applyRef.current(preview.percentBasisPoints,preview.dollarCents)}>Use saved offers</Button>}
+   {manualOverride&&preview.eligible.length>0&&<Button className="min-h-11" variant="outline" onClick={()=>applyRef.current(preview.percentBasisPoints,preview.dollarCents,{revision:preview.revision,checkedOn:preview.checkedOn,ruleIds:preview.eligible.map(p=>p.id),serviceIds:JSON.parse(serial) as string[]})}>Use saved offers</Button>}
   </>}
   {(status==='error'||Boolean(preview?.blocked))&&<Button type="button" variant="outline" className="min-h-11" onClick={()=>{setSkipped(true);setMessage('Owner bypassed promotion verification. Review discounts manually.');verifiedRef.current(quoteKey);}}>Continue without automatic promotions</Button>}
   {skipped&&<p role="status" className="text-sm">Promotion verification explicitly skipped for this estimate.</p>}
