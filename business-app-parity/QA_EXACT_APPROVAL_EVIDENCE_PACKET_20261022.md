@@ -93,3 +93,34 @@ Provide only: (1) original backup hash **match status** for both independent sec
 - `GATE4_PROVIDER_EVIDENCE_REQUEST.md`
 
 The LIVE/refund-staging Sites provenance issue is a **separate Gate 4 concern**; their database identity must not be inferred from this independent QA Worker's D1 identity. Do not request the previously completed independent Doomsday binding screenshot again.
+
+
+## Implemented evidence intake (offline; no approval)
+
+`qa_evidence_intake.py` reconciles the existing private metadata and reports every missing/failed gate, without opening the SQL backup, restoring it, repeating its migration rehearsal, calling Cloudflare, or modifying its inputs. It reuses the guarded updater's restore-receipt, source/build, migration and deployed-binding validation. Duplicate JSON fields, non-finite values, linked inputs, SQL inputs and unknown evidence fields are refused. UTF-8/BOM and Windows UTF-16 receipts retain their **raw-byte** checksum identity.
+
+Keep filled evidence outside Git. Use the existing `QA_GUARDED_UPDATE_EVIDENCE.example.json` format and the new `QA_BACKUP_CUSTODY.example.json` format. Record the original SQL hash and export time from the existing records. The restore receipt has no intrinsic verification timestamp: `restoreReceiptRecordedUtc` is separately recorded owner evidence, never a timestamp inferred from the current file's modification time. Two failure-domain labels describe the owner's custody attestation; they do not independently prove storage security or physical independence. Never put storage locations, secrets or customer data in these labels.
+
+From `business-app-parity`, the offline-only intake command is:
+
+```powershell
+python .\qa_evidence_intake.py --evidence "$privateEvidence" --restore-receipt "$existingRestoreReceipt" --capture-file "$existingSchemaCapture" --custody-file "$privateCustodyReceipt" --provider-file "$privateProviderSnapshot" --candidate "$exactBuiltQaCandidate"
+```
+
+These variables refer to existing **JSON metadata** and the exact materialized candidate directory, never the SQL export. Omit an unavailable argument to get an explicit MISSING result. Exit 2 means STOP with individual diagnostic codes; it is not a request to rerun successful backup work. A complete intake exits 0 with `OFFLINE_EVIDENCE_RECONCILED_LIVE_PREFLIGHT_REQUIRED`; it still reports migration/publication approval and independent provider verification as false. Declaring a CI run is not live verification of that run. Source/build validation requires the clean, fetched development branch and the existing built-QA candidate checks.
+
+### Missing deployed-binding provenance: optional owner-authenticated read-only capture
+
+If the existing provenance evidence already includes the serving version's actual DB binding and is fresh, retain it. The new `capture_qa_provider_identity.py` is available when this particular evidence is missing. Its default is a no-op; only explicit `--capture` uses the existing pinned Wrangler/account isolation. Its command allowlist permits only D1 inventory, exact QA deployment status, and the pinned serving-version details. It cannot execute SQL, migration, deployment, secret or arbitrary-target commands. It reads the identity twice and refuses drift; it removes unrelated database names, secret values, variable values and unnecessary provider fields before writing a **new**, private, collision-protected snapshot outside this repository.
+
+```powershell
+python .\capture_qa_provider_identity.py --capture --evidence "$privateEvidence" --capture-file "$existingSchemaCapture" --candidate "$exactBuiltQaCandidate" --output "$newPrivateIdentitySnapshot"
+```
+
+This is a read-only identity capture, **not another schema capture or backup**. It does not authenticate an offline file for an independent reviewer: local snapshots remain `CONSISTENT_NOT_AUTHENTICATED`. The existing guarded live preflight must still verify account context, sole 100% serving version, actual DB binding, exact GitHub CI, source/build identity and schema/row integrity before an exact action is offered for approval. Stale schema metadata (older than 24 hours at execution) requires a read-only metadata refresh; an old backup does not by itself require repeating its successful restoration. Changed QA data/recovery-point suitability requires explicit review.
+
+### Decision after this implementation
+
+The packet is ready for **owner evidence review**, not migration/publication approval. Preserve the completed original export, restoration, original-23 validation, 23-to-25 rehearsal, financial/FK/row-preservation checks and built-Worker Job Closeout workflow. Still missing in this repository are the private literal original hash/export time and successful receipt binding/time; two independently recoverable secure-copy custody/hash evidence; authenticated Cloudflare account/current version/traffic/actual DB binding and capture origin; a fresh execution-time schema capture; the final candidate/build seal and exact passing eight-job CI; and an appropriate owner-confirmed quiet window of at most one hour.
+
+After those reconcile, run the existing guarded **read-only** preflight. Review its exact MIGRATE approval text and rollback limitations before separately authorizing the two pinned migrations. Only a successful migration receipt permits preparation of the distinct PUBLISH approval, bound to its receipt hash and the same source/build. Neither action is authorized here. Physical iPhone testing follows an explicitly authorized isolated QA publication. Production release acceptance remains **3/10 gates (30%)**.

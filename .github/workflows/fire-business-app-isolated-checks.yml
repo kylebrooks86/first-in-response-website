@@ -69,6 +69,11 @@ on:
       - 'business-app-parity/qa_guarded_update.py'
       - 'business-app-parity/QA_GUARDED_UPDATE_EVIDENCE.example.json'
       - 'business-app-parity/test_qa_guarded_update.py'
+      - 'business-app-parity/qa_evidence_intake.py'
+      - 'business-app-parity/test_qa_evidence_intake.py'
+      - 'business-app-parity/capture_qa_provider_identity.py'
+      - 'business-app-parity/test_capture_qa_provider_identity.py'
+      - 'business-app-parity/QA_BACKUP_CUSTODY.example.json'
       - 'business-app-parity/test_owner_windows_qa_update_review.py'
       - 'business-app-parity/owner_windows_qa_update_publish.ps1'
       - 'business-app-parity/test_owner_windows_qa_update_publish.py'
@@ -233,6 +238,8 @@ jobs:
           python3 ../test_review_existing_qa_capture_offline.py
           python3 ../test_qa_iphone_release_readiness.py
           python3 ../test_qa_guarded_update.py
+          python3 ../test_qa_evidence_intake.py
+          python3 ../test_capture_qa_provider_identity.py
           python3 ../test_qa_d1_export.py
       - name: Existing QA Worker update review must preserve all hosted customer records
         run: python3 ../test_owner_windows_qa_update_review.py
@@ -824,3 +831,5 @@ jobs:
           python test_rehearse_qa_additive_schema.py
           python test_capture_existing_qa_schema_read_only.py
           python test_qa_guarded_update.py
+          python test_qa_evidence_intake.py
+          python test_capture_qa_provider_identity.py

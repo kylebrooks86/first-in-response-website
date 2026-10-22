@@ -10,6 +10,7 @@ import argparse
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -32,6 +33,14 @@ BRANCH = 'work/fire-business-app-parity-2026-10-08'
 FORMAT = 'fire-exact-qa-23-to-25-plan-v1'
 SHA = r'[0-9a-f]{64}'
 MAX_BYTES = 2_000_000
+EVIDENCE_FIELDS = frozenset({'accountId','backupSha256','backupUtc','restoreReceiptSha256','captureSha256',
+    'secondCopySha256','encryptedAccessControlled','independentSecondCopyRetained',
+    'authenticatedCaptureAttested','noQaWritesSinceBackup','windowEndsUtc','ciRunId'})
+RESTORE_CHECKS = frozenset({'expectedExportHashMatches','pinnedMigrationSourceVerified','sqlRestoreCompleted','integrityClean',
+    'foreignKeysClean','journalExactlyOriginal23','journalHasNoExecutableTriggers','schemaExactlyOriginal23',
+    'financialLedgerClean','allOriginalRowsPreserved','full25SchemaMatches','newTablesEmpty',
+    'postMigrationForeignKeysClean','postMigrationIntegrityClean','local25JournalComplete',
+    'allOriginalAppRowsPreservedAfterJournal','originalJournalRowsPreserved','originalRollbackCopyUnchanged','privateInputUnchanged'})
 FULL_SCHEMA_SQL = "SELECT type,name,tbl_name,sql FROM sqlite_master WHERE type IN ('table','index','trigger','view') AND name NOT LIKE 'sqlite_%' AND tbl_name <> 'd1_migrations' ORDER BY type,tbl_name,name"
 
 class Stop(ValueError):
@@ -58,7 +67,19 @@ def read_json(path):
     raw = path.read_bytes()
     # Windows PowerShell 5 Tee-Object writes UTF-16 BOM receipts. Hash raw
     # bytes first; accept only the JSON encoding, never normalize private SQL.
-    return json.loads(raw.decode('utf-16' if raw.startswith((b'\xff\xfe',b'\xfe\xff')) else 'utf-8-sig'))
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            require(key not in result, 'DUPLICATE_JSON_FIELD')
+            result[key] = value
+        return result
+    def finite(_): raise Stop('NONFINITE_JSON_VALUE')
+    def number(value):
+        result = float(value)
+        require(math.isfinite(result), 'NONFINITE_JSON_VALUE')
+        return result
+    return json.loads(raw.decode('utf-16' if raw.startswith((b'\xff\xfe',b'\xfe\xff')) else 'utf-8-sig'),
+                      object_pairs_hook=unique, parse_constant=finite, parse_float=number)
 
 def file_hash(path):
     return hashlib.sha256(regular(path).read_bytes()).hexdigest()
@@ -106,11 +127,21 @@ def build_identity(candidate):
     require('server/wrangler.json' in files and len(files) > 1, 'QA_BUILD_INCOMPLETE')
     return digest(files)
 
+def validate_restore_receipt(restore, expected_hash):
+    require(isinstance(expected_hash,str) and re.fullmatch(SHA,expected_hash),'RESTORE_EXPECTED_HASH_REQUIRED')
+    require(type(restore) is dict, 'PASSED_RESTORE_RECEIPT_REQUIRED')
+    require(restore.get('format') == 'fire-private-qa-restore-v1' and
+            restore.get('qaWorker') == qa.WORKER and restore.get('qaDatabase') == qa.NAME and
+            restore.get('assertedQaUuid') == qa.UUID and restore.get('expectedActiveVersion') == qa.ACTIVE_VERSION and
+            restore.get('ownerExportSha256') == expected_hash and
+            restore.get('offlineRestoreAndAdditiveRehearsalPassed') is True and
+            restore.get('hostedMigrationAuthorized') is False and restore.get('publicationAuthorized') is False,
+            'PASSED_RESTORE_RECEIPT_REQUIRED')
+    require(type(restore.get('checks')) is dict and set(restore['checks']) == RESTORE_CHECKS and
+            all(v is True for v in restore['checks'].values()), 'RESTORE_CHECKS_INCOMPLETE')
+
 def evidence_review(evidence, restore, capture, now):
-    keys = {'accountId','backupSha256','backupUtc','restoreReceiptSha256','captureSha256',
-            'secondCopySha256','encryptedAccessControlled','independentSecondCopyRetained',
-            'authenticatedCaptureAttested','noQaWritesSinceBackup','windowEndsUtc','ciRunId'}
-    require(type(evidence) is dict and set(evidence) == keys, 'EVIDENCE_FIELDS_REFUSED')
+    require(type(evidence) is dict and set(evidence) == EVIDENCE_FIELDS, 'EVIDENCE_FIELDS_REFUSED')
     require(re.fullmatch(r'[0-9a-f]{32}', evidence['accountId'] or ''), 'ACCOUNT_PIN_REQUIRED')
     for key in ('backupSha256','restoreReceiptSha256','captureSha256','secondCopySha256'):
         require(isinstance(evidence[key], str) and re.fullmatch(SHA, evidence[key]), 'HASH_INVALID')
@@ -121,20 +152,7 @@ def evidence_review(evidence, restore, capture, now):
     end = utc(evidence['windowEndsUtc'])
     require(now < end <= now + timedelta(hours=1), 'QUIET_WINDOW_EXPIRED_OR_TOO_LONG')
     require(type(evidence['ciRunId']) is int and evidence['ciRunId'] > 0, 'CI_RUN_REQUIRED')
-    require(restore.get('format') == 'fire-private-qa-restore-v1' and
-            restore.get('qaWorker') == qa.WORKER and restore.get('qaDatabase') == qa.NAME and
-            restore.get('assertedQaUuid') == qa.UUID and restore.get('expectedActiveVersion') == qa.ACTIVE_VERSION and
-            restore.get('ownerExportSha256') == evidence['backupSha256'] and
-            restore.get('offlineRestoreAndAdditiveRehearsalPassed') is True and
-            restore.get('hostedMigrationAuthorized') is False and restore.get('publicationAuthorized') is False,
-            'PASSED_RESTORE_RECEIPT_REQUIRED')
-    required = {'expectedExportHashMatches','pinnedMigrationSourceVerified','sqlRestoreCompleted','integrityClean',
-        'foreignKeysClean','journalExactlyOriginal23','journalHasNoExecutableTriggers','schemaExactlyOriginal23',
-        'financialLedgerClean','allOriginalRowsPreserved','full25SchemaMatches','newTablesEmpty',
-        'postMigrationForeignKeysClean','postMigrationIntegrityClean','local25JournalComplete',
-        'allOriginalAppRowsPreservedAfterJournal','originalJournalRowsPreserved','originalRollbackCopyUnchanged','privateInputUnchanged'}
-    require(type(restore.get('checks')) is dict and set(restore['checks']) == required and
-            all(v is True for v in restore['checks'].values()), 'RESTORE_CHECKS_INCOMPLETE')
+    validate_restore_receipt(restore, evidence['backupSha256'])
     require(capture['original23SchemaMetadataMatches'] is True, 'ORIGINAL_SCHEMA_DRIFT')
     require(timedelta(0) <= now - utc(capture['captureUtc']) <= timedelta(hours=24), 'CAPTURE_EXPIRED')
     require(capture['captureSha256'] == evidence['captureSha256'], 'CAPTURE_HASH_DIFFERS')
@@ -142,6 +160,7 @@ def evidence_review(evidence, restore, capture, now):
 def make_plan(evidence_path, restore_path, capture_path, candidate, *, now=None):
     now = now or datetime.now(timezone.utc)
     evidence = read_json(evidence_path); restore = read_json(restore_path)
+    read_json(capture_path)  # Refuse ambiguous JSON before the existing schema reviewer.
     capture = capture_review.evaluate(capture_path)
     require(file_hash(restore_path) == evidence.get('restoreReceiptSha256'), 'RESTORE_RECEIPT_HASH_DIFFERS')
     evidence_review(evidence, restore, capture, now)
@@ -183,6 +202,31 @@ def config(account):
     return {'name': qa.WORKER, 'account_id': account, 'compatibility_date': '2026-10-16',
         'd1_databases': [{'binding':'DB','database_name':qa.NAME,'database_id':qa.UUID}]}
 
+def validate_deployment(status, version=qa.ACTIVE_VERSION):
+    require(type(status) is dict and type(status.get('versions')) is list and len(status['versions']) == 1,
+            'ACTIVE_VERSION_AMBIGUOUS')
+    item = status['versions'][0]
+    require(type(item) is dict and item.get('version_id') == version and type(item.get('percentage')) in (int,float)
+            and item['percentage'] == 100, 'ACTIVE_VERSION_CHANGED')
+
+
+def validate_provider_identity(inventory, status, view, *, version=qa.ACTIVE_VERSION):
+    qa.inventory(inventory)
+    validate_deployment(status,version)
+    require(type(view) is dict and view.get('id') == version, 'VERSION_DETAILS_MISMATCH')
+    require(type(view.get('resources')) is dict, 'BINDINGS_MISSING')
+    bindings = view['resources'].get('bindings')
+    require(type(bindings) is list and all(type(b) is dict and isinstance(b.get('name'),str) and isinstance(b.get('type'),str) for b in bindings), 'BINDINGS_MISSING')
+    dbs = [b for b in bindings if b.get('type') == 'd1' or b.get('name') == 'DB']
+    require(len(dbs) == 1 and dbs[0].get('type') == 'd1' and dbs[0].get('name') == 'DB'
+            and dbs[0].get('id') == qa.UUID, 'DEPLOYED_DB_BINDING_REFUSED')
+    secrets = {b.get('name') for b in bindings if b.get('type') == 'secret_text'}
+    require(secrets == {'FIRE_QA_PASSWORD_HASH','FIRE_QA_SESSION_SECRET'}, 'QA_AUTH_SECRET_NAMES_REFUSED')
+    require(all(b.get('type') in ('d1','secret_text','plain_text','json','assets') for b in bindings), 'UNAPPROVED_DEPLOYED_RESOURCE')
+    require(not any(re.search(r'stripe|token|password|secret|r2', b.get('name',''), re.I)
+            for b in bindings if b.get('type') != 'secret_text'), 'PRIVILEGED_DEPLOYED_VAR_REFUSED')
+    return version
+
 class Provider:
     """All commands use an isolated config and explicit account; never shell=True."""
     def __init__(self, account, folder, candidate):
@@ -211,27 +255,16 @@ class Provider:
         if not json_output: return None
         try: return json.loads(out.stdout)
         except ValueError: raise Stop('PROVIDER_JSON_REFUSED') from None
-    def identity(self, *, version=qa.ACTIVE_VERSION):
-        qa.inventory(self.call(['d1','list','--json']))
+    def identity_snapshot(self, *, version=qa.ACTIVE_VERSION):
+        inventory = self.call(['d1','list','--json'])
+        qa.inventory(inventory)
         status = self.call(['deployments','status','--name',qa.WORKER,'--json'])
-        require(type(status) is dict and type(status.get('versions')) is list and len(status['versions']) == 1,
-                'ACTIVE_VERSION_AMBIGUOUS')
-        item = status['versions'][0]
-        require(type(item) is dict and item.get('version_id') == version and type(item.get('percentage')) in (int,float)
-                and item['percentage'] == 100, 'ACTIVE_VERSION_CHANGED')
+        validate_deployment(status,version)
         view = self.call(['versions','view',version,'--name',qa.WORKER,'--json'])
-        require(type(view) is dict and view.get('id') == version, 'VERSION_DETAILS_MISMATCH')
-        bindings = view.get('resources',{}).get('bindings')
-        require(type(bindings) is list and all(type(b) is dict for b in bindings), 'BINDINGS_MISSING')
-        dbs = [b for b in bindings if b.get('type') == 'd1' or b.get('name') == 'DB']
-        require(len(dbs) == 1 and dbs[0].get('type') == 'd1' and dbs[0].get('name') == 'DB'
-                and dbs[0].get('id') == qa.UUID, 'DEPLOYED_DB_BINDING_REFUSED')
-        secrets = {b.get('name') for b in bindings if b.get('type') == 'secret_text'}
-        require(secrets == {'FIRE_QA_PASSWORD_HASH','FIRE_QA_SESSION_SECRET'}, 'QA_AUTH_SECRET_NAMES_REFUSED')
-        require(all(b.get('type') in ('d1','secret_text','plain_text','json','assets') for b in bindings), 'UNAPPROVED_DEPLOYED_RESOURCE')
-        require(not any(re.search(r'stripe|token|password|secret|r2', b.get('name',''), re.I)
-                for b in bindings if b.get('type') != 'secret_text'), 'PRIVILEGED_DEPLOYED_VAR_REFUSED')
-        return version
+        validate_provider_identity(inventory,status,view,version=version)
+        return {'inventory':inventory,'deployment':status,'version':view}
+    def identity(self, *, version=qa.ACTIVE_VERSION):
+        return self.identity_snapshot(version=version)['version']['id']
     def select(self, sql):
         require(sql.startswith('SELECT '), 'NON_SELECT_REFUSED')
         result = self.call(['d1','execute',qa.NAME,'--remote','--json','--command',qa.safe.cli_safe_statement(sql)])
