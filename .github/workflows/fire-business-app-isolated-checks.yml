@@ -7,6 +7,7 @@ on:
       - work/fire-promotions-integration-2026-10-22
       - work/fire-booking-promotion-attestation-2026-10-22
       - work/fire-post-estimate-booking-preview-2026-10-22
+      - work/fire-promotion-review-drafts-2026-10-22
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
@@ -318,6 +319,8 @@ jobs:
         run: node --experimental-sqlite scripts/test-estimate-promotion-attribution.mjs
       - name: Existing quote read-only booking amendment regression on SQLite
         run: node --experimental-sqlite scripts/test-post-estimate-booking-preview.mjs
+      - name: Owner saved booking review staging and CAS on SQLite
+        run: node --experimental-sqlite scripts/test-promotion-review-drafts.mjs
       - name: Strict invoice and estimate discount entry, caps and exact-cent preview
         run: node --experimental-strip-types scripts/test-quote-discount-input.mjs
       - name: Stacked estimate discounts and atomic synthetic SQLite persistence

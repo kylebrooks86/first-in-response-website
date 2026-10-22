@@ -12,6 +12,7 @@ const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const r=stackedRuntime(),model=r.load('lib/saved-promotions.ts');
 const api=r.load('app/api/estimates/[id]/promotion-amendment/route.ts').POST;
+const reviewApi=r.load('app/api/estimates/[id]/promotion-amendment/review-draft/route.ts');
 const today=model.fireDate(new Date()),gid=n=>'faba0000-aaaa-4aaa-8aaa-'+String(n).padStart(12,'0');
 const bundle={id:gid(1),name:'House wash and gutter bundle',type:'dollar',valueCents:2500,enabled:true,autoApply:true,dateBasis:'estimate-created',startOn:null,endOn:null,requiredServiceIds:['house-wash','gutters']};
 const booking={id:gid(2),name:'FIRE confirmed booking 15%',type:'percent',valueCents:1500,enabled:true,autoApply:true,dateBasis:'booking-confirmed',startOn:null,endOn:null,requiredServiceIds:[]};
@@ -31,6 +32,12 @@ let fail=false,requests=0;const server=createServer(async(req,res)=>{
  res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundleJS.outputFiles[0].text);}
  if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(css.css);}
+ if(req.url==='/api/estimates/'+saved.id+'/promotion-amendment/review-draft'&&['GET','POST','DELETE'].includes(req.method)){
+  res.setHeader('content-type','application/json');
+  let data='';for await(const chunk of req)data+=chunk;
+  const response=await reviewApi[req.method](new Request('https://synthetic.invalid'+req.url,{method:req.method,...(req.method==='GET'?{}:{body:data})}),{params:Promise.resolve({id:saved.id})});
+  res.statusCode=response.status;return res.end(await response.text());
+ }
  if(req.url==='/api/estimates/'+saved.id+'/promotion-amendment'&&req.method==='POST'){
   requests++;res.setHeader('content-type','application/json');
   if(fail){res.statusCode=503;return res.end(JSON.stringify({error:'Read-only synthetic preview temporarily unavailable'}));}
@@ -70,6 +77,18 @@ try{
  fail=true;await page.getByRole('button',{name:'Preview booking adjustment'}).click();await page.getByRole('alert').waitFor();
  check(await page.getByText('Read-only synthetic preview temporarily unavailable').count()===1,'Network/server read failure visible');
  fail=false;await page.getByRole('button',{name:'Preview booking adjustment'}).click();await page.getByText('Potential additional savings: $69.00').waitFor();
+ await page.getByLabel('Private owner note (never sent automatically)').fill('Confirmed phone booking; review revised terms first.');
+ await page.getByRole('button',{name:'Save internal review draft'}).click();
+ await page.getByText('Saved for owner review only').waitFor();
+ check(r.db.prepare('SELECT COUNT(*) AS count FROM message_templates WHERE key=?').get('fire:booking-amendment-review:v1:'+saved.id).count===1,'Owner review stored under dedicated backup key');
+ await page.reload();await page.getByText('Saved for owner review only').waitFor();
+ check(await page.getByText('Original $435.00',{exact:false}).count()===1,'Saved owner review survives reload');
+ await page.getByRole('button',{name:'Discard internal review'}).click();
+ await page.getByText('Confirm again to remove only this internal draft',{exact:false}).waitFor();
+ check(r.db.prepare('SELECT COUNT(*) AS count FROM message_templates WHERE key=?').get('fire:booking-amendment-review:v1:'+saved.id).count===1,'First discard never deletes');
+ await page.getByRole('button',{name:'Confirm discard internal review'}).click();
+ await page.getByText('No internal review saved for this estimate.').waitFor();
+ check(r.db.prepare('SELECT COUNT(*) AS count FROM message_templates WHERE key=?').get('fire:booking-amendment-review:v1:'+saved.id).count===0,'Two clicks remove owner review only');
  check(requests>=9,'Actual authenticated quote-preview endpoint read repeatedly');
  check(errors.length===0,'No Chrome runtime errors: '+errors.join(';'));
  check(JSON.stringify(r.db.prepare('SELECT * FROM estimates ORDER BY rowid').all())===baseline,'UI previews never change existing saved totals');

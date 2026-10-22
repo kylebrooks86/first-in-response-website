@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {Button} from './ui/button';
+import {BookingReviewDraftPanel} from './booking-review-draft-panel';
 
 type NewRule={id:string;name:string;type:'percent'|'dollar';valueCents:number};
 type Preview={
@@ -61,6 +62,7 @@ export function BookingAmendmentPreview({estimateId,totalCents}:{estimateId:stri
     <Button type="button" variant="outline" className="min-h-11 w-full sm:w-auto" disabled={status==='loading'||!bookingOn} onClick={()=>void check()}>
      {status==='loading'?'Checking saved offers…':'Preview booking adjustment'}</Button>
    </div>
+   <BookingReviewDraftPanel estimateId={estimateId} totalCents={totalCents} preview={status==='ready'?result:null}/>
    {status==='loading'&&<p role="status" className="text-sm">Rechecking original saved offer rules and current eligibility…</p>}
    {status==='error'&&<p role="alert" className="text-sm">{message}</p>}
    {status==='ready'&&result&&<div role="status" className="space-y-2 text-sm">
