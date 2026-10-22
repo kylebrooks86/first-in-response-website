@@ -3148,7 +3148,7 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
       <a className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-current px-3 py-2 text-sm font-semibold" href={`/?openEstimate=${encodeURIComponent(item.estimateId)}`}><ExternalLink className="h-4 w-4"/> Open job · request review</a>
       <Button variant="outline" disabled={Boolean(reviewSnoozingId)} onClick={()=>void snoozeReviewCloseout(item)}>{reviewSnoozingId===item.estimateId?"Saving snooze…":"Snooze 7 days"}</Button>
     </div>
-  </article>)}</div>:<p className="record-empty">{reviewCloseouts.length?"No matching customers need a review request.":"No verified paid jobs awaiting review requests."}</p>}
+  </article>)}</div>:<p className="record-empty">{reviewCloseouts.length?"No paid review requests match the current search and status filter. Clear the search or choose All to see other loaded requests.":"No verified paid jobs awaiting review requests in the loaded results."}</p>}
   {matchingReviewCloseouts.length>5&&<Button variant="outline" onClick={()=>setShowAllReviewCloseouts(value=>!value)}>{showAllReviewCloseouts?"Show fewer":`Show all ${matchingReviewCloseouts.length} ready jobs`}</Button>}
   {reviewMoreAvailable&&reviewNextCursor&&<Button variant="outline" disabled={reviewOlderLoading} onClick={()=>void loadOlderReviewCloseouts()}>{reviewOlderLoading?"Loading older jobs…":"Load older paid jobs"}</Button>}
   {reviewOlderError&&<p role="alert" className="save-error">{reviewOlderError} Previously loaded jobs are still available.</p>}
