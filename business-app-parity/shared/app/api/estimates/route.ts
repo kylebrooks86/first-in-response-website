@@ -6,6 +6,7 @@ import {customerPropertiesEnabled,propertyAssociationColumns,propertyEstimatesTe
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {customerIdentityPredicate,duplicateCustomer} from '../../../lib/customer-identity';
+import {ESTIMATE_CREATE_PROOF_PREFIX,validEstimateCreateRequestId,fingerprintEstimateCreateRequest,readEstimateCreateProof,type EstimateCreateProof} from '../../../lib/estimate-create-idempotency';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
@@ -50,7 +51,34 @@ export async function GET() {
 export async function POST(request: Request) {
   if(!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const body = await request.json() as Record<string, unknown>;
+    let body:Record<string,unknown>;
+    try{const parsed:unknown=await request.json();if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('Invalid object');body=parsed as Record<string,unknown>;}
+    catch{return Response.json({error:'A valid estimate request object is required.'},{status:400});}
+    if(body.requestId!==undefined&&!validEstimateCreateRequestId(body.requestId))return Response.json({error:'A valid estimate creation request ID is required.'},{status:400});
+    const requestId=typeof body.requestId==='string'?body.requestId:null;
+    const requestHash=requestId?await fingerprintEstimateCreateRequest(body):null;
+    // A completed request replays its original immutable receipt. Never create
+    // another estimate or re-evaluate now-expired offers for the same request ID.
+    if(requestId){
+      const existing=await env.DB.prepare('SELECT id,customer_id AS customerId,status,subtotal_cents AS subtotalCents,discount_cents AS discountCents,total_cents AS totalCents,deposit_cents AS depositCents,share_token AS shareToken,appreciation_discount AS appreciationDiscount,additional_discount_type AS additionalDiscountType,additional_discount_value AS additionalDiscountValue FROM estimates WHERE id=?').bind(requestId).first<{id:string;customerId:string;status:string;subtotalCents:number;discountCents:number;totalCents:number;depositCents:number;shareToken:string;appreciationDiscount:number;additionalDiscountType:string;additionalDiscountValue:number}>();
+      if(existing){
+        const stored=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(ESTIMATE_CREATE_PROOF_PREFIX+requestId).first<{body:string}>();
+        let proof:EstimateCreateProof|null=null;
+        try{proof=readEstimateCreateProof(stored?.body??null);}catch{/* Invalid or missing proof never authorizes replay. */}
+        if(!proof||proof.requestId!==requestId||proof.requestHash!==requestHash||proof.customerId!==existing.customerId||existing.status!=='draft'||
+          ['subtotalCents','discountCents','totalCents','depositCents'].some(field=>Number(existing[field as keyof typeof existing])!==proof![field as keyof EstimateCreateProof])||
+          Number(existing.appreciationDiscount)!==proof.appreciationDiscount||existing.additionalDiscountType!==proof.additionalDiscountType||Number(existing.additionalDiscountValue)!==proof.additionalDiscountValue)
+          return Response.json({error:'This estimate request was already used or the saved quote has changed. Review the saved estimate; no new quote was created.'},{status:409});
+        const rawItems=Array.isArray(body.items)?body.items as Record<string,unknown>[]:[];
+        const incoming=rawItems.map(item=>({name:String(item.name??'').trim(),description:String(item.description??'').trim().slice(0,5000),quantity:Number(item.quantity),unit:String(item.unit??'job').trim()||'job',totalCents:Math.round(Number(item.totalCents))}));
+        const savedRows=await env.DB.prepare('SELECT name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id=? ORDER BY rowid ASC').bind(requestId).all();
+        const persisted=savedRows.results.map(row=>({name:String(row.name),description:String(row.description),quantity:Number(row.quantity),unit:String(row.unit),totalCents:Number(row.totalCents)}));
+        if(JSON.stringify(incoming)!==JSON.stringify(persisted))return Response.json({error:'The saved service scope changed after this request. Review the existing estimate; no duplicate created.'},{status:409});
+        if(proof.promotionAttributionSaved&&!await env.DB.prepare('SELECT key FROM message_templates WHERE key=?').bind(ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX+requestId).first())return Response.json({error:'Original promotion audit is unavailable. Review saved estimate.'},{status:409});
+        if(proof.bundleDiscountCents>0&&!await env.DB.prepare('SELECT key FROM message_templates WHERE key=?').bind(DISCOUNT_SNAPSHOT_PREFIX+requestId).first())return Response.json({error:'Original bundle discount audit is unavailable. Review saved estimate.'},{status:409});
+        return Response.json({id:requestId,requestId,replayed:true,customerId:proof.customerId,customer:String(body.customer??'').trim(),email:String(body.email??'').trim(),phone:String(body.phone??'').trim(),address:String(body.address??'').trim(),propertyId:proof.propertyId,propertyRevision:proof.propertyRevision,shareToken:existing.shareToken,customerPath:'/estimate/'+existing.shareToken,subtotalCents:proof.subtotalCents,discountCents:proof.discountCents,totalCents:proof.totalCents,depositCents:proof.depositCents,appreciationDiscount:proof.appreciationDiscount,additionalDiscountType:proof.additionalDiscountType,additionalDiscountValue:proof.additionalDiscountValue,bundleDiscountCents:proof.bundleDiscountCents,promotionAttributionSaved:proof.promotionAttributionSaved},{status:200,headers:{'cache-control':'private, no-store'}});
+      }
+    }
     const existingCustomerId = String(body.customerId ?? "").trim();
     const propertyTests=propertyEstimatesTestEnabled(env);
     if(Object.prototype.hasOwnProperty.call(body,'propertyId')&&(!propertyTests||!existingCustomerId))return Response.json({error:'Property-linked estimates are disabled pending association and backup verification. No estimate created.'},{status:409});
@@ -77,7 +105,7 @@ export async function POST(request: Request) {
     try{pricing=quoteDiscounts(subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents);}catch(error){return Response.json({error:error instanceof Error?error.message:'Invalid discounts.'},{status:400});}
     const {total,appliedDiscount,deposit}=pricing;
     const customerId=existingCustomerId||crypto.randomUUID();
-    const estimateId=crypto.randomUUID();
+    const estimateId=requestId??crypto.randomUUID();
     let promotionAttribution:ReturnType<typeof buildPromotionAttribution>|null=null;
     if(Object.prototype.hasOwnProperty.call(body,'promotionEvidence')){
       try{
@@ -111,8 +139,10 @@ export async function POST(request: Request) {
     for(const item of items)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),estimateId,item.name,item.description,item.quantity,item.unit,item.totalCents));
     if(bundleDiscountCents>0)statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?)").bind(DISCOUNT_SNAPSHOT_PREFIX+estimateId,JSON.stringify(discountSnapshot(estimateId,subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents)),now));
     if(promotionAttribution)statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?)").bind(ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX+estimateId,JSON.stringify(promotionAttribution),now));
+    if(requestId&&requestHash){const proof:EstimateCreateProof={version:1,requestId,requestHash,customerId,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,bundleDiscountCents,appreciationDiscount,additionalDiscountType,additionalDiscountValue,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,promotionAttributionSaved:Boolean(promotionAttribution)};
+      statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?)").bind(ESTIMATE_CREATE_PROOF_PREFIX+requestId,JSON.stringify(proof),now));}
     await env.DB.batch(statements);
-    return Response.json({id:estimateId,customerId,customer,email,phone,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents,promotionAttributionSaved:Boolean(promotionAttribution)},{status:201});
+    return Response.json({id:estimateId,...(requestId?{requestId,replayed:false}:{}),customerId,customer,email,phone,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents,promotionAttributionSaved:Boolean(promotionAttribution)},{status:201,headers:{'cache-control':'private, no-store'}});
   } catch {
     return Response.json({ error: propertyEstimatesTestEnabled(env)?'Estimate save was not confirmed. Review stored records before another deliberate attempt.':"We couldn't save this estimate. Please try again." }, { status: 500 });
   }
