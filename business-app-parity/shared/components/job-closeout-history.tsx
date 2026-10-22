@@ -38,6 +38,10 @@ export function JobCloseoutHistory({searchQuery='',onOpenCustomer,onOpenEstimate
  useEffect(()=>{if(confirm){const node=document.getElementById('closeout-check-confirmation');node?.scrollIntoView({block:'center',behavior:'instant'});node?.focus({preventScroll:true});}},[confirm]);
  const snooze=async()=>{
   const item=confirm;if(!item?.requestedAt||item.state!=='due'||busy.current||loading||error)return;
+  // Never act on an old confirmation if a refresh changed the customer's review state or latest request.
+  if(!items.some(current=>current.customerId===item.customerId&&current.estimateId===item.estimateId&&current.state==='due'&&current.requestedAt===item.requestedAt)){
+   setConfirm(null);setSaveError('This review check changed since it was opened. Refresh the progress list before taking action.');return;
+  }
   busy.current=true;setSaving(true);setSaveError('');setMessage('');
   const key=item.customerId+'|'+item.requestedAt,operationId=attempts.current[key]??crypto.randomUUID();attempts.current[key]=operationId;
   try{
