@@ -78,7 +78,7 @@ export function evaluateSavedPromotions(catalog:SavedPromotionCatalog,quote:Prom
   const appreciationCents=quote.appreciationDiscount?Math.round(quote.subtotalCents*.05):0;
   const percentageCents=Math.round(quote.subtotalCents*percentBasisPoints/10000);
   const requestedCents=Math.min(quote.subtotalCents,appreciationCents+percentageCents+dollarCents);
-  const totalCents=quote.serviceIds.length?Math.max(15000,quote.subtotalCents-requestedCents):0;
+  const totalCents=quote.serviceIds.length||quote.subtotalCents>0?Math.max(15000,quote.subtotalCents-requestedCents):0;
   return{offered,pendingBooking,percentBasisPoints,dollarCents,blocked,
     requestedDiscountCents:blocked?null:requestedCents,
     appliedDiscountCents:blocked?null:Math.max(0,quote.subtotalCents-totalCents),
