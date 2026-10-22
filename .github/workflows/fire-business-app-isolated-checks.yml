@@ -9,6 +9,7 @@ on:
       - work/fire-post-estimate-booking-preview-2026-10-22
       - work/fire-promotion-review-drafts-2026-10-22
       - work/fire-revised-estimate-review-packet-2026-10-22
+      - work/fire-release-candidate-hardening-2026-10-22
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
