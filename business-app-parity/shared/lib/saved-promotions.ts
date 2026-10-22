@@ -52,6 +52,11 @@ export function fireDate(date:Date):string {
   const part=(name:string)=>parts.find(p=>p.type===name)?.value;
   return part('year')+'-'+part('month')+'-'+part('day');
 }
+/** A booking date is an explicit owner attestation, never a customer signature.
+ * Check relative to FIRE's Tulsa-local day, not the device clock. */
+export function validOwnerConfirmedBookingDate(input:unknown,now:Date):input is string {
+ return typeof input==='string'&&validPromotionDate(input)&&input!==null&&input<=fireDate(now);
+}
 export type PromotionQuote = {
   serviceIds:string[]; estimateOn:string; bookedOn?:string|null;
   subtotalCents:number; appreciationDiscount?:boolean;

@@ -1,7 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../../chatgpt-auth';
 import {FIRE_SERVICES} from '../../../../lib/fire-services';
-import {SAVED_PROMOTIONS_KEY,decodeSavedPromotions,evaluateSavedPromotions,fireDate} from '../../../../lib/saved-promotions';
+import {SAVED_PROMOTIONS_KEY,decodeSavedPromotions,evaluateSavedPromotions,fireDate,validOwnerConfirmedBookingDate} from '../../../../lib/saved-promotions';
 
 const OWNER='kylebrooks8605@gmail.com';
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store, private'}});
@@ -13,7 +13,8 @@ export async function POST(request:Request){
  if(!input||typeof input!=='object'||Array.isArray(input))return json({error:'Invalid promotion preview request.'},400);
  const body=input as Record<string,unknown>;
  const known=new Set(FIRE_SERVICES.map(service=>service.id));
- if(Object.keys(body).sort().join(',')!=='appreciationDiscount,serviceIds,subtotalCents'||
+ if(Object.keys(body).sort().join(',')!==(Object.prototype.hasOwnProperty.call(body,'bookingConfirmedOn')?'appreciationDiscount,bookingConfirmedOn,serviceIds,subtotalCents':'appreciationDiscount,serviceIds,subtotalCents')||
+    (Object.prototype.hasOwnProperty.call(body,'bookingConfirmedOn')&&!validOwnerConfirmedBookingDate(body.bookingConfirmedOn,new Date()))||
     !Array.isArray(body.serviceIds)||body.serviceIds.length>FIRE_SERVICES.length||
     new Set(body.serviceIds).size!==body.serviceIds.length||
     !body.serviceIds.every(value=>typeof value==='string'&&known.has(value))||
@@ -23,8 +24,8 @@ export async function POST(request:Request){
   const stored=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(SAVED_PROMOTIONS_KEY).first<{body:string}>();
   const catalog=decodeSavedPromotions(stored);
   const checkedOn=fireDate(new Date());
-  const result=evaluateSavedPromotions(catalog,{serviceIds:body.serviceIds,subtotalCents:body.subtotalCents,appreciationDiscount:body.appreciationDiscount,estimateOn:checkedOn});
-  return json({revision:catalog.revision,checkedOn,
+  const result=evaluateSavedPromotions(catalog,{serviceIds:body.serviceIds,subtotalCents:body.subtotalCents,appreciationDiscount:body.appreciationDiscount,estimateOn:checkedOn,bookedOn:typeof body.bookingConfirmedOn==='string'?body.bookingConfirmedOn:undefined});
+  return json({revision:catalog.revision,checkedOn,bookingConfirmedOn:typeof body.bookingConfirmedOn==='string'?body.bookingConfirmedOn:null,
    eligible:result.offered.map(p=>({id:p.id,name:p.name,type:p.type,valueCents:p.valueCents})),
    pendingBooking:result.pendingBooking.map(p=>({id:p.id,name:p.name,type:p.type,valueCents:p.valueCents,startOn:p.startOn,endOn:p.endOn})),
    percentBasisPoints:result.percentBasisPoints,dollarCents:result.dollarCents,

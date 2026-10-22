@@ -3,7 +3,7 @@ import {useEffect,useState} from 'react';
 import {Button} from './ui/button';
 type SavedRule={id:string;name:string;type:'percent'|'dollar';valueCents:number};
 type Attribution={format:'fire-estimate-promotions-v1';estimateId:string;catalogRevision:string|null;checkedOn:string;
- selectedServices:string[];rules:SavedRule[];subtotalCents:number;percentBasisPoints:number;flatDiscountCents:number;totalCents:number;depositCents:number};
+ selectedServices:string[];rules:SavedRule[];subtotalCents:number;percentBasisPoints:number;flatDiscountCents:number;totalCents:number;depositCents:number;bookingConfirmedOn?:string};
 const cents=(v:number)=>'$'+(v/100).toFixed(2);
 const label=(p:SavedRule)=>p.type==='percent'?(p.valueCents/100).toFixed(2).replace(/\.00$/,'')+'%':cents(p.valueCents);
 const safe=(v:unknown)=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0;
@@ -12,6 +12,7 @@ function validAttribution(v:unknown,estimateId:string,totalCents:number):v is At
  const x=v as Record<string,unknown>;
  return x.format==='fire-estimate-promotions-v1'&&x.estimateId===estimateId&&
   typeof x.checkedOn==='string'&&/^\d{4}-\d\d-\d\d$/.test(x.checkedOn)&&
+  (x.bookingConfirmedOn===undefined||typeof x.bookingConfirmedOn==='string'&&/^\d{4}-\d\d-\d\d$/.test(x.bookingConfirmedOn)&&x.bookingConfirmedOn<=x.checkedOn)&&
   safe(x.subtotalCents)&&safe(x.totalCents)&&x.totalCents===totalCents&&safe(x.depositCents)&&
   Array.isArray(x.rules)&&x.rules.length<=40&&x.rules.every(p=>
    p&&typeof p==='object'&&typeof p.id==='string'&&typeof p.name==='string'&&
@@ -41,6 +42,7 @@ export function EstimatePromotionHistory({estimateId,totalCents}:{estimateId:str
   {state==='error'&&<p role="alert" className="text-sm">Saved promotion evidence could not be verified. The agreed quote total is unchanged. Refresh history before relying on rule details.</p>}
   {state==='ready'&&record&&<>
    <p className="text-sm">Rules verified when the estimate was created on {record.checkedOn}. Later promotions or expirations do not change these frozen terms.</p>
+   {record.bookingConfirmedOn&&<p className="text-sm"><strong>Owner-attested booking date:</strong> {record.bookingConfirmedOn}. Recorded for promotion eligibility, not as a customer signature.</p>}
    {record.rules.length?record.rules.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{p.name}</span><strong>{label(p)}</strong></div>):
     <p className="text-sm">No automatic discounts qualified at the original promotion check.</p>}
    <div className="text-sm"><span>Original subtotal {cents(record.subtotalCents)} · Quote total {cents(record.totalCents)} · 50% deposit {cents(record.depositCents)}</span></div>

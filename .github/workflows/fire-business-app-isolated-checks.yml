@@ -5,6 +5,7 @@ on:
     branches:
       - work/fire-business-app-parity-2026-10-08
       - work/fire-promotions-integration-2026-10-22
+      - work/fire-booking-promotion-attestation-2026-10-22
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
