@@ -1,7 +1,7 @@
 /** Internal only: no customer-facing agreement, estimate, invoice or payment mutation. */
 export const BOOKING_REVIEW_DRAFT_PREFIX='fire:booking-amendment-review:v1:';
 export type BookingReviewDraft={
- format:'fire-booking-review-v1';estimateId:string;revision:string;ownerNote:string;
+ format:'fire-booking-review-v1';estimateId:string;revision:string;ownerNote:string;originalScopeSha256:string;
  bookingConfirmedOn:string;savedOn:string;catalogRevision:string|null;
  originalStatus:string;customerAlreadyAccepted:boolean;hasFinancialActivity:boolean;
  originalTotalCents:number;originalDepositCents:number;
@@ -17,11 +17,12 @@ export function readBookingReviewDraft(raw:string|null,estimateId:string):Bookin
  const parsed=JSON.parse(raw) as unknown;
  if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('Unverified proposal.');
  const p=parsed as Record<string,unknown>;
- const keys=['format','estimateId','revision','ownerNote','bookingConfirmedOn','savedOn','catalogRevision','originalStatus','customerAlreadyAccepted','hasFinancialActivity','originalTotalCents','originalDepositCents','proposedTotalCents','proposedDepositCents','possibleSavingsCents','newRules'];
+ const keys=['format','estimateId','revision','ownerNote','originalScopeSha256','bookingConfirmedOn','savedOn','catalogRevision','originalStatus','customerAlreadyAccepted','hasFinancialActivity','originalTotalCents','originalDepositCents','proposedTotalCents','proposedDepositCents','possibleSavingsCents','newRules'];
  if(Object.keys(p).sort().join(',')!==keys.sort().join(',')||
   p.format!=='fire-booking-review-v1'||p.estimateId!==estimateId||
   typeof p.revision!=='string'||!uuid.test(p.revision)||
   typeof p.ownerNote!=='string'||p.ownerNote.length>400||
+  typeof p.originalScopeSha256!=='string'||!/^[0-9a-f]{64}$/.test(p.originalScopeSha256)||
   !date(p.bookingConfirmedOn)||typeof p.savedOn!=='string'||Number.isNaN(Date.parse(p.savedOn))||
   !(p.catalogRevision===null||typeof p.catalogRevision==='string'&&uuid.test(p.catalogRevision))||
   typeof p.originalStatus!=='string'||p.originalStatus.length>30||

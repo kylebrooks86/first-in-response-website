@@ -2,6 +2,7 @@ import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../../../../chatgpt-auth';
 import {POST as verifyOriginalQuote} from '../route';
 import {BOOKING_REVIEW_DRAFT_PREFIX,readBookingReviewDraft,type BookingReviewDraft} from '../../../../../../lib/booking-review-draft';
+import {estimateScopeFingerprint} from '../../../../../../lib/estimate-scope-fingerprint';
 const OWNER='kylebrooks8605@gmail.com';
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store, private'}});
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -38,7 +39,8 @@ export async function GET(_req:Request,{params}:{params:Promise<{id:string}>}){
   if(!draft)return json({draft:null,stale:false,revision:null});
   const checked=await verifiedPreview(id,draft.bookingConfirmedOn);
   const p=checked.preview;
-  const stale=!p||p.originalCatalogRevision!==draft.catalogRevision||
+  const scopeHash=await estimateScopeFingerprint(id);
+  const stale=!p||scopeHash!==draft.originalScopeSha256||p.originalCatalogRevision!==draft.catalogRevision||
    p.current.totalCents!==draft.originalTotalCents||p.current.depositCents!==draft.originalDepositCents||
    p.proposed.totalCents!==draft.proposedTotalCents||p.proposed.depositCents!==draft.proposedDepositCents||
    p.status!==draft.originalStatus||p.customerAlreadyAccepted!==draft.customerAlreadyAccepted||
@@ -64,12 +66,14 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
   const p=checked.preview;
   if(p.current.totalCents!==body.expectedOriginalTotalCents||p.proposed.totalCents!==body.expectedProposedTotalCents)
    return json({error:'The quoted amounts changed. Refresh the calculation before saving an internal review.'},409);
+  const scopeHash=await estimateScopeFingerprint(id);
   const stored=await read(id);
   const note=body.ownerNote.trim();
   // Retrying a committed-but-lost response must never create another review revision.
   if(stored.draft&&stored.draft.bookingConfirmedOn===p.bookingConfirmedOn&&
     stored.draft.originalTotalCents===p.current.totalCents&&stored.draft.proposedTotalCents===p.proposed.totalCents&&
     stored.draft.ownerNote===note&&stored.draft.catalogRevision===p.originalCatalogRevision&&
+    stored.draft.originalScopeSha256===scopeHash&&
     stored.draft.originalStatus===p.status&&
     stored.draft.customerAlreadyAccepted===p.customerAlreadyAccepted&&
     stored.draft.hasFinancialActivity===p.hasFinancialActivity&&
@@ -81,7 +85,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
    return json({error:'Another device changed this internal review. Refresh before replacing it.'},409);
   const savedOn=new Date().toISOString();
   const draft:BookingReviewDraft={format:'fire-booking-review-v1',estimateId:id,revision:crypto.randomUUID(),
-   bookingConfirmedOn:p.bookingConfirmedOn,ownerNote:note,savedOn,catalogRevision:p.originalCatalogRevision,
+   bookingConfirmedOn:p.bookingConfirmedOn,ownerNote:note,originalScopeSha256:scopeHash,savedOn,catalogRevision:p.originalCatalogRevision,
    originalStatus:p.status,customerAlreadyAccepted:p.customerAlreadyAccepted,hasFinancialActivity:p.hasFinancialActivity,
    originalTotalCents:p.current.totalCents,originalDepositCents:p.current.depositCents,
    proposedTotalCents:p.proposed.totalCents,proposedDepositCents:p.proposed.depositCents,
