@@ -244,6 +244,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const [siteOrigin,setSiteOrigin]=useState("");
   const [working,setWorking]=useState(false);
   const preparationLock=useRef(false);
+  const messageScope=useRef(0);
   const uncertainPreparation=useRef<{requestId:string;signature:string}|null>(null);
   const [preparedMessage,setPreparedMessage]=useState<CustomerMessage|null>(null);
   const [pendingMessages,setPendingMessages]=useState<CustomerMessage[]>([]);
@@ -274,9 +275,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const needsInvoiceLink=["invoice","invoiceReminder","overdue"].includes(template);
   const needsEstimateLink=["estimate","followUp1","followUp3","followUp7"].includes(template);
   useEffect(()=>{
+    messageScope.current++;setWorking(false);uncertainPreparation.current=null;
     pendingPageRequest.current++;pendingOlderLock.current=false;
     setPreparedMessage(null);setPendingMessages([]);setPendingError("");
     setPendingNextCursor(null);setPendingOlderLoading(false);setPendingOlderError("");
+    return()=>{messageScope.current++;};
   },[customer.id,estimate?.id]);
   // Recover only owner-scoped unconfirmed drafts after SMS/Mail switches apps.
   // These are not proof of an actual send or delivery.
@@ -360,12 +363,13 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       return false;
     }
     if(!uncertainPreparation.current)uncertainPreparation.current={requestId:crypto.randomUUID(),signature};
-    const operation=uncertainPreparation.current;
+    const operation=uncertainPreparation.current,scope=messageScope.current;
     preparationLock.current=true;setWorking(true);
     try{
       const response=await fetch("/api/customer-messages",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...payload,requestId:operation.requestId})});
       const result=await response.json() as {message?:CustomerMessage;error?:string};
       const saved=result.message;
+      if(scope!==messageScope.current)return false;
       if(!response.ok||!saved){
         setMessageStatus(result.error||"Message preparation is unconfirmed. Retry the unchanged draft using the same request.");
         return false;
@@ -377,27 +381,51 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       }
       uncertainPreparation.current=null;
       onLogged?.(saved);
+      window.dispatchEvent(new Event("fire:attention-saved"));
       if(channel!=="copy"){setPreparedMessage(saved);setPendingMessages(current=>[saved,...current.filter(item=>item.id!==saved.id)]);}
       setMessageStatus(channel==="copy"?"Copied; sending is not confirmed.":"Prepared — sending is not confirmed. Return here after sending to confirm.");
       return true;
     }catch{
+      if(scope!==messageScope.current)return false;
       setMessageStatus("Message preparation may already be saved. Retry the unchanged draft with the same request or reopen saved drafts.");
       return false;
-    }finally{preparationLock.current=false;setWorking(false);}
+    }finally{preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
   };
   const sendText=async()=>{if(!await log("text_prepared"))return;window.location.href=`sms:${customer.phone}&body=${encodeURIComponent(body)}`;};
   const sendEmail=async()=>{if(!await log("email_prepared"))return;window.location.href=`mailto:${customer.email}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(body)}`;};
   const confirmSent=async()=>{
-    if(!preparedMessage)return;setWorking(true);setMessageStatus("");
-    try{const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:preparedMessage.id,customerId:customer.id,ownerConfirmedSent:true})});const result=await response.json() as {message?:CustomerMessage;estimateStatus?:string;error?:string};if(!response.ok||!result.message)throw new Error(result.error||"Send confirmation could not be saved.");onLogged?.(result.message);setPreparedMessage(null);setPendingMessages(current=>current.filter(item=>item.id!==preparedMessage.id));setMessageStatus("Sent — confirmed by you. Delivery and read status are unknown.");if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));if(preparedMessage.template===initialTemplate)await onSent?.(result.message,result.estimateStatus);}catch(error){setMessageStatus(error instanceof Error?error.message:"Send confirmation could not be saved.");}finally{setWorking(false);}
+    if(!preparedMessage||preparationLock.current)return;
+    const draft=preparedMessage,scope=messageScope.current;
+    preparationLock.current=true;setWorking(true);setMessageStatus("");
+    try{
+      const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:draft.id,customerId:customer.id,ownerConfirmedSent:true})});
+      const result=await response.json() as {message?:CustomerMessage;estimateStatus?:string;error?:string};
+      if(scope!==messageScope.current)return;
+      const receipt=result.message;
+      if(!response.ok)throw new Error(result.error||"Send confirmation could not be saved.");
+      if(!receipt||receipt.id!==draft.id+":owner-confirmed"||receipt.customerId!==draft.customerId||
+        (receipt.estimateId??"")!==(draft.estimateId??"")||receipt.template!==draft.template||receipt.body!==draft.body||
+        receipt.channel!==(draft.channel==="text_prepared"?"text_confirmed":"email_confirmed")||
+        typeof receipt.createdAt!=="string"||!Number.isFinite(Date.parse(receipt.createdAt)))
+        throw new Error("The send receipt does not match this prepared message. Sending remains unconfirmed here. Retry this same confirmation or reopen saved history to verify it.");
+      onLogged?.(receipt);setPreparedMessage(null);setPendingMessages(current=>current.filter(item=>item.id!==draft.id));
+      setMessageStatus("Sent — confirmed by you. Delivery and read status are unknown.");
+      window.dispatchEvent(new Event("fire:attention-saved"));
+      if(draft.template===initialTemplate){
+        try{await onSent?.(receipt,result.estimateStatus);}
+        catch{if(scope===messageScope.current)setMessageStatus("Send confirmation saved. Customer records could not be refreshed; reopen saved history before taking another action. Delivery and read status are unknown.");}
+      }
+    }catch(error){if(scope===messageScope.current)setMessageStatus(error instanceof Error?error.message:"Send confirmation could not be saved. Retry this same prepared message.");}
+    finally{preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
   };
   const cancelPrepared=async()=>{
-    if(!preparedMessage||working||!window.confirm("Mark this prepared message as NOT sent? It will leave your pending list but stay in the customer audit history."))return;
-    const draft=preparedMessage;
-    setWorking(true);setMessageStatus("");
+    if(!preparedMessage||preparationLock.current||working||!window.confirm("Mark this prepared message as NOT sent? It will leave your pending list but stay in the customer audit history."))return;
+    const draft=preparedMessage,scope=messageScope.current;
+    preparationLock.current=true;setWorking(true);setMessageStatus("");
     try{
       const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:draft.id,customerId:customer.id,ownerConfirmedNotSent:true})});
       const result=await response.json() as {message?:CustomerMessage;cancelled?:boolean;error?:string};
+      if(scope!==messageScope.current)return;
       if(!response.ok||result.cancelled!==true||result.message?.id!==draft.id+":owner-cancelled"||result.message.customerId!==customer.id)
         throw Error(result.error||"Could not verify that the unsent message was discarded. Refresh its saved status.");
       onLogged?.(result.message);
@@ -405,11 +433,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       setPreparedMessage(null);draftEdited.current=false;setBody(renderedBody);
       setMessageStatus("Marked not sent. Removed from pending messages; original draft remains in customer history.");
       if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
-    }catch(err){setMessageStatus(err instanceof Error?err.message:"Cannot confirm that the unsent draft was discarded.");}
-    finally{setWorking(false);}
+    }catch(err){if(scope===messageScope.current)setMessageStatus(err instanceof Error?err.message:"Cannot confirm that the unsent draft was discarded.");}
+    finally{preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
   };
   const copy=async()=>{try{await navigator.clipboard.writeText(body);await log("copy");}catch{setMessageStatus("Copy failed. No sending is confirmed.");}};
-  return <Dialog open={open} onOpenChange={(value)=>{setOpen(value);if(value){setSiteOrigin(window.location.origin);}}}>
+  return <Dialog open={open} onOpenChange={(value)=>{if(working&&!value)return;setOpen(value);if(value){setSiteOrigin(window.location.origin);}}}>
     <DialogTrigger asChild><Button variant="outline" className={triggerClassName}><MessageSquareText className="h-4 w-4" /> {triggerLabel}</Button></DialogTrigger>
     <DialogContent className="message-dialog sm:max-w-[620px]">
       <DialogHeader><DialogTitle>Message {customer.name}</DialogTitle></DialogHeader>
@@ -428,7 +456,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
           {pendingOlderError&&<p role="alert">{pendingOlderError} Previously loaded drafts remain available.</p>}
         </section>}
         {!preparedMessage&&pendingMessages.length===0&&pendingNextCursor&&<Button variant="outline" onClick={()=>void loadOlderPendingMessages()} disabled={pendingOlderLoading}>{pendingOlderLoading?"Loading older drafts…":"Load older prepared messages"}</Button>}
-        {preparedMessage&&<div><p>After sending the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}, confirm here. Opening the other app does not send it.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button><Button variant="outline" disabled={working} onClick={()=>void cancelPrepared()}>Discard unsent draft</Button></div>}
+        {preparedMessage&&<div className="message-confirm-actions"><p>After sending the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}, confirm here. Opening the other app does not send it.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button><Button variant="outline" disabled={working} onClick={()=>void cancelPrepared()}>Discard unsent draft</Button></div>}
         <div><Label>Message type</Label><Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{composerTemplates.map((item)=><SelectItem key={item.key} value={item.key}>{item.name}</SelectItem>)}</SelectContent></Select></div>
         <div><Label htmlFor="customerMessage">Personalized message</Label><Textarea id="customerMessage" disabled={working||Boolean(preparedMessage)} value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={8}/><small>Customer, service, price, date, address, and the private estimate or invoice link are filled in automatically when available. You can edit anything before sending.</small></div>
         <div className="message-actions"><Button variant="outline" onClick={()=>void copy()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Copy className="h-4 w-4"/> Copy</Button>{customer.email&&activeTemplate?.channel!=="sms"&&<Button variant="outline" onClick={()=>void sendEmail()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Mail className="h-4 w-4"/> Email</Button>}{customer.phone&&activeTemplate?.channel!=="email"&&<Button className="brand-button" onClick={()=>void sendText()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Send className="h-4 w-4"/> Text</Button>}</div>
@@ -1783,12 +1811,16 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       const isPrepared=message.channel==="text_prepared"||message.channel==="email_prepared";
       const kind=subject(message.template);
       const title=message.channel==="contact_recorded"?"Customer contact recorded":
+        message.channel==="review_snoozed"?"Review request snoozed":
+        message.channel==="review_check_snoozed"?"Review status check snoozed":
         message.channel==="followup_snoozed"?"Follow-up snoozed":
         message.channel==="send_cancelled"?kind+" draft discarded":isConfirmed?kind+" send confirmed":isPrepared?kind+" prepared":
         message.channel==="copy"?kind+" copied":"Communication record";
       const detail=message.channel==="send_cancelled"?"Owner-confirmed not sent · saved draft retained":isConfirmed?"Owner-confirmed send · delivery unverified":
         isPrepared||message.channel==="copy"?"Sending unconfirmed":
         message.channel==="contact_recorded"?"Owner logged contact":
+        message.channel==="review_snoozed"?"Request deferred · no message sent":
+        message.channel==="review_check_snoozed"?"Status check deferred · no message sent or review received":
         message.channel==="followup_snoozed"?"Follow-up deferred · owner recorded":"Legacy entry · delivery unverified";
       add("messages",message.id,message.createdAt,title,detail);
     }
@@ -2299,7 +2331,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       {section === "payments" && (matchingPayments.length ? matchingPayments.map((payment) => <article className="customer-record customer-payment-record" key={payment.id} id={"customer-payment-"+payment.id} tabIndex={-1}><div><strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":`${paymentTypeLabel(payment.type)} payment`}</strong><small>{dateTime(payment.createdAt)}{payment.reference&&<span className="inline-flex max-w-full flex-wrap items-center gap-1"><span className="font-mono" title={payment.reference}> · Ref …{payment.reference.slice(-12)}</span><button type="button" aria-label="Copy full payment reference" className="rounded border px-2 py-0.5 text-xs" onClick={()=>void navigator.clipboard.writeText(payment.reference||"").catch(()=>{})}>Copy</button></span>}</small><ProcessingDetails payment={payment}/></div><strong className="customer-payment-amount">{money(payment.amountCents)}</strong><RefundPayment payment={payment} onRefunded={()=>void load()}/></article>) : <div className="record-empty"><CreditCard /><strong>{customerPayments.length?"No matching payments":"No payments recorded"}</strong><p>{customerPayments.length?"Clear the history search to see all saved payments.":"Open an estimate and choose Record payment after receiving money through Wave, Cash App, Venmo, cash, check, card, or bank transfer."}</p></div>)}
       {section === "invoices" && (matchingInvoices.length ? matchingInvoices.map((invoice)=><a className="customer-record record-button" id={"customer-invoice-"+invoice.id} tabIndex={-1} key={invoice.id} href={invoice.shareToken?`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=customer`:undefined}><div><strong>Invoice #{invoice.id.slice(0,6).toUpperCase()}</strong><small>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Payment review in progress":invoice.status==="paid"?"Paid in full":`${statusLabel(invoice.status)} · Due ${invoice.dueAt?new Date(invoice.dueAt).toLocaleDateString():"on receipt"}`}</small></div><strong>{money(invoice.totalCents)}</strong><ExternalLink/></a>) : <div className="record-empty"><Receipt /><strong>{customerInvoices.length?"No matching invoices":"No invoices yet"}</strong><p>{customerInvoices.length?"Clear the history search to see all saved invoices.":"Open an estimate and tap Create invoice."}</p></div>)}
       {section === "photos"&&<OfflineCustomerPhotos key={selected.id} customerId={selected.id} customerName={selected.name} knownCustomerIds={customers.map(item=>item.id)} legacyCloudPhotoCount={customerPhotos.length}/>}
-      {section === "messages"&&<section className="customer-messages-panel" aria-label="Customer messages"><div className="customer-messages-actions"><MessageComposer key={selected.id} customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" triggerLabel="+ Compose Message" triggerClassName="brand-button" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div>{matchingMessages.length?matchingMessages.map(({message,prepared})=><article className="message-history" id={"customer-message-"+message.id} tabIndex={-1} key={message.id}><span className={`message-channel ${message.channel}`}><MessageSquareText/></span><div><strong>{message.template==="followupContact"?"Customer contact recorded":message.template==="followupSnooze"?"Estimate follow-up snoozed":message.template==="reviewCheckSnooze"?"Review status check deferred":messageLabels[message.template]||"Customer message"}</strong><p>{message.body}</p><small>{message.channel==="contact_recorded"?"Contacted · owner recorded":message.channel==="followup_snoozed"?"Follow-up snoozed until "+dateTime(message.body):message.channel==="review_check_snoozed"?"Owner deferred check until "+dateTime(message.body)+" · no message sent":message.channel.endsWith("_prepared")?"Prepared · sending unconfirmed":message.channel.endsWith("_confirmed")?"Sent · owner confirmed; delivery unknown":message.channel==="copy"?"Copied · sending unconfirmed":"Legacy interaction · sending unconfirmed"} · {dateTime(message.createdAt)}{prepared&&<> · Prepared {dateTime(prepared.createdAt)} · 2 audit events retained</>}</small></div></article>):<div className="record-empty"><MessageSquareText/><strong>{historyEntries.length?"No matching messages":"No messages prepared yet"}</strong><p>{historyEntries.length?"Clear the history search to see all saved messages.":"Compose a personalized text or email above. Prepared drafts and your send confirmations appear here."}</p></div>}</section>}
+      {section === "messages"&&<section className="customer-messages-panel" aria-label="Customer messages"><div className="customer-messages-actions"><MessageComposer key={selected.id} customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" triggerLabel="+ Compose Message" triggerClassName="brand-button" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div>{matchingMessages.length?matchingMessages.map(({message,prepared})=><article className="message-history" id={"customer-message-"+message.id} tabIndex={-1} key={message.id}><span className={`message-channel ${message.channel}`}><MessageSquareText/></span><div><strong>{message.template==="followupContact"?"Customer contact recorded":message.template==="followupSnooze"?"Estimate follow-up snoozed":message.template==="reviewCheckSnooze"?"Review status check deferred":message.template==="reviewSnooze"?"Review request deferred":messageLabels[message.template]||"Customer message"}</strong><p>{message.body}</p><small>{message.channel==="contact_recorded"?"Contacted · owner recorded":message.channel==="followup_snoozed"?"Follow-up snoozed until "+dateTime(message.body):message.channel==="review_snoozed"?"Owner deferred request until "+dateTime(message.body)+" · no message sent":message.channel==="review_check_snoozed"?"Owner deferred check until "+dateTime(message.body)+" · no message sent":message.channel.endsWith("_prepared")?"Prepared · sending unconfirmed":message.channel.endsWith("_confirmed")?"Sent · owner confirmed; delivery unknown":message.channel==="copy"?"Copied · sending unconfirmed":"Legacy interaction · sending unconfirmed"} · {dateTime(message.createdAt)}{prepared&&<> · Prepared {dateTime(prepared.createdAt)} · 2 audit events retained</>}</small></div></article>):<div className="record-empty"><MessageSquareText/><strong>{historyEntries.length?"No matching messages":"No messages prepared yet"}</strong><p>{historyEntries.length?"Clear the history search to see all saved messages.":"Compose a personalized text or email above. Prepared drafts and your send confirmations appear here."}</p></div>}</section>}
       {section === "notes" && <div className="notes-panel"><div className="note-compose"><Label className="sr-only" htmlFor={`customer-note-draft-${selected.id}`}>Customer note</Label><Input id={`customer-note-draft-${selected.id}`} value={noteText} disabled={savingNote&&noteSavingCustomer.current===selected.id} onChange={(event)=>{const value=event.target.value;noteDrafts.current[selected.id]=value;setNoteText(value);setNoteFeedback(null);}} placeholder="Gate code, pets, property details…" /><Button className="brand-button" onClick={()=>void saveNote()} disabled={savingNote || !noteText.trim()}><Plus className="h-4 w-4" /> {savingNote?"Saving note…":"Add note"}</Button></div>{noteFeedback?.customerId===selected.id&&<p className={noteFeedback.kind==="error"?"save-error":"save-success"} role={noteFeedback.kind==="error"?"alert":"status"}>{noteFeedback.text}</p>}{noteFeedback?.customerId===selected.id&&noteFeedback.kind==="error"&&<Button variant="outline" className="min-h-11" onClick={()=>void load()} disabled={savingNote}>Refresh saved notes</Button>}{matchingNotes.length ? matchingNotes.map((note)=><article className="note-row" key={note.id} id={"customer-note-"+note.id} tabIndex={-1}><StickyNote /><div><p>{note.body}</p><small>{dateTime(note.createdAt)}</small></div></article>) : <div className="record-empty"><StickyNote /><strong>{customerNotes.length?"No matching notes":"No notes yet"}</strong><p>{customerNotes.length?"Clear the history search to see all saved notes.":"Save access details and job-specific reminders here."}</p></div>}</div>}
     </section>
   </div>;

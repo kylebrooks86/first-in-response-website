@@ -400,7 +400,9 @@ jobs:
       - name: Verify mobile SMS and email prepared-message recovery with scoped owner history
         run: node --experimental-sqlite scripts/test-pending-customer-messages.mjs
       - name: Verify idempotent text and email preparation and mobile retries
-        run: node --experimental-sqlite scripts/test-message-preparation-idempotency.mjs
+        run: |
+          node --experimental-sqlite scripts/test-message-preparation-idempotency.mjs
+          node scripts/test-message-confirmation.mjs
       - name: Verify paid-job review action center on synthetic SQLite
         run: node --experimental-sqlite scripts/test-payment-closeout-actions.mjs
       - name: Verify owner-only review snoozes on synthetic paid jobs

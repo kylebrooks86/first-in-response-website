@@ -103,7 +103,7 @@ try{
  check(ui.includes("pendingPageRequest.current++")&&ui.includes("pendingOlderLock.current"),"Late page results cannot replace a newer customer/job scope");
  check(ui.includes("Previously loaded drafts remain available.")&&ui.includes("setPendingMessages(current=>{"),"Interrupted older-page read preserves confirmed existing draft history");
  check(ui.includes('Only confirm if you actually sent it.')&&ui.includes('Sending is not confirmed.'),"Resumed draft is not recorded as delivered automatically");
- check(ui.includes('current.filter(item=>item.id!==preparedMessage.id)'),"Confirmed messages leave the pending recovery UI only after owner save");
+ check(ui.includes('current.filter(item=>item.id!==draft.id)')&&ui.includes('receipt.id!==draft.id+":owner-confirmed"'),"Confirmed messages leave the pending recovery UI only after owner save");
  check(ui.includes("Discard unsent draft")&&ui.includes("ownerConfirmedNotSent:true")&&ui.includes("draft.id+\":owner-cancelled\""),"Mobile composer offers explicit owner-only discard with linked server receipt");
  check(dashboard.includes('draft discarded')&&dashboard.includes('Owner-confirmed not sent'),"Customer timeline shows discarded-not-sent status, never delivered");
  console.log("PASS "+n+" synthetic scoped SMS/email prepared-message recovery, authorization, history, no-write and mobile composer contracts.");

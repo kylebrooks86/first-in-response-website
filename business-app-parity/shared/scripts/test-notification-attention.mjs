@@ -508,6 +508,12 @@ console.log('PASS customer Activity & Flags presentation: contact vs send, due s
    {message:{id:'m3',estimateId:'e1',template:'followUp1',channel:'contact_recorded',createdAt:'2026-10-20T14:30:00Z'}}
   ],notes:dated
  });
+ const snoozes=ctx.exports.timeline({...base,messages:[
+  {message:{id:'s1',channel:'review_snoozed',template:'reviewSnooze',createdAt:iso,body:'PRIVATE'}},
+  {message:{id:'s2',channel:'review_check_snoozed',template:'reviewCheckSnooze',createdAt:iso,body:'PRIVATE'}}]});
+ eq(snoozes.some(x=>x.title==='Review request snoozed'&&x.detail==='Request deferred · no message sent'),true,'Request deferral never claims a send');
+ eq(snoozes.some(x=>x.title==='Review status check snoozed'&&x.detail.includes('no message sent or review received')),true,'Review check deferral never claims receipt');
+ eq(snoozes.every(x=>x.section==='messages')&&!JSON.stringify(snoozes).includes('PRIVATE'),true,'Deferrals open exact message records without exposing bodies');
  const titles=timeline.map(x=>x.title);
  eq(titles[0],'Customer note saved','Latest saved note appears first, not last inserted');
  eq(timeline.some(x=>x.title==='Yard sign pickup logged'),true,'Owner-logged sign pickup appears in timeline');

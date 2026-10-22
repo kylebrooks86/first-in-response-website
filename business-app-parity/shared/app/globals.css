@@ -1564,3 +1564,9 @@ html,body{max-width:100%;overflow-x:clip}
 @media(max-width:440px){.closeout-card-actions{display:grid;grid-template-columns:minmax(0,1fr)}.closeout-card-actions button{width:100%}}
 .closeout-stage-controls button[aria-pressed="true"],.closeout-status-controls button[aria-pressed="true"]{background:var(--accent);color:var(--accent-foreground);border:1px solid var(--primary);font-weight:700}
 .closeout-stage-controls button[aria-pressed="false"],.closeout-status-controls button[aria-pressed="false"]{background:var(--card);color:var(--foreground);border:1px solid var(--border)}
+
+/* Owner-confirmed closeout messaging stays reachable on narrow phones. */
+.message-dialog .message-confirm-actions button,.message-dialog .message-actions button{min-height:44px;height:auto;white-space:normal;overflow-wrap:anywhere}
+.message-dialog .message-confirm-actions{gap:10px}
+.message-dialog .message-builder>p{overflow-wrap:anywhere}
+@media(max-width:440px){.message-dialog .message-confirm-actions button{width:100%}.message-dialog textarea{font-size:16px}}
