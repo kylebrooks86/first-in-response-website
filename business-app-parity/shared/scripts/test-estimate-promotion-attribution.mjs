@@ -94,5 +94,33 @@ try{
  const boundary=await r.post({...quote,customer:'Synthetic rounding boundary',address:'Synthetic unique boundary street',email:'boundary@example.invalid',items:[{...quote.items[0],totalCents:22850}],additionalDiscountValue:2900,bundleDiscountCents:0,promotionEvidence:{revision:fractionalCatalog.revision,checkedOn:createdOn,ruleIds:[percent.id],serviceIds:['house-wash']}});
  same(boundary.status,201,'Half-cent boundary saves rather than rejecting preview against authoritative arithmetic');
  const boundaryQuote=await boundary.json();same(fractional.totalCents,boundaryQuote.totalCents);same(fractional.depositCents,boundaryQuote.depositCents);same((await read(boundaryQuote.id)).status,200,'Boundary history agrees with actual saved cents');
+ // Newly recorded booking date may unlock promotional terms on a new quote.
+ const bookedCatalog={revision:id(44),promotions:[{...percent,dateBasis:'booking-confirmed'},bundle]};
+ insertCatalog(bookedCatalog);
+ const bookedEvidence={revision:bookedCatalog.revision,checkedOn:createdOn,bookingConfirmedOn:createdOn,ruleIds:[percent.id,bundle.id],serviceIds:services};
+ const beforeBooked=current();
+ for(const bad of [
+  {...bookedEvidence,bookingConfirmedOn:'2099-12-31'},
+  {...bookedEvidence,bookingConfirmedOn:'2026-02-30'},
+  {...bookedEvidence,bookingConfirmedOn:null},
+  {...bookedEvidence,ruleIds:[bundle.id]},
+  {...bookedEvidence,bookingConfirmedOn:undefined},
+ ]){
+  const rejected=await r.post({...quote,customer:'Forged booking '+String(bad.bookingConfirmedOn),email:'forged-'+crypto.randomUUID()+'@example.invalid',promotionEvidence:bad});
+  same(rejected.status,409,'Forged or absent booking assertion cannot silently grant booking-only savings');
+  same(current(),beforeBooked,'Rejected booking assertion never creates customer, estimate or financial entries');
+ }
+ response=await r.post({...quote,customer:'Booking attested',email:'booking-'+crypto.randomUUID()+'@example.invalid',promotionEvidence:bookedEvidence});
+ same(response.status,201,'Explicit verified booking-date assertion permits new estimate');
+ const bookingReceipt=await response.json();
+ same(bookingReceipt.totalCents,36600,'Booking 15% and $25 bundle yield $366');
+ same(bookingReceipt.depositCents,18300,'Booking half deposit $183');
+ const bookedHistory=await read(bookingReceipt.id);
+ same(bookedHistory.status,200,'Owner reads frozen booking-aware history');
+ same((await bookedHistory.json()).attribution.bookingConfirmedOn,createdOn,'Original booking date retained in audit');
+ insertCatalog({revision:id(45),promotions:[]});
+ same((await read(bookingReceipt.id)).status,200,'Deleting promotion later does not erase verified booking terms');
+ r.db.prepare("UPDATE estimates SET status='approved',signed_at='2026-10-22',accepted_at='2026-10-22' WHERE id=?").run(bookingReceipt.id);
+ same((await r.patch(bookingReceipt.id,{...quote,items:quote.items,bundleDiscountCents:0})).status,409,'Signed booking promotion cannot be repriced');
  console.log('PASS '+checks+' real SQLite promotion attribution API: forged dates/services/terms rejected, $366 quote, frozen rule names, catalog edits, corrupt reads, signed holds, legacy/manual compatibility and owner-only audit.');
 }finally{r.db.close();}
