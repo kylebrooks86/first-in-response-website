@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import {Button} from './ui/button';
+import {BookingAmendmentPreview} from './booking-amendment-preview';
 type SavedRule={id:string;name:string;type:'percent'|'dollar';valueCents:number};
 type Attribution={format:'fire-estimate-promotions-v1';estimateId:string;catalogRevision:string|null;checkedOn:string;
  selectedServices:string[];rules:SavedRule[];subtotalCents:number;percentBasisPoints:number;flatDiscountCents:number;totalCents:number;depositCents:number;bookingConfirmedOn?:string};
@@ -46,6 +47,7 @@ export function EstimatePromotionHistory({estimateId,totalCents}:{estimateId:str
    {record.rules.length?record.rules.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{p.name}</span><strong>{label(p)}</strong></div>):
     <p className="text-sm">No automatic discounts qualified at the original promotion check.</p>}
    <div className="text-sm"><span>Original subtotal {cents(record.subtotalCents)} · Quote total {cents(record.totalCents)} · 50% deposit {cents(record.depositCents)}</span></div>
+   {!record.bookingConfirmedOn&&<BookingAmendmentPreview estimateId={estimateId} totalCents={record.totalCents}/> }
   </>}
  </section>;
 }
