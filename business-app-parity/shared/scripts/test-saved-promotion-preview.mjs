@@ -39,6 +39,13 @@ try{
  eq(data.checkedOn,'2026-10-22','Server verifies Tulsa calendar date');
  eq(writes,beforeWrites,'Preview never writes settings/quotes');
  eq(JSON.stringify(db.prepare('SELECT * FROM message_templates').all()),before,'Preview leaves persisted data unchanged');
+ save([bundle,{...bundle,id:uid(4),name:'Second flat offer',valueCents:3000}]);
+ let tooLarge=await preview({...valid,subtotalCents:4000});
+ eq(tooLarge.status,200,'Overlapping flat discount preview responds safely');
+ const rejected=await tooLarge.json();
+ eq(Boolean(rejected.blocked),true,'Oversubscribed dollar offers are clearly blocked');
+ eq(rejected.previewTotalCents,null,'Unsafe flat promotions never show a misleading total');
+ save([booking,bundle,free]);
  response=await preview({...valid,serviceIds:['house-wash']});data=await response.json();eq(data.dollarCents,0,'Missing gutters disqualifies bundle');
  for(const bad of [
   {...valid,subtotalCents:-5},{...valid,subtotalCents:0.1},{...valid,serviceIds:['bad-service']},

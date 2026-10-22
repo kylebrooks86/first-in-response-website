@@ -74,7 +74,7 @@ export function evaluateSavedPromotions(catalog:SavedPromotionCatalog,quote:Prom
   const percentBasisPoints=offered.filter(p=>p.type==='percent').reduce((sum,p)=>sum+p.valueCents,0);
   const dollarCents=offered.filter(p=>p.type==='dollar').reduce((sum,p)=>sum+p.valueCents,0);
   const cap=(quote.appreciationDiscount?45:50)*100;
-  const blocked=percentBasisPoints>cap?'Combined percentage promotions exceed FIRE discount limits. Review before applying.':null;
+  const blocked=percentBasisPoints>cap?'Combined percentage promotions exceed FIRE discount limits. Review before applying.':dollarCents>quote.subtotalCents?'Combined flat promotions exceed the service subtotal. Review before applying.':null;
   const appreciationCents=quote.appreciationDiscount?Math.round(quote.subtotalCents*.05):0;
   const percentageCents=Math.round(quote.subtotalCents*percentBasisPoints/10000);
   const requestedCents=Math.min(quote.subtotalCents,appreciationCents+percentageCents+dollarCents);
