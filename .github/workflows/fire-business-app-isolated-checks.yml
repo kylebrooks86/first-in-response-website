@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - work/fire-business-app-parity-2026-10-08
+      - work/fire-promotions-integration-2026-10-22
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
@@ -307,6 +308,12 @@ jobs:
         run: node --experimental-strip-types scripts/test-fire-service-catalog-pricing.mjs
       - name: Custom standard pricing, real SQLite persistence, conflicts and historical protection
         run: node --experimental-sqlite scripts/test-custom-service-pricing.mjs
+      - name: Saved promotions catalog date and discount eligibility contract
+        run: node --experimental-sqlite scripts/test-saved-promotions.mjs
+      - name: Server-side saved promotion preview with verified Tulsa date and booking hold
+        run: node --experimental-sqlite scripts/test-saved-promotion-preview.mjs
+      - name: Atomic per-estimate verified promotion attribution and owner-only readback
+        run: node --experimental-sqlite scripts/test-estimate-promotion-attribution.mjs
       - name: Strict invoice and estimate discount entry, caps and exact-cent preview
         run: node --experimental-strip-types scripts/test-quote-discount-input.mjs
       - name: Stacked estimate discounts and atomic synthetic SQLite persistence
@@ -670,7 +677,7 @@ jobs:
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
           node scripts/test-qa-worker-http-browser.mjs --complete-ledger
           node scripts/test-qa-worker-http-browser.mjs --deposit-policy
-          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry --invoice-state --change-history --global-search --search-metadata --job-closeout --stacked-discounts --customer-note-recovery
+          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry --invoice-state --change-history --global-search --search-metadata --job-closeout --stacked-discounts --customer-note-recovery --saved-promotions-integration
       - name: Seal synthetic-only QA full-app review bundle
         run: |
           python3 business-app-parity/prepare_device_review.py \
@@ -736,6 +743,26 @@ jobs:
         env:
           FIRE_PRICING_SCREENSHOT_DIR: ${{ runner.temp }}/fire-pricing-ui
         run: node --experimental-sqlite scripts/test-custom-service-pricing-browser.mjs
+      - name: Saved promotion manager mobile add, pause, save and reload
+        env:
+          FIRE_PROMOTION_SCREENSHOT_DIR: ${{ runner.temp }}/fire-saved-promo-ui
+        run: node scripts/test-saved-promotions-browser.mjs
+      - name: New estimate saved promotion suggestions on mobile and booking hold
+        env:
+          FIRE_PROMOTION_ESTIMATE_SCREENSHOT_DIR: ${{ runner.temp }}/fire-promotions-new-estimate-ui
+        run: node scripts/test-new-estimate-promotions-browser.mjs
+      - name: Owner saved promotion history, original rule preservation and read retry on mobile
+        run: node --experimental-sqlite scripts/test-estimate-promotion-history-browser.mjs
+      - name: Retain synthetic saved-promotion mobile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-saved-promotion-mobile-ui
+          path: |
+            ${{ runner.temp }}/fire-saved-promo-ui
+            ${{ runner.temp }}/fire-promotions-new-estimate-ui
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Stacked promotion and bundle mobile save and recovery
         env:
           FIRE_STACKED_SCREENSHOT_DIR: ${{ runner.temp }}/fire-stacked-ui

@@ -1,0 +1,11 @@
+# Saved promotions + newer customer notes — reconciled source
+
+Parents: development c57c287a0b0a84bd3f8ac7b5fa812916fd042ca6 and promotions a2d738d652648df00d3390baa6e1768b3d39d8d7. Promotions run 39835818284 completed successfully before reconciliation. No production branch or hosted environment is part of this source merge.
+
+The existing CustomersView, note API and note retry regression tests are preserved byte-for-byte. Workflow/browser changes retain note SQLite validation, multiline mobile screenshots and the built-Worker lost-reply note scenario, alongside promotion management/preview/history tests.
+
+A confirmed integration defect was corrected: no-op/description-only draft edits no longer delete valid automatic promotion history. The saved rule snapshot is retained byte-for-byte if financial terms and originally selected named services still match; genuine repricing or loss of qualifying services invalidates the old claim atomically. Invalid history blocks editing rather than being silently erased. Owner history now checks stored percentage/flat arithmetic against the estimate's saved appreciation flag, percentage terms, total and deposit. Later catalog changes never recalculate historical totals.
+
+The new disposable built-Worker test uses real local native D1 and owner HTTP routes: save a synthetic catalog, retain October's booking hold, save the exact $460/15%/$25 = $366/$183 quote, reject a stale revision, show frozen original rule names after catalog deletion, and retain attribution after an actual mobile editor no-op save. It follows the existing note-recovery scenario, proving both workflows coexist. No hosted tests or real records are used.
+
+No new schema migration. Booking-confirmed promotions remain pending when no trusted booking confirmation is supplied. New quote suggestions do not reprice saved or signed records; manual owner changes are distinct from verified automatic attribution. Existing $150 minimum, appreciation/percentage limits, 50% deposits, 30-service defaults, private backup evidence and separate QA approvals are retained. Production release acceptance remains 3/10 (30%); source/CI results are not hosted or physical iPhone acceptance.

@@ -1,3 +1,4 @@
+import {exerciseSavedPromotionsIntegration} from './test-saved-promotions-integration-workflow.mjs';
 import {exerciseCustomerNoteRecovery} from './test-customer-note-workflow.mjs';
 import {exerciseStackedDiscounts} from './test-stacked-discounts-workflow.mjs';
 import {exerciseJobCloseout} from './test-job-closeout-workflow.mjs';
@@ -243,6 +244,7 @@ try{
  if(process.argv.includes('--job-closeout'))await exerciseJobCloseout({page,context,origin,request,check,mutateSyntheticD1:async sql=>{await stop();await command(['d1','execute','DB','--local','--persist-to',join(temp,'state'),'--config',configPath,'--command',sql]);await start();}});
  if(process.argv.includes('--stacked-discounts'))await exerciseStackedDiscounts({page,origin,request,check});
  if(process.argv.includes('--customer-note-recovery'))await exerciseCustomerNoteRecovery({page,origin,request,check});
+ if(process.argv.includes('--saved-promotions-integration'))await exerciseSavedPromotionsIntegration({page,origin,request,check});
  check(outside.length===0&&clientErrors.length===0,'No external network dispatched or uncaught framework client errors: '+JSON.stringify({outside,clientErrors,interceptedSyntheticMapFrames:blockedSyntheticMaps.length}));
  console.log('PASS '+checks+' built QA Worker HTTP / native D1 / Chromium checks. Local synthetic evidence only; no hosted or iOS acceptance claimed.');
 }finally{if(browser)await browser.close();await stop();rmSync(temp,{recursive:true,force:true});}
