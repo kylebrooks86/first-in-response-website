@@ -133,7 +133,9 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await dialog.getByRole('status').filter({hasText:'Marked not sent.'}).waitFor();
   check((await readAllReady()).actions.find(x=>x.estimateId==='job-ready')?.state==='ready','Discarded draft clears misleading prepared reminder');
   check(db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE customer_id='ready' AND channel='send_cancelled'").get().n===1,'Discard keeps immutable cancellation evidence');
-  await dialog.getByRole('button',{name:'Text',exact:true}).click();await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).waitFor();
+  await dialog.getByRole('button',{name:'Text',exact:true}).click();
+  try{await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).waitFor();}
+  catch(error){throw Error('Synthetic reprepare diagnostic: '+JSON.stringify({statuses:await dialog.getByRole('status').allTextContents(),browserErrors:errors,requests:requests.slice(-4).map(r=>({method:r.method,path:r.path,channel:r.body?.channel,operation:r.body?.requestId}))}),{cause:error});}
   for(const field of ['id','customerId','estimateId','template','body','channel','createdAt','lost']){
    messageMode=field;await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).click();
    await dialog.getByRole('status').filter({hasText:field==='lost'?'Synthetic confirmation reply lost':'The send receipt does not match'}).waitFor();
