@@ -1549,3 +1549,16 @@ html,body{max-width:100%;overflow-x:clip}
 .business-task-recovery-actions button{min-height:44px}
 .business-task-recovery-actions small{color:var(--muted-foreground);font-size:12px}
 @media(max-width:390px){.business-task-recovery-actions button{width:100%}}
+
+/* Closeout requests and saved review progress share the existing Payments workspace. */
+.closeout-stage-controls,.closeout-status-controls,.closeout-card-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.closeout-stage-controls button,.closeout-status-controls button,.closeout-card-actions button,.closeout-confirmation button{min-height:44px;white-space:normal;text-align:left;overflow-wrap:anywhere}
+.closeout-history{min-width:0}.closeout-history header{display:flex;flex-wrap:wrap;gap:12px;align-items:start;justify-content:space-between}
+.closeout-history h3{font-size:20px;font-weight:700}.closeout-history p{line-height:1.5}.closeout-history label{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600;margin:14px 0}
+.closeout-history input{width:100%;min-height:44px;font-size:16px;border:1px solid var(--border);background:var(--card);color:var(--foreground);padding:10px 12px;border-radius:10px}
+.closeout-progress-list{display:grid;gap:12px}.closeout-progress-card{border:1px solid var(--border);border-radius:14px;padding:16px;min-width:0;overflow-wrap:anywhere;background:var(--card);scroll-margin:18px}
+.closeout-progress-card>div:first-child{display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap}.closeout-progress-card strong{font-size:16px}.closeout-progress-card p{color:var(--muted-foreground);font-size:13px;margin:8px 0}
+.closeout-state{font-size:12px;font-weight:650;padding:5px 8px;background:var(--secondary);border-radius:8px}.closeout-progress-card.due{border-left:4px solid var(--primary)}
+.closeout-confirmation{margin:16px 0;border:2px solid var(--primary);padding:16px;border-radius:14px;overflow-wrap:anywhere}.closeout-confirmation>div{display:flex;flex-wrap:wrap;gap:10px}
+.closeout-progress-card:focus-visible,.closeout-confirmation:focus-visible{outline:3px solid var(--ring);outline-offset:3px}
+@media(max-width:440px){.closeout-card-actions{display:grid;grid-template-columns:minmax(0,1fr)}.closeout-card-actions button{width:100%}}

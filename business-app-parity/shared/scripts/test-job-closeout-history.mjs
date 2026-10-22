@@ -1,0 +1,41 @@
+/** Actual closeout-history SQL, canonical due-check timing and flags; synthetic SQLite only. */
+import assert from 'node:assert/strict';import{readFileSync,readdirSync}from'node:fs';import{DatabaseSync}from'node:sqlite';import vm from'node:vm';import ts from'typescript';
+const db=new DatabaseSync(':memory:');for(const file of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
+let owner={email:'kylebrooks8605@gmail.com'},reads=0;const env={DB:{prepare(sql){reads++;return{bind(...args){return{all:async()=>({results:db.prepare(sql).all(...args)})}}}}}};
+function load(file,imports){const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:key=>{assert.ok(key in imports,'Unexpected dependency '+key);return imports[key]},Response,URL,Date});return exports;}
+const flags=load('lib/customer-activity-flags.ts',{}),lib=load('lib/job-closeout-history.ts',{'./customer-activity-flags':flags});
+const api=load('app/api/job-closeout-history/route.ts',{'cloudflare:workers':{env},'../../chatgpt-auth':{getChatGPTUser:async()=>owner},'../../../lib/job-closeout-history':lib});
+const now=Date.now(),stamp=n=>new Date(now-n*86400000).toISOString();let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
+const get=async(cursor='')=>{const r=await api.GET(new Request('https://example.invalid/api/job-closeout-history'+cursor));return{status:r.status,data:await r.json()}};
+const customer=id=>db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)').run(id,'Synthetic '+id,stamp(20));
+const job=(id,c,status='completed')=>db.prepare('INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,?,?,?,?,?,?)').run(id,c,status,10000,10000,5000,stamp(12));
+let seq=0;const msg=(c,e,channel,template,at,body='PRIVATE SYNTHETIC MESSAGE')=>db.prepare('INSERT INTO customer_messages(id,customer_id,estimate_id,channel,template,body,created_at) VALUES(?,?,?,?,?,?,?)').run('message-'+(++seq),c,e,channel,template,body,at);
+try{
+ for(const c of ['due','waiting','received','flag-only','prepared','copy','check-snoozed','request-snoozed','expired','changed','invalid','future','unfinished','foreign']){customer(c);job('job-'+c,c,c==='unfinished'?'scheduled':'completed');}
+ msg('due','job-due','text_confirmed','review',stamp(9));msg('due','job-due','email_confirmed','review',stamp(8));
+ msg('waiting','job-waiting','email_confirmed','review',stamp(2));
+ msg('received','job-received','text_confirmed','review',stamp(12));
+ for(const c of ['received','flag-only'])db.prepare('INSERT INTO customer_notes(id,customer_id,body,created_at) VALUES(?,?,?,?)').run('flag-'+c,c,'[FIRE FLAG] REVIEW_RECEIVED',stamp(1));
+ msg('prepared','job-prepared','text_prepared','review',stamp(9));msg('copy','job-copy','copy','review',stamp(9));
+ msg('check-snoozed','job-check-snoozed','email_confirmed','review',stamp(10));msg('check-snoozed','job-check-snoozed','review_check_snoozed','reviewCheckSnooze',stamp(1),stamp(-6));
+ msg('request-snoozed','job-request-snoozed','review_snoozed','reviewSnooze',stamp(1),stamp(-6));
+ msg('expired','job-expired','text_confirmed','review',stamp(10));msg('expired','job-expired','review_check_snoozed','reviewCheckSnooze',stamp(8),stamp(1));
+ msg('changed','job-changed','review_check_snoozed','reviewCheckSnooze',stamp(3),stamp(-4));msg('changed','job-changed','email_confirmed','review',stamp(1));
+ msg('invalid','job-invalid','text_confirmed','review','invalid-date');msg('future','job-future','text_confirmed','review',stamp(-3));
+ msg('unfinished','job-unfinished','text_confirmed','review',stamp(10));msg('foreign','job-due','text_confirmed','review',stamp(10));
+ const snapshot=()=>JSON.stringify(['customers','estimates','payments','customer_messages','customer_notes'].map(t=>db.prepare('SELECT * FROM '+t+' ORDER BY id').all()));const before=snapshot();
+ let r=await get();eq(r.status,200);eq(snapshot(),before,'History endpoint never edits existing records');
+ const item=c=>r.data.items.find(i=>i.customerId===c);
+ eq(item('due').state,'due');eq(item('due').requestedAt,stamp(8),'Latest confirmed request controls one customer reminder');eq(item('due').estimateId,'job-due');eq(r.data.items.filter(i=>i.customerId==='due').length,1);
+ eq(item('waiting').state,'waiting');eq(item('received').state,'received');eq(item('flag-only').state,'received');eq(item('prepared'),undefined,'Prepared message never invents a confirmed review request');eq(item('copy'),undefined);
+ eq(item('check-snoozed').state,'snoozed');eq(item('request-snoozed').state,'snoozed');eq(item('request-snoozed').requestedAt,null,'Request snooze does not claim a send');eq(item('expired').state,'due');eq(item('changed').state,'waiting','New confirmed request supersedes older check snooze');eq(item('invalid').state,'needs-review');eq(item('future').state,'needs-review');eq(item('unfinished'),undefined);eq(item('foreign'),undefined,'Unrelated estimate cannot establish customer review activity');
+ eq(r.data.items.every(lib.validCloseoutHistoryItem),true);eq(JSON.stringify(r.data).includes('PRIVATE'),false,'Message bodies never appear in tracking response');
+ const base={customerId:'c',customerName:'C',estimateId:'e',requestedAt:stamp(7),reviewReceivedAt:null,checkSnoozedAt:null,checkSnoozeUntil:null,requestSnoozedAt:null,requestSnoozeUntil:null};
+ eq(lib.closeoutHistoryItem(base,now).state,'due','Exact seven-day boundary matches canonical review checks');eq(lib.closeoutHistoryItem({...base,requestedAt:stamp(7-.001)},now).state,'waiting');
+ eq(lib.closeoutHistoryItem({...base,checkSnoozedAt:stamp(1),checkSnoozeUntil:stamp(0)},now).state,'due','Expired check deferral returns to due');eq(lib.closeoutHistoryItem({...base,reviewReceivedAt:'bad'},now).state,'needs-review');
+ for(const bad of [{...item('due'),requestedAt:null},{...item('received'),reviewReceivedAt:null},{...item('check-snoozed'),snoozeUntil:null},{...item('due'),state:'sent'},{...item('due'),customerId:''}])eq(lib.validCloseoutHistoryItem(bad),false,'Malformed response rejected');
+ for(let n=0;n<205;n++){const c='page-'+String(n).padStart(3,'0');customer(c);job('job-'+c,c);msg(c,'job-'+c,'text_confirmed','review',stamp(10));}
+ const seen=[];let cursor='';do{r=await get(cursor);eq(r.status,200);assert.ok(r.data.items.length<=200);seen.push(...r.data.items.map(x=>x.customerId));cursor=r.data.nextCursor?'?cursor='+encodeURIComponent(r.data.nextCursor):'';}while(cursor);eq(new Set(seen).size,seen.length,'Keyset pages never duplicate customer records');eq(seen.length,215);
+ eq((await get('?cursor=%27OR%201%3D1')).status,400);const calls=reads;owner=null;eq((await get('?cursor=bad!')).status,401);eq(reads,calls);owner={email:'other@example.invalid'};eq((await get()).status,401);
+ console.log('PASS '+checks+' closeout tracking assertions: existing flags, confirmed/prepared separation, canonical seven-day timing, snooze expiry, exact linked jobs, pagination, no writes, auth and private-body restraint.');
+}finally{db.close();}

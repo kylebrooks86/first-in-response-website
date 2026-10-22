@@ -96,7 +96,9 @@ check('Paid review queue controls preserve search, sort, filtered reset, and exa
  const payments=functions.find(n=>n.name.text==='PaymentsView');
  const body=payments.getText(ast);
  for(const expected of ['reviewCloseoutSearch.trim().toLowerCase()','reviewCloseoutFilter==="prepared"','reviewCloseoutOrder==="customer"','reviewCloseoutOrder==="newest"','setReviewCloseoutSearch("")','setReviewCloseoutFilter("all")','setReviewCloseoutOrder("priority")','setShowAllReviewCloseouts(false)','encodeURIComponent(item.estimateId)','reviewMoreAvailable?" · Older jobs may remain unloaded"'])assert.ok(body.includes(expected),'Missing review queue behavior: '+expected);
- assert.match(body,/item.state==="prepared"\?0:1/);
+ let comparator;function find(node){if(ts.isCallExpression(node)&&ts.isPropertyAccessExpression(node.expression)&&node.expression.name.text==='sort'&&node.arguments[0]?.getText(ast).includes('reviewCloseoutOrder'))comparator=node.arguments[0].getText(ast);ts.forEachChild(node,find);}find(payments);assert.ok(comparator,'Actual paid-review comparator exists');
+ const rows=[{estimateId:'new-ready',customerName:'Ada',state:'ready',lastPaidAt:'2026-10-20T12:00:00Z'},{estimateId:'old-ready',customerName:'Zed',state:'ready',lastPaidAt:'2026-10-01T12:00:00Z'},{estimateId:'prepared',customerName:'Ben',state:'prepared',lastPaidAt:'2026-10-19T12:00:00Z'}];
+ for(const [order,expected] of [['priority',['prepared','old-ready','new-ready']],['newest',['new-ready','prepared','old-ready']],['customer',['new-ready','prepared','old-ready']]]){const context={exports:{},reviewCloseoutOrder:order};vm.runInNewContext(ts.transpileModule('exports.sort='+comparator,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,context);assert.deepEqual(rows.slice().sort(context.exports.sort).map(row=>row.estimateId),expected,order+' uses actual saved-record ordering');}
  assert.match(body,/reviewCloseoutError\?<p role="alert"/);
 });
 console.log(`PASS: ${cases}/${cases} component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.`);

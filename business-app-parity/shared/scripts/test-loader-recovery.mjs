@@ -4,6 +4,8 @@ import {createRequire} from 'node:module';
 import vm from 'node:vm';
 import ts from 'typescript';
 const require=createRequire(import.meta.url);
+const dependencies={};for(const file of ['lib/customer-balance-summary.ts','lib/estimate-pagination.ts']){const mod={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,mod);Object.assign(dependencies,mod.exports);}
+
 const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 let checks=0;const eq=(a,b,message)=>{assert.deepEqual(a,b,message);checks++;};
 const ok=data=>({ok:true,json:async()=>data});
@@ -11,18 +13,18 @@ const defer=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;
 const names=['BusinessView','EstimatesView','InvoicesView','ContractsView','FollowUpsView','PaymentsView'].filter(name=>!process.argv.includes('--view')||name===process.argv[process.argv.indexOf('--view')+1]);
 const job=id=>({id,customer:'QA',service:'Wash',status:'draft',totalCents:10000,depositCents:5000,paidCents:0,createdAt:'2026-10-09T12:00:00Z',items:[]});
 const exp=(id,amountCents=1234,incurredAt='2026-10-09T12:00:00Z')=>({id,amountCents,incurredAt,description:'QA expense'});
-function body(url,id){if(url==='/api/tasks')return {tasks:[{id,title:id,status:'open'}]};if(url==='/api/expenses')return {expenses:[exp(id)]};if(url==='/api/customers')return {customers:[{id,name:id}],estimates:[job(id)]};if(url==='/api/payments')return {payments:[]};if(url==='/api/invoices')return {invoices:[{id,customer:'QA',service:'Wash',totalCents:10000,paidCents:0,estimateId:id}]};return {estimates:[job(id)]};}
+function body(url,id){if(url==='/api/payment-closeouts')return {actions:[],mayHaveMore:false,nextCursor:null};if(url==='/api/tasks')return {tasks:[{id,title:id,status:'open'}]};if(url==='/api/expenses')return {expenses:[exp(id)]};if(url==='/api/customers')return {customers:[{id,name:id}],estimates:[job(id)]};if(url==='/api/payments')return {payments:[]};if(url==='/api/invoices')return {invoices:[{id,customer:'QA',service:'Wash',totalCents:10000,paidCents:0,estimateId:id}]};return {estimates:[job(id)],nextCursor:null};}
 function fixture(name){
  const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name);assert.ok(view);
  const stateNames=[];const tags=new Set();function walk(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&n.initializer&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')stateNames.push(n.name.elements[0].getText(ast));if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,walk);}walk(view);
  let state=[],refs=[],cursor=0,refCursor=0,effect,fetcher=url=>Promise.resolve(ok(body(url,'initial')));
  class Clock extends Date{constructor(...args){super(...(args.length?args:['2026-10-09T12:00:00Z']));}static now(){return new Date('2026-10-09T12:00:00Z').getTime();}}
- const context={exports:{},require,Error,Date:Clock,Array,Number,...Object.fromEntries([...tags].map(tag=>[tag,()=>null])),
+ const context={exports:{},require,...dependencies,Error,Date:Clock,Array,Number,...Object.fromEntries([...tags].map(tag=>[tag,()=>null])),
   useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},
   useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){if(!effect)effect=fn;},
   fetch:(...args)=>fetcher(...args),useCurrentTime:()=>Clock.now(),money:c=>'$'+(c/100).toFixed(2),dateTime:v=>v,
   statusLabel:v=>v,repeatCadenceMonths:()=>null,addMonths:d=>d,};
- const helpers=['resolvedBillingTotalCents','billingBalanceCents'].map(name=>ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name)?.getText(ast)||'').join('\n');
+ const helpers=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>['resolvedBillingTotalCents','billingBalanceCents'].includes(d.name.getText(ast)))).map(n=>n.getText(ast)).join('\n');
  const source=view.getText(ast).replace('useEffect(()=>{void load();','exports.load=load;useEffect(()=>{void load();');
  vm.runInNewContext(ts.transpileModule(helpers+'\n'+source+`\nexports.view=${name};`,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
  const render=()=>{cursor=0;refCursor=0;return context.exports.view({searchQuery:''});};
@@ -69,4 +71,4 @@ const f=fixture('BusinessView');f.setFetcher(url=>ok(url==='/api/expenses'?{expe
 const metrics=nodes(f.render()).find(n=>n.props?.className==='business-metrics');eq(metrics.props.children[1].props.children[1].props.children,'$12.00','Expense total must match BOTH month and year');
 f.setFetcher(url=>ok(url==='/api/customers'?{customers:[],estimates:[]}:url==='/api/tasks'?{tasks:[]}:{expenses:[]}));await f.load();eq(f.get('loadError'),'');eq(nodes(f.render()).find(n=>n.props?.className==='business-metrics').props.children[1].props.children[1].props.children,'$0.00','Zero is valid only after successful reads');
 }
-console.log(`PASS ${checks}/${checks}: actual Business loading/retry/year filtering and all six loaders overlap/error/unmount races; synthetic reads only.`);
+console.log(`PASS ${checks}/${checks}: selected loaders overlap/error/unmount races and guarded Business recovery (when selected); synthetic reads only.`);
