@@ -312,6 +312,8 @@ jobs:
         run: node --experimental-sqlite scripts/test-saved-promotions.mjs
       - name: Server-side saved promotion preview with verified Tulsa date and booking hold
         run: node --experimental-sqlite scripts/test-saved-promotion-preview.mjs
+      - name: Atomic per-estimate verified promotion attribution and owner-only readback
+        run: node --experimental-sqlite scripts/test-estimate-promotion-attribution.mjs
       - name: Strict invoice and estimate discount entry, caps and exact-cent preview
         run: node --experimental-strip-types scripts/test-quote-discount-input.mjs
       - name: Stacked estimate discounts and atomic synthetic SQLite persistence
