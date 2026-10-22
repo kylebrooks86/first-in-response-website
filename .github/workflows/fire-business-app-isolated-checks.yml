@@ -13,6 +13,7 @@ on:
       - work/fire-quote-line-efficiency-2026-10-22
       - work/fire-service-reuse-canvassing-2026-10-22
       - work/fire-reuse-scope-canvassing-integration-2026-10-22
+      - work/fire-estimate-idempotent-recovery-2026-10-22
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
@@ -94,6 +95,7 @@ on:
       - 'business-app-parity/shared/scripts/test-per-job-price-overrides.mjs'
       - 'business-app-parity/shared/scripts/test-editable-line-totals.mjs'
       - 'business-app-parity/shared/scripts/test-reuse-estimate-service-line.mjs'
+      - 'business-app-parity/shared/scripts/test-estimate-create-idempotency.mjs'
       - 'business-app-parity/shared/scripts/test-stripe-isolation.mjs'
       - 'scripts/deploy-fire-dr-staging.sh'
       - '.github/workflows/fire-business-app-isolated-checks.yml'
@@ -323,6 +325,8 @@ jobs:
         run: node --experimental-sqlite scripts/test-saved-promotion-preview.mjs
       - name: Atomic per-estimate verified promotion attribution and owner-only readback
         run: node --experimental-sqlite scripts/test-estimate-promotion-attribution.mjs
+      - name: Owner quote creation lost-response replay, conflicting payload refusal and immutable receipts
+        run: node --experimental-sqlite scripts/test-estimate-create-idempotency.mjs
       - name: Existing quote read-only booking amendment regression on SQLite
         run: node --experimental-sqlite scripts/test-post-estimate-booking-preview.mjs
       - name: Owner saved booking review staging and CAS on SQLite
