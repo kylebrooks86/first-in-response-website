@@ -732,6 +732,10 @@ jobs:
         run: node scripts/test-estimate-editor-geometry-browser.mjs
       - name: Actual nested React editor, Radix portals, compiled Tailwind, keyboard and save recovery
         run: node scripts/test-estimate-editor-react-browser.mjs
+      - name: Actual saved promotion manager mobile light and dark with synthetic owner API
+        env:
+          FIRE_PROMOTION_SCREENSHOT_DIR: ${{ runner.temp }}/fire-promo-ui
+        run: node scripts/test-saved-promotions-browser.mjs
       - name: Actual customizable pricing on mobile light and dark with synthetic SQLite
         env:
           FIRE_PRICING_SCREENSHOT_DIR: ${{ runner.temp }}/fire-pricing-ui
