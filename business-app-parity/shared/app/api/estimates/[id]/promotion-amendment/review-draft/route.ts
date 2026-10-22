@@ -71,9 +71,13 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
     stored.draft.originalTotalCents===p.current.totalCents&&stored.draft.proposedTotalCents===p.proposed.totalCents&&
     stored.draft.ownerNote===note&&stored.draft.catalogRevision===p.originalCatalogRevision&&
     stored.draft.originalStatus===p.status&&
+    stored.draft.customerAlreadyAccepted===p.customerAlreadyAccepted&&
+    stored.draft.hasFinancialActivity===p.hasFinancialActivity&&
+    stored.draft.originalDepositCents===p.current.depositCents&&
+    stored.draft.proposedDepositCents===p.proposed.depositCents&&
     JSON.stringify(stored.draft.newRules)===JSON.stringify(p.newlyEligible))
    return json({draft:stored.draft,revision:stored.draft.revision,confirmed:true,alreadySaved:true});
-  if(stored.draft?.revision??null!==body.expectedRevision)
+  if((stored.draft?.revision??null)!==body.expectedRevision)
    return json({error:'Another device changed this internal review. Refresh before replacing it.'},409);
   const savedOn=new Date().toISOString();
   const draft:BookingReviewDraft={format:'fire-booking-review-v1',estimateId:id,revision:crypto.randomUUID(),
