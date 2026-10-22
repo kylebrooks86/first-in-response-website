@@ -12,14 +12,15 @@ export function closeoutHistoryItem(row:CloseoutHistoryRow,now=Date.now()):Close
  if(row.requestedAt!==null){
   if(requested===null||requested>now)return {...base,state:'needs-review'};
   const until=time(row.checkSnoozeUntil),at=time(row.checkSnoozedAt);
-  if(row.checkSnoozedAt!==null&&(at===null||until===null||at>now||until<=at))return {...base,state:'needs-review'};
+  if((row.checkSnoozedAt===null)!==(row.checkSnoozeUntil===null)||row.checkSnoozedAt!==null&&(at===null||until===null||at>now||until<=at))return {...base,state:'needs-review'};
   const checkDueAt=new Date(requested+7*86400000).toISOString();
   if(at!==null&&until!==null&&at>=requested&&until>now)return {...base,state:'snoozed',snoozeUntil:row.checkSnoozeUntil,checkDueAt};
   const state=reviewFollowupEligibility([{status:'completed'}],[{template:'review',channel:'text_confirmed',createdAt:row.requestedAt}],null,now);
   return {...base,state:state.status==='due'?'due':'waiting',checkDueAt};
  }
  const at=time(row.requestSnoozedAt),until=time(row.requestSnoozeUntil);
- if(at!==null&&at<=now&&until!==null&&until>now&&until>at)return {...base,state:'snoozed',snoozeUntil:row.requestSnoozeUntil};
+ if((row.requestSnoozedAt===null)!==(row.requestSnoozeUntil===null)||row.requestSnoozedAt!==null&&(at===null||until===null||at>now||until<=at))return {...base,state:'needs-review'};
+ if(at!==null&&until!==null&&until>now)return {...base,state:'snoozed',snoozeUntil:row.requestSnoozeUntil};
  return {...base,state:'needs-review'};
 }
 export function validCloseoutHistoryItem(value:unknown):value is CloseoutHistoryItem{
