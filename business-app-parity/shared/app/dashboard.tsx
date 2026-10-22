@@ -36,6 +36,7 @@ import { loadRefundRetry, saveRefundRetry, clearRefundRetry, type RefundRetryAtt
 import { confirmedManualPayment,loadManualPaymentRetry, saveManualPaymentRetry, clearManualPaymentRetry, type ManualPaymentAttempt } from "../lib/manual-payment-retry-state";
 import { editMoneyLine, editableLineTotalCents, restoreEditableLineMoney, validEditablePrice } from "../lib/editable-line-totals";
 import { reuseEstimateServiceLine } from "../lib/reuse-estimate-service-line";
+import { matchesReviewedEstimateReceipt } from "../lib/estimate-quote-receipt";
 
 import {weatherIconKind,formatDailyTemperatures,weatherDayHeading,hourlyWorkCautions,dailyWorkCautions,weatherHourForJobStart,type HourlyForecastResponse} from "../lib/tulsa-weather";
 
@@ -707,7 +708,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         throw new Error(result.error||'The estimate could not be saved.');
       }
       if(promotionEvidence&&result.promotionAttributionSaved!==true){setUncertainSave(true);throw new Error("Verified saved promotion receipt was not confirmed. Review stored estimates before another attempt.");}
-      if((bundleInputCents??0)>0&&(result.bundleDiscountCents!==bundleInputCents||result.subtotalCents!==subtotal||result.discountCents!==discount.appliedDiscount||result.totalCents!==total||result.depositCents!==deposit)){setUncertainSave(true);throw new Error('Saved discount receipt could not be verified. Review stored estimates before another attempt.');}
+      if(!matchesReviewedEstimateReceipt(result,{subtotalCents:subtotal,discountCents:discount.appliedDiscount,totalCents:total,depositCents:deposit,bundleDiscountCents:bundleInputCents??0})){setUncertainSave(true);throw new Error('Saved estimate amounts or 50% deposit did not match this reviewed quote. Review stored estimates before another attempt.');}
       if(typeof result.id!=='string'||!result.id||typeof result.customerId!=='string'||typeof result.address!=='string'||selectedCustomer&&result.customerId!==selectedCustomer.id||propertyWorkflowReady&&estimateProperty&&(result.propertyId!==estimateProperty.property.id||result.propertyRevision!==estimateProperty.property.revision)){setUncertainSave(true);throw new Error('Save receipt could not be verified. Review stored estimates before another attempt.');}
       const confirmedAddress=typeof result.address==='string'?result.address:resolvedAddress.trim();
       setSavedReceipt({address:confirmedAddress,total:Number(result.totalCents??total),deposit:Number(result.depositCents??deposit)});
