@@ -1593,3 +1593,12 @@ html,body{max-width:100%;overflow-x:clip}
 .edit-totals span{border-color:var(--border);color:var(--muted-foreground)}
 .edit-totals strong{color:var(--foreground)}
 .estimate-edit-service>header>button{min-width:44px;min-height:44px}
+
+/* Customer access instructions need room for lines and long identifiers. */
+.note-compose{align-items:flex-start;flex-wrap:wrap}
+.note-compose textarea{flex:1 1 240px;min-width:0;min-height:110px;max-width:100%;font-size:16px;resize:vertical}
+.note-compose .brand-button{min-height:44px}
+.note-draft-help{margin:0 14px 12px;color:var(--muted-foreground);font-size:12px;line-height:1.5}
+.note-row>div{min-width:0;flex:1}
+.note-row p{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:520px){.note-compose textarea,.note-compose .brand-button{flex-basis:100%;width:100%}}

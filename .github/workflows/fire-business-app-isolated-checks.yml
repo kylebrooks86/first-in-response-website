@@ -353,6 +353,7 @@ jobs:
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-customer-write-recovery.mjs
+          node --experimental-sqlite scripts/test-customer-note-idempotency.mjs
           node scripts/test-estimate-history-recovery.mjs
           node scripts/test-insights-recovery.mjs
           node scripts/test-detail-selection-recovery.mjs
@@ -669,7 +670,7 @@ jobs:
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
           node scripts/test-qa-worker-http-browser.mjs --complete-ledger
           node scripts/test-qa-worker-http-browser.mjs --deposit-policy
-          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry --invoice-state --change-history --global-search --search-metadata --job-closeout --stacked-discounts
+          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry --invoice-state --change-history --global-search --search-metadata --job-closeout --stacked-discounts --customer-note-recovery
       - name: Seal synthetic-only QA full-app review bundle
         run: |
           python3 business-app-parity/prepare_device_review.py \
@@ -754,7 +755,17 @@ jobs:
           path: ${{ runner.temp }}/fire-pricing-ui
           retention-days: 7
       - name: Actual customer writes, estimate search and Insights recovery on narrow light and dark screens
+        env:
+          FIRE_NOTE_SCREENSHOT_DIR: ${{ runner.temp }}/fire-note-ui
         run: node scripts/test-customer-write-browser.mjs
+      - name: Retain synthetic multiline note mobile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-customer-note-mobile-ui
+          path: ${{ runner.temp }}/fire-note-ui
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Job Closeout Center over real synthetic SQLite owner APIs on mobile light and dark
         env:
           FIRE_CLOSEOUT_SCREENSHOT_DIR: ${{ runner.temp }}/fire-closeout-ui

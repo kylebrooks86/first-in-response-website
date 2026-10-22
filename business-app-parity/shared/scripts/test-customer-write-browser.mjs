@@ -1,15 +1,15 @@
 /** Actual CustomersView + EditCustomer, Radix, compiled CSS; synthetic localhost only. */
-import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';import {createServer} from 'node:http';import {resolve} from 'node:path';import ts from 'typescript';
+import assert from 'node:assert/strict';import {readFileSync,mkdirSync} from 'node:fs';import {createRequire} from 'node:module';import {createServer} from 'node:http';import {resolve} from 'node:path';import ts from 'typescript';
 const require=createRequire(import.meta.url),root=process.cwd(),esbuild=require('../node_modules/.pnpm/esbuild@0.28.0/node_modules/esbuild');
 const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),tailwind=require('@tailwindcss/postcss');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const source=readFileSync('app/dashboard.tsx','utf8'),ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const functions=['CustomersView','EditCustomer','EstimatesView','InsightsView'].map(name=>ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name));const tags=new Set();
 function visit(n){if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}functions.forEach(visit);
-const actual=['InsightsView','EstimatesView','EditCustomer','Button','Label','Input','Dialog','DialogTrigger','DialogContent','DialogHeader','DialogTitle','Select','SelectTrigger','SelectValue','SelectContent','SelectItem'];
+const actual=['InsightsView','EstimatesView','EditCustomer','Button','Label','Input','Textarea','Dialog','DialogTrigger','DialogContent','DialogHeader','DialogTitle','Select','SelectTrigger','SelectValue','SelectContent','SelectItem'];
 const stubs=[...tags].filter(t=>!actual.includes(t)).map(t=>`const ${t}=()=>null;`).join('\n');
 const fixture=`import React,{useState,useRef,useEffect,useMemo}from'react';import{createRoot}from'react-dom/client';
-import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';
+import{Textarea}from'./components/ui/textarea';import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';
 import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./components/ui/dialog';
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
 import{summarizeCustomerBalances}from'./lib/customer-balance-summary';import{messageHistoryEntries}from'./lib/message-history';
@@ -47,7 +47,7 @@ if(process.argv.includes('--compile-only')){assert.ok(bundle.outputFiles[0].text
 const customer=id=>({id,name:'Fixture '+(id==='first'?'First':'Second'),email:id+'@example.invalid',phone:'',address:'Synthetic only',leadSource:'Unknown',createdAt:'2026-10-19',estimateCount:0,estimateTotal:0,paidTotal:0});
 let insightMode=false,insightPayload=null;
 let historyFailure=false,historyReads=[];
-let customers,notes,noteStatus=201,noteHold=false,customerHold=false,releaseNote,releaseCustomer,onNote,onCustomer,notePosts=0,customerPatches=0;
+let customers,notes,noteStatus=201,noteHold=false,noteLoseReply=false,customerHold=false,releaseNote,releaseCustomer,onNote,onCustomer,notePosts=0,customerPatches=0;
 function reset(){customers=[customer('first'),customer('second')];notes=[];noteStatus=201;noteHold=false;customerHold=false;releaseNote=null;releaseCustomer=null;}
 reset();const server=createServer((req,res)=>{res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);return;}
@@ -59,7 +59,7 @@ reset();const server=createServer((req,res)=>{res.setHeader('cache-control','no-
  if((req.url==='/api/customers'&&req.method==='PATCH')||(req.url==='/api/customer-notes'&&req.method==='POST')){
   let body='';req.on('data',c=>body+=c);req.on('end',()=>{const data=JSON.parse(body);
    if(req.method==='PATCH'){customerPatches++;const submit=()=>{const previous=customers.find(c=>c.id===data.id);assert.ok(previous);const updated={...previous,...data};customers=customers.map(c=>c.id===updated.id?updated:c);send(200,{customer:updated});};if(customerHold){releaseCustomer=submit;onCustomer?.();}else submit();}
-   else{notePosts++;const submit=()=>{if(noteStatus!==201){send(noteStatus,{error:'Synthetic note failure'});return;}const note={id:'synthetic-note-'+notePosts,customerId:data.customerId,body:data.body,createdAt:'2026-10-19T12:00:00Z'};notes.unshift(note);send(201,{note});};if(noteHold){releaseNote=submit;onNote?.();}else submit();}
+   else{notePosts++;const submit=()=>{if(noteStatus!==201){send(noteStatus,{error:'Synthetic note failure'});return;}const note={id:data.requestId,customerId:data.customerId,body:data.body,createdAt:'2026-10-19T12:00:00Z'};const existing=notes.find(n=>n.id===data.requestId);if(existing){assert.equal(existing.body,data.body);assert.equal(existing.customerId,data.customerId);send(200,{note:existing});return;}notes.unshift(note);if(noteLoseReply){noteLoseReply=false;res.writeHead(201,{'content-type':'application/json'});res.end('not-json');return;}send(201,{note});};if(noteHold){releaseNote=submit;onNote?.();}else submit();}
   });return;
  }
  res.statusCode=404;res.end();
@@ -89,6 +89,9 @@ try{
   check(await noteInput.inputValue()==='Second customer draft','Late first save preserves second draft');check(await page.getByText('First gate note',{exact:true}).count()===0,'First note is not shown on second customer');
   await page.getByRole('button',{name:'← All customers',exact:true}).click();await open('Fixture First');await page.getByText('First gate note',{exact:true}).waitFor();check(await noteInput.inputValue()==='','Saved first draft clears only its customer');
   noteStatus=503;await noteInput.fill('Keep failure draft');await page.getByRole('button',{name:'Add note',exact:true}).click();await page.getByRole('alert').waitFor();check(await noteInput.inputValue()==='Keep failure draft','Failed note retains draft');check(await page.getByRole('button',{name:'Refresh saved notes'}).isVisible(),'Failed note offers read-only recovery');
+  noteStatus=201;noteLoseReply=true;await noteInput.fill('Gate instructions\nKeep side gate closed');await page.getByRole('button',{name:'Add note',exact:true}).click();await page.getByRole('alert').waitFor();const committedCount=notes.length;check(await noteInput.inputValue()==='Gate instructions\nKeep side gate closed','Lost reply retains multiline draft');await page.getByRole('button',{name:'Add note',exact:true}).click();await page.getByText('Note saved.',{exact:true}).waitFor();check(notes.length===committedCount,'Same-text retry after a committed lost reply creates no duplicate');const savedNote=page.locator('.note-row p').filter({hasText:'Gate instructions'});check(await savedNote.evaluate(n=>getComputedStyle(n).whiteSpace)==='pre-wrap','Saved note line breaks are readable');check(await noteInput.inputValue()==='','Confirmed retry clears only the saved draft');const noteGeometry=await noteInput.boundingBox();const addGeometry=await page.getByRole('button',{name:'Add note',exact:true}).boundingBox();check(noteGeometry.width>0&&noteGeometry.x>=0&&noteGeometry.x+noteGeometry.width<=width&&noteGeometry.height>=100&&addGeometry.height>=44,'Multiline note and save control fit narrow screen with usable touch targets');if(process.env.FIRE_NOTE_SCREENSHOT_DIR){mkdirSync(process.env.FIRE_NOTE_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.FIRE_NOTE_SCREENSHOT_DIR,`customer-notes-${width}-${theme}.png`),fullPage:true});}
+
+
   await page.getByRole('button',{name:'Edit customer',exact:true}).click();const dialog=page.locator('.customer-edit-dialog');await dialog.getByLabel('Customer name',{exact:true}).fill(' Fixture First Updated ');
   customerHold=true;const customerAccepted=new Promise(r=>onCustomer=r),beforeEdits=customerPatches;
   await dialog.getByRole('button',{name:'Save changes',exact:true}).evaluate(n=>{n.click();n.click();});await accepted(customerAccepted);
