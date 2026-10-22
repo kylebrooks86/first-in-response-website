@@ -3134,6 +3134,8 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
     (a.state==="prepared"?0:1)-(b.state==="prepared"?0:1)||
     Date.parse(a.lastPaidAt)-Date.parse(b.lastPaidAt)||a.estimateId.localeCompare(b.estimateId));
   const shownReviewCloseouts=showAllReviewCloseouts?prioritizedReviewCloseouts:prioritizedReviewCloseouts.slice(0,5);
+  const preparedReviewVisible=matchingReviewCloseouts.filter(item=>item.state==="prepared").length;
+  const unpreparedReviewVisible=matchingReviewCloseouts.length-preparedReviewVisible;
   const open=estimates.filter((item)=>hasCollectibleJobValue(item)&&remainingBalance(item)>0&&[item.customer,item.service,item.status].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));
   const receivedPayments=payments.filter((item)=>item.status==="paid");
   const balanceSummary=summarizeCustomerBalances(estimates);const collected=receivedPayments.filter(item=>!["Tip","Tip Refund"].includes(item.type)).reduce((sum,item)=>sum+item.amountCents,0);const netTips=receivedPayments.filter((item)=>item.type==="Tip"||item.type==="Tip Refund").reduce((sum,item)=>sum+item.amountCents,0);const outstanding=balanceSummary.collectibleCents;
@@ -3144,6 +3146,7 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   <div className="flex flex-wrap gap-2" role="group" aria-label="Filter paid review requests">
     {([["all","All"],["prepared","Prepared · verify send"],["unprepared","Not prepared"]] as const).map(([key,label])=><Button key={key} variant={reviewCloseoutFilter===key?"default":"outline"} aria-pressed={reviewCloseoutFilter===key} onClick={()=>{setReviewCloseoutFilter(key);setShowAllReviewCloseouts(false);}}>{label} ({key==="all"?reviewCloseouts.length:reviewCloseouts.filter(item=>key==="prepared"?item.state==="prepared":item.state!=="prepared").length})</Button>)}
   </div>
+  {!reviewCloseoutError&&<p className="pay-note" role="status">{matchingReviewCloseouts.length} matching loaded job{matchingReviewCloseouts.length===1?"":"s"} · {preparedReviewVisible} prepared, awaiting send verification · {unpreparedReviewVisible} not prepared{reviewMoreAvailable?" · Older jobs may remain unloaded":""}. Prepared drafts are not proof of delivery.</p>}
   {reviewCloseoutError?<p role="alert" className="save-error">{reviewCloseoutError} Other payment records remain available.</p>:
   matchingReviewCloseouts.length?<div className="balance-list">{shownReviewCloseouts.map(item=><article key={item.estimateId}>
     <div><strong>{item.customerName}</strong><small>{money(item.totalCents)} paid in full · {new Date(item.lastPaidAt).toLocaleDateString()}</small>
