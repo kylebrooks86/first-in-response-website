@@ -659,7 +659,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   const reviewStored=async()=>{setReviewingRecords(true);try{const response=await fetch('/api/customers');const data=await response.json() as {estimates?:EstimateRow[]};if(!response.ok||!Array.isArray(data.estimates))throw Error('Stored estimates could not be read.');setReviewedRecords(data.estimates.filter(row=>selectedCustomer?row.customerId===selectedCustomer.id:true));}catch(e){setError(e instanceof Error?e.message:'Stored estimates unavailable.');}finally{setReviewingRecords(false);}};
   const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
   const promotionServiceIds=[...new Set(items.map(item=>item.serviceId).filter(id=>services.some(service=>service.id===id)))];
-  const promotionQuoteKey=JSON.stringify({services:promotionServiceIds,subtotal,appreciationDiscount,bookingConfirmedOn,lineCount:items.length});
+  const promotionQuoteKey=JSON.stringify({services:promotionServiceIds,subtotal,appreciationDiscount,bookingConfirmedOn,lineCount:items.length,lineScope:items.map(({serviceId,name,description,quantity,unit,unitRateCents,flatPriceCents})=>({serviceId,name,description,quantity,unit,unitRateCents,flatPriceCents}))});
   const discountInputCents=parseDiscountCents(discountValue,discountMode,appreciationDiscount?45:50);
   const bundleInputCents=parseDiscountCents(bundleValue,"dollar");
   const bundleInvalid=bundleInputCents===null||bundleInputCents>subtotal;

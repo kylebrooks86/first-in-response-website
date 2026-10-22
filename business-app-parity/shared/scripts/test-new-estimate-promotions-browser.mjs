@@ -13,7 +13,7 @@ assert.match(source,/NewEstimatePromotions active=\{open&&step===2/,'New estimat
 assert.match(source,/promotionsVerifiedFor!==promotionQuoteKey/,'Quote save requires current eligibility verification');
 assert.match(source,/setPromotionOwnerOverride\(true\)/,'Manual owner discount overrides exist');
 assert.match(source,/promotionServiceIds=\[\.\.\.new Set\(/,'Repeated service lines must not break promotion verification');
-assert.match(source,/promotionQuoteKey=JSON\.stringify\(\{services:promotionServiceIds,subtotal,appreciationDiscount,bookingConfirmedOn,lineCount:items\.length\}\)/,'Booking date and line-count change invalidate prior quote verification');
+assert.match(source,/promotionQuoteKey=JSON\.stringify\(\{services:promotionServiceIds,subtotal,appreciationDiscount,bookingConfirmedOn,lineCount:items\.length,lineScope:items\.map/,'Booking date, line-count and scope-only edits invalidate prior quote verification');
 const fixture=String.raw`import React,{useState}from'react';import{createRoot}from'react-dom/client';import{NewEstimatePromotions}from'./components/new-estimate-promotions';
 function Fixture(){const[items,setItems]=useState(['house-wash','gutters']),[subtotal,setSubtotal]=useState(46000),[override,setOverride]=useState(false);
 const[percent,setPercent]=useState(''),[bundle,setBundle]=useState(''),[verified,setVerified]=useState(null),[active,setActive]=useState(true),[bookingConfirmedOn,setBookingConfirmedOn]=useState(null);
