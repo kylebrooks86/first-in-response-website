@@ -11,6 +11,7 @@ on:
       - work/fire-revised-estimate-review-packet-2026-10-22
       - work/fire-release-candidate-hardening-2026-10-22
       - work/fire-quote-line-efficiency-2026-10-22
+      - work/fire-service-reuse-canvassing-2026-10-22
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
@@ -335,6 +336,8 @@ jobs:
         run: node --experimental-strip-types scripts/test-per-job-price-overrides.mjs
       - name: Preserve historical estimate and invoice line totals during no-op edits
         run: node --experimental-strip-types scripts/test-editable-line-totals.mjs
+      - name: Owner-only house visit history and duplicate suppression
+        run: node --experimental-sqlite scripts/test-door-knocking.mjs
       - name: Reuse new estimate service setup without unexpected line charges
         run: node --experimental-strip-types scripts/test-reuse-estimate-service-line.mjs
       - name: iPhone and iPad Edit Estimate modal viewport accessibility — no remote changes
@@ -692,7 +695,7 @@ jobs:
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
           node scripts/test-qa-worker-http-browser.mjs --complete-ledger
           node scripts/test-qa-worker-http-browser.mjs --deposit-policy
-          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry --invoice-state --change-history --global-search --search-metadata --job-closeout --stacked-discounts --customer-note-recovery --saved-promotions-integration
+          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry --invoice-state --change-history --global-search --search-metadata --job-closeout --stacked-discounts --customer-note-recovery --door-knocking --saved-promotions-integration
       - name: Seal synthetic-only QA full-app review bundle
         run: |
           python3 business-app-parity/prepare_device_review.py \
@@ -762,6 +765,10 @@ jobs:
         env:
           FIRE_PROMOTION_SCREENSHOT_DIR: ${{ runner.temp }}/fire-saved-promo-ui
         run: node scripts/test-saved-promotions-browser.mjs
+      - name: Door knocking real mobile dropdown history and interrupted saves
+        run: node --experimental-sqlite scripts/test-door-knocking-browser.mjs
+      - name: Actual New Estimate service reuse on mobile light and dark
+        run: node scripts/test-reuse-estimate-editor-browser.mjs
       - name: New estimate saved promotion suggestions on mobile and booking hold
         env:
           FIRE_PROMOTION_ESTIMATE_SCREENSHOT_DIR: ${{ runner.temp }}/fire-promotions-new-estimate-ui

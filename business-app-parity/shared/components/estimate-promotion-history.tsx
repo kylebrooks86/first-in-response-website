@@ -36,7 +36,7 @@ export function EstimatePromotionHistory({estimateId,totalCents}:{estimateId:str
   return()=>{live=false;};
  },[estimateId,totalCents,seq]);
  if(state==='none')return null;
- return <section aria-label="Saved promotions on estimate" className="rounded-xl border p-3 space-y-2">
+ return <section data-estimate-id={estimateId} aria-label="Saved promotions on estimate" className="rounded-xl border p-3 space-y-2">
   <div className="flex flex-wrap items-center justify-between gap-2"><strong>Saved promotion history</strong>
    <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={()=>setSeq(value=>value+1)}>Refresh history</Button></div>
   {state==='loading'&&<p role="status" className="text-sm">Verifying original promotion terms…</p>}
