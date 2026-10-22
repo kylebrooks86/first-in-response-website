@@ -13,10 +13,11 @@ assert.match(source,/NewEstimatePromotions active=\{open&&step===2/,'New estimat
 assert.match(source,/promotionsVerifiedFor!==promotionQuoteKey/,'Quote save requires current eligibility verification');
 assert.match(source,/setPromotionOwnerOverride\(true\)/,'Manual owner discount overrides exist');
 assert.match(source,/promotionServiceIds=\[\.\.\.new Set\(/,'Repeated service lines must not break promotion verification');
+assert.match(source,/promotionQuoteKey=JSON\.stringify\(\{services:promotionServiceIds,subtotal,appreciationDiscount,bookingConfirmedOn\}\)/,'Booking date invalidates prior quote verification');
 const fixture=String.raw`import React,{useState}from'react';import{createRoot}from'react-dom/client';import{NewEstimatePromotions}from'./components/new-estimate-promotions';
 function Fixture(){const[items,setItems]=useState(['house-wash','gutters']),[subtotal,setSubtotal]=useState(46000),[override,setOverride]=useState(false);
-const[percent,setPercent]=useState(''),[bundle,setBundle]=useState(''),[verified,setVerified]=useState(null),[active,setActive]=useState(true);
-const key=JSON.stringify({services:items,subtotal,appreciationDiscount:false});
+const[percent,setPercent]=useState(''),[bundle,setBundle]=useState(''),[verified,setVerified]=useState(null),[active,setActive]=useState(true),[bookingConfirmedOn,setBookingConfirmedOn]=useState(null);
+const key=JSON.stringify({services:items,subtotal,appreciationDiscount:false,bookingConfirmedOn});
 return <main style={{maxWidth:650,margin:'auto',padding:12}}>
  <button onClick={()=>setItems(['house-wash'])}>Remove gutters</button>
  <button onClick={()=>setItems(['house-wash','gutters'])}>Restore gutters</button>
@@ -25,7 +26,7 @@ return <main style={{maxWidth:650,margin:'auto',padding:12}}>
  <label htmlFor="manual-percent">Promotion percentage</label><input id="manual-percent" value={percent} onChange={e=>{setPercent(e.target.value);setOverride(true);}}/>
  <output aria-label="Percentage chosen">{percent}</output><output aria-label="Bundle chosen">{bundle}</output>
  <button disabled={verified!==key}>Save synthetic estimate</button>
- <NewEstimatePromotions active={active} quoteKey={key} serviceIds={items} subtotalCents={subtotal} appreciationDiscount={false} manualOverride={override}
+ <NewEstimatePromotions active={active} quoteKey={key} serviceIds={items} subtotalCents={subtotal} appreciationDiscount={false} bookingConfirmedOn={bookingConfirmedOn} onBookingConfirmedOn={setBookingConfirmedOn} manualOverride={override}
  onVerified={setVerified} onApply={(bp,dollars)=>{setPercent(bp?String(bp/100):'');setBundle(dollars?(dollars/100).toFixed(2):'');setOverride(false);}}/>
  </main>}
 createRoot(document.getElementById('app')).render(<Fixture/>);`;
@@ -40,13 +41,16 @@ let fail=false,reads=0,held=null;const server=createServer(async(req,res)=>{
   const value=JSON.parse(input);res.setHeader('content-type','application/json');
   if(fail){res.statusCode=503;return res.end(JSON.stringify({error:'Synthetic catalog unavailable'}));}
   const qualifies=value.serviceIds.includes('house-wash')&&value.serviceIds.includes('gutters');
+  const bookingApplies=typeof value.bookingConfirmedOn==='string'&&value.bookingConfirmedOn>='2026-10-01'&&value.bookingConfirmedOn<='2026-10-31';
   const dollars=qualifies?2500:0;
-  const pendingBooking=[{id:'promo-oct',name:'October 15% booking offer',type:'percent',valueCents:1500,startOn:'2026-10-01',endOn:'2026-10-31'}];
-  return res.end(JSON.stringify({revision:'synthetic-revision',checkedOn:'2026-10-22',
+  const pendingBooking=bookingApplies?[]:[{id:'promo-oct',name:'October 15% booking offer',type:'percent',valueCents:1500,startOn:'2026-10-01',endOn:'2026-10-31'}];
+  const percent=bookingApplies?1500:0;
+  const resultTotal=Math.max(15000,value.subtotalCents-Math.round(value.subtotalCents*percent/10000)-dollars);
+  return res.end(JSON.stringify({revision:'synthetic-revision',checkedOn:'2026-10-22',bookingConfirmedOn:value.bookingConfirmedOn??null,
    eligible:qualifies?[{id:'bundle',name:'House and gutters $25 bundle',type:'dollar',valueCents:2500}]:[],
-   pendingBooking,percentBasisPoints:0,dollarCents:dollars,blocked:null,
-   previewTotalCents:Math.max(15000,value.subtotalCents-dollars),
-   previewDepositCents:Math.round(Math.max(15000,value.subtotalCents-dollars)/2)}));
+   pendingBooking,percentBasisPoints:percent,dollarCents:dollars,blocked:null,
+   previewTotalCents:resultTotal,
+   previewDepositCents:Math.round(resultTotal/2)}));
  }
  if(req.url==='/'){res.setHeader('content-type','text/html');return res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script>');}
  res.statusCode=404;res.end();
@@ -69,6 +73,22 @@ try{
  }
  await page.setViewportSize({width:390,height:844});await page.goto(origin);
  await page.getByLabel('Bundle chosen').filter({hasText:'25.00'}).waitFor();
+ await page.getByLabel('Customer booking already confirmed').check();
+ await page.getByLabel('Percentage chosen').filter({hasText:'15'}).waitFor();
+ check(await page.getByLabel('Bundle chosen').textContent()==='25.00','Verified booking 15% stacks with $25 bundle');
+ check(await page.getByText('Owner-confirmed booking:',{exact:false}).count()>0,'Owner-attested date is explicitly shown');
+ check(await page.getByText('Booking required:',{exact:false}).count()===0,'Confirmed date unlocks booking-only offer');
+ check(await page.getByRole('button',{name:'Save synthetic estimate'}).isEnabled(),'Confirmed booking preview unlocks current scope save');
+ await page.getByLabel('Owner-confirmed booking date (Tulsa)').fill('2026-09-30');
+ await page.getByLabel('Percentage chosen').filter({hasText:''}).waitFor();
+ await page.getByText('Booking required:',{exact:false}).waitFor();
+ check(await page.getByLabel('Percentage chosen').textContent()==='','Date before promotion window does not earn October 15%');
+ await page.getByLabel('Owner-confirmed booking date (Tulsa)').fill('2026-10-20');
+ await page.getByLabel('Percentage chosen').filter({hasText:'15'}).waitFor();
+ check(await page.getByLabel('Percentage chosen').textContent()==='15','October booking restored on verified date');
+ await page.getByLabel('Customer booking already confirmed').uncheck();
+ await page.getByLabel('Percentage chosen').filter({hasText:''}).waitFor();
+ check(await page.getByLabel('Percentage chosen').textContent()==='','Removing owner booking assertion removes booking-only savings');
  await page.getByRole('button',{name:'Remove gutters'}).click();
  await page.getByText('No saved promotions qualify',{exact:false}).waitFor();
  check(await page.getByLabel('Bundle chosen').textContent()==='','Removing qualifying service clears automatic bundle');
