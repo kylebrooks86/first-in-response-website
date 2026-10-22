@@ -1,4 +1,6 @@
 import {submittedDiscountCents, quoteDiscounts, discountSnapshot, readDiscountSnapshot, DISCOUNT_SNAPSHOT_PREFIX} from '../../../lib/discount-input';
+import {SAVED_PROMOTIONS_KEY,decodeSavedPromotions} from '../../../lib/saved-promotions';
+import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,buildPromotionAttribution} from '../../../lib/estimate-promotion-attribution';
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import {customerPropertiesEnabled,propertyAssociationColumns,propertyEstimatesTestEnabled,selectEstimateProperty,PropertySelectionError} from '../../../lib/customer-properties';
 import { env } from "cloudflare:workers";
@@ -75,7 +77,16 @@ export async function POST(request: Request) {
     try{pricing=quoteDiscounts(subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents);}catch(error){return Response.json({error:error instanceof Error?error.message:'Invalid discounts.'},{status:400});}
     const {total,appliedDiscount,deposit}=pricing;
     const customerId=existingCustomerId||crypto.randomUUID();
-    const estimateId=crypto.randomUUID();const shareToken=crypto.randomUUID().replaceAll("-","");const now=new Date().toISOString();
+    const estimateId=crypto.randomUUID();
+    let promotionAttribution:ReturnType<typeof buildPromotionAttribution>|null=null;
+    if(Object.prototype.hasOwnProperty.call(body,'promotionEvidence')){
+      try{
+        const row=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(SAVED_PROMOTIONS_KEY).first<{body:string}>();
+        promotionAttribution=buildPromotionAttribution({estimateId,rawEvidence:body.promotionEvidence,
+         catalog:decodeSavedPromotions(row),now:new Date(),items,subtotalCents:subtotal,
+         appreciationDiscount:Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents,totalCents:total,depositCents:deposit});
+      }catch(err){return Response.json({error:err instanceof Error?err.message:'Promotion rules changed. Refresh before saving.'},{status:409});}
+    }const shareToken=crypto.randomUUID().replaceAll("-","");const now=new Date().toISOString();
     const statements=[];
     let serviceAddress=address;
     if(existingCustomerId){
@@ -99,8 +110,9 @@ export async function POST(request: Request) {
     if(selection)statements.push(env.DB.prepare('INSERT INTO estimate_property_links(estimate_id,customer_id,property_id,property_revision,selection_mode,captured_at) VALUES(?,?,?,?,?,?)').bind(estimateId,customerId,selection.property.id,selection.property.revision,selection.mode,now));
     for(const item of items)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),estimateId,item.name,item.description,item.quantity,item.unit,item.totalCents));
     if(bundleDiscountCents>0)statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?)").bind(DISCOUNT_SNAPSHOT_PREFIX+estimateId,JSON.stringify(discountSnapshot(estimateId,subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents)),now));
+    if(promotionAttribution)statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?)").bind(ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX+estimateId,JSON.stringify(promotionAttribution),now));
     await env.DB.batch(statements);
-    return Response.json({id:estimateId,customerId,customer,email,phone,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents},{status:201});
+    return Response.json({id:estimateId,customerId,customer,email,phone,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents,promotionAttributionSaved:Boolean(promotionAttribution)},{status:201});
   } catch {
     return Response.json({ error: propertyEstimatesTestEnabled(env)?'Estimate save was not confirmed. Review stored records before another deliberate attempt.':"We couldn't save this estimate. Please try again." }, { status: 500 });
   }

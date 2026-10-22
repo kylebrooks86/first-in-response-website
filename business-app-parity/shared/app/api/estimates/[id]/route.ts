@@ -1,4 +1,5 @@
 import {submittedDiscountCents, quoteDiscounts, discountSnapshot, verifiedSavedDiscounts, DISCOUNT_SNAPSHOT_PREFIX} from '../../../../lib/discount-input';
+import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX} from '../../../../lib/estimate-promotion-attribution';
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
 import {depositPolicyEnabled,depositPolicyColumns,depositSchedulingPolicy,depositSchedulingGuard,type DepositPolicyRow} from '../../../../lib/deposit-policy';
@@ -38,6 +39,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if(Array.isArray(body.items)){
       if(existing.signedAt||existing.acceptedAt||["approved","scheduled","completed"].includes(existing.status)||Number(existing.paidCents)>0||Number(existing.invoiceCount)>0)
         return Response.json({error:"This estimate is already approved or financially active. Keep the accepted estimate unchanged and make any final service or price changes on the invoice."},{status:409});
+      if(Object.prototype.hasOwnProperty.call(body,'promotionEvidence'))return Response.json({error:'Automatic promotion attribution is available on new estimates only. Refresh saved terms and explicitly review draft repricing.'},{status:409});
       const savedDiscount=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(DISCOUNT_SNAPSHOT_PREFIX+id).first<{body:string}>();
       try{verifiedSavedDiscounts(id,savedDiscount?.body??null,existing);}catch{return Response.json({error:'Saved discount breakdown requires review. Refresh before editing.'},{status:409});}
       if(savedDiscount&&!Object.prototype.hasOwnProperty.call(body,'bundleDiscountCents'))return Response.json({error:'This estimate has saved discount components. Refresh with the current editor before repricing.'},{status:409});
@@ -64,6 +66,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       statements.push(env.DB.prepare("DELETE FROM estimate_items WHERE estimate_id=?").bind(id));
       for(const item of items)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(item.id||crypto.randomUUID(),id,item.name,item.description,item.quantity,item.unit,item.totalCents));
       statements.push(env.DB.prepare("UPDATE estimates SET subtotal_cents=?,discount_cents=?,appreciation_discount=?,additional_discount_type=?,additional_discount_value=?,total_cents=?,deposit_cents=? WHERE id=?").bind(subtotal,appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,total,deposit,id));
+      // Draft repricing invalidates the old automatic offer attribution atomically.
+      statements.push(env.DB.prepare("DELETE FROM message_templates WHERE key=?").bind(ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX+id));
       if(bundleDiscountCents>0||savedDiscount)statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body,updated_at=excluded.updated_at").bind(DISCOUNT_SNAPSHOT_PREFIX+id,JSON.stringify(discountSnapshot(id,subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents)),new Date().toISOString()));
       responseFields={...responseFields,bundleDiscountCents,subtotalCents:subtotal,discountCents:appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,totalCents:total,depositCents:deposit,items,service:items.map((item)=>item.name).join(", "),serviceDescription:items[0]?.description??""};
     }
