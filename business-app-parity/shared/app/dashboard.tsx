@@ -3044,6 +3044,7 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   const [showAllReviewCloseouts,setShowAllReviewCloseouts]=useState(false);
   const [reviewCloseoutFilter,setReviewCloseoutFilter]=useState<"all"|"prepared"|"unprepared">("all");
   const [reviewCloseoutOrder,setReviewCloseoutOrder]=useState<"priority"|"newest"|"customer">("priority");
+  const [reviewCloseoutSearch,setReviewCloseoutSearch]=useState("");
   const reviewOlderLock=useRef(false),reviewPageRequest=useRef(0);
   const loadRequest=useRef(0);
   const load=async()=>{
@@ -3129,6 +3130,7 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   };
   const remainingBalance=(estimate:EstimateRow)=>billingBalanceCents(estimate);
   const matchingReviewCloseouts=reviewCloseouts.filter(item=>item.customerName.toLowerCase().includes(searchQuery.toLowerCase())&&
+    [item.customerName,item.estimateId,item.customerId].join(" ").toLowerCase().includes(reviewCloseoutSearch.trim().toLowerCase())&&
     (reviewCloseoutFilter==="all"||(reviewCloseoutFilter==="prepared"?item.state==="prepared":item.state!=="prepared")));
   // Prepared drafts require owner verification first; within each state, handle the oldest payment first.
   const prioritizedReviewCloseouts=matchingReviewCloseouts.slice().sort((a,b)=>reviewCloseoutOrder==="customer"?
@@ -3145,6 +3147,9 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   <header><div><h2>Paid jobs · review follow-up</h2><p>Completed, paid-in-full jobs that still need a confirmed review request. Nothing is sent automatically.</p></div>
     <Button variant="outline" onClick={()=>void load()}>Refresh review queue</Button>
   </header>
+  <label className="flex flex-col gap-1 text-sm font-semibold">Find a paid job or customer
+    <input className="min-h-11 rounded-lg border px-3 py-2" type="search" value={reviewCloseoutSearch} onChange={event=>{setReviewCloseoutSearch(event.target.value);setShowAllReviewCloseouts(false);}} placeholder="Customer name or job ID" aria-label="Search paid review follow-ups"/>
+  </label>
   <div className="flex flex-wrap gap-2" role="group" aria-label="Filter paid review requests">
     {([["all","All"],["prepared","Prepared · verify send"],["unprepared","Not prepared"]] as const).map(([key,label])=><Button key={key} variant={reviewCloseoutFilter===key?"default":"outline"} aria-pressed={reviewCloseoutFilter===key} onClick={()=>{setReviewCloseoutFilter(key);setShowAllReviewCloseouts(false);}}>{label} ({key==="all"?reviewCloseouts.length:reviewCloseouts.filter(item=>key==="prepared"?item.state==="prepared":item.state!=="prepared").length})</Button>)}
   </div>
