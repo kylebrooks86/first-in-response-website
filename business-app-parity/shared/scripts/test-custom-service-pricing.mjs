@@ -4,7 +4,7 @@ try{
  let {response,data}=await r.get();eq(response.status,200);eq(response.headers.get('cache-control'),'no-store');eq(data.rates.length,30);
  for(const service of r.catalog.FIRE_SERVICES)eq(data.rates.find(s=>s.id===service.id),{id:service.id,rateCents:service.rate,revision:null});
  const {priceCents,validServiceRates}=r.pricing;
- for(const [raw,expected]of [['0',0],['0.22',22],['1.50',150],['0.40',40],['999.99',99999],['12.3',1230]])eq(priceCents(raw),expected);
+ for(const [raw,expected]of [['0',0],['.22',22],['00.40',40],['0.22',22],['1.50',150],['0.40',40],['999.99',99999],['12.3',1230]])eq(priceCents(raw),expected);
  for(const raw of ['','-1','1.005','NaN','Infinity','1e3',' 1','1,000','0x10','9007199254740991'])eq(priceCents(raw),null);
  eq(validServiceRates(data.rates),true);eq(validServiceRates(data.rates.slice(1)),false);eq(validServiceRates([...data.rates.slice(1),data.rates[1]]),false);
  r.db.exec("INSERT INTO customers(id,name,created_at) VALUES ('history-c','Synthetic customer','2026-01-01'); INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,signed_name,signed_at,created_at) VALUES('history-e','history-c','approved',44000,44000,22000,'Synthetic signer','2026-01-01','2026-01-01'); INSERT INTO estimate_items(id,estimate_id,name,description,quantity,unit,total_cents) VALUES('history-line','history-e','House Wash','Agreed',2000,'sq ft',44000); INSERT INTO invoices(id,estimate_id,customer_id,total_cents,created_at) VALUES('history-i','history-e','history-c',44000,'2026-01-01'); INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at) VALUES('history-p','history-e','Deposit',22000,'paid','2026-01-01');");

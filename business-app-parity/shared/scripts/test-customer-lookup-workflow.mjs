@@ -49,13 +49,13 @@ export async function exerciseCustomerLookup({page,context,browser,origin,reques
  check(await dialog().getByLabel('Email',{exact:true}).inputValue()===a.email,'Profile entry starts with that explicitly chosen customer and rechecks server data');
  await dialog().getByRole('button',{name:'Continue to services'}).click();
  await dialog().getByRole('combobox').click();await page.getByRole('option',{name:'Gutter Cleaning + Flush',exact:true}).click();
- await dialog().locator('.edit-quantity-row input').fill('100');await dialog().locator('.discount-input input').first().fill('2');
+ await dialog().locator('.edit-quantity-row input').fill('100');await dialog().getByLabel('Price per unit — adjustable for this job',{exact:true}).fill('2');
  await dialog().getByRole('button',{name:'Back',exact:true}).click();
  await search().fill(b.email);await dialog().getByRole('option').filter({hasText:b.email}).waitFor();
  page.once('dialog',d=>d.dismiss());await dialog().getByRole('option').filter({hasText:b.email}).click();
  check(await dialog().getByLabel('Email',{exact:true}).inputValue()===a.email&&await dialog().getByLabel('Estimate service address').inputValue()===pa.address,'Cancel switching protects draft customer and selected property');
  await dialog().getByRole('button',{name:'Continue to services'}).click();
- check(await dialog().locator('.edit-quantity-row input').inputValue()==='100'&&await dialog().locator('.discount-input input').first().inputValue()==='2','Cancel switching preserves unsaved service quantity and price');
+ check(await dialog().locator('.edit-quantity-row input').inputValue()==='100'&&await dialog().getByLabel('Price per unit — adjustable for this job',{exact:true}).inputValue()==='2','Cancel switching preserves unsaved service quantity and price');
  await dialog().getByRole('button',{name:'Back',exact:true}).click();
  page.once('dialog',d=>d.accept());await choose(b.email);
  await dialog().getByText('Select the property explicitly for future work.').waitFor();
@@ -64,7 +64,7 @@ export async function exerciseCustomerLookup({page,context,browser,origin,reques
  await dialog().getByRole('radio',{name:'Select '+pb.address,exact:true}).check();await dialog().getByRole('button',{name:'Continue to services'}).click();
  check(await dialog().locator('.edit-quantity-row input').inputValue()===''&&await dialog().locator('.discount-input input').last().inputValue()==='','Confirmed discard clears previous customer’s service draft and discount');
  await dialog().getByRole('combobox').click();await page.getByRole('option',{name:'Gutter Cleaning + Flush',exact:true}).click();
- await dialog().locator('.edit-quantity-row input').fill('100');await dialog().locator('.discount-input input').first().fill('2');
+ await dialog().locator('.edit-quantity-row input').fill('100');await dialog().getByLabel('Price per unit — adjustable for this job',{exact:true}).fill('2');
  await dialog().getByRole('button',{name:'Save $200 estimate',exact:true}).click();await dialog().getByRole('heading',{name:'Estimate ready'}).waitFor();
  check(await dialog().locator('[data-saved-service-address]').innerText()===pb.address,'Save confirms selected customer’s authoritative property address');await dialog().getByRole('button',{name:'Done',exact:true}).click();
  const saved=await (await request('/api/customers')).json();

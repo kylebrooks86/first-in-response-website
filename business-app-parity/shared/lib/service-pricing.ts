@@ -3,7 +3,7 @@ export const SERVICE_RATE_PREFIX='fire:service-rate:v1:';
 export type ServiceRate={id:string;rateCents:number;revision:string|null};
 export function validRate(value:unknown):value is number{return typeof value==='number'&&Number.isSafeInteger(value)&&value>=0;}
 export function priceCents(value:string):number|null{
-  if(!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(value))return null;
+  if(!/^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(value))return null;
   const [whole,fraction='']=value.split('.');const amount=Number(whole)*100+Number(fraction.padEnd(2,'0'));
   return validRate(amount)?amount:null;
 }
