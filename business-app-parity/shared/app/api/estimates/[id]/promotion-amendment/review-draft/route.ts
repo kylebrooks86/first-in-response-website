@@ -51,7 +51,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
  if(!await authorized())return json({error:'Unauthorized'},401);
  const {id}=await params;
  let body:Record<string,unknown>;
- try{const parsed=await request.json();if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('bad');body=parsed;}
+ try{const parsed=await request.json();if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('bad');body=parsed as Record<string,unknown>;}
  catch{return json({error:'Invalid owner draft request.'},400);}
  if(Object.keys(body).sort().join(',')!=='bookingConfirmedOn,expectedOriginalTotalCents,expectedProposedTotalCents,expectedRevision,ownerNote'||
   typeof body.bookingConfirmedOn!=='string'||typeof body.ownerNote!=='string'||body.ownerNote.length>400||
