@@ -1,0 +1,17 @@
+# Job Closeout Center — source handoff
+
+Implemented in the existing Payments workspace. The original paid-in-full review-request queue remains canonical; its eligibility, monetary calculations, refund/checkout holds and guarded snooze writer are preserved. The Center has Needs request and Review progress stages, rather than an additional job or review checklist.
+
+Review progress reads existing completed-job message receipts, customer review-received flags and request/check snoozes. It shows one customer-level status check, linked to the actual completed job behind the latest confirmed request. Prepared/copied messages never become confirmed requests; malformed/future dates require verification. Due checks reuse the existing seven-day review eligibility rule. An owner-logged received review is not Google verification.
+
+Cards open the existing customer review flag/check or exact job through Dashboard callbacks. Logging a received review still uses the existing owner-confirmed customer-note flow. The only mutation added to this screen calls the existing `/api/dashboard-review-checks/snooze` endpoint after explicit confirmation. No message is sent automatically, and no new mutation endpoint or migration was added.
+
+Confirmed changes refresh active queues. Refreshes retain all owner-loaded pages, reject stale responses and malformed pages, and distinguish failed reads from empty results. Session expiry clears private cached review cards. Uncertain writes retain the same action ID for deliberate retry. Preview/cancel and navigation perform no writes. Selecting Review progress protects its pending confirmation from the parent queue's periodic refresh.
+
+Synthetic validation includes actual SQLite queries and owner APIs, cross-customer/unfinished-job exclusions, canonical timing, snooze expiry, manual flags, body restraint, keyset pagination, actual root navigation callbacks, financial regressions and Payments load races. A real Chrome fixture mounts PaymentsView and JobCloseoutHistory against those actual APIs with disposable SQLite at 320x568, 390x844 and 844x390 in light/dark. It checks duplicate taps, committed writes with malformed replies, explicit same-ID retry, malformed older pages, stale reads after navigation, session expiry, saved-flag refresh, 44px controls and selected-button contrast. Screenshots are retained under `fire-job-closeout-center-mobile-ui` in the exact commit's CI run.
+
+The starting checkpoint `4c4232e958344ae9b2bd98fba97b45d58817175d` had a stale prepared-first source-regex assertion failing across financial/QA jobs. The regression now executes the actual comparator in priority/newest/customer modes. It was repaired without weakening financial safeguards.
+
+No hosted database, protected app, payment provider or real customer record changed. Production release acceptance remains **3/10 gates (30%)**. Passing synthetic Chrome/SQLite and build checks does not establish physical iPhone acceptance or deployed parity. Existing owner-observed backup restoration and the local 23-to-25 rehearsal remain completed; do not repeat them for this feature. Hosted QA still requires retained private recovery evidence, authenticated Cloudflare provenance, fresh execution preflight and separate exact migration/publication approvals.
+
+Next bounded batch: inspect the exact final CI/screenshots, then perform an owner-approved QA walkthrough of payment → request preparation → send confirmation → review check → received flag. Physical iPhone verification remains outstanding.

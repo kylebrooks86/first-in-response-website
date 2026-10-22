@@ -3050,6 +3050,8 @@ function PaymentsView({searchQuery,onOpenCustomerReview,onOpenEstimate}:{searchQ
   const loadRequest=useRef(0);
   const [closeoutStage,setCloseoutStage]=useState<"requests"|"progress">("requests");
   const reviewLoadedPages=useRef(1),reviewLoading=useRef(false),closeoutStageRef=useRef(closeoutStage);closeoutStageRef.current=closeoutStage;
+  const validReviewPage=(page:{actions?:PaymentCloseoutAction[];mayHaveMore?:boolean;nextCursor?:string|null})=>Array.isArray(page.actions)&&page.actions.length<=200&&typeof page.mayHaveMore==="boolean"&&
+            (page.nextCursor==null||typeof page.nextCursor==="string")&&page.actions.every(item=>item&&typeof item.estimateId==="string"&&!!item.estimateId&&typeof item.customerId==="string"&&!!item.customerId&&typeof item.customerName==="string"&&Number.isSafeInteger(item.totalCents)&&item.totalCents>0&&Number.isFinite(Date.parse(item.lastPaidAt))&&["ready","prepared"].includes(item.state)&&(item.reviewPreparedAt===null||typeof item.reviewPreparedAt==="string"&&Number.isFinite(Date.parse(item.reviewPreparedAt)))&&(item.state!=="prepared"||item.reviewPreparedAt!==null));
   const load=async()=>{
     const request=++loadRequest.current;
     reviewPageRequest.current++;reviewOlderLock.current=false;
@@ -3060,15 +3062,14 @@ function PaymentsView({searchQuery,onOpenCustomerReview,onOpenEstimate}:{searchQ
         fetch("/api/estimate-history?limit=50"),fetch("/api/payments"),
         fetch("/api/payment-closeouts",{cache:"no-store"}).then(async response=>{
           const result=await response.json() as {actions?:PaymentCloseoutAction[];mayHaveMore?:boolean;nextCursor?:string|null;error?:string};
-          const valid=(page:typeof result)=>Array.isArray(page.actions)&&page.actions.length<=200&&typeof page.mayHaveMore==="boolean"&&
-            (page.nextCursor==null||typeof page.nextCursor==="string")&&page.actions.every(item=>item&&typeof item.estimateId==="string"&&!!item.estimateId&&typeof item.customerId==="string"&&!!item.customerId&&typeof item.customerName==="string"&&Number.isSafeInteger(item.totalCents)&&item.totalCents>0&&Number.isFinite(Date.parse(item.lastPaidAt))&&["ready","prepared"].includes(item.state)&&(item.reviewPreparedAt===null||typeof item.reviewPreparedAt==="string"&&Number.isFinite(Date.parse(item.reviewPreparedAt)))&&(item.state!=="prepared"||item.reviewPreparedAt!==null));
-          if(!response.ok||!valid(result))throw Error(result.error||"Review follow-up queue could not be checked.");
+
+          if(!response.ok||!validReviewPage(result))throw Error(result.error||"Review follow-up queue could not be checked.");
           const actions=[...result.actions!],seenCursors=new Set<string>();let cursor=result.nextCursor??null,more=result.mayHaveMore!;
           for(let page=1;page<reviewLoadedPages.current&&cursor;page++){
             if(seenCursors.has(cursor))throw Error("Review follow-up paging did not advance.");seenCursors.add(cursor);
             const extra=await fetch("/api/payment-closeouts?cursor="+encodeURIComponent(cursor),{cache:"no-store"});const data=await extra.json() as typeof result;
             if(request!==loadRequest.current)throw Error("Superseded review refresh");
-            if(!extra.ok||!valid(data)||data.nextCursor===cursor)throw Error(data.error||"Loaded review follow-ups could not be refreshed.");
+            if(!extra.ok||!validReviewPage(data)||data.nextCursor===cursor)throw Error(data.error||"Loaded review follow-ups could not be refreshed.");
             actions.push(...data.actions!);cursor=data.nextCursor??null;more=data.mayHaveMore!;
           }
           return {actions:[...new Map(actions.map(item=>[item.estimateId,item])).values()],mayHaveMore:more,nextCursor:cursor};
@@ -3103,7 +3104,7 @@ function PaymentsView({searchQuery,onOpenCustomerReview,onOpenEstimate}:{searchQ
     try{
       const response=await fetch("/api/payment-closeouts?cursor="+encodeURIComponent(cursor),{cache:"no-store"});
       const result=await response.json() as {actions?:PaymentCloseoutAction[];mayHaveMore?:boolean;nextCursor?:string|null;error?:string};
-      if(!response.ok||!Array.isArray(result.actions))throw Error(result.error||"Older review follow-ups could not be loaded.");
+      if(!response.ok||!validReviewPage(result)||result.nextCursor===cursor)throw Error(result.error||"Older review follow-ups could not be loaded.");
       if(page!==reviewPageRequest.current||mainRequest!==loadRequest.current)return;
       setReviewCloseouts(current=>{
         const seen=new Set(current.map(item=>item.estimateId));

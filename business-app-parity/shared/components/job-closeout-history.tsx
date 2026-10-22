@@ -17,6 +17,8 @@ export function JobCloseoutHistory({searchQuery='',onOpenCustomer,onOpenEstimate
    for(let i=0;i<(append?1:pages.current);i++){
     if(cursor&&visited.has(cursor))throw Error('Closeout history paging did not advance. Refresh to try again.');if(cursor)visited.add(cursor);
     const response=await fetch('/api/job-closeout-history'+(cursor?'?cursor='+encodeURIComponent(cursor):''),{cache:'no-store'});
+    if(request!==generation.current)return;
+    if(response.status===401||response.status===403){setItems([]);setNextCursor(null);setConfirm(null);throw Error('Unauthorized. Reopen the owner session and refresh review progress.');}
     const data=await response.json() as {items?:unknown[];nextCursor?:unknown;error?:string};
     if(request!==generation.current)return;
     if(!response.ok||!Array.isArray(data.items)||data.items.length>200||!data.items.every(validCloseoutHistoryItem)||!(data.nextCursor===null||typeof data.nextCursor==='string'&&/^[A-Za-z0-9:_-]{1,128}$/.test(data.nextCursor))||data.nextCursor&&data.nextCursor===cursor)
