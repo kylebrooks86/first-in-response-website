@@ -310,6 +310,8 @@ jobs:
         run: node --experimental-sqlite scripts/test-custom-service-pricing.mjs
       - name: Saved promotions catalog date and discount eligibility contract
         run: node --experimental-sqlite scripts/test-saved-promotions.mjs
+      - name: Server-side saved promotion preview with verified Tulsa date and booking hold
+        run: node --experimental-sqlite scripts/test-saved-promotion-preview.mjs
       - name: Strict invoice and estimate discount entry, caps and exact-cent preview
         run: node --experimental-strip-types scripts/test-quote-discount-input.mjs
       - name: Stacked estimate discounts and atomic synthetic SQLite persistence
