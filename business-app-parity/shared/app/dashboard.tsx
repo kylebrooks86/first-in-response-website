@@ -3150,6 +3150,7 @@ function PaymentsView({searchQuery}:{searchQuery:string}){
   <label className="flex flex-col gap-1 text-sm font-semibold">Find a paid job or customer
     <input className="min-h-11 rounded-lg border px-3 py-2" type="search" value={reviewCloseoutSearch} onChange={event=>{setReviewCloseoutSearch(event.target.value);setShowAllReviewCloseouts(false);}} placeholder="Customer name or job ID" aria-label="Search paid review follow-ups"/>
   </label>
+  {(reviewCloseoutSearch||reviewCloseoutFilter!=="all"||reviewCloseoutOrder!=="priority")&&<Button variant="outline" onClick={()=>{setReviewCloseoutSearch("");setReviewCloseoutFilter("all");setReviewCloseoutOrder("priority");setShowAllReviewCloseouts(false);}}>Clear review search and filters</Button>}
   <div className="flex flex-wrap gap-2" role="group" aria-label="Filter paid review requests">
     {([["all","All"],["prepared","Prepared · verify send"],["unprepared","Not prepared"]] as const).map(([key,label])=><Button key={key} variant={reviewCloseoutFilter===key?"default":"outline"} aria-pressed={reviewCloseoutFilter===key} onClick={()=>{setReviewCloseoutFilter(key);setShowAllReviewCloseouts(false);}}>{label} ({key==="all"?reviewCloseouts.length:reviewCloseouts.filter(item=>key==="prepared"?item.state==="prepared":item.state!=="prepared").length})</Button>)}
   </div>
