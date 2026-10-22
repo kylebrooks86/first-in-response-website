@@ -1748,7 +1748,7 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
     <div className="detail-customer"><span className="customer-avatar">{estimate.customer.split(" ").map((part)=>part[0]).join("").slice(0,2).toUpperCase()}</span><div><strong>{estimate.customer}</strong><small>{estimate.address || "No service address saved"}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong></div>
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current customer address shown; the original service address was not recorded.</p>}
     <div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>
-    <EstimatePromotionHistory key={estimate.id} estimateId={estimate.id} totalCents={estimate.totalCents}/>
+    <EstimatePromotionHistory key={`promotions:${estimate.id}`} estimateId={estimate.id} totalCents={estimate.totalCents}/>
     <div className="next-action"><Sparkles/><div><strong>Recommended next step</strong><p>{nextAction}</p></div></div>
 
     <div className="detail-actions">
@@ -1773,8 +1773,8 @@ function EstimateDetail({ estimate, onClose, onChanged }: { estimate: EstimateRo
       {estimate.address && <a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House /> Zillow</a>}
       <OwnerJobTools estimate={estimate} onSaved={setReportComplete}/><RecordPayment key={estimate.id} estimate={estimate} onRecorded={(paidCents)=>onChanged({...estimate,paidCents})}/>
     </div>
-    <OwnerDepositReview key={estimate.id} estimateId={estimate.id}/>
-    <EstimateChangeHistory key={estimate.id} estimateId={estimate.id} onSummary={(pending,latest)=>{if(Number(estimate.pendingChangeCount)!==pending||estimate.latestChangeRequest!==latest)onChanged({...estimate,pendingChangeCount:pending,latestChangeRequest:latest});}}/>
+    <OwnerDepositReview key={`deposit:${estimate.id}`} estimateId={estimate.id}/>
+    <EstimateChangeHistory key={`changes:${estimate.id}`} estimateId={estimate.id} onSummary={(pending,latest)=>{if(Number(estimate.pendingChangeCount)!==pending||estimate.latestChangeRequest!==latest)onChanged({...estimate,pendingChangeCount:pending,latestChangeRequest:latest});}}/>
     {Number(estimate.paymentOverageOpen)>0&&<div className="change-alert"><CircleDollarSign/><div><strong>Overpayment needs review</strong><p>If you refunded money, enter the exact amount so FIRE can subtract it from recorded payments. If you and the customer intentionally agreed to leave the excess on this job, use Keep as overpayment. This does not create a reusable customer credit.</p><div className="billing-resolution-actions"><Input type="number" min="0.01" step="0.01" inputMode="decimal" placeholder="Refund amount" value={refundAmount} onChange={(event)=>setRefundAmount(event.target.value)} disabled={saving}/><Button variant="outline" onClick={()=>void resolveOverpayment("refund")} disabled={saving}>Refund handled</Button><Button variant="outline" onClick={()=>void resolveOverpayment("keep")} disabled={saving}>Keep as overpayment</Button></div></div></div>}
     {(estimate.firstViewedAt||estimate.acceptedAt||estimate.signedAt)&&<div className="customer-activity">{estimate.firstViewedAt&&<span><Eye/><small>Viewed</small><strong>{dateTime(estimate.firstViewedAt)}</strong></span>}{estimate.signedAt?<span><PenLine/><small>Agreement signed</small><strong>{estimate.signedName} · Photos: {estimate.photoRelease==="yes"?"allowed":estimate.photoRelease==="no"?"not allowed":"not recorded"} · {dateTime(estimate.signedAt)}</strong></span>:estimate.acceptedAt&&<span><CheckCircle2/><small>Approved</small><strong>{dateTime(estimate.acceptedAt)}</strong></span>}</div>}
     <div className="detail-grid">
