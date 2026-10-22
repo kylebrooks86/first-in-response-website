@@ -13,6 +13,7 @@ const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playw
 const r=stackedRuntime(),model=r.load('lib/saved-promotions.ts');
 const api=r.load('app/api/estimates/[id]/promotion-amendment/route.ts').POST;
 const reviewApi=r.load('app/api/estimates/[id]/promotion-amendment/review-draft/route.ts');
+const handoffApi=r.load('app/api/estimates/[id]/promotion-amendment/handoff/route.ts').GET;
 const today=model.fireDate(new Date()),gid=n=>'faba0000-aaaa-4aaa-8aaa-'+String(n).padStart(12,'0');
 const bundle={id:gid(1),name:'House wash and gutter bundle',type:'dollar',valueCents:2500,enabled:true,autoApply:true,dateBasis:'estimate-created',startOn:null,endOn:null,requiredServiceIds:['house-wash','gutters']};
 const booking={id:gid(2),name:'FIRE confirmed booking 15%',type:'percent',valueCents:1500,enabled:true,autoApply:true,dateBasis:'booking-confirmed',startOn:null,endOn:null,requiredServiceIds:[]};
@@ -32,6 +33,11 @@ let fail=false,requests=0;const server=createServer(async(req,res)=>{
  res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundleJS.outputFiles[0].text);}
  if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(css.css);}
+ if(req.url==='/api/estimates/'+saved.id+'/promotion-amendment/handoff'&&req.method==='GET'){
+  res.setHeader('content-type','application/json');
+  const response=await handoffApi(new Request('https://synthetic.invalid'+req.url),{params:Promise.resolve({id:saved.id})});
+  res.statusCode=response.status;return res.end(await response.text());
+ }
  if(req.url==='/api/estimates/'+saved.id+'/promotion-amendment/review-draft'&&['GET','POST','DELETE'].includes(req.method)){
   res.setHeader('content-type','application/json');
   let data='';for await(const chunk of req)data+=chunk;
@@ -83,6 +89,18 @@ try{
  check(r.db.prepare('SELECT COUNT(*) AS count FROM message_templates WHERE key=?').get('fire:booking-amendment-review:v1:'+saved.id).count===1,'Owner review stored under dedicated backup key');
  await page.reload();await page.getByText('Saved for owner review only').waitFor();
  check(await page.getByText('Original $435.00',{exact:false}).count()===1,'Saved owner review survives reload');
+ await page.getByRole('button',{name:'Prepare internal worksheet'}).click();
+ await page.getByText('Owner review required before proposing new terms').waitFor();
+ const worksheet=await page.getByLabel('Internal worksheet text — do not send as a customer agreement').inputValue();
+ check(worksheet.includes('Original agreed total: $435.00'),'Original quoted price shown from verified records');
+ check(worksheet.includes('Potential revised total: $366.00'),'Proposed estimate amount displayed');
+ check(worksheet.includes('Potential additional savings: $69.00'),'Proposed delta remains exact');
+ check(worksheet.includes('House Wash')&&worksheet.includes('Gutter Cleaning + Flush'),'Original service breakdown displayed');
+ check(worksheet.includes('NOT A CUSTOMER AGREEMENT'),'Hard customer agreement safeguard');
+ check(!worksheet.includes('Confirmed phone booking; review revised terms first.'),'Private owner-only note excluded from copyable worksheet');
+ await page.getByRole('button',{name:'Copy internal worksheet text'}).click();
+ await page.getByText('Nothing was sent',{exact:false}).waitFor();
+ check(JSON.stringify(r.db.prepare('SELECT * FROM estimates ORDER BY rowid').all())===baseline,'Worksheet/copy never mutates original financial tables');
  await page.getByRole('button',{name:'Discard internal review'}).click();
  await page.getByText('Confirm again to remove only this internal draft',{exact:false}).waitFor();
  check(r.db.prepare('SELECT COUNT(*) AS count FROM message_templates WHERE key=?').get('fire:booking-amendment-review:v1:'+saved.id).count===1,'First discard never deletes');

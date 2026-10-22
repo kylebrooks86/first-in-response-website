@@ -36,8 +36,8 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
     source.depositCents!==draft.originalDepositCents||
     Boolean(source.acceptedAt||source.signedAt)!==draft.customerAlreadyAccepted||
     items.results.length===0||items.results.length>60||!items.results.every(item=>
-      typeof item.name==='string'&&item.name.length>0&&item.name.length<=160&&
-      typeof item.unit==='string'&&item.unit.length<=40&&
+      typeof item.name==='string'&&item.name.length>0&&item.name.length<=160&&!/[\x00-\x1f\x7f]/.test(item.name)&&
+      typeof item.unit==='string'&&item.unit.length<=40&&!/[\x00-\x1f\x7f]/.test(item.unit)&&
       typeof item.quantity==='number'&&Number.isFinite(item.quantity)&&item.quantity>0&&
       safe(item.totalCents))||
     items.results.reduce((sum,item)=>sum+item.totalCents,0)!==source.subtotalCents)return json({error:bad},409);
