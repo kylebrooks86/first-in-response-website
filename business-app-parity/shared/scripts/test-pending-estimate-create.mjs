@@ -1,0 +1,42 @@
+/** Opaque-only pending quote marker survives browser restart and never stores customer data. */
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+const transpile=s=>ts.transpileModule(readFileSync(s,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const cryptoCtx={exports:{},crypto,TextEncoder,Uint8Array,Array,JSON};
+vm.runInNewContext(transpile('lib/estimate-create-idempotency.ts'),cryptoCtx);
+const api={exports:{},require:id=>{assert.equal(id,'./estimate-create-idempotency');return cryptoCtx.exports;}};
+vm.runInNewContext(transpile('lib/pending-estimate-create.ts'),api);
+const {PENDING_ESTIMATE_CREATE_KEY,readPendingEstimateCreate,reservePendingEstimateCreate,releasePendingEstimateCreate}=api.exports;
+const uuid=n=>'bbba0000-aaaa-4aaa-8aaa-'+String(n).padStart(12,'0');
+const storage=()=>{const data=new Map();return {data,getItem:key=>data.has(key)?data.get(key):null,setItem:(key,value)=>{data.set(key,value);},removeItem:key=>{data.delete(key);}};};
+let checks=0;const same=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
+const store=storage(),first=uuid(1),second=uuid(2);
+same(readPendingEstimateCreate(store).usable,true,'Empty browser storage supports safe quote creation');
+same(readPendingEstimateCreate(store).requestId,null,'Fresh session begins with no pending quote');
+same(reservePendingEstimateCreate(store,first),true,'Store original UUID before first server write');
+same(store.data.size,1,'Only one browser recovery key is stored');
+same(store.data.get(PENDING_ESTIMATE_CREATE_KEY),first,'Only opaque UUID, no customer name or amount persisted');
+same(readPendingEstimateCreate(store).requestId,first,'New component session detects unresolved request');
+same(reservePendingEstimateCreate(store,first),true,'Same request ID remains reserved for safe replay');
+same(reservePendingEstimateCreate(store,second),false,'Cannot overwrite unresolved older quote with new quote request');
+same(store.data.get(PENDING_ESTIMATE_CREATE_KEY),first,'Blocked second request never discards prior marker');
+same(releasePendingEstimateCreate(store,second),false,'Unrelated save cannot clear old marker');
+same(releasePendingEstimateCreate(store,first),true,'Verified first receipt can release original marker');
+same(readPendingEstimateCreate(store).requestId,null,'Owner may now safely begin next distinct quote');
+same(store.data.size,0,'No retained financial or customer details after confirmed release');
+for(const value of ['bad','',uuid(1).replace('-4','-1'),JSON.stringify({customer:'private',total:123}),null]){
+ const current=storage();current.setItem(PENDING_ESTIMATE_CREATE_KEY,value);
+ same(readPendingEstimateCreate(current).usable,false,'Bad persisted marker requires review rather than silently overwriting');
+ same(reservePendingEstimateCreate(current,first),false,'Invalid persisted marker blocks new POST');
+ same(current.getItem(PENDING_ESTIMATE_CREATE_KEY),value,'Invalid marker not silently destroyed');
+}
+const unavailable={getItem:()=>{throw Error('Browser privacy mode');},setItem:()=>{throw Error('Private');},removeItem:()=>{throw Error('Private');}};
+same(readPendingEstimateCreate(undefined).usable,false,'No local storage forbids unsafe POST');
+same(readPendingEstimateCreate(unavailable).usable,false,'Blocked local storage cannot be assumed reliable');
+same(reservePendingEstimateCreate(unavailable,first),false,'Write failure blocks POST');
+same(releasePendingEstimateCreate(unavailable,first),false,'Deletion failure cannot claim cleared request');
+const full=storage();full.setItem=()=>{throw Error('Quota')};
+same(reservePendingEstimateCreate(full,first),false,'Quota/storage denial cannot produce a false reservation');
+console.log('PASS '+checks+'/'+checks+' browser-safe opaque pending quote create receipts, restart recovery, conflict guard, corruption and storage refusal.');

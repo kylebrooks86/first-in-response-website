@@ -88,6 +88,12 @@ try{
  eq((await lookup(quote.requestId)).status,401,'Nonowner exact lookup refused');
  eq((await post(quote)).status,401,'Nonowner session cannot replay existing quote');
  runtime.setOwner({email:'kylebrooks8605@gmail.com'});
+ // When the immutable creation receipt cannot be written, the entire customer/estimate batch rolls back.
+ const beforeFailure=financialSnapshot();runtime.failMetadata(true);
+ const failure=await post({...quote,requestId:uuid(111),customer:'Synthetic atomic failure',email:'atomic-failure@example.invalid',phone:'9185550888',address:'111 Synthetic Atomic St',additionalDiscountValue:0,bundleDiscountCents:0});
+ eq(failure.status,500,'Failed creation proof write makes the attempted quote unconfirmed');
+ eq(financialSnapshot(),beforeFailure,'Failed proof cannot leave an orphan customer or estimate');
+ runtime.failMetadata(false);
  // Without a request ID, legacy clients still create quotes normally.
  const legacy=await post({...quote,requestId:undefined,customer:'Synthetic legacy customer',email:'legacy-replay@example.invalid',phone:'9185550999',address:'200 Legacy Fixture Rd'});
  eq(legacy.status,201,'Legacy POST with no request ID remains backward compatible');
