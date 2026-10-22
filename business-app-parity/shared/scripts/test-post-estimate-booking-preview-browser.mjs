@@ -62,10 +62,10 @@ try{
  }
  await page.setViewportSize({width:390,height:844});await page.goto(origin);
  await page.getByRole('button',{name:'Preview booking adjustment'}).click();await page.getByText('Potential additional savings: $69.00').waitFor();
- await page.getByLabel('Booking date confirmed by owner (Tulsa)').fill('2026-02-30');
+ await page.getByLabel('Booking date confirmed by owner (Tulsa)').fill('2099-12-31');
  check(await page.getByText('Potential additional savings: $69.00').count()===0,'Editing date removes stale preview immediately');
  await page.getByRole('button',{name:'Preview booking adjustment'}).click();
- await page.getByRole('alert').waitFor();check(await page.getByText('booking date must be a valid Tulsa-local date',{exact:false}).count()>0,'Invalid owner booking date fails closed');
+ await page.getByRole('alert').waitFor();check(await page.getByText('booking date must be a valid Tulsa-local date',{exact:false}).count()>0,'Future owner booking date fails closed');
  await page.getByLabel('Booking date confirmed by owner (Tulsa)').fill(today);
  fail=true;await page.getByRole('button',{name:'Preview booking adjustment'}).click();await page.getByRole('alert').waitFor();
  check(await page.getByText('Read-only synthetic preview temporarily unavailable').count()===1,'Network/server read failure visible');
