@@ -12,6 +12,7 @@ const source=readFileSync('app/dashboard.tsx','utf8');
 assert.match(source,/NewEstimatePromotions active=\{open&&step===2/,'New estimate renders actual promotion assistant');
 assert.match(source,/promotionsVerifiedFor!==promotionQuoteKey/,'Quote save requires current eligibility verification');
 assert.match(source,/setPromotionOwnerOverride\(true\)/,'Manual owner discount overrides exist');
+assert.match(source,/promotionServiceIds=\[\.\.\.new Set\(/,'Repeated service lines must not break promotion verification');
 const fixture=String.raw`import React,{useState}from'react';import{createRoot}from'react-dom/client';import{NewEstimatePromotions}from'./components/new-estimate-promotions';
 function Fixture(){const[items,setItems]=useState(['house-wash','gutters']),[subtotal,setSubtotal]=useState(46000),[override,setOverride]=useState(false);
 const[percent,setPercent]=useState(''),[bundle,setBundle]=useState(''),[verified,setVerified]=useState(null),[active,setActive]=useState(true);

@@ -653,7 +653,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   const resolvedAddress=estimateProperty&&estimateProperty.property.customerId===selectedCustomer?.id?estimateProperty.property.address+(estimateProperty.property.designation?' · '+estimateProperty.property.designation:''):address;
   const reviewStored=async()=>{setReviewingRecords(true);try{const response=await fetch('/api/customers');const data=await response.json() as {estimates?:EstimateRow[]};if(!response.ok||!Array.isArray(data.estimates))throw Error('Stored estimates could not be read.');setReviewedRecords(data.estimates.filter(row=>selectedCustomer?row.customerId===selectedCustomer.id:true));}catch(e){setError(e instanceof Error?e.message:'Stored estimates unavailable.');}finally{setReviewingRecords(false);}};
   const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
-  const promotionServiceIds=items.map(item=>item.serviceId).filter(id=>services.some(service=>service.id===id));
+  const promotionServiceIds=[...new Set(items.map(item=>item.serviceId).filter(id=>services.some(service=>service.id===id)))];
   const promotionQuoteKey=JSON.stringify({services:promotionServiceIds,subtotal,appreciationDiscount});
   const discountInputCents=parseDiscountCents(discountValue,discountMode,appreciationDiscount?45:50);
   const bundleInputCents=parseDiscountCents(bundleValue,"dollar");
