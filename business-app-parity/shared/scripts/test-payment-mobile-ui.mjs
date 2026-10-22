@@ -92,4 +92,11 @@ check('Customer-profile payment layout wraps details and provides a full-row 44p
  assert.equal(value(rule('.customer-payment-amount',true),'grid-row'),'2');
  assert.equal(value(rule('.customer-payment-record>.payment-refund-action',true),'grid-row'),'3');
 });
+check('Paid review queue controls preserve search, sort, filtered reset, and exact job navigation',()=>{
+ const payments=functions.find(n=>n.name.text==='PaymentsView');
+ const body=payments.getText(ast);
+ for(const expected of ['reviewCloseoutSearch.trim().toLowerCase()','reviewCloseoutFilter==="prepared"','reviewCloseoutOrder==="customer"','reviewCloseoutOrder==="newest"','setReviewCloseoutSearch("")','setReviewCloseoutFilter("all")','setReviewCloseoutOrder("priority")','setShowAllReviewCloseouts(false)','encodeURIComponent(item.estimateId)','reviewMoreAvailable?" · Older jobs may remain unloaded"'])assert.ok(body.includes(expected),'Missing review queue behavior: '+expected);
+ assert.match(body,/item.state==="prepared"\?0:1/);
+ assert.match(body,/reviewCloseoutError\?<p role="alert"/);
+});
 console.log(`PASS: ${cases}/${cases} component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.`);
