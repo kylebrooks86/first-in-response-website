@@ -1587,3 +1587,9 @@ html,body{max-width:100%;overflow-x:clip}
 .discount-components{display:grid;gap:8px;padding:12px;border:1px solid var(--border);border-radius:10px}
 .discount-components>span{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;color:var(--muted-foreground);font-size:13px}
 .discount-components strong{color:var(--foreground);white-space:nowrap}
+/* Quote and invoice editing must retain readable labels in both themes. */
+.estimate-edit-service,.edit-discount-card{background:var(--card);border-color:var(--border);color:var(--foreground)}
+.estimate-edit-scroll-area .service-description-help{color:var(--muted-foreground)}
+.edit-totals span{border-color:var(--border);color:var(--muted-foreground)}
+.edit-totals strong{color:var(--foreground)}
+.estimate-edit-service>header>button{min-width:44px;min-height:44px}
