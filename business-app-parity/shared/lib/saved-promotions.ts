@@ -64,7 +64,7 @@ export function evaluateSavedPromotions(catalog:SavedPromotionCatalog,quote:Prom
   for(const rule of catalog.promotions){
     if(!rule.enabled||!rule.autoApply||!rule.requiredServiceIds.every(id=>quote.serviceIds.includes(id)))continue;
     if(rule.dateBasis==='booking-confirmed'&&!quote.bookedOn){
-      if((!rule.startOn||quote.estimateOn<=rule.endOn!||!rule.endOn))pendingBooking.push(rule);
+      if(!rule.endOn||quote.estimateOn<=rule.endOn)pendingBooking.push(rule);
       continue;
     }
     const checkedOn=rule.dateBasis==='booking-confirmed'?quote.bookedOn!:quote.estimateOn;
