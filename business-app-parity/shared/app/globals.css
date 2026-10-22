@@ -1570,3 +1570,6 @@ html,body{max-width:100%;overflow-x:clip}
 .message-dialog .message-confirm-actions{gap:10px}
 .message-dialog .message-builder>p{overflow-wrap:anywhere}
 @media(max-width:440px){.message-dialog .message-confirm-actions button{width:100%}.message-dialog textarea{font-size:16px}}
+/* Saved message recovery must not widen the iPhone composer. */
+.message-dialog .message-builder,.message-dialog .message-builder>*{min-width:0;max-width:100%}
+.message-dialog .message-builder button{min-width:0;max-width:100%;height:auto;min-height:44px;white-space:normal;overflow-wrap:anywhere}

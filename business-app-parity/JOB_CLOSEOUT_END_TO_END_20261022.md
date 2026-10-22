@@ -5,7 +5,9 @@ Continues verified development commit 027233fa0490e2fce284ddd5bef532d9e0dbf622 (
 Implemented in shared source:
 - Job review shortcuts require a positive safe-integer billing total, exact paid principal, explicit zero refund/checkout/overpayment holds, and no confirmed review request or owner-received flag. A saved send/received flag becomes a truthful non-interactive status instead of another outreach control.
 - Estimate list, focused history and customer job queries return the same read-only refund/checkout/received-review metadata. Legacy text/email entries do not become proof of an owner-confirmed review send.
+- Recommended next steps distinguish payment review holds and remaining closeout progress; a paid balance no longer claims the entire customer record is complete.
 - Dashboard review checks open the exact existing customer review activity and request focus there.
+- Saved-message recovery controls wrap within the mobile dialog rather than widening and clipping its content; explicit overflow/touch-target checks cover the long Resume label.
 - Changing the composer customer/job clears prior edited text, feedback, preparation state and document links; normal close/reopen on the same customer keeps existing behavior. Body regeneration also keys on customer/job even if two customers share the same first name. Message type now has an associated accessible label.
 
 Validation additions:

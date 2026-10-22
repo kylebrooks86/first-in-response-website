@@ -123,6 +123,8 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  await scopeDialog.getByLabel('Message type',{exact:true}).click();await page.getByRole('option',{name:'Estimate ready',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('#customerMessage')?.value.includes('/estimate/estimate-prepared'));
  check(!(await scopeDialog.getByLabel('Personalized message',{exact:true}).inputValue()).includes('/estimate/estimate-ready'),'Template uses new job link, never prior customer link');
+ check(await scopeDialog.evaluate(n=>n.scrollWidth<=n.clientWidth),'Pending saved drafts and template controls fit the iPhone composer');
+ check(await scopeDialog.getByRole('button',{name:/^Resume text/}).evaluate(n=>n.getBoundingClientRect().height>=44&&n.getBoundingClientRect().right<=innerWidth),'Long saved-draft recovery control wraps inside viewport with a 44px target');
  check(requests.every(r=>r.method==='GET'),'Customer switch never saves or sends the discarded draft');
  if(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR)await scopeDialog.screenshot({path:join(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR,`closeout-customer-scope-${theme}.png`)});
  }

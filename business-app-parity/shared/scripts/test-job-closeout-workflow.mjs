@@ -18,7 +18,7 @@ export async function exerciseJobCloseout({page,context,origin,request,check,mut
  await detail.getByRole('button',{name:'Mark job complete',exact:true}).click();await detail.getByRole('button',{name:'Create invoice',exact:true}).waitFor();
  check(await detail.getByRole('button',{name:'Request review',exact:true}).count()===0,'Completed job with only deposit offers no review shortcut');
  await detail.getByRole('button',{name:'Record payment',exact:true}).click();const payment=page.getByRole('dialog',{name:'Record payment',exact:true});await payment.getByRole('button',{name:'Save payment',exact:true}).click();await payment.waitFor({state:'hidden'});
- await detail.getByRole('button',{name:'Request review',exact:true}).waitFor();check(true,'Actual final payment UI enables review after server-confirmed balance');
+ await detail.getByRole('button',{name:'Request review',exact:true}).waitFor();check((await detail.locator('.next-action').innerText()).includes('review the saved closeout status'),'Actual final payment enables review and recommends checking saved closeout progress');
  const prepare=await request('/api/customer-messages','POST',{customerId:customer.id,estimateId:estimate.id,channel:'text_prepared',template:'review',body:'Synthetic review request https://firstinresponseexteriors.com/review',requestId:randomUUID()});assert.equal(prepare.status(),201);const draft=(await prepare.json()).message;
  // Prepare through the actual API to avoid dispatching an external SMS application.
  await detail.getByRole('button',{name:'Request review',exact:true}).click();const composer=page.getByRole('dialog',{name:'Message '+customer.name,exact:true});await composer.getByRole('button',{name:/^Resume text/}).click();
