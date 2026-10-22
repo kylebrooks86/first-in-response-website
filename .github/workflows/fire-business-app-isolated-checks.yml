@@ -403,6 +403,8 @@ jobs:
         run: |
           node --experimental-sqlite scripts/test-message-preparation-idempotency.mjs
           node scripts/test-message-confirmation.mjs
+          node scripts/test-job-review-shortcut.mjs
+          node --experimental-sqlite scripts/test-review-closeout-metadata.mjs
       - name: Verify paid-job review action center on synthetic SQLite
         run: node --experimental-sqlite scripts/test-payment-closeout-actions.mjs
       - name: Verify owner-only review snoozes on synthetic paid jobs
@@ -654,7 +656,7 @@ jobs:
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
           node scripts/test-qa-worker-http-browser.mjs --complete-ledger
           node scripts/test-qa-worker-http-browser.mjs --deposit-policy
-          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry --invoice-state --change-history --global-search --search-metadata
+          node scripts/test-qa-worker-http-browser.mjs --public-retry --business-brand --manual-payment-confirmation --customer-create-retry --invoice-state --change-history --global-search --search-metadata --job-closeout
       - name: Seal synthetic-only QA full-app review bundle
         run: |
           python3 business-app-parity/prepare_device_review.py \
