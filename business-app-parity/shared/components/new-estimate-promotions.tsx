@@ -3,7 +3,7 @@ import {useEffect,useRef,useState} from 'react';
 import {Button} from './ui/button';
 import type {PromotionEvidence} from '../lib/estimate-promotion-attribution';
 type Offer={id:string;name:string;type:'percent'|'dollar';valueCents:number;startOn?:string|null;endOn?:string|null};
-type Preview={revision:string|null;checkedOn:string;eligible:Offer[];pendingBooking:Offer[];percentBasisPoints:number;dollarCents:number;blocked:string|null;previewTotalCents:number|null;previewDepositCents:number|null};
+type Preview={revision:string|null;checkedOn:string;bookingConfirmedOn:string|null;eligible:Offer[];pendingBooking:Offer[];percentBasisPoints:number;dollarCents:number;blocked:string|null;previewTotalCents:number|null;previewDepositCents:number|null};
 const safe=(v:unknown):v is number=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0;
 function validPreview(v:unknown):v is Preview{
  if(!v||typeof v!=='object'||Array.isArray(v))return false;
@@ -11,15 +11,19 @@ function validPreview(v:unknown):v is Preview{
  const offer=(p:unknown):p is Offer=>Boolean(p&&typeof p==='object'&&!Array.isArray(p)&&
   typeof (p as Offer).id==='string'&&typeof (p as Offer).name==='string'&&
   ['percent','dollar'].includes((p as Offer).type)&&safe((p as Offer).valueCents));
- return (x.revision===null||typeof x.revision==='string')&&typeof x.checkedOn==='string'&&
+ return (x.revision===null||typeof x.revision==='string')&&
+  (x.bookingConfirmedOn===null||typeof x.bookingConfirmedOn==='string'&&/^\d{4}-\d\d-\d\d$/.test(x.bookingConfirmedOn))&&
+  typeof x.checkedOn==='string'&&
   /^\d{4}-\d\d-\d\d$/.test(x.checkedOn)&&Array.isArray(x.eligible)&&x.eligible.every(offer)&&
   Array.isArray(x.pendingBooking)&&x.pendingBooking.every(offer)&&
   safe(x.percentBasisPoints)&&x.percentBasisPoints<=5000&&safe(x.dollarCents)&&
   (x.blocked===null||typeof x.blocked==='string')&&(x.previewTotalCents===null||safe(x.previewTotalCents))&&
   (x.previewDepositCents===null||safe(x.previewDepositCents));
 }
-export function NewEstimatePromotions({active,quoteKey,serviceIds,subtotalCents,appreciationDiscount,manualOverride,onApply,onVerified}:
-{active:boolean;quoteKey:string;serviceIds:string[];subtotalCents:number;appreciationDiscount:boolean;manualOverride:boolean;
+const tulsaDate=()=>{const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+ const get=(key:string)=>parts.find(p=>p.type===key)?.value??'';return get('year')+'-'+get('month')+'-'+get('day');};
+export function NewEstimatePromotions({active,quoteKey,serviceIds,subtotalCents,appreciationDiscount,bookingConfirmedOn,onBookingConfirmedOn,manualOverride,onApply,onVerified}:
+{active:boolean;quoteKey:string;serviceIds:string[];subtotalCents:number;appreciationDiscount:boolean;bookingConfirmedOn:string|null;onBookingConfirmedOn:(value:string|null)=>void;manualOverride:boolean;
  onApply:(percentBasisPoints:number,dollarCents:number,evidence:PromotionEvidence|null)=>void;onVerified:(key:string|null)=>void}){
  const [status,setStatus]=useState<'idle'|'loading'|'ready'|'error'>('idle'),[preview,setPreview]=useState<Preview|null>(null);
  const [message,setMessage]=useState(''),[skipped,setSkipped]=useState(false),[refresh,setRefresh]=useState(0);
@@ -35,13 +39,13 @@ export function NewEstimatePromotions({active,quoteKey,serviceIds,subtotalCents,
   const timer=setTimeout(async()=>{
    try{
     const response=await fetch('/api/saved-promotions/preview',{method:'POST',cache:'no-store',
-     headers:{'content-type':'application/json'},body:JSON.stringify({serviceIds:JSON.parse(serial),subtotalCents,appreciationDiscount})});
+     headers:{'content-type':'application/json'},body:JSON.stringify({serviceIds:JSON.parse(serial),subtotalCents,appreciationDiscount,...(bookingConfirmedOn?{bookingConfirmedOn}:{})})});
     const body=await response.json() as unknown;
-    if(!response.ok||!validPreview(body))throw Error('Invalid verified promotion preview.');
+    if(!response.ok||!validPreview(body)||body.bookingConfirmedOn!==bookingConfirmedOn)throw Error('Invalid verified promotion preview.');
     if(seq.current!==id||keyRef.current!==expectedKey)return;
     setPreview(body);setStatus('ready');
     if(body.blocked){setMessage(body.blocked);verifiedRef.current(null);return;}
-    if(!overrideRef.current)applyRef.current(body.percentBasisPoints,body.dollarCents,{revision:body.revision,checkedOn:body.checkedOn,ruleIds:body.eligible.map(p=>p.id),serviceIds:JSON.parse(serial) as string[]});
+    if(!overrideRef.current)applyRef.current(body.percentBasisPoints,body.dollarCents,{revision:body.revision,checkedOn:body.checkedOn,ruleIds:body.eligible.map(p=>p.id),serviceIds:JSON.parse(serial) as string[],...(body.bookingConfirmedOn?{bookingConfirmedOn:body.bookingConfirmedOn}:{})});
     verifiedRef.current(expectedKey);
    }catch{
     if(seq.current!==id||keyRef.current!==expectedKey)return;
@@ -50,19 +54,30 @@ export function NewEstimatePromotions({active,quoteKey,serviceIds,subtotalCents,
    }
   },180);
   return()=>{clearTimeout(timer);seq.current++;};
- },[active,quoteKey,serial,subtotalCents,appreciationDiscount,refresh]);
+ },[active,quoteKey,serial,subtotalCents,appreciationDiscount,bookingConfirmedOn,refresh]);
  if(!active)return null;
  return <section className="rounded-xl border p-3 space-y-3" aria-label="Saved promotion suggestions">
   <div className="flex flex-wrap items-center justify-between gap-2"><strong>Saved promotions</strong>
    <Button type="button" variant="outline" className="min-h-11" onClick={()=>setRefresh(n=>n+1)}>Refresh offers</Button></div>
+  <div className="rounded-lg border p-3 space-y-2">
+   <label htmlFor="booking-confirmed-for-promotions" className="flex items-start gap-3 text-sm">
+    <input id="booking-confirmed-for-promotions" type="checkbox" className="mt-1 h-5 w-5 shrink-0" checked={bookingConfirmedOn!==null} onChange={event=>onBookingConfirmedOn(event.target.checked?preview?.checkedOn??tulsaDate():null)}/>
+    <span><strong>Customer booking already confirmed</strong><span className="block">I personally confirmed the booking. Evaluate booking-deadline offers against that date. This does not approve the customer agreement or schedule the job.</span></span>
+   </label>
+   {bookingConfirmedOn!==null&&<div className="space-y-1"><label htmlFor="booking-confirmed-date" className="block text-sm font-semibold">Owner-confirmed booking date (Tulsa)</label>
+    <input id="booking-confirmed-date" type="date" className="w-full min-h-11 rounded-md border bg-background p-2 text-foreground" value={bookingConfirmedOn} max={preview?.checkedOn??tulsaDate()} onChange={event=>onBookingConfirmedOn(event.target.value||null)}/>
+    <p className="text-xs">Only enter a booking date you can substantiate. Later work dates are allowed; this date does not replace a signed agreement.</p>
+   </div>}
+  </div>
   {status==='loading'&&<p role="status" className="text-sm">Checking current saved promotions…</p>}
   {message&&<p role="alert" className="text-sm">{message}</p>}
   {status==='ready'&&preview&&!preview.blocked&&<>
    <p className="text-sm">{preview.eligible.length?
     preview.eligible.length+' eligible saved offer(s): '+preview.eligible.map(p=>p.name).join(' + ')+'. '+(manualOverride?'Your custom amount is preserved.':'Qualifying amounts were filled in automatically.'):
     'No saved promotions qualify for these services and the estimate date.'}</p>
+   {preview.bookingConfirmedOn&&<p className="text-sm"><strong>Owner-confirmed booking:</strong> {preview.bookingConfirmedOn}. This date was checked against saved promotion windows; it is not a customer signature.</p>}
    {preview.pendingBooking.length>0&&<p className="text-sm"><strong>Booking required:</strong> {preview.pendingBooking.map(p=>p.name+(p.endOn?' (book by '+p.endOn+')':'')).join('; ')}. These remain reminders until booking is confirmed.</p>}
-   {manualOverride&&preview.eligible.length>0&&<Button className="min-h-11" variant="outline" onClick={()=>applyRef.current(preview.percentBasisPoints,preview.dollarCents,{revision:preview.revision,checkedOn:preview.checkedOn,ruleIds:preview.eligible.map(p=>p.id),serviceIds:JSON.parse(serial) as string[]})}>Use saved offers</Button>}
+   {manualOverride&&preview.eligible.length>0&&<Button className="min-h-11" variant="outline" onClick={()=>applyRef.current(preview.percentBasisPoints,preview.dollarCents,{revision:preview.revision,checkedOn:preview.checkedOn,ruleIds:preview.eligible.map(p=>p.id),serviceIds:JSON.parse(serial) as string[],...(preview.bookingConfirmedOn?{bookingConfirmedOn:preview.bookingConfirmedOn}:{})})}>Use saved offers</Button>}
   </>}
   {(status==='error'||Boolean(preview?.blocked))&&<Button type="button" variant="outline" className="min-h-11" onClick={()=>{setSkipped(true);setMessage('Owner bypassed promotion verification. Review discounts manually.');verifiedRef.current(quoteKey);}}>Continue without automatic promotions</Button>}
   {skipped&&<p role="status" className="text-sm">Promotion verification explicitly skipped for this estimate.</p>}
