@@ -23,6 +23,7 @@ import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./compon
 import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
 import{FIRE_SERVICES as services,serviceDescriptionFor}from'./lib/fire-services';
+import{useEstimateBundleDiscount}from'./components/estimate-bundle-discount';
 import{useServicePricing}from'./components/service-pricing';import{EstimateLinePricing}from'./components/estimate-line-pricing';
 import{editMoneyLine,editableLineTotalCents,restoreEditableLineMoney,validEditablePrice}from'./lib/editable-line-totals';
 const money=cents=>'$'+(cents/100).toFixed(2);
@@ -42,6 +43,7 @@ let patches=0,saveStatus=503,invoiceLoadStatus=503,invoicePatches=0,releaseInvoi
 const server=createServer((req,res)=>{res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);}
  else if(req.url==='/style.css'){res.setHeader('content-type','text/css');res.end(compiled.css);}
+ else if(req.url==='/api/estimates/synthetic-editor-only/discounts'){res.setHeader('content-type','application/json');res.end(JSON.stringify({estimateId:'synthetic-editor-only',totalCents:20000,bundleDiscountCents:0}));}
  else if(req.url==='/api/service-pricing'){res.setHeader('content-type','application/json');res.end(JSON.stringify({rates:FIRE_SERVICES.map(s=>({id:s.id,rateCents:s.rate,revision:null}))}));}
  else if(req.url==='/api/estimates/synthetic-editor-only'&&req.method==='PATCH'){patches++;let body='';req.on('data',c=>body+=c);req.on('end',()=>{const data=JSON.parse(body);assert.equal(data.items.reduce((sum,i)=>sum+i.totalCents,0),20000);res.writeHead(saveStatus,{'content-type':'application/json'});res.end(JSON.stringify(saveStatus===200?{estimate:{totalCents:20000}}:{error:'Synthetic save unavailable; draft retained'}));});}
  else if(req.url==='/api/invoices/synthetic-invoice'&&req.method==='GET'){

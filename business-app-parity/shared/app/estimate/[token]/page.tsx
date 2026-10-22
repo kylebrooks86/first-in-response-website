@@ -1,3 +1,4 @@
+import {DISCOUNT_SNAPSHOT_PREFIX,readDiscountSnapshot,type DiscountSnapshot} from "../../../lib/discount-input";
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { retrieveStripeCheckoutSession, recordStripeCheckoutSession } from "../../../lib/stripe-payments";
 import { env } from "cloudflare:workers";
@@ -179,6 +180,8 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const estimateApproved=Boolean(row.acceptedAt)||["approved","scheduled","completed"].includes(row.status);
   const canPayDeposit=billingStateSafe&&!paymentReviewPending&&estimateApproved&&row.status!=="completed"&&depositRemaining>0;
   const canPayBalance=billingStateSafe&&!paymentReviewPending&&row.status==="completed"&&balance>0;
+  let savedDiscount:DiscountSnapshot|null=null;
+  try{const metadata=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(DISCOUNT_SNAPSHOT_PREFIX+row.id).first<{body:string}>();savedDiscount=readDiscountSnapshot(row.id,metadata?.body??null,row);}catch{return <main className="pay-page"><section className="pay-card"><h1>Estimate details need review</h1><p>The saved total remains {currency(row.totalCents)}. Please contact First In Response Exteriors to verify the discount breakdown before approving or paying.</p></section></main>;}
   const footer=await env.DB.prepare("SELECT body FROM message_templates WHERE key='estimateFooter'").first<{body:string}>();
   const contract=await env.DB.prepare("SELECT body FROM message_templates WHERE key='contractTerms'").first<{body:string}>();
   return <main className={`pay-page${ownerPreview?' owner-estimate-preview':''}`}>
@@ -191,6 +194,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
     <div className="pay-title"><p>ESTIMATE FOR</p><h1>{row.customer}</h1>{row.address&&<span><MapPin/>{row.address}</span>}{row.serviceAddressSource==="legacy-current-unverified"&&<small>Current customer address; original service address unverified.</small>}</div>
     <div className="portal-service-list">{items.map((item,index)=><div className="pay-line" key={`${item.name}-${index}`}><div><strong>{item.name}</strong>{item.quantity&&<span>{item.quantity} {item.unit}</span>}<p className="portal-service-description">{item.description||serviceDescriptionFor(item.name)}</p></div><strong>{currency(item.totalCents)}</strong></div>)}</div>
     <div className="portal-breakdown"><span><small>Services subtotal</small><strong>{currency(row.subtotalCents)}</strong></span><span><small>Discount</small><strong className="green-text">−{currency(row.discountCents)}</strong></span></div>
+    {savedDiscount&&<div className="portal-breakdown" aria-label="Agreed discount components">{savedDiscount.appreciationCents>0&&<span><small>Appreciation discount (requested)</small><strong>−{currency(savedDiscount.appreciationCents)}</strong></span>}{savedDiscount.additionalCents>0&&<span><small>{savedDiscount.additionalDiscountType==="percent"?`Promotion (${savedDiscount.additionalDiscountValue/100}%)`:'Other discount'} (requested)</small><strong>−{currency(savedDiscount.additionalCents)}</strong></span>}{savedDiscount.bundleDiscountCents>0&&<span><small>Bundle discount (requested)</small><strong>−{currency(savedDiscount.bundleDiscountCents)}</strong></span>}{savedDiscount.requestedDiscount>savedDiscount.appliedDiscount&&<p>The minimum job charge limits the discount applied. The saved total and applied discount above are the agreed amounts.</p>}</div>}
     <div className="pay-summary"><span><small>Estimate total</small><strong>{currency(row.totalCents)}</strong></span><span><small>50% deposit</small><strong className="red-text">{currency(row.depositCents)}</strong></span></div>
     <AcceptEstimateButton token={token} accepted={Boolean(row.acceptedAt)||["approved","scheduled","completed"].includes(row.status)} signedName={row.signedName} photoRelease={row.photoRelease} terms={contract?.body?.startsWith("I authorize First In Response Exteriors to perform the services listed")?SERVICE_AGREEMENT:(contract?.body||SERVICE_AGREEMENT)}/>
     {!billingStateSafe&&<p className="pay-note"><strong>Billing review required.</strong> Please contact First In Response Exteriors before making a payment.</p>}

@@ -7,3 +7,43 @@ export function submittedDiscountCents(raw:unknown):number|null{
   const value=typeof raw==='string'&&/^\d+$/.test(raw)?Number(raw):raw;
   return typeof value==='number'&&Number.isSafeInteger(value)&&value>=0?value:null;
 }
+
+/** Discount components are frozen alongside the saved aggregate, not inferred
+ * from today's settings. Namespaced owner metadata uses existing backup storage.
+ * No migration, historical backfill or recalculation happens on reads. */
+export const DISCOUNT_SNAPSHOT_PREFIX='fire:estimate-discounts:v1:';
+export function quoteDiscounts(subtotal:number,appreciation:boolean,mode:'percent'|'dollar',value:number,bundle=0){
+  if(!Number.isSafeInteger(subtotal)||subtotal<0||typeof value!=='number'||!Number.isSafeInteger(value)||value<0||typeof bundle!=='number'||!Number.isSafeInteger(bundle)||bundle<0)throw Error('Enter valid exact-cent discounts.');
+  if(mode==='percent'&&value>(appreciation?4500:5000))throw Error('Percentage discounts including appreciation cannot exceed 50%.');
+  if(mode==='dollar'&&value>subtotal||bundle>subtotal)throw Error('Dollar discounts cannot exceed the service subtotal.');
+  const appreciationCents=appreciation?Math.round(subtotal*0.05):0;
+  const additionalCents=mode==='percent'?Math.round(subtotal*(value/10000)):value;
+  const sum=BigInt(appreciationCents)+BigInt(additionalCents)+BigInt(bundle);
+  const requestedDiscount=Number(sum>BigInt(subtotal)?BigInt(subtotal):sum);
+  const total=Math.max(15000,subtotal-requestedDiscount),appliedDiscount=Math.max(0,subtotal-total),deposit=Math.round(total/2);
+  return{appreciationCents,additionalCents,bundleDiscountCents:bundle,requestedDiscount,appliedDiscount,total,deposit};
+}
+export function discountSnapshot(estimateId:string,subtotalCents:number,appreciationDiscount:boolean,additionalDiscountType:'percent'|'dollar',additionalDiscountValue:number,bundleDiscountCents:number){
+  return{format:'fire-estimate-discounts-v1',estimateId,subtotalCents,appreciationDiscount,additionalDiscountType,additionalDiscountValue,...quoteDiscounts(subtotalCents,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents)};
+}
+export type DiscountSnapshot=ReturnType<typeof discountSnapshot>;
+export function readDiscountSnapshot(estimateId:string,raw:string|null,stored:{subtotalCents:number;discountCents:number;totalCents:number;depositCents:number}):DiscountSnapshot|null{
+  if(raw===null)return null;
+  if(typeof raw!=='string'||raw.length>8000)throw Error('Saved discount breakdown requires review.');
+  const value=JSON.parse(raw);
+  if(!value||value.format!=='fire-estimate-discounts-v1'||value.estimateId!==estimateId||typeof value.appreciationDiscount!=='boolean'||!['percent','dollar'].includes(value.additionalDiscountType))throw Error('Saved discount breakdown requires review.');
+  const expected=discountSnapshot(estimateId,value.subtotalCents,value.appreciationDiscount,value.additionalDiscountType,value.additionalDiscountValue,value.bundleDiscountCents);
+  if(Object.keys(value).sort().join(',')!==Object.keys(expected).sort().join(',')||Object.entries(expected).some(([key,item])=>value[key]!==item)||stored.subtotalCents!==expected.subtotalCents||stored.discountCents!==expected.appliedDiscount||stored.totalCents!==expected.total||stored.depositCents!==expected.deposit)throw Error('Saved discount breakdown differs from the agreed totals. Refresh and review; no prices changed.');
+  return expected;
+}
+export function verifiedSavedDiscounts(estimateId:string,raw:string|null,stored:{subtotalCents:number;discountCents:number;totalCents:number;depositCents:number;appreciationDiscount:number|boolean;additionalDiscountType:string;additionalDiscountValue:number}){
+ const snapshot=readDiscountSnapshot(estimateId,raw,stored);if(snapshot){
+  if(snapshot.appreciationDiscount!==Boolean(Number(stored.appreciationDiscount))||snapshot.additionalDiscountType!==stored.additionalDiscountType||snapshot.additionalDiscountValue!==stored.additionalDiscountValue)throw Error('Saved discount inputs differ from the agreed breakdown.');
+  return snapshot;
+ }
+ // Missing metadata is safe only for a mathematically consistent legacy quote.
+ // Never infer a lost bundle from an aggregate or silently convert it to zero.
+ const legacy=quoteDiscounts(stored.subtotalCents,Boolean(Number(stored.appreciationDiscount)),stored.additionalDiscountType==='dollar'?'dollar':'percent',stored.additionalDiscountValue,0);
+ if(legacy.appliedDiscount!==stored.discountCents||legacy.total!==stored.totalCents||legacy.deposit!==stored.depositCents)throw Error('Saved discount terms require review before repricing.');
+ return null;
+}

@@ -1,3 +1,4 @@
+import {exerciseStackedDiscounts} from './test-stacked-discounts-workflow.mjs';
 import {exerciseJobCloseout} from './test-job-closeout-workflow.mjs';
 import {exerciseGlobalSearch} from './test-global-search-workflow.mjs';
 import {exerciseSearchMetadata} from './test-search-metadata-workflow.mjs';
@@ -239,6 +240,7 @@ try{
  if(process.argv.includes('--invoice-state'))await exerciseInvoiceState({page,context,browser,origin,request,check,originalEstimateId:estimate.id,mutateSyntheticD1:async sql=>{await stop();await command(['d1','execute','DB','--local','--persist-to',join(temp,'state'),'--config',configPath,'--command',sql]);await start();}});
  if(process.argv.includes('--deposit-policy'))await exerciseDepositPolicy({page,browser,origin,request,check,mutateSyntheticD1:async sql=>{await stop();await command(['d1','execute','DB','--local','--persist-to',join(temp,'state'),'--config',configPath,'--command',sql]);await start();}});
  if(process.argv.includes('--job-closeout'))await exerciseJobCloseout({page,context,origin,request,check,mutateSyntheticD1:async sql=>{await stop();await command(['d1','execute','DB','--local','--persist-to',join(temp,'state'),'--config',configPath,'--command',sql]);await start();}});
+ if(process.argv.includes('--stacked-discounts'))await exerciseStackedDiscounts({page,origin,request,check});
  check(outside.length===0&&clientErrors.length===0,'No external network dispatched or uncaught framework client errors: '+JSON.stringify({outside,clientErrors,interceptedSyntheticMapFrames:blockedSyntheticMaps.length}));
  console.log('PASS '+checks+' built QA Worker HTTP / native D1 / Chromium checks. Local synthetic evidence only; no hosted or iOS acceptance claimed.');
 }finally{if(browser)await browser.close();await stop();rmSync(temp,{recursive:true,force:true});}

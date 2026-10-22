@@ -18,7 +18,7 @@ assert.ok(editor.indexOf('estimate-edit-items',scroll)>scroll&&editor.indexOf('e
 assert.ok(editor.indexOf('Save estimate changes',footer)>footer,'Save remains in the visible footer');
 assert.ok(editor.indexOf('role="alert"',scroll)<footer,'Save errors are readable inside the scrolling body');
 assert.ok(editor.includes('onOpenChange={setOpenSafe}'),'Dialog close behavior preserved');
-assert.ok(editor.includes('onClick={()=>void save()} disabled={saving}'),'Save behavior and saving guard preserved');
+assert.ok(editor.includes('onClick={()=>void save()} disabled={saving||!bundle.ready}'),'Save behavior and saving guard preserved');
 const patch=css.slice(css.indexOf('/* FIRE QA: prevent iPhone Safari'));
 assert.ok(patch.startsWith('/* FIRE QA:'),'Viewport patch exists');
 for(const bit of [

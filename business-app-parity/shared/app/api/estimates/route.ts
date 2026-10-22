@@ -1,4 +1,4 @@
-import {submittedDiscountCents} from '../../../lib/discount-input';
+import {submittedDiscountCents, quoteDiscounts, discountSnapshot, readDiscountSnapshot, DISCOUNT_SNAPSHOT_PREFIX} from '../../../lib/discount-input';
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import {customerPropertiesEnabled,propertyAssociationColumns,propertyEstimatesTestEnabled,selectEstimateProperty,PropertySelectionError} from '../../../lib/customer-properties';
 import { env } from "cloudflare:workers";
@@ -69,20 +69,11 @@ export async function POST(request: Request) {
     const additionalDiscountType=String(body.additionalDiscountType??"percent")==="dollar"?"dollar":"percent";
     const additionalDiscountValue=submittedDiscountCents(body.additionalDiscountValue);
     if(additionalDiscountValue===null)return Response.json({error:"Enter a valid nonnegative discount in exact cents."},{status:400});
-    let additionalDiscountCents=0;
-    if(additionalDiscountType==="percent"){
-      const maxBasisPoints=(appreciationDiscount?45:50)*100;
-      if(additionalDiscountValue>maxBasisPoints)return Response.json({error:`Additional percentage discount cannot exceed ${maxBasisPoints/100}%.`},{status:400});
-      additionalDiscountCents=Math.round(subtotal*(additionalDiscountValue/10000));
-    } else {
-      if(additionalDiscountValue>subtotal)return Response.json({error:"Dollar discount cannot exceed the service subtotal."},{status:400});
-      additionalDiscountCents=additionalDiscountValue;
-    }
-    const appreciationCents=appreciationDiscount?Math.round(subtotal*0.05):0;
-    const requestedDiscount=Math.min(subtotal,appreciationCents+additionalDiscountCents);
-    const total=Math.max(15000,subtotal-requestedDiscount);
-    const appliedDiscount=Math.max(0,subtotal-total);
-    const deposit=Math.round(total/2);
+    const bundleDiscountCents=body.bundleDiscountCents===undefined?0:typeof body.bundleDiscountCents==='number'?submittedDiscountCents(body.bundleDiscountCents):null;
+    if(bundleDiscountCents===null)return Response.json({error:'Enter a valid bundle discount in exact cents.'},{status:400});
+    let pricing:ReturnType<typeof quoteDiscounts>;
+    try{pricing=quoteDiscounts(subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents);}catch(error){return Response.json({error:error instanceof Error?error.message:'Invalid discounts.'},{status:400});}
+    const {total,appliedDiscount,deposit}=pricing;
     const customerId=existingCustomerId||crypto.randomUUID();
     const estimateId=crypto.randomUUID();const shareToken=crypto.randomUUID().replaceAll("-","");const now=new Date().toISOString();
     const statements=[];
@@ -107,8 +98,9 @@ export async function POST(request: Request) {
     if(serviceLocationsEnabled(env))statements.push(env.DB.prepare("INSERT INTO estimate_service_locations(estimate_id,customer_id,address,captured_at) VALUES(?,?,?,?)").bind(estimateId,customerId,serviceAddress,now));
     if(selection)statements.push(env.DB.prepare('INSERT INTO estimate_property_links(estimate_id,customer_id,property_id,property_revision,selection_mode,captured_at) VALUES(?,?,?,?,?,?)').bind(estimateId,customerId,selection.property.id,selection.property.revision,selection.mode,now));
     for(const item of items)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),estimateId,item.name,item.description,item.quantity,item.unit,item.totalCents));
+    if(bundleDiscountCents>0)statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?)").bind(DISCOUNT_SNAPSHOT_PREFIX+estimateId,JSON.stringify(discountSnapshot(estimateId,subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents)),now));
     await env.DB.batch(statements);
-    return Response.json({id:estimateId,customerId,customer,email,phone,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue},{status:201});
+    return Response.json({id:estimateId,customerId,customer,email,phone,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents},{status:201});
   } catch {
     return Response.json({ error: propertyEstimatesTestEnabled(env)?'Estimate save was not confirmed. Review stored records before another deliberate attempt.':"We couldn't save this estimate. Please try again." }, { status: 500 });
   }

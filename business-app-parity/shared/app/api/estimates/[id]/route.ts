@@ -1,4 +1,4 @@
-import {submittedDiscountCents} from '../../../../lib/discount-input';
+import {submittedDiscountCents, quoteDiscounts, discountSnapshot, verifiedSavedDiscounts, DISCOUNT_SNAPSHOT_PREFIX} from '../../../../lib/discount-input';
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
 import {depositPolicyEnabled,depositPolicyColumns,depositSchedulingPolicy,depositSchedulingGuard,type DepositPolicyRow} from '../../../../lib/deposit-policy';
@@ -15,16 +15,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { id } = await params;
     const body = await request.json() as Record<string, unknown>;
     if(depositPolicyEnabled(env)&&Object.keys(body).some(key=>/^(?:deposit|overrideDeposit|allowSchedulingBeforeDeposit)/i.test(key)))return Response.json({error:'Deposit exceptions are not enabled. This request cannot change deposit terms or bypass collection.'},{status:400});
+    if(Object.prototype.hasOwnProperty.call(body,'bundleDiscountCents')&&!Array.isArray(body.items))return Response.json({error:'Discount changes require the complete current service list.'},{status:400});
     const status = String(body.status ?? "").trim();
     let scheduledAt = String(body.scheduledAt ?? "").trim();
     if(scheduledAt){const parsedSchedule=new Date(scheduledAt);if(Number.isNaN(parsedSchedule.getTime()))return Response.json({error:"Choose a valid job date and time."},{status:400});scheduledAt=parsedSchedule.toISOString();}
     if (status && !statuses.has(status)) return Response.json({ error: "Choose a valid estimate status." }, { status: 400 });
     const existing = await env.DB.prepare(`
-      SELECT e.id,e.status,e.scheduled_at AS scheduledAt,e.deposit_cents AS depositCents,e.accepted_at AS acceptedAt,e.signed_at AS signedAt,
+      SELECT e.appreciation_discount AS appreciationDiscount,e.additional_discount_type AS additionalDiscountType,e.additional_discount_value AS additionalDiscountValue,e.id,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.total_cents AS totalCents,e.status,e.scheduled_at AS scheduledAt,e.deposit_cents AS depositCents,e.accepted_at AS acceptedAt,e.signed_at AS signedAt,
              COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,
              (SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id) AS invoiceCount
       FROM estimates e WHERE e.id=?
-    `).bind(id).first<{id:string;status:string;scheduledAt:string|null;depositCents:number;acceptedAt:string|null;signedAt:string|null;paidCents:number;invoiceCount:number}>();
+    `).bind(id).first<{appreciationDiscount:number;additionalDiscountType:string;additionalDiscountValue:number;subtotalCents:number;discountCents:number;totalCents:number;id:string;status:string;scheduledAt:string|null;depositCents:number;acceptedAt:string|null;signedAt:string|null;paidCents:number;invoiceCount:number}>();
     if (!existing) return Response.json({ error: "Estimate not found." }, { status: 404 });
 
     const statements=[];
@@ -35,8 +36,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if(audit)return Response.json({error:"An owner deposit exception was recorded. Reprice only through a reviewed deposit/agreement revision workflow, not a silent estimate edit."},{status:409});
     }
     if(Array.isArray(body.items)){
-      if(["approved","scheduled","completed"].includes(existing.status)||Number(existing.paidCents)>0||Number(existing.invoiceCount)>0)
+      if(existing.signedAt||existing.acceptedAt||["approved","scheduled","completed"].includes(existing.status)||Number(existing.paidCents)>0||Number(existing.invoiceCount)>0)
         return Response.json({error:"This estimate is already approved or financially active. Keep the accepted estimate unchanged and make any final service or price changes on the invoice."},{status:409});
+      const savedDiscount=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(DISCOUNT_SNAPSHOT_PREFIX+id).first<{body:string}>();
+      try{verifiedSavedDiscounts(id,savedDiscount?.body??null,existing);}catch{return Response.json({error:'Saved discount breakdown requires review. Refresh before editing.'},{status:409});}
+      if(savedDiscount&&!Object.prototype.hasOwnProperty.call(body,'bundleDiscountCents'))return Response.json({error:'This estimate has saved discount components. Refresh with the current editor before repricing.'},{status:409});
       const items=(body.items as Record<string,unknown>[]).map((item):EditItem=>({
         id:String(item.id??"").trim()||undefined,
         name:String(item.name??"").trim(),
@@ -52,24 +56,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       const additionalDiscountType=String(body.additionalDiscountType??"percent")==="dollar"?"dollar":"percent";
       const additionalDiscountValue=submittedDiscountCents(body.additionalDiscountValue);
       if(additionalDiscountValue===null)return Response.json({error:"Enter a valid nonnegative discount in exact cents."},{status:400});
-      let additionalDiscountCents=0;
-      if(additionalDiscountType==="percent"){
-        const maxBasisPoints=(appreciationDiscount?45:50)*100;
-        if(additionalDiscountValue>maxBasisPoints)return Response.json({error:`Additional percentage discount cannot exceed ${maxBasisPoints/100}%.`},{status:400});
-        additionalDiscountCents=Math.round(subtotal*(additionalDiscountValue/10000));
-      }else{
-        if(additionalDiscountValue>subtotal)return Response.json({error:"Dollar discount cannot exceed the service subtotal."},{status:400});
-        additionalDiscountCents=additionalDiscountValue;
-      }
-      const appreciationCents=appreciationDiscount?Math.round(subtotal*0.05):0;
-      const requestedDiscount=Math.min(subtotal,appreciationCents+additionalDiscountCents);
-      const total=Math.max(15000,subtotal-requestedDiscount);
-      const appliedDiscount=Math.max(0,subtotal-total);
-      const deposit=Math.round(total/2);
+      const bundleDiscountCents=body.bundleDiscountCents===undefined?0:typeof body.bundleDiscountCents==='number'?submittedDiscountCents(body.bundleDiscountCents):null;
+      if(bundleDiscountCents===null)return Response.json({error:'Enter a valid bundle discount in exact cents.'},{status:400});
+      let pricing:ReturnType<typeof quoteDiscounts>;
+      try{pricing=quoteDiscounts(subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents);}catch(error){return Response.json({error:error instanceof Error?error.message:'Invalid discounts.'},{status:400});}
+      const {total,appliedDiscount,deposit}=pricing;
       statements.push(env.DB.prepare("DELETE FROM estimate_items WHERE estimate_id=?").bind(id));
       for(const item of items)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(item.id||crypto.randomUUID(),id,item.name,item.description,item.quantity,item.unit,item.totalCents));
       statements.push(env.DB.prepare("UPDATE estimates SET subtotal_cents=?,discount_cents=?,appreciation_discount=?,additional_discount_type=?,additional_discount_value=?,total_cents=?,deposit_cents=? WHERE id=?").bind(subtotal,appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,total,deposit,id));
-      responseFields={...responseFields,subtotalCents:subtotal,discountCents:appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,totalCents:total,depositCents:deposit,items,service:items.map((item)=>item.name).join(", "),serviceDescription:items[0]?.description??""};
+      if(bundleDiscountCents>0||savedDiscount)statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body,updated_at=excluded.updated_at").bind(DISCOUNT_SNAPSHOT_PREFIX+id,JSON.stringify(discountSnapshot(id,subtotal,Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents)),new Date().toISOString()));
+      responseFields={...responseFields,bundleDiscountCents,subtotalCents:subtotal,discountCents:appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,totalCents:total,depositCents:deposit,items,service:items.map((item)=>item.name).join(", "),serviceDescription:items[0]?.description??""};
     }
 
     const changingStatus=Boolean(status)||Object.prototype.hasOwnProperty.call(body,"scheduledAt");
@@ -112,8 +108,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if(latestWorkflow.status!==existing.status||latestWorkflow.acceptedAt!==existing.acceptedAt||latestWorkflow.signedAt!==existing.signedAt)return Response.json({error:"This job changed while you were updating its status or schedule. Refresh it before trying again."},{status:409});
     }
     if(Array.isArray(body.items)){
-      const latest=await env.DB.prepare(`SELECT status,COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,(SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id) AS invoiceCount FROM estimates e WHERE e.id=?`).bind(id).first<{status:string;paidCents:number;invoiceCount:number}>();
-      if(!latest||["approved","scheduled","completed"].includes(latest.status)||Number(latest.paidCents)>0||Number(latest.invoiceCount)>0)return Response.json({error:"This estimate became approved or financially active while you were editing it. Refresh the job; keep the accepted estimate unchanged and make later billing changes on the final invoice."},{status:409});
+      const latest=await env.DB.prepare(`SELECT status,signed_at AS signedAt,accepted_at AS acceptedAt,COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents,(SELECT COUNT(*) FROM invoices inv WHERE inv.estimate_id=e.id) AS invoiceCount FROM estimates e WHERE e.id=?`).bind(id).first<{signedAt:string|null;acceptedAt:string|null;status:string;paidCents:number;invoiceCount:number}>();
+      if(!latest||latest.signedAt||latest.acceptedAt||["approved","scheduled","completed"].includes(latest.status)||Number(latest.paidCents)>0||Number(latest.invoiceCount)>0)return Response.json({error:"This estimate became approved or financially active while you were editing it. Refresh the job; keep the accepted estimate unchanged and make later billing changes on the final invoice."},{status:409});
       if(!Number.isSafeInteger(Number(latest.paidCents))||Number(latest.paidCents)<0)return Response.json({error:"This estimate's payment state is outside FIRE's safe accounting range. Stop and review the job before editing the estimate."},{status:409});
     }
     if(statements.length){const results=await env.DB.batch(statements);if(guardedScheduleIndex>=0&&results[guardedScheduleIndex]?.meta.changes!==1)return Response.json({error:'The deposit, payment or approval state changed before scheduling was saved. Refresh the job and review its records before another deliberate attempt.'},{status:409});}
