@@ -58,6 +58,16 @@ try{
  const amended=await doReview(id,updated);eq(amended.status,200,'Review owner can rotate revision');
  const latest=(await amended.json()).draft;
  eq((await (await get(id)).json()).reviewRevision,latest.revision,'Packet always uses current owner review');
+ for(const [column,changed,original] of [
+  ['description','Altered no-charge scope requirements','Original scope'],
+  ['quantity',2,1],
+  ['unit','minutes','job']
+ ]){
+  rt.db.prepare('UPDATE estimate_items SET '+column+'=? WHERE estimate_id=? AND name=?').run(changed,id,'House Wash');
+  eq((await get(id)).status,409,'Private worksheet refuses same-price '+column+' edit after saved review');
+  rt.db.prepare('UPDATE estimate_items SET '+column+'=? WHERE estimate_id=? AND name=?').run(original,id,'House Wash');
+  eq((await get(id)).status,200,'Original '+column+' restored and worksheet reverified');
+ }
  rt.db.prepare("UPDATE estimate_items SET total_cents=40001 WHERE estimate_id=? AND name='House Wash'").run(id);
  eq((await get(id)).status,409,'Unbalanced changed line item rejected without updating quote');
  rt.db.prepare("UPDATE estimate_items SET total_cents=40000 WHERE estimate_id=? AND name='House Wash'").run(id);

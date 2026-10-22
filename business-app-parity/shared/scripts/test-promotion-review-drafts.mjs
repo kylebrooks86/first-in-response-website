@@ -35,6 +35,18 @@ try{
  eq(d.readBookingReviewDraft(r.db.prepare('SELECT body FROM message_templates WHERE key=?').get(key).body,estimate).revision,revision,'Backed-up owner metadata contains exact revision');
  eq(snapshot(),source,'Save never touches customers, estimates, items, payments or invoices');
  response=await get(estimate);body=await response.json();eq(body.stale,false,'Original review current and verified');eq(body.revision,revision,'Readback returns same revision');
+ eq(body.draft.originalScopeSha256.length,64,'Full original scope sha256 stored in owner review');
+ for(const [column,altered,baseline] of [
+  ['description','Changed service instructions at unchanged price','Synthetic'],
+  ['quantity',2,1],
+  ['unit','other-unit','job']
+ ]){
+   r.db.prepare('UPDATE estimate_items SET '+column+'=? WHERE estimate_id=? AND name=?').run(altered,estimate,'House Wash');
+   response=await get(estimate);eq(response.status,200,'Owner may inspect scope-drifted review');
+   eq((await response.json()).stale,true,'Changing '+column+' with same subtotal invalidates saved offer review');
+   r.db.prepare('UPDATE estimate_items SET '+column+'=? WHERE estimate_id=? AND name=?').run(baseline,estimate,'House Wash');
+   eq((await (await get(estimate)).json()).stale,false,'Restoring identical scope revalidates original review');
+ }
  response=await post(estimate,draftInput);body=await response.json();eq(body.alreadySaved,true,'Lost acknowledgement retries idempotently');eq(body.revision,revision,'Duplicate save does not roll revision');
  eq((await post(estimate,{...draftInput,ownerNote:'New note without revision'})).status,409,'Owner note conflict requires current revision');
  eq((await post(estimate,{...draftInput,expectedProposedTotalCents:36599})).status,409,'Forged proposed amount refused');
