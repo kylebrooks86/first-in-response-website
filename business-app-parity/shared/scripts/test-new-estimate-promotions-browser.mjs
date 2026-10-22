@@ -81,6 +81,7 @@ try{
  check(await page.getByLabel('Percentage chosen').textContent()==='','Explicit owner choice replaces custom with saved rules');
  fail=true;await page.getByRole('button',{name:'Refresh offers'}).click();
  await page.getByText('Saved promotions were not verified',{exact:false}).waitFor();
+ check(await page.getByLabel('Bundle chosen').textContent()==='','Unverified refresh clears previous auto bundle');
  check(await page.getByRole('button',{name:'Save synthetic estimate'}).isDisabled(),'Failed current rule read blocks save');
  await page.getByRole('button',{name:'Continue without automatic promotions'}).click();
  check(await page.getByRole('button',{name:'Save synthetic estimate'}).isEnabled(),'Owner may explicitly bypass unavailable rules');

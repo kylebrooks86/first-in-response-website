@@ -29,6 +29,8 @@ export function NewEstimatePromotions({active,quoteKey,serviceIds,subtotalCents,
   if(!active)return;
   const id=++seq.current,expectedKey=quoteKey;
   setStatus('loading');setPreview(null);setMessage('');setSkipped(false);verifiedRef.current(null);
+  // No verified offer may survive a changed scope, expired window or failed refresh.
+  if(!overrideRef.current)applyRef.current(0,0);
   const timer=setTimeout(async()=>{
    try{
     const response=await fetch('/api/saved-promotions/preview',{method:'POST',cache:'no-store',
