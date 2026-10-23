@@ -260,8 +260,12 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await priorities.getByRole('button',{name:'Retry unavailable house revisit status'}).waitFor();
   check(await doorPanel.count()===0,'Unavailable house source never masquerades as a verified empty or due list');
   doorMode='empty';await priorities.getByRole('button',{name:'Retry unavailable house revisit status'}).click();
-  await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('6 known checks'));
+  // 6 known checks appears both while the request is failing and after a
+  // successful empty response. Wait for the *source-specific* recovery state.
+  await priorities.getByRole('button',{name:'Retry unavailable house revisit status'}).waitFor({state:'hidden'});
   check(await priorities.getByRole('button',{name:'Retry unavailable house revisit status'}).count()===0,'Verified empty house queue removes stale source error');
+  check(await doorPanel.count()===0,'A verified empty callback queue has no stale house cards');
+  check((await priorities.innerText()).includes('6 known checks'),'Empty callback recovery retains the correct independent priority count');
   // An actual verified paid job adds one action; an unavailable feed is NOT an empty feed.
   closeoutMode='ready';await page.evaluate(()=>window.dispatchEvent(new Event('fire:attention-saved')));
   await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('7 known checks'));
