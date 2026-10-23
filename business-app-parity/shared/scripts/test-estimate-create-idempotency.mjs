@@ -35,6 +35,22 @@ try{
  eq(found.cache,'private, no-store','Authenticated quote-recovery replies cannot be cached');
  eq((await lookup(uuid(999))).body.found,false,'Missing UUID does not return an unrelated quote');
  eq((await lookup('not-uuid')).status,400,'Malformed exact-lookup ID rejected');
+ // Read-only recovery must never mark an altered saved quote as verified.
+ const savedTotal=first.body.totalCents;
+ db.prepare('UPDATE estimates SET total_cents=total_cents+1 WHERE id=?').run(quote.requestId);
+ eq((await lookup(quote.requestId)).body.recognized,false,'Read-only recovery refuses a changed total');
+ db.prepare('UPDATE estimates SET total_cents=? WHERE id=?').run(savedTotal,quote.requestId);
+ db.prepare('UPDATE estimates SET deposit_cents=deposit_cents+1 WHERE id=?').run(quote.requestId);
+ eq((await lookup(quote.requestId)).body.recognized,false,'Read-only recovery refuses a changed 50 percent deposit');
+ db.prepare('UPDATE estimates SET deposit_cents=? WHERE id=?').run(first.body.depositCents,quote.requestId);
+ db.prepare('UPDATE estimate_items SET total_cents=total_cents+1 WHERE estimate_id=? AND name=?').run(quote.requestId,'House Wash');
+ eq((await lookup(quote.requestId)).body.recognized,false,'Read-only recovery refuses a changed service subtotal');
+ db.prepare('UPDATE estimate_items SET total_cents=total_cents-1 WHERE estimate_id=? AND name=?').run(quote.requestId,'House Wash');
+ db.prepare("UPDATE estimates SET status='approved' WHERE id=?").run(quote.requestId);
+ eq((await lookup(quote.requestId)).body.recognized,false,'Approved quotes require manual review instead of draft receipt verification');
+ db.prepare("UPDATE estimates SET status='draft' WHERE id=?").run(quote.requestId);
+ eq((await lookup(quote.requestId)).body.recognized,true,'Exact saved quote becomes verified again after restoring immutable amounts');
+
  const proof=JSON.parse(proofRaw);
  eq(proof.requestId,quote.requestId,'Proof is scoped to the exact UUID');
  eq(proof.requestHash.length,64,'Proof contains SHA-256 only, not customer PII');
