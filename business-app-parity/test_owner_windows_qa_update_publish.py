@@ -8,6 +8,11 @@ S=(Path(__file__).parent/"owner_windows_qa_update_publish.ps1").read_text(encodi
 class OnlyApprovedQAUpdate(unittest.TestCase):
     def test_defaults_to_read_only(self):
         self.assertIn("[switch]$Publish",S)
+        self.assertIn("[switch]$OwnerConfirmedPhotoZipBackup",S)
+        self.assertIn("Require ($OwnerConfirmedPhotoZipBackup.IsPresent)",S)
+        self.assertIn("SAVE to Files/iCloud, VERIFY saved ZIP",S)
+        self.assertLess(S.index("Require ($OwnerConfirmedPhotoZipBackup.IsPresent)"),S.index("$beforeRaw ="))
+        self.assertLess(S.index("if (-not $Publish)"),S.index("Require ($OwnerConfirmedPhotoZipBackup.IsPresent)"))
         self.assertIn("[string]$ApprovalText",S)
         self.assertIn("[string]$CandidateBranch",S)
         self.assertIn("[string]$ExpectedCommit",S)
