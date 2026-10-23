@@ -3,7 +3,7 @@ import { getChatGPTUser } from "../../chatgpt-auth";
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 async function authorized(){const user=await getChatGPTUser();return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);}
 
-export async function GET(){if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});const rows=await env.DB.prepare(`SELECT t.id,t.title,t.customer_id AS customerId,t.estimate_id AS estimateId,t.due_at AS dueAt,t.status,t.notes,t.created_at AS createdAt,t.completed_at AS completedAt,c.name AS customer FROM tasks t LEFT JOIN customers c ON c.id=t.customer_id ORDER BY CASE WHEN t.status='open' THEN 0 ELSE 1 END,t.due_at ASC,t.created_at DESC`).all();return Response.json({tasks:rows.results},{headers:{"cache-control":"private, no-store"}});}
+export async function GET(){if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});const rows=await env.DB.prepare(`SELECT t.id,t.title,t.customer_id AS customerId,t.estimate_id AS estimateId,t.due_at AS dueAt,t.status,t.notes,t.created_at AS createdAt,t.completed_at AS completedAt,c.name AS customer FROM tasks t LEFT JOIN customers c ON c.id=t.customer_id ORDER BY CASE WHEN t.status='open' THEN 0 ELSE 1 END,CASE WHEN t.status='open' AND t.due_at IS NOT NULL THEN 0 ELSE 1 END,t.due_at ASC,t.created_at DESC`).all();return Response.json({tasks:rows.results},{headers:{"cache-control":"private, no-store"}});}
 
 const v4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export async function POST(request:Request){
