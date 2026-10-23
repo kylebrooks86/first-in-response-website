@@ -19,6 +19,7 @@ on:
       - work/fire-consolidated-source-review-2026-10-22
       - work/fire-release-evidence-hardening-2026-10-22
       - work/fire-live-refund-gap-gate5-triage-2026-10-22
+      - work/fire-refund-schema-runtime-guard-2026-10-22
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
@@ -109,6 +110,8 @@ on:
       - 'business-app-parity/shared/scripts/test-pending-estimate-create.mjs'
       - 'business-app-parity/shared/scripts/test-quote-packages.mjs'
       - 'business-app-parity/shared/scripts/test-stripe-isolation.mjs'
+      - 'business-app-parity/shared/scripts/test-refund-ledger-readiness.mjs'
+      - 'business-app-parity/shared/lib/refund-ledger-readiness.ts'
       - 'scripts/deploy-fire-dr-staging.sh'
       - '.github/workflows/fire-business-app-isolated-checks.yml'
   workflow_dispatch:
@@ -220,6 +223,8 @@ jobs:
         run: |
           python3 ../test_review_integrated_release_gates.py
           python3 ../review_integrated_release_gates.py --candidate-sha "$GITHUB_SHA" > /dev/null
+      - name: Real owner refund ledger failure guard — zero financial writes on missing LIVE schema
+        run: node scripts/test-refund-ledger-readiness.mjs
       - name: LIVE 0019 refund gap — actual saved Sites inventory and safe missing-table journal preflight
         run: |
           python3 ../test_triage_live_refund_gap.py
