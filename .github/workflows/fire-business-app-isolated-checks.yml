@@ -22,6 +22,7 @@ on:
       - work/fire-refund-schema-runtime-guard-2026-10-22
       - work/fire-independent-website-check-scope-2026-10-23
       - work/fire-backup-refund-completeness-2026-10-23
+      - work/fire-current-fullapp-qa-build-2026-10-23
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
