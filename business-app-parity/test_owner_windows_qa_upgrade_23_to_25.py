@@ -5,6 +5,7 @@ No Cloudflare, Wrangler, customer records, or remote writes.
 """
 from pathlib import Path
 import shutil
+import sqlite3
 import tempfile
 import unittest
 
@@ -25,6 +26,44 @@ class QAUpgradeProtection(unittest.TestCase):
         self.assertTrue(report["sourceHistoryVerified"])
         self.assertFalse(report["remoteWrites"])
         self.assertFalse(report["migrationApproved"])
+    def test_real_sqlite_23_to_25_upgrade_preserves_existing_synthetic_business_rows(self):
+        # Real SQLite (not source string inspection): replay the historical 23
+        # first, save synthetic customer/job/payment, then add the two approved
+        # deposit migrations. No real customer, Stripe, or Cloudflare state.
+        with sqlite3.connect(":memory:") as db:
+            files=sorted(DRIZZLE.glob("*.sql"))
+            self.assertEqual(len(files),25)
+            for sql in files[:23]:
+                db.executescript(sql.read_text())
+            db.execute("INSERT INTO customers(id,name,created_at) VALUES(?,?,?)",
+                       ("local-qa-c","Synthetic 23-schema Customer","2026-10-23"))
+            db.execute("""INSERT INTO estimates(id,customer_id,status,subtotal_cents,
+                       total_cents,deposit_cents,created_at)
+                       VALUES(?,?,?,?,?,?,?)""",
+                       ("local-qa-e","local-qa-c","draft",10000,10000,5000,"2026-10-23"))
+            db.execute("""INSERT INTO payments(id,estimate_id,type,amount_cents,status,created_at)
+                       VALUES(?,?,?,?,?,?)""",
+                       ("local-qa-p","local-qa-e","deposit",2000,"paid","2026-10-23"))
+            db.commit()
+            def snapshot(table):
+                return db.execute('SELECT * FROM "'+table+'"').fetchall()
+            before={table:snapshot(table) for table in ("customers","estimates","payments")}
+            for sql in files[23:]:
+                db.executescript(sql.read_text())
+            after={table:snapshot(table) for table in before}
+            self.assertEqual(before,after,"An additive upgrade cannot rewrite prior business rows")
+            new_tables={x[0] for x in db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name IN "
+                "('deposit_policy_events','deposit_agreement_snapshots')")}
+            self.assertEqual(new_tables,{"deposit_policy_events","deposit_agreement_snapshots"})
+            new_triggers={x[0] for x in db.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'deposit_%_no_%'")}
+            self.assertEqual(new_triggers,{
+                "deposit_policy_events_no_update","deposit_policy_events_no_delete",
+                "deposit_agreement_snapshots_no_update","deposit_agreement_snapshots_no_delete"})
+            self.assertEqual(db.execute("PRAGMA integrity_check").fetchone(),("ok",))
+            self.assertEqual(db.execute("PRAGMA foreign_key_check").fetchall(),[])
+
     def test_tampered_or_missing_addition_refused(self):
         with tempfile.TemporaryDirectory() as dirname:
             candidate = Path(dirname)
