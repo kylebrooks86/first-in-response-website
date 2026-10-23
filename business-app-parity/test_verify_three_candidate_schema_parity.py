@@ -53,6 +53,32 @@ class FreshInstallationParity(unittest.TestCase):
         proof = compare(self.roots)
         self.assertFalse(proof["schemaEquivalent"])
         self.assertIn("idx_customer_test", {row["object"] for row in proof["mismatches"]})
+    def test_exact_nullable_provider_partial_unique_is_equivalent_but_only_that(self):
+        full = ("CREATE UNIQUE INDEX `idx_payment_refunds_provider` "
+                "ON `payment_refunds` (`provider_refund_id`);")
+        partial = ("CREATE UNIQUE INDEX `idx_payment_refunds_provider` "
+                   "ON `payment_refunds` (`provider_refund_id`) "
+                   "WHERE `provider_refund_id` IS NOT NULL;")
+        # The actual nullable provider column is needed for both index forms.
+        for target in TARGETS:
+            base = self.roots[target] / "drizzle" / "0000_base.sql"
+            data = base.read_text().replace(
+                "payment_refunds (id TEXT PRIMARY KEY)",
+                "payment_refunds (id TEXT PRIMARY KEY, provider_refund_id TEXT)")
+            base.write_text(data + "\n" + (partial if target == "doomsday" else full))
+        proof = compare(self.roots)
+        self.assertTrue(proof["schemaEquivalent"], proof)
+        self.assertEqual(len(proof["semanticallyEquivalentIndexVariations"]), 1)
+        # Any OTHER predicate is not an allowed or logically equivalent waiver.
+        doomsday = self.roots["doomsday"] / "drizzle" / "0000_base.sql"
+        doomsday.write_text(doomsday.read_text().replace(
+            "WHERE `provider_refund_id` IS NOT NULL",
+            "WHERE `provider_refund_id` LIKE 're_%'"))
+        proof = compare(self.roots)
+        self.assertFalse(proof["schemaEquivalent"])
+        self.assertIn("idx_payment_refunds_provider",
+                      {row["object"] for row in proof["mismatches"]})
+
     def test_new_app_migrations_cannot_seed_customers(self):
         self.put("live", "0001_bad_seed.sql", "INSERT INTO customers(id) VALUES('synthetic-but-unwanted');")
         with self.assertRaisesRegex(SchemaParityError, "unexpectedly seeds"):
