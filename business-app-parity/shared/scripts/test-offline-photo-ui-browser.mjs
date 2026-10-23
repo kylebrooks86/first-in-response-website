@@ -177,14 +177,27 @@ try{
  await page.getByRole('button',{name:'Delete on-device photo'}).nth(2).click();
  await page.locator('.photo-card').nth(2).waitFor({state:'detached'});
  check(await page.locator('.photo-card').count()===2,'Synthetic new photo removed without modifying originals');
+ check((await page.getByRole('alert').allInnerTexts()).every(t=>!t.includes('Another FIRE tab changed')),
+   'This same FIRE tab never falsely reports its own successful edit as a different tab');
  // The gallery can rerender before the mutation journal finishes and unlocks.
  // Do not send another file action while active.current is still true.
  await page.waitForFunction(()=>{
   const button=[...document.querySelectorAll('button')].find(b=>b.textContent?.includes('Prepare all local photos ZIP'));
   return button&&!button.disabled;
  });
+ // Native file input may retain the last selection after a previous verify.
+ // Clear then reselect from Files to force a genuine new change event.
+ await verifyInput.setInputFiles([]);
  await verifyInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
- await page.getByText(/COMPLETE for all currently stored FIRE on-device photos/).waitFor({timeout:30000});
+ try{await page.getByText(/COMPLETE for all currently stored FIRE on-device photos/).waitFor({timeout:30000});}
+ catch(err){
+  const details=await page.evaluate(()=>({
+   statuses:[...document.querySelectorAll('[role="status"]')].map(e=>e.textContent?.slice(0,400)),
+   errors:[...document.querySelectorAll('[role="alert"]')].map(e=>e.textContent?.slice(0,400)),
+   gallery:document.querySelectorAll('.photo-card').length
+  }));
+  throw Error('Saved ZIP did not confirm coverage after deletion: '+JSON.stringify(details)+'; '+String(err));
+ }
  check((await page.getByRole('alert').allInnerTexts()).every(t=>!t.includes('INCOMPLETE PHOTO BACKUP')),
    'Fresh exact archive versus device coverage check clears the incomplete warning');
  // Two tabs share IndexedDB but can disagree about an ALREADY PREPARED ZIP.
