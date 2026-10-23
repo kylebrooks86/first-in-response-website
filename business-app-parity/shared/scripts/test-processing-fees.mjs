@@ -16,7 +16,8 @@ globalThis.__feeTestDB=DB;
 globalThis.__feeBackupHelpers = {
   propertyBackupError, hasPropertyBackup, serviceLocationManifest, serviceLocationBackupError,
 };
-async function load(path){let source=readFileSync(root+'/'+path,'utf8').replace(/^import .*?;\n/gm,'');source=source.replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');if(path.startsWith('app/api/invoices/')||path.startsWith('app/api/estimates/'))source=readFileSync(root+'/lib/discount-input.ts','utf8')+'\n'+source;if(path.startsWith('app/api/invoices')||path==='app/api/customers/route.ts')source=readFileSync(root+'/lib/invoice-state.mjs','utf8')+'\n'+source;if(path.includes('payments/route'))source=readFileSync(root+'/lib/processing-fees.ts','utf8')+'\n'+source;if(path==='app/api/backup/route.ts'){
+async function load(path){let source=readFileSync(root+'/'+path,'utf8').replace(/^import .*?;\n/gm,'');source=source.replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');if(path.startsWith('app/api/invoices/')||path.startsWith('app/api/estimates/'))source=readFileSync(root+'/lib/discount-input.ts','utf8')+'\n'+source;if(path.startsWith('app/api/invoices')||path==='app/api/customers/route.ts')source=readFileSync(root+'/lib/invoice-state.mjs','utf8')+'\n'+source;if(path.includes('payments/route'))source=readFileSync(root+'/lib/processing-fees.ts','utf8')+'\n'+source;
+if(path==='app/api/payments/route.ts'||path==='app/api/payments/refund/route.ts')source='const refundLedgerObjectsPresent=globalThis.__refundLedgerGuard.refundLedgerObjectsPresent;const refundLedgerNotReady=globalThis.__refundLedgerGuard.refundLedgerNotReady;\n'+source;if(path==='app/api/backup/route.ts'){
   // The fixture strips route imports; inline the actual pure audit validator source.
   source=readFileSync(root+'/lib/deposit-audit-backup.mjs','utf8')+'\n'+readFileSync(root+'/lib/deposit-agreement-backup.mjs','utf8')+'\n'+source;
   source=`const serviceLocationsEnabled=(e)=>e.FIRE_SERVICE_LOCATIONS_CANDIDATE==='synthetic-only';
@@ -26,6 +27,7 @@ const {propertyBackupError,hasPropertyBackup,serviceLocationManifest,serviceLoca
 `+source;
 }if(path.includes('refund/route'))source='const finalizeRefund=globalThis.__refundFinalize;const recordRefundUpdate=globalThis.__refundUpdate;\n'+source;if(path.includes('webhook'))source='const recordRefundUpdate=globalThis.__refundUpdate;\n'+source;if(path.includes('webhook'))source='const reconcileStripeCheckout=globalThis.__feeReconcile;\n'+source;source='const LOCAL_CUSTOMER_DEPLOYMENT="'+(path.includes('webhook')?'doomsday':'live')+'";\n'+source;source='const env={DB:globalThis.__feeTestDB,STRIPE_WEBHOOK_SECRET:"whsec_test_fixture"};const getOwnerUser=async()=>({email:"kylebrooks8605@gmail.com"});const getChatGPTUser=getOwnerUser;\n'+source;const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;return import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));}
 const refunds=await load('lib/stripe-refunds.ts');globalThis.__refundFinalize=refunds.finalizeRefund;globalThis.__refundUpdate=refunds.recordRefundUpdate;
+const schemaGuard=await load('lib/refund-ledger-readiness.ts');globalThis.__refundLedgerGuard=schemaGuard;
 const route=await load('app/api/payments/route.ts');
 const backup=await load('app/api/backup/route.ts');
 let n=0;
