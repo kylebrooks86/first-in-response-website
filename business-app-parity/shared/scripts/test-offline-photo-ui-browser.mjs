@@ -36,7 +36,8 @@ self.addEventListener('fetch',event=>{
 });`;
 const server=createServer((req,res)=>{
  res.setHeader('cache-control','no-store');
- if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);return;}\n if(req.url==='/photo-styles.css'){res.setHeader('content-type','text/css');res.end(photoStyles);return;}
+ if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);return;}
+ if(req.url==='/photo-styles.css'){res.setHeader('content-type','text/css');res.end(photoStyles);return;}
  if(req.url==='/sw.js'){res.setHeader('content-type','text/javascript');res.setHeader('Service-Worker-Allowed','/');res.end(fixtureWorker);return;}
  if(req.url==='/'){res.setHeader('content-type','text/html; charset=utf-8');res.end(shell);return;}
  res.statusCode=404;res.end();
@@ -135,7 +136,8 @@ try{
  await ctx.setOffline(true);
  await page.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
  await page.getByText(/photo ZIP passed integrity checks/).waitFor({timeout:30000});
- check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).count()===1,'Photo ZIP preparation works in airplane mode and exposes a separate iOS share gesture');\n await verifyPhotoActionGeometry('390px, ZIP prepared:');
+ check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).count()===1,'Photo ZIP preparation works in airplane mode and exposes a separate iOS share gesture');
+ await verifyPhotoActionGeometry('390px, ZIP prepared:');
  await page.evaluate(()=>{
   Object.defineProperty(navigator,'canShare',{configurable:true,value:files=>files.files?.length===1});
   Object.defineProperty(navigator,'share',{configurable:true,value:async ({files})=>{
@@ -209,7 +211,8 @@ try{
    shell:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/')),
    bundle:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/bundle.js'))
  }));
- check(cacheEvidence.controlled&&cacheEvidence.shell&&cacheEvidence.bundle,'Actual React photo screen shell and bundle are cached by a separate synthetic install worker');\n check(Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/photo-styles.css')),'Exact FIRE photo layout stylesheet remains cached for synthetic offline launch');
+ check(cacheEvidence.controlled&&cacheEvidence.shell&&cacheEvidence.bundle,'Actual React photo screen shell and bundle are cached by a separate synthetic install worker');
+ check(Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/photo-styles.css')),'Exact FIRE photo layout stylesheet remains cached for synthetic offline launch');
  await ctx.close();context=null;
  await new Promise(resolve=>server.close(resolve));serverClosed=true;
  context=await chromium.launchPersistentContext(profile,{headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,acceptDownloads:true,viewport:{width:390,height:844},args:['--no-sandbox','--disable-dev-shm-usage']});
