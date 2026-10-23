@@ -132,7 +132,28 @@ try{
  const login=await request('/api/auth/login','POST',{password});
  check(login.status()===200,'Actual QA login route verifies synthetic passphrase against native D1 rate limiter: HTTP '+login.status()+' '+(login.status()===200?'ok':await login.text()));
  check(/HttpOnly; Secure; SameSite=Strict/.test(login.headers()['set-cookie']),'Actual HTTP response sets isolated secure owner session cookie');
- check((await request('/api/customers')).status()===200,'Browser cookie authorizes real Worker customer API');
+ const firstCustomersResponse=await request('/api/customers');
+ const firstCustomers=await firstCustomersResponse.json();
+ check(firstCustomersResponse.status()===200&&
+   ['customers','estimates','notes','invoices','photos','messages','payments'].every(key=>Array.isArray(firstCustomers[key])&&firstCustomers[key].length===0),
+   'New FIRE QA install starts with no seeded customer, quote, invoice, payment, message or photo rows');
+ const initialSummaryResponse=await request('/api/dashboard-summary');
+ const initialSummary=await initialSummaryResponse.json();
+ check(initialSummaryResponse.status()===200&&initialSummary.estimates===0&&
+   initialSummary.openValue===0&&initialSummary.outstanding===0&&
+   Array.isArray(initialSummary.recent)&&initialSummary.recent.length===0,
+   'Fresh Dashboard summary confirms zero estimates and balances without inventing records');
+ const initialPage=await context.newPage();initialPage.on('pageerror',e=>clientErrors.push(e.message));
+ await initialPage.goto(origin+'/');
+ const firstUse=initialPage.getByRole('region',{name:'Start using your empty FIRE app'});
+ await firstUse.waitFor({timeout:12000});
+ check(await firstUse.getByText('Your first FIRE job starts here').count()===1,
+   'Real owner Dashboard shows first-use guidance only after verified empty API summary');
+ await firstUse.getByRole('button',{name:'Open Customers · add or select a customer'}).click();
+ await initialPage.getByRole('heading',{name:'Customers',exact:true}).waitFor({timeout:10000});
+ check(await initialPage.getByRole('heading',{name:'Customers',exact:true}).count()===1,
+   'First-use Dashboard call to action opens actual Customers page without sending messages');
+ await initialPage.close();
  const customerResponse=await request('/api/customers','POST',{name:'Synthetic HTTP Customer',address:'100 Synthetic Fixture Way',email:'fixture@example.invalid'});
  const customer=(await customerResponse.json()).customer;
  check(customerResponse.status()===201&&typeof customer?.id==='string','Customer creation persists through actual HTTP and native D1');
@@ -154,6 +175,12 @@ try{
  const created=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[item]});
  const estimate=await created.json();
  check(created.status()===201&&estimate.totalCents===20000&&estimate.depositCents===10000,'Real estimate creation retains exact $200 total and $100 deposit');
+ const populatedSummaryResponse=await request('/api/dashboard-summary');
+ const populatedSummary=await populatedSummaryResponse.json();
+ check(populatedSummaryResponse.status()===200&&populatedSummary.estimates===1&&
+   Array.isArray(populatedSummary.recent)&&populatedSummary.recent.length===1,
+   'First saved quote becomes one real Dashboard estimate; no hidden seed jobs');
+
  const invalid=await request('/api/estimates/'+estimate.id,'PATCH',{items:[{...item,quantity:0}]});
  check(invalid.status()===400,'Native HTTP edit rejects invalid service quantity');
  const premature=await request('/api/invoices','POST',{estimateId:estimate.id});
@@ -161,6 +188,10 @@ try{
  const page=await context.newPage();page.on('pageerror',e=>clientErrors.push(e.message));
  await page.goto(origin+'/');
  await page.getByText('SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS',{exact:true}).waitFor();
+ await page.getByRole('heading',{name:'Welcome to First In Response Exteriors'}).waitFor();
+ check(await page.getByRole('region',{name:'Start using your empty FIRE app'}).count()===0,
+   'First-use empty-state guidance disappears once saved quote exists');
+
  check(true,'Entire built Business App renders authenticated SSR and client hydration on iPhone viewport');
  // Open the actual dashboard workflow, without fixture replacement or mocked API.
  await page.getByRole('button',{name:'Open menu',exact:true}).click();
