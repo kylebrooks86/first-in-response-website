@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
  deriveCustomerManualFlags, LEAD_NO_ANSWER_NOTE, LEAD_CONTACTED_NOTE,
+ LEAD_CALLBACK_HANDLED_NOTE, leadCallbackNote,
  REVIEW_RECEIVED_NOTE, SIGN_PICKED_UP_NOTE, signPlacedNote
 } from '../lib/customer-activity-flags.ts';
 
@@ -44,6 +45,37 @@ check(before.leadContact?.state==='no_answer'&&before.reviewReceivedAt===b&&befo
  'Existing review receipt and yard sign history remain independent of lead contact notes');
 check(deriveCustomerManualFlags([note('other','Customer asked for callback',d)]).leadContact===null,
  'Ordinary private customer notes do not silently imply a contacted/not-contacted status');
+const scheduled=leadCallbackNote('2026-10-25');
+check(scheduled==='[FIRE FLAG] LEAD_CALLBACK | due:2026-10-25',
+ 'Saved callback marker contains a strict owner-selected calendar date');
+for(const invalid of ['2026-02-30','2026-13-01','2026-00-10','tomorrow','2026-1-1','2026-10-25\\nNOTES']){
+ assert.throws(()=>leadCallbackNote(invalid),/valid callback date/, 'Invalid callback refused: '+invalid);count++;
+}
+const pending=deriveCustomerManualFlags([note('cb',scheduled,b),note('missed',LEAD_NO_ANSWER_NOTE,c)]);
+check(pending.leadCallback?.state==='pending'&&pending.leadCallback.dueDate==='2026-10-25'&&pending.leadContact?.state==='no_answer',
+ 'No answer after a scheduled callback does not silently erase due reminder or claim contact');
+const handled=deriveCustomerManualFlags([
+ note('cb',scheduled,b),note('handled',LEAD_CALLBACK_HANDLED_NOTE,d)
+]);
+check(handled.leadCallback?.state==='handled'&&handled.leadCallback.dueDate==='2026-10-25'&&handled.leadContact===null,
+ 'Owner may mark a callback handled without falsely recording successful contact');
+const actualContact=deriveCustomerManualFlags([
+ note('cb',scheduled,b),note('contact',LEAD_CONTACTED_NOTE,d)
+]);
+check(actualContact.leadCallback?.state==='handled'&&actualContact.leadContact?.state==='contacted',
+ 'Actual later contact closes the scheduled callback and independently logs contact');
+const rescheduled=deriveCustomerManualFlags([
+ note('old',leadCallbackNote('2026-10-24'),a),
+ note('new',scheduled,c),
+ note('prior',LEAD_CALLBACK_HANDLED_NOTE,b)
+]);
+check(rescheduled.leadCallback?.state==='pending'&&rescheduled.leadCallback.dueDate==='2026-10-25',
+ 'Scheduling a new callback after previous one handled reopens exactly the newer date');
+const malformed=deriveCustomerManualFlags([note('bad','[FIRE FLAG] LEAD_CALLBACK | due:2026-02-30',d)]);
+check(malformed.leadCallback===null,
+ 'Malformed owner note does not create an invented reminder');
+check(deriveCustomerManualFlags([note('handled',LEAD_CALLBACK_HANDLED_NOTE,d)]).leadCallback===null,
+ 'Orphan callback-handled note cannot invent a previously scheduled callback');
 const dashboard=readFileSync('app/dashboard.tsx','utf8');
 const noteApi=readFileSync('app/api/customer-notes/route.ts','utf8');
 for(const flag of ['LEAD_NO_ANSWER_NOTE','LEAD_CONTACTED_NOTE']){
@@ -62,6 +94,14 @@ check(dashboard.includes('setShowUnansweredLeadsOnly(current=>!current)'),
  'Directory filter can be turned off to restore the complete customer list');
 check(dashboard.includes('This manual lead log is separate from estimate-specific follow-up history'),
  'Customer-level lead note and estimate-level contact stay distinct');
+check(dashboard.includes('dueLeadCallbacks')&&dashboard.includes('showDueCallbacksOnly')&&
+ dashboard.includes('aria-label="Due customer lead callbacks"'),
+ 'Customer directory has a due-only callback filter and navigable owner review queue');
+check(dashboard.includes('prepareManualFlag(leadCallbackNote(callbackDate))')&&
+ dashboard.includes('prepareManualFlag(LEAD_CALLBACK_HANDLED_NOTE)'),
+ 'Customer callback notes are explicitly owner-prepared, not sent or saved automatically');
+check(dashboard.includes('callbacks are not push alerts'),
+ 'UI accurately states no automatic notification behavior');
 check(noteApi.includes('INSERT OR IGNORE INTO customer_notes')&&noteApi.includes('requestId'),
  'Existing owner-scoped note API safely persists explicit notes using idempotent request IDs');
 console.log('PASS '+count+' lead No answer/Contacted history and real Customer profile note-preparation contracts; no remote writes.');
