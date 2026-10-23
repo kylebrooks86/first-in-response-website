@@ -27,7 +27,7 @@ export function QuotePackages({active,services,ready,currentServiceIds,disabled,
  };
  useEffect(()=>{if(active)void refresh();return()=>{generation.current++;};},[active]);
  const usePackage=(ids:readonly string[],name:string)=>{
-  if(!ready||disabled||!catalog||loading||saving)return;
+  if(!ready||disabled||saving)return;
   const lines=packageDraftLines(ids,services);
   if(!lines){setError('The current service catalog is missing a rate or service. Refresh standard pricing before using this package.');return;}
   setError('');setNotice('');
@@ -64,7 +64,7 @@ export function QuotePackages({active,services,ready,currentServiceIds,disabled,
  return <section className="rounded-xl border bg-card p-4 space-y-3" aria-label="Reusable quote packages">
   <div><h3 className="font-bold">Quick multi-service packages</h3><p className="text-xs text-muted-foreground">Start with a service mix, then enter new quantities and review current rates. No customer details, previous prices or discounts are reused.</p></div>
   <div className="flex flex-wrap gap-2" aria-label="Suggested service packages">
-   {STARTER_QUOTE_PACKAGES.map(pkg=><Button key={pkg.name} type="button" variant="outline" className="min-h-11" disabled={!ready||disabled||loading||saving||!catalog} onClick={()=>usePackage(pkg.serviceIds,pkg.name)}>{pkg.name}</Button>)}
+   {STARTER_QUOTE_PACKAGES.map(pkg=><Button key={pkg.name} type="button" variant="outline" className="min-h-11" disabled={!ready||disabled||saving} onClick={()=>usePackage(pkg.serviceIds,pkg.name)}>{pkg.name}</Button>)}
   </div>
   <div className="border-t pt-3 space-y-2">
    <div className="flex items-center justify-between gap-2"><strong className="text-sm">My saved service mixes</strong><Button type="button" size="sm" variant="outline" disabled={loading||saving||disabled} onClick={()=>void refresh()}>{loading?'Loading…':'Refresh packages'}</Button></div>

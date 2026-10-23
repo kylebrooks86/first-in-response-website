@@ -5,9 +5,9 @@ const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),
 const bundle=await esbuild.build({stdin:{contents:`import React from'react';import{createRoot}from'react-dom/client';import{NewEstimate}from'./app/dashboard';createRoot(document.getElementById('app')).render(<NewEstimate/>);`,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'},plugins:[{name:'real-editor',setup(b){b.onLoad({filter:/app\/dashboard\.tsx$/},a=>({contents:readFileSync(a.path,'utf8')+'\nexport {NewEstimate};',loader:'tsx'}));}}]});
 const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 let previews=0,saves=0,hold=false,release,posted,receiptMismatch=null;
-const confirmedQuotes=new Map();let catalog={revision:null,packages:[]},packageWrites=0;
+const confirmedQuotes=new Map();let catalog={revision:null,packages:[]},packageWrites=0,packageReadUnavailable=false;
 const server=createServer(async(req,res)=>{res.setHeader('content-type','application/json');
- if(req.url==='/api/quote-packages'&&req.method==='GET'){res.setHeader('cache-control','private, no-store');return res.end(JSON.stringify({catalog}));}
+ if(req.url==='/api/quote-packages'&&req.method==='GET'){res.setHeader('cache-control','private, no-store');if(packageReadUnavailable){res.statusCode=503;return res.end(JSON.stringify({error:'Packages temporarily unavailable.'}));}return res.end(JSON.stringify({catalog}));}
  if(req.url==='/api/quote-packages'&&req.method==='PUT'){let raw='';for await(const chunk of req)raw+=chunk;const input=JSON.parse(raw);
   if(input.expectedRevision!==catalog.revision){res.statusCode=409;return res.end(JSON.stringify({error:'Packages changed on another device.'}));}
   packageWrites++;catalog={revision:'aaaa1111-aaaa-4aaa-8aaa-'+String(packageWrites).padStart(12,'0'),packages:input.packages};
@@ -80,6 +80,12 @@ page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Delete sa
 await page.getByText('Reusable package removed.',{exact:false}).waitFor();
 check(catalog.packages.length===0,'Deleted package no longer present in saved catalog');
 check(saves===beforeQuoteSaves,'Package editing never triggers an estimate save');
+// A read failure must not prevent SAFE built-in presets from using verified current pricing.
+packageReadUnavailable=true;await page.goto(origin);await page.getByRole('button',{name:'New estimate',exact:true}).click();await page.getByRole('button',{name:'Create New Customer',exact:false}).click();await page.getByLabel('Customer name',{exact:true}).fill('Synthetic Package Outage');await page.getByRole('button',{name:'Continue to services'}).click();await page.getByText('Packages temporarily unavailable.',{exact:false}).waitFor();
+await page.getByRole('button',{name:'House + concrete',exact:true}).click();
+check(await page.locator('.estimate-edit-service').count()===2,'Built-in service package works despite saved-package lookup failure');
+check(await page.locator('.estimate-edit-service').nth(1).getByLabel('Quantity',{exact:true}).inputValue()==='','Outage fallback still requires deliberate quantity');
+packageReadUnavailable=false;
 // A 2xx response can still be an uncertain save. Show the user how to inspect
 // stored estimates, and block duplicate retries even without a bundle discount.
 for(const mismatch of ['total','deposit']){
