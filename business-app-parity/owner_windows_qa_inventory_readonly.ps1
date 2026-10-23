@@ -34,14 +34,14 @@ function Read-Remote([string[]]$arguments, [string]$label) {
         $exitCode = $LASTEXITCODE
     } finally { $ErrorActionPreference = $previous }
     Require ($exitCode -eq 0) ('Authenticated read-only ' + $label + ' failed. Check the original Cloudflare login; do not recreate resources.')
-    return ,$result
+    return $result
 }
 function Read-Rows([string]$sql, [string]$label) {
     Require ($sql -cmatch '^SELECT ' -and $sql -notmatch ';') 'Only one pinned metadata SELECT is allowed.'
-    $raw = Read-Remote @('d1','execute',$qaName,'--remote',("--config=" + $config),("--command=" + $sql),'--json') $label
+    $raw = @(Read-Remote -arguments @('d1','execute',$qaName,'--remote',("--config=" + $config),("--command=" + $sql),'--json') -label $label)
     $envelopes = @(Read-JsonResult $raw $label)
     Require ($envelopes.Count -eq 1 -and $envelopes[0].success -eq $true) ('Unexpected query result for ' + $label)
-    return ,@($envelopes[0].results)
+    return @($envelopes[0].results)
 }
 
 Require ($env:OS -eq 'Windows_NT') 'Use the original authenticated Windows computer.'
@@ -62,8 +62,8 @@ for ($i=0; $i -lt 25; $i++) {
     Require ($migrations[$i] -cmatch ('^' + $i.ToString('0000') + '_[a-z0-9_]+\.sql$')) 'Migration order changed.'
 }
 
-$qaInfo = Read-JsonResult (Read-Remote @('d1','info',$qaName,'--json') 'QA D1 info') 'QA D1 info'
-$stagingInfo = Read-JsonResult (Read-Remote @('d1','info',$stagingName,'--json') 'protected staging D1 info') 'protected staging D1 info'
+$qaInfo = Read-JsonResult @(Read-Remote -arguments @('d1','info',$qaName,'--json') -label 'QA D1 info') 'QA D1 info'
+$stagingInfo = Read-JsonResult @(Read-Remote -arguments @('d1','info',$stagingName,'--json') -label 'protected staging D1 info') 'protected staging D1 info'
 Require ($qaInfo.name -ceq $qaName -and $qaInfo.uuid -ceq $qaUuid -and
     $stagingInfo.name -ceq $stagingName -and $stagingInfo.uuid -ceq $stagingUuid -and
     $qaInfo.uuid -cne $stagingInfo.uuid) 'QA and protected staging D1 identifiers mismatch. No resource action is safe.'
