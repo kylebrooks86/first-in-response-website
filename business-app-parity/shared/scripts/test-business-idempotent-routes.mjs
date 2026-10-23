@@ -100,6 +100,21 @@ for(const [kind,handler] of [['task',tasks.GET],['expense',expenses.GET]]){
  eq(result.status,200,kind+' authenticated GET still works');
  eq(result.headers.get('cache-control'),'private, no-store',kind+' sensitive record list cannot be cached');
 }
+// Dated open reminders are presented before open tasks without dates, even
+// though SQLite ordinarily sorts NULL due_at before every timestamp.
+for(const [id,dueAt,status] of [
+ ['priority-earlier','2029-10-22T12:00:00.000Z','open'],
+ ['priority-later','2030-01-22T12:00:00.000Z','open'],
+ ['priority-undated',null,'open'],
+ ['priority-completed','2025-01-01T12:00:00.000Z','completed']
+])database.prepare("INSERT INTO tasks (id,title,due_at,status,created_at) VALUES (?,?,?,?,?)")
+ .run(id,'Synthetic task priority '+id,dueAt,status,'2026-10-22T12:00:00.000Z');
+const savedPriority=await (await tasks.GET()).json();
+const position=id=>savedPriority.tasks.findIndex(row=>row.id===id);
+eq(position('priority-earlier')>=0&&position('priority-earlier')<position('priority-later'),true,'Earlier dated reminder sorts first');
+eq(position('priority-later')<position('priority-undated'),true,'Scheduled reminders appear before open undated work');
+eq(position('priority-undated')<position('priority-completed'),true,'Completed reminders remain below open tasks');
+
 const prevTasks=count('tasks'),prevExpenses=count('expenses');
 authorized=false;
 eq((await read(await tasks.POST(body({title:'Unauthorized',requestId:randomUUID()})))).status,401,'Tasks require real owner session');
