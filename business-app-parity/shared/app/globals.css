@@ -1617,3 +1617,41 @@ html,body{max-width:100%;overflow-x:clip}
 .note-row>div{min-width:0;flex:1}
 .note-row p{white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:520px){.note-compose textarea,.note-compose .brand-button{flex-basis:100%;width:100%}}
+
+/* FIRE QA real-iPhone review (Oct 23): on-device photo ZIP actions must never
+   form two half-hidden columns. Preserve the desktop layouts and photo logic. */
+@media (max-width:760px){
+  .customer-profile .photo-panel,.customer-profile .photo-panel>*,.customer-profile .photo-panel .photo-toolbar>*{min-width:0;max-width:100%}
+  .customer-profile .photo-panel .photo-toolbar{grid-template-columns:minmax(0,1fr)}
+  .customer-profile .photo-panel .photo-buttons{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    gap:10px;
+    min-width:0;
+    max-width:100%;
+  }
+  .customer-profile .photo-panel .photo-buttons>button{
+    display:flex;
+    flex:none;
+    align-items:center;
+    justify-content:center;
+    gap:9px;
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    height:auto;
+    min-height:48px;
+    padding:11px 12px;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    text-align:center;
+    line-height:1.4;
+  }
+  .customer-profile .photo-panel .photo-buttons>button svg{flex:none}
+  .customer-profile .photo-panel .before-after-builder>div:nth-child(2){grid-template-columns:minmax(0,1fr)}
+  .customer-profile .photo-panel .before-after-builder label,
+  .customer-profile .photo-panel .before-after-builder select{min-width:0;max-width:100%}
+  .customer-profile .photo-panel .before-after-preview{grid-template-columns:minmax(0,1fr)!important}
+  .customer-profile .photo-panel .photo-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))}
+  .customer-profile .photo-panel .photo-card{min-width:0}
+}
