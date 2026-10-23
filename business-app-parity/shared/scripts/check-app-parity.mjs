@@ -66,7 +66,7 @@ if(pages.every(page=>page!==null)){
 }
 for(const [i,target] of targets.entries()){
  const identity=requireFile(i,'app/local-customer-deployment.ts');
- if(identity!==null&&identity.trim()!=="export const LOCAL_CUSTOMER_DEPLOYMENT = '"+target+"' as const;"){
+ if(identity!==null&&identity.trim()!=="/** Fixed server deployment adapter. */\nexport const LOCAL_CUSTOMER_DEPLOYMENT = '"+target+"' as const;"){
   differences.push({path:'app/local-customer-deployment.ts',target,reason:'Incorrect installed-app namespace'});
  }
 }
