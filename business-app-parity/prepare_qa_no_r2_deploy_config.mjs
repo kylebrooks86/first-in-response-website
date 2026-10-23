@@ -20,7 +20,7 @@ export function prepareNoR2(originalFile, destinationFile) {
   const destination = resolve(destinationFile);
   assert.equal(basename(original), "wrangler.json", "Must use compiled QA manifest");
   assert.equal(dirname(original), dirname(destination), "Must preserve original compiled asset paths");
-  assert.match(basename(destination), /^wrangler\\.fire-qa-no-r2-[a-f0-9-]{36}\\.json$/,
+  assert.match(basename(destination), /^wrangler\.fire-qa-no-r2-[a-f0-9-]{36}\.json$/,
     "Unique opt-in QA no-R2 output name required");
   assert.ok(!existsSync(destination), "Existing destination must never be overwritten");
   const sourceText = readFileSync(original, "utf8");
@@ -52,7 +52,7 @@ export function prepareNoR2(originalFile, destinationFile) {
     assert.deepEqual(validated, expected,
       "No-R2 manifest must change ONLY legacy_env and the QA R2 binding");
     // Exclusive creation and full byte-level verification; never overwrite.
-    writeFileSync(destination, JSON.stringify(validated, null, 2)+"\\n",
+    writeFileSync(destination, JSON.stringify(validated, null, 2)+"\n",
       {flag:"wx", mode:0o600});
     try {
       assert.deepEqual(JSON.parse(readFileSync(destination,"utf8")), expected);
