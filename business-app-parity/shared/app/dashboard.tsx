@@ -910,7 +910,8 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
         const response=await fetch('/api/door-knocking/followups',{cache:'no-store',signal:controller.signal});
         if(!response.ok)throw Error('Saved house revisits unavailable');
         const data=await response.json() as {today?:unknown;dueCount?:unknown;upcomingCount?:unknown;items?:unknown};
-        if(!validDoorFollowUpDate(data.today)||!Number.isSafeInteger(data.dueCount)||Number(data.dueCount)<0||
+        const today=data.today;
+        if(!validDoorFollowUpDate(today)||!Number.isSafeInteger(data.dueCount)||Number(data.dueCount)<0||
           !Number.isSafeInteger(data.upcomingCount)||Number(data.upcomingCount)<0||
           !Array.isArray(data.items)||data.items.length>5||data.items.some((item:unknown)=>{
            if(!item||typeof item!=='object')return true;
@@ -918,7 +919,7 @@ function DashboardView({userName,metrics,estimates,onSaved,onNavigate,onOpenEsti
            return typeof row.houseId!=='string'||!row.houseId||typeof row.address!=='string'||!row.address.trim()||
              !validDoorFollowUpDate(row.followUpOn)||typeof row.due!=='boolean'||typeof row.overdue!=='boolean'||
              typeof row.lastVisitAt!=='string'||!Number.isFinite(Date.parse(row.lastVisitAt))||
-             row.due!==(row.followUpOn<=data.today!)||row.overdue!==(row.followUpOn<data.today!);
+             row.due!==(row.followUpOn<=today)||row.overdue!==(row.followUpOn<today);
           }))throw Error('Unverified house revisit queue');
         if(!cancelled&&request===generation){setDoorRevisits(data.items as DoorRevisit[]);setDoorDueCount(Number(data.dueCount));setDoorUpcomingCount(Number(data.upcomingCount));setDoorStatus('ready');}
       }catch{if(!cancelled&&request===generation){setDoorRevisits([]);setDoorDueCount(0);setDoorUpcomingCount(0);setDoorStatus('error');}}
