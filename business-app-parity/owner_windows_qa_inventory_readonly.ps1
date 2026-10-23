@@ -2,7 +2,7 @@
 # Safe to run on the ORIGINAL authenticated owner Windows profile. It contacts
 # only the exact pinned synthetic QA D1/R2/Worker and protected staging D1 INFO.
 # No customer records, SQL exports, secrets, token values or account identifiers.
-# No --Apply, -Publish, migrations, CREATE, deployments or remote mutations.
+# No --Apply, -Publish, migrations, CREATE, deployment changes or remote mutations.
 [CmdletBinding()]
 param()
 Set-StrictMode -Version Latest
@@ -115,13 +115,38 @@ if ($r2Exit -eq 0) {
     Require ($r2.name -ceq $photoBucket) 'R2 response was not from the exact QA-only photo bucket.'
     $r2Status = 'EXACT_QA_BUCKET_VERIFIED'
 }
-# This is intentionally not a deployed Worker inspection: versions and
-# bindings need their separate owner-approved source and runtime review.
+# Deployments status is a read-only, supported Wrangler inspection, not a
+# Worker update. Never print active UUID, author, account or deployment payload.
+# An unavailable response is NOT evidence a Worker is absent.
+$workerServing = 'NOT_VERIFIED'
+$workerBindings = 'NOT_VERIFIED'
+$oldPreference = $ErrorActionPreference
+try {
+    $ErrorActionPreference = 'Continue'
+    $deploymentRaw = @(& $wrangler.Source deployments status --name $workerName --json 2>$null)
+    $deploymentExit = $LASTEXITCODE
+} finally { $ErrorActionPreference = $oldPreference }
+if ($deploymentExit -eq 0) {
+    try { $deploymentInfo = ConvertFrom-Json -InputObject ($deploymentRaw -join [Environment]::NewLine) }
+    catch { throw 'FIRE QA INVENTORY STOP: Malformed active QA Worker deployment response.' }
+    $active = @($deploymentInfo.versions)
+    if ($active.Count -eq 1 -and $null -ne $active[0] -and
+        [string]$active[0].version_id -cmatch '^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$' -and
+        $null -ne $active[0].percentage -and [double]$active[0].percentage -eq 100) {
+        $workerServing = 'SINGLE_VERSION_100_PERCENT_CONFIRMED'
+    } else {
+        $workerServing = 'BLOCKED_AMBIGUOUS_OR_SPLIT_TRAFFIC'
+    }
+}
+# Wrangler deployment percentages alone do NOT reveal the actual D1/R2
+# bindings of the serving version. Those require separate authenticated
+# settings/metadata inspection; do not infer correct storage bindings here.
 Write-Host 'FIRE QA HOSTING READ-ONLY INVENTORY'
 Write-Host ('QA_D1_SCHEMA_STATUS=' + $status)
 Write-Host ('QA_MIGRATION_COUNT=' + $journalCount)
 Write-Host ('QA_R2_STATUS=' + $r2Status)
-Write-Host 'WORKER_SERVING_VERSION=NOT_VERIFIED'
+Write-Host ('WORKER_SERVING_STATUS=' + $workerServing)
+Write-Host ('WORKER_BINDINGS_STATUS=' + $workerBindings)
 Write-Host 'REMOTE_WRITES=NONE'
 Write-Host 'PERSONAL_CUSTOMER_RECORDS_READ=NONE'
 Write-Host 'APP_RELEASE_APPROVED=NO'
@@ -137,3 +162,7 @@ if ($status -ceq 'EMPTY_QA_DB') {
 if ($r2Status -cne 'EXACT_QA_BUCKET_VERIFIED') {
     Write-Host 'PHOTO_NEXT=Cloudflare QA R2 existence/permissions are NOT verified. Do not bind any existing LIVE bucket.'
 }
+if ($workerServing -cne 'SINGLE_VERSION_100_PERCENT_CONFIRMED') {
+    Write-Host 'WORKER_NEXT=QA Worker serving deployment could not be safely attested. Do not infer absence or attempt publish; inspect account read-only.'
+}
+Write-Host 'BINDING_NEXT=Confirm actual active Worker D1 DB binding and separate R2 BUCKET in Cloudflare Worker Settings (read-only); this report alone cannot attest bindings.'
