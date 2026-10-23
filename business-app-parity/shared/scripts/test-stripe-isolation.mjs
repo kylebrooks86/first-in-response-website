@@ -13,10 +13,11 @@ function load(route,deployment,fireEnv,key){
  const calls={db:0,network:0,reconciled:0,refunds:0},env={FIRE_ENV:fireEnv,STRIPE_RESTRICTED_KEY:key,STRIPE_WEBHOOK_SECRET:'whsec_synthetic-only',
   DB:{prepare(){calls.db++;return {bind(){return {async first(){return {id:'synthetic-payment',estimateId:'job-1',type:'deposit',status:'paid',amountCents:5000,providerId:'cs_fake',customerId:'customer-1'};}}}};}}};
  const exports={};
- const fn=new Function('require','exports','Response','Request','crypto','fetch','LOCAL_CUSTOMER_DEPLOYMENT','getChatGPTUser','env','reconcileStripeCheckout','recordRefundUpdate',code);
+ const fn=new Function('require','exports','Response','Request','crypto','fetch','LOCAL_CUSTOMER_DEPLOYMENT','getChatGPTUser','env','reconcileStripeCheckout','recordRefundUpdate','refundLedgerObjectsPresent','refundLedgerNotReady',code);
  fn(id=>{if(id==='cloudflare:workers')return {env};throw Error('Unexpected import '+id);},exports,Response,Request,webcrypto,async()=>{calls.network++;throw Error('Network forbidden');},deployment,async()=>({email:'kylebrooks8605@gmail.com'}),env,
  async()=>{calls.reconciled++;return {ok:true,duplicate:false};},
- async()=>{calls.refunds++;return {ok:true};});
+ async()=>{calls.refunds++;return {ok:true};},
+ async()=>true,()=>Response.json({error:'Synthetic refund schema missing'},{status:503}));
  return {POST:exports.POST,calls};
 }
 const checkoutBody=JSON.stringify({shareToken:'synthetic',paymentType:'deposit'});

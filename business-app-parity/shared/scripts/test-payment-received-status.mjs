@@ -11,7 +11,8 @@ const env={DB:{prepare(sql){return {async all(){return {results:db.prepare(sql).
 let user={email:'kylebrooks8605@gmail.com'};
 function load(source,context){const exports={};vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports,...context});return exports;}
 const accounting=load(readFileSync('lib/processing-fees.ts','utf8'),{require});
-const api=load(readFileSync('app/api/payments/route.ts','utf8'),{Response,require:name=>({'../../../lib/processing-fees':accounting,'cloudflare:workers':{env},'../../chatgpt-auth':{getChatGPTUser:async()=>user}})[name]});
+const refundLedgerGuard=load(readFileSync('lib/refund-ledger-readiness.ts','utf8'),{require,Response});
+const api=load(readFileSync('app/api/payments/route.ts','utf8'),{Response,require:name=>({'../../../lib/processing-fees':accounting,'../../../lib/refund-ledger-readiness':refundLedgerGuard,'cloudflare:workers':{env},'../../chatgpt-auth':{getChatGPTUser:async()=>user}})[name]});
 const source=readFileSync('app/dashboard.tsx','utf8'),ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const helpers=['resolvedBillingTotalCents','billingBalanceCents'];
 const declarations=ast.statements.filter(node=>ts.isVariableStatement(node)&&node.declarationList.declarations.some(d=>helpers.includes(d.name.getText(ast))));
