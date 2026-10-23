@@ -3,6 +3,7 @@ import { LOCAL_CUSTOMER_DEPLOYMENT } from "../../../local-customer-deployment";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
 import { finalizeRefund, recordRefundUpdate, type StripeRefund } from "../../../../lib/stripe-refunds";
+import { refundLedgerNotReady, refundLedgerObjectsPresent } from "../../../../lib/refund-ledger-readiness";
 
 const currency=(v:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(v/100);
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
@@ -15,6 +16,8 @@ async function stripeGet(path:string,secret:string){
 export async function POST(request:Request){
   if (String(LOCAL_CUSTOMER_DEPLOYMENT) === "qa") return Response.json({error:"Synthetic QA disables all Stripe actions and connection probes."},{status:503,headers:{"cache-control":"no-store"}});
   if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
+  // LIVE without migration 0019 must stop before any Stripe call or money movement.
+  if(!await refundLedgerObjectsPresent(env.DB))return refundLedgerNotReady();
   try{
     const value=await request.json() as Record<string,unknown>;
     const paymentId=String(value.paymentId??"").trim();
