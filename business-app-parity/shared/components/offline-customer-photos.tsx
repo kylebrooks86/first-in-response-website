@@ -5,7 +5,7 @@ import {Camera,Download,Images,Trash2,Upload} from 'lucide-react';
 import {Button} from './ui/button';
 import {Input} from './ui/input';
 import {Label} from './ui/label';
-import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos} from '../lib/local-photo-vault';
+import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,OFFLINE_PHOTO_CHANGES_CHANNEL} from '../lib/local-photo-vault';
 import {readPhotoMutationAttempt,runPhotoMutation,reviewPhotoMutation,acknowledgePhotoMutation} from '../lib/photo-mutation-journal';
 import type {OfflinePhoto} from '../lib/offline-photo-backup';
 import {inspectSavedOfflinePhotoZip} from '../lib/offline-photo-inspection';
@@ -37,6 +37,21 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   }).catch(err=>{if(!cancelled)setError(err instanceof Error?err.message:'Could not open this device’s photo vault.');})
   .finally(()=>{if(!cancelled)setLoading(false);});
   return()=>{cancelled=true;};
+ },[customerId]);
+ // Multi-tab safety: a prepared all-photos or single-customer ZIP must not
+ // remain offered after ANOTHER FIRE tab changes the on-device photo vault.
+ // Broadcasts carry no photo bytes or customer identity; reread IndexedDB.
+ useEffect(()=>{
+  setPreparedBackup(null);
+  if(typeof BroadcastChannel==='undefined')return;
+  const channel=new BroadcastChannel(OFFLINE_PHOTO_CHANGES_CHANNEL);
+  const changed=()=>{
+   setPreparedBackup(null);
+   setError('Another FIRE tab changed on-device photos. Any previously prepared ZIP may be incomplete. Prepare a fresh backup after reviewing the updated gallery.');
+   void refresh().catch(()=>setError('Other FIRE tab changed photos, but this gallery could not be refreshed. Do not rely on a previously prepared ZIP.'));
+  };
+  channel.addEventListener('message',changed);
+  return()=>{channel.removeEventListener('message',changed);channel.close();};
  },[customerId]);
  // Read the durable receipt on mount, focus and return from another app. Never
  // clear it on navigation, reload, sign-out or age; only explicit review may.
