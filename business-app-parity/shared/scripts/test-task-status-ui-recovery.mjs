@@ -14,7 +14,7 @@ function handler(name){
  }
  throw Error('Missing actual BusinessView handler '+name);
 }
-const source='exports.toggle='+handler('toggleTask')+';\nexports.refresh='+handler('refreshTaskStatuses')+';';
+const source='exports.toggle='+handler('toggleTask')+';\nexports.refresh='+handler('refreshTaskStatuses')+';\nexports.reschedule='+handler('rescheduleTask')+';';
 const script=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
 const row=(status='open',completedAt=null)=>({id:'synthetic-task',title:'Synthetic job reminder',status,completedAt,createdAt:'2026-10-20T12:00:00Z'});
@@ -98,4 +98,85 @@ for(const scenario of ['network','http','missing-confirmation','wrong-status','i
  eq(f.state.rows[0].status,'open','Confirmed reopen updates status');
  eq(f.state.rows[0].completedAt,null,'Confirmed reopen clears completion timestamp');
 }
-console.log('PASS '+checks+'/'+checks+': actual task status click handler waits for server confirmation, blocks uncertain writes and reconciles with uncached GET only. Synthetic network.');
+
+// Real BusinessView due-date handler. The task row must not be changed until
+// an exact owner-server receipt is verified; ambiguous writes require GET.
+function dueFixture({start=null,input='2026-11-05T09:30',status='open'}={}){
+ const requests=[],notices=[],state={rows:[{...row(status),dueAt:start}],rescheduleEditingId:'synthetic-task',saving:false,uncertain:false,pending:null,loadRequest:{current:0}};
+ const wanted=input?new Date(input).toISOString():null;
+ let respond=async (_url,options)=>options?.method==='PATCH'
+  ?{ok:true,json:async()=>({ok:true,id:'synthetic-task',status:'open',dueAt:wanted})}
+  :{ok:true,json:async()=>({tasks:[{...row('open'),dueAt:wanted}]})};
+ const context={exports:{},Date,
+  rescheduleEditingId:state.rescheduleEditingId,rescheduleDateInput:input,rescheduleSaving:false,taskStatusUncertain:false,
+  taskStatusLock:{current:false},taskStatusRefreshLock:{current:false},loadRequest:state.loadRequest,
+  setTaskStatusUncertain:v=>{state.uncertain=v;context.taskStatusUncertain=v;},
+  setTaskStatusMessage:v=>{notices.push(v);},
+  setTaskToggling:v=>{state.pending=v;},
+  setRescheduleSaving:v=>{state.saving=v;},
+  setRescheduleEditingId:v=>{state.rescheduleEditingId=v;context.rescheduleEditingId=v;},
+  setTasks:v=>{state.rows=typeof v==='function'?v(state.rows):v;},
+  fetch:(url,options)=>{requests.push({url,options});return respond(url,options);}
+ };
+ vm.runInNewContext(script,context);
+ return {state,context,notices,requests,wanted,
+  save:()=>context.exports.reschedule(state.rows[0]),
+  refresh:()=>context.exports.refresh(),
+  setRespond:handler=>{respond=handler;},
+  writes:()=>requests.filter(r=>r.options?.method==='PATCH'),
+  reads:()=>requests.filter(r=>!r.options?.method)
+ };
+}
+{
+ const f=dueFixture(),hold=deferred();
+ f.setRespond((_url,opt)=>opt?.method==='PATCH'?hold.promise:Promise.resolve({ok:true,json:async()=>({tasks:[{...row(),dueAt:f.wanted}]})}));
+ const saving=f.save(),double=f.save();
+ eq(f.writes().length,1,'Repeated rapid Save date tap produces only one PATCH');
+ eq(f.state.rows[0].dueAt,null,'Due date is not optimistically changed while request is pending');
+ eq(f.state.saving,true,'Saving state stays visible on phone');
+ const request=JSON.parse(f.writes()[0].options.body);
+ eq(request.operation,'reschedule','Actual UI chooses due-date-only guarded operation');
+ eq(request.expectedStatus,'open','Reschedule compares exact open status');
+ eq(request.expectedDueAt,null,'Reschedule compares last verified due date');
+ eq(request.dueAt,f.wanted,'Local datetime converts to precise UTC API timestamp');
+ hold.resolve({ok:true,json:async()=>({ok:true,id:'synthetic-task',status:'open',dueAt:f.wanted})});
+ await Promise.all([saving,double]);
+ eq(f.state.rows[0].dueAt,f.wanted,'Confirmed server date enters saved task list');
+ eq(f.state.rescheduleEditingId,null,'Successful reschedule closes editor');
+ eq(f.state.saving,false,'Pending save state clears');
+ eq(f.state.uncertain,false,'Verified saved date needs no recovery');
+}
+for(const failure of ['connection','http','wrong-date','missing-confirmation']){
+ const f=dueFixture(),hold=deferred();
+ f.setRespond((_url,opt)=>opt?.method==='PATCH'?hold.promise:Promise.resolve({ok:true,json:async()=>({tasks:[{...row(),dueAt:f.wanted}]})}));
+ const saving=f.save();
+ if(failure==='connection')hold.reject(Error('Response lost after save'));
+ else if(failure==='http')hold.resolve({ok:false,json:async()=>({error:'Concurrent task edit'})});
+ else if(failure==='wrong-date')hold.resolve({ok:true,json:async()=>({ok:true,id:'synthetic-task',status:'open',dueAt:null})});
+ else hold.resolve({ok:true,json:async()=>({ok:true,id:'synthetic-task',status:'open'})});
+ await saving;
+ eq(f.state.rows[0].dueAt,null,failure+' does not invent a saved deadline');
+ eq(f.state.uncertain,true,failure+' prevents any further task mutation');
+ eq(f.notices.at(-1).includes('Refresh saved tasks'),true,failure+' directs owner to reconcile');
+ const before=f.writes().length;await f.save();
+ eq(f.writes().length,before,failure+' never automatically retries uncertain deadline');
+ await f.refresh();
+ eq(f.reads().length,1,failure+' performs one owner-only GET');
+ eq(f.reads()[0].options.cache,'no-store',failure+' bypasses cached task rows');
+ eq(f.state.rows[0].dueAt,f.wanted,failure+' displays server-confirmed result after refresh');
+ eq(f.state.uncertain,false,failure+' unlocks writes only on verified GET');
+}
+{
+ const f=dueFixture({start:'2026-10-23T11:00:00.000Z',input:''});
+ await f.save();
+ eq(f.writes().length,1,'Owner can deliberately clear an existing deadline');
+ eq(JSON.parse(f.writes()[0].options.body).dueAt,null,'Clearing a reminder writes null, not an invalid empty date');
+ eq(f.state.rows[0].dueAt,null,'Cleared deadline verified on server');
+}
+{
+ const f=dueFixture({status:'completed'});
+ await f.save();
+ eq(f.writes().length,0,'Completed tasks cannot be rescheduled from stale view');
+ eq(f.state.uncertain,true,'Completed task requires refresh before editing');
+}
+console.log('PASS '+checks+'/'+checks+': actual task status and due-date handlers require exact server confirmation, block uncertain writes, and reconcile through uncached GET. Synthetic network.');
