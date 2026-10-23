@@ -23,6 +23,7 @@ const fixture = () => ({
   r2_buckets: [{binding: "BUCKET", bucket_name: "fire-fullapp-qa-photos-20261023"}],
   vars: {
     FIRE_ENV: "synthetic-qa", FIRE_QA_SYNTHETIC_ONLY: "enabled",
+    FIRE_LOCAL_CUSTOMERS_CANDIDATE: "synthetic-only",
     SITE_ORIGIN: "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev"
   },
   assets: { directory: "../client", binding: "ASSETS" }
@@ -93,6 +94,10 @@ try {
     ["production env override", x => { x.env = { production: {} }; }],
     ["custom route", x => { x.route = "fire.example.com/*"; }],
     ["changed origin", x => { x.vars.SITE_ORIGIN = "https://other.workers.dev"; }],
+    ["disabled on-device customer mode", x => { x.vars.FIRE_LOCAL_CUSTOMERS_CANDIDATE = "disabled"; }],
+    ["missing on-device customer mode", x => { delete x.vars.FIRE_LOCAL_CUSTOMERS_CANDIDATE; }],
+    ["unsafe LIVE variable", x => { x.vars.FIRE_LIVE_CUSTOMERS = "enabled"; }],
+    ["unexpected staging variable", x => { x.vars.STAGING_FALLBACK = "enabled"; }],
     ["secret placed in plaintext vars", x => { x.vars.FIRE_QA_SESSION_SECRET = "bad"; }]
   ]) {
     check("Rejects " + label, () => {
