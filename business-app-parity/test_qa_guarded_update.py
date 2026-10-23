@@ -181,6 +181,7 @@ class GuardedQaTests(unittest.TestCase):
         manifest={'name':q.qa.WORKER,'legacy_env':True,'workers_dev':True,
             'd1_databases':[{'binding':'DB','database_name':q.qa.NAME,'database_id':q.qa.UUID}],
             'secrets':{'required':['FIRE_QA_PASSWORD_HASH','FIRE_QA_SESSION_SECRET']},
+            'r2_buckets':[{'binding':'BUCKET','bucket_name':'fire-fullapp-qa-photos-20261023'}],
             'vars':{'FIRE_ENV':'synthetic-qa','FIRE_QA_SYNTHETIC_ONLY':'enabled','SITE_ORIGIN':q.qa.ORIGIN}}
         (server/'wrangler.json').write_text(json.dumps(manifest));original=(server/'wrangler.json').read_bytes()
         self.provider.account='c'*32;self.provider.path=Path(self.tmp.name)/'isolated.json'
@@ -189,6 +190,7 @@ class GuardedQaTests(unittest.TestCase):
             if args[:2] == ['deployments','status']:return {'versions':[{'version_id':'12345678-1234-4234-8234-123456789abc','percentage':100}]}
             calls.append(list(args));cfg=json.loads(self.provider.path.read_text())
             self.assertEqual(cfg['account_id'],'c'*32);self.assertEqual(cfg['d1_databases'],manifest['d1_databases'])
+            self.assertEqual(cfg['r2_buckets'],manifest['r2_buckets'])
             self.assertNotIn('legacy_env',cfg)
         self.provider.call=invoke
         with patch.object(q,'build_identity',return_value='sealed'),patch.object(self.provider,'identity'):
