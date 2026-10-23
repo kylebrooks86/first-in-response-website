@@ -150,6 +150,7 @@ try{
  check(await firstUse.getByText('Your first FIRE job starts here').count()===1,
    'Real owner Dashboard shows first-use guidance only after verified empty API summary');
  await firstUse.getByRole('button',{name:'Open Customers & add your first customer'}).click();
+ await initialPage.getByRole('heading',{name:'Customers',exact:true}).waitFor({timeout:10000});
  check(await initialPage.getByRole('heading',{name:'Customers',exact:true}).count()===1,
    'First-use Dashboard call to action opens actual Customers page without sending messages');
  await initialPage.close();
