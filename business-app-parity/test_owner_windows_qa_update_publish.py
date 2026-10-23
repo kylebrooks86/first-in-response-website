@@ -7,13 +7,19 @@ S=(Path(__file__).parent/"owner_windows_qa_update_publish.ps1").read_text(encodi
 
 class OnlyApprovedQAUpdate(unittest.TestCase):
     def test_defaults_to_read_only(self):
-        self.assertIn("param([switch]$Publish,[string]$ApprovalText)",S)
+        self.assertIn("[switch]$Publish",S)
+        self.assertIn("[string]$ApprovalText",S)
+        self.assertIn("[string]$CandidateBranch",S)
+        self.assertIn("[string]$ExpectedCommit",S)
         self.assertIn("if ($PSBoundParameters.ContainsKey('ApprovalText'))",S)
         self.assertIn("$typed = $ApprovalText",S)
         self.assertIn("} else {\n    $typed = Read-Host",S)
         self.assertIn("Require ($typed -ceq $approval)",S)
         self.assertLess(S.index("if ($PSBoundParameters.ContainsKey('ApprovalText'))"),S.index("Require ($typed -ceq $approval)"))
-        self.assertIn("& $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review",S)
+        self.assertIn("& $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review -CandidateBranch $CandidateBranch -ExpectedCommit $ExpectedCommit",S)
+        self.assertEqual(S.count("& $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review"),2)
+        self.assertLess(S.index("Require ($typed -ceq $approval)"), S.rindex("& $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review"))
+        self.assertLess(S.rindex("& $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review"), S.index("deploy --config $temporaryManifest --name"))
         self.assertIn("if (-not $Publish)",S)
         self.assertIn("REVIEW ONLY PASS. No Worker update or secret upload",S)
         self.assertIn("return",S)
@@ -36,7 +42,11 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
                      "[string]$afterVersions[0].version_id -ceq $expectedOldVersion",
                      "d1 list --json",
                      "$d1.qaName -ceq $dbName -and $d1.qaUuid -ceq $dbId",
-                     "QA Worker was updated by another operation"):
+                     "QA Worker was updated by another operation",
+                     "$qaPhotoBucket = 'fire-fullapp-qa-photos-20261023'",
+                     "$qaPhotoBucket + ' ' + $head + ' FROM '",
+                     "$head -ceq $ExpectedCommit",
+                     "Fresh post-approval read-only 25-schema, R2 and source revalidation"):
             self.assertIn(text,S)
         self.assertNotIn("fire-app-staging-db",S)
         self.assertNotRegex(S, r"&\\s*\\$wrangler\\.Source\\s+d1\\s+info\\b")
