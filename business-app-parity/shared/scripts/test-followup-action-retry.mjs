@@ -86,6 +86,27 @@ for(const problem of ['offline','http','bad-json','wrong-action','bad-createdAt'
  eq(f.retry(),null,problem+' clears pending attempt only on confirmed response');
  f.unmount();
 }
+// "No answer" is saved as an attempted contact but must never be promoted
+// to Contacted, a sent message, or a snooze, even after a lost response.
+{
+ const f=fixture();f.mount();await flush();
+ const failed=later();
+ f.response((url,options)=>options?.method==='POST'?failed.promise:getOk());
+ f.action('No answer · not contacted').props.onClick();
+ const body=f.lastPost();
+ eq(body.action,'no_answer','No-answer button posts its distinct noncontact outcome');
+ eq(f.postCount(),1,'No answer sends one owner-authenticated POST');
+ eq(f.action('Contacted').props.disabled,true,'Contacted cannot overwrite unverified no-answer attempt');
+ failed.reject(Error('Synthetic response lost after write'));await flush();
+ eq(Boolean(f.alert()?.includes('not confirmed')),true,'No-answer ambiguous response stays blocked');
+ f.response((url,options)=>options?.method==='POST'?postOk('no_answer'):getOk());
+ f.action('No answer · not contacted').props.onClick();await flush();await flush();
+ eq(f.lastPost().operationId,body.operationId,'No answer deliberate retry reuses original operation');
+ eq(f.getOpCount(),1,'No answer never allocates a second UUID during replay');
+ eq(f.getState(6).includes('remains NOT contacted'),true,'No answer confirms the customer remains not contacted');
+ eq(f.retry(),null,'No-answer confirmed replay clears ambiguous action');
+ f.unmount();
+}
 // An already confirmed action uses exactly one POST and reports no external message delivery.
 {
  const f=fixture();f.mount();await flush();
