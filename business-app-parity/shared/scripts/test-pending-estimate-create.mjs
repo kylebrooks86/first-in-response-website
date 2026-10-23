@@ -30,7 +30,7 @@ for(const value of ['bad','',uuid(1).replace('-4','-1'),JSON.stringify({customer
  const current=storage();current.setItem(PENDING_ESTIMATE_CREATE_KEY,value);
  same(readPendingEstimateCreate(current).usable,false,'Bad persisted marker requires review rather than silently overwriting');
  same(reservePendingEstimateCreate(current,first),false,'Invalid persisted marker blocks new POST');
- same(current.getItem(PENDING_ESTIMATE_CREATE_KEY),value,'Invalid marker not silently destroyed');
+ same(current.getItem(PENDING_ESTIMATE_CREATE_KEY),String(value),'Invalid marker not silently destroyed');
 }
 const unavailable={getItem:()=>{throw Error('Browser privacy mode');},setItem:()=>{throw Error('Private');},removeItem:()=>{throw Error('Private');}};
 same(readPendingEstimateCreate(undefined).usable,false,'No local storage forbids unsafe POST');
