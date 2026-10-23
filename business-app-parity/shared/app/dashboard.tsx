@@ -2011,6 +2011,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       const isPrepared=message.channel==="text_prepared"||message.channel==="email_prepared";
       const kind=subject(message.template);
       const title=message.channel==="contact_recorded"?"Customer contact recorded":
+        message.channel==="contact_no_answer"?"No answer · customer not contacted":
         message.channel==="review_snoozed"?"Review request snoozed":
         message.channel==="review_check_snoozed"?"Review status check snoozed":
         message.channel==="followup_snoozed"?"Follow-up snoozed":
@@ -2019,6 +2020,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       const detail=message.channel==="send_cancelled"?"Owner-confirmed not sent · saved draft retained":isConfirmed?"Owner-confirmed send · delivery unverified":
         isPrepared||message.channel==="copy"?"Sending unconfirmed":
         message.channel==="contact_recorded"?"Owner logged contact":
+        message.channel==="contact_no_answer"?"Unanswered attempt logged · no customer contact or message sent":
         message.channel==="review_snoozed"?"Request deferred · no message sent":
         message.channel==="review_check_snoozed"?"Status check deferred · no message sent or review received":
         message.channel==="followup_snoozed"?"Follow-up deferred · owner recorded":"Legacy entry · delivery unverified";
