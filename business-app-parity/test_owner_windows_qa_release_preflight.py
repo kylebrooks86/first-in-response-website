@@ -21,11 +21,14 @@ class QAPostMigrationReadOnlyContract(unittest.TestCase):
 
     def test_read_only_no_upload_or_deploy_commands(self):
         self.assertIn("param()", SCRIPT)
-        self.assertNotIn("d1 list --json", SCRIPT)
-        self.assertEqual(SCRIPT.count("d1 info $qaName --json"), 1)
-        self.assertEqual(SCRIPT.count("d1 info $protectedName --json"), 1)
-        self.assertIn("$info.uuid -cne $protectedInfo.uuid", SCRIPT)
-        self.assertIn("Cloudflare read-only protected staging D1 info", SCRIPT)
+        self.assertIn("d1 list --json", SCRIPT)
+        self.assertIn("qa_d1_identity_from_list.ps1", SCRIPT)
+        self.assertIn("& $identityHelper -Json ($rawList -join [Environment]::NewLine)", SCRIPT)
+        self.assertIn("$identities.qaUuid -ceq $qaUuid", SCRIPT)
+        self.assertNotIn("$wrangler.Source d1 info ", SCRIPT)
+        self.assertIn("Cloudflare read-only D1 identity list", SCRIPT)
+        self.assertIn("$identities.stagingUuid -ceq $protectedUuid", SCRIPT)
+        self.assertNotIn("num_tables -gt 0", SCRIPT)
         self.assertIn("d1 execute $qaName --remote", SCRIPT)
         self.assertEqual(len(re.findall(r"(?m)^\s*\$rawQuery\s*=\s*@", SCRIPT)), 1)
         self.assertNotRegex(SCRIPT, r"(?m)^\s*(?:&\s*\$wrangler\.Source|wrangler(?:\.cmd)?)\s+(?:deploy|secret|publish|delete|upload|d1\s+migrations)")
@@ -49,21 +52,30 @@ class QAPostMigrationReadOnlyContract(unittest.TestCase):
             self.assertNotIn(forbidden, SCRIPT)
 
     def test_already_migrated_schema_required(self):
-        for required in ("[int]$info.num_tables -gt 0", "'d1_migrations'",
-                         "'payment_refunds'", "'customer_photos'",
+        for required in ("FROM d1_migrations ORDER BY id", "'payment_refunds'", "'customer_photos'",
+                         "'deposit_policy_events'", "'deposit_agreement_snapshots'",
                          "idx_payments_stripe_provider_unique",
-                         "[int]$row.migration_count -eq 23",
-                         "[int]$row.required_tables -eq 7",
-                         "[int]$row.provider_index -eq 1"):
+                         "[string]$row.journal_names -ceq ($orderedSQL -join '|')",
+                         "[int]$row.required_tables -eq 8",
+                         "[int]$row.provider_index -eq 1",
+                         "[int]$row.signed_agreement_triggers -eq 2",
+                         "deposit_agreement_snapshots_no_update",
+                         "deposit_agreement_snapshots_no_delete",
+                         "r2 bucket info $qaPhotoBucket --json",
+                         "$photoInfo.name -ceq $qaPhotoBucket"):
             with self.subTest(required=required):
                 self.assertIn(required, SCRIPT)
         self.assertNotIn("num_tables -eq 0", SCRIPT)
         self.assertNotIn("migrations apply", SCRIPT)
+        self.assertIn("The hosted QA migration journal must match all 25 local migrations IN ORDER", SCRIPT)
+        self.assertIn("Dedicated QA-only R2 photo bucket identity missing/mismatched", SCRIPT)
+        self.assertLess(SCRIPT.index("d1 list --json"),SCRIPT.index("d1 execute $qaName --remote"))
+        self.assertLess(SCRIPT.index("d1 execute $qaName --remote"),SCRIPT.index("r2 bucket info $qaPhotoBucket --json"))
         self.assertIn('STOP BEFORE PUBLISH', SCRIPT)
 
     def test_source_only_no_remote_changes_in_tests(self):
         self.assertIn("Cloudflare read-only QA schema query", SCRIPT)
-        self.assertIn("Cloudflare read-only QA D1 info", SCRIPT)
+        self.assertIn("Cloudflare read-only D1 identity list", SCRIPT)
         self.assertIn("Get-Command 'wrangler.cmd'", SCRIPT)
         self.assertNotIn("fire-app-dr", SCRIPT)
         self.assertIn('"--config=$configPath"', SCRIPT)
