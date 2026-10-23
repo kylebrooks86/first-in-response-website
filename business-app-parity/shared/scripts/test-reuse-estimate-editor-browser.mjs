@@ -5,8 +5,13 @@ const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),
 const bundle=await esbuild.build({stdin:{contents:`import React from'react';import{createRoot}from'react-dom/client';import{NewEstimate}from'./app/dashboard';createRoot(document.getElementById('app')).render(<NewEstimate/>);`,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'},plugins:[{name:'real-editor',setup(b){b.onLoad({filter:/app\/dashboard\.tsx$/},a=>({contents:readFileSync(a.path,'utf8')+'\nexport {NewEstimate};',loader:'tsx'}));}}]});
 const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 let previews=0,saves=0,hold=false,release,posted,receiptMismatch=null;
-const confirmedQuotes=new Map();
+const confirmedQuotes=new Map();let catalog={revision:null,packages:[]},packageWrites=0;
 const server=createServer(async(req,res)=>{res.setHeader('content-type','application/json');
+ if(req.url==='/api/quote-packages'&&req.method==='GET'){res.setHeader('cache-control','private, no-store');return res.end(JSON.stringify({catalog}));}
+ if(req.url==='/api/quote-packages'&&req.method==='PUT'){let raw='';for await(const chunk of req)raw+=chunk;const input=JSON.parse(raw);
+  if(input.expectedRevision!==catalog.revision){res.statusCode=409;return res.end(JSON.stringify({error:'Packages changed on another device.'}));}
+  packageWrites++;catalog={revision:'aaaa1111-aaaa-4aaa-8aaa-'+String(packageWrites).padStart(12,'0'),packages:input.packages};
+  return res.end(JSON.stringify({catalog}));}
  if(req.url==='/api/service-pricing')return res.end(JSON.stringify({rates:FIRE_SERVICES.map(s=>({id:s.id,rateCents:s.rate,revision:null}))}));
  if(req.url.startsWith('/api/customers/lookup'))return res.end(JSON.stringify({customers:[]}));
  if(req.url==='/api/saved-promotions/preview'){previews++;let body='';for await(const c of req)body+=c;const v=JSON.parse(body);if(hold)await new Promise(r=>release=r);return res.end(JSON.stringify({revision:'synthetic',checkedOn:'2026-10-22',bookingConfirmedOn:null,eligible:[],pendingBooking:[],percentBasisPoints:0,dollarCents:0,blocked:null,previewTotalCents:Math.max(15000,v.subtotalCents),previewDepositCents:Math.round(Math.max(15000,v.subtotalCents)/2)}));}
@@ -34,6 +39,44 @@ for(const width of [320,390,768])for(const theme of ['light','dark']){
  }
  check(await page.evaluate(()=>document.documentElement.scrollWidth)<=width,'No page overflow');await page.getByRole('button',{name:'Remove service 2',exact:true}).click();check(await lines.count()===1,'Remove copied line');await page.getByRole('button',{name:'Reuse service setup from line 1',exact:true}).click();await lines.nth(1).locator('input[inputmode="decimal"]').first().fill('500');await waitSave('330');await page.getByRole('button',{name:'Save $330 estimate'}).click();await page.getByText('Estimate ready',{exact:true}).waitFor();check(saves===beforeSaveCount+1&&posted.items.length===2&&posted.items[0].quantity===1000&&posted.items[1].quantity===500&&posted.items[0].totalCents===22000&&posted.items[1].totalCents===11000,'Valid reused setup saves exact original and additional amounts once');
 }
+// Actual reusable quote mix workflow in the real New Estimate dialog.
+await page.setViewportSize({width:390,height:844});await page.goto(origin);
+await page.getByRole('button',{name:'New estimate',exact:true}).click();
+await page.getByRole('button',{name:'Create New Customer',exact:false}).click();
+await page.getByLabel('Customer name',{exact:true}).fill('Synthetic Quote Package Customer');
+await page.getByLabel('Estimate service address').fill('222 Package Fixture Rd, Tulsa');
+await page.getByRole('button',{name:'Continue to services'}).click();
+await page.getByRole('button',{name:'House + gutters',exact:true}).click();
+const packageLines=page.locator('.estimate-edit-service');
+check(await packageLines.count()===2,'Quick House + gutters package adds two editable service lines');
+check(await packageLines.nth(0).getByLabel('Service name',{exact:true}).inputValue()==='House Wash','Quick package applies current House Wash service');
+check(await packageLines.nth(1).getByLabel('Service name',{exact:true}).inputValue()==='Gutter Cleaning + Flush','Quick package applies current gutter service');
+check(await packageLines.nth(0).getByLabel('Quantity',{exact:true}).inputValue()===''&&await packageLines.nth(1).getByLabel('Quantity',{exact:true}).inputValue()==='','Even flat-price packages require deliberate quantities');
+check(await packageLines.nth(0).getByText('Line total $0',{exact:true}).count()===1&&await packageLines.nth(1).getByText('Line total $0',{exact:true}).count()===1,'New package starts with no charge');
+await packageLines.nth(0).getByLabel('Quantity',{exact:true}).fill('1000');
+await packageLines.nth(1).getByLabel('Quantity',{exact:true}).fill('50');
+check(await packageLines.nth(0).getByText('Line total $220',{exact:true}).count()===1,'Current house rate applied to first package line');
+check(await packageLines.nth(1).getByText('Line total $75',{exact:true}).count()===1,'Current gutter rate applied to second package line');
+await page.getByLabel('Save current selected services as a package').count().then(v=>check(v===1,'Owner sees saved package name field'));
+await page.getByLabel('Save current selected services as a package').fill('FIRE standard duo');
+const beforeQuoteSaves=saves, beforePackageWrites=packageWrites;
+await page.getByRole('button',{name:'Save this mix'}).click();
+await page.getByRole('button',{name:'Use saved package FIRE standard duo'}).waitFor();
+check(packageWrites===beforePackageWrites+1,'Package catalog saves once independently from financial quotes');
+check(saves===beforeQuoteSaves,'Saving a package creates no customer quote');
+check(catalog.packages[0].serviceIds.join(',')==='house-wash,gutters','Saved package stores only service catalog IDs');
+check(!JSON.stringify(catalog.packages).includes('1000')&&!JSON.stringify(catalog.packages).includes('customer'),'Saved package stores no measurements or customer information');
+page.once('dialog',d=>d.accept());
+await page.getByRole('button',{name:'Use saved package FIRE standard duo'}).click();
+await page.waitForFunction(()=>document.querySelectorAll('.estimate-edit-service').length===4);
+check(await packageLines.nth(0).getByLabel('Quantity',{exact:true}).inputValue()==='1000'&&await packageLines.nth(1).getByLabel('Quantity',{exact:true}).inputValue()==='50','Applying saved package does not alter existing line quantities');
+check(await packageLines.nth(2).getByLabel('Quantity',{exact:true}).inputValue()===''&&await packageLines.nth(3).getByLabel('Quantity',{exact:true}).inputValue()==='','Reused package requires new quantities');
+check(await packageLines.nth(2).getByText('Line total $0',{exact:true}).count()===1,'Copied package never carries previous saved price');
+check(await page.getByRole('button',{name:'Save $295 estimate'}).isDisabled(),'Copied package blocks save until quote scope and promotions rechecked');
+page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Delete saved package FIRE standard duo'}).click();
+await page.getByText('Reusable package removed.',{exact:false}).waitFor();
+check(catalog.packages.length===0,'Deleted package no longer present in saved catalog');
+check(saves===beforeQuoteSaves,'Package editing never triggers an estimate save');
 // A 2xx response can still be an uncertain save. Show the user how to inspect
 // stored estimates, and block duplicate retries even without a bundle discount.
 for(const mismatch of ['total','deposit']){
