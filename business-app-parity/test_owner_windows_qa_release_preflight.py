@@ -69,7 +69,7 @@ class QAPostMigrationReadOnlyContract(unittest.TestCase):
         self.assertNotIn("r2 bucket info", SCRIPT)
         self.assertIn("No paid R2 photo service is required", SCRIPT)
         self.assertLess(SCRIPT.index("d1 list --json"),SCRIPT.index("d1 execute $qaName --remote"))
-         self.assertIn('STOP BEFORE PUBLISH', SCRIPT)
+        self.assertIn('STOP BEFORE PUBLISH', SCRIPT)
 
     def test_source_only_no_remote_changes_in_tests(self):
         self.assertIn("Cloudflare read-only QA schema query", SCRIPT)
