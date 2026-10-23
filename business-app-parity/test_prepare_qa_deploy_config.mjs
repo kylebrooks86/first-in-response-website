@@ -33,7 +33,7 @@ function dest() { return join(folder, "wrangler.fire-qa-firstpublish-" + randomU
 function check(name, fn) { fn(); passed += 1; console.log("PASS: " + name); }
 try {
   source(fixture());
-  check("Removes ONLY default legacy_env=true while preserving all other bindings/assets", () => {
+  check("Emits R2-free QA Worker preserving exact D1, secrets and assets", () => {
     const to = dest();
     const result = prepare(original, to);
     assert.equal(result.legacyEnvRemoved, true);
@@ -41,8 +41,21 @@ try {
     const after = JSON.parse(readFileSync(to));
     assert.equal(before.legacy_env, true);
     assert.equal(Object.hasOwn(after, "legacy_env"), false);
+    assert.equal(Object.hasOwn(after, "r2_buckets"), false);
+    assert.deepEqual(before.r2_buckets, [{binding:"BUCKET",bucket_name:"fire-fullapp-qa-photos-20261023"}]);
     delete before.legacy_env;
+    delete before.r2_buckets;
     assert.deepEqual(after, before);
+  });
+  check("Accepts candidate already lacking R2 and still produces D1-only manifest", () => {
+    const withoutBucket = fixture();
+    delete withoutBucket.r2_buckets;
+    source(withoutBucket);
+    const to = dest();
+    const result = prepare(original, to);
+    assert.equal(result.r2Free, true);
+    assert.equal(Object.hasOwn(JSON.parse(readFileSync(to)), "r2_buckets"), false);
+    source(fixture());
   });
   check("Refuses to overwrite even an existing empty manifest", () => {
     const to = dest(); writeFileSync(to, "");
@@ -60,7 +73,6 @@ try {
     ["production R2 bucket", x => { x.r2_buckets[0].bucket_name = "fire-live-customer-photos"; }],
     ["wrong photo binding", x => { x.r2_buckets[0].binding = "PRIVATE_R2"; }],
     ["extra photo bucket", x => { x.r2_buckets.push({binding:"OTHER",bucket_name:"production"}); }],
-    ["no QA photo storage", x => { delete x.r2_buckets; }],
     ["unexpected KV binding", x => { x.kv_namespaces = [{binding:"CONFIG",id:"123"}]; }],
     ["missing required QA secrets", x => { x.secrets.required = []; }],
     ["production env override", x => { x.env = { production: {} }; }],
