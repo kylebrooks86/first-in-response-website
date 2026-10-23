@@ -1,4 +1,5 @@
 import { processingAmounts } from "../../../lib/processing-fees";
+import { refundLedgerNotReady, refundLedgerObjectsPresent } from "../../../lib/refund-ledger-readiness";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 
@@ -10,6 +11,7 @@ async function authorized() {
 
 export async function GET() {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!await refundLedgerObjectsPresent(env.DB)) return refundLedgerNotReady();
   const result = await env.DB.prepare(`
     SELECT p.id,p.estimate_id AS estimateId,p.type,p.amount_cents AS amountCents,p.status,p.processing_fee_cents AS processingFeeCents,p.gross_received_cents AS grossReceivedCents,p.bundled_tip_cents AS bundledTipCents,p.processing_method AS processingMethod,
       p.provider_id AS reference,p.created_at AS createdAt,c.id AS customerId,c.name AS customer,
@@ -43,6 +45,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!await refundLedgerObjectsPresent(env.DB)) return refundLedgerNotReady();
   try {
     const body = await request.json() as Record<string, unknown>;
     const estimateId = String(body.estimateId ?? "").trim();
