@@ -1084,8 +1084,8 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
       <section className="welcome-row"><div><p className="eyebrow">FIRE App</p><h1>Welcome to First In Response Exteriors</h1><p>Customers, estimates, jobs, and balances in one place.</p></div><NewEstimate onSaved={onSaved} /></section>
       {summaryVerified&&metrics.estimates===0&&estimates.length===0&&<section className="business-panel" role="region" aria-label="Start using your empty FIRE app">
         <header><div><h2>Your first FIRE job starts here</h2><p>The app confirmed no saved estimates. Nothing has been imported or sent to customers.</p></div></header>
-        <p>Save your first customer in Customers, or choose New Estimate above to create a quote and a linked customer record together. You can review the quote before you prepare a customer message; booking and payment are separate actions.</p>
-        <Button className="brand-button" onClick={()=>onNavigate("customers")}><Users className="h-4 w-4"/> Open Customers & add your first customer</Button>
+        <p>Open Customers to add or select a customer, or choose New Estimate above to create a quote and a linked customer record together. You can review the quote before you prepare a customer message; booking and payment are separate actions.</p>
+        <Button className="brand-button" onClick={()=>onNavigate("customers")}><Users className="h-4 w-4"/> Open Customers · add or select a customer</Button>
       </section>}
       {(priorityCount>0||incompletePrioritySources)&&<section className="dashboard-priority-strip" aria-label="Needs attention" role="region">
         <header><div><h2><AlertTriangle aria-hidden="true"/> Needs attention <span>{priorityCount} known check{priorityCount===1?"":"s"}</span></h2><p>Act on saved activity and visible appointments. Categories may overlap; no messages or updates happen automatically.</p></div></header>
