@@ -32,6 +32,7 @@ on:
       - work/fire-qa-safe-23-to-25-upgrade-2026-10-23
       - work/fire-owner-qa-worker-serving-readonly-2026-10-23
       - work/fire-qa-iphone-photo-button-fit-2026-10-23
+      - work/fire-existing-qa-no-r2-release-2026-10-23
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
@@ -123,6 +124,11 @@ on:
       - 'business-app-parity/test_owner_windows_qa_update_publish.py'
       - 'business-app-parity/prepare_qa_deploy_config.mjs'
       - 'business-app-parity/test_prepare_qa_deploy_config.mjs'
+      - 'business-app-parity/prepare_qa_no_r2_deploy_config.mjs'
+      - 'business-app-parity/test_prepare_qa_no_r2_deploy_config.mjs'
+      - 'business-app-parity/owner_windows_qa_no_r2_update_review.ps1'
+      - 'business-app-parity/owner_windows_qa_no_r2_update_publish.ps1'
+      - 'business-app-parity/test_owner_windows_qa_no_r2_update.py'
       - 'business-app-parity/verify_materialized_candidate.py'
       - 'business-app-parity/shared/scripts/test-real-wrangler-local-d1-export.mjs'
       - 'business-app-parity/shared/scripts/test-fire-service-catalog-pricing.mjs'
@@ -402,6 +408,20 @@ jobs:
           Write-Host 'PASS: First QA release script parses without executing deployment.'
       - name: QA deployment manifest compatibility must change exactly legacy_env=true
         run: node ../test_prepare_qa_deploy_config.mjs
+      - name: Owner-declined-R2 QA deployment manifest tests (purely local)
+        run: node ../test_prepare_qa_no_r2_deploy_config.mjs
+      - name: No-R2 existing QA Worker update contract and unbound photos
+        run: python3 ../test_owner_windows_qa_no_r2_update.py
+      - name: Parse NO-R2 review and publish scripts WITHOUT executing them
+        shell: pwsh
+        run: |
+          foreach ($name in @('owner_windows_qa_no_r2_update_review.ps1','owner_windows_qa_no_r2_update_publish.ps1')) {
+            $tokens = $null; $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path ('../' + $name)), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -ne 0) { $errors | ForEach-Object { Write-Error $_.Message }; throw "NO-R2 QA script parse failed." }
+          }
+          Write-Host 'PASS: NO-R2 QA Windows scripts parsed with NO cloud calls.'
       - name: Verify real Wrangler local D1 export and private SQL restoration
         run: |
           node scripts/test-real-wrangler-local-d1-export.mjs
