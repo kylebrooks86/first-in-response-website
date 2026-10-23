@@ -1,14 +1,21 @@
 # Second (and later) QA Business App deployment. No writes unless -Publish,
 # and a fresh exact typed owner approval confirms updating this EXISTING Worker.
 # Runs the separately tested read-only update review first. The D1 and both
-# independent QA login secrets MUST remain in place. No R2, Stripe or LIVE.
+# independent QA login secrets MUST remain in place. New QA-only R2 binding
+# must be confirmed by read-only review. No Stripe or LIVE.
 [CmdletBinding()]
-param([switch]$Publish,[string]$ApprovalText)
+param(
+    [switch]$Publish,
+    [string]$ApprovalText,
+    [string]$CandidateBranch = 'work/fire-business-app-parity-2026-10-08',
+    [string]$ExpectedCommit = ''
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $workerName = 'fire-fullapp-qa-20261016'
 $dbName = 'fire-fullapp-qa-db-20261016'
 $dbId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
+$qaPhotoBucket = 'fire-fullapp-qa-photos-20261023'
 $expectedActiveVersion = '58a467fa-9dbc-45a3-971e-b5a4e478f54d'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
@@ -26,7 +33,7 @@ $node = Get-Command 'node.exe' -ErrorAction SilentlyContinue
 $wrangler = Get-Command 'wrangler.cmd' -ErrorAction SilentlyContinue
 Require ($null -ne $ps -and $null -ne $git -and $null -ne $node -and $null -ne $wrangler) 'Windows PowerShell, Git, Node and global Wrangler are required.'
 Require (Test-Path -LiteralPath $review -PathType Leaf) 'QA update read-only reviewer missing.'
-& $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review
+& $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review -CandidateBranch $CandidateBranch -ExpectedCommit $ExpectedCommit
 Require-Exit 'Existing Worker/data protection read-only update review'
 if (-not $Publish) {
     Write-Host 'REVIEW ONLY PASS. No Worker update or secret upload. No database changes.'
@@ -36,6 +43,9 @@ if (-not $Publish) {
 $head = (& $git.Source -C $repo rev-parse HEAD).Trim()
 Require-Exit 'Git source commit'
 Require ($head -cmatch '^[0-9a-f]{40}$') 'Invalid Git source checkpoint.'
+if (-not [string]::IsNullOrEmpty($ExpectedCommit)) {
+    Require ($head -ceq $ExpectedCommit) 'Current code differs from owner-reviewed exact commit; no hosted writes.'
+}
 $candidate = Join-Path $env:LOCALAPPDATA ('FIRE-QA-Builds\qa-' + $head)
 $manifest = Join-Path $candidate 'dist\server\wrangler.json'
 Require (Test-Path -LiteralPath $manifest -PathType Leaf) 'Verified current QA build missing.'
@@ -49,9 +59,9 @@ $beforeVersions = @($before.versions)
 Require ($beforeVersions.Count -eq 1 -and [double]$beforeVersions[0].percentage -eq 100) 'QA Worker must have one active 100-percent code version.'
 $expectedOldVersion = [string]$beforeVersions[0].version_id
 Require ($expectedOldVersion -ceq $expectedActiveVersion) 'Unknown currently active QA Worker version. Stop.'
-$approval = 'UPDATE QA ' + $workerName + ' ' + $dbId + ' ' + $head + ' FROM ' + $expectedOldVersion
+$approval = 'UPDATE QA ' + $workerName + ' ' + $dbId + ' ' + $qaPhotoBucket + ' ' + $head + ' FROM ' + $expectedOldVersion
 Write-Warning ('This will REPLACE ONLY the code/assets on existing QA Worker ' + $workerName +
-    ' while retaining its current D1 database, fictional customer records and existing owner secrets.')
+    ' while retaining its current D1 database, fictional customer records and existing owner secrets. A new, separately verified QA-only R2 photo bucket is bound.')
 Write-Warning ('Exact active QA code version retained for rollback: ' + $expectedOldVersion +
     '. This update does not reset or roll back database contents.')
 # An explicit CLI approval avoids clipboard/prompt confusion on the owner's Acer.
@@ -63,6 +73,11 @@ if ($PSBoundParameters.ContainsKey('ApprovalText')) {
     $typed = Read-Host ('For this exact QA update only, type ' + $approval)
 }
 Require ($typed -ceq $approval) 'Exact QA update owner approval not provided.'
+# Check AGAIN immediately before the change: fully ordered 25-migration
+# schema, separate R2, protected D1 and exact Git source are all mandatory.
+# A stale first preflight is not enough to publish after owner confirmation.
+& $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review -CandidateBranch $CandidateBranch -ExpectedCommit $ExpectedCommit
+Require-Exit 'Fresh post-approval read-only 25-schema, R2 and source revalidation'
 # Race protection: refuse if active Worker changed after owner confirmation.
 $rawStatus = @(& $wrangler.Source deployments status --name $workerName --json)
 Require-Exit 'Fresh, read-only active QA deployment identity'
