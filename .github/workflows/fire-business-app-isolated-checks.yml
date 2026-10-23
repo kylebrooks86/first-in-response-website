@@ -30,6 +30,7 @@ on:
       - work/fire-owner-hosted-qa-inventory-2026-10-23
       - work/fire-first-use-dashboard-2026-10-23
       - work/fire-qa-safe-23-to-25-upgrade-2026-10-23
+      - work/fire-owner-qa-worker-serving-readonly-2026-10-23
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
