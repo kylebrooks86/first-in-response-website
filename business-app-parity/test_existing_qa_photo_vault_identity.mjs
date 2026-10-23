@@ -25,7 +25,7 @@ export function verifyQAPhotoVaultIdentity(source,qa,screen){
     'Photo object store primary keys must remain compatible');
   assert.match(source,/store\.createIndex\('customerId','customerId',\{unique:false\}\)/,
     'Photo directory index must remain compatible');
-  const declaration=screen.match(/import \\{([^}]+)\\} from '\\.\\.\\/lib\\/local-photo-vault';/);
+  const declaration=screen.match(/import \{([^}]+)\} from '\.\.\/lib\/local-photo-vault';/);
   assert.ok(declaration,'Customer photo screen must import the original on-device vault');
   const imports=new Set(declaration[1].split(',').map(value=>value.trim()));
   for(const op of ['addOfflinePhoto','listOfflinePhotos','removeOfflinePhoto','exportLocalPhotos','restoreLocalPhotos'])
