@@ -3385,6 +3385,9 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
   const [expenseSearch,setExpenseSearch]=useState("");const [expenseLimit,setExpenseLimit]=useState(12);
   const taskCreateLock=useRef(false),expenseCreateLock=useRef(false);
   const taskStatusLock=useRef(false),taskStatusRefreshLock=useRef(false);
+  const [rescheduleEditingId,setRescheduleEditingId]=useState<string|null>(null);
+  const [rescheduleDateInput,setRescheduleDateInput]=useState("");
+  const [rescheduleSaving,setRescheduleSaving]=useState(false);
   const [taskStatusUncertain,setTaskStatusUncertain]=useState(false);
   const [taskStatusMessage,setTaskStatusMessage]=useState("");
   const taskCreateAttempt=useRef<{requestId:string;fingerprint:string}|null>(null);
@@ -3533,6 +3536,39 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
       setTaskStatusMessage("Task status not confirmed. It may have saved. Refresh saved tasks before updating any task again.");
     }finally{taskStatusLock.current=false;setTaskToggling(null);}
   };
+  const localTaskDueInput=(value:string|null|undefined)=>{
+    if(!value)return "";
+    const date=new Date(value);
+    if(!Number.isFinite(date.getTime()))return "";
+    const pad=(part:number)=>String(part).padStart(2,"0");
+    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+  const rescheduleTask=async(task:TaskRow)=>{
+    if(taskStatusLock.current||taskStatusRefreshLock.current||taskStatusUncertain||rescheduleEditingId!==task.id)return;
+    if(task.status!=="open"){setTaskStatusUncertain(true);setTaskStatusMessage("Task is not open. Refresh saved tasks before rescheduling.");return;}
+    const parsed=rescheduleDateInput?new Date(rescheduleDateInput):null;
+    if(parsed&&!Number.isFinite(parsed.getTime())){setTaskStatusMessage("Choose a valid due date and time.");return;}
+    const nextDueAt=parsed?.toISOString()??null;
+    if(nextDueAt===(task.dueAt??null)){setRescheduleEditingId(null);setTaskStatusMessage("Task due date unchanged.");return;}
+    taskStatusLock.current=true;setRescheduleSaving(true);setTaskToggling(task.id);setTaskStatusMessage("");
+    try{
+      const response=await fetch("/api/tasks",{method:"PATCH",headers:{"content-type":"application/json"},
+        body:JSON.stringify({operation:"reschedule",id:task.id,expectedStatus:"open",expectedDueAt:task.dueAt??null,dueAt:nextDueAt})});
+      const result=await response.json() as {ok?:boolean;id?:string;status?:string;dueAt?:string|null;error?:string};
+      if(!response.ok||result.ok!==true||result.id!==task.id||result.status!=="open"||result.dueAt!==nextDueAt)
+        throw new Error(result.error||"The saved due date was not confirmed.");
+      setTasks(current=>current.map(row=>row.id===task.id?{...row,dueAt:nextDueAt}:row));
+      setRescheduleEditingId(null);
+      if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")
+        window.dispatchEvent(new Event("fire:attention-saved"));
+      setTaskStatusMessage(nextDueAt?"Task due date saved and verified.":"Task due date cleared and verified.");
+    }catch{
+      // Lost responses and 409 conflicts are indistinguishable without another owner GET.
+      // Do not retry a PATCH or silently overwrite a changed date.
+      setTaskStatusUncertain(true);
+      setTaskStatusMessage("Task due date not confirmed. It may have changed. Refresh saved tasks and review the recorded date before editing again.");
+    }finally{taskStatusLock.current=false;setRescheduleSaving(false);setTaskToggling(null);}
+  };
   const refreshTaskStatuses=async()=>{
     if(taskStatusLock.current||taskStatusRefreshLock.current)return;
     taskStatusRefreshLock.current=true;setTaskStatusMessage("");
@@ -3621,6 +3657,16 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
  {expanded&&<section id={"business-task-context-"+task.id} className="business-task-context" role="region" aria-label={`Task context for ${task.title}`}>
  <div className="business-task-context-heading"><strong>{task.title}</strong><span>{task.status==="completed"?"Task saved as completed":taskDueBucket(task,taskNow)==="overdue"?"Task past due":taskDueBucket(task,taskNow)==="today"?"Task due today":"Saved business task"}</span></div>
  <p>{task.dueAt?"Due "+dateTime(task.dueAt):"No task due date recorded"} · Viewing does not complete, contact, or save anything.</p>
+ {task.status==="open"&&<div className="flex flex-wrap items-center gap-2">
+   <Button variant="outline" disabled={Boolean(taskToggling)||taskStatusUncertain} onClick={()=>{setRescheduleEditingId(task.id);setRescheduleDateInput(localTaskDueInput(task.dueAt));setTaskStatusMessage("");}}>Change due date</Button>
+   {rescheduleEditingId===task.id&&<div className="flex w-full flex-wrap items-end gap-2" role="group" aria-label={`Reschedule ${task.title}`}>
+     <div className="business-field"><Label htmlFor={`business-task-reschedule-${task.id}`}>New due date and time (leave empty to clear)</Label>
+       <Input id={`business-task-reschedule-${task.id}`} type="datetime-local" value={rescheduleDateInput} onChange={event=>setRescheduleDateInput(event.target.value)} disabled={rescheduleSaving||taskStatusUncertain}/></div>
+     <Button onClick={()=>void rescheduleTask(task)} disabled={rescheduleSaving||Boolean(taskToggling)||taskStatusUncertain}>{rescheduleSaving?"Saving…":"Save new due date"}</Button>
+     <Button variant="outline" onClick={()=>setRescheduleEditingId(null)} disabled={rescheduleSaving}>Cancel</Button>
+     <small className="w-full">Only the due date changes. Linked customer, notes, yard-sign and review flags remain untouched.</small>
+   </div>}
+ </div>}
  {context.customer?<><div className="business-task-customer-summary"><strong>{context.customer.name}</strong>{context.customer.address&&<small>{context.customer.address}</small>}{context.customer.phone&&<small>{context.customer.phone}</small>}<small>{context.estimateCount} saved estimate{context.estimateCount===1?"":"s"} · {context.scheduledCount} scheduled · {context.completedCount} completed</small></div>
  {context.flag?<><p>{context.flag.kind==="sign"?"Linked yard-sign placement":"Linked review request"} · saved task marker {context.flag.recordedAt}. Verify the actual flag and its current status in Customer Activity &amp; Flags. A completed task alone does not confirm a pickup or posted review.</p>
  {onOpenCustomerActivity&&<button type="button" className="business-task-context-link" onClick={()=>onOpenCustomerActivity(context.customer!.id,context.flag!.kind)}><Users aria-hidden="true"/> {context.flag.kind==="sign"?"Open exact yard-sign flag":"Open exact review flag"} <ChevronRight aria-hidden="true"/></button>}</>:
