@@ -5,7 +5,7 @@ import {Camera,Download,Images,Trash2,Upload} from 'lucide-react';
 import {Button} from './ui/button';
 import {Input} from './ui/input';
 import {Label} from './ui/label';
-import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,OFFLINE_PHOTO_CHANGES_CHANNEL} from '../lib/local-photo-vault';
+import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,OFFLINE_PHOTO_CHANGES_CHANNEL,OFFLINE_PHOTO_PAGE_ID} from '../lib/local-photo-vault';
 import {readPhotoMutationAttempt,runPhotoMutation,reviewPhotoMutation,acknowledgePhotoMutation} from '../lib/photo-mutation-journal';
 import type {OfflinePhoto} from '../lib/offline-photo-backup';
 import {inspectSavedOfflinePhotoZip} from '../lib/offline-photo-inspection';
@@ -50,8 +50,12 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
    setError('Another FIRE tab changed on-device photos. Any previously prepared ZIP may be incomplete. Prepare a fresh backup after reviewing the updated gallery.');
    void refresh().catch(()=>setError('Other FIRE tab changed photos, but this gallery could not be refreshed. Do not rely on a previously prepared ZIP.'));
   };
-  channel.addEventListener('message',changed);
-  return()=>{channel.removeEventListener('message',changed);channel.close();};
+  const onChange=(event:MessageEvent)=>{
+   if(!event.data||event.data.type!=='changed'||typeof event.data.source!=='string'||event.data.source===OFFLINE_PHOTO_PAGE_ID)return;
+   changed();
+  };
+  channel.addEventListener('message',onChange);
+  return()=>{channel.removeEventListener('message',onChange);channel.close();};
  },[customerId]);
  // Read the durable receipt on mount, focus and return from another app. Never
  // clear it on navigation, reload, sign-out or age; only explicit review may.
