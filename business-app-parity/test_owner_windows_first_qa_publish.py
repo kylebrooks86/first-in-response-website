@@ -91,6 +91,15 @@ class FirstQAPublishContract(unittest.TestCase):
                         SCRIPT.index("$typed = Read-Host"))
         self.assertLess(SCRIPT.index("$typed = Read-Host"), SCRIPT.index("$secretFile = Join-Path"))
 
+    def test_private_photo_bucket_is_read_only_verified_before_publish(self):
+        self.assertIn("$qaPhotoBucket = 'fire-fullapp-qa-photos-20261023'", SCRIPT)
+        self.assertIn("$remoteWrangler.Source r2 bucket info $bucketName --json", SCRIPT)
+        self.assertIn("Require ($info.name -ceq $bucketName)", SCRIPT)
+        self.assertIn("Read-CheckedR2 $qaPhotoBucket", SCRIPT)
+        self.assertLess(SCRIPT.index("if (-not $Publish)"), SCRIPT.index("Read-CheckedR2 $qaPhotoBucket"))
+        self.assertLess(SCRIPT.index("Read-CheckedR2 $qaPhotoBucket"), SCRIPT.index("$typed = Read-Host"))
+        self.assertIn("$qaUuid + ' ' + $qaPhotoBucket + ' ' + $reviewedCandidateCommit", SCRIPT)
+
     def test_single_secret_file_and_cleanup_even_if_deploy_fails(self):
         self.assertIn("FIRE-QA-Private", SCRIPT)
         self.assertIn("prepare_qa_deploy_config.mjs", SCRIPT)

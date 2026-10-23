@@ -12,6 +12,8 @@ $ErrorActionPreference = 'Stop'
 $workerName = 'fire-fullapp-qa-20261016'
 $qaName = 'fire-fullapp-qa-db-20261016'
 $qaUuid = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
+# Planned dedicated photo bucket MUST be owner-provisioned before first publication.
+$qaPhotoBucket = 'fire-fullapp-qa-photos-20261023'
 $stagingName = 'fire-app-staging-db'
 $stagingUuid = 'afb2c05a-d794-4a9a-b580-924ce01c26ad'
 $qaOrigin = 'https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev'
@@ -35,6 +37,14 @@ function Require([bool]$ok, [string]$message) {
 Require ($CandidateBranch -cmatch '^work/fire-[a-z0-9][a-z0-9-]{1,110}$') 'Only an explicitly named FIRE development branch may be reviewed.'
 Require ($reviewedCandidateCommit -cmatch '^[0-9a-f]{40}$') 'Exact reviewed candidate SHA is required; no branch-head aliases.'
 function Require-Exit([string]$name) { Require ($LASTEXITCODE -eq 0) ($name + ' failed. STOP without publishing.') }
+function Read-CheckedR2([string]$bucketName) {
+    # Read-only lookup, never create/overwrite or connect another app's R2.
+    $raw = @(& $remoteWrangler.Source r2 bucket info $bucketName --json)
+    Require-Exit ('Read-only QA R2 photo-bucket lookup for ' + $bucketName)
+    try { $info = ConvertFrom-Json -InputObject ($raw -join [Environment]::NewLine) }
+    catch { throw 'FIRE QA STOP: Invalid R2 bucket identity response.' }
+    Require ($info.name -ceq $bucketName) 'QA R2 photo bucket is missing or its returned name does not match; do not publish.'
+}
 function Read-CheckedD1([string]$name, [string]$expectedUuid) {
     # Read-only individual database lookup; deliberately avoids the broken D1 list API.
     $raw = @(& $remoteWrangler.Source d1 info $name --json)
@@ -93,6 +103,11 @@ if (-not $Publish) {
     return
 }
 
+# The first publication must be blocked until the brand-new, separate QA-only
+# R2 photo bucket has been provisioned and can be inspected by this account.
+# A source/config pin alone is not evidence a bucket exists.
+Read-CheckedR2 $qaPhotoBucket
+
 # The compiled manifest contains an obsolete legacy_env=true field rejected
 # by global Wrangler 4.151. Preserve the original compiled manifest and create
 # a disposable QA-only manifest BESIDE it, keeping entry/asset paths unchanged.
@@ -132,8 +147,8 @@ try {
 Require ($probeExitCode -is [int] -and $probeExitCode -ne 0 -and
     $probeText -match 'This Worker does not exist on your account' -and
     $probeText -match '\[code:\s*10007\]') 'Worker name is occupied or Cloudflare result ambiguous. Never overwrite.'
-$approval = 'PUBLISH QA ' + $workerName + ' ' + $qaUuid + ' ' + $reviewedCandidateCommit
-Write-Warning 'THIS WILL CREATE a NEW synthetic-only Cloudflare QA Worker and upload ONLY its two owner login secrets. NO existing Worker, D1 migration, Stripe, R2, DNS, or LIVE path.'
+$approval = 'PUBLISH QA ' + $workerName + ' ' + $qaUuid + ' ' + $qaPhotoBucket + ' ' + $reviewedCandidateCommit
+Write-Warning 'THIS WILL CREATE a NEW synthetic-only Cloudflare QA Worker and bind its distinct, previously owner-provisioned PHOTO R2 bucket. It will upload ONLY two QA login secrets. NO existing Worker, D1 migration, Stripe, R2 bucket mutation, DNS, or LIVE path.'
 $typed = Read-Host ('To authorize this exact QA-only first publication, type ' + $approval)
 Require ($typed -ceq $approval) 'Exact owner publication approval not provided; no Cloudflare write.'
 # Save both private values in ONE access-restricted, temporary JSON secrets file

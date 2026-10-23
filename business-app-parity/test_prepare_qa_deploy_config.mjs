@@ -20,6 +20,7 @@ const fixture = () => ({
     database_id: "8ccfb1f8-1657-4074-b1b2-47de78f95003"
   }],
   secrets: { required: ["FIRE_QA_PASSWORD_HASH", "FIRE_QA_SESSION_SECRET"] },
+  r2_buckets: [{binding: "BUCKET", bucket_name: "fire-fullapp-qa-photos-20261023"}],
   vars: {
     FIRE_ENV: "synthetic-qa", FIRE_QA_SYNTHETIC_ONLY: "enabled",
     SITE_ORIGIN: "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev"
@@ -56,6 +57,11 @@ try {
     ["occupied or differently named Worker", x => { x.name = "fire-app-independent-staging"; }],
     ["production D1 binding", x => { x.d1_databases[0].database_name = "fire-app-staging-db"; }],
     ["wrong QA D1 UUID", x => { x.d1_databases[0].database_id = "wrong"; }],
+    ["production R2 bucket", x => { x.r2_buckets[0].bucket_name = "fire-live-customer-photos"; }],
+    ["wrong photo binding", x => { x.r2_buckets[0].binding = "PRIVATE_R2"; }],
+    ["extra photo bucket", x => { x.r2_buckets.push({binding:"OTHER",bucket_name:"production"}); }],
+    ["no QA photo storage", x => { delete x.r2_buckets; }],
+    ["unexpected KV binding", x => { x.kv_namespaces = [{binding:"CONFIG",id:"123"}]; }],
     ["missing required QA secrets", x => { x.secrets.required = []; }],
     ["production env override", x => { x.env = { production: {} }; }],
     ["custom route", x => { x.route = "fire.example.com/*"; }],

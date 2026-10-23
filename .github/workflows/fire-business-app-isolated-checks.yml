@@ -23,6 +23,7 @@ on:
       - work/fire-independent-website-check-scope-2026-10-23
       - work/fire-backup-refund-completeness-2026-10-23
       - work/fire-current-fullapp-qa-build-2026-10-23
+      - work/fire-qa-photo-parity-2026-10-23
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
@@ -718,7 +719,7 @@ jobs:
           pnpm run build
       - name: Confirm entire compiled QA candidate retains exact shared and adapter source
         run: python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-candidate" --built
-      - name: Fail closed unless built QA manifest binds only the newly created isolated D1
+      - name: Fail closed unless QA manifest binds only isolated D1 and dedicated photo R2
         run: node business-app-parity/check_qa_runtime_config.mjs "$RUNNER_TEMP/fire-qa-candidate/dist/server/wrangler.json"
       - name: Prepare pinned browser driver for built QA local-runtime integration
         run: |
@@ -732,6 +733,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/fire-qa-candidate"
           node scripts/test-qa-worker-http-browser.mjs
+          node scripts/test-qa-worker-http-browser.mjs --photo-storage
           node scripts/test-qa-worker-http-browser.mjs --customer-lookup
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
           node scripts/test-qa-worker-http-browser.mjs --complete-ledger
