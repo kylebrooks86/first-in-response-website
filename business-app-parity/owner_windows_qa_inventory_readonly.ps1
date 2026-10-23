@@ -89,13 +89,13 @@ if (-not $hasJournal) {
             $matchesOriginal = $false
         }
     }
-    $hasCore = @('customers','customer_photos','estimates','payments','payment_refunds') |
-        Where-Object { $tableNames -cnotcontains $_ }
-    $hasCurrent = @('deposit_policy_events','deposit_agreement_snapshots') |
-        Where-Object { $tableNames -cnotcontains $_ }
-    if (@($hasCore).Count -eq 0) {
+    $missingCore = @(@('customers','customer_photos','estimates','payments','payment_refunds') |
+        Where-Object { $tableNames -cnotcontains $_ })
+    $missingCurrent = @(@('deposit_policy_events','deposit_agreement_snapshots') |
+        Where-Object { $tableNames -cnotcontains $_ })
+    if ($missingCore.Count -eq 0) {
         if ($matchesOriginal) { $status = 'EXISTING_QA_23_NEEDS_REVIEWED_UPGRADE' }
-        elseif ($matchesFull -and @($hasCurrent).Count -eq 0) {
+        elseif ($matchesFull -and $missingCurrent.Count -eq 0) {
             $status = 'FULL_QA_25_SCHEMA_PRESENT_UNVERIFIED'
         }
     }
