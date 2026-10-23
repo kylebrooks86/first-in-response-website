@@ -9,7 +9,7 @@ const source=readFileSync('app/api/tasks/route.ts','utf8');
 const owner=source.match(/OWNER_EMAIL="([^"]+)"/)?.[1];
 assert.ok(owner,'Owner guard preserved');
 const db=new DatabaseSync(':memory:');
-db.exec("CREATE TABLE tasks(id TEXT PRIMARY KEY,title TEXT,status TEXT NOT NULL,completed_at TEXT,due_at TEXT); INSERT INTO tasks VALUES ('synthetic-task','Synthetic task','open',NULL,NULL);");
+db.exec("CREATE TABLE tasks(id TEXT PRIMARY KEY,title TEXT,status TEXT NOT NULL,completed_at TEXT,due_at TEXT,customer_id TEXT,estimate_id TEXT,notes TEXT); INSERT INTO tasks VALUES ('synthetic-task','Synthetic task','open',NULL,NULL,'synthetic-customer','synthetic-estimate','FIRE yard sign placement: 2026-10-22T10:00:00.000Z');");
 const wrapper={prepare(sql){const stmt=db.prepare(sql);return {bind(...args){return {run:async()=>({meta:{changes:Number(stmt.run(...args).changes)}}),first:async()=>stmt.get(...args)??null};}};}};
 let authorized=true;
 const auth=async()=>authorized?{email:owner}:null;
@@ -52,6 +52,7 @@ let tests=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);tests++;};
  const change=(expectedDueAt,dueAt)=>patch({operation:'reschedule',id,expectedStatus:'open',expectedDueAt,dueAt});
  const firstDate='2026-10-29T15:30:00.000Z',secondDate='2026-11-02T18:00:00.000Z';
  const before=state().completedAt;
+ const linkedBefore=db.prepare('SELECT customer_id,estimate_id,notes FROM tasks WHERE id=?').get(id);
  const first=await change(null,firstDate);
  eq(first.status,200,'Owner can set a missing task due date');
  eq(first.data.dueAt,firstDate,'Server confirms exact saved due timestamp');
@@ -74,6 +75,7 @@ let tests=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);tests++;};
  const clearAgain=await change(secondDate,null);
  eq(clearAgain.status,200,'Lost-response clear replay stays idempotent');
  eq(state().status,'open','Rescheduling never marks a task complete');
+ eq(db.prepare('SELECT customer_id,estimate_id,notes FROM tasks WHERE id=?').get(id),linkedBefore,'Reschedule preserves customer, job and exact original yard-sign marker');
  for(const request of [
   {id,operation:'reschedule',expectedStatus:'open',dueAt:firstDate},
   {id,operation:'reschedule',expectedStatus:'open',expectedDueAt:null,dueAt:'2026-02-30T00:00:00.000Z'},
@@ -90,6 +92,7 @@ let tests=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);tests++;};
  const forbidden=await change(null,firstDate);
  eq(forbidden.status,409,'Completed task cannot be rescheduled');
  eq(state().dueAt,null,'Completed task retains original deadline');
+ eq(db.prepare('SELECT customer_id,estimate_id,notes FROM tasks WHERE id=?').get(id),linkedBefore,'Refused deadline update leaves linked context unchanged');
  const reopened=await patch({id,status:'open',expectedStatus:'completed'});
  eq(reopened.status,200,'Task can be reopened through existing explicit completion control');
 }
@@ -128,6 +131,10 @@ for(const raw of ['null','[]','"completed"','42','{not valid','']){
 }
 authorized=false;
 {
+ const beforeReschedule=state().dueAt;
+ const forbiddenDate=await patch({id,operation:'reschedule',expectedStatus:'open',expectedDueAt:beforeReschedule,dueAt:'2026-11-30T12:00:00.000Z'});
+ eq(forbiddenDate.status,401,'Unauthorized user cannot change task due date');
+ eq(state().dueAt,beforeReschedule,'Unauthorized due-date request cannot modify saved row');
  const forbidden=await patch({id,status:'open',expectedStatus:'completed'});
  eq(forbidden.status,401,'Only authorized owner may modify task');
  eq(state().status,'completed','Unauthorized PATCH does not mutate');
