@@ -13,6 +13,8 @@ assert.equal(cfg.name,name,"Only the new QA Worker name is permitted");
 assert.deepEqual(cfg.d1_databases,[{binding:"DB",database_name:db,database_id:id}],
   "Built QA must bind exactly ONE newly created D1, via app's DB binding");
 assert.equal(cfg.workers_dev,true,"QA should not use existing custom routes");
+assert.deepEqual(cfg.r2_buckets,[{binding:"BUCKET",bucket_name:"fire-fullapp-qa-photos-20261023"}],
+  "QA must have exactly one separate dedicated photo R2 bucket; never inherit an existing bucket");
 assert.deepEqual(cfg.secrets?.required,
   ["FIRE_QA_PASSWORD_HASH", "FIRE_QA_SESSION_SECRET"],
   "Hosted QA must declare BOTH private owner-login secrets as required for release");
@@ -29,7 +31,7 @@ function isEmpty(value) {
   if(Array.isArray(value)) return value.length===0;
   return typeof value==="object" && Object.values(value).every(isEmpty);
 }
-for(const field of ["r2_buckets","kv_namespaces","durable_objects","services","queues","ai","unsafe","dispatch_namespaces"]){
+for(const field of ["kv_namespaces","durable_objects","services","queues","ai","unsafe","dispatch_namespaces"]){
   assert.ok(isEmpty(cfg[field]),"Unapproved QA resource binding or nonempty metadata in: "+field);
 }
 const vars=cfg.vars??{};
@@ -44,5 +46,6 @@ assert.ok(!Object.keys(vars).some(k=>/(stripe|r2|live|staging|doomsday|password|
   "No credentials or privileged resource identities may be in published QA vars");
 assert.ok(!("site-creator"===cfg.name),"Not the default build");
 console.log(JSON.stringify({identityVerified:true,name:cfg.name,dbName:db,dbId:id,
-  originConfigured:Boolean(vars.SITE_ORIGIN),r2Configured:false,stripeConfigured:false,
+  originConfigured:Boolean(vars.SITE_ORIGIN),r2Configured:true,
+  r2Bucket:"fire-fullapp-qa-photos-20261023",r2RemoteVerified:false,stripeConfigured:false,
   remoteD1WritesPerformed:false,publicationAuthorized:false,acceptedGateCount:3}));
