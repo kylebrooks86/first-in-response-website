@@ -138,7 +138,7 @@ let pairRows=nodes(review()).filter(n=>n.props?.className==='schedule-turnaround
 equal(pairRows.length,1);equal(nodes(review()).filter(n=>n.props?.className==='schedule-turnaround-job').length,3);
 equal(nodes(review()).some(n=>typeof n.props?.children==='string'&&n.props.children.includes('not proof of overlapping jobs')),false);
 const sameStart=nodes(render()).find(n=>n.props?.className==='schedule-start-conflicts');
-assert.ok(sameStart(),'Existing exact same-minute warning stays separate');checks++;
+assert.ok(sameStart,'Existing exact same-minute warning stays separate');checks++;
 let linked=nodes(review()).filter(n=>n.props?.className==='schedule-turnaround-job');
 linked.find(n=>n.props['aria-label']==='Review scheduled job for Second job').props.onClick();
 equal(state[1].id,'tight-second');
