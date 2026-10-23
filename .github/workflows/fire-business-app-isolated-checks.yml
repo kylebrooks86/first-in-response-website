@@ -29,6 +29,7 @@ on:
       - work/fire-three-version-schema-runtime-parity-2026-10-23
       - work/fire-owner-hosted-qa-inventory-2026-10-23
       - work/fire-first-use-dashboard-2026-10-23
+      - work/fire-qa-safe-23-to-25-upgrade-2026-10-23
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
@@ -80,6 +81,9 @@ on:
       - 'business-app-parity/owner_windows_initialize_qa_d1.ps1'
       - 'business-app-parity/owner_windows_qa_inventory_readonly.ps1'
       - 'business-app-parity/test_owner_windows_qa_inventory_readonly.py'
+      - 'business-app-parity/owner_windows_qa_upgrade_23_to_25.ps1'
+      - 'business-app-parity/verify_qa_23_to_25_sql.py'
+      - 'business-app-parity/test_owner_windows_qa_upgrade_23_to_25.py'
       - 'business-app-parity/test_owner_windows_initialize_qa_d1.py'
       - 'business-app-parity/owner_windows_qa_release_preflight.ps1'
       - 'business-app-parity/test_owner_windows_qa_release_preflight.py'
@@ -287,6 +291,21 @@ jobs:
         run: python3 ../test_owner_windows_initialize_qa_d1.py
       - name: Classify hosted QA D1 at zero, original 23 or complete 25 migrations without changing it
         run: python3 ../test_owner_windows_qa_inventory_readonly.py
+      - name: Verify full pinned 23+2 SQL and strict owner-approved remote QA upgrade source contracts (NO remote access)
+        run: python3 ../test_owner_windows_qa_upgrade_23_to_25.py
+      - name: Guarded QA 23-to-25 upgrade script must parse without contacting Cloudflare or running migrations
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '../owner_windows_qa_upgrade_23_to_25.ps1'), [ref]$tokens, [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -ne 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw 'FIRE QA 23-to-25 guarded upgrade PowerShell syntax failed.'
+          }
+          Write-Host 'PASS: Safe owner-gated QA schema upgrade parses; no Cloudflare requests or D1 changes.'
       - name: Read-only owner Cloudflare inventory must parse under PowerShell without contacting account
         shell: pwsh
         run: |
