@@ -67,7 +67,8 @@ class QAUpgradeProtection(unittest.TestCase):
             "$again = ReadSchema","$after = ReadSchema",
             "d1 migrations apply $qaName --remote",
             "[string]$after.names -ceq ($ordered -join '|')",
-            "[int]$after.new_tables -eq 2","[int]$after.new_triggers -eq 2",
+            "[int]$after.new_tables -eq 2","[int]$after.new_triggers -eq 4",
+            "deposit_policy_events_no_update","deposit_policy_events_no_delete",
             "NO WORKER PUBLISHED",
         ):
             with self.subTest(snippet=snippet): self.assertIn(snippet,SOURCE)
