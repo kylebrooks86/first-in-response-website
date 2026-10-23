@@ -54,8 +54,6 @@ export async function PATCH(request:Request){
   body=parsed as typeof body;
  }catch{return Response.json({error:"Task update requires a valid JSON object."},{status:400});}
  const id=typeof body.id==="string"?body.id.trim():"";
- if(!id||!(body.status==="completed"||body.status==="open")||(body.expectedStatus!==undefined&&body.expectedStatus!=="open"&&body.expectedStatus!=="completed"))
-  return Response.json({error:"Choose a valid task and status."},{status:400});
  // Rescheduling is separate from status toggles: it cannot complete a task,
  // alter linked customer/estimate identities, or rewrite a yard-sign/review marker.
  if(body.operation!==undefined&&body.operation!=="reschedule")
@@ -65,7 +63,7 @@ export async function PATCH(request:Request){
   const next=body.dueAt,expected=body.expectedDueAt;
   const validSaved=(value:unknown)=>value===null||(typeof value==="string"&&value.length<=64&&Number.isFinite(Date.parse(value)));
   const validNew=(value:unknown)=>value===null||(typeof value==="string"&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value);
-  if(!taskId||taskId.length>128||body.expectedStatus!=="open"||!validSaved(expected)||!validNew(next))
+  if(!taskId||taskId.length>128||body.status!==undefined||body.expectedStatus!=="open"||!validSaved(expected)||!validNew(next))
    return Response.json({error:"Choose a valid open task and a precise due date."},{status:400});
   // A conditional write protects a newer edit or completion on another phone.
   // NULL and date values must both match the caller's last verified GET.
@@ -77,6 +75,8 @@ export async function PATCH(request:Request){
   if(saved.dueAt===next)return Response.json({ok:true,id:taskId,status:"open",dueAt:saved.dueAt,replayed:changed.meta.changes!==1});
   return Response.json({error:"The task due date changed on another device. Refresh saved tasks before rescheduling.",currentDueAt:saved.dueAt},{status:409});
  }
+ if(!id||id.length>128||!(body.status==="completed"||body.status==="open")||(body.expectedStatus!==undefined&&body.expectedStatus!=="open"&&body.expectedStatus!=="completed"))
+  return Response.json({error:"Choose a valid task and status."},{status:400});
  const status=body.status;
  const completedAt=status==="completed"?new Date().toISOString():null;
  // A repeated request that already reached the target must never rewrite completed_at.
