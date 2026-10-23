@@ -57,6 +57,19 @@ try {
     assert.equal(Object.hasOwn(JSON.parse(readFileSync(to)), "r2_buckets"), false);
     source(fixture());
   });
+  check("Accepts harmless default empty queue, service and durable object settings", () => {
+    const defaults = fixture();
+    defaults.queues = { producers: [], consumers: [] };
+    defaults.durable_objects = { bindings: [] };
+    defaults.services = [];
+    source(defaults);
+    const to = dest();
+    prepare(original, to);
+    const prepared = JSON.parse(readFileSync(to));
+    assert.deepEqual(prepared.queues, defaults.queues);
+    assert.equal(Object.hasOwn(prepared,"r2_buckets"), false);
+    source(fixture());
+  });
   check("Refuses to overwrite even an existing empty manifest", () => {
     const to = dest(); writeFileSync(to, "");
     assert.throws(() => prepare(original, to), /EEXIST/);
@@ -74,6 +87,8 @@ try {
     ["wrong photo binding", x => { x.r2_buckets[0].binding = "PRIVATE_R2"; }],
     ["extra photo bucket", x => { x.r2_buckets.push({binding:"OTHER",bucket_name:"production"}); }],
     ["unexpected KV binding", x => { x.kv_namespaces = [{binding:"CONFIG",id:"123"}]; }],
+    ["unexpected queue consumer", x => { x.queues = { consumers: [{queue:"production"}] }; }],
+    ["unexpected nested service binding", x => { x.services = { bindings: [{service:"live"}] }; }],
     ["missing required QA secrets", x => { x.secrets.required = []; }],
     ["production env override", x => { x.env = { production: {} }; }],
     ["custom route", x => { x.route = "fire.example.com/*"; }],
