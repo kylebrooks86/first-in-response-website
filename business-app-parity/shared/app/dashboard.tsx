@@ -29,7 +29,7 @@ import {saveOfflinePhotoCustomerDirectory,loadOfflinePhotoCustomerDirectory,clea
 import {mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory} from "../lib/offline-photo-availability";
 import { estimateFollowUpTiming, estimateReminderStage, viewedEstimateReminderCue, followupUrgency, todayActionLane, todayCustomerQueue, followupLatestContact, noAnswerStillUncontacted } from "../lib/follow-up-timing";
 import { messageHistoryEntries } from "../lib/message-history";
-import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility} from "../lib/customer-activity-flags";
+import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,LEAD_NO_ANSWER_NOTE,LEAD_CONTACTED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility} from "../lib/customer-activity-flags";
 import type {DashboardYardSign} from "../lib/dashboard-yard-signs";
 import {validDoorFollowUpDate,type DoorRevisit} from "../lib/door-knocking";
 import type {DashboardReviewCheck} from "../lib/dashboard-review-checks";
@@ -2027,7 +2027,9 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       add("messages",message.id,message.createdAt,title,detail);
     }
     for(const note of input.notes){
-      const title=note.body==="[FIRE FLAG] REVIEW_RECEIVED"?"Review received (owner logged)":
+      const title=note.body===LEAD_NO_ANSWER_NOTE?"Lead call unanswered · not contacted":
+        note.body===LEAD_CONTACTED_NOTE?"Lead contact logged · send unverified":
+        note.body==="[FIRE FLAG] REVIEW_RECEIVED"?"Review received (owner logged)":
         note.body==="[FIRE FLAG] YARD_SIGN_PICKED_UP"?"Yard sign pickup logged":
         note.body.startsWith("[FIRE FLAG] YARD_SIGN_PLACED | pickup:")?"Yard sign placement logged":
         "Customer note saved";
@@ -2477,12 +2479,23 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         {activitySummary.needs.length>0&&<div className="customer-flag-next" role="status" aria-label="Customer action checks"><AlertTriangle aria-hidden="true"/><span><strong>{activitySummary.needs.length} action{activitySummary.needs.length===1?"":"s"} to review</strong><small>{activitySummary.needs.join(" · ")}</small></span></div>}
         {reviewCheck.status==="due"&&<div id={`customer-review-check-${selected.id}`} tabIndex={-1} className="customer-review-check" role="region" aria-label="Review follow-up check due"><div><strong><Star aria-hidden="true"/> Review status check available</strong><p>Review request recorded {reviewCheck.elapsedDays} days ago; no review is logged. Check whether a review has appeared before contacting the customer again.</p></div><div className="flex flex-wrap gap-2">{onPrepareReviewTask&&<Button variant="outline" aria-label="Prepare review status check task" onClick={()=>stageReviewCheck(selected,reviewCheck.requestedAt)}>Create check task</Button>}<Button variant="outline" aria-label="Defer review status check seven days" disabled={reviewCheckSnoozing} onClick={()=>void snoozeReviewStatusCheck(selected,reviewCheck.requestedAt)}>{reviewCheckSnoozing?"Saving check…":"Check later · 7 days"}</Button></div>{reviewCheckSnoozeError&&<p role="alert" className="save-error">{reviewCheckSnoozeError}</p>}</div>}
         <div className="customer-flag-actions">
+          <Button variant="outline" aria-label="Prepare lead no-answer note" onClick={()=>prepareManualFlag(LEAD_NO_ANSWER_NOTE)}>No answer · not contacted</Button>
+          <Button variant="outline" aria-label="Prepare lead contacted note" onClick={()=>prepareManualFlag(LEAD_CONTACTED_NOTE)}>Log lead contacted</Button>
           {!manualFlags.reviewReceivedAt&&<Button variant="outline" aria-label="Prepare review received note" onClick={()=>prepareManualFlag(REVIEW_RECEIVED_NOTE)}>Log review received</Button>}
           {manualFlags.sign?.state==="out"?<><Button variant="outline" aria-label="Prepare yard sign pickup note" onClick={()=>prepareManualFlag(SIGN_PICKED_UP_NOTE)}>Log yard sign pickup</Button>{onPreparePickupTask&&<Button variant="outline" aria-label="Prepare yard sign pickup reminder" onClick={()=>stagePickupTask(selected,manualFlags.sign)}>Create pickup task</Button>}</>:
           <details className="customer-sign-form"><summary>Track a yard sign</summary><label>Pickup target <input type="date" aria-label="Yard sign pickup date" value={signPickupDate} onChange={event=>setSignPickupDate(event.target.value)}/></label><label>Sign location <input aria-label="Yard sign location" value={signLocation} onChange={event=>setSignLocation(event.target.value)} placeholder={selected.address||"Address / where placed"}/></label><Button variant="outline" disabled={!signPickupDate} aria-label="Prepare yard sign placed note" onClick={()=>{try{prepareManualFlag(signPlacedNote(signPickupDate,signLocation.trim()||selected.address||"Location not specified"));}catch{}}}>Prepare placement note</Button></details>}
         </div>
+        <p role="status" className="customer-flag-help">
+          <strong>Lead contact log: </strong>
+          {manualFlags.leadContact?.state==="no_answer"
+            ?`No answer · not contacted on the latest logged attempt (${manualFlags.leadContact.unansweredAttempts} unanswered call${manualFlags.leadContact.unansweredAttempts===1?"":"s"} recorded). Last attempt ${dateTime(manualFlags.leadContact.at)}.`
+            :manualFlags.leadContact?.state==="contacted"
+             ?`Contact logged ${dateTime(manualFlags.leadContact.at)} · delivery of any text or email is not verified.`
+             :"No lead contact outcome logged. This is not proof that no contact occurred."}
+          {" "}This manual lead log is separate from estimate-specific follow-up history.
+        </p>
         {manualFlags.sign?.state==="out"&&<p className="customer-flag-sign-location">Last placement: {manualFlags.sign.location||"Location not specified"}. Pickup target: {manualFlags.sign.pickupDate}. This is an in-app tracking cue, not a push notification.</p>}
-        <p className="customer-flag-help">Manual flag actions prepare a note; select <strong>Add note</strong> in Notes to save the flag. Pickup tasks open as drafts in Business and are saved only when you choose Add task. Review receipt is owner-reported, not verified against Google.</p>
+        <p className="customer-flag-help">Manual flag actions prepare a note; select <strong>Add note</strong> in Notes to save the flag. A No answer lead flag does not mark the customer contacted or send a message. Pickup tasks open as drafts in Business and are saved only when you choose Add task. Review receipt is owner-reported, not verified against Google.</p>
       </section>
       <section className="customer-action-review" role="region" aria-label="Review next customer actions">
         <div className="customer-timeline-heading"><div><h2>Review next</h2><p>Derived from saved records · opens existing controls · no automatic actions</p></div><span>{nextCustomerActions.length} to check</span></div>
