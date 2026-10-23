@@ -59,7 +59,7 @@ reset();const server=createServer((req,res)=>{res.setHeader('cache-control','no-
  if((req.url==='/api/customers'&&req.method==='PATCH')||(req.url==='/api/customer-notes'&&req.method==='POST')){
   let body='';req.on('data',c=>body+=c);req.on('end',()=>{const data=JSON.parse(body);
    if(req.method==='PATCH'){customerPatches++;const submit=()=>{const previous=customers.find(c=>c.id===data.id);assert.ok(previous);const updated={...previous,...data};customers=customers.map(c=>c.id===updated.id?updated:c);send(200,{customer:updated});};if(customerHold){releaseCustomer=submit;onCustomer?.();}else submit();}
-   else{notePosts++;const submit=()=>{if(noteStatus!==201){send(noteStatus,{error:'Synthetic note failure'});return;}const note={id:data.requestId,customerId:data.customerId,body:data.body,createdAt:'2026-10-19T12:00:00Z'};const existing=notes.find(n=>n.id===data.requestId);if(existing){assert.equal(existing.body,data.body);assert.equal(existing.customerId,data.customerId);send(200,{note:existing});return;}notes.unshift(note);if(noteLoseReply){noteLoseReply=false;res.writeHead(201,{'content-type':'application/json'});res.end('not-json');return;}send(201,{note});};if(noteHold){releaseNote=submit;onNote?.();}else submit();}
+   else{notePosts++;const submit=()=>{if(noteStatus!==201){send(noteStatus,{error:'Synthetic note failure'});return;}const note={id:data.requestId,customerId:data.customerId,body:data.body,createdAt:new Date(Date.parse('2026-10-19T12:00:00Z')+notes.length*1000).toISOString()};const existing=notes.find(n=>n.id===data.requestId);if(existing){assert.equal(existing.body,data.body);assert.equal(existing.customerId,data.customerId);send(200,{note:existing});return;}notes.unshift(note);if(noteLoseReply){noteLoseReply=false;res.writeHead(201,{'content-type':'application/json'});res.end('not-json');return;}send(201,{note});};if(noteHold){releaseNote=submit;onNote?.();}else submit();}
   });return;
  }
  res.statusCode=404;res.end();
@@ -98,6 +98,29 @@ try{
  await page.getByRole('button',{name:'Show all customers'}).click();
  check(await page.locator('.customer-card').count()===2,
   'Owner can clear the filter without deleting or contacting customers');
+ await open('Fixture First');
+ await page.getByText('Schedule or reschedule lead callback',{exact:true}).click();
+ await page.getByLabel('Lead callback date',{exact:true}).fill('2026-10-22');
+ await page.getByRole('button',{name:'Prepare lead callback note'}).click();
+ check(await page.getByLabel('Customer note',{exact:true}).inputValue()==='[FIRE FLAG] LEAD_CALLBACK | due:2026-10-22',
+  'Callback picker prepares dated owner note without contacting customer');
+ await page.getByRole('button',{name:'Add note',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Callback due:'}).waitFor();
+ check(notePosts===2&&notes.length===2,'Callback persists once using existing notes API, no estimate needed');
+ await page.getByRole('button',{name:'← All customers',exact:true}).click();
+ await page.getByRole('region',{name:'Due customer lead callbacks'}).waitFor();
+ await page.getByRole('button',{name:'Callbacks due (1)'}).click();
+ check(await page.locator('.customer-card').count()===1,'Due-date filter identifies only outstanding owner-saved callbacks');
+ await page.locator('.customer-card').first().click();
+ await page.getByRole('button',{name:'Prepare callback handled note'}).click();
+ check(await page.getByLabel('Customer note',{exact:true}).inputValue()==='[FIRE FLAG] LEAD_CALLBACK_HANDLED',
+  'Explicit callback completion prepares marker, not a contacted/sent message');
+ await page.getByRole('button',{name:'Add note',exact:true}).click();
+ await page.getByRole('button',{name:'← All customers',exact:true}).click();
+ await page.getByRole('button',{name:'Callbacks due (0)'}).waitFor();
+ check(notes.length===3&&notes[0].body==='[FIRE FLAG] LEAD_CALLBACK_HANDLED',
+  'Handled callback leaves full append-only history and clears due queue without claiming contact');
+ await page.getByRole('button',{name:'Show all customers',exact:true}).click().catch(()=>{});
  for(const width of [320,390])for(const theme of ['light','dark']){
   reset();await page.setViewportSize({width,height:700});await page.goto(origin);await page.evaluate(value=>window.setTheme(value),theme);await open('Fixture First');
   const noteInput=page.getByLabel('Customer note',{exact:true});await noteInput.fill('First gate note');noteHold=true;const noteAccepted=new Promise(r=>onNote=r),beforeNotes=notePosts;
