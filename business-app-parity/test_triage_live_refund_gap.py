@@ -5,6 +5,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import triage_live_refund_gap as m
 
@@ -26,7 +27,7 @@ class RefundGapReadOnlyTriage(unittest.TestCase):
         statements = m.select_queries()
         self.assertEqual(len(statements), 3)
         self.assertTrue(all(s.lstrip().upper().startswith("SELECT ") for s in statements))
-        for n in (18, 19, 20, 21, 23):
+        for n in (18, 19, 20, 21, 23, 24):
             with self.subTest(migrations=n):
                 data = cap(n)
                 self.assertEqual(len(data["queries"]), 3)
@@ -34,6 +35,24 @@ class RefundGapReadOnlyTriage(unittest.TestCase):
                 self.assertEqual([x["name"] for x in data["queries"][1]["rows"]],
                                  [p.name for p in m.candidates()[:n]])
                 self.assertFalse(m.evaluate(data)["authorizedToApplyMigration"])
+
+    def test_append_only_0023_is_pinned_and_unreviewed_future_migrations_refused(self):
+        files = m.candidates()
+        self.assertEqual(len(files), 24)
+        self.assertEqual(files[19].name, m.MIGRATION_NAME)
+        self.assertEqual(files[-1].name, m.APPENDED_PARITY_MIGRATION)
+        # The historical triage never becomes a general migration runner.
+        with tempfile.TemporaryDirectory() as temp:
+            wrong = Path(temp) / m.APPENDED_PARITY_MIGRATION
+            wrong.write_bytes(files[-1].read_bytes() + b"\nDROP INDEX idx_payments_stripe_provider_unique;\n")
+            with patch.object(m.schema, "migration_files", return_value=[*files[:-1], wrong]):
+                with self.assertRaisesRegex(ValueError, "Unexpected LIVE 0023 SQL mutation"):
+                    m.candidates()
+            extra = Path(temp) / "0024_unreviewed.sql"
+            extra.write_text("SELECT 1;")
+            with patch.object(m.schema, "migration_files", return_value=[*files, extra]):
+                with self.assertRaisesRegex(ValueError, "migration history changed"):
+                    m.candidates()
 
     def test_0019_not_applied_is_a_diagnostic_not_automatic_migration_permission(self):
         r = m.evaluate(cap(19))
@@ -48,7 +67,7 @@ class RefundGapReadOnlyTriage(unittest.TestCase):
         self.assertFalse(r["productionReady"])
 
     def test_initial_refund_migration_present_with_indexes_not_release_approved(self):
-        for n in (20, 21, 23):
+        for n in (20, 21, 23, 24):
             with self.subTest(n=n):
                 r = m.evaluate(cap(n))
                 self.assertTrue(r["paymentRefundsPresent"])
