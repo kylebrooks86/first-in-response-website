@@ -402,6 +402,8 @@ jobs:
           Write-Host 'PASS: First QA release script parses without executing deployment.'
       - name: QA deployment manifest compatibility and no-paid-R2 isolation regression
         run: node ../test_prepare_qa_deploy_config.mjs
+      - name: Preserve original hosted iPhone QA photo-vault IndexedDB identity and test drift refusal
+        run: node ../test_existing_qa_photo_vault_identity.mjs
       - name: Verify real Wrangler local D1 export and private SQL restoration
         run: |
           node scripts/test-real-wrangler-local-d1-export.mjs
