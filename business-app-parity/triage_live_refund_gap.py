@@ -12,6 +12,7 @@ any later schema change.
 from __future__ import annotations
 
 import argparse
+import hashlib
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -27,6 +28,10 @@ LIVE_URL = schema.URLS["live"]
 LIVE_PROJECT = "appgprj_6aaf416f82c88191a292fa2e13a9ea61"
 TABLE = "payment_refunds"
 MIGRATION_NAME = "0019_unknown_jubilee.sql"
+# Later source-only index parity migration is appended; this old, read-only
+# triage must still recognize the unchanged 0019 refund introduction.
+APPENDED_PARITY_MIGRATION = "0023_runtime_integrity_parity.sql"
+APPENDED_PARITY_GIT_BLOB = "17dd0dd9f04918d9d6beb53cde552d375413652d"
 MAX_BYTES = 2_000_000
 MAX_ROWS = 4_000
 
@@ -61,8 +66,15 @@ def select_queries():
 
 def candidates():
     files = schema.migration_files("live")
-    if len(files) != 23 or files[19].name != MIGRATION_NAME:
-        raise ValueError("LIVE migration history changed; explicitly re-review 0019 source")
+    if (len(files) != 24 or files[19].name != MIGRATION_NAME
+            or files[23].name != APPENDED_PARITY_MIGRATION):
+        raise ValueError("LIVE migration history changed; explicitly re-review 0019 and appended 0023 source")
+    # Preserve the original 0019 source verbatim. Admit only ONE exact reviewed
+    # additive uniqueness migration; NEVER silently trust a future/changed file.
+    raw = files[23].read_bytes()
+    blob = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
+    if blob != APPENDED_PARITY_GIT_BLOB:
+        raise ValueError("Unexpected LIVE 0023 SQL mutation; refuse historical refund triage")
     source = files[19].read_text(encoding="utf-8")
     if (not re.search(r"CREATE\s+TABLE\s+[`\"\[]?payment_refunds", source, re.I)
             or source.count("CREATE INDEX") != 2 or "CREATE UNIQUE INDEX" not in source):
