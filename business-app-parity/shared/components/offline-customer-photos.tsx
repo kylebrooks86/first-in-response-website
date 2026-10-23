@@ -128,11 +128,19 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   active.current=true;setBusy(true);setError('');setMessage('');
   try{
    const result=await inspectSavedOfflinePhotoZip(files[0],knownCustomerIds);
-   setMessage('Saved ZIP selected from Files passed photo checksums: '+result.archivePhotoCount+
-    ' photo(s) in archive; '+result.byteIdenticalOnDevice+' exactly match this device; '+
-    result.notYetOnDevice+' not yet on this device; '+
-    result.localPhotosNotInArchive+' current device photo(s) NOT included in this ZIP. '+
-    'A complete all-customer backup should include every photo on this device. Keep the saved ZIP outside FIRE.');
+   // A valid ZIP is not necessarily a complete backup. An older or
+   // customer-scoped ZIP may have perfect checksums but miss newer photos.
+   const details=result.archivePhotoCount+' photo(s) in archive; '+
+    result.byteIdenticalOnDevice+' exactly match this device; '+
+    result.notYetOnDevice+' older archive photo(s) are not on this device.';
+   if(result.localPhotosNotInArchive>0){
+    setError('INCOMPLETE PHOTO BACKUP: '+result.localPhotosNotInArchive+
+     ' current device photo(s) are NOT in this saved ZIP. Preserve it, but prepare and save a NEW all-local-photos ZIP before relying on the backup.');
+    setMessage('Saved ZIP checksum verification passed, but backup coverage is incomplete: '+details);
+   }else{
+    setMessage('Saved ZIP selected from Files passed photo checksums. COMPLETE for all currently stored FIRE on-device photos at the moment of verification: '+
+     details+' Keep the original saved ZIP outside FIRE, and make a new backup after adding more photos.');
+   }
   }catch(err){setError((err instanceof Error?err.message:'Saved backup verification failed.')+' No photos were changed.');}
   finally{active.current=false;setBusy(false);if(verifyRef.current)verifyRef.current.value='';}
  };
