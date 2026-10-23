@@ -144,16 +144,16 @@ def evaluate(document):
     collision_count = counts[0]["provider_collision_groups"]
     if not known_journal:
         disposition = "UNKNOWN_OR_NONPREFIX_MIGRATION_JOURNAL"
+    elif not table and len(journal) >= 20:
+        disposition = "REFUND_TABLE_MISSING_DESPITE_0019_JOURNAL"
+    elif table and len(journal) <= 19:
+        disposition = "REFUND_TABLE_PRESENT_WITHOUT_0019_JOURNAL"
     elif not structural_match:
         disposition = "SCHEMA_JOURNAL_DISAGREE_OR_UNREVIEWED_DDL"
     elif collision_count:
         disposition = "PAYMENT_PROVIDER_COLLISIONS_BLOCK_INDEX_0020"
-    elif not table and len(journal) <= 19:
-        disposition = "CONSISTENT_WITH_0019_NOT_YET_APPLIED"
     elif not table:
-        disposition = "REFUND_TABLE_MISSING_DESPITE_0019_JOURNAL"
-    elif len(journal) <= 19:
-        disposition = "REFUND_TABLE_PRESENT_WITHOUT_0019_JOURNAL"
+        disposition = "CONSISTENT_WITH_0019_NOT_YET_APPLIED"
     else:
         disposition = "REFUND_TABLE_PRESENT_IN_TECHNICALLY_MATCHING_LOCAL_PREFIX"
     return {
