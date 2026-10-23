@@ -26,6 +26,7 @@ on:
       - work/fire-qa-photo-parity-2026-10-23
       - work/fire-existing-qa-upgrade-path-2026-10-23
       - work/fire-three-version-visual-parity-gate-2026-10-23
+      - work/fire-three-version-schema-runtime-parity-2026-10-23
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
@@ -36,6 +37,8 @@ on:
       - 'business-app-parity/adapters/**'
       - 'business-app-parity/materialize.py'
       - 'business-app-parity/verify_materialized_candidate.py'
+      - 'business-app-parity/verify_three_candidate_schema_parity.py'
+      - 'business-app-parity/test_verify_three_candidate_schema_parity.py'
       - 'business-app-parity/candidate_release_manifest.py'
       - 'business-app-parity/prepare_device_review.py'
       - 'business-app-parity/test_prepare_device_review.py'
@@ -222,6 +225,10 @@ jobs:
           python3 ../verify_materialized_candidate.py doomsday "$RUNNER_TEMP/fire-parity-doomsday"
           python3 ../verify_materialized_candidate.py staging "$RUNNER_TEMP/fire-parity-staging"
           node scripts/check-app-parity.mjs "$RUNNER_TEMP/fire-parity-live" "$RUNNER_TEMP/fire-parity-doomsday" "$RUNNER_TEMP/fire-parity-staging"
+      - name: Verify equal fresh installation database schema across all three ACTUAL candidates despite distinct migration histories
+        run: |
+          python3 ../test_verify_three_candidate_schema_parity.py
+          python3 ../verify_three_candidate_schema_parity.py "$RUNNER_TEMP/fire-parity-live" "$RUNNER_TEMP/fire-parity-doomsday" "$RUNNER_TEMP/fire-parity-staging"
       - name: Install shared-source dependencies from lockfile
         run: pnpm install --frozen-lockfile
       - name: Shared TypeScript check
