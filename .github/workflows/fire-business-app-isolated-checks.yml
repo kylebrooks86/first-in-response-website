@@ -25,6 +25,7 @@ on:
       - work/fire-current-fullapp-qa-build-2026-10-23
       - work/fire-qa-photo-parity-2026-10-23
       - work/fire-existing-qa-upgrade-path-2026-10-23
+      - work/fire-three-version-visual-parity-gate-2026-10-23
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
@@ -210,6 +211,17 @@ jobs:
           node-version: '22'
       - name: Enable pnpm
         run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Shared-source parity gate regression
+        run: node scripts/test-parity-gate.mjs
+      - name: Compare ACTUAL materialized LIVE, Doomsday and staging dashboard, iPhone layout, PWA and owner boundaries
+        run: |
+          python3 ../materialize.py live "$RUNNER_TEMP/fire-parity-live"
+          python3 ../materialize.py doomsday "$RUNNER_TEMP/fire-parity-doomsday"
+          python3 ../materialize.py staging "$RUNNER_TEMP/fire-parity-staging"
+          python3 ../verify_materialized_candidate.py live "$RUNNER_TEMP/fire-parity-live"
+          python3 ../verify_materialized_candidate.py doomsday "$RUNNER_TEMP/fire-parity-doomsday"
+          python3 ../verify_materialized_candidate.py staging "$RUNNER_TEMP/fire-parity-staging"
+          node scripts/check-app-parity.mjs "$RUNNER_TEMP/fire-parity-live" "$RUNNER_TEMP/fire-parity-doomsday" "$RUNNER_TEMP/fire-parity-staging"
       - name: Install shared-source dependencies from lockfile
         run: pnpm install --frozen-lockfile
       - name: Shared TypeScript check
@@ -218,8 +230,6 @@ jobs:
         run: |
           node --experimental-sqlite scripts/test-local-schema-audit.mjs
           node --experimental-sqlite scripts/test-candidate-db-preflight.mjs
-      - name: Shared-source parity gate regression
-        run: node scripts/test-parity-gate.mjs
       - name: Governed Doomsday deployment fail-closed policy (no execution)
         run: node scripts/test-governed-deploy-guards.mjs
       - name: Device review archive privacy, exact bytes, non-overwrite and cleanup
