@@ -57,7 +57,7 @@ const config={name:'fire-local-qa-http-fixture',main:resolve(root,'dist/server',
  no_bundle:true,rules:built.rules,vars:{...built.vars,...(process.argv.includes('--deposit-policy')?{FIRE_DEPOSIT_POLICY_CANDIDATE:'synthetic-tests-only'}:{}),...(lookupMode?{FIRE_SERVICE_LOCATIONS_CANDIDATE:'synthetic-only',FIRE_CUSTOMER_PROPERTIES_CANDIDATE:'synthetic-only',FIRE_PROPERTY_ESTIMATES_CANDIDATE:'synthetic-tests-only',FIRE_PROPERTY_RECOVERY_CANDIDATE:'synthetic-tests-only',FIRE_PROPERTY_WORKFLOW_CANDIDATE:'synthetic-tests-only'}:{})},
  assets:{directory:resolve(root,'dist/client')},
  d1_databases:[{binding:'DB',database_name:'fire-local-synthetic-db',database_id:randomUUID(),migrations_dir:join(root,'drizzle')}],
- r2_buckets:[{binding:'BUCKET',bucket_name:'fire-local-synthetic-photos-'+randomUUID()}]};
+ r2_buckets:[{binding:'BUCKET',bucket_name:'qa-photo-'+randomUUID().replaceAll('-','')}]};
 const configPath=join(temp,'wrangler.json');writeFileSync(configPath,JSON.stringify(config));
 writeFileSync(join(temp,'.dev.vars'),`FIRE_QA_PASSWORD_HASH=${createHash('sha256').update(password).digest('hex')}\nFIRE_QA_SESSION_SECRET=${sessionSecret}\n`,{mode:0o600});
 const env={...process.env,CLOUDFLARE_CF_FETCH_ENABLED:'false',WRANGLER_SEND_METRICS:'false',CI:'true'};
