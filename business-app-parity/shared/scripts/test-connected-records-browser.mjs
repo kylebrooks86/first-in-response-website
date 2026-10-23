@@ -118,7 +118,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check((await page.getByLabel('Customer note',{exact:true}).inputValue())==='[FIRE FLAG] REVIEW_RECEIVED','Review receipt action only prepares a deliberate customer note');
   check(reads===startReads&&writes===0,'Preparing a manual flag cannot write or claim success');
   await page.getByLabel('Customer note',{exact:true}).fill('');
-  await flags.locator('summary').click();
+  await flags.getByText('Track a yard sign',{exact:true}).click();
   await flags.getByLabel('Yard sign pickup date').fill('2026-10-27');
   await flags.getByRole('button',{name:'Prepare yard sign placed note'}).click();
   check((await page.getByLabel('Customer note',{exact:true}).inputValue()).includes('pickup:2026-10-27'),'Sign placement draft retains the explicit pickup date');
