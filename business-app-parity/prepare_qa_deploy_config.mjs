@@ -38,9 +38,17 @@ export function prepare(originalFile, deployFile) {
       binding: "BUCKET", bucket_name: "fire-fullapp-qa-photos-20261023"
     }], "Unexpected R2 binding; refuse QA deploy");
   }
-  for (const field of ["kv_namespaces", "services", "queues", "durable_objects", "hyperdrive", "dispatch_namespaces"]) {
-    assert.ok(!config[field] || (Array.isArray(config[field]) && config[field].length === 0),
-      "Unexpected hosted resource: " + field);
+  // Wrangler compiles unused services/queues/DO metadata as empty objects.
+  // Accept that default representation but forbid any actual resource or
+  // declared worker consumer, including nested producer/consumer settings.
+  function isEmptyResource(value) {
+    if (value === null || value === undefined || value === "") return true;
+    if (Array.isArray(value)) return value.length === 0;
+    if (typeof value === "object") return Object.values(value).every(isEmptyResource);
+    return false;
+  }
+  for (const field of ["kv_namespaces", "services", "queues", "durable_objects", "hyperdrive", "dispatch_namespaces", "ai", "unsafe"]) {
+    assert.ok(isEmptyResource(config[field]), "Unexpected hosted resource: " + field);
   }
   assert.deepEqual(config.secrets?.required,
     ["FIRE_QA_PASSWORD_HASH", "FIRE_QA_SESSION_SECRET"]);
