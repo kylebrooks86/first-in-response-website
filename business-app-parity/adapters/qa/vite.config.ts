@@ -1,5 +1,7 @@
 /** New, isolated FIRE synthetic QA Worker ONLY. Do not deploy automatically.
- * Never bind an existing D1, R2, Stripe, custom domain or ChatGPT Sites resource.
+ * Never bind a production D1/R2, Stripe, custom domain or ChatGPT Sites resource.
+ * QA R2 name is RESERVED FOR A FUTURE NEW QA-ONLY BUCKET; source does not
+ * prove that the remote bucket exists or authorize creating/publishing it.
  */
 import vinext from "vinext";
 import { defineConfig } from "vite";
@@ -7,6 +9,7 @@ import { defineConfig } from "vite";
 const QA_WORKER = "fire-fullapp-qa-20261016";
 const QA_DB_NAME = "fire-fullapp-qa-db-20261016";
 const QA_DB_ID = "8ccfb1f8-1657-4074-b1b2-47de78f95003";
+const QA_PHOTO_BUCKET = "fire-fullapp-qa-photos-20261023";
 // Account origin verified by owner-provided Cloudflare Workers dashboard screenshot.
 // Pin the FULL origin to prevent a QA build from targeting any other account.
 const QA_SITE_ORIGIN = "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev";
@@ -41,8 +44,11 @@ export default defineConfig(async () => {
             FIRE_LOCAL_CUSTOMERS_CANDIDATE: "synthetic-only",
             SITE_ORIGIN: QA_SITE_ORIGIN
           },
-          d1_databases: [{ binding: "DB", database_name: QA_DB_NAME, database_id: QA_DB_ID }]
-          // No R2, Stripe, DNS, routes or existing Worker bindings.
+          d1_databases: [{ binding: "DB", database_name: QA_DB_NAME, database_id: QA_DB_ID }],
+          // Separate QA-only photo storage. Must be newly created and
+          // owner-verified before any deployment, NEVER an existing LIVE bucket.
+          r2_buckets: [{ binding: "BUCKET", bucket_name: QA_PHOTO_BUCKET }]
+          // No Stripe, DNS, routes or existing Worker bindings.
         }
       })
     ]
