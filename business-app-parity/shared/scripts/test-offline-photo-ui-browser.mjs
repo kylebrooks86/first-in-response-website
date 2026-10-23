@@ -174,9 +174,11 @@ try{
  await page.getByText(/INCOMPLETE PHOTO BACKUP: 1 current device photo/).waitFor({timeout:30000});
  check(!(await page.getByRole('status').allInnerTexts()).some(t=>t.includes('COMPLETE for all currently stored FIRE on-device photos')),
    'Valid old ZIP cannot claim complete coverage of the newer device library');
- await page.getByRole('button',{name:'Delete on-device photo'}).nth(2).click();
- await page.locator('.photo-card').nth(2).waitFor({state:'detached'});
- check(await page.locator('.photo-card').count()===2,'Synthetic new photo removed without modifying originals');
+ const extraPhoto=page.locator('.photo-card').filter({hasText:'new-after-backup.png'});
+ check(await extraPhoto.count()===1,'Synthetic newer photo is located by filename, not gallery sort order');
+ await extraPhoto.getByRole('button',{name:'Delete on-device photo'}).click();
+ await extraPhoto.waitFor({state:'detached'});
+ check(await page.locator('.photo-card').count()===2,'Only the synthetic post-backup photo is removed; both archived originals remain');
  check((await page.getByRole('alert').allInnerTexts()).every(t=>!t.includes('Another FIRE tab changed')),
    'This same FIRE tab never falsely reports its own successful edit as a different tab');
  // The gallery can rerender before the mutation journal finishes and unlocks.
@@ -223,9 +225,11 @@ try{
  check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).count()===0&&
    await page.getByRole('button',{name:'Download prepared ZIP'}).count()===0,
    'Other-tab photo mutation immediately withdraws stale prepared ZIP controls');
- await otherTab.getByRole('button',{name:'Delete on-device photo'}).nth(2).click();
- await otherTab.locator('.photo-card').nth(2).waitFor({state:'detached'});
- await page.locator('.photo-card').nth(2).waitFor({state:'detached'});
+ const otherAdded=otherTab.locator('.photo-card').filter({hasText:'other-tab-new-photo.png'});
+ check(await otherAdded.count()===1,'Second-tab new photo is identified by filename, not gallery position');
+ await otherAdded.getByRole('button',{name:'Delete on-device photo'}).click();
+ await otherAdded.waitFor({state:'detached'});
+ await page.waitForFunction(()=>document.querySelectorAll('.photo-card').length===2);
  await otherTab.close();await ctx.setOffline(true);
  check(await page.locator('.photo-card').count()===2,
    'Cross-tab changes refresh original gallery without overwriting other photos');
