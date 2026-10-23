@@ -190,7 +190,7 @@ class GuardedQaTests(unittest.TestCase):
             if args[:2] == ['deployments','status']:return {'versions':[{'version_id':'12345678-1234-4234-8234-123456789abc','percentage':100}]}
             calls.append(list(args));cfg=json.loads(self.provider.path.read_text())
             self.assertEqual(cfg['account_id'],'c'*32);self.assertEqual(cfg['d1_databases'],manifest['d1_databases'])
-            self.assertEqual(cfg['r2_buckets'],manifest['r2_buckets'])
+            self.assertNotIn('r2_buckets',cfg,'No paid R2 binding may reach QA publication')
             self.assertNotIn('legacy_env',cfg)
         self.provider.call=invoke
         with patch.object(q,'build_identity',return_value='sealed'),patch.object(self.provider,'identity'):
