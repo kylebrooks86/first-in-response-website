@@ -2,7 +2,11 @@
 # No remote mutation by default. -Publish requires a fresh typed exact approval.
 # Never paste the local DPAPI owner record, a secret or a verifier into ChatGPT.
 [CmdletBinding()]
-param([switch]$Publish)
+param(
+    [switch]$Publish,
+    [string]$CandidateBranch = 'work/fire-business-app-parity-2026-10-08',
+    [string]$CandidateCommit = 'f650d25b18d23bc9f71a4d55c9322bfd5870ef75'
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $workerName = 'fire-fullapp-qa-20261016'
@@ -11,7 +15,7 @@ $qaUuid = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 $stagingName = 'fire-app-staging-db'
 $stagingUuid = 'afb2c05a-d794-4a9a-b580-924ce01c26ad'
 $qaOrigin = 'https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev'
-$reviewedCandidateCommit = 'f650d25b18d23bc9f71a4d55c9322bfd5870ef75'
+$reviewedCandidateCommit = $CandidateCommit
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $candidate = Join-Path $env:LOCALAPPDATA ('FIRE-QA-Builds\qa-' + $reviewedCandidateCommit)
 $manifest = Join-Path $candidate 'dist\server\wrangler.json'
@@ -28,6 +32,8 @@ $prepareDeploy = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
 function Require([bool]$ok, [string]$message) {
     if (-not $ok) { throw ('FIRE QA STOP: ' + $message) }
 }
+Require ($CandidateBranch -cmatch '^work/fire-[a-z0-9][a-z0-9-]{1,110}$') 'Only an explicitly named FIRE development branch may be reviewed.'
+Require ($reviewedCandidateCommit -cmatch '^[0-9a-f]{40}$') 'Exact reviewed candidate SHA is required; no branch-head aliases.'
 function Require-Exit([string]$name) { Require ($LASTEXITCODE -eq 0) ($name + ' failed. STOP without publishing.') }
 function Read-CheckedD1([string]$name, [string]$expectedUuid) {
     # Read-only individual database lookup; deliberately avoids the broken D1 list API.
@@ -45,7 +51,12 @@ $python = Get-Command 'python.exe' -ErrorAction SilentlyContinue
 Require ($null -ne $git -and $null -ne $node -and $null -ne $python) 'Existing Git, Node and Python are required.'
 $currentBranch = (& $git.Source -C $repo branch --show-current).Trim()
 Require-Exit 'Read-only Git branch check'
-Require ($currentBranch -ceq 'work/fire-business-app-parity-2026-10-08') 'Wrong working branch.'
+Require ($currentBranch -ceq $CandidateBranch) 'Wrong explicitly selected FIRE QA branch.'
+$head = (& $git.Source -C $repo rev-parse HEAD).Trim()
+Require-Exit 'Read-only Git exact commit check'
+$originHead = (& $git.Source -C $repo rev-parse ('refs/remotes/origin/' + $CandidateBranch)).Trim()
+Require-Exit 'Read-only fetched remote branch check'
+Require ($head -ceq $originHead -and $head -ceq $reviewedCandidateCommit) 'Unreviewed source SHA or stale fetched branch; stop before any Worker or secret access.'
 $changes = @(& $git.Source -C $repo status --porcelain --untracked-files=no)
 Require-Exit 'Read-only Git tracked files'
 Require ($changes.Count -eq 0) 'Preserve uncommitted source changes and stop.'
