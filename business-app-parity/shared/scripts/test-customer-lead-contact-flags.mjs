@@ -54,6 +54,12 @@ check(dashboard.includes('No answer · not contacted on the latest logged attemp
  'Saved customer card presents the missed-call status honestly');
 check(dashboard.includes('No lead contact outcome logged. This is not proof that no contact occurred.'),
  'Missing lead outcome is not misreported as definitely uncontacted');
+check(dashboard.includes('manuallyUnansweredLeadIds')&&dashboard.includes('showUnansweredLeadsOnly'),
+ 'Customer directory can filter exact owner-logged unanswered leads, even with no estimate');
+check(dashboard.includes('Manual saved lead notes only')&&dashboard.includes('estimate follow-ups stay separate'),
+ 'Directory does not confuse loaded manual lead notes with sent estimate outreach');
+check(dashboard.includes('setShowUnansweredLeadsOnly(current=>!current)'),
+ 'Directory filter can be turned off to restore the complete customer list');
 check(dashboard.includes('This manual lead log is separate from estimate-specific follow-up history'),
  'Customer-level lead note and estimate-level contact stay distinct');
 check(noteApi.includes('INSERT OR IGNORE INTO customer_notes')&&noteApi.includes('requestId'),
