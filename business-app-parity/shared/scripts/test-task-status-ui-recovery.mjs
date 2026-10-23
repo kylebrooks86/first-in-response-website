@@ -28,6 +28,8 @@ function fixture(){
   setTaskStatusUncertain:v=>{ctx.taskStatusUncertain=v;state.taskStatusUncertain=v;},
   setTaskStatusMessage:v=>{notices.push(v);},
   setTaskToggling:v=>{state.taskToggling=v;},
+  setRescheduleEditingId:()=>{},
+  setRescheduleDateInput:()=>{},
   setTasks:v=>{state.rows=typeof v==='function'?v(state.rows):v;},
   fetch:(url,options)=>{requests.push({url,options});return handler(url,options);}
  };
@@ -115,6 +117,7 @@ function dueFixture({start=null,input='2026-11-05T09:30',status='open'}={}){
   setTaskToggling:v=>{state.pending=v;},
   setRescheduleSaving:v=>{state.saving=v;},
   setRescheduleEditingId:v=>{state.rescheduleEditingId=v;context.rescheduleEditingId=v;},
+  setRescheduleDateInput:v=>{state.dueInput=v;context.rescheduleDateInput=v;},
   setTasks:v=>{state.rows=typeof v==='function'?v(state.rows):v;},
   fetch:(url,options)=>{requests.push({url,options});return respond(url,options);}
  };
@@ -165,6 +168,8 @@ for(const failure of ['connection','http','wrong-date','missing-confirmation']){
  eq(f.reads()[0].options.cache,'no-store',failure+' bypasses cached task rows');
  eq(f.state.rows[0].dueAt,f.wanted,failure+' displays server-confirmed result after refresh');
  eq(f.state.uncertain,false,failure+' unlocks writes only on verified GET');
+ eq(f.state.rescheduleEditingId,null,failure+' recovery closes old editor rather than submitting stale input');
+ eq(f.state.dueInput,'',failure+' recovery clears rejected deadline after verifying saved records');
 }
 {
  const f=dueFixture({start:'2026-10-23T11:00:00.000Z',input:''});
