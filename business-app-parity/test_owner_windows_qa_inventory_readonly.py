@@ -29,7 +29,10 @@ class OwnerInventorySafety(unittest.TestCase):
                       "$missingCore.Count -eq 0", "$missingCurrent.Count -eq 0",
                       "$nonInternal.Count -eq 0", "The exact QA-only photo bucket",
                       "NOT_VERIFIED", "REMOTE_WRITES=NONE",
-                      "WORKER_SERVING_VERSION=NOT_VERIFIED",
+                      "SINGLE_VERSION_100_PERCENT_CONFIRMED",
+                      "BLOCKED_AMBIGUOUS_OR_SPLIT_TRAFFIC",
+                      "WORKER_SERVING_STATUS=",
+                      "WORKER_BINDINGS_STATUS=",
                       "PERSONAL_CUSTOMER_RECORDS_READ=NONE",
                       "APP_RELEASE_APPROVED=NO", "NEVER run first-time initializer"):
             # R2 is identified by exact name, without revealing account data.
@@ -54,6 +57,23 @@ class OwnerInventorySafety(unittest.TestCase):
                            "Set-ExecutionPolicy", "Remove-Item", "DROP TABLE",
                            "DELETE FROM", "UPDATE payments", "INSERT INTO"):
             self.assertNotIn(prohibited, SOURCE)
+    def test_read_only_active_worker_serving_inspection_does_not_expose_version_or_bindings(self):
+        self.assertIn("$wrangler.Source deployments status --name $workerName --json", SOURCE)
+        self.assertIn("$active = @($deploymentInfo.versions)", SOURCE)
+        self.assertIn("$active.Count -eq 1", SOURCE)
+        self.assertIn("[double]$active[0].percentage -eq 100", SOURCE)
+        self.assertIn("SINGLE_VERSION_100_PERCENT_CONFIRMED", SOURCE)
+        self.assertIn("BLOCKED_AMBIGUOUS_OR_SPLIT_TRAFFIC", SOURCE)
+        self.assertIn("WORKER_BINDINGS_STATUS=", SOURCE)
+        self.assertIn("BINDING_NEXT=Confirm actual active Worker", SOURCE)
+        self.assertIn("do not infer correct storage bindings here", SOURCE)
+        self.assertNotIn("Write-Host $deploymentInfo", SOURCE)
+        self.assertNotIn("Write-Output $deploymentRaw", SOURCE)
+        self.assertNotIn("Write-Host $active", SOURCE)
+        self.assertNotIn("versions deploy", SOURCE)
+        self.assertNotIn("deployments rollback", SOURCE)
+        self.assertLess(SOURCE.index("r2 bucket info $photoBucket"), SOURCE.index("deployments status --name $workerName"))
+
     def test_no_raw_account_payload_or_credentials_logged(self):
         self.assertIn("2>$null", SOURCE)
         self.assertIn("No customer records", SOURCE)
