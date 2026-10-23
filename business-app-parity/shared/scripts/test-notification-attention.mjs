@@ -490,7 +490,11 @@ console.log('PASS customer Activity & Flags presentation: contact vs send, due s
  locate(customer);assert.ok(helper,'Source-extracted CustomersView contains its own timeline builder');
  const code=ts.transpileModule(helper.getText(ast)+'\nexports.timeline=buildCustomerTimeline;',{
    compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
- const ctx={exports:{}};vm.runInNewContext(code,ctx);
+ // The isolated helper needs the immutable lead flag markers normally imported
+ // by dashboard.tsx. No VM code may invent contact or message delivery.
+ const ctx={exports:{},LEAD_NO_ANSWER_NOTE:'[FIRE FLAG] LEAD_NO_ANSWER',
+  LEAD_CONTACTED_NOTE:'[FIRE FLAG] LEAD_CONTACT_RECORDED'};
+ vm.runInNewContext(code,ctx);
  const base={estimates:[],invoices:[],messages:[],notes:[],payments:[]};
  const iso='2026-10-20T12:00:00Z';
  const dated=[
