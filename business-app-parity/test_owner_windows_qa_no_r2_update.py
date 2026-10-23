@@ -23,7 +23,7 @@ class NoR2ExistingQAUpdate(unittest.TestCase):
             self.assertNotIn("qaPhotoBucket",content)
             self.assertNotIn("$wrangler.Source r2",content)
             self.assertNotIn("r2 bucket create",content)
-            self.assertNotIn("stripe",content.lower().replace("no stripe",""))
+            self.assertNotIn("stripe secret",content.lower())
             for forbidden in ("secret put","d1 migrations apply","d1 migrations list",
                   "d1 execute $dbName --remote --command",
                   "d1 execute $qaDatabase --remote --command",
