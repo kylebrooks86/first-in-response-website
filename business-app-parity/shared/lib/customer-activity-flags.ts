@@ -19,16 +19,16 @@ export function deriveCustomerManualFlags(notes:readonly Note[]){
   // Append-only, owner-reported lead attempts, including customers who have no
   // estimate yet. A failed call never becomes a sent text or completed contact.
   let leadContact:{state:"no_answer"|"contacted";at:string;unansweredAttempts:number}|null=null;
+  let unansweredAttempts=0;
   let sign:{state:"out"|"picked_up";at:string;pickupDate:string|null;location:string}|null=null;
   for(const note of ordered){
     if(note.body===REVIEW_RECEIVED_NOTE)reviewReceivedAt=note.createdAt;
-    if(note.body===LEAD_NO_ANSWER_NOTE)leadContact={
-      state:"no_answer",at:note.createdAt,
-      unansweredAttempts:(leadContact?.unansweredAttempts??0)+1
-    };
+    if(note.body===LEAD_NO_ANSWER_NOTE){
+      unansweredAttempts++;
+      leadContact={state:"no_answer",at:note.createdAt,unansweredAttempts};
+    }
     if(note.body===LEAD_CONTACTED_NOTE)leadContact={
-      state:"contacted",at:note.createdAt,
-      unansweredAttempts:leadContact?.unansweredAttempts??0
+      state:"contacted",at:note.createdAt,unansweredAttempts
     };
     const currentSign=sign as {state:"out"|"picked_up";at:string;pickupDate:string|null;location:string}|null;
     if(note.body===SIGN_PICKED_UP_NOTE&&currentSign?.state==="out")sign={state:"picked_up",at:note.createdAt,pickupDate:currentSign.pickupDate,location:currentSign.location};
