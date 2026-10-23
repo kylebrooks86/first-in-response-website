@@ -400,7 +400,7 @@ jobs:
             throw "FIRE QA Windows publish script contains PowerShell syntax errors."
           }
           Write-Host 'PASS: First QA release script parses without executing deployment.'
-      - name: QA deployment manifest compatibility must change exactly legacy_env=true
+      - name: QA deployment manifest compatibility and no-paid-R2 isolation regression
         run: node ../test_prepare_qa_deploy_config.mjs
       - name: Verify real Wrangler local D1 export and private SQL restoration
         run: |
@@ -777,8 +777,36 @@ jobs:
           pnpm run build
       - name: Confirm entire compiled QA candidate retains exact shared and adapter source
         run: python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-candidate" --built
-      - name: Fail closed unless QA manifest binds only isolated D1 and dedicated photo R2
+      - name: Validate compiled QA source bindings before preparing no-paid-R2 deployment
         run: node business-app-parity/check_qa_runtime_config.mjs "$RUNNER_TEMP/fire-qa-candidate/dist/server/wrangler.json"
+      - name: Verify ACTUAL compiled QA Worker generates R2-free release config (NO upload)
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { randomUUID } from 'node:crypto';
+          import { readFileSync, unlinkSync } from 'node:fs';
+          import { join } from 'node:path';
+          import { prepare } from './business-app-parity/prepare_qa_deploy_config.mjs';
+          const folder = join(process.env.RUNNER_TEMP, 'fire-qa-candidate/dist/server');
+          const original = join(folder, 'wrangler.json');
+          const temporary = join(folder, 'wrangler.fire-qa-firstpublish-' + randomUUID() + '.json');
+          const previous = readFileSync(original, 'utf8');
+          try {
+            const result = prepare(original, temporary);
+            const before = JSON.parse(previous);
+            const clean = JSON.parse(readFileSync(temporary,'utf8'));
+            assert.equal(result.r2Free, true);
+            assert.equal(Object.hasOwn(clean,'r2_buckets'),false);
+            assert.equal(Object.hasOwn(clean,'legacy_env'),false);
+            delete before.r2_buckets;
+            delete before.legacy_env;
+            assert.deepEqual(clean,before,'All other Worker bindings/assets/secrets must be preserved');
+            assert.equal(clean.d1_databases[0].binding,'DB');
+            assert.equal(clean.d1_databases[0].database_name,'fire-fullapp-qa-db-20261016');
+            assert.equal(readFileSync(original,'utf8'),previous,'Never change compiled original');
+            console.log('PASS: Actual compiled QA Worker release config is R2-free and D1-only; zero remote operations.');
+          } finally { try { unlinkSync(temporary); } catch (error) { if (error.code!=='ENOENT') throw error; } }
+          NODE
       - name: Prepare pinned browser driver for built QA local-runtime integration
         run: |
           mkdir -p "$RUNNER_TEMP/fire-qa-http-browser"
