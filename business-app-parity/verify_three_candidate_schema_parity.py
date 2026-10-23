@@ -100,6 +100,27 @@ def schema(candidate: Path) -> tuple[dict, dict]:
                     "tableCount": len(tables), "initialBusinessRows": 0}
         return entries, metadata
 
+# SQLite UNIQUE(column) already permits any number of NULL values, so a
+# partial UNIQUE WHERE column IS NOT NULL enforces the EXACT SAME set of
+# customer-visible constraints as a full UNIQUE nullable-column index.
+# Preserve the historical LIVE/staging index (and its known lookup behavior),
+# rather than dropping/recreating an existing hosted index merely for byte parity.
+# This one *specific* known semantically equivalent expression is whitelisted.
+_REFUND_PROVIDER_FULL = ("CREATE UNIQUE INDEX `idx_payment_refunds_provider` "
+                          "ON `payment_refunds` (`provider_refund_id`)")
+_REFUND_PROVIDER_PARTIAL = (_REFUND_PROVIDER_FULL
+                             + " WHERE `provider_refund_id` IS NOT NULL")
+
+def equivalent_nullable_refund_index(name: str, left: dict | None,
+                                      right: dict | None) -> bool:
+    if name != "idx_payment_refunds_provider" or not left or not right:
+        return False
+    if left.get("type") != right.get("type") or left.get("table") != right.get("table"):
+        return False
+    return {left.get("sql"), right.get("sql")} == {
+        _REFUND_PROVIDER_FULL, _REFUND_PROVIDER_PARTIAL
+    }
+
 def compare(roots: dict[str, Path]) -> dict:
     require(set(roots) == set(TARGETS), "Exactly LIVE, Doomsday and staging required")
     inventories, metadata = {}, {}
@@ -108,9 +129,14 @@ def compare(roots: dict[str, Path]) -> dict:
         inventories[target], metadata[target] = inventory, details
     baseline = inventories["live"]
     mismatches = []
+    semantically_equivalent = []
     for target in TARGETS[1:]:
         other = inventories[target]
         for key in sorted(set(baseline) | set(other)):
+            if equivalent_nullable_refund_index(key, baseline.get(key), other.get(key)):
+                semantically_equivalent.append({"target": target, "object": key,
+                    "why": "Nullable provider UNIQUE and non-null partial UNIQUE prevent identical duplicates"})
+                continue
             if baseline.get(key) != other.get(key):
                 mismatches.append({"target": target, "object": key,
                                    "reason": "missing" if key not in other
@@ -120,6 +146,7 @@ def compare(roots: dict[str, Path]) -> dict:
             "targets": list(TARGETS), "targetMetadata": metadata,
             "mismatches": mismatches[:40],
             "allMismatchesCount": len(mismatches),
+            "semanticallyEquivalentIndexVariations": semantically_equivalent,
             "migrationHistoryMustMatch": False,
             "hostedDatabasesRead": False, "remoteChangesPerformed": False,
             "productionReady": False}
