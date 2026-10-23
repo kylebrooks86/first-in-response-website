@@ -96,32 +96,11 @@ if (-not $Apply) {
     Write-Host 'NO SQL migrations, Worker updates, storage, Stripe, LIVE website or customer records were changed.'
     return
 }
-# A real owner-held D1 SQL export must be independently restorable and pass
-# exact historical 23-schema, data-preservation and 23-to-25 offline rehearsal.
-# This is a LOCAL check only: no backup contents leave the owner's laptop.
-# Missing, stale, altered or failed backups may NEVER authorize -Apply.
+# Before any hosted schema mutation, require a private owner-held D1 SQL export.
+# An exact SHA-256, offline restore, original-23 schema/journal, and additive
+# 25-schema row-preservation rehearsal must pass. No private rows are printed.
 Require (-not [string]::IsNullOrWhiteSpace($BackupFile)) 'A verified private 23-schema D1 SQL backup is required before -Apply.'
-Require ($BackupSha256 -cmatch '^[a-f0-9]{64}
-Write-Warning 'This changes ONLY the existing synthetic QA D1 schema. It appends 0023/0024 and does NOT deploy the app. Review rollback and schema evidence before approving.'
-$approval = Read-Host ('To authorize this exact QA-only schema migration, type ' + $typed)
-Require ($approval -ceq $typed) 'Owner did not authorize this exact isolated D1 migration.'
-# Recheck after consent; another session might have upgraded the D1.
-$again = ReadSchema
-Require ([string]$again.names -ceq ($oldNames -join '|') -and
-    [int]$again.core_tables -eq 6 -and [int]$again.new_tables -eq 0 -and
-    [int]$again.provider_index -eq 1 -and [int]$again.new_triggers -eq 0) 'QA D1 changed after approval. Refuse write.'
-Push-Location $PSScriptRoot
-try {
-    & $wrangler.Source d1 migrations apply $qaName --remote "--config=$config"
-    CheckExit 'Approved QA-only append-only 0023/0024 migration'
-} finally { Pop-Location }
-$after = ReadSchema
-Require ([string]$after.names -ceq ($ordered -join '|') -and
-    [int]$after.core_tables -eq 6 -and [int]$after.new_tables -eq 2 -and
-    [int]$after.provider_index -eq 1 -and [int]$after.new_triggers -eq 4) 'Migration journal/full schema not confirmed. STOP: inspect manually; DO NOT rerun migrations automatically.'
-Write-Host 'PASS: Owner-approved QA-only migration now has exact 25 ordered journal entries and all four immutable deposit audit and agreement triggers.'
-Write-Host 'NO WORKER PUBLISHED. Standalone photo R2 identity and hosted iPhone workflows still need owner-verified release approval.'
-) 'Supply the SHA-256 printed by the private QA export verifier.'
+Require ($BackupSha256 -cmatch '^[a-f0-9]{64}$') 'Supply the SHA-256 printed by the private QA export verifier.'
 Require (Test-Path -LiteralPath $BackupFile -PathType Leaf) 'QA backup SQL file is missing.'
 Require (Test-Path -LiteralPath $backupVerifier -PathType Leaf) 'Offline QA SQL restore verifier is missing.'
 $backupPath = [System.IO.Path]::GetFullPath($BackupFile)
@@ -132,9 +111,8 @@ Require (-not ((Get-Item -LiteralPath $backupPath).Attributes -band [IO.FileAttr
 Require ((Get-FileHash -LiteralPath $backupPath -Algorithm SHA256).Hash.ToLowerInvariant() -ceq $BackupSha256) 'Private QA SQL backup hash differs; no migration.'
 & $python.Source $backupVerifier $backupPath --expected-sha256 $BackupSha256 | Out-Null
 CheckExit 'Private 23-schema SQL restore, integrity, and full 25-schema additive rehearsal'
-Write-Host 'PASS: Private original 23-schema backup SHA-256 and full offline restore/rehearsal verified. Original records preserved locally.'
-# Never infer permission from -Apply. Owner must separately approve exact
-# UUID and SHA after successful private backup verification.
+Write-Host 'PASS: Private original 23-schema backup SHA-256 and full offline restore/rehearsal verified.'
+# Never infer permission from -Apply. Owner must separately approve exact UUID.
 $typed = 'UPGRADE QA 23 TO 25 ' + $qaUuid + ' COMMIT ' + $head
 Write-Warning 'This changes ONLY the existing synthetic QA D1 schema. It appends 0023/0024 and does NOT deploy the app. Review rollback and schema evidence before approving.'
 $approval = Read-Host ('To authorize this exact QA-only schema migration, type ' + $typed)
@@ -154,4 +132,4 @@ Require ([string]$after.names -ceq ($ordered -join '|') -and
     [int]$after.core_tables -eq 6 -and [int]$after.new_tables -eq 2 -and
     [int]$after.provider_index -eq 1 -and [int]$after.new_triggers -eq 4) 'Migration journal/full schema not confirmed. STOP: inspect manually; DO NOT rerun migrations automatically.'
 Write-Host 'PASS: Owner-approved QA-only migration now has exact 25 ordered journal entries and all four immutable deposit audit and agreement triggers.'
-Write-Host 'NO WORKER PUBLISHED. Standalone photo R2 identity and hosted iPhone workflows still need owner-verified release approval.'
+Write-Host 'NO WORKER PUBLISHED. Photo storage remains device-only; hosted iPhone workflow needs separate owner-approved verification.'
