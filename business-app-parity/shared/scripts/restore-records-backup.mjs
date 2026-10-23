@@ -90,6 +90,7 @@ if (payload?.format === "fire-app-records-backup" && payload?.version === 1 && p
   }));
 }
 if (!backupTables) throw new Error("This is not a valid or complete FIRE App records backup.");
+if(payload?.includes?.paymentRefundHistory===true&&!Array.isArray(backupTables.payment_refunds))throw Error("Backup declares refund history but omits payment_refunds records. No records changed.");
 if(hasPropertyBackup(payload,backupTables))throw Error('Property-aware recovery is disabled pending native backup verification. No records changed.');
 const propertyError=propertyBackupError(payload,backupTables);
 if(propertyError)throw Error(propertyError);

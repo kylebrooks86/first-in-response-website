@@ -86,6 +86,7 @@ if (payload?.format === "fire-app-records-backup" && payload?.version === 1 && p
   }));
 }
 if (!backupTables) throw new Error("This is not a valid or complete FIRE App records backup.");
+if(payload?.includes?.paymentRefundHistory===true&&!Array.isArray(backupTables.payment_refunds))throw Error("Backup declares refund history but omits payment_refunds records. No records changed.");
 
 const LIFECYCLE_NOTIFICATION_TYPES=new Set(["estimate_viewed","invoice_viewed","estimate_accepted"]);
 function normalizeLegacyLifecycleNotifications(rows){

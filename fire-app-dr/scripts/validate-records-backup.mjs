@@ -27,6 +27,7 @@ if (payload?.format === "fire-app-records-backup" && payload?.version === 1 && p
 }
 const required = ["customers","estimates","customer_notes","invoices","estimate_items","payments","customer_messages","notifications","message_templates","estimate_change_requests","tasks","expenses","job_reports"];
 const optionalRecoveryTables = ["invoice_items", "invoice_revisions", "payment_checkout_sessions", "payment_refunds"];
+if(payload?.includes?.paymentRefundHistory===true&&!Array.isArray(tables.payment_refunds))throw Error("Backup declares refund history but omits payment_refunds records.");
 for (const table of required) if (!Array.isArray(tables[table])) throw new Error(`Backup is missing ${table}.`);
 for (const table of optionalRecoveryTables) if (tables[table] !== undefined && !Array.isArray(tables[table])) throw new Error(`Backup ${table} must be an array when present.`);
 const criticalFields = {

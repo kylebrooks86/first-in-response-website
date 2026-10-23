@@ -239,6 +239,7 @@ export async function POST(request: Request) {
     if (!isRecord(payload)) return Response.json({ error: "This is not a valid FIRE App records backup." }, { status: 400 });
     const backupTables = normalizeBackupTables(payload);
     if (!backupTables) return Response.json({ error: "This is not a valid or complete FIRE App records backup." }, { status: 400 });
+    if(isRecord(payload.includes)&&payload.includes.paymentRefundHistory===true&&!Array.isArray(backupTables.payment_refunds))return Response.json({error:"Backup declares refund history but omits payment_refunds records. No records changed.",restoreAudit},{status:400});
     const lifecycleNormalization=normalizeLegacyLifecycleNotifications(backupTables.notifications);
     backupTables.notifications=lifecycleNormalization.rows;
     restoreAudit.legacyLifecycleNotificationsSkipped=lifecycleNormalization.skipped;

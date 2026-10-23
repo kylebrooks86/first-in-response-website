@@ -303,6 +303,7 @@ export async function POST(request: Request) {
     if (!isRecord(payload)) return Response.json({ error: "This is not a valid FIRE App records backup." }, { status: 400 });
     const backupTables = normalizeBackupTables(payload);
     if (!backupTables) return Response.json({ error: "This is not a valid or complete FIRE App records backup." }, { status: 400 });
+    if(isRecord(payload.includes)&&payload.includes.paymentRefundHistory===true&&!Array.isArray(backupTables.payment_refunds))return Response.json({error:"Backup declares refund history but omits payment_refunds records. No records changed.",restoreAudit},{status:400});
     if(propertyRecoveryTestEnabled(env)&&hasPropertyBackup(payload,backupTables))return await restorePropertyRecords(env.DB,payload,backupTables);
     if(propertyRecoveryTestEnabled(env)){const retained=await env.DB.prepare('SELECT COUNT(*) AS total FROM customer_properties').first<{total:number}>();if(Number(retained?.total)>0)return Response.json({error:'Legacy recovery cannot modify a destination with retained properties.'},{status:409});}
     const propertyError=propertyBackupError(payload,backupTables);
