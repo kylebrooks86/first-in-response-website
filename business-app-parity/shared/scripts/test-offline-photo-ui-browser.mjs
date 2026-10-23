@@ -209,10 +209,11 @@ try{
  const cacheEvidence=await page.evaluate(async()=>({
    controlled:Boolean(navigator.serviceWorker.controller),
    shell:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/')),
-   bundle:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/bundle.js'))
+   bundle:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/bundle.js')),
+   styles:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/photo-styles.css'))
  }));
  check(cacheEvidence.controlled&&cacheEvidence.shell&&cacheEvidence.bundle,'Actual React photo screen shell and bundle are cached by a separate synthetic install worker');
- check(Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/photo-styles.css')),'Exact FIRE photo layout stylesheet remains cached for synthetic offline launch');
+ check(cacheEvidence.styles,'Exact FIRE photo layout stylesheet remains cached for synthetic offline launch');
  await ctx.close();context=null;
  await new Promise(resolve=>server.close(resolve));serverClosed=true;
  context=await chromium.launchPersistentContext(profile,{headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,acceptDownloads:true,viewport:{width:390,height:844},args:['--no-sandbox','--disable-dev-shm-usage']});
