@@ -32,7 +32,7 @@ try{
   put(i,'app/manifest.ts','Identical installed-app PWA metadata');
   put(i,'app/globals.css','Identical FIRE light/dark, mobile and desktop styles');
   put(i,'app/page.tsx',page(name));
-  put(i,'app/local-customer-deployment.ts',"export const LOCAL_CUSTOMER_DEPLOYMENT = '"+name+"' as const;\n");
+  put(i,'app/local-customer-deployment.ts',"/** Fixed server deployment adapter. */\nexport const LOCAL_CUSTOMER_DEPLOYMENT = '"+name+"' as const;\n");
   put(i,'app/chatgpt-auth.ts',name==='doomsday'?bridge:'Identical protected Sites authentication');
   if(name==='doomsday')put(i,'app/owner-auth.ts','Independent signed owner session adapter');
  }
@@ -45,7 +45,7 @@ try{
  put(0,'app/page.tsx',page('live').replace('return <Dashboard','return <div>Unauthorized</div><Dashboard'));refuses('LIVE home authorization/DOM drift','app/page.tsx');put(0,'app/page.tsx',page('live'));
  put(2,'app/chatgpt-auth.ts','Weaker staging authentication');refuses('LIVE/staging owner-gate drift','app/chatgpt-auth.ts');put(2,'app/chatgpt-auth.ts','Identical protected Sites authentication');
  put(1,'app/chatgpt-auth.ts','export {getChatGPTUser} from "./sites-header-auth";');refuses('Doomsday silently uses Sites auth','app/chatgpt-auth.ts');put(1,'app/chatgpt-auth.ts',bridge);
- put(2,'app/local-customer-deployment.ts',"export const LOCAL_CUSTOMER_DEPLOYMENT = 'live' as const;\n");refuses('Installed app namespace collision','app/local-customer-deployment.ts');put(2,'app/local-customer-deployment.ts',"export const LOCAL_CUSTOMER_DEPLOYMENT = 'staging' as const;\n");
+ put(2,'app/local-customer-deployment.ts',"/** Fixed server deployment adapter. */\nexport const LOCAL_CUSTOMER_DEPLOYMENT = 'live' as const;\n");refuses('Installed app namespace collision','app/local-customer-deployment.ts');put(2,'app/local-customer-deployment.ts',"/** Fixed server deployment adapter. */\nexport const LOCAL_CUSTOMER_DEPLOYMENT = 'staging' as const;\n");
  unlinkSync(join(dirs[1],'app/owner-auth.ts'));refuses('Doomsday owner auth implementation missing','app/owner-auth.ts');put(1,'app/owner-auth.ts','Independent signed owner session adapter');
  passes('All fixtures restored to verified strict source parity');
  console.log('PASS: REAL three-target parity gate catches root iPhone/layout, dashboard, authentication, home-page identity, missing CSS/owner auth and shared hook drift; permits only exact reviewed environment/auth adapter differences.');
