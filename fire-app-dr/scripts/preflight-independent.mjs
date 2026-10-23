@@ -1,5 +1,6 @@
 import { access, readFile, readdir } from "node:fs/promises";
 import process from "node:process";
+import { independentEnvNames, independentConfigValues } from './independent-config-values.mjs';
 
 const root = new URL("../", import.meta.url);
 const requiredFiles = [
@@ -9,6 +10,7 @@ const requiredFiles = [
   "SECURITY_AND_RECOVERY_STATUS.md",
   "db/schema.ts",
   "scripts/configure-independent-wrangler.mjs",
+  "scripts/independent-config-values.mjs",
   "scripts/restore-records-backup.mjs",
   "scripts/restore-photo-archive.mjs",
   "scripts/validate-records-backup.mjs",
@@ -77,22 +79,15 @@ if (/firstinresponseexteriors\.com/i.test(scanText)) {
   pass("Production-domain guardrail", "production domain appears only in safety documentation; staging instructions prohibit attaching it");
 } else pass("Production-domain guardrail", "no production domain embedded in deployment-critical configuration text");
 
-const envNames = ["FIRE_WORKER_NAME", "FIRE_D1_DATABASE_NAME", "FIRE_D1_DATABASE_ID", "FIRE_R2_BUCKET_NAME"];
+const envNames = independentEnvNames;
 const supplied = envNames.filter((name) => process.env[name]?.trim());
 if (supplied.length === 0) {
   pass("Deployment environment", "not supplied; source-only preflight mode");
 } else {
-  const missing = envNames.filter((name) => !process.env[name]?.trim());
-  if (missing.length) fail("Deployment environment", `partial configuration; missing ${missing.join(", ")}`);
-  else {
-    const dbId = process.env.FIRE_D1_DATABASE_ID.trim();
-    if (!/^[0-9a-f-]{32,36}$/i.test(dbId) || dbId === "00000000-0000-4000-8000-000000000000") fail("D1 database ID", "invalid or placeholder");
-    else pass("D1 database ID", "format looks valid and non-placeholder");
-
-    const names = [process.env.FIRE_WORKER_NAME, process.env.FIRE_D1_DATABASE_NAME, process.env.FIRE_R2_BUCKET_NAME].map((v) => v.trim().toLowerCase());
-    if (names.some((name) => /prod|production/.test(name))) fail("Staging resource names", "a resource name looks production-like; use isolated staging resources");
-    else pass("Staging resource names", names.join(", "));
-  }
+  try {
+    const values = independentConfigValues(process.env);
+    pass('Deployment environment', `isolated D1 configuration; ${values.bucket ? 'explicit R2 bucket supplied' : 'R2 omitted (local photo vault)'}`);
+  } catch (error) { fail('Deployment environment', error.message); }
 }
 
 for (const check of checks) console.log(`${check.ok ? "PASS" : "FAIL"}  ${check.name}${check.detail ? ` — ${check.detail}` : ""}`);
