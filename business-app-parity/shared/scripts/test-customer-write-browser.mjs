@@ -117,10 +117,13 @@ try{
   'Explicit callback completion prepares marker, not a contacted/sent message');
  await page.getByRole('button',{name:'Add note',exact:true}).click();
  await page.getByRole('button',{name:'← All customers',exact:true}).click();
- await page.getByRole('button',{name:'Callbacks due (0)'}).waitFor();
+ await page.getByText('No due callbacks match',{exact:true}).waitFor();
  check(notes.length===3&&notes[0].body==='[FIRE FLAG] LEAD_CALLBACK_HANDLED',
   'Handled callback leaves full append-only history and clears due queue without claiming contact');
- await page.getByRole('button',{name:'Show all customers',exact:true}).click().catch(()=>{});
+ await page.getByRole('button',{name:'Show all customers',exact:true}).click();
+ await page.getByRole('button',{name:'Callbacks due (0)'}).waitFor();
+ check(await page.locator('.customer-card').count()===2,
+  'After handling a due callback, reset the filter to restore the entire owner customer list');
  for(const width of [320,390])for(const theme of ['light','dark']){
   reset();await page.setViewportSize({width,height:700});await page.goto(origin);await page.evaluate(value=>window.setTheme(value),theme);await open('Fixture First');
   const noteInput=page.getByLabel('Customer note',{exact:true});await noteInput.fill('First gate note');noteHold=true;const noteAccepted=new Promise(r=>onNote=r),beforeNotes=notePosts;
