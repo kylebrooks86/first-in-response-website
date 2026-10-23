@@ -70,7 +70,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertLess(S.index("Get-FileHash -Algorithm SHA256"), S.index("deployments status"))
         self.assertLess(S.index("review_qa_update_schema.py"), S.index("d1 list --json"))
 
-    def test_exact_hosted_25_schema_and_separate_photo_r2_are_read_only_gates(self):
+    def test_exact_hosted_25_schema_without_paid_r2(self):
         for expected in (
             "SELECT (SELECT GROUP_CONCAT(name,'|')",
             "FROM d1_migrations ORDER BY id",
@@ -83,15 +83,13 @@ class ExistingQAUpdateSafety(unittest.TestCase):
             "payment_refunds", "customer_photos",
             "deposit_agreement_snapshots_no_update",
             "deposit_agreement_snapshots_no_delete",
-            "$wrangler.Source r2 bucket info $qaPhotoBucket --json",
-            "Dedicated new QA photo R2 bucket missing/mismatched",
         ):
             with self.subTest(expected=expected):self.assertIn(expected,S)
         self.assertEqual(S.count("d1 execute $qaDatabase --remote"),1)
-        self.assertEqual(S.count("r2 bucket info $qaPhotoBucket --json"),1)
+        self.assertNotIn("r2 bucket info", S)
+        self.assertIn("no R2 billing, bucket or photo cloud sync", S)
         self.assertLess(S.index("qa $candidate --built"),S.index("d1 execute $qaDatabase --remote"))
-        self.assertLess(S.index("d1 execute $qaDatabase --remote"),S.index("r2 bucket info $qaPhotoBucket --json"))
-        self.assertLess(S.index("r2 bucket info $qaPhotoBucket --json"),S.index("deployments status"))
+        self.assertLess(S.index("d1 execute $qaDatabase --remote"),S.index("deployments status"))
         for forbidden in ("d1 migrations apply", "d1 execute $qaDatabase --remote --file",
                           "r2 bucket create", "r2 object put", "r2 object delete"):
             self.assertNotIn(forbidden,S)
