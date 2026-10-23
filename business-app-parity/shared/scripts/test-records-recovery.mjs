@@ -75,6 +75,16 @@ const restorePropertyRecords=()=>{throw Error('Property restore must not run wit
  const restore=(path,apply=true,env={})=>invoke('restore-records-backup.mjs',['--backup',backupPath,'--config',join(work,'config.json'),'--local','--persist-to',path,...(apply?['--apply']:[])],env);
  const initialValidation=validate();equal(initialValidation.status,0,initialValidation.stderr+'\n'+initialValidation.stdout);
  const targetPath=join(work,'target.db');makeDb(targetPath).close();
+ // A modern export claiming full refund history must never silently become a partial legacy backup.
+ const droppedRefunds=structuredClone(backup);delete droppedRefunds.tables.payment_refunds;save(droppedRefunds);
+ const rejectedValidation=validate();assert.notEqual(rejectedValidation.status,0);checks++;
+ assert.match(rejectedValidation.stderr,/declares refund history but omits payment_refunds/);checks++;
+ const rejectedRestore=restore(targetPath,true);assert.notEqual(rejectedRestore.status,0);checks++;
+ equal(new DatabaseSync(targetPath).prepare('SELECT COUNT(*) n FROM customers').get().n,0,'incomplete declared refund export cannot write customers');
+ const rejectedApi=await backupApi.POST(new Request('https://synthetic.invalid/api/backup',{method:'POST',body:JSON.stringify(droppedRefunds)}));
+ equal(rejectedApi.status,400,'owner restore API rejects declared-but-missing refund history before writes');
+ assert.match((await rejectedApi.json()).error,/declares refund history but omits payment_refunds/);checks++;
+ save(backup);
  let result=restore(targetPath,false);equal(result.status,0,result.stderr);equal(new DatabaseSync(targetPath).prepare('SELECT COUNT(*) n FROM customers').get().n,0,'dry run writes nothing');
  result=restore(targetPath);equal(result.status,0,result.stderr);assert.match(result.stdout,/restoredAndVerified/);checks++;
  const target=new DatabaseSync(targetPath);globalThis.__recordsRecoveryDb=adapter(target);const reexport=await (await backupApi.GET()).json();
