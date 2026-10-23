@@ -6,6 +6,7 @@
 [CmdletBinding()]
 param(
     [switch]$Publish,
+    [switch]$OwnerConfirmedPhotoZipBackup,
     [string]$ApprovalText,
     [string]$CandidateBranch = 'work/fire-business-app-parity-2026-10-08',
     [string]$ExpectedCommit = ''
@@ -40,6 +41,11 @@ if (-not $Publish) {
     Write-Host 'A separate explicit owner approval is required to update existing QA Worker.'
     return
 }
+# Cloudflare cannot inspect iPhone IndexedDB. Require an explicit owner assertion,
+# not a fake server verification, that an ALL-local-photos ZIP was saved outside
+# the app and reselected using Verify saved ZIP. The separate D1 SQL backup does
+# not include phone/browser-local pictures.
+Require ($OwnerConfirmedPhotoZipBackup.IsPresent) 'Before publishing, use iPhone Photos > Prepare all local photos ZIP, SAVE to Files/iCloud, VERIFY saved ZIP. Then expressly provide -OwnerConfirmedPhotoZipBackup. Do not clear Safari/PWA storage.'
 $head = (& $git.Source -C $repo rev-parse HEAD).Trim()
 Require-Exit 'Git source commit'
 Require ($head -cmatch '^[0-9a-f]{40}$') 'Invalid Git source checkpoint.'
@@ -60,6 +66,7 @@ Require ($beforeVersions.Count -eq 1 -and [double]$beforeVersions[0].percentage 
 $expectedOldVersion = [string]$beforeVersions[0].version_id
 Require ($expectedOldVersion -ceq $expectedActiveVersion) 'Unknown currently active QA Worker version. Stop.'
 $approval = 'UPDATE QA ' + $workerName + ' ' + $dbId + ' ' + $photoMode + ' ' + $head + ' FROM ' + $expectedOldVersion
+Write-Warning 'Confirm a separately saved and VERIFIED all-local-photos ZIP remains accessible outside FIRE on your iPhone. This is OWNER ATTESTATION, not Cloudflare photo verification.'
 Write-Warning ('This will REPLACE ONLY the code/assets on existing QA Worker ' + $workerName +
     ' while retaining its current D1 database, synthetic customer records and owner secrets. No R2 bucket is bound or billed; photos remain on this device only.')
 Write-Warning ('Exact active QA code version retained for rollback: ' + $expectedOldVersion +
