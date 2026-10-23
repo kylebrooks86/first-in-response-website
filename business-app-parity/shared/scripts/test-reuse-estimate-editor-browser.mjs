@@ -72,7 +72,10 @@ await page.waitForFunction(()=>document.querySelectorAll('.estimate-edit-service
 check(await packageLines.nth(0).getByLabel('Quantity',{exact:true}).inputValue()==='1000'&&await packageLines.nth(1).getByLabel('Quantity',{exact:true}).inputValue()==='50','Applying saved package does not alter existing line quantities');
 check(await packageLines.nth(2).getByLabel('Quantity',{exact:true}).inputValue()===''&&await packageLines.nth(3).getByLabel('Quantity',{exact:true}).inputValue()==='','Reused package requires new quantities');
 check(await packageLines.nth(2).getByText('Line total $0',{exact:true}).count()===1,'Copied package never carries previous saved price');
-check(await page.getByRole('button',{name:'Save $295 estimate'}).isDisabled(),'Copied package blocks save until quote scope and promotions rechecked');
+await page.waitForFunction(()=>{const b=[...document.querySelectorAll('button')].find(e=>e.textContent?.includes('Save $295 estimate'));return Boolean(b&&!b.disabled);});
+await page.getByRole('button',{name:'Save $295 estimate'}).click();
+await page.getByText('Every service needs a service, quantity, and valid price.',{exact:true}).waitFor();
+check(saves===beforeQuoteSaves,'Copied package refuses financial save until both new quantities are reviewed');
 page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Delete saved package FIRE standard duo'}).click();
 await page.getByText('Reusable package removed.',{exact:false}).waitFor();
 check(catalog.packages.length===0,'Deleted package no longer present in saved catalog');
