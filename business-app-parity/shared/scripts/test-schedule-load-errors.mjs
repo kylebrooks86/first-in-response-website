@@ -10,9 +10,11 @@ const declarations=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declara
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleView');
 let state=[],cursor=0,effect,requests=[],fetchOptions=[],responder;let scheduleNow=Date.parse('2026-10-09T12:00:00Z');
 const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','Navigation','Clock3','ChevronRight','CalendarDays','CloudSun'].map(name=>[name,()=>null]));
+const spacing={exports:{}};
+vm.runInNewContext(ts.transpileModule(readFileSync('lib/schedule-turnarounds.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,spacing);
 const pagination={exports:{},require};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/estimate-pagination.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,pagination);
-const context={exports:{},require,...pagination.exports,Error,Array,...stubs,
+const context={exports:{},require,...pagination.exports,...spacing.exports,Error,Array,...stubs,
  useRef:initial=>({current:initial}),
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},
  useEffect(fn){effect=fn;},useCurrentTime:()=>scheduleNow,fetch:async (url,options)=>{requests.push(url);fetchOptions.push(options);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,dateTime:s=>s,
@@ -38,7 +40,7 @@ for(const [fail,message] of failures)for(const populated of [false,true]){
  const initial=nodes(render());equal(initial.find(n=>n.type===stubs.EstimateDetail).props.estimate,null);equal(initial.some(n=>n.props?.className==='route-day-button'),false);equal(initial.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,undefined);
  effect();await settle();equal(state[3],message);equal(state[0].length,populated?1:0);equal(state[1],null);
  const all=nodes(render());const alert=all.find(n=>n.props?.role==='alert');assert.ok(alert);checks++;
- equal(alert.props.children[0].props.children,message);equal(all.some(n=>n.props?.className==='schedule-board'),false);equal(all.some(n=>n.props?.className==='route-day-button'),false);equal(all.some(n=>n.props?.children==='No upcoming jobs'),false);equal(all.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,undefined);
+ equal(alert.props.children[0].props.children,message);equal(all.some(n=>n.props?.className==='schedule-board'),false);equal(all.some(n=>n.props?.className==='schedule-turnaround-review'),false);equal(all.some(n=>n.props?.className==='route-day-button'),false);equal(all.some(n=>n.props?.children==='No upcoming jobs'),false);equal(all.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,undefined);
  responder=()=>ok([job]);requests=[];alert.props.children[1].props.onClick();await settle();equal(state[3],'');equal(requests.length,1);equal(requests[0],'/api/estimate-history?limit=50');equal(fetchOptions.at(-1)?.cache,'no-store');
  const recovered=nodes(render());equal(recovered.some(n=>n.props?.role==='alert'),false);equal(recovered.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,job.scheduledAt);
  const card=recovered.find(n=>n.props?.className==='schedule-job');assert.ok(card);checks++;card.props.onClick();equal(state[1].id,job.id);
@@ -116,6 +118,40 @@ for(const [start,next] of [['2026-03-07','2026-03-08'],['2026-03-08','2026-03-09
  chosenDay().props.onChange({target:{value:start}});
  dayButton('Next work date').props.onClick();equal(state[6],next);
 }
+
+// Render the real ScheduleView close-start advisory from a complete owner list.
+// Search and day filtering must not hide another job's start. A review button
+// opens only its exact saved job, without a status/booking/network mutation.
+scheduleNow=Date.parse('2026-10-20T14:00:00Z');
+const closeJobs=[
+ {...job,id:'tight-first',customer:'First job',scheduledAt:'2026-10-20T15:00:00Z',address:'First place'},
+ {...job,id:'tight-second',customer:'Second job',scheduledAt:'2026-10-20T15:45:00Z',address:'Second place'},
+ {...job,id:'same-minute',customer:'Third job',scheduledAt:'2026-10-20T15:45:00Z',address:'Third place'},
+ {...job,id:'outside-window',customer:'Farther job',scheduledAt:'2026-10-20T18:01:00Z'},
+ {...job,id:'already-complete',customer:'Completed job',status:'completed',scheduledAt:'2026-10-20T15:30:00Z'},
+ {...job,id:'next-day',customer:'Tomorrow job',scheduledAt:'2026-10-21T05:30:00Z'}
+];
+state=[[],null,true,''];responder=()=>ok(closeJobs);requests=[];render();effect();await settle();
+const review=()=>nodes(render()).find(n=>n.props?.className==='schedule-turnaround-review');
+assert.ok(review(),'Close-start advisory must render on successful verified owner read');checks++;
+let pairRows=nodes(review()).filter(n=>n.props?.className==='schedule-turnaround-pair');
+equal(pairRows.length,1);equal(nodes(review()).filter(n=>n.props?.className==='schedule-turnaround-job').length,3);
+equal(nodes(review()).some(n=>typeof n.props?.children==='string'&&n.props.children.includes('not proof of overlapping jobs')),false);
+const sameStart=nodes(render()).find(n=>n.props?.className==='schedule-start-conflicts');
+assert.ok(sameStart(),'Existing exact same-minute warning stays separate');checks++;
+let linked=nodes(review()).filter(n=>n.props?.className==='schedule-turnaround-job');
+linked.find(n=>n.props['aria-label']==='Review scheduled job for Second job').props.onClick();
+equal(state[1].id,'tight-second');
+const beforeReadCount=requests.length;
+nodes(render('NO MATCHING CUSTOMER')).filter(n=>n.props?.className==='schedule-turnaround-pair').length;
+equal(nodes(render('NO MATCHING CUSTOMER')).some(n=>n.props?.className==='schedule-turnaround-review'),true);
+equal(requests.length,beforeReadCount,'Search cannot hide advisory or issue new network calls');
+const browse=nodes(render()).find(n=>n.props?.id==='schedule-specific-date');
+browse.props.onChange({target:{value:'2026-10-21'}});
+equal(nodes(render()).some(n=>n.props?.className==='schedule-turnaround-review'),true);
+equal(requests.length,beforeReadCount,'Specific-day browsing is read-only');
+state=[[],null,true,''];responder=()=>ok([{...job,id:'a',scheduledAt:'2026-10-20T15:00:00Z'},{...job,id:'b',scheduledAt:'2026-10-20T18:00:00Z'}]);render();effect();await settle();
+equal(nodes(render()).some(n=>n.props?.className==='schedule-turnaround-review'),false);
 
 // Restore the baseline test clock before running pre-existing refresh assertions.
 scheduleNow=Date.parse('2026-10-09T12:00:00Z');
