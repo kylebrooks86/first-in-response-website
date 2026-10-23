@@ -10,7 +10,7 @@ SOURCE = (ROOT / "owner_windows_build_qa_candidate.ps1").read_text(encoding="utf
 
 class LocalFullAppQABuildContract(unittest.TestCase):
     def test_default_dry_run_and_build_switch(self):
-        self.assertIn("param([switch]$Build)", SOURCE)
+        self.assertIn("[switch]$Build,", SOURCE)
         self.assertIn("if (-not $Build)", SOURCE)
         self.assertIn("DRY RUN PASS", SOURCE)
         self.assertLess(SOURCE.index("if (-not $Build)"), SOURCE.index("New-Item -ItemType Directory"))
@@ -25,6 +25,18 @@ class LocalFullAppQABuildContract(unittest.TestCase):
             self.assertIn(requirement, SOURCE)
         self.assertIn("Join-Path $env:LOCALAPPDATA 'FIRE-QA-Builds'", SOURCE)
         self.assertNotIn("FIRE-QA-Private\\qa-owner-secrets.xml", SOURCE)
+
+    def test_explicit_current_candidate_pin_is_required_for_other_branches(self):
+        for required in ("[string]$CandidateBranch", "[string]$ExpectedCommit",
+                         "^work/fire-[a-z0-9][a-z0-9-]{1,110}$",
+                         "A nonstandard candidate branch requires an explicitly reviewed exact commit",
+                         "Checked out Git commit differs from the explicitly reviewed candidate",
+                         "$head -ceq $ExpectedCommit"):
+            self.assertIn(required, SOURCE)
+        self.assertLess(SOURCE.index("A nonstandard candidate branch requires"),
+                        SOURCE.index("$git = Get-Command"))
+        self.assertLess(SOURCE.index("$head -ceq $ExpectedCommit"),
+                        SOURCE.index("$buildRoot = Join-Path"))
 
     def test_local_only_build_and_source_integrity(self):
         for requirement in ("materialize.py", "verify_materialized_candidate.py",
