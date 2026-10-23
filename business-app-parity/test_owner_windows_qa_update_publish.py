@@ -43,12 +43,14 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
                      "d1 list --json",
                      "$d1.qaName -ceq $dbName -and $d1.qaUuid -ceq $dbId",
                      "QA Worker was updated by another operation",
-                     "$qaPhotoBucket = 'fire-fullapp-qa-photos-20261023'",
-                     "$qaPhotoBucket + ' ' + $head + ' FROM '",
+                     "$photoMode = 'ON-DEVICE-PHOTOS-NO-R2'",
+                     "$photoMode + ' ' + $head + ' FROM '",
                      "$head -ceq $ExpectedCommit",
-                     "Fresh post-approval read-only 25-schema, R2 and source revalidation"):
+                     "Fresh post-approval read-only 25-schema, D1 and source revalidation"):
             self.assertIn(text,S)
         self.assertNotIn("fire-app-staging-db",S)
+        self.assertIn("No R2 bucket is bound or billed",S)
+        self.assertNotIn("r2 bucket info",S)
         self.assertNotRegex(S, r"&\\s*\\$wrangler\\.Source\\s+d1\\s+info\\b")
         self.assertIn("qa_d1_identity_from_list.ps1", S)
         self.assertIn("& $identityHelper -Json ($rawD1 -join [Environment]::NewLine)", S)
