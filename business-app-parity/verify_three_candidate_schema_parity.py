@@ -32,8 +32,15 @@ def migration_paths(candidate: Path) -> list[Path]:
             and root.is_dir(), "Missing or linked target migration directory")
     files = []
     for item in root.iterdir():
-        require(not item.is_symlink() and item.is_file(),
-                "Unexpected directory or symlink in target migration source")
+        require(not item.is_symlink(), "Unexpected migration source symlink")
+        if item.name == "meta" and item.is_dir():
+            # Drizzle snapshot metadata is not executable SQL. Accept ONLY the
+            # standard metadata directory, and fail if it hides a symlink/SQL.
+            for child in item.rglob("*"):
+                require(not child.is_symlink() and child.suffix.lower() != ".sql",
+                        "Unreviewed executable or linked Drizzle metadata")
+            continue
+        require(item.is_file(), "Unexpected directory in migration source")
         if item.suffix == ".sql":
             require(NAME.fullmatch(item.name) is not None,
                     "Unexpected SQL migration filename: " + item.name)
