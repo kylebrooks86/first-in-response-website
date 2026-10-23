@@ -2029,6 +2029,8 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     for(const note of input.notes){
       const title=note.body===LEAD_NO_ANSWER_NOTE?"Lead call unanswered · not contacted":
         note.body===LEAD_CONTACTED_NOTE?"Lead contact logged · send unverified":
+        note.body==="[FIRE FLAG] LEAD_CALLBACK_HANDLED"?"Lead callback marked handled":
+        note.body.startsWith("[FIRE FLAG] LEAD_CALLBACK | due:")?"Lead callback date saved":
         note.body==="[FIRE FLAG] REVIEW_RECEIVED"?"Review received (owner logged)":
         note.body==="[FIRE FLAG] YARD_SIGN_PICKED_UP"?"Yard sign pickup logged":
         note.body.startsWith("[FIRE FLAG] YARD_SIGN_PLACED | pickup:")?"Yard sign placement logged":
@@ -2497,6 +2499,13 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         <div className="customer-flag-actions">
           <Button variant="outline" aria-label="Prepare lead no-answer note" onClick={()=>prepareManualFlag(LEAD_NO_ANSWER_NOTE)}>No answer · not contacted</Button>
           <Button variant="outline" aria-label="Prepare lead contacted note" onClick={()=>prepareManualFlag(LEAD_CONTACTED_NOTE)}>Log lead contacted</Button>
+          {manualFlags.leadCallback?.state==="pending"&&
+            <Button variant="outline" aria-label="Prepare callback handled note" onClick={()=>prepareManualFlag(LEAD_CALLBACK_HANDLED_NOTE)}>Mark callback handled</Button>}
+          <details className="customer-sign-form">
+            <summary>Schedule or reschedule lead callback</summary>
+            <label>Callback date <input type="date" aria-label="Lead callback date" value={callbackDate} onChange={event=>setCallbackDate(event.target.value)}/></label>
+            <Button variant="outline" aria-label="Prepare lead callback note" disabled={!callbackDate} onClick={()=>{try{prepareManualFlag(leadCallbackNote(callbackDate));}catch{}}}>Prepare callback note</Button>
+          </details>
           {!manualFlags.reviewReceivedAt&&<Button variant="outline" aria-label="Prepare review received note" onClick={()=>prepareManualFlag(REVIEW_RECEIVED_NOTE)}>Log review received</Button>}
           {manualFlags.sign?.state==="out"?<><Button variant="outline" aria-label="Prepare yard sign pickup note" onClick={()=>prepareManualFlag(SIGN_PICKED_UP_NOTE)}>Log yard sign pickup</Button>{onPreparePickupTask&&<Button variant="outline" aria-label="Prepare yard sign pickup reminder" onClick={()=>stagePickupTask(selected,manualFlags.sign)}>Create pickup task</Button>}</>:
           <details className="customer-sign-form"><summary>Track a yard sign</summary><label>Pickup target <input type="date" aria-label="Yard sign pickup date" value={signPickupDate} onChange={event=>setSignPickupDate(event.target.value)}/></label><label>Sign location <input aria-label="Yard sign location" value={signLocation} onChange={event=>setSignLocation(event.target.value)} placeholder={selected.address||"Address / where placed"}/></label><Button variant="outline" disabled={!signPickupDate} aria-label="Prepare yard sign placed note" onClick={()=>{try{prepareManualFlag(signPlacedNote(signPickupDate,signLocation.trim()||selected.address||"Location not specified"));}catch{}}}>Prepare placement note</Button></details>}
@@ -2510,8 +2519,13 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
              :"No lead contact outcome logged. This is not proof that no contact occurred."}
           {" "}This manual lead log is separate from estimate-specific follow-up history.
         </p>
+        {manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate&&
+          <p className="customer-flag-sign-location" role="status">
+            <strong>{manualFlags.leadCallback.dueDate<=tulsaToday?"Callback due":"Upcoming callback"}:</strong> {manualFlags.leadCallback.dueDate}.
+            Owner-entered target only; no call, text, task, or push notification is created automatically.
+          </p>}
         {manualFlags.sign?.state==="out"&&<p className="customer-flag-sign-location">Last placement: {manualFlags.sign.location||"Location not specified"}. Pickup target: {manualFlags.sign.pickupDate}. This is an in-app tracking cue, not a push notification.</p>}
-        <p className="customer-flag-help">Manual flag actions prepare a note; select <strong>Add note</strong> in Notes to save the flag. A No answer lead flag does not mark the customer contacted or send a message. Pickup tasks open as drafts in Business and are saved only when you choose Add task. Review receipt is owner-reported, not verified against Google.</p>
+        <p className="customer-flag-help">Manual flag actions prepare a note; select <strong>Add note</strong> in Notes to save the flag. A No answer lead flag does not mark the customer contacted or send a message. Callback dates and handled markers are owner-recorded notes, not automatic reminders or messages. Pickup tasks open as drafts in Business and are saved only when you choose Add task. Review receipt is owner-reported, not verified against Google.</p>
       </section>
       <section className="customer-action-review" role="region" aria-label="Review next customer actions">
         <div className="customer-timeline-heading"><div><h2>Review next</h2><p>Derived from saved records · opens existing controls · no automatic actions</p></div><span>{nextCustomerActions.length} to check</span></div>
@@ -2575,13 +2589,25 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     <section className="customers-head"><div><p className="eyebrow">Customer records</p><h1>Customers</h1><p>Contact details and job history in one place.</p></div><AddCustomer onAdded={(customer) => { setCustomers((current) => [customer, ...current.filter(item=>item.id!==customer.id)]); setSelectedId(customer.id);void load(true); }} /></section>
     {dueReviewChecks.length>0&&<section className="customer-review-overview" role="region" aria-label="Review checks to consider"><div><strong>{dueReviewChecks.length} review check{dueReviewChecks.length===1?"":"s"} to consider</strong><small>Only completed work with a confirmed request over seven days ago and no review logged</small></div><div>{dueReviewChecks.slice(0,5).map(({customer,state})=><div key={customer.id} className="customer-review-entry"><button type="button" onClick={()=>setSelectedId(customer.id)}>{customer.name} · {state.elapsedDays} days since review request <ChevronRight aria-hidden="true"/></button>{onPrepareReviewTask&&<button type="button" aria-label={`Prepare review check task for ${customer.name}`} onClick={()=>stageReviewCheck(customer,state.requestedAt)}>Create task <Plus aria-hidden="true"/></button>}</div>)}</div>{dueReviewChecks.length>5&&<small>{dueReviewChecks.length-5} more customers — open their profiles to review</small>}</section>}
     {flaggedSignCustomers.length>0&&<section className="customer-sign-overview" role="region" aria-label="Outstanding yard signs"><strong>{flaggedSignCustomers.length} yard sign{flaggedSignCustomers.length===1?"":"s"} to pick up</strong><div>{flaggedSignCustomers.map(({customer,sign})=><div className="customer-sign-entry" key={customer.id}><button type="button" onClick={()=>setSelectedId(customer.id)}>{customer.name} · {sign?.pickupDate&&sign.pickupDate<=tulsaToday?"Pickup due":"Pickup "+sign?.pickupDate}<ChevronRight aria-hidden="true"/></button>{onPreparePickupTask&&<button type="button" aria-label={`Prepare pickup task for ${customer.name}`} onClick={()=>stagePickupTask(customer,sign)}>Create task <Plus aria-hidden="true"/></button>}</div>)}</div></section>}
+    {dueLeadCallbacks.length>0&&<section className="customer-review-overview" role="region" aria-label="Due customer lead callbacks">
+      <div><strong>{dueLeadCallbacks.length} lead callback{dueLeadCallbacks.length===1?"":"s"} due</strong><small>Owner-saved callback dates · today and overdue · nothing is sent automatically</small></div>
+      <div>{dueLeadCallbacks.slice(0,5).map(({customer,callback})=><div key={customer.id} className="customer-review-entry">
+        <button type="button" onClick={()=>setSelectedId(customer.id)} aria-label={`Open due callback for ${customer.name}`}>
+          {customer.name} · callback {callback?.dueDate}<ChevronRight aria-hidden="true"/>
+        </button>
+      </div>)}</div>
+      {dueLeadCallbacks.length>5&&<small>{dueLeadCallbacks.length-5} more due callbacks · use the callback filter to review them</small>}
+    </section>}
     {!loading&&!error&&<div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter manually logged lead contact attempts">
-      <Button type="button" variant="outline" aria-pressed={showUnansweredLeadsOnly} onClick={()=>setShowUnansweredLeadsOnly(current=>!current)}>
+      <Button type="button" variant="outline" aria-pressed={showUnansweredLeadsOnly} onClick={()=>{setShowDueCallbacksOnly(false);setShowUnansweredLeadsOnly(current=>!current);}}>
         {showUnansweredLeadsOnly?"Show all customers":`No answer / not contacted (${manuallyUnansweredLeadIds.size})`}
       </Button>
-      <small>Manual saved lead notes only · counts cover loaded customer records · estimate follow-ups stay separate</small>
+      <Button type="button" variant="outline" aria-pressed={showDueCallbacksOnly} onClick={()=>{setShowUnansweredLeadsOnly(false);setShowDueCallbacksOnly(current=>!current);}}>
+        {showDueCallbacksOnly?"Show all customers":`Callbacks due (${dueLeadCallbackIds.size})`}
+      </Button>
+      <small>Manual saved lead notes only · counts cover loaded customer records · estimate follow-ups stay separate · callbacks are not push alerts</small>
     </div>}
-    {loading ? <div className="customers-state">Loading customers…</div> : error ? <div className="customers-state"><p>{error}</p><Button variant="outline" onClick={() => void load()}>Try again</Button></div> : filteredCustomers.length ? <section className="customer-list">{filteredCustomers.map((customer) => <button className="customer-card" key={customer.id} onClick={() => setSelectedId(customer.id)}><span className="customer-avatar">{customer.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><span className="customer-main"><strong>{customer.name}</strong><small>{customer.phone || customer.email || "No contact details saved"}</small></span><span className="customer-totals"><strong>{customer.estimateCount} estimate{customer.estimateCount === 1 ? "" : "s"}</strong><small>{money(customer.estimateTotal)}</small></span><ChevronRight /></button>)}</section> : <div className="customers-state"><Users /><strong>{showUnansweredLeadsOnly?"No unanswered leads match":searchQuery ? "No matching customers" : "No customers yet"}</strong><p>{showUnansweredLeadsOnly?"These results use only explicitly saved manual lead notes. Show all customers to see other records.":searchQuery ? "Try a name, phone number, email, or address." : "Add your first customer to start their permanent record."}</p></div>}
+    {loading ? <div className="customers-state">Loading customers…</div> : error ? <div className="customers-state"><p>{error}</p><Button variant="outline" onClick={() => void load()}>Try again</Button></div> : filteredCustomers.length ? <section className="customer-list">{filteredCustomers.map((customer) => <button className="customer-card" key={customer.id} onClick={() => setSelectedId(customer.id)}><span className="customer-avatar">{customer.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><span className="customer-main"><strong>{customer.name}</strong><small>{customer.phone || customer.email || "No contact details saved"}</small></span><span className="customer-totals"><strong>{customer.estimateCount} estimate{customer.estimateCount === 1 ? "" : "s"}</strong><small>{money(customer.estimateTotal)}</small></span><ChevronRight /></button>)}</section> : <div className="customers-state"><Users /><strong>{showDueCallbacksOnly?"No due callbacks match":showUnansweredLeadsOnly?"No unanswered leads match":searchQuery ? "No matching customers" : "No customers yet"}</strong><p>{showDueCallbacksOnly?"Only pending owner-saved callbacks due today or earlier appear here. Show all customers for the full list.":showUnansweredLeadsOnly?"These results use only explicitly saved manual lead notes. Show all customers to see other records.":searchQuery ? "Try a name, phone number, email, or address." : "Add your first customer to start their permanent record."}</p></div>}
   </div>;
 }
 
