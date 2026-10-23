@@ -6,6 +6,14 @@
 export const REVIEW_RECEIVED_NOTE="[FIRE FLAG] REVIEW_RECEIVED";
 export const LEAD_NO_ANSWER_NOTE="[FIRE FLAG] LEAD_NO_ANSWER";
 export const LEAD_CONTACTED_NOTE="[FIRE FLAG] LEAD_CONTACT_RECORDED";
+export const LEAD_CALLBACK_HANDLED_NOTE="[FIRE FLAG] LEAD_CALLBACK_HANDLED";
+/** A requested callback is an owner-tracked date, never a queued message. */
+export function leadCallbackNote(dueDate:string){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)||
+    new Date(dueDate+"T12:00:00Z").toISOString().slice(0,10)!==dueDate)
+    throw new Error("Choose a valid callback date.");
+  return "[FIRE FLAG] LEAD_CALLBACK | due:"+dueDate;
+}
 export const SIGN_PICKED_UP_NOTE="[FIRE FLAG] YARD_SIGN_PICKED_UP";
 export function signPlacedNote(pickupDate:string,location:string){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(pickupDate)||new Date(pickupDate+"T12:00:00Z").toISOString().slice(0,10)!==pickupDate)
@@ -20,6 +28,7 @@ export function deriveCustomerManualFlags(notes:readonly Note[]){
   // estimate yet. A failed call never becomes a sent text or completed contact.
   let leadContact:{state:"no_answer"|"contacted";at:string;unansweredAttempts:number}|null=null;
   let unansweredAttempts=0;
+  let leadCallback:{state:"pending"|"handled";dueDate:string|null;at:string}|null=null;
   let sign:{state:"out"|"picked_up";at:string;pickupDate:string|null;location:string}|null=null;
   for(const note of ordered){
     if(note.body===REVIEW_RECEIVED_NOTE)reviewReceivedAt=note.createdAt;
@@ -27,9 +36,21 @@ export function deriveCustomerManualFlags(notes:readonly Note[]){
       unansweredAttempts++;
       leadContact={state:"no_answer",at:note.createdAt,unansweredAttempts};
     }
-    if(note.body===LEAD_CONTACTED_NOTE)leadContact={
-      state:"contacted",at:note.createdAt,unansweredAttempts
-    };
+    if(note.body===LEAD_CONTACTED_NOTE){
+      leadContact={state:"contacted",at:note.createdAt,unansweredAttempts};
+      const pending=leadCallback as {state:"pending"|"handled";dueDate:string|null;at:string}|null;
+      if(pending?.state==="pending")leadCallback={...pending,state:"handled",at:note.createdAt};
+    }
+    const requested=/^\[FIRE FLAG\] LEAD_CALLBACK \| due:(\d{4}-\d{2}-\d{2})$/.exec(note.body);
+    if(requested){
+      const date=requested[1];
+      if(Number.isFinite(Date.parse(date+"T12:00:00Z"))&&new Date(date+"T12:00:00Z").toISOString().slice(0,10)===date)
+        leadCallback={state:"pending",dueDate:date,at:note.createdAt};
+    }
+    if(note.body===LEAD_CALLBACK_HANDLED_NOTE){
+      const pending=leadCallback as {state:"pending"|"handled";dueDate:string|null;at:string}|null;
+      if(pending?.state==="pending")leadCallback={...pending,state:"handled",at:note.createdAt};
+    }
     const currentSign=sign as {state:"out"|"picked_up";at:string;pickupDate:string|null;location:string}|null;
     if(note.body===SIGN_PICKED_UP_NOTE&&currentSign?.state==="out")sign={state:"picked_up",at:note.createdAt,pickupDate:currentSign.pickupDate,location:currentSign.location};
     const placed=/^\[FIRE FLAG\] YARD_SIGN_PLACED \| pickup:(\d{4}-\d{2}-\d{2}) \| location:(.{0,180})$/.exec(note.body);
@@ -38,7 +59,7 @@ export function deriveCustomerManualFlags(notes:readonly Note[]){
       if(Number.isFinite(Date.parse(date+"T12:00:00Z"))&&new Date(date+"T12:00:00Z").toISOString().slice(0,10)===date)sign={state:"out",at:note.createdAt,pickupDate:date,location:placed[2]};
     }
   }
-  return {reviewReceivedAt,sign,leadContact};
+  return {reviewReceivedAt,sign,leadContact,leadCallback};
 }
 
 /** A conservative internal review-status check, never permission to resend.
