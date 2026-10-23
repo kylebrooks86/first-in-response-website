@@ -163,6 +163,24 @@ try{
  await verifyInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
  await page.getByText(/Saved ZIP selected from Files passed photo checksums/).waitFor({timeout:30000});
  check((await page.getByRole('status').allInnerTexts()).some(t=>t.includes('2 exactly match this device')),'Actual Files re-selection checks saved backup against both original photo blobs');
+ check((await page.getByRole('status').allInnerTexts()).some(t=>t.includes('COMPLETE for all currently stored FIRE on-device photos')),
+   'Saved ZIP confirms complete current device coverage only when all present photo bytes are included');
+ // A stale ZIP passes its checksums, but must NEVER be represented as complete
+ // after an actual new photo has been added to IndexedDB.
+ await library.setInputFiles(take('new-after-backup.png'));
+ await page.locator('.photo-card').nth(2).waitFor();
+ check(await page.locator('.photo-card').count()===3,'New photo committed after the older archive was saved');
+ await verifyInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
+ await page.getByText(/INCOMPLETE PHOTO BACKUP: 1 current device photo/).waitFor({timeout:30000});
+ check(!(await page.getByRole('status').allInnerTexts()).some(t=>t.includes('COMPLETE for all currently stored FIRE on-device photos')),
+   'Valid old ZIP cannot claim complete coverage of the newer device library');
+ await page.getByRole('button',{name:'Delete on-device photo'}).nth(2).click();
+ await page.locator('.photo-card').nth(2).waitFor({state:'detached'});
+ check(await page.locator('.photo-card').count()===2,'Synthetic new photo removed without modifying originals');
+ await verifyInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
+ await page.getByText(/COMPLETE for all currently stored FIRE on-device photos/).waitFor({timeout:30000});
+ check((await page.getByRole('alert').allInnerTexts()).every(t=>!t.includes('INCOMPLETE PHOTO BACKUP')),
+   'Fresh exact archive versus device coverage check clears the incomplete warning');
  const restoreInput=page.locator('input[type="file"][accept*=".zip"]').nth(1);
  await restoreInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
  await page.getByText(/Restored 0 new verified photo/).waitFor({timeout:30000});
