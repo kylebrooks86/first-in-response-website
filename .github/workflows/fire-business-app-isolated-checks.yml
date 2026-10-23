@@ -812,6 +812,7 @@ jobs:
           cd "$RUNNER_TEMP/fire-qa-candidate"
           node scripts/test-qa-worker-http-browser.mjs
           node scripts/test-qa-worker-http-browser.mjs --photo-storage
+          node scripts/test-qa-worker-http-browser.mjs --no-r2
           node scripts/test-qa-worker-http-browser.mjs --customer-lookup
           node scripts/test-qa-worker-http-browser.mjs --customer-profile
           node scripts/test-qa-worker-http-browser.mjs --complete-ledger
