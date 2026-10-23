@@ -47,7 +47,7 @@ export async function POST(request:Request){
 
 export async function PATCH(request:Request){
  if(!await authorized())return Response.json({error:"Unauthorized"},{status:401});
- let body:{id?:unknown;status?:unknown;expectedStatus?:unknown};
+ let body:{id?:unknown;status?:unknown;expectedStatus?:unknown;operation?:unknown;dueAt?:unknown;expectedDueAt?:unknown};
  try{
   const parsed:unknown=await request.json();
   if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error("Invalid task update");
@@ -56,6 +56,27 @@ export async function PATCH(request:Request){
  const id=typeof body.id==="string"?body.id.trim():"";
  if(!id||!(body.status==="completed"||body.status==="open")||(body.expectedStatus!==undefined&&body.expectedStatus!=="open"&&body.expectedStatus!=="completed"))
   return Response.json({error:"Choose a valid task and status."},{status:400});
+ // Rescheduling is separate from status toggles: it cannot complete a task,
+ // alter linked customer/estimate identities, or rewrite a yard-sign/review marker.
+ if(body.operation!==undefined&&body.operation!=="reschedule")
+  return Response.json({error:"Unknown task operation."},{status:400});
+ if(body.operation==="reschedule"){
+  const taskId=typeof body.id==="string"?body.id.trim():"";
+  const next=body.dueAt,expected=body.expectedDueAt;
+  const validSaved=(value:unknown)=>value===null||(typeof value==="string"&&value.length<=64&&Number.isFinite(Date.parse(value)));
+  const validNew=(value:unknown)=>value===null||(typeof value==="string"&&/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value);
+  if(!taskId||taskId.length>128||body.expectedStatus!=="open"||!validSaved(expected)||!validNew(next))
+   return Response.json({error:"Choose a valid open task and a precise due date."},{status:400});
+  // A conditional write protects a newer edit or completion on another phone.
+  // NULL and date values must both match the caller's last verified GET.
+  const changed=await env.DB.prepare("UPDATE tasks SET due_at=? WHERE id=? AND status='open' AND ((due_at IS NULL AND ? IS NULL) OR due_at=?) AND ((due_at IS NOT NULL) OR (? IS NOT NULL))")
+   .bind(next,taskId,expected,expected,next).run();
+  const saved=await env.DB.prepare("SELECT status,due_at AS dueAt FROM tasks WHERE id=?").bind(taskId).first<{status:string;dueAt:string|null}>();
+  if(!saved)return Response.json({error:"Task not found. Refresh saved tasks."},{status:404});
+  if(saved.status!=="open")return Response.json({error:"Task is no longer open. Refresh saved tasks before editing."},{status:409});
+  if(saved.dueAt===next)return Response.json({ok:true,id:taskId,status:"open",dueAt:saved.dueAt,replayed:changed.meta.changes!==1});
+  return Response.json({error:"The task due date changed on another device. Refresh saved tasks before rescheduling.",currentDueAt:saved.dueAt},{status:409});
+ }
  const status=body.status;
  const completedAt=status==="completed"?new Date().toISOString():null;
  // A repeated request that already reached the target must never rewrite completed_at.
