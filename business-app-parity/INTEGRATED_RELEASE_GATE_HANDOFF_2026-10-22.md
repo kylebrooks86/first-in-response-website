@@ -1,5 +1,16 @@
 # FIRE Business App — integrated candidate evidence handoff (read-only)
 
+## Fresh hosted verification addendum — October 22, 2026
+
+See `HOSTED_RELEASE_ACCEPTANCE_20261022.md` and its sanitized JSON receipt.
+Fresh service-authenticated `/api/app-version` reads returned LIVE `105` and
+refund staging `refund-staging-ebc670f`; fresh Sites `DB` inventories report
+18/19 tables respectively, with LIVE `payment_refunds` still absent. Full
+runtime SHA/artifact/routing and physical UUID/DDL/index/journal proof remain
+unavailable. Doomsday lacks a current authorized provider connection here.
+The historical findings below remain retained references; the new checklist
+keeps all seven pending gates unchecked. Readiness remains **3/10 (30%)**.
+
 **State: NOT ACCEPTED FOR HOSTED RELEASE.** Source-only integration candidate:
 `21e6aa66ac7db97155452f337a040cc0fbf86f77`, [draft PR #32](https://github.com/kylebrooks86/first-in-response-website/pull/32).
 The exact-source [eight-job test run #39888668263](https://github.com/kylebrooks86/first-in-response-website/actions/runs/39888668263) passed **8/8**. This is NOT a deployed app or provider identity.

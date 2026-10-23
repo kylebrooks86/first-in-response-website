@@ -1,0 +1,278 @@
+{
+  "format": "fire-hosted-read-only-observations-v1",
+  "capturedAtUtc": "2026-10-23T02:51:16.908868+00:00",
+  "ownerLocalDate": "2026-10-22",
+  "scope": "Fresh provider reads and bounded app-version GETs only; no release authorization.",
+  "repository": "kylebrooks86/first-in-response-website",
+  "reviewedCandidateSha": "5cf5958a82b9c41bd916d7c52758e8b9fa80b493",
+  "pullRequests": [
+    {
+      "number": 32,
+      "head": "work/fire-consolidated-source-review-2026-10-22",
+      "sha": "21e6aa66ac7db97155452f337a040cc0fbf86f77",
+      "base": "work/fire-schedule-turnaround-review-2026-10-22",
+      "draft": true,
+      "merged": false
+    },
+    {
+      "number": 33,
+      "head": "work/fire-release-evidence-hardening-2026-10-22",
+      "sha": "5cf5958a82b9c41bd916d7c52758e8b9fa80b493",
+      "base": "work/fire-consolidated-source-review-2026-10-22",
+      "draft": true,
+      "merged": false
+    }
+  ],
+  "sourceChecks": {
+    "runId": 39890157473,
+    "headSha": "5cf5958a82b9c41bd916d7c52758e8b9fa80b493",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "Shared-source candidate — finance, schema, parity, and build",
+        "conclusion": "success"
+      },
+      {
+        "name": "Isolated synthetic QA full-app — auth, payment refusals, schema, build, sealed review",
+        "conclusion": "success"
+      },
+      {
+        "name": "Windows CRLF pinned migrations and private offline restore",
+        "conclusion": "success"
+      },
+      {
+        "name": "Coordinated live candidate — exact source, schema, finance, build",
+        "conclusion": "success"
+      },
+      {
+        "name": "Isolated synthetic Home Screen offline cold-launch browser tests",
+        "conclusion": "success"
+      },
+      {
+        "name": "Coordinated doomsday candidate — exact source, schema, finance, build",
+        "conclusion": "success"
+      },
+      {
+        "name": "Typecheck, recovery contracts, and independent candidate build",
+        "conclusion": "success"
+      },
+      {
+        "name": "Coordinated staging candidate — exact source, schema, finance, build",
+        "conclusion": "success"
+      }
+    ],
+    "scope": "Existing exact-candidate source CI reverified; not rerun for documentation and not hosted acceptance."
+  },
+  "targets": [
+    {
+      "target": "live",
+      "projectId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+      "url": "https://fire-app.kylebrooks8605.chatgpt.site",
+      "siteRole": "owner",
+      "siteAccessMode": "public",
+      "latestSavedVersion": {
+        "number": 61,
+        "id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61~appgver_394435b33f14819180fdcd8a4a82246e",
+        "sourceCommit": "896b5e4125cb89da729993d1f37127e3b930c79d",
+        "archiveSha256": "sha256:ae2c9814fd1a240611519530c0392dedc7e9dbcc75995ee0fc9025671eeb4bd2"
+      },
+      "deploymentRecord": {
+        "id": "appgdep_6ac6f067e2548191aaf38c28d25c54f5",
+        "versionId": "appgprj_6aaf416f82c88191a292fa2e13a9ea61~appgver_394435b33f14819180fdcd8a4a82246e",
+        "status": "succeeded",
+        "providerDeploymentId": "site---6aaf416f82c88191a292fa2e13a9ea61",
+        "url": "https://fire-app.kylebrooks8605.chatgpt.site",
+        "updatedAt": "2026-10-08T01:23:39.590116+00:00",
+        "envSetRevision": 9
+      },
+      "runtimeRead": {
+        "path": "/api/app-version",
+        "method": "GET",
+        "serviceAuthenticated": true,
+        "status": 200,
+        "body": {
+          "version": "105"
+        },
+        "capturedAtUtc": "2026-10-23T02:51:16.908868+00:00",
+        "credentialRetained": false
+      },
+      "databaseOverview": {
+        "project_id": "appgprj_6aaf416f82c88191a292fa2e13a9ea61",
+        "bindings": [
+          "DB"
+        ],
+        "selected_binding_name": "DB",
+        "tables": [
+          "auth_rate_limits",
+          "customer_messages",
+          "customer_notes",
+          "customer_photos",
+          "customers",
+          "estimate_change_requests",
+          "estimate_items",
+          "estimates",
+          "expenses",
+          "invoice_items",
+          "invoice_revisions",
+          "invoices",
+          "job_reports",
+          "message_templates",
+          "notifications",
+          "payment_checkout_sessions",
+          "payments",
+          "tasks"
+        ],
+        "model_projection": {
+          "truncated": false,
+          "omitted_project_id": false,
+          "omitted_selected_binding": false,
+          "omitted_bindings": 0,
+          "omitted_tables": 0
+        },
+        "paymentRefundsPresent": false
+      },
+      "unknown": {
+        "physicalDatabaseUuid": true,
+        "fullDdl": true,
+        "indexDefinitions": true,
+        "foreignKeys": true,
+        "migrationJournal": true,
+        "activeTrafficAllocation": true,
+        "fullRuntimeSourceCommit": true,
+        "runtimeArtifactDigest": true,
+        "objectStorageBindings": true
+      },
+      "interpretation": "Fresh named-binding/table inventory and application version label. Saved source/archive and successful deployment records do not independently seal the current routed Worker binary."
+    },
+    {
+      "target": "staging",
+      "projectId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+      "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+      "siteRole": "owner",
+      "siteAccessMode": "public",
+      "latestSavedVersion": {
+        "number": 3,
+        "id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+        "sourceCommit": "f7ed28a5d13ada738f5663e4f55a45c5d794c21e",
+        "archiveSha256": "sha256:50eb9f629151d863296a59f24d58eec2f9d40e454fbd1829c9bf2e4fc91cbe38"
+      },
+      "deploymentRecord": {
+        "id": "appgdep_6ac7f3e8903481919a5883a2750ccbb8",
+        "versionId": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41~appgver_5656f34837ec819197eb329c7e67286c",
+        "status": "succeeded",
+        "providerDeploymentId": "site---6ac7e8e358dc81918d0a47c4034c4a41",
+        "url": "https://fire-live-refund-staging.kylebrooks8605.chatgpt.site",
+        "updatedAt": "2026-10-08T19:50:54.872235+00:00",
+        "envSetRevision": 2
+      },
+      "runtimeRead": {
+        "path": "/api/app-version",
+        "method": "GET",
+        "serviceAuthenticated": true,
+        "status": 200,
+        "body": {
+          "version": "refund-staging-ebc670f"
+        },
+        "capturedAtUtc": "2026-10-23T02:51:16.908868+00:00",
+        "credentialRetained": false
+      },
+      "databaseOverview": {
+        "project_id": "appgprj_6ac7e8e358dc81918d0a47c4034c4a41",
+        "bindings": [
+          "DB"
+        ],
+        "selected_binding_name": "DB",
+        "tables": [
+          "auth_rate_limits",
+          "customer_messages",
+          "customer_notes",
+          "customer_photos",
+          "customers",
+          "estimate_change_requests",
+          "estimate_items",
+          "estimates",
+          "expenses",
+          "invoice_items",
+          "invoice_revisions",
+          "invoices",
+          "job_reports",
+          "message_templates",
+          "notifications",
+          "payment_checkout_sessions",
+          "payment_refunds",
+          "payments",
+          "tasks"
+        ],
+        "model_projection": {
+          "truncated": false,
+          "omitted_project_id": false,
+          "omitted_selected_binding": false,
+          "omitted_bindings": 0,
+          "omitted_tables": 0
+        },
+        "paymentRefundsPresent": true
+      },
+      "unknown": {
+        "physicalDatabaseUuid": true,
+        "fullDdl": true,
+        "indexDefinitions": true,
+        "foreignKeys": true,
+        "migrationJournal": true,
+        "activeTrafficAllocation": true,
+        "fullRuntimeSourceCommit": true,
+        "runtimeArtifactDigest": true,
+        "objectStorageBindings": true
+      },
+      "interpretation": "Fresh named-binding/table inventory and application version label. Saved source/archive and successful deployment records do not independently seal the current routed Worker binary."
+    }
+  ],
+  "doomsday": {
+    "url": "https://fire-app-independent-staging.kyle-bfc.workers.dev",
+    "currentProviderAccess": "unavailable",
+    "workspaceCloudflareCredentialNamesPresent": [],
+    "workspaceWranglerOAuthConfigPresent": false,
+    "currentRuntimeGet": {
+      "status": 403,
+      "authenticated": false,
+      "identityObtained": false,
+      "interpretation": "Access denial location/cause unknown; not proof of app owner denial or routing."
+    },
+    "historicalReference": {
+      "file": "GATE4_OWNER_ACTIVE_DOOMSDAY_BINDING_OCT16.json",
+      "observedOn": "2026-10-16",
+      "worker": "fire-app-independent-staging",
+      "versionId": "61fa32a3-3461-469d-9245-a9df6dd3f036",
+      "binding": "DB",
+      "databaseUuid": "afb2c05a-d794-4a9a-b580-924ce01c26ad",
+      "freshlyReverified": false
+    },
+    "historicalSchemaReference": "HOSTED_GATE4_GATE5_METADATA_ACCEPTANCE.md: historical pre-0022 comparison, not current candidate proof."
+  },
+  "limitations": [
+    "Sites overview has zero omitted bindings/tables but does not expose D1 UUID, DDL/index/constraint or migration journal.",
+    "Distinct project IDs and identical DB binding names do not prove physical database isolation.",
+    "Sites public access mode does not establish authorization of business-record endpoints.",
+    "No customer/payment/photo rows were read; no arbitrary hosted SQL was attempted.",
+    "No browser session or physical iPhone inspected; no sandbox payment or restore performed.",
+    "One unauthenticated GET per target returned 403; two documented service-authenticated Sites GETs returned 200. No further blocked attempts."
+  ],
+  "safety": {
+    "deployments": 0,
+    "merges": 0,
+    "hostedDatabaseWrites": 0,
+    "migrations": 0,
+    "stripeActions": 0,
+    "customerMessages": 0,
+    "backupWrites": 0,
+    "customerRowsRead": 0
+  },
+  "productionReadiness": {
+    "passedGates": 3,
+    "totalGates": 10,
+    "percent": 30,
+    "newGatesPassed": 0,
+    "productionReady": false,
+    "mergeOrPublicationAuthorized": false
+  }
+}
