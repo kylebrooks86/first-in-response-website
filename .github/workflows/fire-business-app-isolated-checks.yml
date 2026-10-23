@@ -20,7 +20,12 @@ on:
       - work/fire-release-evidence-hardening-2026-10-22
       - work/fire-live-refund-gap-gate5-triage-2026-10-22
       - work/fire-refund-schema-runtime-guard-2026-10-22
+      - work/fire-independent-website-check-scope-2026-10-23
     paths:
+      - 'verify-site.mjs'
+      - 'verify-site-ci.mjs'
+      - 'scripts/site-html-boundary.mjs'
+      - 'scripts/test-site-html-boundary.mjs'
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
       - 'business-app-parity/adapters/**'
