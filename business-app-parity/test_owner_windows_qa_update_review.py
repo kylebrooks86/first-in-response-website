@@ -7,10 +7,11 @@ S = (Path(__file__).parent / "owner_windows_qa_update_review.ps1").read_text(enc
 
 class ExistingQAUpdateSafety(unittest.TestCase):
     def test_no_publish_capability_and_no_sensitive_actions(self):
-        self.assertIn("param()", S)
+        self.assertIn("[string]$CandidateBranch", S)
+        self.assertIn("[string]$ExpectedCommit", S)
         self.assertNotIn("param([switch]$Publish)", S)
         for disallowed in ("--secrets-file", "Import-Clixml", "Export-Clixml",
-                           "d1 execute", "d1 migrations", "secret put",
+                           "d1 migrations", "secret put",
                            "wrangler rollback", "versions deploy", "git reset",
                            "git checkout", "git clean", "git push", "git pull",
                            "Remove-Item -LiteralPath $candidate", "Invoke-WebRequest",
@@ -25,7 +26,9 @@ class ExistingQAUpdateSafety(unittest.TestCase):
     def test_exact_latest_source_and_no_overwrite_local_build(self):
         for expected in ("work/fire-business-app-parity-2026-10-08",
                          "rev-parse HEAD", "refs/remotes/origin/",
-                         "$head -ceq $originHead", "status --porcelain --untracked-files=no",
+                         "$head -ceq $originHead", "$head -ceq $ExpectedCommit",
+                         "An alternate FIRE development branch MUST provide a reviewed exact commit",
+                         "status --porcelain --untracked-files=no",
                          "FIRE-QA-Builds", "qa-' + $head",
                          "verify_materialized_candidate.py",
                          "qa $candidate --built", "check_qa_runtime_config.mjs",
@@ -56,11 +59,42 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertNotIn("$deploymentText -match", S)
         self.assertNotIn("82fba39a-5736-41d7-a944-d55776ccc670", S)
         self.assertIn("f650d25b18d23bc9f71a4d55c9322bfd5870ef75", S)
-        self.assertIn("$previousSQL.Count -eq 23", S)
+        self.assertIn("$previousSQL.Count -eq 23 -and $nextSQL.Count -eq 25", S)
+        self.assertIn("review_qa_update_schema.py", S)
+        self.assertIn("--baseline (Join-Path $original 'drizzle')", S)
+        self.assertIn("--candidate (Join-Path $candidate 'drizzle')", S)
+        self.assertIn("--checkpoint $head", S)
         self.assertIn("Get-FileHash -Algorithm SHA256", S)
         self.assertIn("$baseline.ContainsKey($file.Name)", S)
         self.assertIn("QA migration bytes differ from original published app", S)
         self.assertLess(S.index("Get-FileHash -Algorithm SHA256"), S.index("deployments status"))
+        self.assertLess(S.index("review_qa_update_schema.py"), S.index("d1 list --json"))
+
+    def test_exact_hosted_25_schema_and_separate_photo_r2_are_read_only_gates(self):
+        for expected in (
+            "SELECT (SELECT GROUP_CONCAT(name,'|')",
+            "FROM d1_migrations ORDER BY id",
+            "d1 execute $qaDatabase --remote",
+            '"--command=$sql"',
+            "$row.journal_names -ceq ($orderedSQL -join '|')",
+            "$row.required_tables -eq 8", "$row.provider_index -eq 1",
+            "$row.signed_agreement_triggers -eq 2",
+            "deposit_policy_events", "deposit_agreement_snapshots",
+            "payment_refunds", "customer_photos",
+            "deposit_agreement_snapshots_no_update",
+            "deposit_agreement_snapshots_no_delete",
+            "$wrangler.Source r2 bucket info $qaPhotoBucket --json",
+            "Dedicated new QA photo R2 bucket missing/mismatched",
+        ):
+            with self.subTest(expected=expected):self.assertIn(expected,S)
+        self.assertEqual(S.count("d1 execute $qaDatabase --remote"),1)
+        self.assertEqual(S.count("r2 bucket info $qaPhotoBucket --json"),1)
+        self.assertLess(S.index("qa $candidate --built"),S.index("d1 execute $qaDatabase --remote"))
+        self.assertLess(S.index("d1 execute $qaDatabase --remote"),S.index("r2 bucket info $qaPhotoBucket --json"))
+        self.assertLess(S.index("r2 bucket info $qaPhotoBucket --json"),S.index("deployments status"))
+        for forbidden in ("d1 migrations apply", "d1 execute $qaDatabase --remote --file",
+                          "r2 bucket create", "r2 object put", "r2 object delete"):
+            self.assertNotIn(forbidden,S)
 
     def test_review_and_publisher_share_one_full_observed_version(self):
         publisher = (Path(__file__).parent / "owner_windows_qa_update_publish.ps1").read_text(encoding="utf-8")
