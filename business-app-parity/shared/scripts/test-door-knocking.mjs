@@ -17,7 +17,7 @@ try{
  eq(model.validDoorBook({...legacy,houses:[{...legacy.houses[0],visits:[{...legacy.houses[0].visits[0],followUpOn:'2026-02-30'}]}]}),false,'Saved invalid callback dates fail closed');
  const follow={action:'visit',houseId:uid(1),requestId:uid(11),expectedRevision:b.revision,status:'follow-up',note:'Return to discuss cleaning scope',followUpOn:yesterday};
  eq((await post(follow)).status,200,'Save explicit scheduled revisit');b=await book();eq(b.houses[0].visits.at(-1).followUpOn,yesterday,'Revisit date persisted in existing append-only history');
- eq(model.doorRevisitQueue(b,today).map(x=>x.houseId),[uid(1)],'Latest visit alone schedules one overdue house');
+ eq(model.doorRevisitQueue(b,today).map(x=>x.houseId).join(','),uid(1),'Latest visit alone schedules one overdue house');
  const readWrites=writes,queue=(await (await revisit()).json());eq(queue.dueCount,1,'Dashboard read-only queue shows one past-due house');eq(queue.upcomingCount,0);eq(queue.items[0].followUpOn,yesterday);eq(queue.items[0].overdue,true);eq(writes,readWrites,'Read-only reminder never updates source data');
  eq((await post(follow)).status,200,'Same request ID safely replays date-scheduled visit');eq((await book()).houses[0].visits.length,5,'Replaying cannot create a duplicate door visit');
  eq((await post({...follow,followUpOn:today})).status,409,'Original request ID cannot be reused with another date');
