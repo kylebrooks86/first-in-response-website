@@ -57,9 +57,19 @@ Assert-True ($LASTEXITCODE -eq 0) 'Read-only QA D1 info failed.'
 try { $info = ConvertFrom-Json -InputObject ($rawInfo -join [Environment]::NewLine) }
 catch { throw 'FIRE QA STOP: Could not parse QA D1 info.' }
 Assert-True ($info.uuid -ceq $uuid -and $info.name -ceq $name) 'D1 info does not match the new QA database UUID.'
-Assert-True ($null -ne $info.PSObject.Properties['num_tables'] -and
-    $null -ne $info.num_tables -and [int]$info.num_tables -eq 0) 'QA D1 is not verifiably empty; refuse potentially destructive or repeat setup.'
-Write-Host 'PASS: Separate Cloudflare QA D1 is empty and matches exact name plus UUID.'
+# Cloudflare's cached d1 info num_tables can report 0 for a populated DB.
+# Inspect ONLY sqlite_master table names on the exact QA D1. No customer rows.
+# Never use d1 migrations list to check emptiness (it can create the journal).
+$sql = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+$rawTableNames = @(& $wrangler.Source d1 execute $name --remote "--config=$configPath" "--command=$sql" --json)
+Assert-True ($LASTEXITCODE -eq 0) 'Read-only QA table-name query failed; do not initialize.'
+try { $tableEnvelope = @(ConvertFrom-Json -InputObject ($rawTableNames -join [Environment]::NewLine)) }
+catch { throw 'FIRE QA STOP: Could not parse read-only QA table names.' }
+Assert-True ($tableEnvelope.Count -eq 1 -and $tableEnvelope[0].success -eq $true) 'QA table metadata response ambiguous.'
+$names = @(@($tableEnvelope[0].results) | ForEach-Object { [string]$_.name })
+$appTables = @($names | Where-Object { $_ -cne '_cf_KV' })
+Assert-True ($appTables.Count -eq 0) 'QA D1 ALREADY HAS TABLES OR A MIGRATION JOURNAL. Do not run the first-time initializer on an existing 23/25-migration database.'
+Write-Host 'PASS: Actual read-only QA sqlite_master proves no application tables or migration journal; D1 UUID and staging separation confirmed.'
 if (-not $Apply) {
     Write-Host 'DRY RUN PASS. No SQL, migrations, Worker deployment, Stripe, R2 or billing changes.'
     Write-Host 'Actual initialization is NOT authorized by this run.'
@@ -67,7 +77,7 @@ if (-not $Apply) {
 }
 # Guard -Apply with explicit owner confirmation, even if invoked accidentally.
 $expected = 'INITIALIZE QA ' + $uuid
-Write-Warning 'This will WRITE ALL 24 reviewed candidate schema migrations to the EMPTY NEW QA D1 only. It does not publish an app.'
+Write-Warning 'This will WRITE ALL 25 reviewed candidate schema migrations to the proven EMPTY QA D1 only. An existing 23/25-migration database is not eligible. It does not publish an app.'
 $choice = Read-Host ('If you have approved this exact remote QA-only action, type ' + $expected)
 Assert-True ($choice -ceq $expected) 'Owner did not confirm exact QA-only UUID; no SQL executed.'
 Push-Location $PSScriptRoot

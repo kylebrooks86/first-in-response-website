@@ -49,7 +49,12 @@ class IsolatedQAMigrationGuard(unittest.TestCase):
         self.assertLess(SCRIPT.index("Assert-True ($choice -ceq $expected)"),
                         SCRIPT.index(apply_command))
         self.assertIn("Assert-True ($info.uuid -ceq $uuid", SCRIPT)
-        self.assertIn("$null -ne $info.PSObject.Properties['num_tables']", SCRIPT)
+        self.assertNotIn("$info.num_tables", SCRIPT)
+        self.assertIn("SELECT name FROM sqlite_master", SCRIPT)
+        self.assertIn("d1 execute $name --remote", SCRIPT)
+        self.assertIn("Do not run the first-time initializer on an existing 23/25-migration database", SCRIPT)
+        self.assertLess(SCRIPT.index("SELECT name FROM sqlite_master"), SCRIPT.index("if (-not $Apply)"))
+        self.assertLess(SCRIPT.index("$appTables.Count -eq 0"), SCRIPT.index("Read-Host"))
 
     def test_account_identity_and_exact_migration_order_are_checked_first(self):
         self.assertIn("d1 list --json", SCRIPT)
@@ -68,7 +73,7 @@ class IsolatedQAMigrationGuard(unittest.TestCase):
 
     def test_no_other_remote_mutations_or_downloads(self):
         for unsafe in [
-            "d1 execute", "d1 export", "d1 create",
+            "d1 export", "d1 create",
             "wrangler deploy", "wrangler publish",
             "r2 bucket", "secret put", "time-travel restore",
             "migrations apply $oldName",
@@ -80,7 +85,12 @@ class IsolatedQAMigrationGuard(unittest.TestCase):
                 self.assertNotIn(unsafe, SCRIPT)
         self.assertNotIn("Set-ExecutionPolicy", SCRIPT)
         self.assertNotIn("skip-confirmation", SCRIPT)
-        self.assertEqual(SCRIPT.count("--remote"), 1)
+        self.assertEqual(SCRIPT.count("--remote"), 2)
+        self.assertEqual(SCRIPT.count("d1 execute $name --remote"), 1)
+        self.assertIn("SELECT name FROM sqlite_master", SCRIPT)
+        self.assertIn("$tableEnvelope[0].success -eq $true", SCRIPT)
+        self.assertIn("$appTables.Count -eq 0", SCRIPT)
+        self.assertNotIn("ALL 24 reviewed", SCRIPT)
         self.assertNotIn("--preview", SCRIPT)
         self.assertIn("Push-Location $PSScriptRoot", SCRIPT)
         self.assertIn("finally { Pop-Location }", SCRIPT)
