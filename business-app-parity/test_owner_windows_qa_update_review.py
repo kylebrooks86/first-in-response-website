@@ -65,7 +65,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertIn("--candidate (Join-Path $candidate 'drizzle')", S)
         self.assertIn("--checkpoint $head", S)
         self.assertIn("Get-FileHash -Algorithm SHA256", S)
-        self.assertIn("$baseline.ContainsKey($file.Name)", S)
+        self.assertIn("$baseline[$file.Name] -ceq (Get-FileHash", S)
         self.assertIn("QA migration bytes differ from original published app", S)
         self.assertLess(S.index("Get-FileHash -Algorithm SHA256"), S.index("deployments status"))
         self.assertLess(S.index("review_qa_update_schema.py"), S.index("d1 list --json"))
