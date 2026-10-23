@@ -18,24 +18,25 @@ const bundle=await esbuild.build({stdin:{
  contents:"import React from 'react';import{createRoot}from'react-dom/client';import{OfflineCustomerPhotos}from'./components/offline-customer-photos';const root=createRoot(document.querySelector('#app'));root.render(React.createElement(OfflineCustomerPhotos,{customerId:'synthetic-customer-photo',customerName:'Synthetic Photo Customer',knownCustomerIds:['synthetic-customer-photo']}));",
  resolveDir:root,sourcefile:'photo-ui-browser-fixture.tsx',loader:'tsx'
  },bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',loader:{'.css':'empty'},define:{'process.env.NODE_ENV':'"production"'}});
-const shell='<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>FIRE synthetic customer photo UI</title><div id="app"></div><script type="module" src="/bundle.js"></script>';
+const photoStyles=readFileSync(join(root,'app/globals.css'),'utf8').replace(/^@import[^;]+;\\s*/gm,'');
+const shell='<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>FIRE synthetic customer photo UI</title><link rel="stylesheet" href="/photo-styles.css"><main class="customers-view"><article class="customer-profile"><div id="app"></div></article></main><script type="module" src="/bundle.js"></script>';
 // Disposable test-only worker: deliberately NOT registered in FIRE production.
 // Exercise true closed-browser, stopped-server cold launch with the actual
 // React photo component bundled, rather than only the storage libraries.
 const fixtureWorker=`const CACHE='fire-synthetic-photo-cold-launch-v1';
 self.addEventListener('install',event=>event.waitUntil((async()=>{
- const cache=await caches.open(CACHE);await cache.addAll(['/','/bundle.js']);
+ const cache=await caches.open(CACHE);await cache.addAll(['/','/bundle.js','/photo-styles.css']);
  await self.skipWaiting();
 })()));
 self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',event=>{
  const url=new URL(event.request.url);
- if(event.request.method!=='GET'||url.origin!==self.location.origin||!['/','/bundle.js'].includes(url.pathname))return;
+ if(event.request.method!=='GET'||url.origin!==self.location.origin||!['/','/bundle.js','/photo-styles.css'].includes(url.pathname))return;
  event.respondWith((async()=>await (await caches.open(CACHE)).match(url.pathname)||fetch(event.request))());
 });`;
 const server=createServer((req,res)=>{
  res.setHeader('cache-control','no-store');
- if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);return;}
+ if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);return;}\n if(req.url==='/photo-styles.css'){res.setHeader('content-type','text/css');res.end(photoStyles);return;}
  if(req.url==='/sw.js'){res.setHeader('content-type','text/javascript');res.setHeader('Service-Worker-Allowed','/');res.end(fixtureWorker);return;}
  if(req.url==='/'){res.setHeader('content-type','text/html; charset=utf-8');res.end(shell);return;}
  res.statusCode=404;res.end();
@@ -60,6 +61,37 @@ try{
  await page.getByRole('button',{name:'Photo library'}).waitFor();
  await page.getByText('No on-device photos for this customer').waitFor();
  check(await page.locator('.photo-card').count()===0,'Actual React customer-photo screen mounts with empty on-device gallery');
+ // Owner-reported real iPhone defect: ZIP and restore buttons were cut off in
+ // side-by-side columns. Check ACTUAL rendered box geometry with shared CSS,
+ // not source strings or a static image. No navigation or hosted data needed.
+ const verifyPhotoActionGeometry=async(label)=>{
+  const state=await page.evaluate(()=>{
+   const panel=document.querySelector('.photo-panel');
+   const controls=[...panel.querySelectorAll('.photo-buttons>button')];
+   const boxes=controls.map(button=>{
+    const r=button.getBoundingClientRect();
+    return {text:button.textContent?.trim(),left:r.left,right:r.right,top:r.top,
+      bottom:r.bottom,width:r.width,height:r.height,display:getComputedStyle(button).display};
+   });
+   const container=panel.getBoundingClientRect();
+   return {viewport:innerWidth,pageWidth:document.documentElement.scrollWidth,
+    panel:{left:container.left,right:container.right},controls:boxes};
+  });
+  check(state.controls.length>=4&&state.controls.every(b=>
+   b.left>=state.panel.left-1&&b.right<=state.panel.right+1&&
+   b.left>=-1&&b.right<=state.viewport+1&&b.height>=44),
+   label+' every ZIP, restore, camera and library button is fully within iPhone screen with >=44px touch height');
+  const rows=state.controls.filter(b=>/ZIP|Camera|Photo library/.test(b.text));
+  check(rows.every((b,i)=>i===0||b.left===rows[0].left),
+   label+' photo/ZIP actions have the same left edge (one column, no cut-off side controls)');
+  check(state.pageWidth<=state.viewport+1,
+   label+' photo panel does not introduce document-level horizontal scrolling');
+ };
+ for(const width of [320,375,390,430]){
+  await page.setViewportSize({width,height:844});
+  await verifyPhotoActionGeometry(width+'px:');
+ }
+ await page.setViewportSize({width:390,height:844});
  const library=page.locator('input[type="file"][multiple]');
  const take=(name)=>({name,mimeType:'image/png',buffer:png});
  // A bulk selection can commit its first photo and then reject another.
@@ -103,7 +135,7 @@ try{
  await ctx.setOffline(true);
  await page.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
  await page.getByText(/photo ZIP passed integrity checks/).waitFor({timeout:30000});
- check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).count()===1,'Photo ZIP preparation works in airplane mode and exposes a separate iOS share gesture');
+ check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).count()===1,'Photo ZIP preparation works in airplane mode and exposes a separate iOS share gesture');\n await verifyPhotoActionGeometry('390px, ZIP prepared:');
  await page.evaluate(()=>{
   Object.defineProperty(navigator,'canShare',{configurable:true,value:files=>files.files?.length===1});
   Object.defineProperty(navigator,'share',{configurable:true,value:async ({files})=>{
@@ -177,7 +209,7 @@ try{
    shell:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/')),
    bundle:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/bundle.js'))
  }));
- check(cacheEvidence.controlled&&cacheEvidence.shell&&cacheEvidence.bundle,'Actual React photo screen shell and bundle are cached by a separate synthetic install worker');
+ check(cacheEvidence.controlled&&cacheEvidence.shell&&cacheEvidence.bundle,'Actual React photo screen shell and bundle are cached by a separate synthetic install worker');\n check(Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/photo-styles.css')),'Exact FIRE photo layout stylesheet remains cached for synthetic offline launch');
  await ctx.close();context=null;
  await new Promise(resolve=>server.close(resolve));serverClosed=true;
  context=await chromium.launchPersistentContext(profile,{headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,acceptDownloads:true,viewport:{width:390,height:844},args:['--no-sandbox','--disable-dev-shm-usage']});
