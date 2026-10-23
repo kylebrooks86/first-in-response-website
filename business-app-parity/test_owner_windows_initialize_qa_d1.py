@@ -52,7 +52,7 @@ class IsolatedQAMigrationGuard(unittest.TestCase):
         self.assertNotIn("$info.num_tables", SCRIPT)
         self.assertIn("SELECT name FROM sqlite_master", SCRIPT)
         self.assertIn("d1 execute $name --remote", SCRIPT)
-        self.assertIn("do not run the first-time initializer on an existing 23/25-migration database", SCRIPT)
+        self.assertIn("Do not run the first-time initializer on an existing 23/25-migration database", SCRIPT)
         self.assertLess(SCRIPT.index("SELECT name FROM sqlite_master"), SCRIPT.index("if (-not $Apply)"))
         self.assertLess(SCRIPT.index("$appTables.Count -eq 0"), SCRIPT.index("Read-Host"))
 
