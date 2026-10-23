@@ -211,14 +211,6 @@ jobs:
           node-version: '22'
       - name: Enable pnpm
         run: corepack enable && corepack prepare pnpm@11.25.0 --activate
-      - name: Install shared-source dependencies from lockfile
-        run: pnpm install --frozen-lockfile
-      - name: Shared TypeScript check
-        run: pnpm exec tsc --noEmit
-      - name: Local migration and schema-journal integrity
-        run: |
-          node --experimental-sqlite scripts/test-local-schema-audit.mjs
-          node --experimental-sqlite scripts/test-candidate-db-preflight.mjs
       - name: Shared-source parity gate regression
         run: node scripts/test-parity-gate.mjs
       - name: Compare ACTUAL materialized LIVE, Doomsday and staging dashboard, iPhone layout, PWA and owner boundaries
@@ -230,6 +222,14 @@ jobs:
           python3 ../verify_materialized_candidate.py doomsday "$RUNNER_TEMP/fire-parity-doomsday"
           python3 ../verify_materialized_candidate.py staging "$RUNNER_TEMP/fire-parity-staging"
           node scripts/check-app-parity.mjs "$RUNNER_TEMP/fire-parity-live" "$RUNNER_TEMP/fire-parity-doomsday" "$RUNNER_TEMP/fire-parity-staging"
+      - name: Install shared-source dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Shared TypeScript check
+        run: pnpm exec tsc --noEmit
+      - name: Local migration and schema-journal integrity
+        run: |
+          node --experimental-sqlite scripts/test-local-schema-audit.mjs
+          node --experimental-sqlite scripts/test-candidate-db-preflight.mjs
       - name: Governed Doomsday deployment fail-closed policy (no execution)
         run: node scripts/test-governed-deploy-guards.mjs
       - name: Device review archive privacy, exact bytes, non-overwrite and cleanup
