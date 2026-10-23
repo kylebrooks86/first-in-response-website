@@ -38,6 +38,7 @@ import { editMoneyLine, editableLineTotalCents, restoreEditableLineMoney, validE
 import { reuseEstimateServiceLine } from "../lib/reuse-estimate-service-line";
 import { matchesReviewedEstimateReceipt } from "../lib/estimate-quote-receipt";
 import { moveEstimateServiceLine } from "../lib/reorder-estimate-service-line";
+import {estimateCreateStorage,readPendingEstimateCreate,reservePendingEstimateCreate,releasePendingEstimateCreate} from "../lib/pending-estimate-create";
 
 import {weatherIconKind,formatDailyTemperatures,weatherDayHeading,hourlyWorkCautions,dailyWorkCautions,weatherHourForJobStart,type HourlyForecastResponse} from "../lib/tulsa-weather";
 
@@ -642,6 +643,37 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   const [reviewedRecords,setReviewedRecords]=useState<EstimateRow[]>([]);
   const [reviewingRecords,setReviewingRecords]=useState(false);
   const [savedReceipt,setSavedReceipt]=useState<{address:string;total:number;deposit:number}|null>(null);
+  const createRequestRef=useRef<string|null>(null);
+  const [pendingCreateId,setPendingCreateId]=useState<string|null>(null);
+  const [createStorageReady,setCreateStorageReady]=useState(false);
+  const [createStorageError,setCreateStorageError]=useState("");
+  const [checkingPending,setCheckingPending]=useState(false);
+  const [pendingCheck,setPendingCheck]=useState<{found:boolean;recognized?:boolean;estimate?:{id:string;customer:string;status:string;totalCents:number;depositCents:number}}|null>(null);
+  useEffect(()=>{
+    const state=readPendingEstimateCreate(estimateCreateStorage());
+    setCreateStorageReady(state.usable);setPendingCreateId(state.requestId);
+    if(!state.usable)setCreateStorageError("Browser storage is unavailable or contains a damaged recovery marker. No new estimate will be sent until this is resolved.");
+  },[]);
+  const inspectPendingCreate=async()=>{
+    if(!pendingCreateId||checkingPending)return;
+    const currentId=pendingCreateId;setCheckingPending(true);setPendingCheck(null);setCreateStorageError("");
+    try{
+      const response=await fetch('/api/estimates/create-status?requestId='+encodeURIComponent(currentId),{cache:'no-store'});
+      const data=await response.json() as {found?:boolean;recognized?:boolean;requestId?:string;estimate?:{id:string;customer:string;status:string;totalCents:number;depositCents:number};error?:string};
+      if(!response.ok||data.requestId!==currentId||typeof data.found!=='boolean')throw Error(data.error||'Saved estimate check could not be verified.');
+      setPendingCheck({found:data.found,recognized:data.recognized,estimate:data.estimate});
+    }catch(e){setCreateStorageError(e instanceof Error?e.message:'Saved estimate check unavailable. The recovery hold stays in place.');}
+    finally{setCheckingPending(false);}
+  };
+  const clearReviewedPending=()=>{
+    if(!pendingCreateId||!pendingCheck)return;
+    const warning=pendingCheck.found
+      ?"This quote already exists. Confirm you reviewed the saved estimate and will not create a duplicate for the same job. Release the recovery hold?"
+      :"No saved quote was found at the instant of the check, but another device or delayed request could still finish saving it. Only release after independently reviewing stored quotes and ensuring no older save is in progress. Release the hold?";
+    if(!window.confirm(warning))return;
+    if(!releasePendingEstimateCreate(estimateCreateStorage(),pendingCreateId)){setCreateStorageError('The browser could not clear the protected request marker. No new quote was sent.');return;}
+    createRequestRef.current=null;setPendingCreateId(null);setPendingCheck(null);setUncertainSave(false);setCreateStorageError("");setError("");
+  };
   const acceptProperty=useCallback((selection:PropertyEstimateSelection|null)=>{
     if(selection&&selection.property.customerId!==selectedCustomer?.id){setEstimateProperty(null);setPropertyBlocked(true);return;}
     setEstimateProperty(selection);
@@ -691,6 +723,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
 
   const saveEstimate = async () => {
     if(saveLock.current||saving||uncertainSave)return;
+    if(!createStorageReady||pendingCreateId&&pendingCreateId!==createRequestRef.current){setError("An earlier estimate request needs a read-only review before another quote can be saved.");return;}
     if(promotionsVerifiedFor!==promotionQuoteKey){setStep(2);setError("Review saved promotions or explicitly continue without a verified promotion check.");return;}
     if(customerMode==='lookup'||!identityConfirmed||customerLoading){setStep(1);setError('Select a saved customer or choose Create New Customer.');return;}
     if(estimateProperty&&estimateProperty.property.customerId!==selectedCustomer?.id){setStep(1);setPropertyBlocked(true);setError('The service property does not belong to this customer. Review their properties again.');return;}
@@ -700,15 +733,18 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
     if(bundleInvalid){setError("Enter a valid bundle discount no greater than the subtotal.");return;}
     if(discountInputCents===null){setError("Enter a valid nonnegative discount with at most two decimals and within the percentage limit.");return;}
     if(discountMode==="dollar"&&discountInputCents>subtotal){setError("Dollar discount cannot exceed the service subtotal.");return;}
+    const requestId=createRequestRef.current??crypto.randomUUID();
+    if(!reservePendingEstimateCreate(estimateCreateStorage(),requestId)){setError("Could not reserve a safe new-estimate request ID. Review the pending request or browser storage; no quote was sent.");return;}
+    createRequestRef.current=requestId;setPendingCreateId(requestId);setPendingCheck(null);
     saveLock.current=true;setSaving(true);setError("");
     let safelyRejected=false;
     try {
       const payloadItems=items.map((item)=>({name:item.name,description:item.description,quantity:item.quantity,unit:item.unit,totalCents:editableLineTotalCents(item)}));
       const response = await fetch("/api/estimates", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ customerId: selectedCustomer?.id, customerLookupSelection:Boolean(selectedCustomer), customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:resolvedAddress.trim(), ...(propertyWorkflowReady&&estimateProperty?{propertyId:estimateProperty.property.id,propertyRevision:estimateProperty.property.revision,propertySelectionMode:estimateProperty.mode}:{}), items:payloadItems, appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents, ...(promotionEvidence?{promotionEvidence}:{} ) }),
+        body: JSON.stringify({ requestId,customerId: selectedCustomer?.id, customerLookupSelection:Boolean(selectedCustomer), customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:resolvedAddress.trim(), ...(propertyWorkflowReady&&estimateProperty?{propertyId:estimateProperty.property.id,propertyRevision:estimateProperty.property.revision,propertySelectionMode:estimateProperty.mode}:{}), items:payloadItems, appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents, ...(promotionEvidence?{promotionEvidence}:{} ) }),
       });
-      const result = await response.json() as { id?: string; customerId?:string; shareToken?:string; subtotalCents?:number;discountCents?:number;totalCents?:number;depositCents?:number;bundleDiscountCents?:number;promotionAttributionSaved?:boolean;address?:string;propertyId?:string|null;propertyRevision?:number|null;error?: string };
+      const result = await response.json() as { id?: string; requestId?:string;replayed?:boolean;customerId?:string; shareToken?:string; subtotalCents?:number;discountCents?:number;totalCents?:number;depositCents?:number;bundleDiscountCents?:number;promotionAttributionSaved?:boolean;address?:string;propertyId?:string|null;propertyRevision?:number|null;error?: string };
       if(!response.ok){
         safelyRejected=response.status>=400&&response.status<500;
         if(response.status>=500)setUncertainSave(true);
@@ -717,7 +753,9 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
       }
       if(promotionEvidence&&result.promotionAttributionSaved!==true){setUncertainSave(true);throw new Error("Verified saved promotion receipt was not confirmed. Review stored estimates before another attempt.");}
       if(!matchesReviewedEstimateReceipt(result,{subtotalCents:subtotal,discountCents:discount.appliedDiscount,totalCents:total,depositCents:deposit,bundleDiscountCents:bundleInputCents??0})){setUncertainSave(true);throw new Error('Saved estimate amounts or 50% deposit did not match this reviewed quote. Review stored estimates before another attempt.');}
-      if(typeof result.id!=='string'||!result.id||typeof result.customerId!=='string'||typeof result.address!=='string'||selectedCustomer&&result.customerId!==selectedCustomer.id||propertyWorkflowReady&&estimateProperty&&(result.propertyId!==estimateProperty.property.id||result.propertyRevision!==estimateProperty.property.revision)){setUncertainSave(true);throw new Error('Save receipt could not be verified. Review stored estimates before another attempt.');}
+      if(result.id!==requestId||result.requestId!==requestId||typeof result.customerId!=='string'||typeof result.address!=='string'||selectedCustomer&&result.customerId!==selectedCustomer.id||propertyWorkflowReady&&estimateProperty&&(result.propertyId!==estimateProperty.property.id||result.propertyRevision!==estimateProperty.property.revision)){setUncertainSave(true);throw new Error('Save receipt could not be verified. Review stored estimates before another attempt.');}
+      if(!releasePendingEstimateCreate(estimateCreateStorage(),requestId)){setUncertainSave(true);throw new Error("Estimate was saved but its on-device recovery marker could not be cleared. Check stored estimates before sending another quote.");}
+      createRequestRef.current=null;setPendingCreateId(null);setPendingCheck(null);
       const confirmedAddress=typeof result.address==='string'?result.address:resolvedAddress.trim();
       setSavedReceipt({address:confirmedAddress,total:Number(result.totalCents??total),deposit:Number(result.depositCents??deposit)});
       const createdAt = new Date().toISOString();
@@ -737,6 +775,9 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
     if(value){setIdentityConfirmed(false);setForcePropertyReview(false);setEstimateProperty(null);setPropertyBlocked(Boolean(customer));setPropertyRefresh(count=>count+1);if(customer)void chooseCustomer(customer,true);else{setCustomerMode('lookup');setSelectedCustomer(null);}}
     setOpen(value);
     if (!value) {
+      // Closing an unconfirmed draft never authorizes the next draft to reuse
+      // this operation. The opaque recovery marker remains for exact lookup.
+      createRequestRef.current=null;setPendingCheck(null);
       customerRequest.current++;setCustomerLoading(false);setIdentityConfirmed(false);setSelectedCustomer(customer??null);setCustomerMode(customer?'existing':'lookup');setPropertyWorkflowReady(false);setEstimateProperty(null);
       onClosed?.();
       // No delayed reset: reopening cannot be wiped by a timer from the prior dialog.
@@ -749,6 +790,17 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
     <DialogTrigger asChild><Button className="brand-button" title={disabledReason}><Plus className="h-4 w-4" /> New estimate</Button></DialogTrigger>
     <DialogContent aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto border-0 p-0 sm:max-w-[620px]">
       <div className="estimate-head"><DialogHeader><DialogTitle className="text-xl">Create estimate</DialogTitle></DialogHeader><p className="mt-1 text-sm text-slate-500">Step {step} of 2 · {step===1?"Customer details":"Services and pricing"}</p><Progress value={step*50} className="mt-4 h-1.5"/></div>
+      {!saved&&!saving&&(!createStorageReady||pendingCreateId)&&<section className="mx-6 mt-4 space-y-2 rounded-lg border p-3" aria-label="Unresolved new estimate request">
+        <strong>New estimate save protection</strong>
+        {pendingCreateId?<><p className="text-sm">A quote request is recorded on this device. Do not submit a new quote until the exact request has been checked. Request ID: <code>{pendingCreateId}</code></p>
+        <Button type="button" variant="outline" disabled={checkingPending} onClick={()=>void inspectPendingCreate()}>{checkingPending?"Checking saved quote…":"Check saved quote by request ID"}</Button>
+        {pendingCheck?.found&&<p role="status">A saved estimate exists: {pendingCheck.estimate?.customer||"Customer"} · {money(pendingCheck.estimate?.totalCents??0)} total · {money(pendingCheck.estimate?.depositCents??0)} deposit · {pendingCheck.estimate?.status}. Review that existing job, not a replacement.</p>}
+        {pendingCheck&&!pendingCheck.found&&<p role="status">No matching saved estimate was found at the time of this read. A delayed save may still complete. Independently review stored quotes before releasing this hold.</p>}
+        {pendingCheck?.found&&!pendingCheck.recognized&&<p role="alert">The stored record has no trustworthy matching creation receipt. Inspect it before proceeding.</p>}
+        {pendingCheck&&<Button type="button" variant="outline" onClick={clearReviewedPending}>Release recovery hold after owner review</Button>}</>
+        :<p role="alert">Browser recovery storage is unavailable. New quote creation is disabled to prevent untraceable repeat saves.</p>}
+        {createStorageError&&<p role="alert">{createStorageError}</p>}
+      </section>}
       {saved?<div className="px-6 py-12 text-center"><span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-8 w-8"/></span><h2 className="text-2xl font-extrabold">Estimate ready</h2><p className="mx-auto mt-2 max-w-sm text-slate-500">{money(savedReceipt?.total??total)} total. A {money(savedReceipt?.deposit??deposit)} (50%) deposit reserves the customer&apos;s place on the schedule; the remaining balance is due when the work is completed.</p><p className="mt-3" data-saved-service-address>{savedReceipt?.address}</p><div className="mt-7 flex justify-center"><Button className="brand-button" onClick={()=>reset(false)}>Done</Button></div></div>
       :step===1?<div className="space-y-5 px-6 py-6">
         <CustomerLookup disabled={saving||uncertainSave||customerLoading} onSelect={row=>void chooseCustomer(row)} onCreate={()=>void chooseCustomer(null)}/>
@@ -786,7 +838,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         <section className="edit-discount-card"><Label>Promotion or other discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");setPromotionEvidence(null);setPromotionOwnerOverride(true);}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");setPromotionEvidence(null);setPromotionOwnerOverride(true);}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} aria-invalid={discountInvalid} onChange={(event)=>{setDiscountValue(event.target.value);setPromotionEvidence(null);setPromotionOwnerOverride(true);}} placeholder="0"/>{discountInvalid&&<p role="alert" className="service-description-help">Enter a nonnegative discount with at most two decimals. Percentages are limited to {appreciationDiscount?45:50}%, and dollar discounts cannot exceed the subtotal.</p>}</div><p className="service-description-help">Choose the promotion type here; use the separate bundle field below to stack a dollar discount. Percentage discounts stack with the 5% appreciation discount, up to 50% total.</p></section>
         <section className="edit-discount-card"><Label htmlFor="estimate-bundle-discount">Separate bundle discount ($)</Label><div className="discount-input"><span>$</span><Input id="estimate-bundle-discount" inputMode="decimal" value={bundleValue} aria-invalid={bundleInvalid} onChange={event=>{setBundleValue(event.target.value);setPromotionEvidence(null);setPromotionOwnerOverride(true);}} placeholder="0"/></div>{bundleInvalid&&<p role="alert">Enter a nonnegative amount with up to two decimals, no greater than the subtotal.</p>}<p className="service-description-help">Adds to the promotion above. Both are calculated from the service subtotal.</p></section><p className="service-description-help">Eligible saved estimate-date promotions are filled in automatically unless you manually adjust them. Booking-based promotions, including October 15%, remain reminders until you explicitly confirm the booking date above. Customer signature and schedule are separate. Saved quotes retain agreed totals.</p><div className="discount-components" aria-label="Discount components"><span>Appreciation (requested)<strong>−{money(discount.appreciationCents)}</strong></span><span>{discountMode==="percent"?"Promotion":"Other discount"} (requested)<strong>−{money(discount.additionalCents)}</strong></span><span>Bundle (requested)<strong>−{money(bundleInputCents??0)}</strong></span></div><div className="edit-totals"><span>Service subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(discount.appliedDiscount)}</strong></span><span>Customer total<strong>{money(total)}</strong></span><span>50% deposit to schedule<strong>{money(deposit)}</strong></span></div>
         {items.some(item=>Boolean(item.name)&&item.quantity>0)&&subtotal-discount.requestedDiscount<15000&&<p className="service-description-help">The $150 minimum job charge is applied automatically.</p>}{error&&<p className="save-error" role="alert">{error}</p>}
-        <div className="flex gap-3"><Button variant="outline" onClick={()=>setStep(1)} disabled={saving}>Back</Button><Button className="brand-button flex-1" onClick={()=>void saveEstimate()} disabled={saving||uncertainSave||customerLoading||!identityConfirmed||Boolean(selectedCustomer)&&propertyBlocked||promotionsVerifiedFor!==promotionQuoteKey}>{saving?"Saving…":`Save ${money(total)} estimate`}</Button></div>
+        <div className="flex gap-3"><Button variant="outline" onClick={()=>setStep(1)} disabled={saving}>Back</Button><Button className="brand-button flex-1" onClick={()=>void saveEstimate()} disabled={saving||uncertainSave||!createStorageReady||Boolean(pendingCreateId&&pendingCreateId!==createRequestRef.current)||customerLoading||!identityConfirmed||Boolean(selectedCustomer)&&propertyBlocked||promotionsVerifiedFor!==promotionQuoteKey}>{saving?"Saving…":`Save ${money(total)} estimate`}</Button></div>
       </div>}
       {uncertainSave&&<section className="px-6 pb-6" aria-label="Unconfirmed estimate save"><p role="status">Save was not confirmed. Another save is blocked to prevent duplicate estimates.</p><Button variant="outline" disabled={reviewingRecords} onClick={()=>void reviewStored()}>Review stored estimates</Button>{reviewedRecords.map(row=><p key={row.id}>{row.service} · {row.address} · {money(row.totalCents)} · {row.id}</p>)}</section>}
     </DialogContent>

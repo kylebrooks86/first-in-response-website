@@ -42,6 +42,7 @@ assert.match(section,/lineCount:items\.length/,'Additional blank line forces pro
 assert.match(section,/promotionsVerifiedFor!==promotionQuoteKey/,'Unverified quote cannot save');checks++;
 assert.match(section,/quantity blank/,'Visible no-charge explanation');checks++;
 assert.match(section,/matchesReviewedEstimateReceipt\(result,/,'Every new estimate verifies all financial receipt components');checks++;
+assert.match(section,/createRequestRef\.current=null;setPendingCheck\(null\);\s*customerRequest\.current\+\+/,'Closing an unconfirmed draft invalidates active request reuse while preserving the stored recovery marker');checks++;
 assert.match(section,/moveEstimateServiceLine\(current,index,index\+direction\)/,'Actual new quote reorder uses safe helper');checks++;
 assert.match(section,/key=\{item.draftKey\|\|item.id\|\|index\}/,'Reorder retains stable input identity');checks++;
 console.log('PASS '+checks+' safe new quote service-reuse cases and real editor source wiring.');
