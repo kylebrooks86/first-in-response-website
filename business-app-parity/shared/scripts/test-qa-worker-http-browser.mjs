@@ -31,7 +31,7 @@ import {createServer} from 'node:net';
 import {get as httpsGet} from 'node:https';
 import {validateRecordIdentities,validateBackupRelationships,validateRefundIntegrity} from './records-backup-integrity.mjs';
 const require=createRequire(import.meta.url);
-const lookupMode=process.argv.includes('--customer-lookup'),profileMode=process.argv.includes('--customer-profile'),ledgerMode=process.argv.includes('--complete-ledger'),publicRetryMode=process.argv.includes('--public-retry');
+const lookupMode=process.argv.includes('--customer-lookup'),profileMode=process.argv.includes('--customer-profile'),ledgerMode=process.argv.includes('--complete-ledger'),publicRetryMode=process.argv.includes('--public-retry'),photoMode=process.argv.includes('--photo-storage');
 if(!process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||!process.env.FIRE_BROWSER_TEST_EXECUTABLE)throw Error('Pinned Chromium runner required');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE);
 const root=resolve(new URL('..',import.meta.url).pathname);
@@ -39,7 +39,9 @@ const built=JSON.parse(readFileSync(join(root,'dist/server/wrangler.json'),'utf8
 assert.equal(built.name,'fire-fullapp-qa-20261016');
 assert.equal(built.vars.FIRE_ENV,'synthetic-qa');assert.equal(built.vars.FIRE_QA_SYNTHETIC_ONLY,'enabled');
 assert.equal(built.d1_databases.length,1);assert.equal(built.d1_databases[0].binding,'DB');
-for(const key of ['r2_buckets','services','kv_namespaces','queues','hyperdrive']){
+assert.deepEqual(built.r2_buckets,[{binding:'BUCKET',bucket_name:'fire-fullapp-qa-photos-20261023'}],
+ 'Built QA must never inherit a LIVE or existing photo-storage binding');
+for(const key of ['services','kv_namespaces','queues','hyperdrive']){
  const value=built[key];assert.ok(!value||(Array.isArray(value)?value.length===0:Object.values(value).every(x=>Array.isArray(x)&&x.length===0)),'Unexpected binding '+key);
 }
 assert.ok(!Object.keys(built.vars).some(key=>key.startsWith('STRIPE_')));
@@ -54,7 +56,8 @@ const config={name:'fire-local-qa-http-fixture',main:resolve(root,'dist/server',
  compatibility_date:'2026-05-22',compatibility_flags:built.compatibility_flags,
  no_bundle:true,rules:built.rules,vars:{...built.vars,...(process.argv.includes('--deposit-policy')?{FIRE_DEPOSIT_POLICY_CANDIDATE:'synthetic-tests-only'}:{}),...(lookupMode?{FIRE_SERVICE_LOCATIONS_CANDIDATE:'synthetic-only',FIRE_CUSTOMER_PROPERTIES_CANDIDATE:'synthetic-only',FIRE_PROPERTY_ESTIMATES_CANDIDATE:'synthetic-tests-only',FIRE_PROPERTY_RECOVERY_CANDIDATE:'synthetic-tests-only',FIRE_PROPERTY_WORKFLOW_CANDIDATE:'synthetic-tests-only'}:{})},
  assets:{directory:resolve(root,'dist/client')},
- d1_databases:[{binding:'DB',database_name:'fire-local-synthetic-db',database_id:randomUUID(),migrations_dir:join(root,'drizzle')}]};
+ d1_databases:[{binding:'DB',database_name:'fire-local-synthetic-db',database_id:randomUUID(),migrations_dir:join(root,'drizzle')}],
+ r2_buckets:[{binding:'BUCKET',bucket_name:'fire-local-synthetic-photos-'+randomUUID()}]};
 const configPath=join(temp,'wrangler.json');writeFileSync(configPath,JSON.stringify(config));
 writeFileSync(join(temp,'.dev.vars'),`FIRE_QA_PASSWORD_HASH=${createHash('sha256').update(password).digest('hex')}\nFIRE_QA_SESSION_SECRET=${sessionSecret}\n`,{mode:0o600});
 const env={...process.env,CLOUDFLARE_CF_FETCH_ENABLED:'false',WRANGLER_SEND_METRICS:'false',CI:'true'};
@@ -83,7 +86,7 @@ const require=createRequire(import.meta.url),wranglerPath=${JSON.stringify(join(
 const {unstable_getMiniflareWorkerOptions}=require(wranglerPath);
 const {Miniflare}=createRequire(require.resolve(wranglerPath))('miniflare');
 const {workerOptions,externalWorkers}=unstable_getMiniflareWorkerOptions(${JSON.stringify(configPath)});
-const worker=new Miniflare({host:'127.0.0.1',port:${port},https:true,cf:false,d1Persist:${JSON.stringify(join(temp,'state','v3','d1'))},workers:[{name:'fire-immutable-synthetic',...workerOptions,bindings:{...workerOptions.bindings,FIRE_QA_PASSWORD_HASH:${JSON.stringify(createHash('sha256').update(password).digest('hex'))},FIRE_QA_SESSION_SECRET:${JSON.stringify(sessionSecret)}},modules:${JSON.stringify(compiledModules)},modulesRoot:${JSON.stringify(resolve(root,'dist/server'))}},...externalWorkers]});
+const worker=new Miniflare({host:'127.0.0.1',port:${port},https:true,cf:false,d1Persist:${JSON.stringify(join(temp,'state','v3','d1'))},r2Persist:${JSON.stringify(join(temp,'state','v3','r2'))},workers:[{name:'fire-immutable-synthetic',...workerOptions,bindings:{...workerOptions.bindings,FIRE_QA_PASSWORD_HASH:${JSON.stringify(createHash('sha256').update(password).digest('hex'))},FIRE_QA_SESSION_SECRET:${JSON.stringify(sessionSecret)}},modules:${JSON.stringify(compiledModules)},modulesRoot:${JSON.stringify(resolve(root,'dist/server'))}},...externalWorkers]});
 await worker.ready;
 process.once('SIGTERM',async()=>{await worker.dispose();process.exit(0);});
 `);
@@ -123,6 +126,8 @@ try{
   return response;
  };
  check((await request('/api/customers')).status()===401,'Real built Worker rejects unauthenticated customer read');
+ if(photoMode)check((await request('/api/customer-photos/'+randomUUID())).status()===401,
+   'Untrusted caller cannot view private customer photo bytes before owner login');
  check((await request('/api/estimates','POST',{customer:'Synthetic forged request'},{'oai-authenticated-user-email':'kylebrooks8605@gmail.com'})).status()===401,'Real HTTP gateway-header spoof cannot authorize an estimate write');
  const login=await request('/api/auth/login','POST',{password});
  check(login.status()===200,'Actual QA login route verifies synthetic passphrase against native D1 rate limiter: HTTP '+login.status()+' '+(login.status()===200?'ok':await login.text()));
@@ -131,6 +136,20 @@ try{
  const customerResponse=await request('/api/customers','POST',{name:'Synthetic HTTP Customer',address:'100 Synthetic Fixture Way',email:'fixture@example.invalid'});
  const customer=(await customerResponse.json()).customer;
  check(customerResponse.status()===201&&typeof customer?.id==='string','Customer creation persists through actual HTTP and native D1');
+ let testPhotoId=null;let testPhotoBytes=null;
+ if(photoMode){
+  testPhotoBytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRj0AAAAASUVORK5CYII=','base64');
+  const uploaded=await context.request.post(origin+'/api/customer-photos',{multipart:{
+   customerId:customer.id,category:'before',caption:'Synthetic isolated photo (never real customer data)',
+   photo:{name:'qa-synthetic-before.png',mimeType:'image/png',buffer:testPhotoBytes}
+  }});
+  const result=await uploaded.json();testPhotoId=result.photo?.id??null;
+  check(uploaded.status()===201&&typeof testPhotoId==='string'&&result.photo.customerId===customer.id&&result.photo.category==='before',
+    'Built QA Worker uploads photo through real HTTP, native D1 metadata and isolated local R2');
+  const retrieved=await request('/api/customer-photos/'+testPhotoId);
+  check(retrieved.status()===200&&retrieved.headers()['content-type']==='image/png'&&Buffer.from(await retrieved.body()).equals(testPhotoBytes),
+    'Owner views original private photo bytes, not only metadata or a placeholder');
+ }
  const item={name:'Synthetic Gutter Service',description:'Isolated runtime fixture',quantity:1,unit:'job',totalCents:20000};
  const created=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[item]});
  const estimate=await created.json();
@@ -214,6 +233,16 @@ try{
  check((await request('/api/auth/login','POST',{password})).status()===429,'Authentication lockout persists after local Worker restart');
  const reloaded=await request('/api/estimates');const saved=(await reloaded.json()).estimates;
  check(reloaded.status()===200&&saved.length===1&&saved[0].totalCents===25000&&saved[0].depositCents===12500,'Worker restart preserves owner cookie, customer relationship, estimate and deposit in native D1');
+ if(photoMode){
+  const retained=await request('/api/customer-photos/'+testPhotoId);
+  check(retained.status()===200&&Buffer.from(await retained.body()).equals(testPhotoBytes),
+   'Real local R2 and D1 photo record survive full Worker termination and cold restart');
+  const removal=await request('/api/customer-photos/'+testPhotoId,'DELETE');
+  check(removal.status()===200&&(await removal.json()).ok===true,
+   'Actual owner photo deletion confirms D1 row removal and R2 object deletion');
+  check((await request('/api/customer-photos/'+testPhotoId)).status()===404,
+   'Deleted photo can no longer be retrieved through its original private URL');
+ }
  await page.setViewportSize({width:390,height:844});
  await page.reload();await page.getByText('SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Open menu',exact:true}).click();
