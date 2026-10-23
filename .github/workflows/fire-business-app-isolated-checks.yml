@@ -17,6 +17,7 @@ on:
       - work/fire-task-due-reschedule-2026-10-22
       - work/fire-schedule-turnaround-review-2026-10-22
       - work/fire-consolidated-source-review-2026-10-22
+      - work/fire-release-evidence-hardening-2026-10-22
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
@@ -31,6 +32,8 @@ on:
       - 'business-app-parity/check_qa_runtime_config.mjs'
       - 'business-app-parity/RELEASE_SCHEMA_CAPTURE_READ_ONLY.sql'
       - 'business-app-parity/verify_hosted_schema_capture.py'
+      - 'business-app-parity/review_integrated_release_gates.py'
+      - 'business-app-parity/test_review_integrated_release_gates.py'
       - 'business-app-parity/capture_doomsday_schema_read_only.py'
       - 'business-app-parity/test_capture_doomsday_schema_read_only.py'
       - 'business-app-parity/capture_doomsday_worker_identity_read_only.py'
@@ -209,6 +212,10 @@ jobs:
         run: python3 ../test_verify_device_review_packet.py
       - name: Release-manifest integrity, source drift and negative controls
         run: python3 ../test_candidate_release_manifest.py
+      - name: Integrated candidate hosted release evidence remains blocked without fresh provider and owner proof
+        run: |
+          python3 ../test_review_integrated_release_gates.py
+          python3 ../review_integrated_release_gates.py --candidate-sha "$GITHUB_SHA" > /dev/null
       - name: Read-only hosted schema capture coverage and mismatch negative controls
         run: |
           python3 ../test_release_schema_capture.py
