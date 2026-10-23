@@ -15,6 +15,7 @@ on:
       - work/fire-reuse-scope-canvassing-integration-2026-10-22
       - work/fire-estimate-idempotent-recovery-2026-10-22
       - work/fire-task-due-reschedule-2026-10-22
+      - work/fire-schedule-turnaround-review-2026-10-22
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
