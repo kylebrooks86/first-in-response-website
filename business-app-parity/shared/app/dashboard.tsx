@@ -775,6 +775,9 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
     if(value){setIdentityConfirmed(false);setForcePropertyReview(false);setEstimateProperty(null);setPropertyBlocked(Boolean(customer));setPropertyRefresh(count=>count+1);if(customer)void chooseCustomer(customer,true);else{setCustomerMode('lookup');setSelectedCustomer(null);}}
     setOpen(value);
     if (!value) {
+      // Closing an unconfirmed draft never authorizes the next draft to reuse
+      // this operation. The opaque recovery marker remains for exact lookup.
+      createRequestRef.current=null;setPendingCheck(null);
       customerRequest.current++;setCustomerLoading(false);setIdentityConfirmed(false);setSelectedCustomer(customer??null);setCustomerMode(customer?'existing':'lookup');setPropertyWorkflowReady(false);setEstimateProperty(null);
       onClosed?.();
       // No delayed reset: reopening cannot be wiped by a timer from the prior dialog.
