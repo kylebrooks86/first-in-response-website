@@ -38,7 +38,7 @@ class QAPostMigrationReadOnlyContract(unittest.TestCase):
             self.assertNotIn(forbidden, SCRIPT)
         self.assertEqual(SCRIPT.count("d1 execute $qaName --remote"), 1)
         self.assertIn('"--command=$sql"', SCRIPT)
-        self.assertIn("SELECT (SELECT COUNT(*)", SCRIPT)
+        self.assertIn("SELECT (SELECT GROUP_CONCAT(name,\'|\')", SCRIPT)
 
     def test_credential_record_never_created_or_exposed(self):
         self.assertIn("Import-Clixml -LiteralPath $privatePath", SCRIPT)
