@@ -18,6 +18,7 @@ on:
       - work/fire-schedule-turnaround-review-2026-10-22
       - work/fire-consolidated-source-review-2026-10-22
       - work/fire-release-evidence-hardening-2026-10-22
+      - work/fire-live-refund-gap-gate5-triage-2026-10-22
     paths:
       - 'fire-app-dr/**'
       - 'business-app-parity/shared/**'
@@ -34,6 +35,9 @@ on:
       - 'business-app-parity/verify_hosted_schema_capture.py'
       - 'business-app-parity/review_integrated_release_gates.py'
       - 'business-app-parity/test_review_integrated_release_gates.py'
+      - 'business-app-parity/LIVE_REFUND_GAP_READ_ONLY.sql'
+      - 'business-app-parity/triage_live_refund_gap.py'
+      - 'business-app-parity/test_triage_live_refund_gap.py'
       - 'business-app-parity/capture_doomsday_schema_read_only.py'
       - 'business-app-parity/test_capture_doomsday_schema_read_only.py'
       - 'business-app-parity/capture_doomsday_worker_identity_read_only.py'
@@ -216,6 +220,10 @@ jobs:
         run: |
           python3 ../test_review_integrated_release_gates.py
           python3 ../review_integrated_release_gates.py --candidate-sha "$GITHUB_SHA" > /dev/null
+      - name: LIVE 0019 refund gap — actual saved Sites inventory and safe missing-table journal preflight
+        run: |
+          python3 ../test_triage_live_refund_gap.py
+          python3 ../triage_live_refund_gap.py --sites-receipt ../HOSTED_READ_ONLY_VERIFICATION_20261022.json > /dev/null
       - name: Read-only hosted schema capture coverage and mismatch negative controls
         run: |
           python3 ../test_release_schema_capture.py
