@@ -9,8 +9,9 @@ export const LEAD_CONTACTED_NOTE="[FIRE FLAG] LEAD_CONTACT_RECORDED";
 export const LEAD_CALLBACK_HANDLED_NOTE="[FIRE FLAG] LEAD_CALLBACK_HANDLED";
 /** A requested callback is an owner-tracked date, never a queued message. */
 export function leadCallbackNote(dueDate:string){
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)||
-    new Date(dueDate+"T12:00:00Z").toISOString().slice(0,10)!==dueDate)
+  const parsed=typeof dueDate==="string"?Date.parse(dueDate+"T12:00:00Z"):NaN;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)||!Number.isFinite(parsed)||
+    new Date(parsed).toISOString().slice(0,10)!==dueDate)
     throw new Error("Choose a valid callback date.");
   return "[FIRE FLAG] LEAD_CALLBACK | due:"+dueDate;
 }
