@@ -31,7 +31,8 @@ import {createServer} from 'node:net';
 import {get as httpsGet} from 'node:https';
 import {validateRecordIdentities,validateBackupRelationships,validateRefundIntegrity} from './records-backup-integrity.mjs';
 const require=createRequire(import.meta.url);
-const lookupMode=process.argv.includes('--customer-lookup'),profileMode=process.argv.includes('--customer-profile'),ledgerMode=process.argv.includes('--complete-ledger'),publicRetryMode=process.argv.includes('--public-retry'),photoMode=process.argv.includes('--photo-storage');
+const lookupMode=process.argv.includes('--customer-lookup'),profileMode=process.argv.includes('--customer-profile'),ledgerMode=process.argv.includes('--complete-ledger'),publicRetryMode=process.argv.includes('--public-retry'),photoMode=process.argv.includes('--photo-storage'),noR2Mode=process.argv.includes('--no-r2');
+assert.ok(!(photoMode&&noR2Mode),'Separate local-R2 and NO-R2 fixtures required');
 if(!process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||!process.env.FIRE_BROWSER_TEST_EXECUTABLE)throw Error('Pinned Chromium runner required');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE);
 const root=resolve(new URL('..',import.meta.url).pathname);
@@ -57,7 +58,7 @@ const config={name:'fire-local-qa-http-fixture',main:resolve(root,'dist/server',
  no_bundle:true,rules:built.rules,vars:{...built.vars,...(process.argv.includes('--deposit-policy')?{FIRE_DEPOSIT_POLICY_CANDIDATE:'synthetic-tests-only'}:{}),...(lookupMode?{FIRE_SERVICE_LOCATIONS_CANDIDATE:'synthetic-only',FIRE_CUSTOMER_PROPERTIES_CANDIDATE:'synthetic-only',FIRE_PROPERTY_ESTIMATES_CANDIDATE:'synthetic-tests-only',FIRE_PROPERTY_RECOVERY_CANDIDATE:'synthetic-tests-only',FIRE_PROPERTY_WORKFLOW_CANDIDATE:'synthetic-tests-only'}:{})},
  assets:{directory:resolve(root,'dist/client')},
  d1_databases:[{binding:'DB',database_name:'fire-local-synthetic-db',database_id:randomUUID(),migrations_dir:join(root,'drizzle')}],
- r2_buckets:[{binding:'BUCKET',bucket_name:'qa-photo-'+randomUUID().replaceAll('-','')}]};
+ ...(!noR2Mode?{r2_buckets:[{binding:'BUCKET',bucket_name:'qa-photo-'+randomUUID().replaceAll('-','')}] }: {})};
 const configPath=join(temp,'wrangler.json');writeFileSync(configPath,JSON.stringify(config));
 writeFileSync(join(temp,'.dev.vars'),`FIRE_QA_PASSWORD_HASH=${createHash('sha256').update(password).digest('hex')}\nFIRE_QA_SESSION_SECRET=${sessionSecret}\n`,{mode:0o600});
 const env={...process.env,CLOUDFLARE_CF_FETCH_ENABLED:'false',WRANGLER_SEND_METRICS:'false',CI:'true'};
@@ -126,7 +127,7 @@ try{
   return response;
  };
  check((await request('/api/customers')).status()===401,'Real built Worker rejects unauthenticated customer read');
- if(photoMode)check((await request('/api/customer-photos/'+randomUUID())).status()===401,
+ if(photoMode||noR2Mode)check((await request('/api/customer-photos/'+randomUUID())).status()===401,
    'Untrusted caller cannot view private customer photo bytes before owner login');
  check((await request('/api/estimates','POST',{customer:'Synthetic forged request'},{'oai-authenticated-user-email':'kylebrooks8605@gmail.com'})).status()===401,'Real HTTP gateway-header spoof cannot authorize an estimate write');
  const login=await request('/api/auth/login','POST',{password});
@@ -158,6 +159,23 @@ try{
  const customer=(await customerResponse.json()).customer;
  check(customerResponse.status()===201&&typeof customer?.id==='string','Customer creation persists through actual HTTP and native D1');
  let testPhotoId=null;let testPhotoBytes=null;
+ if(noR2Mode){
+  const uuid=randomUUID();
+  const denyGet=await request('/api/customer-photos/'+uuid);
+  const denyDelete=await request('/api/customer-photos/'+uuid,'DELETE');
+  check(denyGet.status()===503&&denyDelete.status()===503,
+    'QA Worker WITHOUT R2 returns owner-readable 503 for hosted photo view/delete (never edits D1)');
+  const sample=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRj0AAAAASUVORK5CYII=','base64');
+  const denyUpload=await context.request.post(origin+'/api/customer-photos',{multipart:{
+   customerId:customer.id,category:'before',caption:'Synthetic NO-R2 denial only',
+   photo:{name:'no-r2-synthetic.png',mimeType:'image/png',buffer:sample}
+  }});
+  check(denyUpload.status()===503&&(await denyUpload.json()).error?.includes('unavailable'),
+    'QA Worker without R2 refuses cloud photo uploads explicitly, not a 500 or partial write');
+  const intact=await (await request('/api/customers')).json();
+  check(intact.customers.some(row=>row.id===customer.id)&&intact.photos.length===0,
+    'No-R2 hosted photo refusal retains existing synthetic customer and creates NO orphan photo D1 row');
+ }
  if(photoMode){
   testPhotoBytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRj0AAAAASUVORK5CYII=','base64');
   const uploaded=await context.request.post(origin+'/api/customer-photos',{multipart:{
@@ -264,6 +282,10 @@ try{
  check((await request('/api/auth/login','POST',{password})).status()===429,'Authentication lockout persists after local Worker restart');
  const reloaded=await request('/api/estimates');const saved=(await reloaded.json()).estimates;
  check(reloaded.status()===200&&saved.length===1&&saved[0].totalCents===25000&&saved[0].depositCents===12500,'Worker restart preserves owner cookie, customer relationship, estimate and deposit in native D1');
+ if(noR2Mode){
+  const afterCold=await request('/api/customer-photos/'+randomUUID());
+  check(afterCold.status()===503,'Restarted QA Worker remains NO-R2; no hidden bucket or photo API fallback');
+ }
  if(photoMode){
   const retained=await request('/api/customer-photos/'+testPhotoId);
   check(retained.status()===200&&Buffer.from(await retained.body()).equals(testPhotoBytes),
