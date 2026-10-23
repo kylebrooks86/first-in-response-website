@@ -4,6 +4,8 @@
  * No schema migration or automatic database writes are required.
  */
 export const REVIEW_RECEIVED_NOTE="[FIRE FLAG] REVIEW_RECEIVED";
+export const LEAD_NO_ANSWER_NOTE="[FIRE FLAG] LEAD_NO_ANSWER";
+export const LEAD_CONTACTED_NOTE="[FIRE FLAG] LEAD_CONTACT_RECORDED";
 export const SIGN_PICKED_UP_NOTE="[FIRE FLAG] YARD_SIGN_PICKED_UP";
 export function signPlacedNote(pickupDate:string,location:string){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(pickupDate)||new Date(pickupDate+"T12:00:00Z").toISOString().slice(0,10)!==pickupDate)
@@ -14,9 +16,20 @@ type Note={id:string;body:string;createdAt:string};
 export function deriveCustomerManualFlags(notes:readonly Note[]){
   const ordered=[...notes].filter(note=>Number.isFinite(Date.parse(note.createdAt))).sort((a,b)=>Date.parse(a.createdAt)-Date.parse(b.createdAt)||a.id.localeCompare(b.id));
   let reviewReceivedAt:string|null=null;
+  // Append-only, owner-reported lead attempts, including customers who have no
+  // estimate yet. A failed call never becomes a sent text or completed contact.
+  let leadContact:{state:"no_answer"|"contacted";at:string;unansweredAttempts:number}|null=null;
   let sign:{state:"out"|"picked_up";at:string;pickupDate:string|null;location:string}|null=null;
   for(const note of ordered){
     if(note.body===REVIEW_RECEIVED_NOTE)reviewReceivedAt=note.createdAt;
+    if(note.body===LEAD_NO_ANSWER_NOTE)leadContact={
+      state:"no_answer",at:note.createdAt,
+      unansweredAttempts:(leadContact?.unansweredAttempts??0)+1
+    };
+    if(note.body===LEAD_CONTACTED_NOTE)leadContact={
+      state:"contacted",at:note.createdAt,
+      unansweredAttempts:leadContact?.unansweredAttempts??0
+    };
     const currentSign=sign as {state:"out"|"picked_up";at:string;pickupDate:string|null;location:string}|null;
     if(note.body===SIGN_PICKED_UP_NOTE&&currentSign?.state==="out")sign={state:"picked_up",at:note.createdAt,pickupDate:currentSign.pickupDate,location:currentSign.location};
     const placed=/^\[FIRE FLAG\] YARD_SIGN_PLACED \| pickup:(\d{4}-\d{2}-\d{2}) \| location:(.{0,180})$/.exec(note.body);
@@ -25,7 +38,7 @@ export function deriveCustomerManualFlags(notes:readonly Note[]){
       if(Number.isFinite(Date.parse(date+"T12:00:00Z"))&&new Date(date+"T12:00:00Z").toISOString().slice(0,10)===date)sign={state:"out",at:note.createdAt,pickupDate:date,location:placed[2]};
     }
   }
-  return {reviewReceivedAt,sign};
+  return {reviewReceivedAt,sign,leadContact};
 }
 
 /** A conservative internal review-status check, never permission to resend.
