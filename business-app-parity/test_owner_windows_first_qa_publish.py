@@ -8,7 +8,7 @@ SCRIPT = (ROOT / "owner_windows_first_qa_publish.ps1").read_text(encoding="utf-8
 
 class FirstQAPublishContract(unittest.TestCase):
     def test_default_is_non_mutating_with_separate_typed_approval(self):
-        self.assertIn("param([switch]$Publish)", SCRIPT)
+        self.assertIn("[switch]$Publish,", SCRIPT)
         self.assertIn("if (-not $Publish)", SCRIPT)
         self.assertIn("REVIEW ONLY PASS. No secrets uploaded", SCRIPT)
         self.assertIn("return", SCRIPT)
@@ -36,6 +36,21 @@ class FirstQAPublishContract(unittest.TestCase):
                      "Read-CheckedD1 $stagingName $stagingUuid"):
             with self.subTest(item=item): self.assertIn(item, SCRIPT)
         self.assertNotIn("d1 list", SCRIPT)
+
+    def test_exact_sha_and_explicit_branch_before_cloudflare_or_secrets(self):
+        for required in ("[string]$CandidateBranch", "[string]$CandidateCommit",
+                         "Only an explicitly named FIRE development branch may be reviewed",
+                         "Exact reviewed candidate SHA is required",
+                         "Read-only Git exact commit check", "Read-only fetched remote branch check",
+                         "$head -ceq $originHead -and $head -ceq $reviewedCandidateCommit",
+                         "Unreviewed source SHA or stale fetched branch"):
+            self.assertIn(required, SCRIPT)
+        self.assertLess(SCRIPT.index("$head -ceq $originHead"),
+                        SCRIPT.index("Import-Clixml -LiteralPath $privateFile"))
+        self.assertLess(SCRIPT.index("$head -ceq $originHead"),
+                        SCRIPT.index("Read-CheckedD1 $qaName $qaUuid"))
+        self.assertLess(SCRIPT.index("$head -ceq $originHead"),
+                        SCRIPT.index("$typed = Read-Host"))
 
     def test_never_reads_or_prints_private_values_in_dry_run(self):
         self.assertIn("Import-Clixml -LiteralPath $privateFile", SCRIPT)

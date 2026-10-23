@@ -3,10 +3,14 @@
 # synthetic QA source; it NEVER creates, publishes or connects to a Worker.
 # No production database, existing vault, Stripe, R2, DNS or Cloudflare write.
 [CmdletBinding()]
-param([switch]$Build)
+param(
+    [switch]$Build,
+    [string]$CandidateBranch = 'work/fire-business-app-parity-2026-10-08',
+    [string]$ExpectedCommit = ''
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$branch = 'work/fire-business-app-parity-2026-10-08'
+$branch = $CandidateBranch
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $builder = Join-Path $PSScriptRoot 'materialize.py'
 $verifier = Join-Path $PSScriptRoot 'verify_materialized_candidate.py'
@@ -16,6 +20,11 @@ function Assert-True([bool]$OK, [string]$Message) {
 }
 function Check-Exit([string]$Stage) {
     Assert-True ($LASTEXITCODE -eq 0) ($Stage + ' did not pass. No deploy or remote writes occurred.')
+}
+Assert-True ($branch -cmatch '^work/fire-[a-z0-9][a-z0-9-]{1,110}$') 'Only a named FIRE development branch may be built.'
+Assert-True ([string]::IsNullOrEmpty($ExpectedCommit) -or $ExpectedCommit -cmatch '^[0-9a-f]{40}$') 'ExpectedCommit must be a full lowercase Git SHA.'
+if ($branch -cne 'work/fire-business-app-parity-2026-10-08') {
+    Assert-True ($ExpectedCommit -cmatch '^[0-9a-f]{40}$') 'A nonstandard candidate branch requires an explicitly reviewed exact commit.'
 }
 Write-Host 'FIRE isolated full-app QA builder: LOCAL ONLY'
 Write-Host 'No database migrations, remote commands, Worker publication, credential upload or device vault changes.'
@@ -33,6 +42,9 @@ Check-Exit 'Read-only Git HEAD check'
 $originHead = (& $git.Source -C $repo rev-parse "refs/remotes/origin/$branch").Trim()
 Check-Exit 'Read-only Git origin branch check'
 Assert-True ($head -cmatch '^[0-9a-f]{40}$' -and $head -ceq $originHead) 'Git checkout must match last locally fetched working-branch commit. Run safe pull first if needed.'
+if (-not [string]::IsNullOrEmpty($ExpectedCommit)) {
+    Assert-True ($head -ceq $ExpectedCommit) 'Checked out Git commit differs from the explicitly reviewed candidate. Refusing an unreviewed build.'
+}
 $dirty = @(& $git.Source -C $repo status --porcelain --untracked-files=no)
 Check-Exit 'Read-only Git tracked-file check'
 Assert-True ($dirty.Count -eq 0) 'Tracked source files have local edits. Preserve them and stop.'
@@ -75,6 +87,7 @@ if ($null -eq $packageTool) {
 }
 $buildRoot = Join-Path $env:LOCALAPPDATA 'FIRE-QA-Builds'
 $destination = Join-Path $buildRoot ('qa-' + $head)
+Write-Host ('Reviewed Git branch: ' + $branch)
 Write-Host ('Reviewed Git source: ' + $head)
 Write-Host ('Candidate-only directory: ' + $destination)
 if (-not $Build) {
