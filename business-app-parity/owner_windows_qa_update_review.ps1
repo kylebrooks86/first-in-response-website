@@ -2,13 +2,17 @@
 # READ ONLY: never deploys, uploads secrets, touches D1 data, or changes device vaults.
 # The first-publish script MUST NOT be reused on an existing Worker.
 [CmdletBinding()]
-param()
+param(
+    [string]$CandidateBranch = 'work/fire-business-app-parity-2026-10-08',
+    [string]$ExpectedCommit = ''
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$branch = 'work/fire-business-app-parity-2026-10-08'
+$branch = $CandidateBranch
 $workerName = 'fire-fullapp-qa-20261016'
 $qaDatabase = 'fire-fullapp-qa-db-20261016'
 $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
+$qaPhotoBucket = 'fire-fullapp-qa-photos-20261023'
 # Only recognize the serving version from the October 19 owner-authenticated metadata check
 # owner-captured Cloudflare status. Match the full
 # active version UUID; reject historical, split, changed or ambiguous versions.
@@ -19,6 +23,11 @@ function Require([bool]$ok, [string]$reason) {
 }
 function Require-Exit([string]$stage) {
     Require ($LASTEXITCODE -eq 0) ($stage + ' failed. No remote changes were attempted.')
+}
+Require ($branch -cmatch '^work/fire-[a-z0-9][a-z0-9-]{1,110}$') 'Only an expressly selected FIRE development branch is permitted.'
+Require ([string]::IsNullOrEmpty($ExpectedCommit) -or $ExpectedCommit -cmatch '^[0-9a-f]{40}$') 'ExpectedCommit must be an exact 40-character lowercase SHA.'
+if ($branch -cne 'work/fire-business-app-parity-2026-10-08') {
+    Require ($ExpectedCommit -cmatch '^[0-9a-f]{40}$') 'An alternate FIRE development branch MUST provide a reviewed exact commit.'
 }
 Write-Host 'FIRE QA FULL-APP UPDATE REVIEW: NO PUBLISH, NO DATABASE WRITES'
 Require ($env:OS -eq 'Windows_NT' -and -not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) 'Owner Acer Windows profile required.'
@@ -35,6 +44,9 @@ Require-Exit 'Git HEAD'
 $originHead = (& $git.Source -C $repo rev-parse ('refs/remotes/origin/' + $branch)).Trim()
 Require-Exit 'Fetched origin HEAD'
 Require ($head -cmatch '^[a-f0-9]{40}$' -and $head -ceq $originHead) 'Run a safe fast-forward Git pull first.'
+if (-not [string]::IsNullOrEmpty($ExpectedCommit)) {
+    Require ($head -ceq $ExpectedCommit) 'The checked out code differs from the explicitly reviewed commit. No remote checks performed.'
+}
 $dirty = @(& $git.Source -C $repo status --porcelain --untracked-files=no)
 Require-Exit 'Tracked Git changes'
 Require ($dirty.Count -eq 0) 'Keep local changes; stop before review.'
@@ -43,7 +55,9 @@ $manifest = Join-Path $candidate 'dist\server\wrangler.json'
 $sourceCheck = Join-Path $PSScriptRoot 'verify_materialized_candidate.py'
 $runtimeCheck = Join-Path $PSScriptRoot 'check_qa_runtime_config.mjs'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
-foreach ($path in @($candidate, $manifest, $sourceCheck, $runtimeCheck, $prepare)) {
+$pinnedReview = Join-Path $PSScriptRoot 'review_qa_update_schema.py'
+$qaD1Config = Join-Path $PSScriptRoot 'wrangler.qa-migrations.json'
+foreach ($path in @($candidate, $manifest, $sourceCheck, $runtimeCheck, $prepare, $pinnedReview, $qaD1Config)) {
     Require (Test-Path -LiteralPath $path) 'Missing latest isolated QA build or source verifier. Build the new candidate locally first.'
 }
 Require (-not ((Get-Item -LiteralPath $candidate).Attributes -band [IO.FileAttributes]::ReparsePoint)) 'Refusing symbolic-link QA build directory.'
@@ -56,14 +70,19 @@ Require (Test-Path -LiteralPath (Join-Path $original 'drizzle') -PathType Contai
 Require (-not ((Get-Item -LiteralPath $original).Attributes -band [IO.FileAttributes]::ReparsePoint)) 'First-release QA candidate must not be a symbolic link.'
 $previousSQL = @(Get-ChildItem -LiteralPath (Join-Path $original 'drizzle') -Filter '*.sql' -File)
 $nextSQL = @(Get-ChildItem -LiteralPath (Join-Path $candidate 'drizzle') -Filter '*.sql' -File)
-Require ($previousSQL.Count -eq 23 -and $nextSQL.Count -eq $previousSQL.Count) 'QA migration count changed since first deployment. Stop.'
+Require ($previousSQL.Count -eq 23 -and $nextSQL.Count -eq 25) 'QA upgrade must preserve 23 original migrations and append exactly 2 reviewed additive migrations.'
 $baseline = @{}
 foreach ($file in $previousSQL) { $baseline[$file.Name] = (Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName).Hash }
-foreach ($file in $nextSQL) {
-    Require ($baseline.ContainsKey($file.Name) -and
-        $baseline[$file.Name] -ceq (Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName).Hash) 'QA migration bytes differ from original published app. Stop without touching D1.'
+foreach ($file in $previousSQL) {
+    $currentFile = Join-Path (Join-Path $candidate 'drizzle') $file.Name
+    Require ((Test-Path -LiteralPath $currentFile -PathType Leaf) -and
+        $baseline[$file.Name] -ceq (Get-FileHash -Algorithm SHA256 -LiteralPath $currentFile).Hash) 'QA migration bytes differ from original published app. Stop without touching D1.'
 }
-Write-Host 'PASS: All 23 original QA migrations are byte-for-byte unchanged. No migrations run.'
+# Historical and 0023/0024 SQL must also match their immutable Git-blob pins;
+# merely counting or matching the old 23 would admit unreviewed new SQL.
+& $python.Source $pinnedReview --baseline (Join-Path $original 'drizzle') --candidate (Join-Path $candidate 'drizzle') --checkpoint $head | Out-Null
+Require-Exit 'Exact 23 historical plus two append-only SQL Git blob identity review'
+Write-Host 'PASS: All 23 first-hosted QA migrations remain unchanged; exactly 2 pinned additive migrations verified locally. No migrations run.'
 & $python.Source $sourceCheck qa $candidate --built
 Require-Exit 'Latest full-app QA compiled source verification'
 & $node.Source $runtimeCheck $manifest
@@ -77,6 +96,33 @@ $databaseRaw = @(& $wrangler.Source d1 list --json)
 Require-Exit 'Read-only existing QA/staging D1 list'
 $databaseInfo = & $identityHelper -Json ($databaseRaw -join [Environment]::NewLine)
 Require ($databaseInfo.qaName -ceq $qaDatabase -and $databaseInfo.qaUuid -ceq $qaId) 'Isolated QA D1 identity differs. No publish.'
+# Do not rely on Cloudflare stale num_tables metadata. Read only schema and
+# migration journal names (no customer rows, names, payment amounts or photos).
+$orderedSQL = @(Get-ChildItem -LiteralPath (Join-Path $candidate 'drizzle') -File -Filter '*.sql' | Sort-Object Name | ForEach-Object { $_.Name })
+Require ($orderedSQL.Count -eq 25) 'Full QA candidate must contain exactly 25 reviewed migrations.'
+$sql = "SELECT (SELECT GROUP_CONCAT(name,'|') FROM (SELECT name FROM d1_migrations ORDER BY id)) AS journal_names, " +
+    "(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('customers','customer_photos','estimates','invoices','payments','payment_refunds','deposit_policy_events','deposit_agreement_snapshots')) AS required_tables, " +
+    "(SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_payments_stripe_provider_unique' AND tbl_name='payments') AS provider_index, " +
+    "(SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name IN ('deposit_agreement_snapshots_no_update','deposit_agreement_snapshots_no_delete')) AS signed_agreement_triggers"
+$rawSchema = @(& $wrangler.Source d1 execute $qaDatabase --remote "--config=$qaD1Config" "--command=$sql" --json)
+Require-Exit 'Read-only QA D1 exact ordered 25-schema verification'
+try { $schemaResults = @(ConvertFrom-Json -InputObject ($rawSchema -join [Environment]::NewLine)) }
+catch { throw 'FIRE QA UPDATE STOP: QA migration metadata query is not valid JSON.' }
+Require ($schemaResults.Count -eq 1 -and $schemaResults[0].success -eq $true -and
+    @($schemaResults[0].results).Count -eq 1) 'QA D1 schema evidence missing or ambiguous.'
+$row = @($schemaResults[0].results)[0]
+Require ([string]$row.journal_names -ceq ($orderedSQL -join '|') -and
+    [int]$row.required_tables -eq 8 -and [int]$row.provider_index -eq 1 -and
+    [int]$row.signed_agreement_triggers -eq 2) 'Hosted QA MUST have all 25 exact ordered migrations, refund/photo/deposit tables, provider index and immutable agreement triggers before code update.'
+Write-Host 'PASS: Remote QA-only D1 journal, 8 required tables, provider index and signed agreement triggers match full current code.'
+# The new Worker has a BUCKET binding. Never apply this update unless the
+# proposed R2 exists in the owner account under the EXACT independent name.
+$rawR2 = @(& $wrangler.Source r2 bucket info $qaPhotoBucket --json)
+Require-Exit 'Read-only QA R2 photo bucket identity'
+try { $r2 = ConvertFrom-Json -InputObject ($rawR2 -join [Environment]::NewLine) }
+catch { throw 'FIRE QA UPDATE STOP: QA photo storage identity response is not valid JSON.' }
+Require ($r2.name -ceq $qaPhotoBucket) 'Dedicated new QA photo R2 bucket missing/mismatched; do not update Worker.'
+Write-Host 'PASS: Distinct QA photo R2 bucket identity verified read-only; no photo bytes accessed.'
 # Verify exactly the sole ACTIVE version, not arbitrary historical status text.
 $deploymentRaw = @(& $wrangler.Source deployments status --name $workerName --json)
 Require-Exit 'Read-only current QA Worker status'
@@ -107,5 +153,5 @@ try {
     }
 }
 Write-Host ('REVIEW PASS: New QA candidate Git source ' + $head)
-Write-Host 'NO PUBLISH. Existing QA Worker, private credentials and D1 customer records are untouched.'
+Write-Host 'NO PUBLISH. Existing QA Worker, private credentials, D1 rows and R2 photo bytes are untouched.'
 Write-Host 'Further steps require owner approval of a distinct UPDATE release and retained rollback version.'
