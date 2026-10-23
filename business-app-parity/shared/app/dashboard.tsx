@@ -29,7 +29,7 @@ import {saveOfflinePhotoCustomerDirectory,loadOfflinePhotoCustomerDirectory,clea
 import {mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory} from "../lib/offline-photo-availability";
 import { estimateFollowUpTiming, estimateReminderStage, viewedEstimateReminderCue, followupUrgency, todayActionLane, todayCustomerQueue, followupLatestContact, noAnswerStillUncontacted } from "../lib/follow-up-timing";
 import { messageHistoryEntries } from "../lib/message-history";
-import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,LEAD_NO_ANSWER_NOTE,LEAD_CONTACTED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility} from "../lib/customer-activity-flags";
+import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,LEAD_NO_ANSWER_NOTE,LEAD_CONTACTED_NOTE,LEAD_CALLBACK_HANDLED_NOTE,leadCallbackNote,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility} from "../lib/customer-activity-flags";
 import type {DashboardYardSign} from "../lib/dashboard-yard-signs";
 import {validDoorFollowUpDate,type DoorRevisit} from "../lib/door-knocking";
 import type {DashboardReviewCheck} from "../lib/dashboard-review-checks";
@@ -2115,6 +2115,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [payments,setPayments]=useState<PaymentRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showUnansweredLeadsOnly,setShowUnansweredLeadsOnly]=useState(false);
+  const [showDueCallbacksOnly,setShowDueCallbacksOnly]=useState(false);
   const [timelineShown,setTimelineShown]=useState(6);
   const [journeyShown,setJourneyShown]=useState(3);
   const [timelineFilter,setTimelineFilter]=useState<"all"|"estimates"|"messages"|"billing"|"notes">("all");
@@ -2128,8 +2129,9 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   useEffect(()=>{setRecordSearch("");},[selectedId,section,recordRequestKey]);
   const [noteText, setNoteText] = useState("");
   const [signPickupDate,setSignPickupDate]=useState("");
+  const [callbackDate,setCallbackDate]=useState("");
   const [signLocation,setSignLocation]=useState("");
-  useEffect(()=>{setSignPickupDate("");setSignLocation("");},[selectedId]);
+  useEffect(()=>{setSignPickupDate("");setSignLocation("");setCallbackDate("");},[selectedId]);
   const noteDrafts=useRef<Record<string,string>>({}),noteDraftCustomer=useRef<string|null>(null);
   useEffect(()=>{if(noteDraftCustomer.current)noteDrafts.current[noteDraftCustomer.current]=noteText;noteDraftCustomer.current=selectedId;setNoteText(selectedId?noteDrafts.current[selectedId]??"":"");},[selectedId]);
   const [loadedRecordKey,setLoadedRecordKey]=useState(-1);
@@ -2258,6 +2260,11 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const manualFlags=deriveCustomerManualFlags(customerNotes);
   const flaggedSignCustomers=customers.map(customer=>({customer,...deriveCustomerManualFlags(notes.filter(note=>note.customerId===customer.id))})).filter(item=>item.sign?.state==="out");
   const tulsaToday=new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+  const pendingLeadCallbacks=customers.map(customer=>({
+    customer,callback:deriveCustomerManualFlags(notes.filter(note=>note.customerId===customer.id)).leadCallback
+  })).filter(item=>item.callback?.state==="pending"&&Boolean(item.callback.dueDate))
+   .sort((a,b)=>(a.callback?.dueDate??"").localeCompare(b.callback?.dueDate??"")||a.customer.name.localeCompare(b.customer.name));
+  const dueLeadCallbacks=pendingLeadCallbacks.filter(item=>(item.callback?.dueDate??"")<=tulsaToday);
   const stagePickupTask=(customer:CustomerRow,sign:{state:"out"|"picked_up";at:string;pickupDate:string|null;location:string}|null)=>{
     if(sign?.state!=="out"||!sign.pickupDate||!onPreparePickupTask)return;
     onPreparePickupTask({customerId:customer.id,customerName:customer.name,pickupDate:sign.pickupDate,location:sign.location||customer.address||"Location not specified",placedAt:sign.at});
@@ -2385,8 +2392,10 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const manuallyUnansweredLeadIds=new Set(customers.filter(customer=>
     deriveCustomerManualFlags(notes.filter(note=>note.customerId===customer.id)).leadContact?.state==="no_answer"
   ).map(customer=>customer.id));
+  const dueLeadCallbackIds=new Set(dueLeadCallbacks.map(item=>item.customer.id));
   const filteredCustomers = customers.filter((customer)=>
     (!showUnansweredLeadsOnly||manuallyUnansweredLeadIds.has(customer.id))&&
+    (!showDueCallbacksOnly||dueLeadCallbackIds.has(customer.id))&&
     [customer.name,customer.email,customer.phone,customer.address].join(" ").toLowerCase().includes(searchQuery.toLowerCase())
   );
   const activeCustomerEstimate=customerEstimates.find((estimate)=>estimate.status==="scheduled")??customerEstimates.find((estimate)=>["approved","sent","draft"].includes(estimate.status))??customerEstimates.find((estimate)=>estimate.status==="completed"&&estimate.paidCents<resolvedBillingTotalCents(estimate))??customerEstimates[0];
