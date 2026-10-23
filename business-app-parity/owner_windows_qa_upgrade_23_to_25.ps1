@@ -72,7 +72,7 @@ $sql = "SELECT (SELECT GROUP_CONCAT(name,'|') FROM (SELECT name FROM d1_migratio
     "(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('customers','customer_photos','estimates','invoices','payments','payment_refunds')) AS core_tables, " +
     "(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('deposit_policy_events','deposit_agreement_snapshots')) AS new_tables, " +
     "(SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_payments_stripe_provider_unique') AS provider_index, " +
-    "(SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name IN ('deposit_agreement_snapshots_no_update','deposit_agreement_snapshots_no_delete')) AS new_triggers"
+    "(SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name IN ('deposit_policy_events_no_update','deposit_policy_events_no_delete','deposit_agreement_snapshots_no_update','deposit_agreement_snapshots_no_delete')) AS new_triggers"
 function ReadSchema {
     $response = @(& $wrangler.Source d1 execute $qaName --remote "--config=$config" "--command=$sql" --json)
     CheckExit 'Read-only exact QA D1 migration journal and schema metadata'
@@ -112,6 +112,6 @@ try {
 $after = ReadSchema
 Require ([string]$after.names -ceq ($ordered -join '|') -and
     [int]$after.core_tables -eq 6 -and [int]$after.new_tables -eq 2 -and
-    [int]$after.provider_index -eq 1 -and [int]$after.new_triggers -eq 2) 'Migration journal/full schema not confirmed. STOP: inspect manually; DO NOT rerun migrations automatically.'
-Write-Host 'PASS: Owner-approved QA-only migration now has exact 25 ordered journal entries and two immutable agreement triggers.'
+    [int]$after.provider_index -eq 1 -and [int]$after.new_triggers -eq 4) 'Migration journal/full schema not confirmed. STOP: inspect manually; DO NOT rerun migrations automatically.'
+Write-Host 'PASS: Owner-approved QA-only migration now has exact 25 ordered journal entries and all four immutable deposit audit and agreement triggers.'
 Write-Host 'NO WORKER PUBLISHED. Standalone photo R2 identity and hosted iPhone workflows still need owner-verified release approval.'
