@@ -37,6 +37,8 @@ on:
       - 'business-app-parity/adapters/**'
       - 'business-app-parity/materialize.py'
       - 'business-app-parity/verify_materialized_candidate.py'
+      - 'business-app-parity/verify_three_candidate_schema_parity.py'
+      - 'business-app-parity/test_verify_three_candidate_schema_parity.py'
       - 'business-app-parity/candidate_release_manifest.py'
       - 'business-app-parity/prepare_device_review.py'
       - 'business-app-parity/test_prepare_device_review.py'
