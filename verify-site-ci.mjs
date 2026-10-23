@@ -4,6 +4,18 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
+// Fail closed if the verifier ever stops auditing actual marketing pages or
+// begins interpreting private Business App synthetic HTML as public pages.
+const boundary = spawnSync(process.execPath, ['scripts/test-site-html-boundary.mjs'], {
+  encoding: 'utf8'
+});
+if (boundary.stdout) process.stdout.write(boundary.stdout);
+if (boundary.stderr) process.stderr.write(boundary.stderr);
+if (boundary.status !== 0) {
+  console.error('FAILED: Marketing-site HTML audit boundary regressed.');
+  process.exit(boundary.status || 1);
+}
+
 const run = spawnSync(process.execPath, ['verify-site.mjs'], {
   encoding: 'utf8'
 });

@@ -7,11 +7,19 @@ import ts from 'typescript';
 let checks=0;const eq=(a,b,msg)=>{assert.deepEqual(a,b,msg);checks++;};
 const db=new DatabaseSync(':memory:');
 for(const file of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
+// Freeze only the disposable VM's clock. The actual API implementation is
+// unchanged; this test must keep working after October 2026 and across DST.
+let clockMs=Date.parse('2026-10-22T18:00:00.000Z');
+class ScenarioDate extends Date {
+ constructor(...args){super(...(args.length?args:[clockMs]));}
+ static now(){return clockMs;}
+}
+const at=(utc)=>{clockMs=Date.parse(utc);assert.ok(Number.isFinite(clockMs));};
 let reads=0,writes=0,owner={email:'kylebrooks8605@gmail.com'};
 const env={DB:{prepare(q){return{bind(...args){return{async first(){reads++;return db.prepare(q).get(...args)??null;},async run(){writes++;return{meta:{changes:Number(db.prepare(q).run(...args).changes)}};}};}}}}};
 function load(path,imports){const exports={};
  vm.runInNewContext(ts.transpileModule(readFileSync(path,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,
- {exports,require:key=>{if(!(key in imports))throw Error('Unexpected import '+key);return imports[key];},Response,Request,crypto,Date,Intl});
+ {exports,require:key=>{if(!(key in imports))throw Error('Unexpected import '+key);return imports[key];},Response,Request,crypto,Date:ScenarioDate,Intl});
  return exports;
 }
 const services=load('lib/fire-services.ts',{});
@@ -36,9 +44,38 @@ try{
  eq(data.dollarCents,2500,'Bundle eligible');
  eq(data.previewTotalCents,38900,'$460 minus $46 and $25');
  eq(data.previewDepositCents,19450,'Half of verified quote');
- eq(data.checkedOn,'2026-10-22','Server verifies Tulsa calendar date');
+ eq(data.checkedOn,'2026-10-22','Server verifies Tulsa calendar date from pinned clock');
  eq(writes,beforeWrites,'Preview never writes settings/quotes');
  eq(JSON.stringify(db.prepare('SELECT * FROM message_templates').all()),before,'Preview leaves persisted data unchanged');
+ // Calendar boundaries are Chicago-local, not GitHub runner/UTC dates.
+ // 2026-11-01T04:59:59Z is Oct 31 at 11:59:59 PM in Tulsa (CDT).
+ at('2026-11-01T04:59:59.000Z');
+ response=await preview(valid);eq(response.status,200,'Final October booking day remains a valid estimate day');
+ data=await response.json();eq(data.checkedOn,'2026-10-31','Tulsa Oct 31 remains Oct 31 near UTC midnight');
+ eq(data.pendingBooking.length,1,'Oct 31 booking-only 15% awaits owner confirmation');
+ eq(data.percentBasisPoints,1000,'Oct 31 created-date savings remain within promotion window');
+ response=await preview({...valid,bookingConfirmedOn:'2026-10-31'});
+ eq(response.status,200,'Owner can confirm October 31 booking on the final deadline day');
+ data=await response.json();eq(data.percentBasisPoints,2500,'15% booking plus separate 10% estimate promotions both qualify at cutoff');
+ eq(data.dollarCents,2500,'$25 service bundle remains stackable at cutoff');
+ eq(data.previewTotalCents,32000,'Final-day combined 25% and flat $25 discounts use exact cents');
+ at('2026-11-01T05:00:00.000Z');
+ response=await preview(valid);eq(response.status,200,'Midnight Tulsa rolls promotion date to November 1');
+ data=await response.json();eq(data.checkedOn,'2026-11-01','Tulsa date rolls at local midnight, not UTC midnight');
+ eq(data.pendingBooking.length,0,'Unconfirmed October 15% no longer offered after deadline');
+ eq(data.percentBasisPoints,0,'Expired estimate-created 10% cannot auto-apply');
+ eq(data.dollarCents,2500,'Undated qualifying $25 bundle still applies');
+ eq(data.previewTotalCents,43500,'After October only eligible bundle changes total');
+ response=await preview({...valid,bookingConfirmedOn:'2026-10-31'});
+ eq(response.status,200,'Historical owner-confirmed October 31 booking can still be reviewed November 1');
+ data=await response.json();eq(data.percentBasisPoints,1500,'Oct 31 booking date preserves agreed 15% even on November estimate review');
+ eq(data.dollarCents,2500,'Stacked bundle survives later completion/review date');
+ eq(data.previewTotalCents,36600,'Confirmed booking discount $460 => $366 even when quote reviewed later');
+ eq(data.previewDepositCents,18300,'Historical eligible booking still uses $183 half-deposit');
+ response=await preview({...valid,bookingConfirmedOn:'2026-11-02'});
+ eq(response.status,400,'Future owner booking attestation is rejected after October deadline');
+ // Restore the pinned in-campaign fixture for subsequent unchanged negative tests.
+ at('2026-10-22T18:00:00.000Z');
  save([bundle,{...bundle,id:uid(4),name:'Second flat offer',valueCents:3000}]);
  let tooLarge=await preview({...valid,subtotalCents:4000});
  eq(tooLarge.status,200,'Overlapping flat discount preview responds safely');

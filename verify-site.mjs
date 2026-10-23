@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { websiteHtmlFiles } from './scripts/site-html-boundary.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const errors = [];
@@ -50,7 +51,9 @@ function resolveLocal(pagePath, rawReference) {
 const allFiles = walk(root);
 const fileSet = new Set(allFiles);
 const htmlFiles = allFiles.filter((file) => file.endsWith('.html'));
-const siteHtmlFiles = htmlFiles.filter((file) => !file.startsWith('calculator/'));
+// Keep private Business App synthetic fixtures out of the PUBLIC marketing
+// site audit. Every other HTML path still participates in all checks.
+const siteHtmlFiles = websiteHtmlFiles(htmlFiles);
 const publicPages = siteHtmlFiles.filter((file) => file !== '404.html' && file !== 'terms/index.html');
 
 if (fileSet.has('CNAME')) fail('CNAME exists before an approved production cutover.');
