@@ -79,6 +79,25 @@ try{
  check(lifecycle.out==='out'&&lifecycle.pickupDate==='2026-10-27'&&lifecycle.location==='Front lawn','Structured yard sign note records placement and pickup target');
  check(lifecycle.review&&lifecycle.retrieved==='picked_up'&&lifecycle.unverified,'Review and sign completion require exact owner-logged saved note markers');
  const open=async name=>{await page.locator('.customer-card').filter({has:page.getByText(name,{exact:true})}).click();await page.getByRole('button',{name:/^Notes/}).click();};
+ // Real customer with ZERO estimates: explicit lead No answer note, without
+ // sending a message or generating a quote, followed by directory filtering.
+ await page.setViewportSize({width:390,height:700});
+ await open('Fixture First');
+ await page.getByRole('button',{name:'Prepare lead no-answer note'}).click();
+ check(await page.getByLabel('Customer note',{exact:true}).inputValue()==='[FIRE FLAG] LEAD_NO_ANSWER',
+  'Lead No answer from actual Customer profile prepares without saving or sending');
+ await page.getByRole('button',{name:'Add note',exact:true}).click();
+ await page.getByText(/No answer · not contacted on the latest logged attempt/).waitFor();
+ check(notePosts===1&&notes.length===1&&notes[0].body==='[FIRE FLAG] LEAD_NO_ANSWER',
+  'Owner Add note persists exactly one unanswered lead without creating an estimate');
+ await page.getByRole('button',{name:'← All customers',exact:true}).click();
+ await page.getByRole('button',{name:'No answer / not contacted (1)'}).click();
+ check(await page.locator('.customer-card').count()===1&&
+  await page.locator('.customer-card').first().getByText('Fixture First',{exact:true}).count()===1,
+  'Directory No answer filter isolates the exact saved unanswered lead');
+ await page.getByRole('button',{name:'Show all customers'}).click();
+ check(await page.locator('.customer-card').count()===2,
+  'Owner can clear the filter without deleting or contacting customers');
  for(const width of [320,390])for(const theme of ['light','dark']){
   reset();await page.setViewportSize({width,height:700});await page.goto(origin);await page.evaluate(value=>window.setTheme(value),theme);await open('Fixture First');
   const noteInput=page.getByLabel('Customer note',{exact:true});await noteInput.fill('First gate note');noteHold=true;const noteAccepted=new Promise(r=>onNote=r),beforeNotes=notePosts;
