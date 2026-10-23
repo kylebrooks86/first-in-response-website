@@ -181,6 +181,32 @@ try{
  await page.getByText(/COMPLETE for all currently stored FIRE on-device photos/).waitFor({timeout:30000});
  check((await page.getByRole('alert').allInnerTexts()).every(t=>!t.includes('INCOMPLETE PHOTO BACKUP')),
    'Fresh exact archive versus device coverage check clears the incomplete warning');
+ // Two tabs share IndexedDB but can disagree about an ALREADY PREPARED ZIP.
+ // A photo added in the other tab must withdraw Save/Download until re-export.
+ await page.getByRole('button',{name:'Prepare all local photos ZIP'}).click();
+ await page.getByRole('button',{name:'Save prepared ZIP to Files'}).waitFor({timeout:30000});
+ await ctx.setOffline(false);
+ const otherTab=await ctx.newPage();
+ otherTab.on('dialog',dialog=>dialog.accept());
+ otherTab.on('pageerror',error=>browserErrors.push(error.message));
+ await otherTab.goto(origin);
+ await otherTab.getByRole('button',{name:'Photo library'}).waitFor();
+ await otherTab.locator('input[type="file"][multiple]').setInputFiles(take('other-tab-new-photo.png'));
+ await otherTab.locator('.photo-card').nth(2).waitFor();
+ await page.getByText(/Another FIRE tab changed on-device photos/).waitFor({timeout:30000});
+ check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).count()===0&&
+   await page.getByRole('button',{name:'Download prepared ZIP'}).count()===0,
+   'Other-tab photo mutation immediately withdraws stale prepared ZIP controls');
+ await otherTab.getByRole('button',{name:'Delete on-device photo'}).nth(2).click();
+ await otherTab.locator('.photo-card').nth(2).waitFor({state:'detached'});
+ await page.locator('.photo-card').nth(2).waitFor({state:'detached'});
+ await otherTab.close();await ctx.setOffline(true);
+ check(await page.locator('.photo-card').count()===2,
+   'Cross-tab changes refresh original gallery without overwriting other photos');
+ await page.getByRole('button',{name:'Prepare all local photos ZIP'}).click();
+ await page.getByRole('button',{name:'Save prepared ZIP to Files'}).waitFor({timeout:30000});
+ check(await page.getByRole('button',{name:'Download prepared ZIP'}).count()===1,
+   'Owner can prepare a fresh all-customer ZIP after cross-tab changes');
  const restoreInput=page.locator('input[type="file"][accept*=".zip"]').nth(1);
  await restoreInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
  await page.getByText(/Restored 0 new verified photo/).waitFor({timeout:30000});
