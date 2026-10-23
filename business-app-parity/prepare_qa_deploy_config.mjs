@@ -54,12 +54,14 @@ export function prepare(originalFile, deployFile) {
     ["FIRE_QA_PASSWORD_HASH", "FIRE_QA_SESSION_SECRET"]);
   assert.equal(config.vars?.FIRE_ENV, "synthetic-qa");
   assert.equal(config.vars?.FIRE_QA_SYNTHETIC_ONLY, "enabled");
+  assert.equal(config.vars?.FIRE_LOCAL_CUSTOMERS_CANDIDATE, "synthetic-only",
+    "Refusing QA deploy without approved on-device, synthetic-only customer mode");
   assert.equal(config.vars?.SITE_ORIGIN,
     "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev");
   assert.ok(!config.routes && !config.route && !config.zone_id && !config.account_id,
     "No custom routes or zones allowed");
   assert.ok(!Object.keys(config.vars ?? {}).some(name =>
-    /(stripe|secret|password|r2|token)/i.test(name)),
+    /(stripe|secret|password|r2|token|live|staging|doomsday|private)/i.test(name)),
     "No secret values in public vars");
   const clean = { ...config };
   delete clean.legacy_env;
