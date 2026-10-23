@@ -177,6 +177,12 @@ try{
  await page.getByRole('button',{name:'Delete on-device photo'}).nth(2).click();
  await page.locator('.photo-card').nth(2).waitFor({state:'detached'});
  check(await page.locator('.photo-card').count()===2,'Synthetic new photo removed without modifying originals');
+ // The gallery can rerender before the mutation journal finishes and unlocks.
+ // Do not send another file action while active.current is still true.
+ await page.waitForFunction(()=>{
+  const button=[...document.querySelectorAll('button')].find(b=>b.textContent?.includes('Prepare all local photos ZIP'));
+  return button&&!button.disabled;
+ });
  await verifyInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
  await page.getByText(/COMPLETE for all currently stored FIRE on-device photos/).waitFor({timeout:30000});
  check((await page.getByRole('alert').allInnerTexts()).every(t=>!t.includes('INCOMPLETE PHOTO BACKUP')),
