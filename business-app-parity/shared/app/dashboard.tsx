@@ -2942,6 +2942,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
       case "text_prepared":case "email_prepared":return {title:about+" prepared",detail:"Sending unconfirmed"};
       case "copy":return {title:about+" copied",detail:"Sending unconfirmed"};
       case "contact_recorded":return {title:"Contact logged",detail:"Owner recorded contact · no send claimed"};
+      case "contact_no_answer":return {title:"No answer · still not contacted",detail:"Owner logged an unanswered attempt · no message sent or contact confirmed"};
       case "followup_snoozed":return {title:"Reminder snoozed",detail:"No customer message claimed"};
       default:return {title:"Legacy communication record",detail:"Sending and delivery unverified"};
     }
@@ -3008,7 +3009,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
   };
   const actionPending=useRef(false);
   // Preserve one operation ID across uncertain replies, so retry cannot append a second history row.
-  const actionRetry=useRef<{customerId:string;estimateId:string;action:"contacted"|"snooze";operationId:string}|null>(null);
+  const actionRetry=useRef<{customerId:string;estimateId:string;action:"contacted"|"snooze"|"no_answer";operationId:string}|null>(null);
   const loadRequest=useRef(0);
   const loadedPages=useRef(1);
   const retryAppend=useRef(false);
@@ -3048,7 +3049,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
     }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Customer follow-ups could not be loaded.");}
     finally{if(request===loadRequest.current)setLoading(false);}
   };
-  const recordAction=async(estimate:EstimateRow,action:"contacted"|"snooze")=>{
+  const recordAction=async(estimate:EstimateRow,action:"contacted"|"snooze"|"no_answer")=>{
     if(actionPending.current)return;
     const customerId=estimate.customerId;
     if(!customerId){setActionError(true);setActionStatus("This estimate has no verified customer. Refresh its record before recording contact or snooze.");return;}
@@ -3071,8 +3072,8 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
       // The idempotent API has confirmed this exact attempt. No automatic POST retries.
       actionRetry.current=null;
       if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
-      setRows(current=>current.map(row=>row.id===estimate.id?{...row,...(action==="contacted"?{lastManualContactAt:createdAt}:{snoozeUntil})}:row));
-      setActionStatus(action==="contacted"?"Contact recorded. Estimate reminders paused for 24 hours; no message send is claimed.":"Estimate reminders snoozed for 7 days. Billing reminders remain active.");
+      setRows(current=>current.map(row=>row.id===estimate.id?{...row,...(action==="contacted"?{lastManualContactAt:createdAt}:action==="snooze"?{snoozeUntil}:{})}:row));
+      setActionStatus(action==="contacted"?"Contact recorded. Estimate reminders paused for 24 hours; no message send is claimed.":action==="no_answer"?"No answer recorded. Customer remains NOT contacted; follow-up reminder is still available. No message was sent.":"Estimate reminders snoozed for 7 days. Billing reminders remain active.");
       await load();
     }catch{
       setActionError(true);
@@ -3246,7 +3247,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
       {estimate.lastConfirmedMessageAt&&Number.isFinite(Date.parse(estimate.lastConfirmedMessageAt))&&<small className="block">Owner-confirmed message: {new Date(estimate.lastConfirmedMessageAt).toLocaleDateString("en-US",{timeZone:"America/Chicago"})} · delivery unverified</small>}
       {estimate.lastPreparedAt&&Number.isFinite(Date.parse(estimate.lastPreparedAt))&&<small className="block">Last prepared/copied: {new Date(estimate.lastPreparedAt).toLocaleDateString("en-US",{timeZone:"America/Chicago"})} · sending unconfirmed</small>}
       {estimate.lastManualContactAt&&Number.isFinite(Date.parse(estimate.lastManualContactAt))&&<small className="block">Contact logged: {new Date(estimate.lastManualContactAt).toLocaleDateString("en-US",{timeZone:"America/Chicago"})} · no message send claimed</small>}</div>{kind==="history"?<Button variant="outline" onClick={()=>setReviewEstimate(estimate)}>Review estimate</Button>:<MessageComposer customer={customer} estimate={estimate} initialTemplate={template} triggerLabel="Prepare message" onSent={(message,status)=>{setRows(current=>current.map(row=>row.id===estimate.id?{...row,status:status||row.status,...(message.template==="estimate"?{firstEstimateSentAt:row.firstEstimateSentAt||message.createdAt,lastEstimateSentAt:message.createdAt}:{}),...(["estimate","followUp1","followUp3","followUp7"].includes(message.template)?{lastEstimateContactAt:message.createdAt}:{}),...(message.template==="followUp1"?{stage1At:message.createdAt}:{}),...(message.template==="followUp3"?{stage3At:message.createdAt}:{}),...(message.template==="followUp7"?{stage7At:message.createdAt}:{}),...(message.template==="review"?{lastReviewRequestAt:message.createdAt}:{}),...(["winBack6","winBack11"].includes(message.template)?{lastRebookMessageAt:message.createdAt}:{})}:row));void load();}}/>}
-{["followUp1","followUp3","followUp7"].includes(template)&&<div className="col-span-full flex flex-wrap gap-2"><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="contacted"))} onClick={()=>void recordAction(estimate,"contacted")}>Contacted</Button><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="snooze"))} onClick={()=>void recordAction(estimate,"snooze")}>Snooze 7 days</Button></div>}
+{["followUp1","followUp3","followUp7"].includes(template)&&<div className="col-span-full flex flex-wrap gap-2"><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="contacted"))} onClick={()=>void recordAction(estimate,"contacted")}>Contacted</Button><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="no_answer"))} onClick={()=>void recordAction(estimate,"no_answer")}>No answer · not contacted</Button><Button variant="outline" disabled={actionBusy||loading||Boolean(actionRetry.current&&(actionRetry.current.estimateId!==estimate.id||actionRetry.current.action!=="snooze"))} onClick={()=>void recordAction(estimate,"snooze")}>Snooze 7 days</Button></div>}
 <div className="followup-card-tools"><button type="button" aria-label={"Toggle saved contact history for "+estimate.customer+" "+template} aria-expanded={contactHistory?.key===estimate.id+":"+template} onClick={()=>toggleContactHistory(estimate,template)}><MessageSquareText aria-hidden="true"/> Recent contact</button>{milestones.length>0&&<span className="followup-latest-activity">Latest saved activity: {milestones[0].title} · {new Date(milestones[0].at).toLocaleDateString("en-US",{timeZone:"America/Chicago"})}</span>}{onOpenEstimate&&<button type="button" onClick={()=>onOpenEstimate(estimate.id)} aria-label={"Open saved estimate for "+estimate.customer}><FileText aria-hidden="true"/> Open estimate</button>}{onOpenCustomer&&customer.id&&<button type="button" onClick={()=>onOpenCustomer(customer.id)} aria-label={"Open saved customer history for "+estimate.customer}><Users aria-hidden="true"/> Customer history</button>}{customer.phone&&<a href={"tel:"+customer.phone} aria-label={"Call "+estimate.customer}><Phone aria-hidden="true"/> Call</a>}{customer.phone&&<a href={"sms:"+customer.phone} aria-label={"Open text app for "+estimate.customer}><MessageSquareText aria-hidden="true"/> Text</a>}{customer.email&&<a href={"mailto:"+customer.email} aria-label={"Open email app for "+estimate.customer}><Mail aria-hidden="true"/> Email</a>}{milestones.length>0&&<details className="followup-milestones"><summary>Saved estimate activity ({milestones.length})</summary><ol>{milestones.map(item=><li key={item.key}><strong>{item.title}</strong><time dateTime={item.at}>{new Date(item.at).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</time></li>)}</ol><small>Owner-side saved status only. Open the estimate for more detail; a recorded timestamp does not prove delivery.</small></details>}</div>
 {contactHistory?.key===estimate.id+":"+template&&<section className="followup-contact-panel" role="region" aria-label={"Saved contact history for "+estimate.customer+" "+template}>
   <strong>Saved contact history</strong><small>Exact estimate only · message bodies hidden · opening never sends</small>
