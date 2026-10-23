@@ -32,6 +32,7 @@ if (payload?.format === "fire-app-records-backup" && payload?.version === 1 && p
 const required = ["customers","estimates","customer_notes","invoices","estimate_items","payments","customer_messages","notifications","message_templates","estimate_change_requests","tasks","expenses","job_reports"];
 if(hasPropertyBackup(payload,tables))throw Error('Property-aware backup is not verified yet. Do not restore this file with the legacy workflow.');
 const optionalRecoveryTables = ["invoice_items", "invoice_revisions", "payment_checkout_sessions", "payment_refunds", "deposit_policy_events", "deposit_agreement_snapshots"];
+if(payload?.includes?.paymentRefundHistory===true&&!Array.isArray(tables.payment_refunds))throw Error("Backup declares refund history but omits payment_refunds records.");
 if(payload?.includes?.depositPolicyAuditHistory===true&&!Array.isArray(tables.deposit_policy_events))throw Error("Backup declares deposit audit history but omits its records.");
 if(payload?.includes?.signedDepositAgreementHistory===true&&!Array.isArray(tables.deposit_agreement_snapshots))throw Error("Backup declares signed agreement history but omits its records.");
 for (const table of required) if (!Array.isArray(tables[table])) throw new Error(`Backup is missing ${table}.`);
