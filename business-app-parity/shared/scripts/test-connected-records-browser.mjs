@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';import {readFileSync,mkdirSync} from 'no
 const require=createRequire(import.meta.url),root=process.cwd(),esbuild=require('../node_modules/.pnpm/esbuild@0.28.0/node_modules/esbuild'),postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),tailwind=require('@tailwindcss/postcss');const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX),views=['CustomersView','ScheduleView','DashboardView'].map(name=>ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name)),tags=new Set();
 function visit(n){if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const t=n.tagName.getText(ast);if(/^[A-Z]/.test(t))tags.add(t);}ts.forEachChild(n,visit);}views.forEach(visit);
-const fixture=`import React,{useState,useEffect,useRef}from'react';import{createRoot}from'react-dom/client';import{Button}from'./components/ui/button';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';import{Label}from'./components/ui/label';import{summarizeCustomerBalances}from'./lib/customer-balance-summary';import{messageHistoryEntries}from'./lib/message-history';import{taskDueBucket}from'./lib/task-due';import{completeEstimatePages}from'./lib/estimate-pagination';import{deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility}from'./lib/customer-activity-flags';import{mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory}from'./lib/offline-photo-availability';import{customerJobJourney}from'./lib/customer-job-journey';import{estimateReminderStage,viewedEstimateReminderCue}from'./lib/follow-up-timing';
+const fixture=`import React,{useState,useEffect,useRef}from'react';import{createRoot}from'react-dom/client';import{Button}from'./components/ui/button';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';import{Label}from'./components/ui/label';import{summarizeCustomerBalances}from'./lib/customer-balance-summary';import{messageHistoryEntries}from'./lib/message-history';import{taskDueBucket}from'./lib/task-due';import{tightScheduleTurnarounds}from'./lib/schedule-turnarounds';import{completeEstimatePages}from'./lib/estimate-pagination';import{deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility}from'./lib/customer-activity-flags';import{mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory}from'./lib/offline-photo-availability';import{customerJobJourney}from'./lib/customer-job-journey';import{estimateReminderStage,viewedEstimateReminderCue}from'./lib/follow-up-timing';
 const money=c=>'$'+(c/100).toFixed(2),dateTime=v=>v,statusLabel=v=>v,paymentTypeLabel=v=>v,messageLabels={},resolvedBillingTotalCents=e=>e.invoiceTotalCents??e.totalCents,billingBalanceCents=e=>Math.max(0,resolvedBillingTotalCents(e)-e.paidCents),useCurrentTime=()=>Date.parse('2026-10-20T14:00:00Z');
 const saveOfflinePhotoCustomerDirectory=async()=>{},loadOfflinePhotoCustomerDirectory=async()=>[],clearOfflinePhotoCustomerDirectory=async()=>{};
 ${[...tags].filter(t=>!['Button','Input','Textarea','Label','ScheduleWeather'].includes(t)).map(t=>`const ${t}=()=>null;`).join('\n')}
@@ -365,6 +365,25 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
  await collision.waitFor({state:'hidden'});
  check(await page.locator('.schedule-conflict-chip').count()===0,'Resolved time collision no longer shows an advisory');
+ // Real Chromium light/dark phone UI: consecutive starts 45 minutes apart
+ // prompt an exact appointment review but do not contact or move either job.
+ scheduled.push(scheduleJob('tight-gap','2026-10-20T15:45:00Z'));
+ const readsBeforeTight=reads,writesBeforeTight=writes;
+ await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
+ const tight=page.getByRole('region',{name:'Closely spaced upcoming appointments'});
+ await tight.waitFor();
+ check(await tight.locator('.schedule-turnaround-pair').count()===1,'One consecutive 45-minute start gap triggers read-only advisory');
+ check((await tight.innerText()).includes('45 min between starts')&&(await tight.innerText()).includes('not proof of overlapping jobs'),'Advisory reports exact start gap without claiming double-booking');
+ check(await tight.getByRole('button',{name:'Review scheduled job for tight-gap'}).count()===1,'Exact saved second job has a review action');
+ check(await tight.locator('button').evaluateAll(rows=>rows.every(x=>x.getBoundingClientRect().height>=44)),'Phone appointment review buttons meet touch-size minimum');
+ check(reads===readsBeforeTight+1&&writes===writesBeforeTight,'Timing review requires one explicit GET and no booking or message write');
+ await page.evaluate(()=>window.setQuery('nothing matches this customer'));
+ check(await tight.isVisible(),'Search cannot conceal another verified appointment start');
+ await page.evaluate(()=>window.setQuery(''));
+ scheduled.pop();
+ await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
+ await tight.waitFor({state:'hidden'});
+ check(writes===writesBeforeTight,'Resolving timing warning requires no data mutation');
  // Eleven scheduled next-day stops: ten mapped, one missing address.
  // The second Maps link must continue from stop eight, not quietly drop two jobs.
  const addedStops=Array.from({length:9},(_,i)=>scheduleJob('batch-'+i,new Date(Date.parse('2026-10-21T16:00:00Z')+i*300000).toISOString()));
