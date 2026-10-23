@@ -197,6 +197,13 @@ try{
  otherTab.on('pageerror',error=>browserErrors.push(error.message));
  await otherTab.goto(origin);
  await otherTab.getByRole('button',{name:'Photo library'}).waitFor();
+ // A newly opened tab must finish its durable mutation-journal preflight
+ // before the input event is dispatched, or a deliberately guarded upload
+ // will be silently ignored by the real React handler.
+ await otherTab.waitForFunction(()=>{
+  const button=[...document.querySelectorAll('button')].find(b=>b.textContent?.trim()==='Photo library');
+  return button&&!button.disabled;
+ });
  await otherTab.locator('input[type="file"][multiple]').setInputFiles(take('other-tab-new-photo.png'));
  await otherTab.locator('.photo-card').nth(2).waitFor();
  await page.getByText(/Another FIRE tab changed on-device photos/).waitFor({timeout:30000});
