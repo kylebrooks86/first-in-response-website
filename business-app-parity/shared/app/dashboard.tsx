@@ -3557,7 +3557,16 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
       const result=await response.json() as {ok?:boolean;id?:string;status?:string;dueAt?:string|null;error?:string};
       if(!response.ok||result.ok!==true||result.id!==task.id||result.status!=="open"||result.dueAt!==nextDueAt)
         throw new Error(result.error||"The saved due date was not confirmed.");
-      setTasks(current=>current.map(row=>row.id===task.id?{...row,dueAt:nextDueAt}:row));
+      // Immediately keep the verified owner list in the same order as the SQL GET:
+      // dated open reminders first, undated open work next, completed records last.
+      setTasks(current=>current.map(row=>row.id===task.id?{...row,dueAt:nextDueAt}:row).sort((a,b)=>{
+        const rank=(entry:TaskRow)=>entry.status==="open"?(entry.dueAt?0:1):2;
+        const priority=rank(a)-rank(b);
+        if(priority)return priority;
+        if(a.dueAt&&b.dueAt&&a.dueAt!==b.dueAt)return a.dueAt<b.dueAt?-1:1;
+        if(a.createdAt!==b.createdAt)return a.createdAt>b.createdAt?-1:1;
+        return a.id.localeCompare(b.id);
+      }));
       setRescheduleEditingId(null);
       if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")
         window.dispatchEvent(new Event("fire:attention-saved"));
@@ -3579,6 +3588,10 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
       const result=await response.json() as {tasks?:TaskRow[];error?:string};
       if(!response.ok||!Array.isArray(result.tasks)||result.tasks.some(row=>!row||typeof row.id!=="string"||!row.id||typeof row.title!=="string"||(row.status!=="open"&&row.status!=="completed")||(row.status==="completed"&&(!row.completedAt||!Number.isFinite(Date.parse(row.completedAt))))))throw new Error("Task statuses could not be verified.");
       setTasks(result.tasks);
+      // A prior editor may contain a request whose response was lost. A saved
+      // GET releases the mutation hold, not permission to replay that old input.
+      setRescheduleEditingId(null);
+      setRescheduleDateInput("");
       if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
       setTaskStatusUncertain(false);
       setTaskStatusMessage("Task statuses refreshed from saved records.");
