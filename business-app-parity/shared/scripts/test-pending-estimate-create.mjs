@@ -10,7 +10,7 @@ const api={exports:{},require:id=>{assert.equal(id,'./estimate-create-idempotenc
 vm.runInNewContext(transpile('lib/pending-estimate-create.ts'),api);
 const {PENDING_ESTIMATE_CREATE_KEY,readPendingEstimateCreate,reservePendingEstimateCreate,releasePendingEstimateCreate}=api.exports;
 const uuid=n=>'bbba0000-aaaa-4aaa-8aaa-'+String(n).padStart(12,'0');
-const storage=()=>{const data=new Map();return {data,getItem:key=>data.has(key)?data.get(key):null,setItem:(key,value)=>{data.set(key,value);},removeItem:key=>{data.delete(key);}};};
+const storage=()=>{const data=new Map();return {data,getItem:key=>data.has(key)?data.get(key):null,setItem:(key,value)=>{data.set(key,String(value));},removeItem:key=>{data.delete(key);}};};
 let checks=0;const same=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
 const store=storage(),first=uuid(1),second=uuid(2);
 same(readPendingEstimateCreate(store).usable,true,'Empty browser storage supports safe quote creation');
