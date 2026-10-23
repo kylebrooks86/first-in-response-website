@@ -64,13 +64,13 @@ export async function PATCH(request:Request){
   const taskId=typeof body.id==="string"?body.id.trim():"";
   const next=body.dueAt,expected=body.expectedDueAt;
   const validSaved=(value:unknown)=>value===null||(typeof value==="string"&&value.length<=64&&Number.isFinite(Date.parse(value)));
-  const validNew=(value:unknown)=>value===null||(typeof value==="string"&&/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value);
+  const validNew=(value:unknown)=>value===null||(typeof value==="string"&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value);
   if(!taskId||taskId.length>128||body.expectedStatus!=="open"||!validSaved(expected)||!validNew(next))
    return Response.json({error:"Choose a valid open task and a precise due date."},{status:400});
   // A conditional write protects a newer edit or completion on another phone.
   // NULL and date values must both match the caller's last verified GET.
-  const changed=await env.DB.prepare("UPDATE tasks SET due_at=? WHERE id=? AND status='open' AND ((due_at IS NULL AND ? IS NULL) OR due_at=?) AND ((due_at IS NOT NULL) OR (? IS NOT NULL))")
-   .bind(next,taskId,expected,expected,next).run();
+  const changed=await env.DB.prepare("UPDATE tasks SET due_at=? WHERE id=? AND status='open' AND due_at IS ?")
+   .bind(next,taskId,expected).run();
   const saved=await env.DB.prepare("SELECT status,due_at AS dueAt FROM tasks WHERE id=?").bind(taskId).first<{status:string;dueAt:string|null}>();
   if(!saved)return Response.json({error:"Task not found. Refresh saved tasks."},{status:404});
   if(saved.status!=="open")return Response.json({error:"Task is no longer open. Refresh saved tasks before editing."},{status:409});
