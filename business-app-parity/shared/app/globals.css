@@ -1748,3 +1748,15 @@ html,body{max-width:100%;overflow-x:clip}
 .dashboard-extra-reminder-content{display:grid;gap:12px;min-width:0;padding:0 12px 12px}
 .dashboard-extra-reminder-content>.dashboard-sign-reminders,.dashboard-extra-reminder-content>.dashboard-review-reminders{min-width:0;margin-top:0}
 @media(max-width:760px){.dashboard-extra-reminder-content{padding:0 8px 10px}.dashboard-extra-reminders>summary{min-height:48px}}
+
+
+/* Customer directory: saved review and yard-sign queues are accessible,
+   while due lead callbacks and the customer list remain immediately visible. */
+.customer-secondary-reminders{min-width:0;border:1px solid var(--border);background:var(--card);border-radius:12px;overflow:hidden}
+.customer-secondary-reminders>summary{list-style:none;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;min-height:48px;cursor:pointer;padding:11px 14px;color:var(--foreground);font-size:14px;font-weight:750}
+.customer-secondary-reminders>summary::-webkit-details-marker{display:none}
+.customer-secondary-reminders>summary>span{color:var(--muted-foreground);font-size:12px;font-weight:500}
+.customer-secondary-reminders>summary::after{content:"▾";margin-left:auto}
+.customer-secondary-reminders[open]>summary::after{transform:rotate(180deg)}
+.customer-secondary-reminders>summary:focus-visible{outline:2px solid var(--ring);outline-offset:-3px}
+.customer-secondary-reminder-list{display:grid;gap:12px;padding:0 12px 12px;min-width:0}
