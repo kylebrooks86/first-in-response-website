@@ -2771,14 +2771,57 @@ function ScheduleWeather({nextJobAt,compact=false,requestedJobAt=null}:{nextJobA
  </section>;
 }
 
+
+function ScheduleMonthCalendar({jobs,selectedDate,onSelectDate}:{jobs:EstimateRow[];selectedDate:string;onSelectDate:(date:string)=>void}){
+ const centralToday=new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+ const [month,setMonth]=useState(()=>selectedDate.slice(0,7)||centralToday.slice(0,7));
+ const first=new Date(month+"-01T12:00:00Z");
+ const year=first.getUTCFullYear(),monthIndex=first.getUTCMonth();
+ const count=new Date(Date.UTC(year,monthIndex+1,0)).getUTCDate();
+ const leading=first.getUTCDay();
+ const cells=Array.from({length:Math.ceil((leading+count)/7)*7},(_,index)=>{
+  const day=index-leading+1;
+  return day>=1&&day<=count?month+"-"+String(day).padStart(2,"0"):null;
+ });
+ const byDay=new Map<string,EstimateRow[]>();
+ for(const job of jobs){
+  if(!job.scheduledAt||!["scheduled","completed"].includes(job.status)||!Number.isFinite(Date.parse(job.scheduledAt)))continue;
+  const day=new Date(job.scheduledAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
+  byDay.set(day,[...(byDay.get(day)??[]),job]);
+ }
+ const moveMonth=(offset:number)=>{
+  const next=new Date(Date.UTC(year,monthIndex+offset,1,12));
+  setMonth(next.toISOString().slice(0,7));
+ };
+ return <section className="schedule-month" role="region" aria-label="Monthly job calendar">
+  <header className="schedule-month-header">
+   <button type="button" aria-label="Previous month" onClick={()=>moveMonth(-1)}>←</button>
+   <h2>{first.toLocaleDateString("en-US",{month:"long",year:"numeric",timeZone:"UTC"})}</h2>
+   <button type="button" aria-label="Next month" onClick={()=>moveMonth(1)}>→</button>
+   <button type="button" className="schedule-month-today" onClick={()=>{setMonth(centralToday.slice(0,7));onSelectDate(centralToday);}}>Today</button>
+  </header>
+  <div className="schedule-month-weekdays" aria-hidden="true">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(label=><span key={label}>{label}</span>)}</div>
+  <div className="schedule-month-grid" role="group" aria-label="Select a calendar date">
+   {cells.map((date,index)=>date?(()=>{
+    const jobsForDay=byDay.get(date)??[],scheduled=jobsForDay.filter(job=>job.status==="scheduled").length,completed=jobsForDay.length-scheduled;
+    return <button key={date} type="button" className={["schedule-month-day",date===selectedDate?"selected":"",date===centralToday?"today":""].filter(Boolean).join(" ")} aria-pressed={date===selectedDate} aria-label={new Date(date+"T12:00:00Z").toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric",timeZone:"UTC"})+", "+jobsForDay.length+" jobs: "+scheduled+" scheduled, "+completed+" completed"} onClick={()=>onSelectDate(date)}>
+      <span className="schedule-month-number">{Number(date.slice(-2))}</span>
+      <span className="schedule-month-dots" aria-hidden="true">{jobsForDay.slice(0,3).map(job=><i key={job.id} className={job.status==="completed"?"done":"booked"}/>)}{jobsForDay.length>3&&<small>+{jobsForDay.length-3}</small>}</span>
+    </button>;
+   })():<span key={"empty-"+index} className="schedule-month-empty" aria-hidden="true"/>)}
+  </div>
+  <div className="schedule-month-legend"><span><i className="booked"/> Scheduled</span><span><i className="done"/> Completed</span></div>
+ </section>;
+}
+
 function ScheduleView({ searchQuery }:{searchQuery:string}) {
   const [rows,setRows]=useState<EstimateRow[]>([]);
   const [selected,setSelected]=useState<EstimateRow|null>(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [lastCheckedAt,setLastCheckedAt]=useState<string|null>(null);
-  const [dayFilter,setDayFilter]=useState<"all"|"today"|"tomorrow"|"week"|"date">("all");
-  const [selectedDate,setSelectedDate]=useState("");
+  const [dayFilter,setDayFilter]=useState<"all"|"today"|"tomorrow"|"week"|"date">("date");
+  const [selectedDate,setSelectedDate]=useState(()=>new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"}));
   const [openContactJobId,setOpenContactJobId]=useState<string|null>(null);
   const [contactDraft,setContactDraft]=useState<{jobId:string;kind:"reminder"|"arrival";text:string;status:"copying"|"copied"|"manual"}|null>(null);
   const [weatherReview,setWeatherReview]=useState<{at:string;key:number}|null>(null);
@@ -2926,7 +2969,7 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
   const routeJobs=routeGroups[0]?.jobs??[];
   const routeUrl=routeGroups[0]?.url??"";
   const routeLabel=routeDate&&tulsaDay(routeDate.getTime())===today?"Route today":routeDate&&tulsaDay(routeDate.getTime())===tomorrow?"Route tomorrow":routeDate?`Route ${routeDate.toLocaleDateString("en-US",{weekday:"short",timeZone:"America/Chicago"})}`:"Route next jobs";
-  return <div className="workspace-view"><EstimateDetail estimate={loading||error?null:selected} onClose={()=>setSelected(null)} onChanged={(estimate)=>{setRows((current)=>current.map((row)=>row.id===estimate.id?estimate:row));setSelected(current=>current?.id===estimate.id?estimate:current);}}/><section className="workspace-head"><div><p className="eyebrow">Jobs</p><h1>Schedule</h1><p>Jobs and routes · Central Time.</p>{!loading&&!error&&lastCheckedAt&&<p className="schedule-last-checked" role="status">Last checked {new Date(lastCheckedAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})} Central Time</p>}</div><div className="schedule-header-actions"><Button variant="outline" onClick={()=>void load()} disabled={loading} aria-label="Refresh schedule">{loading?"Refreshing…":"Refresh schedule"}</Button>{!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noreferrer"><Navigation/> {routeLabel}<small>{routeWithAddress.length>8?`${routeJobs.length} of ${routeWithAddress.length} mapped stops`:`${routeJobs.length} stop${routeJobs.length===1?"":"s"}`}</small></a>}</div></section><div className="schedule-weather-anchor" ref={weatherPanelRef}><ScheduleWeather nextJobAt={!loading&&!error?(weatherReview?.at??upcoming.find(row=>row.status==="scheduled"&&Date.parse(row.scheduledAt!)>=now)?.scheduledAt):undefined} requestedJobAt={!loading&&!error?weatherReview?.at:null} reviewKey={!loading&&!error?weatherReview?.key:0}/></div>
+  return <div className="workspace-view"><EstimateDetail estimate={loading||error?null:selected} onClose={()=>setSelected(null)} onChanged={(estimate)=>{setRows((current)=>current.map((row)=>row.id===estimate.id?estimate:row));setSelected(current=>current?.id===estimate.id?estimate:current);}}/><section className="workspace-head"><div><p className="eyebrow">Jobs</p><h1>Schedule</h1><p>Jobs and routes · Central Time.</p>{!loading&&!error&&lastCheckedAt&&<p className="schedule-last-checked" role="status">Last checked {new Date(lastCheckedAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})} Central Time</p>}</div><div className="schedule-header-actions"><Button variant="outline" onClick={()=>void load()} disabled={loading} aria-label="Refresh schedule">{loading?"Refreshing…":"Refresh schedule"}</Button>{!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noreferrer"><Navigation/> {routeLabel}<small>{routeWithAddress.length>8?`${routeJobs.length} of ${routeWithAddress.length} mapped stops`:`${routeJobs.length} stop${routeJobs.length===1?"":"s"}`}</small></a>}</div></section><ScheduleMonthCalendar jobs={rows} selectedDate={selectedDate} onSelectDate={date=>{setSelectedDate(date);setDayFilter("date");setWeatherReview(null);}}/><div className="schedule-weather-anchor" ref={weatherPanelRef}><ScheduleWeather nextJobAt={!loading&&!error?(weatherReview?.at??upcoming.find(row=>row.status==="scheduled"&&Date.parse(row.scheduledAt!)>=now)?.scheduledAt):undefined} requestedJobAt={!loading&&!error?weatherReview?.at:null} reviewKey={!loading&&!error?weatherReview?.key:0}/></div>
     {loading?<div className="customers-state">Loading schedule…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:<>
       {needsAttention.length>0&&<section className="needs-attention"><header><div><h2>Needs attention</h2><p>Past job dates that still need to be completed, rescheduled, or paid.</p></div><b>{needsAttention.length}</b></header>{needsAttention.map((job)=><button key={job.id} onClick={()=>setSelected(job)}><Clock3/><span><strong>{job.customer}</strong><small>{job.service} · was scheduled {dateTime(job.scheduledAt!)}</small><b>{money(billingBalanceCents(job))} due</b></span><ChevronRight/></button>)}</section>}
       {routeDate&&(routeGroups.length>1||routeMissingAddress.length>0)&&<section className={`schedule-route-review${routeMissingAddress.length?" schedule-route-missing":""}`} role="region" aria-label="Route coverage review"><div><strong>{routeLabel} · check stops</strong><p>{routeWithAddress.length} of {routeDayJobs.length} upcoming job{routeDayJobs.length===1?"":"s"} on this day have usable saved addresses. {routeGroups.length>1?`Open ${routeGroups.length} route segments in appointment order.`:""}</p></div>{routeMissingAddress.length>0&&<div className="schedule-route-missing-list"><strong>{routeMissingAddress.length} stop{routeMissingAddress.length===1?"":"s"} not mapped — address missing</strong>{routeMissingAddress.map(job=><button type="button" key={job.id} onClick={()=>setSelected(job)}>{job.customer} · Review address <ChevronRight aria-hidden="true"/></button>)}</div>}{routeGroups.length>1&&<div className="schedule-route-extra-links"><strong>Additional route segments</strong>{routeGroups.slice(1).map(group=><a key={group.start} href={group.url} target="_blank" rel="noopener noreferrer" aria-label={`Route stops ${group.start} to ${group.end}`}><Navigation aria-hidden="true"/> Stops {group.start}–{group.end} <small>Continue from prior stop</small></a>)}</div>}<small>Routes follow scheduled stop order, not optimized driving time. Each segment includes at most eight new addressed stops; check Maps before driving.</small></section>}
