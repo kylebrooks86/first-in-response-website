@@ -35,4 +35,12 @@ assert.match(source,/onNavigate=\{setTab\}/);checks++;
 assert.match(source,/className="bottom-nav"[\s\S]*setTab\(id\)/);checks++;
 assert.match(source,/const goHome = [^\n]*setTab\("dashboard"\)/);checks++;
 assert.match(source,/const goBack = [^\n]*setTab\(target\)/);checks++;
+// Everyday shortcuts are prioritized, while EVERY original main section stays in the menu.
+const navSource=source.match(/const nav = useMemo\(\(\) => \[([\s\S]*?)\] as const, \[\]\);/)?.[1];
+assert.ok(navSource,'The real dashboard must still declare its navigation');
+const navIds=[...navSource.matchAll(/\["([^"]+)",\s*"[^"]+",/g)].map(match=>match[1]);
+eq(navIds,["dashboard","customers","estimates","schedule","followups","invoices","payments","contracts","door-knocking","business","insights","settings"],'All twelve original sections stay available');
+assert.match(source,/index===0&&<p className="sidebar-nav-heading">Everyday<\/p>/);checks++;
+assert.match(source,/index===7&&<p className="sidebar-nav-heading">More tools<\/p>/);checks++;
+assert.match(source,/\["dashboard","customers","estimates","schedule","followups"\]\.includes\(id\)/);checks++;
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
