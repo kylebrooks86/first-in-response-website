@@ -2915,7 +2915,7 @@ function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?
         // hexadecimal and scientific-notation amounts before exposing routes
         // or job balances; never coerce a malformed financial record to zero.
         if((typeof raw!=="number"&&typeof raw!=="string")||
-           (typeof raw==="string"&&!/^\\d+$/.test(raw.trim()))||
+           (typeof raw==="string"&&!/^\d+$/.test(raw.trim()))||
            !Number.isSafeInteger(Number(raw))||Number(raw)<0)
           throw new Error("Schedule amounts could not be verified. Refresh before using balances or routes.");
         return Number(raw);
