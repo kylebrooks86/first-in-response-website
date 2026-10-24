@@ -1971,3 +1971,14 @@ html,body{max-width:100%;overflow-x:clip}
 @media(max-width:350px){
  .estimate-detail .detail-actions,.estimate-detail .detail-more-tools>.detail-actions{grid-template-columns:minmax(0,1fr)}
 }
+
+
+/* Estimate research and job-driving tools: all existing buttons remain, but where they are needed. */
+.estimate-detail .detail-context-tools{flex:1 1 100%;grid-column:1/-1;display:grid;gap:7px;min-width:0;margin:2px 0}
+.estimate-detail .detail-context-tools>strong{font-size:12px;font-weight:800;color:var(--muted-foreground)}
+.estimate-detail .detail-context-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0}
+.estimate-detail .detail-context-buttons>a,.estimate-detail .detail-context-buttons>button{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:48px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;text-align:center;text-decoration:none;white-space:normal;cursor:pointer}
+.estimate-detail .detail-context-buttons svg{flex-shrink:0;width:16px;height:16px}
+.estimate-detail .detail-context-buttons>a.primary-tool{border-color:#d52a33;background:#e12933;color:white}
+.estimate-detail .detail-context-buttons>a:focus-visible,.estimate-detail .detail-context-buttons>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+@media(max-width:350px){.estimate-detail .detail-context-buttons{grid-template-columns:minmax(0,1fr)}}
