@@ -128,6 +128,17 @@ assert.ok(followUpSection.includes('className="followup-message-details"'),'Hist
 assert.ok(followUpSection.indexOf('No answer / Not contacted')<followUpSection.indexOf('className="followup-message-details"'),'No-answer / not-contacted filter remains directly accessible');n++;
 assert.ok(followUpSection.includes('Not contacted ·')&&followUpSection.includes('onClick={()=>void recordAction(estimate,"no_answer")}'),'Unanswered outreach stays visibly marked and loggable');n++;
 assert.ok(followUpSection.includes('Saved estimate activity (')&&followUpSection.includes('Recent contact'),'Full milestone and contact history remain available');n++;
+const contactStart=followUpSection.indexOf('className="followup-contact-actions"'),optionalStart=followUpSection.indexOf('className="followup-optional-tools"');
+assert.ok(contactStart>0&&optionalStart>contactStart,'Follow-ups keep immediate contact ahead of secondary tools');n++;
+const directContact=followUpSection.slice(contactStart,optionalStart);
+for(const target of ['Call ','Open text app for ','Open email app for ']){assert.ok(directContact.includes(target),'Customer contact remains one tap away: '+target);n++;}
+const optionalTools=followUpSection.slice(optionalStart,followUpSection.indexOf('className="followup-contact-panel"',optionalStart));
+assert.ok(optionalTools.includes('Recent contact')&&optionalTools.includes('Open estimate')&&optionalTools.includes('Customer history')&&optionalTools.includes('Saved estimate activity ('),'Optional tools retain complete customer, estimate and activity history');n++;
+const homeSource=view.slice(view.indexOf('function DashboardView('),view.indexOf('function AddCustomer('));
+assert.ok(homeSource.indexOf('dashboard-next-job')<homeSource.indexOf('<ScheduleWeather compact'),'Today places next job before the compact forecast');n++;
+assert.ok(homeSource.includes('<details className="panel quick-actions-panel dashboard-shortcut-disclosure">')&&homeSource.includes('<summary>More shortcuts</summary>'),'Repeated home shortcuts start collapsed without removing destinations');n++;
+for(const tab of ['customers','schedule','followups','payments']){assert.ok(homeSource.includes('onNavigate("'+tab+'")'),'All existing Home shortcuts remain reachable: '+tab);n++;}
+
 assert.ok(ownerPaymentSection.includes('const [showAllPayments,setShowAllPayments]=useState(false)'),'Payment history starts compact without changing saved ledger');n++;
 assert.ok(ownerPaymentSection.includes('(showAllPayments?payments:payments.slice(0,8)).map('),'All transactions and refund actions remain renderable');n++;
 assert.ok(ownerPaymentSection.includes('View all ${payments.length} payments')&&ownerPaymentSection.includes('Show recent 8 payments'),'One-tap full payment history remains visible to owner');n++;
