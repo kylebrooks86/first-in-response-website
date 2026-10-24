@@ -1889,10 +1889,10 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current customer address shown; the original service address was not recorded.</p>}
     <div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>
     <EstimatePromotionHistory key={`promotions:${estimate.id}`} estimateId={estimate.id} totalCents={estimate.totalCents}/>
-    <div className="next-action"><Sparkles/><div><strong>Recommended next step</strong><p>{nextAction}</p></div></div>
-
-    <div className="detail-actions">
-      <EditEstimateDialog estimate={estimate} onSaved={onChanged}/>{estimate.invoiceId&&<EditInvoiceDialog estimate={estimate} onSaved={(invoiceTotalCents)=>onChanged({...estimate,invoiceTotalCents})}/>}
+    {(Number(estimate.paymentOverageOpen)>0||Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)&&<div className="next-action" role="alert"><AlertTriangle aria-hidden="true"/><div><strong>Payment review needed</strong><p>{nextAction}</p></div></div>}
+    <div className="detail-actions" aria-label="Customer and estimate actions">
+      <EditEstimateDialog estimate={estimate} onSaved={onChanged}/>
+      {estimate.invoiceId&&<EditInvoiceDialog estimate={estimate} onSaved={(invoiceTotalCents)=>onChanged({...estimate,invoiceTotalCents})}/>}
       {estimate.customerId&&<MessageComposer
         customer={messageCustomer}
         estimate={estimate}
@@ -1902,17 +1902,23 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       />}
       {estimate.customerId&&estimate.status==="scheduled"&&estimate.scheduledAt&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="onMyWay" triggerLabel="On my way"/>}
       {estimate.customerId&&estimate.status==="completed"&&!estimate.lastReviewRequestAt&&!estimate.reviewReceivedAt&&Number(estimate.paymentOverageOpen)===0&&Number(estimate.pendingRefundCount)===0&&Number(estimate.openCheckoutCount)===0&&Number.isSafeInteger(resolvedBillingTotalCents(estimate))&&resolvedBillingTotalCents(estimate)>0&&estimate.paidCents===resolvedBillingTotalCents(estimate)&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="review" triggerLabel={estimate.lastReviewRequestAt?"Review requested":"Request review"} onSent={(message)=>onChanged({...estimate,lastReviewRequestAt:message.createdAt})}/>}
-      {estimate.status==="completed"&&(estimate.reviewReceivedAt||estimate.lastReviewRequestAt)&&<p className="text-sm text-muted-foreground" role="status">{estimate.reviewReceivedAt?"Review received · owner logged. Google verification is unavailable.":"Review request send confirmed by owner. Delivery is unverified; check review progress before considering more contact."}</p>}
-      {estimate.shareToken&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`}><ExternalLink/> Customer view</a>}
+      {estimate.phone&&<a href={`tel:${estimate.phone}`}><Phone/> Call</a>}
+      {estimate.phone&&<a href={`sms:${estimate.phone}`}><Send/> Text</a>}
+      {estimate.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Directions</a>}
       {estimate.invoiceId&&estimate.invoiceShareToken&&<a href={`/invoice/${encodeURIComponent(estimate.invoiceShareToken)}?ownerPreview=1&from=estimate`}><Receipt/> View invoice</a>}
-      {estimate.phone && <a href={`tel:${estimate.phone}`}><Phone /> Call</a>}
-      {estimate.phone && <a href={`sms:${estimate.phone}`}><Send /> Text</a>}
-      {estimate.address && <a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation /> Google Maps</a>}
-      <StrideButton />
-      {estimate.address && <a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2 /> Google Earth</a>}
-      {estimate.address && <a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House /> Zillow</a>}
-      <OwnerJobTools estimate={estimate} onSaved={setReportComplete}/><RecordPayment key={estimate.id} estimate={estimate} onRecorded={(paidCents)=>onChanged({...estimate,paidCents})}/>
+      <RecordPayment key={estimate.id} estimate={estimate} onRecorded={(paidCents)=>onChanged({...estimate,paidCents})}/>
     </div>
+    {estimate.status==="completed"&&(estimate.reviewReceivedAt||estimate.lastReviewRequestAt)&&<p className="text-sm text-muted-foreground" role="status">{estimate.reviewReceivedAt?"Review received · owner logged. Google verification is unavailable.":"Review request send confirmed by owner. Delivery is unverified; check review progress before considering more contact."}</p>}
+    <details className="detail-more-tools">
+      <summary>More tools</summary>
+      <div className="detail-actions">
+        {estimate.shareToken&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`}><ExternalLink/> Customer view</a>}
+        <StrideButton/>
+        {estimate.address&&<a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a>}
+        {estimate.address&&<a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a>}
+        <OwnerJobTools estimate={estimate} onSaved={setReportComplete}/>
+      </div>
+    </details>
     <OwnerDepositReview key={`deposit:${estimate.id}`} estimateId={estimate.id}/>
     <EstimateChangeHistory key={`changes:${estimate.id}`} estimateId={estimate.id} onSummary={(pending,latest)=>{if(Number(estimate.pendingChangeCount)!==pending||estimate.latestChangeRequest!==latest)onChanged({...estimate,pendingChangeCount:pending,latestChangeRequest:latest});}} />
     {Number(estimate.paymentOverageOpen)>0&&<div className="change-alert"><CircleDollarSign/><div><strong>Overpayment needs review</strong><p>If you refunded money, enter the exact amount so FIRE can subtract it from recorded payments. If you and the customer intentionally agreed to leave the excess on this job, use Keep as overpayment. This does not create a reusable customer credit.</p><div className="billing-resolution-actions"><Input type="number" min="0.01" step="0.01" inputMode="decimal" placeholder="Refund amount" value={refundAmount} onChange={(event)=>setRefundAmount(event.target.value)} disabled={saving}/><Button variant="outline" onClick={()=>void resolveOverpayment("refund")} disabled={saving}>Refund handled</Button><Button variant="outline" onClick={()=>void resolveOverpayment("keep")} disabled={saving}>Keep as overpayment</Button></div></div></div>}
