@@ -6,6 +6,14 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  const created=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[{name:'Synthetic Profile Service',quantity:1,unit:'job',totalCents:20000}]});assert.equal(created.status(),201);const estimate=await created.json();
  const profile=async()=>{await page.setViewportSize({width:390,height:844});await page.goto(origin+'/');await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('button',{name:'Customers',exact:true}).first().click();await page.locator('.customer-card').filter({hasText:customer.name}).click();await page.getByRole('heading',{name:customer.name,exact:true}).waitFor();};
  await profile();
+ const customerQuotes=page.getByRole('group',{name:'Customer estimates and signed agreements'});
+ check(await customerQuotes.getByRole('button',{name:'All estimates (1)',exact:true}).getAttribute('aria-pressed')==='true','Customer profile opens all of this customer’s saved quotes first');
+ await customerQuotes.getByRole('button',{name:'Agreements (0)',exact:true}).click();
+ check(await page.getByText('No matching agreements',{exact:true}).count()===1,'Unsent draft cannot be misrepresented as a signed or pending agreement');
+ check(await page.locator('.customer-records .customer-record').count()===0,'Agreement filter does not alter or duplicate draft records');
+ await customerQuotes.getByRole('button',{name:'All estimates (1)',exact:true}).click();
+ check(await page.locator('.customer-records .customer-record').filter({hasText:'Synthetic Profile Service'}).count()===1,'Full estimate remains reachable after switching views');
+ check(await page.getByRole('button',{name:/^Estimates & agreements/}).count()===1,'Customer profile has one combined estimates and agreements tab');
  const firstUse=await page.evaluate(()=>{
    const selectors=['.customer-profile-head','.customer-contact','.record-tabs','.customer-records','.customer-snapshot','.customer-flag-panel','.customer-timeline'];
    const roots=selectors.map(selector=>document.querySelector(selector));
