@@ -32,7 +32,7 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
  f.set('error','');
  f.set('view','list');
  f.set('rows',[sent('viewed-48',48),sent('viewed-36',36),sent('too-new',8),sent('approved',72,{status:'approved'}),sent('invoice',60,{invoiceId:'inv-1'}),sent('no-view',4,{firstViewedAt:null})]);
- const button=nodes(f.render()).find(n=>n.props?.['aria-pressed']===false&&String(n.props?.children).includes('Viewed 24h+'));
+ const button=nodes(f.render()).find(n=>n.props?.['aria-pressed']===false&&String(n.props?.children).includes('Viewed · awaiting decision'));
  assert.ok(button,'Viewed-estimate filter is available on mobile');
  button.props.onClick();
  eq(f.get('viewedOnly'),true,'Owner controls viewed filter without mutating records');
@@ -41,7 +41,7 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
  const cards=nodes(f.render()).filter(n=>n.props?.className==='estimate-card');
  eq(cards.length,2,'Only older viewed, unapproved, uninvoiced jobs are visible');
  eq(String(cards[0].props.children[1]?.props?.children?.[0]?.props?.children??'').length>0,true,'Cards retain saved job identity');
- const off=nodes(f.render()).find(n=>n.props?.['aria-pressed']===true&&String(n.props?.children).includes('Viewed 24h+'));
+ const off=nodes(f.render()).find(n=>n.props?.['aria-pressed']===true&&String(n.props?.children).includes('Viewed · awaiting decision'));
  off.props.onClick();eq(f.get('viewedOnly'),false,'Owner can restore full list without touching status or billing');
 }
 console.log(`PASS ${checks}/${checks}: real estimate-history recovery, viewed 24h+ mobile filters and guarded paging. Synthetic reads only.`);
