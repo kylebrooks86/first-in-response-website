@@ -82,10 +82,11 @@ for(const [flag,action] of [['LEAD_NO_ANSWER_NOTE','no_answer'],['LEAD_CONTACTED
  check(dashboard.includes('saveNote('+flag+',"'+action+'")')&&dashboard.includes('noteAttempts.current.get(attemptKey)')&&dashboard.includes('noteSaveLock.current'),
   'One-tap contact outcome persists with the existing idempotent note API: '+flag);
 }
-check(dashboard.includes('No answer · not contacted on the latest logged attempt'),
- 'Saved customer card presents the missed-call status honestly');
-check(dashboard.includes('No contact outcome logged.')&&dashboard.includes('leadContact?.state==="contacted"'),
- 'Missing lead outcome is distinct from a confirmed contacted state');
+check(dashboard.includes('No answer · not contacted · ')&&dashboard.includes('unanswered attempt')&&dashboard.includes('unansweredAttempts'),
+ 'Saved customer card shows a concise truthful no-answer outcome, attempt count and latest time');
+check(dashboard.includes('manualFlags.leadContact&&<p')&&dashboard.includes('aria-label="Last lead contact"')&&
+ dashboard.includes('Contacted · ')&&!dashboard.includes('No contact outcome logged.'),
+ 'Uncontacted new leads do not show placeholder explanation; owner logged contact remains explicit');
 check(dashboard.includes('manuallyUnansweredLeadIds')&&dashboard.includes('showUnansweredLeadsOnly'),
  'Customer directory can filter exact owner-logged unanswered leads, even with no estimate');
 check(dashboard.includes('manuallyUnansweredLeadIds')&&dashboard.includes('manualFlags=deriveCustomerManualFlags(customerNotes)'),
