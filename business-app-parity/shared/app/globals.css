@@ -1982,3 +1982,19 @@ html,body{max-width:100%;overflow-x:clip}
 .estimate-detail .detail-context-buttons>a.primary-tool{border-color:#d52a33;background:#e12933;color:white}
 .estimate-detail .detail-context-buttons>a:focus-visible,.estimate-detail .detail-context-buttons>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
 @media(max-width:350px){.estimate-detail .detail-context-buttons{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Business tax preparation: concise saved-expense rollup, not a tax return. */
+.business-tax-prep{margin:12px 0 16px;border:1px solid var(--border);border-radius:12px;background:var(--card);min-width:0}
+.business-tax-prep>summary{display:flex;min-height:48px;align-items:center;padding:10px 14px;cursor:pointer;font-weight:800;color:var(--foreground)}
+.business-tax-prep>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.business-tax-prep-body{display:grid;justify-items:start;gap:12px;padding:0 14px 14px;min-width:0}
+.business-tax-prep-heading{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;font-weight:750}
+.business-tax-prep-heading select{min-height:44px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--foreground)}
+.business-tax-prep-body p{margin:0;font-size:13px;line-height:1.5}
+.business-tax-prep-body p[role=status] strong{font-size:19px}
+.business-tax-categories{display:grid;gap:7px;width:100%;max-width:520px}
+.business-tax-categories>div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding:6px 0;font-size:13px}
+.business-tax-categories>div strong{font-variant-numeric:tabular-nums;white-space:nowrap}
+.business-tax-prep .export-button{min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.business-tax-prep-body .business-tax-caveat{font-size:12px;color:var(--muted-foreground);max-width:72ch}
