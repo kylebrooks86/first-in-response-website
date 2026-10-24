@@ -1944,3 +1944,12 @@ html,body{max-width:100%;overflow-x:clip}
 .agreement-status-details>summary{min-height:46px;display:flex;align-items:center;padding:9px 12px;font-size:13px;font-weight:750;cursor:pointer}
 .agreement-status-details>.business-metrics{margin:0;padding:0 10px 12px}
 @media(max-width:430px){.estimate-section-switch{gap:6px}.estimate-section-switch>button{padding:10px 6px}}
+
+
+/* Quotes, unsigned agreements, and signed records live on the customer's existing history tab. */
+.customer-quote-switch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+.customer-quote-switch>button{min-width:0;min-height:44px;padding:8px 9px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:12px;font-weight:750;cursor:pointer;overflow-wrap:anywhere}
+.customer-quote-switch>button.active{border-color:#c52b35;background:#fff1f2;color:#a31d29}
+.customer-quote-switch>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+[data-theme="dark"] .customer-quote-switch>button.active{background:#4b252c;border-color:#e86c73;color:#ffe2e5}
+@media(max-width:350px){.customer-quote-switch{gap:6px}.customer-quote-switch>button{padding:8px 5px;font-size:11px}}
