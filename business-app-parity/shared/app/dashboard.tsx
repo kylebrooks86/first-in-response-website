@@ -2866,6 +2866,9 @@ function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?
   const reviewScheduledWeather=(scheduledAt:string)=>{
     weatherReviewCount.current++;
     setWeatherReview({at:scheduledAt,key:weatherReviewCount.current});
+    // Weather sits inside an optional disclosure. A direct job shortcut must
+    // open it before scrolling, or iPhone users land on a hidden forecast.
+    if(planningToolsRef.current)planningToolsRef.current.open=true;
     weatherPanelRef.current?.scrollIntoView?.({block:"start",behavior:"smooth"});
   };
   // Drafts are local only. They never send a message or mark an appointment confirmed.
