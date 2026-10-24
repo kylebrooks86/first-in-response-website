@@ -2295,3 +2295,24 @@ html,body{max-width:100%;overflow-x:clip}
  .settings-view>.pricing-disclosure{margin-bottom:12px;padding:8px 10px}
  .template-fields .merge-tags{margin-top:0}
 }
+
+/* Compact mobile invoice records: preserve financial status and amount without widening iPhone cards. */
+.invoice-card>.status-chip.partial{background:#fff0dd;color:#854b08}
+[data-theme="dark"] .invoice-card>.status-chip.partial{background:#523215;color:#ffe0a6}
+@media(max-width:980px){
+  .invoice-card{grid-template-columns:40px minmax(0,1fr) auto;column-gap:10px;row-gap:8px;padding:12px}
+  .invoice-card>.invoice-icon{grid-column:1;grid-row:1/3;width:40px;height:40px}
+  .invoice-card>div:first-of-type{grid-column:2;grid-row:1;min-width:0;overflow-wrap:anywhere}
+  .invoice-card>.status-chip{display:inline-flex;grid-column:2;grid-row:2;justify-self:start;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+  .invoice-card>.invoice-total{display:grid;grid-column:3;grid-row:1/3;align-self:center;gap:3px;min-width:0}
+  .invoice-card>.invoice-actions{grid-column:1/-1;grid-row:3;justify-content:stretch!important;min-width:0}
+  .invoice-card>.invoice-actions>a,.invoice-card>.invoice-actions>button{flex:1 1 130px;min-height:44px}
+}
+@media(max-width:430px){
+  .invoice-card{grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:11px}
+  .invoice-card>.invoice-icon{display:none}
+  .invoice-card>div:first-of-type{grid-column:1;grid-row:1}
+  .invoice-card>.status-chip{grid-column:1;grid-row:2}
+  .invoice-card>.invoice-total{grid-column:2;grid-row:1/3}
+  .invoice-card>.invoice-actions{grid-column:1/-1;grid-row:3}
+}

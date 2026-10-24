@@ -101,4 +101,19 @@ check('Paid review queue controls preserve search, sort, filtered reset, and exa
  for(const [order,expected] of [['priority',['prepared','old-ready','new-ready']],['newest',['new-ready','prepared','old-ready']],['customer',['new-ready','prepared','old-ready']]]){const context={exports:{},reviewCloseoutOrder:order};vm.runInNewContext(ts.transpileModule('exports.sort='+comparator,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,context);assert.deepEqual(rows.slice().sort(context.exports.sort).map(row=>row.estimateId),expected,order+' uses actual saved-record ordering');}
  assert.match(body,/reviewCloseoutError\?<p role="alert"/);
 });
+check('Invoice mobile cards retain payment-review warning, balance and accessible actions',()=>{
+ const src=readFileSync('app/dashboard.tsx','utf8');
+ assert.ok(src.includes('className="invoice-card"')&&src.includes('Payment review')&&src.includes('Billing exception open'));
+ const sheet=postcss.parse(readFileSync('app/globals.css','utf8'));
+ const mobile=(selector,width)=>{let found;sheet.walkRules(r=>{if(r.selector===selector&&r.parent.type==='atrule'&&r.parent.params.includes('max-width:'+width+'px'))found=r;});return found;};
+ const decl=(selector,width,property)=>mobile(selector,width)?.nodes.find(n=>n.prop===property)?.value;
+ assert.equal(decl('.invoice-card>.status-chip',980,'display'),'inline-flex','Mobile invoice status must remain visible');
+ assert.equal(decl('.invoice-card>.invoice-total',980,'display'),'grid','Mobile invoice totals and outstanding balance must remain visible');
+ assert.equal(decl('.invoice-card>.invoice-actions',980,'grid-row'),'3','Payment controls follow invoice details');
+ assert.equal(decl('.invoice-card>.invoice-actions>a,.invoice-card>.invoice-actions>button',980,'min-height'),'44px','Touch controls remain 44px high');
+ assert.equal(decl('.invoice-card>.invoice-icon',430,'display'),'none','Decorative receipt icon can collapse on compact phones');
+ assert.equal(decl('.invoice-card>.invoice-total',430,'grid-column'),'2','Amounts remain visible next to the customer');
+ assert.equal(decl('.invoice-card>.status-chip',430,'grid-row'),'2','Status remains visible below customer details');
+ assert.ok(sheet.toString().includes('.invoice-card>.status-chip.partial{background:'));
+});
 console.log(`PASS: ${cases}/${cases} component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.`);
