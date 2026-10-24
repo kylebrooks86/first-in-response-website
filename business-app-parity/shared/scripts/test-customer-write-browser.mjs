@@ -83,13 +83,16 @@ try{
  // sending a message or generating a quote, followed by directory filtering.
  await page.setViewportSize({width:390,height:700});
  await open('Fixture First');
- await page.getByRole('button',{name:'Prepare lead no-answer note'}).click();
- check(await page.getByLabel('Customer note',{exact:true}).inputValue()==='[FIRE FLAG] LEAD_NO_ANSWER',
-  'Lead No answer from actual Customer profile prepares without saving or sending');
- await page.getByRole('button',{name:'Add note',exact:true}).click();
+ const originalDraft=page.getByLabel('Customer note',{exact:true});
+ await originalDraft.fill('Unsent field note');
+ await page.getByRole('button',{name:'Log lead no answer'}).evaluate(button=>{button.click();button.click();});
+ await page.getByText('No answer logged.',{exact:true}).waitFor();
  await page.getByText(/No answer · not contacted on the latest logged attempt/).waitFor();
  check(notePosts===1&&notes.length===1&&notes[0].body==='[FIRE FLAG] LEAD_NO_ANSWER',
-  'Owner Add note persists exactly one unanswered lead without creating an estimate');
+  'One-tap No answer persists once without an estimate, message or duplicate rapid submission');
+ check(await originalDraft.inputValue()==='Unsent field note',
+  'Direct lead logging preserves a separate unsaved customer note');
+ await originalDraft.fill('');
  await page.getByRole('button',{name:'← All customers',exact:true}).click();
  await page.getByRole('button',{name:'No answer / not contacted (1)'}).click();
  check(await page.locator('.customer-card').count()===1&&
@@ -130,6 +133,16 @@ try{
  await page.getByRole('button',{name:'Callbacks due (0)'}).waitFor();
  check(await page.locator('.customer-card').count()===2,
   'After handling a due callback, reset the filter to restore the entire owner customer list');
+ await open('Fixture First');
+ const unsentBeforeContact=page.getByLabel('Customer note',{exact:true});
+ await unsentBeforeContact.fill('Unsent quote detail');
+ await page.getByRole('button',{name:'Log lead contacted'}).evaluate(button=>{button.click();button.click();});
+ await page.getByText('Contact logged.',{exact:true}).waitFor();
+ check(notes.length===4&&notePosts===4&&notes[0].body==='[FIRE FLAG] LEAD_CONTACTED',
+  'One-tap contacted creates one owner-recorded contact without messaging or quotes');
+ check(await unsentBeforeContact.inputValue()==='Unsent quote detail',
+  'Contact logging leaves unrelated customer note draft unchanged');
+ await page.getByRole('button',{name:'← All customers',exact:true}).click();
  for(const width of [320,390])for(const theme of ['light','dark']){
   reset();await page.setViewportSize({width,height:700});await page.goto(origin);await page.evaluate(value=>window.setTheme(value),theme);await open('Fixture First');
   const noteInput=page.getByLabel('Customer note',{exact:true});await noteInput.fill('First gate note');noteHold=true;const noteAccepted=new Promise(r=>onNote=r),beforeNotes=notePosts;
