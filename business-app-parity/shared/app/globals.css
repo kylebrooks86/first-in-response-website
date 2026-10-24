@@ -2119,3 +2119,14 @@ html,body{max-width:100%;overflow-x:clip}
 [data-theme="light"] .sidebar-more-nav>summary{border-color:var(--border);color:var(--foreground)}
 [data-theme="light"] .sidebar-more-nav>summary:hover{background:var(--muted);color:var(--foreground)}
 @media(max-width:760px){.sidebar-more-nav>summary{min-height:48px}}
+
+/* Owner-only secondary tracking: quick lead calls and due reminders stay above. */
+.customer-extra-tracking{width:100%;min-width:0;border:1px solid var(--border);border-radius:10px;background:var(--background)}
+.customer-extra-tracking>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:46px;padding:10px 12px;cursor:pointer;list-style:none;color:var(--foreground);font-size:13px;font-weight:800;overflow-wrap:anywhere}
+.customer-extra-tracking>summary::-webkit-details-marker{display:none}
+.customer-extra-tracking>summary span{color:var(--muted-foreground);font-size:11px;font-weight:650}
+.customer-extra-tracking>summary::after{content:"▾";color:var(--muted-foreground)}
+.customer-extra-tracking[open]>summary::after{transform:rotate(180deg)}
+.customer-extra-tracking>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
+.customer-extra-tracking>.customer-flag-actions{padding:12px;border-top:1px solid var(--border)}
+@media(max-width:430px){.customer-extra-tracking>summary{padding:10px}.customer-extra-tracking>.customer-flag-actions{padding:10px}}
