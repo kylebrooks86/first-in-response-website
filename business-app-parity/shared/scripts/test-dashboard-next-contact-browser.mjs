@@ -11,6 +11,8 @@ const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss');
 const tailwind=require('@tailwindcss/postcss');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const source=readFileSync('app/dashboard.tsx','utf8');
+assert.match(source,/\{tab===\"dashboard\"&&<StrideButton top\/>\}/,'Stride belongs only in the Home topbar');
+assert.equal((source.match(/<StrideButton top\/>/g)||[]).length,1,'Only one original Stride shortcut location');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const actionNodes=[];
 function scan(node){
