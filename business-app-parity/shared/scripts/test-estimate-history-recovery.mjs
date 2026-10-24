@@ -44,4 +44,10 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
  const off=nodes(f.render()).find(n=>n.props?.['aria-pressed']===true&&String(n.props?.children).includes('Viewed · awaiting decision'));
  off.props.onClick();eq(f.get('viewedOnly'),false,'Owner can restore full list without touching status or billing');
 }
-console.log(`PASS ${checks}/${checks}: real estimate-history recovery, viewed 24h+ mobile filters and guarded paging. Synthetic reads only.`);
+{
+ const f=fixture();f.set('loading',false);f.set('rows',[row('new-lead')]);f.set('view','list');
+ eq(nodes(f.render()).some(n=>String(n.props?.children).includes('Viewed · awaiting decision')),false,'No empty Viewed filter clutter before customer actually views a quote');
+ f.set('viewedOnly',true);
+ eq(nodes(f.render()).some(n=>String(n.props?.children).includes('Viewed · awaiting decision')),true,'Selected Viewed filter remains available to clear even if its queue becomes empty');
+}
+console.log(`PASS ${checks}/${checks}: real estimate-history recovery, compact useful-only viewed filters and guarded paging. Synthetic reads only.`);
