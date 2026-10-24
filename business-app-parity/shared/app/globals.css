@@ -1632,6 +1632,11 @@ html,body{max-width:100%;overflow-x:clip}
 .photo-backup-more>summary{display:flex;align-items:center;min-height:48px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;line-height:1.45;cursor:pointer}
 .photo-backup-more>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
 .photo-backup-more>.photo-buttons{margin-top:10px}
+/* The optional comparison editor appears only when the owner wants to combine images. */
+.photo-comparison-more{min-width:0;max-width:100%;margin-top:14px}
+.photo-comparison-more>summary{display:flex;align-items:center;min-height:48px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer}
+.photo-comparison-more>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.photo-comparison-more>.before-after-builder{margin-top:10px}
 /* FIRE QA real-iPhone review (Oct 23): on-device photo ZIP actions must never
    form two half-hidden columns. Preserve the desktop layouts and photo logic. */
 @media (max-width:760px){
