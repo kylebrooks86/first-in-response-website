@@ -59,6 +59,12 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   payload.estimates[0].status='completed';
   payload.estimates[0].lastReviewRequestAt='2026-09-30T12:00:00Z';
   await page.reload();
+  const optionalCustomerReminders=page.locator('details.customer-secondary-reminders');
+  await optionalCustomerReminders.waitFor();
+  check(await optionalCustomerReminders.evaluate(el=>!el.open),'Nonurgent customer review and sign detail starts collapsed');
+  check((await optionalCustomerReminders.locator('summary').innerText()).includes('review checks'),'Saved review count remains visible in compact directory summary');
+  await optionalCustomerReminders.locator('summary').click();
+  check(await page.getByRole('region',{name:'Review checks to consider'}).isVisible(),'Original review-check list remains accessible after expanding');
   await page.locator('.customer-card').filter({hasText:'Fixture first'}).click();
   const dueReview=page.getByRole('region',{name:'Review follow-up check due'});
   await dueReview.waitFor();
