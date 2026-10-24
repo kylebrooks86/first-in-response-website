@@ -30,7 +30,7 @@ export async function exerciseJobCloseout({page,context,origin,request,check,mut
  check(!(await(await request('/api/payment-closeouts')).json()).actions.some(x=>x.estimateId===estimate.id),'Confirmed send clears actual ready queue');
  const date=new Date(Date.now()-8*86400000).toISOString();const quote=x=>"'"+x.replaceAll("'","''")+"'";
  await mutateSyntheticD1('UPDATE customer_messages SET created_at='+quote(date)+' WHERE id='+quote(sent[0].id));
- await page.goto(origin+'/');const reminders=page.getByRole('region',{name:'Review status checks on dashboard',exact:true});await reminders.getByRole('button').filter({hasText:customer.name}).click();
+ await page.goto(origin+'/');await page.locator('details.dashboard-extra-reminders > summary').click();const reminders=page.getByRole('region',{name:'Review status checks on dashboard',exact:true});await reminders.getByRole('button').filter({hasText:customer.name}).click();
  await page.locator('#customer-review-check-'+customer.id).waitFor();check(await page.locator('#customer-review-check-'+customer.id).evaluate(n=>document.activeElement===n),'Dashboard reminder opens and focuses exact customer review check');
  await page.getByRole('button',{name:'Prepare review received note',exact:true}).click();const note=page.getByLabel('Customer note',{exact:true});check(await note.inputValue()==='[FIRE FLAG] REVIEW_RECEIVED','Logging receipt prepares existing note and requires explicit save');
  check(!(await(await request('/api/backup')).json()).tables.customer_notes.some(n=>n.customer_id===customer.id&&n.body==='[FIRE FLAG] REVIEW_RECEIVED'),'Preparation alone never records a received review');
