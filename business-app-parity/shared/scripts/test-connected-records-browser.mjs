@@ -115,7 +115,8 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(await flags.locator('#customer-sign-flag-first').evaluate(node=>node.closest('details')?.open===true),'Direct sign reminder expands exact saved sign status');
   check(writes===0,'Sign reminder navigation does not save records or mark pickup completed');
   await moreTracking.locator(':scope>summary').click();
-  await flags.getByText('More statuses',{exact:true}).click();
+  const extraStatuses=flags.locator('details.customer-sign-form').first();
+  if(!(await extraStatuses.evaluate(node=>node.open)))await extraStatuses.locator(':scope>summary').click();
   check((await flags.innerText()).includes('Review received')&&(await flags.innerText()).includes('Not logged'),'Unverified reviews never appear as received');
   check((await flags.innerText()).includes('Invoice')&&(await flags.innerText()).includes('Created · send not confirmed'),'Created invoice never implies a confirmed send');
   const timelineDisclosure=page.locator('details.customer-timeline-disclosure');
