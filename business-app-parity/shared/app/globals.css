@@ -2254,5 +2254,9 @@ html,body{max-width:100%;overflow-x:clip}
  .template-editor{padding:12px;gap:12px}
  .template-editor>header h2{font-size:18px}
  .template-editor textarea{font-size:16px}
+ .template-editor textarea{height:208px;min-height:180px}
+ .template-editor>footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-top:10px}
+ .template-editor>footer>button{min-height:44px;height:auto;flex:none;padding:10px 7px;line-height:1.35}
+ .settings-view>.pricing-disclosure{margin-bottom:12px;padding:8px 10px}
  .template-fields .merge-tags{margin-top:0}
 }
