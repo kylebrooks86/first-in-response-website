@@ -112,6 +112,7 @@ try{
   const shortcut=page.locator('.customer-next-job');
   check(await shortcut.count()===1,width+': exactly one current job shortcut');
   check(await shortcut.getByText('Open scheduled job').isVisible(),width+': scheduled job label is truthful');
+  check(await shortcut.getAttribute('aria-label')==='Open Gutter cleaning scheduled job',width+': scheduled VoiceOver action names saved job');
   await shortcut.click();
   check(await page.evaluate(()=>window.__openedJob?.id==='job-001'&&window.__openedJob?.customer==='Synthetic customer'),width+': original current job handler opens correct customer and job');
   check(await shortcut.evaluate(el=>{const p=el.getBoundingClientRect();return p.height>=44&&p.left>=-1&&p.right<=innerWidth+1}),width+': current job tap target stays within phone');
@@ -135,8 +136,11 @@ try{
  await page.evaluate(()=>{window.__setSelected(s=>({...s,phone:'',email:'',address:''}));window.__setWithActions(false)});
  for(const [status,label] of [['draft','Continue draft estimate'],['sent','Open estimate'],['completed','Open completed job']]){
   await page.evaluate(next=>window.__setActiveCustomerEstimate(s=>({...s,status:next,scheduledAt:null})),status);
-  await page.locator('.customer-next-job').getByText(label,{exact:true}).waitFor({state:'visible'});
-  check(true,status+': status label matches saved estimate after React commit');
+  const jobButton=page.locator('.customer-next-job');
+  await jobButton.getByText(label,{exact:true}).waitFor({state:'visible'});
+  const ariaSuffix=status==='completed'?'completed job':status==='draft'?'draft estimate':'estimate';
+  check(await jobButton.getAttribute('aria-label')==='Open Gutter cleaning '+ariaSuffix,status+': VoiceOver action matches saved job stage');
+  check(true,status+': visible label matches saved estimate after React commit');
  }
  await page.evaluate(()=>window.__setActiveCustomerEstimate(null));
  await page.locator('.customer-next-job').waitFor({state:'detached'});
