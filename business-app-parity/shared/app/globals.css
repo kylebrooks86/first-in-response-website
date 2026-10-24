@@ -1931,3 +1931,16 @@ html,body{max-width:100%;overflow-x:clip}
 .schedule-day-buttons>button:focus-visible,.schedule-choose-job>button:focus-visible,.schedule-planning-more>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
 [data-theme="dark"] .schedule-date-confirmation{color:#ffd0a8}
 @media(max-width:430px){.schedule-day-buttons>button{flex:1 1 115px;padding:9px 6px}.schedule-day-actions{padding:10px}}
+
+
+/* Estimates and signed agreements share one owner workflow and one navigation entry. */
+.estimate-section-switch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0}
+.estimate-section-switch>button{min-width:0;min-height:48px;padding:9px 12px;border:1px solid var(--border);border-radius:11px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer}
+.estimate-section-switch>button.active{border-color:#c52b35;background:#fff1f2;color:#a31d29}
+.estimate-section-switch>button:focus-visible,.agreement-status-details>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+[data-theme="dark"] .estimate-section-switch>button.active{background:#4b252c;border-color:#e86c73;color:#ffe2e5}
+.agreements-embedded{display:grid;gap:12px;min-width:0}
+.agreement-status-details{min-width:0;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.agreement-status-details>summary{min-height:46px;display:flex;align-items:center;padding:9px 12px;font-size:13px;font-weight:750;cursor:pointer}
+.agreement-status-details>.business-metrics{margin:0;padding:0 10px 12px}
+@media(max-width:430px){.estimate-section-switch{gap:6px}.estimate-section-switch>button{padding:10px 6px}}
