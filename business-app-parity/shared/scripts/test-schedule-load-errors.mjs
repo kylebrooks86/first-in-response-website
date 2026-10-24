@@ -9,7 +9,7 @@ const helpers=['resolvedBillingTotalCents','billingBalanceCents'];
 const declarations=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>helpers.includes(d.name.getText(ast))));
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleView');
 let state=[],cursor=0,effect,requests=[],fetchOptions=[],responder;let scheduleNow=Date.parse('2026-10-09T12:00:00Z');
-const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','ScheduleMonthCalendar','Navigation','Clock3','ChevronRight','CalendarDays','CloudSun','AlertTriangle','Phone'].map(name=>[name,()=>null]));
+const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','ScheduleMonthCalendar','Navigation','Clock3','ChevronRight','CalendarDays','CloudSun','AlertTriangle','Phone','RefreshCw'].map(name=>[name,()=>null]));
 const spacing={exports:{}};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/schedule-turnarounds.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,spacing);
 const pagination={exports:{},require};
@@ -20,7 +20,7 @@ const context={exports:{},require,...pagination.exports,...spacing.exports,Error
  useEffect(fn){effect=fn;},useCurrentTime:()=>scheduleNow,fetch:async (url,options)=>{requests.push(url);fetchOptions.push(options);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,dateTime:s=>s,
 };
 vm.runInNewContext(ts.transpileModule(declarations.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=ScheduleView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
-function render(searchQuery=''){cursor=0;if(!(5 in state))state[5]='all';if(!(6 in state))state[6]='';return context.exports.view({searchQuery});}
+function render(searchQuery=''){cursor=0;if(!(4 in state))state[4]='all';if(!(5 in state))state[5]='';return context.exports.view({searchQuery});}
 function nodes(tree){const out=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;out.push(n);walk(n.props?.children);}walk(tree);return out;}
 async function settle(){for(let i=0;i<16;i++)await Promise.resolve();assert.equal(state[2],false,'Load must settle');}
 const job={id:'job-synthetic',customer:'Synthetic QA',service:'House Wash',status:'scheduled',scheduledAt:'2026-10-10T12:00:00Z',address:'123 A & B St, Tulsa',totalCents:10000,invoiceTotalCents:8000,depositCents:5000,paidCents:2000};
