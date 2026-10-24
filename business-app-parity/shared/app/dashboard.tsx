@@ -3012,13 +3012,13 @@ function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?
   {!loading&&!error&&<section className="schedule-day-actions" aria-label="Selected calendar day">
    <div><strong>{new Date(selectedDate+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric",timeZone:"UTC"})}</strong><small>{rows.filter(job=>job.scheduledAt&&["scheduled","completed"].includes(job.status)&&new Date(job.scheduledAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"})===selectedDate).length} saved job(s)</small></div>
    <div className="schedule-day-buttons">
-    <button type="button" onClick={()=>setShowBookingOptions(v=>!v)} aria-expanded={showBookingOptions}>+ Schedule job</button>
-    <button type="button" onClick={()=>onNavigate?.("customers")}>+ Add customer</button>
+    <button type="button" onClick={()=>setShowBookingOptions(v=>!v)} aria-expanded={showBookingOptions} aria-controls="schedule-choose-job">+ Schedule job</button>
    </div>
-   {showBookingOptions&&<div className="schedule-choose-job" role="region" aria-label="Choose an approved job to schedule">
+   {showBookingOptions&&<div id="schedule-choose-job" className="schedule-choose-job" role="region" aria-label="Choose an approved job to schedule">
     <strong>Choose an approved job</strong>
     {rows.filter(job=>job.status==="approved"&&!job.scheduledAt).length?rows.filter(job=>job.status==="approved"&&!job.scheduledAt).map(job=><button type="button" key={job.id} onClick={()=>{setBookingDate(selectedDate);setSelected(job);setShowBookingOptions(false);}}>{job.customer} · {job.service}<ChevronRight aria-hidden="true"/></button>):<p>No approved jobs waiting for a date. Create an estimate and get it approved first.</p>}
     <button type="button" onClick={()=>onNavigate?.("estimates")}>Open estimates <ChevronRight aria-hidden="true"/></button>
+    <button type="button" onClick={()=>onNavigate?.("customers")}>Add customer <ChevronRight aria-hidden="true"/></button>
    </div>}
   </section>}
   {!loading&&!error&&(startConflicts.length>0||turnarounds.length>0||jobPrepIssues.length>0)&&<button type="button" className="schedule-check-shortcut" aria-label="Review upcoming schedule checks" onClick={()=>{const panel=planningToolsRef.current;if(panel){panel.open=true;panel.scrollIntoView({block:"start",behavior:"smooth"});}}}>
