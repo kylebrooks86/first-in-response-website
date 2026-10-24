@@ -51,6 +51,10 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(await expenseEntry.evaluate(node=>!node.open),'Business expense entry starts collapsed so daily tasks and saved records are visible');
   await expenseEntry.locator('summary').click();
   check(await page.getByLabel('Amount ($)',{exact:true}).isVisible(),'Add expense form remains accessible with one tap');
+  const taskEntry=page.locator('details.business-task-entry');
+  check(await taskEntry.evaluate(node=>!node.open),'New task form starts closed so saved tasks remain the daily priority');
+  await taskEntry.locator('summary').click();
+  check(await page.getByLabel('Task or reminder',{exact:true}).isVisible(),'New task entry remains one tap away');
   await page.getByLabel('Task or reminder',{exact:true}).fill('Unsaved synthetic reminder');await page.getByLabel('Amount ($)',{exact:true}).fill('42.17');await page.getByLabel('Purchase date (optional)',{exact:true}).fill('2026-10-16');
   const nav=page.getByRole('navigation',{name:'Business sections'});await nav.getByRole('button',{name:'Expenses',exact:true}).click();check(await page.evaluate(()=>document.activeElement.id)==='business-expenses-heading','Expense jump transfers focus');const heading=await page.locator('#business-expenses-heading').boundingBox();check(heading.y>=0&&heading.y<size.height,'Expense heading remains in viewport');
   check(await page.locator('.expense-list>div').count()===12,'First 12 saved expenses visible');await page.getByRole('button',{name:'Show 12 more expenses',exact:true}).click();check(await page.locator('.expense-list>div').count()===24,'Older expenses expand to 24');await page.getByRole('button',{name:'Show 11 more expenses',exact:true}).click();check(await page.locator('.expense-list>div').count()===35,'Every saved expense is reachable');check(await page.getByRole('button',{name:/more expenses$/}).count()===0,'No misleading load-more at end');
