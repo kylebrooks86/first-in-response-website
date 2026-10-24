@@ -1779,3 +1779,20 @@ html,body{max-width:100%;overflow-x:clip}
 .business-expense-entry[open]>summary::after{transform:rotate(180deg)}
 .business-expense-entry>summary:focus-visible{outline:2px solid var(--ring);outline-offset:-3px}
 .business-expense-entry>.business-form{padding:0 12px 12px;margin:0}
+
+
+/* FIRE follow-ups: scan the due action first, expand dates only when needed. */
+.followup-message-details{margin-top:8px;min-width:0;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground)}
+.followup-message-details>summary{min-height:44px;display:flex;align-items:center;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:750}
+.followup-message-details>summary:focus-visible{outline:2px solid var(--ring);outline-offset:-2px}
+.followup-message-details>small{display:block;padding:5px 12px;line-height:1.5;color:var(--muted-foreground)}
+.followup-message-details>small:last-child{padding-bottom:12px}
+@media(max-width:760px){
+ .payments-view .business-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .payments-view .business-metrics article{min-width:0;padding:11px 10px;overflow-wrap:anywhere}
+ .payments-view .business-metrics strong{overflow-wrap:anywhere}
+ .followup-card-tools{gap:7px}
+ .followup-card-tools>button,.followup-card-tools>a{flex:1 1 auto;min-height:44px;justify-content:center}
+ .followup-card-tools>details{flex:1 1 100%}
+}
+@media(max-width:350px){.payments-view .business-metrics{grid-template-columns:minmax(0,1fr)}}
