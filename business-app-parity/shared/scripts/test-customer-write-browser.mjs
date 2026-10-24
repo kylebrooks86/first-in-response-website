@@ -101,12 +101,18 @@ try{
  await open('Fixture First');
  await page.getByText('Schedule or reschedule lead callback',{exact:true}).click();
  await page.getByLabel('Lead callback date',{exact:true}).fill('2026-10-22');
- await page.getByRole('button',{name:'Prepare lead callback note'}).click();
- check(await page.getByLabel('Customer note',{exact:true}).inputValue()==='[FIRE FLAG] LEAD_CALLBACK | due:2026-10-22',
-  'Callback picker prepares dated owner note without contacting customer');
- await page.getByRole('button',{name:'Add note',exact:true}).click();
+ const unsavedCustomerNote=page.getByLabel('Customer note',{exact:true});
+ await unsavedCustomerNote.fill('Keep this unrelated customer note draft');
+ await page.getByRole('button',{name:'Save lead callback'}).evaluate(button=>{button.click();button.click();});
+ await page.getByText('Callback saved.',{exact:true}).waitFor();
  await page.getByRole('status').filter({hasText:'Callback due:'}).waitFor();
- check(notePosts===2&&notes.length===2,'Callback persists once using existing notes API, no estimate needed');
+ check(notePosts===2&&notes.length===2&&notes[0].body==='[FIRE FLAG] LEAD_CALLBACK | due:2026-10-22',
+  'One-tap callback persists exactly once using existing notes API, no estimate or messages needed');
+ check(await unsavedCustomerNote.inputValue()==='Keep this unrelated customer note draft',
+  'Saving callback does not replace an unrelated unsaved customer note');
+ check(await page.getByRole('button',{name:'Save lead callback'}).isDisabled(),
+  'Same pending callback date cannot be saved twice');
+ await unsavedCustomerNote.fill('');
  await page.getByRole('button',{name:'← All customers',exact:true}).click();
  await page.getByRole('region',{name:'Due customer lead callbacks'}).waitFor();
  await page.getByRole('button',{name:'Callbacks due (1)'}).click();
