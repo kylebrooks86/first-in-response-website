@@ -62,6 +62,20 @@ const fixtures=[{...job,id:'later',scheduledAt:'2026-10-10T15:00:00Z',address:'4
 state=[[],null,true,''];responder=()=>ok(fixtures.map(e=>({...e,totalCents:String(e.totalCents),paidCents:String(e.paidCents),depositCents:String(e.depositCents)})));render();effect();await settle();equal(state[0][0].totalCents,10000);equal(state[0][0].depositCents,5000);equal(state[0][0].paidCents,2000);
 const all=nodes(render());const cards=all.filter(n=>n.props?.className==='schedule-job');const rowShells=all.filter(n=>n.props?.className?.split(' ').includes('schedule-job-shell'));equal(cards.length,3);equal(rowShells.length,3);equal(rowShells[0].key,job.id);equal(rowShells[1].key,'later');equal(rowShells[2].key,'next-day');
 const route=new URL(all.find(n=>n.props?.className==='route-day-button').props.href);equal(route.searchParams.get('destination'),'456 Later Rd');equal(route.searchParams.get('waypoints'),job.address);
+// Searching visible job cards MUST NOT silently drop a confirmed route stop.
+// Maps directions keep the entire verified day, even when no card matches.
+const searched=nodes(render('456 later'));
+equal(searched.filter(n=>n.props?.className==='schedule-job').length,1);
+const searchedLink=searched.find(n=>n.props?.className==='route-day-button');
+const searchedRoute=new URL(searchedLink.props.href);
+equal(searchedRoute.searchParams.get('destination'),'456 Later Rd');
+equal(searchedRoute.searchParams.get('waypoints'),job.address);
+equal(nodes(searchedLink).some(n=>n.type==='small'&&JSON.stringify(n.props?.children).includes('search does not filter route')),true);
+const noCardMatch=nodes(render('no-such-customer'));
+equal(noCardMatch.filter(n=>n.props?.className==='schedule-job').length,0);
+const unfilteredDirections=new URL(noCardMatch.find(n=>n.props?.className==='route-day-button').props.href);
+equal(unfilteredDirections.searchParams.get('destination'),'456 Later Rd');
+equal(unfilteredDirections.searchParams.get('waypoints'),job.address);
 const attention=all.find(n=>n.props?.className==='needs-attention');const overdue=nodes(attention).filter(n=>n.type==='button');equal(overdue.length,1);equal(overdue[0].key,'past-open');equal(nodes(overdue[0]).find(n=>n.type==='b').props.children.join(''),'$60.00 due');overdue[0].props.onClick();equal(state[1].id,'past-open');
 const detail=nodes(render()).find(n=>n.type===stubs.EstimateDetail);detail.props.onChanged({...fixtures.find(e=>e.id==='past-open'),status:'completed',paidCents:8000});equal(state[0].find(e=>e.id==='past-open').paidCents,8000);equal(state[1].paidCents,8000);detail.props.onClose();equal(state[1],null);detail.props.onChanged({...job,status:'completed'});equal(state[1],null);equal(state[0].find(e=>e.id===job.id).status,'completed');cards[1].props.onClick();detail.props.onChanged({...job,status:'scheduled'});equal(state[1].id,'later');
 equal(nodes(render('456 later')).filter(n=>n.props?.className==='schedule-job').length,1);equal(nodes(render('absent')).some(n=>n.props?.children==='No upcoming jobs'),true);
@@ -97,6 +111,11 @@ equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,2);
 let exactRoute=new URL(nodes(render()).find(n=>n.props?.className==='route-day-button').props.href);
 equal(exactRoute.searchParams.get('destination'),'Today late stop');
 equal(exactRoute.searchParams.get('waypoints'),'Today first stop');
+const hiddenDay=nodes(render('a customer that is not booked'));
+equal(hiddenDay.filter(n=>n.props?.className==='schedule-job').length,0);
+const hiddenDayRoute=new URL(hiddenDay.find(n=>n.props?.className==='route-day-button').props.href);
+equal(hiddenDayRoute.searchParams.get('destination'),'Today late stop');
+equal(hiddenDayRoute.searchParams.get('waypoints'),'Today first stop');
 dayButton('Next work date').props.onClick();
 equal(state[6],'2026-10-21');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,1);
 exactRoute=new URL(nodes(render()).find(n=>n.props?.className==='route-day-button').props.href);

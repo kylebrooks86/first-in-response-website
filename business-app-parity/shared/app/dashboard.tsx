@@ -3047,9 +3047,15 @@ function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?
     (dayFilter==="today"?tulsaDay(row.scheduledAt!)===today:
     dayFilter==="tomorrow"?tulsaDay(row.scheduledAt!)===tomorrow:
     tulsaDay(row.scheduledAt!)>=today&&tulsaDay(row.scheduledAt!)<=lastWeekDay));
-  // Keep routes on the first upcoming scheduled day even if its first job lacks
-  // an address. Never silently jump to a different day's route or omit later stops.
-  const routeDayCandidates=upcoming.filter(row=>row.status==="scheduled"&&row.scheduledAt&&Date.parse(row.scheduledAt)>=now);
+  // Route discovery must use ALL verified upcoming appointments, never the
+  // global text-search list. Search can hide a job card, but must not silently
+  // remove its stop from driving directions or route-missing-address warnings.
+  // Date/window selections still determine the work day being routed.
+  const routeDayCandidates=allVerifiedUpcoming.filter(row=>
+    dayFilter==="date"?tulsaDay(row.scheduledAt!)===selectedDate:
+    dayFilter==="today"?tulsaDay(row.scheduledAt!)===today:
+    dayFilter==="tomorrow"?tulsaDay(row.scheduledAt!)===tomorrow:
+    dayFilter==="week"?tulsaDay(row.scheduledAt!)<=lastWeekDay:true);
   const routeDate=routeDayCandidates[0]?.scheduledAt?new Date(routeDayCandidates[0].scheduledAt):null;
   const routeDayJobs=routeDate?routeDayCandidates.filter(row=>tulsaDay(row.scheduledAt!)===tulsaDay(routeDate.getTime())):[];
   const routeMissingAddress=routeDayJobs.filter(row=>!row.address?.trim());
@@ -3072,7 +3078,7 @@ function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?
    {nextBookedJob&&<button type="button" className="schedule-next-booked" aria-label="Jump to next booked day" onClick={()=>{setSelectedDate(tulsaDay(nextBookedJob.scheduledAt!));setDayFilter("date");setShowBookingOptions(false);setWeatherReview(null);}}>Next booked: {new Date(nextBookedJob.scheduledAt!).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/Chicago"})} <ChevronRight aria-hidden="true"/></button>}
    <div className="schedule-day-buttons">
     <button type="button" onClick={()=>setShowBookingOptions(v=>!v)} aria-expanded={showBookingOptions} aria-controls="schedule-choose-job">+ Schedule job</button>
-    {!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noopener noreferrer" aria-label={routeLabel+" in Google Maps"}><Navigation aria-hidden="true"/> {routeLabel}<small>{routeWithAddress.length>8?`${routeJobs.length} of ${routeWithAddress.length} mapped stops`:`${routeJobs.length} stop${routeJobs.length===1?"":"s"}`}</small></a>}
+    {!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noopener noreferrer" aria-label={routeLabel+" in Google Maps"}><Navigation aria-hidden="true"/> {routeLabel}<small>{routeWithAddress.length>8?`${routeJobs.length} of ${routeWithAddress.length} mapped stops`:`${routeJobs.length} stop${routeJobs.length===1?"":"s"}`}{searchQuery.trim()?" · search does not filter route":""}</small></a>}
    </div>
    {showBookingOptions&&<div id="schedule-choose-job" className="schedule-choose-job" role="region" aria-label="Choose an approved job to schedule">
     <strong>Choose an approved job</strong>
