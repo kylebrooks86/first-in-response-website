@@ -48,7 +48,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  const openScheduleTools=async()=>{
   const more=page.locator('details.schedule-planning-more');
   await more.waitFor({state:'visible'});
-  if(!await more.evaluate(node=>node.open))await more.locator('summary').click();
+  if(!await more.evaluate(node=>node.open))await more.locator(':scope > summary').click();
  };
  const showAllUpcoming=async count=>{
   await openScheduleTools();
