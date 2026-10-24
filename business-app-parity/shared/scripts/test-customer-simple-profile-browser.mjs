@@ -120,10 +120,12 @@ try{
  await page.evaluate(()=>{window.__setSelected(s=>({...s,phone:'',email:'',address:''}));window.__setWithActions(false)});
  for(const [status,label] of [['draft','Continue draft estimate'],['sent','Open estimate'],['completed','Open completed job']]){
   await page.evaluate(next=>window.__setActiveCustomerEstimate(s=>({...s,status:next,scheduledAt:null})),status);
-  check(await page.locator('.customer-next-job').getByText(label,{exact:true}).isVisible(),status+': status label matches saved estimate');
+  await page.locator('.customer-next-job').getByText(label,{exact:true}).waitFor({state:'visible'});
+  check(true,status+': status label matches saved estimate after React commit');
  }
  await page.evaluate(()=>window.__setActiveCustomerEstimate(null));
- check(await page.locator('.customer-next-job').count()===0,'No fictional current job is shown when there are no estimates');
+ await page.locator('.customer-next-job').waitFor({state:'detached'});
+ check(true,'No fictional current job is shown when there are no estimates');
  await page.waitForFunction(()=>document.querySelector('.customer-contact-empty'));
  check(await page.locator('.customer-contact a').count()===0,'Missing customer contacts never create fake clickable links');
  check(await page.locator('.customer-contact-empty').isVisible(),'Missing contact summary stays available with Edit customer direction');
