@@ -2911,7 +2911,12 @@ function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?
       // Cents must remain exact integers; financial strings from D1 are normal, fractional
       // cents and unsafe numeric conversions are not.
       const exactCents=(raw:unknown)=>{
-        if((typeof raw!=="number"&&typeof raw!=="string")||(typeof raw==="string"&&!raw.trim())||!Number.isSafeInteger(Number(raw)))
+        // D1 may return decimal integer strings. Refuse negative, fractional,
+        // hexadecimal and scientific-notation amounts before exposing routes
+        // or job balances; never coerce a malformed financial record to zero.
+        if((typeof raw!=="number"&&typeof raw!=="string")||
+           (typeof raw==="string"&&!/^\\d+$/.test(raw.trim()))||
+           !Number.isSafeInteger(Number(raw))||Number(raw)<0)
           throw new Error("Schedule amounts could not be verified. Refresh before using balances or routes.");
         return Number(raw);
       };
