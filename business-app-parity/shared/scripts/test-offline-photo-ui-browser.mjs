@@ -296,6 +296,9 @@ try{
  await ctx.setOffline(false);await page.reload();
  await page.getByText(/Photo changes are paused/).waitFor();
  check(await page.locator('.photo-card').count()===2,'Reload after committed-but-unconfirmed ZIP restore preserves images and durable pause');
+ const restoreDisclosure=page.locator('details.photo-backup-more');
+ check(!await restoreDisclosure.evaluate(node=>node.open),'Optional photo recovery stays collapsed after reload while durable save warning remains');
+ await restoreDisclosure.locator(':scope > summary').click();
  check(await page.getByRole('button',{name:'Restore verified photo ZIP',exact:true}).isDisabled(),'Reload cannot enable an unreviewed ZIP restore retry');
  await page.getByRole('button',{name:'Refresh saved photos for review'}).click();
  await page.getByRole('button',{name:'I reviewed saved photos; allow new changes'}).click();
