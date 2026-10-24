@@ -118,4 +118,14 @@ assert.equal(journey({...sample,status:'approved',paidCents:5000,openCheckoutCou
 for(const key of ['pendingRefundCount','openCheckoutCount']){assert.ok(customerApi.includes('AS '+key),'Customer job includes '+key+' safety state');n++;}
 assert.ok(view.includes('Customer estimate to scheduled job journey')&&view.includes('customerJobJourney(estimate,customerMessages)'),'Customer profile uses existing job records');n++;
 assert.ok(view.includes('Estimate link viewed')&&view.includes('Link opened · viewer identity and intent unverified'),'Timeline labels views correctly');n++;
-console.log('PASS '+n+' timing, reviewed journey milestones, billing guards, and mobile source contracts.');
+// Daily owner screens stay short without losing proof or financial safeguards.
+const ownerPaymentSection=view.slice(view.indexOf('function PaymentsView('),view.indexOf('function BusinessView(')>0?view.indexOf('function BusinessView('):undefined);
+assert.ok(ownerPaymentSection.indexOf('Card checkouts needing review')<ownerPaymentSection.indexOf('Collectible job balances'),'Unresolved Stripe checkouts still warn before recording more money');n++;
+assert.ok(ownerPaymentSection.indexOf('Collectible job balances')<ownerPaymentSection.indexOf('Job Closeout Center'),'Everyday balances appear before secondary review administration');n++;
+assert.ok(ownerPaymentSection.includes('Payment history')&&ownerPaymentSection.includes('RecordPayment'),'All payment controls and history remain accessible');n++;
+const followUpSection=view.slice(view.indexOf('function FollowUpsView('),view.indexOf('function PaymentsView('));
+assert.ok(followUpSection.includes('className="followup-message-details"'),'Historical message timestamps remain available under a disclosure');n++;
+assert.ok(followUpSection.indexOf('No answer · not contacted')<followUpSection.indexOf('className="followup-message-details"'),'No-answer / not-contacted filter remains directly accessible');n++;
+assert.ok(followUpSection.includes('Not contacted ·')&&followUpSection.includes('onClick={()=>void recordAction(estimate,"no_answer")}'),'Unanswered outreach stays visibly marked and loggable');n++;
+assert.ok(followUpSection.includes('Saved estimate activity (')&&followUpSection.includes('Recent contact'),'Full milestone and contact history remain available');n++;
+console.log('PASS '+n+' timing, reviewed journey milestones, billing guards, and compact daily owner screen contracts.');
