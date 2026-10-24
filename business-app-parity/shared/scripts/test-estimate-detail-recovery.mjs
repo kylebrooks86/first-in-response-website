@@ -99,8 +99,13 @@ eq(researchNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Seconda
 const scheduledJob=fixture();scheduledJob.setFetcher(()=>Promise.resolve(ok(false,'booked')));scheduledJob.open({...job('booked'),address:'123 Synthetic St',scheduledAt:'2026-10-28T14:00:00.000Z'});await flush();
 const scheduledNodes=scheduledJob.nodes();
 eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Driving to job'),true,'Booked job exposes Google Maps and Stride together');
+eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Job report and costs'),true,'Scheduled work surfaces Job report and Job costs directly, without a More tools tap');
 eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Estimate research'),false,'Booked job does not repeat pre-estimate research buttons up front');
-eq(scheduledNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Booked job retains research, report and cost tools in More tools');
+eq(scheduledNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Booked job retains extra research and customer-view tools under More tools');
+const completedJob=fixture();completedJob.setFetcher(()=>Promise.resolve(ok(true,'completed')));completedJob.open({...job('completed'),status:'completed',address:'123 Synthetic St'});await flush();
+const completedNodes=completedJob.nodes();
+eq(completedNodes.some(n=>n.props?.['aria-label']==='Job report and costs'),true,'Completed job still exposes reports and costs without extra navigation');
+eq(completedNodes.some(n=>n.props?.['aria-label']==='Driving to job'),false,'Completed job does not show an active driving shortcut');
 const simpleJob=fixture();simpleJob.open(job('compact-scheduled'));await flush();
 eq(simpleJob.nodes().some(n=>n.props?.className==='next-action'),false,'Routine booked work has no redundant next-step box');
 const exceptionJob=fixture();exceptionJob.open({...job('held-billing'),paymentOverageOpen:1});await flush();
