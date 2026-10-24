@@ -80,4 +80,15 @@ for(const hasSavedAppointment of [false,true]){
  if(hasSavedAppointment)eq(f.nodes().some(n=>n.type==='small'&&n.props?.children==='Clearing this selection does not cancel the saved appointment.'),true,'Existing appointment is explicitly protected');
 }
 
+// Keep essential customer actions prominent while preserving every secondary job tool.
+const detailSource=fn.getText(ast),moreStart=detailSource.indexOf('<details className="detail-more-tools">'),moreEnd=detailSource.indexOf('</details>',moreStart),mainStart=detailSource.indexOf('<div className="detail-actions" aria-label="Customer and estimate actions">');
+eq(moreStart>mainStart&&moreEnd>moreStart,true,'Secondary job tools exist in their own expandable section');
+const primary=detailSource.slice(mainStart,moreStart),secondary=detailSource.slice(moreStart,moreEnd);
+for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','tel:','sms:','Directions'])eq(primary.includes(label),true,'Daily customer action available: '+label);
+for(const label of ['Customer view','StrideButton','Google Earth','Zillow','OwnerJobTools'])eq(secondary.includes(label),true,'Existing research and job control retained: '+label);
+eq(secondary.includes('<summary>More tools</summary>'),true,'More tools has a keyboard-operable disclosure');
+const simpleJob=fixture();simpleJob.open(job('compact-scheduled'));await flush();
+eq(simpleJob.nodes().some(n=>n.props?.className==='next-action'),false,'Routine booked work has no redundant next-step box');
+const exceptionJob=fixture();exceptionJob.open({...job('held-billing'),paymentOverageOpen:1});await flush();
+eq(exceptionJob.nodes().some(n=>n.props?.className==='next-action'&&n.props.role==='alert'),true,'Payment exception still appears as an accessible warning');
 console.log(`PASS ${checks}/${checks}: actual estimate-detail effect/button state guards report loads across estimate switches, pending reads, close/unmount, failed/malformed responses and retry; synthetic reads/PATCH only; closeout failures, ownership validation and duplicate taps.`);
