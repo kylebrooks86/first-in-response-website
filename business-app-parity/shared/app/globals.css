@@ -1915,6 +1915,12 @@ html,body{max-width:100%;overflow-x:clip}
 .schedule-day-actions>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .schedule-day-actions>div:first-child strong{font-size:14px}
 .schedule-day-actions>div:first-child small{font-size:12px;color:var(--muted-foreground)}
+.schedule-check-shortcut{display:flex;align-items:center;gap:10px;width:100%;min-width:0;min-height:50px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--border);border-radius:11px;background:var(--card);color:var(--foreground);text-align:left;cursor:pointer}
+.schedule-check-shortcut>svg{width:18px;height:18px;flex:0 0 auto}
+.schedule-check-shortcut>span{flex:1;min-width:0;display:grid;gap:2px}
+.schedule-check-shortcut strong{font-size:13px;line-height:1.3}
+.schedule-check-shortcut small{font-size:11px;line-height:1.4;color:var(--muted-foreground)}
+.schedule-check-shortcut:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
 .schedule-day-buttons{display:flex;gap:8px;flex-wrap:wrap}
 .schedule-day-buttons>button,.schedule-choose-job>button{min-height:44px;padding:9px 13px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:inherit;font-weight:750;cursor:pointer}
 .schedule-day-buttons>button:first-child{background:#b32430;border-color:#b32430;color:white}
