@@ -86,9 +86,26 @@ for(const [i,value] of samples.entries()){
  const parsed=parseCSV(await response.text());
  eq(parsed[1][2],"'"+value,'Prefix dangerous input variant '+i);
 }
+// Year-specific tax prep must not mix tax years, alter source records, or bypass CSV escaping.
+database.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run('older-tax-year',null,'Fuel','=OLDYEAR()',475,'2025-12-16T12:00:00.000Z','2025-12-16T12:00:00.000Z');
+const currentYear=await context.exports.GET(new Request(url+'&year=2026'));
+eq(currentYear.status,200,'2026 tax-year expense export is authorized');
+eq(currentYear.headers.get('content-disposition')?.includes('fire-expenses-2026-wave.csv'),true,'Year-tagged filename avoids mixing export periods');
+const currentRows=parseCSV(await currentYear.text());
+eq(currentRows.length,3,'Year-filtered CSV includes only two 2026 records');
+eq(currentRows.slice(1).every(row=>row[0].startsWith('2026-')),true,'2025 expense is excluded from 2026');
+const priorRows=parseCSV(await (await context.exports.GET(new Request(url+'&year=2025'))).text());
+eq(priorRows.length,2,'2025 filtered report includes the saved older expense');
+eq(priorRows[1][2],"'=OLDYEAR()",'Filtered export retains formula-injection protection');
+eq(priorRows[1][3],'4.75','Prior-year amount uses precise saved cents');
+eq((await context.exports.GET(new Request(url+'&year=202A'))).status,400,'Malformed year refuses CSV instead of defaulting to another year');
+eq((await context.exports.GET(new Request(url+'&year=1800'))).status,400,'Unsupported century refuses year selection');
+eq((await context.exports.GET(new Request('https://synthetic.invalid/api/expenses'))).status,200,'Tax-year export never changes the default JSON list');
+const pageSource=readFileSync('app/dashboard.tsx','utf8');
+eq(pageSource.includes('business-tax-prep')&&pageSource.includes('taxExpenses')&&pageSource.includes('api/expenses?format=csv&year='),true,'Business tax prep uses existing expense history and yearly Wave export');
 authorized=false;
 const denied=await context.exports.GET(new Request(url));
 eq(denied.status,401,'Unauthenticated export rejected');
-eq(database.prepare('SELECT count(*) AS n FROM expenses').get().n,2,'No records created or deleted');
+eq(database.prepare('SELECT count(*) AS n FROM expenses').get().n,3,'Export creates no records and preserves all three synthetic years');
 database.close();
 console.log('PASS '+checks+'/'+checks+': actual expense CSV safety, embedded quotes and whitespace, auth, unchanged stored records. Disposable SQLite only.');
