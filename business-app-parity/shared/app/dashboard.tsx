@@ -2602,14 +2602,12 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
           </div>
         </details>
         {activityNotice?.customerId===selected.id&&<p role={activityNotice.kind==="error"?"alert":"status"} className={activityNotice.kind==="error"?"save-error":"save-success"}>{activityNotice.text}</p>}
-        <p role="status" className="customer-flag-help">
-          <strong>Lead contact log: </strong>
-          {manualFlags.leadContact?.state==="no_answer"
-            ?`No answer · not contacted on the latest logged attempt (${manualFlags.leadContact.unansweredAttempts} unanswered call${manualFlags.leadContact.unansweredAttempts===1?"":"s"} recorded). Last attempt ${dateTime(manualFlags.leadContact.at)}.`
-            :manualFlags.leadContact?.state==="contacted"
-             ?`Contact logged ${dateTime(manualFlags.leadContact.at)}.`
-             :"No contact outcome logged."}
-        </p>
+        {manualFlags.leadContact&&<p role="status" className="customer-flag-help" aria-label="Last lead contact">
+          <strong>Contact: </strong>
+          {manualFlags.leadContact.state==="no_answer"
+            ?`No answer · not contacted · ${manualFlags.leadContact.unansweredAttempts} unanswered attempt${manualFlags.leadContact.unansweredAttempts===1?"":"s"} · ${dateTime(manualFlags.leadContact.at)}`
+            :`Contacted · ${dateTime(manualFlags.leadContact.at)}`}
+        </p>}
         {manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate&&
           <p className="customer-flag-sign-location" role="status">
             <strong>{manualFlags.leadCallback.dueDate<=tulsaToday?"Callback due":"Upcoming callback"}:</strong> {manualFlags.leadCallback.dueDate}.
