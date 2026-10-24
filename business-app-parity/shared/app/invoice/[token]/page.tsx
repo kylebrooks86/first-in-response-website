@@ -2,7 +2,7 @@ import {invoicePaymentState,invoicePaymentMessage} from "../../../lib/invoice-st
 import {getChatGPTUser} from "../../chatgpt-auth";
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
-import { CalendarDays, MapPin, ShieldCheck, Info, X } from "lucide-react";
+import { CalendarDays, MapPin, ShieldCheck, Info, ArrowUpRight, X } from "lucide-react";
 import { publicInvoiceFooter } from "../../../lib/fire-templates";
 import { serviceDescriptionFor } from "../../../lib/fire-services";
 import { PayButton } from "../../pay/[id]/pay-button";
