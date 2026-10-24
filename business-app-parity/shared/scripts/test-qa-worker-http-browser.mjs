@@ -196,7 +196,10 @@ try{
  // Open the actual dashboard workflow, without fixture replacement or mocked API.
  await page.getByRole('button',{name:'Open menu',exact:true}).click();
  await page.getByRole('button',{name:/Estimates 1/}).click();
- await page.getByRole('button',{name:/Synthetic HTTP Customer.*\$200/}).click();
+ const firstEstimateCard=page.locator('.estimate-list .estimate-card').filter({hasText:'Synthetic HTTP Customer'});
+  await firstEstimateCard.waitFor();
+  check((await firstEstimateCard.locator('.estimate-amount').innerText()).includes('$200'),'Simple Estimates list retains the exact saved $200 amount');
+  await firstEstimateCard.click();
  await page.getByRole('button',{name:'Edit estimate',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Edit estimate',exact:true});await dialog.waitFor();
  const box=await dialog.boundingBox();
@@ -278,7 +281,9 @@ try{
  await page.reload();await page.getByText('SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Open menu',exact:true}).click();
  await page.getByRole('button',{name:/Estimates 1/}).click();
- await page.getByRole('button',{name:/Synthetic HTTP Customer.*\$250/}).waitFor();
+ const restoredEstimateCard=page.locator('.estimate-list .estimate-card').filter({hasText:'Synthetic HTTP Customer'});
+  await restoredEstimateCard.waitFor();
+  check((await restoredEstimateCard.locator('.estimate-amount').innerText()).includes('$250'),'Simple Estimates list retains the updated $250 amount after Worker restart');
  check(true,'Actual Estimates screen shows saved estimate after full local Worker restart');
  if(!lookupMode){
   await page.goto(origin+'/');await page.getByRole('button',{name:'New estimate',exact:true}).click();
