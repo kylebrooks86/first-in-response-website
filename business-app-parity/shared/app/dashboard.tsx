@@ -1913,7 +1913,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     </div>
     {estimate.status==="completed"&&(estimate.reviewReceivedAt||estimate.lastReviewRequestAt)&&<p className="text-sm text-muted-foreground" role="status">{estimate.reviewReceivedAt?"Review received · owner logged. Google verification is unavailable.":"Review request send confirmed by owner. Delivery is unverified; check review progress before considering more contact."}</p>}
     <details className="detail-more-tools">
-      <summary>More tools</summary>
+      <summary>{estimate.status==="scheduled"?"Job report, costs & more":"More tools"}</summary>
       <div className="detail-actions">
         {estimate.shareToken&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`}><ExternalLink/> Customer view</a>}
         {!travelingToJob&&<StrideButton/>}
