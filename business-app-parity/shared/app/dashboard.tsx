@@ -4378,6 +4378,10 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   const nav = useMemo(() => [
     ["dashboard", "Dashboard", House], ["customers", "Customers", Users], ["estimates", "Estimates", ClipboardList], ["schedule", "Schedule", CalendarDays], ["followups", "Follow-ups", Clock3], ["invoices", "Invoices", Receipt], ["payments", "Payments", CreditCard], ["door-knocking", "Door knocking", MapPin], ["business", "Business", BriefcaseBusiness], ["insights", "Insights", BarChart3], ["settings", "Settings", Settings],
   ] as const, []);
+  // Everyday sections remain one tap away. Secondary tools are only expanded
+  // when the owner requests them or a saved shortcut opens that section.
+  const [moreNavOpen,setMoreNavOpen]=useState(false);
+  useEffect(()=>{if(nav.slice(7).some(([id])=>id===tab))setMoreNavOpen(true);},[tab,nav]);
   useEffect(()=>{
     const saved=window.localStorage.getItem("fire-theme");
     const next=saved==="dark"||saved==="light"?saved:(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
@@ -4450,7 +4454,16 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
       <aside className={`sidebar ${mobileMenu ? "mobile-open" : ""}`}>
         <div className="brand"><FireMark /><div><strong>FIRE</strong><small>Business App</small></div><button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X /></button></div>
         <div className="mobile-menu-search"><GlobalSearch query={globalQuery} onQuery={setGlobalQuery} onSelect={openSearchResult} disabled={!interactive} active={mobileMenu} menu/></div>
-        <nav aria-label="All business sections">{nav.map(([id, label, Icon],index) => <Fragment key={id}>{index===0&&<p className="sidebar-nav-heading">Everyday</p>}{index===7&&<p className="sidebar-nav-heading">More tools</p>}<button disabled={!interactive} className={tab === id ? "active" : ""} onClick={() => { setTab(id); setMobileMenu(false); }}><Icon /><span>{label}</span>{id === "estimates" && liveMetrics.estimates > 0 && <b>{liveMetrics.estimates}</b>}</button></Fragment>)}</nav>
+        <nav aria-label="All business sections">
+          <p className="sidebar-nav-heading">Everyday</p>
+          {nav.slice(0,7).map(([id,label,Icon])=><button key={id} disabled={!interactive} className={tab===id?"active":""} onClick={()=>{setTab(id);setMobileMenu(false);}}><Icon/><span>{label}</span>{id==="estimates"&&liveMetrics.estimates>0&&<b>{liveMetrics.estimates}</b>}</button>)}
+          <details className="sidebar-more-nav" open={moreNavOpen} onToggle={event=>setMoreNavOpen(event.currentTarget.open)}>
+            <summary aria-label="More business tools">More tools <ChevronDown aria-hidden="true"/></summary>
+            <div className="sidebar-more-items">
+              {nav.slice(7).map(([id,label,Icon])=><button key={id} disabled={!interactive} className={tab===id?"active":""} onClick={()=>{setTab(id);setMobileMenu(false);}}><Icon/><span>{label}</span></button>)}
+            </div>
+          </details>
+        </nav>
         <button type="button" disabled={!interactive} className="sidebar-foot" onClick={() => { setTab("owner-account"); setMobileMenu(false); }} aria-label="Open owner account"><div className="owner-avatar">FIRE</div><div><strong>First In Response Exteriors</strong><small>Owner · Account</small></div><ChevronRight /></button>
       </aside>
       <section className="main-area">
