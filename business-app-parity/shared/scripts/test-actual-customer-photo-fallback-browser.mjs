@@ -72,6 +72,7 @@ try{
  await page.locator('input[type="file"][multiple]').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:png});
  await page.getByText(/Photos verified on this device/).waitFor();
  check(await page.evaluate(()=>window.fixturePhotoDirectory.photoCount())===1,'Offline fallback adds actual synthetic image bytes to IndexedDB');
+ await page.locator('.photo-backup-more > summary').click();
  await page.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
  await page.getByText(/ZIP is ready/).waitFor();
  check(await page.getByRole('button',{name:'Download prepared ZIP'}).count()===1,'Actual offline customer dashboard prepares verified photo backup');
