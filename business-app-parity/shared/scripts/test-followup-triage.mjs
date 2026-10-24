@@ -128,4 +128,11 @@ assert.ok(followUpSection.includes('className="followup-message-details"'),'Hist
 assert.ok(followUpSection.indexOf('No answer / Not contacted')<followUpSection.indexOf('className="followup-message-details"'),'No-answer / not-contacted filter remains directly accessible');n++;
 assert.ok(followUpSection.includes('Not contacted ·')&&followUpSection.includes('onClick={()=>void recordAction(estimate,"no_answer")}'),'Unanswered outreach stays visibly marked and loggable');n++;
 assert.ok(followUpSection.includes('Saved estimate activity (')&&followUpSection.includes('Recent contact'),'Full milestone and contact history remain available');n++;
+assert.ok(ownerPaymentSection.includes('const [showAllPayments,setShowAllPayments]=useState(false)'),'Payment history starts compact without changing saved ledger');n++;
+assert.ok(ownerPaymentSection.includes('(showAllPayments?payments:payments.slice(0,8)).map('),'All transactions and refund actions remain renderable');n++;
+assert.ok(ownerPaymentSection.includes('View all ${payments.length} payments')&&ownerPaymentSection.includes('Show recent 8 payments'),'One-tap full payment history remains visible to owner');n++;
+assert.ok(followUpSection.includes('className="followup-summary-details"')&&followUpSection.includes('bucketCount("past-target")')&&followUpSection.includes('bucketCount("due")'),'Compact follow-up header keeps urgent counts visible with optional breakdown');n++;
+const scheduleOwnerSection=view.slice(view.indexOf('function ScheduleView('),view.indexOf('function InvoicesView('));
+assert.ok(scheduleOwnerSection.includes('className="schedule-turnaround-review"')&&scheduleOwnerSection.includes('className="schedule-turnaround-details"'),'Closely spaced appointment warning stays visible while detailed pairs collapse');n++;
+assert.ok(scheduleOwnerSection.includes('className="schedule-turnaround-job"')&&scheduleOwnerSection.includes('onClick={()=>setSelected(job)}'),'Each affected schedule job stays navigable from the full warning');n++;
 console.log('PASS '+n+' timing, reviewed journey milestones, billing guards, and compact daily owner screen contracts.');
