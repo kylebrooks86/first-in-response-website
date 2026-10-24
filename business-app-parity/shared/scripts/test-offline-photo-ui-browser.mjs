@@ -68,7 +68,7 @@ try{
  const verifyPhotoActionGeometry=async(label)=>{
   const state=await page.evaluate(()=>{
    const panel=document.querySelector('.photo-panel');
-   const controls=[...panel.querySelectorAll('.photo-buttons>button')];
+   const controls=[...panel.querySelectorAll('.photo-buttons>button')].filter(button=>button.getClientRects().length>0);
    const boxes=controls.map(button=>{
     const r=button.getBoundingClientRect();
     return {text:button.textContent?.trim(),left:r.left,right:r.right,top:r.top,
@@ -93,6 +93,15 @@ try{
   await verifyPhotoActionGeometry(width+'px:');
  }
  await page.setViewportSize({width:390,height:844});
+ const backupTools=page.locator('details.photo-backup-more');
+ check(await backupTools.evaluate(node=>!node.open),'Less-used photo ZIP options are initially collapsed while all-photos backup and verification remain visible');
+ check(await page.getByRole('button',{name:'Prepare all local photos ZIP'}).isVisible()&&await page.getByRole('button',{name:'Verify saved ZIP from Files'}).isVisible(),
+  'Owner can immediately back up and verify all local photos without expanding optional tools');
+ const backupSummary=backupTools.locator(':scope > summary');
+ check(await backupSummary.evaluate(node=>node.getBoundingClientRect().height>=44),
+  'Optional photo backup summary has a finger-sized target');
+ await backupSummary.click();
+ await verifyPhotoActionGeometry('390px, expanded ZIP tools:');
  const library=page.locator('input[type="file"][multiple]');
  const take=(name)=>({name,mimeType:'image/png',buffer:png});
  // A bulk selection can commit its first photo and then reject another.
@@ -298,6 +307,7 @@ try{
  await coldPage.locator('.photo-card').nth(1).waitFor({timeout:30000});
  check(await coldPage.locator('.photo-card').count()===2,'Browser fully closed, HTTP server stopped: actual React customer-photo screen cold-launches offline with original IndexedDB photos');
  check(await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).count()===1,'Offline cold launch retains the real customer ZIP export control');
+ await coldPage.locator('.photo-backup-more > summary').click();
  await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
  await coldPage.getByText(/ZIP is ready/).waitFor({timeout:30000});
  check(await coldPage.getByRole('button',{name:'Download prepared ZIP'}).count()===1,'Actual photo ZIP can be freshly prepared after fully offline browser restart');
