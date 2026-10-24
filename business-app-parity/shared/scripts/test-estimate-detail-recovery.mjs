@@ -48,6 +48,7 @@ for(const response of ['network','bad-json','http','wrong-job','wrong-customer',
 for(const kind of ['schedule','invoice']){
  const f=fixture('custom');f.setFetcher(async()=>ok(true,'save'));f.open({...job('save'),status:kind==='invoice'?'completed':'scheduled'});await flush();
  let pending=deferred();const sent=[];f.setFetcher((url,options)=>{sent.push({url,options});return pending.promise;});
+ if(kind==='schedule')f.nodes().find(n=>n.props?.id==='scheduleDate').props.onChange({target:{value:'2026-10-21T10:45'}});
  const button=f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).some(c=>typeof c==='string'&&c.trim()===(kind==='invoice'?'Create invoice':'Save job date')));
  button.props.onClick();button.props.onClick();eq(sent.length,1,'Same-frame '+kind+' taps send one request');
  const dialog=f.render();dialog.props.onOpenChange(false);eq(f.closed,0,'Pending '+kind+' cannot be dismissed');
@@ -117,4 +118,56 @@ eq(exceptionJob.nodes().some(n=>n.props?.className==='change-alert'),true,'Unres
 eq(exceptionJob.nodes().some(n=>n.props?.className==='next-action'),false,'Overpayment does not repeat a second warning above its controls');
 const pendingRefund=fixture();pendingRefund.open({...job('held-refund'),pendingRefundCount:1});await flush();
 eq(pendingRefund.nodes().some(n=>n.props?.className==='next-action'&&n.props.role==='alert'),true,'Pending refund remains an immediate financial alert');
+
+/* Regression: a FIRE job is scheduled in Tulsa/Central Time even when the
+ * owner's phone is set to UTC, Korea, or Central. DST gaps/folds fail closed.
+ * All checks use synthetic state and never write to a hosted database. */
+const originalTimezone=process.env.TZ;
+try{
+ for(const zone of ['America/Chicago','UTC','Asia/Seoul']){
+  process.env.TZ=zone;
+  for(const [stored,wall] of [
+   ['2026-07-15T15:45:00.000Z','2026-07-15T10:45'],
+   ['2026-01-15T16:45:00.000Z','2026-01-15T10:45'],
+   ['2026-03-08T08:30:00.000Z','2026-03-08T03:30'],
+   ['2026-11-01T08:30:00.000Z','2026-11-01T02:30']]){
+   const f=fixture();f.setFetcher(async()=>ok(false,'timezone'));
+   f.open({...job('timezone'),scheduledAt:stored});await flush();
+   eq(f.get('schedule'),wall,zone+': saved '+stored+' renders true Central clock time');
+   const label=f.nodes().find(n=>n.props?.htmlFor==='scheduleDate');
+   eq(label.props.children,'Job date and time (Tulsa / Central Time)');
+  }
+  for(const [wall,expected] of [
+   ['2026-07-15T10:45','2026-07-15T15:45:00.000Z'],
+   ['2026-01-15T10:45','2026-01-15T16:45:00.000Z'],
+   ['2026-03-08T03:30','2026-03-08T08:30:00.000Z'],
+   ['2026-11-01T02:30','2026-11-01T08:30:00.000Z']]){
+   const f=fixture('custom');f.setFetcher(async()=>ok(false,'central-save'));
+   f.open(job('central-save'));await flush();
+   f.nodes().find(n=>n.props?.id==='scheduleDate').props.onChange({target:{value:wall}});
+   const calls=[];f.setFetcher(async(url,options)=>{calls.push({url,body:JSON.parse(options.body)});return {ok:true,json:async()=>({estimate:{status:'scheduled',scheduledAt:expected}})};});
+   f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).includes('Save job date')).props.onClick();
+   await flush();
+   eq(calls.length,1,zone+': one appointment save');
+   eq(calls[0].body.scheduledAt,expected,zone+': Tulsa clock time converted to correct UTC');
+  }
+  for(const [invalid,reason] of [
+   ['2026-03-08T02:30','does not exist'],
+   ['2026-11-01T01:30','occurs twice'],
+   ['2026-02-30T10:45','real calendar date']]){
+   const f=fixture('custom');f.setFetcher(async()=>ok(false,'invalid-schedule'));
+   f.open(job('invalid-schedule'));await flush();
+   f.nodes().find(n=>n.props?.id==='scheduleDate').props.onChange({target:{value:invalid}});
+   const calls=[];f.setFetcher(async(url,options)=>{calls.push(url);return {ok:true,json:async()=>({estimate:{status:'scheduled'}})};});
+   f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).includes('Save job date')).props.onClick();
+   await flush();
+   eq(calls.length,0,zone+': invalid '+invalid+' must never PATCH');
+   eq(f.get('error').includes(reason),true,zone+': visible DST/calendar error');
+  }
+ }
+}finally{
+ if(originalTimezone===undefined)delete process.env.TZ;
+ else process.env.TZ=originalTimezone;
+}
+
 console.log(`PASS ${checks}/${checks}: actual estimate-detail effect/button state guards report loads across estimate switches, pending reads, close/unmount, failed/malformed responses and retry; synthetic reads/PATCH only; closeout failures, ownership validation and duplicate taps.`);

@@ -1828,6 +1828,36 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
 }
 
 function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { estimate: EstimateRow | null; onClose: () => void; onChanged: (estimate: EstimateRow) => void; initialScheduleDay?:string|null }) {
+  // All FIRE appointments are entered in Tulsa/Central time, not the phone's
+  // timezone. Converting via new Date("YYYY-MM-DDTHH:mm") silently moves work
+  // when the owner travels or uses a device configured outside Central Time.
+  const centralWallTime=(instant:string):string=>{
+    const ms=Date.parse(instant);
+    if(!Number.isFinite(ms))return "";
+    const parts=new Intl.DateTimeFormat("en-US",{
+      timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit",
+      hour:"2-digit",minute:"2-digit",hourCycle:"h23"
+    }).formatToParts(new Date(ms));
+    const part=(name:string)=>parts.find(entry=>entry.type===name)?.value??"";
+    return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
+  };
+  const utcForCentralAppointment=(wall:string):string=>{
+    if(!/^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])T([01]\\d|2[0-3]):[0-5]\\d$/.test(wall))
+      throw new Error("Choose a valid Central Time appointment.");
+    const utcWall=Date.parse(wall+":00.000Z");
+    if(!Number.isFinite(utcWall)||new Date(utcWall).toISOString().slice(0,16)!==wall)
+      throw new Error("Choose a real calendar date before saving.");
+    // Tulsa is UTC-5 in daylight time and UTC-6 in standard time.
+    // Exact wall-clock round trips reject spring-forward gaps and repeated
+    // fall-back hours rather than silently booking the wrong hour.
+    const possible=[5,6].map(hours=>utcWall+hours*3_600_000)
+      .filter(candidate=>centralWallTime(new Date(candidate).toISOString())===wall);
+    if(possible.length!==1)
+      throw new Error(possible.length===0
+        ?"This Central Time does not exist because the clocks change. Choose another time."
+        :"This Central Time occurs twice when the clocks change. Choose another time.");
+    return new Date(possible[0]).toISOString();
+  };
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [schedule, setSchedule] = useState("");
@@ -1840,7 +1870,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     let active=true;
     setReportComplete(false);
     if (!estimate?.scheduledAt) setSchedule(estimate?.status==="approved"&&initialScheduleDay?initialScheduleDay+"T09:00":"");
-    else { const date = new Date(estimate.scheduledAt); setSchedule(new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16)); }
+    else setSchedule(centralWallTime(estimate.scheduledAt));
     if(!estimate?.id)return ()=>{active=false;};
     void (async()=>{try{const response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`,{cache:"no-store"});const result=await response.json() as {reports?:JobReportRow[]};const report=Array.isArray(result?.reports)?result.reports[0]:undefined;if(active)setReportComplete(Boolean(response.ok&&report&&report.estimateId===estimate.id&&report.customerId===estimate.customerId&&report.status==="completed"));}catch{if(active)setReportComplete(false);}})();
     return ()=>{active=false;};
@@ -1940,13 +1970,13 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     {(estimate.firstViewedAt||estimate.acceptedAt||estimate.signedAt)&&<div className="customer-activity">{estimate.firstViewedAt&&<span><Eye/><small>Viewed</small><strong>{dateTime(estimate.firstViewedAt)}</strong></span>}{estimate.signedAt?<span><PenLine/><small>Agreement signed</small><strong>{estimate.signedName} · Photos: {estimate.photoRelease==="yes"?"allowed":estimate.photoRelease==="no"?"not allowed":"not recorded"} · {dateTime(estimate.signedAt)}</strong></span>:estimate.acceptedAt&&<span><CheckCircle2/><small>Approved</small><strong>{dateTime(estimate.acceptedAt)}</strong></span>}</div>}
     <div className="detail-grid">
       <div><Label>Status</Label><div className="status-readonly" aria-label={`Job status: ${statusLabel(estimate.status)}`}><strong>{statusLabel(estimate.status)}</strong></div></div>
-      <div><Label htmlFor="scheduleDate">Job date and time (this device’s local time)</Label>{estimate.status==="approved"&&initialScheduleDay&&!estimate.scheduledAt&&<small className="schedule-date-confirmation">Calendar date selected · 9:00 AM is a placeholder. Confirm the actual start time before saving.</small>}<Input id="scheduleDate" type="datetime-local" value={schedule} disabled={saving||checkingCloseout} onChange={(event)=>setSchedule(event.target.value)} onInput={(event)=>setSchedule((event.target as HTMLInputElement).value)} />{schedule&&<Button type="button" variant="outline" className="mt-2 min-h-11" onClick={()=>setSchedule("")} disabled={saving||checkingCloseout}>Clear date/time selection</Button>}{estimate.scheduledAt&&<small className="service-description-help">Clearing this selection does not cancel the saved appointment.</small>}</div>
+      <div><Label htmlFor="scheduleDate">Job date and time (Tulsa / Central Time)</Label>{estimate.status==="approved"&&initialScheduleDay&&!estimate.scheduledAt&&<small className="schedule-date-confirmation">Calendar date selected · 9:00 AM is a placeholder. Confirm the actual start time before saving.</small>}<Input id="scheduleDate" type="datetime-local" value={schedule} disabled={saving||checkingCloseout} onChange={(event)=>setSchedule(event.target.value)} onInput={(event)=>setSchedule((event.target as HTMLInputElement).value)} />{schedule&&<Button type="button" variant="outline" className="mt-2 min-h-11" onClick={()=>setSchedule("")} disabled={saving||checkingCloseout}>Clear date/time selection</Button>}{estimate.scheduledAt&&<small className="service-description-help">Clearing this selection does not cancel the saved appointment.</small>}</div>
     </div>
     <div className="detail-summary"><span><small>Deposit</small><strong>{money(estimate.depositCents)}</strong></span><span><small>Paid</small><strong>{money(estimate.paidCents)}</strong></span><span><small>Balance</small><strong>{money(balanceCents)}</strong></span></div>
         {(saving||checkingCloseout)&&<p className="save-message" role="status" aria-live="polite">{checkingCloseout?"Verifying saved job report…":"Saving changes…"} Keep this job open until finished.</p>}
     {error && <p className="save-error" role="alert">{error}</p>}
     <div className="detail-footer">
-      <Button variant="outline" onClick={() => {if(closeoutLock.current)return;void update({ scheduledAt:schedule ? new Date(schedule).toISOString() : "" });}} disabled={saving || checkingCloseout || !schedule}><CalendarDays className="h-4 w-4" /> Save job date</Button>
+      <Button variant="outline" onClick={() => {if(closeoutLock.current||!schedule)return;try{void update({scheduledAt:utcForCentralAppointment(schedule)});}catch(scheduleError){setError(scheduleError instanceof Error?scheduleError.message:"Choose a valid Central Time appointment.");}}} disabled={saving || checkingCloseout || !schedule}><CalendarDays className="h-4 w-4" /> Save job date</Button>
       {estimate.status === "scheduled" && <Button variant="outline" onClick={() => void completeJob()} disabled={saving||checkingCloseout||!reportComplete}><CheckCircle2 className="h-4 w-4" /> {checkingCloseout?"Checking…":reportComplete?"Mark job complete":"Complete report first"}</Button>}
       <Button className="brand-button" onClick={createInvoice} disabled={saving || checkingCloseout || Boolean(estimate.invoiceId) || estimate.status !== "completed"}><Receipt className="h-4 w-4" /> {estimate.invoiceId ? "Invoice created" : estimate.status === "completed" ? "Create invoice" : "Complete job first"}</Button>
     </div>
