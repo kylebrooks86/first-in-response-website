@@ -2029,3 +2029,6 @@ html,body{max-width:100%;overflow-x:clip}
 .dashboard-shortcut-disclosure[open]>summary::after{transform:rotate(180deg)}
 .dashboard-shortcut-disclosure>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
 .dashboard-shortcut-disclosure>.quick-actions-grid{padding-top:0}
+
+/* Distinguish customer signature and approval milestones from workflow status. */
+.estimate-person .estimate-legal-state{font-size:11px;font-weight:750;color:var(--foreground);line-height:1.35}
