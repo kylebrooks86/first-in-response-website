@@ -1918,7 +1918,6 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       <summary>{estimate.status==="scheduled"?"Job report, costs & more":"More tools"}</summary>
       <div className="detail-actions">
         {estimate.shareToken&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`}><ExternalLink/> Customer view</a>}
-        {!travelingToJob&&<StrideButton/>}
         {!travelingToJob&&estimate.address&&<a href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}
         {!estimating&&estimate.address&&<a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a>}
         {!estimating&&estimate.address&&<a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a>}
@@ -2495,7 +2494,6 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         {selected.phone && <a href={`sms:${selected.phone}`}><Send />Text</a>}
         {selected.email ? <a href={`mailto:${selected.email}`}><Mail />Email</a> : <span><Mail />No email</span>}
         {selected.address ? <a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selected.address)}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation />Google Maps</a> : <span><MapPin />No address</span>}
-        <StrideButton />
         {selected.address&&<details className="customer-property-links"><summary>More property links</summary><div>
           <a href={`https://earth.google.com/web/search/${encodeURIComponent(selected.address)}`} target="_blank" rel="noreferrer"><Globe2 />Google Earth</a>
           <a href={`https://www.zillow.com/homes/${encodeURIComponent(selected.address.trim().replace(/\s+/g,"-"))}_rb/`} target="_blank" rel="noreferrer"><House />Zillow</a>
