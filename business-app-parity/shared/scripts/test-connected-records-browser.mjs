@@ -405,7 +405,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await page.getByRole('region',{name:'Next scheduled job'}).getByRole('button',{name:'Open next job'}).click();
   check(await page.evaluate(()=>window.openedEstimate)==='exact-dashboard-job','Missing-detail warning retains direct route to correct job');
  }
- mode='error';await page.goto(origin+'/schedule');await page.getByRole('alert').waitFor();check(await page.locator('.schedule-window-controls,.schedule-job,.route-day-button').count()===0,'Failed schedule read hides counts/routes/cards');mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await showAllUpcoming(5);check(await page.locator('.schedule-job').count()===5,'Explicit schedule retry restores all appointments');
+ mode='error';await page.goto(origin+'/schedule');await page.getByRole('alert').waitFor();check(await page.locator('.schedule-month,.schedule-window-controls,.schedule-job,.route-day-button').count()===0,'Failed schedule read hides stale calendar dots, counts, routes and cards');mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await showAllUpcoming(5);check(await page.locator('.schedule-job').count()===5&&await page.locator('.schedule-month').count()===1,'Explicit schedule retry restores both calendar and verified appointments');
  const freshButton=page.getByRole('button',{name:'Refresh schedule',exact:true});
  check(await freshButton.isEnabled(),'Owner can refresh the schedule without leaving the screen');
  check(await page.locator('.schedule-last-checked').innerText().then(t=>t.includes('Central Time')),'Schedule confirms last successful read in Central Time');
@@ -418,7 +418,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  const refreshedGeometry=await page.locator('.schedule-header-actions').evaluate(n=>({rect:n.getBoundingClientRect().toJSON(),width:innerWidth}));
  check(refreshedGeometry.rect.x>=-1&&refreshedGeometry.rect.x+refreshedGeometry.rect.width<=refreshedGeometry.width+1,'Refresh and directions stay within phone viewport');
  mode='error';await freshButton.click();await page.getByRole('alert').waitFor();
- check(await page.locator('.schedule-job,.route-day-button').count()===0,'Failed owner refresh hides stale schedule and route');
+ check(await page.locator('.schedule-month,.schedule-job,.route-day-button').count()===0,'Failed owner refresh hides stale month dots, appointments and route');
  mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await showAllUpcoming(6);
  check(await page.locator('.schedule-job').count()===6,'Recovered schedule refresh restores complete data');
  scheduled.pop();
