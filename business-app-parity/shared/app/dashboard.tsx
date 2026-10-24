@@ -1081,7 +1081,7 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
   const incompletePrioritySources=signStatus==="error"||doorStatus==="error"||reviewChecksStatus==="error"||priorityTaskStatus==="error"||paidReviewStatus==="error";
   return (
     <div className="dashboard-view">
-      <section className="welcome-row"><div><p className="eyebrow">FIRE App</p><h1>Welcome to First In Response Exteriors</h1><p>Your jobs and next steps.</p></div><NewEstimate onSaved={onSaved} /></section>
+      <section className="welcome-row"><div><p className="eyebrow">FIRE App</p><h1>Today</h1><p>Your jobs and next steps.</p></div><NewEstimate onSaved={onSaved} /></section>
       {summaryVerified&&metrics.estimates===0&&estimates.length===0&&<section className="business-panel" role="region" aria-label="Start using your empty FIRE app">
         <header><div><h2>Your first FIRE job starts here</h2><p>No estimates yet.</p></div></header>
         <p>Start with a customer or create an estimate.</p>
@@ -1129,6 +1129,13 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
         <button className="metric-card" onClick={()=>onNavigate("estimates")}><span className="metric-icon gold"><ClipboardList /></span><p>Saved estimates</p><strong>{metrics.estimates}</strong><small>{money(metrics.openValue)} potential estimate value</small><ChevronRight className="metric-arrow"/></button>
         <button className="metric-card" onClick={()=>onNavigate("estimates")}><span className="metric-icon green"><CheckCircle2 /></span><p>Completed jobs</p><strong>{completed}</strong><small>Review completed work</small><ChevronRight className="metric-arrow"/></button>
       </section>
+      {/* Keep urgent counts in Needs attention; tuck duplicate detailed queues out of the main iPhone scroll. */}
+      {(doorStatus==="ready"&&(doorDueCount+doorUpcomingCount)>0
+        ||signStatus==="error"||signStatus==="ready"&&signs.length>0
+        ||reviewChecksStatus==="error"||reviewChecksStatus==="ready"&&reviewChecks.length>0)&&
+        <details className="dashboard-extra-reminders">
+          <summary>More reminders <span>{(doorStatus==="ready"?doorRevisits.length:0)+(signStatus==="ready"?signs.length:0)+(reviewChecksStatus==="ready"?reviewChecks.length:0)} tracked</span></summary>
+          <div className="dashboard-extra-reminder-content">
       {doorStatus==="ready"&&(doorDueCount+doorUpcomingCount)>0&&<section className={"dashboard-sign-reminders"+(doorDueCount?" needs-pickup":"")} role="region" aria-label="Scheduled door knocking revisits">
         <header><div><h2><MapPin aria-hidden="true"/> House revisits</h2><p>{doorDueCount} due or overdue · {doorUpcomingCount} upcoming · owner reminders only</p></div><button type="button" aria-label="Refresh house revisit reminders" onClick={()=>setDoorReload(n=>n+1)}><RefreshCw aria-hidden="true"/> Refresh</button></header>
         <div className="dashboard-sign-list">{doorRevisits.slice(0,3).map(item=><button type="button" key={item.houseId} aria-label={"Open house revisit: "+item.address} onClick={()=>onOpenDoorHouse?onOpenDoorHouse(item.houseId):onNavigate("door-knocking")}><span><strong>{item.address}</strong><small>Owner-recorded callback · no automatic contact</small></span><span className={item.due?"pickup-due":"pickup-planned"}>{item.overdue?"Overdue":item.due?"Due today":"Upcoming"} · {item.followUpOn}<ChevronRight aria-hidden="true"/></span></button>)}</div>
@@ -1144,10 +1151,8 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
         {reviewChecksStatus==="error"?<p role="alert">Review check status could not be verified. Refresh to try again; no customers are marked cleared.</p>:<div className="dashboard-review-list">{reviewChecks.slice(0,3).map(row=><button type="button" key={row.customerId} onClick={()=>onOpenCustomerActivity?onOpenCustomerActivity(row.customerId,"review"):onOpenCustomer?onOpenCustomer(row.customerId):onNavigate("customers")}><span><strong>{row.customerName}</strong><small>Review request recorded {row.elapsedDays} days ago</small></span><span>Check status <ChevronRight aria-hidden="true"/></span></button>)}</div>}
         {reviewChecksStatus==="ready"&&<div className="dashboard-review-footer"><small>Only confirmed requests on completed work. Logged reviews are excluded.{reviewChecks.length>3?` ${reviewChecks.length-3} more in Customers.`:""}</small><button type="button" onClick={()=>onNavigate("customers")}>Review in Customers <ChevronRight aria-hidden="true"/></button></div>}
       </section>}
-      <section className="attention-card">
-        <div><span className="spark"><Sparkles /></span><div><strong>Keep jobs moving</strong><p>Follow-ups and payments.</p></div></div>
-        <Button variant="outline" onClick={() => onNavigate("followups")}>Review follow-ups <ChevronRight className="h-4 w-4" /></Button>
-      </section>
+          </div>
+        </details>}
       <div className="content-grid">
         <section className="panel"><header><div><h2>Recent estimates</h2></div><button onClick={() => onNavigate("estimates")}>View all</button></header><div className="job-list">{estimates.length?estimates.map((estimate) => <button className="job-row recent-estimate-row" key={estimate.id} onClick={()=>onOpenEstimate?onOpenEstimate(estimate.id):onNavigate("estimates")}><span className="date-tile"><b>{new Date(estimate.createdAt).toLocaleDateString("en-US",{day:"numeric",timeZone:"America/Chicago"})}</b><small>{new Date(estimate.createdAt).toLocaleString("en-US",{month:"short",timeZone:"America/Chicago"}).toUpperCase()}</small></span><div className="job-main"><strong>{estimate.customer}</strong><p>{estimate.service}</p><small className="recent-estimate-status">{statusLabel(estimate.status)}{estimate.status==="sent"&&estimate.firstViewedAt?" · Viewed":""}</small><small className="recent-estimate-dates">Created {dateTime(estimate.createdAt)}</small>{estimate.scheduledAt&&<small className="recent-estimate-appointment">Service · {dateTime(estimate.scheduledAt)}</small>}</div><strong className="job-price">{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight className="row-arrow" /></button>):<div className="real-empty"><strong>No estimates yet</strong><p>Create your first estimate to start the customer record.</p></div>}</div></section>
         <section className="panel quick-actions-panel"><header><div><h2>Quick actions</h2></div></header><div className="quick-actions-grid">
