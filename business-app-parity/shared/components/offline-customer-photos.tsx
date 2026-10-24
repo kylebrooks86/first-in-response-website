@@ -110,7 +110,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
    const filename='FIRE-'+(scope==='customer'?'customer-'+customerId:'all')+'-photos-'+new Date().toISOString().slice(0,10)+'.zip';
    const file=new File([zip],filename,{type:'application/zip'});
    setPreparedBackup(file);
-   setMessage((scope==='customer'?'This customer’s':'All customers’')+' photo ZIP passed integrity checks and is READY. Tap Save prepared ZIP to Files or Download prepared ZIP. Backups are not complete until you confirm the file exists in Files or iCloud.');
+   setMessage((scope==='customer'?'Customer':'All-photos')+' ZIP is ready. Save to Files, then verify the saved ZIP.');
   }catch(err){setError(err instanceof Error?err.message:'Photo archive was not created.');}
   finally{active.current=false;setBusy(false);}
  };
@@ -136,7 +136,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   active.current=true;setBusy(true);
   try{
    await navigator.share({files:[file],title:'FIRE Offline Photo Backup'});
-   setMessage('Photo ZIP was offered to the iOS share sheet. Confirm it exists in Files or iCloud Drive before treating it as backed up. Keep original photos too.');
+   setMessage('Check that the ZIP is in Files, then use Verify saved ZIP from Files.');
   }catch(err){
    if(err instanceof Error&&err.name==='AbortError')setMessage('Saving was cancelled. Your prepared ZIP is still available; photos are NOT backed up.');
    else setError('iOS could not open the share sheet. Try Download prepared ZIP below; your prepared archive has not been erased.');
@@ -157,8 +157,8 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
      ' current device photo(s) are NOT in this saved ZIP. Preserve it, but prepare and save a NEW all-local-photos ZIP before relying on the backup.');
     setMessage('Saved ZIP checksum verification passed, but backup coverage is incomplete: '+details);
    }else{
-    setMessage('Saved ZIP selected from Files passed photo checksums. COMPLETE for all currently stored FIRE on-device photos at the moment of verification: '+
-     details+' Keep the original saved ZIP outside FIRE, and make a new backup after adding more photos.');
+    setMessage('Backup COMPLETE: all current on-device photos included. '+
+     details+' Keep this ZIP in Files; back up again after adding photos.');
    }
   }catch(err){setError((err instanceof Error?err.message:'Saved backup verification failed.')+' No photos were changed.');}
   finally{active.current=false;setBusy(false);if(verifyRef.current)verifyRef.current.value='';}
@@ -210,8 +210,8 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   finally{active.current=false;setBusy(false);}
  };
  return <section className="photo-panel" aria-label="On-device customer photos">
-  <header><strong>Private on-device photos</strong><p>Stored only in this device’s FIRE Home Screen/browser storage. No R2 subscription or automatic syncing.</p></header>
-  <p className="payment-handle-note"><strong>Backup required:</strong> iPhone app deletion, storage clearing, or device failure can erase these photos. Keep originals in Apple Photos and export ZIP backups to Files/iCloud Drive. Export includes local photos from this FIRE candidate only, not older hosted R2 images.</p>
+  <header><strong>Photos</strong><p>On this device only · not synced.</p></header>
+  <p className="payment-handle-note"><strong>Back up photos:</strong> Save an all-photos ZIP to Files/iCloud. Deleting FIRE or clearing browser data can erase local photos. Older cloud images are not included.</p>
   {legacyCloudPhotoCount>0&&<p role="alert" className="save-error">{legacyCloudPhotoCount} older hosted photo record(s) remain associated with this customer. The new on-device gallery and ZIP backup do not include those bytes. No existing hosted records were deleted or migrated. Preserve the old cloud archive separately before considering its storage retired.</p>}
   <div className="photo-toolbar">
    <div><Label>Photo type</Label><select aria-label="Photo type" value={category} onChange={e=>setCategory(e.target.value as typeof category)} disabled={busy}><option value="before">Before</option><option value="after">After</option><option value="property">Property / damage</option></select></div>
