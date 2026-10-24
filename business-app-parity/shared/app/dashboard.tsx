@@ -3323,7 +3323,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
       <p role="status">Showing {visibleActions.length} of {actions.length} actions · {rows.length} estimates checked{focusedRecord&&!rows.some(row=>row.id===focusedRecord.id)?" + selected estimate":""}. Loaded records only.</p>
     </div>}
     {!loading&&!error&&todayQueue.length>0&&<section className="followup-priority-jumps" aria-label="Top follow-up priorities in loaded records">
-      <div><strong>Today's customer actions</strong><small>{todayQueue.length} customer{todayQueue.length===1?"":"s"} to check · based on saved records</small></div>
+      <div><strong>Today's customer actions</strong><small>{todayQueue.length>3?"Top 3 customer priorities · full list below":`${todayQueue.length} customer${todayQueue.length===1?"":"s"} to check · based on saved records`}</small></div>
       <div className="followup-priority-buttons">{todayQueue.slice(0,3).map(({item,lane,additionalCustomerActions})=>{
         const {estimate,template,reason,kind}=item;
         const latest=followupLatestContact(estimate,now);
@@ -3337,7 +3337,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
           </div>
         </div>;
       })}</div>
-      {todayQueue.length>3&&<button type="button" className="followup-all-actions-link" onClick={()=>document.querySelector(".followup-list")?.scrollIntoView({block:"start",behavior:"smooth"})}>See every follow-up below · {todayQueue.length} customers</button>}
+      {todayQueue.length>3&&<button type="button" className="followup-all-actions-link" onClick={()=>document.querySelector(".followup-list")?.scrollIntoView({block:"start",behavior:"smooth"})}>See full follow-up list · {visibleActions.length} actions</button>}
       <small>Open a customer below to prepare a message or log contact.</small>
     </section>}
     {loading&&rows.length===0?<div className="customers-state">Checking customer follow-ups…</div>:error&&rows.length===0?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visibleActions.length?<section className="followup-list">{visibleActions.map(({estimate,template,reason,kind,dueAt})=>{const urgency=followupUrgency({estimate,template,kind,dueAt,priority:0},now);const customer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};const milestones=followupMilestones(estimate);return <article className={`followup-card ${kind}${focusEstimateId===estimate.id?" followup-card-focused":""}`} id={cardTarget(estimate.id,template)} tabIndex={-1} key={`${estimate.id}-${template}`}><span className="followup-icon">{kind==="review"?<Star/>:kind==="repeat"?<CalendarDays/>:<Clock3/>}</span><div><strong>{estimate.customer}</strong><div className="flex flex-wrap items-center gap-2 py-1"><span className={"rounded-full px-2 py-0.5 text-xs font-semibold "+(urgency.bucket==="past-target"?"bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-200":urgency.bucket==="upcoming"?"bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200":"bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200")}>{urgency.label}</span></div><p>{reason}</p><small>{estimate.service} · {money(billingBalanceCents(estimate))}</small>
