@@ -238,7 +238,12 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await page.getByRole('button',{name:'Contact last-week-day for scheduled job'}).click();
   check(await page.locator('.schedule-job-directions-action').count()===5,'Only current saved addresses receive Maps shortcuts');
   const firstWeatherShortcut=page.getByRole('button',{name:'Check weather for today-morning job'});
+  const moreSchedule=page.locator('details.schedule-planning-more');
+  if(await moreSchedule.evaluate(node=>node.open))await moreSchedule.locator(':scope > summary').click();
+  check(!await moreSchedule.evaluate(node=>node.open),'Schedule forecast remains optional until requested by a job shortcut');
   await firstWeatherShortcut.click();
+  check(await moreSchedule.evaluate(node=>node.open),'Per-job Weather action opens the hidden forecast tools automatically');
+  check(await page.getByTestId('schedule-weather-target').isVisible(),'Requested forecast becomes actually visible, not only changed behind a collapsed panel');
   check(await page.getByTestId('schedule-weather-target').getAttribute('data-requested-job')==='2026-10-20T15:00:00Z','Weather review selects exact clicked job appointment');
   const individualDirections=page.getByRole('link',{name:'Directions to today-morning job'});
   const individualDirectionsUrl=new URL(await individualDirections.getAttribute('href'));
