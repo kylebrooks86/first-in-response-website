@@ -1859,3 +1859,24 @@ html,body{max-width:100%;overflow-x:clip}
 .business-secondary-metrics>.business-metrics{margin:0;padding:0 12px 12px}
 @media(max-width:760px){.business-operations-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:350px){.business-operations-metrics{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Compact owner weather: current conditions, one swipeable 7-day row, no hourly or radar UI. */
+.weather-strip.weather-simple:not(.unavailable):not(.loading){display:grid;grid-template-columns:minmax(0,1fr);gap:7px;align-items:start;padding:10px 12px;margin-top:12px}
+.weather-strip.weather-simple .weather-current{grid-column:1;grid-row:1;gap:8px}
+.weather-strip.weather-simple .weather-current>svg{width:24px;height:24px;flex:none}
+.weather-strip.weather-simple .weather-current strong{font-size:14px;line-height:1.2}
+.weather-strip.weather-simple .weather-current small{font-size:10px;letter-spacing:0}
+.weather-strip.weather-simple .weather-days{grid-column:1;grid-row:2;display:flex;gap:6px;min-width:0;width:100%;max-width:100%;padding:2px 1px 5px;overflow-x:auto;scroll-snap-type:x proximity}
+.weather-strip.weather-simple .weather-days article{display:grid;align-content:start;flex:0 0 105px;min-height:0;gap:3px;padding:7px 8px;border-radius:8px}
+.weather-strip.weather-simple .weather-days article>small{font-size:10px;line-height:1.25;min-height:0;letter-spacing:0}
+.weather-strip.weather-simple .weather-days article>strong{font-size:13px;line-height:1.25}
+.weather-strip.weather-simple .weather-days article>span{display:flex;align-items:center;gap:3px;flex-wrap:nowrap;font-size:11px;line-height:1.2}
+.weather-strip.weather-simple .weather-days article>span svg{width:12px;height:12px}
+.weather-strip.weather-simple .weather-simple-footer{grid-column:1;grid-row:3;display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0}
+.weather-strip.weather-simple .weather-simple-cautions{font-size:10px;line-height:1.3;color:#4d647f;min-width:0}
+.weather-strip.weather-simple .weather-simple-footer button{flex:none;min-height:36px;border:1px solid #a3b9d0;border-radius:8px;background:transparent;color:inherit;padding:5px 10px;font-size:11px;font-weight:750;cursor:pointer}
+.weather-strip.weather-simple .weather-simple-footer button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.weather-strip.weather-simple .weather-simple-footer button:disabled{opacity:.6;cursor:progress}
+[data-theme="dark"] .weather-strip.weather-simple .weather-simple-cautions{color:#c2d1e3}
+@media(max-width:390px){.weather-strip.weather-simple:not(.unavailable):not(.loading){padding:9px 10px}.weather-strip.weather-simple .weather-days article{flex-basis:99px}}
