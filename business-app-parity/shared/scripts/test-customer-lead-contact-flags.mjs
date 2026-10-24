@@ -84,24 +84,25 @@ for(const flag of ['LEAD_NO_ANSWER_NOTE','LEAD_CONTACTED_NOTE']){
 }
 check(dashboard.includes('No answer · not contacted on the latest logged attempt'),
  'Saved customer card presents the missed-call status honestly');
-check(dashboard.includes('No lead contact outcome logged. This is not proof that no contact occurred.'),
- 'Missing lead outcome is not misreported as definitely uncontacted');
+check(dashboard.includes('No contact outcome logged.')&&dashboard.includes('leadContact?.state==="contacted"'),
+ 'Missing lead outcome is distinct from a confirmed contacted state');
 check(dashboard.includes('manuallyUnansweredLeadIds')&&dashboard.includes('showUnansweredLeadsOnly'),
  'Customer directory can filter exact owner-logged unanswered leads, even with no estimate');
-check(dashboard.includes('Manual saved lead notes only')&&dashboard.includes('estimate follow-ups stay separate'),
- 'Directory does not confuse loaded manual lead notes with sent estimate outreach');
+check(dashboard.includes('manuallyUnansweredLeadIds')&&dashboard.includes('estimate-specific follow-up history'),
+ 'Directory continues to use saved manual lead notes, separate from estimate outreach');
 check(dashboard.includes('setShowUnansweredLeadsOnly(current=>!current)'),
  'Directory filter can be turned off to restore the complete customer list');
-check(dashboard.includes('This manual lead log is separate from estimate-specific follow-up history'),
- 'Customer-level lead note and estimate-level contact stay distinct');
+check(dashboard.includes('leadContact?.state==="no_answer"')&&dashboard.includes('followupContactRecorded'),
+ 'Customer-level lead notes and estimate-level contact still have independent state');
 check(dashboard.includes('dueLeadCallbacks')&&dashboard.includes('showDueCallbacksOnly')&&
  dashboard.includes('aria-label="Due customer lead callbacks"'),
  'Customer directory has a due-only callback filter and navigable owner review queue');
-check(dashboard.includes('prepareManualFlag(leadCallbackNote(callbackDate))')&&
- dashboard.includes('prepareManualFlag(LEAD_CALLBACK_HANDLED_NOTE)'),
- 'Customer callback notes are explicitly owner-prepared, not sent or saved automatically');
-check(dashboard.includes('callbacks are not push alerts'),
- 'UI accurately states no automatic notification behavior');
+check(dashboard.includes('saveNote(leadCallbackNote(callbackDate))')&&
+ dashboard.includes('prepareManualFlag(LEAD_CALLBACK_HANDLED_NOTE)')&&
+ dashboard.includes('noteAttempts.current.get(attemptKey)')&&dashboard.includes('noteSaveLock.current'),
+ 'One-tap callback saves through the existing idempotent note API; handled markers still need explicit save');
+check(dashboard.includes('Callback dates are tracked here; no automatic alerts.'),
+ 'Shorter UI accurately states there are no automatic callback alerts');
 check(noteApi.includes('INSERT OR IGNORE INTO customer_notes')&&noteApi.includes('requestId'),
  'Existing owner-scoped note API safely persists explicit notes using idempotent request IDs');
-console.log('PASS '+count+' lead No answer/Contacted history and real Customer profile note-preparation contracts; no remote writes.');
+console.log('PASS '+count+' lead contact and direct callback save contracts; no remote writes.');
