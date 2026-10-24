@@ -137,6 +137,11 @@ assert.ok(optionalTools.includes('Recent contact')&&optionalTools.includes('Open
 const homeSource=view.slice(view.indexOf('function DashboardView('),view.indexOf('function AddCustomer('));
 assert.ok(homeSource.indexOf('dashboard-next-job')<homeSource.indexOf('<ScheduleWeather compact'),'Today places next job before the compact forecast');n++;
 assert.ok(homeSource.includes('<details className="panel quick-actions-panel dashboard-shortcut-disclosure">')&&homeSource.includes('<summary>More shortcuts</summary>'),'Repeated home shortcuts start collapsed without removing destinations');n++;
+const estimatesSource=view.slice(view.indexOf('function EstimatesView('),view.indexOf('function ScheduleWeather('));
+assert.ok(estimatesSource.includes('estimate.signedAt?<small className="estimate-legal-state">Agreement signed</small>'),'Simple Estimates list separately identifies an actually signed agreement');n++;
+assert.ok(estimatesSource.includes('estimate.acceptedAt?<small className="estimate-legal-state">Accepted · unsigned</small>'),'Accepted but unsigned work is never mislabeled as a signature');n++;
+assert.ok(estimatesSource.includes('estimate.status==="sent"&&estimate.firstViewedAt?<small className="estimate-legal-state">Viewed · awaiting decision</small>'),'Viewed estimate link is not presented as acceptance');n++;
+
 for(const tab of ['customers','schedule','followups','payments']){assert.ok(homeSource.includes('onNavigate("'+tab+'")'),'All existing Home shortcuts remain reachable: '+tab);n++;}
 
 assert.ok(ownerPaymentSection.includes('const [showAllPayments,setShowAllPayments]=useState(false)'),'Payment history starts compact without changing saved ledger');n++;
