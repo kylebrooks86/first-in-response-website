@@ -1,5 +1,6 @@
 /** Real CustomersView JSX plus shared CSS in synthetic isolated Chromium. */
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {createServer} from 'node:http';
 import {createRequire} from 'node:module';
@@ -12,6 +13,40 @@ const tailwind=require('@tailwindcss/postcss');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const source=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+const priorityFn=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='pickCustomerNextEstimate');
+assert.ok(priorityFn,'Extract the real customer next-job prioritizer, not a test reimplementation');
+const priorityContext={exports:{},Date,resolvedBillingTotalCents:row=>row.totalCents};
+const priorityJs=ts.transpileModule(priorityFn.getText(ast)+'\nexports.pick=pickCustomerNextEstimate;',{
+ compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
+}).outputText;
+vm.runInNewContext(priorityJs,priorityContext);
+const pick=priorityContext.exports.pick;
+const now=Date.parse('2026-10-24T12:00:00Z');
+const job=(id,status,scheduledAt=null,paidCents=0,totalCents=20000)=>({id,status,scheduledAt,paidCents,totalCents});
+const older=job('older','scheduled','2026-11-09T15:00:00Z');
+const sooner=job('sooner','scheduled','2026-10-25T15:00:00Z');
+const overdue=job('overdue','scheduled','2026-10-23T15:00:00Z');
+const missed=job('missed','scheduled','2026-10-12T15:00:00Z');
+const bad=job('bad','scheduled','invalid-date');
+const draft=job('draft','draft'),approved=job('approved','approved');
+const unpaid=job('unpaid','completed',null,10000),paid=job('paid','completed',null,20000);
+const priorityCases=[
+ {rows:[older,sooner,overdue],want:'sooner',why:'next scheduled appointment wins regardless of API order'},
+ {rows:[overdue,older,sooner],want:'sooner',why:'past-due job does not hide upcoming appointment'},
+ {rows:[missed,overdue],want:'overdue',why:'latest missed appointment gets attention if no future booking'},
+ {rows:[bad,older,sooner],want:'sooner',why:'malformed scheduled date never wins over verified future'},
+ {rows:[bad,approved],want:'bad',why:'existing undated scheduled fallback remains reachable'},
+ {rows:[approved,draft],want:'approved',why:'existing approved estimate fallback is retained'},
+ {rows:[draft,unpaid],want:'draft',why:'draft and sent fallback order remains unchanged'},
+ {rows:[paid,unpaid],want:'unpaid',why:'unpaid completed job remains actionable'},
+ {rows:[paid],want:'paid',why:'fully paid saved history remains openable'},
+ {rows:[],want:undefined,why:'no false shortcut for a new customer'}
+];
+for(const x of priorityCases){
+ const original=x.rows.map(row=>row.id).join(',');
+ assert.equal(pick(x.rows,now)?.id,x.want,x.why);
+ assert.equal(x.rows.map(row=>row.id).join(','),original,'Never mutate the saved API order');
+}
 const view=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='CustomersView');
 assert.ok(view,'Use the actual CustomersView instead of a reimplementation');
 function exactlyOne(found,name){assert.equal(found.length,1,'One '+name+' in actual customer source');return found[0];}
@@ -41,6 +76,7 @@ const job=exactlyOne(snippets.job,'conditional current job shortcut including it
 const contactOutcome=exactlyOne(snippets.contactOutcome,'owner-logged contact status with no empty placeholder');
 assert.match(job,/^\{activeCustomerEstimate&&<button/,'Actual guard hides the shortcut when no customer estimate exists');
 const profileSource=view.getText(ast);
+assert.match(profileSource,/pickCustomerNextEstimate\(customerEstimates,Date\.now\(\)\)/,'Actual customer profile uses the tested next-job logic');
 assert.ok(profileSource.indexOf('className="customer-contact"')<profileSource.indexOf('className="customer-next-job"')&&profileSource.indexOf('className="customer-next-job"')<profileSource.indexOf('className="record-tabs"'),'The current job shortcut is above records and after contacts');
 assert.match(profileSource,/setSection\("photos"\)\}>Photos<\/button>/,'Photos tab uses short label');
 assert.match(contact,/Google Maps/);

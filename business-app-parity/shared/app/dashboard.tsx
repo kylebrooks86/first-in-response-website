@@ -1954,6 +1954,20 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
 }
 
 
+/** Choose the next saved appointment, not whichever quote happens to be first in the API response. */
+function pickCustomerNextEstimate(rows:EstimateRow[],now:number):EstimateRow|undefined{
+  const dated=rows.filter(row=>row.status==="scheduled"&&typeof row.scheduledAt==="string"&&Number.isFinite(Date.parse(row.scheduledAt)))
+    .sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
+  // Future appointments take priority; after those, show the most recent overdue job.
+  // Invalid/missing dates never displace a verified scheduled appointment.
+  return dated.find(row=>Date.parse(row.scheduledAt!)>=now)
+    ??dated.at(-1)
+    ??rows.find(row=>row.status==="scheduled")
+    ??rows.find(row=>["approved","sent","draft"].includes(row.status))
+    ??rows.find(row=>row.status==="completed"&&row.paidCents<resolvedBillingTotalCents(row))
+    ??rows[0];
+}
+
 function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSection="estimates",onFocusHandled,focusRecord,recordRequestKey=0,onRecordFocusHandled,onPreparePickupTask,onPrepareReviewTask,activityFocus,onActivityFocusHandled }: { onEstimateSaved: (estimate: EstimateRow) => void; searchQuery: string;focusCustomerId?:string|null;focusSection?:"estimates"|"invoices"|"payments"|"notes";focusRecord?:CustomerRecordFocus|null;recordRequestKey?:number;onRecordFocusHandled?:(id:string)=>void;onFocusHandled?:(id:string)=>void;onPreparePickupTask?:(draft:YardSignPickupDraft)=>void;onPrepareReviewTask?:(draft:ReviewCheckDraft)=>void;activityFocus?:{customerId:string;kind:"sign"|"review";request:number}|null;onActivityFocusHandled?:(request:number)=>void }) {
   /** Read-only customer flag presentation: owner actions are not automatically external sends. */
   function customerFlagPresentation(input:{
@@ -2444,7 +2458,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     (!showDueCallbacksOnly||dueLeadCallbackIds.has(customer.id))&&
     [customer.name,customer.email,customer.phone,customer.address].join(" ").toLowerCase().includes(searchQuery.toLowerCase())
   );
-  const activeCustomerEstimate=customerEstimates.find((estimate)=>estimate.status==="scheduled")??customerEstimates.find((estimate)=>["approved","sent","draft"].includes(estimate.status))??customerEstimates.find((estimate)=>estimate.status==="completed"&&estimate.paidCents<resolvedBillingTotalCents(estimate))??customerEstimates[0];
+  const activeCustomerEstimate=pickCustomerNextEstimate(customerEstimates,Date.now());
   const customerBalances=summarizeCustomerBalances(customerEstimates);
   const customerPaidTotal=customerPayments.filter((payment)=>!['Tip','Tip Refund'].includes(payment.type)).reduce((sum,payment)=>sum+payment.amountCents,0);
   const handleEstimateSaved = (estimate: EstimateRow) => { onEstimateSaved(estimate); void load(true); };
