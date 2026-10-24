@@ -88,7 +88,7 @@ try{
  await originalDraft.fill('Unsent field note');
  await page.getByRole('button',{name:'Log lead no answer'}).evaluate(button=>{button.click();button.click();});
  await page.getByText('No answer logged.',{exact:true}).waitFor();
- await page.getByRole('status',{name:'Last lead contact'}).getByText(/No answer · not contacted · 1 unanswered attempt/).waitFor();
+ await page.getByRole('status',{name:'Last lead contact'}).filter({hasText:/No answer · not contacted · 1 unanswered attempt/}).waitFor();
  check(notePosts===1&&notes.length===1&&notes[0].body==='[FIRE FLAG] LEAD_NO_ANSWER',
   'One-tap No answer persists once without an estimate, message or duplicate rapid submission');
  check(await originalDraft.inputValue()==='Unsent field note',
