@@ -47,6 +47,11 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  check(focusedBounds.y>=0&&focusedBounds.y<844,'Safe task-detail focus scrolls into the phone viewport');
  for(const size of [{width:320,height:568},{width:390,height:844},{width:844,height:390}])for(const theme of ['light','dark']){
   reset();await page.setViewportSize(size);await page.goto(origin);await page.evaluate(v=>window.setTheme(v),theme);await page.getByRole('status').filter({hasText:'Showing 16 of 16 tasks.'}).waitFor();const beforePosts=posts,beforePatches=patches,beforeReads=reads;
+  const totals=page.locator('details.business-secondary-metrics');
+  check(await totals.evaluate(n=>!n.open),'Nonurgent expense totals start collapsed, with due tasks remaining visible');
+  await totals.locator('summary').click();
+  check((await totals.innerText()).includes('Recorded expenses')&&(await totals.innerText()).includes('35'),'All recorded expense counts stay accessible after one tap');
+  await totals.locator('summary').click();
   const expenseEntry=page.locator('details.business-expense-entry');
   check(await expenseEntry.evaluate(node=>!node.open),'Business expense entry starts collapsed so daily tasks and saved records are visible');
   await expenseEntry.locator('summary').click();
