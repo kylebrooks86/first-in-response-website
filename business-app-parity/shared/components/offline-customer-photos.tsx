@@ -5,7 +5,7 @@ import {Camera,Download,Images,Trash2,Upload} from 'lucide-react';
 import {Button} from './ui/button';
 import {Input} from './ui/input';
 import {Label} from './ui/label';
-import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos} from '../lib/local-photo-vault';
+import {addOfflinePhoto,listOfflinePhotos,removeOfflinePhoto,exportLocalPhotos,restoreLocalPhotos,OFFLINE_PHOTO_CHANGES_CHANNEL,OFFLINE_PHOTO_PAGE_ID} from '../lib/local-photo-vault';
 import {readPhotoMutationAttempt,runPhotoMutation,reviewPhotoMutation,acknowledgePhotoMutation} from '../lib/photo-mutation-journal';
 import type {OfflinePhoto} from '../lib/offline-photo-backup';
 import {inspectSavedOfflinePhotoZip} from '../lib/offline-photo-inspection';
@@ -37,6 +37,25 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   }).catch(err=>{if(!cancelled)setError(err instanceof Error?err.message:'Could not open this device’s photo vault.');})
   .finally(()=>{if(!cancelled)setLoading(false);});
   return()=>{cancelled=true;};
+ },[customerId]);
+ // Multi-tab safety: a prepared all-photos or single-customer ZIP must not
+ // remain offered after ANOTHER FIRE tab changes the on-device photo vault.
+ // Broadcasts carry no photo bytes or customer identity; reread IndexedDB.
+ useEffect(()=>{
+  setPreparedBackup(null);
+  if(typeof BroadcastChannel==='undefined')return;
+  const channel=new BroadcastChannel(OFFLINE_PHOTO_CHANGES_CHANNEL);
+  const changed=()=>{
+   setPreparedBackup(null);
+   setError('Another FIRE tab changed on-device photos. Any previously prepared ZIP may be incomplete. Prepare a fresh backup after reviewing the updated gallery.');
+   void refresh().catch(()=>setError('Other FIRE tab changed photos, but this gallery could not be refreshed. Do not rely on a previously prepared ZIP.'));
+  };
+  const onChange=(event:MessageEvent)=>{
+   if(!event.data||event.data.type!=='changed'||typeof event.data.source!=='string'||event.data.source===OFFLINE_PHOTO_PAGE_ID)return;
+   changed();
+  };
+  channel.addEventListener('message',onChange);
+  return()=>{channel.removeEventListener('message',onChange);channel.close();};
  },[customerId]);
  // Read the durable receipt on mount, focus and return from another app. Never
  // clear it on navigation, reload, sign-out or age; only explicit review may.
@@ -91,7 +110,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
    const filename='FIRE-'+(scope==='customer'?'customer-'+customerId:'all')+'-photos-'+new Date().toISOString().slice(0,10)+'.zip';
    const file=new File([zip],filename,{type:'application/zip'});
    setPreparedBackup(file);
-   setMessage((scope==='customer'?'This customer’s':'All customers’')+' photo ZIP passed integrity checks and is READY. Tap Save prepared ZIP to Files or Download prepared ZIP. Backups are not complete until you confirm the file exists in Files or iCloud.');
+   setMessage((scope==='customer'?'Customer':'All-photos')+' ZIP is ready. Save to Files, then verify the saved ZIP.');
   }catch(err){setError(err instanceof Error?err.message:'Photo archive was not created.');}
   finally{active.current=false;setBusy(false);}
  };
@@ -117,10 +136,10 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   active.current=true;setBusy(true);
   try{
    await navigator.share({files:[file],title:'FIRE Offline Photo Backup'});
-   setMessage('Photo ZIP was offered to the iOS share sheet. Confirm it exists in Files or iCloud Drive before treating it as backed up. Keep original photos too.');
+   setMessage('Check that the ZIP is in Files, then use Verify saved ZIP from Files.');
   }catch(err){
    if(err instanceof Error&&err.name==='AbortError')setMessage('Saving was cancelled. Your prepared ZIP is still available; photos are NOT backed up.');
-   else setError('iOS could not open the share sheet. Try Download prepared ZIP below; your prepared archive has not been erased.');
+   else setError('iOS could not open the share sheet. Open More photo backup tools, then Download prepared ZIP. Your prepared archive is still available.');
   }finally{active.current=false;setBusy(false);}
  };
  const verifySavedArchive=async(files:FileList|null)=>{
@@ -128,11 +147,19 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   active.current=true;setBusy(true);setError('');setMessage('');
   try{
    const result=await inspectSavedOfflinePhotoZip(files[0],knownCustomerIds);
-   setMessage('Saved ZIP selected from Files passed photo checksums: '+result.archivePhotoCount+
-    ' photo(s) in archive; '+result.byteIdenticalOnDevice+' exactly match this device; '+
-    result.notYetOnDevice+' not yet on this device; '+
-    result.localPhotosNotInArchive+' current device photo(s) NOT included in this ZIP. '+
-    'A complete all-customer backup should include every photo on this device. Keep the saved ZIP outside FIRE.');
+   // A valid ZIP is not necessarily a complete backup. An older or
+   // customer-scoped ZIP may have perfect checksums but miss newer photos.
+   const details=result.archivePhotoCount+' photo(s) in archive; '+
+    result.byteIdenticalOnDevice+' exactly match this device; '+
+    result.notYetOnDevice+' older archive photo(s) are not on this device.';
+   if(result.localPhotosNotInArchive>0){
+    setError('INCOMPLETE PHOTO BACKUP: '+result.localPhotosNotInArchive+
+     ' current device photo(s) are NOT in this saved ZIP. Preserve it, but prepare and save a NEW all-local-photos ZIP before relying on the backup.');
+    setMessage('Saved ZIP checksum verification passed, but backup coverage is incomplete: '+details);
+   }else{
+    setMessage('Backup COMPLETE: all current on-device photos included. '+
+     details+' Keep this ZIP in Files; back up again after adding photos.');
+   }
   }catch(err){setError((err instanceof Error?err.message:'Saved backup verification failed.')+' No photos were changed.');}
   finally{active.current=false;setBusy(false);if(verifyRef.current)verifyRef.current.value='';}
  };
@@ -183,8 +210,8 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   finally{active.current=false;setBusy(false);}
  };
  return <section className="photo-panel" aria-label="On-device customer photos">
-  <header><strong>Private on-device photos</strong><p>Stored only in this device’s FIRE Home Screen/browser storage. No R2 subscription or automatic syncing.</p></header>
-  <p className="payment-handle-note"><strong>Backup required:</strong> iPhone app deletion, storage clearing, or device failure can erase these photos. Keep originals in Apple Photos and export ZIP backups to Files/iCloud Drive. Export includes local photos from this FIRE candidate only, not older hosted R2 images.</p>
+  <header><strong>Photos</strong><p>On this device only · not synced.</p></header>
+  <p className="payment-handle-note"><strong>Back up photos:</strong> Save an all-photos ZIP to Files/iCloud. Deleting FIRE or clearing browser data can erase local photos. Older cloud images are not included.</p>
   {legacyCloudPhotoCount>0&&<p role="alert" className="save-error">{legacyCloudPhotoCount} older hosted photo record(s) remain associated with this customer. The new on-device gallery and ZIP backup do not include those bytes. No existing hosted records were deleted or migrated. Preserve the old cloud archive separately before considering its storage retired.</p>}
   <div className="photo-toolbar">
    <div><Label>Photo type</Label><select aria-label="Photo type" value={category} onChange={e=>setCategory(e.target.value as typeof category)} disabled={busy}><option value="before">Before</option><option value="after">After</option><option value="property">Property / damage</option></select></div>
@@ -193,14 +220,19 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   </div>
   <input ref={cameraRef} className="photo-input" type="file" accept="image/*" capture="environment" onChange={e=>void add(e.target.files)}/>
   <input ref={libraryRef} className="photo-input" type="file" accept="image/*" multiple onChange={e=>void add(e.target.files)}/>
-  <div className="photo-buttons">
+  <div className="photo-buttons photo-backup-primary">
    <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive('all')}><Download className="h-4 w-4"/>Prepare all local photos ZIP</Button>
-   <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive('customer')}><Download className="h-4 w-4"/>Prepare this customer's photos ZIP</Button>
-   {preparedBackup&&<><Button variant="outline" disabled={busy||loading} onClick={()=>void savePreparedArchive()}><Upload className="h-4 w-4"/>Save prepared ZIP to Files</Button>
-    <Button variant="outline" disabled={busy||loading} onClick={downloadPreparedArchive}><Download className="h-4 w-4"/>Download prepared ZIP</Button></>}
+   {preparedBackup&&<Button variant="outline" disabled={busy||loading} onClick={()=>void savePreparedArchive()}><Upload className="h-4 w-4"/>Save prepared ZIP to Files</Button>}
    <Button variant="outline" disabled={busy||loading} onClick={()=>verifyRef.current?.click()}><Images className="h-4 w-4"/>Verify saved ZIP from Files</Button>
-   <Button variant="outline" disabled={busy||loading||needsReview||!safetyReady} onClick={()=>restoreRef.current?.click()}><Upload className="h-4 w-4"/>Restore verified photo ZIP</Button>
   </div>
+  <details className="photo-backup-more">
+   <summary>More photo backup tools</summary>
+   <div className="photo-buttons">
+    <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive('customer')}><Download className="h-4 w-4"/>Prepare this customer's photos ZIP</Button>
+    {preparedBackup&&<Button variant="outline" disabled={busy||loading} onClick={downloadPreparedArchive}><Download className="h-4 w-4"/>Download prepared ZIP</Button>}
+    <Button variant="outline" disabled={busy||loading||needsReview||!safetyReady} onClick={()=>restoreRef.current?.click()}><Upload className="h-4 w-4"/>Restore verified photo ZIP</Button>
+   </div>
+  </details>
   <input ref={verifyRef} className="photo-input" type="file" accept=".zip,application/zip" onChange={e=>void verifySavedArchive(e.target.files)}/>
   <input ref={restoreRef} className="photo-input" type="file" accept=".zip,application/zip" onChange={e=>void restore(e.target.files)}/>
   {needsReview&&<div role="alert" className="save-error"><p>Photo changes are paused because the last result was not confirmed. Keep original images and backup files.</p>
@@ -220,11 +252,11 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
     </section>;
    })}
   </div>}
-  {before.length>0&&after.length>0&&<section className="before-after-builder"><header><div><strong>Before &amp; after comparison</strong><p>Create a shareable comparison from photos stored on this device.</p></div><Images/></header>
+  {before.length>0&&after.length>0&&<details className="photo-comparison-more"><summary>Before &amp; after comparison</summary><section className="before-after-builder"><header><div><p>Create a shareable comparison from photos stored on this device.</p></div><Images/></header>
    <div><label><span>Before</span><select value={selectedBefore?.photo.id??''} disabled={busy} onChange={e=>setBeforeId(e.target.value)}>{before.map(x=><option key={x.photo.id} value={x.photo.id}>{x.photo.caption||x.photo.filename}</option>)}</select></label>
    <label><span>After</span><select value={selectedAfter?.photo.id??''} disabled={busy} onChange={e=>setAfterId(e.target.value)}>{after.map(x=><option key={x.photo.id} value={x.photo.id}>{x.photo.caption||x.photo.filename}</option>)}</select></label>
    <Button disabled={busy} className="brand-button" onClick={()=>void comparison()}><Download className="h-4 w-4"/>Create comparison</Button></div>
    <div className="before-after-preview"><figure><img src={selectedBefore?.url} alt="Selected before"/><figcaption>Before</figcaption></figure><figure><img src={selectedAfter?.url} alt="Selected after"/><figcaption>After</figcaption></figure></div>
-  </section>}
+  </section></details>}
  </section>;
 }

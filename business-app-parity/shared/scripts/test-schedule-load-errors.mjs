@@ -9,7 +9,7 @@ const helpers=['resolvedBillingTotalCents','billingBalanceCents'];
 const declarations=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>helpers.includes(d.name.getText(ast))));
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleView');
 let state=[],cursor=0,effect,requests=[],fetchOptions=[],responder;let scheduleNow=Date.parse('2026-10-09T12:00:00Z');
-const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','Navigation','Clock3','ChevronRight','CalendarDays','CloudSun'].map(name=>[name,()=>null]));
+const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','ScheduleMonthCalendar','Navigation','Clock3','ChevronRight','CalendarDays','CloudSun','AlertTriangle','Phone'].map(name=>[name,()=>null]));
 const spacing={exports:{}};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/schedule-turnarounds.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,spacing);
 const pagination={exports:{},require};
@@ -20,7 +20,7 @@ const context={exports:{},require,...pagination.exports,...spacing.exports,Error
  useEffect(fn){effect=fn;},useCurrentTime:()=>scheduleNow,fetch:async (url,options)=>{requests.push(url);fetchOptions.push(options);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,dateTime:s=>s,
 };
 vm.runInNewContext(ts.transpileModule(declarations.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=ScheduleView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
-function render(searchQuery=''){cursor=0;return context.exports.view({searchQuery});}
+function render(searchQuery=''){cursor=0;if(!(5 in state))state[5]='all';if(!(6 in state))state[6]='';return context.exports.view({searchQuery});}
 function nodes(tree){const out=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;out.push(n);walk(n.props?.children);}walk(tree);return out;}
 async function settle(){for(let i=0;i<16;i++)await Promise.resolve();assert.equal(state[2],false,'Load must settle');}
 const job={id:'job-synthetic',customer:'Synthetic QA',service:'House Wash',status:'scheduled',scheduledAt:'2026-10-10T12:00:00Z',address:'123 A & B St, Tulsa',totalCents:10000,invoiceTotalCents:8000,depositCents:5000,paidCents:2000};
@@ -37,14 +37,20 @@ const failures=[
 ];
 for(const [fail,message] of failures)for(const populated of [false,true]){
  state=[populated?[job]:[],populated?job:null,true,''];responder=fail;requests=[];
- const initial=nodes(render());equal(initial.find(n=>n.type===stubs.EstimateDetail).props.estimate,null);equal(initial.some(n=>n.props?.className==='route-day-button'),false);equal(initial.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,undefined);
+ const initial=nodes(render());equal(initial.find(n=>n.type===stubs.EstimateDetail).props.estimate,null);equal(initial.some(n=>n.props?.className==='route-day-button'),false);equal(initial.some(n=>n.type===stubs.ScheduleWeather),false);equal(initial.some(n=>n.type===stubs.ScheduleMonthCalendar),false);
  effect();await settle();equal(state[3],message);equal(state[0].length,populated?1:0);equal(state[1],null);
  const all=nodes(render());const alert=all.find(n=>n.props?.role==='alert');assert.ok(alert);checks++;
- equal(alert.props.children[0].props.children,message);equal(all.some(n=>n.props?.className==='schedule-board'),false);equal(all.some(n=>n.props?.className==='schedule-turnaround-review'),false);equal(all.some(n=>n.props?.className==='route-day-button'),false);equal(all.some(n=>n.props?.children==='No upcoming jobs'),false);equal(all.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,undefined);
+ equal(alert.props.children[0].props.children,message);equal(all.some(n=>n.props?.className==='schedule-board'),false);equal(all.some(n=>n.props?.className==='schedule-turnaround-review'),false);equal(all.some(n=>n.props?.className==='route-day-button'),false);equal(all.some(n=>n.props?.children==='No upcoming jobs'),false);equal(all.some(n=>n.type===stubs.ScheduleWeather),false);equal(all.some(n=>n.type===stubs.ScheduleMonthCalendar),false);
  responder=()=>ok([job]);requests=[];alert.props.children[1].props.onClick();await settle();equal(state[3],'');equal(requests.length,1);equal(requests[0],'/api/estimate-history?limit=50');equal(fetchOptions.at(-1)?.cache,'no-store');
- const recovered=nodes(render());equal(recovered.some(n=>n.props?.role==='alert'),false);equal(recovered.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,job.scheduledAt);
+ const recovered=nodes(render());equal(recovered.some(n=>n.props?.role==='alert'),false);equal(recovered.some(n=>n.type===stubs.ScheduleMonthCalendar),true);equal(recovered.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,job.scheduledAt);
  const card=recovered.find(n=>n.props?.className==='schedule-job');assert.ok(card);checks++;card.props.onClick();equal(state[1].id,job.id);
  const route=recovered.find(n=>n.props?.className==='route-day-button');equal(new URL(route.props.href).searchParams.get('destination'),job.address);
+ const dailyActions=recovered.find(n=>n.props?.className==='schedule-day-buttons');
+ assert.ok(dailyActions,'Schedule day must expose booking and navigation directly beneath the month');checks++;
+ equal(nodes(dailyActions).filter(n=>n.props?.className==='route-day-button').length,1);
+ equal(route.props['aria-label'],'Route tomorrow in Google Maps');
+ equal(nodes(recovered.find(n=>n.props?.className==='schedule-planning-more')).some(n=>n.props?.className==='route-day-button'),false);
+ equal(nodes(dailyActions).some(n=>n.props?.children==='+ Schedule job'),true);
 }
 // Successful schedule retains sorted same-day routing and attention/balance rules.
 const fixtures=[{...job,id:'later',scheduledAt:'2026-10-10T15:00:00Z',address:'456 Later Rd'},job,
@@ -107,7 +113,7 @@ chosenDay().props.onChange({target:{value:'2026-10-19'}});
 equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,1);
 equal(nodes(render()).some(n=>n.props?.className==='schedule-history-status'&&n.props?.children==='completed'),true);
 equal(nodes(render()).some(n=>n.props?.className==='route-day-button'),false);
-equal(nodes(render()).find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,undefined);
+equal(nodes(render()).some(n=>n.type===stubs.ScheduleWeather),true);
 nodes(render()).find(n=>n.props?.className==='schedule-job').props.onClick();
 equal(state[1].id,'completed-yesterday');
 chosenDay().props.onChange({target:{value:''}});equal(state[5],'all');
@@ -132,6 +138,17 @@ const closeJobs=[
  {...job,id:'next-day',customer:'Tomorrow job',scheduledAt:'2026-10-21T05:30:00Z'}
 ];
 state=[[],null,true,''];responder=()=>ok(closeJobs);requests=[];render();effect();await settle();
+const visibleChecks=nodes(render());
+const shortcut=visibleChecks.find(n=>n.props?.className==='schedule-check-shortcut');
+const advanced=visibleChecks.find(n=>n.props?.className==='schedule-planning-more');
+assert.ok(shortcut&&advanced,'Active appointment cautions remain visible while advanced tools are collapsed');checks++;
+equal(shortcut.props['aria-label'],'Review upcoming schedule checks');
+equal(nodes(shortcut).some(n=>String(n.props?.children).includes('same-time start')),true);
+let scrolled=0;const disclosure={open:false,scrollIntoView(options){equal(options.block,'start');scrolled++;}};
+advanced.props.ref.current=disclosure;
+shortcut.props.onClick();
+equal(disclosure.open,true);equal(scrolled,1);
+equal(requests.length,1,'Reviewing a schedule warning does not change saved jobs or fetch data');
 const review=()=>nodes(render()).find(n=>n.props?.className==='schedule-turnaround-review');
 assert.ok(review(),'Close-start advisory must render on successful verified owner read');checks++;
 let pairRows=nodes(review()).filter(n=>n.props?.className==='schedule-turnaround-pair');
@@ -152,6 +169,8 @@ equal(nodes(render()).some(n=>n.props?.className==='schedule-turnaround-review')
 equal(requests.length,beforeReadCount,'Specific-day browsing is read-only');
 state=[[],null,true,''];responder=()=>ok([{...job,id:'a',scheduledAt:'2026-10-20T15:00:00Z'},{...job,id:'b',scheduledAt:'2026-10-20T18:00:00Z'}]);render();effect();await settle();
 equal(nodes(render()).some(n=>n.props?.className==='schedule-turnaround-review'),false);
+state=[[],null,true,''];responder=()=>ok([{...job,id:'clean-upcoming',phone:'9185550101',address:'123 Synthetic Street',scheduledAt:'2026-10-20T15:00:00Z'}]);render();effect();await settle();
+equal(nodes(render()).some(n=>n.props?.className==='schedule-check-shortcut'),false);
 
 // Restore the baseline test clock before running pre-existing refresh assertions.
 scheduleNow=Date.parse('2026-10-09T12:00:00Z');
@@ -163,22 +182,28 @@ const refreshButton=()=>nodes(render()).find(node=>node.type===stubs.Button&&nod
 assert.ok(refreshButton());checks++;equal(refreshButton().props.disabled,false);
 responder=()=>ok([job,{...job,id:'newly-booked',address:'Updated appointment',scheduledAt:'2026-10-10T18:00:00Z'}]);
 requests=[];fetchOptions=[];
-refreshButton().props.onClick();equal(state[2],true);equal(refreshButton().props.disabled,true);
+refreshButton().props.onClick();equal(state[2],true);equal(refreshButton().props.disabled,true);equal(nodes(render()).some(n=>n.type===stubs.ScheduleMonthCalendar),false);
 await settle();equal(requests.length,1);equal(requests[0],'/api/estimate-history?limit=50');equal(fetchOptions[0]?.cache,'no-store');
 equal(state[0].length,2);equal(nodes(render()).filter(node=>node.props?.className==='schedule-job').length,2);
 const previous=state[4];responder=()=>{throw new Error('Synthetic offline during refresh');};requests=[];refreshButton().props.onClick();await settle();
 equal(state[3],'Synthetic offline during refresh');equal(state[0].length,2);equal(state[4],previous);
 equal(nodes(render()).some(node=>node.props?.className==='schedule-board'),false);
+equal(nodes(render()).some(node=>node.type===stubs.ScheduleMonthCalendar),false);
 equal(nodes(render()).some(node=>node.props?.className==='route-day-button'),false);
 responder=()=>ok([job]);const retry=nodes(render()).find(node=>node.props?.role==='alert').props.children[1];
 retry.props.onClick();await settle();
-equal(state[3],'');equal(state[0].length,1);equal(nodes(render()).some(node=>node.props?.className==='schedule-board'),true);
+equal(state[3],'');equal(state[0].length,1);equal(nodes(render()).some(node=>node.type===stubs.ScheduleMonthCalendar),true);equal(nodes(render()).some(node=>node.props?.className==='schedule-board'),true);
 
 // Financial and appointment corruption must never show unsafe balances, stale routes
 // or a falsely successful refresh. Valid saved records remain recoverable with GET only.
 for(const [field,value] of [
  ['totalCents','1.25'],
  ['totalCents',''],
+ ['totalCents','-100'],
+ ['totalCents',-100],
+ ['totalCents','0x20'],
+ ['totalCents','1e3'],
+ ['totalCents','+100'],
  ['totalCents','9007199254740992'],
  ['subtotalCents','2.50'],
  ['depositCents',false],
@@ -201,5 +226,33 @@ for(const [field,value] of [
  equal(state[3],'');equal(state[0].length,1);
  equal(state[0][0].invoiceTotalCents,8000);
  equal(nodes(render()).some(n=>n.props?.className==='schedule-board'),true);
+}
+// Execute the REAL monthly calendar with synthetic hook state: month arrows must
+// browse freely, while an externally selected booking date opens its own month.
+{
+ const declaration=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleMonthCalendar');
+ assert.ok(declaration,'Monthly calendar implementation must exist');checks++;
+ let calendarState=[],calendarCursor=0,lastDate,pendingEffect=null;
+ const calendarContext={exports:{},require,
+  useState(initial){const i=calendarCursor++;if(!(i in calendarState))calendarState[i]=typeof initial==='function'?initial():initial;
+   return [calendarState[i],update=>{calendarState[i]=typeof update==='function'?update(calendarState[i]):update;}]},
+  useEffect(callback,deps){if(lastDate!==deps[0])pendingEffect=()=>{lastDate=deps[0];callback();}}
+ };
+ vm.runInNewContext(ts.transpileModule(declaration.getText(ast)+'\nexports.calendar=ScheduleMonthCalendar;',{
+  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}
+ }).outputText,calendarContext);
+ function calendar(chosen){
+  let tree;for(let attempt=0;attempt<2;attempt++){calendarCursor=0;pendingEffect=null;
+   tree=calendarContext.exports.calendar({jobs:[],selectedDate:chosen,onSelectDate:()=>{}});
+   if(!pendingEffect)break;pendingEffect();
+  }return nodes(tree);
+ }
+ const headerLabel=all=>all.find(n=>n.type==='h2')?.props.children;
+ const first=calendar('2026-10-20');equal(headerLabel(first),'October 2026');
+ first.find(n=>n.props?.['aria-label']==='Next month').props.onClick();
+ equal(headerLabel(calendar('2026-10-20')),'November 2026');
+ equal(headerLabel(calendar('2027-02-14')),'February 2027');
+ equal(headerLabel(calendar('2027-02-14')),'February 2027');
+ calendar('invalid-date');equal(headerLabel(calendar('invalid-date')),'February 2027');
 }
 console.log(`PASS ${checks}/${checks}: actual schedule load/error/retry handlers preserve records, hide stale route/editor/forecast targets, recover jobs, and retain sorted same-day routes, overdue revised balances, selection/change/close callbacks and search. Mocked reads only.`);

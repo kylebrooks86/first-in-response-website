@@ -137,3 +137,20 @@ export function followupLatestContact(record:FollowupContactEvidence,now:number)
  return latest?{kind:latest.key,at:new Date(latest.at).toISOString(),label:latest.label}:
    {kind:"unverified" as const,at:null,label:"No confirmed contact status in saved records"};
 }
+
+/** A missed attempt remains in the owner's NOT-CONTACTED queue until a
+ * later actual manual contact is logged. Sending an estimate, opening its
+ * link, copying a draft, or snoozing never turns a missed call into contact.
+ * Unknown/future timestamps fail closed instead of inventing a status.
+ */
+export function noAnswerStillUncontacted(
+ estimate:{noAnswerCount?:number|null;lastNoAnswerAt?:string|null;lastManualContactAt?:string|null},
+ now:number
+):boolean{
+ if(!Number.isFinite(now)||!Number.isSafeInteger(estimate.noAnswerCount)||Number(estimate.noAnswerCount)<=0)return false;
+ const missed=timestamp(estimate.lastNoAnswerAt);
+ if(missed===null||missed>now)return false;
+ if(!estimate.lastManualContactAt)return true;
+ const contacted=timestamp(estimate.lastManualContactAt);
+ return contacted!==null&&contacted<=now&&contacted<=missed;
+}

@@ -27,6 +27,15 @@ const failures=[
  [()=>({ok:true,json:async()=>{throw new Error('Unreadable response');}}),'Unreadable response'],
  [()=>({ok:true,json:async()=>({})}),'Invoice records could not be read. Try again.'],
  [()=>({ok:true,json:async()=>({invoices:{}})}),'Invoice records could not be read. Try again.'],
+ // Malformed financial responses must behave as read errors and never leave
+ // an actionable invoice/payment balance visible.
+ [()=>ok([{...prior[0],totalCents:'1.5'}]),'Invoice amounts could not be verified. Refresh before taking payment.'],
+ [()=>ok([{...prior[0],totalCents:''}]),'Invoice amounts could not be verified. Refresh before taking payment.'],
+ [()=>ok([{...prior[0],totalCents:null}]),'Invoice amounts could not be verified. Refresh before taking payment.'],
+ [()=>ok([{...prior[0],paidCents:'1e3'}]),'Invoice amounts could not be verified. Refresh before taking payment.'],
+ [()=>ok([{...prior[0],depositCents:-1}]),'Invoice amounts could not be verified. Refresh before taking payment.'],
+ [()=>ok([{...prior[0],totalCents:'9007199254740992'}]),'Invoice amounts could not be verified. Refresh before taking payment.'],
+ [()=>ok([{...prior[0],id:''}]),'Invoice records could not be verified. Refresh before taking payment.'],
  [()=>{throw 'connection failed';},'Invoices could not be loaded.'],
 ];
 for(const [fail,message] of failures)for(const populated of [false,true]){
@@ -52,4 +61,9 @@ state=[[],true,''];responder=()=>ok([]);render();effect();await settle();all=nod
 // Preserve zero invoices, string-to-number conversion, and payment refresh callback.
 state=[[],true,''];responder=()=>ok([{...prior[0],totalCents:'0',paidCents:null}]);render();effect();await settle();equal(state[0][0].totalCents,0);equal(state[0][0].paidCents,0);
 const action=nodes(render()).find(n=>n.type===RecordPayment);requests=[];action.props.onRecorded();await settle();equal(requests.length,1);equal(requests[0],'/api/invoices');
+// Decimal integer strings from D1 are valid, and fractional cents are not
+// discarded by Number coercion or rounded to a whole dollar.
+state=[[],true,''];responder=()=>ok([{...prior[0],totalCents:'10001',paidCents:'5001',depositCents:'5000'}]);render();effect();await settle();
+equal(state[2],'');equal(state[0][0].totalCents,10001);equal(state[0][0].paidCents,5001);equal(state[0][0].depositCents,5000);
+equal(nodes(render()).some(n=>n.type===RecordPayment),true);
 console.log(`PASS ${checks}/${checks}: actual invoice load/error/retry and payment-refresh handlers cover HTTP/network/JSON/malformed failures, preserve old records, hide stale payment actions, recover loaded invoices, distinguish search misses from no invoices, and retain zero totals and invoice links. Mocked reads only.`);

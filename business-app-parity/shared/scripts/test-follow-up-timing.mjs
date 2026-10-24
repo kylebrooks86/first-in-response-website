@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {estimateFollowUpTiming,estimateReminderStage} from '../lib/follow-up-timing.ts';
+import {estimateFollowUpTiming,estimateReminderStage,noAnswerStillUncontacted} from '../lib/follow-up-timing.ts';
 const now=Date.parse('2026-10-14T00:00:00Z'),day=86400000;
 const ago=days=>new Date(now-days*day).toISOString();
 const base={status:'sent',createdAt:ago(30)};
@@ -46,4 +46,19 @@ const stages=[
  ['invalid stage needs review' ,record(8,{stage3At:'invalid'}),null,true],
 ];
 for(const [name,value,template,review] of stages){const result=estimateReminderStage(value,now);assert.equal(result.template,template,name);assert.equal(Boolean(result.reviewReason),review,name);}
-console.log(JSON.stringify({passed:cases.length+stages.length,total:cases.length+stages.length,checks:[...cases.map(c=>c[0]),...stages.map(c=>c[0])]}));
+const missedCases=[
+ ['an unanswered attempt keeps customer not contacted',{noAnswerCount:1,lastNoAnswerAt:ago(1)},true],
+ ['repeated unanswered calls still count uncontacted',{noAnswerCount:3,lastNoAnswerAt:ago(0)},true],
+ ['later actual contact resolves missed state',{noAnswerCount:2,lastNoAnswerAt:ago(3),lastManualContactAt:ago(1)},false],
+ ['contact before latest missed attempt still uncontacted',{noAnswerCount:2,lastNoAnswerAt:ago(1),lastManualContactAt:ago(4)},true],
+ ['zero attempts not promoted',{noAnswerCount:0,lastNoAnswerAt:ago(1)},false],
+ ['missing timestamp not promoted',{noAnswerCount:1,lastNoAnswerAt:null},false],
+ ['invalid timestamp not promoted',{noAnswerCount:1,lastNoAnswerAt:'not-a-time'},false],
+ ['future missed attempt does not count',{noAnswerCount:1,lastNoAnswerAt:ago(-1)},false],
+ ['corrupt contact date does not claim still uncontacted',{noAnswerCount:1,lastNoAnswerAt:ago(1),lastManualContactAt:'corrupt'},false],
+ ['future contact date requires review',{noAnswerCount:1,lastNoAnswerAt:ago(2),lastManualContactAt:ago(-1)},false],
+ ['invalid counter refuses status',{noAnswerCount:1.2,lastNoAnswerAt:ago(1)},false]
+];
+for(const [name,row,expected] of missedCases)assert.equal(noAnswerStillUncontacted(row,now),expected,name);
+assert.equal(noAnswerStillUncontacted({noAnswerCount:2,lastNoAnswerAt:ago(1)},NaN),false,'Invalid now does not invent no-answer status');
+console.log(JSON.stringify({passed:cases.length+stages.length+missedCases.length+1,total:cases.length+stages.length+missedCases.length+1,checks:[...cases.map(c=>c[0]),...stages.map(c=>c[0]),...missedCases.map(c=>c[0])]}));

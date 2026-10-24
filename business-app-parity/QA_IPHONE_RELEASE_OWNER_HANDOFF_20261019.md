@@ -1,5 +1,7 @@
 # FIRE iPhone QA release handoff — read-only owner preparation
 
+> **October 24, 2026 update — this document preserves an older October 19 checkpoint, not current QA status.** The owner has since shown a **single QA Worker version** `ab408776-bf5d-4fab-825e-73082eabbce6` at **100% traffic**, named `DB` binding to `fire-fullapp-qa-db-20261016`, and **25 saved rows** in `d1_migrations`, with `0023_deposit_policy_events.sql` and `0024_deposit_agreement_snapshots.sql` recorded on October 23. **Do not reapply 0023/0024.** See [QA_OWNER_OBSERVED_STATE_20261024.md](QA_OWNER_OBSERVED_STATE_20261024.md) for observed evidence and limits. The database UUID, exact served source/build, full hosted schema and freshness/custody are **not** established by screenshots; an isolated QA code deployment is **not** authorized or claimed. All instructions below referring to 23 migrations are **historical**, not a present-day instruction to migrate.
+
 This checkpoint is for **First In Response Exteriors Business App**, not the public website or the Business Command Center.
 
 ## User-visible source fixes that need device acceptance

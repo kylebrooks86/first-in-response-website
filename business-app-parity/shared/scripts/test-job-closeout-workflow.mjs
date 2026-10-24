@@ -18,7 +18,7 @@ export async function exerciseJobCloseout({page,context,origin,request,check,mut
  await detail.getByRole('button',{name:'Mark job complete',exact:true}).click();await detail.getByRole('button',{name:'Create invoice',exact:true}).waitFor();
  check(await detail.getByRole('button',{name:'Request review',exact:true}).count()===0,'Completed job with only deposit offers no review shortcut');
  await detail.getByRole('button',{name:'Record payment',exact:true}).click();const payment=page.getByRole('dialog',{name:'Record payment',exact:true});await payment.getByRole('button',{name:'Save payment',exact:true}).click();await payment.waitFor({state:'hidden'});
- await detail.getByRole('button',{name:'Request review',exact:true}).waitFor();check((await detail.locator('.next-action').innerText()).includes('review the saved closeout status'),'Actual final payment enables review and recommends checking saved closeout progress');
+ await detail.getByRole('button',{name:'Request review',exact:true}).waitFor();check(await detail.locator('.next-action').count()===0,'Final payment enables review without a redundant next-step explanation; financial exceptions still retain explicit alerts');
  const prepare=await request('/api/customer-messages','POST',{customerId:customer.id,estimateId:estimate.id,channel:'text_prepared',template:'review',body:'Synthetic review request https://firstinresponseexteriors.com/review',requestId:randomUUID()});assert.equal(prepare.status(),201);const draft=(await prepare.json()).message;
  // Prepare through the actual API to avoid dispatching an external SMS application.
  await detail.getByRole('button',{name:'Request review',exact:true}).click();const composer=page.getByRole('dialog',{name:'Message '+customer.name,exact:true});await composer.getByRole('button',{name:/^Resume text/}).click();
@@ -30,8 +30,11 @@ export async function exerciseJobCloseout({page,context,origin,request,check,mut
  check(!(await(await request('/api/payment-closeouts')).json()).actions.some(x=>x.estimateId===estimate.id),'Confirmed send clears actual ready queue');
  const date=new Date(Date.now()-8*86400000).toISOString();const quote=x=>"'"+x.replaceAll("'","''")+"'";
  await mutateSyntheticD1('UPDATE customer_messages SET created_at='+quote(date)+' WHERE id='+quote(sent[0].id));
- await page.goto(origin+'/');const reminders=page.getByRole('region',{name:'Review status checks on dashboard',exact:true});await reminders.getByRole('button').filter({hasText:customer.name}).click();
+ await page.goto(origin+'/');await page.locator('details.dashboard-extra-reminders > summary').click();const reminders=page.getByRole('region',{name:'Review status checks on dashboard',exact:true});await reminders.getByRole('button').filter({hasText:customer.name}).click();
  await page.locator('#customer-review-check-'+customer.id).waitFor();check(await page.locator('#customer-review-check-'+customer.id).evaluate(n=>document.activeElement===n),'Dashboard reminder opens and focuses exact customer review check');
+ const moreTracking=page.locator('details.customer-extra-tracking');
+ check(!(await moreTracking.evaluate(node=>node.open)),'Due review remains visible while occasional review receipt tracking starts collapsed');
+ await moreTracking.locator(':scope>summary').click();
  await page.getByRole('button',{name:'Prepare review received note',exact:true}).click();const note=page.getByLabel('Customer note',{exact:true});check(await note.inputValue()==='[FIRE FLAG] REVIEW_RECEIVED','Logging receipt prepares existing note and requires explicit save');
  check(!(await(await request('/api/backup')).json()).tables.customer_notes.some(n=>n.customer_id===customer.id&&n.body==='[FIRE FLAG] REVIEW_RECEIVED'),'Preparation alone never records a received review');
  await page.getByRole('button',{name:'Add note',exact:true}).click();await page.getByRole('status').filter({hasText:'Note saved.'}).waitFor();

@@ -80,4 +80,41 @@ for(const hasSavedAppointment of [false,true]){
  if(hasSavedAppointment)eq(f.nodes().some(n=>n.type==='small'&&n.props?.children==='Clearing this selection does not cancel the saved appointment.'),true,'Existing appointment is explicitly protected');
 }
 
+// Keep essential customer actions prominent while preserving every secondary job tool.
+const detailSource=fn.getText(ast),moreStart=detailSource.indexOf('<details className="detail-more-tools">'),moreEnd=detailSource.indexOf('</details>',moreStart),mainStart=detailSource.indexOf('<div className="detail-actions" aria-label="Customer and estimate actions">');
+eq(moreStart>mainStart&&moreEnd>moreStart,true,'Secondary job tools exist in their own expandable section');
+const primary=detailSource.slice(mainStart,moreStart),secondary=detailSource.slice(moreStart,moreEnd);
+for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','tel:','sms:'])eq(primary.includes(label),true,'Daily customer action available: '+label);
+eq(primary.includes('Estimate research')&&primary.includes('Google Earth')&&primary.includes('Zillow'),true,'Quote preparation presents Earth and Zillow together');
+eq(primary.includes('Driving to job')&&primary.includes('Google Maps')&&!primary.includes('StrideButton'),true,'Scheduled work shows Maps without duplicating the Home Stride shortcut');
+eq(secondary.includes('Google Maps')&&!secondary.includes('StrideButton'),true,'Directions remain available under More tools without another Stride button');
+for(const label of ['Customer view','Google Earth','Zillow','OwnerJobTools'])eq(secondary.includes(label),true,'Existing research and job control retained: '+label);
+eq(secondary.includes('More tools')&&!secondary.includes('Job report, costs & more'),true,'Expandable tools use one short label, with job reports directly accessible');
+eq(ast.getText().includes('<StrideButton top/>'),true,'Home retains its single Stride button in the header');
+// Stage-specific actions stay available without a duplicate mileage shortcut.
+const researchJob=fixture();researchJob.setFetcher(()=>Promise.resolve(ok(false,'quote')));researchJob.open({...job('quote'),status:'draft',address:'123 Synthetic St'});await flush();
+const researchNodes=researchJob.nodes();
+eq(researchNodes.some(n=>n.props?.['aria-label']==='Estimate research'),true,'Quote stage exposes Earth and Zillow as research tools');
+eq(researchNodes.some(n=>n.props?.['aria-label']==='Driving to job'),false,'Draft quote does not clutter the screen with travel shortcuts');
+eq(researchNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Secondary owner tools stay available for a draft quote');
+const scheduledJob=fixture();scheduledJob.setFetcher(()=>Promise.resolve(ok(false,'booked')));scheduledJob.open({...job('booked'),address:'123 Synthetic St',scheduledAt:'2026-10-28T14:00:00.000Z'});await flush();
+const scheduledNodes=scheduledJob.nodes();
+eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Driving to job'),true,'Booked job exposes Google Maps directly; Stride stays in Home');
+eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Job report and costs'),true,'Scheduled work surfaces Job report and Job costs directly, without a More tools tap');
+eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Estimate research'),false,'Booked job does not repeat pre-estimate research buttons up front');
+eq(scheduledNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Booked job retains extra research and customer-view tools under More tools');
+const completedJob=fixture();completedJob.setFetcher(()=>Promise.resolve(ok(true,'completed')));completedJob.open({...job('completed'),status:'completed',address:'123 Synthetic St'});await flush();
+const completedNodes=completedJob.nodes();
+eq(completedNodes.some(n=>n.props?.['aria-label']==='Job report and costs'),true,'Completed job still exposes reports and costs without extra navigation');
+eq(completedNodes.some(n=>n.props?.['aria-label']==='Driving to job'),false,'Completed job does not show an active driving shortcut');
+const simpleJob=fixture();simpleJob.open(job('compact-scheduled'));await flush();
+eq(simpleJob.nodes().some(n=>n.props?.className==='next-action'),false,'Routine booked work has no redundant next-step box');
+eq(simpleJob.nodes().some(n=>n.type==='details'&&n.props?.className==='detail-scope detail-scope-optional'),true,'Booked job keeps complete service scope one tap away rather than forcing a long scroll');
+const quoteScope=fixture();quoteScope.open({...job('scope-quote'),status:'draft'});await flush();
+eq(quoteScope.nodes().some(n=>n.type==='div'&&n.props?.className==='detail-scope'),true,'Draft estimate shows service scope before customer approval');
+const exceptionJob=fixture();exceptionJob.open({...job('held-billing'),paymentOverageOpen:1});await flush();
+eq(exceptionJob.nodes().some(n=>n.props?.className==='change-alert'),true,'Unresolved overpayment keeps its actionable refund-or-retain controls');
+eq(exceptionJob.nodes().some(n=>n.props?.className==='next-action'),false,'Overpayment does not repeat a second warning above its controls');
+const pendingRefund=fixture();pendingRefund.open({...job('held-refund'),pendingRefundCount:1});await flush();
+eq(pendingRefund.nodes().some(n=>n.props?.className==='next-action'&&n.props.role==='alert'),true,'Pending refund remains an immediate financial alert');
 console.log(`PASS ${checks}/${checks}: actual estimate-detail effect/button state guards report loads across estimate switches, pending reads, close/unmount, failed/malformed responses and retry; synthetic reads/PATCH only; closeout failures, ownership validation and duplicate taps.`);

@@ -118,4 +118,48 @@ assert.equal(journey({...sample,status:'approved',paidCents:5000,openCheckoutCou
 for(const key of ['pendingRefundCount','openCheckoutCount']){assert.ok(customerApi.includes('AS '+key),'Customer job includes '+key+' safety state');n++;}
 assert.ok(view.includes('Customer estimate to scheduled job journey')&&view.includes('customerJobJourney(estimate,customerMessages)'),'Customer profile uses existing job records');n++;
 assert.ok(view.includes('Estimate link viewed')&&view.includes('Link opened · viewer identity and intent unverified'),'Timeline labels views correctly');n++;
-console.log('PASS '+n+' timing, reviewed journey milestones, billing guards, and mobile source contracts.');
+// Daily owner screens stay short without losing proof or financial safeguards.
+const ownerPaymentSection=view.slice(view.indexOf('function PaymentsView('),view.indexOf('function BusinessView(')>0?view.indexOf('function BusinessView('):undefined);
+assert.ok(ownerPaymentSection.indexOf('Card checkouts needing review')<ownerPaymentSection.indexOf('Collectible job balances'),'Unresolved Stripe checkouts still warn before recording more money');n++;
+assert.ok(ownerPaymentSection.indexOf('Collectible job balances')<ownerPaymentSection.indexOf('Job Closeout Center'),'Everyday balances appear before secondary review administration');n++;
+assert.ok(ownerPaymentSection.includes('Payment history')&&ownerPaymentSection.includes('RecordPayment'),'All payment controls and history remain accessible');n++;
+const followUpSection=view.slice(view.indexOf('function FollowUpsView('),view.indexOf('function PaymentsView('));
+assert.ok(followUpSection.includes('className="followup-message-details"'),'Historical message timestamps remain available under a disclosure');n++;
+assert.ok(followUpSection.indexOf('No answer / Not contacted')<followUpSection.indexOf('className="followup-message-details"'),'No-answer / not-contacted filter remains directly accessible');n++;
+assert.ok(followUpSection.includes('Not contacted ·')&&followUpSection.includes('onClick={()=>void recordAction(estimate,"no_answer")}'),'Unanswered outreach stays visibly marked and loggable');n++;
+assert.ok(followUpSection.includes('Saved estimate activity (')&&followUpSection.includes('Recent contact'),'Full milestone and contact history remain available');n++;
+const contactStart=followUpSection.indexOf('className="followup-contact-actions"'),optionalStart=followUpSection.indexOf('className="followup-optional-tools"');
+assert.ok(contactStart>0&&optionalStart>contactStart,'Follow-ups keep immediate contact ahead of secondary tools');n++;
+const directContact=followUpSection.slice(contactStart,optionalStart);
+for(const target of ['Call ','Open text app for ','Open email app for ']){assert.ok(directContact.includes(target),'Customer contact remains one tap away: '+target);n++;}
+const optionalTools=followUpSection.slice(optionalStart,followUpSection.indexOf('className="followup-contact-panel"',optionalStart));
+assert.ok(optionalTools.includes('Recent contact')&&optionalTools.includes('Open estimate')&&optionalTools.includes('Customer history')&&optionalTools.includes('Saved estimate activity ('),'Optional tools retain complete customer, estimate and activity history');n++;
+const homeSource=view.slice(view.indexOf('function DashboardView('),view.indexOf('function AddCustomer('));
+assert.ok(homeSource.indexOf('dashboard-next-job')<homeSource.indexOf('<ScheduleWeather compact'),'Today places next job before the compact forecast');n++;
+assert.ok(homeSource.includes('<details className="panel quick-actions-panel dashboard-shortcut-disclosure">')&&homeSource.includes('<summary>More shortcuts</summary>'),'Repeated home shortcuts start collapsed without removing destinations');n++;
+const estimatesSource=view.slice(view.indexOf('function EstimatesView('),view.indexOf('function ScheduleWeather('));
+assert.ok(estimatesSource.includes('estimate.signedAt?<small className="estimate-legal-state">Agreement signed</small>'),'Simple Estimates list separately identifies an actually signed agreement');n++;
+assert.ok(estimatesSource.includes('estimate.acceptedAt?<small className="estimate-legal-state">Accepted · unsigned</small>'),'Accepted but unsigned work is never mislabeled as a signature');n++;
+assert.ok(estimatesSource.includes('estimate.status==="sent"&&estimate.firstViewedAt?<small className="estimate-legal-state">Viewed · awaiting decision</small>'),'Viewed estimate link is not presented as acceptance');n++;
+
+for(const tab of ['customers','schedule','followups','payments']){assert.ok(homeSource.includes('onNavigate("'+tab+'")'),'All existing Home shortcuts remain reachable: '+tab);n++;}
+
+assert.ok(ownerPaymentSection.includes('const [showAllPayments,setShowAllPayments]=useState(false)'),'Payment history starts compact without changing saved ledger');n++;
+assert.ok(ownerPaymentSection.includes('(showAllPayments?payments:payments.slice(0,8)).map('),'All transactions and refund actions remain renderable');n++;
+assert.ok(ownerPaymentSection.includes('View all ${payments.length} payments')&&ownerPaymentSection.includes('Show recent 8 payments'),'One-tap full payment history remains visible to owner');n++;
+assert.ok(followUpSection.includes('className="followup-summary-details"')&&followUpSection.includes('bucketCount("past-target")')&&followUpSection.includes('bucketCount("due")'),'Compact follow-up header keeps urgent counts visible with optional breakdown');n++;
+const scheduleOwnerSection=view.slice(view.indexOf('function ScheduleView('),view.indexOf('function InvoicesView('));
+assert.ok(scheduleOwnerSection.includes('className="schedule-turnaround-review"')&&scheduleOwnerSection.includes('className="schedule-turnaround-details"'),'Closely spaced appointment warning stays visible while detailed pairs collapse');n++;
+assert.ok(scheduleOwnerSection.includes('className="schedule-turnaround-job"')&&scheduleOwnerSection.includes('onClick={()=>setSelected(job)}'),'Each affected schedule job stays navigable from the full warning');n++;
+assert.ok(ownerPaymentSection.includes('payments-primary-metrics')&&ownerPaymentSection.includes('payments-secondary-metrics'),'Three actionable money totals remain up front and additional values remain accessible');n++;
+assert.ok(ownerPaymentSection.indexOf('Card checkouts needing review')<ownerPaymentSection.indexOf('payments-primary-metrics'),'Unresolved checkout alerts remain ahead of compact totals');n++;
+for(const label of ['Collectible job balance','Deposit still required','Principal paid (net refunds)','Jobs with collectible balance','Potential estimate value','Net tips']){assert.ok(ownerPaymentSection.includes('<small>'+label+'</small>'),'Accounting summary preserves '+label);n++;}
+assert.ok(followUpSection.includes('todayQueue.slice(0,3).map(')&&followUpSection.includes('See full follow-up list'),'Compact follow-up preview does not remove any saved action');n++;
+// Stride stays one tap away in Home, while scheduled jobs keep Maps without duplicating mileage tracking.
+const estimateDetailSource=view.slice(view.indexOf('function EstimateDetail('),view.indexOf('function EstimatesView('));
+const customerProfileSource=view.slice(view.indexOf('function CustomersView('),view.indexOf('function FollowUpsView('));
+assert.ok(view.includes('<StrideButton top/>'),'Stride remains visible in the Home header');n++;
+assert.ok(estimateDetailSource.includes('aria-label="Driving to job"')&&estimateDetailSource.includes('Google Maps')&&!estimateDetailSource.includes('<StrideButton'),'Scheduled job shows Maps without a second Stride shortcut');n++;
+assert.ok(view.split('<StrideButton').length-1===1,'Only the Home header renders a Stride shortcut');n++;
+assert.ok(!customerProfileSource.includes('<StrideButton />'),'General customer profile does not repeat Stride');n++;
+console.log('PASS '+n+' timing, reviewed journey milestones, billing guards, and compact daily owner screen contracts.');

@@ -188,7 +188,7 @@ try{
  const page=await context.newPage();page.on('pageerror',e=>clientErrors.push(e.message));
  await page.goto(origin+'/');
  await page.getByText('SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS',{exact:true}).waitFor();
- await page.getByRole('heading',{name:'Welcome to First In Response Exteriors'}).waitFor();
+ await page.getByRole('heading',{name:'Today',exact:true}).waitFor();
  check(await page.getByRole('region',{name:'Start using your empty FIRE app'}).count()===0,
    'First-use empty-state guidance disappears once saved quote exists');
 
@@ -196,7 +196,10 @@ try{
  // Open the actual dashboard workflow, without fixture replacement or mocked API.
  await page.getByRole('button',{name:'Open menu',exact:true}).click();
  await page.getByRole('button',{name:/Estimates 1/}).click();
- await page.getByRole('button',{name:/Synthetic HTTP Customer.*\$200/}).click();
+ const firstEstimateCard=page.locator('.estimate-list .estimate-card').filter({hasText:'Synthetic HTTP Customer'});
+  await firstEstimateCard.waitFor();
+  check((await firstEstimateCard.locator('.estimate-amount').innerText()).includes('$200'),'Simple Estimates list retains the exact saved $200 amount');
+  await firstEstimateCard.click();
  await page.getByRole('button',{name:'Edit estimate',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Edit estimate',exact:true});await dialog.waitFor();
  const box=await dialog.boundingBox();
@@ -204,14 +207,16 @@ try{
  check(await dialog.getByRole('button',{name:'Save estimate changes',exact:true}).isVisible(),'Real framework modal retains accessible Save control');
  await dialog.getByRole('button',{name:'Close',exact:true}).click();
  const detail=()=>page.getByRole('dialog',{name:'Synthetic Gutter Service',exact:true});
- const previewLink=detail().getByRole('link',{name:'Customer view',exact:true});
+ const previewLink=detail().locator('details.detail-more-tools a').filter({hasText:'Customer view'});
+  check(await detail().locator('details.detail-more-tools').evaluate(node=>!node.open),'Customer preview stays behind collapsed More tools, not duplicated up front');
  const previewPath=await previewLink.getAttribute('href');
  check(previewPath===`/estimate/${estimate.shareToken}?ownerPreview=1`&&await previewLink.getAttribute('target')===null,'Owner Customer view opens explicit preview in same tab; shared customer link stays unchanged');
  let documentText='';
  const customerDocumentText=locator=>locator.evaluate(node=>[...node.children].filter(element=>!element.classList.contains('owner-preview-banner')).map(element=>element.innerText.trim()).join('\n'));
  for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,900]]){
   await page.setViewportSize({width,height});
-  await detail().getByRole('link',{name:'Customer view',exact:true}).click();
+  await detail().locator('details.detail-more-tools > summary').click();
+  await previewLink.click();
   await page.waitForURL(origin+previewPath);
   const close=page.getByRole('link',{name:'Close estimate preview',exact:true});await close.waitFor();
   const previewNav=page.getByRole('complementary',{name:'Owner preview navigation'});
@@ -278,7 +283,9 @@ try{
  await page.reload();await page.getByText('SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Open menu',exact:true}).click();
  await page.getByRole('button',{name:/Estimates 1/}).click();
- await page.getByRole('button',{name:/Synthetic HTTP Customer.*\$250/}).waitFor();
+ const restoredEstimateCard=page.locator('.estimate-list .estimate-card').filter({hasText:'Synthetic HTTP Customer'});
+  await restoredEstimateCard.waitFor();
+  check((await restoredEstimateCard.locator('.estimate-amount').innerText()).includes('$250'),'Simple Estimates list retains the updated $250 amount after Worker restart');
  check(true,'Actual Estimates screen shows saved estimate after full local Worker restart');
  if(!lookupMode){
   await page.goto(origin+'/');await page.getByRole('button',{name:'New estimate',exact:true}).click();

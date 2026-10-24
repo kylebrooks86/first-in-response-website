@@ -23,6 +23,15 @@ try{
  const saved={quantity:3,...money.restoreEditableLineMoney(3,30001)};eq(money.editableLineTotalCents(saved),30001,'Stored flat total preserved exactly after reopening');eq(money.editableLineTotalCents(money.editMoneyLine(saved,{description:'Changed scope'})),30001,'Description edit cannot reprice historical line');
  const source=readFileSync('app/dashboard.tsx','utf8');const start=source.indexOf('function discountMath('),end=source.indexOf('function NewEstimate(',start);// Arithmetic below uses the actual editor discount function.
  const ts=await import('typescript'),vm=await import('node:vm');const context={exports:{}};vm.runInNewContext(ts.default.transpileModule(source.slice(start,end)+'\nexports.discountMath=discountMath',{compilerOptions:{module:ts.default.ModuleKind.CommonJS}}).outputText,context);
+ // Exercise the ACTUAL dashboard formatter: never turn a real $150.01
+ // balance or $365.25 quote into a misleading rounded whole-dollar amount.
+ const displayMoneyDeclaration=source.match(/^const money = \(cents: number\) => .*;$/m);
+ assert.ok(displayMoneyDeclaration,'Actual shared dashboard money formatter is required');checks++;
+ const moneyVm={exports:{}};
+ vm.runInNewContext(ts.default.transpileModule(displayMoneyDeclaration[0]+'\nexports.displayMoney=money;',{
+   compilerOptions:{target:ts.default.ScriptTarget.ES2022,module:ts.default.ModuleKind.CommonJS}
+ }).outputText,moneyVm);
+ for(const [cents,display] of [[15000,'$150'],[15001,'$150.01'],[36525,'$365.25'],[99,'$0.99'],[0,'$0'],[-125,'-$1.25']])eq(moneyVm.exports.displayMoney(cents),display,'Actual UI currency display for '+cents+' cents');
  const totals=context.exports.discountMath(44000,false,'percent',15);eq(totals.total,37400);eq(totals.deposit,18700);eq(context.exports.discountMath(0,false,'percent',0,true).total,15000,'A valid zero-priced service previews the existing server minimum');eq(context.exports.discountMath(0,false,'percent',0,true).deposit,7500,'Zero-priced service deposit matches server');eq(context.exports.discountMath(0,false,'percent',0).total,0,'Empty draft remains an empty preview');eq(context.exports.discountMath(1000,false,'dollar',0).total,15000,'Existing $150 minimum unchanged');eq(context.exports.discountMath(44000,true,'percent',45).total,22000,'Existing discount cap unchanged');
  console.log('PASS '+checks+' custom-pricing checks: all 30 defaults, actual SQLite persistence, retry/conflict/auth guards, historical financial preservation, flat/rate/reset arithmetic and existing discounts.');
 }finally{r.db.close();}

@@ -115,6 +115,18 @@ class QAUpgradeProtection(unittest.TestCase):
         self.assertLess(SOURCE.index("verify_qa_23_to_25_sql.py"),SOURCE.index("d1 list --json"))
         self.assertLess(SOURCE.index("if (-not $Apply)"),SOURCE.index("Read-Host"))
         self.assertLess(SOURCE.index("Read-Host"),SOURCE.index("$again = ReadSchema"))
+        # A reviewed private SQL export with verified SHA-256 and a local restore
+        # must pass BEFORE typed approval or any hosted migration write.
+        for proof in ("[string]$BackupFile", "[string]$BackupSha256",
+                      "verify_qa_d1_export.py",
+                      "Get-FileHash -LiteralPath $backupPath -Algorithm SHA256",
+                      "--expected-sha256 $BackupSha256",
+                      "CheckExit 'Private 23-schema SQL restore",
+                      "Private original 23-schema backup SHA-256"):
+            self.assertIn(proof, SOURCE)
+        self.assertLess(SOURCE.index("if (-not $Apply)"), SOURCE.index("A verified private 23-schema"))
+        self.assertLess(SOURCE.index("CheckExit 'Private 23-schema SQL restore"), SOURCE.index("Read-Host"))
+        self.assertLess(SOURCE.index("Read-Host"), SOURCE.index("d1 migrations apply $qaName --remote"))
         self.assertLess(SOURCE.index("$again = ReadSchema"),SOURCE.index("d1 migrations apply $qaName --remote"))
         self.assertLess(SOURCE.index("d1 migrations apply $qaName --remote"),SOURCE.index("$after = ReadSchema"))
         self.assertEqual(SOURCE.count("d1 migrations apply $qaName --remote"),1)

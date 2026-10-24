@@ -8,6 +8,11 @@ S=(Path(__file__).parent/"owner_windows_qa_update_publish.ps1").read_text(encodi
 class OnlyApprovedQAUpdate(unittest.TestCase):
     def test_defaults_to_read_only(self):
         self.assertIn("[switch]$Publish",S)
+        self.assertIn("[switch]$OwnerConfirmedPhotoZipBackup",S)
+        self.assertIn("Require ($OwnerConfirmedPhotoZipBackup.IsPresent)",S)
+        self.assertIn("SAVE to Files/iCloud, VERIFY saved ZIP",S)
+        self.assertLess(S.index("Require ($OwnerConfirmedPhotoZipBackup.IsPresent)"),S.index("$beforeRaw ="))
+        self.assertLess(S.index("if (-not $Publish)"),S.index("Require ($OwnerConfirmedPhotoZipBackup.IsPresent)"))
         self.assertIn("[string]$ApprovalText",S)
         self.assertIn("[string]$CandidateBranch",S)
         self.assertIn("[string]$ExpectedCommit",S)
@@ -31,7 +36,7 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
         for text in ("fire-fullapp-qa-20261016",
                      "fire-fullapp-qa-db-20261016",
                      "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                     "58a467fa-9dbc-45a3-971e-b5a4e478f54d",
+                     "ab408776-bf5d-4fab-825e-73082eabbce6",
                      "owner_windows_qa_update_review.ps1",
                      "$beforeVersions.Count -eq 1",
                      "[double]$beforeVersions[0].percentage -eq 100",
@@ -43,12 +48,14 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
                      "d1 list --json",
                      "$d1.qaName -ceq $dbName -and $d1.qaUuid -ceq $dbId",
                      "QA Worker was updated by another operation",
-                     "$qaPhotoBucket = 'fire-fullapp-qa-photos-20261023'",
-                     "$qaPhotoBucket + ' ' + $head + ' FROM '",
+                     "$photoMode = 'ON-DEVICE-PHOTOS-NO-R2'",
+                     "$photoMode + ' ' + $head + ' FROM '",
                      "$head -ceq $ExpectedCommit",
-                     "Fresh post-approval read-only 25-schema, R2 and source revalidation"):
+                     "Fresh post-approval read-only 25-schema, D1 and source revalidation"):
             self.assertIn(text,S)
         self.assertNotIn("fire-app-staging-db",S)
+        self.assertIn("No R2 bucket is bound or billed",S)
+        self.assertNotIn("r2 bucket info",S)
         self.assertNotRegex(S, r"&\\s*\\$wrangler\\.Source\\s+d1\\s+info\\b")
         self.assertIn("qa_d1_identity_from_list.ps1", S)
         self.assertIn("& $identityHelper -Json ($rawD1 -join [Environment]::NewLine)", S)

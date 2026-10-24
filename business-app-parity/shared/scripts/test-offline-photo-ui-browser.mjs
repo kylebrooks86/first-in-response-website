@@ -18,24 +18,26 @@ const bundle=await esbuild.build({stdin:{
  contents:"import React from 'react';import{createRoot}from'react-dom/client';import{OfflineCustomerPhotos}from'./components/offline-customer-photos';const root=createRoot(document.querySelector('#app'));root.render(React.createElement(OfflineCustomerPhotos,{customerId:'synthetic-customer-photo',customerName:'Synthetic Photo Customer',knownCustomerIds:['synthetic-customer-photo']}));",
  resolveDir:root,sourcefile:'photo-ui-browser-fixture.tsx',loader:'tsx'
  },bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',loader:{'.css':'empty'},define:{'process.env.NODE_ENV':'"production"'}});
-const shell='<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>FIRE synthetic customer photo UI</title><div id="app"></div><script type="module" src="/bundle.js"></script>';
+const photoStyles=readFileSync(join(root,'app/globals.css'),'utf8').replace(/^@import[^;]+;\\s*/gm,'');
+const shell='<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>FIRE synthetic customer photo UI</title><link rel="stylesheet" href="/photo-styles.css"><main class="customers-view"><article class="customer-profile"><div id="app"></div></article></main><script type="module" src="/bundle.js"></script>';
 // Disposable test-only worker: deliberately NOT registered in FIRE production.
 // Exercise true closed-browser, stopped-server cold launch with the actual
 // React photo component bundled, rather than only the storage libraries.
 const fixtureWorker=`const CACHE='fire-synthetic-photo-cold-launch-v1';
 self.addEventListener('install',event=>event.waitUntil((async()=>{
- const cache=await caches.open(CACHE);await cache.addAll(['/','/bundle.js']);
+ const cache=await caches.open(CACHE);await cache.addAll(['/','/bundle.js','/photo-styles.css']);
  await self.skipWaiting();
 })()));
 self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',event=>{
  const url=new URL(event.request.url);
- if(event.request.method!=='GET'||url.origin!==self.location.origin||!['/','/bundle.js'].includes(url.pathname))return;
+ if(event.request.method!=='GET'||url.origin!==self.location.origin||!['/','/bundle.js','/photo-styles.css'].includes(url.pathname))return;
  event.respondWith((async()=>await (await caches.open(CACHE)).match(url.pathname)||fetch(event.request))());
 });`;
 const server=createServer((req,res)=>{
  res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);return;}
+ if(req.url==='/photo-styles.css'){res.setHeader('content-type','text/css');res.end(photoStyles);return;}
  if(req.url==='/sw.js'){res.setHeader('content-type','text/javascript');res.setHeader('Service-Worker-Allowed','/');res.end(fixtureWorker);return;}
  if(req.url==='/'){res.setHeader('content-type','text/html; charset=utf-8');res.end(shell);return;}
  res.statusCode=404;res.end();
@@ -60,6 +62,48 @@ try{
  await page.getByRole('button',{name:'Photo library'}).waitFor();
  await page.getByText('No on-device photos for this customer').waitFor();
  check(await page.locator('.photo-card').count()===0,'Actual React customer-photo screen mounts with empty on-device gallery');
+ // Owner-reported real iPhone defect: ZIP and restore buttons were cut off in
+ // side-by-side columns. Check ACTUAL rendered box geometry with shared CSS,
+ // not source strings or a static image. No navigation or hosted data needed.
+ const verifyPhotoActionGeometry=async(label)=>{
+  const state=await page.evaluate(()=>{
+   const panel=document.querySelector('.photo-panel');
+   const controls=[...panel.querySelectorAll('.photo-buttons>button')].filter(button=>button.getClientRects().length>0);
+   const boxes=controls.map(button=>{
+    const r=button.getBoundingClientRect();
+    return {text:button.textContent?.trim(),left:r.left,right:r.right,top:r.top,
+      bottom:r.bottom,width:r.width,height:r.height,display:getComputedStyle(button).display};
+   });
+   const container=panel.getBoundingClientRect();
+   return {viewport:innerWidth,pageWidth:document.documentElement.scrollWidth,
+    panel:{left:container.left,right:container.right},controls:boxes};
+  });
+  check(state.controls.length>=4&&state.controls.every(b=>
+   b.left>=state.panel.left-1&&b.right<=state.panel.right+1&&
+   b.left>=-1&&b.right<=state.viewport+1&&b.height>=44),
+   label+' every ZIP, restore, camera and library button is fully within iPhone screen with >=44px touch height');
+  const rows=state.controls.filter(b=>/ZIP|Camera|Photo library/.test(b.text));
+  check(rows.every((b,i)=>i===0||b.left===rows[0].left),
+   label+' photo/ZIP actions have the same left edge (one column, no cut-off side controls)');
+  check(state.pageWidth<=state.viewport+1,
+   label+' photo panel does not introduce document-level horizontal scrolling');
+ };
+ for(const width of [320,375,390,430]){
+  await page.setViewportSize({width,height:844});
+  await verifyPhotoActionGeometry(width+'px:');
+ }
+ await page.setViewportSize({width:390,height:844});
+ const backupTools=page.locator('details.photo-backup-more');
+ check(await backupTools.evaluate(node=>!node.open),'Less-used photo ZIP options are initially collapsed while all-photos backup and verification remain visible');
+ check(await page.getByRole('button',{name:'Prepare all local photos ZIP'}).isVisible()&&await page.getByRole('button',{name:'Verify saved ZIP from Files'}).isVisible(),
+  'Owner can immediately back up and verify all local photos without expanding optional tools');
+ const backupSummary=backupTools.locator(':scope > summary');
+ check(await backupSummary.evaluate(node=>node.getBoundingClientRect().height>=44),
+  'Optional photo backup summary has a finger-sized target');
+ check(await backupSummary.evaluate(node=>getComputedStyle(node,'::after').content.includes('▾')),
+  'Expandable backup tools advertise a visible disclosure chevron');
+ await backupSummary.click();
+ await verifyPhotoActionGeometry('390px, expanded ZIP tools:');
  const library=page.locator('input[type="file"][multiple]');
  const take=(name)=>({name,mimeType:'image/png',buffer:png});
  // A bulk selection can commit its first photo and then reject another.
@@ -99,11 +143,26 @@ try{
  await page.getByText(/Photos verified on this device/).waitFor();
  await page.locator('.photo-card').nth(1).waitFor();
  check(await page.locator('.photo-card').count()===2,'Owner can create separate before and after local photographs');
- check(await page.getByText('Before & after comparison').count()===1,'Real gallery reveals its before/after comparison tool');
+ check(await page.getByText('Before & after comparison').count()===1,'Real gallery reveals the optional before/after comparison tool');
+ const comparisonMore=page.locator('details.photo-comparison-more');
+ check(!await comparisonMore.evaluate(node=>node.open),'Photo upload stays focused: comparison editor starts collapsed');
+ check(await comparisonMore.locator(':scope > summary').evaluate(node=>node.getBoundingClientRect().height>=44),'Comparison editor has an iPhone-sized tap target');
+ check(await comparisonMore.locator(':scope > summary').evaluate(node=>getComputedStyle(node,'::after').content.includes('▾')),'Comparison tool has a visible expand cue');
+ await comparisonMore.locator(':scope > summary').click();
+ check(await page.getByRole('button',{name:'Create comparison'}).isVisible(),'Saved before/after photos still open the working comparison editor');
+ const [comparisonDownload]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Create comparison'}).click()]);
+ check(comparisonDownload.suggestedFilename()==='FIRE-before-after.png','Owner can create a downloadable comparison with original saved photos');
+ await comparisonMore.locator(':scope > summary').click();
+ check(!await comparisonMore.evaluate(node=>node.open),'Comparison editor can be closed without deleting or changing saved photos');
  await ctx.setOffline(true);
+ // The earlier interrupted-selection test reloads the page; optional tools
+ // must be explicitly reopened after a real browser restart.
+ check(!await backupTools.evaluate(node=>node.open),'Reload resets secondary ZIP tools to the simple default');
+ await backupSummary.click();
  await page.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
- await page.getByText(/photo ZIP passed integrity checks/).waitFor({timeout:30000});
+ await page.getByText(/ZIP is ready/).waitFor({timeout:30000});
  check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).count()===1,'Photo ZIP preparation works in airplane mode and exposes a separate iOS share gesture');
+ await verifyPhotoActionGeometry('390px, ZIP prepared:');
  await page.evaluate(()=>{
   Object.defineProperty(navigator,'canShare',{configurable:true,value:files=>files.files?.length===1});
   Object.defineProperty(navigator,'share',{configurable:true,value:async ({files})=>{
@@ -114,12 +173,22 @@ try{
   }});
  });
  await page.getByRole('button',{name:'Save prepared ZIP to Files'}).click();
- await page.getByText(/Photo ZIP was offered to the iOS share sheet/).waitFor();
+ await page.getByText(/Check that the ZIP is in Files, then use Verify saved ZIP from Files/).waitFor();
  const share=await page.evaluate(()=>window.fixtureNativeShare);
  check(share?.active===true&&share.size>100&&share.type==='application/zip',
    'Real owner Save-to-Files button invokes the native share sheet within its fresh user gesture');
  check(share.filename.startsWith('FIRE-customer-synthetic-customer-photo-photos-'),
    'Native sharing includes the verified customer-specific ZIP filename and bytes');
+ // A failed iPhone share sheet must point to the backup action hidden under
+ // the new optional disclosure without clearing the already-prepared archive.
+ await page.locator('.photo-backup-more > summary').click();
+ check(!await page.locator('details.photo-backup-more').evaluate(node=>node.open),'Rare backup tools can be collapsed after saving');
+ await page.evaluate(()=>Object.defineProperty(navigator,'share',{configurable:true,value:async()=>{throw Error('Synthetic share sheet refusal');}}));
+ await page.getByRole('button',{name:'Save prepared ZIP to Files'}).click();
+ await page.getByRole('alert').getByText(/Open More photo backup tools, then Download prepared ZIP/).waitFor();
+ check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).isVisible(),'Sharing failure keeps the verified prepared ZIP available');
+ await page.locator('.photo-backup-more > summary').click();
+ check(await page.getByRole('button',{name:'Download prepared ZIP'}).isVisible(),'Fallback download is discoverable exactly where the error message directs the owner');
 
  const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Download prepared ZIP'}).click()]);
  const filename=download.suggestedFilename();
@@ -127,8 +196,82 @@ try{
  check(filename.startsWith('FIRE-customer-synthetic-customer-photo-photos-')&&exported.length>100,'Real owner click downloads a nonempty customer-only ZIP');
  const verifyInput=page.locator('input[type="file"][accept*=".zip"]').first();
  await verifyInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
- await page.getByText(/Saved ZIP selected from Files passed photo checksums/).waitFor({timeout:30000});
+ await page.getByText(/Backup COMPLETE: all current on-device photos included/).waitFor({timeout:30000});
  check((await page.getByRole('status').allInnerTexts()).some(t=>t.includes('2 exactly match this device')),'Actual Files re-selection checks saved backup against both original photo blobs');
+ check((await page.getByRole('status').allInnerTexts()).some(t=>t.includes('Backup COMPLETE: all current on-device photos included')),
+   'Saved ZIP confirms complete current device coverage only when all present photo bytes are included');
+ // A stale ZIP passes its checksums, but must NEVER be represented as complete
+ // after an actual new photo has been added to IndexedDB.
+ await library.setInputFiles(take('new-after-backup.png'));
+ await page.locator('.photo-card').nth(2).waitFor();
+ check(await page.locator('.photo-card').count()===3,'New photo committed after the older archive was saved');
+ await verifyInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
+ await page.getByText(/INCOMPLETE PHOTO BACKUP: 1 current device photo/).waitFor({timeout:30000});
+ check(!(await page.getByRole('status').allInnerTexts()).some(t=>t.includes('Backup COMPLETE: all current on-device photos included')),
+   'Valid old ZIP cannot claim complete coverage of the newer device library');
+ const extraPhoto=page.locator('.photo-card').filter({hasText:'new-after-backup.png'});
+ check(await extraPhoto.count()===1,'Synthetic newer photo is located by filename, not gallery sort order');
+ await extraPhoto.getByRole('button',{name:'Delete on-device photo'}).click();
+ await extraPhoto.waitFor({state:'detached'});
+ check(await page.locator('.photo-card').count()===2,'Only the synthetic post-backup photo is removed; both archived originals remain');
+ check((await page.getByRole('alert').allInnerTexts()).every(t=>!t.includes('Another FIRE tab changed')),
+   'This same FIRE tab never falsely reports its own successful edit as a different tab');
+ // The gallery can rerender before the mutation journal finishes and unlocks.
+ // Do not send another file action while active.current is still true.
+ await page.waitForFunction(()=>{
+  const button=[...document.querySelectorAll('button')].find(b=>b.textContent?.includes('Prepare all local photos ZIP'));
+  return button&&!button.disabled;
+ });
+ // Native file input may retain the last selection after a previous verify.
+ // Clear then reselect from Files to force a genuine new change event.
+ await verifyInput.setInputFiles([]);
+ await verifyInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
+ try{await page.getByText(/Backup COMPLETE: all current on-device photos included/).waitFor({timeout:30000});}
+ catch(err){
+  const details=await page.evaluate(()=>({
+   statuses:[...document.querySelectorAll('[role="status"]')].map(e=>e.textContent?.slice(0,400)),
+   errors:[...document.querySelectorAll('[role="alert"]')].map(e=>e.textContent?.slice(0,400)),
+   gallery:document.querySelectorAll('.photo-card').length
+  }));
+  throw Error('Saved ZIP did not confirm coverage after deletion: '+JSON.stringify(details)+'; '+String(err));
+ }
+ check((await page.getByRole('alert').allInnerTexts()).every(t=>!t.includes('INCOMPLETE PHOTO BACKUP')),
+   'Fresh exact archive versus device coverage check clears the incomplete warning');
+ // Two tabs share IndexedDB but can disagree about an ALREADY PREPARED ZIP.
+ // A photo added in the other tab must withdraw Save/Download until re-export.
+ await page.getByRole('button',{name:'Prepare all local photos ZIP'}).click();
+ await page.getByRole('button',{name:'Save prepared ZIP to Files'}).waitFor({timeout:30000});
+ await ctx.setOffline(false);
+ const otherTab=await ctx.newPage();
+ otherTab.on('dialog',dialog=>dialog.accept());
+ otherTab.on('pageerror',error=>browserErrors.push(error.message));
+ await otherTab.goto(origin);
+ await otherTab.getByRole('button',{name:'Photo library'}).waitFor();
+ // A newly opened tab must finish its durable mutation-journal preflight
+ // before the input event is dispatched, or a deliberately guarded upload
+ // will be silently ignored by the real React handler.
+ await otherTab.waitForFunction(()=>{
+  const button=[...document.querySelectorAll('button')].find(b=>b.textContent?.trim()==='Photo library');
+  return button&&!button.disabled;
+ });
+ await otherTab.locator('input[type="file"][multiple]').setInputFiles(take('other-tab-new-photo.png'));
+ await otherTab.locator('.photo-card').nth(2).waitFor();
+ await page.getByText(/Another FIRE tab changed on-device photos/).waitFor({timeout:30000});
+ check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).count()===0&&
+   await page.getByRole('button',{name:'Download prepared ZIP'}).count()===0,
+   'Other-tab photo mutation immediately withdraws stale prepared ZIP controls');
+ const otherAdded=otherTab.locator('.photo-card').filter({hasText:'other-tab-new-photo.png'});
+ check(await otherAdded.count()===1,'Second-tab new photo is identified by filename, not gallery position');
+ await otherAdded.getByRole('button',{name:'Delete on-device photo'}).click();
+ await otherAdded.waitFor({state:'detached'});
+ await page.waitForFunction(()=>document.querySelectorAll('.photo-card').length===2);
+ await otherTab.close();await ctx.setOffline(true);
+ check(await page.locator('.photo-card').count()===2,
+   'Cross-tab changes refresh original gallery without overwriting other photos');
+ await page.getByRole('button',{name:'Prepare all local photos ZIP'}).click();
+ await page.getByRole('button',{name:'Save prepared ZIP to Files'}).waitFor({timeout:30000});
+ check(await page.getByRole('button',{name:'Download prepared ZIP'}).count()===1,
+   'Owner can prepare a fresh all-customer ZIP after cross-tab changes');
  const restoreInput=page.locator('input[type="file"][accept*=".zip"]').nth(1);
  await restoreInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
  await page.getByText(/Restored 0 new verified photo/).waitFor({timeout:30000});
@@ -153,6 +296,9 @@ try{
  await ctx.setOffline(false);await page.reload();
  await page.getByText(/Photo changes are paused/).waitFor();
  check(await page.locator('.photo-card').count()===2,'Reload after committed-but-unconfirmed ZIP restore preserves images and durable pause');
+ const restoreDisclosure=page.locator('details.photo-backup-more');
+ check(!await restoreDisclosure.evaluate(node=>node.open),'Optional photo recovery stays collapsed after reload while durable save warning remains');
+ await restoreDisclosure.locator(':scope > summary').click();
  check(await page.getByRole('button',{name:'Restore verified photo ZIP',exact:true}).isDisabled(),'Reload cannot enable an unreviewed ZIP restore retry');
  await page.getByRole('button',{name:'Refresh saved photos for review'}).click();
  await page.getByRole('button',{name:'I reviewed saved photos; allow new changes'}).click();
@@ -175,9 +321,11 @@ try{
  const cacheEvidence=await page.evaluate(async()=>({
    controlled:Boolean(navigator.serviceWorker.controller),
    shell:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/')),
-   bundle:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/bundle.js'))
+   bundle:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/bundle.js')),
+   styles:Boolean(await (await caches.open('fire-synthetic-photo-cold-launch-v1')).match('/photo-styles.css'))
  }));
  check(cacheEvidence.controlled&&cacheEvidence.shell&&cacheEvidence.bundle,'Actual React photo screen shell and bundle are cached by a separate synthetic install worker');
+ check(cacheEvidence.styles,'Exact FIRE photo layout stylesheet remains cached for synthetic offline launch');
  await ctx.close();context=null;
  await new Promise(resolve=>server.close(resolve));serverClosed=true;
  context=await chromium.launchPersistentContext(profile,{headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,acceptDownloads:true,viewport:{width:390,height:844},args:['--no-sandbox','--disable-dev-shm-usage']});
@@ -187,9 +335,11 @@ try{
  await coldPage.goto(origin+'/');
  await coldPage.locator('.photo-card').nth(1).waitFor({timeout:30000});
  check(await coldPage.locator('.photo-card').count()===2,'Browser fully closed, HTTP server stopped: actual React customer-photo screen cold-launches offline with original IndexedDB photos');
+ check(await coldPage.locator('details.photo-backup-more').evaluate(node=>!node.open),'Offline restart keeps advanced photo tools collapsed by default');
+ await coldPage.locator('.photo-backup-more > summary').click();
  check(await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).count()===1,'Offline cold launch retains the real customer ZIP export control');
  await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
- await coldPage.getByText(/photo ZIP passed integrity checks/).waitFor({timeout:30000});
+ await coldPage.getByText(/ZIP is ready/).waitFor({timeout:30000});
  check(await coldPage.getByRole('button',{name:'Download prepared ZIP'}).count()===1,'Actual photo ZIP can be freshly prepared after fully offline browser restart');
  // Browser-managed download paths can disappear when Chromium detaches its
  // offline download context. Verify a fresh ZIP through the native file-share
@@ -203,13 +353,13 @@ try{
   }});
  });
  await coldPage.getByRole('button',{name:'Save prepared ZIP to Files'}).click();
- await coldPage.getByText(/Photo ZIP was offered to the iOS share sheet/).waitFor();
+ await coldPage.getByText(/Check that the ZIP is in Files, then use Verify saved ZIP from Files/).waitFor();
  const coldShare=await coldPage.evaluate(()=>window.fixtureOfflineShare);
  check(coldShare?.active===true&&coldShare?.size===exported.length&&coldShare.size>100,
    'Fresh ZIP built after offline cold launch contains original two photographs and was handed to native share');
  const coldVerify=coldPage.locator('input[type="file"][accept*=".zip"]').first();
  await coldVerify.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
- await coldPage.getByText(/Saved ZIP selected from Files passed photo checksums/).waitFor({timeout:30000});
+ await coldPage.getByText(/Backup COMPLETE: all current on-device photos included/).waitFor({timeout:30000});
  check((await coldPage.getByRole('status').allInnerTexts()).some(t=>t.includes('2 exactly match this device')),'Saved photo ZIP verification still works after a genuinely offline cold launch');
  check(remote.length===0,'No external network, Cloudflare, R2, or Stripe requests occurred');
  check(browserErrors.length===0,'Actual browser photo UI produced no uncaught client errors: '+browserErrors.join(' / '));

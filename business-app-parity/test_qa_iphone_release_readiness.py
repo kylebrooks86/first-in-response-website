@@ -51,7 +51,16 @@ class TestQaIphoneReadiness(unittest.TestCase):
         self.blocked(result)
         self.assertFalse(result["ownerQaMetadataCaptureProvided"])
         self.assertIsNone(result["captureMatchesOriginal23Schema"])
-        self.assertIn("OWNER_READ_ONLY_HOSTED_QA_SCHEMA_CAPTURE_MISSING", result["blockers"])
+        self.assertIn("CURRENT_QA_SCHEMA_AND_D1_UUID_NOT_INDEPENDENTLY_VERIFIED", result["blockers"])
+        self.assertEqual(result["ownerObservedServingVersion"], "ab408776-bf5d-4fab-825e-73082eabbce6")
+        self.assertEqual(result["ownerObservedMigrationCount"], 25)
+        self.assertEqual(result["ownerObservedLastMigrations"], [
+            "0023_deposit_policy_events.sql","0024_deposit_agreement_snapshots.sql"])
+        self.assertIs(result["ownerObservedEvidenceIndependentlyAttested"], False)
+        self.assertIs(result["repeatOwnerObservedMigrationsRequired"], False)
+        self.assertIs(result["pinnedServingVersionIsHistorical"], True)
+        self.assertNotIn("HOSTED_23_TO_25_QA_MIGRATION_NOT_APPROVED", result["blockers"])
+        self.assertIn("never reapply them", result["nextSafeAction"])
 
     def test_matching_metadata_remains_blocked_and_unattested(self):
         result = gate.decision(self.save(self.fixture()),at=self.clock)
@@ -60,6 +69,8 @@ class TestQaIphoneReadiness(unittest.TestCase):
         self.assertTrue(result["ownerQaMetadataCaptureProvided"])
         self.assertEqual(len(result["captureSha256"]),64)
         self.assertIn("CLOUDFLARE_CAPTURE_PROVENANCE_NOT_INDEPENDENTLY_ATTESTED",result["blockers"])
+        self.assertIn("HISTORICAL_23_MIGRATION_CAPTURE_NOT_CURRENT_25_SCHEMA",result["blockers"])
+        self.assertIn("CURRENT_QA_SERVED_VERSION_NOT_LINKED_TO_CANDIDATE_SOURCE",result["blockers"])
         self.assertNotIn("QA_METADATA_CAPTURE_EXPIRED_OR_FUTURE",result["blockers"])
 
     def test_remote_schema_drift_explicit(self):
@@ -69,7 +80,7 @@ class TestQaIphoneReadiness(unittest.TestCase):
         result=gate.decision(self.save(packet),at=self.clock)
         self.blocked(result)
         self.assertFalse(result["captureMatchesOriginal23Schema"])
-        self.assertIn("HOSTED_QA_SCHEMA_DRIFT_REQUIRES_INVESTIGATION",result["blockers"])
+        self.assertIn("HISTORICAL_23_MIGRATION_CAPTURE_DRIFT_REQUIRES_INVESTIGATION",result["blockers"])
 
     def test_stale_or_future_capture_denied(self):
         result=gate.decision(self.save(self.fixture(25)),at=self.clock)

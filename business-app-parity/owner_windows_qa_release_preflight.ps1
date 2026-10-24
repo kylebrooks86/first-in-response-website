@@ -8,7 +8,6 @@ $ErrorActionPreference = 'Stop'
 $qaWorker = 'fire-fullapp-qa-20261016'
 $qaName = 'fire-fullapp-qa-db-20261016'
 $qaUuid = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
-$qaPhotoBucket = 'fire-fullapp-qa-photos-20261023'
 $protectedName = 'fire-app-staging-db'
 $protectedUuid = 'afb2c05a-d794-4a9a-b580-924ce01c26ad'
 $origin = 'https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev'
@@ -88,12 +87,9 @@ Assert-True ([string]$row.journal_names -ceq ($orderedSQL -join '|')) 'The hoste
 Assert-True ([int]$row.required_tables -eq 8 -and [int]$row.provider_index -eq 1 -and
     [int]$row.signed_agreement_triggers -eq 2) 'Complete QA refund/photo/deposit tables, payment index or immutability triggers missing.'
 
-# Photos are a real full-app workflow, not a code-only mock. Confirm exactly
-# the newly reserved QA bucket; never reuse a LIVE or unrelated R2 bucket.
-$rawPhoto = @(& $wrangler.Source r2 bucket info $qaPhotoBucket --json)
-$photoInfo = Read-Json $rawPhoto 'Cloudflare read-only QA R2 identity'
-Assert-True ($photoInfo.name -ceq $qaPhotoBucket) 'Dedicated QA-only R2 photo bucket identity missing/mismatched.'
+# The QA Worker deliberately uses the on-device photo vault and owner-managed
+# ZIP backups. No paid R2 subscription or R2 read/write access is required.
 Write-Host 'PASS: Full QA D1 has exactly 25 ordered migrations, eight required tables, provider index and immutable signed agreements.'
-Write-Host 'PASS: Separate QA R2 photo bucket identified without reading photo bytes.'
+Write-Host 'PASS: No paid R2 photo service is required for this existing QA Worker.'
 Write-Host 'PASS: All checks are read-only; LIVE, staging and Doomsday database rows untouched.'
-Write-Host 'STOP BEFORE PUBLISH: Worker name collision, secret provisioning and exact deployment approval are separate pending steps.'
+Write-Host 'STOP BEFORE PUBLISH: Existing Worker identity, owner approval and deployment review remain separate gates.'

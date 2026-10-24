@@ -7,6 +7,18 @@ ROOT = Path(__file__).resolve().parent
 SCRIPT = (ROOT / "owner_windows_first_qa_publish.ps1").read_text(encoding="utf-8")
 
 class FirstQAPublishContract(unittest.TestCase):
+    def test_historical_first_publish_cannot_access_existing_worker_or_paid_r2(self):
+        # The QA Worker already exists. Never execute the original paid-R2,
+        # first-publication path, even if -Publish was explicitly supplied.
+        guard = "throw 'FIRE QA FIRST-PUBLISH RETIRED:"
+        self.assertIn(guard, SCRIPT)
+        self.assertIn("owner_windows_qa_update_review.ps1", SCRIPT)
+        self.assertIn("owner_windows_qa_update_publish.ps1", SCRIPT)
+        self.assertLess(SCRIPT.index(guard), SCRIPT.index("$workerName ="))
+        self.assertLess(SCRIPT.index(guard), SCRIPT.index("Get-Command 'wrangler.cmd'"))
+        self.assertLess(SCRIPT.index(guard), SCRIPT.index("Import-Clixml -LiteralPath $privateFile"))
+        self.assertLess(SCRIPT.index(guard), SCRIPT.index("Read-CheckedR2 $qaPhotoBucket"))
+
     def test_default_is_non_mutating_with_separate_typed_approval(self):
         self.assertIn("[switch]$Publish,", SCRIPT)
         self.assertIn("if (-not $Publish)", SCRIPT)

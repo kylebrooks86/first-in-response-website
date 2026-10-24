@@ -44,4 +44,12 @@ patchFailure=true;taskButton('done-task').props.onClick();eq(taskButton('done-ta
 all().find(n=>n.type===stubs.Button&&text(n).includes('Add task')).props.onClick();await settle();const taskPost=requests.find(r=>r.method==='POST'&&r.url==='/api/tasks');eq(taskPost.body.title,'Call QA');eq(taskPost.body.customerId,'customer');eq(taskPost.body.notes,'Bring supplies');eq(taskPost.body.dueAt,new Date('2026-10-09T15:30').toISOString());eq(get('title'),'');
 const expenseAction=all().find(n=>n.type===stubs.Button&&n.props.className==='brand-button'&&JSON.stringify(n.props.children).includes('Add expense'));assert.ok(expenseAction);checks++;expenseAction.props.onClick();await settle();const expensePost=requests.find(r=>r.method==='POST'&&r.url==='/api/expenses');eq(expensePost.body.amountCents,2534);eq(expensePost.body.category,'Fuel');eq(expensePost.body.estimateId,'job');eq(expensePost.body.description,'Synthetic supplies');eq(get('amount'),'');
 const css=readFileSync('app/globals.css','utf8');assert.match(css,/\.business-field\{[^}]*min-width:0/);checks++;assert.match(css,/\.business-field \[data-slot="select-trigger"\]\{[^}]*width:100%[^}]*max-width:100%/);checks++;assert.match(css,/@media\(max-width:760px\)\{\s*\.business-field input,[\s\S]*?\.task-list>button\{min-height:44px\}/);checks++;assert.match(css,/\.business-field input,\.business-field textarea\{font-size:16px\}/);checks++;assert.match(css,/\.task-list button>span:last-child\{[^}]*overflow-wrap:anywhere/);checks++;
+// An optional Backups & exports section keeps every critical owner tool available.
+const dashboardSource=readFileSync('app/dashboard.tsx','utf8');
+assert.match(dashboardSource,/<details className="business-backup-tools"><summary>Backups &amp; exports<\/summary>/);checks++;
+for(const url of ['/api/backup','/api/backup/photos','/api/backup/photos/storage','/api/expenses?format=csv']){
+ assert.ok(dashboardSource.includes('href="'+url+'"'),'Preserve owner export link '+url);checks++;
+}
+assert.match(dashboardSource,/Restore missing records<\/button>/);checks++;
+assert.match(css,/\.business-backup-tools>summary\{[^}]*min-height:44px/);checks++;
 console.log(`PASS ${checks}/${checks}: actual Business fields retain visible associated labels, date/decimal entry, select/change/submit behavior, task pressed/busy/rollback states, and narrow-screen sizing/wrapping declarations. Synthetic handlers and structural CSS only; no browser/iPhone or remote writes.`);

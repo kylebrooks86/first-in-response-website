@@ -18,7 +18,7 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
  f.set('historySearch','New query');f.render();f.fetch(()=>ok([row('new')]));f.button('Try again').props.onClick();await flush();eq(f.get('rows').map(r=>r.id).join(','),'new');eq(f.get('error'),'');eq(f.requests.at(-1).includes('q=New%20query'),true,'Retry uses current query');eq(Boolean(f.button('Load older estimates')),false);
 }
 {
- const f=fixture();f.set('rows',[row('first')]);f.set('nextCursor','cursor-1');f.set('selected',row('first'));f.set('loading',false);f.render();f.fetch(()=>{throw Error('Older page offline');});await f.load(true);eq(f.get('selected').id,'first');eq(nodes(f.render()).some(n=>n.props?.className==='pipeline-board'),true);eq(Boolean(f.button('Retry older estimates')),true);eq(Boolean(f.button('Try again')),false);
+ const f=fixture();f.set('rows',[row('first')]);f.set('nextCursor','cursor-1');f.set('selected',row('first'));f.set('loading',false);f.render();f.fetch(()=>{throw Error('Older page offline');});await f.load(true);eq(f.get('selected').id,'first');eq(nodes(f.render()).some(n=>n.props?.className==='estimate-list'),true,'Preserved older records stay in the default simple Estimates list when another page fails');eq(Boolean(f.button('Retry older estimates')),true);eq(Boolean(f.button('Try again')),false);
  f.fetch(()=>ok([row('older')], 'cursor-1'));await f.load(true);assert.match(f.get('error'),/paging/);checks++;eq(f.get('rows').length,1,'Looped cursor cannot publish page');
  f.fetch(()=>ok([row('first'),row('older')]));await f.load(true);eq(f.get('rows').map(r=>r.id).join(','),'first,older');eq(f.get('selected').id,'first','Appending must preserve open details');eq(f.get('error'),'');
 }
@@ -32,7 +32,7 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
  f.set('error','');
  f.set('view','list');
  f.set('rows',[sent('viewed-48',48),sent('viewed-36',36),sent('too-new',8),sent('approved',72,{status:'approved'}),sent('invoice',60,{invoiceId:'inv-1'}),sent('no-view',4,{firstViewedAt:null})]);
- const button=nodes(f.render()).find(n=>n.props?.['aria-pressed']===false&&String(n.props?.children).includes('Viewed 24h+'));
+ const button=nodes(f.render()).find(n=>n.props?.['aria-pressed']===false&&String(n.props?.children).includes('Viewed · awaiting decision'));
  assert.ok(button,'Viewed-estimate filter is available on mobile');
  button.props.onClick();
  eq(f.get('viewedOnly'),true,'Owner controls viewed filter without mutating records');
@@ -41,7 +41,13 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
  const cards=nodes(f.render()).filter(n=>n.props?.className==='estimate-card');
  eq(cards.length,2,'Only older viewed, unapproved, uninvoiced jobs are visible');
  eq(String(cards[0].props.children[1]?.props?.children?.[0]?.props?.children??'').length>0,true,'Cards retain saved job identity');
- const off=nodes(f.render()).find(n=>n.props?.['aria-pressed']===true&&String(n.props?.children).includes('Viewed 24h+'));
+ const off=nodes(f.render()).find(n=>n.props?.['aria-pressed']===true&&String(n.props?.children).includes('Viewed · awaiting decision'));
  off.props.onClick();eq(f.get('viewedOnly'),false,'Owner can restore full list without touching status or billing');
 }
-console.log(`PASS ${checks}/${checks}: real estimate-history recovery, viewed 24h+ mobile filters and guarded paging. Synthetic reads only.`);
+{
+ const f=fixture();f.set('loading',false);f.set('rows',[row('new-lead')]);f.set('view','list');
+ eq(nodes(f.render()).some(n=>String(n.props?.children).includes('Viewed · awaiting decision')),false,'No empty Viewed filter clutter before customer actually views a quote');
+ f.set('viewedOnly',true);
+ eq(nodes(f.render()).some(n=>String(n.props?.children).includes('Viewed · awaiting decision')),true,'Selected Viewed filter remains available to clear even if its queue becomes empty');
+}
+console.log(`PASS ${checks}/${checks}: real estimate-history recovery, compact useful-only viewed filters and guarded paging. Synthetic reads only.`);

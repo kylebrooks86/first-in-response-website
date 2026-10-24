@@ -15,6 +15,14 @@ import review_existing_qa_capture_offline as offline
 from review_qa_update_schema import HISTORICAL_GIT_BLOBS, NEW_GIT_BLOBS, _read_sql_dir, _verify_pinned
 
 FORMAT = "fire-qa-iphone-release-decision-v1"
+# October 24 owner screenshots are observations, not authenticated provider schema proof.
+# Never use these display values to silently authorize a Worker or D1 change.
+OWNER_OBSERVED_VERSION = "ab408776-bf5d-4fab-825e-73082eabbce6"
+OWNER_OBSERVED_MIGRATIONS = 25
+OWNER_OBSERVED_FINAL = (
+    "0023_deposit_policy_events.sql",
+    "0024_deposit_agreement_snapshots.sql",
+)
 CAPTURE_MAX_AGE = timedelta(hours=24)
 SCREENS = [
     {"screen": "Job Report", "acceptance": "Synthetic job: checklist fits, draft/completed saves, retry and offline restrictions."},
@@ -40,7 +48,7 @@ def decision(capture_path: Path | None = None, *, schema_root: Path | None = Non
     captured, matching, captured_at, capture_hash = False, None, None, None
     blockers = []
     if capture_path is None:
-        blockers.append("OWNER_READ_ONLY_HOSTED_QA_SCHEMA_CAPTURE_MISSING")
+        blockers.append("CURRENT_QA_SCHEMA_AND_D1_UUID_NOT_INDEPENDENTLY_VERIFIED")
     else:
         try:
             review = offline.evaluate(capture_path)
@@ -54,13 +62,16 @@ def decision(capture_path: Path | None = None, *, schema_root: Path | None = Non
         if timestamp > now or now - timestamp > CAPTURE_MAX_AGE:
             blockers.append("QA_METADATA_CAPTURE_EXPIRED_OR_FUTURE")
         if not matching:
-            blockers.append("HOSTED_QA_SCHEMA_DRIFT_REQUIRES_INVESTIGATION")
+            blockers.append("HISTORICAL_23_MIGRATION_CAPTURE_DRIFT_REQUIRES_INVESTIGATION")
+        # This existing validator checks an October 19 *23-migration* capture.
+        # Even a matching capture cannot prove the now observed 25-entry QA state.
+        blockers.append("HISTORICAL_23_MIGRATION_CAPTURE_NOT_CURRENT_25_SCHEMA")
         blockers.append("CLOUDFLARE_CAPTURE_PROVENANCE_NOT_INDEPENDENTLY_ATTESTED")
 
     blockers.extend([
         "RECOVERABLE_QA_BACKUP_AND_RESTORE_NOT_VERIFIED",
-        "HOSTED_23_TO_25_QA_MIGRATION_NOT_APPROVED",
-        "EXISTING_QA_CODE_ONLY_UPDATE_BLOCKED_BY_SCHEMA_DIFFERENCE",
+        "OWNER_OBSERVED_25_MIGRATIONS_NOT_SCHEMA_OR_UUID_ATTESTATION",
+        "CURRENT_QA_SERVED_VERSION_NOT_LINKED_TO_CANDIDATE_SOURCE",
         "EXACT_OWNER_APPROVAL_FOR_QA_CODE_UPDATE_MISSING",
         "HOSTED_AND_PHYSICAL_IPHONE_ACCEPTANCE_MISSING",
     ])
@@ -75,6 +86,12 @@ def decision(capture_path: Path | None = None, *, schema_root: Path | None = Non
         "qaDatabase": qa.NAME,
         "qaDatabaseUuid": qa.UUID,
         "pinnedServingVersion": qa.ACTIVE_VERSION,
+        "pinnedServingVersionIsHistorical": True,
+        "ownerObservedServingVersion": OWNER_OBSERVED_VERSION,
+        "ownerObservedMigrationCount": OWNER_OBSERVED_MIGRATIONS,
+        "ownerObservedLastMigrations": list(OWNER_OBSERVED_FINAL),
+        "ownerObservedEvidenceIndependentlyAttested": False,
+        "repeatOwnerObservedMigrationsRequired": False,
         "ownerQaMetadataCaptureProvided": captured,
         "captureMatchesOriginal23Schema": matching,
         "captureUtc": captured_at,
@@ -91,14 +108,11 @@ def decision(capture_path: Path | None = None, *, schema_root: Path | None = Non
         "blockers": blockers,
         "iphoneReviewScreens": SCREENS,
         "nextSafeAction": (
-            "On the original owner Windows profile, execute the existing read-only "
-            "capture_existing_qa_schema_read_only.py --capture with exact typed "
-            "consent into a private folder. Review the packet offline. Do not "
-            "run migrations or QA publishing scripts."
-        ) if not captured else (
-            "Verify capture provenance, unchanged hosted original 23 schema, "
-            "recoverable QA backup, rollback and distinct exact owner approvals. "
-            "No migration or deployment is authorized by this report."
+            "Verify the currently serving QA version's D1 UUID and full 25-migration "
+            "schema/journal with a current, read-only owner-authenticated capture. "
+            "Owner screenshots already show 0023/0024 applied; never reapply them. "
+            "Confirm private backup custody and exact source-to-deployment evidence "
+            "before seeking a separate QA-only publication approval. No LIVE action."
         ),
     }
 

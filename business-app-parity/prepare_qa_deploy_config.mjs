@@ -1,6 +1,7 @@
 /** Create a disposable, QA-only Wrangler v4.151 manifest beside the compiled manifest.
- * Removes exactly the obsolete default legacy_env=true flag. Does not alter
- * worker identity, D1, secrets, assets, routes, or the original QA build.
+ * Removes obsolete legacy_env=true AND strips the exclusively QA-only optional
+ * R2 binding from a disposable deploy manifest, never from the original build.
+ * Worker identity, D1, secrets, assets, routes and original QA build stay intact.
  * No API calls, secrets, migrations or deployment.
  */
 import assert from "node:assert/strict";
@@ -28,26 +29,44 @@ export function prepare(originalFile, deployFile) {
     database_name: "fire-fullapp-qa-db-20261016",
     database_id: "8ccfb1f8-1657-4074-b1b2-47de78f95003"
   }]);
-  assert.deepEqual(config.r2_buckets, [{
-    binding: "BUCKET", bucket_name: "fire-fullapp-qa-photos-20261023"
-  }], "Only newly provisioned synthetic QA photo storage may be bound");
-  for (const field of ["kv_namespaces", "services", "queues", "durable_objects", "hyperdrive", "dispatch_namespaces"]) {
-    assert.ok(!config[field] || (Array.isArray(config[field]) && config[field].length === 0),
-      "Unexpected hosted resource: " + field);
+  // The hosted QA Worker already works with an on-device IndexedDB photo vault.
+  // Never require billing activation or accidentally bind an unrelated bucket.
+  // Either the historical candidate's exact QA-only optional R2 declaration or
+  // no bucket at all is allowed; both deploy as D1-only.
+  if (Object.hasOwn(config, "r2_buckets")) {
+    assert.deepEqual(config.r2_buckets, [{
+      binding: "BUCKET", bucket_name: "fire-fullapp-qa-photos-20261023"
+    }], "Unexpected R2 binding; refuse QA deploy");
+  }
+  // Wrangler compiles unused services/queues/DO metadata as empty objects.
+  // Accept that default representation but forbid any actual resource or
+  // declared worker consumer, including nested producer/consumer settings.
+  function isEmptyResource(value) {
+    if (value === null || value === undefined || value === "") return true;
+    if (Array.isArray(value)) return value.length === 0;
+    if (typeof value === "object") return Object.values(value).every(isEmptyResource);
+    return false;
+  }
+  for (const field of ["kv_namespaces", "services", "queues", "durable_objects", "hyperdrive", "dispatch_namespaces", "ai", "unsafe"]) {
+    assert.ok(isEmptyResource(config[field]), "Unexpected hosted resource: " + field);
   }
   assert.deepEqual(config.secrets?.required,
     ["FIRE_QA_PASSWORD_HASH", "FIRE_QA_SESSION_SECRET"]);
   assert.equal(config.vars?.FIRE_ENV, "synthetic-qa");
   assert.equal(config.vars?.FIRE_QA_SYNTHETIC_ONLY, "enabled");
+  assert.equal(config.vars?.FIRE_LOCAL_CUSTOMERS_CANDIDATE, "synthetic-only",
+    "Refusing QA deploy without approved on-device, synthetic-only customer mode");
   assert.equal(config.vars?.SITE_ORIGIN,
     "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev");
   assert.ok(!config.routes && !config.route && !config.zone_id && !config.account_id,
     "No custom routes or zones allowed");
   assert.ok(!Object.keys(config.vars ?? {}).some(name =>
-    /(stripe|secret|password|r2|token)/i.test(name)),
+    /(stripe|secret|password|r2|token|live|staging|doomsday|private)/i.test(name)),
     "No secret values in public vars");
   const clean = { ...config };
   delete clean.legacy_env;
+  delete clean.r2_buckets; // Explicitly R2-free, including no accidental auto-provision.
+  assert.ok(!Object.hasOwn(clean, "r2_buckets"), "QA deployment must be R2-free");
   const text = JSON.stringify(clean, null, 2) + "\n";
   // 'wx' means fail on collision, even after a previous unsuccessful attempt.
   writeFileSync(destination, text, { flag: "wx", mode: 0o600 });
@@ -59,12 +78,12 @@ export function prepare(originalFile, deployFile) {
     unlinkSync(destination);
     throw error;
   }
-  return { worker: clean.name, config: destination, legacyEnvRemoved: true };
+  return { worker: clean.name, config: destination, legacyEnvRemoved: true, r2Free: true };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   assert.equal(process.argv.length, 4, "Usage: node prepare_qa_deploy_config.mjs <original-wrangler.json> <unique-output.json>");
   const result = prepare(process.argv[2], process.argv[3]);
-  console.log("PASS: Temporary QA-only Wrangler v4 deployment config prepared (legacy_env=true removed); original preserved.");
+  console.log("PASS: Temporary R2-free QA-only Wrangler v4 deployment config prepared; original preserved.");
   console.log("Worker: " + result.worker);
 }
