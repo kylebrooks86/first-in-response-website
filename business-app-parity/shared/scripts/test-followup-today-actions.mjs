@@ -101,4 +101,11 @@ const financeCards=nodes(render());
 eq(financeCards.filter(n=>n.type===stubs.MessageComposer).length,0,'Fully paid invoices and unresolved financial exceptions cannot be treated as ordinary outreach; review exceptions are retained in the owner history lane');
 eq(JSON.stringify(financeCards.find(n=>n.props?.['aria-label']==='Filter follow-ups: Viewed 24h+')).includes('(0)'),true,'Billing and paid jobs excluded from viewed-ready count');
 eq(requests.every(x=>x.opts?.method!=='POST'&&x.opts?.method!=='PATCH'),true,'New triage controls never send or write customer data');
+// With more customers, the preview stays short, but full customer actions remain.
+states[0]=[estimate('priority-a','customer-a'),estimate('priority-b','customer-b'),estimate('priority-c','customer-c'),estimate('priority-d','customer-d')];
+const larger=nodes(render());
+eq(larger.filter(n=>n.props?.['aria-label']?.startsWith?.('Jump to ')).length,3,'Busy day shows only three priority shortcuts');
+eq(larger.filter(n=>n.type===stubs.MessageComposer).length,4,'Fourth customer retains a real full-list action');
+eq(larger.some(n=>n.props?.className==='followup-all-actions-link'),true,'Owner can jump to complete follow-up list');
+eq(requests.every(r=>r.opts?.method!=='POST'&&r.opts?.method!=='PATCH'),true,'Bounded priority preview creates no customer writes');
 console.log('PASS '+assertions+'/'+assertions+' synthetic daily action queue, communication-state and real component interaction checks. No sends or customer writes.');
