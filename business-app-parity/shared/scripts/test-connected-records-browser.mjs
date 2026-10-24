@@ -174,9 +174,9 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(await page.locator('.route-day-button').count()===0,'Historical jobs cannot be sent to live driving directions');
   check((await datePicker.innerText()).includes('scheduled and completed jobs'),'Exact date clearly describes schedule history');
   await exactInput.fill('');
-  await page.getByRole('button',{name:'All upcoming (5)',exact:true}).waitFor();
+  await showAllUpcoming(5);
   check(await page.locator('.schedule-job').count()===5,'Clearing date selection restores all upcoming records');
-  await page.evaluate(()=>window.setQuery('beyond-week'));await page.getByRole('button',{name:'Today (0)',exact:true}).click();await page.getByText('No upcoming jobs today',{exact:true}).waitFor();check(await page.locator('.route-day-button').count()===0,'Empty date window has no stale route');await page.getByRole('button',{name:'All upcoming (1)',exact:true}).click();check(await page.locator('.schedule-job').count()===1,'All upcoming recovers appointment outside current week');await page.evaluate(()=>window.setQuery(''));await page.getByRole('button',{name:'All upcoming (5)',exact:true}).waitFor();check(await page.locator('.schedule-window-controls button').evaluateAll(ns=>ns.every(n=>n.getBoundingClientRect().height>=44)),'Schedule window controls have 44px targets');if(process.env.FIRE_CONNECTED_UI_SCREENSHOT_DIR)await page.screenshot({path:join(process.env.FIRE_CONNECTED_UI_SCREENSHOT_DIR,`schedule-${size.width}-${theme}.png`)});
+  await page.evaluate(()=>window.setQuery('beyond-week'));await page.getByRole('button',{name:'Today (0)',exact:true}).click();await page.getByText('No upcoming jobs today',{exact:true}).waitFor();check(await page.locator('.route-day-button').count()===0,'Empty date window has no stale route');await page.getByRole('button',{name:'All upcoming (1)',exact:true}).click();check(await page.locator('.schedule-job').count()===1,'All upcoming recovers appointment outside current week');await page.evaluate(()=>window.setQuery(''));await showAllUpcoming(5);check(await page.locator('.schedule-window-controls button').evaluateAll(ns=>ns.every(n=>n.getBoundingClientRect().height>=44)),'Schedule window controls have 44px targets');if(process.env.FIRE_CONNECTED_UI_SCREENSHOT_DIR)await page.screenshot({path:join(process.env.FIRE_CONNECTED_UI_SCREENSHOT_DIR,`schedule-${size.width}-${theme}.png`)});
   await page.goto(origin+'/schedule');await page.locator('.schedule-planning-more > summary').click();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).click();
   check(await page.locator('.schedule-job-weather-action').count()===5,'Every upcoming scheduled job has a direct weather review action');
   const prep=page.getByRole('group',{name:'Upcoming job details to review'});
@@ -373,26 +373,37 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await page.getByRole('region',{name:'Next scheduled job'}).getByRole('button',{name:'Open next job'}).click();
   check(await page.evaluate(()=>window.openedEstimate)==='exact-dashboard-job','Missing-detail warning retains direct route to correct job');
  }
- mode='error';await page.goto(origin+'/schedule');await page.getByRole('alert').waitFor();check(await page.locator('.schedule-window-controls,.schedule-job,.route-day-button').count()===0,'Failed schedule read hides counts/routes/cards');mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).waitFor();check(await page.locator('.schedule-job').count()===5,'Explicit schedule retry restores all appointments');
+ // Month view is primary; optional route/date controls must reopen after
+ // loading and error states remount the schedule results.
+ const openScheduleTools=async()=>{
+  const more=page.locator('details.schedule-planning-more');
+  await more.waitFor({state:'visible'});
+  if(!await more.evaluate(node=>node.open))await more.locator('summary').click();
+ };
+ const showAllUpcoming=async count=>{
+  await openScheduleTools();
+  await page.getByRole('button',{name:'All upcoming ('+count+')',exact:true}).click();
+ };
+ mode='error';await page.goto(origin+'/schedule');await page.getByRole('alert').waitFor();check(await page.locator('.schedule-window-controls,.schedule-job,.route-day-button').count()===0,'Failed schedule read hides counts/routes/cards');mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await showAllUpcoming(5);check(await page.locator('.schedule-job').count()===5,'Explicit schedule retry restores all appointments');
  const freshButton=page.getByRole('button',{name:'Refresh schedule',exact:true});
  check(await freshButton.isEnabled(),'Owner can refresh the schedule without leaving the screen');
  check(await page.locator('.schedule-last-checked').innerText().then(t=>t.includes('Central Time')),'Schedule confirms last successful read in Central Time');
  const beforeRefreshReads=reads;
  scheduled.push(scheduleJob('just-added','2026-10-22T15:00:00Z'));
  await freshButton.click();
- await page.getByRole('button',{name:'All upcoming (6)',exact:true}).waitFor();
+ await showAllUpcoming(6);
  check(await page.locator('.schedule-job').count()===6,'Explicit refresh discovers new booked job');
  check(reads===beforeRefreshReads+1,'Refresh performs one read, never a write');
  const refreshedGeometry=await page.locator('.schedule-header-actions').evaluate(n=>({rect:n.getBoundingClientRect().toJSON(),width:innerWidth}));
  check(refreshedGeometry.rect.x>=-1&&refreshedGeometry.rect.x+refreshedGeometry.rect.width<=refreshedGeometry.width+1,'Refresh and directions stay within phone viewport');
  mode='error';await freshButton.click();await page.getByRole('alert').waitFor();
  check(await page.locator('.schedule-job,.route-day-button').count()===0,'Failed owner refresh hides stale schedule and route');
- mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('button',{name:'All upcoming (6)',exact:true}).waitFor();
+ mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await showAllUpcoming(6);
  check(await page.locator('.schedule-job').count()===6,'Recovered schedule refresh restores complete data');
  scheduled.pop();
  mode='corrupt';await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();await page.getByRole('alert').filter({hasText:'Schedule amounts could not be verified.'}).waitFor();
  check(await page.locator('.schedule-job,.route-day-button').count()===0,'Malformed financial cents cannot display route or wrong totals');
- mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).waitFor();
+ mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await showAllUpcoming(5);
  check(await page.locator('.schedule-job').count()===5,'Valid schedule returns after unsafe amount refusal');
  // Same-minute reservations are advisory, and never alter scheduled records.
  scheduled.push(scheduleJob('second-at-same-minute','2026-10-20T15:00:30Z'));
