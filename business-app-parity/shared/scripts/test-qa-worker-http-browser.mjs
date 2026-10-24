@@ -188,7 +188,7 @@ try{
  const page=await context.newPage();page.on('pageerror',e=>clientErrors.push(e.message));
  await page.goto(origin+'/');
  await page.getByText('SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS',{exact:true}).waitFor();
- await page.getByRole('heading',{name:'Welcome to First In Response Exteriors'}).waitFor();
+ await page.getByRole('heading',{name:'Today',exact:true}).waitFor();
  check(await page.getByRole('region',{name:'Start using your empty FIRE app'}).count()===0,
    'First-use empty-state guidance disappears once saved quote exists');
 
