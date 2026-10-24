@@ -3166,7 +3166,23 @@ function ContractsView({searchQuery,embedded=false}:{searchQuery:string;embedded
       if(!Array.isArray(result.estimates))throw new Error("Agreement records could not be read. Try again.");
       if(request!==loadRequest.current)return;
       const complete=await completeEstimatePages<EstimateRow>(result,fetch,()=>request===loadRequest.current);if(!complete)return;
-      setRows(complete.map((item)=>({...item,subtotalCents:Number(item.subtotalCents??item.totalCents),discountCents:Number(item.discountCents??0),totalCents:Number(item.totalCents),depositCents:Number(item.depositCents),paidCents:Number(item.paidCents),pendingChangeCount:Number(item.pendingChangeCount??0)})));
+      // Agreements share the same strict cents boundary as the Estimates and Schedule lists.
+      // Malformed or unsafe values must never open a misleading signed financial record.
+      const exactWhole=(raw:unknown)=>{
+        if((typeof raw!=="string"&&typeof raw!=="number")||
+          (typeof raw==="string"&&!/^\d+$/.test(raw.trim()))||
+          !Number.isSafeInteger(Number(raw))||Number(raw)<0)
+          throw new Error("Agreement amounts or changes could not be verified. Refresh before opening agreements.");
+        return Number(raw);
+      };
+      setRows(complete.map((item)=>({...item,
+        subtotalCents:exactWhole(item.subtotalCents??item.totalCents),
+        discountCents:exactWhole(item.discountCents??0),
+        totalCents:exactWhole(item.totalCents),
+        depositCents:exactWhole(item.depositCents),
+        paidCents:exactWhole(item.paidCents),
+        pendingChangeCount:exactWhole(item.pendingChangeCount??0)
+      })));
     }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Agreements could not be loaded.");}
     finally{if(request===loadRequest.current)setLoading(false);}
   };

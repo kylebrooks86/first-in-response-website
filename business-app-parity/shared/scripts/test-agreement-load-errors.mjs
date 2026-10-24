@@ -64,4 +64,24 @@ equal(nodes(render('absent')).some(n=>n.props?.children==='No matching agreement
 // Detail change triggers a fresh read and updates agreement counters.
 responder=()=>ok(fixtures.map(e=>e.id==='change'?{...e,signedAt:'now',pendingChangeCount:0}:e));requests=[];detail=nodes(render()).find(n=>n.type===stubs.EstimateDetail);detail.props.onChanged();equal(state[2],true);equal(nodes(render()).some(n=>n.props?.className==='business-metrics'),false);await settle();equal(requests.length,1);all=nodes(render());equal(metric(all,'Signed agreements'),2);equal(metric(all,'Unsigned records'),3);equal(metric(all,'Change requests'),0);
 state=[[],null,true,''];responder=()=>ok([]);render();effect();await settle();all=nodes(render());equal(all.some(n=>n.props?.children==='No agreements yet'),true);equal(all.some(n=>n.props?.role==='alert'),false);equal(metric(all,'Signed agreements'),0);
+// Financial and revision counts are displayed on signed contracts. Corrupt D1 fields
+// must hide the entire list and require a verified reload, never display $NaN.
+for(const [field,value] of [
+ ['totalCents','12.34'],['subtotalCents','1e6'],['discountCents',-1],
+ ['depositCents','9007199254740992'],['paidCents',null],
+ ['pendingChangeCount','3.5'],['pendingChangeCount',-2]
+]){
+ state=[[job],job,true,''];responder=()=>ok([{...job,[field]:value}]);
+ render();effect();await settle();
+ equal(state[3],'Agreement amounts or changes could not be verified. Refresh before opening agreements.');
+ equal(state[1],null);
+ let rejected=nodes(render());
+ equal(rejected.some(node=>node.props?.className==='contract-list'),false);
+ equal(rejected.some(node=>node.props?.className==='business-metrics'),false);
+ responder=()=>ok([job]);
+ const warning=rejected.find(node=>node.props?.role==='alert');assert.ok(warning);checks++;
+ warning.props.children[1].props.onClick();await settle();
+ equal(state[3],'');
+ equal(nodes(render()).some(node=>node.props?.className==='contract-list'),true);
+}
 console.log(`PASS ${checks}/${checks}: Agreements distinguish sent-awaiting-approval, accepted-but-unsigned, signed and legacy unsigned records while retaining error/retry and change-request protections. Synthetic mock reads only.`);
