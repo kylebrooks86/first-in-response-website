@@ -199,6 +199,11 @@ equal(state[3],'');equal(state[0].length,1);equal(nodes(render()).some(node=>nod
 for(const [field,value] of [
  ['totalCents','1.25'],
  ['totalCents',''],
+ ['totalCents','-100'],
+ ['totalCents',-100],
+ ['totalCents','0x20'],
+ ['totalCents','1e3'],
+ ['totalCents','+100'],
  ['totalCents','9007199254740992'],
  ['subtotalCents','2.50'],
  ['depositCents',false],
