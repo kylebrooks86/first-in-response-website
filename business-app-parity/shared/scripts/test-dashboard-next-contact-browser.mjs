@@ -81,7 +81,7 @@ try{
   check(geometry.actions.every(box=>box.left>=-1&&box.right<=width+1&&box.height>=44),width+': all visible action boxes fit screen and 44px tap height');
   await summary.click();
   check(!(await call.isVisible()),width+': contact options close without deleting links');
-  await page.getByRole('button',{name:'Schedule',exact:true}).click().catch(async()=>{await page.getByRole('button',{name:'Full schedule'}).click();});
+  await page.getByRole('button',{name:'Full schedule',exact:true}).click();
   check(await page.evaluate(()=>window.__actions.includes('nav:schedule')),width+': full schedule access preserved');
  }
  await page.evaluate(()=>window.__setFlags({phone:false,email:true,address:true}));
