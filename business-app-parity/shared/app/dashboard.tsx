@@ -1955,7 +1955,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
 
 
 /** Choose the next saved appointment, not whichever quote happens to be first in the API response. */
-function pickCustomerNextEstimate(rows:EstimateRow[],now:number):EstimateRow|undefined{
+function pickCustomerNextEstimate(rows:CustomerEstimate[],now:number):CustomerEstimate|undefined{
   const dated=rows.filter(row=>row.status==="scheduled"&&typeof row.scheduledAt==="string"&&Number.isFinite(Date.parse(row.scheduledAt)))
     .sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
   // Future appointments take priority; after those, show the most recent overdue job.
