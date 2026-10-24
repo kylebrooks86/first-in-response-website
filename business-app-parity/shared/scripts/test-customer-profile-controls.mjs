@@ -6,6 +6,15 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  const created=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[{name:'Synthetic Profile Service',quantity:1,unit:'job',totalCents:20000}]});assert.equal(created.status(),201);const estimate=await created.json();
  const profile=async()=>{await page.setViewportSize({width:390,height:844});await page.goto(origin+'/');await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('button',{name:'Customers',exact:true}).first().click();await page.locator('.customer-card').filter({hasText:customer.name}).click();await page.getByRole('heading',{name:customer.name,exact:true}).waitFor();};
  await profile();
+ const headerMore=page.locator('details.customer-header-more');
+ check(await headerMore.evaluate(node=>!node.open),'Occasional customer edit/message/history controls start collapsed');
+ const primaryEstimate=page.locator('.customer-profile-head').getByRole('button',{name:'New estimate',exact:true});
+ check(await primaryEstimate.isVisible(),'Primary New estimate stays visible without expanding More actions');
+ await headerMore.locator(':scope>summary').click();
+ check(await headerMore.getByRole('button',{name:'Edit customer',exact:true}).isVisible()&&await headerMore.getByRole('button',{name:'Customer history',exact:true}).isVisible(),'Existing edit and exact history shortcuts remain accessible');
+ await headerMore.getByRole('button',{name:'Customer history',exact:true}).click();
+ check(await page.evaluate(()=>document.activeElement?.id==='customer-history-'+customer.id),'History shortcut still focuses current record after compact menu');
+ await headerMore.locator(':scope>summary').click();
  const customerQuotes=page.getByRole('group',{name:'Customer estimates and signed agreements'});
  check(await customerQuotes.getByRole('button',{name:'All estimates (1)',exact:true}).getAttribute('aria-pressed')==='true','Customer profile opens all of this customer’s saved quotes first');
  await customerQuotes.getByRole('button',{name:'Agreements (0)',exact:true}).click();
