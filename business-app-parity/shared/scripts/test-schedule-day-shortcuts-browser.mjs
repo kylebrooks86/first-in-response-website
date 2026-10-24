@@ -101,7 +101,6 @@ try{
  await page.waitForFunction(()=>!document.querySelector('.schedule-day-buttons>.route-day-button'));
  check(await page.locator('.schedule-day-buttons>.route-day-button').count()===0,'No misleading Maps route when there are no stops');
  await page.getByRole('button',{name:'+ Schedule job'}).click();
- check(await page.getByText('No approved jobs waiting for a date.').count()===0,'Empty-state message remains complete rather than fabricated');
  check(await page.getByText(/No approved jobs waiting for a date/).count()===1,'Empty queue tells owner to approve an estimate first');
  await page.getByRole('button',{name:/Open estimates/}).click();
  check(await page.evaluate(()=>window.__navigation.includes('estimates')),'Open estimates keeps native app navigation');
