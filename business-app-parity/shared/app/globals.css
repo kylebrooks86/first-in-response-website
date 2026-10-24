@@ -1850,3 +1850,12 @@ html,body{max-width:100%;overflow-x:clip}
 
 .business-task-saved-notes{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}
 .business-task-saved-notes strong{font-weight:800}
+
+
+/* Business: keep actionable task counts first, with complete cost totals one tap away. */
+.business-secondary-metrics{min-width:0;margin:10px 0 14px;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.business-secondary-metrics>summary{display:flex;align-items:center;min-height:48px;padding:10px 14px;cursor:pointer;font-size:13px;font-weight:800}
+.business-secondary-metrics>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.business-secondary-metrics>.business-metrics{margin:0;padding:0 12px 12px}
+@media(max-width:760px){.business-operations-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:350px){.business-operations-metrics{grid-template-columns:minmax(0,1fr)}}
