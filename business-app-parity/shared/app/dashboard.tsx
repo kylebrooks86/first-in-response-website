@@ -3020,7 +3020,7 @@ function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?
    <div><strong>{new Date(selectedDate+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric",timeZone:"UTC"})}</strong><small>{rows.filter(job=>job.scheduledAt&&["scheduled","completed"].includes(job.status)&&new Date(job.scheduledAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"})===selectedDate).length} saved job(s)</small></div>
    <div className="schedule-day-buttons">
     <button type="button" onClick={()=>setShowBookingOptions(v=>!v)} aria-expanded={showBookingOptions} aria-controls="schedule-choose-job">+ Schedule job</button>
-    {!loading&&!error&&routeUrl&&<a className="route-day-button schedule-route-primary" href={routeUrl} target="_blank" rel="noopener noreferrer" aria-label={routeLabel+" in Google Maps"}><Navigation aria-hidden="true"/> {routeLabel}<small>{routeWithAddress.length>8?`${routeJobs.length} of ${routeWithAddress.length} mapped stops`:`${routeJobs.length} stop${routeJobs.length===1?"":"s"}`}</small></a>}
+    {!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noopener noreferrer" aria-label={routeLabel+" in Google Maps"}><Navigation aria-hidden="true"/> {routeLabel}<small>{routeWithAddress.length>8?`${routeJobs.length} of ${routeWithAddress.length} mapped stops`:`${routeJobs.length} stop${routeJobs.length===1?"":"s"}`}</small></a>}
    </div>
    {showBookingOptions&&<div id="schedule-choose-job" className="schedule-choose-job" role="region" aria-label="Choose an approved job to schedule">
     <strong>Choose an approved job</strong>
