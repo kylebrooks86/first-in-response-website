@@ -2856,6 +2856,7 @@ function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?
   const [showBookingOptions,setShowBookingOptions]=useState(false);
   const weatherReviewCount=useRef(0);
   const weatherPanelRef=useRef<HTMLDivElement>(null);
+  const planningToolsRef=useRef<HTMLDetailsElement>(null);
   const reviewScheduledWeather=(scheduledAt:string)=>{
     weatherReviewCount.current++;
     setWeatherReview({at:scheduledAt,key:weatherReviewCount.current});
@@ -3011,9 +3012,14 @@ function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?
     <button type="button" onClick={()=>onNavigate?.("estimates")}>Open estimates <ChevronRight aria-hidden="true"/></button>
    </div>}
   </section>}
+  {!loading&&!error&&(startConflicts.length>0||turnarounds.length>0||jobPrepIssues.length>0)&&<button type="button" className="schedule-check-shortcut" aria-label="Review upcoming schedule checks" onClick={()=>{const panel=planningToolsRef.current;if(panel){panel.open=true;panel.scrollIntoView({block:"start",behavior:"smooth"});}}}>
+   <AlertTriangle aria-hidden="true"/>
+   <span><strong>Upcoming schedule checks</strong><small>{[startConflicts.length?`${startConflicts.length} same-time start${startConflicts.length===1?"":"s"}`:null,turnarounds.length?`${turnarounds.length} tight gap${turnarounds.length===1?"":"s"}`:null,jobPrepIssues.length?`${jobPrepIssues.length} missing-detail job${jobPrepIssues.length===1?"":"s"}`:null].filter(Boolean).join(" · ")}</small></span>
+   <ChevronRight aria-hidden="true"/>
+  </button>}
     {loading?<div className="customers-state">Loading schedule…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:<>
       {needsAttention.length>0&&<section className="needs-attention"><header><div><h2>Needs attention</h2><p>Past job dates that still need to be completed, rescheduled, or paid.</p></div><b>{needsAttention.length}</b></header>{needsAttention.map((job)=><button key={job.id} onClick={()=>setSelected(job)}><Clock3/><span><strong>{job.customer}</strong><small>{job.service} · was scheduled {dateTime(job.scheduledAt!)}</small><b>{money(billingBalanceCents(job))} due</b></span><ChevronRight/></button>)}</section>}
-      <details className="schedule-planning-more">
+      <details ref={planningToolsRef} className="schedule-planning-more">
        <summary>More schedule tools{startConflicts.length+turnarounds.length+jobPrepIssues.length+routeMissingAddress.length>0?` · ${startConflicts.length+turnarounds.length+jobPrepIssues.length+routeMissingAddress.length} checks`:""}</summary>
        <div className="schedule-planning-content">
         {!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noreferrer"><Navigation/> {routeLabel}<small>{routeWithAddress.length>8?`${routeJobs.length} of ${routeWithAddress.length} mapped stops`:`${routeJobs.length} stop${routeJobs.length===1?"":"s"}`}</small></a>}
