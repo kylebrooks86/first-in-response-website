@@ -1837,3 +1837,12 @@ html,body{max-width:100%;overflow-x:clip}
 /* Top three customer actions stay scannable even with a large follow-up backlog. */
 .followup-all-actions-link{display:block;width:100%;min-height:44px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);text-align:center;font-size:12px;font-weight:750;cursor:pointer}
 .followup-all-actions-link:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+
+/* Existing Business task creation is one tap away; saved tasks and due work remain first. */
+.business-task-entry{min-width:0;margin:10px 0;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.business-task-entry>summary{display:flex;align-items:center;min-height:48px;padding:11px 14px;cursor:pointer;font-weight:800;font-size:14px;color:var(--foreground)}
+.business-task-entry>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.business-task-entry[open]>summary{border-bottom:1px solid var(--border)}
+.business-task-entry>.business-form{margin:0;padding:14px}
+@media(max-width:760px){.business-task-entry>.business-form{padding:12px}}
