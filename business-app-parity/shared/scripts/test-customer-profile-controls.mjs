@@ -34,7 +34,7 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  check(firstUse.ordered,'Quick contact and customer records appear before optional financial, flags and activity details');
  check(firstUse.tabs.length===6&&firstUse.tabs.some(label=>label.startsWith('Photos'))&&firstUse.tabs.some(label=>label.startsWith('Notes'))&&firstUse.tabFit,'All six customer record tabs remain visible and finger-sized on iPhone');
  check(firstUse.actionColumns===2,'Common customer actions use two compact touch-friendly columns on iPhone');
- await page.getByRole('button',{name:'Photos (on-device)',exact:true}).click();
+ await page.getByRole('button',{name:'Photos',exact:true}).click();
  const photos=page.getByRole('region',{name:'On-device customer photos'});await photos.getByText('No on-device photos for this customer').waitFor();
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==','base64');
  await photos.locator('input[type=file][multiple]').setInputFiles({name:'synthetic-responsive-photo.png',mimeType:'image/png',buffer:png});await photos.getByText(/Photos verified on this device/).waitFor();
