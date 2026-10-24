@@ -2159,3 +2159,8 @@ html,body{max-width:100%;overflow-x:clip}
   .customer-profile .customer-contact>.customer-property-links,
   .customer-profile .customer-contact>.customer-contact-empty{grid-column:1/-1;min-width:0;width:100%}
 }
+
+/* Only show this shortcut on an empty selected calendar day; no extra always-on controls. */
+.schedule-day-actions>.schedule-next-booked{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;text-align:left;cursor:pointer}
+.schedule-next-booked svg{width:16px;height:16px;flex:none}
+.schedule-next-booked:focus-visible{outline:3px solid var(--ring);outline-offset:2px}

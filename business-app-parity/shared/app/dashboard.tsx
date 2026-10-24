@@ -3036,6 +3036,10 @@ function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?
   const weekCount=allUpcoming.filter(row=>tulsaDay(row.scheduledAt!)>=today&&tulsaDay(row.scheduledAt!)<=lastWeekDay).length;
   // Date-specific browsing also shows already-completed work, even for past days;
   // the normal upcoming windows remain strictly future scheduled appointments.
+  const selectedDaySavedJobs=rows.filter(job=>job.scheduledAt&&["scheduled","completed"].includes(job.status)&&tulsaDay(job.scheduledAt!)===selectedDate);
+  const nextBookedJob=dayFilter==="date"&&selectedDaySavedJobs.length===0
+    ?allVerifiedUpcoming.find(job=>tulsaDay(job.scheduledAt!)>selectedDate)
+    :undefined;
   const chosenDayJobs=dayFilter==="date"&&selectedDate
     ?scheduled.filter(row=>(row.status==="scheduled"||row.status==="completed")&&tulsaDay(row.scheduledAt!)===selectedDate)
     :null;
@@ -3064,7 +3068,8 @@ function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?
   const routeLabel=routeDate&&tulsaDay(routeDate.getTime())===today?"Route today":routeDate&&tulsaDay(routeDate.getTime())===tomorrow?"Route tomorrow":routeDate?`Route ${routeDate.toLocaleDateString("en-US",{weekday:"short",timeZone:"America/Chicago"})}`:"Route next jobs";
   return <div className="workspace-view"><EstimateDetail estimate={loading||error?null:selected} initialScheduleDay={bookingDate} onClose={()=>{setSelected(null);setBookingDate(null);}} onChanged={(estimate)=>{setRows((current)=>current.map((row)=>row.id===estimate.id?estimate:row));setSelected(current=>current?.id===estimate.id?estimate:current);}}/><section className="workspace-head"><div><p className="eyebrow">Jobs</p><h1>Schedule</h1><p>Jobs and routes · Central Time.</p>{!loading&&!error&&lastCheckedAt&&<p className="schedule-last-checked" role="status">Last checked {new Date(lastCheckedAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})} Central Time</p>}</div><div className="schedule-header-actions"><Button variant="outline" onClick={()=>void load()} disabled={loading} aria-label="Refresh schedule">{loading?"Refreshing…":"Refresh schedule"}</Button></div></section>{!loading&&!error&&<ScheduleMonthCalendar jobs={rows} selectedDate={selectedDate} onSelectDate={date=>{setSelectedDate(date);setDayFilter("date");setShowBookingOptions(false);setWeatherReview(null);}}/>}
   {!loading&&!error&&<section className="schedule-day-actions" aria-label="Selected calendar day">
-   <div><strong>{new Date(selectedDate+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric",timeZone:"UTC"})}</strong><small>{rows.filter(job=>job.scheduledAt&&["scheduled","completed"].includes(job.status)&&new Date(job.scheduledAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"})===selectedDate).length} saved job(s)</small></div>
+   <div><strong>{new Date(selectedDate+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric",timeZone:"UTC"})}</strong><small>{selectedDaySavedJobs.length} saved job(s)</small></div>
+   {nextBookedJob&&<button type="button" className="schedule-next-booked" aria-label="Jump to next booked day" onClick={()=>{setSelectedDate(tulsaDay(nextBookedJob.scheduledAt!));setDayFilter("date");setShowBookingOptions(false);setWeatherReview(null);}}>Next booked: {new Date(nextBookedJob.scheduledAt!).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/Chicago"})} <ChevronRight aria-hidden="true"/></button>}
    <div className="schedule-day-buttons">
     <button type="button" onClick={()=>setShowBookingOptions(v=>!v)} aria-expanded={showBookingOptions} aria-controls="schedule-choose-job">+ Schedule job</button>
     {!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noopener noreferrer" aria-label={routeLabel+" in Google Maps"}><Navigation aria-hidden="true"/> {routeLabel}<small>{routeWithAddress.length>8?`${routeJobs.length} of ${routeWithAddress.length} mapped stops`:`${routeJobs.length} stop${routeJobs.length===1?"":"s"}`}</small></a>}

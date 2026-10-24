@@ -28,6 +28,18 @@ function scan(node){
 scan(view);
 assert.equal(matches.length,1,'Render exactly one live calendar-day booking area');
 const markup=matches[0].getText(ast);
+const getScheduleVariable=name=>{
+ const values=[];
+ function visit(node){
+  if(ts.isVariableDeclaration(node)&&node.name.getText(ast)===name)values.push(node);
+  ts.forEachChild(node,visit);
+ }
+ visit(view);
+ assert.equal(values.length,1,'Exactly one real ScheduleView variable '+name);
+ return 'const '+values[0].getText(ast)+';';
+};
+const savedDaySource=getScheduleVariable('selectedDaySavedJobs');
+const nextDaySource=getScheduleVariable('nextBookedJob');
 assert.match(markup,/schedule-day-buttons/);
 assert.match(markup,/route-day-button/);
 assert.match(markup,/schedule-choose-job/);
@@ -48,10 +60,16 @@ const fixture=[
  " const loading=false,error='';",
  " const rows=scenario==='empty'?[]:[",
  "  {id:'approved-1',customer:'Synthetic ready customer',service:'House wash',status:'approved',scheduledAt:null},",
- "  {id:'scheduled-1',customer:'Synthetic scheduled customer',service:'Concrete wash',status:'scheduled',scheduledAt:'2026-10-24T16:00:00Z'}",
+ "  {id:'scheduled-1',customer:'Synthetic scheduled customer',service:'Concrete wash',status:'scheduled',scheduledAt:'2026-10-24T16:00:00Z'},",
+ "  {id:'scheduled-2',customer:'Synthetic future customer',service:'Window cleaning',status:'scheduled',scheduledAt:'2026-11-12T16:00:00Z'}",
  " ];",
  " const routeUrl=scenario==='empty'?'':'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=123%20Synthetic%20Rd';",
  " const routeLabel='Route today';",
+ " const tulsaDay=value=>new Date(value).toLocaleDateString('en-CA',{timeZone:'America/Chicago'});",
+ " const dayFilter='date';",
+ " const allVerifiedUpcoming=rows.filter(row=>row.status==='scheduled'&&row.scheduledAt&&Date.parse(row.scheduledAt)>=Date.parse('2026-10-23T00:00:00Z')).sort((a,b)=>Date.parse(a.scheduledAt)-Date.parse(b.scheduledAt));",
+ " const setDayFilter=()=>{}; const setWeatherReview=()=>{};",
+ savedDaySource,nextDaySource,
  " const routeJobs=[rows[1]].filter(Boolean),routeWithAddress=routeJobs;",
  " return <main className='workspace-view'>",
  " <ScheduleMonthCalendar jobs={rows} selectedDate={selectedDate} onSelectDate={date=>{setSelectedDate(date);setShowBookingOptions(false)}}/>",
@@ -109,6 +127,14 @@ try{
   await calendar.getByRole('heading',{name:'November 2026'}).waitFor();
   await page.waitForFunction(()=>JSON.parse(document.querySelector('#selection')?.textContent||'{}').selectedDate==='2026-11-01');
   check(await calendar.getByRole('button',{name:/November 1, 2026/}).getAttribute('aria-pressed')==='true',width+': month arrow also changes selected booking date to November 1');
+  const jump=page.getByRole('button',{name:'Jump to next booked day'});
+  await jump.waitFor({state:'visible'});
+  check((await jump.innerText()).includes('Nov 12'),width+': empty day offers next booked date without showing permanent clutter');
+  check(await jump.evaluate(el=>{const r=el.getBoundingClientRect();return r.height>=44&&r.left>=-1&&r.right<=innerWidth+1}),width+': conditional next-job shortcut is phone-safe');
+  await jump.click();
+  await page.waitForFunction(()=>JSON.parse(document.querySelector('#selection')?.textContent||'{}').selectedDate==='2026-11-12');
+  check(await calendar.getByRole('button',{name:/November 12, 2026, 1 jobs: 1 scheduled/}).getAttribute('aria-pressed')==='true',width+': next booked shortcut selects the correct saved job dot');
+  check(await jump.count()===0,width+': shortcut disappears once a booked day is selected');
   await calendar.getByRole('button',{name:/November 18, 2026/}).click();
   await page.waitForFunction(()=>JSON.parse(document.querySelector('#selection')?.textContent||'{}').selectedDate==='2026-11-18');
   check(await calendar.getByRole('button',{name:/November 18, 2026/}).getAttribute('aria-pressed')==='true',width+': explicit day selection remains functional');
