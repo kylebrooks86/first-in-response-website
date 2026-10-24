@@ -26,22 +26,31 @@ function extract(name,cssClass){
  walk(fn);assert.equal(hits.length,1,'One actual '+cssClass+' section');return hits[0];
 }
 const filters=extract('EstimatesView','filter-row estimate-simple-filters');
+const estimateCard=extract('EstimatesView','estimate-card');
+const estimatesFunction=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='EstimatesView');
+const cardLabel=estimatesFunction.body.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='savedCardStatus').getText(ast);
 const history=extract('PaymentsView','business-panel payments-history-disclosure');
 assert.match(history,/RefundPayment/,'Preserve exact refund component');
 assert.match(history,/ProcessingDetails/,'Preserve exact payment fee details');
 assert.match(filters,/aria-pressed/,'Selected status remains accessible');
 const fixture=[
- "import React,{useState}from'react';import{createRoot}from'react-dom/client';import{CircleDollarSign}from'lucide-react';",
+ "import React,{useState}from'react';import{createRoot}from'react-dom/client';import{CircleDollarSign,ChevronRight,CalendarDays}from'lucide-react';",
  "function ProcessingDetails({payment}){return <span className='synthetic-processing'>Fee {payment.id}</span>}",
  "function RefundPayment({payment}){return <button type='button' aria-label={'Refund action for '+payment.id}>Refund</button>}",
  "function Fixture(){",
  " const [filter,setFilter]=useState('all'),[showAllPayments,setShowAllPayments]=useState(false);",
  " const view='list',statusLabel=s=>s.slice(0,1).toUpperCase()+s.slice(1);",
+ cardLabel,
+ " const [selected,setSelected]=useState(null),setFocusError=()=>{},viewedOnly=false,dateTime=v=>v,resolvedBillingTotalCents=e=>e.totalCents;",
+ " const base={service:'House wash',createdAt:'2026-10-24T12:00:00Z',totalCents:22000,paidCents:0};",
+ " const examples=[{status:'sent',firstViewedAt:'2026-10-24T12:00:00Z'},{status:'approved',signedAt:'2026-10-24T12:00:00Z',signedName:'Synthetic Owner'},{status:'scheduled',scheduledAt:'2026-10-28T12:00:00Z',signedAt:'2026-10-24T12:00:00Z',signedName:'Synthetic Owner'},{status:'approved',acceptedAt:'2026-10-24T12:00:00Z'},{status:'scheduled',signedAt:'invalid',signedName:'Synthetic Owner'},{status:'draft',firstViewedAt:'invalid'},{status:'approved',signedName:'Synthetic Owner'},{status:'sent',signedAt:'2026-10-24T12:00:00Z',signedName:'Synthetic Owner'}].map((e,i)=>({...base,...e,id:'quote-'+i,customer:'Quote '+i}));",
  " const money=c=>'$'+(c/100).toFixed(2),load=()=>{};",
  " const payments=Array.from({length:9},(_,i)=>({id:'synthetic-'+i,customer:'Customer '+i,type:'Job payment',status:'paid',service:'House wash',createdAt:'2026-10-24T12:00:00Z',amountCents:12500+i,reference:'test-ref-'+i}));",
  " return <main className='workspace-view payments-view'>",
  " <output id='selected-filter'>{filter}</output>",
+ " <output id='opened-quote'>{selected?.id}</output>",
  filters,
+ " <section className='estimate-list'>{examples.map(estimate=>(",estimateCard,"))}</section>",
  " <div className='payment-layout'>",history,"</div>",
  " </main>;",
  "}",
@@ -70,6 +79,18 @@ try{
   const more=group.locator('details.estimate-filter-more');
   const panel=page.locator('details.payments-history-disclosure');
   await more.waitFor();await panel.waitFor();
+  const expected=['Sent · Viewed','Approved · Signed','Scheduled · Signed','Approved · Unsigned','Scheduled','Draft','Approved','Sent · Signed'];
+  check(JSON.stringify(await page.locator('.estimate-card-state').allTextContents())===JSON.stringify(expected),width+': actual card labels distinguish status, view, acceptance and complete signature without inference');
+  check(await page.locator('.estimate-card-state').evaluateAll(ns=>ns.every(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.left>=0&&r.right<=innerWidth&&r.height<=40})),width+': status text stays compact and visible on phones');
+  for(const theme of ['light','dark']){
+   await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
+   const colors=await page.locator('.estimate-card-state').evaluateAll(ns=>ns.map(n=>({fg:getComputedStyle(n).color,bg:getComputedStyle(n).backgroundColor})));
+   const luminance=v=>{const c=v.match(/[\d.]+/g).slice(0,3).map(n=>Number(n)/255).map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4);return c[0]*.2126+c[1]*.7152+c[2]*.0722;};
+   check(colors.every(c=>{const a=luminance(c.fg),b=luminance(c.bg);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05)>=4.5}),width+'/'+theme+': status labels have readable contrast');
+  }
+  await page.evaluate(()=>document.documentElement.dataset.theme='light');
+  await page.locator('.estimate-card').filter({hasText:'Quote 2'}).click();
+  check(await page.locator('#opened-quote').textContent()==='quote-2',width+': labelled card opens the original exact estimate');
   check(await group.getByRole('button',{name:'All',exact:true}).isVisible(),width+': All quotes one tap');
   check(await group.getByRole('button',{name:'Draft',exact:true}).isVisible()&&await group.getByRole('button',{name:'Sent',exact:true}).isVisible()&&await group.getByRole('button',{name:'Approved',exact:true}).isVisible(),width+': primary statuses one tap');
   check(!(await group.getByRole('button',{name:'Scheduled',exact:true}).isVisible()),width+': secondary statuses hidden initially');

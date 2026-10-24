@@ -2214,6 +2214,15 @@ html,body{max-width:100%;overflow-x:clip}
 .ui-help>p{margin:0 0 8px;line-height:1.5}
 .template-mobile-picker{display:none}
 .template-section-title{margin:12px 0 8px;font-size:17px}
+.estimate-card{grid-template-columns:4px minmax(170px,1fr) auto auto auto}
+.estimate-person .estimate-card-state,.pipeline-card .estimate-card-state{display:inline-flex;align-items:center;justify-self:start;max-width:100%;padding:3px 7px;border-radius:6px;background:#eef2f6;color:#405269;font-size:11px;line-height:1.35;font-weight:750;white-space:normal}
+.estimate-person .estimate-card-state.sent,.pipeline-card .estimate-card-state.sent{background:#eaf3ff;color:#215e9f}
+.estimate-person .estimate-card-state.approved,.estimate-person .estimate-card-state.completed,.pipeline-card .estimate-card-state.approved,.pipeline-card .estimate-card-state.completed{background:#eaf8f0;color:#146f46}
+.estimate-person .estimate-card-state.scheduled,.pipeline-card .estimate-card-state.scheduled{background:#efebf9;color:#6f3f9d}
+[data-theme="dark"] .estimate-card-state{background:#28394c;color:#d5dfeb}
+[data-theme="dark"] .estimate-card-state.sent{background:#16324f;color:#9dcdff}
+[data-theme="dark"] .estimate-card-state.approved,[data-theme="dark"] .estimate-card-state.completed{background:#143b2b;color:#a2e4c2}
+[data-theme="dark"] .estimate-card-state.scheduled{background:#302341;color:#d9b9ff}
 .owner-preview-banner{display:block;margin:0 0 10px;padding:0;border:0;border-radius:0;background:transparent;color:#263348}
 .owner-preview-theme-toggle{position:fixed;z-index:60;top:max(12px,env(safe-area-inset-top));right:calc(max(12px,env(safe-area-inset-right)) + 56px);display:grid;place-items:center;width:48px;height:48px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--background);color:var(--foreground);box-shadow:0 2px 10px #0003;cursor:pointer}
 .owner-preview-theme-toggle svg{width:22px;height:22px}
@@ -2243,6 +2252,9 @@ html,body{max-width:100%;overflow-x:clip}
 .schedule-view>.schedule-board>header{padding:10px 12px}
 @media(max-width:760px){
  .dashboard-view,.customers-view,.workspace-view{padding-top:10px}
+ .estimate-card{grid-template-columns:4px minmax(0,1fr) auto}
+ .estimate-card>.estimate-amount{grid-column:3;grid-row:1}
+ .estimate-card>.scheduled-chip{grid-column:2;grid-row:2}
  .topbar{grid-template-rows:52px auto!important;min-height:0!important;padding-bottom:6px!important}
  .topbar .search-box input{height:44px!important}
  .workspace-head{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}
