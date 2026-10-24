@@ -409,6 +409,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  scheduled.push(scheduleJob('second-at-same-minute','2026-10-20T15:00:30Z'));
  const beforeCollisionReads=reads;
  await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
+ await openScheduleTools();
  const collision=page.getByRole('region',{name:'Appointments sharing a start time'});
  await collision.waitFor();
  check(reads===beforeCollisionReads+1,'Conflict review reads jobs without any write');
@@ -419,6 +420,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  check(await page.locator('.schedule-conflict-chip').count()===2,'Conflict markers remain visible on the selected day');
  scheduled.pop();
  await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
+ await openScheduleTools();
  await collision.waitFor({state:'hidden'});
  check(await page.locator('.schedule-conflict-chip').count()===0,'Resolved time collision no longer shows an advisory');
  // Real Chromium light/dark phone UI: consecutive starts 45 minutes apart
@@ -426,6 +428,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  scheduled.push(scheduleJob('tight-gap','2026-10-20T15:45:00Z'));
  const readsBeforeTight=reads,writesBeforeTight=writes;
  await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
+ await openScheduleTools();
  const tight=page.getByRole('region',{name:'Closely spaced upcoming appointments'});
  await tight.waitFor();
  check(await tight.locator('.schedule-turnaround-pair').count()===1,'One consecutive 45-minute start gap triggers read-only advisory');
@@ -442,6 +445,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  await page.evaluate(()=>window.setQuery(''));
  scheduled.pop();
  await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
+ await openScheduleTools();
  await tight.waitFor({state:'hidden'});
  check(writes===writesBeforeTight,'Resolving timing warning requires no data mutation');
  // Eleven scheduled next-day stops: ten mapped, one missing address.
@@ -451,6 +455,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  scheduled.push(missingStop,...addedStops);
  const readsBeforeRoutes=reads;
  await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
+ await openScheduleTools();
  await page.getByRole('button',{name:'Tomorrow (11)',exact:true}).click();
  const review=page.getByRole('region',{name:'Route coverage review'});
  await review.waitFor();
@@ -470,6 +475,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  check(reads===readsBeforeRoutes+1,'Route inspection is local with one explicit schedule GET and no writes');
  scheduled.splice(scheduled.length-10,10);
  await page.getByRole('button',{name:'Refresh schedule',exact:true}).click();
+ await openScheduleTools();
  await page.getByRole('button',{name:'Tomorrow (1)',exact:true}).waitFor();
  await review.waitFor({state:'hidden'});
  check(await page.locator('.route-day-button').count()===1,'Normal single-job tomorrow route remains after route-review resolution');
