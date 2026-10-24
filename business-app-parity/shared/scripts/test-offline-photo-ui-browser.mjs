@@ -148,7 +148,7 @@ try{
   }});
  });
  await page.getByRole('button',{name:'Save prepared ZIP to Files'}).click();
- await page.getByText(/Photo ZIP was offered to the iOS share sheet/).waitFor();
+ await page.getByText(/Check that the ZIP is in Files, then use Verify saved ZIP from Files/).waitFor();
  const share=await page.evaluate(()=>window.fixtureNativeShare);
  check(share?.active===true&&share.size>100&&share.type==='application/zip',
    'Real owner Save-to-Files button invokes the native share sheet within its fresh user gesture');
@@ -313,7 +313,7 @@ try{
   }});
  });
  await coldPage.getByRole('button',{name:'Save prepared ZIP to Files'}).click();
- await coldPage.getByText(/Photo ZIP was offered to the iOS share sheet/).waitFor();
+ await coldPage.getByText(/Check that the ZIP is in Files, then use Verify saved ZIP from Files/).waitFor();
  const coldShare=await coldPage.evaluate(()=>window.fixtureOfflineShare);
  check(coldShare?.active===true&&coldShare?.size===exported.length&&coldShare.size>100,
    'Fresh ZIP built after offline cold launch contains original two photographs and was handed to native share');
