@@ -131,7 +131,7 @@ try{
  check(notes.length===3&&notes[0].body==='[FIRE FLAG] LEAD_CALLBACK_HANDLED',
   'Handled callback leaves full append-only history and clears due queue without claiming contact');
  await page.getByRole('button',{name:'Show all customers',exact:true}).click();
- await page.getByRole('button',{name:'Callbacks due (0)'}).waitFor();
+ check(await page.getByRole('button',{name:'Callbacks due (0)'}).count()===0,'Cleared zero-count callback filter disappears after returning to all customers');
  check(await page.locator('.customer-card').count()===2,
   'After handling a due callback, reset the filter to restore the entire owner customer list');
  await open('Fixture First');
