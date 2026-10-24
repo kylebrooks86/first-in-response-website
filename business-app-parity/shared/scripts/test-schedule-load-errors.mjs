@@ -9,7 +9,7 @@ const helpers=['resolvedBillingTotalCents','billingBalanceCents'];
 const declarations=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>helpers.includes(d.name.getText(ast))));
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleView');
 let state=[],cursor=0,effect,requests=[],fetchOptions=[],responder;let scheduleNow=Date.parse('2026-10-09T12:00:00Z');
-const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','ScheduleMonthCalendar','Navigation','Clock3','ChevronRight','CalendarDays','CloudSun','AlertTriangle'].map(name=>[name,()=>null]));
+const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','ScheduleMonthCalendar','Navigation','Clock3','ChevronRight','CalendarDays','CloudSun','AlertTriangle','Phone'].map(name=>[name,()=>null]));
 const spacing={exports:{}};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/schedule-turnarounds.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,spacing);
 const pagination={exports:{},require};
