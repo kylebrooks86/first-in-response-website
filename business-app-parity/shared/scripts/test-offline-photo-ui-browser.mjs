@@ -141,7 +141,16 @@ try{
  await page.getByText(/Photos verified on this device/).waitFor();
  await page.locator('.photo-card').nth(1).waitFor();
  check(await page.locator('.photo-card').count()===2,'Owner can create separate before and after local photographs');
- check(await page.getByText('Before & after comparison').count()===1,'Real gallery reveals its before/after comparison tool');
+ check(await page.getByText('Before & after comparison').count()===1,'Real gallery reveals the optional before/after comparison tool');
+ const comparisonMore=page.locator('details.photo-comparison-more');
+ check(!await comparisonMore.evaluate(node=>node.open),'Photo upload stays focused: comparison editor starts collapsed');
+ check(await comparisonMore.locator(':scope > summary').evaluate(node=>node.getBoundingClientRect().height>=44),'Comparison editor has an iPhone-sized tap target');
+ await comparisonMore.locator(':scope > summary').click();
+ check(await page.getByRole('button',{name:'Create comparison'}).isVisible(),'Saved before/after photos still open the working comparison editor');
+ const [comparisonDownload]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Create comparison'}).click()]);
+ check(comparisonDownload.suggestedFilename()==='FIRE-before-after.png','Owner can create a downloadable comparison with original saved photos');
+ await comparisonMore.locator(':scope > summary').click();
+ check(!await comparisonMore.evaluate(node=>node.open),'Comparison editor can be closed without deleting or changing saved photos');
  await ctx.setOffline(true);
  // The earlier interrupted-selection test reloads the page; optional tools
  // must be explicitly reopened after a real browser restart.
