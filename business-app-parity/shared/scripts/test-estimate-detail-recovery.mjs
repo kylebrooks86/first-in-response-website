@@ -86,7 +86,7 @@ eq(moreStart>mainStart&&moreEnd>moreStart,true,'Secondary job tools exist in the
 const primary=detailSource.slice(mainStart,moreStart),secondary=detailSource.slice(moreStart,moreEnd);
 for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','tel:','sms:','Directions'])eq(primary.includes(label),true,'Daily customer action available: '+label);
 for(const label of ['Customer view','StrideButton','Google Earth','Zillow','OwnerJobTools'])eq(secondary.includes(label),true,'Existing research and job control retained: '+label);
-eq(secondary.includes('<summary>More tools</summary>'),true,'More tools has a keyboard-operable disclosure');
+eq(secondary.includes('Job report, costs & more')&&secondary.includes('More tools'),true,'Scheduled jobs identify the report shortcut, while optional research stays in the disclosure');
 const simpleJob=fixture();simpleJob.open(job('compact-scheduled'));await flush();
 eq(simpleJob.nodes().some(n=>n.props?.className==='next-action'),false,'Routine booked work has no redundant next-step box');
 const exceptionJob=fixture();exceptionJob.open({...job('held-billing'),paymentOverageOpen:1});await flush();
