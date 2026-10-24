@@ -157,7 +157,7 @@ try{
    await page.getByRole('button',{name:mode,exact:true}).click();historyFailure=true;await page.getByLabel('Search estimate history',{exact:true}).fill('Latest '+mode);
    await page.getByRole('alert').filter({hasText:'Synthetic history refresh failed'}).waitFor();
    check(await page.locator('.pipeline-card,.estimate-card').count()===0,'Fresh failed search hides prior query cards in '+mode);check(await page.getByRole('status').count()===0,'Fresh failed search hides old totals/counts');
-   historyFailure=false;await page.getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('status').filter({hasText:'1 estimate records loaded'}).waitFor();check(await page.getByText('Latest query customer',{exact:true}).isVisible(),'Fresh search retry restores correct result');check(historyReads.at(-1).includes('q=Latest%20'+mode),'Retry preserves the entered query');
+   historyFailure=false;await page.getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('status').filter({hasText:'1 estimates loaded'}).waitFor();check(await page.getByText('Latest query customer',{exact:true}).isVisible(),'Fresh search retry restores correct result');check(historyReads.at(-1).includes('q=Latest%20'+mode),'Retry preserves the entered query');
   }
  }
  insightMode=true;
