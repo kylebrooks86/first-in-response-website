@@ -15,13 +15,14 @@ const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true
 const view=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='CustomersView');
 assert.ok(view,'Use the actual CustomersView instead of a reimplementation');
 function exactlyOne(found,name){assert.equal(found.length,1,'One '+name+' in actual customer source');return found[0];}
-const snippets={contact:[],activity:[],actions:[]};
+const snippets={contact:[],activity:[],actions:[],job:[]};
 function scan(n){
  if(ts.isJsxElement(n)){
   const el=n.openingElement;
   const cls=el.attributes.properties.find(a=>ts.isJsxAttribute(a)&&a.name.text==='className');
   if(cls&&ts.isStringLiteral(cls.initializer)){
    if(cls.initializer.text==='customer-contact')snippets.contact.push(n.getText(ast));
+   if(cls.initializer.text==='customer-next-job')snippets.job.push(n.getText(ast));
    if(cls.initializer.text==='customer-timeline-disclosure')snippets.activity.push(n.getText(ast));
   }
  }
@@ -35,18 +36,25 @@ scan(view);
 const contact=exactlyOne(snippets.contact,'contact row');
 const activity=exactlyOne(snippets.activity,'activity disclosure');
 const actions=exactlyOne(snippets.actions,'conditional next actions');
+const job=exactlyOne(snippets.job,'original current job button');
+const profileSource=view.getText(ast);
+assert.ok(profileSource.indexOf('className="customer-contact"')<profileSource.indexOf('className="customer-next-job"')&&profileSource.indexOf('className="customer-next-job"')<profileSource.indexOf('className="record-tabs"'),'The current job shortcut is above records and after contacts');
+assert.match(profileSource,/setSection\("photos"\)\}>Photos<\/button>/,'Photos tab uses short label');
 assert.match(contact,/Google Maps/);
 assert.match(contact,/Google Earth/);
 assert.match(contact,/Zillow/);
 assert.match(activity,/customer-timeline-list/);
 const fixture=[
  "import React,{useState}from'react';import{createRoot}from'react-dom/client';",
- "import{Phone,Send,Mail,Navigation,Globe2,House,ChevronRight}from'lucide-react';",
+ "import{Phone,Send,Mail,Navigation,Globe2,House,ChevronRight,Sparkles}from'lucide-react';",
  "function Fixture(){",
  " const [selected,setSelected]=useState({id:'synthetic',name:'Synthetic customer',phone:'9185550101',email:'synthetic@example.invalid',address:'123 Synthetic Rd, Tulsa, OK'});",
  " const [timelineFilter,setTimelineFilter]=useState('all'),[timelineSearch,setTimelineSearch]=useState(''),[timelineShown,setTimelineShown]=useState(6);",
  " const [withActions,setWithActions]=useState(true);",
- " window.__setSelected=setSelected;window.__setWithActions=setWithActions;window.__clicked=[];",
+ " const [activeCustomerEstimate,setActiveCustomerEstimateState]=useState({id:'job-001',service:'Gutter cleaning',status:'scheduled',scheduledAt:'2026-10-30T14:00:00Z'});",
+ " const setActiveEstimate=e=>{window.__openedJob=e};",
+ " const statusLabel=status=>status;",
+ " window.__setSelected=setSelected;window.__setWithActions=setWithActions;window.__setActiveCustomerEstimate=setActiveCustomerEstimateState;window.__clicked=[];",
  " const openCustomerAction=a=>window.__clicked.push('action:'+a.key),openTimelineEntry=e=>window.__clicked.push('activity:'+e.key);",
  " const dateTime=s=>s;",
  " const nextCustomerActions=withActions?[{key:'review-check',title:'Check review',detail:'Synthetic due review'}]:[];",
@@ -54,7 +62,7 @@ const fixture=[
  " const filteredTimelineEntries=timelineEntries.filter(e=>(timelineFilter==='all'||e.section===timelineFilter)&&e.title.toLowerCase().includes(timelineSearch.toLowerCase()));",
  " const visibleTimelineEntries=filteredTimelineEntries.slice(0,timelineShown);",
  " return <main className='customers-view'><section className='customer-profile'>",
- contact,actions,activity,
+ contact,job,actions,activity,
  " </section></main>;",
  "}",
  "createRoot(document.getElementById('app')).render(<Fixture/>);"
@@ -86,6 +94,12 @@ try{
   check(await row.getByRole('link',{name:'Email customer'}).getAttribute('href')==='mailto:synthetic@example.invalid',width+': existing mail destination');
   check((await row.getByRole('link',{name:'Directions to customer in Google Maps'}).getAttribute('href')).includes('destination=123%20Synthetic%20Rd'),width+': maps destination preserved');
   check(await row.getByText('No phone').count()===0&&await row.getByText('No email').count()===0,width+': no dummy contact controls');
+  const shortcut=page.locator('.customer-next-job');
+  check(await shortcut.count()===1,width+': exactly one current job shortcut');
+  check(await shortcut.getByText('Open scheduled job').isVisible(),width+': scheduled job label is truthful');
+  await shortcut.click();
+  check(await page.evaluate(()=>window.__openedJob?.id==='job-001'&&window.__openedJob?.customer==='Synthetic customer'),width+': original current job handler opens correct customer and job');
+  check(await shortcut.evaluate(el=>{const p=el.getBoundingClientRect();return p.height>=44&&p.left>=-1&&p.right<=innerWidth+1}),width+': current job tap target stays within phone');
   await row.locator('details.customer-property-links>summary').click();
   check(await row.getByRole('link',{name:'Google Earth'}).isVisible()&&await row.getByRole('link',{name:'Zillow'}).isVisible(),width+': property links remain accessible');
   check(await page.getByRole('region',{name:'Review next customer actions'}).isVisible(),width+': actual due customer actions stay immediately visible');
@@ -104,6 +118,12 @@ try{
   check(geo.targets.every(r=>r.left>=-1&&r.right<=width+1&&r.height>=44),width+': all contact and history taps at least 44px');
  }
  await page.evaluate(()=>{window.__setSelected(s=>({...s,phone:'',email:'',address:''}));window.__setWithActions(false)});
+ for(const [status,label] of [['draft','Continue draft estimate'],['sent','Open estimate'],['completed','Open completed job']]){
+  await page.evaluate(next=>window.__setActiveCustomerEstimate(s=>({...s,status:next,scheduledAt:null})),status);
+  check(await page.locator('.customer-next-job').getByText(label,{exact:true}).isVisible(),status+': status label matches saved estimate');
+ }
+ await page.evaluate(()=>window.__setActiveCustomerEstimate(null));
+ check(await page.locator('.customer-next-job').count()===0,'No fictional current job is shown when there are no estimates');
  await page.waitForFunction(()=>document.querySelector('.customer-contact-empty'));
  check(await page.locator('.customer-contact a').count()===0,'Missing customer contacts never create fake clickable links');
  check(await page.locator('.customer-contact-empty').isVisible(),'Missing contact summary stays available with Edit customer direction');
