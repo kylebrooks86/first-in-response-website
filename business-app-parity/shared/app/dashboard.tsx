@@ -1120,9 +1120,14 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
         <div className="dashboard-next-job-actions">
           <Button className="brand-button" onClick={()=>onOpenEstimate?onOpenEstimate(upcomingJobs[0].id):onNavigate("schedule")}>Open next job <ChevronRight className="h-4 w-4"/></Button>
           {upcomingJobs[0].address?.trim()&&<a className="dashboard-next-directions" aria-label="Directions to next job" href={`https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate&destination=${encodeURIComponent(upcomingJobs[0].address.trim())}`} target="_blank" rel="noopener noreferrer"><Navigation className="h-4 w-4"/> Directions</a>}
-          {nextJobPhone&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Call next job customer" href={"tel:"+nextJobPhone}><Phone className="h-4 w-4"/> Call</a>}
-          {nextJobPhone&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Text next job customer" href={"sms:"+nextJobPhone}><MessageSquareText className="h-4 w-4"/> Text</a>}
-          {canEmailNextJob&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Email next job customer" href={"mailto:"+encodeURIComponent(nextJobEmail)}><Mail className="h-4 w-4"/> Email</a>}
+          {(nextJobPhone||canEmailNextJob)&&<details className="dashboard-next-contact-tools">
+            <summary><Phone className="h-4 w-4" aria-hidden="true"/> Contact customer <ChevronDown className="h-4 w-4" aria-hidden="true"/></summary>
+            <div className="dashboard-next-contact-options">
+              {nextJobPhone&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Call next job customer" href={"tel:"+nextJobPhone}><Phone className="h-4 w-4"/> Call</a>}
+              {nextJobPhone&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Text next job customer" href={"sms:"+nextJobPhone}><MessageSquareText className="h-4 w-4"/> Text</a>}
+              {canEmailNextJob&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Email next job customer" href={"mailto:"+encodeURIComponent(nextJobEmail)}><Mail className="h-4 w-4"/> Email</a>}
+            </div>
+          </details>}
           <Button variant="outline" onClick={()=>onNavigate("schedule")}>Full schedule</Button>
         </div>
       </section>}
