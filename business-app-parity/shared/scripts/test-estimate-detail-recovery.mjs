@@ -86,11 +86,12 @@ eq(moreStart>mainStart&&moreEnd>moreStart,true,'Secondary job tools exist in the
 const primary=detailSource.slice(mainStart,moreStart),secondary=detailSource.slice(moreStart,moreEnd);
 for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','tel:','sms:'])eq(primary.includes(label),true,'Daily customer action available: '+label);
 eq(primary.includes('Estimate research')&&primary.includes('Google Earth')&&primary.includes('Zillow'),true,'Quote preparation presents Earth and Zillow together');
-eq(primary.includes('Driving to job')&&primary.includes('Google Maps')&&primary.includes('StrideButton'),true,'Scheduled work presents navigation and mileage tracking together');
-eq(secondary.includes('Google Maps')&&secondary.includes('StrideButton'),true,'Directions and mileage tracking stay available for other job stages under More tools');
-for(const label of ['Customer view','StrideButton','Google Earth','Zillow','OwnerJobTools'])eq(secondary.includes(label),true,'Existing research and job control retained: '+label);
-eq(secondary.includes('Job report, costs & more')&&secondary.includes('More tools'),true,'Scheduled jobs identify the report shortcut, while optional research stays in the disclosure');
-// Every tool remains available, while the currently relevant pair is surfaced without another menu tap.
+eq(primary.includes('Driving to job')&&primary.includes('Google Maps')&&!primary.includes('StrideButton'),true,'Scheduled work shows Maps without duplicating the Home Stride shortcut');
+eq(secondary.includes('Google Maps')&&!secondary.includes('StrideButton'),true,'Directions remain available under More tools without another Stride button');
+for(const label of ['Customer view','Google Earth','Zillow','OwnerJobTools'])eq(secondary.includes(label),true,'Existing research and job control retained: '+label);
+eq(secondary.includes('More tools')&&!secondary.includes('Job report, costs & more'),true,'Expandable tools use one short label, with job reports directly accessible');
+eq(ast.getText().includes('<StrideButton top/>'),true,'Home retains its single Stride button in the header');
+// Stage-specific actions stay available without a duplicate mileage shortcut.
 const researchJob=fixture();researchJob.setFetcher(()=>Promise.resolve(ok(false,'quote')));researchJob.open({...job('quote'),status:'draft',address:'123 Synthetic St'});await flush();
 const researchNodes=researchJob.nodes();
 eq(researchNodes.some(n=>n.props?.['aria-label']==='Estimate research'),true,'Quote stage exposes Earth and Zillow as research tools');
@@ -98,7 +99,7 @@ eq(researchNodes.some(n=>n.props?.['aria-label']==='Driving to job'),false,'Draf
 eq(researchNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Secondary owner tools stay available for a draft quote');
 const scheduledJob=fixture();scheduledJob.setFetcher(()=>Promise.resolve(ok(false,'booked')));scheduledJob.open({...job('booked'),address:'123 Synthetic St',scheduledAt:'2026-10-28T14:00:00.000Z'});await flush();
 const scheduledNodes=scheduledJob.nodes();
-eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Driving to job'),true,'Booked job exposes Google Maps and Stride together');
+eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Driving to job'),true,'Booked job exposes Google Maps directly; Stride stays in Home');
 eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Job report and costs'),true,'Scheduled work surfaces Job report and Job costs directly, without a More tools tap');
 eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Estimate research'),false,'Booked job does not repeat pre-estimate research buttons up front');
 eq(scheduledNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Booked job retains extra research and customer-view tools under More tools');
