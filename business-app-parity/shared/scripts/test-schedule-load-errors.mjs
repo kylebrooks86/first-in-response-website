@@ -20,7 +20,7 @@ const context={exports:{},require,...pagination.exports,...spacing.exports,Error
  useEffect(fn){effect=fn;},useCurrentTime:()=>scheduleNow,fetch:async (url,options)=>{requests.push(url);fetchOptions.push(options);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,dateTime:s=>s,
 };
 vm.runInNewContext(ts.transpileModule(declarations.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=ScheduleView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
-function render(searchQuery=''){cursor=0;if(!(4 in state))state[4]='all';if(!(5 in state))state[5]='';return context.exports.view({searchQuery});}
+function render(searchQuery=''){cursor=0;if(!(4 in state))state[4]='all';if(!(5 in state))state[5]=new Date(scheduleNow).toLocaleDateString('en-CA',{timeZone:'America/Chicago'});return context.exports.view({searchQuery});}
 function nodes(tree){const out=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;out.push(n);walk(n.props?.children);}walk(tree);return out;}
 async function settle(){for(let i=0;i<16;i++)await Promise.resolve();assert.equal(state[2],false,'Load must settle');}
 const job={id:'job-synthetic',customer:'Synthetic QA',service:'House Wash',status:'scheduled',scheduledAt:'2026-10-10T12:00:00Z',address:'123 A & B St, Tulsa',totalCents:10000,invoiceTotalCents:8000,depositCents:5000,paidCents:2000};
@@ -106,7 +106,7 @@ const chosenDay=()=>nodes(render()).find(n=>n.props?.id==='schedule-specific-dat
 const dayButton=name=>nodes(render()).find(n=>n.type===stubs.Button&&n.props?.['aria-label']===name);
 assert.ok(chosenDay()&&dayButton('Previous work date')&&dayButton('Next work date'));checks++;
 chosenDay().props.onChange({target:{value:'2026-10-20'}});
-equal(state[5],'date');equal(state[6],'2026-10-20');
+equal(state[4],'date');equal(state[5],'2026-10-20');
 equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,2);
 let exactRoute=new URL(nodes(render()).find(n=>n.props?.className==='route-day-button').props.href);
 equal(exactRoute.searchParams.get('destination'),'Today late stop');
@@ -117,12 +117,12 @@ const hiddenDayRoute=new URL(hiddenDay.find(n=>n.props?.className==='route-day-b
 equal(hiddenDayRoute.searchParams.get('destination'),'Today late stop');
 equal(hiddenDayRoute.searchParams.get('waypoints'),'Today first stop');
 dayButton('Next work date').props.onClick();
-equal(state[6],'2026-10-21');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,1);
+equal(state[5],'2026-10-21');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,1);
 exactRoute=new URL(nodes(render()).find(n=>n.props?.className==='route-day-button').props.href);
 equal(exactRoute.searchParams.get('destination'),'Tomorrow stop');equal(exactRoute.searchParams.has('waypoints'),false);
 dayButton('Next work date').props.onClick();
-equal(state[6],'2026-10-22');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,1);
-dayButton('Previous work date').props.onClick();equal(state[6],'2026-10-21');
+equal(state[5],'2026-10-22');equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,1);
+dayButton('Previous work date').props.onClick();equal(state[5],'2026-10-21');
 chosenDay().props.onChange({target:{value:'2026-10-25'}});
 equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,0);
 equal(nodes(render()).some(n=>n.props?.children==='No scheduled or completed jobs on this date'),true);
@@ -135,13 +135,13 @@ equal(nodes(render()).some(n=>n.props?.className==='route-day-button'),false);
 equal(nodes(render()).some(n=>n.type===stubs.ScheduleWeather),true);
 nodes(render()).find(n=>n.props?.className==='schedule-job').props.onClick();
 equal(state[1].id,'completed-yesterday');
-chosenDay().props.onChange({target:{value:''}});equal(state[5],'all');
+chosenDay().props.onChange({target:{value:''}});equal(state[4],'all');
 equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,4);
 equal(requests.length,1,'Changing schedule days never creates a network request');
 // Day increments are UTC calendar operations, not 24-hour elapsed local-time offsets.
 for(const [start,next] of [['2026-03-07','2026-03-08'],['2026-03-08','2026-03-09'],['2026-10-31','2026-11-01'],['2026-11-01','2026-11-02']]){
  chosenDay().props.onChange({target:{value:start}});
- dayButton('Next work date').props.onClick();equal(state[6],next);
+ dayButton('Next work date').props.onClick();equal(state[5],next);
 }
 
 // Render the real ScheduleView close-start advisory from a complete owner list.
@@ -196,16 +196,16 @@ scheduleNow=Date.parse('2026-10-09T12:00:00Z');
 // Owner-initiated refresh performs one read without a browser cache and never submits writes.
 state=[[],null,true,''];responder=()=>ok([job]);requests=[];fetchOptions=[];
 render();effect();await settle();
-equal(typeof state[4],'string');equal(Number.isFinite(Date.parse(state[4])),true);
-const refreshButton=()=>nodes(render()).find(node=>node.type===stubs.Button&&node.props?.['aria-label']==='Refresh schedule');
+equal(typeof state[5],'string');equal(Number.isFinite(Date.parse(state[5])),true);
+const refreshButton=()=>nodes(render()).find(node=>node.props?.['aria-label']==='Refresh schedule');
 assert.ok(refreshButton());checks++;equal(refreshButton().props.disabled,false);
 responder=()=>ok([job,{...job,id:'newly-booked',address:'Updated appointment',scheduledAt:'2026-10-10T18:00:00Z'}]);
 requests=[];fetchOptions=[];
 refreshButton().props.onClick();equal(state[2],true);equal(refreshButton().props.disabled,true);equal(nodes(render()).some(n=>n.type===stubs.ScheduleMonthCalendar),false);
 await settle();equal(requests.length,1);equal(requests[0],'/api/estimate-history?limit=50');equal(fetchOptions[0]?.cache,'no-store');
 equal(state[0].length,2);equal(nodes(render()).filter(node=>node.props?.className==='schedule-job').length,2);
-const previous=state[4];responder=()=>{throw new Error('Synthetic offline during refresh');};requests=[];refreshButton().props.onClick();await settle();
-equal(state[3],'Synthetic offline during refresh');equal(state[0].length,2);equal(state[4],previous);
+const previous=state[5];responder=()=>{throw new Error('Synthetic offline during refresh');};requests=[];refreshButton().props.onClick();await settle();
+equal(state[3],'Synthetic offline during refresh');equal(state[0].length,2);equal(state[5],previous);
 equal(nodes(render()).some(node=>node.props?.className==='schedule-board'),false);
 equal(nodes(render()).some(node=>node.type===stubs.ScheduleMonthCalendar),false);
 equal(nodes(render()).some(node=>node.props?.className==='route-day-button'),false);
