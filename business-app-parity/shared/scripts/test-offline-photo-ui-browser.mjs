@@ -163,6 +163,16 @@ try{
    'Real owner Save-to-Files button invokes the native share sheet within its fresh user gesture');
  check(share.filename.startsWith('FIRE-customer-synthetic-customer-photo-photos-'),
    'Native sharing includes the verified customer-specific ZIP filename and bytes');
+ // A failed iPhone share sheet must point to the backup action hidden under
+ // the new optional disclosure without clearing the already-prepared archive.
+ await page.locator('.photo-backup-more > summary').click();
+ check(!await page.locator('details.photo-backup-more').evaluate(node=>node.open),'Rare backup tools can be collapsed after saving');
+ await page.evaluate(()=>Object.defineProperty(navigator,'share',{configurable:true,value:async()=>{throw Error('Synthetic share sheet refusal');}}));
+ await page.getByRole('button',{name:'Save prepared ZIP to Files'}).click();
+ await page.getByRole('alert').getByText(/Open More photo backup tools, then Download prepared ZIP/).waitFor();
+ check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).isVisible(),'Sharing failure keeps the verified prepared ZIP available');
+ await page.locator('.photo-backup-more > summary').click();
+ check(await page.getByRole('button',{name:'Download prepared ZIP'}).isVisible(),'Fallback download is discoverable exactly where the error message directs the owner');
 
  const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Download prepared ZIP'}).click()]);
  const filename=download.suggestedFilename();
