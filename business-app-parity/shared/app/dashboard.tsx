@@ -1954,21 +1954,20 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
 }
 
 
-/** Choose the next saved appointment, not whichever quote happens to be first in the API response. */
-function pickCustomerNextEstimate(rows:CustomerEstimate[],now:number):CustomerEstimate|undefined{
-  const dated=rows.filter(row=>row.status==="scheduled"&&typeof row.scheduledAt==="string"&&Number.isFinite(Date.parse(row.scheduledAt)))
-    .sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
-  // Future appointments take priority; after those, show the most recent overdue job.
-  // Invalid/missing dates never displace a verified scheduled appointment.
-  return dated.find(row=>Date.parse(row.scheduledAt!)>=now)
-    ??dated.at(-1)
-    ??rows.find(row=>row.status==="scheduled")
-    ??rows.find(row=>["approved","sent","draft"].includes(row.status))
-    ??rows.find(row=>row.status==="completed"&&row.paidCents<resolvedBillingTotalCents(row))
-    ??rows[0];
-}
-
 function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSection="estimates",onFocusHandled,focusRecord,recordRequestKey=0,onRecordFocusHandled,onPreparePickupTask,onPrepareReviewTask,activityFocus,onActivityFocusHandled }: { onEstimateSaved: (estimate: EstimateRow) => void; searchQuery: string;focusCustomerId?:string|null;focusSection?:"estimates"|"invoices"|"payments"|"notes";focusRecord?:CustomerRecordFocus|null;recordRequestKey?:number;onRecordFocusHandled?:(id:string)=>void;onFocusHandled?:(id:string)=>void;onPreparePickupTask?:(draft:YardSignPickupDraft)=>void;onPrepareReviewTask?:(draft:ReviewCheckDraft)=>void;activityFocus?:{customerId:string;kind:"sign"|"review";request:number}|null;onActivityFocusHandled?:(request:number)=>void }) {
+  /** Choose the next saved appointment, not whichever quote happens to be first in the API response. */
+  function pickCustomerNextEstimate(rows:CustomerEstimate[],now:number):CustomerEstimate|undefined{
+    const dated=rows.filter(row=>row.status==="scheduled"&&typeof row.scheduledAt==="string"&&Number.isFinite(Date.parse(row.scheduledAt)))
+      .sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
+    // Future appointments take priority; after those, show the most recent overdue job.
+    // Invalid/missing dates never displace a verified scheduled appointment.
+    return dated.find(row=>Date.parse(row.scheduledAt!)>=now)
+      ??dated.at(-1)
+      ??rows.find(row=>row.status==="scheduled")
+      ??rows.find(row=>["approved","sent","draft"].includes(row.status))
+      ??rows.find(row=>row.status==="completed"&&row.paidCents<resolvedBillingTotalCents(row))
+      ??rows[0];
+  }
   /** Read-only customer flag presentation: owner actions are not automatically external sends. */
   function customerFlagPresentation(input:{
     estimateSent:boolean;estimateMarkedSent?:boolean;hasDraftEstimate?:boolean;invoiceCreated:boolean;invoiceSendConfirmed:boolean;

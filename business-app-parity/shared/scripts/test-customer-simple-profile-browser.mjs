@@ -13,7 +13,9 @@ const tailwind=require('@tailwindcss/postcss');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const source=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
-const priorityFn=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='pickCustomerNextEstimate');
+const customerViewAst=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='CustomersView');
+assert.ok(customerViewAst,'Find actual CustomersView source function');
+const priorityFn=customerViewAst.body.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='pickCustomerNextEstimate');
 assert.ok(priorityFn,'Extract the real customer next-job prioritizer, not a test reimplementation');
 const priorityContext={exports:{},Date,resolvedBillingTotalCents:row=>row.totalCents};
 const priorityJs=ts.transpileModule(priorityFn.getText(ast)+'\nexports.pick=pickCustomerNextEstimate;',{
