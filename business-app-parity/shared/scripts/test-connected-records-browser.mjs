@@ -79,6 +79,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await page.locator('.customer-card').filter({hasText:'Fixture first'}).click();
   const balances=await page.locator('.customer-snapshot').innerText(),startReads=reads;
   const flags=page.getByRole('region',{name:'Customer activity and yard sign flags'});
+  await flags.getByText('More statuses',{exact:true}).click();
   check((await flags.innerText()).includes('Review received')&&(await flags.innerText()).includes('Not logged'),'Unverified reviews never appear as received');
   check((await flags.innerText()).includes('Invoice')&&(await flags.innerText()).includes('Created · send not confirmed'),'Created invoice never implies a confirmed send');
   const timeline=page.getByRole('region',{name:'Recent customer activity'});
