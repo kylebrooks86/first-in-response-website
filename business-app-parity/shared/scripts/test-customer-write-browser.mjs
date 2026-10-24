@@ -166,7 +166,7 @@ try{
   const bounds=await page.locator('.customer-profile').evaluate(n=>({width:n.scrollWidth,viewport:innerWidth}));check(bounds.width<=bounds.viewport,'Customer profile stays within narrow viewport');
  }
  for(const width of [320,390])for(const theme of ['light','dark']){
-  historyFailure=false;await page.setViewportSize({width,height:700});await page.goto(origin+'/history');await page.evaluate(value=>window.setTheme(value),theme);await page.locator('.pipeline-card').filter({hasText:'Prior query customer'}).waitFor();
+  historyFailure=false;await page.setViewportSize({width,height:700});await page.goto(origin+'/history');await page.evaluate(value=>window.setTheme(value),theme);await page.locator('.estimate-card').filter({hasText:'Prior query customer'}).waitFor();check(await page.locator('.pipeline-card').count()===0,'Simple list is the default estimate view; pipeline stays available by selection');
   for(const mode of ['Pipeline','List']){
    await page.getByRole('button',{name:mode,exact:true}).click();historyFailure=true;await page.getByLabel('Search estimate history',{exact:true}).fill('Latest '+mode);
    await page.getByRole('alert').filter({hasText:'Synthetic history refresh failed'}).waitFor();
