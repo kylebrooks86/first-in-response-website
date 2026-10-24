@@ -118,10 +118,10 @@ try{
  await page.getByRole('button',{name:'Callbacks due (1)'}).click();
  check(await page.locator('.customer-card').count()===1,'Due-date filter identifies only outstanding owner-saved callbacks');
  await page.locator('.customer-card').first().click();
- await page.getByRole('button',{name:'Prepare callback handled note'}).click();
- check(await page.getByLabel('Customer note',{exact:true}).inputValue()==='[FIRE FLAG] LEAD_CALLBACK_HANDLED',
-  'Explicit callback completion prepares marker, not a contacted/sent message');
- await page.getByRole('button',{name:'Add note',exact:true}).click();
+ await page.getByRole('button',{name:'Mark callback done'}).evaluate(button=>{button.click();button.click();});
+ await page.getByText('Callback marked done.',{exact:true}).waitFor();
+ check(notes[0]?.body==='[FIRE FLAG] LEAD_CALLBACK_HANDLED'&&notes.length===3&&notePosts===3,
+  'One-tap callback completion records one handled marker without claiming customer contact');
  await page.getByRole('button',{name:'← All customers',exact:true}).click();
  await page.getByText('No due callbacks match',{exact:true}).waitFor();
  check(notes.length===3&&notes[0].body==='[FIRE FLAG] LEAD_CALLBACK_HANDLED',
