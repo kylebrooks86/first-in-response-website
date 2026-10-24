@@ -146,7 +146,7 @@ try{
    f.open(job('central-save'));await flush();
    f.nodes().find(n=>n.props?.id==='scheduleDate').props.onChange({target:{value:wall}});
    const calls=[];f.setFetcher(async(url,options)=>{calls.push({url,body:JSON.parse(options.body)});return {ok:true,json:async()=>({estimate:{status:'scheduled',scheduledAt:expected}})};});
-   f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).includes('Save job date')).props.onClick();
+   f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).some(c=>typeof c==='string'&&c.trim()==='Save job date')).props.onClick();
    await flush();
    eq(calls.length,1,zone+': one appointment save');
    eq(calls[0].body.scheduledAt,expected,zone+': Tulsa clock time converted to correct UTC');
@@ -159,7 +159,7 @@ try{
    f.open(job('invalid-schedule'));await flush();
    f.nodes().find(n=>n.props?.id==='scheduleDate').props.onChange({target:{value:invalid}});
    const calls=[];f.setFetcher(async(url,options)=>{calls.push(url);return {ok:true,json:async()=>({estimate:{status:'scheduled'}})};});
-   f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).includes('Save job date')).props.onClick();
+   f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).some(c=>typeof c==='string'&&c.trim()==='Save job date')).props.onClick();
    await flush();
    eq(calls.length,0,zone+': invalid '+invalid+' must never PATCH');
    eq(f.get('error').includes(reason),true,zone+': visible DST/calendar error');
