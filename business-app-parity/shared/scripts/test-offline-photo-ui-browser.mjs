@@ -100,6 +100,8 @@ try{
  const backupSummary=backupTools.locator(':scope > summary');
  check(await backupSummary.evaluate(node=>node.getBoundingClientRect().height>=44),
   'Optional photo backup summary has a finger-sized target');
+ check(await backupSummary.evaluate(node=>getComputedStyle(node,'::after').content.includes('▾')),
+  'Expandable backup tools advertise a visible disclosure chevron');
  await backupSummary.click();
  await verifyPhotoActionGeometry('390px, expanded ZIP tools:');
  const library=page.locator('input[type="file"][multiple]');
@@ -145,6 +147,7 @@ try{
  const comparisonMore=page.locator('details.photo-comparison-more');
  check(!await comparisonMore.evaluate(node=>node.open),'Photo upload stays focused: comparison editor starts collapsed');
  check(await comparisonMore.locator(':scope > summary').evaluate(node=>node.getBoundingClientRect().height>=44),'Comparison editor has an iPhone-sized tap target');
+ check(await comparisonMore.locator(':scope > summary').evaluate(node=>getComputedStyle(node,'::after').content.includes('▾')),'Comparison tool has a visible expand cue');
  await comparisonMore.locator(':scope > summary').click();
  check(await page.getByRole('button',{name:'Create comparison'}).isVisible(),'Saved before/after photos still open the working comparison editor');
  const [comparisonDownload]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Create comparison'}).click()]);
