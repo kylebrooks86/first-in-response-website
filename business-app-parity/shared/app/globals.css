@@ -2049,3 +2049,16 @@ html,body{max-width:100%;overflow-x:clip}
 
 /* Distinguish customer signature and approval milestones from workflow status. */
 .estimate-person .estimate-legal-state{font-size:11px;font-weight:750;color:var(--foreground);line-height:1.35}
+
+/* Today: keep driving/job actions prominent and expose customer contact on demand. */
+.dashboard-next-contact-tools{min-width:0;max-width:100%;flex:0 1 182px}
+.dashboard-next-contact-tools>summary{display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;border:1px solid var(--border);border-radius:9px;background:var(--background);padding:10px 12px;color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer;list-style:none;overflow-wrap:anywhere}
+.dashboard-next-contact-tools>summary::-webkit-details-marker{display:none}
+.dashboard-next-contact-tools>summary svg:last-child{transition:transform .15s ease}
+.dashboard-next-contact-tools[open]>summary svg:last-child{transform:rotate(180deg)}
+.dashboard-next-contact-tools>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.dashboard-next-contact-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-top:8px}
+.dashboard-next-contact-options>a{min-width:0;width:100%;min-height:44px;padding:10px 8px}
+.dashboard-next-contact-options>a:last-child:nth-child(odd){grid-column:1/-1}
+@media(max-width:760px){.dashboard-next-contact-tools{flex:1 1 100%}}
+@media(max-width:420px){.dashboard-next-contact-tools{width:100%}}
