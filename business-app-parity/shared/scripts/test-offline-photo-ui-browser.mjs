@@ -306,8 +306,9 @@ try{
  await coldPage.goto(origin+'/');
  await coldPage.locator('.photo-card').nth(1).waitFor({timeout:30000});
  check(await coldPage.locator('.photo-card').count()===2,'Browser fully closed, HTTP server stopped: actual React customer-photo screen cold-launches offline with original IndexedDB photos');
- check(await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).count()===1,'Offline cold launch retains the real customer ZIP export control');
+ check(await coldPage.locator('details.photo-backup-more').evaluate(node=>!node.open),'Offline restart keeps advanced photo tools collapsed by default');
  await coldPage.locator('.photo-backup-more > summary').click();
+ check(await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).count()===1,'Offline cold launch retains the real customer ZIP export control');
  await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
  await coldPage.getByText(/ZIP is ready/).waitFor({timeout:30000});
  check(await coldPage.getByRole('button',{name:'Download prepared ZIP'}).count()===1,'Actual photo ZIP can be freshly prepared after fully offline browser restart');
