@@ -84,7 +84,10 @@ for(const hasSavedAppointment of [false,true]){
 const detailSource=fn.getText(ast),moreStart=detailSource.indexOf('<details className="detail-more-tools">'),moreEnd=detailSource.indexOf('</details>',moreStart),mainStart=detailSource.indexOf('<div className="detail-actions" aria-label="Customer and estimate actions">');
 eq(moreStart>mainStart&&moreEnd>moreStart,true,'Secondary job tools exist in their own expandable section');
 const primary=detailSource.slice(mainStart,moreStart),secondary=detailSource.slice(moreStart,moreEnd);
-for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','tel:','sms:','Directions'])eq(primary.includes(label),true,'Daily customer action available: '+label);
+for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','tel:','sms:'])eq(primary.includes(label),true,'Daily customer action available: '+label);
+eq(primary.includes('Estimate research')&&primary.includes('Google Earth')&&primary.includes('Zillow'),true,'Quote preparation presents Earth and Zillow together');
+eq(primary.includes('Driving to job')&&primary.includes('Google Maps')&&primary.includes('StrideButton'),true,'Scheduled work presents navigation and mileage tracking together');
+eq(secondary.includes('Google Maps')&&secondary.includes('StrideButton'),true,'Directions and mileage tracking stay available for other job stages under More tools');
 for(const label of ['Customer view','StrideButton','Google Earth','Zillow','OwnerJobTools'])eq(secondary.includes(label),true,'Existing research and job control retained: '+label);
 eq(secondary.includes('Job report, costs & more')&&secondary.includes('More tools'),true,'Scheduled jobs identify the report shortcut, while optional research stays in the disclosure');
 // Every tool remains available, while the currently relevant pair is surfaced without another menu tap.
