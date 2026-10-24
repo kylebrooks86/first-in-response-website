@@ -19,6 +19,10 @@ FORMAT = "fire-qa-iphone-release-decision-v1"
 # Never use these display values to silently authorize a Worker or D1 change.
 OWNER_OBSERVED_VERSION = "ab408776-bf5d-4fab-825e-73082eabbce6"
 OWNER_OBSERVED_MIGRATIONS = 25
+# On October 24 the owner separately read this UUID from the named QA D1
+# database page. This matches our configuration; it does NOT attest that the
+# active Worker version actually binds this UUID or that its schema is current.
+OWNER_PROVIDED_QA_D1_UUID = "8ccfb1f8-1657-4074-b1b2-47de78f95003"
 OWNER_OBSERVED_FINAL = (
     "0023_deposit_policy_events.sql",
     "0024_deposit_agreement_snapshots.sql",
@@ -45,10 +49,13 @@ def decision(capture_path: Path | None = None, *, schema_root: Path | None = Non
     except (ValueError, OSError) as error:
         raise QAReadinessStop("Pinned local schema differs: " + str(error)) from error
 
+    if OWNER_PROVIDED_QA_D1_UUID != qa.UUID:
+        raise QAReadinessStop("Owner-provided QA UUID differs from pinned candidate configuration.")
+
     captured, matching, captured_at, capture_hash = False, None, None, None
     blockers = []
     if capture_path is None:
-        blockers.append("CURRENT_QA_SCHEMA_AND_D1_UUID_NOT_INDEPENDENTLY_VERIFIED")
+        blockers.append("CURRENT_QA_SCHEMA_AND_WORKER_D1_BINDING_NOT_INDEPENDENTLY_VERIFIED")
     else:
         try:
             review = offline.evaluate(capture_path)
@@ -70,7 +77,7 @@ def decision(capture_path: Path | None = None, *, schema_root: Path | None = Non
 
     blockers.extend([
         "RECOVERABLE_QA_BACKUP_AND_RESTORE_NOT_VERIFIED",
-        "OWNER_OBSERVED_25_MIGRATIONS_NOT_SCHEMA_OR_UUID_ATTESTATION",
+        "OWNER_OBSERVED_25_MIGRATIONS_NOT_FULL_SCHEMA_ATTESTATION",
         "CURRENT_QA_SERVED_VERSION_NOT_LINKED_TO_CANDIDATE_SOURCE",
         "EXACT_OWNER_APPROVAL_FOR_QA_CODE_UPDATE_MISSING",
         "HOSTED_AND_PHYSICAL_IPHONE_ACCEPTANCE_MISSING",
@@ -85,6 +92,9 @@ def decision(capture_path: Path | None = None, *, schema_root: Path | None = Non
         "qaWorker": qa.WORKER,
         "qaDatabase": qa.NAME,
         "qaDatabaseUuid": qa.UUID,
+        "ownerProvidedQaDatabaseUuid": OWNER_PROVIDED_QA_D1_UUID,
+        "ownerProvidedUuidMatchesConfig": True,
+        "qaWorkerRuntimeBindingIndependentlyAttested": False,
         "pinnedServingVersion": qa.ACTIVE_VERSION,
         "pinnedServingVersionIsHistorical": True,
         "ownerObservedServingVersion": OWNER_OBSERVED_VERSION,
@@ -108,8 +118,9 @@ def decision(capture_path: Path | None = None, *, schema_root: Path | None = Non
         "blockers": blockers,
         "iphoneReviewScreens": SCREENS,
         "nextSafeAction": (
-            "Verify the currently serving QA version's D1 UUID and full 25-migration "
-            "schema/journal with a current, read-only owner-authenticated capture. "
+            "Owner-provided QA D1 UUID now matches repository config; do not ask for "
+            "it again. Verify the active QA Worker's actual D1 binding and full "
+            "25-migration schema/journal with a current read-only capture. "
             "Owner screenshots already show 0023/0024 applied; never reapply them. "
             "Confirm private backup custody and exact source-to-deployment evidence "
             "before seeking a separate QA-only publication approval. No LIVE action."
