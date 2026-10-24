@@ -17,7 +17,7 @@ $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Only recognize the serving version from the October 19 owner-authenticated metadata check
 # owner-captured Cloudflare status. Match the full
 # active version UUID; reject historical, split, changed or ambiguous versions.
-$expectedActiveVersion = '58a467fa-9dbc-45a3-971e-b5a4e478f54d'
+$expectedActiveVersion = 'ab408776-bf5d-4fab-825e-73082eabbce6'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }
@@ -130,7 +130,7 @@ $activeVersions = @($deploymentInfo.versions)
 Require ($activeVersions.Count -eq 1) 'QA Worker traffic is split or ambiguous. Stop.'
 Require ([double]$activeVersions[0].percentage -eq 100) 'Exactly one QA Worker version must serve 100 percent of requests.'
 $activeVersion = [string]$activeVersions[0].version_id
-Require ($activeVersion -ceq $expectedActiveVersion) 'Active QA Worker differs from owner-observed October 19 authenticated metadata check. Stop.'
+Require ($activeVersion -ceq $expectedActiveVersion) 'Active QA Worker differs from owner-observed October 23 authenticated QA code update. Stop.'
 Write-Host ('PASS: Active QA Worker is exactly one 100-percent deployment: ' + $activeVersion)
 Write-Host ('PASS: Existing QA database name and UUID match: ' + $qaDatabase)
 # Dry-run requires ONLY a disposable normalized manifest, outside any app data.
