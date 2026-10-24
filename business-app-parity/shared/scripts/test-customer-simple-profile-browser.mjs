@@ -22,13 +22,13 @@ function scan(n){
   const cls=el.attributes.properties.find(a=>ts.isJsxAttribute(a)&&a.name.text==='className');
   if(cls&&ts.isStringLiteral(cls.initializer)){
    if(cls.initializer.text==='customer-contact')snippets.contact.push(n.getText(ast));
-   if(cls.initializer.text==='customer-next-job')snippets.job.push(n.getText(ast));
    if(cls.initializer.text==='customer-timeline-disclosure')snippets.activity.push(n.getText(ast));
   }
  }
  if(ts.isJsxExpression(n)&&n.expression){
   const t=n.getText(ast);
   if(t.startsWith('{nextCustomerActions.length>0&&<section className="customer-action-review"'))snippets.actions.push(t);
+  if(t.startsWith('{activeCustomerEstimate&&<button')&&t.includes('className="customer-next-job"'))snippets.job.push(t);
  }
  ts.forEachChild(n,scan);
 }
@@ -36,7 +36,8 @@ scan(view);
 const contact=exactlyOne(snippets.contact,'contact row');
 const activity=exactlyOne(snippets.activity,'activity disclosure');
 const actions=exactlyOne(snippets.actions,'conditional next actions');
-const job=exactlyOne(snippets.job,'original current job button');
+const job=exactlyOne(snippets.job,'conditional current job shortcut including its no-job guard');
+assert.match(job,/^\{activeCustomerEstimate&&<button/,'Actual guard hides the shortcut when no customer estimate exists');
 const profileSource=view.getText(ast);
 assert.ok(profileSource.indexOf('className="customer-contact"')<profileSource.indexOf('className="customer-next-job"')&&profileSource.indexOf('className="customer-next-job"')<profileSource.indexOf('className="record-tabs"'),'The current job shortcut is above records and after contacts');
 assert.match(profileSource,/setSection\("photos"\)\}>Photos<\/button>/,'Photos tab uses short label');
