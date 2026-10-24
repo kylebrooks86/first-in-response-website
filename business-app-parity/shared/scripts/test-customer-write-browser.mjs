@@ -138,7 +138,7 @@ try{
  await unsentBeforeContact.fill('Unsent quote detail');
  await page.getByRole('button',{name:'Log lead contacted'}).evaluate(button=>{button.click();button.click();});
  await page.getByText('Contact logged.',{exact:true}).waitFor();
- check(notes.length===4&&notePosts===4&&notes[0].body==='[FIRE FLAG] LEAD_CONTACTED',
+ check(notes.length===4&&notePosts===4&&notes[0].body==='[FIRE FLAG] LEAD_CONTACT_RECORDED',
   'One-tap contacted creates one owner-recorded contact without messaging or quotes');
  check(await unsentBeforeContact.inputValue()==='Unsent quote detail',
   'Contact logging leaves unrelated customer note draft unchanged');
