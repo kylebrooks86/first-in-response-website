@@ -110,5 +110,8 @@ eq(completedNodes.some(n=>n.props?.['aria-label']==='Driving to job'),false,'Com
 const simpleJob=fixture();simpleJob.open(job('compact-scheduled'));await flush();
 eq(simpleJob.nodes().some(n=>n.props?.className==='next-action'),false,'Routine booked work has no redundant next-step box');
 const exceptionJob=fixture();exceptionJob.open({...job('held-billing'),paymentOverageOpen:1});await flush();
-eq(exceptionJob.nodes().some(n=>n.props?.className==='next-action'&&n.props.role==='alert'),true,'Payment exception still appears as an accessible warning');
+eq(exceptionJob.nodes().some(n=>n.props?.className==='change-alert'),true,'Unresolved overpayment keeps its actionable refund-or-retain controls');
+eq(exceptionJob.nodes().some(n=>n.props?.className==='next-action'),false,'Overpayment does not repeat a second warning above its controls');
+const pendingRefund=fixture();pendingRefund.open({...job('held-refund'),pendingRefundCount:1});await flush();
+eq(pendingRefund.nodes().some(n=>n.props?.className==='next-action'&&n.props.role==='alert'),true,'Pending refund remains an immediate financial alert');
 console.log(`PASS ${checks}/${checks}: actual estimate-detail effect/button state guards report loads across estimate switches, pending reads, close/unmount, failed/malformed responses and retry; synthetic reads/PATCH only; closeout failures, ownership validation and duplicate taps.`);
