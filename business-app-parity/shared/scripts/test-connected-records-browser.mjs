@@ -350,7 +350,12 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   const nextBounds=await nextJob.evaluate(n=>({left:n.getBoundingClientRect().left,right:n.getBoundingClientRect().right,width:innerWidth}));
   check(nextBounds.left>=-1&&nextBounds.right<=nextBounds.width+1,'Next appointment card fits each phone and tablet viewport');
   check(await nextJob.locator('button,a').evaluateAll(nodes=>nodes.every(n=>n.getBoundingClientRect().height>=44)),'Next appointment shortcuts and driving directions remain touch friendly');
-  await page.locator('.recent-estimate-row').filter({hasText:'Exact customer'}).click();check(await page.evaluate(()=>window.openedEstimate)==='exact-dashboard-job','Dashboard row chooses exact job identity');
+  check(await page.locator('.recent-estimate-row').count()===3,'Home shows only three recent estimates without a long phone scroll');
+  check(await page.locator('.recent-estimate-row').filter({hasText:'Exact customer'}).count()===0,'Older estimates move out of the compact Home list, not out of stored history');
+  await page.locator('.recent-estimate-row').filter({hasText:'Later customer'}).click();
+  check(await page.evaluate(()=>window.openedEstimate)==='later-dashboard-job','Visible Home row chooses the exact saved job identity');
+  await page.getByRole('button',{name:'View all',exact:true}).click();
+  check(await page.evaluate(()=>window.openedTab)==='estimates','Home View all retains navigation to complete estimate history');
   await page.goto(origin+'/dashboard-bad-contact');
   await page.getByRole('region',{name:'Next scheduled job'}).waitFor();
   check(await page.locator('.dashboard-next-contact').count()===0,'Malformed contact details cannot create dial, SMS or email links');
