@@ -321,6 +321,9 @@ function invokeDashboardPriority(label,values){
  checks++;
  assert.ok(source.includes('signs.filter(sign=>sign.pickupDate<=localDay)'),'Only due pickups qualify for Dashboard action');
  assert.ok(source.includes('b.elapsedDays-a.elapsedDays'),'Oldest review requests take priority independent of API order');
+  assert.ok(source.includes('preparedPaidReviewCount>0&&oldestPaidReview&&<button'), 'Only already-prepared paid review messages get the confirmation shortcut; unprepared reviews have their own action');
+  assert.ok(source.includes('unsentPaidReviewCount>0&&oldestUnpreparedReview&&<button'), 'Unprepared review work must not appear twice on Home');
+  checks+=2;
  checks+=2;
 }
 console.log('PASS '+(checks+2)+' notification and Dashboard attention checks; exact customer flags, safe priority callbacks and recovery.');
