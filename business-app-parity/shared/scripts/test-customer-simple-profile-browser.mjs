@@ -99,6 +99,16 @@ try{
   check(await row.getByRole('link',{name:'Email customer'}).getAttribute('href')==='mailto:synthetic@example.invalid',width+': existing mail destination');
   check((await row.getByRole('link',{name:'Directions to customer in Google Maps'}).getAttribute('href')).includes('destination=123%20Synthetic%20Rd'),width+': maps destination preserved');
   check(await row.getByText('No phone').count()===0&&await row.getByText('No email').count()===0,width+': no dummy contact controls');
+   if(width<=760){
+    const layout=await row.evaluate(el=>{
+     const rect=e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,height:r.height}};
+     return {columns:getComputedStyle(el).gridTemplateColumns.split(' ').length,actions:[...el.querySelectorAll(':scope>a')].map(rect),property:rect(el.querySelector('.customer-property-links'))};
+    });
+    check(layout.columns===2&&layout.actions.length===4,width+': Call, Text, Email and Maps use two compact iPhone columns');
+    check(layout.actions.every(a=>a.height>=48&&a.left>=-1&&a.right<=width+1),width+': every contact action remains a full-height visible tap target');
+    check(Math.abs(layout.actions[0].top-layout.actions[1].top)<3&&Math.abs(layout.actions[2].top-layout.actions[3].top)<3&&layout.actions[2].top>layout.actions[0].top+40,width+': four actions occupy two rows, not a tall list');
+    check(layout.property.top>layout.actions[3].top&&layout.property.left>=-1&&layout.property.right<=width+1,width+': existing Earth and Zillow disclosure stays below quick actions without overflow');
+   }
   check(await page.getByRole('status',{name:'Last lead contact'}).count()===0,width+': new lead has no unnecessary contact explanation');
   await page.evaluate(()=>window.__setLeadContact({state:'no_answer',unansweredAttempts:2,at:'2026-10-23T15:00:00Z'}));
   const lastContact=page.getByRole('status',{name:'Last lead contact'});
