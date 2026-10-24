@@ -15,7 +15,7 @@ const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true
 const view=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='CustomersView');
 assert.ok(view,'Use the actual CustomersView instead of a reimplementation');
 function exactlyOne(found,name){assert.equal(found.length,1,'One '+name+' in actual customer source');return found[0];}
-const snippets={contact:[],activity:[],actions:[],job:[]};
+const snippets={contact:[],activity:[],actions:[],job:[],contactOutcome:[]};
 function scan(n){
  if(ts.isJsxElement(n)){
   const el=n.openingElement;
@@ -29,6 +29,7 @@ function scan(n){
   const t=n.getText(ast);
   if(t.startsWith('{nextCustomerActions.length>0&&<section className="customer-action-review"'))snippets.actions.push(t);
   if(t.startsWith('{activeCustomerEstimate&&<button')&&t.includes('className="customer-next-job"'))snippets.job.push(t);
+  if(t.startsWith('{manualFlags.leadContact&&<p')&&t.includes('aria-label="Last lead contact"'))snippets.contactOutcome.push(t);
  }
  ts.forEachChild(n,scan);
 }
@@ -37,6 +38,7 @@ const contact=exactlyOne(snippets.contact,'contact row');
 const activity=exactlyOne(snippets.activity,'activity disclosure');
 const actions=exactlyOne(snippets.actions,'conditional next actions');
 const job=exactlyOne(snippets.job,'conditional current job shortcut including its no-job guard');
+const contactOutcome=exactlyOne(snippets.contactOutcome,'owner-logged contact status with no empty placeholder');
 assert.match(job,/^\{activeCustomerEstimate&&<button/,'Actual guard hides the shortcut when no customer estimate exists');
 const profileSource=view.getText(ast);
 assert.ok(profileSource.indexOf('className="customer-contact"')<profileSource.indexOf('className="customer-next-job"')&&profileSource.indexOf('className="customer-next-job"')<profileSource.indexOf('className="record-tabs"'),'The current job shortcut is above records and after contacts');
@@ -52,6 +54,8 @@ const fixture=[
  " const [selected,setSelected]=useState({id:'synthetic',name:'Synthetic customer',phone:'9185550101',email:'synthetic@example.invalid',address:'123 Synthetic Rd, Tulsa, OK'});",
  " const [timelineFilter,setTimelineFilter]=useState('all'),[timelineSearch,setTimelineSearch]=useState(''),[timelineShown,setTimelineShown]=useState(6);",
  " const [withActions,setWithActions]=useState(true);",
+ " const [manualFlags,setManualFlags]=useState({leadContact:null});",
+ " window.__setLeadContact=leadContact=>setManualFlags({leadContact});",
  " const [activeCustomerEstimate,setActiveCustomerEstimateState]=useState({id:'job-001',service:'Gutter cleaning',status:'scheduled',scheduledAt:'2026-10-30T14:00:00Z'});",
  " const setActiveEstimate=e=>{window.__openedJob=e};",
  " const statusLabel=status=>status;",
@@ -63,7 +67,7 @@ const fixture=[
  " const filteredTimelineEntries=timelineEntries.filter(e=>(timelineFilter==='all'||e.section===timelineFilter)&&e.title.toLowerCase().includes(timelineSearch.toLowerCase()));",
  " const visibleTimelineEntries=filteredTimelineEntries.slice(0,timelineShown);",
  " return <main className='customers-view'><section className='customer-profile'>",
- contact,job,actions,activity,
+ contact,job,contactOutcome,actions,activity,
  " </section></main>;",
  "}",
  "createRoot(document.getElementById('app')).render(<Fixture/>);"
@@ -95,6 +99,16 @@ try{
   check(await row.getByRole('link',{name:'Email customer'}).getAttribute('href')==='mailto:synthetic@example.invalid',width+': existing mail destination');
   check((await row.getByRole('link',{name:'Directions to customer in Google Maps'}).getAttribute('href')).includes('destination=123%20Synthetic%20Rd'),width+': maps destination preserved');
   check(await row.getByText('No phone').count()===0&&await row.getByText('No email').count()===0,width+': no dummy contact controls');
+  check(await page.getByRole('status',{name:'Last lead contact'}).count()===0,width+': new lead has no unnecessary contact explanation');
+  await page.evaluate(()=>window.__setLeadContact({state:'no_answer',unansweredAttempts:2,at:'2026-10-23T15:00:00Z'}));
+  const lastContact=page.getByRole('status',{name:'Last lead contact'});
+  await lastContact.waitFor({state:'visible'});
+  check((await lastContact.innerText()).includes('No answer · not contacted · 2 unanswered attempts'),width+': actual profile shows precise no-answer count and no contact claim');
+  await page.evaluate(()=>window.__setLeadContact({state:'contacted',unansweredAttempts:2,at:'2026-10-24T15:00:00Z'}));
+  await page.waitForFunction(()=>document.querySelector('[aria-label="Last lead contact"]')?.textContent?.includes('Contacted · 2026-10-24T15:00:00Z'));
+  check(!(await lastContact.innerText()).includes('No answer'),width+': contacted owner log supersedes missed call without erasing history');
+  await page.evaluate(()=>window.__setLeadContact(null));
+  await lastContact.waitFor({state:'detached'});
   const shortcut=page.locator('.customer-next-job');
   check(await shortcut.count()===1,width+': exactly one current job shortcut');
   check(await shortcut.getByText('Open scheduled job').isVisible(),width+': scheduled job label is truthful');
