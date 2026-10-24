@@ -1962,6 +1962,10 @@ html,body{max-width:100%;overflow-x:clip}
 
 
 /* FIRE job detail: ordinary customer actions first, secondary research and job administration one tap away. */
+.estimate-detail .detail-scope-optional{padding:0;overflow:hidden}
+.estimate-detail .detail-scope-optional>summary{display:flex;align-items:center;min-height:48px;padding:11px 14px;font-size:13px;font-weight:800;color:var(--foreground);cursor:pointer}
+.estimate-detail .detail-scope-optional>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
+.estimate-detail .detail-scope-optional>p{margin:0;padding:0 14px 14px;overflow-wrap:anywhere}
 .estimate-detail .detail-more-tools{min-width:0;border:1px solid var(--border);border-radius:11px;background:var(--card);overflow:hidden}
 .estimate-detail .detail-more-tools>summary{display:flex;align-items:center;min-height:48px;padding:11px 14px;font-size:13px;font-weight:800;color:var(--foreground);cursor:pointer}
 .estimate-detail .detail-more-tools>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
