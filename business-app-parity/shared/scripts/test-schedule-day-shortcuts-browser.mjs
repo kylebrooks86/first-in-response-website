@@ -14,6 +14,9 @@ const source=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleView');
 assert.ok(view,'Actual ScheduleView must remain present');
+const actualMonth=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleMonthCalendar');
+assert.ok(actualMonth,'Test actual monthly calendar and its saved dates');
+const monthlyComponent=actualMonth.getText(ast);
 const matches=[];
 function scan(node){
  if(ts.isJsxElement(node)&&node.openingElement.tagName.getText(ast)==='section'){
@@ -29,9 +32,10 @@ assert.match(markup,/schedule-day-buttons/);
 assert.match(markup,/route-day-button/);
 assert.match(markup,/schedule-choose-job/);
 const fixture=[
- "import React,{useState} from 'react';",
+ "import React,{useState,useEffect} from 'react';",
  "import {createRoot} from 'react-dom/client';",
  "import {Navigation,ChevronRight} from 'lucide-react';",
+ monthlyComponent,
  "function Fixture(){",
  " const [showBookingOptions,setShowBookingOptions]=useState(false);",
  " const [selected,setSelected]=useState(null);",
@@ -40,7 +44,7 @@ const fixture=[
  " window.__setScenario=setScenario;",
  " window.__navigation=[];",
  " const onNavigate=tab=>window.__navigation.push(tab);",
- " const selectedDate='2026-10-24';",
+ " const [selectedDate,setSelectedDate]=useState('2026-10-24');",
  " const loading=false,error='';",
  " const rows=scenario==='empty'?[]:[",
  "  {id:'approved-1',customer:'Synthetic ready customer',service:'House wash',status:'approved',scheduledAt:null},",
@@ -50,8 +54,9 @@ const fixture=[
  " const routeLabel='Route today';",
  " const routeJobs=[rows[1]].filter(Boolean),routeWithAddress=routeJobs;",
  " return <main className='workspace-view'>",
+ " <ScheduleMonthCalendar jobs={rows} selectedDate={selectedDate} onSelectDate={date=>{setSelectedDate(date);setShowBookingOptions(false)}}/>",
  markup,
- " <output id='selection'>{JSON.stringify({selected:selected?.id||null,bookingDate,showBookingOptions})}</output>",
+ " <output id='selection'>{JSON.stringify({selected:selected?.id||null,bookingDate,showBookingOptions,selectedDate})}</output>",
  " </main>;",
  "}",
  "createRoot(document.getElementById('app')).render(<Fixture/>);"
@@ -96,6 +101,31 @@ try{
   const selection=JSON.parse(await page.locator('#selection').textContent());
   check(selection.selected==='approved-1'&&selection.bookingDate==='2026-10-24'&&selection.showBookingOptions===false,width+': exact approved job selected with calendar date, no write');
   check(await route.isVisible(),width+': route remains after booking selection');
+  const calendar=page.getByRole('region',{name:'Monthly job calendar'});
+  await calendar.getByRole('heading',{name:'October 2026'}).waitFor();
+  const original=calendar.getByRole('button',{name:/October 24, 2026, 1 jobs: 1 scheduled, 0 completed/});
+  check(await original.getAttribute('aria-pressed')==='true'&&await original.locator('.schedule-month-dots i.booked').count()===1,width+': real October job dot and selected day preserved');
+  await calendar.getByRole('button',{name:'Next month'}).click();
+  await calendar.getByRole('heading',{name:'November 2026'}).waitFor();
+  await page.waitForFunction(()=>JSON.parse(document.querySelector('#selection')?.textContent||'{}').selectedDate==='2026-11-01');
+  check(await calendar.getByRole('button',{name:/November 1, 2026/}).getAttribute('aria-pressed')==='true',width+': month arrow also changes selected booking date to November 1');
+  await calendar.getByRole('button',{name:/November 18, 2026/}).click();
+  await page.waitForFunction(()=>JSON.parse(document.querySelector('#selection')?.textContent||'{}').selectedDate==='2026-11-18');
+  check(await calendar.getByRole('button',{name:/November 18, 2026/}).getAttribute('aria-pressed')==='true',width+': explicit day selection remains functional');
+  await calendar.getByRole('button',{name:'Next month'}).click();
+  await calendar.getByRole('heading',{name:'December 2026'}).waitFor();
+  await calendar.getByRole('button',{name:'Next month'}).click();
+  await calendar.getByRole('heading',{name:'January 2027'}).waitFor();
+  await page.waitForFunction(()=>JSON.parse(document.querySelector('#selection')?.textContent||'{}').selectedDate==='2027-01-01');
+  check(await calendar.getByRole('button',{name:/January 1, 2027/}).getAttribute('aria-pressed')==='true',width+': December to January year boundary selects correct date');
+  await calendar.getByRole('button',{name:'Previous month'}).click();
+  await calendar.getByRole('heading',{name:'December 2026'}).waitFor();
+  await page.waitForFunction(()=>JSON.parse(document.querySelector('#selection')?.textContent||'{}').selectedDate==='2026-12-01');
+  check(await calendar.getByRole('button',{name:/December 1, 2026/}).getAttribute('aria-pressed')==='true',width+': backward month browsing updates booking date too');
+  await book.click();
+  await page.getByRole('button',{name:/Synthetic ready customer/}).click();
+  const rebook=JSON.parse(await page.locator('#selection').textContent());
+  check(rebook.bookingDate==='2026-12-01',width+': approved job picker uses December not stale October date');
  }
  await page.evaluate(()=>window.__setScenario('empty'));
  await page.waitForFunction(()=>!document.querySelector('.schedule-day-buttons>.route-day-button'));

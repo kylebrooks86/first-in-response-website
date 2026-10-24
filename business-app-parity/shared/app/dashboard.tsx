@@ -2839,7 +2839,8 @@ function ScheduleMonthCalendar({jobs,selectedDate,onSelectDate}:{jobs:EstimateRo
  const centralToday=new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
  const [month,setMonth]=useState(()=>selectedDate.slice(0,7)||centralToday.slice(0,7));
  // Keep the visible month aligned when a date is chosen through other schedule controls.
- // Month arrows remain free to browse without changing the selected job date.
+ // Changing months also selects that month's first day, so the booking controls
+ // cannot silently keep an old month while the calendar displays a new one.
  useEffect(()=>{if(/^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(selectedDate))setMonth(selectedDate.slice(0,7));},[selectedDate]);
  const first=new Date(month+"-01T12:00:00Z");
  const year=first.getUTCFullYear(),monthIndex=first.getUTCMonth();
@@ -2857,7 +2858,9 @@ function ScheduleMonthCalendar({jobs,selectedDate,onSelectDate}:{jobs:EstimateRo
  }
  const moveMonth=(offset:number)=>{
   const next=new Date(Date.UTC(year,monthIndex+offset,1,12));
-  setMonth(next.toISOString().slice(0,7));
+  const nextDate=next.toISOString().slice(0,10);
+  setMonth(nextDate.slice(0,7));
+  onSelectDate(nextDate);
  };
  return <section className="schedule-month" role="region" aria-label="Monthly job calendar">
   <header className="schedule-month-header">
