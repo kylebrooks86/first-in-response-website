@@ -88,8 +88,8 @@ check(dashboard.includes('No contact outcome logged.')&&dashboard.includes('lead
  'Missing lead outcome is distinct from a confirmed contacted state');
 check(dashboard.includes('manuallyUnansweredLeadIds')&&dashboard.includes('showUnansweredLeadsOnly'),
  'Customer directory can filter exact owner-logged unanswered leads, even with no estimate');
-check(dashboard.includes('manuallyUnansweredLeadIds')&&dashboard.includes('estimate-specific follow-up history'),
- 'Directory continues to use saved manual lead notes, separate from estimate outreach');
+check(dashboard.includes('manuallyUnansweredLeadIds')&&dashboard.includes('manualFlags=deriveCustomerManualFlags(customerNotes)'),
+ 'Directory reads explicit customer note flags without fabricating estimate outreach');
 check(dashboard.includes('setShowUnansweredLeadsOnly(current=>!current)'),
  'Directory filter can be turned off to restore the complete customer list');
 check(dashboard.includes('leadContact?.state==="no_answer"')&&dashboard.includes('followupContactRecorded'),
