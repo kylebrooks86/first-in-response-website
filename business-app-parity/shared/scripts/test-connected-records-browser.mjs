@@ -9,7 +9,7 @@ const saveOfflinePhotoCustomerDirectory=async()=>{},loadOfflinePhotoCustomerDire
 ${[...tags].filter(t=>!['Button','Input','Textarea','Label','ScheduleWeather','ScheduleMonthCalendar'].includes(t)).map(t=>`const ${t}=()=>null;`).join('\n')}
 ${views.map(n=>n.getText(ast)).join('\n')}
 const ScheduleWeather=({nextJobAt,requestedJobAt,reviewKey})=><output data-testid="schedule-weather-target" data-requested-job={requestedJobAt??""} data-review-key={reviewKey??0}>{nextJobAt??""}</output>;
-function Screen(){const[query,setQuery]=useState(''),[focus,setFocus]=useState(null),[key,setKey]=useState(0);window.setQuery=setQuery;window.focusSavedRecord=(kind,id)=>{setFocus({kind,id,customerId:'first'});setKey(v=>v+1)};
+function Screen(){const[query,setQuery]=useState(''),[focus,setFocus]=useState(null),[key,setKey]=useState(0),[activityFocus,setActivityFocus]=useState(null);window.setQuery=setQuery;window.focusSavedRecord=(kind,id)=>{setFocus({kind,id,customerId:'first'});setKey(v=>v+1)};window.focusCustomerActivity=kind=>setActivityFocus({kind,customerId:'first',request:Date.now()});
 return location.pathname==='/schedule'?<ScheduleView searchQuery={query} onNavigate={tab=>window.openedTab=tab}/>:['/dashboard','/dashboard-no-address','/dashboard-bad-contact','/dashboard-viewed'].includes(location.pathname)?<DashboardView userName="Synthetic owner" metrics={{estimates:2,openValue:0,outstanding:0}} summaryVerified={location.pathname==='/dashboard-viewed'} estimates={[
 {id:'later-dashboard-job',customer:'Later customer',service:'Second scheduled',status:'scheduled',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T20:00:00Z',totalCents:12000,paidCents:0},
 {id:'declined-dashboard-job',customer:'Declined customer',service:'Cancelled',status:'declined',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T14:15:00Z',totalCents:8000,paidCents:0},
@@ -21,7 +21,7 @@ return location.pathname==='/schedule'?<ScheduleView searchQuery={query} onNavig
 {id:'viewed-accepted',customer:'Signed pending',service:'Roof wash',status:'sent',createdAt:'2026-10-18T12:00:00Z',firstViewedAt:'2026-10-18T12:00:00Z',acceptedAt:'2026-10-19T12:00:00Z',totalCents:20000,paidCents:0},
 {id:'viewed-recent',customer:'Recent reader',service:'Gutters',status:'sent',createdAt:'2026-10-20T12:00:00Z',firstViewedAt:'2026-10-20T12:00:00Z',totalCents:10000,paidCents:0}
 ]:[])
-]} onSaved={()=>{}} onNavigate={tab=>window.openedTab=tab} onOpenEstimate={id=>window.openedEstimate=id} onOpenCustomer={id=>window.openedCustomer=id} onOpenTask={id=>window.openedTask=id} onOpenDoorHouse={id=>window.openedDoorHouse=id}/>:<CustomersView searchQuery="" onEstimateSaved={()=>{}} onPreparePickupTask={draft=>window.preparedPickupTask=draft} onPrepareReviewTask={draft=>window.preparedReviewTask=draft} focusCustomerId={focus?.customerId} focusSection={focus?.kind==='payment'?'payments':'notes'} focusRecord={focus} recordRequestKey={key} onRecordFocusHandled={()=>setFocus(null)}/>;}
+]} onSaved={()=>{}} onNavigate={tab=>window.openedTab=tab} onOpenEstimate={id=>window.openedEstimate=id} onOpenCustomer={id=>window.openedCustomer=id} onOpenTask={id=>window.openedTask=id} onOpenDoorHouse={id=>window.openedDoorHouse=id}/>:<CustomersView searchQuery="" onEstimateSaved={()=>{}} onPreparePickupTask={draft=>window.preparedPickupTask=draft} onPrepareReviewTask={draft=>window.preparedReviewTask=draft} focusCustomerId={focus?.customerId} focusSection={focus?.kind==='payment'?'payments':'notes'} focusRecord={focus} recordRequestKey={key} onRecordFocusHandled={()=>setFocus(null)} activityFocus={activityFocus} onActivityFocusHandled={()=>setActivityFocus(null)}/>;}
 window.setTheme=t=>document.documentElement.dataset.theme=t;createRoot(document.getElementById('app')).render(<Screen/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 if(process.argv.includes('--compile-only')){assert.ok(bundle.outputFiles[0].text.length>1000&&css.css.includes('.customer-history-tools'));console.log('PASS: connected records browser fixture compiles; no rendered assertions run.');process.exit(0);}
@@ -65,6 +65,10 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   payload.notes.push({id:'synthetic-sign-placement',customerId:'first',body:'[FIRE FLAG] YARD_SIGN_PLACED | pickup:2026-10-27 | location:Front lawn by driveway',createdAt:'2026-10-20T12:00:00Z'});
   await page.reload();
   await page.locator('.customer-card').filter({hasText:'Fixture first'}).click();
+  const pickupTools=page.locator('details.customer-extra-tracking');
+  check(!(await pickupTools.evaluate(node=>node.open)),'Occasional review and yard sign controls begin collapsed on customer profile');
+  check(await page.getByRole('button',{name:'Log lead no answer'}).isVisible(),'Lead no-answer action stays immediately available');
+  await pickupTools.locator(':scope>summary').click();
   await page.getByRole('button',{name:'Prepare yard sign pickup reminder'}).click();
   const preparedPickup=await page.evaluate(()=>window.preparedPickupTask);
   check(preparedPickup?.customerId==='first'&&preparedPickup.pickupDate==='2026-10-27'&&preparedPickup.location==='Front lawn by driveway'&&preparedPickup.placedAt==='2026-10-20T12:00:00Z','Saved placement hands off the exact customer, date and location for pickup task');
@@ -102,6 +106,15 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await page.locator('.customer-card').filter({hasText:'Fixture first'}).click();
   const balances=await page.locator('.customer-snapshot').innerText(),startReads=reads;
   const flags=page.getByRole('region',{name:'Customer activity and yard sign flags'});
+  const moreTracking=flags.locator('details.customer-extra-tracking');
+  check(!(await moreTracking.evaluate(node=>node.open)),'Rare review/sign controls start hidden while lead actions stay available at '+size.width+' '+theme);
+  check(await flags.getByRole('button',{name:'Log lead contacted'}).isVisible(),'Lead contact logging remains one tap away');
+  await page.evaluate(()=>window.focusCustomerActivity('sign'));
+  await page.waitForFunction(()=>document.activeElement?.id==='customer-sign-flag-first');
+  check(await moreTracking.evaluate(node=>node.open),'Direct sign reminder expands More tracking before focus');
+  check(await flags.locator('#customer-sign-flag-first').evaluate(node=>node.closest('details')?.open===true),'Direct sign reminder expands exact saved sign status');
+  check(writes===0,'Sign reminder navigation does not save records or mark pickup completed');
+  await moreTracking.locator(':scope>summary').click();
   await flags.getByText('More statuses',{exact:true}).click();
   check((await flags.innerText()).includes('Review received')&&(await flags.innerText()).includes('Not logged'),'Unverified reviews never appear as received');
   check((await flags.innerText()).includes('Invoice')&&(await flags.innerText()).includes('Created · send not confirmed'),'Created invoice never implies a confirmed send');
@@ -142,6 +155,8 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check((await page.locator('.record-tabs button[aria-current="page"]').innerText()).includes('Notes'),'Activity opens the exact Notes section');
   check((await page.locator('#customer-note-timeline-latest').innerText()).includes('PRIVATE gate code 8349'),'Original private note is only visible inside its saved Notes record');
   check(writes===0,'Timeline navigation is local only and writes no customer data');
+  check(!(await moreTracking.evaluate(node=>node.open)),'Secondary review/sign actions stay hidden after unrelated invoice and note navigation');
+  await moreTracking.locator(':scope>summary').click();
   await flags.getByRole('button',{name:'Prepare review received note'}).click();
   check((await page.getByLabel('Customer note',{exact:true}).inputValue())==='[FIRE FLAG] REVIEW_RECEIVED','Review receipt action only prepares a deliberate customer note');
   check(reads===startReads&&writes===0,'Preparing a manual flag cannot write or claim success');
