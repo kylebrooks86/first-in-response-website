@@ -65,6 +65,7 @@ const fixture=[
  " ];",
  " const routeUrl=scenario==='empty'?'':'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=123%20Synthetic%20Rd';",
  " const routeLabel='Route today';",
+ " const searchQuery='';",
  " const tulsaDay=value=>new Date(value).toLocaleDateString('en-CA',{timeZone:'America/Chicago'});",
  " const dayFilter='date';",
  " const allVerifiedUpcoming=rows.filter(row=>row.status==='scheduled'&&row.scheduledAt&&Date.parse(row.scheduledAt)>=Date.parse('2026-10-23T00:00:00Z')).sort((a,b)=>Date.parse(a.scheduledAt)-Date.parse(b.scheduledAt));",
