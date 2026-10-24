@@ -98,7 +98,7 @@ check(dashboard.includes('dueLeadCallbacks')&&dashboard.includes('showDueCallbac
  dashboard.includes('aria-label="Due customer lead callbacks"'),
  'Customer directory has a due-only callback filter and navigable owner review queue');
 check(dashboard.includes('saveNote(leadCallbackNote(callbackDate))')&&
- dashboard.includes('prepareManualFlag(LEAD_CALLBACK_HANDLED_NOTE)')&&
+ dashboard.includes('saveNote(LEAD_CALLBACK_HANDLED_NOTE,"handled")')&&
  dashboard.includes('noteAttempts.current.get(attemptKey)')&&dashboard.includes('noteSaveLock.current'),
  'One-tap callback saves through the existing idempotent note API; handled markers still need explicit save');
 check(dashboard.includes('Callback dates are tracked here; no automatic alerts.'),
