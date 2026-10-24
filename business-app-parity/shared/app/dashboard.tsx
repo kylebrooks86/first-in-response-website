@@ -2622,14 +2622,13 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       </div>)}</div>
       {dueLeadCallbacks.length>5&&<small>{dueLeadCallbacks.length-5} more due callbacks · use the callback filter to review them</small>}
     </section>}
-    {!loading&&!error&&<div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter manually logged lead contact attempts">
-      <Button type="button" variant="outline" aria-pressed={showUnansweredLeadsOnly} onClick={()=>{setShowDueCallbacksOnly(false);setShowUnansweredLeadsOnly(current=>!current);}}>
+    {!loading&&!error&&(manuallyUnansweredLeadIds.size>0||dueLeadCallbackIds.size>0||showUnansweredLeadsOnly||showDueCallbacksOnly)&&<div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter manually logged lead contact attempts">
+      {(manuallyUnansweredLeadIds.size>0||showUnansweredLeadsOnly)&&<Button type="button" variant="outline" aria-pressed={showUnansweredLeadsOnly} onClick={()=>{setShowDueCallbacksOnly(false);setShowUnansweredLeadsOnly(current=>!current);}}>
         {showUnansweredLeadsOnly?"Show all customers":`No answer / not contacted (${manuallyUnansweredLeadIds.size})`}
-      </Button>
-      <Button type="button" variant="outline" aria-pressed={showDueCallbacksOnly} onClick={()=>{setShowUnansweredLeadsOnly(false);setShowDueCallbacksOnly(current=>!current);}}>
+      </Button>}
+      {(dueLeadCallbackIds.size>0||showDueCallbacksOnly)&&<Button type="button" variant="outline" aria-pressed={showDueCallbacksOnly} onClick={()=>{setShowUnansweredLeadsOnly(false);setShowDueCallbacksOnly(current=>!current);}}>
         {showDueCallbacksOnly?"Show all customers":`Callbacks due (${dueLeadCallbackIds.size})`}
-      </Button>
-      <small>Callback dates are tracked here; no automatic alerts.</small>
+      </Button>}
     </div>}
     {loading ? <div className="customers-state">Loading customers…</div> : error ? <div className="customers-state"><p>{error}</p><Button variant="outline" onClick={() => void load()}>Try again</Button></div> : filteredCustomers.length ? <section className="customer-list">{filteredCustomers.map((customer) => <button className="customer-card" key={customer.id} onClick={() => setSelectedId(customer.id)}><span className="customer-avatar">{customer.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><span className="customer-main"><strong>{customer.name}</strong><small>{customer.phone || customer.email || "No contact details saved"}</small></span><span className="customer-totals"><strong>{customer.estimateCount} estimate{customer.estimateCount === 1 ? "" : "s"}</strong><small>{money(customer.estimateTotal)}</small></span><ChevronRight /></button>)}</section> : <div className="customers-state"><Users /><strong>{showDueCallbacksOnly?"No due callbacks match":showUnansweredLeadsOnly?"No unanswered leads match":searchQuery ? "No matching customers" : "No customers yet"}</strong><p>{showDueCallbacksOnly?"Only pending owner-saved callbacks due today or earlier appear here. Show all customers for the full list.":showUnansweredLeadsOnly?"These results use only explicitly saved manual lead notes. Show all customers to see other records.":searchQuery ? "Try a name, phone number, email, or address." : "Add your first customer to start their permanent record."}</p></div>}
   </div>;
@@ -2698,7 +2697,7 @@ function EstimatesView({ onSaved, searchQuery, focusEstimateId, onFocusHandled }
     {focusError&&<p role="alert" className="save-error">{focusError}</p>}
     <Input aria-label="Search estimate history" placeholder="Search estimate history" maxLength={128} value={historySearch} onChange={event=>setHistorySearch(event.target.value)}/>
     {!loading&&!error&&<div className="flex flex-wrap items-center gap-2" role="group" aria-label="Estimate view tracking filters">
-      <Button variant="outline" aria-pressed={viewedOnly} onClick={()=>{setViewedOnly(current=>!current);setFilter("all");setView("list");}}>Viewed · awaiting decision ({viewedQueue.length})</Button>
+      {(viewedQueue.length>0||viewedOnly)&&<Button variant="outline" aria-pressed={viewedOnly} onClick={()=>{setViewedOnly(current=>!current);setFilter("all");setView("list");}}>Viewed · awaiting decision ({viewedQueue.length})</Button>}
       {viewedOnly&&<small className="text-muted-foreground" role="status">Link opened at least 24 hours ago; no approval recorded. Loaded estimates only.</small>}
     </div>}
     {view==="list"&&<div className="filter-row">{["all","draft","sent","approved","scheduled","completed","declined"].map((status)=><button key={status} className={filter===status?"active":""} onClick={()=>setFilter(status)}>{statusLabel(status)}</button>)}</div>}
