@@ -220,7 +220,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(await futurePanel.getByRole('button',{name:/Copy on-my-way message/}).count()===0,'On-my-way action is hidden for jobs on future days');
   await page.getByRole('button',{name:'Contact last-week-day for scheduled job'}).click();
   check(await page.locator('.schedule-job-directions-action').count()===5,'Only current saved addresses receive Maps shortcuts');
-  const firstWeatherShortcut=page.getByRole('button',{name:'Check hourly weather for today-morning job'});
+  const firstWeatherShortcut=page.getByRole('button',{name:'Check weather for today-morning job'});
   await firstWeatherShortcut.click();
   check(await page.getByTestId('schedule-weather-target').getAttribute('data-requested-job')==='2026-10-20T15:00:00Z','Weather review selects exact clicked job appointment');
   const individualDirections=page.getByRole('link',{name:'Directions to today-morning job'});
@@ -282,14 +282,14 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   closeoutMode='ready';await page.evaluate(()=>window.dispatchEvent(new Event('fire:attention-saved')));
   await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('7 known checks'));
   check(await priorities.locator('.dashboard-priority-actions>button').count()===5,'Verified paid job introduces a fifth distinct priority without duplicating the other four');
-  await priorities.getByRole('button',{name:'Review paid jobs awaiting review requests'}).click();
+  await priorities.getByRole('button',{name:'Open paid job without prepared review request'}).click();
   check(await page.evaluate(()=>window.openedEstimate)==='paid-review-job','Review priority opens exact paid job, never a different customer');
   closeoutMode='error';await page.evaluate(()=>window.dispatchEvent(new Event('fire:attention-saved')));
   await priorities.getByRole('button',{name:'Retry unavailable paid-job review requests'}).waitFor();
-  check(!(await priorities.innerText()).includes('1 paid job awaiting review request'),'Failed closeout read never claims saved review request count');
+  check(!(await priorities.innerText()).includes('1 paid job need a review message prepared'),'Failed closeout read never claims saved review request count');
   closeoutMode='empty';await priorities.getByRole('button',{name:'Retry unavailable paid-job review requests'}).click();
   await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('6 known checks'));
-  check(await priorities.getByRole('button',{name:'Review paid jobs awaiting review requests'}).count()===0,'Empty review closeout read removes only its own priority');
+  check(await priorities.getByRole('button',{name:'Open paid job without prepared review request'}).count()===0,'Empty review closeout read removes only its own priority');
   check(writes===0,'Review priority navigation and recovery never save or send messages');
   taskMode='error';await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
   await priorities.getByRole('button',{name:'Retry unavailable Business tasks'}).waitFor();
