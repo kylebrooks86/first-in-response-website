@@ -2130,3 +2130,23 @@ html,body{max-width:100%;overflow-x:clip}
 .customer-extra-tracking>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
 .customer-extra-tracking>.customer-flag-actions{padding:12px;border-top:1px solid var(--border)}
 @media(max-width:430px){.customer-extra-tracking>summary{padding:10px}.customer-extra-tracking>.customer-flag-actions{padding:10px}}
+
+/* Customer header: one primary estimate action with secondary tools on demand. */
+.customer-profile-head .profile-head-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:start;flex:0 1 330px;max-width:100%}
+.customer-profile-head .profile-head-actions>*{min-width:0;max-width:100%}
+.customer-profile-head .profile-head-actions>button{min-height:44px}
+.customer-header-more{position:relative;min-width:0}
+.customer-header-more>summary{display:flex;min-height:44px;align-items:center;justify-content:center;padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:12px;font-weight:750;line-height:1.35;cursor:pointer;list-style:none;text-align:center}
+.customer-header-more>summary::-webkit-details-marker{display:none}
+.customer-header-more>summary::after{content:"▾";margin-left:7px;color:var(--muted-foreground)}
+.customer-header-more[open]>summary::after{transform:rotate(180deg)}
+.customer-header-more>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.customer-header-more-items{display:grid;gap:8px;padding:10px;margin-top:5px;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.customer-header-more-items>*{min-width:0;max-width:100%;width:100%}
+.customer-header-more-items button{width:100%;min-height:44px;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:760px){
+ .customer-profile-head .profile-head-actions{width:100%;flex:1 0 100%;grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:360px){
+ .customer-profile-head .profile-head-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
