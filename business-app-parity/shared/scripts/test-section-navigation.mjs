@@ -43,7 +43,10 @@ eq(navIds,["dashboard","customers","estimates","schedule","followups","invoices"
 assert.match(source,/className="estimate-section-switch"/);checks++;
 assert.match(source,/ContractsView searchQuery=\{historySearch\} embedded/);checks++;
 assert.match(source,/tab === "contracts" \? <EstimatesView initialSection="agreements"/);checks++;
-assert.match(source,/index===0&&<p className="sidebar-nav-heading">Everyday<\/p>/);checks++;
-assert.match(source,/index===7&&<p className="sidebar-nav-heading">More tools<\/p>/);checks++;
+assert.match(source,/<p className="sidebar-nav-heading">Everyday<\/p>/);checks++;
+assert.match(source,/nav\.slice\(0,7\)\.map/);checks++;
+assert.match(source,/className="sidebar-more-nav" open=\{moreNavOpen\}/);checks++;
+assert.match(source,/nav\.slice\(7\)\.map/);checks++;
+assert.match(source,/useEffect\(\(\)=>\{if\(nav\.slice\(7\)\.some\(\(\[id\]\)=>id===tab\)\)setMoreNavOpen\(true\);\},\[tab,nav\]\)/);checks++;
 assert.match(source,/\["dashboard","customers","estimates","schedule","followups"\]\.includes\(id\)/);checks++;
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
