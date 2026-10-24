@@ -10,12 +10,17 @@ ${[...tags].filter(t=>!['Button','Input','Textarea','Label','ScheduleWeather'].i
 ${views.map(n=>n.getText(ast)).join('\n')}
 const ScheduleWeather=({nextJobAt,requestedJobAt,reviewKey})=><output data-testid="schedule-weather-target" data-requested-job={requestedJobAt??""} data-review-key={reviewKey??0}>{nextJobAt??""}</output>;
 function Screen(){const[query,setQuery]=useState(''),[focus,setFocus]=useState(null),[key,setKey]=useState(0);window.setQuery=setQuery;window.focusSavedRecord=(kind,id)=>{setFocus({kind,id,customerId:'first'});setKey(v=>v+1)};
-return location.pathname==='/schedule'?<ScheduleView searchQuery={query}/>:['/dashboard','/dashboard-no-address','/dashboard-bad-contact'].includes(location.pathname)?<DashboardView userName="Synthetic owner" metrics={{estimates:2,openValue:0,outstanding:0}} estimates={[
+return location.pathname==='/schedule'?<ScheduleView searchQuery={query}/>:['/dashboard','/dashboard-no-address','/dashboard-bad-contact','/dashboard-viewed'].includes(location.pathname)?<DashboardView userName="Synthetic owner" metrics={{estimates:2,openValue:0,outstanding:0}} summaryVerified={location.pathname==='/dashboard-viewed'} estimates={[
 {id:'later-dashboard-job',customer:'Later customer',service:'Second scheduled',status:'scheduled',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T20:00:00Z',totalCents:12000,paidCents:0},
 {id:'declined-dashboard-job',customer:'Declined customer',service:'Cancelled',status:'declined',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T14:15:00Z',totalCents:8000,paidCents:0},
 {id:'completed-dashboard-job',customer:'Finished customer',service:'Completed work',status:'completed',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T14:30:00Z',totalCents:9000,paidCents:0},
 {id:'past-dashboard-job',customer:'Old customer',service:'Past appointment',status:'scheduled',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-19T18:00:00Z',totalCents:9500,paidCents:0},
-{id:'exact-dashboard-job',customer:'Exact customer',service:'Exact job',status:'scheduled',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T15:00:00Z',address:location.pathname==='/dashboard-no-address'?'':'101 Exterior Ave, Tulsa, OK',phone:location.pathname==='/dashboard-bad-contact'?'not-a-phone':'(918) 555-0146',email:location.pathname==='/dashboard-bad-contact'?'customer@@example.invalid':'customer@example.invalid',totalCents:10000,paidCents:0}
+{id:'exact-dashboard-job',customer:'Exact customer',service:'Exact job',status:'scheduled',createdAt:'2026-10-19T12:00:00Z',scheduledAt:'2026-10-20T15:00:00Z',address:location.pathname==='/dashboard-no-address'?'':'101 Exterior Ave, Tulsa, OK',phone:location.pathname==='/dashboard-bad-contact'?'not-a-phone':'(918) 555-0146',email:location.pathname==='/dashboard-bad-contact'?'customer@@example.invalid':'customer@example.invalid',totalCents:10000,paidCents:0},
+...(location.pathname==='/dashboard-viewed'?[
+{id:'viewed-due',customer:'Viewed no reply',service:'House wash',status:'sent',createdAt:'2026-10-18T12:00:00Z',firstViewedAt:'2026-10-18T12:00:00Z',totalCents:20000,paidCents:0},
+{id:'viewed-accepted',customer:'Signed pending',service:'Roof wash',status:'sent',createdAt:'2026-10-18T12:00:00Z',firstViewedAt:'2026-10-18T12:00:00Z',acceptedAt:'2026-10-19T12:00:00Z',totalCents:20000,paidCents:0},
+{id:'viewed-recent',customer:'Recent reader',service:'Gutters',status:'sent',createdAt:'2026-10-20T12:00:00Z',firstViewedAt:'2026-10-20T12:00:00Z',totalCents:10000,paidCents:0}
+]:[])
 ]} onSaved={()=>{}} onNavigate={tab=>window.openedTab=tab} onOpenEstimate={id=>window.openedEstimate=id} onOpenCustomer={id=>window.openedCustomer=id} onOpenTask={id=>window.openedTask=id} onOpenDoorHouse={id=>window.openedDoorHouse=id}/>:<CustomersView searchQuery="" onEstimateSaved={()=>{}} onPreparePickupTask={draft=>window.preparedPickupTask=draft} onPrepareReviewTask={draft=>window.preparedReviewTask=draft} focusCustomerId={focus?.customerId} focusSection={focus?.kind==='payment'?'payments':'notes'} focusRecord={focus} recordRequestKey={key} onRecordFocusHandled={()=>setFocus(null)}/>;}
 window.setTheme=t=>document.documentElement.dataset.theme=t;createRoot(document.getElementById('app')).render(<Screen/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
@@ -264,6 +269,16 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   const priorityBounds=await priorities.evaluate(n=>({left:n.getBoundingClientRect().left,right:n.getBoundingClientRect().right,width:innerWidth}));
   check(priorityBounds.left>=-1&&priorityBounds.right<=priorityBounds.width+1,'Priority strip fits portrait and landscape mobile screens');
   check(await priorities.locator('button').evaluateAll(nodes=>nodes.every(node=>node.getBoundingClientRect().height>=44)),'All priority actions meet minimum touch target height');
+  if(size.width===390&&theme==='light'){
+    await page.goto(origin+'/dashboard-viewed');
+    const quoteReminder=page.getByRole('button',{name:'Follow up on viewed estimate',exact:true});
+    await quoteReminder.waitFor();
+    check((await quoteReminder.innerText()).includes('1 viewed estimate awaiting reply'),'Home prioritizes only aged viewed quotes without a saved acceptance');
+    await quoteReminder.click();
+    check(await page.evaluate(()=>window.openedEstimate)==='viewed-due','Viewed follow-up opens the exact quote without sending messages');
+    check(writes===0,'Viewed reminder is navigation only');
+    await page.goto(origin+'/dashboard');await page.evaluate(t=>window.setTheme(t),theme);
+  }
   // A dated callback is a distinct due-house action, not an estimate reminder.
   doorMode='ready';await page.evaluate(()=>window.dispatchEvent(new Event('fire:attention-saved')));
   await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('7 known checks'));
