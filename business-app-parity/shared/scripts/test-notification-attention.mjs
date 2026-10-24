@@ -9,6 +9,26 @@ const source=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='NotificationAttention');
 assert.ok(fn,'Real notification attention view exists');
+// The bell shows actionable reminders, not implementation tutorials. Retain
+// incomplete-coverage warnings and error/refresh actions when actually needed.
+const attentionMarkup=fn.getText(ast);
+for(const obsolete of [
+ 'All available estimate pages checked in this view',
+ 'Matching open due tasks consolidate duplicate sign and review reminders',
+ 'Live reminders are separate from unread activity'
+])assert.ok(!attentionMarkup.includes(obsolete),'Remove redundant bell prose: '+obsolete);
+for(const essential of [
+ 'Older estimates remain outside', // checked below via concise replacement
+ 'Attention items couldn',
+ 'Refresh attention items',
+ 'hasOlder',
+ 'hasMoreReviewCloseouts'
+]){
+ if(essential==='Older estimates remain outside')continue;
+ assert.ok(attentionMarkup.includes(essential),'Retain important failure/partial coverage behavior: '+essential);
+}
+assert.ok(attentionMarkup.includes('older ones not included'),'Older estimate counts must remain qualified');
+assert.ok(attentionMarkup.includes('older reviews not included'),'Older paid review counts must remain qualified');
 const tags=new Set(),stateNames=[];
 function visit(node){
  if((ts.isJsxOpeningElement(node)||ts.isJsxSelfClosingElement(node))&&/^[A-Z]/.test(node.tagName.getText(ast)))tags.add(node.tagName.getText(ast));

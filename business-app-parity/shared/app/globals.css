@@ -2164,3 +2164,14 @@ html,body{max-width:100%;overflow-x:clip}
 .schedule-day-actions>.schedule-next-booked{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;text-align:left;cursor:pointer}
 .schedule-next-booked svg{width:16px;height:16px;flex:none}
 .schedule-next-booked:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Quiet iPhone-first Schedule: a single-row heading and icon refresh leave the month visible higher. */
+.schedule-view .workspace-head{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
+.schedule-view .workspace-head h1{font-size:25px;line-height:1.18;margin:0}
+.schedule-view .schedule-header-actions{flex:0 0 auto;justify-content:flex-end}
+.schedule-view .schedule-header-actions>button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--foreground);cursor:pointer}
+.schedule-view .schedule-header-actions>button>svg{width:18px;height:18px}
+.schedule-view .schedule-header-actions>button:disabled{opacity:.6;cursor:wait}
+.schedule-view .schedule-header-actions>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.schedule-view .schedule-month{margin-top:6px}
+@media(max-width:760px){.workspace-view.schedule-view{padding-top:12px}.schedule-view .workspace-head{flex-direction:row;align-items:center}.schedule-view .schedule-header-actions{width:auto;flex:0 0 auto}.schedule-view .schedule-header-actions>button{flex:none;width:44px}.schedule-view .schedule-month{margin-top:4px}}
