@@ -3083,7 +3083,21 @@ function InvoicesView({searchQuery,focusInvoiceId,onFocusHandled}:{searchQuery:s
       if(!response.ok)throw new Error(result.error||"Invoices could not be loaded.");
       if(!Array.isArray(result.invoices))throw new Error("Invoice records could not be read. Try again.");
       if(request!==loadRequest.current)return;
-      setRows(result.invoices.map((item)=>({...item,totalCents:Number(item.totalCents),paidCents:Number(item.paidCents??0)})));
+      // Do not silently coerce fractional, missing or corrupt money into an
+      // invoice balance, then offer the owner a payment action on that record.
+      // D1 can return integer cents as numbers or decimal integer strings.
+      const exactCents=(raw:unknown)=>{
+        if((typeof raw!=="number"&&typeof raw!=="string")||(typeof raw==="string"&&!/^\\d+$/.test(raw.trim()))||
+           !Number.isSafeInteger(Number(raw))||Number(raw)<0)
+          throw new Error("Invoice amounts could not be verified. Refresh before taking payment.");
+        return Number(raw);
+      };
+      setRows(result.invoices.map((item)=>{
+        if(!item||typeof item.id!=="string"||!item.id||typeof item.estimateId!=="string"||!item.estimateId)
+          throw new Error("Invoice records could not be verified. Refresh before taking payment.");
+        return {...item,totalCents:exactCents(item.totalCents),paidCents:exactCents(item.paidCents??0),
+          depositCents:item.depositCents==null?undefined:exactCents(item.depositCents)};
+      }));
     }catch(loadError){if(request===loadRequest.current)setError(loadError instanceof Error?loadError.message:"Invoices could not be loaded.");}
     finally{if(request===loadRequest.current)setLoading(false);}
   };
