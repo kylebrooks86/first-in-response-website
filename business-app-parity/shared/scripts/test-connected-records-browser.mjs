@@ -252,6 +252,11 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(await priorities.getByRole('button',{name:'Review due door knocking revisits'}).count()===1,'Dated overdue house creates one dedicated Dashboard priority');
   await priorities.getByRole('button',{name:'Review due door knocking revisits'}).click();
   check(await page.evaluate(()=>window.openedDoorHouse)==='door-due','Callback priority opens exact oldest due house, not an unrelated address');
+  const extraReminders=page.locator('details.dashboard-extra-reminders');
+  await extraReminders.waitFor();
+  check(await extraReminders.evaluate(node=>!node.open),'Secondary dashboard reminders start collapsed to reduce iPhone scrolling');
+  await extraReminders.locator('summary').click();
+  check(await extraReminders.evaluate(node=>node.open),'Expanded reminders retain their full saved house, sign and review actions');
   const doorPanel=page.getByRole('region',{name:'Scheduled door knocking revisits'});
   await doorPanel.waitFor();
   check((await doorPanel.innerText()).includes('1 due or overdue')&&(await doorPanel.innerText()).includes('1 upcoming'),'Dashboard distinguishes due callbacks from upcoming visits');
