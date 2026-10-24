@@ -139,11 +139,11 @@ assert.ok(ownerPaymentSection.includes('payments-primary-metrics')&&ownerPayment
 assert.ok(ownerPaymentSection.indexOf('Card checkouts needing review')<ownerPaymentSection.indexOf('payments-primary-metrics'),'Unresolved checkout alerts remain ahead of compact totals');n++;
 for(const label of ['Collectible job balance','Deposit still required','Principal paid (net refunds)','Jobs with collectible balance','Potential estimate value','Net tips']){assert.ok(ownerPaymentSection.includes('<small>'+label+'</small>'),'Accounting summary preserves '+label);n++;}
 assert.ok(followUpSection.includes('todayQueue.slice(0,3).map(')&&followUpSection.includes('See full follow-up list'),'Compact follow-up preview does not remove any saved action');n++;
-// Stride remains one tap away in Home and next to Maps on scheduled jobs, not duplicated on every customer card.
+// Stride stays one tap away in Home, while scheduled jobs keep Maps without duplicating mileage tracking.
 const estimateDetailSource=view.slice(view.indexOf('function EstimateDetail('),view.indexOf('function EstimatesView('));
 const customerProfileSource=view.slice(view.indexOf('function CustomersView('),view.indexOf('function FollowUpsView('));
 assert.ok(view.includes('<StrideButton top/>'),'Stride remains visible in the Home header');n++;
-assert.ok(estimateDetailSource.includes('aria-label="Driving to job"')&&estimateDetailSource.includes('<StrideButton/>'),'Scheduled job keeps Stride next to driving directions');n++;
-assert.ok(!estimateDetailSource.includes('!travelingToJob&&<StrideButton/>'),'Other estimate stages do not duplicate Stride');n++;
+assert.ok(estimateDetailSource.includes('aria-label="Driving to job"')&&estimateDetailSource.includes('Google Maps')&&!estimateDetailSource.includes('<StrideButton'),'Scheduled job shows Maps without a second Stride shortcut');n++;
+assert.ok(view.split('<StrideButton').length-1===1,'Only the Home header renders a Stride shortcut');n++;
 assert.ok(!customerProfileSource.includes('<StrideButton />'),'General customer profile does not repeat Stride');n++;
 console.log('PASS '+n+' timing, reviewed journey milestones, billing guards, and compact daily owner screen contracts.');
