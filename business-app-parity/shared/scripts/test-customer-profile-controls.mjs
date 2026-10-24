@@ -18,7 +18,7 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  const quoteDetails=page.locator('.estimate-detail');
  await quoteDetails.waitFor();
  check(await quoteDetails.getByRole('button',{name:'Send estimate',exact:true}).count()===1,'Opening the customer quote retains Send estimate');
- check(await quoteDetails.getByRole('button',{name:/Record payment/i}).count()>=1,'Original payment action remains reachable from the customer estimate');
+ check(await quoteDetails.getByRole('button',{name:'Approval required',exact:true}).isDisabled(),'Original payment control remains visible but correctly blocks payment until quote approval');
  check(await quoteDetails.locator('details.detail-more-tools').count()===1,'Job tools remain available without crowding the main action buttons');
  await page.keyboard.press('Escape');
  await quoteDetails.waitFor({state:'hidden'});
