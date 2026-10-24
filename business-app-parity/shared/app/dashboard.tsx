@@ -1890,7 +1890,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     <DialogHeader><DialogTitle>{estimate.service}</DialogTitle></DialogHeader>
     <div className="detail-customer"><span className="customer-avatar">{estimate.customer.split(" ").map((part)=>part[0]).join("").slice(0,2).toUpperCase()}</span><div><strong>{estimate.customer}</strong><small>{estimate.address || "No service address saved"}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong></div>
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current customer address shown; the original service address was not recorded.</p>}
-    <div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>
+    {workingOnJob?<details className="detail-scope detail-scope-optional"><summary>Service scope & expectations</summary><p>{shownDescription}</p></details>:<div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>}
     <EstimatePromotionHistory key={`promotions:${estimate.id}`} estimateId={estimate.id} totalCents={estimate.totalCents}/>
     {(Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)&&<div className="next-action" role="alert"><AlertTriangle aria-hidden="true"/><div><strong>Payment review needed</strong><p>{paymentReviewMessage}</p></div></div>}
     <div className="detail-actions" aria-label="Customer and estimate actions">
