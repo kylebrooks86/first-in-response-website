@@ -1796,3 +1796,10 @@ html,body{max-width:100%;overflow-x:clip}
  .followup-card-tools>details{flex:1 1 100%}
 }
 @media(max-width:350px){.payments-view .business-metrics{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Full financial explanation remains available, not repeated in the main collection list. */
+.payments-balance-help{margin-top:5px;min-width:0}
+.payments-balance-help>summary{min-height:44px;display:inline-flex;align-items:center;cursor:pointer;color:var(--muted-foreground);font-size:12px;font-weight:750}
+.payments-balance-help>summary:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+.payments-balance-help>p{margin:4px 0 8px;max-width:65ch;font-size:12px;line-height:1.5;color:var(--muted-foreground)}
