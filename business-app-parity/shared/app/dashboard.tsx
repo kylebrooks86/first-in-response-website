@@ -2149,7 +2149,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const noteSelection=useRef(selectedId);noteSelection.current=selectedId;
   const noteMounted=useRef(true),noteAccessEpoch=useRef(0);
   const [noteFeedback,setNoteFeedback]=useState<{customerId:string;kind:"error"|"success";text:string}|null>(null);
-  const [callbackNotice,setCallbackNotice]=useState<{customerId:string;kind:"error"|"success";text:string}|null>(null);
+  const [activityNotice,setActivityNotice]=useState<{customerId:string;kind:"error"|"success";text:string}|null>(null);
   useEffect(()=>{noteMounted.current=true;return()=>{noteMounted.current=false;};},[]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -2405,16 +2405,16 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const customerBalances=summarizeCustomerBalances(customerEstimates);
   const customerPaidTotal=customerPayments.filter((payment)=>!['Tip','Tip Refund'].includes(payment.type)).reduce((sum,payment)=>sum+payment.amountCents,0);
   const handleEstimateSaved = (estimate: EstimateRow) => { onEstimateSaved(estimate); void load(true); };
-  const saveNote = async (directBody?:string,callbackAction:"schedule"|"handled"="schedule") => {
-    const draft=directBody??noteText,asCallback=typeof directBody==="string";
+  const saveNote = async (directBody?:string,flagAction:"schedule"|"handled"|"no_answer"|"contacted"="schedule") => {
+    const draft=directBody??noteText,asFlag=typeof directBody==="string";
     if(!noteMounted.current||noteSaveLock.current||!selected||noteSelection.current!==selected.id||!draft.trim()||draft.trim().length>5000)return;
     const customerId=selected.id,body=draft.trim(),epoch=noteAccessEpoch.current;
     const attemptKey=JSON.stringify([customerId,body]);
     const requestId=noteAttempts.current.get(attemptKey)??crypto.randomUUID();
     noteAttempts.current.set(attemptKey,requestId);
-    if(!asCallback)noteDrafts.current[customerId]=draft;
+    if(!asFlag)noteDrafts.current[customerId]=draft;
     noteSaveLock.current=true;noteSavingCustomer.current=customerId;
-    setSavingNote(true);if(asCallback)setCallbackNotice(null);else setNoteFeedback(null);
+    setSavingNote(true);if(asFlag)setActivityNotice(null);else setNoteFeedback(null);
     try {
       const response=await fetch("/api/customer-notes",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerId,body,requestId})});
       const result=await response.json() as {note?:CustomerNote;error?:string};
@@ -2423,15 +2423,15 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       if(!response.ok||!note||typeof note.id!=="string"||note.id!==requestId||note.customerId!==customerId||note.body!==body||typeof note.createdAt!=="string"||!Number.isFinite(Date.parse(note.createdAt)))throw new Error("Unconfirmed note save.");
       noteAttempts.current.delete(attemptKey);
       setNotes((current)=>[note,...current.filter(row=>row.id!==note.id)]);
-      if(!asCallback){
+      if(!asFlag){
         if(noteDrafts.current[customerId]===draft)delete noteDrafts.current[customerId];
         if(noteSelection.current===customerId)setNoteText(current=>current===draft?"":current);
         setNoteFeedback({customerId,kind:"success",text:"Note saved."});
-      }else setCallbackNotice({customerId,kind:"success",text:callbackAction==="handled"?"Callback marked done.":"Callback saved."});
+      }else setActivityNotice({customerId,kind:"success",text:flagAction==="handled"?"Callback marked done.":flagAction==="no_answer"?"No answer logged.":flagAction==="contacted"?"Contact logged.":"Callback saved."});
       if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
     }catch{
       if(noteMounted.current&&noteAccessEpoch.current===epoch){
-        if(asCallback)setCallbackNotice({customerId,kind:"error",text:callbackAction==="handled"?"Completion not confirmed. Tap Mark done again; FIRE checks for duplicates.":"Callback save not confirmed. Retry with the same date; FIRE checks for duplicates."});
+        if(asFlag)setActivityNotice({customerId,kind:"error",text:flagAction==="handled"?"Completion not confirmed. Tap Mark done again; FIRE checks for duplicates.":flagAction==="no_answer"?"No-answer save unconfirmed. Retry once; FIRE checks for duplicates.":flagAction==="contacted"?"Contact log unconfirmed. Retry once; FIRE checks for duplicates.":"Callback save not confirmed. Retry with the same date; FIRE checks for duplicates."});
         else setNoteFeedback({customerId,kind:"error",text:"Note save was not confirmed. Your draft is kept. Retry Add note with the same text safely; FIRE reuses this request so a saved note is not added twice. You can also refresh saved notes."});
       }
     }finally{
@@ -2538,20 +2538,20 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         {activitySummary.needs.length>0&&<div className="customer-flag-next" role="status" aria-label="Customer action checks"><AlertTriangle aria-hidden="true"/><span><strong>{activitySummary.needs.length} action{activitySummary.needs.length===1?"":"s"} to review</strong><small>{activitySummary.needs.join(" · ")}</small></span></div>}
         {reviewCheck.status==="due"&&<div id={`customer-review-check-${selected.id}`} tabIndex={-1} className="customer-review-check" role="region" aria-label="Review follow-up check due"><div><strong><Star aria-hidden="true"/> Review status check available</strong><p>Review request recorded {reviewCheck.elapsedDays} days ago; no review is logged. Check whether a review has appeared before contacting the customer again.</p></div><div className="flex flex-wrap gap-2">{onPrepareReviewTask&&<Button variant="outline" aria-label="Prepare review status check task" onClick={()=>stageReviewCheck(selected,reviewCheck.requestedAt)}>Create check task</Button>}<Button variant="outline" aria-label="Defer review status check seven days" disabled={reviewCheckSnoozing} onClick={()=>void snoozeReviewStatusCheck(selected,reviewCheck.requestedAt)}>{reviewCheckSnoozing?"Saving check…":"Check later · 7 days"}</Button></div>{reviewCheckSnoozeError&&<p role="alert" className="save-error">{reviewCheckSnoozeError}</p>}</div>}
         <div className="customer-flag-actions">
-          <Button variant="outline" aria-label="Prepare lead no-answer note" onClick={()=>prepareManualFlag(LEAD_NO_ANSWER_NOTE)}>No answer · not contacted</Button>
-          <Button variant="outline" aria-label="Prepare lead contacted note" onClick={()=>prepareManualFlag(LEAD_CONTACTED_NOTE)}>Log lead contacted</Button>
+          <Button variant="outline" aria-label="Log lead no answer" disabled={savingNote} onClick={()=>void saveNote(LEAD_NO_ANSWER_NOTE,"no_answer")}>No answer · not contacted</Button>
+          <Button variant="outline" aria-label="Log lead contacted" disabled={savingNote} onClick={()=>void saveNote(LEAD_CONTACTED_NOTE,"contacted")}>Log lead contacted</Button>
           {manualFlags.leadCallback?.state==="pending"&&
             <Button variant="outline" aria-label="Mark callback done" disabled={savingNote} onClick={()=>void saveNote(LEAD_CALLBACK_HANDLED_NOTE,"handled")}>Mark callback done</Button>}
           <details className="customer-sign-form">
             <summary>Schedule or reschedule lead callback</summary>
-            <label>Callback date <input type="date" aria-label="Lead callback date" value={callbackDate} onChange={event=>{setCallbackDate(event.target.value);setCallbackNotice(null);}}/></label>
-            <Button variant="outline" aria-label="Save lead callback" disabled={!callbackDate||savingNote||(manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate===callbackDate)} onClick={()=>{try{void saveNote(leadCallbackNote(callbackDate));}catch{setCallbackNotice({customerId:selected.id,kind:"error",text:"Choose a valid callback date."});}}}>{savingNote?"Saving…":manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate===callbackDate?"Saved":"Save callback"}</Button>
+            <label>Callback date <input type="date" aria-label="Lead callback date" value={callbackDate} onChange={event=>{setCallbackDate(event.target.value);setActivityNotice(null);}}/></label>
+            <Button variant="outline" aria-label="Save lead callback" disabled={!callbackDate||savingNote||(manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate===callbackDate)} onClick={()=>{try{void saveNote(leadCallbackNote(callbackDate));}catch{setActivityNotice({customerId:selected.id,kind:"error",text:"Choose a valid callback date."});}}}>{savingNote?"Saving…":manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate===callbackDate?"Saved":"Save callback"}</Button>
           </details>
           {!manualFlags.reviewReceivedAt&&<Button variant="outline" aria-label="Prepare review received note" onClick={()=>prepareManualFlag(REVIEW_RECEIVED_NOTE)}>Log review received</Button>}
           {manualFlags.sign?.state==="out"?<><Button variant="outline" aria-label="Prepare yard sign pickup note" onClick={()=>prepareManualFlag(SIGN_PICKED_UP_NOTE)}>Log yard sign pickup</Button>{onPreparePickupTask&&<Button variant="outline" aria-label="Prepare yard sign pickup reminder" onClick={()=>stagePickupTask(selected,manualFlags.sign)}>Create pickup task</Button>}</>:
           <details className="customer-sign-form"><summary>Track a yard sign</summary><label>Pickup target <input type="date" aria-label="Yard sign pickup date" value={signPickupDate} onChange={event=>setSignPickupDate(event.target.value)}/></label><label>Sign location <input aria-label="Yard sign location" value={signLocation} onChange={event=>setSignLocation(event.target.value)} placeholder={selected.address||"Address / where placed"}/></label><Button variant="outline" disabled={!signPickupDate} aria-label="Prepare yard sign placed note" onClick={()=>{try{prepareManualFlag(signPlacedNote(signPickupDate,signLocation.trim()||selected.address||"Location not specified"));}catch{}}}>Prepare placement note</Button></details>}
         </div>
-        {callbackNotice?.customerId===selected.id&&<p role={callbackNotice.kind==="error"?"alert":"status"} className={callbackNotice.kind==="error"?"save-error":"save-success"}>{callbackNotice.text}</p>}
+        {activityNotice?.customerId===selected.id&&<p role={activityNotice.kind==="error"?"alert":"status"} className={activityNotice.kind==="error"?"save-error":"save-success"}>{activityNotice.text}</p>}
         <p role="status" className="customer-flag-help">
           <strong>Lead contact log: </strong>
           {manualFlags.leadContact?.state==="no_answer"
@@ -2565,7 +2565,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
             <strong>{manualFlags.leadCallback.dueDate<=tulsaToday?"Callback due":"Upcoming callback"}:</strong> {manualFlags.leadCallback.dueDate}.
           </p>}
         {manualFlags.sign?.state==="out"&&<p className="customer-flag-sign-location">Yard sign: {manualFlags.sign.location||"Location not specified"} · Pickup {manualFlags.sign.pickupDate}.</p>}
-        <details className="customer-sign-form"><summary>About tracking</summary><p className="customer-flag-help">Tracking actions prepare notes. Tap <strong>Add note</strong> to save. These entries do not send messages, create push alerts, or verify reviews. Pickup tasks must also be saved separately.</p></details>
+        <details className="customer-sign-form"><summary>About tracking</summary><p className="customer-flag-help">Contact and callback buttons save directly. Other flags prepare notes; tap <strong>Add note</strong> to save those. No messages or push alerts are sent. Pickup tasks must be saved separately.</p></details>
       </section>
       <section className="customer-action-review" role="region" aria-label="Review next customer actions">
         <div className="customer-timeline-heading"><div><h2>Review next</h2></div><span>{nextCustomerActions.length} to check</span></div>
