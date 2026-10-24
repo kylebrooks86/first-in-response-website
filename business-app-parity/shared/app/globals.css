@@ -1769,3 +1769,13 @@ html,body{max-width:100%;overflow-x:clip}
 .customer-secondary-reminders[open]>summary::after{transform:rotate(180deg)}
 .customer-secondary-reminders>summary:focus-visible{outline:2px solid var(--ring);outline-offset:-3px}
 .customer-secondary-reminder-list{display:grid;gap:12px;padding:0 12px 12px;min-width:0}
+
+
+/* Add an expense when needed; saved history remains visible by default. */
+.business-expense-entry{min-width:0;margin:0 0 12px;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.business-expense-entry>summary{list-style:none;min-height:48px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;font-weight:750;color:var(--foreground)}
+.business-expense-entry>summary::-webkit-details-marker{display:none}
+.business-expense-entry>summary::after{content:"▾";color:var(--muted-foreground)}
+.business-expense-entry[open]>summary::after{transform:rotate(180deg)}
+.business-expense-entry>summary:focus-visible{outline:2px solid var(--ring);outline-offset:-3px}
+.business-expense-entry>.business-form{padding:0 12px 12px;margin:0}
