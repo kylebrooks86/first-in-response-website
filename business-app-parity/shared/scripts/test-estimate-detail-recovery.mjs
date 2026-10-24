@@ -109,6 +109,9 @@ eq(completedNodes.some(n=>n.props?.['aria-label']==='Job report and costs'),true
 eq(completedNodes.some(n=>n.props?.['aria-label']==='Driving to job'),false,'Completed job does not show an active driving shortcut');
 const simpleJob=fixture();simpleJob.open(job('compact-scheduled'));await flush();
 eq(simpleJob.nodes().some(n=>n.props?.className==='next-action'),false,'Routine booked work has no redundant next-step box');
+eq(simpleJob.nodes().some(n=>n.type==='details'&&n.props?.className==='detail-scope detail-scope-optional'),true,'Booked job keeps complete service scope one tap away rather than forcing a long scroll');
+const quoteScope=fixture();quoteScope.open({...job('scope-quote'),status:'draft'});await flush();
+eq(quoteScope.nodes().some(n=>n.type==='div'&&n.props?.className==='detail-scope'),true,'Draft estimate shows service scope before customer approval');
 const exceptionJob=fixture();exceptionJob.open({...job('held-billing'),paymentOverageOpen:1});await flush();
 eq(exceptionJob.nodes().some(n=>n.props?.className==='change-alert'),true,'Unresolved overpayment keeps its actionable refund-or-retain controls');
 eq(exceptionJob.nodes().some(n=>n.props?.className==='next-action'),false,'Overpayment does not repeat a second warning above its controls');
