@@ -45,6 +45,12 @@ for(const [fail,message] of failures)for(const populated of [false,true]){
  const recovered=nodes(render());equal(recovered.some(n=>n.props?.role==='alert'),false);equal(recovered.some(n=>n.type===stubs.ScheduleMonthCalendar),true);equal(recovered.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,job.scheduledAt);
  const card=recovered.find(n=>n.props?.className==='schedule-job');assert.ok(card);checks++;card.props.onClick();equal(state[1].id,job.id);
  const route=recovered.find(n=>n.props?.className==='route-day-button');equal(new URL(route.props.href).searchParams.get('destination'),job.address);
+ const dailyActions=recovered.find(n=>n.props?.className==='schedule-day-buttons');
+ assert.ok(dailyActions,'Schedule day must expose booking and navigation directly beneath the month');checks++;
+ equal(nodes(dailyActions).filter(n=>n.props?.className==='route-day-button').length,1);
+ equal(route.props['aria-label'],'Route tomorrow in Google Maps');
+ equal(nodes(recovered.find(n=>n.props?.className==='schedule-planning-more')).some(n=>n.props?.className==='route-day-button'),false);
+ equal(nodes(dailyActions).some(n=>n.props?.children==='+ Schedule job'),true);
 }
 // Successful schedule retains sorted same-day routing and attention/balance rules.
 const fixtures=[{...job,id:'later',scheduledAt:'2026-10-10T15:00:00Z',address:'456 Later Rd'},job,
