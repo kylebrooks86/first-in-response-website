@@ -1709,3 +1709,17 @@ html,body{max-width:100%;overflow-x:clip}
   .customer-snapshot-extra{grid-template-columns:minmax(0,1fr)}
   .followup-extra-categories button{flex:1 1 auto}
 }
+
+/* Customer-first navigation: primary contact and record tabs directly beneath the name. */
+.customer-profile .customer-contact{margin-top:14px;gap:8px}
+.customer-profile .record-tabs{margin-top:16px}
+.customer-profile .customer-records{max-width:100%;min-width:0;margin-bottom:12px}
+.customer-property-links{min-width:0;max-width:100%}
+.customer-property-links>summary{min-height:44px;display:flex;align-items:center;padding:9px 12px;border-radius:9px;border:1px solid var(--border);cursor:pointer;font-size:12px;font-weight:750;color:var(--foreground);background:var(--card)}
+.customer-property-links>div{display:flex;flex-wrap:wrap;gap:8px;padding-top:8px}
+.customer-property-links>div>a{min-height:44px;max-width:100%;overflow-wrap:anywhere}
+@media(max-width:760px){
+  .customer-profile .customer-contact>a,.customer-profile .customer-contact>span{min-height:44px}
+  .customer-profile .record-tabs{margin-top:12px}
+  .customer-property-links{flex:1 1 100%}
+}
