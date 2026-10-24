@@ -3087,7 +3087,7 @@ function InvoicesView({searchQuery,focusInvoiceId,onFocusHandled}:{searchQuery:s
       // invoice balance, then offer the owner a payment action on that record.
       // D1 can return integer cents as numbers or decimal integer strings.
       const exactCents=(raw:unknown)=>{
-        if((typeof raw!=="number"&&typeof raw!=="string")||(typeof raw==="string"&&!/^\\d+$/.test(raw.trim()))||
+        if((typeof raw!=="number"&&typeof raw!=="string")||(typeof raw==="string"&&!/^\d+$/.test(raw.trim()))||
            !Number.isSafeInteger(Number(raw))||Number(raw)<0)
           throw new Error("Invoice amounts could not be verified. Refresh before taking payment.");
         return Number(raw);
