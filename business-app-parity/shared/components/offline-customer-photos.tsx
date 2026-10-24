@@ -139,7 +139,7 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
    setMessage('Check that the ZIP is in Files, then use Verify saved ZIP from Files.');
   }catch(err){
    if(err instanceof Error&&err.name==='AbortError')setMessage('Saving was cancelled. Your prepared ZIP is still available; photos are NOT backed up.');
-   else setError('iOS could not open the share sheet. Try Download prepared ZIP below; your prepared archive has not been erased.');
+   else setError('iOS could not open the share sheet. Open More photo backup tools, then Download prepared ZIP. Your prepared archive is still available.');
   }finally{active.current=false;setBusy(false);}
  };
  const verifySavedArchive=async(files:FileList|null)=>{
