@@ -9,7 +9,7 @@ const helpers=['resolvedBillingTotalCents','billingBalanceCents'];
 const declarations=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>helpers.includes(d.name.getText(ast))));
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleView');
 let state=[],cursor=0,effect,requests=[],fetchOptions=[],responder;let scheduleNow=Date.parse('2026-10-09T12:00:00Z');
-const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','Navigation','Clock3','ChevronRight','CalendarDays','CloudSun'].map(name=>[name,()=>null]));
+const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','ScheduleMonthCalendar','Navigation','Clock3','ChevronRight','CalendarDays','CloudSun'].map(name=>[name,()=>null]));
 const spacing={exports:{}};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/schedule-turnarounds.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,spacing);
 const pagination={exports:{},require};
@@ -20,7 +20,7 @@ const context={exports:{},require,...pagination.exports,...spacing.exports,Error
  useEffect(fn){effect=fn;},useCurrentTime:()=>scheduleNow,fetch:async (url,options)=>{requests.push(url);fetchOptions.push(options);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,dateTime:s=>s,
 };
 vm.runInNewContext(ts.transpileModule(declarations.map(n=>n.getText(ast)).join('\n')+'\n'+view.getText(ast)+'\nexports.view=ScheduleView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
-function render(searchQuery=''){cursor=0;return context.exports.view({searchQuery});}
+function render(searchQuery=''){cursor=0;if(!(5 in state))state[5]='all';if(!(6 in state))state[6]='';return context.exports.view({searchQuery});}
 function nodes(tree){const out=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;out.push(n);walk(n.props?.children);}walk(tree);return out;}
 async function settle(){for(let i=0;i<16;i++)await Promise.resolve();assert.equal(state[2],false,'Load must settle');}
 const job={id:'job-synthetic',customer:'Synthetic QA',service:'House Wash',status:'scheduled',scheduledAt:'2026-10-10T12:00:00Z',address:'123 A & B St, Tulsa',totalCents:10000,invoiceTotalCents:8000,depositCents:5000,paidCents:2000};
@@ -37,10 +37,10 @@ const failures=[
 ];
 for(const [fail,message] of failures)for(const populated of [false,true]){
  state=[populated?[job]:[],populated?job:null,true,''];responder=fail;requests=[];
- const initial=nodes(render());equal(initial.find(n=>n.type===stubs.EstimateDetail).props.estimate,null);equal(initial.some(n=>n.props?.className==='route-day-button'),false);equal(initial.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,undefined);
+ const initial=nodes(render());equal(initial.find(n=>n.type===stubs.EstimateDetail).props.estimate,null);equal(initial.some(n=>n.props?.className==='route-day-button'),false);equal(initial.some(n=>n.type===stubs.ScheduleWeather),false);
  effect();await settle();equal(state[3],message);equal(state[0].length,populated?1:0);equal(state[1],null);
  const all=nodes(render());const alert=all.find(n=>n.props?.role==='alert');assert.ok(alert);checks++;
- equal(alert.props.children[0].props.children,message);equal(all.some(n=>n.props?.className==='schedule-board'),false);equal(all.some(n=>n.props?.className==='schedule-turnaround-review'),false);equal(all.some(n=>n.props?.className==='route-day-button'),false);equal(all.some(n=>n.props?.children==='No upcoming jobs'),false);equal(all.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,undefined);
+ equal(alert.props.children[0].props.children,message);equal(all.some(n=>n.props?.className==='schedule-board'),false);equal(all.some(n=>n.props?.className==='schedule-turnaround-review'),false);equal(all.some(n=>n.props?.className==='route-day-button'),false);equal(all.some(n=>n.props?.children==='No upcoming jobs'),false);equal(all.some(n=>n.type===stubs.ScheduleWeather),false);
  responder=()=>ok([job]);requests=[];alert.props.children[1].props.onClick();await settle();equal(state[3],'');equal(requests.length,1);equal(requests[0],'/api/estimate-history?limit=50');equal(fetchOptions.at(-1)?.cache,'no-store');
  const recovered=nodes(render());equal(recovered.some(n=>n.props?.role==='alert'),false);equal(recovered.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,job.scheduledAt);
  const card=recovered.find(n=>n.props?.className==='schedule-job');assert.ok(card);checks++;card.props.onClick();equal(state[1].id,job.id);
@@ -107,7 +107,7 @@ chosenDay().props.onChange({target:{value:'2026-10-19'}});
 equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,1);
 equal(nodes(render()).some(n=>n.props?.className==='schedule-history-status'&&n.props?.children==='completed'),true);
 equal(nodes(render()).some(n=>n.props?.className==='route-day-button'),false);
-equal(nodes(render()).find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,undefined);
+equal(nodes(render()).some(n=>n.type===stubs.ScheduleWeather),true);
 nodes(render()).find(n=>n.props?.className==='schedule-job').props.onClick();
 equal(state[1].id,'completed-yesterday');
 chosenDay().props.onChange({target:{value:''}});equal(state[5],'all');
