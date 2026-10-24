@@ -1637,6 +1637,9 @@ html,body{max-width:100%;overflow-x:clip}
 .photo-comparison-more>summary{display:flex;align-items:center;min-height:48px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer}
 .photo-comparison-more>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
 .photo-comparison-more>.before-after-builder{margin-top:10px}
+.photo-backup-more>summary::after,.photo-comparison-more>summary::after{content:"▾";display:inline-flex;margin-left:auto;padding-left:12px;font-size:17px;line-height:1;transition:transform .15s ease}
+.photo-backup-more[open]>summary::after,.photo-comparison-more[open]>summary::after{transform:rotate(180deg)}
+
 /* FIRE QA real-iPhone review (Oct 23): on-device photo ZIP actions must never
    form two half-hidden columns. Preserve the desktop layouts and photo logic. */
 @media (max-width:760px){
