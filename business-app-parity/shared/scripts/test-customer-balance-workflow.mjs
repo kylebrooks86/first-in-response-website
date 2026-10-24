@@ -12,10 +12,12 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  check(saved.status==='scheduled'&&saved.signedAt&&saved.photoRelease==='no'&&data.payments.filter(row=>row.customerId===customer.id).length===0,'Approval/scheduling preserve signature, permission and empty payment ledger');
  const profile=async()=>{await page.goto(origin+'/');await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('button',{name:'Customers',exact:true}).first().click();await page.locator('.customer-card').filter({hasText:customer.name}).click();await page.getByRole('heading',{name:customer.name,exact:true}).waitFor();};
  await page.setViewportSize({width:390,height:844});await profile();
- const metric=label=>page.locator('.customer-snapshot>span').filter({has:page.getByText(label,{exact:true})}).locator('strong');
+ const metric=label=>page.locator('.customer-snapshot>span,.customer-snapshot-extra>span').filter({has:page.getByText(label,{exact:true})}).locator('strong');
+ check(!(await metric('Deposit still required').isVisible())&&!(await metric('Potential estimate value').isVisible()),'Advanced financial totals stay collapsed until requested');
+ await page.getByText('More amounts',{exact:true}).click();
  for(const width of [320,390,768,1366]){
   await page.setViewportSize({width,height:900});
-  check(await metric('Collectible job balance').innerText()==='$200'&&await metric('Potential estimate value').innerText()==='$200'&&await metric('Deposit still required').innerText()==='$100'&&await metric('Paid').innerText()==='$0','Profile separates quote, job, deposit and paid at '+width);
+  check(await metric('Job balance').innerText()==='$200'&&await metric('Potential estimate value').innerText()==='$200'&&await metric('Deposit still required').innerText()==='$100'&&await metric('Paid').innerText()==='$0','Profile separates quote, job, deposit and paid at '+width);
  }
  await page.goto(origin+'/');
  for(const width of [320,390,768,1366]){
@@ -33,7 +35,8 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  check(await viewed.innerText()==='Sent · Viewed','Home refreshes viewed status on focus without page reload');
  const paid=await request('/api/payments','POST',{estimateId:job.id,amountCents:10000,method:'Cash'});assert.equal(paid.status(),201);
  await page.setViewportSize({width:390,height:844});await profile();
- check(await metric('Collectible job balance').innerText()==='$100'&&await metric('Deposit still required').innerText()==='$0'&&await metric('Paid').innerText()==='$100','Recorded deposit reduces principal and deposit requirement once');
+ await page.getByText('More amounts',{exact:true}).click();
+ check(await metric('Job balance').innerText()==='$100'&&await metric('Deposit still required').innerText()==='$0'&&await metric('Paid').innerText()==='$100','Recorded deposit reduces principal and deposit requirement once');
  await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('button',{name:'Payments',exact:true}).first().click();
  await page.getByRole('heading',{name:'Collectible job balances',exact:true}).waitFor();
  const balances=page.locator('.balance-list article').filter({hasText:customer.name});
