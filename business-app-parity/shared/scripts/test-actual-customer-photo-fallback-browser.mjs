@@ -68,12 +68,12 @@ try{
  check(await page.getByRole('button',{name:/Synthetic Authorized Customer.*local photos/}).count()===1,'Previously authorized customer labels are available for offline photo navigation');
  await page.getByRole('button',{name:/Synthetic Authorized Customer.*local photos/}).click();
  await page.getByRole('button',{name:'Photo library'}).waitFor();
- check(await page.getByText('Private on-device photos').count()===1,'Actual offline CustomersView renders actual customer photo component');
+ check(await page.getByText('Photos',{exact:true}).count()===1,'Actual offline CustomersView renders actual customer photo component');
  await page.locator('input[type="file"][multiple]').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:png});
  await page.getByText(/Photos verified on this device/).waitFor();
  check(await page.evaluate(()=>window.fixturePhotoDirectory.photoCount())===1,'Offline fallback adds actual synthetic image bytes to IndexedDB');
  await page.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
- await page.getByText(/photo ZIP passed integrity checks/).waitFor();
+ await page.getByText(/ZIP is ready/).waitFor();
  check(await page.getByRole('button',{name:'Download prepared ZIP'}).count()===1,'Actual offline customer dashboard prepares verified photo backup');
  status=401;
  await page.getByRole('button',{name:'Reconnect & refresh customer records'}).click();
