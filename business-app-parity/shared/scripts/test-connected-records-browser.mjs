@@ -105,8 +105,12 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await flags.getByText('More statuses',{exact:true}).click();
   check((await flags.innerText()).includes('Review received')&&(await flags.innerText()).includes('Not logged'),'Unverified reviews never appear as received');
   check((await flags.innerText()).includes('Invoice')&&(await flags.innerText()).includes('Created · send not confirmed'),'Created invoice never implies a confirmed send');
+  const timelineDisclosure=page.locator('details.customer-timeline-disclosure');
+  await timelineDisclosure.locator('summary').waitFor();
+  check(!(await timelineDisclosure.evaluate(node=>node.open)),'Profile starts with full historical activity tucked away at '+size.width+' '+theme);
+  await timelineDisclosure.locator('summary').click();
   const timeline=page.getByRole('region',{name:'Recent customer activity'});
-  check(await timeline.isVisible(),'Profile has a visible recent activity timeline at '+size.width+' '+theme);
+  check(await timeline.isVisible(),'One tap opens the full recent activity timeline at '+size.width+' '+theme);
   const timelineText=await timeline.innerText();
   check(timelineText.includes('Customer note saved')&&timelineText.includes('Invoice created')===false,'Newest saved note is visible ahead of older activity without flattening all records');
   check(!timelineText.includes('8349')&&!timelineText.includes('PRIVATE gate code'),'Timeline protects arbitrary private saved note text');
