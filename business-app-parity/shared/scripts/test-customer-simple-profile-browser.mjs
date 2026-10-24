@@ -24,14 +24,14 @@ const priorityJs=ts.transpileModule(priorityFn.getText(ast)+'\nexports.pick=pick
 vm.runInNewContext(priorityJs,priorityContext);
 const pick=priorityContext.exports.pick;
 const now=Date.parse('2026-10-24T12:00:00Z');
-const job=(id,status,scheduledAt=null,paidCents=0,totalCents=20000)=>({id,status,scheduledAt,paidCents,totalCents});
-const older=job('older','scheduled','2026-11-09T15:00:00Z');
-const sooner=job('sooner','scheduled','2026-10-25T15:00:00Z');
-const overdue=job('overdue','scheduled','2026-10-23T15:00:00Z');
-const missed=job('missed','scheduled','2026-10-12T15:00:00Z');
-const bad=job('bad','scheduled','invalid-date');
-const draft=job('draft','draft'),approved=job('approved','approved');
-const unpaid=job('unpaid','completed',null,10000),paid=job('paid','completed',null,20000);
+const makePriorityJob=(id,status,scheduledAt=null,paidCents=0,totalCents=20000)=>({id,status,scheduledAt,paidCents,totalCents});
+const older=makePriorityJob('older','scheduled','2026-11-09T15:00:00Z');
+const sooner=makePriorityJob('sooner','scheduled','2026-10-25T15:00:00Z');
+const overdue=makePriorityJob('overdue','scheduled','2026-10-23T15:00:00Z');
+const missed=makePriorityJob('missed','scheduled','2026-10-12T15:00:00Z');
+const bad=makePriorityJob('bad','scheduled','invalid-date');
+const draft=makePriorityJob('draft','draft'),approved=makePriorityJob('approved','approved');
+const unpaid=makePriorityJob('unpaid','completed',null,10000),paid=makePriorityJob('paid','completed',null,20000);
 const priorityCases=[
  {rows:[older,sooner,overdue],want:'sooner',why:'next scheduled appointment wins regardless of API order'},
  {rows:[overdue,older,sooner],want:'sooner',why:'past-due job does not hide upcoming appointment'},
