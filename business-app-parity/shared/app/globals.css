@@ -1832,3 +1832,8 @@ html,body{max-width:100%;overflow-x:clip}
 .payments-secondary-metrics>.business-metrics{margin:0;padding:0 10px 12px}
 @media(max-width:760px){.payments-view .payments-primary-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:350px){.payments-view .payments-primary-metrics{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Top three customer actions stay scannable even with a large follow-up backlog. */
+.followup-all-actions-link{display:block;width:100%;min-height:44px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);text-align:center;font-size:12px;font-weight:750;cursor:pointer}
+.followup-all-actions-link:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
