@@ -187,7 +187,10 @@ try{
  check(premature.status()===409,'Actual invoice route blocks billing an incomplete job');
  const page=await context.newPage();page.on('pageerror',e=>clientErrors.push(e.message));
  await page.goto(origin+'/');
- await page.getByText('SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS',{exact:true}).waitFor();
+ await page.getByText('QA · Test data only',{exact:true}).waitFor();
+ const qaIndicator=page.getByRole('status',{name:'Synthetic QA test environment. Do not use real customer records or payments.',exact:true});
+ check((await qaIndicator.boundingBox()).height<=22,'QA warning remains visible in a slim persistent strip');
+ check(await qaIndicator.evaluate(n=>getComputedStyle(n).position)==='sticky','QA test distinction stays persistent while scrolling');
  await page.getByRole('heading',{name:'Today',exact:true}).waitFor();
  check(await page.getByRole('region',{name:'Start using your empty FIRE app'}).count()===0,
    'First-use empty-state guidance disappears once saved quote exists');
@@ -280,7 +283,7 @@ try{
    'Deleted photo can no longer be retrieved through its original private URL');
  }
  await page.setViewportSize({width:390,height:844});
- await page.reload();await page.getByText('SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS',{exact:true}).waitFor();
+ await page.reload();await page.getByText('QA · Test data only',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Open menu',exact:true}).click();
  await page.getByRole('button',{name:/Estimates 1/}).click();
  const restoredEstimateCard=page.locator('.estimate-list .estimate-card').filter({hasText:'Synthetic HTTP Customer'});

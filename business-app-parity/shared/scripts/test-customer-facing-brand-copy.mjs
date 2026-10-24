@@ -63,8 +63,10 @@ for(const [key,legacy] of Object.entries(LEGACY_BUSINESS_TEMPLATE_DEFAULTS)){
 assert.match(SERVICE_AGREEMENT,/First In Response Exteriors LLC/);
 assert.match(fillTemplate(templateByKey('estimate').body,{'@customer_first_name':'Kyle'}),/^Hi Kyle,/,'Customer name is data, not branding');
 const ownerDashboard=readFileSync('app/dashboard.tsx','utf8');
-assert.match(ownerDashboard,/<p className="eyebrow">FIRE App<\/p><h1>Today<\/h1>/,
- 'Compact owner Home heading must retain the visible FIRE App brand');
+assert.match(ownerDashboard,/<section className="welcome-row"><div><h1>Today<\/h1>/,
+ 'Compact owner Home starts with its primary heading without repeating the app brand');
+assert.match(ownerDashboard,/<div className="mobile-brand"><FireMark small\s*\/><strong>FIRE<\/strong>/,
+ 'App chrome still retains the visible FIRE brand');
 assert.match(ownerDashboard,/First In Response Exteriors/,
  'Owner navigation must still identify the business');
 assert.doesNotMatch(readFileSync('app/owner-account.tsx','utf8'),/Kyle|Brooks/);

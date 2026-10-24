@@ -2202,3 +2202,57 @@ html,body{max-width:100%;overflow-x:clip}
 /* Always identify test-only data without sacrificing a whole iPhone header row. */
 .qa-test-banner{display:block;width:100%;padding:4px 8px;line-height:1.3;background:#601818;color:#fff;font-size:10px;font-weight:750;letter-spacing:.015em;text-align:center}
 @media(max-width:430px){.qa-test-banner{font-size:9px;padding:3px 4px}}
+
+/* Compact owner workspace. Scope density changes to FIRE, preserving readable
+   forms, financial warnings, safe-area clearance and the public website. */
+.ui-help{margin-block:6px;color:var(--muted-foreground);font-size:12px;min-width:0}
+.ui-help>summary{display:flex;align-items:center;gap:6px;min-height:44px;cursor:pointer;font-weight:700;color:var(--foreground);list-style:none}
+.ui-help>summary::after{content:"▾"}
+.ui-help[open]>summary::after{transform:rotate(180deg)}
+.ui-help>summary::-webkit-details-marker{display:none}
+.ui-help>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.ui-help>p{margin:0 0 8px;line-height:1.5}
+.template-mobile-picker{display:none}
+.template-section-title{margin:12px 0 8px;font-size:17px}
+.qa-test-banner{position:sticky;top:0;z-index:31;height:20px;padding:2px 8px;font-size:11px;line-height:16px;letter-spacing:0}
+.qa-test-banner + .app-shell .topbar{top:20px}
+.schedule-view>.schedule-board{margin-top:8px}
+.schedule-view>.schedule-board>header{padding:10px 12px}
+@media(max-width:760px){
+ .dashboard-view,.customers-view,.workspace-view{padding-top:10px}
+ .topbar{grid-template-rows:52px auto!important;min-height:0!important;padding-bottom:6px!important}
+ .topbar .search-box input{height:44px!important}
+ .workspace-head{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}
+ .workspace-head>div,.customers-head>div{min-width:0}
+ .workspace-head h1,.customers-head h1{margin:0;font-size:24px;line-height:1.2}
+ .workspace-head-actions{gap:8px}
+ .business-panel>header,.insight-panel>header{padding:12px}
+ .business-grid,.insight-grid,.payment-layout{gap:12px;margin-top:12px}
+ .insight-kpis{margin-top:12px;gap:8px}
+ .insight-kpis article{padding:12px}
+ .customer-profile-head{gap:8px}
+ .customer-profile .customer-contact{margin-top:10px;gap:6px}
+ .customer-profile .customer-contact>a{min-height:44px}
+ .customer-snapshot{margin-top:10px}
+ .customer-timeline-disclosure{margin:10px 0 12px}
+ .record-tabs{margin-block:10px}
+ .record-tabs button{min-height:44px}
+ .filter-row{margin-top:10px}
+ .estimate-list,.invoice-list,.customer-list{margin-top:10px;gap:8px}
+ .schedule-month{padding:8px 10px}
+ .schedule-month-header{margin-bottom:6px}
+ .schedule-month-day,.schedule-month-empty{min-height:44px}
+ .schedule-month-legend{margin-top:6px}
+ .schedule-job{padding:10px 12px;gap:10px}
+ .schedule-day-actions{margin-top:10px;padding:10px}
+ .notification-attention-list>button{min-height:52px;padding-block:9px}
+ .template-mobile-picker{display:grid;gap:5px;margin-top:8px}
+ .template-mobile-picker select{width:100%;min-width:0;min-height:44px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font:inherit;font-size:16px}
+ .template-mobile-picker select:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+ .settings-view .template-list{display:none}
+ .settings-view .template-layout{grid-template-columns:minmax(0,1fr);margin-top:10px;gap:10px}
+ .template-editor{padding:12px;gap:12px}
+ .template-editor>header h2{font-size:18px}
+ .template-editor textarea{font-size:16px}
+ .template-fields .merge-tags{margin-top:0}
+}

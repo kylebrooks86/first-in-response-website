@@ -140,12 +140,12 @@ try{
    if(width<=760){
     const layout=await row.evaluate(el=>{
      const rect=e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,height:r.height}};
-     return {columns:getComputedStyle(el).gridTemplateColumns.split(' ').length,actions:[...el.querySelectorAll(':scope>a')].map(rect),property:rect(el.querySelector('.customer-property-links'))};
+     return {columns:getComputedStyle(el).gridTemplateColumns.split(' ').length,actions:[...el.querySelectorAll(':scope>a')].map(rect),property:rect(el.querySelector('.customer-property-research'))};
     });
     check(layout.columns===2&&layout.actions.length===4,width+': Call, Text, Email and Maps use two compact iPhone columns');
-    check(layout.actions.every(a=>a.height>=48&&a.left>=-1&&a.right<=width+1),width+': every contact action remains a full-height visible tap target');
+    check(layout.actions.every(a=>a.height>=44&&a.left>=-1&&a.right<=width+1),width+': every contact action remains a full-height visible tap target');
     check(Math.abs(layout.actions[0].top-layout.actions[1].top)<3&&Math.abs(layout.actions[2].top-layout.actions[3].top)<3&&layout.actions[2].top>layout.actions[0].top+40,width+': four actions occupy two rows, not a tall list');
-    check(layout.property.top>layout.actions[3].top&&layout.property.left>=-1&&layout.property.right<=width+1,width+': existing Earth and Zillow disclosure stays below quick actions without overflow');
+    check(layout.property.top>layout.actions[3].top&&layout.property.left>=-1&&layout.property.right<=width+1,width+': visible Earth and Zillow tools stay below quick actions without overflow');
    }
   check(await page.getByRole('status',{name:'Last lead contact'}).count()===0,width+': new lead has no unnecessary contact explanation');
   await page.evaluate(()=>window.__setLeadContact({state:'no_answer',unansweredAttempts:2,at:'2026-10-23T15:00:00Z'}));
@@ -164,8 +164,7 @@ try{
   await shortcut.click();
   check(await page.evaluate(()=>window.__openedJob?.id==='job-001'&&window.__openedJob?.customer==='Synthetic customer'),width+': original current job handler opens correct customer and job');
   check(await shortcut.evaluate(el=>{const p=el.getBoundingClientRect();return p.height>=44&&p.left>=-1&&p.right<=innerWidth+1}),width+': current job tap target stays within phone');
-  await row.locator('details.customer-property-links>summary').click();
-  check(await row.getByRole('link',{name:'Google Earth'}).isVisible()&&await row.getByRole('link',{name:'Zillow'}).isVisible(),width+': property links remain accessible');
+  check(await row.getByRole('link',{name:'Research customer property on Google Earth',exact:true}).isVisible()&&await row.getByRole('link',{name:'Research customer property on Zillow',exact:true}).isVisible(),width+': property tools are available without opening a disclosure');
   check(await page.getByRole('region',{name:'Review next customer actions'}).isVisible(),width+': actual due customer actions stay immediately visible');
   check(!(await page.getByRole('region',{name:'Recent customer activity'}).isVisible()),width+': long timeline initially tucked away');
   await activityDisclosure.locator('summary').click();
@@ -177,7 +176,7 @@ try{
   check(await page.locator('.customer-timeline-list li').count()===4,width+': original category filter still works');
   await page.getByRole('button',{name:'Open Invoice event 1 in billing'}).click();
   check(await page.evaluate(()=>window.__clicked.includes('activity:event-1')),width+': saved entry navigation still invokes handler');
-  const geo=await page.evaluate(()=>({total:document.documentElement.scrollWidth,width:innerWidth,targets:[...document.querySelectorAll('.customer-contact>a,.customer-property-links>summary,.customer-timeline-disclosure>summary')].map(x=>{const r=x.getBoundingClientRect();return {left:r.left,right:r.right,height:r.height};})}));
+  const geo=await page.evaluate(()=>({total:document.documentElement.scrollWidth,width:innerWidth,targets:[...document.querySelectorAll('.customer-contact>a,.customer-property-research>a,.customer-timeline-disclosure>summary')].map(x=>{const r=x.getBoundingClientRect();return {left:r.left,right:r.right,height:r.height};})}));
   check(geo.total<=width+1,width+': no horizontal scrolling');
   check(geo.targets.every(r=>r.left>=-1&&r.right<=width+1&&r.height>=44),width+': all contact and history taps at least 44px');
  }
@@ -196,7 +195,7 @@ try{
  await page.waitForFunction(()=>document.querySelector('.customer-contact-empty'));
  check(await page.locator('.customer-contact a').count()===0,'Missing customer contacts never create fake clickable links');
  check(await page.locator('.customer-contact-empty').isVisible(),'Missing contact summary stays available with Edit customer direction');
- check(await page.locator('.customer-property-links').count()===0,'No empty Earth or Zillow disclosure for missing address');
+ check(await page.locator('.customer-property-research').count()===0,'No empty Earth or Zillow tools for missing address');
  check(await page.locator('.customer-action-review').count()===0,'Empty actionable section does not overwhelm new customer');
  check(await page.locator('.customer-timeline-disclosure').count()===1,'History remains accessible even without outstanding actions');
  check(errors.length===0&&outside.length===0,'No JS errors or external calls: '+errors.join('; '));

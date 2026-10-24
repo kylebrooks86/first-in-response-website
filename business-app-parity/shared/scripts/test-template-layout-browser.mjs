@@ -50,14 +50,34 @@ try{
   await page.setViewportSize({width,height:844});await page.goto(origin);await page.locator('#templateBody').waitFor();
   await page.evaluate(t=>{localStorage.setItem('fire-theme',t)},theme);await page.reload();await page.locator('#templateBody').waitFor();
   check(await page.locator('html').getAttribute('data-theme')===theme,`${width}/${theme}: persisted theme applied`);
+  if(process.env.FIRE_UI_SCREENSHOT_DIR&&width===390)await page.screenshot({path:resolve(process.env.FIRE_UI_SCREENSHOT_DIR,`settings-${theme}.png`),fullPage:true});
+  if(width<=760){
+   check(await page.getByLabel('Template',{exact:true}).isVisible(),`${width}/${theme}: compact template picker visible`);
+   check(!(await page.locator('.template-list').isVisible()),`${width}/${theme}: long template directory does not precede editor`);
+   check((await page.locator('.template-editor').boundingBox()).y<400,`${width}/${theme}: editor starts in first screen`);
+   const picker=page.getByLabel('Template',{exact:true}),original=await picker.inputValue();
+   await page.locator('#templateBody').fill('Synthetic unsaved edit');
+   page.once('dialog',dialog=>dialog.dismiss());await picker.selectOption('contractTerms');
+   check(await picker.inputValue()===original&&(await page.locator('#templateBody').inputValue())==='Synthetic unsaved edit',`${width}/${theme}: cancel keeps both selection and unsaved text`);
+   page.once('dialog',dialog=>dialog.accept());await picker.selectOption('contractTerms');
+   check(await picker.inputValue()==='contractTerms',`${width}/${theme}: confirmed selection opens agreement`);
+  }
   for(const name of ['Service Agreement','Estimate Ready']){
-   const choice=page.locator('.template-list button').filter({hasText:name});await choice.click();
+   if(width<=760){
+    const key=await page.evaluate(name=>window.fixtureTemplates.find(t=>t.name.toLowerCase()===name.toLowerCase()).key,name);
+    await page.getByLabel('Template',{exact:true}).selectOption(key);
+   }else await page.locator('.template-list button').filter({hasText:name}).click();
    await page.locator('#templateBody').fill('Synthetic long unbroken URL https://example.invalid/'+('x'.repeat(1200))+'\n'+('Long agreement paragraph. '.repeat(400)));
    await page.locator('#templateBody').press('End');await page.locator('#templateBody').press('Enter');await page.locator('#templateBody').pressSequentially('Still editable');
    const geometry=await page.evaluate(()=>({page:document.documentElement.scrollWidth,width:innerWidth,boxes:[...document.querySelectorAll('.template-layout,.template-editor,.template-editor input,.template-editor textarea,.template-editor footer button,.merge-tags button')].map(n=>{const r=n.getBoundingClientRect();return {left:r.left,right:r.right}})}));
    check(geometry.page<=width+1,`${width}/${theme}/${name}: no page-level horizontal overflow`);
    check(geometry.boxes.every(r=>r.left>=-1&&r.right<=width+1),`${width}/${theme}/${name}: editor fields/actions remain within viewport`);
    check((await page.locator('#templateBody').inputValue()).includes('Still editable'),`${name}: text editing preserved`);
+   if(name==='Estimate Ready'){
+    const fields=page.locator('.template-fields');check(!(await fields.getByRole('button').first().isVisible()),'Optional field tokens start collapsed');
+    await fields.locator('summary').click();await fields.getByRole('button',{name:'@customer_first_name',exact:true}).click();
+    check((await page.locator('#templateBody').inputValue()).includes('@customer_first_name'),'Personalized fields still insert into actual draft');
+   }
    await page.getByRole('button',{name:'Save template',exact:true}).click();await page.getByText('Template saved.',{exact:true}).waitFor();
    check(saved.body.includes('x'.repeat(1200))&&saved.body.includes('Still editable'),`${name}: exact long text reaches save handler`);
   }

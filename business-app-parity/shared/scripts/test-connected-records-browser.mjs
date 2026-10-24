@@ -202,6 +202,12 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(await oct20.locator('.schedule-month-dots i.booked').count()===2,
     'Actual calendar preserves two blue scheduled-job dots on a shared local day');
   await oct20.click();
+  const dayOrder=await page.locator('.schedule-view').evaluate(view=>{
+   const month=view.querySelector('.schedule-month'),board=view.querySelector('.schedule-board'),actions=view.querySelector('.schedule-day-actions');
+   return {next:month.nextElementSibling===board,beforeActions:!!(board.compareDocumentPosition(actions)&Node.DOCUMENT_POSITION_FOLLOWING)};
+  });
+  check(dayOrder.next&&dayOrder.beforeActions,'Selected jobs immediately follow calendar, ahead of planning/booking controls');
+  if(process.env.FIRE_CONNECTED_UI_SCREENSHOT_DIR)await page.screenshot({path:join(process.env.FIRE_CONNECTED_UI_SCREENSHOT_DIR,`schedule-month-${size.width}-${theme}.png`)});
   check(await oct20.getAttribute('aria-pressed')==='true'&&await page.locator('.schedule-job').count()===2,
     'Tapping a colored calendar day selects the matching two actual appointments');
   await page.locator('.schedule-planning-more > summary').click();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).click();check(await page.locator('.schedule-job').count()===5,'All upcoming preserves full schedule');await page.getByRole('button',{name:'Today (2)',exact:true}).click();check(await page.locator('.schedule-job').count()===2,'Today includes Central late-night appointment');check(await page.locator('.needs-attention button').count()===1,'Today filter retains overdue work');check(!(await page.locator('.schedule-board').innerText()).includes('tomorrow-midnight'),'Central next-day appointment excluded from Today');let route=new URL(await page.locator('.route-day-button').getAttribute('href'));check(route.searchParams.get('destination')==='Address today-late'&&route.searchParams.get('waypoints')==='Address today-morning','Today route stays on one Central day');

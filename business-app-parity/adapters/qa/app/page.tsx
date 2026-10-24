@@ -15,5 +15,5 @@ export default async function Home() {
     return <main><h1>FIRE QA disabled</h1></main>;
   }
   const { recent, ...metrics } = await loadDashboardData(env.DB,env.FIRE_SERVICE_LOCATIONS_CANDIDATE==="synthetic-only");
-  return <><div role="status" aria-label="Synthetic QA test environment. Do not use real customer records or payments." className="qa-test-banner">QA TEST ONLY · NO REAL CUSTOMERS OR PAYMENTS</div><Dashboard localCustomersCandidate={(env as typeof env & { FIRE_LOCAL_CUSTOMERS_CANDIDATE?: string }).FIRE_LOCAL_CUSTOMERS_CANDIDATE === "synthetic-only"} environment="QA" userName="First In Response Exteriors" metrics={metrics} estimates={recent as never[]} /></>;
+  return <><div role="status" aria-label="Synthetic QA test environment. Do not use real customer records or payments." className="qa-test-banner">QA · Test data only</div><Dashboard localCustomersCandidate={(env as typeof env & { FIRE_LOCAL_CUSTOMERS_CANDIDATE?: string }).FIRE_LOCAL_CUSTOMERS_CANDIDATE === "synthetic-only"} environment="QA" userName="First In Response Exteriors" metrics={metrics} estimates={recent as never[]} /></>;
 }

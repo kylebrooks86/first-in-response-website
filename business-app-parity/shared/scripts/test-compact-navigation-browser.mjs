@@ -21,7 +21,7 @@ for(const phrase of ['Your jobs and next steps.','Contacts, jobs, and history.',
  assert.ok(!source.includes(phrase),'Redundant header copy reintroduced: '+phrase);
 }
 const qaPage=readFileSync('../adapters/qa/app/page.tsx','utf8');
-assert.match(qaPage,/className="qa-test-banner"[\s\S]*?QA TEST ONLY · NO REAL CUSTOMERS OR PAYMENTS/,'Short QA warning must remain visible');
+assert.match(qaPage,/className="qa-test-banner"[\s\S]*?QA · Test data only/,'Short QA warning must remain visible');
 
 const declaration=source.match(/const nav = useMemo\(\(\) => \[[\s\S]*?\] as const, \[\]\);/)?.[0];
 assert.ok(declaration,'Must derive navigation destinations from actual app source');
