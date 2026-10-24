@@ -13,7 +13,7 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  check(await page.locator('.customer-records .customer-record').count()===0,'Agreement filter does not alter or duplicate draft records');
  await customerQuotes.getByRole('button',{name:'All estimates (1)',exact:true}).click();
  check(await page.locator('.customer-records .customer-record').filter({hasText:'Synthetic Profile Service'}).count()===1,'Full estimate remains reachable after switching views');
- check(await page.getByRole('button',{name:/^Estimates & agreements/}).count()===1,'Customer profile has one combined estimates and agreements tab');
+ check(await page.getByRole('button',{name:/^Estimates\\s+1$/}).count()===1,'Customer profile has one combined estimates and agreements tab');
  const firstUse=await page.evaluate(()=>{
    const selectors=['.customer-profile-head','.customer-contact','.record-tabs','.customer-records','.customer-snapshot','.customer-flag-panel','.customer-timeline'];
    const roots=selectors.map(selector=>document.querySelector(selector));
