@@ -215,4 +215,32 @@ for(const [field,value] of [
  equal(state[0][0].invoiceTotalCents,8000);
  equal(nodes(render()).some(n=>n.props?.className==='schedule-board'),true);
 }
+// Execute the REAL monthly calendar with synthetic hook state: month arrows must
+// browse freely, while an externally selected booking date opens its own month.
+{
+ const declaration=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleMonthCalendar');
+ assert.ok(declaration,'Monthly calendar implementation must exist');checks++;
+ let calendarState=[],calendarCursor=0,lastDate,pendingEffect=null;
+ const calendarContext={exports:{},require,
+  useState(initial){const i=calendarCursor++;if(!(i in calendarState))calendarState[i]=typeof initial==='function'?initial():initial;
+   return [calendarState[i],update=>{calendarState[i]=typeof update==='function'?update(calendarState[i]):update;}]},
+  useEffect(callback,deps){if(lastDate!==deps[0])pendingEffect=()=>{lastDate=deps[0];callback();}}
+ };
+ vm.runInNewContext(ts.transpileModule(declaration.getText(ast)+'\nexports.calendar=ScheduleMonthCalendar;',{
+  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}
+ }).outputText,calendarContext);
+ function calendar(chosen){
+  let tree;for(let attempt=0;attempt<2;attempt++){calendarCursor=0;pendingEffect=null;
+   tree=calendarContext.exports.calendar({jobs:[],selectedDate:chosen,onSelectDate:()=>{}});
+   if(!pendingEffect)break;pendingEffect();
+  }return nodes(tree);
+ }
+ const headerLabel=all=>all.find(n=>n.type==='h2')?.props.children;
+ const first=calendar('2026-10-20');equal(headerLabel(first),'October 2026');
+ first.find(n=>n.props?.['aria-label']==='Next month').props.onClick();
+ equal(headerLabel(calendar('2026-10-20')),'November 2026');
+ equal(headerLabel(calendar('2027-02-14')),'February 2027');
+ equal(headerLabel(calendar('2027-02-14')),'February 2027');
+ calendar('invalid-date');equal(headerLabel(calendar('invalid-date')),'February 2027');
+}
 console.log(`PASS ${checks}/${checks}: actual schedule load/error/retry handlers preserve records, hide stale route/editor/forecast targets, recover jobs, and retain sorted same-day routes, overdue revised balances, selection/change/close callbacks and search. Mocked reads only.`);
