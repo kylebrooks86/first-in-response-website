@@ -143,6 +143,10 @@ try{
  check(await page.locator('.photo-card').count()===2,'Owner can create separate before and after local photographs');
  check(await page.getByText('Before & after comparison').count()===1,'Real gallery reveals its before/after comparison tool');
  await ctx.setOffline(true);
+ // The earlier interrupted-selection test reloads the page; optional tools
+ // must be explicitly reopened after a real browser restart.
+ check(!await backupTools.evaluate(node=>node.open),'Reload resets secondary ZIP tools to the simple default');
+ await backupSummary.click();
  await page.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
  await page.getByText(/ZIP is ready/).waitFor({timeout:30000});
  check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).count()===1,'Photo ZIP preparation works in airplane mode and exposes a separate iOS share gesture');
