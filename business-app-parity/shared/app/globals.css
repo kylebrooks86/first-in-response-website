@@ -2215,6 +2215,28 @@ html,body{max-width:100%;overflow-x:clip}
 .template-mobile-picker{display:none}
 .template-section-title{margin:12px 0 8px;font-size:17px}
 .owner-preview-banner{display:block;margin:0 0 10px;padding:0;border:0;border-radius:0;background:transparent;color:#263348}
+.owner-preview-theme-toggle{position:fixed;z-index:60;top:max(12px,env(safe-area-inset-top));right:calc(max(12px,env(safe-area-inset-right)) + 56px);display:grid;place-items:center;width:48px;height:48px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--background);color:var(--foreground);box-shadow:0 2px 10px #0003;cursor:pointer}
+.owner-preview-theme-toggle svg{width:22px;height:22px}
+.owner-preview-theme-toggle:focus-visible{outline:3px solid var(--ring);outline-offset:3px}
+.pay-page.owner-estimate-preview{--invoice-card:#fff;--invoice-ink:#14243b;--invoice-muted:#536174;--invoice-panel:#f2f5f8;--invoice-line:#dfe5ed}
+[data-theme="dark"] .pay-page.owner-estimate-preview{--invoice-card:#111f31;--invoice-ink:#eef4fb;--invoice-muted:#bac9dc;--invoice-panel:#1b2d43;--invoice-line:#3d526c}
+.pay-page.owner-estimate-preview .pay-card{background:var(--invoice-card);color:var(--invoice-ink)}
+.pay-page.owner-estimate-preview :is(.owner-preview-banner,.pay-title span,.pay-title small,.pay-line span,.portal-service-description,.pay-summary small,.secure-note,.pay-card>header small){color:var(--invoice-muted)}
+.pay-page.owner-estimate-preview :is(.pay-line,.pay-card>header,.invoice-balance-row){border-color:var(--invoice-line)}
+.pay-page.owner-estimate-preview :is(.pay-summary,.portal-breakdown,.contract-box,.photo-release,.invoice-due,.invoice-footer-note,.invoice-other-payments){background:var(--invoice-panel);border-color:var(--invoice-line);color:var(--invoice-ink)}
+.pay-page.owner-estimate-preview :is(.photo-release label,.photo-release legend,.terms-check){color:var(--invoice-ink)}
+.pay-page.owner-estimate-preview :is(.invoice-footer-note p,.invoice-other-payments>p){color:var(--invoice-muted)}
+.pay-page.owner-estimate-preview :is(.pay-note,.document-footer,.portal-breakdown small){color:var(--invoice-muted)}
+.pay-page.owner-estimate-preview .portal-service-description{color:var(--invoice-muted)!important}
+[data-theme="dark"] .pay-page.owner-estimate-preview .red-text{color:#ff959d}
+[data-theme="dark"] .pay-page.owner-estimate-preview .change-request-toggle{color:#ff959d}
+[data-theme="dark"] .pay-page.owner-estimate-preview .green-text{color:#7cdda6}
+@media print{
+ .owner-preview-theme-toggle{display:none!important}
+ .pay-page.owner-estimate-preview{--invoice-card:#fff!important;--invoice-ink:#14243b!important;--invoice-muted:#536174!important;--invoice-panel:#f2f5f8!important;--invoice-line:#dfe5ed!important;background:#fff!important}
+ [data-theme="dark"] .pay-page.owner-estimate-preview .red-text{color:#ba1d2b}
+ [data-theme="dark"] .pay-page.owner-estimate-preview .green-text{color:#146f46}
+}
 .qa-test-banner{position:sticky;top:0;z-index:31;height:20px;padding:2px 8px;font-size:11px;line-height:16px;letter-spacing:0}
 .qa-test-banner + .app-shell .topbar{top:20px}
 .schedule-view>.schedule-board{margin-top:8px}

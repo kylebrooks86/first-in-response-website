@@ -11,6 +11,7 @@ import { serviceDescriptionFor } from "../../../lib/fire-services";
 import { paymentHandles } from "../../../lib/payment-methods";
 import { shouldOfferReviewAfterPayment } from "../../../lib/customer-review-invite.mjs";
 import { CustomerReviewInvitation } from "../../../components/customer-review-invitation";
+import { OwnerPreviewTheme } from "../../../components/owner-preview-theme";
 import {agreementDigest,agreementScope,validateAgreementItems} from "../../../lib/deposit-agreement-commitment.mjs";
 import {RevisedDepositAcceptButton} from "./revised-deposit-accept-button";
 import {describeRevisedDepositTerms} from "../../../lib/deposit-agreement-revision.mjs";
@@ -185,7 +186,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const footer=await env.DB.prepare("SELECT body FROM message_templates WHERE key='estimateFooter'").first<{body:string}>();
   const contract=await env.DB.prepare("SELECT body FROM message_templates WHERE key='contractTerms'").first<{body:string}>();
   return <main className={`pay-page${ownerPreview?' owner-estimate-preview':''}`}>
-    {ownerPreview&&<a className="owner-estimate-preview-close" href={`/?openEstimate=${encodeURIComponent(row.id)}`} aria-label="Close estimate preview" title="Return to estimate details"><X aria-hidden="true"/></a>}
+    {ownerPreview&&<><OwnerPreviewTheme/><a className="owner-estimate-preview-close" href={`/?openEstimate=${encodeURIComponent(row.id)}`} aria-label="Close estimate preview" title="Close"><X aria-hidden="true"/></a></>}
     <section className="pay-card estimate-portal">
     {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><strong>Customer view</strong></aside>}
     <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>

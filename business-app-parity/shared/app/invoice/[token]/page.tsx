@@ -9,6 +9,7 @@ import { PayButton } from "../../pay/[id]/pay-button";
 import { paymentHandles } from "../../../lib/payment-methods";
 import { shouldOfferReviewAfterPayment } from "../../../lib/customer-review-invite.mjs";
 import { CustomerReviewInvitation } from "../../../components/customer-review-invitation";
+import { OwnerPreviewTheme } from "../../../components/owner-preview-theme";
 
 export const dynamic = "force-dynamic";
 export const metadata={robots:{index:false,follow:false,nocache:true}};
@@ -55,7 +56,7 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
   const paymentReviewPending=state.review||Number(row.openCheckoutCount??0)>0;
   const showReviewInvitation=!ownerPreview&&state.safe&&balance===0&&shouldOfferReviewAfterPayment({status:row.estimateStatus,totalCents:Number(row.totalCents),paidCents:Number(row.paidCents),paymentReviewPending});
   const returnHref=from==='customer'?`/?openCustomer=${encodeURIComponent(row.customerId)}&customerSection=invoices`:from==='invoices'?`/?openInvoice=${encodeURIComponent(row.id)}`:`/?openEstimate=${encodeURIComponent(row.estimateId)}`;
-  const close=ownerPreview?<a className="owner-estimate-preview-close owner-invoice-preview-close" href={returnHref} aria-label="Close invoice preview" title="Return to FIRE"><X aria-hidden="true"/></a>:null;
+  const close=ownerPreview?<><OwnerPreviewTheme/><a className="owner-estimate-preview-close owner-invoice-preview-close" href={returnHref} aria-label="Close invoice preview" title="Close"><X aria-hidden="true"/></a></>:null;
   if(!state.safe)return <main className={`pay-page invoice-page${ownerPreview?' owner-estimate-preview':''}`}>{close}<section className="pay-card"><h1>Invoice account review</h1><p>We are checking this invoice. Please contact First In Response Exteriors before making a payment.</p></section></main>;
   const runtime = env as RuntimeEnv;
   const paymentsReady = Boolean(runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY);

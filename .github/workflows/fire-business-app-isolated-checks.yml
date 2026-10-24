@@ -1016,6 +1016,8 @@ jobs:
         run: node scripts/test-customer-simple-profile-browser.mjs
       - name: Real sidebar navigation preserves all advanced tools under a keyboard-accessible disclosure
         run: node scripts/test-compact-navigation-browser.mjs
+      - name: Estimate and invoice preview theme, touch targets, contrast and print
+        run: node scripts/test-owner-preview-theme-browser.mjs
       - name: Actual template editors and themed sidebar at phone tablet and desktop widths
         run: node scripts/test-template-layout-browser.mjs
       - name: Actual job reports and costs retain mobile controls and survive session connection loss

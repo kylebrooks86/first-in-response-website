@@ -226,7 +226,16 @@ try{
   check(await previewNav.isVisible()&&(await previewNav.innerText()).trim()==='Customer view'&&await previewNav.getByRole('link').count()===0&&(await previewNav.boundingBox()).height<=28,
    'Actual Customer view is one compact label without explanatory text or duplicate return button at '+width+'x'+height);
   check(await close.getAttribute('href')===`/?openEstimate=${encodeURIComponent(estimate.id)}`,'Preview X retains exact estimate return destination');
+  const themeToggle=page.locator('.owner-preview-theme-toggle');await themeToggle.waitFor();
+  const initialTheme=await page.locator('html').getAttribute('data-theme'),nextTheme=initialTheme==='dark'?'light':'dark';
+  const originalSummary=await page.locator('.pay-summary').innerText();
+  const cardColor=await page.locator('.estimate-portal').evaluate(n=>getComputedStyle(n).backgroundColor);
+  await themeToggle.click();
+  check(await page.locator('html').getAttribute('data-theme')===nextTheme&&await page.evaluate(()=>localStorage.getItem('fire-theme'))===nextTheme,'Estimate Customer view shares saved app light/dark choice');
+  check(await page.locator('.estimate-portal').evaluate(n=>getComputedStyle(n).backgroundColor)!==cardColor&&(await page.locator('.pay-summary').innerText())===originalSummary,'Estimate theme changes document colors, preserving quote and deposit');
   const top=await close.boundingBox();
+  const themeBox=await themeToggle.boundingBox();
+  check(themeBox.width>=44&&themeBox.height>=44&&themeBox.x>=0&&themeBox.x+themeBox.width<=top.x-4&&Math.abs(themeBox.y-top.y)<1,'Estimate theme icon fits beside X at '+width+'x'+height);
   check(top.width>=44&&top.height>=44&&top.x>=width-70&&top.x+top.width<=width&&top.y>=0,'Accessible upper-right preview X at '+width+'x'+height);
   await page.locator('.secure-note').scrollIntoViewIfNeeded();
   const bottom=await close.boundingBox();
@@ -235,7 +244,7 @@ try{
   documentText=await customerDocumentText(page.locator('.estimate-portal'));
   if(width===1366){
    await page.emulateMedia({media:'print'});
-   check(!await close.isVisible()&&!await previewNav.isVisible(),'Owner preview X and navigation hidden from printing and PDF output');
+   check(!await close.isVisible()&&!await previewNav.isVisible()&&!await themeToggle.isVisible(),'Owner preview X, theme and navigation hidden from printing and PDF output');
    await page.emulateMedia({media:'screen'});
   }
   await close.focus();await page.keyboard.press('Enter');

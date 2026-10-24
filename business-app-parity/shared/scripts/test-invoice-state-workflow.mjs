@@ -22,6 +22,16 @@ export async function exerciseInvoiceState({page,context,browser,origin,request,
   check(await nav.isVisible()&&(await nav.innerText()).trim()==='Customer view'&&await nav.getByRole('link').count()===0&&(await nav.boundingBox()).height<=28,
    'Invoice preview shows only Customer view, without duplicate return or explanatory copy at '+width);
   check(await close.getAttribute('href')===`/?openEstimate=${encodeURIComponent(estimate.id)}`&&box.width>=44&&box.height>=44,'Invoice X preserves a tappable exact-record return');
+  const themeToggle=page.locator('.owner-preview-theme-toggle');await themeToggle.waitFor();
+  const initialTheme=await page.locator('html').getAttribute('data-theme'),nextTheme=initialTheme==='dark'?'light':'dark';
+  const originalInvoiceText=await page.getByLabel('Invoice payment breakdown').innerText();
+  const originalCardColor=await page.locator('.invoice-portal').evaluate(n=>getComputedStyle(n).backgroundColor);
+  await themeToggle.click();
+  check(await page.locator('html').getAttribute('data-theme')===nextTheme&&await page.evaluate(()=>localStorage.getItem('fire-theme'))===nextTheme,'Invoice toggle shares the app saved theme at '+width);
+  check(await page.locator('.invoice-portal').evaluate(n=>getComputedStyle(n).backgroundColor)!==originalCardColor&&(await page.getByLabel('Invoice payment breakdown').innerText())===originalInvoiceText,'Invoice colors change without changing amounts or payment state');
+  const themeBox=await themeToggle.boundingBox();
+  check(themeBox.width>=44&&themeBox.height>=44&&themeBox.x>=0&&themeBox.x+themeBox.width<=box.x-4&&Math.abs(themeBox.y-box.y)<1,'Invoice theme icon fits beside X without overlap at '+width);
+  await page.reload();await themeToggle.waitFor();await page.waitForFunction(theme=>document.documentElement.dataset.theme===theme,nextTheme);
   const summary=await page.getByLabel('Invoice payment breakdown').innerText();
   check(summary.includes('Invoice total')&&summary.includes('$240.00')&&summary.includes('Payments received')&&summary.includes('$120.00')&&summary.includes('Balance due'),
    'Invoice clearly separates received principal and balance at '+width);
@@ -30,7 +40,7 @@ export async function exerciseInvoiceState({page,context,browser,origin,request,
    'Owner invoice stays within the phone/tablet/desktop viewport at '+width);
   check(box.x>=0&&box.x+box.width<=width+1&&box.width>=44&&box.height>=44,'Invoice X is a visible upper-right touch target at '+width);
   await page.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));box=await close.boundingBox();check(box.y>=0&&box.y+box.height<=height&&box.x+box.width<=width+1,'Invoice X remains reachable on a long scrolled invoice at '+width);
-  if(width===1366){await page.emulateMedia({media:'print'});check(!await close.isVisible()&&!await nav.isVisible(),'Owner invoice X/banner are excluded from print');await page.emulateMedia({media:'screen'});}
+  if(width===1366){await page.emulateMedia({media:'print'});check(!await close.isVisible()&&!await nav.isVisible()&&!await themeToggle.isVisible(),'Owner invoice X/theme/banner are excluded from print');await page.emulateMedia({media:'screen'});}
   await close.focus();await page.keyboard.press('Enter');await detail.waitFor();check(await detail.getByText(customer.name,{exact:true}).isVisible(),'Invoice X returns to the originating estimate at '+width);
  }
  let archive=await (await request('/api/backup')).json();let raw=archive.tables.invoices.find(row=>row.id===invoice.id);
