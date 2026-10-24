@@ -2954,9 +2954,9 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
       <div className="schedule-date-picker" role="group" aria-label="Browse a specific schedule date">
         <label htmlFor="schedule-specific-date">Choose a work date</label>
         <div className="schedule-date-picker-actions">
-          <Button variant="outline" aria-label="Previous work date" title="Previous day" onClick={()=>selectAdjacentDay(-1)}><ArrowLeft aria-hidden="true"/></Button>
+          <Button variant="outline" aria-label="Previous work date" title="Previous day" onClick={()=>selectAdjacentDay(-1)}>←</Button>
           <input id="schedule-specific-date" aria-label="Choose a work date" type="date" value={dayFilter==="date"?selectedDate:""} onChange={event=>{setSelectedDate(event.target.value);setDayFilter(event.target.value?"date":"all");setWeatherReview(null);}}/>
-          <Button variant="outline" aria-label="Next work date" title="Next day" onClick={()=>selectAdjacentDay(1)}><ChevronRight aria-hidden="true"/></Button>
+          <Button variant="outline" aria-label="Next work date" title="Next day" onClick={()=>selectAdjacentDay(1)}>→</Button>
         </div>
         {dayFilter==="date"&&selectedDate&&<p role="status">Showing scheduled and completed jobs for {new Date(selectedDate+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric",timeZone:"UTC"})}. Driving routes are available only for future scheduled stops.</p>}
       </div>
