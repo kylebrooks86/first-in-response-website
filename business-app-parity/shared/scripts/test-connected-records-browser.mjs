@@ -418,7 +418,11 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  const tight=page.getByRole('region',{name:'Closely spaced upcoming appointments'});
  await tight.waitFor();
  check(await tight.locator('.schedule-turnaround-pair').count()===1,'One consecutive 45-minute start gap triggers read-only advisory');
- check((await tight.innerText()).includes('45 min between starts')&&(await tight.innerText()).includes('not proof of overlapping jobs'),'Advisory reports exact start gap without claiming double-booking');
+ const timingDetails=tight.locator('details.schedule-turnaround-details');
+ check(await timingDetails.evaluate(n=>!n.open),'Time-risk summary stays visible while detailed appointment pairs start collapsed');
+ check((await tight.innerText()).includes('not proof of overlapping jobs'),'Visible risk summary does not claim an actual booking overlap');
+ await timingDetails.locator('summary').click();
+ check((await tight.innerText()).includes('45 min between starts')&&(await tight.innerText()).includes('not proof of overlapping jobs'),'Expanded advisory shows exact start gap without claiming double-booking');
  check(await tight.getByRole('button',{name:'Review scheduled job for tight-gap'}).count()===1,'Exact saved second job has a review action');
  check(await tight.locator('button').evaluateAll(rows=>rows.every(x=>x.getBoundingClientRect().height>=44)),'Phone appointment review buttons meet touch-size minimum');
  check(reads===readsBeforeTight+1&&writes===writesBeforeTight,'Timing review requires one explicit GET and no booking or message write');
