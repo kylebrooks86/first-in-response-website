@@ -207,14 +207,16 @@ try{
  check(await dialog.getByRole('button',{name:'Save estimate changes',exact:true}).isVisible(),'Real framework modal retains accessible Save control');
  await dialog.getByRole('button',{name:'Close',exact:true}).click();
  const detail=()=>page.getByRole('dialog',{name:'Synthetic Gutter Service',exact:true});
- const previewLink=detail().getByRole('link',{name:'Customer view',exact:true});
+ const previewLink=detail().locator('details.detail-more-tools a').filter({hasText:'Customer view'});
+  check(await detail().locator('details.detail-more-tools').evaluate(node=>!node.open),'Customer preview stays behind collapsed More tools, not duplicated up front');
  const previewPath=await previewLink.getAttribute('href');
  check(previewPath===`/estimate/${estimate.shareToken}?ownerPreview=1`&&await previewLink.getAttribute('target')===null,'Owner Customer view opens explicit preview in same tab; shared customer link stays unchanged');
  let documentText='';
  const customerDocumentText=locator=>locator.evaluate(node=>[...node.children].filter(element=>!element.classList.contains('owner-preview-banner')).map(element=>element.innerText.trim()).join('\n'));
  for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,900]]){
   await page.setViewportSize({width,height});
-  await detail().getByRole('link',{name:'Customer view',exact:true}).click();
+  await detail().locator('details.detail-more-tools > summary').click();
+  await previewLink.click();
   await page.waitForURL(origin+previewPath);
   const close=page.getByRole('link',{name:'Close estimate preview',exact:true});await close.waitFor();
   const previewNav=page.getByRole('complementary',{name:'Owner preview navigation'});
