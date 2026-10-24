@@ -14,6 +14,14 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  await customerQuotes.getByRole('button',{name:'All estimates (1)',exact:true}).click();
  check(await page.locator('.customer-records .customer-record').filter({hasText:'Synthetic Profile Service'}).count()===1,'Full estimate remains reachable after switching views');
  check(await page.getByRole('button',{name:/^Estimates\s+1$/}).count()===1,'Customer profile has one combined estimates and agreements tab');
+ await page.locator('.customer-records .customer-record').filter({hasText:'Synthetic Profile Service'}).click();
+ const quoteDetails=page.locator('.estimate-detail');
+ await quoteDetails.waitFor();
+ check(await quoteDetails.getByRole('button',{name:'Send estimate',exact:true}).count()===1,'Opening the customer quote retains Send estimate');
+ check(await quoteDetails.getByRole('button',{name:/Record payment/i}).count()>=1,'Original payment action remains reachable from the customer estimate');
+ check(await quoteDetails.locator('details.detail-more-tools').count()===1,'Job tools remain available without crowding the main action buttons');
+ await page.keyboard.press('Escape');
+ await quoteDetails.waitFor({state:'hidden'});
  const firstUse=await page.evaluate(()=>{
    const selectors=['.customer-profile-head','.customer-contact','.record-tabs','.customer-records','.customer-snapshot','.customer-flag-panel','.customer-timeline'];
    const roots=selectors.map(selector=>document.querySelector(selector));
