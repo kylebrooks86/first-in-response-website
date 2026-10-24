@@ -38,7 +38,12 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  const photos=page.getByRole('region',{name:'On-device customer photos'});await photos.getByText('No on-device photos for this customer').waitFor();
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==','base64');
  await photos.locator('input[type=file][multiple]').setInputFiles({name:'synthetic-responsive-photo.png',mimeType:'image/png',buffer:png});await photos.getByText(/Photos verified on this device/).waitFor();
- await photos.getByRole('button',{name:'Prepare all local photos ZIP',exact:true}).click();await photos.getByRole('button',{name:'Download prepared ZIP',exact:true}).waitFor();
+ await photos.getByRole('button',{name:'Prepare all local photos ZIP',exact:true}).click();
+ await photos.getByRole('button',{name:'Save prepared ZIP to Files',exact:true}).waitFor();
+ const morePhotoTools=photos.locator('details.photo-backup-more');
+ check(await morePhotoTools.evaluate(node=>!node.open),'Rare ZIP and restore controls stay collapsed on a new customer photo screen');
+ await morePhotoTools.locator(':scope > summary').click();
+ await photos.getByRole('button',{name:'Download prepared ZIP',exact:true}).waitFor();
  const labels=['Camera','Photo library','Prepare all local photos ZIP',"Prepare this customer's photos ZIP",'Save prepared ZIP to Files','Download prepared ZIP','Verify saved ZIP from Files','Restore verified photo ZIP'];
  for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,900]]){
   await page.setViewportSize({width,height});
