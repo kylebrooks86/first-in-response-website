@@ -60,8 +60,22 @@ const robots = read('robots.txt');
 if (/User-agent:\s*\*/i.test(robots) && /Disallow:\s*\//i.test(robots)) pass('robots.txt blocks crawling.');
 else fail('robots.txt does not block all crawling.');
 
-if (publicPages.length === 14) pass('Exactly 14 public-facing pages are represented.');
-else fail(`Expected 14 public-facing pages; found ${publicPages.length}.`);
+if (publicPages.length === 15) pass('Exactly 15 public-facing pages are represented.');
+else fail(`Expected 15 public-facing pages; found ${publicPages.length}.`);
+
+// An inventory count alone previously missed the missing gutter-brightening route.
+const requiredServices = ['house-washing', 'roof-cleaning', 'concrete-cleaning',
+  'gutter-cleaning', 'gutter-brightening', 'window-cleaning', 'fence-deck-cleaning',
+  'underground-drain-cleaning', 'dryer-vent-cleaning', 'rust-stain-removal'];
+for (const slug of requiredServices) {
+  if (!fileSet.has(`services/${slug}/index.html`)) fail(`Missing required recovery service: ${slug}.`);
+}
+if (requiredServices.every((slug) => fileSet.has(`services/${slug}/index.html`))) {
+  pass('All ten LIVE service routes are represented, including gutter brightening.');
+}
+if (!read('index.html').includes('href="services/gutter-brightening/"')) {
+  fail('Homepage is missing its gutter-brightening service link.');
+}
 
 const sitemapCount = (read('sitemap.xml').match(/<loc>/g) || []).length;
 if (sitemapCount === 14) pass('sitemap.xml contains 14 production URLs.');
@@ -157,10 +171,10 @@ pass(`${internalLinks} internal links and anchors were checked.`);
 pass(`${mediaReferences} local image/video references were checked.`);
 pass(`${inlineScripts} inline scripts compiled.`);
 if (externalRuntimeAssets === 0) pass('All pages are self-contained with no external script, stylesheet, image, video, or CSS asset dependencies.');
-if (canonicalPages === 14) pass('All 14 public pages have the expected production canonical URL.');
-if (contactPages === 14) pass('All 14 public pages contain the approved call and SMS destinations.');
-if (mobileControlPages === 14) pass('All 14 public pages have consistent mobile menu and sticky conversion controls.');
-if (emailPages === 10) pass('Homepage and all nine service pages contain the approved business email action.');
+if (canonicalPages === 15) pass('All 15 public pages have the expected production canonical URL.');
+if (contactPages === 15) pass('All 15 public pages contain the approved call and SMS destinations.');
+if (mobileControlPages === 15) pass('All 15 public pages have consistent mobile menu and sticky conversion controls.');
+if (emailPages === 11) pass('Homepage and all ten service pages contain the approved business email action.');
 
 const index = read('index.html');
 
