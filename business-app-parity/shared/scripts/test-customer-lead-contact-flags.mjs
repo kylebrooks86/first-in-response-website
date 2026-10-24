@@ -78,9 +78,9 @@ check(deriveCustomerManualFlags([note('handled',LEAD_CALLBACK_HANDLED_NOTE,d)]).
  'Orphan callback-handled note cannot invent a previously scheduled callback');
 const dashboard=readFileSync('app/dashboard.tsx','utf8');
 const noteApi=readFileSync('app/api/customer-notes/route.ts','utf8');
-for(const flag of ['LEAD_NO_ANSWER_NOTE','LEAD_CONTACTED_NOTE']){
- check(dashboard.includes('prepareManualFlag('+flag+')'),
-  'Owner profile has a real explicit Add note preparation for '+flag);
+for(const [flag,action] of [['LEAD_NO_ANSWER_NOTE','no_answer'],['LEAD_CONTACTED_NOTE','contacted']]){
+ check(dashboard.includes('saveNote('+flag+',"'+action+'")')&&dashboard.includes('noteAttempts.current.get(attemptKey)')&&dashboard.includes('noteSaveLock.current'),
+  'One-tap contact outcome persists with the existing idempotent note API: '+flag);
 }
 check(dashboard.includes('No answer · not contacted on the latest logged attempt'),
  'Saved customer card presents the missed-call status honestly');
