@@ -11,6 +11,18 @@ const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss');
 const tailwind=require('@tailwindcss/postcss');
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const source=readFileSync('app/dashboard.tsx','utf8');
+
+/* Owner's iPhone UX: visible estimating tools and low-clutter headers must not regress.
+   Test the source actually compiled into the QA app, not a mock screenshot. */
+assert.match(source,/className="customer-property-research"[\s\S]{0,700}Zillow[\s\S]{0,500}Google Earth/,'Zillow and Google Earth are visible on the customer profile');
+assert.doesNotMatch(source,/className="customer-property-links"/,'Do not hide property research behind More on customer profiles');
+assert.match(source,/className="payments-quick-action"[\s\S]{0,320}<StrideButton top\/>/,'Stride stays beside the dollar-sign button on Home');
+for(const phrase of ['Your jobs and next steps.','Contacts, jobs, and history.','<p className="eyebrow">Quote to job</p>']){
+ assert.ok(!source.includes(phrase),'Redundant header copy reintroduced: '+phrase);
+}
+const qaPage=readFileSync('../adapters/qa/app/page.tsx','utf8');
+assert.match(qaPage,/className="qa-test-banner"[\s\S]*?QA TEST ONLY · NO REAL CUSTOMERS OR PAYMENTS/,'Short QA warning must remain visible');
+
 const declaration=source.match(/const nav = useMemo\(\(\) => \[[\s\S]*?\] as const, \[\]\);/)?.[0];
 assert.ok(declaration,'Must derive navigation destinations from actual app source');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);

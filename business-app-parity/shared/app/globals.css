@@ -2175,3 +2175,30 @@ html,body{max-width:100%;overflow-x:clip}
 .schedule-view .schedule-header-actions>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
 .schedule-view .schedule-month{margin-top:6px}
 @media(max-width:760px){.workspace-view.schedule-view{padding-top:12px}.schedule-view .workspace-head{flex-direction:row;align-items:center}.schedule-view .schedule-header-actions{width:auto;flex:0 0 auto}.schedule-view .schedule-header-actions>button{flex:none;width:44px}.schedule-view .schedule-month{margin-top:4px}}
+
+
+/* Owner-first layout: one compact title row and actions, no decorative subtitle.
+   Keep forms, important warnings, and 44px touch targets intact. */
+@media(max-width:760px){
+  .dashboard-view,.customers-view,.workspace-view{padding-top:12px}
+  .welcome-row,.customers-head{flex-direction:row;align-items:center;flex-wrap:wrap;gap:8px 12px}
+  .welcome-row>div,.customers-head>div{min-width:0;flex:1 1 95px}
+  .welcome-row .brand-button,.customers-head .brand-button{width:auto;min-height:44px;max-width:100%;padding-inline:12px}
+  .workspace-head{gap:9px;margin-bottom:7px}
+  .workspace-head h1,.customers-head h1{font-size:25px;line-height:1.2}
+  .customer-list{margin-top:12px}
+  .filter-row{margin-top:12px}
+}
+.customer-property-research{display:flex;flex:1 1 100%;flex-wrap:wrap;gap:8px;min-width:0}
+.customer-property-research>a{display:inline-flex;flex:1 1 110px;align-items:center;justify-content:center;min-height:44px;gap:6px;min-width:0;padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:12px;font-weight:750;text-decoration:none}
+.customer-property-research>a svg{width:16px;height:16px;flex:none}
+.customer-property-research>a:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+@media(max-width:760px){
+  .customer-profile .customer-contact>.customer-property-research{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .customer-profile .customer-contact>.customer-property-research>a{min-width:0}
+  .top-stride-button{grid-template-rows:18px 12px!important}
+  .top-stride-button span{font-size:10px!important;line-height:12px!important;margin-top:0!important;font-weight:800!important}
+}
+/* Always identify test-only data without sacrificing a whole iPhone header row. */
+.qa-test-banner{display:block;width:100%;padding:4px 8px;line-height:1.3;background:#601818;color:#fff;font-size:10px;font-weight:750;letter-spacing:.015em;text-align:center}
+@media(max-width:430px){.qa-test-banner{font-size:9px;padding:3px 4px}}
