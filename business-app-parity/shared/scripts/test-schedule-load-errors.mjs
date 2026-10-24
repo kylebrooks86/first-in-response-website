@@ -9,7 +9,7 @@ const helpers=['resolvedBillingTotalCents','billingBalanceCents'];
 const declarations=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>helpers.includes(d.name.getText(ast))));
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleView');
 let state=[],cursor=0,effect,requests=[],fetchOptions=[],responder;let scheduleNow=Date.parse('2026-10-09T12:00:00Z');
-const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','ScheduleMonthCalendar','Navigation','Clock3','ChevronRight','CalendarDays','CloudSun'].map(name=>[name,()=>null]));
+const stubs=Object.fromEntries(['Button','EstimateDetail','ScheduleWeather','ScheduleMonthCalendar','Navigation','Clock3','ChevronRight','CalendarDays','CloudSun','AlertTriangle'].map(name=>[name,()=>null]));
 const spacing={exports:{}};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/schedule-turnarounds.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,spacing);
 const pagination={exports:{},require};
@@ -132,6 +132,17 @@ const closeJobs=[
  {...job,id:'next-day',customer:'Tomorrow job',scheduledAt:'2026-10-21T05:30:00Z'}
 ];
 state=[[],null,true,''];responder=()=>ok(closeJobs);requests=[];render();effect();await settle();
+const visibleChecks=nodes(render());
+const shortcut=visibleChecks.find(n=>n.props?.className==='schedule-check-shortcut');
+const advanced=visibleChecks.find(n=>n.props?.className==='schedule-planning-more');
+assert.ok(shortcut&&advanced,'Active appointment cautions remain visible while advanced tools are collapsed');checks++;
+equal(shortcut.props['aria-label'],'Review upcoming schedule checks');
+equal(nodes(shortcut).some(n=>String(n.props?.children).includes('same-time start')),true);
+let scrolled=0;const disclosure={open:false,scrollIntoView(options){equal(options.block,'start');scrolled++;}};
+advanced.props.ref.current=disclosure;
+shortcut.props.onClick();
+equal(disclosure.open,true);equal(scrolled,1);
+equal(requests.length,1,'Reviewing a schedule warning does not change saved jobs or fetch data');
 const review=()=>nodes(render()).find(n=>n.props?.className==='schedule-turnaround-review');
 assert.ok(review(),'Close-start advisory must render on successful verified owner read');checks++;
 let pairRows=nodes(review()).filter(n=>n.props?.className==='schedule-turnaround-pair');
@@ -152,6 +163,8 @@ equal(nodes(render()).some(n=>n.props?.className==='schedule-turnaround-review')
 equal(requests.length,beforeReadCount,'Specific-day browsing is read-only');
 state=[[],null,true,''];responder=()=>ok([{...job,id:'a',scheduledAt:'2026-10-20T15:00:00Z'},{...job,id:'b',scheduledAt:'2026-10-20T18:00:00Z'}]);render();effect();await settle();
 equal(nodes(render()).some(n=>n.props?.className==='schedule-turnaround-review'),false);
+state=[[],null,true,''];responder=()=>ok([{...job,id:'clean-upcoming',phone:'9185550101',address:'123 Synthetic Street',scheduledAt:'2026-10-20T15:00:00Z'}]);render();effect();await settle();
+equal(nodes(render()).some(n=>n.props?.className==='schedule-check-shortcut'),false);
 
 // Restore the baseline test clock before running pre-existing refresh assertions.
 scheduleNow=Date.parse('2026-10-09T12:00:00Z');
