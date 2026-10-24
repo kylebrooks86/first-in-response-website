@@ -2475,8 +2475,10 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         {selected.email ? <a href={`mailto:${selected.email}`}><Mail />Email</a> : <span><Mail />No email</span>}
         {selected.address ? <a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selected.address)}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation />Google Maps</a> : <span><MapPin />No address</span>}
         <StrideButton />
-        {selected.address && <a href={`https://earth.google.com/web/search/${encodeURIComponent(selected.address)}`} target="_blank" rel="noreferrer"><Globe2 />Google Earth</a>}
-        {selected.address && <a href={`https://www.zillow.com/homes/${encodeURIComponent(selected.address.trim().replace(/\s+/g,"-"))}_rb/`} target="_blank" rel="noreferrer"><House />Zillow</a>}
+        {selected.address&&<details className="customer-property-links"><summary>More property links</summary><div>
+          <a href={`https://earth.google.com/web/search/${encodeURIComponent(selected.address)}`} target="_blank" rel="noreferrer"><Globe2 />Google Earth</a>
+          <a href={`https://www.zillow.com/homes/${encodeURIComponent(selected.address.trim().replace(/\s+/g,"-"))}_rb/`} target="_blank" rel="noreferrer"><House />Zillow</a>
+        </div></details>}
       </div>
     <nav className="record-tabs" id={`customer-history-${selected.id}`} aria-label="Customer record sections" tabIndex={-1}>
       <button aria-current={section === "estimates"?"page":undefined} className={section === "estimates" ? "active" : ""} onClick={() => setSection("estimates")}>Estimates <b>{customerEstimates.length}</b></button>
