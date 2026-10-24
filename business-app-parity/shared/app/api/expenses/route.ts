@@ -11,7 +11,7 @@ export async function GET(request:Request){
   const query=new URL(request.url).searchParams;
   if(query.get("format")==="csv"){
     const selectedYear=query.get("year");
-    if(selectedYear!==null&&!/^(?:19|20)\\d{2}$/.test(selectedYear))return Response.json({error:"Choose a valid four-digit tax year."},{status:400});
+    if(selectedYear!==null&&!/^(?:19|20)[0-9]{2}$/.test(selectedYear))return Response.json({error:"Choose a valid four-digit tax year."},{status:400});
     const exportRows=selectedYear?(rows.results??[]).filter(item=>item.incurredAt.slice(0,4)===selectedYear):(rows.results??[]);
     // Excel and other spreadsheet tools can evaluate formula-looking CSV cells even when quoted.
     // Prefix text with an apostrophe when its first non-whitespace character is a formula operator.
