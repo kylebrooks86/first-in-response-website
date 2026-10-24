@@ -2020,3 +2020,12 @@ html,body{max-width:100%;overflow-x:clip}
 .followup-optional-grid>button svg{width:15px;height:15px;flex:0 0 auto}
 .followup-optional-grid>.followup-milestones{grid-column:1/-1;min-width:0;width:100%}
 @media(max-width:360px){.followup-optional-grid{grid-template-columns:minmax(0,1fr)}.followup-optional-grid>.followup-milestones{grid-column:1}}
+
+/* Today keeps the next scheduled job visible before small forecast and optional shortcuts. */
+.dashboard-shortcut-disclosure{min-width:0;overflow:hidden}
+.dashboard-shortcut-disclosure>summary{display:flex;align-items:center;min-height:48px;padding:12px 15px;color:var(--foreground);font-weight:750;font-size:14px;cursor:pointer;list-style:none}
+.dashboard-shortcut-disclosure>summary::-webkit-details-marker{display:none}
+.dashboard-shortcut-disclosure>summary::after{content:"▾";margin-left:auto;color:var(--muted-foreground)}
+.dashboard-shortcut-disclosure[open]>summary::after{transform:rotate(180deg)}
+.dashboard-shortcut-disclosure>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
+.dashboard-shortcut-disclosure>.quick-actions-grid{padding-top:0}
