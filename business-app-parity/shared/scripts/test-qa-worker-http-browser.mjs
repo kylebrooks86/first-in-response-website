@@ -147,9 +147,9 @@ try{
  await initialPage.goto(origin+'/');
  const firstUse=initialPage.getByRole('region',{name:'Start using your empty FIRE app'});
  await firstUse.waitFor({timeout:12000});
- check(await firstUse.getByText('Your first FIRE job starts here').count()===1,
+ check(await firstUse.getByText('No estimates yet',{exact:true}).count()===1,
    'Real owner Dashboard shows first-use guidance only after verified empty API summary');
- await firstUse.getByRole('button',{name:'Open Customers · add or select a customer'}).click();
+ await firstUse.getByRole('button',{name:'Customers',exact:true}).click();
  await initialPage.getByRole('heading',{name:'Customers',exact:true}).waitFor({timeout:10000});
  check(await initialPage.getByRole('heading',{name:'Customers',exact:true}).count()===1,
    'First-use Dashboard call to action opens actual Customers page without sending messages');

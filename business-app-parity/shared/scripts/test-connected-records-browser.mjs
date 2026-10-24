@@ -311,8 +311,8 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(await page.getByTestId('schedule-weather-target').textContent()==='2026-10-20T15:00:00Z','Weather targets earliest future scheduled appointment regardless of record order');
   const priorities=page.getByRole('region',{name:'Needs attention'});
   await priorities.waitFor();
-  await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('6 known checks'));
-  check((await priorities.innerText()).includes('6 known checks'),'Priority strip counts one job gap, one due sign, two review checks and two due tasks');
+  await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('6 items'));
+  check((await priorities.innerText()).includes('6 items'),'Priority strip counts one job gap, one due sign, two review checks and two due tasks');
   check(await priorities.locator('.dashboard-priority-actions>button').count()===4,'Priority strip uses four compact categories rather than duplicating full lists');
   await priorities.getByRole('button',{name:'Review upcoming appointment preparation'}).click();
   check(await page.evaluate(()=>window.openedEstimate)==='later-dashboard-job','Priority action opens later job with incomplete details, not the already-ready next job');
@@ -339,7 +339,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   }
   // A dated callback is a distinct due-house action, not an estimate reminder.
   doorMode='ready';await page.evaluate(()=>window.dispatchEvent(new Event('fire:attention-saved')));
-  await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('7 known checks'));
+  await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('7 items'));
   check(await priorities.getByRole('button',{name:'Review due door knocking revisits'}).count()===1,'Dated overdue house creates one dedicated Dashboard priority');
   await priorities.getByRole('button',{name:'Review due door knocking revisits'}).click();
   check(await page.evaluate(()=>window.openedDoorHouse)==='door-due','Callback priority opens exact oldest due house, not an unrelated address');
@@ -357,15 +357,15 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await priorities.getByRole('button',{name:'Retry unavailable house revisit status'}).waitFor();
   check(await doorPanel.count()===0,'Unavailable house source never masquerades as a verified empty or due list');
   doorMode='empty';await priorities.getByRole('button',{name:'Retry unavailable house revisit status'}).click();
-  // 6 known checks appears both while the request is failing and after a
+  // 6 items appears both while the request is failing and after a
   // successful empty response. Wait for the *source-specific* recovery state.
   await priorities.getByRole('button',{name:'Retry unavailable house revisit status'}).waitFor({state:'hidden'});
   check(await priorities.getByRole('button',{name:'Retry unavailable house revisit status'}).count()===0,'Verified empty house queue removes stale source error');
   check(await doorPanel.count()===0,'A verified empty callback queue has no stale house cards');
-  check((await priorities.innerText()).includes('6 known checks'),'Empty callback recovery retains the correct independent priority count');
+  check((await priorities.innerText()).includes('6 items'),'Empty callback recovery retains the correct independent priority count');
   // An actual verified paid job adds one action; an unavailable feed is NOT an empty feed.
   closeoutMode='ready';await page.evaluate(()=>window.dispatchEvent(new Event('fire:attention-saved')));
-  await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('7 known checks'));
+  await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('7 items'));
   check(await priorities.locator('.dashboard-priority-actions>button').count()===5,'Verified paid job introduces a fifth distinct priority without duplicating the other four');
   await priorities.getByRole('button',{name:'Open paid job without prepared review request'}).click();
   check(await page.evaluate(()=>window.openedEstimate)==='paid-review-job','Review priority opens exact paid job, never a different customer');
@@ -373,7 +373,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await priorities.getByRole('button',{name:'Retry unavailable paid-job review requests'}).waitFor();
   check(!(await priorities.innerText()).includes('1 paid job need a review message prepared'),'Failed closeout read never claims saved review request count');
   closeoutMode='empty';await priorities.getByRole('button',{name:'Retry unavailable paid-job review requests'}).click();
-  await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('6 known checks'));
+  await page.waitForFunction(()=>document.querySelector('.dashboard-priority-strip h2')?.textContent?.includes('6 items'));
   check(await priorities.getByRole('button',{name:'Open paid job without prepared review request'}).count()===0,'Empty review closeout read removes only its own priority');
   check(writes===0,'Review priority navigation and recovery never save or send messages');
   taskMode='error';await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
