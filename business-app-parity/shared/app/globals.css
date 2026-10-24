@@ -2093,3 +2093,15 @@ html,body{max-width:100%;overflow-x:clip}
 .payments-history-disclosure[open]>summary::after{transform:rotate(180deg)}
 .payments-history-disclosure>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
 .payments-history-disclosure>.payment-history{padding-inline:10px}
+
+/* Profile-first customer screen: a short contact row, full history on demand. */
+.customer-contact-empty{display:block;min-height:44px;padding:11px 12px;color:var(--muted-foreground);font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.customer-timeline-disclosure{min-width:0;margin:12px 0 20px;border:1px solid var(--border);border-radius:12px;background:var(--card);overflow:hidden}
+.customer-timeline-disclosure>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:12px 15px;color:var(--foreground);font-size:14px;font-weight:800;cursor:pointer;list-style:none;overflow-wrap:anywhere}
+.customer-timeline-disclosure>summary::-webkit-details-marker{display:none}
+.customer-timeline-disclosure>summary span{font-size:12px;font-weight:650;color:var(--muted-foreground)}
+.customer-timeline-disclosure>summary::after{content:"▾";color:var(--muted-foreground)}
+.customer-timeline-disclosure[open]>summary::after{transform:rotate(180deg)}
+.customer-timeline-disclosure>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
+.customer-timeline-disclosure>.customer-timeline{margin:0;border:0;border-top:1px solid var(--border);border-radius:0;background:transparent}
+@media(max-width:430px){.customer-timeline-disclosure>summary{padding:11px 12px}}
