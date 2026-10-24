@@ -9,7 +9,15 @@ const test=(patch,expected,label)=>{assert.equal(context.exports.allowed({...bas
 test({},true,'Exact positive paid completed job');
 for(const patch of [{status:'scheduled'},{customerId:''},{paidCents:5000},{paidCents:10001},{totalCents:0,paidCents:0},{totalCents:1.5,paidCents:1.5},{totalCents:NaN,paidCents:NaN},{totalCents:Number.MAX_SAFE_INTEGER+1,paidCents:Number.MAX_SAFE_INTEGER+1},{paymentOverageOpen:1},{pendingRefundCount:1},{openCheckoutCount:1},{pendingRefundCount:undefined},{openCheckoutCount:undefined},{reviewReceivedAt:'2026-10-22T12:00:00Z'},{lastReviewRequestAt:'2026-10-22T12:00:00Z'}])test(patch,false,'Unsafe, unknown or already tracked review state '+JSON.stringify(patch));
 test({invoiceTotalCents:12000},false,'Revised invoice balance blocks request');test({invoiceTotalCents:12000,paidCents:12000},true,'Exact revised invoice balance permits request');
-let nextAction;function findNext(n){if(ts.isVariableDeclaration(n)&&n.name.getText(ast)==='nextAction')nextAction=n.initializer;ts.forEachChild(n,findNext);}findNext(detail);assert.ok(nextAction);
-vm.runInNewContext(ts.transpileModule('exports.next=estimate=>'+nextAction.getText(ast),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,context);
-for(const [patch,text] of [[{},'Paid in full — review the saved closeout status'],[{status:'scheduled'},'complete the job report'],[{pendingRefundCount:1},'Payment review:'],[{openCheckoutCount:1},'Payment review:'],[{paymentOverageOpen:1},'Billing exception:']]){assert.ok(context.exports.next({...base,...patch}).includes(text));count++;}
+let paymentReview;
+function findPaymentReview(n){if(ts.isVariableDeclaration(n)&&n.name.getText(ast)==='paymentReviewMessage')paymentReview=n.initializer;ts.forEachChild(n,findPaymentReview);}
+findPaymentReview(detail);assert.ok(paymentReview,'Pending refund and checkout warnings remain in the actual owner dialog');
+vm.runInNewContext(ts.transpileModule('exports.next=estimate=>'+paymentReview.getText(ast),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,context);
+for(const [patch,expected] of [[{pendingRefundCount:1},'Refund in progress'],[{openCheckoutCount:1},'Checkout still open']]){
+ assert.ok(context.exports.next({...base,...patch}).includes(expected),'Only active financial exception text stays visible');count++;
+}
+const detailSource=detail.getText(ast);
+assert.ok(detailSource.includes('className="change-alert"'),'Overpayment retains actionable refund/keep controls');count++;
+assert.ok(detailSource.includes('className="next-action" role="alert"'),'Pending financial items retain accessible alerts');count++;
+assert.ok(!detailSource.includes('const nextAction='),'Routine paid jobs do not carry a redundant long next-step explanation');count++;
 console.log(`PASS ${count} actual job review shortcut checks; exact cents, invoice revisions, holds and duplicate outreach controls.`);
