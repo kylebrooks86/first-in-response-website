@@ -2150,3 +2150,12 @@ html,body{max-width:100%;overflow-x:clip}
 @media(max-width:360px){
  .customer-profile-head .profile-head-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* iPhone contact shortcuts: four common actions in two compact rows, with estimating tools retained below. */
+@media(max-width:760px){
+  .customer-profile .customer-contact{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .customer-profile .customer-contact>a{min-width:0;min-height:48px;justify-content:center;padding:9px 6px;text-align:center;white-space:normal;overflow-wrap:anywhere}
+  .customer-profile .customer-contact>a svg{flex:0 0 15px}
+  .customer-profile .customer-contact>.customer-property-links,
+  .customer-profile .customer-contact>.customer-contact-empty{grid-column:1/-1;min-width:0;width:100%}
+}
