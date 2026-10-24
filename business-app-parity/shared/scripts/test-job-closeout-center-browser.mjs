@@ -123,6 +123,11 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  }
  // Long payment history starts with eight visible entries; every older entry stays one tap away.
  await page.goto('about:blank');seed();mode='ledger';await page.setViewportSize({width:390,height:844});await page.goto(origin);
+ const historyDisclosure=page.locator('details.payments-history-disclosure');
+ await historyDisclosure.locator('summary').waitFor();
+ check(!(await page.locator('.payment-history>article').first().isVisible()),'Payment history is initially collapsed to keep the iPhone balances simple');
+ await historyDisclosure.locator('summary').click();
+ check(await historyDisclosure.evaluate(n=>n.open),'One tap reveals complete saved payment history and refund actions');
  const ledgerButton=page.getByRole('button',{name:'View all 12 payments',exact:true});await ledgerButton.waitFor();
  check(await page.locator('.payment-history>article').count()===8,'Payments shows only eight latest history entries initially on iPhone');
  check(await page.locator('.payment-history>article').first().innerText().then(t=>t.includes('Synthetic Customer 0')),'Most recent ledger record stays first');
