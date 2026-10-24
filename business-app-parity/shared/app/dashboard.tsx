@@ -2499,11 +2499,12 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     <section className="customer-profile">
       {recordFocusError&&<p role="alert">{recordFocusError}</p>}
       <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><h1>{selected.name}</h1></div><div className="profile-head-actions"><Button variant="outline" onClick={()=>{const target=document.getElementById(`customer-history-${selected.id}`);target?.scrollIntoView({block:"start"});target?.focus({preventScroll:true});}}>Customer history</Button><EditCustomer key={selected.id} customer={selected} onUpdated={(updated)=>{setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item));void load(true);}}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/><NewEstimate key={selected.id} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /></div></div>
-      <div className="customer-contact">
-        {selected.phone ? <a href={`tel:${selected.phone}`}><Phone />Call</a> : <span><Phone />No phone</span>}
-        {selected.phone && <a href={`sms:${selected.phone}`}><Send />Text</a>}
-        {selected.email ? <a href={`mailto:${selected.email}`}><Mail />Email</a> : <span><Mail />No email</span>}
-        {selected.address ? <a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selected.address)}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation />Google Maps</a> : <span><MapPin />No address</span>}
+      <div className="customer-contact" role="group" aria-label="Customer contact and driving links">
+        {selected.phone&&<a href={`tel:${selected.phone}`} aria-label="Call customer"><Phone />Call</a>}
+        {selected.phone&&<a href={`sms:${selected.phone}`} aria-label="Text customer"><Send />Text</a>}
+        {selected.email&&<a href={`mailto:${selected.email}`} aria-label="Email customer"><Mail />Email</a>}
+        {selected.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selected.address)}&travelmode=driving`} target="_blank" rel="noopener noreferrer" aria-label="Directions to customer in Google Maps"><Navigation />Google Maps</a>}
+        {!selected.phone&&!selected.email&&!selected.address&&<small className="customer-contact-empty">No contact or address saved · use Edit customer to add details</small>}
         {selected.address&&<details className="customer-property-links"><summary>More property links</summary><div>
           <a href={`https://earth.google.com/web/search/${encodeURIComponent(selected.address)}`} target="_blank" rel="noreferrer"><Globe2 />Google Earth</a>
           <a href={`https://www.zillow.com/homes/${encodeURIComponent(selected.address.trim().replace(/\s+/g,"-"))}_rb/`} target="_blank" rel="noreferrer"><House />Zillow</a>
@@ -2597,15 +2598,16 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         {manualFlags.sign?.state==="out"&&<p className="customer-flag-sign-location">Yard sign: {manualFlags.sign.location||"Location not specified"} · Pickup {manualFlags.sign.pickupDate}.</p>}
         <details className="customer-sign-form"><summary>About tracking</summary><p className="customer-flag-help">Contact and callback buttons save directly. Other flags prepare notes; tap <strong>Add note</strong> to save those. Callback dates are tracked here; no automatic alerts. No messages or push alerts are sent. Pickup tasks must be saved separately.</p></details>
       </section>
-      <section className="customer-action-review" role="region" aria-label="Review next customer actions">
+      {nextCustomerActions.length>0&&<section className="customer-action-review" role="region" aria-label="Review next customer actions">
         <div className="customer-timeline-heading"><div><h2>Review next</h2></div><span>{nextCustomerActions.length} to check</span></div>
         {nextCustomerActions.length?<div className="customer-action-items">{nextCustomerActions.map(action=><button type="button" key={action.key} onClick={()=>openCustomerAction(action)} aria-label={"Open "+action.title}>
           <span className="customer-timeline-copy"><strong>{action.title}</strong><small>{action.detail}</small></span><ChevronRight aria-hidden="true"/>
         </button>)}</div>:<p className="customer-timeline-empty">Nothing needs review right now.</p>}
         {nextCustomerActions.length===8&&<p className="customer-timeline-empty">Showing the first eight checks. Review the saved records below for other actions.</p>}
-      </section>
-      <section className="customer-timeline" role="region" aria-label="Recent customer activity">
-        <div className="customer-timeline-heading"><div><h2>Recent activity</h2></div><span>{timelineEntries.length} event{timelineEntries.length===1?"":"s"}{timelineEntries.length===100?"+":""}</span></div>
+      </section>}
+      <details className="customer-timeline-disclosure">
+        <summary>Recent activity <span>{timelineEntries.length}{timelineEntries.length===100?"+":""} events</span></summary>
+        <section className="customer-timeline" role="region" aria-label="Recent customer activity">
         <div className="customer-timeline-controls">
           <div className="customer-timeline-filters" role="group" aria-label="Filter customer activity">
             {([["all","All"],["estimates","Estimates"],["messages","Messages"],["billing","Billing"],["notes","Notes & flags"]] as const).map(([key,label])=><button key={key} type="button" aria-label={"Filter activity: "+label} aria-pressed={timelineFilter===key} onClick={()=>{setTimelineFilter(key);setTimelineShown(6);}}>{label}</button>)}
@@ -2623,7 +2625,8 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
           </li>)}
         </ol>:<p className="customer-timeline-empty">{timelineEntries.length?"No matching activity. Choose All or clear the search.":"No dated activity has been recorded for this customer yet."}</p>}
         {filteredTimelineEntries.length>timelineShown&&<button type="button" className="customer-timeline-more" onClick={()=>setTimelineShown(current=>Math.min(current+6,filteredTimelineEntries.length))}>Show next {Math.min(6,filteredTimelineEntries.length-timelineShown)} events · {filteredTimelineEntries.length-timelineShown} remaining</button>}
-      </section>
+        </section>
+      </details>
       {activeCustomerEstimate&&<button className="customer-next-job" onClick={()=>setActiveEstimate({...activeCustomerEstimate,customer:selected.name,email:selected.email,phone:selected.phone,address:activeCustomerEstimate.address??undefined})}><span><Sparkles/><span><small>Continue current job</small><strong>{activeCustomerEstimate.service}</strong></span></span><span>{activeCustomerEstimate.scheduledAt?dateTime(activeCustomerEstimate.scheduledAt):statusLabel(activeCustomerEstimate.status)} <ChevronRight/></span></button>}
       {selected.address && <PropertyPreview address={selected.address} />}
       <CustomerProperties key={selected.id+'-'+propertyListRefresh} customerId={selected.id} onRecordsChange={setPropertyEstimateBlocked} onSelectionChange={setSelectedProperty} onWorkflowChange={setPropertyWorkflowReady} focusPropertyId={focusRecord?.kind==="property"&&focusRecord.customerId===selected.id?focusRecord.id:undefined} onPropertyFocusHandled={onRecordFocusHandled}/>
