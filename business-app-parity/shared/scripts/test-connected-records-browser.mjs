@@ -460,7 +460,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  mode='error';await page.goto(origin+'/schedule');await page.getByRole('alert').waitFor();check(await page.locator('.schedule-month,.schedule-window-controls,.schedule-job,.route-day-button').count()===0,'Failed schedule read hides stale calendar dots, counts, routes and cards');mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await showAllUpcoming(5);check(await page.locator('.schedule-job').count()===5&&await page.locator('.schedule-month').count()===1,'Explicit schedule retry restores both calendar and verified appointments');
  const freshButton=page.getByRole('button',{name:'Refresh schedule',exact:true});
  check(await freshButton.isEnabled(),'Owner can refresh the schedule without leaving the screen');
- check(await page.locator('.schedule-last-checked').innerText().then(t=>t.includes('Central Time')),'Schedule confirms last successful read in Central Time');
+ check(await page.locator('.schedule-last-checked').count()===0,'Compact Schedule header no longer wastes mobile space on last-checked timestamp');
  const beforeRefreshReads=reads;
  scheduled.push(scheduleJob('just-added','2026-10-22T15:00:00Z'));
  await freshButton.click();
