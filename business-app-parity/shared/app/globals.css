@@ -1880,3 +1880,31 @@ html,body{max-width:100%;overflow-x:clip}
 .weather-strip.weather-simple .weather-simple-footer button:disabled{opacity:.6;cursor:progress}
 [data-theme="dark"] .weather-strip.weather-simple .weather-simple-cautions{color:#c2d1e3}
 @media(max-width:390px){.weather-strip.weather-simple:not(.unavailable):not(.loading){padding:9px 10px}.weather-strip.weather-simple .weather-days article{flex-basis:99px}}
+
+
+/* FIRE monthly schedule: one calm calendar first, with daily jobs below it. */
+.schedule-month{margin-top:14px;padding:14px;border:1px solid var(--border);border-radius:15px;background:var(--card);min-width:0}
+.schedule-month-header{display:grid;grid-template-columns:44px minmax(0,1fr) 44px auto;align-items:center;gap:6px;margin-bottom:12px}
+.schedule-month-header h2{font-size:18px;line-height:1.25;text-align:center;margin:0;white-space:nowrap}
+.schedule-month-header button{min-height:44px;min-width:44px;border:1px solid var(--border);border-radius:10px;background:transparent;color:inherit;font-size:19px;font-weight:750;cursor:pointer}
+.schedule-month-header .schedule-month-today{font-size:12px;padding:0 10px}
+.schedule-month-weekdays,.schedule-month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;min-width:0}
+.schedule-month-weekdays{margin-bottom:5px}.schedule-month-weekdays span{text-align:center;font-size:11px;color:var(--muted-foreground);font-weight:750}
+.schedule-month-day,.schedule-month-empty{min-width:0;min-height:52px}
+.schedule-month-day{display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:2px;padding:6px 1px;border:1px solid var(--border);border-radius:9px;background:transparent;color:inherit;cursor:pointer}
+.schedule-month-day.today{border-color:#ce932f}
+.schedule-month-day.selected{background:#b32430;color:white;border-color:#b32430}
+.schedule-month-day .schedule-month-number{font-size:14px;font-weight:800;line-height:1.2}
+.schedule-month-dots{min-height:9px;display:flex;align-items:center;justify-content:center;gap:3px}
+.schedule-month-dots i,.schedule-month-legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.schedule-month-dots i.booked,.schedule-month-legend i.booked{background:#2d8acb}
+.schedule-month-dots i.done,.schedule-month-legend i.done{background:#29a16c}
+.schedule-month-dots small{font-size:9px;font-weight:750}
+.schedule-month-day.selected .schedule-month-dots i{box-shadow:0 0 0 1px #fff}
+.schedule-month-legend{display:flex;align-items:center;gap:15px;margin-top:10px;color:var(--muted-foreground);font-size:11px}
+.schedule-month-legend span{display:inline-flex;align-items:center;gap:5px}
+.schedule-month button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+[data-theme="dark"] .schedule-month{background:#111f31;border-color:#30445b}
+[data-theme="dark"] .schedule-month-day{border-color:#38516b}
+[data-theme="dark"] .schedule-month-day.selected{background:#a62330;color:white;border-color:#e05260}
+@media(max-width:430px){.schedule-month{padding:10px}.schedule-month-header{grid-template-columns:40px minmax(0,1fr) 40px auto;gap:3px}.schedule-month-header h2{font-size:15px}.schedule-month-header button{min-width:40px;min-height:44px}.schedule-month-header .schedule-month-today{padding:0 6px}.schedule-month-weekdays,.schedule-month-grid{gap:3px}.schedule-month-day{min-height:48px}.schedule-month-day .schedule-month-number{font-size:13px}}
