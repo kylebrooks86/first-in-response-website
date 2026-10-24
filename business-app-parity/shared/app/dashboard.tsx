@@ -2802,6 +2802,9 @@ function ScheduleWeather({nextJobAt,compact=false,requestedJobAt=null}:{nextJobA
 function ScheduleMonthCalendar({jobs,selectedDate,onSelectDate}:{jobs:EstimateRow[];selectedDate:string;onSelectDate:(date:string)=>void}){
  const centralToday=new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"});
  const [month,setMonth]=useState(()=>selectedDate.slice(0,7)||centralToday.slice(0,7));
+ // Keep the visible month aligned when a date is chosen through other schedule controls.
+ // Month arrows remain free to browse without changing the selected job date.
+ useEffect(()=>{if(/^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(selectedDate))setMonth(selectedDate.slice(0,7));},[selectedDate]);
  const first=new Date(month+"-01T12:00:00Z");
  const year=first.getUTCFullYear(),monthIndex=first.getUTCMonth();
  const count=new Date(Date.UTC(year,monthIndex+1,0)).getUTCDate();
