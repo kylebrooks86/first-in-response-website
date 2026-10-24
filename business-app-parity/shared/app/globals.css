@@ -1691,3 +1691,21 @@ html,body{max-width:100%;overflow-x:clip}
  .business-backup-tools>.workspace-head-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
  .business-backup-tools .export-button{width:100%;justify-content:center;text-align:center}
 }
+
+/* Day-to-day customer totals stay short; full financial amounts remain available. */
+.customer-snapshot-more{grid-column:1/-1;min-width:0;overflow:hidden;background:var(--card)}
+.customer-snapshot-more>summary{padding:11px 12px;min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:12px;font-weight:800;color:var(--foreground)}
+.customer-snapshot-more:focus-within>summary{outline-offset:-2px}
+.customer-snapshot-extra{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;border-top:1px solid var(--border);background:var(--border)}
+.customer-snapshot-extra>span{display:grid;gap:3px;min-width:0;padding:11px 12px;background:var(--card)}
+.customer-snapshot-extra small{color:var(--muted-foreground);font-size:10px;font-weight:750;text-transform:uppercase}
+.customer-snapshot-extra strong{font-size:14px;overflow-wrap:anywhere}
+.followup-more-filters{flex:1 1 100%;min-width:0;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.followup-more-filters>summary{display:flex;align-items:center;cursor:pointer;min-height:44px;padding:9px 12px;font-size:13px;font-weight:800;color:var(--foreground)}
+.followup-more-filters[open]>summary{border-bottom:1px solid var(--border)}
+.followup-extra-categories{display:flex;flex-wrap:wrap;gap:7px;padding:10px 10px 0}
+.followup-more-filters>[role="group"],.followup-more-filters>.followup-priority-toggle{margin:0 10px 10px}
+@media(max-width:390px){
+  .customer-snapshot-extra{grid-template-columns:minmax(0,1fr)}
+  .followup-extra-categories button{flex:1 1 auto}
+}
