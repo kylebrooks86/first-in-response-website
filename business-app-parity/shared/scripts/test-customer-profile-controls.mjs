@@ -11,7 +11,7 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
    const roots=selectors.map(selector=>document.querySelector(selector));
    const profile=document.querySelector('.customer-profile'),tabs=[...document.querySelectorAll('.record-tabs button')];
    const actions=document.querySelector('.profile-head-actions');
-   return {ordered:roots.every(Boolean)&&roots.every(node=>profile?.contains(node))&&roots.every((node,index)=>index===0||Boolean(roots[index-1]!.compareDocumentPosition(node!)&Node.DOCUMENT_POSITION_FOLLOWING)),
+   return {ordered:roots.every(Boolean)&&roots.every(node=>profile?.contains(node))&&roots.every((node,index)=>index===0||Boolean(roots[index-1].compareDocumentPosition(node)&Node.DOCUMENT_POSITION_FOLLOWING)),
       tabs:tabs.map(node=>node.textContent?.trim()),tabFit:tabs.every(node=>{const r=node.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1&&r.height>=44}),
       actionColumns:actions?getComputedStyle(actions).gridTemplateColumns.split(' ').filter(Boolean).length:0};
  });
