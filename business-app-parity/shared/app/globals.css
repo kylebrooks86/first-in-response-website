@@ -2070,3 +2070,26 @@ html,body{max-width:100%;overflow-x:clip}
 .schedule-day-buttons>.route-day-button small{grid-column:2;overflow-wrap:anywhere}
 .schedule-day-buttons>.route-day-button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
 @media(max-width:430px){.schedule-day-buttons>.route-day-button{flex-basis:100%;width:100%}}
+
+/* Estimates stay list-first on iPhone; secondary status filters are one disclosure away. */
+.estimate-simple-filters{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0;overflow:visible}
+.estimate-simple-filters>button{flex:0 1 auto;min-height:44px;white-space:normal}
+.estimate-filter-more{flex:1 1 160px;min-width:135px;max-width:100%;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.estimate-filter-more>summary{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:44px;padding:8px 12px;color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer;list-style:none;overflow-wrap:anywhere}
+.estimate-filter-more>summary::-webkit-details-marker{display:none}
+.estimate-filter-more>summary::after{content:"▾";color:var(--muted-foreground)}
+.estimate-filter-more[open]>summary::after{transform:rotate(180deg)}
+.estimate-filter-more>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.estimate-extra-filters{display:flex;flex-wrap:wrap;gap:7px;padding:2px 9px 10px}
+.estimate-extra-filters>button{flex:1 1 86px;min-width:0;min-height:44px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:13px;cursor:pointer}
+.estimate-extra-filters>button.active{border-color:var(--primary);font-weight:800}
+@media(max-width:430px){.estimate-simple-filters>button{flex:1 1 62px;padding-inline:7px}.estimate-filter-more{flex-basis:100%}}
+
+/* Payments default to collectible balances; full history/refund actions are retained. */
+.payments-history-disclosure{min-width:0}
+.payments-history-disclosure>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:13px 15px;color:var(--foreground);font-size:15px;font-weight:800;cursor:pointer;list-style:none;overflow-wrap:anywhere}
+.payments-history-disclosure>summary::-webkit-details-marker{display:none}
+.payments-history-disclosure>summary::after{content:"▾";color:var(--muted-foreground)}
+.payments-history-disclosure[open]>summary::after{transform:rotate(180deg)}
+.payments-history-disclosure>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
+.payments-history-disclosure>.payment-history{padding-inline:10px}
