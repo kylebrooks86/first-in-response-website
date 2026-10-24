@@ -82,6 +82,7 @@ try{
  // Real customer with ZERO estimates: explicit lead No answer note, without
  // sending a message or generating a quote, followed by directory filtering.
  await page.setViewportSize({width:390,height:700});
+ check(await page.getByRole('group',{name:'Filter manually logged lead contact attempts'}).count()===0,'Unused zero-count lead filters do not clutter initial customer directory');
  await open('Fixture First');
  const originalDraft=page.getByLabel('Customer note',{exact:true});
  await originalDraft.fill('Unsent field note');
