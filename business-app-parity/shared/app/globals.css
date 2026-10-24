@@ -1803,3 +1803,14 @@ html,body{max-width:100%;overflow-x:clip}
 .payments-balance-help>summary{min-height:44px;display:inline-flex;align-items:center;cursor:pointer;color:var(--muted-foreground);font-size:12px;font-weight:750}
 .payments-balance-help>summary:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
 .payments-balance-help>p{margin:4px 0 8px;max-width:65ch;font-size:12px;line-height:1.5;color:var(--muted-foreground)}
+
+
+/* Keep scheduling risks visible; expand full appointment pairs only if needed. */
+.schedule-turnaround-details{margin-top:10px;min-width:0}
+.schedule-turnaround-details>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;border:1px solid currentColor;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:750}
+.schedule-turnaround-details>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.schedule-turnaround-details .schedule-turnaround-pair{margin-top:10px}
+.schedule-turnaround-details>small{display:block;margin-top:10px}
+.payment-history-more{width:100%;min-height:48px;margin-top:10px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer}
+.payment-history-more:hover{background:var(--muted)}
+.payment-history-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
