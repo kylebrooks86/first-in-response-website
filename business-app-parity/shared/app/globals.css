@@ -1846,3 +1846,7 @@ html,body{max-width:100%;overflow-x:clip}
 .business-task-entry[open]>summary{border-bottom:1px solid var(--border)}
 .business-task-entry>.business-form{margin:0;padding:14px}
 @media(max-width:760px){.business-task-entry>.business-form{padding:12px}}
+
+
+.business-task-saved-notes{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}
+.business-task-saved-notes strong{font-weight:800}
