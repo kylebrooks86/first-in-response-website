@@ -13,7 +13,7 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  await headerMore.locator(':scope>summary').click();
  check(await headerMore.getByRole('button',{name:'Edit customer',exact:true}).isVisible()&&await headerMore.getByRole('button',{name:'Customer history',exact:true}).isVisible(),'Existing edit and exact history shortcuts remain accessible');
  await headerMore.getByRole('button',{name:'Customer history',exact:true}).click();
- check(await page.evaluate(()=>document.activeElement?.id==='customer-history-'+customer.id),'History shortcut still focuses current record after compact menu');
+ check(await page.evaluate(id=>document.activeElement?.id==='customer-history-'+id,customer.id),'History shortcut still focuses current record after compact menu');
  await headerMore.locator(':scope>summary').click();
  const customerQuotes=page.getByRole('group',{name:'Customer estimates and signed agreements'});
  check(await customerQuotes.getByRole('button',{name:'All estimates (1)',exact:true}).getAttribute('aria-pressed')==='true','Customer profile opens all of this customer’s saved quotes first');
