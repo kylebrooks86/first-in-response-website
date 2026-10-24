@@ -125,7 +125,7 @@ assert.ok(ownerPaymentSection.indexOf('Collectible job balances')<ownerPaymentSe
 assert.ok(ownerPaymentSection.includes('Payment history')&&ownerPaymentSection.includes('RecordPayment'),'All payment controls and history remain accessible');n++;
 const followUpSection=view.slice(view.indexOf('function FollowUpsView('),view.indexOf('function PaymentsView('));
 assert.ok(followUpSection.includes('className="followup-message-details"'),'Historical message timestamps remain available under a disclosure');n++;
-assert.ok(followUpSection.indexOf('No answer · not contacted')<followUpSection.indexOf('className="followup-message-details"'),'No-answer / not-contacted filter remains directly accessible');n++;
+assert.ok(followUpSection.indexOf('No answer / Not contacted')<followUpSection.indexOf('className="followup-message-details"'),'No-answer / not-contacted filter remains directly accessible');n++;
 assert.ok(followUpSection.includes('Not contacted ·')&&followUpSection.includes('onClick={()=>void recordAction(estimate,"no_answer")}'),'Unanswered outreach stays visibly marked and loggable');n++;
 assert.ok(followUpSection.includes('Saved estimate activity (')&&followUpSection.includes('Recent contact'),'Full milestone and contact history remain available');n++;
 console.log('PASS '+n+' timing, reviewed journey milestones, billing guards, and compact daily owner screen contracts.');
