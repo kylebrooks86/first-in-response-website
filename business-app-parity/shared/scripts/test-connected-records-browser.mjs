@@ -389,6 +389,11 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   const nextJob=page.getByRole('region',{name:'Next scheduled job'});
   check((await nextJob.innerText()).includes('Exact customer')&&!(await nextJob.innerText()).includes('Declined customer'),'Next appointment card identifies the correct active customer');
   check((await nextJob.innerText()).includes('Exact job'),'Next appointment card includes selected service');
+  const contactDisclosure=nextJob.locator('details.dashboard-next-contact-tools');
+  check(await contactDisclosure.count()===1,'Next appointment keeps contact options in one menu');
+  check(!(await contactDisclosure.evaluate(node=>node.open)),'Customer contact is collapsed by default on Today');
+  await contactDisclosure.locator('summary').click();
+  check(await contactDisclosure.evaluate(node=>node.open),'Contact menu opens without leaving the next job');
   const call=nextJob.getByRole('link',{name:'Call next job customer',exact:true});
   const sms=nextJob.getByRole('link',{name:'Text next job customer',exact:true});
   const email=nextJob.getByRole('link',{name:'Email next job customer',exact:true});
