@@ -1655,3 +1655,15 @@ html,body{max-width:100%;overflow-x:clip}
   .customer-profile .photo-panel .photo-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))}
   .customer-profile .photo-panel .photo-card{min-width:0}
 }
+
+/* FIRE customer-first mobile layout: visible record choices and optional detail. */
+.customer-balance-explanation>summary{cursor:pointer;font-weight:750;color:var(--foreground)}
+.customer-journey-disclosure>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:800;color:var(--foreground)}
+.customer-journey-disclosure>section{margin-top:12px}
+.customer-flag-panel>details.customer-sign-form{width:100%;min-width:0}
+.customer-flag-panel>details.customer-sign-form>summary{min-height:40px;display:flex;align-items:center}
+@media(max-width:760px){
+  .customers-view .record-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;overflow:visible;border-bottom:0}
+  .customers-view .record-tabs button{width:100%;min-width:0;max-width:100%;min-height:44px;padding:10px 5px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:12px;line-height:1.3;text-align:center;white-space:normal;overflow-wrap:anywhere}
+  .customers-view .record-tabs button.active{border-color:var(--primary);background:var(--accent);color:var(--accent-foreground)}
+}
