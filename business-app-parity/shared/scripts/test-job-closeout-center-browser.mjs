@@ -73,7 +73,7 @@ const server=createServer(async(req,res)=>{const url=new URL(req.url,'http://fix
  if(url.pathname==='/bundle.js'){res.setHeader('Content-Type','text/javascript');res.end(bundle.outputFiles[0].text);return;}if(url.pathname==='/style.css'){res.setHeader('Content-Type','text/css');res.end(css.css);return;}
  if(url.pathname.startsWith('/api/')){let body='';for await(const c of req)body+=c;requests.push({path:req.url,method:req.method,body:body?JSON.parse(body):null});
   if(url.pathname==='/api/message-templates'){send(200,{});return;}
-  if(url.pathname==='/api/estimate-history'){send(200,{estimates:[],nextCursor:null});return;}if(url.pathname==='/api/payments'){send(200,{payments:[]});return;}
+  if(url.pathname==='/api/estimate-history'){send(200,{estimates:[],nextCursor:null});return;}if(url.pathname==='/api/payments'){send(200,{payments:mode==='ledger'?Array.from({length:12},(_,i)=>({id:'synthetic-ledger-'+i,customer:'Synthetic Customer '+i,service:'Synthetic wash',type:'Cash',status:'refunded',amountCents:1000+i,createdAt:stamp(i)})):[]});return;}
   if(mode==='offline'&&url.pathname==='/api/job-closeout-history'){send(503,{error:'Synthetic history interruption'});return;}
   if(url.pathname==='/api/job-closeout-history'&&mode==='bad'){send(200,{items:[{customerId:'foreign',state:'received'}],nextCursor:null});return;}
   if(url.pathname==='/api/payment-closeouts'&&(mode==='bad-ready'||mode==='bad-ready-older'&&url.searchParams.has('cursor'))){send(200,{actions:[{estimateId:'bad'}],mayHaveMore:false,nextCursor:null});return;}
@@ -112,6 +112,17 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(await progress.locator('.closeout-status-controls button,.closeout-card-actions button').evaluateAll(ns=>ns.every(n=>n.getBoundingClientRect().height>=44)),'Mobile controls have 44px touch targets');check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Light/dark view fits narrow and landscape screens');
   if(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR){mkdirSync(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR,{recursive:true});await progress.scrollIntoViewIfNeeded();await progress.screenshot({path:join(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR,`closeout-${size.width}-${theme}.png`)});}
  }
+ // Long payment history starts with eight visible entries; every older entry stays one tap away.
+ await page.goto('about:blank');seed();mode='ledger';await page.setViewportSize({width:390,height:844});await page.goto(origin);
+ const ledgerButton=page.getByRole('button',{name:'View all 12 payments',exact:true});await ledgerButton.waitFor();
+ check(await page.locator('.payment-history>article').count()===8,'Payments shows only eight latest history entries initially on iPhone');
+ check(await page.locator('.payment-history>article').first().innerText().then(t=>t.includes('Synthetic Customer 0')),'Most recent ledger record stays first');
+ await ledgerButton.click();
+ check(await page.locator('.payment-history>article').count()===12,'View all payments exposes every older saved transaction without deleting data');
+ check(await page.locator('.payment-history>article').last().innerText().then(t=>t.includes('Synthetic Customer 11')),'Oldest payment remains reachable');
+ await page.getByRole('button',{name:'Show recent 8 payments',exact:true}).click();
+ check(await page.locator('.payment-history>article').count()===8,'Owner can collapse payment history again');
+ check(requests.every(r=>r.method==='GET'),'Expanding payment history makes no payment or refund writes');mode='ok';
  // Customer switches must replace edited private drafts and job-scoped links.
  for(const theme of ['light','dark']){
  await page.goto('about:blank');seed();await page.setViewportSize({width:390,height:844});await page.goto(origin+'/composer');await page.evaluate(t=>window.setTheme(t),theme);await page.getByRole('button',{name:'Prepare review request',exact:true}).click();
