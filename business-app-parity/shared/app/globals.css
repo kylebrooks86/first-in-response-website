@@ -1734,3 +1734,17 @@ html,body{max-width:100%;overflow-x:clip}
 @media(max-width:350px){
   .customer-profile-head .profile-head-actions{grid-template-columns:minmax(0,1fr)}
 }
+
+
+/* Home: secondary reminder queues remain accessible without repeating every
+   alert in the primary iPhone feed. No data or controls are removed. */
+.dashboard-extra-reminders{min-width:0;margin-top:14px;border:1px solid var(--border);border-radius:12px;background:var(--card);overflow:hidden}
+.dashboard-extra-reminders>summary{min-height:48px;display:flex;align-items:center;gap:8px;cursor:pointer;padding:11px 14px;color:var(--foreground);font-size:14px;font-weight:750;list-style:none}
+.dashboard-extra-reminders>summary::-webkit-details-marker{display:none}
+.dashboard-extra-reminders>summary>span{margin-left:auto;color:var(--muted-foreground);font-size:12px;font-weight:500}
+.dashboard-extra-reminders>summary::after{content:"▾";margin-left:4px;color:var(--muted-foreground)}
+.dashboard-extra-reminders[open]>summary::after{transform:rotate(180deg)}
+.dashboard-extra-reminders>summary:focus-visible{outline:2px solid var(--ring);outline-offset:-3px}
+.dashboard-extra-reminder-content{display:grid;gap:12px;min-width:0;padding:0 12px 12px}
+.dashboard-extra-reminder-content>.dashboard-sign-reminders,.dashboard-extra-reminder-content>.dashboard-review-reminders{min-width:0;margin-top:0}
+@media(max-width:760px){.dashboard-extra-reminder-content{padding:0 8px 10px}.dashboard-extra-reminders>summary{min-height:48px}}
