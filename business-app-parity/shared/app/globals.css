@@ -1679,3 +1679,15 @@ html,body{max-width:100%;overflow-x:clip}
  .sidebar nav button{min-height:44px}
  .bottom-nav button{min-width:0}
 }
+
+/* Keep infrequently used export and restore controls available without crowding daily tasks. */
+.business-backup-tools{min-width:0;max-width:100%;flex:0 1 auto}
+.business-backup-tools>summary{min-height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid var(--border);border-radius:10px;background:var(--card);padding:10px 14px;font-size:13px;font-weight:750;color:var(--foreground)}
+.business-backup-tools>summary:hover{background:var(--muted)}
+.business-backup-tools>.workspace-head-actions{margin-top:10px;justify-content:flex-start}
+.business-backup-tools .export-button{min-height:44px;min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:760px){
+ .business-backup-tools{width:100%}
+ .business-backup-tools>.workspace-head-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+ .business-backup-tools .export-button{width:100%;justify-content:center;text-align:center}
+}
