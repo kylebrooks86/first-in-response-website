@@ -43,6 +43,18 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
    }});
  });
  page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){outside.push(r.request().url());return r.abort();}return r.continue();});
+ // Month view is primary; optional route/date controls must reopen after
+ // loading and error states remount the schedule results.
+ const openScheduleTools=async()=>{
+  const more=page.locator('details.schedule-planning-more');
+  await more.waitFor({state:'visible'});
+  if(!await more.evaluate(node=>node.open))await more.locator('summary').click();
+ };
+ const showAllUpcoming=async count=>{
+  await openScheduleTools();
+  await page.getByRole('button',{name:'All upcoming ('+count+')',exact:true}).click();
+ };
+ 
  for(const size of [{width:320,height:568},{width:390,height:844},{width:844,height:390}])for(const theme of ['light','dark']){
   mode='ok';await page.setViewportSize(size);await page.goto(origin+'/customers');await page.evaluate(t=>window.setTheme(t),theme);await page.locator('.customer-card').filter({hasText:'Fixture first'}).click();await page.getByRole('heading',{name:'Fixture first',exact:true}).waitFor();
   payload.notes.push({id:'synthetic-sign-placement',customerId:'first',body:'[FIRE FLAG] YARD_SIGN_PLACED | pickup:2026-10-27 | location:Front lawn by driveway',createdAt:'2026-10-20T12:00:00Z'});
@@ -373,17 +385,6 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await page.getByRole('region',{name:'Next scheduled job'}).getByRole('button',{name:'Open next job'}).click();
   check(await page.evaluate(()=>window.openedEstimate)==='exact-dashboard-job','Missing-detail warning retains direct route to correct job');
  }
- // Month view is primary; optional route/date controls must reopen after
- // loading and error states remount the schedule results.
- const openScheduleTools=async()=>{
-  const more=page.locator('details.schedule-planning-more');
-  await more.waitFor({state:'visible'});
-  if(!await more.evaluate(node=>node.open))await more.locator('summary').click();
- };
- const showAllUpcoming=async count=>{
-  await openScheduleTools();
-  await page.getByRole('button',{name:'All upcoming ('+count+')',exact:true}).click();
- };
  mode='error';await page.goto(origin+'/schedule');await page.getByRole('alert').waitFor();check(await page.locator('.schedule-window-controls,.schedule-job,.route-day-button').count()===0,'Failed schedule read hides counts/routes/cards');mode='ok';await page.getByRole('button',{name:'Try again',exact:true}).click();await showAllUpcoming(5);check(await page.locator('.schedule-job').count()===5,'Explicit schedule retry restores all appointments');
  const freshButton=page.getByRole('button',{name:'Refresh schedule',exact:true});
  check(await freshButton.isEnabled(),'Owner can refresh the schedule without leaving the screen');
