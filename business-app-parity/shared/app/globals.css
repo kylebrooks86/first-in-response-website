@@ -1723,3 +1723,14 @@ html,body{max-width:100%;overflow-x:clip}
   .customer-profile .record-tabs{margin-top:12px}
   .customer-property-links{flex:1 1 100%}
 }
+
+/* Space-saving, readable owner actions and safe iPhone bottom navigation. */
+@media(max-width:760px){
+  .customer-profile-head .profile-head-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;width:100%;gap:8px}
+  .customer-profile-head .profile-head-actions>*{min-width:0;max-width:100%;width:100%}
+  .customer-profile-head .profile-head-actions button{min-height:44px;max-width:100%;width:100%;white-space:normal;overflow-wrap:anywhere;padding:9px 7px;line-height:1.35}
+  .dashboard-view,.customers-view,.workspace-view{padding-bottom:calc(120px + env(safe-area-inset-bottom, 0px))}
+}
+@media(max-width:350px){
+  .customer-profile-head .profile-head-actions{grid-template-columns:minmax(0,1fr)}
+}
