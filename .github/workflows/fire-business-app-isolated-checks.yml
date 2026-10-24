@@ -1012,6 +1012,8 @@ jobs:
         run: node scripts/test-schedule-day-shortcuts-browser.mjs
       - name: Compact Estimates and Payments real JSX in Chromium at five iPhone widths
         run: node scripts/test-simple-estimates-payments-browser.mjs
+      - name: Customer contact and complete activity disclosure in real Chromium at iPhone widths
+        run: node scripts/test-customer-simple-profile-browser.mjs
       - name: Actual template editors and themed sidebar at phone tablet and desktop widths
         run: node scripts/test-template-layout-browser.mjs
       - name: Actual job reports and costs retain mobile controls and survive session connection loss
