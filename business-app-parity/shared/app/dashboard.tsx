@@ -1842,7 +1842,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
   };
   const utcForCentralAppointment=(wall:string):string=>{
-    if(!/^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])T([01]\\d|2[0-3]):[0-5]\\d$/.test(wall))
+    if(!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d$/.test(wall))
       throw new Error("Choose a valid Central Time appointment.");
     const utcWall=Date.parse(wall+":00.000Z");
     if(!Number.isFinite(utcWall)||new Date(utcWall).toISOString().slice(0,16)!==wall)
