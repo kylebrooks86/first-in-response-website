@@ -2939,6 +2939,7 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
         <div><strong>Review tight turnaround times</strong>
           <p>{turnarounds.length} consecutive start-time gap{turnarounds.length===1?"":"s"} of two hours or less on the same Tulsa work day. This is an advisory, not proof of overlapping jobs.</p>
         </div>
+        <details className="schedule-turnaround-details"><summary>Review affected appointment pairs ({turnarounds.length})</summary>
         {turnarounds.map(window=>{
           const first=rows.filter(job=>window.firstIds.includes(job.id));
           const next=rows.filter(job=>window.nextIds.includes(job.id));
@@ -2947,7 +2948,7 @@ function ScheduleView({ searchQuery }:{searchQuery:string}) {
             <div className="schedule-turnaround-jobs">{[...first,...next].map(job=><button className="schedule-turnaround-job" key={job.id} type="button" onClick={()=>setSelected(job)} aria-label={`Review scheduled job for ${job.customer}`}>{job.customer} · {new Date(job.scheduledAt!).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})}<ChevronRight aria-hidden="true"/></button>)}</div>
           </div>;
         })}
-        <small>Check actual cleaning duration, setup and driving time before committing to additional work. No appointment was moved or customer contacted.</small>
+        <small>Check actual cleaning duration, setup and driving time before committing to additional work. No appointment was moved or customer contacted.</small></details>
       </section>}
       {jobPrepIssues.length>0&&<details className="schedule-prep-alert" aria-label="Upcoming job details to review"><summary><span><strong>Check appointment details</strong><small>{jobPrepIssues.length} upcoming job{jobPrepIssues.length===1?"":"s"} missing an address or a usable phone/email in the job record</small></span><ChevronRight aria-hidden="true"/></summary><div className="schedule-prep-items">{jobPrepIssues.map(({job,missingAddress,missingContact})=><button type="button" key={job.id} onClick={()=>setSelected(job)}><span><strong>{job.customer}</strong><small>{new Date(job.scheduledAt!).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})} Central · {missingAddress?"Address missing":""}{missingAddress&&missingContact?" · ":""}{missingContact?"Phone/email missing":""}</small></span><span>Review <ChevronRight aria-hidden="true"/></span></button>)}</div><p>Checks use saved job details only. Review each customer profile if information is already available there.</p></details>}
       <div className="schedule-window-controls" role="group" aria-label="Schedule date range">{(["all","today","tomorrow","week"] as const).map(value=><Button key={value} variant={dayFilter===value?"default":"outline"} aria-pressed={dayFilter===value} onClick={()=>{setDayFilter(value);setWeatherReview(null);}}>{value==="all"?`All upcoming (${allUpcoming.length})`:value==="today"?`Today (${todayCount})`:value==="tomorrow"?`Tomorrow (${tomorrowCount})`:`Next 7 days (${weekCount})`}</Button>)}</div>
