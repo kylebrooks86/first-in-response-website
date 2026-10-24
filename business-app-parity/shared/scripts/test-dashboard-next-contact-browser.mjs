@@ -85,11 +85,13 @@ try{
   check(await page.evaluate(()=>window.__actions.includes('nav:schedule')),width+': full schedule access preserved');
  }
  await page.evaluate(()=>window.__setFlags({phone:false,email:true,address:true}));
+ await page.waitForFunction(()=>!document.querySelector('.dashboard-next-contact-options a[href^="tel:"]'));
  check(await page.locator('.dashboard-next-contact-tools').count()===1,'Email-only customer still has contact disclosure');
  await page.locator('.dashboard-next-contact-tools>summary').click();
  check(await page.getByRole('link',{name:'Email next job customer'}).isVisible(),'Email-only link remains accessible');
  check(await page.getByRole('link',{name:'Call next job customer'}).count()===0,'Do not fabricate phone link');
  await page.evaluate(()=>window.__setFlags({phone:false,email:false,address:true}));
+ await page.waitForFunction(()=>!document.querySelector('.dashboard-next-contact-tools'));
  check(await page.locator('.dashboard-next-contact-tools').count()===0,'No empty contact disclosure if neither contact method exists');
  check(await page.getByRole('link',{name:'Directions to next job'}).isVisible(),'Directions still available without contacts');
  check(failures.length===0&&outside.length===0,'No JS errors or external requests: '+failures.join(', '));
