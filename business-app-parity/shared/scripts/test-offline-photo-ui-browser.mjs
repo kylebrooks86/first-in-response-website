@@ -135,7 +135,7 @@ try{
  check(await page.getByText('Before & after comparison').count()===1,'Real gallery reveals its before/after comparison tool');
  await ctx.setOffline(true);
  await page.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
- await page.getByText(/photo ZIP passed integrity checks/).waitFor({timeout:30000});
+ await page.getByText(/ZIP is ready/).waitFor({timeout:30000});
  check(await page.getByRole('button',{name:'Save prepared ZIP to Files'}).count()===1,'Photo ZIP preparation works in airplane mode and exposes a separate iOS share gesture');
  await verifyPhotoActionGeometry('390px, ZIP prepared:');
  await page.evaluate(()=>{
@@ -161,9 +161,9 @@ try{
  check(filename.startsWith('FIRE-customer-synthetic-customer-photo-photos-')&&exported.length>100,'Real owner click downloads a nonempty customer-only ZIP');
  const verifyInput=page.locator('input[type="file"][accept*=".zip"]').first();
  await verifyInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
- await page.getByText(/Saved ZIP selected from Files passed photo checksums/).waitFor({timeout:30000});
+ await page.getByText(/Backup COMPLETE: all current on-device photos included/).waitFor({timeout:30000});
  check((await page.getByRole('status').allInnerTexts()).some(t=>t.includes('2 exactly match this device')),'Actual Files re-selection checks saved backup against both original photo blobs');
- check((await page.getByRole('status').allInnerTexts()).some(t=>t.includes('COMPLETE for all currently stored FIRE on-device photos')),
+ check((await page.getByRole('status').allInnerTexts()).some(t=>t.includes('Backup COMPLETE: all current on-device photos included')),
    'Saved ZIP confirms complete current device coverage only when all present photo bytes are included');
  // A stale ZIP passes its checksums, but must NEVER be represented as complete
  // after an actual new photo has been added to IndexedDB.
@@ -172,7 +172,7 @@ try{
  check(await page.locator('.photo-card').count()===3,'New photo committed after the older archive was saved');
  await verifyInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
  await page.getByText(/INCOMPLETE PHOTO BACKUP: 1 current device photo/).waitFor({timeout:30000});
- check(!(await page.getByRole('status').allInnerTexts()).some(t=>t.includes('COMPLETE for all currently stored FIRE on-device photos')),
+ check(!(await page.getByRole('status').allInnerTexts()).some(t=>t.includes('Backup COMPLETE: all current on-device photos included')),
    'Valid old ZIP cannot claim complete coverage of the newer device library');
  const extraPhoto=page.locator('.photo-card').filter({hasText:'new-after-backup.png'});
  check(await extraPhoto.count()===1,'Synthetic newer photo is located by filename, not gallery sort order');
@@ -191,7 +191,7 @@ try{
  // Clear then reselect from Files to force a genuine new change event.
  await verifyInput.setInputFiles([]);
  await verifyInput.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
- try{await page.getByText(/COMPLETE for all currently stored FIRE on-device photos/).waitFor({timeout:30000});}
+ try{await page.getByText(/Backup COMPLETE: all current on-device photos included/).waitFor({timeout:30000});}
  catch(err){
   const details=await page.evaluate(()=>({
    statuses:[...document.querySelectorAll('[role="status"]')].map(e=>e.textContent?.slice(0,400)),
@@ -299,7 +299,7 @@ try{
  check(await coldPage.locator('.photo-card').count()===2,'Browser fully closed, HTTP server stopped: actual React customer-photo screen cold-launches offline with original IndexedDB photos');
  check(await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).count()===1,'Offline cold launch retains the real customer ZIP export control');
  await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
- await coldPage.getByText(/photo ZIP passed integrity checks/).waitFor({timeout:30000});
+ await coldPage.getByText(/ZIP is ready/).waitFor({timeout:30000});
  check(await coldPage.getByRole('button',{name:'Download prepared ZIP'}).count()===1,'Actual photo ZIP can be freshly prepared after fully offline browser restart');
  // Browser-managed download paths can disappear when Chromium detaches its
  // offline download context. Verify a fresh ZIP through the native file-share
@@ -319,7 +319,7 @@ try{
    'Fresh ZIP built after offline cold launch contains original two photographs and was handed to native share');
  const coldVerify=coldPage.locator('input[type="file"][accept*=".zip"]').first();
  await coldVerify.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
- await coldPage.getByText(/Saved ZIP selected from Files passed photo checksums/).waitFor({timeout:30000});
+ await coldPage.getByText(/Backup COMPLETE: all current on-device photos included/).waitFor({timeout:30000});
  check((await coldPage.getByRole('status').allInnerTexts()).some(t=>t.includes('2 exactly match this device')),'Saved photo ZIP verification still works after a genuinely offline cold launch');
  check(remote.length===0,'No external network, Cloudflare, R2, or Stripe requests occurred');
  check(browserErrors.length===0,'Actual browser photo UI produced no uncaught client errors: '+browserErrors.join(' / '));
