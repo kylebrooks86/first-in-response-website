@@ -46,7 +46,7 @@ import {estimateCreateStorage,readPendingEstimateCreate,reservePendingEstimateCr
 
 import {weatherIconKind,formatDailyTemperatures,weatherDayHeading,hourlyWorkCautions,dailyWorkCautions,weatherHourForJobStart,type HourlyForecastResponse} from "../lib/tulsa-weather";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   AlertTriangle,
   Bell,
@@ -4258,7 +4258,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
       <aside className={`sidebar ${mobileMenu ? "mobile-open" : ""}`}>
         <div className="brand"><FireMark /><div><strong>FIRE</strong><small>Business App</small></div><button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X /></button></div>
         <div className="mobile-menu-search"><GlobalSearch query={globalQuery} onQuery={setGlobalQuery} onSelect={openSearchResult} disabled={!interactive} active={mobileMenu} menu/></div>
-        <nav aria-label="All business sections">{nav.map(([id, label, Icon],index) => <React.Fragment key={id}>{index===0&&<p className="sidebar-nav-heading">Everyday</p>}{index===7&&<p className="sidebar-nav-heading">More tools</p>}<button disabled={!interactive} className={tab === id ? "active" : ""} onClick={() => { setTab(id); setMobileMenu(false); }}><Icon /><span>{label}</span>{id === "estimates" && liveMetrics.estimates > 0 && <b>{liveMetrics.estimates}</b>}</button></React.Fragment>)}</nav>
+        <nav aria-label="All business sections">{nav.map(([id, label, Icon],index) => <Fragment key={id}>{index===0&&<p className="sidebar-nav-heading">Everyday</p>}{index===7&&<p className="sidebar-nav-heading">More tools</p>}<button disabled={!interactive} className={tab === id ? "active" : ""} onClick={() => { setTab(id); setMobileMenu(false); }}><Icon /><span>{label}</span>{id === "estimates" && liveMetrics.estimates > 0 && <b>{liveMetrics.estimates}</b>}</button></Fragment>)}</nav>
         <button type="button" disabled={!interactive} className="sidebar-foot" onClick={() => { setTab("owner-account"); setMobileMenu(false); }} aria-label="Open owner account"><div className="owner-avatar">FIRE</div><div><strong>First In Response Exteriors</strong><small>Owner · Account</small></div><ChevronRight /></button>
       </aside>
       <section className="main-area">
