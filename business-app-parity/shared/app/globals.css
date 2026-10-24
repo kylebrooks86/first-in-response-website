@@ -970,7 +970,16 @@ html,body{max-width:100%;overflow-x:clip}
 .schedule-date-picker-actions>*{flex:1 1 130px;min-width:0;min-height:44px}
 .schedule-date-picker-actions input{appearance:auto;border:1px solid var(--input);border-radius:8px;background:var(--background);color:var(--foreground);padding:9px 11px;font-size:16px;line-height:1.5;max-width:100%}
 .schedule-date-picker p{margin:0;color:var(--muted-foreground);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
-@media(max-width:420px){.schedule-date-picker-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.schedule-date-picker-actions input{grid-column:1/-1;grid-row:1;width:100%}.schedule-date-picker-actions button{width:100%;font-size:12px}}
+/* One-row date browser on phones: arrows flank the date instead of taking an extra row. */
+@media(max-width:760px){
+ .schedule-date-picker-actions{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:8px}
+ .schedule-date-picker-actions>*{min-width:0;min-height:44px;width:100%;flex:auto}
+ .schedule-date-picker-actions input{grid-column:auto;grid-row:auto;width:100%;padding:8px 5px;font-size:16px}
+ .schedule-date-picker-actions button{padding:0;display:flex;align-items:center;justify-content:center}
+ .schedule-date-picker-actions button svg{width:18px;height:18px}
+ .quick-actions-panel .quick-actions-grid small{display:none}
+ .recent-estimate-dates{display:none}
+}
 
 /* Day-specific work history separates completed records from active stops. */
 .schedule-history-status{display:inline-flex;justify-self:start;align-items:center;margin-top:4px;padding:3px 9px;border:1px solid var(--border);border-radius:99px;background:var(--background);color:var(--foreground)!important;font-size:12px!important;font-weight:750;line-height:1.4}
