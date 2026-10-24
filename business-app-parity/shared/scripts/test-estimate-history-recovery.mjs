@@ -18,7 +18,7 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
  f.set('historySearch','New query');f.render();f.fetch(()=>ok([row('new')]));f.button('Try again').props.onClick();await flush();eq(f.get('rows').map(r=>r.id).join(','),'new');eq(f.get('error'),'');eq(f.requests.at(-1).includes('q=New%20query'),true,'Retry uses current query');eq(Boolean(f.button('Load older estimates')),false);
 }
 {
- const f=fixture();f.set('rows',[row('first')]);f.set('nextCursor','cursor-1');f.set('selected',row('first'));f.set('loading',false);f.render();f.fetch(()=>{throw Error('Older page offline');});await f.load(true);eq(f.get('selected').id,'first');eq(nodes(f.render()).some(n=>n.props?.className==='pipeline-board'),true);eq(Boolean(f.button('Retry older estimates')),true);eq(Boolean(f.button('Try again')),false);
+ const f=fixture();f.set('rows',[row('first')]);f.set('nextCursor','cursor-1');f.set('selected',row('first'));f.set('loading',false);f.render();f.fetch(()=>{throw Error('Older page offline');});await f.load(true);eq(f.get('selected').id,'first');eq(nodes(f.render()).some(n=>n.props?.className==='estimate-list'),true,'Preserved older records stay in the default simple Estimates list when another page fails');eq(Boolean(f.button('Retry older estimates')),true);eq(Boolean(f.button('Try again')),false);
  f.fetch(()=>ok([row('older')], 'cursor-1'));await f.load(true);assert.match(f.get('error'),/paging/);checks++;eq(f.get('rows').length,1,'Looped cursor cannot publish page');
  f.fetch(()=>ok([row('first'),row('older')]));await f.load(true);eq(f.get('rows').map(r=>r.id).join(','),'first,older');eq(f.get('selected').id,'first','Appending must preserve open details');eq(f.get('error'),'');
 }
