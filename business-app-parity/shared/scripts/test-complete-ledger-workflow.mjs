@@ -26,7 +26,13 @@ export async function exerciseCompleteLedger({page,context,origin,request,check,
  }
  check(await page.locator('.balance-list article').filter({hasText:'Synthetic Oldest Collectible Job'}).count()===1,'Oldest collectible job remains actionable beyond 200 newer quotes');
  await navigate('Schedule');await page.getByText('Synthetic Oldest Collectible Job',{exact:false}).first().waitFor();check(true,'Schedule includes the old appointment beyond the first 100 records');
- await navigate('Contracts');await page.locator('.contract-list button').filter({hasText:customer.name}).filter({hasText:'Synthetic Oldest Collectible Job'}).waitFor();check(true,'Agreements includes the old signed estimate beyond the first 100 records');
+ await page.setViewportSize({width:390,height:844});await page.goto(origin+'/');await page.getByRole('button',{name:'Open menu',exact:true}).click();
+ await page.getByRole('navigation',{name:'All business sections'}).getByRole('button',{name:/^Estimates(?:\s|$)/}).click();
+ const agreementSwitch=page.getByRole('group',{name:'Estimates and agreements'});
+ await agreementSwitch.getByRole('button',{name:'Agreements',exact:true}).click();
+ check(await agreementSwitch.getByRole('button',{name:'Agreements',exact:true}).getAttribute('aria-pressed')==='true','Agreements are reachable inside Estimates, without a duplicate main tab');
+ await page.locator('.contract-list button').filter({hasText:customer.name}).filter({hasText:'Synthetic Oldest Collectible Job'}).waitFor();
+ check(true,'Agreements includes the old signed estimate beyond the first 100 records');
  const fail=route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Synthetic later-page interruption'})});
  await context.route('**/api/estimate-history?limit=50&cursor=*',fail);await navigate('Payments');await page.getByRole('alert').filter({hasText:'Synthetic later-page interruption'}).waitFor();
  check(await page.locator('.business-metrics').count()===0&&await page.locator('.payment-layout').count()===0,'Interrupted later page hides partial totals and payment actions');
