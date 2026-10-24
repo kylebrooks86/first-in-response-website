@@ -1879,6 +1879,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
   const zillowAddress = encodeURIComponent((estimate.address || "").trim().replace(/\s+/g,"-"));
   const estimating=(["draft","sent","viewed"] as string[]).includes(estimate.status);
   const travelingToJob=estimate.status==="scheduled"&&Boolean(estimate.scheduledAt);
+  const workingOnJob=estimate.status==="scheduled"||estimate.status==="completed";
   const messageCustomer:CustomerRow={id:estimate.customerId||"",name:estimate.customer,email:estimate.email||"",phone:estimate.phone||"",address:estimate.address||"",createdAt:estimate.createdAt,estimateCount:1,estimateTotal:resolvedBillingTotalCents(estimate),paidTotal:estimate.paidCents};
   const shownDescription=estimate.serviceDescription||serviceDescriptionFor(estimate.service);
   const nextAction=Number(estimate.paymentOverageOpen)>0?"Billing exception: review the overpayment and record the refund or retained overpayment before closing out the customer record.":Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0?"Payment review: verify the open refund or checkout before closing out this job.":estimate.status==="completed"&&resolvedBillingTotalCents(estimate)>0&&estimate.paidCents===resolvedBillingTotalCents(estimate)?"Paid in full — review the saved closeout status and customer review progress.":estimate.status==="draft"?"Next: send the estimate and service agreement.":estimate.status==="sent"?"Next: follow up until the customer approves and signs.":estimate.status==="approved"?"Next: choose the job date and save it.":estimate.status==="scheduled"?"Next: capture before photos, complete the job report, then create the invoice.":estimate.status==="completed"&&!estimate.invoiceId?"Next: create and send the final invoice.":estimate.status==="completed"?"Next: send the invoice, record payment, and request a review.":"Review the customer record and choose the next status.";
@@ -1908,6 +1909,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       {estimate.phone&&<a href={`sms:${estimate.phone}`}><Send/> Text</a>}
       {estimating&&estimate.address&&<div className="detail-context-tools" role="group" aria-label="Estimate research"><strong>Estimate research</strong><div className="detail-context-buttons"><a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a><a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a></div></div>}
       {travelingToJob&&<div className="detail-context-tools" role="group" aria-label="Driving to job"><strong>Driving to job</strong><div className="detail-context-buttons">{estimate.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}<StrideButton/></div></div>}
+      {workingOnJob&&<div className="detail-context-tools" role="group" aria-label="Job report and costs"><strong>Job tools</strong><div className="detail-context-buttons"><OwnerJobTools estimate={estimate} onSaved={setReportComplete}/></div></div>}
       {estimate.invoiceId&&estimate.invoiceShareToken&&<a href={`/invoice/${encodeURIComponent(estimate.invoiceShareToken)}?ownerPreview=1&from=estimate`}><Receipt/> View invoice</a>}
       <RecordPayment key={estimate.id} estimate={estimate} onRecorded={(paidCents)=>onChanged({...estimate,paidCents})}/>
     </div>
@@ -1920,7 +1922,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
         {!travelingToJob&&estimate.address&&<a href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}
         {!estimating&&estimate.address&&<a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a>}
         {!estimating&&estimate.address&&<a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a>}
-        <OwnerJobTools estimate={estimate} onSaved={setReportComplete}/>
+        {!workingOnJob&&<OwnerJobTools estimate={estimate} onSaved={setReportComplete}/>}
       </div>
     </details>
     <OwnerDepositReview key={`deposit:${estimate.id}`} estimateId={estimate.id}/>
