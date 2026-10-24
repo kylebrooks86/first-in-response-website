@@ -2523,11 +2523,12 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
           <a href={`https://www.zillow.com/homes/${encodeURIComponent(selected.address.trim().replace(/\s+/g,"-"))}_rb/`} target="_blank" rel="noreferrer"><House />Zillow</a>
         </div></details>}
       </div>
+      {activeCustomerEstimate&&<button type="button" className="customer-next-job" aria-label={`Open ${activeCustomerEstimate.service} ${activeCustomerEstimate.status==="scheduled"?"scheduled job":"estimate"}`} onClick={()=>setActiveEstimate({...activeCustomerEstimate,customer:selected.name,email:selected.email,phone:selected.phone,address:activeCustomerEstimate.address??undefined})}><span><Sparkles/><span><small>{activeCustomerEstimate.status==="scheduled"?"Open scheduled job":activeCustomerEstimate.status==="completed"?"Open completed job":activeCustomerEstimate.status==="draft"?"Continue draft estimate":"Open estimate"}</small><strong>{activeCustomerEstimate.service}</strong></span></span><span>{activeCustomerEstimate.scheduledAt?dateTime(activeCustomerEstimate.scheduledAt):statusLabel(activeCustomerEstimate.status)} <ChevronRight/></span></button>}
     <nav className="record-tabs" id={`customer-history-${selected.id}`} aria-label="Customer record sections" tabIndex={-1}>
       <button aria-current={section === "estimates"?"page":undefined} className={section === "estimates" ? "active" : ""} onClick={() => setSection("estimates")}>Estimates <b>{customerEstimates.length}</b></button>
       <button aria-current={section === "payments"?"page":undefined} className={section === "payments" ? "active" : ""} onClick={() => setSection("payments")}>Payments</button>
       <button aria-current={section === "invoices"?"page":undefined} className={section === "invoices" ? "active" : ""} onClick={() => setSection("invoices")}>Invoices</button>
-      <button aria-current={section === "photos"?"page":undefined} className={section === "photos" ? "active" : ""} onClick={() => setSection("photos")}>Photos (on-device)</button>
+      <button aria-current={section === "photos"?"page":undefined} className={section === "photos" ? "active" : ""} onClick={() => setSection("photos")}>Photos</button>
       <button aria-current={section === "messages"?"page":undefined} className={section === "messages" ? "active" : ""} onClick={() => setSection("messages")}>Messages <b>{historyEntries.length}</b></button>
       <button aria-current={section === "notes"?"page":undefined} className={section === "notes" ? "active" : ""} onClick={() => setSection("notes")}>Notes <b>{customerNotes.length}</b></button>
     </nav>
@@ -2645,7 +2646,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         {filteredTimelineEntries.length>timelineShown&&<button type="button" className="customer-timeline-more" onClick={()=>setTimelineShown(current=>Math.min(current+6,filteredTimelineEntries.length))}>Show next {Math.min(6,filteredTimelineEntries.length-timelineShown)} events · {filteredTimelineEntries.length-timelineShown} remaining</button>}
         </section>
       </details>
-      {activeCustomerEstimate&&<button className="customer-next-job" onClick={()=>setActiveEstimate({...activeCustomerEstimate,customer:selected.name,email:selected.email,phone:selected.phone,address:activeCustomerEstimate.address??undefined})}><span><Sparkles/><span><small>Continue current job</small><strong>{activeCustomerEstimate.service}</strong></span></span><span>{activeCustomerEstimate.scheduledAt?dateTime(activeCustomerEstimate.scheduledAt):statusLabel(activeCustomerEstimate.status)} <ChevronRight/></span></button>}
+
       {selected.address && <PropertyPreview address={selected.address} />}
       <CustomerProperties key={selected.id+'-'+propertyListRefresh} customerId={selected.id} onRecordsChange={setPropertyEstimateBlocked} onSelectionChange={setSelectedProperty} onWorkflowChange={setPropertyWorkflowReady} focusPropertyId={focusRecord?.kind==="property"&&focusRecord.customerId===selected.id?focusRecord.id:undefined} onPropertyFocusHandled={onRecordFocusHandled}/>
     </section>
