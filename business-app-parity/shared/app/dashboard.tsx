@@ -1105,7 +1105,6 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
         </div>
         
       </section>}
-      <ScheduleWeather compact nextJobAt={upcomingJobs[0]?.scheduledAt}/>
       {upcomingJobs[0]&&<section className={`dashboard-next-job${nextJobNeedsPrep?" dashboard-next-job-needs-prep":""}`} aria-label="Next scheduled job">
         <div className="dashboard-next-job-info">
           <p className="eyebrow">Your next appointment</p>
@@ -1123,6 +1122,7 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
           <Button variant="outline" onClick={()=>onNavigate("schedule")}>Full schedule</Button>
         </div>
       </section>}
+      <ScheduleWeather compact nextJobAt={upcomingJobs[0]?.scheduledAt}/>
       <section className="metric-grid">
         <button className="metric-card accent" onClick={()=>onNavigate("payments")}><span className="metric-icon red"><CircleDollarSign /></span><p>Due now</p><strong>{money(metrics.outstanding)}</strong><small>Deposits and completed-job balances</small><ChevronRight className="metric-arrow"/></button>
         <button className="metric-card" onClick={()=>onNavigate("schedule")}><span className="metric-icon blue"><CalendarDays /></span><p>Upcoming jobs</p><strong>{upcoming}</strong><small>Open the schedule</small><ChevronRight className="metric-arrow"/></button>
@@ -1155,12 +1155,12 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
         </details>}
       <div className="content-grid">
         <section className="panel"><header><div><h2>Recent estimates</h2></div><button onClick={() => onNavigate("estimates")}>View all</button></header><div className="job-list">{estimates.length?estimates.slice(0,3).map((estimate) => <button className="job-row recent-estimate-row" key={estimate.id} onClick={()=>onOpenEstimate?onOpenEstimate(estimate.id):onNavigate("estimates")}><span className="date-tile"><b>{new Date(estimate.createdAt).toLocaleDateString("en-US",{day:"numeric",timeZone:"America/Chicago"})}</b><small>{new Date(estimate.createdAt).toLocaleString("en-US",{month:"short",timeZone:"America/Chicago"}).toUpperCase()}</small></span><div className="job-main"><strong>{estimate.customer}</strong><p>{estimate.service}</p><small className="recent-estimate-status">{statusLabel(estimate.status)}{estimate.status==="sent"&&estimate.firstViewedAt?" · Viewed":""}</small><small className="recent-estimate-dates">Created {dateTime(estimate.createdAt)}</small>{estimate.scheduledAt&&<small className="recent-estimate-appointment">Service · {dateTime(estimate.scheduledAt)}</small>}</div><strong className="job-price">{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight className="row-arrow" /></button>):<div className="real-empty"><strong>No estimates yet</strong><p>Create your first estimate to start the customer record.</p></div>}</div></section>
-        <section className="panel quick-actions-panel"><header><div><h2>Quick actions</h2></div></header><div className="quick-actions-grid">
+        <details className="panel quick-actions-panel dashboard-shortcut-disclosure"><summary>More shortcuts</summary><div className="quick-actions-grid">
           <button onClick={()=>onNavigate("customers")}><span className="quick-icon red"><Users/></span><span><strong>Customers</strong><small>Profiles, photos, and history</small></span><ChevronRight/></button>
           <button onClick={()=>onNavigate("schedule")}><span className="quick-icon blue"><CalendarDays/></span><span><strong>Schedule</strong><small>Jobs and driving plan</small></span><ChevronRight/></button>
           <button onClick={()=>onNavigate("followups")}><span className="quick-icon gold"><Clock3/></span><span><strong>Follow-ups</strong><small>Reminders and customer contact</small></span><ChevronRight/></button>
           <button onClick={()=>onNavigate("payments")}><span className="quick-icon green"><CircleDollarSign/></span><span><strong>Payments</strong><small>Deposits and balances</small></span><ChevronRight/></button>
-        </div></section>
+        </div></details>
       </div>
     </div>
   );
