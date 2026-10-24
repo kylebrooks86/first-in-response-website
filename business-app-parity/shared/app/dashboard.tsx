@@ -2149,6 +2149,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const noteSelection=useRef(selectedId);noteSelection.current=selectedId;
   const noteMounted=useRef(true),noteAccessEpoch=useRef(0);
   const [noteFeedback,setNoteFeedback]=useState<{customerId:string;kind:"error"|"success";text:string}|null>(null);
+  const [callbackNotice,setCallbackNotice]=useState<{customerId:string;kind:"error"|"success";text:string}|null>(null);
   useEffect(()=>{noteMounted.current=true;return()=>{noteMounted.current=false;};},[]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -2404,14 +2405,16 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const customerBalances=summarizeCustomerBalances(customerEstimates);
   const customerPaidTotal=customerPayments.filter((payment)=>!['Tip','Tip Refund'].includes(payment.type)).reduce((sum,payment)=>sum+payment.amountCents,0);
   const handleEstimateSaved = (estimate: EstimateRow) => { onEstimateSaved(estimate); void load(true); };
-  const saveNote = async () => {
-    if(!noteMounted.current||noteSaveLock.current||!selected||noteSelection.current!==selected.id||!noteText.trim()||noteText.trim().length>5000)return;
-    const customerId=selected.id,draft=noteText,body=draft.trim(),epoch=noteAccessEpoch.current;
+  const saveNote = async (directBody?:string) => {
+    const draft=directBody??noteText,asCallback=typeof directBody==="string";
+    if(!noteMounted.current||noteSaveLock.current||!selected||noteSelection.current!==selected.id||!draft.trim()||draft.trim().length>5000)return;
+    const customerId=selected.id,body=draft.trim(),epoch=noteAccessEpoch.current;
     const attemptKey=JSON.stringify([customerId,body]);
     const requestId=noteAttempts.current.get(attemptKey)??crypto.randomUUID();
     noteAttempts.current.set(attemptKey,requestId);
-    noteDrafts.current[customerId]=draft;noteSaveLock.current=true;noteSavingCustomer.current=customerId;
-    setSavingNote(true);setNoteFeedback(null);
+    if(!asCallback)noteDrafts.current[customerId]=draft;
+    noteSaveLock.current=true;noteSavingCustomer.current=customerId;
+    setSavingNote(true);if(asCallback)setCallbackNotice(null);else setNoteFeedback(null);
     try {
       const response=await fetch("/api/customer-notes",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerId,body,requestId})});
       const result=await response.json() as {note?:CustomerNote;error?:string};
@@ -2420,11 +2423,17 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       if(!response.ok||!note||typeof note.id!=="string"||note.id!==requestId||note.customerId!==customerId||note.body!==body||typeof note.createdAt!=="string"||!Number.isFinite(Date.parse(note.createdAt)))throw new Error("Unconfirmed note save.");
       noteAttempts.current.delete(attemptKey);
       setNotes((current)=>[note,...current.filter(row=>row.id!==note.id)]);
-      if(noteDrafts.current[customerId]===draft)delete noteDrafts.current[customerId];
-      if(noteSelection.current===customerId)setNoteText(current=>current===draft?"":current);
-      setNoteFeedback({customerId,kind:"success",text:"Note saved."});if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
+      if(!asCallback){
+        if(noteDrafts.current[customerId]===draft)delete noteDrafts.current[customerId];
+        if(noteSelection.current===customerId)setNoteText(current=>current===draft?"":current);
+        setNoteFeedback({customerId,kind:"success",text:"Note saved."});
+      }else setCallbackNotice({customerId,kind:"success",text:"Callback saved."});
+      if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
     }catch{
-      if(noteMounted.current&&noteAccessEpoch.current===epoch)setNoteFeedback({customerId,kind:"error",text:"Note save was not confirmed. Your draft is kept. Retry Add note with the same text safely; FIRE reuses this request so a saved note is not added twice. You can also refresh saved notes."});
+      if(noteMounted.current&&noteAccessEpoch.current===epoch){
+        if(asCallback)setCallbackNotice({customerId,kind:"error",text:"Callback save not confirmed. Retry with the same date; FIRE checks for duplicates."});
+        else setNoteFeedback({customerId,kind:"error",text:"Note save was not confirmed. Your draft is kept. Retry Add note with the same text safely; FIRE reuses this request so a saved note is not added twice. You can also refresh saved notes."});
+      }
     }finally{
       noteSaveLock.current=false;noteSavingCustomer.current=null;
       if(noteMounted.current)setSavingNote(false);
@@ -2503,8 +2512,9 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
             <Button variant="outline" aria-label="Prepare callback handled note" onClick={()=>prepareManualFlag(LEAD_CALLBACK_HANDLED_NOTE)}>Mark callback handled</Button>}
           <details className="customer-sign-form">
             <summary>Schedule or reschedule lead callback</summary>
-            <label>Callback date <input type="date" aria-label="Lead callback date" value={callbackDate} onChange={event=>setCallbackDate(event.target.value)}/></label>
-            <Button variant="outline" aria-label="Prepare lead callback note" disabled={!callbackDate} onClick={()=>{try{prepareManualFlag(leadCallbackNote(callbackDate));}catch{}}}>Prepare callback note</Button>
+            <label>Callback date <input type="date" aria-label="Lead callback date" value={callbackDate} onChange={event=>{setCallbackDate(event.target.value);setCallbackNotice(null);}}/></label>
+            <Button variant="outline" aria-label="Save lead callback" disabled={!callbackDate||savingNote||(manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate===callbackDate)} onClick={()=>{try{void saveNote(leadCallbackNote(callbackDate));}catch{setCallbackNotice({customerId:selected.id,kind:"error",text:"Choose a valid callback date."});}}}>{savingNote?"Saving…":manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate===callbackDate?"Saved":"Save callback"}</Button>
+            {callbackNotice?.customerId===selected.id&&<p role={callbackNotice.kind==="error"?"alert":"status"} className={callbackNotice.kind==="error"?"save-error":"save-success"}>{callbackNotice.text}</p>
           </details>
           {!manualFlags.reviewReceivedAt&&<Button variant="outline" aria-label="Prepare review received note" onClick={()=>prepareManualFlag(REVIEW_RECEIVED_NOTE)}>Log review received</Button>}
           {manualFlags.sign?.state==="out"?<><Button variant="outline" aria-label="Prepare yard sign pickup note" onClick={()=>prepareManualFlag(SIGN_PICKED_UP_NOTE)}>Log yard sign pickup</Button>{onPreparePickupTask&&<Button variant="outline" aria-label="Prepare yard sign pickup reminder" onClick={()=>stagePickupTask(selected,manualFlags.sign)}>Create pickup task</Button>}</>:
