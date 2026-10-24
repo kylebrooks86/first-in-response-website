@@ -2995,7 +2995,7 @@ function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?
     {rows.filter(job=>job.status==="approved"&&!job.scheduledAt).length?rows.filter(job=>job.status==="approved"&&!job.scheduledAt).map(job=><button type="button" key={job.id} onClick={()=>{setBookingDate(selectedDate);setSelected(job);setShowBookingOptions(false);}}>{job.customer} · {job.service}<ChevronRight aria-hidden="true"/></button>):<p>No approved jobs waiting for a date. Create an estimate and get it approved first.</p>}
     <button type="button" onClick={()=>onNavigate?.("estimates")}>Open estimates <ChevronRight aria-hidden="true"/></button>
    </div>}
-  </section>
+  </section>}
     {loading?<div className="customers-state">Loading schedule…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:<>
       {needsAttention.length>0&&<section className="needs-attention"><header><div><h2>Needs attention</h2><p>Past job dates that still need to be completed, rescheduled, or paid.</p></div><b>{needsAttention.length}</b></header>{needsAttention.map((job)=><button key={job.id} onClick={()=>setSelected(job)}><Clock3/><span><strong>{job.customer}</strong><small>{job.service} · was scheduled {dateTime(job.scheduledAt!)}</small><b>{money(billingBalanceCents(job))} due</b></span><ChevronRight/></button>)}</section>}
       <details className="schedule-planning-more">
