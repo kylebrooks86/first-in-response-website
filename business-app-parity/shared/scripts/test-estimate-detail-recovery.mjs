@@ -87,6 +87,17 @@ const primary=detailSource.slice(mainStart,moreStart),secondary=detailSource.sli
 for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','tel:','sms:','Directions'])eq(primary.includes(label),true,'Daily customer action available: '+label);
 for(const label of ['Customer view','StrideButton','Google Earth','Zillow','OwnerJobTools'])eq(secondary.includes(label),true,'Existing research and job control retained: '+label);
 eq(secondary.includes('Job report, costs & more')&&secondary.includes('More tools'),true,'Scheduled jobs identify the report shortcut, while optional research stays in the disclosure');
+// Every tool remains available, while the currently relevant pair is surfaced without another menu tap.
+const researchJob=fixture();researchJob.setFetcher(()=>Promise.resolve(ok(false,'quote')));researchJob.open({...job('quote'),status:'draft',address:'123 Synthetic St'});await flush();
+const researchNodes=researchJob.nodes();
+eq(researchNodes.some(n=>n.props?.['aria-label']==='Estimate research'),true,'Quote stage exposes Earth and Zillow as research tools');
+eq(researchNodes.some(n=>n.props?.['aria-label']==='Driving to job'),false,'Draft quote does not clutter the screen with travel shortcuts');
+eq(researchNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Secondary owner tools stay available for a draft quote');
+const scheduledJob=fixture();scheduledJob.setFetcher(()=>Promise.resolve(ok(false,'booked')));scheduledJob.open({...job('booked'),address:'123 Synthetic St',scheduledAt:'2026-10-28T14:00:00.000Z'});await flush();
+const scheduledNodes=scheduledJob.nodes();
+eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Driving to job'),true,'Booked job exposes Google Maps and Stride together');
+eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Estimate research'),false,'Booked job does not repeat pre-estimate research buttons up front');
+eq(scheduledNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Booked job retains research, report and cost tools in More tools');
 const simpleJob=fixture();simpleJob.open(job('compact-scheduled'));await flush();
 eq(simpleJob.nodes().some(n=>n.props?.className==='next-action'),false,'Routine booked work has no redundant next-step box');
 const exceptionJob=fixture();exceptionJob.open({...job('held-billing'),paymentOverageOpen:1});await flush();
