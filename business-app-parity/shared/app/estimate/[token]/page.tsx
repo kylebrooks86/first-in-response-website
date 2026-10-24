@@ -187,7 +187,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   return <main className={`pay-page${ownerPreview?' owner-estimate-preview':''}`}>
     {ownerPreview&&<a className="owner-estimate-preview-close" href={`/?openEstimate=${encodeURIComponent(row.id)}`} aria-label="Close estimate preview" title="Return to estimate details"><X aria-hidden="true"/></a>}
     <section className="pay-card estimate-portal">
-    {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><div><strong>Customer view preview</strong><span>Customer-facing estimate · opening your preview does not count as a customer view.</span></div><a href={`/?openEstimate=${encodeURIComponent(row.id)}`}>Return to FIRE <span aria-hidden="true">↗</span></a></aside>}
+    {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><strong>Customer view</strong></aside>}
     <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
     {paymentConfirmed&&<div className="portal-payment-success"><CheckCircle2/><div><strong>Payment received</strong><p>Thank you, {row.customer}. First In Response Exteriors has been notified.</p></div></div>}
     {showReviewInvitation&&<CustomerReviewInvitation/>}

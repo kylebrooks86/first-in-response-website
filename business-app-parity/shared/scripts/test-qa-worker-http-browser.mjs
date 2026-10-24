@@ -223,10 +223,9 @@ try{
   await page.waitForURL(origin+previewPath);
   const close=page.getByRole('link',{name:'Close estimate preview',exact:true});await close.waitFor();
   const previewNav=page.getByRole('complementary',{name:'Owner preview navigation'});
-  const returnToFire=previewNav.getByRole('link',{name:'Return to FIRE'});
-  const backBox=await returnToFire.boundingBox();
-  check(await previewNav.isVisible()&&await returnToFire.getAttribute('href')===`/?openEstimate=${encodeURIComponent(estimate.id)}`&&backBox.width>=44&&backBox.height>=44,
-   'Actual Customer View has a usable owner return link at '+width+'x'+height);
+  check(await previewNav.isVisible()&&(await previewNav.innerText()).trim()==='Customer view'&&await previewNav.getByRole('link').count()===0&&(await previewNav.boundingBox()).height<=28,
+   'Actual Customer view is one compact label without explanatory text or duplicate return button at '+width+'x'+height);
+  check(await close.getAttribute('href')===`/?openEstimate=${encodeURIComponent(estimate.id)}`,'Preview X retains exact estimate return destination');
   const top=await close.boundingBox();
   check(top.width>=44&&top.height>=44&&top.x>=width-70&&top.x+top.width<=width&&top.y>=0,'Accessible upper-right preview X at '+width+'x'+height);
   await page.locator('.secure-note').scrollIntoViewIfNeeded();

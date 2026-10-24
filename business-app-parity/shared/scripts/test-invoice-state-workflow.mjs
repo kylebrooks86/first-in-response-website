@@ -18,10 +18,10 @@ export async function exerciseInvoiceState({page,context,browser,origin,request,
   await page.setViewportSize({width,height});await page.goto(origin+'/?openEstimate='+estimate.id);const detail=page.getByRole('dialog',{name:'Synthetic Invoice Driveway',exact:true});await detail.waitFor();const link=detail.getByRole('link',{name:'View invoice',exact:true});
   check(await link.getAttribute('href')===path+'?ownerPreview=1&from=estimate'&&await link.getAttribute('target')===null,'Owner invoice action opens explicit same-tab preview at '+width);
   await link.click();const close=page.getByRole('link',{name:'Close invoice preview',exact:true});await close.waitFor();let box=await close.boundingBox();
-  const nav=page.getByRole('complementary',{name:'Owner preview navigation'}),back=nav.getByRole('link',{name:'Return to FIRE'});
-  const backBox=await back.boundingBox();
-  check(await nav.isVisible()&&await back.getAttribute('href')===`/?openEstimate=${encodeURIComponent(estimate.id)}`&&backBox.width>=44&&backBox.height>=44,
-   'Invoice owner preview has a tappable return link at '+width);
+  const nav=page.getByRole('complementary',{name:'Owner preview navigation'});
+  check(await nav.isVisible()&&(await nav.innerText()).trim()==='Customer view'&&await nav.getByRole('link').count()===0&&(await nav.boundingBox()).height<=28,
+   'Invoice preview shows only Customer view, without duplicate return or explanatory copy at '+width);
+  check(await close.getAttribute('href')===`/?openEstimate=${encodeURIComponent(estimate.id)}`&&box.width>=44&&box.height>=44,'Invoice X preserves a tappable exact-record return');
   const summary=await page.getByLabel('Invoice payment breakdown').innerText();
   check(summary.includes('Invoice total')&&summary.includes('$240.00')&&summary.includes('Payments received')&&summary.includes('$120.00')&&summary.includes('Balance due'),
    'Invoice clearly separates received principal and balance at '+width);

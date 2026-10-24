@@ -2214,6 +2214,7 @@ html,body{max-width:100%;overflow-x:clip}
 .ui-help>p{margin:0 0 8px;line-height:1.5}
 .template-mobile-picker{display:none}
 .template-section-title{margin:12px 0 8px;font-size:17px}
+.owner-preview-banner{display:block;margin:0 0 10px;padding:0;border:0;border-radius:0;background:transparent;color:#263348}
 .qa-test-banner{position:sticky;top:0;z-index:31;height:20px;padding:2px 8px;font-size:11px;line-height:16px;letter-spacing:0}
 .qa-test-banner + .app-shell .topbar{top:20px}
 .schedule-view>.schedule-board{margin-top:8px}

@@ -2,7 +2,7 @@ import {invoicePaymentState,invoicePaymentMessage} from "../../../lib/invoice-st
 import {getChatGPTUser} from "../../chatgpt-auth";
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
-import { CalendarDays, MapPin, ShieldCheck, Info, ArrowUpRight, X } from "lucide-react";
+import { CalendarDays, MapPin, ShieldCheck, Info, X } from "lucide-react";
 import { publicInvoiceFooter } from "../../../lib/fire-templates";
 import { serviceDescriptionFor } from "../../../lib/fire-services";
 import { PayButton } from "../../pay/[id]/pay-button";
@@ -62,7 +62,7 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
   const handles = paymentHandles(runtime);
   const footer=await env.DB.prepare("SELECT body FROM message_templates WHERE key='invoiceFooter'").first<{body:string}>();
   return <main className={`pay-page invoice-page${ownerPreview?" owner-estimate-preview":""}`}>{close}<section className="pay-card estimate-portal invoice-portal">
-    {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><div><strong>Invoice preview</strong><span>Customer-facing view · viewing does not mark the invoice as opened by your customer.</span></div><a href={returnHref}>Return to FIRE <ArrowUpRight aria-hidden="true"/></a></aside>}
+    {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><strong>Customer view</strong></aside>}
     <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
     <div className="pay-title"><p>INVOICE FOR</p><h1>{row.customer}</h1>{row.address&&<span><MapPin/>{row.address}</span>}{row.serviceAddressSource==="legacy-current-unverified"&&<small>Current customer address; original service address unverified.</small>}</div>
     <div className="portal-service-list">{items.map((item,index)=><div className="pay-line" key={`${item.name}-${index}`}><div><strong>{item.name}</strong>{item.quantity&&<span>{item.quantity} {item.unit}</span>}<p className="portal-service-description">{item.description||serviceDescriptionFor(item.name)}</p></div><strong>{currency(item.totalCents)}</strong></div>)}</div>
