@@ -220,14 +220,19 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
   </div>
   <input ref={cameraRef} className="photo-input" type="file" accept="image/*" capture="environment" onChange={e=>void add(e.target.files)}/>
   <input ref={libraryRef} className="photo-input" type="file" accept="image/*" multiple onChange={e=>void add(e.target.files)}/>
-  <div className="photo-buttons">
+  <div className="photo-buttons photo-backup-primary">
    <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive('all')}><Download className="h-4 w-4"/>Prepare all local photos ZIP</Button>
-   <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive('customer')}><Download className="h-4 w-4"/>Prepare this customer's photos ZIP</Button>
-   {preparedBackup&&<><Button variant="outline" disabled={busy||loading} onClick={()=>void savePreparedArchive()}><Upload className="h-4 w-4"/>Save prepared ZIP to Files</Button>
-    <Button variant="outline" disabled={busy||loading} onClick={downloadPreparedArchive}><Download className="h-4 w-4"/>Download prepared ZIP</Button></>}
+   {preparedBackup&&<Button variant="outline" disabled={busy||loading} onClick={()=>void savePreparedArchive()}><Upload className="h-4 w-4"/>Save prepared ZIP to Files</Button>}
    <Button variant="outline" disabled={busy||loading} onClick={()=>verifyRef.current?.click()}><Images className="h-4 w-4"/>Verify saved ZIP from Files</Button>
-   <Button variant="outline" disabled={busy||loading||needsReview||!safetyReady} onClick={()=>restoreRef.current?.click()}><Upload className="h-4 w-4"/>Restore verified photo ZIP</Button>
   </div>
+  <details className="photo-backup-more">
+   <summary>More photo backup tools</summary>
+   <div className="photo-buttons">
+    <Button variant="outline" disabled={busy||loading} onClick={()=>void prepareArchive('customer')}><Download className="h-4 w-4"/>Prepare this customer's photos ZIP</Button>
+    {preparedBackup&&<Button variant="outline" disabled={busy||loading} onClick={downloadPreparedArchive}><Download className="h-4 w-4"/>Download prepared ZIP</Button>}
+    <Button variant="outline" disabled={busy||loading||needsReview||!safetyReady} onClick={()=>restoreRef.current?.click()}><Upload className="h-4 w-4"/>Restore verified photo ZIP</Button>
+   </div>
+  </details>
   <input ref={verifyRef} className="photo-input" type="file" accept=".zip,application/zip" onChange={e=>void verifySavedArchive(e.target.files)}/>
   <input ref={restoreRef} className="photo-input" type="file" accept=".zip,application/zip" onChange={e=>void restore(e.target.files)}/>
   {needsReview&&<div role="alert" className="save-error"><p>Photo changes are paused because the last result was not confirmed. Keep original images and backup files.</p>
