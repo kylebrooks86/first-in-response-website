@@ -37,12 +37,12 @@ const failures=[
 ];
 for(const [fail,message] of failures)for(const populated of [false,true]){
  state=[populated?[job]:[],populated?job:null,true,''];responder=fail;requests=[];
- const initial=nodes(render());equal(initial.find(n=>n.type===stubs.EstimateDetail).props.estimate,null);equal(initial.some(n=>n.props?.className==='route-day-button'),false);equal(initial.some(n=>n.type===stubs.ScheduleWeather),false);
+ const initial=nodes(render());equal(initial.find(n=>n.type===stubs.EstimateDetail).props.estimate,null);equal(initial.some(n=>n.props?.className==='route-day-button'),false);equal(initial.some(n=>n.type===stubs.ScheduleWeather),false);equal(initial.some(n=>n.type===stubs.ScheduleMonthCalendar),false);
  effect();await settle();equal(state[3],message);equal(state[0].length,populated?1:0);equal(state[1],null);
  const all=nodes(render());const alert=all.find(n=>n.props?.role==='alert');assert.ok(alert);checks++;
- equal(alert.props.children[0].props.children,message);equal(all.some(n=>n.props?.className==='schedule-board'),false);equal(all.some(n=>n.props?.className==='schedule-turnaround-review'),false);equal(all.some(n=>n.props?.className==='route-day-button'),false);equal(all.some(n=>n.props?.children==='No upcoming jobs'),false);equal(all.some(n=>n.type===stubs.ScheduleWeather),false);
+ equal(alert.props.children[0].props.children,message);equal(all.some(n=>n.props?.className==='schedule-board'),false);equal(all.some(n=>n.props?.className==='schedule-turnaround-review'),false);equal(all.some(n=>n.props?.className==='route-day-button'),false);equal(all.some(n=>n.props?.children==='No upcoming jobs'),false);equal(all.some(n=>n.type===stubs.ScheduleWeather),false);equal(all.some(n=>n.type===stubs.ScheduleMonthCalendar),false);
  responder=()=>ok([job]);requests=[];alert.props.children[1].props.onClick();await settle();equal(state[3],'');equal(requests.length,1);equal(requests[0],'/api/estimate-history?limit=50');equal(fetchOptions.at(-1)?.cache,'no-store');
- const recovered=nodes(render());equal(recovered.some(n=>n.props?.role==='alert'),false);equal(recovered.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,job.scheduledAt);
+ const recovered=nodes(render());equal(recovered.some(n=>n.props?.role==='alert'),false);equal(recovered.some(n=>n.type===stubs.ScheduleMonthCalendar),true);equal(recovered.find(n=>n.type===stubs.ScheduleWeather).props.nextJobAt,job.scheduledAt);
  const card=recovered.find(n=>n.props?.className==='schedule-job');assert.ok(card);checks++;card.props.onClick();equal(state[1].id,job.id);
  const route=recovered.find(n=>n.props?.className==='route-day-button');equal(new URL(route.props.href).searchParams.get('destination'),job.address);
 }
@@ -176,16 +176,17 @@ const refreshButton=()=>nodes(render()).find(node=>node.type===stubs.Button&&nod
 assert.ok(refreshButton());checks++;equal(refreshButton().props.disabled,false);
 responder=()=>ok([job,{...job,id:'newly-booked',address:'Updated appointment',scheduledAt:'2026-10-10T18:00:00Z'}]);
 requests=[];fetchOptions=[];
-refreshButton().props.onClick();equal(state[2],true);equal(refreshButton().props.disabled,true);
+refreshButton().props.onClick();equal(state[2],true);equal(refreshButton().props.disabled,true);equal(nodes(render()).some(n=>n.type===stubs.ScheduleMonthCalendar),false);
 await settle();equal(requests.length,1);equal(requests[0],'/api/estimate-history?limit=50');equal(fetchOptions[0]?.cache,'no-store');
 equal(state[0].length,2);equal(nodes(render()).filter(node=>node.props?.className==='schedule-job').length,2);
 const previous=state[4];responder=()=>{throw new Error('Synthetic offline during refresh');};requests=[];refreshButton().props.onClick();await settle();
 equal(state[3],'Synthetic offline during refresh');equal(state[0].length,2);equal(state[4],previous);
 equal(nodes(render()).some(node=>node.props?.className==='schedule-board'),false);
+equal(nodes(render()).some(node=>node.type===stubs.ScheduleMonthCalendar),false);
 equal(nodes(render()).some(node=>node.props?.className==='route-day-button'),false);
 responder=()=>ok([job]);const retry=nodes(render()).find(node=>node.props?.role==='alert').props.children[1];
 retry.props.onClick();await settle();
-equal(state[3],'');equal(state[0].length,1);equal(nodes(render()).some(node=>node.props?.className==='schedule-board'),true);
+equal(state[3],'');equal(state[0].length,1);equal(nodes(render()).some(node=>node.type===stubs.ScheduleMonthCalendar),true);equal(nodes(render()).some(node=>node.props?.className==='schedule-board'),true);
 
 // Financial and appointment corruption must never show unsafe balances, stale routes
 // or a falsely successful refresh. Valid saved records remain recoverable with GET only.
