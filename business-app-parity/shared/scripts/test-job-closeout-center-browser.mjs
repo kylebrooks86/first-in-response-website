@@ -91,6 +91,15 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  const stage=()=>page.getByRole('group',{name:'Job closeout stage',exact:true});
  for(const size of [{width:320,height:568},{width:390,height:844},{width:844,height:390}])for(const theme of ['light','dark']){
   await page.goto('about:blank');seed();await page.setViewportSize(size);await page.goto(origin);await page.evaluate(t=>window.setTheme(t),theme);await page.getByRole('heading',{name:'Job Closeout Center',exact:true}).waitFor();const readyPanel=page.getByRole('region',{name:'Paid jobs ready for review follow-up',exact:true});
+  const primaryTotals=page.locator('.payments-primary-metrics article');
+  check(await primaryTotals.count()===3,'Payments keeps balance, deposit and collected totals visible');
+  const otherTotals=page.locator('details.payments-secondary-metrics');
+  check(await otherTotals.evaluate(n=>!n.open),'Nonurgent payment totals begin collapsed');
+  await otherTotals.locator('summary').click();
+  check(await otherTotals.locator('article').count()===3,'Other payment totals remain accessible with one tap');
+  check(await otherTotals.locator('summary').evaluate(n=>n.getBoundingClientRect().height>=44),'Additional totals summary is touch friendly');
+  await otherTotals.locator('summary').click();
+
   check((await readyPanel.innerText()).includes('Review message prepared · sending not confirmed'),'Prepared drafts remain unconfirmed');check(!(await readyPanel.innerText()).includes('Synthetic unpaid')&&!(await readyPanel.innerText()).includes('Synthetic overage'),'Unpaid and billing holds never enter verified ready queue');
   await readyPanel.getByRole('link',{name:'Open job · request review',exact:true}).first().click();check(await page.evaluate(()=>window.openedJob)==='job-prepared','Ready action opens exact prepared job without reload');
   mode='bad-ready-older';await page.getByRole('button',{name:'Load older paid jobs',exact:true}).click();await page.getByRole('alert').filter({hasText:'Older review follow-ups could not be loaded'}).waitFor();check((await readyPanel.innerText()).includes('Previously loaded jobs are still available'),'Malformed older ready page preserves verified jobs');mode='ok';await page.getByRole('button',{name:'Load older paid jobs',exact:true}).click();await page.getByRole('status').filter({hasText:'203 matching loaded jobs'}).waitFor();const refreshedReady=page.waitForResponse(r=>r.url().includes('/api/payment-closeouts?cursor=')&&r.status()===200);await page.evaluate(()=>window.dispatchEvent(new Event('fire:attention-saved')));await refreshedReady;await page.getByRole('status').filter({hasText:'203 matching loaded jobs'}).waitFor();check(requests.filter(r=>r.path.startsWith('/api/payment-closeouts?cursor=')).length>=2,'Confirmed changes refresh every previously loaded ready page');
