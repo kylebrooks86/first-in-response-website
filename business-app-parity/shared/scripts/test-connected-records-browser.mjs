@@ -171,6 +171,19 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await scheduleAction.click();
   check(await page.locator('.schedule-choose-job').count()===0,
     'Schedule menu closes cleanly and restores the month-first screen');
+  const monthCalendar=page.getByRole('region',{name:'Monthly job calendar'});
+  check(await monthCalendar.getByRole('heading',{name:'October 2026'}).isVisible(),
+    'Actual month calendar shows the chosen month instead of an empty fixture');
+  await monthCalendar.getByRole('button',{name:'Next month'}).click();
+  check(await monthCalendar.getByRole('heading',{name:'November 2026'}).isVisible(),
+    'Monthly calendar arrows browse forward without changing scheduled records');
+  await monthCalendar.getByRole('button',{name:'Previous month'}).click();
+  const oct20=monthCalendar.getByRole('button',{name:/^October 20, 2026, 2 jobs: 2 scheduled, 0 completed$/});
+  check(await oct20.locator('.schedule-month-dots i.booked').count()===2,
+    'Actual calendar preserves two blue scheduled-job dots on a shared local day');
+  await oct20.click();
+  check(await oct20.getAttribute('aria-pressed')==='true'&&await page.locator('.schedule-job').count()===2,
+    'Tapping a colored calendar day selects the matching two actual appointments');
   await page.locator('.schedule-planning-more > summary').click();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).click();check(await page.locator('.schedule-job').count()===5,'All upcoming preserves full schedule');await page.getByRole('button',{name:'Today (2)',exact:true}).click();check(await page.locator('.schedule-job').count()===2,'Today includes Central late-night appointment');check(await page.locator('.needs-attention button').count()===1,'Today filter retains overdue work');check(!(await page.locator('.schedule-board').innerText()).includes('tomorrow-midnight'),'Central next-day appointment excluded from Today');let route=new URL(await page.locator('.route-day-button').getAttribute('href'));check(route.searchParams.get('destination')==='Address today-late'&&route.searchParams.get('waypoints')==='Address today-morning','Today route stays on one Central day');
   check(await page.locator('.schedule-job-inline-flags').count()===2,'Near-term jobs have compact timing and prep indicators');
   check(await page.locator('.schedule-job-needs-prep').count()===1,'Today job missing contact receives a visual highlight');
