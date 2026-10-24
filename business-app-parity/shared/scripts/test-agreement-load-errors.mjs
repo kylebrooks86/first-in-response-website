@@ -40,17 +40,17 @@ for(const [fail,message] of failures)for(const populated of [false,true]){
  const recovered=nodes(render());equal(recovered.some(n=>n.props?.role==='alert'),false);equal(recovered.some(n=>n.props?.className==='business-metrics'),true);
  const list=recovered.find(n=>n.props?.className==='contract-list');assert.ok(list);checks++;const card=list.props.children[0];equal(nodes(card).some(n=>n.props?.className==='contract-state signed'),true);card.props.onClick();equal(state[1].signedName,'Synthetic Signer');
 }
-// Preserve signatures, pending-change counts and awaiting exclusions after refresh.
+// A customer agreement is a sent/accepted/signed record, not an unsent draft or a declined quote.
 const fixtures=[job,{...job,id:'change',signedAt:null,signedName:null,status:'sent',pendingChangeCount:'2'},
  {...job,id:'pending',signedAt:null,status:'draft',pendingChangeCount:null},
  {...job,id:'declined',signedAt:null,status:'declined'},
  {...job,id:'completed',signedAt:null,status:'completed'}];
 state=[[],null,true,''];responder=()=>ok(fixtures.map(e=>({...e,totalCents:String(e.totalCents),depositCents:String(e.depositCents),paidCents:String(e.paidCents)})));render();effect();await settle();equal(state[0][0].totalCents,10000);equal(state[0][0].depositCents,5000);equal(state[0][0].paidCents,2000);equal(state[0][1].pendingChangeCount,2);equal(state[0][2].pendingChangeCount,0);
 function metric(all,label){const metrics=all.find(n=>n.props?.className==='business-metrics');return metrics.props.children.find(n=>n.props.children[0].props.children===label).props.children[1].props.children;}
-let all=nodes(render());equal(metric(all,'Signed agreements'),1);equal(metric(all,'Awaiting signature'),2);equal(metric(all,'Change requests'),2);equal(all.find(n=>n.props?.className==='contract-list').props.children.length,5);
+let all=nodes(render());equal(metric(all,'Signed agreements'),1);equal(metric(all,'Awaiting signature'),2);equal(metric(all,'Change requests'),2);equal(all.find(n=>n.props?.className==='contract-list').props.children.length,3);
 const changedCard=all.find(n=>n.props?.className==='contract-list').props.children.find(n=>n.key==='change');equal(nodes(changedCard).some(n=>n.props?.className==='contract-state change'),true);
 changedCard.props.onClick();let detail=nodes(render()).find(n=>n.type===stubs.EstimateDetail);equal(detail.props.estimate.pendingChangeCount,2);detail.props.onClose();equal(state[1],null);
-equal(nodes(render('signer')).find(n=>n.props?.className==='contract-list').props.children.length,4);
+equal(nodes(render('signer')).find(n=>n.props?.className==='contract-list').props.children.length,2);
 equal(nodes(render('absent')).some(n=>n.props?.children==='No matching agreements'),true);equal(nodes(render('absent')).some(n=>n.props?.children==='No agreements yet'),false);
 // Detail change triggers a fresh read and updates agreement counters.
 responder=()=>ok(fixtures.map(e=>e.id==='change'?{...e,signedAt:'now',pendingChangeCount:0}:e));requests=[];detail=nodes(render()).find(n=>n.type===stubs.EstimateDetail);detail.props.onChanged();equal(state[2],true);equal(nodes(render()).some(n=>n.props?.className==='business-metrics'),false);await settle();equal(requests.length,1);all=nodes(render());equal(metric(all,'Signed agreements'),2);equal(metric(all,'Awaiting signature'),1);equal(metric(all,'Change requests'),0);
