@@ -2281,6 +2281,13 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     const prefix=activityFocus.kind==="sign"?"customer-sign-flag-":"customer-review-check-";
     const target=document.getElementById(prefix+selectedId)||document.getElementById("customer-flags-"+selectedId);
     if(!target)return;
+    if(activityFocus.kind==="sign"){
+      const profile=target.closest(".customer-profile");
+      const tracking=profile?.querySelector<HTMLDetailsElement>(".customer-extra-tracking");
+      if(tracking)tracking.open=true;
+    }
+    const hiddenStatus=target.closest<HTMLDetailsElement>("details.customer-sign-form");
+    if(hiddenStatus)hiddenStatus.open=true;
     target.scrollIntoView({block:"start",behavior:"instant"});
     target.focus({preventScroll:true});
     onActivityFocusHandled?.(activityFocus.request);
@@ -2353,6 +2360,12 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     if((action.kind==="estimate"||action.kind==="followup")&&action.estimateId){openTimelineEntry({section:"estimates",id:action.estimateId});return;}
     const element=document.getElementById(action.kind==="sign"?
       "customer-sign-flag-"+selected.id:"customer-review-check-"+selected.id);
+    if(action.kind==="sign"){
+      const tracking=element?.closest(".customer-profile")?.querySelector<HTMLDetailsElement>(".customer-extra-tracking");
+      if(tracking)tracking.open=true;
+    }
+    const hiddenStatus=element?.closest<HTMLDetailsElement>("details.customer-sign-form");
+    if(hiddenStatus)hiddenStatus.open=true;
     element?.scrollIntoView({block:"center",behavior:"instant"});
     element?.focus({preventScroll:true});
   };
@@ -2578,10 +2591,15 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
             <label>Callback date <input type="date" aria-label="Lead callback date" value={callbackDate} onChange={event=>{setCallbackDate(event.target.value);setActivityNotice(null);}}/></label>
             <Button variant="outline" aria-label="Save lead callback" disabled={!callbackDate||savingNote||(manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate===callbackDate)} onClick={()=>{try{void saveNote(leadCallbackNote(callbackDate));}catch{setActivityNotice({customerId:selected.id,kind:"error",text:"Choose a valid callback date."});}}}>{savingNote?"Saving…":manualFlags.leadCallback?.state==="pending"&&manualFlags.leadCallback.dueDate===callbackDate?"Saved":"Save callback"}</Button>
           </details>
+        </div>
+        <details className="customer-extra-tracking">
+          <summary>More tracking <span>Reviews &amp; yard signs</span></summary>
+          <div className="customer-flag-actions">
           {!manualFlags.reviewReceivedAt&&<Button variant="outline" aria-label="Prepare review received note" onClick={()=>prepareManualFlag(REVIEW_RECEIVED_NOTE)}>Log review received</Button>}
           {manualFlags.sign?.state==="out"?<><Button variant="outline" aria-label="Prepare yard sign pickup note" onClick={()=>prepareManualFlag(SIGN_PICKED_UP_NOTE)}>Log yard sign pickup</Button>{onPreparePickupTask&&<Button variant="outline" aria-label="Prepare yard sign pickup reminder" onClick={()=>stagePickupTask(selected,manualFlags.sign)}>Create pickup task</Button>}</>:
           <details className="customer-sign-form"><summary>Track a yard sign</summary><label>Pickup target <input type="date" aria-label="Yard sign pickup date" value={signPickupDate} onChange={event=>setSignPickupDate(event.target.value)}/></label><label>Sign location <input aria-label="Yard sign location" value={signLocation} onChange={event=>setSignLocation(event.target.value)} placeholder={selected.address||"Address / where placed"}/></label><Button variant="outline" disabled={!signPickupDate} aria-label="Prepare yard sign placed note" onClick={()=>{try{prepareManualFlag(signPlacedNote(signPickupDate,signLocation.trim()||selected.address||"Location not specified"));}catch{}}}>Prepare placement note</Button></details>}
-        </div>
+          </div>
+        </details>
         {activityNotice?.customerId===selected.id&&<p role={activityNotice.kind==="error"?"alert":"status"} className={activityNotice.kind==="error"?"save-error":"save-success"}>{activityNotice.text}</p>}
         <p role="status" className="customer-flag-help">
           <strong>Lead contact log: </strong>
