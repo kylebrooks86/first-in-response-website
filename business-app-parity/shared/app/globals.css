@@ -2066,7 +2066,7 @@ html,body{max-width:100%;overflow-x:clip}
 /* Calendar-first scheduling: booking and next-stop Maps route are both one tap away. */
 .schedule-day-buttons{min-width:0}
 .schedule-day-buttons>button{flex:1 1 145px;min-width:0}
-.schedule-day-buttons>.schedule-route-primary{display:grid;grid-template-columns:20px minmax(0,1fr);flex:1 1 180px;min-width:0;max-width:100%;min-height:48px;background:var(--background);border-color:var(--border);color:var(--foreground);overflow-wrap:anywhere;white-space:normal}
-.schedule-day-buttons>.schedule-route-primary small{grid-column:2;overflow-wrap:anywhere}
-.schedule-day-buttons>.schedule-route-primary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
-@media(max-width:430px){.schedule-day-buttons>.schedule-route-primary{flex-basis:100%;width:100%}}
+.schedule-day-buttons>.route-day-button{display:grid;grid-template-columns:20px minmax(0,1fr);flex:1 1 180px;min-width:0;max-width:100%;min-height:48px;background:var(--background);border-color:var(--border);color:var(--foreground);overflow-wrap:anywhere;white-space:normal}
+.schedule-day-buttons>.route-day-button small{grid-column:2;overflow-wrap:anywhere}
+.schedule-day-buttons>.route-day-button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+@media(max-width:430px){.schedule-day-buttons>.route-day-button{flex-basis:100%;width:100%}}
