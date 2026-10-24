@@ -21,7 +21,7 @@ export async function GET(request:Request){
       return `"${safe.replaceAll('"','""')}"`;
     };
     const csv=["Date,Category,Description,Amount,Customer,Job",...exportRows.map((item)=>[item.incurredAt.slice(0,10),item.category,item.description,(item.amountCents/100).toFixed(2),item.customer,item.service].map(escape).join(","))].join("\n");
-    return new Response(csv,{headers:{"content-type":"text/csv; charset=utf-8","content-disposition":`attachment; filename=fire-expenses-${selectedYear??"all-years"}-wave.csv`,"cache-control":"private, no-store","x-content-type-options":"nosniff"}});
+    return new Response(csv,{headers:{"content-type":"text/csv; charset=utf-8","content-disposition":`attachment; filename=${selectedYear?`fire-expenses-${selectedYear}-wave.csv`:"fire-expenses-wave.csv"}`,"cache-control":"private, no-store","x-content-type-options":"nosniff"}});
   }
   return Response.json({expenses:rows.results},{headers:{"cache-control":"private, no-store"}});
 }
