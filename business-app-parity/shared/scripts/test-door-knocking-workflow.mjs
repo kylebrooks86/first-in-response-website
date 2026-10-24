@@ -2,7 +2,11 @@
 export async function exerciseDoorKnocking({page,origin,request,check}){
  const before=await(await request('/api/door-knocking')).json();check(Array.isArray(before.book?.houses),'Built owner API returns house tracker');
  await page.goto(origin);await page.setViewportSize({width:390,height:844});
- await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.locator('.sidebar').getByRole('button',{name:'Door knocking',exact:true}).click();
+ await page.getByRole('button',{name:'Open menu',exact:true}).click();
+ const extra=page.locator('.sidebar details.sidebar-more-nav');
+ await extra.locator('summary').click();
+ check(await extra.evaluate(node=>node.open),'Door knocking remains accessible after opening More tools');
+ await extra.getByRole('button',{name:'Door knocking',exact:true}).click();
  await page.getByLabel('House address',{exact:true}).waitFor();await page.getByLabel('House address',{exact:true}).fill('999 Native Synthetic Lane, Tulsa');await page.getByRole('button',{name:'Save house',exact:true}).click();
  const house=page.getByRole('article',{name:'House: 999 Native Synthetic Lane, Tulsa'});await house.getByText('Never visited',{exact:true}).waitFor();await house.getByLabel('Visit outcome').selectOption('door-hanger');await page.waitForFunction(()=>{const b=[...document.querySelectorAll('button')].find(el=>el.textContent?.trim()==='Save visit');if(!b)return false;const r=b.getBoundingClientRect(),at=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return r.top>=0&&r.bottom<=innerHeight&&(at===b||!!(at&&b.contains(at)));},null,{timeout:5000});check(true,'New house Save visit is not obscured by bottom navigation at 390px');await house.getByRole('button',{name:'Save visit',exact:true}).click();await house.getByText('Previously visited',{exact:false}).waitFor();
  const saved=await(await request('/api/door-knocking')).json(),h=saved.book.houses.find(h=>h.address==='999 Native Synthetic Lane, Tulsa');check(h?.visits.length===1&&h.visits[0].status==='door-hanger','Built mobile dropdown persisted one native D1 visit');
