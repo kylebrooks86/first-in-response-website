@@ -13,7 +13,7 @@ const source=readFileSync('app/dashboard.tsx','utf8');
 const section=(a,b)=>{const start=source.indexOf(a),end=source.indexOf(b,start);assert.ok(start>=0&&end>start);return source.slice(start,end);};
 const settings=section('function SettingsView(){','function EmptyView(');
 const sidebar=section('<aside className={`sidebar ', '</aside>')+'</aside>';
-const fixture=`import React,{useState,useEffect}from'react';import{createRoot}from'react-dom/client';
+const fixture=`import React,{Fragment,useState,useEffect}from'react';import{createRoot}from'react-dom/client';
 import{FileText,MessageSquareText,ChevronRight,Save,X,Settings}from'lucide-react';
 import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';
 import{PricingSettings}from'./components/service-pricing';
