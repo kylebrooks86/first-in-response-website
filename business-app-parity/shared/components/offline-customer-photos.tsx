@@ -252,11 +252,11 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
     </section>;
    })}
   </div>}
-  {before.length>0&&after.length>0&&<section className="before-after-builder"><header><div><strong>Before &amp; after comparison</strong><p>Create a shareable comparison from photos stored on this device.</p></div><Images/></header>
+  {before.length>0&&after.length>0&&<details className="photo-comparison-more"><summary>Before &amp; after comparison</summary><section className="before-after-builder"><header><div><p>Create a shareable comparison from photos stored on this device.</p></div><Images/></header>
    <div><label><span>Before</span><select value={selectedBefore?.photo.id??''} disabled={busy} onChange={e=>setBeforeId(e.target.value)}>{before.map(x=><option key={x.photo.id} value={x.photo.id}>{x.photo.caption||x.photo.filename}</option>)}</select></label>
    <label><span>After</span><select value={selectedAfter?.photo.id??''} disabled={busy} onChange={e=>setAfterId(e.target.value)}>{after.map(x=><option key={x.photo.id} value={x.photo.id}>{x.photo.caption||x.photo.filename}</option>)}</select></label>
    <Button disabled={busy} className="brand-button" onClick={()=>void comparison()}><Download className="h-4 w-4"/>Create comparison</Button></div>
    <div className="before-after-preview"><figure><img src={selectedBefore?.url} alt="Selected before"/><figcaption>Before</figcaption></figure><figure><img src={selectedAfter?.url} alt="Selected after"/><figcaption>After</figcaption></figure></div>
-  </section>}
+  </section></details>}
  </section>;
 }
