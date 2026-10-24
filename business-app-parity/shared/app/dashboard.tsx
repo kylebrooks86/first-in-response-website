@@ -2829,8 +2829,6 @@ function ScheduleMonthCalendar({jobs,selectedDate,onSelectDate}:{jobs:EstimateRo
 function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?:(tab:"customers"|"estimates")=>void}) {
   const [rows,setRows]=useState<EstimateRow[]>([]);
   const [selected,setSelected]=useState<EstimateRow|null>(null);
-  const [bookingDate,setBookingDate]=useState<string|null>(null);
-  const [showBookingOptions,setShowBookingOptions]=useState(false);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [lastCheckedAt,setLastCheckedAt]=useState<string|null>(null);
@@ -2839,6 +2837,8 @@ function ScheduleView({ searchQuery,onNavigate }:{searchQuery:string;onNavigate?
   const [openContactJobId,setOpenContactJobId]=useState<string|null>(null);
   const [contactDraft,setContactDraft]=useState<{jobId:string;kind:"reminder"|"arrival";text:string;status:"copying"|"copied"|"manual"}|null>(null);
   const [weatherReview,setWeatherReview]=useState<{at:string;key:number}|null>(null);
+  const [bookingDate,setBookingDate]=useState<string|null>(null);
+  const [showBookingOptions,setShowBookingOptions]=useState(false);
   const weatherReviewCount=useRef(0);
   const weatherPanelRef=useRef<HTMLDivElement>(null);
   const reviewScheduledWeather=(scheduledAt:string)=>{
