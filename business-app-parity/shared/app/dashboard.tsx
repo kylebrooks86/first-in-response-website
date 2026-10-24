@@ -2405,7 +2405,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const customerBalances=summarizeCustomerBalances(customerEstimates);
   const customerPaidTotal=customerPayments.filter((payment)=>!['Tip','Tip Refund'].includes(payment.type)).reduce((sum,payment)=>sum+payment.amountCents,0);
   const handleEstimateSaved = (estimate: EstimateRow) => { onEstimateSaved(estimate); void load(true); };
-  const saveNote = async (directBody?:string) => {
+  const saveNote = async (directBody?:string,callbackAction:"schedule"|"handled"="schedule") => {
     const draft=directBody??noteText,asCallback=typeof directBody==="string";
     if(!noteMounted.current||noteSaveLock.current||!selected||noteSelection.current!==selected.id||!draft.trim()||draft.trim().length>5000)return;
     const customerId=selected.id,body=draft.trim(),epoch=noteAccessEpoch.current;
@@ -2427,11 +2427,11 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         if(noteDrafts.current[customerId]===draft)delete noteDrafts.current[customerId];
         if(noteSelection.current===customerId)setNoteText(current=>current===draft?"":current);
         setNoteFeedback({customerId,kind:"success",text:"Note saved."});
-      }else setCallbackNotice({customerId,kind:"success",text:"Callback saved."});
+      }else setCallbackNotice({customerId,kind:"success",text:callbackAction==="handled"?"Callback marked done.":"Callback saved."});
       if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
     }catch{
       if(noteMounted.current&&noteAccessEpoch.current===epoch){
-        if(asCallback)setCallbackNotice({customerId,kind:"error",text:"Callback save not confirmed. Retry with the same date; FIRE checks for duplicates."});
+        if(asCallback)setCallbackNotice({customerId,kind:"error",text:callbackAction==="handled"?"Completion not confirmed. Tap Mark done again; FIRE checks for duplicates.":"Callback save not confirmed. Retry with the same date; FIRE checks for duplicates."});
         else setNoteFeedback({customerId,kind:"error",text:"Note save was not confirmed. Your draft is kept. Retry Add note with the same text safely; FIRE reuses this request so a saved note is not added twice. You can also refresh saved notes."});
       }
     }finally{
@@ -2509,7 +2509,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
           <Button variant="outline" aria-label="Prepare lead no-answer note" onClick={()=>prepareManualFlag(LEAD_NO_ANSWER_NOTE)}>No answer · not contacted</Button>
           <Button variant="outline" aria-label="Prepare lead contacted note" onClick={()=>prepareManualFlag(LEAD_CONTACTED_NOTE)}>Log lead contacted</Button>
           {manualFlags.leadCallback?.state==="pending"&&
-            <Button variant="outline" aria-label="Prepare callback handled note" onClick={()=>prepareManualFlag(LEAD_CALLBACK_HANDLED_NOTE)}>Mark callback handled</Button>}
+            <Button variant="outline" aria-label="Mark callback done" disabled={savingNote} onClick={()=>void saveNote(LEAD_CALLBACK_HANDLED_NOTE,"handled")}>Mark callback done</Button>}
           <details className="customer-sign-form">
             <summary>Schedule or reschedule lead callback</summary>
             <label>Callback date <input type="date" aria-label="Lead callback date" value={callbackDate} onChange={event=>{setCallbackDate(event.target.value);setCallbackNotice(null);}}/></label>
