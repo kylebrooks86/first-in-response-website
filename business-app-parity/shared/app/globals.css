@@ -1667,3 +1667,15 @@ html,body{max-width:100%;overflow-x:clip}
   .customers-view .record-tabs button{width:100%;min-width:0;max-width:100%;min-height:44px;padding:10px 5px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:12px;line-height:1.3;text-align:center;white-space:normal;overflow-wrap:anywhere}
   .customers-view .record-tabs button.active{border-color:var(--primary);background:var(--accent);color:var(--accent-foreground)}
 }
+
+/* Simpler navigation: essential actions first, all other tools retained and scrollable. */
+.sidebar nav{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.sidebar-nav-heading{margin:15px 13px 5px;color:#9fb0c3;font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:800}
+.sidebar nav .sidebar-nav-heading:first-child{margin-top:0}
+[data-theme="light"] .sidebar-nav-heading{color:#607089}
+.sidebar-foot{flex-shrink:0}
+@media(max-width:760px){
+ .sidebar nav{padding-top:12px;padding-bottom:12px}
+ .sidebar nav button{min-height:44px}
+ .bottom-nav button{min-width:0}
+}
