@@ -155,7 +155,7 @@ assert.ok(scheduleOwnerSection.includes('className="schedule-turnaround-job"')&&
 assert.ok(ownerPaymentSection.includes('payments-primary-metrics')&&ownerPaymentSection.includes('payments-secondary-metrics'),'Three actionable money totals remain up front and additional values remain accessible');n++;
 assert.ok(ownerPaymentSection.indexOf('Card checkouts needing review')<ownerPaymentSection.indexOf('payments-primary-metrics'),'Unresolved checkout alerts remain ahead of compact totals');n++;
 for(const label of ['Collectible job balance','Deposit still required','Principal paid (net refunds)','Jobs with collectible balance','Potential estimate value','Net tips']){assert.ok(ownerPaymentSection.includes('<small>'+label+'</small>'),'Accounting summary preserves '+label);n++;}
-assert.ok(followUpSection.includes('todayQueue.slice(0,3).map(')&&followUpSection.includes('See full follow-up list'),'Compact follow-up preview does not remove any saved action');n++;
+assert.ok(followUpSection.includes('todayQueue.slice(0,3).map(')&&followUpSection.includes('All follow-ups · {visibleActions.length}')&&followUpSection.includes('document.querySelector(".followup-list")?.scrollIntoView')&&followUpSection.includes('visibleActions.map('),'Compact follow-up preview retains the full saved-action list and its navigation');n++;
 // Stride stays one tap away in Home, while scheduled jobs keep Maps without duplicating mileage tracking.
 const estimateDetailSource=view.slice(view.indexOf('function EstimateDetail('),view.indexOf('function EstimatesView('));
 const customerProfileSource=view.slice(view.indexOf('function CustomersView('),view.indexOf('function FollowUpsView('));
