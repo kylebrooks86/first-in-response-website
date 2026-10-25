@@ -4,11 +4,25 @@ import type {Map as GLMap,GeoJSONSource,StyleSpecification} from 'maplibre-gl';
 import {territoryCardStatus,TERRITORY_CATEGORIES,TERRITORY_VIEW_KEY,TERRITORY_DEFAULT_VIEW,validTerritoryView,territoryPlaces,territoryVisible,territoryGeoJSON,validTerritoryRecords,type TerritoryPlace,type TerritoryRecords} from '../lib/territory';
 import {houseKey,doorSuppressed,type DoorBook,type DoorPoint} from '../lib/door-knocking';
 const AUTO_FIND_KEY='fire-territory-autofind-customers-v1';
+const MAP_STYLE_KEY='fire-territory-basemap-v1';
+type BaseStyle='street'|'aerial';
+const STREET_STYLE='https://tiles.openfreemap.org/styles/liberty';
+const USGS_TILE='https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}';
+// USGS The National Map: public-domain aerial orthoimagery. Online only; not an offline download.
+const usgsAerialStyle=():StyleSpecification=>({
+ version:8,
+ sources:{'usgs-aerial':{type:'raster',tiles:[USGS_TILE],tileSize:256,maxzoom:16,attribution:'<a href="https://www.usgs.gov/programs/national-geospatial-program/national-map">USGS The National Map / USDA</a>'}},
+ layers:[{id:'usgs-aerial-image',type:'raster',source:'usgs-aerial'}]
+});
+const selectedBaseStyle=(online:boolean,mode:BaseStyle):StyleSpecification|string=>online?(mode==='aerial'?usgsAerialStyle():STREET_STYLE):offlinePinStyle();
 const offlinePinStyle=():StyleSpecification=>({version:8,sources:{},layers:[{id:'offline-pin-background',type:'background',paint:{'background-color':'#e5eceb'}}]});
 type Props={online?:boolean;book:DoorBook;disabled:boolean;save:(details:Record<string,unknown>)=>Promise<void>;onOpenCustomer?:(id:string)=>void;onOpenHouse:(id:string)=>void;onCreateCustomer?:(address:string)=>void};
 export function TerritoryMap({online=true,book,disabled,save,onOpenCustomer,onOpenHouse,onCreateCustomer}:Props){
- const host=useRef<HTMLDivElement>(null),map=useRef<GLMap|null>(null),alive=useRef(true),recordsRequest=useRef(0),styleOnline=useRef<boolean|null>(null),onlineRef=useRef(online);onlineRef.current=online;
- const [records,setRecords]=useState<TerritoryRecords>({customers:[],jobs:[]}),[recordError,setRecordError]=useState(''),[mapError,setMapError]=useState(''),[ready,setReady]=useState(false),[filter,setFilter]=useState('all'),[selected,setSelected]=useState<string|null>(null),[query,setQuery]=useState(''),[searching,setSearching]=useState(false),[searchError,setSearchError]=useState(''),[draft,setDraft]=useState<{point:DoorPoint;address:string;matched?:string;source?:'auto'}|null>(null),[note,setNote]=useState(''),[legend,setLegend]=useState(false),[showPlaces,setShowPlaces]=useState(false),[expanded,setExpanded]=useState(false),[autoFind,setAutoFind]=useState(false);
+ const host=useRef<HTMLDivElement>(null),map=useRef<GLMap|null>(null),alive=useRef(true),recordsRequest=useRef(0),styleOnline=useRef<boolean|null>(null),appliedBase=useRef<BaseStyle|null>(null),onlineRef=useRef(online),baseRef=useRef<BaseStyle>('street');onlineRef.current=online;
+ const [records,setRecords]=useState<TerritoryRecords>({customers:[],jobs:[]}),[recordError,setRecordError]=useState(''),[mapError,setMapError]=useState(''),[ready,setReady]=useState(false),[filter,setFilter]=useState('all'),[selected,setSelected]=useState<string|null>(null),[query,setQuery]=useState(''),[searching,setSearching]=useState(false),[searchError,setSearchError]=useState(''),[draft,setDraft]=useState<{point:DoorPoint;address:string;matched?:string;source?:'auto'}|null>(null),[note,setNote]=useState(''),[legend,setLegend]=useState(false),[showPlaces,setShowPlaces]=useState(false),[expanded,setExpanded]=useState(false),[autoFind,setAutoFind]=useState(false),[baseStyle,setBaseStyle]=useState<BaseStyle>('street');
+ baseRef.current=baseStyle;
+ useEffect(()=>{try{if(sessionStorage.getItem(MAP_STYLE_KEY)==='aerial')setBaseStyle('aerial');}catch{/* Storage optional. */}},[]);
+ const chooseBase=(mode:BaseStyle)=>{setBaseStyle(mode);try{sessionStorage.setItem(MAP_STYLE_KEY,mode);}catch{/* Style switch still works. */}};
  const autoAttempts=useRef(new Set<string>());
  useEffect(()=>{try{setAutoFind(sessionStorage.getItem(AUTO_FIND_KEY)==='on');}catch{/* No persistent setting in private browsing. */}},[]);
  const changeAutoFind=(next:boolean)=>{autoAttempts.current.clear();setAutoFind(next);try{sessionStorage.setItem(AUTO_FIND_KEY,next?'on':'off');}catch{/* Map still works. */}};
@@ -28,7 +42,7 @@ export function TerritoryMap({online=true,book,disabled,save,onOpenCustomer,onOp
    if(canceled||!host.current)return;
    let initialView=TERRITORY_DEFAULT_VIEW;
    try{const stored=sessionStorage.getItem(TERRITORY_VIEW_KEY);const parsed:unknown=stored?JSON.parse(stored):null;if(validTerritoryView(parsed))initialView=parsed;}catch{/* Private browsing/storage denial: use Tulsa default. */}
-   instance=new lib.Map({container:host.current,style:onlineRef.current?'https://tiles.openfreemap.org/styles/liberty':offlinePinStyle(),center:[initialView.lng,initialView.lat],zoom:initialView.zoom,maxZoom:19,attributionControl:{compact:true}});map.current=instance;styleOnline.current=onlineRef.current;
+   instance=new lib.Map({container:host.current,style:selectedBaseStyle(onlineRef.current,baseRef.current),center:[initialView.lng,initialView.lat],zoom:initialView.zoom,maxZoom:19,attributionControl:{compact:true}});map.current=instance;styleOnline.current=onlineRef.current;appliedBase.current=baseRef.current;
    instance.on('moveend',()=>{if(canceled||!instance)return;const c=instance.getCenter();const view={lat:c.lat,lng:c.lng,zoom:instance.getZoom()};if(validTerritoryView(view))try{sessionStorage.setItem(TERRITORY_VIEW_KEY,JSON.stringify(view));}catch{/* Navigation keeps working without storage. */}});
    instance.addControl(new lib.NavigationControl({showCompass:false}),'top-right');
    instance.addControl(new lib.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:false,showAccuracyCircle:true}),'top-right');
@@ -53,7 +67,7 @@ export function TerritoryMap({online=true,book,disabled,save,onOpenCustomer,onOp
   function multi(e:TouchEvent){if(e.touches.length>1)clear();}
   const element=host.current;return()=>{canceled=true;clear();element?.removeEventListener('pointerdown',down);element?.removeEventListener('pointermove',cancelMove);element?.removeEventListener('pointerup',clear);element?.removeEventListener('pointercancel',clear);element?.removeEventListener('touchstart',multi);instance?.remove();map.current=null;};
  },[]);
- useEffect(()=>{const instance=map.current;if(instance&&styleOnline.current!==online){styleOnline.current=online;setReady(false);instance.setStyle(online?'https://tiles.openfreemap.org/styles/liberty':offlinePinStyle());}},[online]);
+ useEffect(()=>{const instance=map.current;if(instance&&(styleOnline.current!==online||appliedBase.current!==baseStyle)){styleOnline.current=online;appliedBase.current=baseStyle;setReady(false);instance.setStyle(selectedBaseStyle(online,baseStyle));}},[online,baseStyle]);
  useEffect(()=>{const id=requestAnimationFrame(()=>map.current?.resize());return()=>cancelAnimationFrame(id);},[expanded]);
  useEffect(()=>{if(ready)(map.current?.getSource('fire-places') as GeoJSONSource|undefined)?.setData(geo);},[ready,geo]);
  useEffect(()=>{if(ready)(map.current?.getSource('fire-draft') as GeoJSONSource|undefined)?.setData({type:'FeatureCollection',features:draft?[{type:'Feature',properties:{},geometry:{type:'Point',coordinates:[draft.point.lng,draft.point.lat]}}]:[]});},[ready,draft]);
@@ -76,6 +90,7 @@ export function TerritoryMap({online=true,book,disabled,save,onOpenCustomer,onOp
  const suppressed=current?.houseId?doorSuppressed(book.houses.find(h=>h.id===current.houseId)!):false;
  return <section className="territory" aria-label="Territory map">
   <form className="territory-search" onSubmit={e=>{e.preventDefault();void search();}}><input aria-label="Search street address" value={query} maxLength={240} placeholder="Street address, city, state" onChange={e=>setQuery(e.target.value)}/><button disabled={searching||!query.trim()}>Find</button></form>
+  <div className="territory-basemap" role="group" aria-label="Map imagery"><button type="button" aria-pressed={baseStyle==='street'} onClick={()=>chooseBase('street')}>Street</button><button type="button" aria-pressed={baseStyle==='aerial'} disabled={!online} onClick={()=>chooseBase('aerial')}>Aerial</button>{!online&&<small>Offline pins only</small>}</div>
   <div className="territory-filters" role="group" aria-label="Map filters"><button type="button" aria-pressed={filter==='all'} onClick={()=>setFilter('all')}>All</button>{Object.entries(TERRITORY_CATEGORIES).map(([key,c])=><button type="button" key={key} aria-pressed={filter===key} onClick={()=>setFilter(key)}>{c.filter}</button>)}</div>
   {recordError&&<p role={online?"alert":"status"}>{recordError} {online&&<button type="button" onClick={()=>void loadRecords()}>Retry</button>}</p>}
   {searchError&&<p role="alert">{searchError}</p>}
@@ -101,6 +116,6 @@ export function TerritoryMap({online=true,book,disabled,save,onOpenCustomer,onOp
   </section>}
   <div className="territory-directory-row"><button type="button" className="territory-places-toggle" aria-expanded={showPlaces} onClick={()=>setShowPlaces(!showPlaces)}>Saved places · {visible.filter(p=>p.point).length} pins · {visible.filter(p=>!p.point).length} missing</button>{online&&nextUnpinned&&<button type="button" className="territory-locate-next" disabled={searching} aria-label="Locate next unpinned address" onClick={()=>void search(nextUnpinned.address)}>Locate next</button>}{online&&(nextCustomerPin||autoFind)&&<button type="button" className="territory-auto-find" aria-label="Auto-find customer pins" aria-pressed={autoFind} onClick={()=>changeAutoFind(!autoFind)}>{autoFind?"Stop auto-find":"Auto-find customers"}</button>}{autoFind&&<small className="territory-auto-note">{nextCustomerPin?"Sends one customer address to US Census at a time. Review each pin before saving.":"No other addresses this session. Skipped houses remain unpinned."}</small>}</div>
   {(showPlaces||mapError)&&<ul className="territory-places">{visible.map(p=><li key={p.key}><button type="button" onClick={()=>focus(p)}><strong>{p.address}</strong><small>{unknownOffline&&!p.category?'Status unavailable offline':p.category?TERRITORY_CATEGORIES[p.category].label:'Not visited'}{!p.point?' · Needs location':''}</small></button></li>)}{!visible.length&&<li>No places in this filter.</li>}</ul>}
-  <details className="territory-help"><summary>Map help</summary><p>Long-press or use Drop pin. Search sends only the entered address to the US Census geocoder; confirm its approximate location. Street maps: OpenFreeMap / OpenStreetMap. Enable offline drafts under Offline pins. Map imagery and satellite downloads are not available offline yet.</p></details>
+  <details className="territory-help"><summary>Map help</summary><p>Long-press or use Drop pin. Search sends only the entered address to the US Census geocoder; confirm its approximate location. Street maps: OpenFreeMap / OpenStreetMap. Aerial: USGS The National Map / USDA imagery, which may be older and needs internet. Offline pins are available under Offline pins. Downloadable map imagery is not available yet.</p></details>
  </section>;
 }

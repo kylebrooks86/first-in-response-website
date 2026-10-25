@@ -2443,3 +2443,11 @@ html[data-theme="dark"] .territory-offline details>small,html[data-theme="dark"]
 
 /* Owner may defer a questionable Census match instead of pinning the wrong house. */
 .territory .territory-card .territory-skip-address{justify-self:start;min-height:44px;background:transparent;border-style:dashed}
+
+/* FIRE: compact street/aerial switch, offline still pins-only. */
+.territory-basemap{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:3px 0 1px}
+.territory-basemap button{min-height:44px;min-width:70px;padding:7px 11px;border:1px solid var(--border);border-radius:9px;background:var(--background);color:var(--foreground);font-size:12px;font-weight:700;cursor:pointer}
+.territory-basemap button[aria-pressed="true"]{border-color:var(--ring);box-shadow:inset 0 0 0 1px var(--ring);background:var(--muted)}
+.territory-basemap button:disabled{opacity:.45;cursor:not-allowed}
+.territory-basemap small{color:var(--muted-foreground);font-size:11px}
+.territory-basemap button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
