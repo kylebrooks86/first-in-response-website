@@ -2425,3 +2425,8 @@ html[data-theme="dark"] .territory-offline details>small,html[data-theme="dark"]
 .customers-view>.customer-list .customer-main{min-width:0}
 .customers-view>.customer-list .customer-main small{overflow-wrap:anywhere;line-height:1.4;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 @media(max-width:760px){.customers-view>.customer-list .customer-card{min-height:58px;padding:10px 12px}}
+
+/* The saved-address locator is opt-in and wraps cleanly on narrow iPhones. */
+.territory-directory-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px;min-width:0}
+.territory .territory-directory-row .territory-places-toggle{flex:1 1 188px;margin-top:0;text-align:left;min-width:0;overflow-wrap:anywhere}
+.territory .territory-directory-row .territory-locate-next{flex:0 1 auto;min-width:0;white-space:nowrap}
