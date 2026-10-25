@@ -2402,3 +2402,11 @@ html,body{max-width:100%;overflow-x:clip}
 html[data-theme="dark"] .territory-offline details>small,html[data-theme="dark"] .territory-draft-review small{color:#b7c5d7}
 .door-workspace .door-house-card{padding:12px}
 .door-workspace .door-house-card p{margin-top:6px;margin-bottom:0}
+
+/* FIRE notification bell: short overview, full activity one tap away. */
+.notification-activity-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:10px 14px;border:0;border-bottom:1px solid var(--border);background:var(--card);color:var(--foreground);font-size:12px;font-weight:750;text-align:left;cursor:pointer}
+.notification-activity-toggle svg{width:16px;height:16px;flex:none;transition:transform .15s ease}
+.notification-activity-toggle[aria-expanded="true"] svg{transform:rotate(180deg)}
+.notification-activity-toggle:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
+.notification-list[hidden]{display:none}
+@media(max-width:760px){.notification-attention{gap:6px;padding:9px 11px}.notification-attention-list{max-height:min(260px,40dvh)}.notification-list>button{gap:9px;padding:10px 12px}.notification-popover>header{padding:11px 13px}}

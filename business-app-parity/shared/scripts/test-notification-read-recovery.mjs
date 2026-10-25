@@ -8,6 +8,15 @@ import ts from 'typescript';
 const require=createRequire(import.meta.url);
 const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='NotificationBell');
+const bellSource=fn?.getText(ast)||'';
+const css=readFileSync('app/globals.css','utf8');
+assert.ok(bellSource.includes('aria-expanded={showActivity}'),'Recent activity toggle exposes expanded state');
+assert.ok(bellSource.includes('hidden={!showActivity}'),'Read history can collapse without losing records');
+assert.ok(bellSource.includes('activityExpanded??unread>0'),'Unread activity stays visible by default');
+assert.ok(bellSource.includes('setActivityExpanded(null);setAttentionSummary'),'Opening bell resets to unread-aware default');
+assert.ok(css.includes('.notification-list[hidden]{display:none}'),'Collapsed history is visually hidden');
+assert.ok(css.includes('.notification-activity-toggle:focus-visible'),'Keyboard focus remains visible');
+
 assert.ok(fn,'NotificationBell source exists');
 const names=[],tags=new Set();
 function inspect(n){
@@ -47,6 +56,24 @@ function fixture(){
     error(){return query().find(n=>n.props?.role==='alert')?.props.children;},
     status(){return query().find(n=>n.props?.role==='status')?.props.children;}
   };
+}
+{
+  const f=fixture();f.mount();await flush();
+  const toggle=()=>f.query().find(n=>n.type==='button'&&n.props?.className==='notification-activity-toggle');
+  const activity=()=>f.query().find(n=>n.props?.id==='fire-notification-activity');
+  eq(toggle().props['aria-expanded'],true,'Unread recent activity starts visible');
+  eq(activity().props.hidden,false,'Unread notifications remain accessible without extra taps');
+  toggle().props.onClick();eq(toggle().props['aria-expanded'],false,'Owner can collapse activity without marking any item read');
+  eq(f.get('items').length,2,'Collapsing activity retains all saved notifications');
+  toggle().props.onClick();eq(activity().props.hidden,false,'Owner can reopen activity');
+  f.unmount();
+}
+{
+  const f=fixture();
+  f.fetch(async()=>({ok:true,json:async()=>({notifications:original.map(x=>({...x,readAt:'2026-10-19T23:00:00Z'})),unread:0})}));
+  f.mount();await flush();
+  eq(f.query().find(n=>n.type==='button'&&n.props?.className==='notification-activity-toggle').props['aria-expanded'],false,'Already-read history starts collapsed');
+  f.unmount();
 }
 {
   const f=fixture();f.mount();await flush();

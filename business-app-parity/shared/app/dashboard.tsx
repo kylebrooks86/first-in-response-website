@@ -4374,6 +4374,8 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
   const [attentionSummary,setAttentionSummary]=useState<{status:"loading"|"ready"|"error";count:number}>({status:"loading",count:0});
   const [attentionRefreshKey,setAttentionRefreshKey]=useState(0);
   const [open,setOpen]=useState(false);
+  // Unread stays visible; read history stays compact until requested.
+  const [activityExpanded,setActivityExpanded]=useState<boolean|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const mutationLock=useRef(false),loadRequest=useRef(0);
@@ -4419,14 +4421,15 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
   };
   const icon=(type:string)=>type==="estimate_change_requested"?<MessageSquareText/>:type==="estimate_viewed"?<Eye/>:type==="invoice_viewed"?<Receipt/>:type==="estimate_accepted"?<CheckCircle2/>:<CircleDollarSign/>;
   const attentionCount=attentionSummary.status==="ready"?attentionSummary.count:0;
+  const showActivity=activityExpanded??unread>0;
   const attentionDescription=attentionCount?`${attentionCount} business reminders need attention`:attentionSummary.status==="error"?"Business reminders could not be verified":undefined;
-  return <Popover open={open} onOpenChange={(value)=>{setOpen(value);if(value){setAttentionSummary({status:"loading",count:0});setAttentionRefreshKey(n=>n+1);void load();}}}><PopoverTrigger asChild><button className="notification-button" aria-label={unread?`${unread} unread notifications`:"Notifications"} aria-description={attentionDescription} title={attentionDescription}><Bell/>{unread>0&&<b>{unread>9?"9+":unread}</b>}{unread===0&&attentionCount>0&&<span aria-hidden="true" className="notification-attention-dot"/>}{unread===0&&attentionSummary.status==="error"&&<span aria-hidden="true" className="notification-attention-dot unavailable"/>}</button></PopoverTrigger><PopoverContent forceMount className="notification-popover" align="end">
+  return <Popover open={open} onOpenChange={(value)=>{setOpen(value);if(value){setActivityExpanded(null);setAttentionSummary({status:"loading",count:0});setAttentionRefreshKey(n=>n+1);void load();}}}><PopoverTrigger asChild><button className="notification-button" aria-label={unread?`${unread} unread notifications`:"Notifications"} aria-description={attentionDescription} title={attentionDescription}><Bell/>{unread>0&&<b>{unread>9?"9+":unread}</b>}{unread===0&&attentionCount>0&&<span aria-hidden="true" className="notification-attention-dot"/>}{unread===0&&attentionSummary.status==="error"&&<span aria-hidden="true" className="notification-attention-dot unavailable"/>}</button></PopoverTrigger><PopoverContent forceMount className="notification-popover" align="end">
     <header><div><strong>Notifications</strong><small>{unread?`${unread} unread activity`:attentionSummary.status==="error"?"Reminders unavailable":attentionCount?`${attentionCount} business reminder${attentionCount===1?"":"s"}`:attentionSummary.status==="loading"?"Checking business reminders…":"No outstanding reminders in checked records"}</small></div>{unread>0&&<button disabled={busy} onClick={()=>void updateRead({all:true})}>Mark all read</button>}</header>
     {error&&<p className="save-error" role="alert">{error}</p>}
     {busy&&<p role="status" aria-live="polite">Confirming notification update…</p>}
     <NotificationAttention onNavigate={onNavigate} onClose={()=>setOpen(false)} onSummary={setAttentionSummary} refreshKey={attentionRefreshKey}/>
-    <div className="notification-activity-title">Recent activity · {items.length}</div>
-    <div className="notification-list">{items.length?items.map((item)=><button key={item.id} className={item.readAt?"":"unread"} onClick={()=>{if(!item.readAt)void updateRead({id:item.id});setOpen(false);onNavigate(item.type.startsWith("invoice_")&&item.invoiceId?"invoices":item.estimateId?"estimates":"customers",item.estimateId,item.type.startsWith("invoice_")?item.invoiceId:null,item.customerId);}}><span className={`notification-icon ${item.type}`}>{icon(item.type)}</span><span><strong>{item.title}</strong><p>{item.body}</p><small>{dateTime(item.createdAt)}</small></span></button>):<div className="notification-empty"><Bell/><strong>No notifications yet</strong><p>Views, approvals, and payments appear here.</p></div>}</div>
+    <button type="button" className="notification-activity-toggle" aria-controls="fire-notification-activity" aria-expanded={showActivity} onClick={()=>setActivityExpanded(!showActivity)}><span>Recent activity · {items.length}{unread?` · ${unread} unread`:""}</span><ChevronDown aria-hidden="true"/></button>
+    <div id="fire-notification-activity" className="notification-list" hidden={!showActivity}>{items.length?items.map((item)=><button key={item.id} className={item.readAt?"":"unread"} onClick={()=>{if(!item.readAt)void updateRead({id:item.id});setOpen(false);onNavigate(item.type.startsWith("invoice_")&&item.invoiceId?"invoices":item.estimateId?"estimates":"customers",item.estimateId,item.type.startsWith("invoice_")?item.invoiceId:null,item.customerId);}}><span className={`notification-icon ${item.type}`}>{icon(item.type)}</span><span><strong>{item.title}</strong><p>{item.body}</p><small>{dateTime(item.createdAt)}</small></span></button>):<div className="notification-empty"><Bell/><strong>No notifications yet</strong><p>Views, approvals, and payments appear here.</p></div>}</div>
   </PopoverContent></Popover>;
 }
 
