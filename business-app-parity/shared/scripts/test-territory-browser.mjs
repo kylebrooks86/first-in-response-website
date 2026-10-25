@@ -26,6 +26,16 @@ for(const width of [320,390,768])for(const theme of ['light','dark']){reset();aw
  check(await draft.getByLabel('House address').inputValue()==='300 Synthetic Street, Tulsa OK','Next-location lookup selects the exact saved customer address');
  check(posts.length===previousWrites,'Geocoder lookup never silently saves customer pins or records');
  await draft.getByRole('button',{name:'Cancel pin'}).click();
+ const autoButton=page.getByRole('button',{name:'Auto-find customer pins'});
+ check(await autoButton.getAttribute('aria-pressed')==='false','Automatic customer geocoding is opt-in, never a surprise address disclosure');
+ const writesBeforeAuto=posts.length;
+ await autoButton.click();
+ await draft.getByText('Approximate match:',{exact:false}).waitFor();
+ check(await draft.getByLabel('House address').inputValue()==='300 Synthetic Street, Tulsa OK','Opt-in automatically prepares the saved unpinned customer address');
+ check(posts.length===writesBeforeAuto,'Automatic lookup never writes a pin, visit or customer before owner review');
+ check(await page.locator('.territory-auto-note').count()===1,'Owner sees one-at-a-time Census address disclosure and confirmation warning');
+ await draft.getByRole('button',{name:'Cancel pin'}).click();
+ check(await autoButton.getAttribute('aria-pressed')==='false','Canceling an automatic pin review stops further address lookups');
 }
 // Returning to Territory in the same tab must preserve the working neighborhood.
 await page.evaluate(()=>window.testMap.jumpTo({center:[-95.63,36.26],zoom:13}));

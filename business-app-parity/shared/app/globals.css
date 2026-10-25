@@ -2430,3 +2430,8 @@ html[data-theme="dark"] .territory-offline details>small,html[data-theme="dark"]
 .territory-directory-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px;min-width:0}
 .territory .territory-directory-row .territory-places-toggle{flex:1 1 188px;margin-top:0;text-align:left;min-width:0;overflow-wrap:anywhere}
 .territory .territory-directory-row .territory-locate-next{flex:0 1 auto;min-width:0;white-space:nowrap}
+
+/* Optional one-at-a-time customer lookup: never auto-save Census coordinates. */
+.territory .territory-directory-row .territory-auto-find{white-space:nowrap;min-width:0}
+.territory .territory-directory-row .territory-auto-find[aria-pressed=true]{border-color:var(--ring);background:var(--muted);font-weight:800}
+.territory-auto-note{flex:1 1 100%;font-size:11px;color:var(--muted-foreground);line-height:1.45}
