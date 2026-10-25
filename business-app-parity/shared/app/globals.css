@@ -2440,3 +2440,6 @@ html[data-theme="dark"] .territory-offline details>small,html[data-theme="dark"]
 .territory-pin-adjust{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;min-width:0}
 .territory-pin-adjust small{flex:1 1 160px;color:var(--muted-foreground);line-height:1.4}
 .territory .territory-pin-adjust button{flex:0 0 auto;min-height:44px}
+
+/* Owner may defer a questionable Census match instead of pinning the wrong house. */
+.territory .territory-card .territory-skip-address{justify-self:start;min-height:44px;background:transparent;border-style:dashed}
