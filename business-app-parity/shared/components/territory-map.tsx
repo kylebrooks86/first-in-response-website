@@ -1,0 +1,82 @@
+'use client';
+import {useEffect,useMemo,useRef,useState} from 'react';
+import type {Map as GLMap,GeoJSONSource} from 'maplibre-gl';
+import {TERRITORY_CATEGORIES,territoryPlaces,territoryVisible,territoryGeoJSON,validTerritoryRecords,type TerritoryPlace,type TerritoryRecords} from '../lib/territory';
+import {houseKey,doorSuppressed,type DoorBook,type DoorPoint} from '../lib/door-knocking';
+type Props={book:DoorBook;disabled:boolean;save:(details:Record<string,unknown>)=>Promise<void>;onOpenCustomer?:(id:string)=>void;onOpenHouse:(id:string)=>void;onCreateCustomer?:(address:string)=>void};
+export function TerritoryMap({book,disabled,save,onOpenCustomer,onOpenHouse,onCreateCustomer}:Props){
+ const host=useRef<HTMLDivElement>(null),map=useRef<GLMap|null>(null),alive=useRef(true);
+ const [records,setRecords]=useState<TerritoryRecords>({customers:[],jobs:[]}),[recordError,setRecordError]=useState(''),[mapError,setMapError]=useState(''),[ready,setReady]=useState(false),[filter,setFilter]=useState('all'),[selected,setSelected]=useState<string|null>(null),[query,setQuery]=useState(''),[searching,setSearching]=useState(false),[searchError,setSearchError]=useState(''),[draft,setDraft]=useState<{point:DoorPoint;address:string;matched?:string}|null>(null),[note,setNote]=useState(''),[legend,setLegend]=useState(false),[showPlaces,setShowPlaces]=useState(false),[expanded,setExpanded]=useState(false);
+ const places=useMemo(()=>territoryPlaces(book,records),[book,records]),visible=useMemo(()=>territoryVisible(places,filter),[places,filter]),geo=useMemo(()=>territoryGeoJSON(visible),[visible]);
+ const current=places.find(p=>p.key===selected)??null;
+ const selectRef=useRef((key:string)=>{setSelected(key);setDraft(null);setNote('');});
+ const loadRecords=async()=>{setRecordError('');try{const r=await fetch('/api/territory',{cache:'no-store'});if(r.status===401||r.status===403){setRecords({customers:[],jobs:[]});throw Error('Sign in again to view customer pins.');}const v=await r.json() as TerritoryRecords;if(!r.ok||!validTerritoryRecords(v))throw Error('Customer pins unavailable.');if(alive.current)setRecords(v);}catch(e){if(alive.current)setRecordError(e instanceof Error?e.message:'Customer pins unavailable.');}};
+ useEffect(()=>{alive.current=true;void loadRecords();return()=>{alive.current=false;};},[]);
+ useEffect(()=>{
+  let canceled=false;let instance:GLMap|null=null;let timer:ReturnType<typeof setTimeout>|undefined;let start:{x:number;y:number}|null=null;let ignoreClickUntil=0;
+  const clear=()=>{if(timer)clearTimeout(timer);timer=undefined;};
+  const cancelMove=(e:PointerEvent)=>{if(start&&Math.hypot(e.clientX-start.x,e.clientY-start.y)>10)clear();};
+  const down=(e:PointerEvent)=>{clear();if(!instance||e.button!==0||(e.target as Element).closest('.maplibregl-ctrl'))return;start={x:e.clientX,y:e.clientY};const rect=host.current!.getBoundingClientRect();const point=instance.unproject([e.clientX-rect.left,e.clientY-rect.top]);timer=setTimeout(()=>{if(!canceled){ignoreClickUntil=Date.now()+1200;setDraft({point:{lat:point.lat,lng:point.lng},address:''});setSelected(null);}},650);};
+  void import('maplibre-gl').then(lib=>{
+   if(canceled||!host.current)return;
+   instance=new lib.Map({container:host.current,style:'https://tiles.openfreemap.org/styles/liberty',center:[-95.9928,36.154],zoom:10,maxZoom:19,attributionControl:{compact:true}});map.current=instance;
+   instance.addControl(new lib.NavigationControl({showCompass:false}),'top-right');
+   instance.on('load',()=>{if(canceled||!instance)return;instance.addSource('fire-places',{type:'geojson',data:{type:'FeatureCollection',features:[]},cluster:true,clusterMaxZoom:16,clusterRadius:45});
+    instance.addLayer({id:'fire-clusters',type:'circle',source:'fire-places',filter:['has','point_count'],paint:{'circle-color':'#253950','circle-radius':22,'circle-stroke-width':2,'circle-stroke-color':'#ffffff'}});
+    instance.addLayer({id:'fire-counts',type:'symbol',source:'fire-places',filter:['has','point_count'],layout:{'text-field':['get','point_count_abbreviated'],'text-size':14},paint:{'text-color':'#ffffff'}});
+    instance.addLayer({id:'fire-pins',type:'circle',source:'fire-places',filter:['!',['has','point_count']],paint:{'circle-color':['get','color'],'circle-radius':10,'circle-stroke-width':3,'circle-stroke-color':'#ffffff'}});
+    instance.addLayer({id:'fire-pin-targets',type:'circle',source:'fire-places',filter:['!',['has','point_count']],paint:{'circle-radius':22,'circle-opacity':0}});
+    instance.on('click','fire-pin-targets',e=>{if(Date.now()<ignoreClickUntil)return;const key=e.features?.[0]?.properties?.key;if(typeof key==='string')selectRef.current(key);});
+    instance.on('click','fire-clusters',async e=>{if(Date.now()<ignoreClickUntil)return;const f=e.features?.[0];if(!f||!instance)return;const source=instance.getSource('fire-places') as GeoJSONSource;try{const zoom=await source.getClusterExpansionZoom(Number(f.properties?.cluster_id));if(!canceled&&f.geometry.type==='Point')instance.easeTo({center:f.geometry.coordinates as [number,number],zoom});}catch{}});
+    instance.addSource('fire-draft',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    instance.addLayer({id:'fire-draft-point',type:'circle',source:'fire-draft',paint:{'circle-radius':12,'circle-color':'#e12933','circle-stroke-width':4,'circle-stroke-color':'#ffffff'}});
+    setReady(true);setMapError('');
+   });
+   instance.on('error',()=>{if(!canceled)setMapError('Map unavailable. Saved places are still below.');});
+   host.current.addEventListener('pointerdown',down);host.current.addEventListener('pointermove',cancelMove);host.current.addEventListener('pointerup',clear);host.current.addEventListener('pointercancel',clear);
+   // A second finger must cancel long-press instead of creating a house during pinch zoom.
+   host.current.addEventListener('touchstart',multi,{passive:true});
+  }).catch(()=>{if(!canceled)setMapError('Map unavailable. Use Saved places.');});
+  function multi(e:TouchEvent){if(e.touches.length>1)clear();}
+  const element=host.current;return()=>{canceled=true;clear();element?.removeEventListener('pointerdown',down);element?.removeEventListener('pointermove',cancelMove);element?.removeEventListener('pointerup',clear);element?.removeEventListener('pointercancel',clear);element?.removeEventListener('touchstart',multi);instance?.remove();map.current=null;};
+ },[]);
+ useEffect(()=>{const id=requestAnimationFrame(()=>map.current?.resize());return()=>cancelAnimationFrame(id);},[expanded]);
+ useEffect(()=>{if(ready)(map.current?.getSource('fire-places') as GeoJSONSource|undefined)?.setData(geo);},[ready,geo]);
+ useEffect(()=>{if(ready)(map.current?.getSource('fire-draft') as GeoJSONSource|undefined)?.setData({type:'FeatureCollection',features:draft?[{type:'Feature',properties:{},geometry:{type:'Point',coordinates:[draft.point.lng,draft.point.lat]}}]:[]});},[ready,draft]);
+ useEffect(()=>{setNote('');},[selected]);
+ const focus=(p:TerritoryPlace)=>{selectRef.current(p.key);if(p.point)map.current?.easeTo({center:[p.point.lng,p.point.lat],zoom:17});};
+ const search=async(address=query)=>{if(searching||!address.trim())return;const known=places.find(p=>p.key===houseKey(address)&&p.point);if(known){focus(known);return;}setSearching(true);setSearchError('');try{const r=await fetch('/api/territory/search',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({address})});const v=await r.json() as {matches?:{address:string;point:DoorPoint}[];error?:string};if(!r.ok)throw Error(v.error||'Lookup unavailable.');const match=v.matches?.[0];if(!match)throw Error('No match. Long-press the map to place it.');if(!alive.current)return;setDraft({point:match.point,address,matched:match.address});setSelected(null);map.current?.easeTo({center:[match.point.lng,match.point.lat],zoom:17});}catch(e){if(alive.current)setSearchError(e instanceof Error?e.message:'Lookup unavailable.');}finally{if(alive.current)setSearching(false);}};
+ useEffect(()=>{if(!draft)return;const h=book.houses.find(h=>h.addressKey===houseKey(draft.address));if(h?.location?.point&&h.location.point.lat===draft.point.lat&&h.location.point.lng===draft.point.lng){setSelected(h.addressKey);setDraft(null);}},[book,draft]);
+ const existingDraft=draft?places.find(p=>p.key===houseKey(draft.address)):null;
+ const saveLocation=async()=>{if(!draft||!draft.address.trim())return;const existing=existingDraft;await save(existing?.houseId?{action:'locate',houseId:existing.houseId,point:draft.point}:{action:'add',address:draft.address,point:draft.point});};
+ const suppressed=current?.houseId?doorSuppressed(book.houses.find(h=>h.id===current.houseId)!):false;
+ return <section className="territory" aria-label="Territory map">
+  <form className="territory-search" onSubmit={e=>{e.preventDefault();void search();}}><input aria-label="Search street address" value={query} maxLength={240} placeholder="Street address, city, state" onChange={e=>setQuery(e.target.value)}/><button disabled={searching||!query.trim()}>Find</button></form>
+  <div className="territory-filters" role="group" aria-label="Map filters"><button type="button" aria-pressed={filter==='all'} onClick={()=>setFilter('all')}>All</button>{Object.entries(TERRITORY_CATEGORIES).map(([key,c])=><button type="button" key={key} aria-pressed={filter===key} onClick={()=>setFilter(key)}>{c.filter}</button>)}</div>
+  {recordError&&<p role="alert">{recordError} <button type="button" onClick={()=>void loadRecords()}>Retry</button></p>}
+  {searchError&&<p role="alert">{searchError}</p>}
+  <div className={"territory-stage"+(expanded?" territory-expanded":"")}><div ref={host} className="territory-canvas" aria-label="Tulsa street map"/>
+   <div className="territory-legend"><button type="button" aria-expanded={legend} onClick={()=>setLegend(!legend)}>Legend</button>{legend&&<ul>{Object.entries(TERRITORY_CATEGORIES).map(([key,c])=><li key={key}><i style={{background:c.color}}/><span>{c.label}</span><b>{visible.filter(p=>p.point&&p.category===key).length}</b></li>)}<li><i style={{background:'#334155'}}/><span>Not visited</span><b>{visible.filter(p=>p.point&&!p.category).length}</b></li></ul>}</div>
+   <span className="territory-crosshair" aria-hidden="true">+</span><button type="button" className="territory-expand" aria-pressed={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?"Done":"Expand"}</button>
+   <button type="button" className="territory-drop" onClick={()=>{const center=map.current?.getCenter();if(center){setDraft({point:{lat:center.lat,lng:center.lng},address:''});setSelected(null);}}} disabled={!ready}>Drop pin</button>
+  </div>
+  {mapError&&<p role="status">{mapError}</p>}
+  {draft&&<section className="territory-card" aria-label="Place pin"><header><h2>Place pin</h2><button type="button" aria-label="Cancel pin" onClick={()=>setDraft(null)}>×</button></header><label>House address<input value={draft.address} maxLength={240} onChange={e=>setDraft({...draft,address:e.target.value})}/></label><small>{draft.matched?`Approximate match: ${draft.matched}. Check the pin before saving.`:"Check the address and location before saving."}</small><button type="button" disabled={disabled||!draft.address.trim()} onClick={()=>void saveLocation()}>Save location</button>{existingDraft&&<small>Uses the existing address. No duplicate customer.</small>}</section>}
+  {current&&<section className="territory-card" aria-label="Selected place"><header><h2>{current.address}</h2><button type="button" aria-label="Close place" onClick={()=>setSelected(null)}>×</button></header>
+   {current.customers.map(c=><button type="button" key={c.id} onClick={()=>onOpenCustomer?.(c.id)} disabled={!onOpenCustomer}>{c.name} · Open customer</button>)}
+   {!current.customers.length&&onCreateCustomer&&<button type="button" disabled={disabled} onClick={()=>onCreateCustomer(current.address)}>Create customer</button>}
+   <p className="territory-status">{current.categories.length?current.categories.map(c=>TERRITORY_CATEGORIES[c].label).join(' · '):'Not visited'}</p>
+   {current.lastContact&&<small>Last visit {new Date(current.lastContact).toLocaleString()}</small>}{current.note&&<p>{current.note}</p>}
+   {current.unverifiedJobs>0&&<small>Job locations need confirmation; completion pins are not assumed.</small>}
+   {current.jobs.length>0&&<small>{current.jobs.map(j=>j.status).join(' · ')}</small>}
+   {!current.point&&<button type="button" disabled={searching} onClick={()=>void search(current.address)}>Locate address</button>}
+   {current.houseId&&!suppressed&&<><label>Note<input value={note} maxLength={1000} onChange={e=>setNote(e.target.value)}/></label><div className="territory-actions">{([['contacted','Contacted'],['no-answer','No answer'],['do-not-knock','Do not knock']] as const).map(([status,label])=><button type="button" disabled={disabled} key={status} onClick={()=>void save({action:'visit',houseId:current.houseId,status,note})}>{label}</button>)}</div></>}
+   {suppressed&&<p role="status">Contact blocked. Review visit history to allow it again.</p>}
+   {current.houseId&&<button type="button" onClick={()=>onOpenHouse(current.houseId!)}>Visit history &amp; more</button>}
+   <div className="territory-actions"><a href={'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(current.point?`${current.point.lat},${current.point.lng}`:current.address)} target="_blank" rel="noopener noreferrer">Directions</a>{current.houseId&&current.point&&<button type="button" disabled={disabled} onClick={()=>{if(window.confirm('Remove this map location? The address and all visit history will stay saved.'))void save({action:'unpin',houseId:current.houseId});}}>Remove pin</button>}</div>
+  </section>}
+  <button type="button" className="territory-places-toggle" aria-expanded={showPlaces} onClick={()=>setShowPlaces(!showPlaces)}>Saved places · {visible.filter(p=>p.point).length} pinned · {visible.filter(p=>!p.point).length} to locate</button>
+  {(showPlaces||mapError)&&<ul className="territory-places">{visible.map(p=><li key={p.key}><button type="button" onClick={()=>focus(p)}><strong>{p.address}</strong><small>{p.category?TERRITORY_CATEGORIES[p.category].label:'Not visited'}{!p.point?' · Needs location':''}</small></button></li>)}{!visible.length&&<li>No places in this filter.</li>}</ul>}
+  <details className="territory-help"><summary>Map help</summary><p>Long-press or use Drop pin. Search sends only the entered address to the US Census geocoder; confirm its approximate location. Street maps: OpenFreeMap / OpenStreetMap. Changes currently require internet. Offline areas and satellite imagery are not included yet.</p></details>
+ </section>;
+}
