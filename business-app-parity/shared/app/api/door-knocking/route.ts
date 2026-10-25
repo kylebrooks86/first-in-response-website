@@ -48,8 +48,8 @@ export async function POST(request:Request){
     if(!doorSuppressed(house)||b.status!=='not-contacted')return json({error:'Review the suppressed house before allowing contact again.'},409);
    }else if(doorSuppressed(house))return json({error:'This house is marked Do not knock or Not interested. Contact remains blocked.'},409);
    if(b.action==='visit'&&b.capturedAt!==undefined&&latestDoorVisit(house)&&Date.parse(latestDoorVisit(house)!.at)>Date.parse(capturedAt))return json({error:'A newer visit is already saved. Keep this older draft for review.'},409);
-   // No-op dropdown changes never create accidental repeat visits.
-   if(b.action==='visit'&&latestDoorVisit(house)?.status===b.status&&latestDoorVisit(house)?.note===b.note&&(latestDoorVisit(house)?.followUpOn??null)===(b.status==='follow-up'?b.followUpOn:null))return json({error:'That visit is already recorded. Review history before recording another.'},409);
+   // Unchanged online selections and identical capture times never create repeat visits.
+   if(b.action==='visit'&&latestDoorVisit(house)?.status===b.status&&latestDoorVisit(house)?.note===b.note&&(latestDoorVisit(house)?.followUpOn??null)===(b.status==='follow-up'?b.followUpOn:null)&&(b.capturedAt===undefined||latestDoorVisit(house)?.at===b.capturedAt))return json({error:'That visit is already recorded. Review history before recording another.'},409);
    house.visits.push({id:b.requestId,status:b.status as keyof typeof import('../../../lib/door-knocking').DOOR_STATUSES,at:capturedAt,note:b.note as string,...(b.action==='visit'&&b.status==='follow-up'?{followUpOn:b.followUpOn as string}:{})});
   }
   book.revision=crypto.randomUUID();if(!validDoorBook(book))return json({error:'House history limit reached. Export history before expanding this tracker.'},400);
