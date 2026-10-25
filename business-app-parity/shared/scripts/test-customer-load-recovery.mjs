@@ -60,4 +60,23 @@ for(const failure of failures)for(const selected of [false,true]){
  eq(source.includes('window.addEventListener("fire:attention-saved",refresh)'),true,'Profile listens for confirmed save events');
  eq(source.includes('return()=>window.removeEventListener("fire:attention-saved",refresh)'),true,'Profile cleans up save listener');
 }
+// Customer directory stays compact without obscuring useful property/contact context.
+{
+ const f=fixture();
+ const b=body('saved');
+ const row={...b.customers[0],name:'Synthetic Customer',address:'123 Synthetic Street, Tulsa, OK',phone:'9185550101'};
+ f.setFetcher(async()=>ok({...b,customers:[row]}));await f.load();
+ const card=()=>nodes(f.render()).find(n=>n.props?.className==='customer-card');
+ const details=()=>nodes(card()).find(n=>n.type==='small');
+ eq(details().props.children,'123 Synthetic Street, Tulsa, OK · 9185550101','Directory shows property and contact in one compact line');
+ eq(nodes(card()).some(n=>n.props?.className==='customer-totals'),false,'New customer hides unhelpful zero estimate total');
+ eq(typeof card().props.onClick,'function','Directory card still opens exact saved customer');
+ f.setFetcher(async()=>ok({...b,customers:[{...row,estimateCount:2,estimateTotal:12000}]}));await f.load();
+ eq(nodes(card()).some(n=>n.props?.className==='customer-totals'),true,'Saved estimate totals remain visible when present');
+ f.setFetcher(async()=>ok({...b,customers:[{...row,address:'',phone:'',email:''}]}));await f.load();
+ eq(details().props.children,'Add address or contact','Missing details have a concise, useful cue');
+}
+const directoryCss=readFileSync('app/globals.css','utf8');
+assert.ok(directoryCss.includes('.customers-view>.customer-list .customer-card{gap:10px;min-height:60px'),'Compact directory leaves a full-size touch target');
+assert.ok(directoryCss.includes('.customers-view>.customer-list .customer-main small{overflow-wrap:anywhere'),'Long addresses cannot spill outside mobile customer cards');
 console.log(`PASS ${checks}/${checks}: actual CustomersView load/retry/profile gating, post-save refresh recovery, atomic collections and stale/error/unmount responses; synthetic GET only.`);

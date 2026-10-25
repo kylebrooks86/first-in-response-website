@@ -2417,3 +2417,11 @@ html[data-theme="dark"] .territory-offline details>small,html[data-theme="dark"]
 .insights-first-use strong{font-size:16px}
 .insights-first-use p{font-size:13px;line-height:1.45;color:var(--muted-foreground);margin:0;max-width:280px}
 @media(max-width:760px){.workspace-view.insights-view{padding-top:12px}.insights-view .workspace-head{margin-bottom:8px}}
+
+/* FIRE: compact customer directory. Keep street/phone visible and tap areas comfortable. */
+.customers-view>.customer-list{gap:7px;margin-top:10px}
+.customers-view>.customer-list .customer-card{gap:10px;min-height:60px;padding:11px 13px}
+.customers-view>.customer-list .customer-avatar{width:38px;height:38px}
+.customers-view>.customer-list .customer-main{min-width:0}
+.customers-view>.customer-list .customer-main small{overflow-wrap:anywhere;line-height:1.4;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+@media(max-width:760px){.customers-view>.customer-list .customer-card{min-height:58px;padding:10px 12px}}
