@@ -110,7 +110,11 @@ try{
  await start();
  browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
  const context=await browser.newContext({viewport:{width:390,height:844},ignoreHTTPSErrors:true,timezoneId:'America/Chicago'});
- await context.route('**/*',route=>{const url=new URL(route.request().url());if(url.origin!==origin){
+ await context.route('**/*',route=>{const url=new URL(route.request().url());
+  // Actual map renderer, synthetic basemap only: never dispatch map/provider traffic from CI.
+  if(process.argv.includes('--door-knocking')&&url.href==='https://tiles.openfreemap.org/styles/liberty')return route.fulfill({json:{version:8,glyphs:origin+'/synthetic-map-fonts/{fontstack}/{range}.pbf',sources:{},layers:[{id:'synthetic-territory-background',type:'background',paint:{'background-color':'#e4eceb'}}]}});
+  if(url.origin===origin&&url.pathname.startsWith('/synthetic-map-fonts/'))return route.fulfill({body:Buffer.alloc(0),contentType:'application/x-protobuf'});
+  if(url.origin!==origin){
   // Existing profile satellite embeds are optional third-party content. The
   // synthetic workflow must never dispatch them, nor permit any other host.
   if(url.origin==='https://maps.google.com'&&url.pathname==='/maps'&&((lookupMode&&['10 North Fixture Way','20 South Fixture Way'].includes(url.searchParams.get('q')))||(process.argv.includes('--global-search')&&url.searchParams.get('q')==='456 Synthetic Universal Lane')))blockedSyntheticMaps.push(url.href);

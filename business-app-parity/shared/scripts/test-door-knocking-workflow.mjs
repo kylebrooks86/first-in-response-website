@@ -9,7 +9,7 @@ export async function exerciseDoorKnocking({page,origin,request,check}){
  await extra.getByRole('button',{name:'Door knocking',exact:true}).click();
  await page.getByRole('region',{name:'Territory map',exact:true}).waitFor();
  check(await page.getByRole('button',{name:'Map',exact:true}).getAttribute('aria-pressed')==='true','Built app opens map first');
- const directory=await request('/api/territory');check(directory.ok,'Built owner territory directory is available');
+ const directory=await request('/api/territory');check(directory.ok(),'Built owner territory directory is available');
  const pins=await directory.json();check(Array.isArray(pins.customers)&&Array.isArray(pins.jobs),'Built map uses saved customer/job records');
  await page.getByRole('button',{name:'Visits',exact:true}).click();
  await page.getByLabel('House address',{exact:true}).waitFor();await page.getByLabel('House address',{exact:true}).fill('999 Native Synthetic Lane, Tulsa');await page.getByRole('button',{name:'Save house',exact:true}).click();
@@ -35,5 +35,6 @@ export async function exerciseDoorKnocking({page,origin,request,check}){
  const customerDialog=page.getByRole('dialog',{name:'Add customer',exact:true});await customerDialog.waitFor();
  check(await customerDialog.getByLabel('Service address',{exact:true}).inputValue()==='999 Native Synthetic Lane, Tulsa','Map Create customer opens original guarded form with exact address');
  check((await customerDialog.textContent()).includes('Door knocking'),'Map customer draft retains Door knocking source');
+ await customerDialog.getByRole('button',{name:'Close',exact:true}).click();
  const template=(await(await request('/api/backup')).json());check(JSON.stringify(template).includes('999 Native Synthetic Lane, Tulsa'),'Existing full backup includes owner house visit history');
 }

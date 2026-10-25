@@ -2323,7 +2323,7 @@ html,body{max-width:100%;overflow-x:clip}
 .door-workspace-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .door-workspace-head h1{font-size:22px;margin:0}
 .door-workspace-head div{display:flex;gap:4px}
-.door-workspace-head button,.territory button,.territory a{min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 12px;background:var(--background);color:var(--foreground);font-size:13px;font-weight:650;cursor:pointer}
+.door-workspace-head button,.territory button,.territory a{min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 12px;background-color:var(--background);color:var(--foreground);font-size:13px;font-weight:650;cursor:pointer}
 .door-workspace-head button[aria-pressed=true],.territory-filters button[aria-pressed=true]{background:#223850;color:#fff;border-color:#223850}
 .territory button:disabled{opacity:.5;cursor:default}
 .territory button:focus-visible,.territory a:focus-visible{outline:3px solid #e52d38;outline-offset:2px}
@@ -2358,7 +2358,7 @@ html,body{max-width:100%;overflow-x:clip}
 .territory-help{font-size:12px;margin-top:8px}
 .territory-help summary{min-height:44px;display:flex;align-items:center;cursor:pointer}
 .territory-help p{margin:0;max-width:60ch}
-.territory .maplibregl-ctrl button{width:44px;height:44px;min-height:44px;border:0;border-radius:0;padding:0;background:#fff}
+.territory .maplibregl-ctrl button{width:44px;height:44px;min-height:44px;border:0;border-radius:0;padding:0;background-color:#fff}
 .territory .maplibregl-ctrl-attrib{max-width:calc(100% - 16px)}
 @media(min-width:900px){.territory-card{left:calc(50% + 124px)}}
 /* Keep useful content high without shrinking touch targets. */

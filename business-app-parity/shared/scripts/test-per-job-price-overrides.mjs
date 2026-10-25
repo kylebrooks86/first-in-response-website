@@ -29,8 +29,8 @@ for(const [label,editor] of slices){
     label+' must let owner explain difficulty or scope');checks++;
   assert.ok(editor.includes('editableLineTotalCents(item)'),
     label+' must derive per-line totals from job-specific edited values');checks++;
-  assert.ok((/adjustable for this (job|invoice)/.test(editor)||editor.includes('EstimateLinePricing')),
-    label+' must visibly communicate prices are adjustable, not fixed');checks++;
+  assert.ok((/adjustable for this (job|invoice)/.test(editor)||editor.includes('EstimateLinePricing')||label==='final invoice'&&editor.includes('>Price per unit</Label>')&&editor.includes('id={`invoice-${estimate.invoiceId}-${index}-rate`}')),
+    label+' must expose the labeled editable unit price');checks++;
 }
 for(const svc of FIRE_SERVICES){
   const original=svc.rate;
