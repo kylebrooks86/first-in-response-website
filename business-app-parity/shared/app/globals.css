@@ -2435,3 +2435,8 @@ html[data-theme="dark"] .territory-offline details>small,html[data-theme="dark"]
 .territory .territory-directory-row .territory-auto-find{white-space:nowrap;min-width:0}
 .territory .territory-directory-row .territory-auto-find[aria-pressed=true]{border-color:var(--ring);background:var(--muted);font-weight:800}
 .territory-auto-note{flex:1 1 100%;font-size:11px;color:var(--muted-foreground);line-height:1.45}
+
+/* FIRE map review: coordinate correction without retyping an existing customer address. */
+.territory-pin-adjust{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;min-width:0}
+.territory-pin-adjust small{flex:1 1 160px;color:var(--muted-foreground);line-height:1.4}
+.territory .territory-pin-adjust button{flex:0 0 auto;min-height:44px}

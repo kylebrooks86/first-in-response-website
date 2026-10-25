@@ -34,6 +34,13 @@ for(const width of [320,390,768])for(const theme of ['light','dark']){reset();aw
  check(await draft.getByLabel('House address').inputValue()==='300 Synthetic Street, Tulsa OK','Opt-in automatically prepares the saved unpinned customer address');
  check(posts.length===writesBeforeAuto,'Automatic lookup never writes a pin, visit or customer before owner review');
  check(await page.locator('.territory-auto-note').count()===1,'Owner sees one-at-a-time Census address disclosure and confirmation warning');
+ // A fuzzy Census match must be correctable on the map without resubmitting the address.
+ await page.evaluate(()=>window.testMap.jumpTo({center:[-95.945,36.217],zoom:17}));
+ await draft.getByRole('button',{name:'Use map center'}).click();
+ await page.waitForFunction(async()=>{const src=window.testMap?.getSource('fire-draft');if(!src)return false;const data=await src.getData();const point=data.features?.[0]?.geometry?.coordinates;return point&&Math.abs(point[0]+95.945)<.0001&&Math.abs(point[1]-36.217)<.0001;});
+ check(await draft.getByLabel('House address').inputValue()==='300 Synthetic Street, Tulsa OK','Moving a customer pin preserves the original saved customer address');
+ check(await draft.getByText('Approximate match:',{exact:false}).count()===0,'Manual correction clears the previous geocoder-match claim');
+ check(posts.length===writesBeforeAuto,'Moving a pin never saves coordinates before confirmation');
  await draft.getByRole('button',{name:'Cancel pin'}).click();
  check(await autoButton.getAttribute('aria-pressed')==='false','Canceling an automatic pin review stops further address lookups');
 }
