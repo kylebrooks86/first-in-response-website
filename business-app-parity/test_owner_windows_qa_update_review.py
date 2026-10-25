@@ -49,8 +49,8 @@ class ExistingQAUpdateSafety(unittest.TestCase):
                          "$activeVersion -ceq $expectedActiveVersion"):
             self.assertIn(expected, S)
         self.assertLess(S.index("qa $candidate --built"), S.index("d1 list --json"))
-        self.assertLess(S.index("d1 list --json"), S.index("deployments status"))
-        self.assertLess(S.index("deployments status"), S.index("deploy --dry-run"))
+        self.assertLess(S.index("d1 list --json"), S.index("& $wrangler.Source deployments status --name $workerName --json"))
+        self.assertLess(S.index("& $wrangler.Source deployments status --name $workerName --json"), S.index("deploy --dry-run"))
         self.assertNotIn("fire-app-staging-db", S)
         self.assertNotRegex(S, r"&\\s*\\$wrangler\\.Source\\s+d1\\s+info\\b")
         self.assertIn("qa_d1_identity_from_list.ps1", S)
@@ -67,7 +67,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertIn("Get-FileHash -Algorithm SHA256", S)
         self.assertIn("$baseline[$file.Name] -ceq (Get-FileHash", S)
         self.assertIn("QA migration bytes differ from original published app", S)
-        self.assertLess(S.index("Get-FileHash -Algorithm SHA256"), S.index("deployments status"))
+        self.assertLess(S.index("Get-FileHash -Algorithm SHA256"), S.index("& $wrangler.Source deployments status --name $workerName --json"))
         self.assertLess(S.index("review_qa_update_schema.py"), S.index("d1 list --json"))
 
     def test_exact_hosted_25_schema_without_paid_r2(self):
@@ -89,7 +89,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertNotIn("r2 bucket info", S)
         self.assertIn("no R2 billing, bucket or photo cloud sync", S)
         self.assertLess(S.index("qa $candidate --built"),S.index("d1 execute $qaDatabase --remote"))
-        self.assertLess(S.index("d1 execute $qaDatabase --remote"),S.index("deployments status"))
+        self.assertLess(S.index("d1 execute $qaDatabase --remote"),S.index("& $wrangler.Source deployments status --name $workerName --json"))
         for forbidden in ("d1 migrations apply", "d1 execute $qaDatabase --remote --file",
                           "r2 bucket create", "r2 object put", "r2 object delete"):
             self.assertNotIn(forbidden,S)
