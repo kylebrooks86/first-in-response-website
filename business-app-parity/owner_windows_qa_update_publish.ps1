@@ -17,7 +17,9 @@ $workerName = 'fire-fullapp-qa-20261016'
 $dbName = 'fire-fullapp-qa-db-20261016'
 $dbId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 $photoMode = 'ON-DEVICE-PHOTOS-NO-R2'
-$expectedActiveVersion = 'ab408776-bf5d-4fab-825e-73082eabbce6'
+# October 25 owner-authenticated Wrangler status showed this 100% active
+# existing QA Worker version; pin exact UUID and fail closed on any drift.
+$expectedActiveVersion = '854df5d2-826a-4792-8fda-8c42b223c5df'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
