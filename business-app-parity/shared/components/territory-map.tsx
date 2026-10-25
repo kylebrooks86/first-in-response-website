@@ -18,7 +18,7 @@ export function TerritoryMap({online=true,book,disabled,save,onOpenCustomer,onOp
  const current=places.find(p=>p.key===selected)??null;
  const selectRef=useRef((key:string)=>{setSelected(key);setDraft(null);setNote('');});
  const loadRecords=async()=>{const request=++recordsRequest.current;setRecordError('');if(!online){setRecordError('Offline · saved pins only.');return;}try{const r=await fetch('/api/territory',{cache:'no-store'});if(!alive.current||request!==recordsRequest.current)return;if(r.status===401||r.status===403){setRecords({customers:[],jobs:[]});throw Error('Sign in again to view customer pins.');}const v=await r.json() as TerritoryRecords;if(!r.ok||!validTerritoryRecords(v))throw Error('Customer pins unavailable.');if(alive.current&&request===recordsRequest.current)setRecords(v);}catch(e){if(alive.current&&request===recordsRequest.current)setRecordError(e instanceof Error?e.message:'Customer pins unavailable.');}};
- useEffect(()=>{alive.current=true;void loadRecords();return()=>{alive.current=false;recordsRequest.current++;};},[online]);
+ useEffect(()=>{alive.current=true;void loadRecords();const refresh=()=>{if(online&&document.visibilityState==='visible')void loadRecords();};window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);return()=>{alive.current=false;recordsRequest.current++;window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};},[online]);
  useEffect(()=>{
   let canceled=false;let instance:GLMap|null=null;let timer:ReturnType<typeof setTimeout>|undefined;let start:{x:number;y:number}|null=null;let ignoreClickUntil=0;let handlersRegistered=false;
   const clear=()=>{if(timer)clearTimeout(timer);timer=undefined;};
