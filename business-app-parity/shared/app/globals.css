@@ -2341,6 +2341,7 @@ html,body{max-width:100%;overflow-x:clip}
 .territory-legend i{width:12px;height:12px;border-radius:50%;flex-shrink:0}
 .territory-legend b{margin-left:auto;padding-left:6px}
 .territory .territory-drop{position:absolute;bottom:30px;right:8px}
+.territory .territory-overview{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:2;white-space:nowrap;background:#fff;color:#17283e;box-shadow:0 1px 5px #0003}
 .territory-card{position:fixed;z-index:35;bottom:calc(82px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);width:min(480px,calc(100% - 24px));max-height:44dvh;overflow:auto;border:1px solid var(--border);border-radius:14px;padding:12px;background:var(--background);color:var(--foreground);box-shadow:0 5px 35px #0005;display:grid;gap:8px;overscroll-behavior:contain}
 .territory-card header{display:flex;align-items:flex-start;gap:8px;justify-content:space-between}
 .territory-card h2{font-size:16px;font-weight:750;margin:0;overflow-wrap:anywhere}

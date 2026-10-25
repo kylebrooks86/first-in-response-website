@@ -1,4 +1,15 @@
 import {houseKey,latestDoorVisit,doorSuppressed,type DoorBook,type DoorPoint} from './door-knocking';
+// Save only the viewport in this tab (never address, customer or visit data).
+export const TERRITORY_VIEW_KEY='fire-territory-viewport-v1';
+export const TERRITORY_DEFAULT_VIEW={lat:36.154,lng:-95.9928,zoom:10};
+export type TerritoryView={lat:number;lng:number;zoom:number};
+export function validTerritoryView(v:unknown):v is TerritoryView{
+ if(!v||typeof v!=='object'||Array.isArray(v))return false;
+ const p=v as Partial<TerritoryView>;
+ return typeof p.lat==='number'&&Number.isFinite(p.lat)&&p.lat>=-85&&p.lat<=85&&
+  typeof p.lng==='number'&&Number.isFinite(p.lng)&&p.lng>=-180&&p.lng<=180&&
+  typeof p.zoom==='number'&&Number.isFinite(p.zoom)&&p.zoom>=3&&p.zoom<=19;
+}
 // One registry drives pins, filters, legend and selected-record labels.
 export const TERRITORY_CATEGORIES={
  customer:{label:'Current customer',filter:'Customers',color:'#2563eb'},

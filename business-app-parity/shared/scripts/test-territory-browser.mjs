@@ -19,6 +19,16 @@ for(const width of [320,390,768])for(const theme of ['light','dark']){reset();aw
  await selected.getByRole('button',{name:'Close place'}).click();await page.getByRole('button',{name:'Legend',exact:true}).click();await page.locator('.territory-canvas').scrollIntoViewIfNeeded();const box=await page.locator('.territory-canvas').boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.waitForTimeout(720);await page.mouse.up();await draft.waitFor();check(await draft.getByLabel('House address').inputValue()==='','Long press opens new address draft');await draft.getByRole('button',{name:'Cancel pin'}).click();
  await page.getByLabel('Search street address').fill('201 Synthetic St, Tulsa OK');await page.getByRole('button',{name:'Find',exact:true}).click();await draft.getByText('Approximate match:',{exact:false}).waitFor();check(true,'Search shows approximate matched address for owner confirmation');await draft.getByRole('button',{name:'Cancel pin'}).click();
 }
+// Returning to Territory in the same tab must preserve the working neighborhood.
+await page.evaluate(()=>window.testMap.jumpTo({center:[-95.63,36.26],zoom:13}));
+await page.waitForFunction(()=>{try{const v=JSON.parse(sessionStorage.getItem('fire-territory-viewport-v1'));return Math.abs(v.lng+95.63)<0.01&&Math.abs(v.zoom-13)<0.1;}catch{return false;}});
+await page.reload();await page.waitForFunction(()=>window.testMap?.getLayer('fire-pins'));
+check(await page.evaluate(()=>{const c=window.testMap.getCenter();return Math.abs(c.lng+95.63)<0.01&&Math.abs(c.lat-36.26)<0.01&&Math.abs(window.testMap.getZoom()-13)<0.1;}),'Reopening map in same tab restores previous town and zoom without fetching customer data');
+await page.getByRole('button',{name:'Show Tulsa and surrounding towns'}).click();
+check(await page.evaluate(()=>{const b=window.testMap.getBounds();return [[-95.7975,36.0609],[-95.8547,36.2695],[-96.1089,36.1398],[-96.1142,35.9987],[-95.6159,36.3126]].every(p=>b.contains(p));}),'Tulsa area button shows Broken Arrow, Owasso, Sand Springs, Sapulpa and Claremore');
+await page.evaluate(()=>sessionStorage.setItem('fire-territory-viewport-v1',JSON.stringify({lat:999,lng:0,zoom:25})));
+await page.reload();await page.waitForFunction(()=>window.testMap?.getLayer('fire-pins'));
+check(await page.evaluate(()=>{const c=window.testMap.getCenter();return Math.abs(c.lng+95.9928)<0.01&&Math.abs(c.lat-36.154)<0.01&&Math.abs(window.testMap.getZoom()-10)<0.1;}),'Corrupt session viewport safely falls back to Tulsa starting map');
 // Geographic navigation is unrestricted: Tulsa is only the starting view.
 await page.evaluate(()=>window.testMap.jumpTo({center:[-95.9928,36.154],zoom:7}));
 check(await page.evaluate(()=>{const b=window.testMap.getBounds();return [[-95.7975,36.0609],[-95.8547,36.2695],[-96.1089,36.1398],[-96.1142,35.9987],[-95.6159,36.3126]].every(p=>b.contains(p));}),'Zoomed-out bounds include Broken Arrow, Owasso, Sand Springs, Sapulpa and Claremore');

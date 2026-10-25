@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import type {Map as GLMap,GeoJSONSource} from 'maplibre-gl';
-import {TERRITORY_CATEGORIES,territoryPlaces,territoryVisible,territoryGeoJSON,validTerritoryRecords,type TerritoryPlace,type TerritoryRecords} from '../lib/territory';
+import {TERRITORY_CATEGORIES,TERRITORY_VIEW_KEY,TERRITORY_DEFAULT_VIEW,validTerritoryView,territoryPlaces,territoryVisible,territoryGeoJSON,validTerritoryRecords,type TerritoryPlace,type TerritoryRecords} from '../lib/territory';
 import {houseKey,doorSuppressed,type DoorBook,type DoorPoint} from '../lib/door-knocking';
 type Props={book:DoorBook;disabled:boolean;save:(details:Record<string,unknown>)=>Promise<void>;onOpenCustomer?:(id:string)=>void;onOpenHouse:(id:string)=>void;onCreateCustomer?:(address:string)=>void};
 export function TerritoryMap({book,disabled,save,onOpenCustomer,onOpenHouse,onCreateCustomer}:Props){
@@ -19,7 +19,10 @@ export function TerritoryMap({book,disabled,save,onOpenCustomer,onOpenHouse,onCr
   const down=(e:PointerEvent)=>{clear();if(!instance||e.button!==0||(e.target as Element).closest('.maplibregl-ctrl'))return;start={x:e.clientX,y:e.clientY};const rect=host.current!.getBoundingClientRect();const point=instance.unproject([e.clientX-rect.left,e.clientY-rect.top]);timer=setTimeout(()=>{if(!canceled){ignoreClickUntil=Date.now()+1200;setDraft({point:{lat:point.lat,lng:point.lng},address:''});setSelected(null);}},650);};
   void import('maplibre-gl').then(lib=>{
    if(canceled||!host.current)return;
-   instance=new lib.Map({container:host.current,style:'https://tiles.openfreemap.org/styles/liberty',center:[-95.9928,36.154],zoom:10,maxZoom:19,attributionControl:{compact:true}});map.current=instance;
+   let initialView=TERRITORY_DEFAULT_VIEW;
+   try{const stored=sessionStorage.getItem(TERRITORY_VIEW_KEY);const parsed:unknown=stored?JSON.parse(stored):null;if(validTerritoryView(parsed))initialView=parsed;}catch{/* Private browsing/storage denial: use Tulsa default. */}
+   instance=new lib.Map({container:host.current,style:'https://tiles.openfreemap.org/styles/liberty',center:[initialView.lng,initialView.lat],zoom:initialView.zoom,maxZoom:19,attributionControl:{compact:true}});map.current=instance;
+   instance.on('moveend',()=>{if(canceled||!instance)return;const c=instance.getCenter();const view={lat:c.lat,lng:c.lng,zoom:instance.getZoom()};if(validTerritoryView(view))try{sessionStorage.setItem(TERRITORY_VIEW_KEY,JSON.stringify(view));}catch{/* Navigation keeps working without storage. */}});
    instance.addControl(new lib.NavigationControl({showCompass:false}),'top-right');
    instance.on('load',()=>{if(canceled||!instance)return;instance.addSource('fire-places',{type:'geojson',data:{type:'FeatureCollection',features:[]},cluster:true,clusterMaxZoom:16,clusterRadius:45});
     instance.addLayer({id:'fire-clusters',type:'circle',source:'fire-places',filter:['has','point_count'],paint:{'circle-color':'#253950','circle-radius':22,'circle-stroke-width':2,'circle-stroke-color':'#ffffff'}});
@@ -58,6 +61,7 @@ export function TerritoryMap({book,disabled,save,onOpenCustomer,onOpenHouse,onCr
   <div className={"territory-stage"+(expanded?" territory-expanded":"")}><div ref={host} className="territory-canvas" aria-label="Tulsa street map"/>
    <div className="territory-legend"><button type="button" aria-expanded={legend} onClick={()=>setLegend(!legend)}>Legend</button>{legend&&<ul>{Object.entries(TERRITORY_CATEGORIES).map(([key,c])=><li key={key}><i style={{background:c.color}}/><span>{c.label}</span><b>{visible.filter(p=>p.point&&p.category===key).length}</b></li>)}<li><i style={{background:'#334155'}}/><span>Not visited</span><b>{visible.filter(p=>p.point&&!p.category).length}</b></li></ul>}</div>
    <span className="territory-crosshair" aria-hidden="true">+</span><button type="button" className="territory-expand" aria-pressed={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?"Done":"Expand"}</button>
+   <button type="button" className="territory-overview" onClick={()=>map.current?.fitBounds([[-96.48,35.8],[-95.52,36.55]],{padding:24,maxZoom:11,duration:0})} disabled={!ready} aria-label="Show Tulsa and surrounding towns">Tulsa area</button>
    <button type="button" className="territory-drop" onClick={()=>{const center=map.current?.getCenter();if(center){setDraft({point:{lat:center.lat,lng:center.lng},address:''});setSelected(null);}}} disabled={!ready}>Drop pin</button>
   </div>
   {mapError&&<p role="status">{mapError}</p>}

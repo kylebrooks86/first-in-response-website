@@ -8,6 +8,8 @@ const root=process.cwd();let checks=0,owner={email:'kylebrooks8605@gmail.com'},w
 const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
 function load(path,imports={},extra={}){const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(path,'utf8'),{compilerOptions:{target:99,module:1}}).outputText,{exports,require:k=>{if(!(k in imports))throw Error(k);return imports[k];},Response,Request,URL,URLSearchParams,AbortSignal,crypto,Date,Set,Map,Object,TextEncoder,...extra});return exports;}
 const model=load('lib/door-knocking.ts'),territory=load('lib/territory.ts',{'./door-knocking':model}),service=load('lib/service-location.ts');
+eq(territory.validTerritoryView({...territory.TERRITORY_DEFAULT_VIEW}),true,'Tulsa map default view valid');
+for(const bad of [null,{},'Tulsa',{lat:91,lng:-96,zoom:10},{lat:36,lng:-181,zoom:10},{lat:36,lng:-96,zoom:20},{lat:36,lng:-96,zoom:'10'},{lat:NaN,lng:-96,zoom:10}])eq(territory.validTerritoryView(bad),false,'Corrupt saved viewport rejected');
 const db=new DatabaseSync(':memory:');for(const p of readdirSync('drizzle').filter(p=>p.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+p,'utf8'));
 db.exec(readFileSync('db/candidate-service-locations.sql','utf8'));
 const env={FIRE_SERVICE_LOCATIONS_CANDIDATE:'synthetic-only',DB:{prepare(sql){return {sql,values:[],bind(...values){this.values=values;return this;},async first(){return db.prepare(sql).get(...this.values)??null;},async run(){writes++;return {meta:{changes:Number(db.prepare(sql).run(...this.values).changes)}};}};},async batch(queries){return queries.map(q=>({results:db.prepare(q.sql).all(...q.values)}));}}};
