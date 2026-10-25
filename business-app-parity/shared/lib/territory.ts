@@ -1,4 +1,4 @@
-import {houseKey,latestDoorVisit,doorSuppressed,type DoorBook,type DoorPoint} from './door-knocking';
+import {houseKey,latestDoorVisit,doorSuppressed,validDoorFollowUpDate,doorTodayInTulsa,type DoorBook,type DoorPoint} from './door-knocking';
 // Save only the viewport in this tab (never address, customer or visit data).
 export const TERRITORY_VIEW_KEY='fire-territory-viewport-v1';
 export const TERRITORY_DEFAULT_VIEW={lat:36.154,lng:-95.9928,zoom:10};
@@ -23,12 +23,12 @@ export type TerritoryCategory=keyof typeof TERRITORY_CATEGORIES;
 export type TerritoryCustomer={id:string;name:string;address:string};
 export type TerritoryJob={id:string;customerId:string;address:string;status:string;addressVerified:boolean};
 export type TerritoryRecords={customers:TerritoryCustomer[];jobs:TerritoryJob[]};
-export type TerritoryPlace={key:string;address:string;houseId?:string;point?:DoorPoint;customers:TerritoryCustomer[];jobs:TerritoryJob[];categories:TerritoryCategory[];category:TerritoryCategory|null;lastContact:string|null;note:string;visitStatus?:string;unverifiedJobs:number};
+export type TerritoryPlace={key:string;address:string;houseId?:string;point?:DoorPoint;customers:TerritoryCustomer[];jobs:TerritoryJob[];categories:TerritoryCategory[];category:TerritoryCategory|null;lastContact:string|null;note:string;visitStatus?:string;revisitOn:string|null;unverifiedJobs:number};
 /** Display priority never mutates customer, estimate, completion or visit state. */
 export function territoryPlaces(book:DoorBook,records:TerritoryRecords):TerritoryPlace[]{
  const places=new Map<string,TerritoryPlace>();
  const customerById=new Map(records.customers.map(c=>[c.id,c]));
- const get=(address:string)=>{const key=houseKey(address);let p=places.get(key);if(!p){p={key,address,customers:[],jobs:[],categories:[],category:null,lastContact:null,note:'',unverifiedJobs:0};places.set(key,p);}return p;};
+ const get=(address:string)=>{const key=houseKey(address);let p=places.get(key);if(!p){p={key,address,customers:[],jobs:[],categories:[],category:null,lastContact:null,note:'',revisitOn:null,unverifiedJobs:0};places.set(key,p);}return p;};
  const add=(p:TerritoryPlace,c:TerritoryCategory)=>{if(!p.categories.includes(c))p.categories.push(c);};
  for(const c of records.customers)if(c.address?.trim())get(c.address).customers.push(c);
  for(const j of records.jobs){
@@ -39,7 +39,7 @@ export function territoryPlaces(book:DoorBook,records:TerritoryRecords):Territor
   if(j.status==='sent')add(p,'lead');
   if(['approved','scheduled'].includes(j.status))add(p,'customer');
  }
- for(const h of book.houses){const p=get(h.address),v=latestDoorVisit(h);p.houseId=h.id;p.point=h.location?.point??undefined;p.lastContact=v?.at??null;p.note=v?.note??'';p.visitStatus=v?.status;
+ for(const h of book.houses){const p=get(h.address),v=latestDoorVisit(h);p.houseId=h.id;p.point=h.location?.point??undefined;p.lastContact=v?.at??null;p.note=v?.note??'';p.visitStatus=v?.status;p.revisitOn=v?.status==='follow-up'&&validDoorFollowUpDate(v.followUpOn)&&!doorSuppressed(h)?v.followUpOn:null;
   if(doorSuppressed(h))add(p,'suppressed');
   else if(v?.status==='no-answer')add(p,'no-answer');
   else if(v&&['contacted','business-card','door-hanger','follow-up'].includes(v.status))add(p,'contacted');
@@ -50,8 +50,8 @@ export function territoryPlaces(book:DoorBook,records:TerritoryRecords):Territor
  }
  return [...places.values()].sort((a,b)=>a.address.localeCompare(b.address));
 }
-export function territoryVisible(places:TerritoryPlace[],filter:string){return places.filter(p=>filter==='all'||p.categories.includes(filter as TerritoryCategory));}
-export function territoryGeoJSON(places:TerritoryPlace[]){return {type:'FeatureCollection' as const,features:places.filter(p=>p.point).map(p=>({type:'Feature' as const,geometry:{type:'Point' as const,coordinates:[p.point!.lng,p.point!.lat]},properties:{key:p.key,label:p.category?TERRITORY_CATEGORIES[p.category].label:'Not visited',color:p.category?TERRITORY_CATEGORIES[p.category].color:'#334155'}}))};}
+export function territoryVisible(places:TerritoryPlace[],filter:string){return places.filter(p=>filter==='all'||filter==='revisits'&&Boolean(p.revisitOn)||p.categories.includes(filter as TerritoryCategory));}
+export function territoryGeoJSON(places:TerritoryPlace[],today=doorTodayInTulsa()){return {type:'FeatureCollection' as const,features:places.filter(p=>p.point).map(p=>({type:'Feature' as const,geometry:{type:'Point' as const,coordinates:[p.point!.lng,p.point!.lat]},properties:{key:p.key,label:p.category?TERRITORY_CATEGORIES[p.category].label:'Not visited',color:p.category?TERRITORY_CATEGORIES[p.category].color:'#334155',revisitDue:Boolean(p.revisitOn&&p.revisitOn<=today)}}))};}
 
 export function validTerritoryRecords(v:unknown):v is TerritoryRecords{
  if(!v||typeof v!=='object'||Array.isArray(v))return false;const r=v as TerritoryRecords;
@@ -61,5 +61,6 @@ export function validTerritoryRecords(v:unknown):v is TerritoryRecords{
 /** Compact visible status, with every applicable saved state retained. */
 export function territoryCardStatus(place:TerritoryPlace){
  const labels:Record<TerritoryCategory,string>={customer:'Customer',completed:'Completed',contacted:'Contacted','no-answer':'No answer',lead:'Lead',suppressed:place.visitStatus==='not-interested'?'Not interested':'Do not knock'};
- return place.categories.length?place.categories.map(c=>labels[c]).join(' · '):place.visitStatus==='not-contacted'?'Not contacted':'Not visited';
+ const state=place.categories.length?place.categories.map(c=>labels[c]).join(' · '):place.visitStatus==='not-contacted'?'Not contacted':'Not visited';
+ return place.revisitOn?state+' · Revisit '+place.revisitOn:state;
 }

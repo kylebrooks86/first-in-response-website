@@ -2451,3 +2451,8 @@ html[data-theme="dark"] .territory-offline details>small,html[data-theme="dark"]
 .territory-basemap button:disabled{opacity:.45;cursor:not-allowed}
 .territory-basemap small{color:var(--muted-foreground);font-size:11px}
 .territory-basemap button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Territory revisit dates stay independent of primary customer/visit colors. */
+.territory .territory-legend .territory-revisit-key{background:transparent!important;border:3px solid #d97706;box-sizing:border-box;border-radius:50%}
+.territory .territory-card .territory-revisit-note{font-weight:700;color:#a45b08}
+html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color:#fdba74}
