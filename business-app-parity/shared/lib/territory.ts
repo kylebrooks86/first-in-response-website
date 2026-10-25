@@ -57,3 +57,9 @@ export function validTerritoryRecords(v:unknown):v is TerritoryRecords{
  if(!v||typeof v!=='object'||Array.isArray(v))return false;const r=v as TerritoryRecords;
  return Array.isArray(r.customers)&&Array.isArray(r.jobs)&&r.customers.every(c=>c&&typeof c.id==='string'&&typeof c.name==='string'&&typeof c.address==='string')&&r.jobs.every(j=>j&&typeof j.id==='string'&&typeof j.customerId==='string'&&typeof j.address==='string'&&typeof j.status==='string'&&typeof j.addressVerified==='boolean');
 }
+
+/** Compact visible status, with every applicable saved state retained. */
+export function territoryCardStatus(place:TerritoryPlace){
+ const labels:Record<TerritoryCategory,string>={customer:'Customer',completed:'Completed',contacted:'Contacted','no-answer':'No answer',lead:'Lead',suppressed:place.visitStatus==='not-interested'?'Not interested':'Do not knock'};
+ return place.categories.length?place.categories.map(c=>labels[c]).join(' · '):place.visitStatus==='not-contacted'?'Not contacted':'Not visited';
+}

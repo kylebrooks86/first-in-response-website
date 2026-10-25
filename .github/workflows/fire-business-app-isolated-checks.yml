@@ -905,6 +905,8 @@ jobs:
         run: node scripts/test-saved-promotions-browser.mjs
       - name: Door knocking real mobile dropdown history and interrupted saves
         run: node --experimental-sqlite scripts/test-door-knocking-browser.mjs
+      - name: Encrypted offline territory drafts, manual sync, conflicts and IndexedDB failures
+        run: node --experimental-sqlite scripts/test-territory-offline-browser.mjs
       - name: Actual MapLibre territory canvas, mobile light/dark and clustered metro coverage
         run: node scripts/test-territory-browser.mjs
       - name: Actual New Estimate service reuse on mobile light and dark

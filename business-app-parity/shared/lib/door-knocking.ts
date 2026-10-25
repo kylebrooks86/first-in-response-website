@@ -55,3 +55,9 @@ export function decodeDoorBook(row:{body:string}|null):DoorBook{
 }
 export const latestDoorVisit=(h:DoorHouse)=>h.visits[h.visits.length-1]??null;
 export const doorSuppressed=(h:DoorHouse)=>['do-not-knock','not-interested'].includes(latestDoorVisit(h)?.status??'');
+
+/** Optional owner-captured offline time; never a financial or provider timestamp. */
+export function validDoorCapturedAt(value:unknown,now=Date.now()):value is string{
+ if(typeof value!=='string'||!/^\d{4}-\d\d-\d\dT/.test(value))return false;const at=Date.parse(value);
+ return Number.isFinite(at)&&at>=Date.UTC(2000,0,1)&&at<=now+300000&&new Date(at).toISOString()===value;
+}
