@@ -8,6 +8,14 @@ const require=createRequire(import.meta.url);
 const source=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='FollowUpsView');
+// Layout regression: simplify only this workspace, not shared business screens.
+const followupCss=readFileSync('app/globals.css','utf8');
+assert.ok(source.includes('workspace-view followups-view'),'Follow-ups has its own compact styling scope');
+assert.ok(source.includes('Details · {bucketCount("due")} due'),'Concise summary still shows verified due counts');
+assert.ok(source.includes('loaded records only.'),'Filtering keeps the limited coverage visible');
+assert.ok(source.includes('Older records still unchecked'),'Historical coverage warning must remain');
+for(const selector of ['.followups-view .followup-summary','.followups-view .followup-filter-panel','.followups-view .followup-card'])assert.ok(followupCss.includes(selector),'Tighter spacing must remain scoped to Follow-ups: '+selector);
+assert.ok(followupCss.includes('min-height:44px'),'Touch target protections remain');
 assert.ok(view,'Real FollowUpsView exists');
 const required=['resolvedBillingTotalCents','billingBalanceCents'];
 const helpers=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>required.includes(d.name.getText(ast)))||ts.isFunctionDeclaration(n)&&['repeatCadenceMonths','addMonths'].includes(n.name?.text));
