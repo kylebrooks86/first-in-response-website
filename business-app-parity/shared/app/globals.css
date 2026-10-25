@@ -2410,3 +2410,10 @@ html[data-theme="dark"] .territory-offline details>small,html[data-theme="dark"]
 .notification-activity-toggle:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
 .notification-list[hidden]{display:none}
 @media(max-width:760px){.notification-attention{gap:6px;padding:9px 11px}.notification-attention-list{max-height:min(260px,40dvh)}.notification-list>button{gap:9px;padding:10px 12px}.notification-popover>header{padding:11px 13px}}
+
+/* Insights on first use: no wall of zero-value metrics before records exist. */
+.insights-first-use{display:grid;justify-items:center;align-content:center;gap:8px;min-height:220px;padding:24px 16px;border:1px solid var(--border);border-radius:14px;background:var(--card);color:var(--foreground);text-align:center}
+.insights-first-use svg{width:25px;height:25px;color:var(--muted-foreground)}
+.insights-first-use strong{font-size:16px}
+.insights-first-use p{font-size:13px;line-height:1.45;color:var(--muted-foreground);margin:0;max-width:280px}
+@media(max-width:760px){.workspace-view.insights-view{padding-top:12px}.insights-view .workspace-head{margin-bottom:8px}}
