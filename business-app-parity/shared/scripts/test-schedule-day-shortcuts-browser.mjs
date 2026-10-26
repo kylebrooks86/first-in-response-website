@@ -5,6 +5,7 @@ import {createServer} from 'node:http';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import ts from 'typescript';
+import vm from 'node:vm';
 const require=createRequire(import.meta.url);
 const esbuild=require('../node_modules/.pnpm/esbuild@0.28.0/node_modules/esbuild');
 const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss');
@@ -51,6 +52,20 @@ const savedDaySource=getScheduleVariable('selectedDaySavedJobs');
 const nextDaySource=getScheduleVariable('nextBookedJob');
 const readySource=getScheduleVariable('readyToBook');
 const filteredReadySource=getScheduleVariable('filteredReadyToBook');
+const visibleUpcomingSource=getScheduleVariable('visibleUpcoming');
+const visibleAttentionSource=getScheduleVariable('visibleAttention');
+assert.match(scheduleMarkup,/visibleUpcoming\.map\(\(job\)=>/,'Visible Schedule cards come from paged rows');
+assert.match(scheduleMarkup,/visibleAttention\.map\(\(job\)=>/,'Past-due cards come from paged rows');
+assert.match(scheduleMarkup,/upcoming\.length>scheduleCardLimit/,'All hidden jobs remain accessible');
+assert.match(scheduleMarkup,/needsAttention\.length>attentionCardLimit/,'All hidden overdue cards remain accessible');
+for(const [count,limit,expected] of [[8,20,8],[55,20,20],[55,40,40],[55,60,55]]){
+ const ctx={exports:{},upcoming:Array.from({length:count},(_,i)=>({id:'job-'+i})),needsAttention:Array.from({length:count},(_,i)=>({id:'attention-'+i})),scheduleCardLimit:limit,attentionCardLimit:Math.min(limit,50)};
+ vm.runInNewContext(ts.transpileModule(visibleUpcomingSource+visibleAttentionSource+'exports.view=[visibleUpcoming,visibleAttention];',{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,ctx);
+ assert.equal(ctx.exports.view[0].length,expected,'Actual source limits only visible job cards');
+ assert.equal(ctx.exports.view[1].length,Math.min(count,Math.min(limit,50)),'Actual source limits only overdue cards');
+ assert.equal(ctx.upcoming.length,count,'Verified full appointment list remains intact');
+}
+assert.match(scheduleMarkup,/const routeDayCandidates=allVerifiedUpcoming\.filter/,'Route uses complete verified appointments, not paged cards');
 assert.match(markup,/schedule-day-buttons/);
 assert.match(markup,/route-day-button/);
 assert.match(markup,/schedule-choose-job/);

@@ -2623,3 +2623,7 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .door-existing-house{display:grid;gap:5px;min-width:0}
 .door-existing-house>small{font-size:12px;color:var(--muted-foreground);line-height:1.4}
 .door-existing-house>button{min-height:44px;white-space:normal;overflow-wrap:anywhere;text-align:center}
+
+/* Scan 20 scheduled jobs and 10 overdue cards initially; load the rest by choice. */
+.schedule-show-more{display:flex;align-items:center;justify-content:center;width:calc(100% - 24px);margin:8px 12px 12px;min-height:44px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;text-align:center;padding:8px 10px;cursor:pointer}
+.schedule-show-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
