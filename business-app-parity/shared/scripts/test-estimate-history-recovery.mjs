@@ -68,4 +68,28 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
   eq(stages.map(n=>n.props.className).join(','),'pipeline-column sent,pipeline-column approved','Occupied stages retain business pipeline order');
   eq(tree.filter(n=>n.props?.className==='pipeline-card').length,2,'All visible estimate cards remain accessible');
 }
+{
+  const f=fixture();f.set('loading',false);f.set('rows',[]);f.set('filter','all');f.set('nextCursor',null);
+  let tree=nodes(f.render());
+  eq(tree.filter(n=>n.props?.className==='estimate-first-use-empty').length,1,'First-use Estimates shows one small welcome instead of a tall empty report');
+  eq(tree.some(n=>n.props?.className==='view-switch'),false,'Empty account hides pipeline/list options until there is work');
+  eq(tree.some(n=>n.props?.className==='filter-row estimate-simple-filters'),false,'Empty account hides pointless status filters');
+  eq(tree.some(n=>n.props?.['aria-label']==='Search estimate history'),false,'Empty account hides pointless search box');
+  eq(tree.some(n=>n.props?.className==='workspace-head'),true,'New Estimate entry remains available above first-use message');
+  f.set('rows',[row('first-saved')]);tree=nodes(f.render());
+  eq(tree.some(n=>n.props?.className==='view-switch'),true,'Real saved quote restores List/Pipeline choices');
+  eq(tree.some(n=>n.props?.className==='filter-row estimate-simple-filters'),true,'Real saved quote restores status chips');
+  eq(tree.some(n=>n.props?.['aria-label']==='Search estimate history'),true,'Saved quote restores customer/job search');
+  eq(tree.some(n=>n.props?.className==='estimate-first-use-empty'),false,'First-use message disappears as soon as a quote exists');
+  f.set('rows',[]);f.set('historySearch','never found');f.set('filter','sent');f.set('viewedOnly',true);
+  tree=nodes(f.render());
+  const reset=tree.find(n=>n.props?.onClick&&n.props?.children==='Show all estimates');
+  eq(Boolean(reset),true,'No-match state offers one-tap reset when search/status/viewed filters are active');
+  reset.props.onClick();
+  eq(f.get('historySearch'),'','Reset clears saved query without editing records');
+  eq(f.get('filter'),'all','Reset clears selected status filter');
+  eq(f.get('viewedOnly'),false,'Reset clears viewed-only filter');
+  eq(f.get('view'),'list','Reset returns to the simplest list view');
+  eq(f.requests.length,0,'First-use changes and clear control do not write or fetch anything before the normal reload effect');
+}
 console.log(`PASS ${checks}/${checks}: real estimate-history recovery, compact useful-only viewed filters and guarded paging. Synthetic reads only.`);
