@@ -50,4 +50,21 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
  f.set('viewedOnly',true);
  eq(nodes(f.render()).some(n=>String(n.props?.children).includes('Viewed · awaiting decision')),true,'Selected Viewed filter remains available to clear even if its queue becomes empty');
 }
+{
+  const f=fixture();f.set('loading',false);f.set('error','');f.set('view','pipeline');
+  f.set('rows',[]);let tree=nodes(f.render());
+  eq(tree.filter(n=>String(n.props?.className??'').startsWith('pipeline-column ')).length,0,'Brand-new account avoids seven empty pipeline columns');
+  eq(tree.filter(n=>n.props?.className==='estimate-pipeline-empty').length,1,'Empty pipeline uses one compact placeholder');
+  eq(tree.some(n=>n.props?.children==='No estimates yet'),true,'First use tells the owner what to do without seven labels');
+  f.set('rows',[row('only-approved')]);tree=nodes(f.render());
+  let stages=tree.filter(n=>String(n.props?.className??'').startsWith('pipeline-column '));
+  eq(stages.length,1,'One saved quote shows only its occupied pipeline stage');
+  eq(stages[0].props.className,'pipeline-column approved','Single occupied column retains status');
+  eq(tree.some(n=>n.props?.className==='estimate-pipeline-empty'),false,'Empty placeholder disappears with a saved estimate');
+  f.set('rows',[row('only-approved'),{...row('sent-quote'),status:'sent'}]);tree=nodes(f.render());
+  stages=tree.filter(n=>String(n.props?.className??'').startsWith('pipeline-column '));
+  eq(stages.length,2,'A second occupied pipeline stage is immediately visible');
+  eq(stages.map(n=>n.props.className).join(','),'pipeline-column sent,pipeline-column approved','Occupied stages retain business pipeline order');
+  eq(tree.filter(n=>n.props?.className==='pipeline-card').length,2,'All visible estimate cards remain accessible');
+}
 console.log(`PASS ${checks}/${checks}: real estimate-history recovery, compact useful-only viewed filters and guarded paging. Synthetic reads only.`);
