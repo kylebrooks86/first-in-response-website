@@ -56,6 +56,7 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
   eq(tree.filter(n=>String(n.props?.className??'').startsWith('pipeline-column ')).length,0,'Brand-new account avoids seven empty pipeline columns');
   eq(tree.filter(n=>n.props?.className==='estimate-pipeline-empty').length,1,'Empty pipeline uses one compact placeholder');
   eq(tree.some(n=>n.props?.children==='No estimates yet'),true,'First use tells the owner what to do without seven labels');
+  eq(tree.some(n=>n.props?.role==='status'&&String(n.props.children).includes('0 estimates loaded')),false,'No redundant zero-estimates count on an empty account');
   f.set('rows',[row('only-approved')]);tree=nodes(f.render());
   let stages=tree.filter(n=>String(n.props?.className??'').startsWith('pipeline-column '));
   eq(stages.length,1,'One saved quote shows only its occupied pipeline stage');
