@@ -22,9 +22,9 @@ vm.runInNewContext(ts.transpileModule(directoryFn.getText(ast)+'\nexports.match=
  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
 }).outputText,directoryContext);
 const match=directoryContext.exports.match;
-const contact={name:'Synthetic Customer',email:'owner@example.invalid',phone:'(918) 555-0147',address:'123 Test Street, Tulsa'};
+const searchFixture={name:'Synthetic Customer',email:'owner@example.invalid',phone:'(918) 555-0147',address:'123 Test Street, Tulsa'};
 for(const [query,want] of [['Synthetic',true],['EXAMPLE.INVALID',true],['Tulsa',true],['555-0147',true],['9185550147',true],['0147',true],['(918) 555',true],['0148',false],['147',false],['Unknown',false],['',true],['   ',true]]){
- assert.equal(match(contact,query),want,'Actual customer search handles '+JSON.stringify(query));
+ assert.equal(match(searchFixture,query),want,'Actual customer search handles '+JSON.stringify(query));
 }
 const priorityFn=customerViewAst.body.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='pickCustomerNextEstimate');
 assert.ok(priorityFn,'Extract the real customer next-job prioritizer, not a test reimplementation');
