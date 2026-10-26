@@ -139,7 +139,7 @@ check(await page.locator('.territory-places li').count()===61,'Large directory i
 await page.getByRole('button',{name:/^Show more ·/}).click();
 check(await page.locator('.territory-places li').count()===121,'Show more appends 60 records without a 125-row initial render');
 await page.getByRole('button',{name:/^Show more ·/}).click();
-check(await page.locator('.territory-places li').count()===130,'All 130 saved places remain reachable');
+check(await page.locator('.territory-places li').count()===131,'All 131 saved places including the newly saved house remain reachable');
 check(posts.length===writesBeforeResume,'Browsing saved places makes no customer or visit changes');
 bulkCustomers=0;
 await page.evaluate(()=>{const data={type:'FeatureCollection',features:Array.from({length:1500},(_,i)=>({type:'Feature',properties:{key:'synthetic-'+i,color:'#2563eb'},geometry:{type:'Point',coordinates:[-95.99+(i%50)*.0001,36.15+Math.floor(i/50)*.0001]}}))};window.testMap.jumpTo({center:[-95.99,36.15],zoom:10});window.testMap.getSource('fire-places').setData(data);});
