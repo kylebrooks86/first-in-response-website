@@ -16,8 +16,8 @@ const usgsAerialStyle=():StyleSpecification=>({
 });
 const selectedBaseStyle=(online:boolean,mode:BaseStyle):StyleSpecification|string=>online?(mode==='aerial'?usgsAerialStyle():STREET_STYLE):offlinePinStyle();
 const offlinePinStyle=():StyleSpecification=>({version:8,sources:{},layers:[{id:'offline-pin-background',type:'background',paint:{'background-color':'#e5eceb'}}]});
-type Props={online?:boolean;book:DoorBook;disabled:boolean;save:(details:Record<string,unknown>)=>Promise<void>;onOpenCustomer?:(id:string)=>void;onOpenHouse:(id:string)=>void;onCreateCustomer?:(address:string)=>void};
-export function TerritoryMap({online=true,book,disabled,save,onOpenCustomer,onOpenHouse,onCreateCustomer}:Props){
+type Props={online?:boolean;focusAddress?:string|null;onFocusAddressHandled?:(address:string)=>void;book:DoorBook;disabled:boolean;save:(details:Record<string,unknown>)=>Promise<void>;onOpenCustomer?:(id:string)=>void;onOpenHouse:(id:string)=>void;onCreateCustomer?:(address:string)=>void};
+export function TerritoryMap({online=true,focusAddress,onFocusAddressHandled,book,disabled,save,onOpenCustomer,onOpenHouse,onCreateCustomer}:Props){
  const host=useRef<HTMLDivElement>(null),map=useRef<GLMap|null>(null),alive=useRef(true),recordsRequest=useRef(0),styleOnline=useRef<boolean|null>(null),appliedBase=useRef<BaseStyle|null>(null),onlineRef=useRef(online),baseRef=useRef<BaseStyle>('street');onlineRef.current=online;
  const [records,setRecords]=useState<TerritoryRecords>({customers:[],jobs:[]}),[recordError,setRecordError]=useState(''),[mapError,setMapError]=useState(''),[ready,setReady]=useState(false),[filter,setFilter]=useState('all'),[selected,setSelected]=useState<string|null>(null),[query,setQuery]=useState(''),[searching,setSearching]=useState(false),[searchError,setSearchError]=useState(''),[draft,setDraft]=useState<{point:DoorPoint;address:string;matched?:string;source?:'auto'}|null>(null),[note,setNote]=useState(''),[revisitOpen,setRevisitOpen]=useState(false),[revisitDate,setRevisitDate]=useState(''),[legend,setLegend]=useState(false),[showPlaces,setShowPlaces]=useState(false),[moreFilters,setMoreFilters]=useState(false),[listLimit,setListLimit]=useState(60),[expanded,setExpanded]=useState(false),[autoFind,setAutoFind]=useState(false),[baseStyle,setBaseStyle]=useState<BaseStyle>('street');
  baseRef.current=baseStyle;
@@ -77,6 +77,9 @@ export function TerritoryMap({online=true,book,disabled,save,onOpenCustomer,onOp
  useEffect(()=>{setNote('');setRevisitOpen(false);setRevisitDate('');},[selected,selectedLastVisitId]);
  useEffect(()=>{setListLimit(60);},[filter]);
  const focus=(p:TerritoryPlace)=>{selectRef.current(p.key);if(p.point)map.current?.easeTo({center:[p.point.lng,p.point.lat],zoom:17});};
+ // Jump from the saved customer profile; wait for the directory before selecting.
+ // A missing coordinate opens the existing address card rather than guessing a pin.
+ useEffect(()=>{if(!focusAddress||!ready)return;const place=places.find(p=>p.key===houseKey(focusAddress));if(!place)return;focus(place);if(!place.point)setShowPlaces(true);onFocusAddressHandled?.(focusAddress);},[focusAddress,places,ready,onFocusAddressHandled]);
  const fitSaved=()=>{const instance=map.current;if(!instance||!ready)return;const pinned=visible.filter(p=>p.point).map(p=>p.point!);if(!pinned.length)return;
   if(pinned.length===1){instance.easeTo({center:[pinned[0].lng,pinned[0].lat],zoom:14});return;}
   const minLng=Math.min(...pinned.map(p=>p.lng)),maxLng=Math.max(...pinned.map(p=>p.lng)),minLat=Math.min(...pinned.map(p=>p.lat)),maxLat=Math.max(...pinned.map(p=>p.lat));
