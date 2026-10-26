@@ -88,9 +88,11 @@ assert.match(contact,/onOpenTerritory\(selected.address\)/,'Profile reuses exact
 assert.match(activity,/customer-timeline-list/);
 const fixture=[
  "import React,{useState}from'react';import{createRoot}from'react-dom/client';",
+  "import {usableCustomerPhone,usableCustomerEmail} from './lib/customer-contact-links';",
  "import{Phone,Send,Mail,Navigation,Globe2,House,MapPin,ChevronRight,Sparkles}from'lucide-react';",
  "function Fixture(){",
  " const [selected,setSelected]=useState({id:'synthetic',name:'Synthetic customer',phone:'9185550101',email:'synthetic@example.invalid',address:'123 Synthetic Rd, Tulsa, OK'});",
+  " const contactPhone=usableCustomerPhone(selected.phone),contactEmail=usableCustomerEmail(selected.email);",
  " const [timelineFilter,setTimelineFilter]=useState('all'),[timelineSearch,setTimelineSearch]=useState(''),[timelineShown,setTimelineShown]=useState(6);",
  " const [withActions,setWithActions]=useState(true);",
  " const [manualFlags,setManualFlags]=useState({leadContact:null});",
@@ -133,8 +135,8 @@ try{
   const row=page.getByRole('group',{name:'Customer contact and driving links'});
   const activityDisclosure=page.locator('details.customer-timeline-disclosure');
   await row.waitFor();await activityDisclosure.waitFor();
-  check(await row.getByRole('link',{name:'Call customer'}).getAttribute('href')==='tel:9185550101',width+': existing phone destination');
-  check(await row.getByRole('link',{name:'Text customer'}).getAttribute('href')==='sms:9185550101',width+': existing SMS destination');
+  check(await row.getByRole('link',{name:'Call customer'}).getAttribute('href')==='tel:+19185550101',width+': existing phone destination');
+  check(await row.getByRole('link',{name:'Text customer'}).getAttribute('href')==='sms:+19185550101',width+': existing SMS destination');
   check(await row.getByRole('link',{name:'Email customer'}).getAttribute('href')==='mailto:synthetic@example.invalid',width+': existing mail destination');
   check((await row.getByRole('link',{name:'Directions to customer in Google Maps'}).getAttribute('href')).includes('destination=123%20Synthetic%20Rd'),width+': maps destination preserved');
   await row.getByRole('button',{name:'Show customer on Territory Map'}).click();
@@ -183,6 +185,17 @@ try{
   check(geo.total<=width+1,width+': no horizontal scrolling');
   check(geo.targets.every(r=>r.left>=-1&&r.right<=width+1&&r.height>=44),width+': all contact and history taps at least 44px');
  }
+ // Malformed fields must not become native phone or mail recipients.
+ await page.evaluate(()=>window.__setSelected(s=>({...s,phone:'please call',email:'bad@@example.invalid'})));
+ const guardedContacts=page.getByRole('group',{name:'Customer contact and driving links'});
+ await guardedContacts.locator('.customer-contact-warning').waitFor();
+ check(await guardedContacts.getByRole('link',{name:'Call customer'}).count()===0&&await guardedContacts.getByRole('link',{name:'Text customer'}).count()===0&&await guardedContacts.getByRole('link',{name:'Email customer'}).count()===0,'Invalid phone/email never creates unsafe recipient links');
+ check((await guardedContacts.locator('.customer-contact-warning').innerText()).includes('Check phone and email in Edit customer'),'Invalid saved contact fields show a short correction prompt');
+ check(await guardedContacts.getByRole('link',{name:'Directions to customer in Google Maps'}).isVisible(),'Bad contact data never hides saved directions');
+ await page.evaluate(()=>window.__setSelected(s=>({...s,phone:'+1 (918) 555-0102',email:'contact@example.invalid'})));
+ await guardedContacts.getByRole('link',{name:'Call customer'}).waitFor();
+ check(await guardedContacts.getByRole('link',{name:'Call customer'}).getAttribute('href')==='tel:+19185550102','Formatted US phone normalizes to E.164 dial target');
+ check(await guardedContacts.locator('.customer-contact-warning').count()===0,'Corrected customer contact clears warning');
  await page.evaluate(()=>{window.__setSelected(s=>({...s,phone:'',email:'',address:''}));window.__setWithActions(false)});
  for(const [status,label] of [['draft','Continue draft estimate'],['sent','Open estimate'],['completed','Open completed job']]){
   await page.evaluate(next=>window.__setActiveCustomerEstimate(s=>({...s,status:next,scheduledAt:null})),status);
