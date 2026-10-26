@@ -4,7 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync,readdirSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {createRouteFixtureLoader} from './route-test-loader.mjs';
-import {loadCustomerCreateRequest,saveCustomerCreateRequest,clearCustomerCreateRequest,confirmedCreatedCustomer,sameCustomerCreateInput} from '../lib/customer-create-retry.ts';
+import {loadCustomerCreateRequest,saveCustomerCreateRequest,clearCustomerCreateRequest,loadCustomerEstimateHandoff,saveCustomerEstimateHandoff,clearCustomerEstimateHandoff,confirmedCreatedCustomer,sameCustomerCreateInput} from '../lib/customer-create-retry.ts';
 const db=new DatabaseSync(':memory:');for(const name of readdirSync('drizzle').filter(n=>n.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+name,'utf8'));
 let owner={email:'kylebrooks8605@gmail.com'},writes=0,failAfterInsert=false,failRead=false,beforeInsert=null;
 function prep(sql){return {sql,values:[],bind(...values){return {...this,values}},async first(){if(failRead&&/^SELECT/.test(sql))throw Error('Synthetic read unavailable');if(sql.startsWith('INSERT INTO customers')){if(beforeInsert){const fn=beforeInsert;beforeInsert=null;fn()}writes++;const row=db.prepare(sql).get(...this.values);if(failAfterInsert){failAfterInsert=false;throw Error('Synthetic lost acknowledgement')}return row??null;}return db.prepare(sql).get(...this.values)??null},async all(){return {results:db.prepare(sql).all(...this.values)}},async run(){writes++;return {meta:{changes:Number(db.prepare(sql).run(...this.values).changes)}}}};}
@@ -42,7 +42,14 @@ try{
  const savedWrites=writes;failRead=true;eq((await get(original.requestId)).status,503);failRead=false;await get(original.requestId);eq(writes,savedWrites);
  for(const patch of [{requestId:randomUUID()},{confirmed:false},{customer:null},{customer:{...receipt.customer,id:randomUUID()}},{customer:{...receipt.customer,estimateCount:NaN}},{customer:{...receipt.customer,createdAt:'bad'}},{customer:{...receipt.customer,email:null}}])eq(confirmedCreatedCustomer({...receipt,...patch},original.requestId),null);
  const rows=new Map(),storage={getItem:k=>rows.get(k)??null,setItem:(k,v)=>rows.set(k,v),removeItem:k=>rows.delete(k)};
- eq(loadCustomerCreateRequest(storage),null);eq(saveCustomerCreateRequest(storage,original.requestId),true);eq([...rows.values()],[original.requestId]);eq(loadCustomerCreateRequest(storage),original.requestId);eq(saveCustomerCreateRequest(storage,randomUUID()),false);clearCustomerCreateRequest(storage,'wrong');eq(loadCustomerCreateRequest(storage),original.requestId);clearCustomerCreateRequest(storage,original.requestId);eq(loadCustomerCreateRequest(storage),null);
+ eq(loadCustomerCreateRequest(storage),null);eq(saveCustomerCreateRequest(storage,original.requestId),true);eq([...rows.values()],[original.requestId]);eq(loadCustomerCreateRequest(storage),original.requestId);
+ eq(loadCustomerEstimateHandoff(storage,original.requestId),false);eq(saveCustomerEstimateHandoff(storage,randomUUID()),false);eq(saveCustomerEstimateHandoff(storage,original.requestId),true);
+ eq(loadCustomerEstimateHandoff(storage,original.requestId),true);eq(loadCustomerEstimateHandoff(storage,randomUUID()),false);
+ clearCustomerEstimateHandoff(storage,'wrong');eq(loadCustomerEstimateHandoff(storage,original.requestId),true);
+ eq(saveCustomerCreateRequest(storage,randomUUID()),false);clearCustomerCreateRequest(storage,'wrong');eq(loadCustomerCreateRequest(storage),original.requestId);
+ clearCustomerCreateRequest(storage,original.requestId);eq(loadCustomerCreateRequest(storage),null);eq(loadCustomerEstimateHandoff(storage,original.requestId),false);
+ clearCustomerEstimateHandoff(storage,original.requestId);eq([...rows.values()],[]);
+ eq(saveCustomerEstimateHandoff(undefined,original.requestId),false);
  eq(saveCustomerCreateRequest(undefined,original.requestId),false);eq(saveCustomerCreateRequest({getItem(){throw Error('denied')},setItem(){}},original.requestId),false);eq(saveCustomerCreateRequest(storage,'bad'),false);
  console.log(`PASS ${checks}/${checks}: real customer creation primary-key replay, name-only lost acknowledgement, atomic race, conflicting details, identity duplicate guards, current history totals, owner auth, read-only confirmation, strict receipts and ID-only recovery storage.`);
 }finally{db.close()}
