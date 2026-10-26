@@ -240,6 +240,20 @@ check(posts.length===beforeNextPosts,'Repeated Next skips the selected door with
 check(await page.getByRole('button',{name:'Next unvisited house'}).evaluate(el=>el.getBoundingClientRect().height>=44),'New field button has 44px mobile touch target');
 await page.evaluate(()=>{const data={type:'FeatureCollection',features:Array.from({length:1500},(_,i)=>({type:'Feature',properties:{key:'synthetic-'+i,color:'#2563eb'},geometry:{type:'Point',coordinates:[-95.99+(i%50)*.0001,36.15+Math.floor(i/50)*.0001]}}))};window.testMap.jumpTo({center:[-95.99,36.15],zoom:10});window.testMap.getSource('fire-places').setData(data);});
 await page.waitForFunction(()=>window.testMap.querySourceFeatures('fire-places').some(f=>f.properties.point_count>1));check(true,'Actual worker clusters 1,500 synthetic addresses');check(await page.locator('.maplibregl-marker').count()===0,'Thousands of pins do not create thousands of DOM markers');
+// Real rendered hit geometry proves the visible symbol grows with zoom while
+// the independent invisible 44px touch target stays generous at both scales.
+const beforeZoomWrites=posts.length;
+await page.evaluate(()=>{window.testMap.jumpTo({center:[-95.85,36.27],zoom:8});window.testMap.getSource('fire-places').setData({type:'FeatureCollection',features:[{type:'Feature',properties:{key:'zoom-fixture',color:'#2563eb'},geometry:{type:'Point',coordinates:[-95.85,36.27]}}]});});
+await page.waitForFunction(()=>window.testMap.queryRenderedFeatures({layers:['fire-pins']}).some(f=>f.properties.key==='zoom-fixture'));
+const hitAt=async(offset,layer)=>page.evaluate(({offset,layer})=>{const p=window.testMap.project([-95.85,36.27]);return window.testMap.queryRenderedFeatures([p.x+offset,p.y],{layers:[layer]}).length;},{offset,layer});
+check(await hitAt(7,'fire-pins')===0,'Zoomed-out individual pin has a small visual footprint');
+check(await hitAt(18,'fire-pin-targets')>0,'Zoomed-out small pin retains a 44px touch target');
+await page.evaluate(()=>window.testMap.jumpTo({center:[-95.85,36.27],zoom:18}));
+await page.waitForFunction(()=>{const p=window.testMap.project([-95.85,36.27]);return window.testMap.queryRenderedFeatures([p.x+7,p.y],{layers:['fire-pins']}).length>0;});
+check(await hitAt(7,'fire-pins')>0,'Zoomed-in pin grows to an easy-to-see house marker');
+check(await hitAt(18,'fire-pin-targets')>0,'House-level pin keeps the same generous tap target');
+check(posts.length===beforeZoomWrites,'Zoom styling never changes pins or visit history');
+
 check(errors.length===0,'No React/map exceptions: '+errors.join(';'));
 console.log(`PASS ${checks} actual MapLibre/mobile territory checks. Synthetic basemap; not a hosted or physical iPhone test.`);
 }finally{await browser?.close();await new Promise(r=>server.close(r));}
