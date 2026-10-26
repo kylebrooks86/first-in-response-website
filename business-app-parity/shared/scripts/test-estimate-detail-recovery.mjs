@@ -82,7 +82,8 @@ for(const hasSavedAppointment of [false,true]){
 }
 
 // Keep essential customer actions prominent while preserving every secondary job tool.
-const detailSource=fn.getText(ast),moreStart=detailSource.indexOf('<details className="detail-more-tools">'),moreEnd=detailSource.indexOf('</details>',moreStart),mainStart=detailSource.indexOf('<div className="detail-actions" aria-label="Customer and estimate actions">');
+let moreNode;function findMore(n){if(ts.isJsxElement(n)&&n.openingElement.tagName.getText(ast)==='details'&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(ast)==='className'&&p.initializer?.text==='detail-more-tools'))moreNode=n;ts.forEachChild(n,findMore);}findMore(fn);assert.ok(moreNode,'More tools disclosure exists');
+const detailSource=fn.getText(ast),moreStart=moreNode.getStart(ast)-fn.getStart(ast),moreEnd=moreNode.end-fn.getStart(ast),mainStart=detailSource.indexOf('<div className="detail-actions" aria-label="Customer and estimate actions">');
 eq(moreStart>mainStart&&moreEnd>moreStart,true,'Secondary job tools exist in their own expandable section');
 const primary=detailSource.slice(mainStart,moreStart),secondary=detailSource.slice(moreStart,moreEnd);
 for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','tel:','sms:'])eq(primary.includes(label),true,'Daily customer action available: '+label);
