@@ -2521,3 +2521,10 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 .estimate-pipeline-empty{display:flex;align-items:center;flex-wrap:wrap;gap:7px 10px;margin-top:16px;padding:12px;color:var(--foreground);font-size:13px}
 .estimate-pipeline-empty>svg{width:18px;height:18px;flex:none;color:var(--muted-foreground)}
 .estimate-pipeline-empty>small{flex:1 1 100%;color:var(--muted-foreground);padding-left:28px}
+
+/* Keep first-use estimates simple until the owner has records to search/filter. */
+.estimate-first-use-empty,.estimate-no-matches{display:flex;align-items:center;flex-wrap:wrap;gap:7px 10px;margin-top:14px;padding:12px;color:var(--foreground);font-size:13px}
+.estimate-first-use-empty>svg,.estimate-no-matches>svg{width:18px;height:18px;flex:none;color:var(--muted-foreground)}
+.estimate-first-use-empty>span,.estimate-no-matches>small{flex:1 1 100%;color:var(--muted-foreground);padding-left:28px}
+.estimate-no-matches>button{min-height:44px;padding:9px 13px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-weight:700;cursor:pointer}
+.estimate-no-matches>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
