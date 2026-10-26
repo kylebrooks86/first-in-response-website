@@ -73,7 +73,8 @@ export function TerritoryMap({online=true,book,disabled,save,onOpenCustomer,onOp
  useEffect(()=>{const id=requestAnimationFrame(()=>map.current?.resize());return()=>cancelAnimationFrame(id);},[expanded]);
  useEffect(()=>{if(ready)(map.current?.getSource('fire-places') as GeoJSONSource|undefined)?.setData(geo);},[ready,geo]);
  useEffect(()=>{if(ready)(map.current?.getSource('fire-draft') as GeoJSONSource|undefined)?.setData({type:'FeatureCollection',features:draft?[{type:'Feature',properties:{},geometry:{type:'Point',coordinates:[draft.point.lng,draft.point.lat]}}]:[]});},[ready,draft]);
- useEffect(()=>{setNote('');setRevisitOpen(false);setRevisitDate('');},[selected,book.revision]);
+ const selectedLastVisitId=current?.houseId?book.houses.find(h=>h.id===current.houseId)?.visits.at(-1)?.id:null;
+ useEffect(()=>{setNote('');setRevisitOpen(false);setRevisitDate('');},[selected,selectedLastVisitId]);
  const focus=(p:TerritoryPlace)=>{selectRef.current(p.key);if(p.point)map.current?.easeTo({center:[p.point.lng,p.point.lat],zoom:17});};
  const fitSaved=()=>{const instance=map.current;if(!instance||!ready)return;const pinned=visible.filter(p=>p.point).map(p=>p.point!);if(!pinned.length)return;
   if(pinned.length===1){instance.easeTo({center:[pinned[0].lng,pinned[0].lat],zoom:14});return;}
