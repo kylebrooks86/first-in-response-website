@@ -29,6 +29,12 @@ for(const width of [320,390,768])for(const theme of ['light','dark']){reset();aw
  check(await page.locator('.territory-places li').count()===2,'Ambiguous saved customer name reveals both matching locations');
  check((await page.locator('.territory-place-customer-names').allTextContents()).some(x=>x==='Second Unlocated Customer'),'Place directory displays the matching customer name next to each address');
  check(lookupRequests===0&&posts.length===0,'Ambiguous customer name causes no geocoder requests or writes');
+ const directCustomer=page.locator('.territory-places li').filter({hasText:'300 Synthetic Street'}).getByRole('button',{name:'Open Unlocated Customer customer profile'});
+ check(await directCustomer.isVisible(),'One linked customer opens directly from saved Places without opening a map card');
+ check(await directCustomer.evaluate(el=>{const r=el.getBoundingClientRect();return r.height>=44&&r.left>=0&&r.right<=innerWidth+1;}),'Customer shortcut has a full-size iPhone tap target');
+ await directCustomer.click();
+ check(await page.evaluate(()=>window.openCustomer)==='c2','Saved Places shortcut opens exact saved customer ID');
+ check(lookupRequests===0&&posts.length===0,'Direct customer navigation makes no geocoding requests or record changes');
  await topSearch.fill('301 Synthetic Street, Tulsa OK');await page.getByRole('button',{name:'Find',exact:true}).click();
  check((await page.getByRole('region',{name:'Selected place'}).locator('h2').textContent())==='301 Synthetic Street, Tulsa OK','Main search opens exact saved address without requiring a map pin');
  check(lookupRequests===0&&posts.length===0,'Searching an unpinned saved address never geocodes or saves');
