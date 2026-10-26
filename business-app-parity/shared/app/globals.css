@@ -2488,3 +2488,6 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 .territory-places li.territory-missing-row{display:flex;align-items:center;gap:6px;min-width:0}
 .territory-places li.territory-missing-row>button:first-child{flex:1 1 auto;min-width:0}
 .territory-places li.territory-missing-row>.territory-row-locate{flex:0 0 auto;width:auto;min-width:68px;min-height:44px;padding:7px 9px;font-weight:700}
+
+/* Keep customer-to-Territory navigation as a full-size compact iPhone tap target. */
+.customer-profile .customer-contact>button[aria-label="Show customer on Territory Map"]{min-height:44px;min-width:0;justify-content:center;text-align:center;white-space:normal;overflow-wrap:anywhere}
