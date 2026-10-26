@@ -55,7 +55,9 @@ function HouseVisit({house:h,compact,disabled,onSave,isJustAdded,focused,onFocus
  const visitButton=useRef<HTMLButtonElement>(null),article=useRef<HTMLElement>(null);
  const [detailsOpen,setDetailsOpen]=useState(isJustAdded||focused);
  const showDetails=!compact||detailsOpen;
- useEffect(()=>{if(focused||isJustAdded)setDetailsOpen(true);},[focused,isJustAdded]);
+ const previouslyAdded=useRef(isJustAdded);
+ useEffect(()=>{if(focused||isJustAdded)setDetailsOpen(true);else if(previouslyAdded.current)setDetailsOpen(false);previouslyAdded.current=isJustAdded;},[focused,isJustAdded]);
+ useEffect(()=>{if(compact&&!isJustAdded&&!focused)setDetailsOpen(false);},[compact]);
  useEffect(()=>{if(focused&&article.current){article.current.scrollIntoView({block:'center',behavior:'auto'});onFocused?.(h.id);}},[focused,h.id,onFocused]);
  useEffect(()=>{if(isJustAdded)visitButton.current?.scrollIntoView({block:'center',behavior:'auto'});},[isJustAdded]);
  useEffect(()=>{setStatus(last?.status??'not-contacted');setNote('');setFollowUpOn(last?.followUpOn??'');},[last?.id]);
