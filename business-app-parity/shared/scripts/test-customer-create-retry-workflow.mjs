@@ -57,7 +57,8 @@ export async function exerciseCustomerCreateRetry({page,context,origin,request,c
  const prev=await (await request('/api/backup')).json(),beforeEstimates=prev.tables.estimates.length;
  await form.getByRole('button',{name:'Save & estimate'}).click();
  await page.getByRole('dialog',{name:'Create estimate'}).waitFor();
- check(await page.getByRole('heading',{name:'Synthetic Instant Estimate Customer',exact:true}).count()===1,'Confirmed new customer opens the exact customer and estimate editor');
+ await page.locator('.customer-profile h1').filter({hasText:'Synthetic Instant Estimate Customer'}).waitFor({state:'attached'});
+ check(await page.locator('.customer-profile h1').textContent()==='Synthetic Instant Estimate Customer','Confirmed new customer opens the exact profile behind its modal estimate editor');
  backup=await (await request('/api/backup')).json();
  check(backup.tables.customers.filter(row=>row.name==='Synthetic Instant Estimate Customer').length===1,'Quick quote saves only one confirmed customer');
  check(backup.tables.estimates.length===beforeEstimates,'Opening wizard does not submit or approve an estimate');
