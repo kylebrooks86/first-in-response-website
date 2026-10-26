@@ -2491,3 +2491,8 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 
 /* Keep customer-to-Territory navigation as a full-size compact iPhone tap target. */
 .customer-profile .customer-contact>button[aria-label="Show customer on Territory Map"]{min-height:44px;min-width:0;justify-content:center;text-align:center;white-space:normal;overflow-wrap:anywhere}
+
+/* Optional, in-list customer/address search; map navigation and pin data are unaffected. */
+.territory-place-search{display:block;min-width:0;margin:4px 0 6px}
+.territory-place-search input{display:block;box-sizing:border-box;width:100%;min-width:0;min-height:44px;padding:8px 11px;border:1px solid var(--border);border-radius:9px;background:var(--background);color:var(--foreground);font-size:16px}
+.territory-place-search input:focus-visible{outline:3px solid var(--ring);outline-offset:1px}
