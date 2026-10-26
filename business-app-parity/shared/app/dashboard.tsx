@@ -12,7 +12,7 @@ import {estimateAttentionItems,type AttentionEstimate,type AttentionEstimateItem
 import {flagHasMatchingDueTask} from "../lib/attention-flag-dedupe";
 import {businessTaskContext,taskLinkedFlag} from "../lib/business-task-context";
 import {expenseDateInstant} from "../lib/expense-date";
-import {loadCustomerCreateRequest,saveCustomerCreateRequest,clearCustomerCreateRequest,confirmedCreatedCustomer,sameCustomerCreateInput,type CreatedCustomer,type CustomerCreateInput} from "../lib/customer-create-retry";
+import {loadCustomerCreateRequest,saveCustomerCreateRequest,clearCustomerCreateRequest,loadCustomerEstimateHandoff,saveCustomerEstimateHandoff,clearCustomerEstimateHandoff,confirmedCreatedCustomer,sameCustomerCreateInput,type CreatedCustomer,type CustomerCreateInput} from "../lib/customer-create-retry";
 import {completeEstimatePages} from "@/lib/estimate-pagination";
 import {hasCollectibleJobValue,summarizeCustomerBalances} from "@/lib/customer-balance-summary";
 
@@ -1186,27 +1186,36 @@ function AddCustomer({ onAdded,initialAddress,onAddressUsed }: { onAdded: (custo
   const [review,setReview]=useState<CreatedCustomer|null>(null);
   const requestId=useRef<string|null>(null),attempt=useRef<CustomerCreateInput|null>(null),saveLock=useRef(false),mounted=useRef(true),startEstimateAfterSave=useRef(false);
   const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
-  useEffect(()=>{mounted.current=true;const id=loadCustomerCreateRequest(storage());if(id){requestId.current=id;setPending(true);}return()=>{mounted.current=false;};},[]);
+  useEffect(()=>{mounted.current=true;const id=loadCustomerCreateRequest(storage());if(id){requestId.current=id;startEstimateAfterSave.current=loadCustomerEstimateHandoff(storage(),id);setPending(true);}return()=>{mounted.current=false;};},[]);
   const setOpenSafe=(value:boolean)=>{
     if(!value&&saveLock.current)return;
-    if(value){const id=requestId.current??loadCustomerCreateRequest(storage());if(id){requestId.current=id;setPending(true);setError("An earlier customer save needs confirmation. Check it before creating another customer.");}}
+    if(value){const id=requestId.current??loadCustomerCreateRequest(storage());if(id){requestId.current=id;startEstimateAfterSave.current=loadCustomerEstimateHandoff(storage(),id);setPending(true);setError("An earlier customer save needs confirmation. Check it before creating another customer.");}}
     setOpen(value);
   };
   useEffect(()=>{if(!initialAddress)return;if(!requestId.current){setAddress(initialAddress);setLeadSource("Door knocking");}setOpenSafe(true);onAddressUsed?.();},[initialAddress]);
   const finish=(customer:CreatedCustomer)=>{
-    const id=requestId.current;if(id)clearCustomerCreateRequest(storage(),id);
+    const id=requestId.current;
+    const startEstimate=Boolean(startEstimateAfterSave.current||id&&loadCustomerEstimateHandoff(storage(),id));
+    if(id){clearCustomerEstimateHandoff(storage(),id);clearCustomerCreateRequest(storage(),id);}
     requestId.current=null;attempt.current=null;setPending(false);setReview(null);setOpen(false);
     setName("");setEmail("");setPhone("");setAddress("");setLeadSource("Unknown");setError("");
-    onAdded(customer,startEstimateAfterSave.current);
     startEstimateAfterSave.current=false;
+    onAdded(customer,startEstimate);
   };
   const save=async(startEstimate=false)=>{
     if(saveLock.current)return;
     const input:CustomerCreateInput={name:name.trim(),email:email.trim(),phone:phone.trim(),address:address.trim(),leadSource};
     if(!pending&&!input.name){setError("Customer name is required.");return;}
-    if(!pending)startEstimateAfterSave.current=startEstimate;
     const id=requestId.current??crypto.randomUUID();
     if(!saveCustomerCreateRequest(storage(),id)){setError("FIRE could not preserve this save identifier, or another customer save needs review. Keep this form open and check browser storage before saving.");return;}
+    if(!pending){
+      if(startEstimate&&!saveCustomerEstimateHandoff(storage(),id)){
+        clearCustomerCreateRequest(storage(),id);
+        setError("Could not preserve the Save & estimate handoff. Check browser storage before trying again; no customer was sent.");return;
+      }
+      if(!startEstimate)clearCustomerEstimateHandoff(storage(),id);
+      startEstimateAfterSave.current=startEstimate;
+    }
     requestId.current=id;saveLock.current=true;setSaving(true);setError("");setReview(null);
     const wasPending=pending;
     if(!wasPending)attempt.current=input;
@@ -1238,7 +1247,7 @@ function AddCustomer({ onAdded,initialAddress,onAddressUsed }: { onAdded: (custo
     }catch(saveError){setError((saveError instanceof Error?saveError.message:"Customer save status is uncertain.")+" Check this SAME save before creating another record.");}
     finally{saveLock.current=false;setSaving(false);}
     if(confirmed&&mounted.current){
-      if(attempt.current&&!sameCustomerCreateInput(confirmed,attempt.current)){startEstimateAfterSave.current=false;setReview(confirmed);setError("The saved customer now has different details. Review the current record below; FIRE has not overwritten it.");}
+      if(attempt.current&&!sameCustomerCreateInput(confirmed,attempt.current)){clearCustomerEstimateHandoff(storage(),id);startEstimateAfterSave.current=false;setReview(confirmed);setError("The saved customer now has different details. Review the current record below; FIRE has not overwritten it.");}
       else finish(confirmed);
     }
   };
