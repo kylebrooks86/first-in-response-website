@@ -2613,3 +2613,8 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 /* Territory visits: render only first forty house cards, not every saved address at once. */
 .door-workspace .door-show-more{display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;width:100%;font-size:14px;font-weight:750;text-align:center}
 .door-workspace .door-show-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Door-to-door route: keep optional To knock selection compact on the iPhone. */
+.territory-places-tools .territory-next-door{min-height:44px;min-width:110px;padding:7px 12px;font-weight:750}
+.territory-places-tools .territory-next-door:disabled{opacity:.45;cursor:not-allowed}
+.territory-places-tools .territory-next-door:focus-visible{outline:3px solid var(--ring);outline-offset:2px}

@@ -220,6 +220,24 @@ await page.waitForFunction(()=>document.querySelectorAll('.territory-places li')
 check(posts.length===noSearchWrites,'Saved list search and navigation do not write pins, visits or customers');
 check(posts.length===writesBeforeResume,'Browsing saved places makes no customer or visit changes');
 bulkCustomers=0;
+// Real saved new houses remain read-only until an explicit visit outcome is logged.
+reset();book.houses.push(makeHouse(103,null,36.263,-95.859),makeHouse(104,null,36.272,-95.861));
+await page.goto(origin);await page.waitForFunction(()=>window.testMap?.getLayer('fire-pins'));
+const moreUnvisited=page.getByRole('button',{name:'More map filters'});
+await moreUnvisited.click();
+await page.getByRole('button',{name:'To knock · 2',exact:true}).click();
+check(await page.getByRole('button',{name:'To knock · 2',exact:true}).getAttribute('aria-pressed')==='true','Only new door-knocking locations are selected');
+check(await page.getByRole('button',{name:/^Places ·/}).getAttribute('aria-expanded')==='true','To knock opens the saved house list');
+check(await page.locator('.territory-places li').count()===2,'Completed, lead and do-not-knock houses stay out of To knock list');
+await page.evaluate(()=>window.testMap.jumpTo({center:[-95.862,36.273],zoom:14}));
+const beforeNextPosts=posts.length;
+await page.getByRole('button',{name:'Next unvisited house'}).click();
+await page.getByRole('region',{name:'Selected place'}).getByRole('heading',{name:'104 Synthetic St, Tulsa OK'}).waitFor();
+check(posts.length===beforeNextPosts,'Next house selects nearest saved pin without recording a visit');
+await page.getByRole('button',{name:'Next unvisited house'}).click();
+await page.getByRole('region',{name:'Selected place'}).getByRole('heading',{name:'103 Synthetic St, Tulsa OK'}).waitFor();
+check(posts.length===beforeNextPosts,'Repeated Next skips the selected door without extra writes');
+check(await page.getByRole('button',{name:'Next unvisited house'}).evaluate(el=>el.getBoundingClientRect().height>=44),'New field button has 44px mobile touch target');
 await page.evaluate(()=>{const data={type:'FeatureCollection',features:Array.from({length:1500},(_,i)=>({type:'Feature',properties:{key:'synthetic-'+i,color:'#2563eb'},geometry:{type:'Point',coordinates:[-95.99+(i%50)*.0001,36.15+Math.floor(i/50)*.0001]}}))};window.testMap.jumpTo({center:[-95.99,36.15],zoom:10});window.testMap.getSource('fire-places').setData(data);});
 await page.waitForFunction(()=>window.testMap.querySourceFeatures('fire-places').some(f=>f.properties.point_count>1));check(true,'Actual worker clusters 1,500 synthetic addresses');check(await page.locator('.maplibregl-marker').count()===0,'Thousands of pins do not create thousands of DOM markers');
 check(errors.length===0,'No React/map exceptions: '+errors.join(';'));

@@ -32,6 +32,19 @@ try{
  eq((await post({action:'locate',houseId:uid(1),point,requestId:uid(6),expectedRevision:book.revision})).status,200);book=await get();eq((await post({action:'visit',houseId:uid(1),status:'do-not-knock',note:'Owner request',requestId:uid(7),expectedRevision:book.revision})).status,200);book=await get();eq((await post({action:'visit',houseId:uid(1),status:'contacted',note:'',requestId:uid(8),expectedRevision:book.revision})).status,409,'Map quick action cannot bypass suppression');
  const records={customers:[{id:'customer-1',name:'Synthetic Owner',address:'100 Synthetic St., Tulsa OK'}],jobs:[{id:'j1',customerId:'customer-1',address:'100 Synthetic Street, Tulsa OK',status:'completed',addressVerified:true},{id:'j2',customerId:'customer-1',address:'100 Synthetic St, Tulsa OK',status:'sent',addressVerified:true},{id:'j3',customerId:'customer-1',address:'100 Synthetic St, Tulsa OK',status:'scheduled',addressVerified:true}]};
  let places=territory.territoryPlaces(book,records);eq(places.length,1,'Customer, jobs, formatted addresses and door history merge into one location');eq(places[0].category,'suppressed','Suppression always wins color priority');eq([...places[0].categories].sort(),['completed','customer','lead','suppressed']);eq(territory.territoryVisible(places,'lead').length,1,'Filters preserve independent underlying lead state');
+ const newHouses=[
+  {...book.houses[0],id:uid(91),address:'91 Synthetic Street, Owasso',addressKey:'91 synthetic street owasso',visits:[],location:{point:{lat:36.26,lng:-95.85}}},
+  {...book.houses[0],id:uid(92),address:'92 Synthetic Street, Owasso',addressKey:'92 synthetic street owasso',visits:[],location:{point:{lat:36.27,lng:-95.86}}},
+  {...book.houses[0],id:uid(93),address:'93 Synthetic Street, Owasso',addressKey:'93 synthetic street owasso',visits:[{id:uid(999),status:'do-not-knock',note:'',at:new Date().toISOString()}],location:{point:{lat:36.265,lng:-95.855}}}
+ ];
+ const newDoorPlaces=territory.territoryPlaces({revision:null,houses:newHouses},{customers:[],jobs:[]});
+ eq(territory.territoryVisible(newDoorPlaces,'unvisited').length,2,'To knock excludes do-not-knock and already visited homes');
+ eq(territory.nextUnvisitedTerritoryPlace(newDoorPlaces,{lat:36.269,lng:-95.861})?.houseId,uid(92),'Nearest never-visited saved pin selected near current map area');
+ eq(territory.nextUnvisitedTerritoryPlace(newDoorPlaces,{lat:36.269,lng:-95.861},newDoorPlaces.find(p=>p.houseId===uid(92))?.key)?.houseId,uid(91),'Next house skips already selected pin');
+ eq(territory.nextUnvisitedTerritoryPlace(newDoorPlaces.filter(p=>p.houseId===uid(93)),{lat:36.269,lng:-95.861}),null,'Suppressed house cannot be suggested');
+ eq(territory.nextUnvisitedTerritoryPlace(newDoorPlaces,{lat:NaN,lng:-95.861}),null,'Invalid device/map center refuses automatic next-house suggestion');
+ const customerClaim=territory.territoryPlaces({revision:null,houses:newHouses},{customers:[{id:'customer-91',name:'Saved customer',address:newHouses[0].address}],jobs:[]});
+ eq(territory.territoryVisible(customerClaim,'unvisited').length,1,'Saved customers do not appear as unvisited doors');
  const pendingPins=territory.territoryPlaces({revision:null,houses:[]},{customers:[{id:'needs-location',name:'New synthetic customer',address:'300 Synthetic St, Tulsa OK'}],jobs:[]});
  eq(territory.territoryVisible(pendingPins,'needs-pins').length,1,'New saved customer appears in Needs pins without re-entering address');
  eq(territory.territoryGeoJSON(territory.territoryVisible(pendingPins,'needs-pins')).features.length,0,'Unknown customer coordinate never invented on map');

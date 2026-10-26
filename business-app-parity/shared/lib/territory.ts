@@ -50,7 +50,18 @@ export function territoryPlaces(book:DoorBook,records:TerritoryRecords):Territor
  }
  return [...places.values()].sort((a,b)=>a.address.localeCompare(b.address));
 }
-export function territoryVisible(places:TerritoryPlace[],filter:string,today=doorTodayInTulsa()){return places.filter(p=>filter==='all'||filter==='needs-pins'&&Boolean(!p.point&&p.address.trim())||filter==='revisits'&&Boolean(p.revisitOn)||filter==='revisits-due'&&Boolean(p.revisitOn&&p.revisitOn<=today)||filter==='revisits-upcoming'&&Boolean(p.revisitOn&&p.revisitOn>today)||p.categories.includes(filter as TerritoryCategory));}
+/** Only door locations without a logged outcome or customer/job association are new doors. */
+export function territoryUnvisited(place:TerritoryPlace){return Boolean(place.houseId&&!place.visitStatus&&!place.customers.length&&!place.jobs.length&&!place.unverifiedJobs&&!place.categories.length);}
+/** Pure read-only next-door selection. A missing coordinate cannot be guessed. */
+export function nextUnvisitedTerritoryPlace(places:readonly TerritoryPlace[],center:{lat:number;lng:number},excludeKey?:string|null){
+ if(!Number.isFinite(center.lat)||!Number.isFinite(center.lng))return null;
+ const candidates=places.filter(p=>territoryUnvisited(p)&&p.point&&p.key!==excludeKey);
+ return candidates.reduce<TerritoryPlace|null>((best,p)=>{
+  const dist=(place:TerritoryPlace)=>{const lat=place.point!.lat-center.lat,lng=(place.point!.lng-center.lng)*Math.cos(center.lat*Math.PI/180);return lat*lat+lng*lng;};
+  return !best||dist(p)<dist(best)?p:best;
+ },null);
+}
+export function territoryVisible(places:TerritoryPlace[],filter:string,today=doorTodayInTulsa()){return places.filter(p=>filter==='all'||filter==='unvisited'&&territoryUnvisited(p)||filter==='needs-pins'&&Boolean(!p.point&&p.address.trim())||filter==='revisits'&&Boolean(p.revisitOn)||filter==='revisits-due'&&Boolean(p.revisitOn&&p.revisitOn<=today)||filter==='revisits-upcoming'&&Boolean(p.revisitOn&&p.revisitOn>today)||p.categories.includes(filter as TerritoryCategory));}
 /** Read-only due revisit routes: three new stops per link for mobile Google Maps.
  * Continuations start at the prior destination, preserving every stop. */
 export function dueTerritoryRouteGroups(places:readonly TerritoryPlace[],today:string){
