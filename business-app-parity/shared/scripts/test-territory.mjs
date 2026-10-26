@@ -41,12 +41,16 @@ try{
  const revisits=territory.territoryPlaces({revision:null,houses:[revisitHouse]},records);
  eq(revisits[0].revisitOn,'2020-01-01','Latest explicit follow-up date appears in merged map record');
  eq(territory.territoryVisible(revisits,'revisits').length,1,'Revisits filter includes saved follow-up houses');
+ eq(territory.territoryVisible(revisits,'revisits-due','2026-10-25').length,1,'Due-only filter includes overdue saved visit dates');
+ eq(territory.territoryVisible(revisits,'revisits-upcoming','2026-10-25').length,0,'Due follow-ups never appear as upcoming');
  eq(territory.territoryGeoJSON(revisits,model.doorTodayInTulsa()).features[0].properties.revisitDue,true,'Due revisit gets independent amber ring flag');
  eq(revisits[0].category,'customer','Revisit does not overwrite existing customer pin color');
  eq(territory.territoryCardStatus(revisits[0]).includes('Revisit 2020-01-01'),true,'Map detail names exact saved follow-up date');
  const futureRevisit={...revisitHouse,visits:[{...revisitHouse.visits[0],followUpOn:'2099-12-31'}]};
  const upcoming=territory.territoryPlaces({revision:null,houses:[futureRevisit]},records);
  eq(territory.territoryVisible(upcoming,'revisits').length,1,'Upcoming revisits remain visible in filter');
+ eq(territory.territoryVisible(upcoming,'revisits-due','2026-10-25').length,0,'Future revisit not falsely due');
+ eq(territory.territoryVisible(upcoming,'revisits-upcoming','2026-10-25').length,1,'Future revisit is available for planning');
  eq(territory.territoryGeoJSON(upcoming,model.doorTodayInTulsa()).features[0].properties.revisitDue,false,'Upcoming date cannot be marked overdue');
  const clearedRevisit={...revisitHouse,visits:[...revisitHouse.visits,{id:uid(889),status:'contacted',at:new Date().toISOString(),note:''}]};
  eq(territory.territoryVisible(territory.territoryPlaces({revision:null,houses:[clearedRevisit]},records),'revisits').length,0,'New contact clears outdated pending revisit');

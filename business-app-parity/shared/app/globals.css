@@ -2456,3 +2456,7 @@ html[data-theme="dark"] .territory-offline details>small,html[data-theme="dark"]
 .territory .territory-legend .territory-revisit-key{background:transparent!important;border:3px solid #d97706;box-sizing:border-box;border-radius:50%}
 .territory .territory-card .territory-revisit-note{font-weight:700;color:#a45b08}
 html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color:#fdba74}
+
+/* Fit current filtered locations without limiting nearby cities. */
+.territory .territory-directory-row .territory-fit-pins{min-height:44px;white-space:nowrap;flex:0 0 auto}
+.territory .territory-directory-row .territory-fit-pins:disabled{opacity:.5}

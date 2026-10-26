@@ -50,7 +50,7 @@ export function territoryPlaces(book:DoorBook,records:TerritoryRecords):Territor
  }
  return [...places.values()].sort((a,b)=>a.address.localeCompare(b.address));
 }
-export function territoryVisible(places:TerritoryPlace[],filter:string){return places.filter(p=>filter==='all'||filter==='revisits'&&Boolean(p.revisitOn)||p.categories.includes(filter as TerritoryCategory));}
+export function territoryVisible(places:TerritoryPlace[],filter:string,today=doorTodayInTulsa()){return places.filter(p=>filter==='all'||filter==='revisits'&&Boolean(p.revisitOn)||filter==='revisits-due'&&Boolean(p.revisitOn&&p.revisitOn<=today)||filter==='revisits-upcoming'&&Boolean(p.revisitOn&&p.revisitOn>today)||p.categories.includes(filter as TerritoryCategory));}
 export function territoryGeoJSON(places:TerritoryPlace[],today=doorTodayInTulsa()){return {type:'FeatureCollection' as const,features:places.filter(p=>p.point).map(p=>({type:'Feature' as const,geometry:{type:'Point' as const,coordinates:[p.point!.lng,p.point!.lat]},properties:{key:p.key,label:p.category?TERRITORY_CATEGORIES[p.category].label:'Not visited',color:p.category?TERRITORY_CATEGORIES[p.category].color:'#334155',revisitDue:Boolean(p.revisitOn&&p.revisitOn<=today)}}))};}
 
 export function validTerritoryRecords(v:unknown):v is TerritoryRecords{
