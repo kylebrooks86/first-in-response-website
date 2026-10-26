@@ -53,5 +53,13 @@ export async function exerciseCustomerCreateRetry({page,context,origin,request,c
  backup=await (await request('/api/backup')).json();
  check(['Synthetic Name Only Lost Response','Synthetic Reload Customer','Synthetic No Commit Customer','Synthetic Reentered Customer'].every(name=>backup.tables.customers.filter(row=>row.name===name).length===1),'All fault scenarios retain exactly one customer each');
  check(!validateRecordIdentities(backup.tables)&&!validateBackupRelationships(backup.tables)&&!validateRefundIntegrity(backup.tables),'Create recovery preserves valid backup identities, relationships and financial history');
+ await customers();form=await open();await form.getByLabel('Customer name',{exact:true}).fill('Synthetic Instant Estimate Customer');
+ const prev=await (await request('/api/backup')).json(),beforeEstimates=prev.tables.estimates.length;
+ await form.getByRole('button',{name:'Save & estimate'}).click();
+ await page.getByRole('dialog',{name:'Create estimate'}).waitFor();
+ check(await page.getByRole('heading',{name:'Synthetic Instant Estimate Customer',exact:true}).count()===1,'Confirmed new customer opens the exact customer and estimate editor');
+ backup=await (await request('/api/backup')).json();
+ check(backup.tables.customers.filter(row=>row.name==='Synthetic Instant Estimate Customer').length===1,'Quick quote saves only one confirmed customer');
+ check(backup.tables.estimates.length===beforeEstimates,'Opening wizard does not submit or approve an estimate');
  await context.unroute('**/api/customers',intercept);await context.unroute('**/api/customers/confirmation?*',read);
 }

@@ -613,7 +613,7 @@ function parseDiscountCents(raw:string,mode:DiscountMode,maxPercent=50):number|n
   if(mode==='percent'&&cents>maxPercent*100)return null;
   return cents;
 }
-function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClosed }: { onSaved?: (estimate: EstimateRow) => void; customer?: CustomerRow;disabledReason?:string;propertySelection?:PropertyEstimateSelection|null;propertyWorkflowReady?:boolean;onClosed?:()=>void }) {
+function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClosed,openOnMount=false,onAutoOpened }: { onSaved?: (estimate: EstimateRow) => void; customer?: CustomerRow;disabledReason?:string;propertySelection?:PropertyEstimateSelection|null;propertyWorkflowReady?:boolean;onClosed?:()=>void;openOnMount?:boolean;onAutoOpened?:()=>void }) {
   const [open, setOpen] = useState(false);
   const pricing=useServicePricing(open);
   const services=pricing.services;
@@ -810,6 +810,8 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
     }
   };
 
+  // Launch the original verified estimate flow once. No write or implicit booking.
+  useEffect(()=>{if(openOnMount){reset(true);onAutoOpened?.();}},[]);
   return <Dialog open={open} onOpenChange={reset}>
     <DialogTrigger asChild><Button className="brand-button" title={disabledReason}><Plus className="h-4 w-4" /> New estimate</Button></DialogTrigger>
     <DialogContent aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto border-0 p-0 sm:max-w-[620px]">
@@ -1177,12 +1179,12 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
   );
 }
 
-function AddCustomer({ onAdded,initialAddress,onAddressUsed }: { onAdded: (customer: CustomerRow) => void;initialAddress?:string;onAddressUsed?:()=>void }) {
+function AddCustomer({ onAdded,initialAddress,onAddressUsed }: { onAdded: (customer: CustomerRow, startEstimate?:boolean) => void;initialAddress?:string;onAddressUsed?:()=>void }) {
   const [open,setOpen]=useState(false);
   const [name,setName]=useState("");const [email,setEmail]=useState("");const [phone,setPhone]=useState("");const [address,setAddress]=useState("");
   const [leadSource,setLeadSource]=useState("Unknown");const [saving,setSaving]=useState(false);const [pending,setPending]=useState(false);const [error,setError]=useState("");
   const [review,setReview]=useState<CreatedCustomer|null>(null);
-  const requestId=useRef<string|null>(null),attempt=useRef<CustomerCreateInput|null>(null),saveLock=useRef(false),mounted=useRef(true);
+  const requestId=useRef<string|null>(null),attempt=useRef<CustomerCreateInput|null>(null),saveLock=useRef(false),mounted=useRef(true),startEstimateAfterSave=useRef(false);
   const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
   useEffect(()=>{mounted.current=true;const id=loadCustomerCreateRequest(storage());if(id){requestId.current=id;setPending(true);}return()=>{mounted.current=false;};},[]);
   const setOpenSafe=(value:boolean)=>{
@@ -1195,12 +1197,14 @@ function AddCustomer({ onAdded,initialAddress,onAddressUsed }: { onAdded: (custo
     const id=requestId.current;if(id)clearCustomerCreateRequest(storage(),id);
     requestId.current=null;attempt.current=null;setPending(false);setReview(null);setOpen(false);
     setName("");setEmail("");setPhone("");setAddress("");setLeadSource("Unknown");setError("");
-    onAdded(customer);
+    onAdded(customer,startEstimateAfterSave.current);
+    startEstimateAfterSave.current=false;
   };
-  const save=async()=>{
+  const save=async(startEstimate=false)=>{
     if(saveLock.current)return;
     const input:CustomerCreateInput={name:name.trim(),email:email.trim(),phone:phone.trim(),address:address.trim(),leadSource};
     if(!pending&&!input.name){setError("Customer name is required.");return;}
+    if(!pending)startEstimateAfterSave.current=startEstimate;
     const id=requestId.current??crypto.randomUUID();
     if(!saveCustomerCreateRequest(storage(),id)){setError("FIRE could not preserve this save identifier, or another customer save needs review. Keep this form open and check browser storage before saving.");return;}
     requestId.current=id;saveLock.current=true;setSaving(true);setError("");setReview(null);
@@ -1234,7 +1238,7 @@ function AddCustomer({ onAdded,initialAddress,onAddressUsed }: { onAdded: (custo
     }catch(saveError){setError((saveError instanceof Error?saveError.message:"Customer save status is uncertain.")+" Check this SAME save before creating another record.");}
     finally{saveLock.current=false;setSaving(false);}
     if(confirmed&&mounted.current){
-      if(attempt.current&&!sameCustomerCreateInput(confirmed,attempt.current)){setReview(confirmed);setError("The saved customer now has different details. Review the current record below; FIRE has not overwritten it.");}
+      if(attempt.current&&!sameCustomerCreateInput(confirmed,attempt.current)){startEstimateAfterSave.current=false;setReview(confirmed);setError("The saved customer now has different details. Review the current record below; FIRE has not overwritten it.");}
       else finish(confirmed);
     }
   };
@@ -1249,7 +1253,7 @@ function AddCustomer({ onAdded,initialAddress,onAddressUsed }: { onAdded: (custo
         <details className="customer-create-source"><summary>Lead source · {leadSource}</summary><div><Label>How they found FIRE</Label><Select disabled={saving||pending} value={leadSource} onValueChange={setLeadSource}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Unknown","Facebook","Google","Referral","Website","Repeat customer","Door knocking","Other"].map(source=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div></details>
         {error&&<p className="save-error" role="alert">{error}</p>}
         {review&&<div className="record-card" role="region" aria-label="Saved customer to review"><strong>{review.name}</strong><p>{[review.email,review.phone,review.address].filter(Boolean).join(" · ")}</p><Button className="brand-button" onClick={()=>finish(review)}>Open saved customer</Button></div>}
-        {!review&&<Button className="brand-button" onClick={()=>void save()} disabled={saving}>{saving?"Checking customer…":pending?attempt.current?"Check / retry same customer save":"Check previous save":"Save customer"}</Button>}
+        {!review&&<div className="flex flex-wrap gap-2"><Button className="brand-button min-h-11 flex-1 basis-40" onClick={()=>void save()} disabled={saving}>{saving?"Checking customer…":pending?attempt.current?"Check / retry same customer save":"Check previous save":"Save customer"}</Button>{!pending&&<Button type="button" className="min-h-11 flex-1 basis-40" variant="outline" disabled={saving} onClick={()=>void save(true)}>Save &amp; estimate</Button>}</div>}
       </div>
     </DialogContent>
   </Dialog>;
@@ -2190,6 +2194,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [showUnansweredLeadsOnly,setShowUnansweredLeadsOnly]=useState(false);
   const [showDueCallbacksOnly,setShowDueCallbacksOnly]=useState(false);
   const [directorySearch,setDirectorySearch]=useState("");
+  const [estimateAfterCreateId,setEstimateAfterCreateId]=useState<string|null>(null);
   const [directoryLimit,setDirectoryLimit]=useState(40);
   useEffect(()=>{setDirectoryLimit(40);},[directorySearch,searchQuery,showDueCallbacksOnly,showUnansweredLeadsOnly]);
   const [timelineShown,setTimelineShown]=useState(6);
@@ -2560,7 +2565,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     {refreshIssue&&<div className="customer-flag-next" role="alert"><AlertTriangle aria-hidden="true"/><span><strong>Customer activity needs refreshing</strong><small>A saved change could not be rechecked. Review current records before acting on these statuses.</small></span><Button variant="outline" onClick={()=>void load()}>Refresh customer history</Button></div>}
     <section className="customer-profile">
       {recordFocusError&&<p role="alert">{recordFocusError}</p>}
-      <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><h1>{selected.name}</h1></div><div className="profile-head-actions"><NewEstimate key={selected.id} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /><details className="customer-header-more"><summary>More actions</summary><div className="customer-header-more-items"><Button variant="outline" onClick={()=>{const target=document.getElementById(`customer-history-${selected.id}`);target?.scrollIntoView({block:"start"});target?.focus({preventScroll:true});}}>Customer history</Button><EditCustomer key={selected.id} customer={selected} onUpdated={(updated)=>{setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item));void load(true);}}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div></details></div></div>
+      <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><h1>{selected.name}</h1></div><div className="profile-head-actions"><NewEstimate key={selected.id} openOnMount={estimateAfterCreateId===selected.id} onAutoOpened={()=>setEstimateAfterCreateId(null)} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /><details className="customer-header-more"><summary>More actions</summary><div className="customer-header-more-items"><Button variant="outline" onClick={()=>{const target=document.getElementById(`customer-history-${selected.id}`);target?.scrollIntoView({block:"start"});target?.focus({preventScroll:true});}}>Customer history</Button><EditCustomer key={selected.id} customer={selected} onUpdated={(updated)=>{setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item));void load(true);}}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div></details></div></div>
       <div className="customer-contact" role="group" aria-label="Customer contact and driving links">
         {contactPhone&&<a href={"tel:"+contactPhone} aria-label="Call customer"><Phone />Call</a>}
         {contactPhone&&<a href={"sms:"+contactPhone} aria-label="Text customer"><Send />Text</a>}
@@ -2701,7 +2706,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     </section>
   </div>;
   return <div className="customers-view">
-    <section className="customers-head"><div><h1>Customers</h1></div><AddCustomer initialAddress={createAtAddress} onAddressUsed={onCreateStarted} onAdded={(customer) => { setCustomers((current) => [customer, ...current.filter(item=>item.id!==customer.id)]); setSelectedId(customer.id);void load(true); }} /></section>
+    <section className="customers-head"><div><h1>Customers</h1></div><AddCustomer initialAddress={createAtAddress} onAddressUsed={onCreateStarted} onAdded={(customer,startEstimate) => { setCustomers((current) => [customer, ...current.filter(item=>item.id!==customer.id)]); if(startEstimate)setEstimateAfterCreateId(customer.id); setSelectedId(customer.id);void load(true); }} /></section>
     {(dueReviewChecks.length>0||flaggedSignCustomers.length>0)&&<details className="customer-secondary-reminders">
       <summary>Reviews &amp; yard signs <span>{dueReviewChecks.length} review checks · {flaggedSignCustomers.length} signs</span></summary>
       <div className="customer-secondary-reminder-list">
