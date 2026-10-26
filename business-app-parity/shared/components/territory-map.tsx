@@ -86,13 +86,39 @@ export function TerritoryMap({online=true,focusAddress,onFocusAddressHandled,boo
   const minLng=Math.min(...pinned.map(p=>p.lng)),maxLng=Math.max(...pinned.map(p=>p.lng)),minLat=Math.min(...pinned.map(p=>p.lat)),maxLat=Math.max(...pinned.map(p=>p.lat));
   instance.fitBounds([[minLng,minLat],[maxLng,maxLat]],{padding:42,maxZoom:15,duration:0});
  };
- const search=async(address=query,automatic=false)=>{if(searching||!address.trim())return;const known=places.find(p=>p.key===houseKey(address)&&p.point);if(known){focus(known);return;}
-  // The main search also opens already-saved customers, without geocoding their names.
-  // Never guess an address when more than one saved location matches a name.
-  if(!automatic){const name=address.trim().toLocaleLowerCase();const exact=places.filter(p=>p.customers.some(c=>c.name.trim().toLocaleLowerCase()===name));const matches=exact.length?exact:name.length>=3&&!/[\d,]/.test(name)?places.filter(p=>p.customers.some(c=>c.name.toLocaleLowerCase().includes(name))):[];
-   if(matches.length===1){setSearchError('');focus(matches[0]);return;}
-   if(matches.length>1){setSearchError('');setPlaceQuery(address.trim());setShowPlaces(true);setListLimit(60);setSelected(null);return;}
-  }if(!online){setSearchError('Address lookup needs internet. Use Drop pin.');return;}setSearching(true);setSearchError('');try{const r=await fetch('/api/territory/search',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({address})});const v=await r.json() as {matches?:{address:string;point:DoorPoint}[];error?:string};if(!r.ok)throw Error(v.error||'Lookup unavailable.');const match=v.matches?.[0];if(!match)throw Error('No match. Long-press the map to place it.');if(!alive.current)return;setDraft({point:match.point,address,matched:match.address,...(automatic?{source:'auto' as const}:{})});setSelected(null);map.current?.easeTo({center:[match.point.lng,match.point.lat],zoom:17});}catch(e){if(alive.current){setSearchError(e instanceof Error?e.message:'Lookup unavailable.');if(automatic)changeAutoFind(false);}}finally{if(alive.current)setSearching(false);}};
+ const search=async(address=query,automatic=false)=>{
+  const entered=address.trim();
+  if(searching||!entered)return;
+  // Exact saved addresses and customers are local reads, including unpinned homes.
+  // Do not send a saved customer's name or address through geocoding again.
+  const localExact=places.find(p=>p.key===houseKey(entered));
+  if(localExact){setSearchError('');setFilter('all');focus(localExact);return;}
+  if(!automatic){
+   const normalized=entered.toLocaleLowerCase();
+   const exactNames=places.filter(p=>p.customers.some(c=>c.name.trim().toLocaleLowerCase()===normalized));
+   const localMatches=exactNames.length?exactNames:normalized.length>=3?places.filter(p=>p.address.toLocaleLowerCase().includes(normalized)||p.customers.some(c=>c.name.toLocaleLowerCase().includes(normalized))):[];
+   if(localMatches.length===1){setSearchError('');setFilter('all');focus(localMatches[0]);return;}
+   if(localMatches.length>1){setSearchError('');setFilter('all');setPlaceQuery(entered);setShowPlaces(true);setListLimit(60);setSelected(null);return;}
+   // New addresses need a street number; a customer's unmatched name never leaves the browser.
+   if(!/^(?:[NSEW]\\.?\\s+)?\\d{1,6}\\s+[A-Za-z]/i.test(entered)){
+    setSearchError('No saved match. Enter a numbered street address to look up a new place.');
+    return;
+   }
+  }
+  if(!online){setSearchError('Address lookup needs internet. Use Drop pin.');return;}
+  setSearching(true);setSearchError('');
+  try{
+   const r=await fetch('/api/territory/search',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({address})});
+   const v=await r.json() as {matches?:{address:string;point:DoorPoint}[];error?:string};
+   if(!r.ok)throw Error(v.error||'Lookup unavailable.');
+   const match=v.matches?.[0];
+   if(!match)throw Error('No match. Long-press the map to place it.');
+   if(!alive.current)return;
+   setDraft({point:match.point,address,matched:match.address,...(automatic?{source:'auto' as const}:{})});
+   setSelected(null);map.current?.easeTo({center:[match.point.lng,match.point.lat],zoom:17});
+  }catch(e){if(alive.current){setSearchError(e instanceof Error?e.message:'Lookup unavailable.');if(automatic)changeAutoFind(false);}}
+  finally{if(alive.current)setSearching(false);}
+ };
  useEffect(()=>{if(!draft)return;const h=book.houses.find(h=>h.addressKey===houseKey(draft.address));if(h?.location?.point&&h.location.point.lat===draft.point.lat&&h.location.point.lng===draft.point.lng){setSelected(h.addressKey);setDraft(null);}},[book,draft]);
  const existingDraft=draft?places.find(p=>p.key===houseKey(draft.address)):null;
  // Unlocated customer and job addresses need an explicit owner-reviewed lookup.
