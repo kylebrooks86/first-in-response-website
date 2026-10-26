@@ -78,6 +78,14 @@ for(const width of [320,390,768])for(const theme of ['light','dark']){reset();aw
  await page.getByRole('button',{name:/^Due ·/}).click();
  await page.waitForFunction(async()=>{const d=await window.testMap.getSource('fire-places')?.getData();return d?.features?.length===1&&d.features[0].properties.revisitDue===true;});
  check(await page.getByRole('button',{name:/^Due ·/}).getAttribute('aria-pressed')==='true','Due-only filter narrows to overdue house');
+ check(await page.getByRole('button',{name:/^Places ·/}).getAttribute('aria-expanded')==='true','Due tap opens saved addresses without a second tap');
+ check(await page.locator('.territory-places li.territory-due-row').count()===1,'Only due addresses get quick directions');
+ const dueRoute=page.getByRole('link',{name:'Directions to 100 Synthetic Street, Tulsa OK'});
+ check(await dueRoute.count()===1,'Due house has a direct route shortcut');
+ const dueHref=await dueRoute.getAttribute('href');
+ check(dueHref?.includes('google.com/maps/dir/')&&dueHref.includes('destination='),'Due route carries the saved map location');
+ check(posts.length===0,'Reviewing due routes does not change visit history');
+ await page.getByRole('button',{name:/^Places ·/}).click();
  await page.getByRole('button',{name:'All',exact:true}).click();
  await page.getByRole('button',{name:'Show all visible pins'}).click();
  check(await page.evaluate(()=>{const b=window.testMap.getBounds();return [[-95.99,36.15],[-96,36.16],[-96.01,36.17]].every(p=>b.contains(p));}),'Show pins fits every current saved synthetic house');

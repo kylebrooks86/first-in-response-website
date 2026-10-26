@@ -2528,3 +2528,9 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 .estimate-first-use-empty>span,.estimate-no-matches>small{flex:1 1 100%;color:var(--muted-foreground);padding-left:28px}
 .estimate-no-matches>button{min-height:44px;padding:9px 13px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-weight:700;cursor:pointer}
 .estimate-no-matches>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Due-revisit field shortcuts: only due rows offer a direct 44px route link. */
+.territory-places li.territory-due-row{display:flex;align-items:stretch;flex-wrap:wrap;gap:5px;min-width:0}
+.territory-places li.territory-due-row>.territory-place-open{flex:1 1 100%;min-width:0}
+.territory .territory-places li.territory-due-row>.territory-row-directions{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:95px;padding:7px 12px;text-decoration:none;font-weight:750}
+.territory .territory-place-summary{display:block;margin:7px 0 2px;font-size:12px;color:var(--muted-foreground)}
