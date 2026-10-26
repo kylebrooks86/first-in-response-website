@@ -29,7 +29,7 @@ export async function exerciseDoorKnocking({page,origin,request,check}){
  check(true,'Dashboard callback alert opens the exact saved house in the actual mobile app');
  await page.getByLabel('Show houses').selectOption('unvisited');check(await house.count()===0,'Built tracker excludes visited home from never-visited view');
  await page.getByRole('button',{name:'Map',exact:true}).click();
- await page.getByRole('button',{name:/Saved places/}).click();
+ await page.getByRole('button',{name:/^Places ·/}).click();
  await page.locator('.territory-places button').filter({hasText:'999 Native Synthetic Lane, Tulsa'}).click();
  await page.getByRole('region',{name:'Selected place'}).getByRole('button',{name:'Create customer',exact:true}).click();
  const customerDialog=page.getByRole('dialog',{name:'Add customer',exact:true});await customerDialog.waitFor();
