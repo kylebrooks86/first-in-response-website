@@ -2460,3 +2460,9 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 /* Fit current filtered locations without limiting nearby cities. */
 .territory .territory-directory-row .territory-fit-pins{min-height:44px;white-space:nowrap;flex:0 0 auto}
 .territory .territory-directory-row .territory-fit-pins:disabled{opacity:.5}
+
+/* Fast follow-up scheduling stays inside the existing verified house visit workflow. */
+.territory-revisit-editor{display:flex;align-items:end;flex-wrap:wrap;gap:8px;min-width:0}
+.territory-revisit-editor label{flex:1 1 160px;min-width:0}
+.territory-revisit-editor input{width:100%;min-width:0;min-height:44px;font-size:16px;padding:6px 9px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground)}
+.territory-revisit-editor button{min-height:44px}
