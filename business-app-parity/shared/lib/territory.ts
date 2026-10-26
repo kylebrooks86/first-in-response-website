@@ -51,6 +51,22 @@ export function territoryPlaces(book:DoorBook,records:TerritoryRecords):Territor
  return [...places.values()].sort((a,b)=>a.address.localeCompare(b.address));
 }
 export function territoryVisible(places:TerritoryPlace[],filter:string,today=doorTodayInTulsa()){return places.filter(p=>filter==='all'||filter==='needs-pins'&&Boolean(!p.point&&p.address.trim())||filter==='revisits'&&Boolean(p.revisitOn)||filter==='revisits-due'&&Boolean(p.revisitOn&&p.revisitOn<=today)||filter==='revisits-upcoming'&&Boolean(p.revisitOn&&p.revisitOn>today)||p.categories.includes(filter as TerritoryCategory));}
+/** Read-only due revisit routes: three new stops per link for mobile Google Maps.
+ * Continuations start at the prior destination, preserving every stop. */
+export function dueTerritoryRouteGroups(places:readonly TerritoryPlace[],today:string){
+ const rows=places.filter(p=>p.revisitOn&&p.revisitOn<=today&&p.address.trim()).slice()
+  .sort((a,b)=>a.revisitOn!.localeCompare(b.revisitOn!)||a.address.localeCompare(b.address));
+ const target=(p:TerritoryPlace)=>p.point&&Number.isFinite(p.point.lat)&&Number.isFinite(p.point.lng)?
+  p.point.lat+','+p.point.lng:p.address.trim();
+ return Array.from({length:Math.ceil(rows.length/3)},(_,index)=>{
+  const group=rows.slice(index*3,(index+1)*3),previous=index>0?rows[index*3-1]:null;
+  const origin=previous?'&origin='+encodeURIComponent(target(previous)):'';
+  const waypoints=group.length>1?'&waypoints='+group.slice(0,-1).map(p=>encodeURIComponent(target(p))).join('%7C'):'';
+  return {start:index*3+1,end:index*3+group.length,count:rows.length,
+   url:'https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate'+origin+
+   '&destination='+encodeURIComponent(target(group[group.length-1]))+waypoints};
+ });
+}
 export function territoryGeoJSON(places:TerritoryPlace[],today=doorTodayInTulsa()){return {type:'FeatureCollection' as const,features:places.filter(p=>p.point).map(p=>({type:'Feature' as const,geometry:{type:'Point' as const,coordinates:[p.point!.lng,p.point!.lat]},properties:{key:p.key,label:p.category?TERRITORY_CATEGORIES[p.category].label:'Not visited',color:p.category?TERRITORY_CATEGORIES[p.category].color:'#334155',revisitDue:Boolean(p.revisitOn&&p.revisitOn<=today)}}))};}
 
 export function validTerritoryRecords(v:unknown):v is TerritoryRecords{

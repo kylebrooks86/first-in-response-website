@@ -2603,3 +2603,9 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .schedule-booking-search>small{font-size:12px;color:var(--muted-foreground)}
 .schedule-choose-job>.schedule-booking-more{width:100%;justify-content:center;text-align:center}
 .schedule-booking-search input:focus-visible,.schedule-booking-search button:focus-visible,.schedule-booking-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Owner-selected due revisits use mobile-safe, read-only Google Maps route links. */
+.territory-due-routes{display:flex;flex-wrap:wrap;gap:6px;min-width:0;margin:4px 0 8px}
+.territory-due-routes>a{display:inline-flex;flex:1 1 150px;justify-content:center;align-items:center;min-width:0;min-height:44px;padding:8px 11px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;text-align:center;overflow-wrap:anywhere;text-decoration:none}
+.territory-due-routes>small{flex:1 1 100%;color:var(--muted-foreground);font-size:12px;line-height:1.5}
+.territory-due-routes>a:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
