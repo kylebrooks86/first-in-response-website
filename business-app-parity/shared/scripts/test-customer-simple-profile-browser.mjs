@@ -137,7 +137,7 @@ try{
   await row.waitFor();await activityDisclosure.waitFor();
   check(await row.getByRole('link',{name:'Call customer'}).getAttribute('href')==='tel:+19185550101',width+': existing phone destination');
   check(await row.getByRole('link',{name:'Text customer'}).getAttribute('href')==='sms:+19185550101',width+': existing SMS destination');
-  check(await row.getByRole('link',{name:'Email customer'}).getAttribute('href')==='mailto:synthetic@example.invalid',width+': existing mail destination');
+  check(await row.getByRole('link',{name:'Email customer'}).getAttribute('href')==='mailto:synthetic%40example.invalid',width+': existing mail destination');
   check((await row.getByRole('link',{name:'Directions to customer in Google Maps'}).getAttribute('href')).includes('destination=123%20Synthetic%20Rd'),width+': maps destination preserved');
   await row.getByRole('button',{name:'Show customer on Territory Map'}).click();
   check(await page.evaluate(()=>window.__openedTerritory)==='123 Synthetic Rd, Tulsa, OK',width+': territory shortcut reuses exact saved customer address without typing');
