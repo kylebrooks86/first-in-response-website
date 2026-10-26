@@ -250,8 +250,8 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await page.goto(origin+'/schedule');await page.locator('.schedule-planning-more > summary').click();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).click();
   check(await page.locator('.schedule-job-weather-action').count()===5,'Every upcoming scheduled job has a direct weather review action');
    check(await page.locator('.schedule-job-customer-action').count()===4,'Scheduled jobs show direct customer links only for saved customer IDs');
-   check(await page.getByRole('button',{name:'Open today-late customer profile'}).count()===0,'Missing customer ID never guesses a customer profile');
-   await page.getByRole('button',{name:'Open today-morning customer profile'}).click();
+   check(await page.getByRole('button',{name:'View today-late profile'}).count()===0,'Missing customer ID never guesses a customer profile');
+   await page.getByRole('button',{name:'View today-morning profile'}).click();
    check(await page.evaluate(()=>window.openedCustomer)==='first','Schedule customer shortcut opens exact saved customer without changing job');
   const prep=page.getByRole('group',{name:'Upcoming job details to review'});
   check((await prep.innerText()).includes('upcoming jobs')&&!(await prep.innerText()).includes('overdue-open'),'Job-prep summary uses upcoming verified jobs, not overdue or completed records');
@@ -419,7 +419,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   const nextJob=page.getByRole('region',{name:'Next scheduled job'});
   check((await nextJob.innerText()).includes('Exact customer')&&!(await nextJob.innerText()).includes('Declined customer'),'Next appointment card identifies the correct active customer');
   check((await nextJob.innerText()).includes('Exact job'),'Next appointment card includes selected service');
-   await nextJob.getByRole('button',{name:'Open Exact customer customer profile'}).click();
+   await nextJob.getByRole('button',{name:'View Exact customer profile'}).click();
    check(await page.evaluate(()=>window.openedCustomer)==='first','Home next-job customer name opens exact saved customer profile');
   const contactDisclosure=nextJob.locator('details.dashboard-next-contact-tools');
   check(await contactDisclosure.count()===1,'Next appointment keeps contact options in one menu');
