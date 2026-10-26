@@ -7,7 +7,10 @@ const require=createRequire(import.meta.url);
 const source=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='InvoicesView');
+const stateNames=[];function scan(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&n.initializer&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')stateNames.push(n.name.elements[0].getText(ast));ts.forEachChild(n,scan);}scan(view);
+const index=name=>{const i=stateNames.indexOf(name);assert.ok(i>=0,'Expected '+name+' state');return i;};
 let state=[],refs=[],cursor=0,refCursor=0,effect,requests=[],responder;
+const get=name=>state[index(name)],reset=(rows,loading,error)=>{state=[];state[index('rows')]=rows;state[index('loading')]=loading;state[index('error')]=error;};
 const Button=()=>null,RecordPayment=()=>null,Receipt=()=>null,ExternalLink=()=>null;
 const context={exports:{},require,Error,Array,Button,RecordPayment,Receipt,ExternalLink,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],value=>{state[i]=typeof value==='function'?value(state[i]):value;}];},
@@ -16,7 +19,7 @@ const context={exports:{},require,Error,Array,Button,RecordPayment,Receipt,Exter
 vm.runInNewContext(ts.transpileModule(view.getText(ast)+'\nexports.view=InvoicesView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
 function render(searchQuery=''){cursor=0;refCursor=0;return context.exports.view({searchQuery});}
 function nodes(tree){const result=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;result.push(n);walk(n.props?.children);}walk(tree);return result;}
-async function settle(){for(let i=0;i<16;i++)await Promise.resolve();assert.equal(state[1],false,'Load must settle');}
+async function settle(){for(let i=0;i<16;i++)await Promise.resolve();assert.equal(get('loading'),false,'Load must settle');}
 const ok=invoices=>({ok:true,json:async()=>({invoices})});
 const prior=[{id:'invoice-synthetic',estimateId:'job-synthetic',customer:'Synthetic QA',service:'House Wash',status:'sent',estimateStatus:'completed',depositCents:5000,totalCents:10000,paidCents:2000,shareToken:'synthetic-token'}];
 let checks=0;function equal(a,b){assert.equal(a,b);checks++;}
@@ -39,31 +42,31 @@ const failures=[
  [()=>{throw 'connection failed';},'Invoices could not be loaded.'],
 ];
 for(const [fail,message] of failures)for(const populated of [false,true]){
- state=[populated?prior:[],true,''];requests=[];responder=fail;
+ reset(populated?prior:[],true,'');requests=[];responder=fail;
  equal(nodes(render()).some(n=>n.type===RecordPayment),false);
- effect();await settle();equal(state[2],message);equal(state[0].length,populated?1:0);
+ effect();await settle();equal(get('error'),message);equal(get('rows').length,populated?1:0);
  const all=nodes(render());const alert=all.find(n=>n.props?.role==='alert');assert.ok(alert);checks++;
  equal(alert.props.children[0].props.children,message);
  equal(all.some(n=>n.type===RecordPayment),false);
  equal(all.some(n=>n.props?.className==='invoice-list'),false);
  equal(all.some(n=>n.props?.children==='No invoices yet'),false);
  // Actual retry handler fetches the endpoint again and restores loaded records.
- responder=()=>ok(prior);requests=[];alert.props.children[1].props.onClick();await settle();equal(state[2],'');equal(requests.length,1);equal(requests[0],'/api/invoices');
+ responder=()=>ok(prior);requests=[];alert.props.children[1].props.onClick();await settle();equal(get('error'),'');equal(requests.length,1);equal(requests[0],'/api/invoices');
  const recovered=nodes(render());equal(recovered.some(n=>n.props?.role==='alert'),false);
  const action=recovered.find(n=>n.type===RecordPayment);assert.ok(action);checks++;
  equal(action.props.estimate.id,'job-synthetic');equal(action.props.estimate.status,'completed');equal(action.props.estimate.depositCents,5000);equal(action.props.estimate.paidCents,2000);
  equal(recovered.find(n=>n.type==='a').props.href,'/invoice/synthetic-token?ownerPreview=1&from=invoices');
 }
 // Search misses must not imply that loaded invoice records don't exist.
-state=[prior,false,''];let all=nodes(render('no-match'));equal(all.some(n=>n.props?.children==='No matching invoices'),true);equal(all.some(n=>n.props?.children==='No invoices yet'),false);
+reset(prior,false,'');let all=nodes(render('no-match'));equal(all.some(n=>n.props?.children==='No matching invoices'),true);equal(all.some(n=>n.props?.children==='No invoices yet'),false);
 for(const term of ['SYNTHETIC','house wash','sent'])equal(nodes(render(term)).some(n=>n.props?.className==='invoice-list'),true);
-state=[[],true,''];responder=()=>ok([]);render();effect();await settle();all=nodes(render());equal(all.some(n=>n.props?.children==='No invoices yet'),true);equal(all.some(n=>n.props?.children==='No matching invoices'),false);
+reset([],true,'');responder=()=>ok([]);render();effect();await settle();all=nodes(render());equal(all.some(n=>n.props?.children==='No invoices yet'),true);equal(all.some(n=>n.props?.children==='No matching invoices'),false);
 // Preserve zero invoices, string-to-number conversion, and payment refresh callback.
-state=[[],true,''];responder=()=>ok([{...prior[0],totalCents:'0',paidCents:null}]);render();effect();await settle();equal(state[0][0].totalCents,0);equal(state[0][0].paidCents,0);
+reset([],true,'');responder=()=>ok([{...prior[0],totalCents:'0',paidCents:null}]);render();effect();await settle();equal(get('rows')[0].totalCents,0);equal(get('rows')[0].paidCents,0);
 const action=nodes(render()).find(n=>n.type===RecordPayment);requests=[];action.props.onRecorded();await settle();equal(requests.length,1);equal(requests[0],'/api/invoices');
 // Decimal integer strings from D1 are valid, and fractional cents are not
 // discarded by Number coercion or rounded to a whole dollar.
-state=[[],true,''];responder=()=>ok([{...prior[0],totalCents:'10001',paidCents:'5001',depositCents:'5000'}]);render();effect();await settle();
-equal(state[2],'');equal(state[0][0].totalCents,10001);equal(state[0][0].paidCents,5001);equal(state[0][0].depositCents,5000);
+reset([],true,'');responder=()=>ok([{...prior[0],totalCents:'10001',paidCents:'5001',depositCents:'5000'}]);render();effect();await settle();
+equal(get('error'),'');equal(get('rows')[0].totalCents,10001);equal(get('rows')[0].paidCents,5001);equal(get('rows')[0].depositCents,5000);
 equal(nodes(render()).some(n=>n.type===RecordPayment),true);
 console.log(`PASS ${checks}/${checks}: actual invoice load/error/retry and payment-refresh handlers cover HTTP/network/JSON/malformed failures, preserve old records, hide stale payment actions, recover loaded invoices, distinguish search misses from no invoices, and retain zero totals and invoice links. Mocked reads only.`);
