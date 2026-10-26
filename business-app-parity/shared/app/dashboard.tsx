@@ -7,6 +7,7 @@ import {EstimatePromotionHistory} from "../components/estimate-promotion-history
 import {businessReceiptStorage,readBusinessReceipt,reserveBusinessReceipt,releaseBusinessReceipt,type BusinessCreateKind} from "../lib/business-create-receipt";
 import {taskDueBucket} from "../lib/task-due";
 import {tightScheduleTurnarounds} from "../lib/schedule-turnarounds";
+import {usableCustomerPhone,usableCustomerEmail} from "../lib/customer-contact-links";
 import {estimateAttentionItems,type AttentionEstimate,type AttentionEstimateItem} from "../lib/attention-estimates";
 import {flagHasMatchingDueTask} from "../lib/attention-flag-dedupe";
 import {businessTaskContext,taskLinkedFlag} from "../lib/business-task-context";
@@ -2337,6 +2338,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     onActivityFocusHandled?.(activityFocus.request);
   },[activityFocus,selectedId,loading,error,offlinePhotoOnly]);
   const selected = customers.find((customer) => customer.id === selectedId) ?? null;
+  const contactPhone=usableCustomerPhone(selected?.phone),contactEmail=usableCustomerEmail(selected?.email);
   const customerEstimates = estimates.filter((estimate) => estimate.customerId === selectedId);
   const customerNotes = notes.filter((note)=>note.customerId === selectedId);
   const manualFlags=deriveCustomerManualFlags(customerNotes);
@@ -2557,12 +2559,13 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       {recordFocusError&&<p role="alert">{recordFocusError}</p>}
       <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><h1>{selected.name}</h1></div><div className="profile-head-actions"><NewEstimate key={selected.id} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /><details className="customer-header-more"><summary>More actions</summary><div className="customer-header-more-items"><Button variant="outline" onClick={()=>{const target=document.getElementById(`customer-history-${selected.id}`);target?.scrollIntoView({block:"start"});target?.focus({preventScroll:true});}}>Customer history</Button><EditCustomer key={selected.id} customer={selected} onUpdated={(updated)=>{setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item));void load(true);}}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div></details></div></div>
       <div className="customer-contact" role="group" aria-label="Customer contact and driving links">
-        {selected.phone&&<a href={`tel:${selected.phone}`} aria-label="Call customer"><Phone />Call</a>}
-        {selected.phone&&<a href={`sms:${selected.phone}`} aria-label="Text customer"><Send />Text</a>}
-        {selected.email&&<a href={`mailto:${selected.email}`} aria-label="Email customer"><Mail />Email</a>}
+        {contactPhone&&<a href={"tel:"+contactPhone} aria-label="Call customer"><Phone />Call</a>}
+        {contactPhone&&<a href={"sms:"+contactPhone} aria-label="Text customer"><Send />Text</a>}
+        {contactEmail&&<a href={"mailto:"+encodeURIComponent(contactEmail)} aria-label="Email customer"><Mail />Email</a>}
         {selected.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selected.address)}&travelmode=driving`} target="_blank" rel="noopener noreferrer" aria-label="Directions to customer in Google Maps"><Navigation />Google Maps</a>}
         {selected.address&&onOpenTerritory&&<button type="button" aria-label="Show customer on Territory Map" onClick={()=>onOpenTerritory(selected.address)}><MapPin aria-hidden="true"/> Territory</button>}
         {!selected.phone&&!selected.email&&!selected.address&&<small className="customer-contact-empty">No contact or address saved · use Edit customer to add details</small>}
+        {(selected.phone&&!contactPhone||selected.email&&!contactEmail)&&<small className="customer-contact-warning" role="status">Check {selected.phone&&!contactPhone?"phone":""}{selected.phone&&!contactPhone&&selected.email&&!contactEmail?" and ":""}{selected.email&&!contactEmail?"email":""} in Edit customer.</small>}
         {selected.address&&<div className="customer-property-research" role="group" aria-label="Property research for estimates">
           <a href={`https://www.zillow.com/homes/${encodeURIComponent(selected.address.trim().replace(/\s+/g,"-"))}_rb/`} target="_blank" rel="noopener noreferrer" aria-label="Research customer property on Zillow"><House aria-hidden="true"/> Zillow</a>
           <a href={`https://earth.google.com/web/search/${encodeURIComponent(selected.address)}`} target="_blank" rel="noopener noreferrer" aria-label="Research customer property on Google Earth"><Globe2 aria-hidden="true"/> Google Earth</a>
