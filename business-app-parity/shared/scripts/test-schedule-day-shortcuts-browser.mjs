@@ -20,6 +20,9 @@ assert.ok(!scheduleMarkup.includes('Last checked'),'No oversized last-check time
 assert.ok(scheduleMarkup.includes('aria-label="Refresh schedule"'),'Small refresh control remains accessible');
 assert.ok(scheduleMarkup.includes('ScheduleMonthCalendar'),'Real monthly calendar remains in schedule');
 assert.ok(scheduleMarkup.includes('className="workspace-view schedule-view"'),'Compact Schedule layout uses its own styles');
+assert.ok(scheduleMarkup.indexOf('ScheduleMonthCalendar')<scheduleMarkup.indexOf('className="schedule-day-actions"'),'Selected-day actions follow the calendar');
+assert.ok(scheduleMarkup.indexOf('className="schedule-day-actions"')<scheduleMarkup.indexOf('className="schedule-board"'),'Schedule and route buttons appear before long job lists on iPhone');
+assert.ok(scheduleMarkup.includes('selectedDaySavedJobs.length===1?"job":"jobs"'),'Compact selected-day count has correct singular/plural text');
 const actualMonth=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ScheduleMonthCalendar');
 assert.ok(actualMonth,'Test actual monthly calendar and its saved dates');
 const monthlyComponent=actualMonth.getText(ast);
