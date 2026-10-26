@@ -1,3 +1,5 @@
+import {protectPrivateDeviceJournal,recoverPrivateDeviceJournal} from './local-customer-backup';
+
 /** Experimental local-only customer draft repository.
  * This module is not used by customer screens or the server; it sends NO requests,
  * does not claim an installed PWA will cold-launch, and must not store real records
@@ -92,7 +94,7 @@ export async function openOfflineCustomerRepository(identity:{target:LocalCustom
    tx.onabort=()=>reject(problem??tx.error??Error('Local storage interrupted. Prior records are unchanged.'));
   });
  }
- return {
+ const core = {
   namespace,close,
   getCustomer:(id:string)=>readOne<LocalCustomer>('customers',id),
   listCustomers:async()=>(await readAll<LocalCustomer>('customers')).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id)),
@@ -179,5 +181,21 @@ export async function openOfflineCustomerRepository(identity:{target:LocalCustom
     tx.onabort=()=>reject(problem??tx.error??Error('Local restore interrupted. Existing records unchanged.'));
    });
   },
+ };
+ /** Portable archive protection for this isolated synthetic prototype.
+  * Encryption protects EXPORTED bytes only; the IndexedDB prototype is still
+  * plaintext and MUST NOT be wired to real customer screens or automatic sync.
+  * Reuse the existing account/target and full atomic restore validation. */
+ const verifyArchive=(value:unknown):LocalCustomerSnapshot=>{
+  if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Invalid local customer archive.');
+  const item=value as Partial<LocalCustomerSnapshot>;
+  if(item.format!==FORMAT||item.namespace!==namespace||item.encrypted!==false||item.serverConfirmed!==false)
+   throw Error('Local customer archive does not match this owner or deployment.');
+  return value as LocalCustomerSnapshot;
+ };
+ return {
+  ...core,
+  exportEncryptedSnapshot:async(phrase:string)=>protectPrivateDeviceJournal(await core.exportSnapshot(),phrase,verifyArchive),
+  restoreEncryptedSnapshot:async(archive:unknown,phrase:string)=>core.restoreSnapshot(await recoverPrivateDeviceJournal(archive,phrase,verifyArchive)),
  };
 }
