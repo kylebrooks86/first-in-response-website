@@ -3185,6 +3185,11 @@ function ScheduleView({ searchQuery,onNavigate,onOpenCustomer }:{searchQuery:str
 
 function InvoicesView({searchQuery,focusInvoiceId,onFocusHandled}:{searchQuery:string;focusInvoiceId?:string|null;onFocusHandled?:(id:string)=>void}) {
   const [rows,setRows]=useState<InvoiceRow[]>([]);
+  const [invoiceSearch,setInvoiceSearch]=useState("");
+  const [attentionOnly,setAttentionOnly]=useState(false);
+  const [invoiceLimit,setInvoiceLimit]=useState(40);
+  useEffect(()=>{setInvoiceLimit(40);},[invoiceSearch,searchQuery,attentionOnly]);
+  const needsInvoiceAttention=(invoice:InvoiceRow)=>invoice.totalCents>Number(invoice.paidCents??0)||Boolean(invoice.paymentReviewPending)||Number(invoice.paymentOverageOpen)>0||Number(invoice.pendingRefundCount??0)>0;
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const loadRequest=useRef(0);
@@ -3220,11 +3225,22 @@ function InvoicesView({searchQuery,focusInvoiceId,onFocusHandled}:{searchQuery:s
     if(!focusInvoiceId||loading||error)return;
     const invoice=rows.find(row=>row.id===focusInvoiceId);
     if(!invoice){setError("The selected invoice is unavailable. Refresh the invoice list or check your connection.");onFocusHandled?.(focusInvoiceId);return;}
+    if(invoiceSearch||attentionOnly||invoiceLimit<rows.length){setInvoiceSearch("");setAttentionOnly(false);setInvoiceLimit(rows.length);}
     const element=document.getElementById('invoice-'+invoice.id);
     if(element){element.scrollIntoView({block:"center"});element.focus({preventScroll:true});onFocusHandled?.(focusInvoiceId);}
-  },[focusInvoiceId,loading,error,rows]);
-  const visible=rows.filter((row)=>[row.customer,row.service,row.status].join(" ").toLowerCase().includes(searchQuery.toLowerCase()));
-  return <div className="workspace-view"><section className="workspace-head"><div><h1>Invoices</h1></div></section>{loading?<div className="customers-state">Loading invoices…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visible.length?<section className="invoice-list">{visible.map((invoice)=>{const estimate={id:invoice.estimateId,customer:invoice.customer||"Customer",service:invoice.service||"Service",status:invoice.estimateStatus,depositCents:invoice.depositCents,totalCents:invoice.totalCents,paidCents:Number(invoice.paidCents??0)};return <article className="invoice-card" id={`invoice-${invoice.id}`} tabIndex={-1} key={invoice.id}><span className="invoice-icon"><Receipt/></span><div><strong>{invoice.customer}</strong><small>{invoice.service} · Invoice #{invoice.id.slice(0,6).toUpperCase()}</small></div><span className={`status-chip ${(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"partial":invoice.status}`}>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Payment review":statusLabel(invoice.status)}</span><div className="invoice-total"><strong>{money(invoice.totalCents)}</strong><small>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Billing exception open":`${money(Math.max(0,invoice.totalCents-Number(invoice.paidCents??0)))} balance`}</small></div><div className="invoice-actions">{invoice.shareToken&&<a href={`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=invoices`}><ExternalLink/>Open</a>}<RecordPayment key={estimate.id} estimate={estimate} onRecorded={()=>void load()}/></div></article>;})}</section>:<div className="customers-state"><Receipt/><strong>{rows.length?"No matching invoices":"No invoices yet"}</strong><p>{rows.length?"Try another customer, service, or status.":"Open an estimate and choose Create invoice."}</p></div>}</div>;
+  },[focusInvoiceId,loading,error,rows,invoiceSearch,attentionOnly,invoiceLimit]);
+  const visible=rows.filter(row=>
+    (!attentionOnly||needsInvoiceAttention(row))&&
+    [searchQuery,invoiceSearch].every(term=>[row.customer,row.service,row.status].join(" ").toLowerCase().includes(term.trim().toLowerCase()))
+  );
+  return <div className="workspace-view invoices-view"><section className="workspace-head"><div><h1>Invoices</h1></div></section>
+    {!loading&&!error&&rows.length>0&&<div className="invoice-directory-tools">
+      <label className="invoice-directory-search"><span className="sr-only">Find saved invoice</span><input type="search" aria-label="Find saved invoice" maxLength={128} value={invoiceSearch} onChange={event=>setInvoiceSearch(event.target.value)} placeholder="Find customer or service"/></label>
+      <button type="button" className={attentionOnly?"active":""} aria-pressed={attentionOnly} onClick={()=>setAttentionOnly(value=>!value)}>Needs attention · {rows.filter(needsInvoiceAttention).length}</button>
+      {(invoiceSearch||attentionOnly)&&<button type="button" onClick={()=>{setInvoiceSearch("");setAttentionOnly(false);}}>Clear filters</button>}
+      <small role="status">{visible.length} of {rows.length} invoices</small>
+    </div>}
+    {loading?<div className="customers-state">Loading invoices…</div>:error?<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>:visible.length?<><section className="invoice-list">{visible.slice(0,invoiceLimit).map((invoice)=>{const estimate={id:invoice.estimateId,customer:invoice.customer||"Customer",service:invoice.service||"Service",status:invoice.estimateStatus,depositCents:invoice.depositCents,totalCents:invoice.totalCents,paidCents:Number(invoice.paidCents??0)};return <article className="invoice-card" id={`invoice-${invoice.id}`} tabIndex={-1} key={invoice.id}><span className="invoice-icon"><Receipt/></span><div><strong>{invoice.customer}</strong><small>{invoice.service} · Invoice #{invoice.id.slice(0,6).toUpperCase()}</small></div><span className={`status-chip ${(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"partial":invoice.status}`}>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Payment review":statusLabel(invoice.status)}</span><div className="invoice-total"><strong>{money(invoice.totalCents)}</strong><small>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Billing exception open":`${money(Math.max(0,invoice.totalCents-Number(invoice.paidCents??0)))} balance`}</small></div><div className="invoice-actions">{invoice.shareToken&&<a href={`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=invoices`}><ExternalLink/>Open</a>}<RecordPayment key={estimate.id} estimate={estimate} onRecorded={()=>void load()}/></div></article>;})}</section>{visible.length>invoiceLimit&&<button type="button" className="invoice-directory-more" onClick={()=>setInvoiceLimit(n=>Math.min(n+40,visible.length))}>Show next {Math.min(40,visible.length-invoiceLimit)} invoices · {visible.length-invoiceLimit} remaining</button>}</>:<div className="customers-state"><Receipt/><strong>{rows.length?"No matching invoices":"No invoices yet"}</strong><p>{rows.length?"Change the search or clear Needs attention to see all invoices.":"Open an estimate and choose Create invoice."}</p>{rows.length>0&&(invoiceSearch||attentionOnly)&&<Button variant="outline" onClick={()=>{setInvoiceSearch("");setAttentionOnly(false);}}>Show all invoices</Button>}</div>}</div>;
 }
 
 function ContractsView({searchQuery,embedded=false}:{searchQuery:string;embedded?:boolean}){

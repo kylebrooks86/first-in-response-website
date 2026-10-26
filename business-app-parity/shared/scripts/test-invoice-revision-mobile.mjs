@@ -46,3 +46,26 @@ const saveButton=nodes(render()).find(n=>n.type===context.Button&&n.props.childr
 saveButton.props.onClick();await new Promise(resolve=>setImmediate(resolve));
 check('Actual save callback preserves invoice PATCH payload, due date, discount and line arithmetic',()=>{assert.equal(requests,1);assert.equal(sent.url,'/api/invoices/synthetic-invoice');assert.equal(sent.method,'PATCH');assert.equal(sent.body.items[0].totalCents,24075);assert.equal(sent.body.items[1].totalCents,10000);assert.equal(sent.body.discountType,'percent');assert.equal(sent.body.discountValue,1000);assert.equal(sent.body.dueAt,'2026-11-20');assert.equal(savedTotal,30668);assert.equal(state[0],false);});
 console.log(`PASS: ${checks}/${checks} actual revision-handler/static-render/CSS checks; synthetic invoice PATCH only; no browser layout, real network or deployed verification.`);
+
+// Invoice list controls are presentation-only; exercise the actual attention predicate.
+{
+ const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='InvoicesView');assert.ok(view);
+ const declaration=view.body.statements.filter(ts.isVariableStatement).flatMap(n=>n.declarationList.declarations).find(n=>n.name.getText(ast)==='needsInvoiceAttention');assert.ok(declaration);
+ const ctx={exports:{}};vm.runInNewContext(ts.transpileModule('exports.action='+declaration.initializer.getText(ast)+';', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,ctx);
+ const due=ctx.exports.action;
+ check('Open invoices and payment exceptions remain visible; settled invoices are not overdue',()=>{
+  assert.equal(due({totalCents:20000,paidCents:10000}),true);
+  assert.equal(due({totalCents:20000,paidCents:20000}),false);
+  assert.equal(due({totalCents:20000,paidCents:20000,paymentReviewPending:true}),true);
+  assert.equal(due({totalCents:20000,paidCents:20000,paymentOverageOpen:1}),true);
+  assert.equal(due({totalCents:20000,paidCents:20000,pendingRefundCount:1}),true);
+ });
+ check('Invoice search and incremental results preserve all payment and direct-navigation handlers',()=>{
+  const code=view.getText(ast);
+  assert.ok(code.includes('visible.slice(0,invoiceLimit)'));
+  assert.ok(code.includes('setInvoiceLimit(n=>Math.min(n+40,visible.length))'));
+  assert.ok(code.includes('setInvoiceLimit(rows.length)'));
+  assert.ok(code.includes('onRecorded={()=>void load()}'));
+  assert.ok(code.includes('onFocusHandled?.(focusInvoiceId)'));
+ });
+}
