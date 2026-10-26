@@ -93,7 +93,7 @@ for(const failure of failures)for(const selected of [false,true]){
  eq(cards().length,85,'Last page reveals all saved customers without another server request');
  f.set('directorySearch','Owasso');
  eq(cards().length,1,'Local quick-find narrows by saved address, not API search');
- eq(cards()[0].props.key,'dir-66','Quick-find opens the correct saved ID');
+ eq(cards()[0].key,'dir-66','Quick-find opens the correct saved ID');
  const clear=nodes(f.render()).find(n=>n.props?.className==='customer-directory-clear');
  eq(Boolean(clear),true,'Quick-find clear action is discoverable');
  clear.props.onClick();

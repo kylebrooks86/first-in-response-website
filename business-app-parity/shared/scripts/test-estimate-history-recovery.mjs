@@ -11,6 +11,18 @@ function fixture(){let state=[],refs=[],cursor=0,ref=0,fetcher,effects=[];const 
  const render=()=>{cursor=0;ref=0;effects=[];return context.exports.view({searchQuery:'',onSaved(){}});};render();const set=(key,v)=>state[names.indexOf(key)]=v,get=key=>state[names.indexOf(key)];return {render,set,get,requests,fetch:f=>fetcher=f,load:(append=false)=>context.exports.load(append),button:label=>nodes(render()).find(n=>n.props?.onClick&&n.props.children===label),cleanup:()=>effects.find(f=>String(f).includes('setTimeout'))()};
 }
 let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
+// Scheduled jobs need to be reachable in one tap, not behind advanced filters.
+{
+ const f=fixture();f.set('rows',[{...row('scheduled-one'),status:'scheduled'}]);f.set('loading',false);
+ const tree=nodes(f.render());
+ const filter=tree.find(n=>n.props?.['aria-label']==='Filter saved estimates by status');
+ assert.ok(filter,'Primary saved-estimate filters visible');checks++;
+ const buttons=nodes(filter).filter(n=>n.type==='button').map(n=>String(n.props?.children));
+ eq(buttons.includes('scheduled'),true,'Scheduled is a primary one-tap status');
+ const details=tree.find(n=>n.props?.className==='estimate-filter-more');
+ assert.ok(details);checks++;
+ eq(nodes(details).filter(n=>n.type==='button').map(n=>n.props.children).includes('scheduled'),false,'Scheduled not duplicated behind More statuses');
+}
 const failures=[()=>Promise.reject(Error('Offline')),()=>({ok:false,json:async()=>({error:'Denied'})}),()=>({ok:true,json:async()=>{throw Error('Unreadable');}}),()=>({ok:true,json:async()=>null}),()=>ok([null]),()=>ok([{}]),()=>ok([row('a'),row('a')]),()=>ok([row('a')],{}),()=>ok([row('a')],''),()=>ok([], 'next'),()=>ok([row('a')], 'x'.repeat(513)),()=>ok([{...row('a'),totalCents:'bad'}]),()=>ok([{...row('a'),paidCents:null}]),()=>ok([{...row('a'),invoiceTotalCents:Infinity}]),()=>ok([{...row('a'),depositCents:1.2}]),()=>ok(Array.from({length:51},(_,i)=>row(String(i))))];
 for(const mode of ['pipeline','list'])for(const fail of failures){
  const f=fixture();f.set('rows',[row('old')]);f.set('selected',row('old'));f.set('view',mode);f.set('nextCursor','old-cursor');f.set('loading',false);f.render();f.fetch(fail);await f.load();eq(f.get('rows')[0].id,'old','Failure preserves cached source rows');assert.ok(f.get('error'));checks++;
