@@ -2475,3 +2475,8 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 .territory-extra-filters button{font-size:12px;padding:7px 9px}
 .territory-extra-filters button[aria-pressed=true]{background:#223850;color:#fff;border-color:#223850}
 .territory-extra-filters button:focus-visible{outline:3px solid #e52d38;outline-offset:2px}
+
+/* Advanced location management stays one tap away from the full-width map. */
+.territory-places-tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:3px 0 6px}
+.territory-places-tools .territory-auto-note{flex:1 1 100%}
+.territory-places-tools button{min-height:44px}
