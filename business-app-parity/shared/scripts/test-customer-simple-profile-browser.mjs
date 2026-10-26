@@ -15,6 +15,17 @@ const source=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const customerViewAst=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='CustomersView');
 assert.ok(customerViewAst,'Find actual CustomersView source function');
+const directoryFn=customerViewAst.body.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='matchesCustomerDirectory');
+assert.ok(directoryFn,'Extract the real customer-directory matcher from CustomersView');
+const directoryContext={exports:{}};
+vm.runInNewContext(ts.transpileModule(directoryFn.getText(ast)+'\nexports.match=matchesCustomerDirectory;',{
+ compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
+}).outputText,directoryContext);
+const match=directoryContext.exports.match;
+const contact={name:'Synthetic Customer',email:'owner@example.invalid',phone:'(918) 555-0147',address:'123 Test Street, Tulsa'};
+for(const [query,want] of [['Synthetic',true],['EXAMPLE.INVALID',true],['Tulsa',true],['555-0147',true],['9185550147',true],['0147',true],['(918) 555',true],['0148',false],['147',false],['Unknown',false],['',true],['   ',true]]){
+ assert.equal(match(contact,query),want,'Actual customer search handles '+JSON.stringify(query));
+}
 const priorityFn=customerViewAst.body.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='pickCustomerNextEstimate');
 assert.ok(priorityFn,'Extract the real customer next-job prioritizer, not a test reimplementation');
 const priorityContext={exports:{},Date,resolvedBillingTotalCents:row=>row.totalCents};

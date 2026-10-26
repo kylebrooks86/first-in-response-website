@@ -1991,6 +1991,17 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
 
 
 function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSection="estimates",onFocusHandled,focusRecord,recordRequestKey=0,onRecordFocusHandled,onPreparePickupTask,onPrepareReviewTask,activityFocus,onActivityFocusHandled,createAtAddress,onCreateStarted,onOpenTerritory }: { onOpenTerritory?:(address:string)=>void;createAtAddress?:string;onCreateStarted?:()=>void;onEstimateSaved: (estimate: EstimateRow) => void; searchQuery: string;focusCustomerId?:string|null;focusSection?:"estimates"|"invoices"|"payments"|"notes";focusRecord?:CustomerRecordFocus|null;recordRequestKey?:number;onRecordFocusHandled?:(id:string)=>void;onFocusHandled?:(id:string)=>void;onPreparePickupTask?:(draft:YardSignPickupDraft)=>void;onPrepareReviewTask?:(draft:ReviewCheckDraft)=>void;activityFocus?:{customerId:string;kind:"sign"|"review";request:number}|null;onActivityFocusHandled?:(request:number)=>void }) {
+  /** Search saved contact fields as entered, and accept the last four or more
+   * phone digits without requiring matching parentheses, dashes or spaces.
+   * Numeric address searches still use the ordinary text match. */
+  function matchesCustomerDirectory(customer:Pick<CustomerRow,"name"|"email"|"phone"|"address">,query:string){
+    const term=query.trim().toLocaleLowerCase();
+    if(!term)return true;
+    if([customer.name,customer.email,customer.phone,customer.address].join(" ").toLocaleLowerCase().includes(term))return true;
+    if(!/^[+()\d.\s-]+$/.test(term))return false;
+    const digits=term.replace(/\D/g,"");
+    return digits.length>=4&&customer.phone.replace(/\D/g,"").includes(digits);
+  }
   /** Choose the next saved appointment, not whichever quote happens to be first in the API response. */
   function pickCustomerNextEstimate(rows:CustomerEstimate[],now:number):CustomerEstimate|undefined{
     const dated=rows.filter(row=>row.status==="scheduled"&&typeof row.scheduledAt==="string"&&Number.isFinite(Date.parse(row.scheduledAt)))
@@ -2496,7 +2507,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const filteredCustomers = customers.filter((customer)=>
     (!showUnansweredLeadsOnly||manuallyUnansweredLeadIds.has(customer.id))&&
     (!showDueCallbacksOnly||dueLeadCallbackIds.has(customer.id))&&
-    [searchQuery,directorySearch].every(term=>[customer.name,customer.email,customer.phone,customer.address].join(" ").toLowerCase().includes(term.trim().toLowerCase()))
+    [searchQuery,directorySearch].every(term=>matchesCustomerDirectory(customer,term))
   );
   const activeCustomerEstimate=pickCustomerNextEstimate(customerEstimates,Date.now());
   const customerBalances=summarizeCustomerBalances(customerEstimates);
