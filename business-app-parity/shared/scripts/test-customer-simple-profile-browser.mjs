@@ -142,6 +142,10 @@ try{
   await row.getByRole('button',{name:'Show customer on Territory Map'}).click();
   check(await page.evaluate(()=>window.__openedTerritory)==='123 Synthetic Rd, Tulsa, OK',width+': territory shortcut reuses exact saved customer address without typing');
   check(await row.getByText('No phone').count()===0&&await row.getByText('No email').count()===0,width+': no dummy contact controls');
+  const research=row.locator('details.customer-property-research-disclosure');
+  check(await research.locator('summary').isVisible(),width+': property research has a visible compact disclosure');
+  check(!(await row.getByRole('link',{name:'Research customer property on Google Earth',exact:true}).isVisible()),width+': rarely used Earth link starts hidden');
+  await research.locator('summary').click();
    if(width<=760){
     const layout=await row.evaluate(el=>{
      const rect=e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,height:r.height}};
@@ -150,7 +154,7 @@ try{
     check(layout.columns===2&&layout.actions.length===5,width+': Call, Text, Email, Maps and Territory stay in compact iPhone grid');
     check(layout.actions.every(a=>a.height>=44&&a.left>=-1&&a.right<=width+1),width+': every contact action remains a full-height visible tap target');
     check(Math.abs(layout.actions[0].top-layout.actions[1].top)<3&&Math.abs(layout.actions[2].top-layout.actions[3].top)<3&&layout.actions[2].top>layout.actions[0].top+40&&layout.actions[4].top>layout.actions[2].top+40,width+': new Territory action adds only one compact row');
-    check(layout.property.top>layout.actions[4].top&&layout.property.left>=-1&&layout.property.right<=width+1,width+': visible Earth and Zillow tools stay below quick actions without overflow');
+    check(layout.property.top>layout.actions[4].top&&layout.property.left>=-1&&layout.property.right<=width+1,width+': expanded Earth and Zillow tools stay below quick actions without overflow');
    }
   check(await page.getByRole('status',{name:'Last lead contact'}).count()===0,width+': new lead has no unnecessary contact explanation');
   await page.evaluate(()=>window.__setLeadContact({state:'no_answer',unansweredAttempts:2,at:'2026-10-23T15:00:00Z'}));
@@ -169,7 +173,7 @@ try{
   await shortcut.click();
   check(await page.evaluate(()=>window.__openedJob?.id==='job-001'&&window.__openedJob?.customer==='Synthetic customer'),width+': original current job handler opens correct customer and job');
   check(await shortcut.evaluate(el=>{const p=el.getBoundingClientRect();return p.height>=44&&p.left>=-1&&p.right<=innerWidth+1}),width+': current job tap target stays within phone');
-  check(await row.getByRole('link',{name:'Research customer property on Google Earth',exact:true}).isVisible()&&await row.getByRole('link',{name:'Research customer property on Zillow',exact:true}).isVisible(),width+': property tools are available without opening a disclosure');
+  check(await row.getByRole('link',{name:'Research customer property on Google Earth',exact:true}).isVisible()&&await row.getByRole('link',{name:'Research customer property on Zillow',exact:true}).isVisible(),width+': property links remain available after expanding the disclosure');
   check(await page.getByRole('region',{name:'Review next customer actions'}).isVisible(),width+': actual due customer actions stay immediately visible');
   check(!(await page.getByRole('region',{name:'Recent customer activity'}).isVisible()),width+': long timeline initially tucked away');
   await activityDisclosure.locator('summary').click();
