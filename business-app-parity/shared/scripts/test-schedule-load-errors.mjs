@@ -125,7 +125,7 @@ equal(state[5],'2026-10-22');equal(nodes(render()).filter(n=>n.props?.className=
 dayButton('Previous work date').props.onClick();equal(state[5],'2026-10-21');
 chosenDay().props.onChange({target:{value:'2026-10-25'}});
 equal(nodes(render()).filter(n=>n.props?.className==='schedule-job').length,0);
-equal(nodes(render()).some(n=>n.props?.children==='No scheduled or completed jobs on this date'),true);
+equal(nodes(render()).some(n=>n.props?.className==='schedule-day-empty'&&n.props?.role==='status'),true);equal(nodes(render()).some(n=>n.props?.children==='No jobs on this day'),true);
 equal(nodes(render()).some(n=>n.props?.className==='route-day-button'),false);
 equal(nodes(render()).some(n=>n.props?.className==='needs-attention'),false);
 chosenDay().props.onChange({target:{value:'2026-10-19'}});
