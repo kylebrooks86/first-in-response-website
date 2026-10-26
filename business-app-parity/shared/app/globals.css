@@ -2516,4 +2516,8 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 /* An empty calendar date needs one compact status, not a tall empty-data panel. */
 .schedule-view .schedule-day-empty{display:flex;align-items:center;gap:9px;min-height:44px;padding:9px 12px;color:var(--muted-foreground);font-size:13px}
 .schedule-view .schedule-day-empty svg{flex:none;width:17px;height:17px}
-\n/* Empty pipeline stages add no navigation or useful content; keep the first-use screen concise. */\n.estimate-pipeline-empty{display:flex;align-items:center;flex-wrap:wrap;gap:7px 10px;margin-top:16px;padding:12px;color:var(--foreground);font-size:13px}\n.estimate-pipeline-empty>svg{width:18px;height:18px;flex:none;color:var(--muted-foreground)}\n.estimate-pipeline-empty>small{flex:1 1 100%;color:var(--muted-foreground);padding-left:28px}\n
+
+/* Empty pipeline stages add no navigation or useful content; keep the first-use screen concise. */
+.estimate-pipeline-empty{display:flex;align-items:center;flex-wrap:wrap;gap:7px 10px;margin-top:16px;padding:12px;color:var(--foreground);font-size:13px}
+.estimate-pipeline-empty>svg{width:18px;height:18px;flex:none;color:var(--muted-foreground)}
+.estimate-pipeline-empty>small{flex:1 1 100%;color:var(--muted-foreground);padding-left:28px}
