@@ -92,7 +92,7 @@ export function TerritoryMap({online=true,focusAddress,onFocusAddressHandled,boo
   // Exact saved addresses and customers are local reads, including unpinned homes.
   // Do not send a saved customer's name or address through geocoding again.
   const localExact=places.find(p=>p.key===houseKey(entered));
-  if(localExact){setSearchError('');setFilter('all');focus(localExact);return;}
+  if(localExact&&(!automatic||localExact.point)){setSearchError('');if(!automatic)setFilter('all');focus(localExact);return;}
   if(!automatic){
    const normalized=entered.toLocaleLowerCase();
    const exactNames=places.filter(p=>p.customers.some(c=>c.name.trim().toLocaleLowerCase()===normalized));
