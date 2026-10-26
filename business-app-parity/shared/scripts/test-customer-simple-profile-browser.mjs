@@ -84,10 +84,11 @@ assert.match(profileSource,/setSection\("photos"\)\}>Photos<\/button>/,'Photos t
 assert.match(contact,/Google Maps/);
 assert.match(contact,/Google Earth/);
 assert.match(contact,/Zillow/);
+assert.match(contact,/onOpenTerritory\(selected.address\)/,'Profile reuses exact saved address for Territory');
 assert.match(activity,/customer-timeline-list/);
 const fixture=[
  "import React,{useState}from'react';import{createRoot}from'react-dom/client';",
- "import{Phone,Send,Mail,Navigation,Globe2,House,ChevronRight,Sparkles}from'lucide-react';",
+ "import{Phone,Send,Mail,Navigation,Globe2,House,MapPin,ChevronRight,Sparkles}from'lucide-react';",
  "function Fixture(){",
  " const [selected,setSelected]=useState({id:'synthetic',name:'Synthetic customer',phone:'9185550101',email:'synthetic@example.invalid',address:'123 Synthetic Rd, Tulsa, OK'});",
  " const [timelineFilter,setTimelineFilter]=useState('all'),[timelineSearch,setTimelineSearch]=useState(''),[timelineShown,setTimelineShown]=useState(6);",
@@ -95,7 +96,7 @@ const fixture=[
  " const [manualFlags,setManualFlags]=useState({leadContact:null});",
  " window.__setLeadContact=leadContact=>setManualFlags({leadContact});",
  " const [activeCustomerEstimate,setActiveCustomerEstimateState]=useState({id:'job-001',service:'Gutter cleaning',status:'scheduled',scheduledAt:'2026-10-30T14:00:00Z'});",
- " const setActiveEstimate=e=>{window.__openedJob=e};",
+ " const setActiveEstimate=e=>{window.__openedJob=e};const onOpenTerritory=address=>{window.__openedTerritory=address};",
  " const statusLabel=status=>status;",
  " window.__setSelected=setSelected;window.__setWithActions=setWithActions;window.__setActiveCustomerEstimate=setActiveCustomerEstimateState;window.__clicked=[];",
  " const openCustomerAction=a=>window.__clicked.push('action:'+a.key),openTimelineEntry=e=>window.__clicked.push('activity:'+e.key);",
@@ -136,16 +137,18 @@ try{
   check(await row.getByRole('link',{name:'Text customer'}).getAttribute('href')==='sms:9185550101',width+': existing SMS destination');
   check(await row.getByRole('link',{name:'Email customer'}).getAttribute('href')==='mailto:synthetic@example.invalid',width+': existing mail destination');
   check((await row.getByRole('link',{name:'Directions to customer in Google Maps'}).getAttribute('href')).includes('destination=123%20Synthetic%20Rd'),width+': maps destination preserved');
+  await row.getByRole('button',{name:'Show customer on Territory Map'}).click();
+  check(await page.evaluate(()=>window.__openedTerritory)==='123 Synthetic Rd, Tulsa, OK',width+': territory shortcut reuses exact saved customer address without typing');
   check(await row.getByText('No phone').count()===0&&await row.getByText('No email').count()===0,width+': no dummy contact controls');
    if(width<=760){
     const layout=await row.evaluate(el=>{
      const rect=e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,height:r.height}};
-     return {columns:getComputedStyle(el).gridTemplateColumns.split(' ').length,actions:[...el.querySelectorAll(':scope>a')].map(rect),property:rect(el.querySelector('.customer-property-research'))};
+     return {columns:getComputedStyle(el).gridTemplateColumns.split(' ').length,actions:[...el.querySelectorAll(':scope>a,:scope>button')].map(rect),property:rect(el.querySelector('.customer-property-research'))};
     });
-    check(layout.columns===2&&layout.actions.length===4,width+': Call, Text, Email and Maps use two compact iPhone columns');
+    check(layout.columns===2&&layout.actions.length===5,width+': Call, Text, Email, Maps and Territory stay in compact iPhone grid');
     check(layout.actions.every(a=>a.height>=44&&a.left>=-1&&a.right<=width+1),width+': every contact action remains a full-height visible tap target');
-    check(Math.abs(layout.actions[0].top-layout.actions[1].top)<3&&Math.abs(layout.actions[2].top-layout.actions[3].top)<3&&layout.actions[2].top>layout.actions[0].top+40,width+': four actions occupy two rows, not a tall list');
-    check(layout.property.top>layout.actions[3].top&&layout.property.left>=-1&&layout.property.right<=width+1,width+': visible Earth and Zillow tools stay below quick actions without overflow');
+    check(Math.abs(layout.actions[0].top-layout.actions[1].top)<3&&Math.abs(layout.actions[2].top-layout.actions[3].top)<3&&layout.actions[2].top>layout.actions[0].top+40&&layout.actions[4].top>layout.actions[2].top+40,width+': new Territory action adds only one compact row');
+    check(layout.property.top>layout.actions[4].top&&layout.property.left>=-1&&layout.property.right<=width+1,width+': visible Earth and Zillow tools stay below quick actions without overflow');
    }
   check(await page.getByRole('status',{name:'Last lead contact'}).count()===0,width+': new lead has no unnecessary contact explanation');
   await page.evaluate(()=>window.__setLeadContact({state:'no_answer',unansweredAttempts:2,at:'2026-10-23T15:00:00Z'}));
