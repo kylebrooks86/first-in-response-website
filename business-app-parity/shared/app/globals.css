@@ -2506,3 +2506,9 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 
 /* Saved malformed contact data is visible for correction, but not offered as an unsafe native action. */
 .customer-profile .customer-contact>.customer-contact-warning{display:block;grid-column:1/-1;min-width:0;padding:7px 10px;border:1px solid var(--border);border-radius:8px;color:var(--foreground);font-size:12px;overflow-wrap:anywhere}
+
+/* The saved customer's profile is one tap from Places, without shrinking mobile controls. */
+.territory-places li.territory-customer-row{display:flex;align-items:stretch;flex-wrap:wrap;gap:5px;min-width:0}
+.territory-places li.territory-customer-row>.territory-place-open{flex:1 1 100%;min-width:0}
+.territory-places li.territory-customer-row>.territory-row-customer{flex:0 0 auto;width:auto;min-height:44px;padding:7px 12px;font-weight:700}
+.territory-places li.territory-customer-row>.territory-row-locate{flex:0 0 auto;width:auto;min-height:44px;padding:7px 12px}
