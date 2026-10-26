@@ -43,6 +43,39 @@ try{
  check(initial.rows.length===1&&initial.rows[0].name==='Synthetic Owasso Customer','Actual edit replaces one customer without losing original identity');
  check(initial.pending.length===2&&initial.pending.every(p=>p.customerId===initial.rows[0].id),'Create and update each have one durable outbox entry');
  check(initial.exported.serverConfirmed===false&&initial.exported.encrypted===false&&initial.exported.pending.length===2&&initial.exported.receipts.length===2,'Consistent export includes unsynced drafts and replay receipts and clearly marks plaintext prototype');
+ const phrase='synthetic-archive-passphrase-only-123456';
+ const protectedArchive=await page.evaluate(async phrase=>{
+  const store=await window.openLocalCustomerDrafts({target:'live',accountKey:'synthetic_owner_A1'});
+  try{return await store.exportEncryptedSnapshot(phrase);}finally{store.close();}
+ },phrase);
+ check(protectedArchive.format==='fire-local-customers-encrypted'&&!JSON.stringify(protectedArchive).includes('Synthetic Owasso')&&!JSON.stringify(protectedArchive).includes('918 555'),
+  'Encrypted export hides customer names and phone numbers rather than writing a plaintext portable archive');
+ const sealedContext=await browser.newContext(),sealedPage=await sealedContext.newPage();
+ await sealedPage.goto(origin);await sealedPage.waitForFunction(()=>Boolean(window.openLocalCustomerDrafts));
+ const sealedRecovery=await sealedPage.evaluate(async ({protectedArchive,phrase})=>{
+  const open=window.openLocalCustomerDrafts;
+  const store=await open({target:'live',accountKey:'synthetic_owner_A1'});
+  let wrongPhrase=false,alteredArchive=false;
+  try{await store.restoreEncryptedSnapshot(protectedArchive,'incorrect-synthetic-passphrase');}catch{wrongPhrase=true;}
+  const tampered=structuredClone(protectedArchive);
+  tampered.ciphertext=tampered.ciphertext.slice(0,-2)+(tampered.ciphertext.endsWith('00')?'01':'00');
+  try{await store.restoreEncryptedSnapshot(tampered,phrase);}catch{alteredArchive=true;}
+  const before=(await store.listCustomers()).length===0&&(await store.listPending()).length===0;
+  const result=await store.restoreEncryptedSnapshot(protectedArchive,phrase);
+  const rows=await store.listCustomers(),pending=await store.listPending();
+  const replay=await store.createCustomer({name:'Synthetic Tulsa Customer',phone:'918 555 0100',address:'123 Test Street, Tulsa'},'synthetic_op_create_001');
+  store.close();
+  const other=await open({target:'qa',accountKey:'synthetic_owner_A1'});
+  let wrongTarget=false;try{await other.restoreEncryptedSnapshot(protectedArchive,phrase);}catch{wrongTarget=true;}
+  const otherEmpty=(await other.listCustomers()).length===0;other.close();
+  return {wrongPhrase,alteredArchive,before,result,rows,pending,replay,wrongTarget,otherEmpty};
+ },{protectedArchive,phrase});
+ check(sealedRecovery.wrongPhrase&&sealedRecovery.alteredArchive&&sealedRecovery.before,
+  'Wrong passphrase and ciphertext tampering fail closed before writing any customer or outbox entry');
+ check(sealedRecovery.result.customers===1&&sealedRecovery.result.pending===2&&sealedRecovery.rows[0].revision===initial.rows[0].revision&&sealedRecovery.replay.id===initial.rows[0].id&&sealedRecovery.pending.length===2,
+  'Encrypted archive round-trip preserves exact customer revisions, pending events and idempotent receipt replay');
+ check(sealedRecovery.wrongTarget&&sealedRecovery.otherEmpty,'Encrypted archive cannot restore across deployment targets');
+ await sealedContext.close();
  const restoredContext=await browser.newContext();const restoredPage=await restoredContext.newPage();await restoredPage.goto(origin);await restoredPage.waitForFunction(()=>Boolean(window.openLocalCustomerDrafts));
  const recovered=await restoredPage.evaluate(async snapshot=>{
   const open=window.openLocalCustomerDrafts,store=await open({target:'live',accountKey:'synthetic_owner_A1'});
