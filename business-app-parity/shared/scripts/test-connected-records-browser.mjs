@@ -250,6 +250,8 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await page.goto(origin+'/schedule');await page.locator('.schedule-planning-more > summary').click();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).click();
   check(await page.locator('.schedule-job-weather-action').count()===5,'Every upcoming scheduled job has a direct weather review action');
    check(await page.locator('.schedule-job-customer-action').count()===4,'Scheduled jobs show direct customer links only for saved customer IDs');
+   const topRowActions=await page.locator('.schedule-job-shell').filter({has:page.getByRole('button',{name:'Contact today-morning for scheduled job'})}).locator('.schedule-job-utilities').locator('button,a').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-label')));
+   check(JSON.stringify(topRowActions)===JSON.stringify(['Directions to today-morning job','Contact today-morning for scheduled job','View today-morning profile','Check weather for today-morning job']),'Driving and customer contact lead the iPhone action row; optional tools follow');
    check(await page.getByRole('button',{name:'View today-late profile'}).count()===0,'Missing customer ID never guesses a customer profile');
    await page.getByRole('button',{name:'View today-morning profile'}).click();
    check(await page.evaluate(()=>window.openedCustomer)==='first','Schedule customer shortcut opens exact saved customer without changing job');
