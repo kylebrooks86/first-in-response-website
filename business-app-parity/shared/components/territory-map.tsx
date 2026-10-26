@@ -100,7 +100,7 @@ export function TerritoryMap({online=true,focusAddress,onFocusAddressHandled,boo
    if(localMatches.length===1){setSearchError('');setFilter('all');focus(localMatches[0]);return;}
    if(localMatches.length>1){setSearchError('');setFilter('all');setPlaceQuery(entered);setShowPlaces(true);setListLimit(60);setSelected(null);return;}
    // New addresses need a street number; a customer's unmatched name never leaves the browser.
-   if(!/^(?:[NSEW]\\.?\\s+)?\\d{1,6}\\s+[A-Za-z]/i.test(entered)){
+   if(!/^(?:[NSEW]\.?\s+)?\d{1,6}\s+[A-Za-z]/i.test(entered)){
     setSearchError('No saved match. Enter a numbered street address to look up a new place.');
     return;
    }
