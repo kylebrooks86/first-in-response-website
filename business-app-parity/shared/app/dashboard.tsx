@@ -1997,8 +1997,11 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   function matchesCustomerDirectory(customer:Pick<CustomerRow,"name"|"email"|"phone"|"address">,query:string){
     const term=query.trim().toLocaleLowerCase();
     if(!term)return true;
-    if([customer.name,customer.email,customer.phone,customer.address].join(" ").toLocaleLowerCase().includes(term))return true;
-    if(!/^[+()\d.\s-]+$/.test(term))return false;
+    // Keep names, email and street-number searches usable at any length.
+    if([customer.name,customer.email,customer.address].join(" ").toLocaleLowerCase().includes(term))return true;
+    // Numeric phone search requires 4+ digits even when punctuation matches
+    // the saved number exactly; otherwise a short fragment can show false leads.
+    if(!/^[+()\d.\s-]+$/.test(term))return customer.phone.toLocaleLowerCase().includes(term);
     const digits=term.replace(/\D/g,"");
     return digits.length>=4&&customer.phone.replace(/\D/g,"").includes(digits);
   }
