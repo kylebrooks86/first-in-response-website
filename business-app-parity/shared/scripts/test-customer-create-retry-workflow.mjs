@@ -62,5 +62,28 @@ export async function exerciseCustomerCreateRetry({page,context,origin,request,c
  backup=await (await request('/api/backup')).json();
  check(backup.tables.customers.filter(row=>row.name==='Synthetic Instant Estimate Customer').length===1,'Quick quote saves only one confirmed customer');
  check(backup.tables.estimates.length===beforeEstimates,'Opening wizard does not submit or approve an estimate');
+ // The direct quote handoff survives an interrupted server confirmation and a
+ // full iPhone navigation/reload. Only a confirmed matching customer opens it.
+ await customers();form=await open();
+ await form.getByLabel('Customer name',{exact:true}).fill('Synthetic Recovered Quote Customer');
+ const priorPosts=posts.length;loseRead=true;
+ await form.getByRole('button',{name:'Save & estimate'}).click();
+ await form.getByRole('alert').filter({hasText:'Check this SAME save'}).waitFor();
+ check(posts.length===priorPosts+1,'Interrupted Save & estimate sends only the original customer POST');
+ const handoffId=posts.at(-1).requestId;
+ check(await page.evaluate(id=>localStorage.getItem('fire:customer-create-request:v1')===id&&localStorage.getItem('fire:customer-create-estimate-handoff:v1')===id,handoffId),
+  'Quote handoff marker contains only matching request UUID, no name, phone or address');
+ loseRead=false;
+ await customers();await page.getByRole('button',{name:'Check previous customer save',exact:true}).click();
+ form=page.getByRole('dialog',{name:'Add customer',exact:true});
+ await form.getByRole('button',{name:'Check previous save',exact:true}).click();
+ await page.getByRole('dialog',{name:'Create estimate'}).waitFor();
+ check(posts.length===priorPosts+1,'Recovered Save & estimate opens editor from one verified GET without reposting customer');
+ check((await page.locator('.customer-profile h1').textContent())==='Synthetic Recovered Quote Customer','Recovery opens the exact newly saved customer');
+ check(await page.evaluate(()=>localStorage.getItem('fire:customer-create-estimate-handoff:v1'))===null,
+  'Successful verified handoff clears its persisted action marker');
+ backup=await (await request('/api/backup')).json();
+ check(backup.tables.customers.filter(row=>row.name==='Synthetic Recovered Quote Customer').length===1&&backup.tables.estimates.length===beforeEstimates,
+  'Reloaded quote handoff neither duplicates a customer nor silently creates an estimate');
  await context.unroute('**/api/customers',intercept);await context.unroute('**/api/customers/confirmation?*',read);
 }
