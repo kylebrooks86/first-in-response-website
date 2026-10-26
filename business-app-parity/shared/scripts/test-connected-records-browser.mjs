@@ -232,6 +232,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await datePicker.getByRole('button',{name:'Next work date',exact:true}).click();
   check(await exactInput.inputValue()==='2026-10-22','Next day advances calendar date without DST offset');
   check(await page.locator('.schedule-job,.route-day-button').count()===0,'Empty chosen day hides unrelated appointments and route');
+   const dayEmpty=page.locator('.schedule-day-empty');check(await dayEmpty.count()===1,'Unbooked day uses a brief status instead of a tall no-data panel');check(await dayEmpty.evaluate(n=>{const r=n.getBoundingClientRect();return r.height>=44&&r.height<=85&&r.left>=-1&&r.right<=innerWidth+1;}),'Empty-date notice stays compact and fits on iPhone');check(await dayEmpty.getByText('No jobs on this day').isVisible(),'Empty calendar day has one clear label');
   await datePicker.getByRole('button',{name:'Previous work date',exact:true}).click();
   check(await exactInput.inputValue()==='2026-10-21'&&await page.locator('.schedule-job').count()===1,'Previous day restores specific matching job');
   const dateControls=await datePicker.locator('button,input').evaluateAll(ns=>ns.every(n=>n.getBoundingClientRect().height>=44&&n.getBoundingClientRect().width>0));
