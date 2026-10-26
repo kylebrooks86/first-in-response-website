@@ -907,6 +907,8 @@ jobs:
         run: node --experimental-sqlite scripts/test-door-knocking-browser.mjs
       - name: Encrypted offline territory drafts, manual sync, conflicts and IndexedDB failures
         run: node --experimental-sqlite scripts/test-territory-offline-browser.mjs
+      - name: Experimental local customer IndexedDB records, atomic outbox and account isolation
+        run: node scripts/test-offline-customer-repository-browser.mjs
       - name: Actual MapLibre territory canvas, mobile light/dark and clustered metro coverage
         run: node scripts/test-territory-browser.mjs
       - name: Actual New Estimate service reuse on mobile light and dark
