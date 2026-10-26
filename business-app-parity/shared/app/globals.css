@@ -2512,3 +2512,7 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 .territory-places li.territory-customer-row>.territory-place-open{flex:1 1 100%;min-width:0}
 .territory-places li.territory-customer-row>.territory-row-customer{flex:0 0 auto;width:auto;min-height:44px;padding:7px 12px;font-weight:700}
 .territory-places li.territory-customer-row>.territory-row-locate{flex:0 0 auto;width:auto;min-height:44px;padding:7px 12px}
+
+/* An empty calendar date needs one compact status, not a tall empty-data panel. */
+.schedule-view .schedule-day-empty{display:flex;align-items:center;gap:9px;min-height:44px;padding:9px 12px;color:var(--muted-foreground);font-size:13px}
+.schedule-view .schedule-day-empty svg{flex:none;width:17px;height:17px}
