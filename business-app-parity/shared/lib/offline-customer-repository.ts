@@ -118,7 +118,7 @@ export async function openOfflineCustomerRepository(identity:{target:LocalCustom
    check();
    const object=(x:unknown):x is Record<string,unknown>=>x!==null&&typeof x==='object'&&!Array.isArray(x);
    const exact=(x:Record<string,unknown>,keys:string[])=>Object.keys(x).length===keys.length&&Object.keys(x).every(key=>keys.includes(key));
-   const timestamp=(x:unknown)=>typeof x==='string'&&/^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}Z$/.test(x)&&Number.isFinite(Date.parse(x))&&new Date(x).toISOString()===x;
+   const timestamp=(x:unknown)=>typeof x==='string'&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(x)&&Number.isFinite(Date.parse(x))&&new Date(x).toISOString()===x;
    const same=(a:LocalCustomer,b:LocalCustomer)=>Object.keys(a).every(key=>a[key as keyof LocalCustomer]===b[key as keyof LocalCustomer]);
    const validCustomer=(x:unknown):x is LocalCustomer=>{
     if(!object(x)||!exact(x,['id','name','email','phone','address','revision','createdAt','updatedAt'])||!validKey(x.id as string)||!validKey(x.revision as string)||!timestamp(x.createdAt)||!timestamp(x.updatedAt)||Date.parse(x.createdAt as string)>Date.parse(x.updatedAt as string))return false;
