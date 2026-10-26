@@ -101,6 +101,23 @@ check('Paid review queue controls preserve search, sort, filtered reset, and exa
  for(const [order,expected] of [['priority',['prepared','old-ready','new-ready']],['newest',['new-ready','prepared','old-ready']],['customer',['new-ready','prepared','old-ready']]]){const context={exports:{},reviewCloseoutOrder:order};vm.runInNewContext(ts.transpileModule('exports.sort='+comparator,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,context);assert.deepEqual(rows.slice().sort(context.exports.sort).map(row=>row.estimateId),expected,order+' uses actual saved-record ordering');}
  assert.match(body,/reviewCloseoutError\?<p role="alert"/);
 });
+check('Read-only collectible job finder preserves all jobs and exposes additional pages',()=>{
+ const payments=functions.find(n=>n.name.text==='PaymentsView'),body=payments.getText(ast);
+ const match=payments.body.statements.find(node=>ts.isVariableStatement(node)&&node.declarationList.declarations.some(d=>d.name.getText(ast)==='matchingOpen'));
+ const decl=match?.declarationList.declarations.find(d=>d.name.getText(ast)==='matchingOpen');
+ assert.ok(decl,'Real PaymentsView has a scoped local filter');
+ const expr=ts.transpileModule('exports.filter='+decl.initializer.getText(ast)+';',{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
+ const balances=[{id:'A',customer:'Tulsa One',service:'House Wash',status:'approved',address:'South Tulsa'},{id:'B',customer:'Owasso Two',service:'Gutter Cleanout',status:'scheduled',address:'Owasso'},{id:'C',customer:'Broken Arrow Three',service:'Window Cleaning',status:'approved',address:'Broken Arrow'}];
+ for(const [term,expected] of [['',3],['Owasso',1],['Window',1],['missing',0]]){
+  const state={exports:{},open:balances,balanceSearch:term};vm.runInNewContext(expr,state);
+  assert.equal(state.exports.filter.length,expected,term+' filters existing verified balances only');
+  assert.equal(balances.length,3,'Filtering never truncates verified source balances');
+ }
+ assert.match(body,/matchingOpen\.slice\(0,balanceLimit\)/,'Only displayed balance cards are limited');
+ assert.match(body,/matchingOpen\.length>balanceLimit/,'All remaining balances remain reachable');
+ assert.match(body,/open\.length\?<div className="record-empty">/,'A search miss never says all caught up');
+ assert.match(body,/setBalanceLimit\(20\)/,'Search changes reset pagination');
+});
 check('Invoice mobile cards retain payment-review warning, balance and accessible actions',()=>{
  const src=readFileSync('app/dashboard.tsx','utf8');
  assert.ok(src.includes('className="invoice-card"')&&src.includes('Payment review')&&src.includes('Billing exception open'));

@@ -2584,3 +2584,12 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .invoice-directory-tools>small{flex:1 1 100%;color:var(--muted-foreground);font-size:12px}
 .invoice-directory-more{display:block;width:100%;margin-top:8px;text-align:center}
 .invoice-directory-tools button:focus-visible,.invoice-directory-tools input:focus-visible,.invoice-directory-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Payments: keep long collectible lists scannable while retaining exact job and payment actions. */
+.payment-balance-tools{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:0 12px 9px;min-width:0}
+.payment-balance-search{flex:1 1 210px;min-width:0}
+.payment-balance-search input{width:100%;min-width:0;min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 11px;background:var(--background);color:var(--foreground);font-size:16px}
+.payment-balance-tools>button,.payment-balance-more{min-height:44px;padding:8px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-weight:700;cursor:pointer}
+.payment-balance-tools>small{flex:1 1 100%;font-size:12px;color:var(--muted-foreground)}
+.payment-balance-more{display:block;width:calc(100% - 24px);margin:8px 12px 12px;text-align:center}
+.payment-balance-tools input:focus-visible,.payment-balance-tools>button:focus-visible,.payment-balance-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
