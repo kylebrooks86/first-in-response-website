@@ -1,6 +1,6 @@
 import {submittedDiscountCents, quoteDiscounts, discountSnapshot, readDiscountSnapshot, DISCOUNT_SNAPSHOT_PREFIX} from '../../../lib/discount-input';
 import {SAVED_PROMOTIONS_KEY,decodeSavedPromotions} from '../../../lib/saved-promotions';
-import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,buildPromotionAttribution} from '../../../lib/estimate-promotion-attribution';
+import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,buildPromotionAttribution,promotionServiceNames} from '../../../lib/estimate-promotion-attribution';
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import {customerPropertiesEnabled,propertyAssociationColumns,propertyEstimatesTestEnabled,selectEstimateProperty,PropertySelectionError} from '../../../lib/customer-properties';
 import { env } from "cloudflare:workers";
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
     if(Object.prototype.hasOwnProperty.call(body,'promotionEvidence')){
       try{
         const row=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(SAVED_PROMOTIONS_KEY).first<{body:string}>();
-        promotionAttribution=buildPromotionAttribution({estimateId,rawEvidence:body.promotionEvidence,
+        promotionAttribution=buildPromotionAttribution({serviceNames:await promotionServiceNames(env.DB),estimateId,rawEvidence:body.promotionEvidence,
          catalog:decodeSavedPromotions(row),now:new Date(),items,subtotalCents:subtotal,
          appreciationDiscount:Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents,totalCents:total,depositCents:deposit});
       }catch(err){return Response.json({error:err instanceof Error?err.message:'Promotion rules changed. Refresh before saving.'},{status:409});}

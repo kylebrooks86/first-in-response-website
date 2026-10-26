@@ -123,4 +123,20 @@ try{
  r.db.prepare("UPDATE estimates SET status='approved',signed_at='2026-10-22',accepted_at='2026-10-22' WHERE id=?").run(bookingReceipt.id);
  same((await r.patch(bookingReceipt.id,{...quote,items:quote.items,bundleDiscountCents:0})).status,409,'Signed booking promotion cannot be repriced');
  console.log('PASS '+checks+' real SQLite promotion attribution API: forged dates/services/terms rejected, $366 quote, frozen rule names, catalog edits, corrupt reads, signed holds, legacy/manual compatibility and owner-only audit.');
+ // Standard name changes and owner-added services remain compatible with
+ // automatic discount evidence without rewriting historical identities.
+ insertCatalog(catalog);
+ const catalogKey='fire:service-rate:v1:house-wash';
+ const storeService=(key,name)=>r.db.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,'now') ON CONFLICT(key) DO UPDATE SET body=excluded.body").run(key,JSON.stringify({rateCents:22,revision:crypto.randomUUID(),details:{name,description:'Owner scope',unit:'sq ft',category:'base',active:true}}));
+ storeService(catalogKey,'Owner renamed House Wash');
+ const renamed={...quote,customer:'Renamed catalog fixture',address:'Rename-only synthetic address',email:'renamed@example.invalid',items:quote.items.map((item,i)=>i===0?{...item,name:'Owner renamed House Wash'}:item),promotionEvidence:evidence};
+ response=await r.post(renamed);same(response.status,201,'Renamed master services still save verified automatic promotions: '+JSON.stringify(await response.clone().json()));const renamedReceipt=await response.json();
+ let renamedAudit=await read(renamedReceipt.id);same(renamedAudit.status,200);same((await renamedAudit.json()).attribution.selectedServiceNames[0],'Owner renamed House Wash','Saved promotion freezes selected service name');
+ storeService(catalogKey,'Later catalog name');same((await read(renamedReceipt.id)).status,200,'Later master rename does not reinterpret original quote');
+ same((await r.patch(renamedReceipt.id,{...quote,items:renamed.items,bundleDiscountCents:2500})).status,200,'No-op draft revision retains original renamed service');
+ same((await read(renamedReceipt.id)).status,200,'No-op preserves frozen renamed-service attribution');
+ const customId='catalog-'+crypto.randomUUID();storeService('fire:service-rate:v1:'+customId,'Owner custom service');
+ response=await r.post({...quote,customer:'New catalog fixture',address:'Custom-only synthetic address',email:'new-catalog@example.invalid',items:[{name:'Owner custom service',description:'Custom scope',quantity:1,unit:'sq ft',totalCents:46000}],bundleDiscountCents:0,promotionEvidence:{...evidence,serviceIds:[customId],ruleIds:[percent.id]}});
+ same(response.status,201,'Owner-added service supports whole-invoice promotions');const customReceipt=await response.json();same(customReceipt.totalCents,39100);same((await read(customReceipt.id)).status,200,'Custom catalog identity can be read from historical promotion evidence');
+ console.log('PASS renamed/custom catalog promotion snapshots and historical preservation.');
 }finally{r.db.close();}

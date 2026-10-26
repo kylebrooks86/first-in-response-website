@@ -6,13 +6,14 @@ export const ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX='fire:estimate-promotion-attr
 export type PromotionEvidence={revision:string|null;checkedOn:string;ruleIds:string[];serviceIds:string[];bookingConfirmedOn?:string};
 export type PromotionAttribution={
  format:'fire-estimate-promotions-v1';estimateId:string;catalogRevision:string|null;checkedOn:string;
- selectedServices:string[];rules:{id:string;name:string;type:'percent'|'dollar';valueCents:number}[];
+ selectedServices:string[];selectedServiceNames?:string[];rules:{id:string;name:string;type:'percent'|'dollar';valueCents:number}[];
  subtotalCents:number;percentBasisPoints:number;flatDiscountCents:number;
  totalCents:number;depositCents:number;bookingConfirmedOn?:string;
 };
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const exactKeys=(x:Record<string,unknown>,keys:string[])=>Object.keys(x).sort().join(',')===keys.slice().sort().join(',');
 const known=new Map(FIRE_SERVICES.map(s=>[s.id,s.name]));
+const knownId=(id:unknown):id is string=>typeof id==='string'&&(known.has(id)||/^catalog-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id));
 const safe=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>=0;
 export function validPromotionEvidence(x:unknown):x is PromotionEvidence{
  if(!x||typeof x!=='object'||Array.isArray(x))return false;
@@ -25,13 +26,13 @@ export function validPromotionEvidence(x:unknown):x is PromotionEvidence{
   !Array.isArray(p.ruleIds)||p.ruleIds.length>40||
   !p.ruleIds.every(id=>typeof id==='string'&&uuid.test(id))||
   new Set(p.ruleIds).size!==p.ruleIds.length||
-  !Array.isArray(p.serviceIds)||p.serviceIds.length>known.size||
-  !p.serviceIds.every(id=>typeof id==='string'&&known.has(id))||
+  !Array.isArray(p.serviceIds)||p.serviceIds.length>known.size+500||
+  !p.serviceIds.every(knownId)||
   new Set(p.serviceIds).size!==p.serviceIds.length)return false;
  return true;
 }
 export function buildPromotionAttribution(input:{
- estimateId:string;rawEvidence:unknown;catalog:SavedPromotionCatalog;now:Date;
+ serviceNames?:ReadonlyMap<string,string>;estimateId:string;rawEvidence:unknown;catalog:SavedPromotionCatalog;now:Date;
  items:{name:string}[];subtotalCents:number;appreciationDiscount:boolean;
  additionalDiscountType:'percent'|'dollar';additionalDiscountValue:number;bundleDiscountCents:number;
  totalCents:number;depositCents:number;
@@ -39,11 +40,12 @@ export function buildPromotionAttribution(input:{
  const {estimateId,rawEvidence,catalog,now,items,subtotalCents,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents,totalCents,depositCents}=input;
  if(!validPromotionEvidence(rawEvidence))throw Error('Saved promotion attribution must be verified with the current estimate.');
  const evidence=rawEvidence;
+ const serviceNames=input.serviceNames??known;
  if(evidence.bookingConfirmedOn!==undefined&&!validOwnerConfirmedBookingDate(evidence.bookingConfirmedOn,now))
   throw Error('Booking confirmation must use a valid date no later than today in Tulsa.');
  if(evidence.revision!==catalog.revision||evidence.checkedOn!==fireDate(now))
   throw Error('Saved promotions changed or the local promotion date rolled over. Refresh before saving.');
- if(!evidence.serviceIds.every(id=>items.some(item=>item.name===known.get(id))))
+ if(!evidence.serviceIds.every(id=>items.some(item=>item.name===serviceNames.get(id))))
   throw Error('Service names changed since the promotion check. Refresh selected services or apply discounts manually.');
  const result=evaluateSavedPromotions(catalog,{serviceIds:evidence.serviceIds,subtotalCents,appreciationDiscount,estimateOn:evidence.checkedOn,bookedOn:evidence.bookingConfirmedOn});
  if(result.blocked)throw Error(result.blocked);
@@ -53,7 +55,7 @@ export function buildPromotionAttribution(input:{
    totalCents!==result.totalCents||depositCents!==result.depositCents)
   throw Error('The quote discounts no longer match the verified promotion rules. Review the quote before saving.');
  return {format:'fire-estimate-promotions-v1',estimateId,catalogRevision:evidence.revision,checkedOn:evidence.checkedOn,
-  selectedServices:[...evidence.serviceIds],rules:result.offered.map(p=>({id:p.id,name:p.name,type:p.type,valueCents:p.valueCents})),
+  selectedServices:[...evidence.serviceIds],...(evidence.serviceIds.some(id=>serviceNames.get(id)!==known.get(id))?{selectedServiceNames:evidence.serviceIds.map(id=>serviceNames.get(id)!)}:{}),rules:result.offered.map(p=>({id:p.id,name:p.name,type:p.type,valueCents:p.valueCents})),
   subtotalCents,percentBasisPoints:result.percentBasisPoints,flatDiscountCents:result.dollarCents,
   totalCents,depositCents,...(evidence.bookingConfirmedOn?{bookingConfirmedOn:evidence.bookingConfirmedOn}:{} )};
 }
@@ -64,13 +66,14 @@ export function readPromotionAttribution(estimateId:string,raw:string|null,finan
  const x=JSON.parse(raw) as unknown;
  if(!x||typeof x!=='object'||Array.isArray(x))throw Error('Invalid saved promotion evidence.');
  const p=x as Record<string,unknown>;
- if(!exactKeys(p,['format','estimateId','catalogRevision','checkedOn','selectedServices','rules','subtotalCents','percentBasisPoints','flatDiscountCents','totalCents','depositCents',...(Object.prototype.hasOwnProperty.call(p,'bookingConfirmedOn')?['bookingConfirmedOn']:[])])||
+ if(!exactKeys(p,['format','estimateId','catalogRevision','checkedOn','selectedServices',...(Object.prototype.hasOwnProperty.call(p,'selectedServiceNames')?['selectedServiceNames']:[]),'rules','subtotalCents','percentBasisPoints','flatDiscountCents','totalCents','depositCents',...(Object.prototype.hasOwnProperty.call(p,'bookingConfirmedOn')?['bookingConfirmedOn']:[])])||
   (Object.prototype.hasOwnProperty.call(p,'bookingConfirmedOn')&&(!validPromotionDate(p.bookingConfirmedOn)||p.bookingConfirmedOn===null||typeof p.checkedOn==='string'&&p.bookingConfirmedOn>p.checkedOn))||
   p.format!=='fire-estimate-promotions-v1'||p.estimateId!==estimateId||
   !(p.catalogRevision===null||typeof p.catalogRevision==='string'&&uuid.test(p.catalogRevision))||
   !validPromotionDate(p.checkedOn)||p.checkedOn===null||
   !Array.isArray(p.selectedServices)||new Set(p.selectedServices).size!==p.selectedServices.length||
-  !p.selectedServices.every(id=>typeof id==='string'&&known.has(id))||
+  !p.selectedServices.every(knownId)||
+  (p.selectedServiceNames!==undefined&&(!Array.isArray(p.selectedServiceNames)||p.selectedServiceNames.length!==p.selectedServices.length||!p.selectedServiceNames.every(name=>typeof name==='string'&&name.length>0&&name.length<=160)))||
   !Array.isArray(p.rules)||p.rules.length>40||
   !p.rules.every(r=>r&&typeof r==='object'&&!Array.isArray(r)&&exactKeys(r,['id','name','type','valueCents'])&&
     typeof r.id==='string'&&uuid.test(r.id)&&typeof r.name==='string'&&r.name.length>0&&r.name.length<=80&&
@@ -92,5 +95,23 @@ export function readPromotionAttribution(estimateId:string,raw:string|null,finan
 /** A description-only or no-op draft save must not erase valid rule history.
  * Changed financial terms or selected services invalidate the original claim. */
 export function promotionAttributionStillApplies(saved:PromotionAttribution,items:{name:string}[],next:{subtotalCents:number;totalCents:number;depositCents:number;additionalDiscountType:string;additionalDiscountValue:number;bundleDiscountCents:number}){
- return saved.subtotalCents===next.subtotalCents&&saved.totalCents===next.totalCents&&saved.depositCents===next.depositCents&&next.additionalDiscountType==='percent'&&saved.percentBasisPoints===next.additionalDiscountValue&&saved.flatDiscountCents===next.bundleDiscountCents&&saved.selectedServices.every(id=>items.some(item=>item.name===known.get(id)));
+ return saved.subtotalCents===next.subtotalCents&&saved.totalCents===next.totalCents&&saved.depositCents===next.depositCents&&next.additionalDiscountType==='percent'&&saved.percentBasisPoints===next.additionalDiscountValue&&saved.flatDiscountCents===next.bundleDiscountCents&&saved.selectedServices.every((id,index)=>items.some(item=>item.name===(saved.selectedServiceNames?.[index]??known.get(id))));
+}
+
+/** Resolve only service identity/name for a NEW promotion claim. This does not
+ * reprice any line or reinterpret saved historical attribution. */
+export async function promotionServiceNames(db:{prepare:(sql:string)=>{bind:(...values:unknown[])=>{all:<T>()=>Promise<{results:T[]}>}}}):Promise<Map<string,string>>{
+ const prefix='fire:service-rate:v1:';
+ const rows=await db.prepare('SELECT key,body FROM message_templates WHERE key LIKE ?').bind(prefix+'%').all<{key:string;body:string}>();
+ const names=new Map(known);
+ for(const row of rows.results){
+  const id=row.key.slice(prefix.length);if(!knownId(id))continue;
+  const record=JSON.parse(row.body);
+  if(record.details!==undefined){
+   const name=record.details?.name;
+   if(typeof name!=='string'||!name.trim()||name!==name.trim()||name.length>160)throw Error('Service names could not be verified. Refresh catalog pricing.');
+   names.set(id,name);
+  }else if(!known.has(id))throw Error('Custom service name is unavailable.');
+ }
+ return names;
 }

@@ -13,7 +13,7 @@ const css=readFileSync('app/globals.css','utf8');
 assert.ok(bellSource.includes('aria-expanded={showActivity}'),'Recent activity toggle exposes expanded state');
 assert.ok(bellSource.includes('hidden={!showActivity}'),'Read history can collapse without losing records');
 assert.ok(bellSource.includes('activityExpanded??unread>0'),'Unread activity stays visible by default');
-assert.ok(bellSource.includes('setActivityExpanded(null);setAttentionSummary'),'Opening bell resets to unread-aware default');
+assert.ok(bellSource.includes('setActivityExpanded(null);setShowRead(false);setAttentionSummary'),'Opening bell resets to unread-aware default');
 assert.ok(css.includes('.notification-list[hidden]{display:none}'),'Collapsed history is visually hidden');
 assert.ok(css.includes('.notification-activity-toggle:focus-visible'),'Keyboard focus remains visible');
 
@@ -52,7 +52,7 @@ function fixture(){
   return {calls,navigation,render,query,get,fetch(fn){handler=fn;},
     mount(){render();cleanup=effect();},unmount(){cleanup?.();},
     markOne(){const unread=query().find(n=>n.type==='button'&&n.props?.className==='unread');assert.ok(unread,'Unread notification button exists');unread.props.onClick();},
-    markAll(){const btn=query().find(n=>n.type==='button'&&n.props?.children==='Mark all read');assert.ok(btn,'Mark all button exists');btn.props.onClick();},
+    markAll(){const btn=query().find(n=>n.type==='button'&&n.props?.children==='Mark all as read');assert.ok(btn,'Mark all button exists');btn.props.onClick();},
     error(){return query().find(n=>n.props?.role==='alert')?.props.children;},
     status(){return query().find(n=>n.props?.role==='status')?.props.children;}
   };
@@ -152,3 +152,19 @@ for(const success of [false,true]){
   f.unmount();
 }
 console.log('PASS '+checks+'/'+checks+': actual notification component validates reads and PATCH before changing badges, prevents duplicate writes and rejects stale network data. Synthetic requests only.');
+
+{
+ const f=fixture();f.mount();await flush();
+ const list=()=>f.query().find(n=>n.props?.id==='fire-notification-activity');
+ const rows=()=>nodes(list()).filter(n=>n.type==='button');
+ eq(rows().length,1,'Read notifications are hidden from the default activity list');
+ const show=f.query().find(n=>n.type==='button'&&n.props.children==='Show read notifications');show.props.onClick();
+ eq(rows().length,2,'Read history remains available on request');
+ eq(f.calls.filter(c=>c.options?.method==='PATCH').length,0,'Showing history changes no saved state');
+ f.query().find(n=>n.type==='button'&&n.props.children==='Hide read notifications').props.onClick();eq(rows().length,1,'Hiding read history restores the unread list');
+ f.fetch(async(url,options)=>options?.method==='PATCH'?{ok:true,json:async()=>({ok:true,readAt:'2026-10-26T20:00:00Z'})}:{ok:true,json:async()=>({notifications:original.map(n=>({...n,readAt:'2026-10-26T20:00:00Z'})),unread:0})});
+ f.markAll();await flush();eq(rows().length,0,'Confirmed mark-all removes rows from unread list');eq(f.get('items').length,2,'Mark-all preserves saved activity history');
+ eq(f.query().find(n=>n.type==='button'&&n.props.children==='Mark all as read').props.disabled,true,'Mark-all remains visible and disabled when caught up');
+ f.unmount();
+}
+console.log('PASS notification unread filtering, history access and confirmed mark-all behavior.');

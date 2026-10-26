@@ -2627,3 +2627,12 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 /* Scan 20 scheduled jobs and 10 overdue cards initially; load the rest by choice. */
 .schedule-show-more{display:flex;align-items:center;justify-content:center;width:calc(100% - 24px);margin:8px 12px 12px;min-height:44px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;text-align:center;padding:8px 10px;cursor:pointer}
 .schedule-show-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Catalog metadata stays optional; preserve the existing iPhone workspace. */
+.pricing-settings>article{border:1px solid var(--border);border-radius:12px;padding:1rem;min-width:0;display:grid;gap:.5rem}
+.pricing-settings>article>div{display:flex;align-items:center;gap:.5rem;min-width:0}
+.pricing-settings>article input{min-width:0;min-height:44px;font-size:16px}
+.pricing-grid details{min-width:0}.pricing-grid summary,.pricing-settings>article summary{min-height:44px;display:flex;align-items:center;cursor:pointer}
+.pricing-grid details[open],.pricing-settings>article details[open]{display:grid;gap:.5rem}
+.pricing-settings select{background:var(--background);color:var(--foreground);font-size:16px;min-width:0}
+.pricing-settings textarea{min-height:88px;resize:vertical}

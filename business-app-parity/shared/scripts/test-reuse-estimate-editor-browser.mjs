@@ -47,6 +47,24 @@ await page.getByRole('button',{name:'Create New Customer',exact:false}).click();
 await page.getByLabel('Customer name',{exact:true}).fill('Synthetic Quote Package Customer');
 await page.getByLabel('Estimate service address').fill('222 Package Fixture Rd, Tulsa');
 await page.getByRole('button',{name:'Continue to services'}).click();
+// Every QuoteIQ service is offered by the actual estimate selector with its
+// exact unit/rate, without automatically adding any supplemental service.
+const firstService=page.locator('.estimate-edit-service').first();
+for(const service of FIRE_SERVICES.filter(s=>s.quoteIqNumber)){
+ await firstService.getByRole('combobox').click();await page.getByRole('option',{name:service.name,exact:true}).click();
+ check(await firstService.getByLabel('Service name',{exact:true}).inputValue()===service.name,'QuoteIQ #'+service.quoteIqNumber+' selectable');
+ check(await firstService.locator('input[id$="-price"]').inputValue()===String(service.rate/100),'QuoteIQ #'+service.quoteIqNumber+' exact standard rate');
+ check((await firstService.locator('.edit-quantity-row').innerText()).includes(service.unit),'QuoteIQ #'+service.quoteIqNumber+' exact unit');
+ check(await page.locator('.estimate-edit-service').count()===1,'Selecting service never auto-adds surcharges');
+}
+// Oddball quote-only work stays separate from reusable standard catalog entries.
+let customCatalogWrites=0;page.on('request',r=>{if(r.url().endsWith('/api/service-pricing')&&r.method()==='PUT')customCatalogWrites++;});
+await firstService.getByRole('combobox').click();await page.getByRole('option',{name:'Custom Service',exact:true}).click();
+await firstService.getByLabel('Service name',{exact:true}).fill('Oddball exterior request');await firstService.locator('textarea').fill('Only the customized work agreed for this job.');await firstService.locator('input[id$="-price"]').fill('199.95');
+check(await firstService.getByText('Line total $199.95',{exact:true}).count()===1,'Custom quote title, price and description are editable');check(customCatalogWrites===0&&FIRE_SERVICES.find(s=>s.id==='custom').rate===0,'Quote-only custom line never changes master defaults');
+await firstService.getByLabel('Quantity',{exact:true}).fill('');
+// Clear the intentionally selected line before testing the unchanged package flow.
+await firstService.getByLabel('Service name',{exact:true}).fill('');
 await page.getByRole('button',{name:'House + gutters',exact:true}).click();
 const packageLines=page.locator('.estimate-edit-service');
 check(await packageLines.count()===2,'Quick House + gutters package adds two editable service lines');

@@ -15,9 +15,9 @@ export async function POST(request:Request){
  const known=new Set(FIRE_SERVICES.map(service=>service.id));
  if(Object.keys(body).sort().join(',')!==(Object.prototype.hasOwnProperty.call(body,'bookingConfirmedOn')?'appreciationDiscount,bookingConfirmedOn,serviceIds,subtotalCents':'appreciationDiscount,serviceIds,subtotalCents')||
     (Object.prototype.hasOwnProperty.call(body,'bookingConfirmedOn')&&!validOwnerConfirmedBookingDate(body.bookingConfirmedOn,new Date()))||
-    !Array.isArray(body.serviceIds)||body.serviceIds.length>FIRE_SERVICES.length||
+    !Array.isArray(body.serviceIds)||body.serviceIds.length>FIRE_SERVICES.length+500||
     new Set(body.serviceIds).size!==body.serviceIds.length||
-    !body.serviceIds.every(value=>typeof value==='string'&&known.has(value))||
+    !body.serviceIds.every(value=>typeof value==='string'&&(known.has(value)||/^catalog-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value)))||
     typeof body.subtotalCents!=='number'||!Number.isSafeInteger(body.subtotalCents)||body.subtotalCents<0||
     typeof body.appreciationDiscount!=='boolean')return json({error:'Review selected services and pricing before checking promotions.'},400);
  try{

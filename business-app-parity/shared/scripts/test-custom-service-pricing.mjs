@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';import{readFileSync}from'node:fs';import{pricingRuntime}from'./pricing-test-runtime.mjs';
 const r=pricingRuntime();let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
 try{
- let {response,data}=await r.get();eq(response.status,200);eq(response.headers.get('cache-control'),'no-store');eq(data.rates.length,30);
+ let {response,data}=await r.get();eq(response.status,200);eq(response.headers.get('cache-control'),'no-store');eq(data.rates.length,58);
  for(const service of r.catalog.FIRE_SERVICES)eq(data.rates.find(s=>s.id===service.id),{id:service.id,rateCents:service.rate,revision:null});
  const {priceCents,validServiceRates}=r.pricing;
  for(const [raw,expected]of [['0',0],['.22',22],['00.40',40],['0.22',22],['1.50',150],['0.40',40],['999.99',99999],['12.3',1230]])eq(priceCents(raw),expected);
@@ -16,7 +16,25 @@ try{
  for(const id of ['gutters','fence','custom']){response=await r.put({id,rateCents:123,expectedRevision:null});eq(response.status,200);}
  eq((await r.get()).data.rates.find(s=>s.id==='gutters').rateCents,123,'Another device reads confirmed default');eq(history(),before);
  r.db.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES ('estimate','Original subject','Original customer text','2026-01-01')").run();await r.put({id:'roof-wash',rateCents:16000,expectedRevision:null});eq(r.db.prepare("SELECT body FROM message_templates WHERE key='estimate'").get().body,'Original customer text','Namespaced settings never change templates');
- const concurrent=await Promise.all([r.put({id:'deck',rateCents:35,expectedRevision:null}),r.put({id:'deck',rateCents:40,expectedRevision:null})]);eq(concurrent.map(x=>x.status).sort(),[200,409],'Atomic CAS refuses a racing first save');
+ const concurrent=await Promise.all([r.put({id:'deck',rateCents:35,expectedRevision:null}),r.put({id:'deck',rateCents:45,expectedRevision:null})]);eq(concurrent.map(x=>x.status).sort(),[200,409],'Atomic CAS refuses a racing first save');
+ // Metadata is versioned with the rate; old rate-only clients preserve it.
+ const details={name:'Deck custom name',description:'Reviewed scope',unit:'each',category:'supplemental',active:true};
+ let deck=(await r.get()).data.rates.find(s=>s.id==='deck');
+ response=await r.put({id:'deck',rateCents:45,details,expectedRevision:deck.revision});eq(response.status,200);deck=(await response.json()).rate;
+ eq(deck.details,details);eq(history(),before,'Metadata does not rewrite accepted documents');
+ response=await r.put({id:'deck',rateCents:46,expectedRevision:deck.revision});eq(response.status,200);deck=(await response.json()).rate;eq(deck.details,details,'Rate-only save preserves name/unit');
+ const unchanged=r.counters().writes;eq((await r.put({id:'deck',rateCents:46,details,expectedRevision:null})).status,200);eq(r.counters().writes,unchanged,'Exact lost-response retry is read-only');
+ eq((await r.put({id:'deck',rateCents:46,details:{...details,name:'Stale change'},expectedRevision:null})).status,409,'Metadata needs the current revision');
+ for(const invalid of [{...details,name:''},{...details,unit:'acre'},{...details,active:'false'},{...details,category:'automatic'},{...details,extra:1}])eq((await r.put({id:'deck',rateCents:46,details:invalid,expectedRevision:deck.revision})).status,400);
+ response=await r.put({id:'deck',rateCents:46,details:{...details,active:false},expectedRevision:deck.revision});eq(response.status,200);
+ let list=(await r.get()).data.rates;eq(r.pricing.catalogServices(list).some(s=>s.id==='deck'),false,'Inactive services hidden from new selection');eq(r.pricing.catalogServices(list,true).some(s=>s.id==='deck'),true,'Deactivation is reversible');
+ const id='catalog-'+crypto.randomUUID(),customDetails={name:'Owner custom service',description:'Exact custom scope',unit:'linear ft',category:'other',active:true};
+ response=await r.put({id,rateCents:1234,details:customDetails,expectedRevision:null});eq(response.status,200);const added=(await response.json()).rate;
+ eq((await r.put({id,rateCents:1234,details:customDetails,expectedRevision:null})).status,200,'New service stable ID retry');
+ list=(await r.get()).data.rates;eq(r.pricing.validServiceRates(list),true);eq(list.length,59);eq(r.pricing.catalogServices(list).find(s=>s.id===id).name,customDetails.name,'Custom services available in editor catalog');
+ eq((await r.put({id,rateCents:1200,details:customDetails,expectedRevision:null})).status,409);
+ eq((await r.put({id:'catalog-'+crypto.randomUUID(),rateCents:1234,expectedRevision:null})).status,400,'No unlabelled custom service');
+ eq(history(),before,'All customer, signed, invoice and payment rows retained');
  const snapshot=r.counters();r.setOwner(null);eq((await r.get()).response.status,401);eq((await r.put(input)).status,401);eq(r.counters(),snapshot,'Unauthenticated callers never read or write');r.setOwner({email:'foreign@example.invalid'});eq((await r.put(input)).status,401);r.setOwner({email:'kylebrooks8605@gmail.com'});
  r.db.prepare('UPDATE message_templates SET body=? WHERE key=?').run('{bad',r.pricing.SERVICE_RATE_PREFIX+'house-wash');eq((await r.get()).response.status,503,'Corrupt standard never silently falls back to old catalog');
  const money=r.load('lib/editable-line-totals.ts',{});let line={quantity:1660,unitRateCents:22};eq(money.editableLineTotalCents(line),36520);line=money.editMoneyLine(line,{unitRateCents:25});eq(money.editableLineTotalCents(line),41500);line=money.editMoneyLine(line,{flatPriceCents:30001});eq(money.editableLineTotalCents(line),30001);line=money.editMoneyLine(line,{quantity:2000});eq(money.editableLineTotalCents(line),30001,'Flat total independent of measurement');line=money.editMoneyLine(line,{flatPriceCents:undefined,unitRateCents:22});eq(money.editableLineTotalCents(line),44000,'Reset restores standard times retained quantity');
@@ -33,5 +51,5 @@ try{
  }).outputText,moneyVm);
  for(const [cents,display] of [[15000,'$150'],[15001,'$150.01'],[36525,'$365.25'],[99,'$0.99'],[0,'$0'],[-125,'-$1.25']])eq(moneyVm.exports.displayMoney(cents),display,'Actual UI currency display for '+cents+' cents');
  const totals=context.exports.discountMath(44000,false,'percent',15);eq(totals.total,37400);eq(totals.deposit,18700);eq(context.exports.discountMath(0,false,'percent',0,true).total,15000,'A valid zero-priced service previews the existing server minimum');eq(context.exports.discountMath(0,false,'percent',0,true).deposit,7500,'Zero-priced service deposit matches server');eq(context.exports.discountMath(0,false,'percent',0).total,0,'Empty draft remains an empty preview');eq(context.exports.discountMath(1000,false,'dollar',0).total,15000,'Existing $150 minimum unchanged');eq(context.exports.discountMath(44000,true,'percent',45).total,22000,'Existing discount cap unchanged');
- console.log('PASS '+checks+' custom-pricing checks: all 30 defaults, actual SQLite persistence, retry/conflict/auth guards, historical financial preservation, flat/rate/reset arithmetic and existing discounts.');
+ console.log('PASS '+checks+' custom-pricing checks: all 58 defaults, actual SQLite persistence, retry/conflict/auth guards, historical financial preservation, flat/rate/reset arithmetic and existing discounts.');
 }finally{r.db.close();}
