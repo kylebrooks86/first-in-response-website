@@ -33,6 +33,16 @@ for(const width of [320,390,768])for(const theme of ['light','dark']){
  // Long street lists show summaries first while keeping forms and unsaved drafts intact.
  for(let n=101;n<=106;n++){const place=n+' Synthetic Street, Tulsa';await page.getByLabel('House address',{exact:true}).fill(place);await page.getByRole('button',{name:'Save house',exact:true}).click();await page.getByRole('article',{name:'House: '+place}).waitFor();}
  check(await page.getByRole('article').count()===7,'Saved houses remain accessible when territory grows');
+ const duplicateInput=page.getByLabel('House address',{exact:true});
+ await duplicateInput.fill('100 SYNTHETIC STREET, TULSA.');
+ check(await page.getByRole('button',{name:'Save house',exact:true}).isDisabled(),'Saved normalized address cannot be created twice from the iPhone form');
+ const existingAction=page.getByRole('button',{name:/Open saved house · 100 Synthetic Street, Tulsa/});
+ check(await existingAction.count()===1,'Duplicate address offers direct existing-house navigation');
+ const beforeDuplicatePosts=posts;
+ await existingAction.click();
+ check(await duplicateInput.inputValue()==='','Opening saved house clears the duplicate entry without a server write');
+ check(await page.getByRole('article',{name:'House: 100 Synthetic Street, Tulsa'}).count()===1,'Existing house and full visit history remain available');
+ check(posts===beforeDuplicatePosts,'Duplicate preflight performs zero POST requests');
  const older=page.getByRole('article',{name:'House: 101 Synthetic Street, Tulsa'});
  check(await older.getByRole('button',{name:'Log visit'}).count()===1,'Large territory hides an idle house editor behind one tap');
  check(await older.getByRole('button',{name:'Save visit',exact:true}).count()===0,'Collapsed house does not expose accidental save actions');
