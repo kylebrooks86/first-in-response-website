@@ -30,5 +30,18 @@ for(const width of [320,390,768])for(const theme of ['light','dark']){
  check(await page.getByRole('region',{name:'House revisit reminders'}).count()===0,'Do-not-knock overrides prior revisit date');
  check(await page.evaluate(()=>document.documentElement.scrollWidth)<=width,'No horizontal overflow '+width+'/'+theme);const buttons=await page.getByRole('region',{name:'Door knocking tracker'}).getByRole('button').evaluateAll(nodes=>nodes.map(n=>({text:n.textContent,height:n.getBoundingClientRect().height})));await house.getByRole('button',{name:'Allow contact again'}).scrollIntoViewIfNeeded();check(await house.getByRole('button',{name:'Allow contact again'}).evaluate(b=>{const r=b.getBoundingClientRect();return b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),'Bottom action receives taps above fixed navigation');check(buttons.every(b=>b.height>=44),'Touch targets at least 44px '+JSON.stringify(buttons));
 }
+ // Long street lists show summaries first while keeping forms and unsaved drafts intact.
+ for(let n=101;n<=106;n++){const place=n+' Synthetic Street, Tulsa';await page.getByLabel('House address',{exact:true}).fill(place);await page.getByRole('button',{name:'Save house',exact:true}).click();await page.getByRole('article',{name:'House: '+place}).waitFor();}
+ check(await page.getByRole('article').count()===7,'Saved houses remain accessible when territory grows');
+ const older=page.getByRole('article',{name:'House: 101 Synthetic Street, Tulsa'});
+ check(await older.getByRole('button',{name:'Log visit'}).count()===1,'Large territory hides an idle house editor behind one tap');
+ check(await older.getByRole('button',{name:'Save visit',exact:true}).count()===0,'Collapsed house does not expose accidental save actions');
+ await older.getByRole('button',{name:'Log visit'}).click();
+ check(await older.getByLabel('Visit outcome').locator('option').count()===8,'Expanded compact card retains all eight visit outcomes');
+ await older.getByLabel('Visit note (optional)').fill('Keep my field note');
+ await older.getByRole('button',{name:'Hide actions'}).click();
+ await older.getByRole('button',{name:'Log visit'}).click();
+ check(await older.getByLabel('Visit note (optional)').inputValue()==='Keep my field note','Collapsing never discards an unsaved note');
+ check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Seven-house cards fit mobile viewport width without overflow');
  denied=true;await page.getByRole('button',{name:'Refresh house history'}).click();await page.getByRole('alert').waitFor();check(await page.getByRole('article').count()===0,'Authorization failure clears previously visible houses');check(await page.getByRole('button',{name:'Save house',exact:true}).isDisabled(),'Unauthorized writes blocked');check(errors.length===0,'No React exceptions '+errors.join(';'));console.log('PASS '+checks+' actual door-knocking mobile light/dark checks with SQLite.');
 }finally{await browser?.close();await new Promise(r=>server.close(r));db.close();}

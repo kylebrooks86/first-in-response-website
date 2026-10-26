@@ -2534,3 +2534,7 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 .territory-places li.territory-due-row>.territory-place-open{flex:1 1 100%;min-width:0}
 .territory .territory-places li.territory-due-row>.territory-row-directions{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:95px;padding:7px 12px;text-decoration:none;font-weight:750}
 .territory .territory-place-summary{display:block;margin:7px 0 2px;font-size:12px;color:var(--muted-foreground)}
+
+/* Compact door-knocking cards avoid full visit forms for every house in a long iPhone list. */
+.door-house-detail[hidden]{display:none!important}
+.door-house-card button[aria-controls^="door-house-details-"]{min-height:44px}
