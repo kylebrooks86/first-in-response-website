@@ -2189,6 +2189,9 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showUnansweredLeadsOnly,setShowUnansweredLeadsOnly]=useState(false);
   const [showDueCallbacksOnly,setShowDueCallbacksOnly]=useState(false);
+  const [directorySearch,setDirectorySearch]=useState("");
+  const [directoryLimit,setDirectoryLimit]=useState(40);
+  useEffect(()=>{setDirectoryLimit(40);},[directorySearch,searchQuery,showDueCallbacksOnly,showUnansweredLeadsOnly]);
   const [timelineShown,setTimelineShown]=useState(6);
   const [journeyShown,setJourneyShown]=useState(3);
   const [timelineFilter,setTimelineFilter]=useState<"all"|"estimates"|"messages"|"billing"|"notes">("all");
@@ -2488,7 +2491,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const filteredCustomers = customers.filter((customer)=>
     (!showUnansweredLeadsOnly||manuallyUnansweredLeadIds.has(customer.id))&&
     (!showDueCallbacksOnly||dueLeadCallbackIds.has(customer.id))&&
-    [customer.name,customer.email,customer.phone,customer.address].join(" ").toLowerCase().includes(searchQuery.toLowerCase())
+    [searchQuery,directorySearch].every(term=>[customer.name,customer.email,customer.phone,customer.address].join(" ").toLowerCase().includes(term.trim().toLowerCase()))
   );
   const activeCustomerEstimate=pickCustomerNextEstimate(customerEstimates,Date.now());
   const customerBalances=summarizeCustomerBalances(customerEstimates);
@@ -2723,7 +2726,12 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         {showDueCallbacksOnly?"Show all customers":`Callbacks due (${dueLeadCallbackIds.size})`}
       </Button>}
     </div>}
-    {loading ? <div className="customers-state">Loading customers…</div> : error ? <div className="customers-state"><p>{error}</p><Button variant="outline" onClick={() => void load()}>Try again</Button></div> : filteredCustomers.length ? <section className="customer-list">{filteredCustomers.map((customer) => <button className="customer-card" key={customer.id} onClick={() => setSelectedId(customer.id)}><span className="customer-avatar">{customer.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><span className="customer-main"><strong>{customer.name}</strong><small>{[customer.address?.trim(),customer.phone||customer.email].filter(Boolean).join(" · ")||"Add address or contact"}</small></span>{customer.estimateCount>0&&<span className="customer-totals"><strong>{customer.estimateCount} estimate{customer.estimateCount === 1 ? "" : "s"}</strong><small>{money(customer.estimateTotal)}</small></span>}<ChevronRight /></button>)}</section> : <div className="customers-state"><Users /><strong>{showDueCallbacksOnly?"No due callbacks match":showUnansweredLeadsOnly?"No unanswered leads match":searchQuery ? "No matching customers" : "No customers yet"}</strong><p>{showDueCallbacksOnly?"Only pending owner-saved callbacks due today or earlier appear here. Show all customers for the full list.":showUnansweredLeadsOnly?"These results use only explicitly saved manual lead notes. Show all customers to see other records.":searchQuery ? "Try a name, phone number, email, or address." : "Add your first customer to start their permanent record."}</p></div>}
+    {!loading&&!error&&customers.length>0&&<div className="customer-directory-tools">
+      <label className="customer-directory-search"><span className="sr-only">Find saved customer</span><input type="search" aria-label="Find saved customer" value={directorySearch} maxLength={128} placeholder="Find name, address or phone" onChange={event=>setDirectorySearch(event.target.value)}/></label>
+      {directorySearch&&<button type="button" className="customer-directory-clear" onClick={()=>setDirectorySearch("")}>Clear</button>}
+      <small role="status">{filteredCustomers.length} of {customers.length} customers</small>
+    </div>}
+    {loading ? <div className="customers-state">Loading customers…</div> : error ? <div className="customers-state"><p>{error}</p><Button variant="outline" onClick={() => void load()}>Try again</Button></div> : filteredCustomers.length ? <><section className="customer-list">{filteredCustomers.slice(0,directoryLimit).map((customer) => <button className="customer-card" key={customer.id} onClick={() => setSelectedId(customer.id)}><span className="customer-avatar">{customer.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><span className="customer-main"><strong>{customer.name}</strong><small>{[customer.address?.trim(),customer.phone||customer.email].filter(Boolean).join(" · ")||"Add address or contact"}</small>{dueLeadCallbackIds.has(customer.id)&&<small className="customer-directory-alert">Callback due</small>}{manuallyUnansweredLeadIds.has(customer.id)&&<small className="customer-directory-contact-state">No answer · not contacted</small>}</span>{customer.estimateCount>0&&<span className="customer-totals"><strong>{customer.estimateCount} estimate{customer.estimateCount === 1 ? "" : "s"}</strong><small>{money(customer.estimateTotal)}</small></span>}<ChevronRight /></button>)}</section>{filteredCustomers.length>directoryLimit&&<button type="button" className="customer-directory-more" onClick={()=>setDirectoryLimit(n=>Math.min(n+40,filteredCustomers.length))}>Show next {Math.min(40,filteredCustomers.length-directoryLimit)} customers · {filteredCustomers.length-directoryLimit} remaining</button>}</> : <div className="customers-state"><Users /><strong>{showDueCallbacksOnly?"No due callbacks match":showUnansweredLeadsOnly?"No unanswered leads match":searchQuery||directorySearch ? "No matching customers" : "No customers yet"}</strong><p>{showDueCallbacksOnly?"Only pending owner-saved callbacks due today or earlier appear here. Show all customers for the full list.":showUnansweredLeadsOnly?"These results use only explicitly saved manual lead notes. Show all customers to see other records.":searchQuery||directorySearch ? "Try another name, phone number, email, or address." : "Add your first customer to start their permanent record."}</p></div>}
   </div>;
 }
 

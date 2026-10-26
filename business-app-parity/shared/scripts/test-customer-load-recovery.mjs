@@ -78,6 +78,31 @@ for(const failure of failures)for(const selected of [false,true]){
  f.setFetcher(async()=>ok({...b,customers:[{...row,address:'',phone:'',email:''}]}));await f.load();
  eq(details().props.children,'Add address or contact','Missing details have a concise, useful cue');
 }
+// Search uses already-authorized directory records; expansion is local and read-only.
+{
+ const f=fixture(),original=body('one');
+ const all=Array.from({length:85},(_,i)=>({id:'dir-'+i,name:'Street Customer '+i,address:i===66?'66 Unique Drive, Owasso':'Tulsa Test Road '+i,phone:i===66?'9185550166':'9185550100',email:'',estimateCount:0,estimateTotal:0,paidTotal:0}));
+ f.setFetcher(async()=>ok({...original,customers:all}));await f.load();
+ const cards=()=>nodes(f.render()).filter(n=>n.props?.className==='customer-card');
+ const choose=()=>nodes(f.render()).find(n=>n.props?.className==='customer-directory-more');
+ eq(cards().length,40,'Initial customer directory limits scroll to 40 visible cards');
+ eq(Boolean(choose()),true,'All remaining authenticated customers stay reachable');
+ choose().props.onClick();
+ eq(cards().length,80,'One tap reveals the next forty saved customers');
+ choose().props.onClick();
+ eq(cards().length,85,'Last page reveals all saved customers without another server request');
+ f.set('directorySearch','Owasso');
+ eq(cards().length,1,'Local quick-find narrows by saved address, not API search');
+ eq(cards()[0].props.key,'dir-66','Quick-find opens the correct saved ID');
+ const clear=nodes(f.render()).find(n=>n.props?.className==='customer-directory-clear');
+ eq(Boolean(clear),true,'Quick-find clear action is discoverable');
+ clear.props.onClick();
+ eq(f.get('directorySearch'),'','Clear resets local search without mutating saved records');
+ eq(f.get('customers').length,85,'Pagination and search never truncate actual owner records');
+ const local=nodes(f.render()).find(n=>n.props?.['aria-label']==='Find saved customer');
+ eq(Boolean(local),true,'Dedicated in-page find is accessible on mobile');
+ eq(local.props.maxLength,128,'Find field has a bounded length');
+}
 const directoryCss=readFileSync('app/globals.css','utf8');
 assert.ok(directoryCss.includes('.customers-view>.customer-list .customer-card{gap:10px;min-height:60px'),'Compact directory leaves a full-size touch target');
 assert.ok(directoryCss.includes('.customers-view>.customer-list .customer-main small{overflow-wrap:anywhere'),'Long addresses cannot spill outside mobile customer cards');

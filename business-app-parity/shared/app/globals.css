@@ -2538,3 +2538,16 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 /* Compact door-knocking cards avoid full visit forms for every house in a long iPhone list. */
 .door-house-detail[hidden]{display:none!important}
 .door-house-card button[aria-controls^="door-house-details-"]{min-height:44px}
+
+/* FIRE customer directory: local quick-find and short scan-first cards on narrow iPhones. */
+.customer-directory-tools{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-top:10px;min-width:0}
+.customer-directory-search{flex:1 1 205px;min-width:0}
+.customer-directory-search input{display:block;width:100%;min-width:0;min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 11px;background:var(--background);color:var(--foreground);font-size:16px}
+.customer-directory-clear,.customer-directory-more{min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 13px;background:var(--card);color:var(--foreground);font-weight:700;cursor:pointer}
+.customer-directory-tools>small{flex:1 1 100%;color:var(--muted-foreground);font-size:12px}
+.customers-view .customer-directory-alert,.customers-view .customer-directory-contact-state{display:block;max-width:100%;margin-top:2px;font-size:12px;line-height:1.35;font-weight:750;overflow-wrap:anywhere}
+.customers-view .customer-directory-alert{color:#a45b08}
+html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
+.customers-view .customer-directory-contact-state{color:var(--muted-foreground)}
+.customer-directory-more{width:100%;margin-top:8px;text-align:center}
+.customer-directory-search input:focus-visible,.customer-directory-clear:focus-visible,.customer-directory-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
