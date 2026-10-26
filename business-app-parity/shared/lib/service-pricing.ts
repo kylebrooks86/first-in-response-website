@@ -26,6 +26,6 @@ export function decodeServiceRate(id:string,row:{body:string}|null):ServiceRate{
  return{id,...value};
 }
 export function catalogServices(rates:ServiceRate[],includeInactive=false):FireService[]{
- return rates.map(r=>{const base=FIRE_SERVICES.find(s=>s.id===r.id);return{...base,id:r.id,name:base?.name??'',unit:base?.unit??'quantity',description:base?.description??'',...r.details,provisionalName:Boolean(base?.provisionalName&&(!r.details||r.details.name===base.name)),rate:r.rateCents};}).filter(s=>includeInactive||s.active!==false);
+ return rates.map(r=>{const base=FIRE_SERVICES.find(s=>s.id===r.id);return{...base,id:r.id,name:base?.name??'',unit:base?.unit??'quantity',...r.details,description:r.details?.description==='Service includes only the work and areas listed in this estimate. Additional work requires customer approval.'?(base?.description??r.details.description):(r.details?.description??base?.description??''),provisionalName:Boolean(base?.provisionalName&&(!r.details||r.details.name===base.name)),rate:r.rateCents};}).filter(s=>includeInactive||s.active!==false);
 }
 export function serviceDetails(service:FireService):ServiceDetails{return{name:service.name,description:service.description,unit:service.unit,category:service.category??'other',active:service.active!==false};}

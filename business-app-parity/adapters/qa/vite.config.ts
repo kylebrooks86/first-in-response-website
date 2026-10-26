@@ -1,3 +1,4 @@
+import {buildOfflineFieldAssets} from './scripts/build-offline-field.mjs';
 /** New, isolated FIRE synthetic QA Worker ONLY. Do not deploy automatically.
  * Never bind a production D1/R2, Stripe, custom domain or ChatGPT Sites resource.
  * QA R2 name is RESERVED FOR A FUTURE NEW QA-ONLY BUCKET; source does not
@@ -26,6 +27,11 @@ export default defineConfig(async () => {
     server: { host: "127.0.0.1" },
     plugins: [
       vinext(),
+      {name:'fire-private-field-shell',apply:'build' as const,async generateBundle(){
+        if(this.environment.name!=='client')return;
+        const assets=await buildOfflineFieldAssets();
+        for(const [fileName,source] of Object.entries(assets))this.emitFile({type:'asset',fileName,source:source as string});
+      }},
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,

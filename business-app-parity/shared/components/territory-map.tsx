@@ -1,4 +1,7 @@
 'use client';
+import {readOfflineMapPack,downloadOfflineMapPack,offlineStreetStyle,offlineMapResource,type OfflineMapPack} from '../lib/offline-map-pack';
+import {OfflineFieldSetup} from './offline-field-setup';
+
 import {useEffect,useMemo,useRef,useState} from 'react';
 import type {Map as GLMap,GeoJSONSource,StyleSpecification} from 'maplibre-gl';
 import {territoryCardStatus,territoryUnvisited,nextUnvisitedTerritoryPlace,dueTerritoryRouteGroups,TERRITORY_CATEGORIES,TERRITORY_VIEW_KEY,TERRITORY_DEFAULT_VIEW,validTerritoryView,territoryPlaces,territoryVisible,territoryGeoJSON,validTerritoryRecords,type TerritoryPlace,type TerritoryRecords} from '../lib/territory';
@@ -14,10 +17,12 @@ const usgsAerialStyle=():StyleSpecification=>({
  sources:{'usgs-aerial':{type:'raster',tiles:[USGS_TILE],tileSize:256,maxzoom:16,attribution:'<a href="https://www.usgs.gov/programs/national-geospatial-program/national-map">USGS The National Map / USDA</a>'}},
  layers:[{id:'usgs-aerial-image',type:'raster',source:'usgs-aerial'}]
 });
-const selectedBaseStyle=(online:boolean,mode:BaseStyle):StyleSpecification|string=>online?(mode==='aerial'?usgsAerialStyle():STREET_STYLE):offlinePinStyle();
+const selectedBaseStyle=(online:boolean,mode:BaseStyle,pack?:OfflineMapPack|null):StyleSpecification|string=>online?(mode==='aerial'?usgsAerialStyle():STREET_STYLE):pack?offlineStreetStyle(pack):offlinePinStyle();
 const offlinePinStyle=():StyleSpecification=>({version:8,sources:{},layers:[{id:'offline-pin-background',type:'background',paint:{'background-color':'#e5eceb'}}]});
 type Props={online?:boolean;focusAddress?:string|null;onFocusAddressHandled?:(address:string)=>void;book:DoorBook;disabled:boolean;save:(details:Record<string,unknown>)=>Promise<void>;onOpenCustomer?:(id:string)=>void;onOpenHouse:(id:string)=>void;onCreateCustomer?:(address:string)=>void};
 export function TerritoryMap({online=true,focusAddress,onFocusAddressHandled,book,disabled,save,onOpenCustomer,onOpenHouse,onCreateCustomer}:Props){
+ const [offlinePack,setOfflinePack]=useState<OfflineMapPack|null>(null),[downloadStatus,setDownloadStatus]=useState(''),[downloading,setDownloading]=useState(false);const packRef=useRef<OfflineMapPack|null>(null),downloadLock=useRef(false),downloadAbort=useRef<AbortController|null>(null);packRef.current=offlinePack;
+ useEffect(()=>{let active=true;void readOfflineMapPack().then(p=>{if(active)setOfflinePack(p);}).catch(()=>{});return()=>{active=false;downloadAbort.current?.abort();};},[]);
  const host=useRef<HTMLDivElement>(null),map=useRef<GLMap|null>(null),alive=useRef(true),recordsRequest=useRef(0),styleOnline=useRef<boolean|null>(null),appliedBase=useRef<BaseStyle|null>(null),onlineRef=useRef(online),baseRef=useRef<BaseStyle>('street');onlineRef.current=online;
  const [records,setRecords]=useState<TerritoryRecords>({customers:[],jobs:[]}),[recordError,setRecordError]=useState(''),[mapError,setMapError]=useState(''),[ready,setReady]=useState(false),[filter,setFilter]=useState('all'),[selected,setSelected]=useState<string|null>(null),[query,setQuery]=useState(''),[searching,setSearching]=useState(false),[searchError,setSearchError]=useState(''),[draft,setDraft]=useState<{point:DoorPoint;address:string;matched?:string;source?:'auto'}|null>(null),[note,setNote]=useState(''),[revisitOpen,setRevisitOpen]=useState(false),[revisitDate,setRevisitDate]=useState(''),[legend,setLegend]=useState(false),[showPlaces,setShowPlaces]=useState(false),[moreFilters,setMoreFilters]=useState(false),[listLimit,setListLimit]=useState(60),[placeQuery,setPlaceQuery]=useState(''),[expanded,setExpanded]=useState(false),[autoFind,setAutoFind]=useState(false),[baseStyle,setBaseStyle]=useState<BaseStyle>('street');
  baseRef.current=baseStyle;
@@ -31,6 +36,8 @@ export function TerritoryMap({online=true,focusAddress,onFocusAddressHandled,boo
  const listedPlaces=useMemo(()=>{const q=placeQuery.trim().toLocaleLowerCase();return q?visible.filter(p=>p.address.toLocaleLowerCase().includes(q)||p.customers.some(c=>c.name.toLocaleLowerCase().includes(q))):visible;},[visible,placeQuery]);
  const geoRef=useRef(geo);geoRef.current=geo;
  const pinStatus=(p:TerritoryPlace)=>unknownOffline&&!p.category?'Status unavailable offline':territoryCardStatus(p);
+ useEffect(()=>{if(map.current&&!online)map.current.setStyle(selectedBaseStyle(false,baseStyle,offlinePack));},[offlinePack]);
+ const downloadArea=async()=>{if(downloadLock.current||!map.current||!online)return;downloadLock.current=true;setDownloading(true);const c=map.current.getCenter(),controller=new AbortController();downloadAbort.current=controller;try{const p=await downloadOfflineMapPack({lat:c.lat,lng:c.lng},(n,total)=>setDownloadStatus(`Downloading streets · ${n}/${total}`),controller.signal);setOfflinePack(p);setDownloadStatus('Street area saved on this device.');}catch(e){setDownloadStatus(e instanceof Error?e.message:'Map download failed.');}finally{downloadLock.current=false;setDownloading(false);}};
  const current=places.find(p=>p.key===selected)??null;
  const selectRef=useRef((key:string)=>{setSelected(key);setDraft(null);setNote('');});
  const loadRecords=async()=>{const request=++recordsRequest.current;setRecordError('');if(!online){setRecordError('Offline · saved pins only.');return;}try{const r=await fetch('/api/territory',{cache:'no-store'});if(!alive.current||request!==recordsRequest.current)return;if(r.status===401||r.status===403){setRecords({customers:[],jobs:[]});throw Error('Sign in again to view customer pins.');}const v=await r.json() as TerritoryRecords;if(!r.ok||!validTerritoryRecords(v))throw Error('Customer pins unavailable.');if(alive.current&&request===recordsRequest.current)setRecords(v);}catch(e){if(alive.current&&request===recordsRequest.current)setRecordError(e instanceof Error?e.message:'Customer pins unavailable.');}};
@@ -44,7 +51,8 @@ export function TerritoryMap({online=true,focusAddress,onFocusAddressHandled,boo
    if(canceled||!host.current)return;
    let initialView=TERRITORY_DEFAULT_VIEW;
    try{const stored=sessionStorage.getItem(TERRITORY_VIEW_KEY);const parsed:unknown=stored?JSON.parse(stored):null;if(validTerritoryView(parsed))initialView=parsed;}catch{/* Private browsing/storage denial: use Tulsa default. */}
-   instance=new lib.Map({container:host.current,style:selectedBaseStyle(onlineRef.current,baseRef.current),center:[initialView.lng,initialView.lat],zoom:initialView.zoom,maxZoom:19,attributionControl:{compact:true}});map.current=instance;styleOnline.current=onlineRef.current;appliedBase.current=baseRef.current;
+   lib.addProtocol('fire-map',async parameters=>{if(!packRef.current)throw Error('No downloaded streets.');return{data:offlineMapResource(packRef.current,parameters.url)};});
+   instance=new lib.Map({container:host.current,style:selectedBaseStyle(onlineRef.current,baseRef.current,packRef.current),center:[initialView.lng,initialView.lat],zoom:initialView.zoom,maxZoom:19,attributionControl:{compact:true}});map.current=instance;styleOnline.current=onlineRef.current;appliedBase.current=baseRef.current;
    instance.on('moveend',()=>{if(canceled||!instance)return;const c=instance.getCenter();const view={lat:c.lat,lng:c.lng,zoom:instance.getZoom()};if(validTerritoryView(view))try{sessionStorage.setItem(TERRITORY_VIEW_KEY,JSON.stringify(view));}catch{/* Navigation keeps working without storage. */}});
    instance.addControl(new lib.NavigationControl({showCompass:false}),'top-right');
    instance.addControl(new lib.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:false,showAccuracyCircle:true}),'top-right');
@@ -70,7 +78,7 @@ export function TerritoryMap({online=true,focusAddress,onFocusAddressHandled,boo
   function multi(e:TouchEvent){if(e.touches.length>1)clear();}
   const element=host.current;return()=>{canceled=true;clear();element?.removeEventListener('pointerdown',down);element?.removeEventListener('pointermove',cancelMove);element?.removeEventListener('pointerup',clear);element?.removeEventListener('pointercancel',clear);element?.removeEventListener('touchstart',multi);instance?.remove();map.current=null;};
  },[]);
- useEffect(()=>{const instance=map.current;if(instance&&(styleOnline.current!==online||appliedBase.current!==baseStyle)){styleOnline.current=online;appliedBase.current=baseStyle;setReady(false);instance.setStyle(selectedBaseStyle(online,baseStyle));}},[online,baseStyle]);
+ useEffect(()=>{const instance=map.current;if(instance&&(styleOnline.current!==online||appliedBase.current!==baseStyle)){styleOnline.current=online;appliedBase.current=baseStyle;setReady(false);instance.setStyle(selectedBaseStyle(online,baseStyle,offlinePack));}},[online,baseStyle]);
  useEffect(()=>{const id=requestAnimationFrame(()=>map.current?.resize());return()=>cancelAnimationFrame(id);},[expanded]);
  useEffect(()=>{if(ready)(map.current?.getSource('fire-places') as GeoJSONSource|undefined)?.setData(geo);},[ready,geo]);
  useEffect(()=>{if(ready)(map.current?.getSource('fire-draft') as GeoJSONSource|undefined)?.setData({type:'FeatureCollection',features:draft?[{type:'Feature',properties:{},geometry:{type:'Point',coordinates:[draft.point.lng,draft.point.lat]}}]:[]});},[ready,draft]);
@@ -188,5 +196,5 @@ export function TerritoryMap({online=true,focusAddress,onFocusAddressHandled,boo
     {filter==='revisits-due'&&<a className="territory-row-directions" aria-label={`Directions to ${p.address}`} href={'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(p.point?`${p.point.lat},${p.point.lng}`:p.address)} target="_blank" rel="noopener noreferrer">Directions</a>}
    </li>)}{!listedPlaces.length&&<li>{placeQuery.trim()?"No matching saved places.":"No places in this filter."}</li>}{listedPlaces.length>listLimit&&<li className="territory-places-more"><button type="button" onClick={()=>setListLimit(n=>n+60)}>Show more · {listedPlaces.length-listLimit} remaining</button></li>}</ul></>}
   <details className="territory-help"><summary>Map help</summary><p>Long-press or use Drop pin. Saved addresses and customer names stay in the local search. New numbered street addresses use the US Census lookup; review any approximate location before saving. Street maps: OpenFreeMap / OpenStreetMap. Aerial: USGS The National Map / USDA imagery, which may be older and needs internet. Offline pins are available under Offline pins. Downloadable map imagery is not available yet.</p></details>
- </section>;
+ <details className="ui-help"><summary>Offline streets</summary><p>Save a neighborhood around the map center · up to 8 MB. Street zoom 8–14; imagery stays online.</p><button type="button" disabled={!online||downloading} onClick={()=>void downloadArea()}>{downloading?'Downloading…':'Save street area'}</button>{downloading&&<button type="button" onClick={()=>downloadAbort.current?.abort()}>Cancel download</button>}{offlinePack&&<small>Saved {new Date(offlinePack.createdAt).toLocaleDateString()} · {(offlinePack.bytes/1024/1024).toFixed(1)} MB</small>}{downloadStatus&&<p role="status">{downloadStatus}</p>}</details><OfflineFieldSetup/></section>;
 }

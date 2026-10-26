@@ -1,3 +1,4 @@
+import {buildOfflineFieldAssets} from './scripts/build-offline-field.mjs';
 import vinext from "vinext";
 import { defineConfig } from "vite";
 
@@ -44,6 +45,11 @@ export default defineConfig(async () => {
     },
     plugins: [
       vinext(),
+      {name:'fire-private-field-shell',apply:'build' as const,async generateBundle(){
+        if(this.environment.name!=='client')return;
+        const assets=await buildOfflineFieldAssets();
+        for(const [fileName,source] of Object.entries(assets))this.emitFile({type:'asset',fileName,source:source as string});
+      }},
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,

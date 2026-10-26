@@ -19,3 +19,7 @@ for(const id of ['window-oxidation','underground-additional','vehicle-wash','cob
 for(const id of ['gutter-guards','windows','window-deep-1f','window-deep-2f','window-oxidation-1f','window-oxidation-2f','trash-bins'])eq(FIRE_SERVICES.find(s=>s.id===id).name.includes('…'),false,'Use matching existing full name '+id);
 eq(FIRE_SERVICES.find(s=>s.id==='house-wash').rate*2000,44000);eq(FIRE_SERVICES.find(s=>s.id==='roof-wash').rate*2000,70000);eq(FIRE_SERVICES.find(s=>s.id==='deck').rate*200,8000);eq(FIRE_SERVICES.find(s=>s.id==='gutters').rate*100,15000);
 console.log('PASS '+checks+' QuoteIQ catalog checks: every numbered price/unit, 34/16 organization, stable IDs and retained extras.');
+
+for(const service of FIRE_SERVICES){eq(service.description.length>=160,true,'Detailed scope: '+service.id);eq(service.description.includes('Service includes only the work and areas listed in this estimate.'),false,'No generic placeholder: '+service.id);}
+eq(new Set(FIRE_SERVICES.map(s=>s.description)).size,58,'Individual service descriptions');
+console.log('PASS detailed scope/exclusion coverage for all 58 retained and QuoteIQ services.');

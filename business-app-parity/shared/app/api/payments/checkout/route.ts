@@ -61,6 +61,7 @@ export async function POST(request: Request) {
       FROM estimates e JOIN customers c ON c.id=e.customer_id
       WHERE e.share_token=? LIMIT 1
     `).bind(shareToken).first<{ id: string; totalCents: number; depositCents: number; status:string; acceptedAt:string|null; customer: string; service: string }>();
+    if(row?.status==="superseded")return Response.json({error:"This quote was replaced. Use the latest quote from First In Response Exteriors."},{status:409});
     if (!row) return Response.json({ error: "Estimate not found." }, { status: 404 });
     const pendingRefund=await env.DB.prepare("SELECT id FROM payment_refunds WHERE estimate_id=? AND status='pending' LIMIT 1").bind(row.id).first();
     if(pendingRefund)return Response.json({error:"A refund is processing. Wait for Stripe reconciliation before collecting another payment."},{status:409});
@@ -105,8 +106,8 @@ export async function POST(request: Request) {
     try {
       const locked=await env.DB.prepare(`INSERT INTO payment_checkout_sessions (id,estimate_id,type,amount_cents,status,created_at)
         SELECT ?,?,?,?,'open',? WHERE NOT EXISTS (
-          SELECT 1 FROM payment_checkout_sessions WHERE estimate_id=? AND status='open')`)
-        .bind(reservationId,row.id,paymentType,chargeAmount,new Date().toISOString(),row.id).run();
+          SELECT 1 FROM payment_checkout_sessions WHERE estimate_id=? AND status='open') AND EXISTS(SELECT 1 FROM estimates WHERE id=? AND status<>'superseded')`)
+        .bind(reservationId,row.id,paymentType,chargeAmount,new Date().toISOString(),row.id,row.id).run();
       reserved=Boolean(locked.meta.changes);
     }catch {
       // The unique index also rejects a concurrent reservation which won the race.
