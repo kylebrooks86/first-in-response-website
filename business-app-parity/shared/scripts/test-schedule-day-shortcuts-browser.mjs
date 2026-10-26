@@ -182,6 +182,8 @@ try{
  check(JSON.parse(await page.locator('#selection').textContent()).selected==='approved-47','Search opens exact saved job, not first result or false creation');
  await page.getByRole('button',{name:'+ Schedule job'}).click();
  check(await picker.getByLabel('Find approved job').inputValue()==='', 'Opening the chooser resets old search for the next booking');
+ await page.getByRole('button',{name:'+ Schedule job'}).click();
+ check(await page.getByRole('region',{name:'Choose an approved job to schedule'}).count()===0,'Closing a filtered booking queue hides the picker before the next case');
  await page.evaluate(()=>window.__setScenario('empty'));
 
  await page.waitForFunction(()=>!document.querySelector('.schedule-day-buttons>.route-day-button'));
