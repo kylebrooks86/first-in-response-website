@@ -9,6 +9,7 @@ export type LocalCustomerInput={name:string;email?:string;phone?:string;address?
 export type LocalCustomer={id:string;name:string;email:string;phone:string;address:string;revision:string;createdAt:string;updatedAt:string};
 export type LocalCustomerOperation={id:string;action:'create'|'update';customerId:string;customer:LocalCustomer;at:string;expectedRevision:string|null};
 type Receipt={id:string;fingerprint:string;customer:LocalCustomer};
+export type LocalCustomerSnapshot={format:string;namespace:string;customers:LocalCustomer[];pending:LocalCustomerOperation[];receipts:Receipt[];encrypted:false;serverConfirmed:false};
 const FORMAT='fire-offline-customer-drafts-v1';
 const fields=(input:LocalCustomerInput):Omit<LocalCustomer,'id'|'revision'|'createdAt'|'updatedAt'>=>{
  if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Invalid customer draft.');
@@ -98,8 +99,85 @@ export async function openOfflineCustomerRepository(identity:{target:LocalCustom
   listPending:async()=>(await readAll<LocalCustomerOperation>('outbox')).sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id)),
   createCustomer:(input:LocalCustomerInput,operationId:string)=>write('create',null,input,null,operationId),
   updateCustomer:(id:string,input:LocalCustomerInput,expectedRevision:string,operationId:string)=>write('update',id,input,expectedRevision,operationId),
-  /** Export only unsynced synthetic draft data in this isolated prototype.
-   * No active sync or import; backup is not encrypted and must be secured by owner. */
-  exportSnapshot:async()=>{check();return {format:FORMAT,namespace,customers:await readAll<LocalCustomer>('customers'),pending:await readAll<LocalCustomerOperation>('outbox'),encrypted:false,serverConfirmed:false};},
+  /** One readonly IndexedDB snapshot; customers, pending operations and their
+   * idempotency receipts are captured together, never across drifting reads.
+   * This prototype is PLAINTEXT and for synthetic local testing only. */
+  exportSnapshot:():Promise<LocalCustomerSnapshot>=>{
+   check();
+   return new Promise((resolve,reject)=>{
+    const tx=db.transaction(['customers','operations','outbox'],'readonly');
+    const customers=tx.objectStore('customers').getAll(),receipts=tx.objectStore('operations').getAll(),pending=tx.objectStore('outbox').getAll();
+    tx.oncomplete=()=>resolve({format:FORMAT,namespace,customers:customers.result as LocalCustomer[],pending:pending.result as LocalCustomerOperation[],receipts:receipts.result as Receipt[],encrypted:false,serverConfirmed:false});
+    tx.onabort=()=>reject(tx.error??Error('Local customer snapshot was interrupted.'));
+   });
+  },
+  /** Guarded synthetic-only recovery. A restore requires the *same* owner/target
+   * namespace and all three stores empty. No merges, remote writes, or payments.
+   * Validate all operation ancestry and receipt fingerprints BEFORE writing. */
+  restoreSnapshot:async(snapshot:unknown):Promise<{customers:number;pending:number}>=>{
+   check();
+   const object=(x:unknown):x is Record<string,unknown>=>x!==null&&typeof x==='object'&&!Array.isArray(x);
+   const exact=(x:Record<string,unknown>,keys:string[])=>Object.keys(x).length===keys.length&&Object.keys(x).every(key=>keys.includes(key));
+   const timestamp=(x:unknown)=>typeof x==='string'&&/^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}Z$/.test(x)&&Number.isFinite(Date.parse(x))&&new Date(x).toISOString()===x;
+   const same=(a:LocalCustomer,b:LocalCustomer)=>Object.keys(a).every(key=>a[key as keyof LocalCustomer]===b[key as keyof LocalCustomer]);
+   const validCustomer=(x:unknown):x is LocalCustomer=>{
+    if(!object(x)||!exact(x,['id','name','email','phone','address','revision','createdAt','updatedAt'])||!validKey(x.id as string)||!validKey(x.revision as string)||!timestamp(x.createdAt)||!timestamp(x.updatedAt)||Date.parse(x.createdAt as string)>Date.parse(x.updatedAt as string))return false;
+    try{const normalized=fields(x as unknown as LocalCustomerInput);return Object.keys(normalized).every(k=>x[k]===normalized[k as keyof typeof normalized]);}catch{return false;}
+   };
+   if(!object(snapshot)||!exact(snapshot,['format','namespace','customers','pending','receipts','encrypted','serverConfirmed'])||snapshot.format!==FORMAT||snapshot.namespace!==namespace||snapshot.encrypted!==false||snapshot.serverConfirmed!==false||!Array.isArray(snapshot.customers)||!Array.isArray(snapshot.pending)||!Array.isArray(snapshot.receipts)||snapshot.customers.length>10000||snapshot.pending.length>20000||snapshot.receipts.length>20000)
+    throw Error('Local backup format, account, target or safety flags do not match. No records restored.');
+   const customers=snapshot.customers as unknown[],pending=snapshot.pending as unknown[],receipts=snapshot.receipts as unknown[];
+   if(!customers.every(validCustomer))throw Error('Local backup contains invalid customer records.');
+   const byCustomer=new Map((customers as LocalCustomer[]).map(row=>[row.id,row]));
+   if(byCustomer.size!==customers.length||pending.length!==receipts.length)throw Error('Local backup has duplicate customers or incomplete operation receipts.');
+   const byReceipt=new Map<string,Receipt>();
+   for(const candidate of receipts){
+    if(!object(candidate)||!exact(candidate,['id','fingerprint','customer'])||!validOperation(candidate.id as string)||typeof candidate.fingerprint!=='string'||!validCustomer(candidate.customer)||byReceipt.has(candidate.id as string))throw Error('Local backup contains invalid or duplicate receipts.');
+    byReceipt.set(candidate.id as string,candidate as Receipt);
+   }
+   const byOperation=new Map<string,LocalCustomerOperation>(),byCustomerOperations=new Map<string,LocalCustomerOperation[]>();
+   for(const candidate of pending){
+    if(!object(candidate)||!exact(candidate,['id','action','customerId','customer','at','expectedRevision'])||!validOperation(candidate.id as string)||(candidate.action!=='create'&&candidate.action!=='update')||!validKey(candidate.customerId as string)||!validCustomer(candidate.customer)||candidate.customerId!==(candidate.customer as LocalCustomer).id||!timestamp(candidate.at)||candidate.at!==(candidate.customer as LocalCustomer).updatedAt||(candidate.action==='create'?candidate.expectedRevision!==null:!validKey(candidate.expectedRevision as string))||byOperation.has(candidate.id as string)||!byCustomer.has(candidate.customerId as string))
+     throw Error('Local backup contains invalid or orphaned pending operations.');
+    const op=candidate as LocalCustomerOperation,receipt=byReceipt.get(op.id);
+    if(!receipt||!same(receipt.customer,op.customer)||receipt.fingerprint!==JSON.stringify([op.action,op.action==='create'?null:op.customerId,fields(op.customer),op.expectedRevision]))throw Error('Local backup operation receipt or fingerprint does not match.');
+    byOperation.set(op.id,op);
+    byCustomerOperations.set(op.customerId,[...(byCustomerOperations.get(op.customerId)??[]),op]);
+   }
+   if(byOperation.size!==byReceipt.size)throw Error('Local backup contains unused receipts.');
+   for(const customer of byCustomer.values()){
+    const operations=byCustomerOperations.get(customer.id)??[];
+    const creates=operations.filter(op=>op.action==='create');
+    if(creates.length!==1)throw Error('Local backup customer has no unique create operation.');
+    let state=creates[0].customer,used=1;
+    while(true){
+     const successors=operations.filter(op=>op.action==='update'&&op.expectedRevision===state.revision);
+     if(successors.length>1)throw Error('Local backup contains conflicting customer edits.');
+     if(!successors.length)break;
+     state=successors[0].customer;used++;if(used>operations.length)throw Error('Local backup edit history contains a cycle.');
+    }
+    if(used!==operations.length||!same(state,customer))throw Error('Local backup final revision does not match pending history.');
+   }
+   return new Promise((resolve,reject)=>{
+    const tx=db.transaction(['customers','operations','outbox'],'readwrite');
+    const names=['customers','operations','outbox'] as const;
+    let checked=0,problem:Error|undefined;
+    const abort=(why:string)=>{problem=Error(why);try{tx.abort();}catch{/* Completed or already aborted. */}};
+    for(const name of names){
+     const count=tx.objectStore(name).count();
+     count.onsuccess=()=>{
+      if(count.result!==0){abort('Restore requires an empty local store. Existing customer drafts were not changed.');return;}
+      if(++checked!==names.length)return;
+      try{
+       for(const row of customers)tx.objectStore('customers').add(row);
+       for(const row of receipts)tx.objectStore('operations').add(row);
+       for(const row of pending)tx.objectStore('outbox').add(row);
+      }catch{abort('Local restore failed. Nothing was imported.');}
+     };
+    }
+    tx.oncomplete=()=>resolve({customers:customers.length,pending:pending.length});
+    tx.onabort=()=>reject(problem??tx.error??Error('Local restore interrupted. Existing records unchanged.'));
+   });
+  },
  };
 }

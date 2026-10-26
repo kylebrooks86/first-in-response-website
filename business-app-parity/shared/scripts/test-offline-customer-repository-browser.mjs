@@ -42,7 +42,40 @@ try{
  check(initial.staleRefused&&initial.changedOperationRefused,'Concurrent stale revisions and reused IDs with changed input fail closed');
  check(initial.rows.length===1&&initial.rows[0].name==='Synthetic Owasso Customer','Actual edit replaces one customer without losing original identity');
  check(initial.pending.length===2&&initial.pending.every(p=>p.customerId===initial.rows[0].id),'Create and update each have one durable outbox entry');
- check(initial.exported.serverConfirmed===false&&initial.exported.encrypted===false&&initial.exported.pending.length===2,'Local-only export openly reports unsynced, unencrypted prototype status');
+ check(initial.exported.serverConfirmed===false&&initial.exported.encrypted===false&&initial.exported.pending.length===2&&initial.exported.receipts.length===2,'Consistent export includes unsynced drafts and replay receipts and clearly marks plaintext prototype');
+ const restoredContext=await browser.newContext();const restoredPage=await restoredContext.newPage();await restoredPage.goto(origin);await restoredPage.waitForFunction(()=>Boolean(window.openLocalCustomerDrafts));
+ const recovered=await restoredPage.evaluate(async snapshot=>{
+  const open=window.openLocalCustomerDrafts,store=await open({target:'live',accountKey:'synthetic_owner_A1'});
+  const result=await store.restoreSnapshot(snapshot),customers=await store.listCustomers(),pending=await store.listPending();
+  const replay=await store.createCustomer({name:'Synthetic Tulsa Customer',phone:'918 555 0100',address:'123 Test Street, Tulsa'},'synthetic_op_create_001');
+  const again=await store.updateCustomer(replay.id,{...replay,name:'Synthetic Owasso Customer'},replay.revision,'synthetic_op_update_001');
+  let duplicateDenied=false;try{await store.restoreSnapshot(snapshot);}catch{duplicateDenied=true;}
+  store.close();
+  const other=await open({target:'qa',accountKey:'synthetic_owner_A1'});
+  let crossTargetDenied=false;try{await other.restoreSnapshot(snapshot);}catch{crossTargetDenied=true;}
+  const otherRows=await other.listCustomers();other.close();
+  return {result,customers,pending,replay,again,duplicateDenied,crossTargetDenied,otherRows};
+ },initial.exported);
+ check(recovered.result.customers===1&&recovered.result.pending===2&&recovered.customers[0].revision===initial.rows[0].revision,'Clean browser profile restores exact customer revision and both unsynced operations');
+ check(recovered.replay.id===initial.rows[0].id&&recovered.again.revision===initial.rows[0].revision&&recovered.pending.length===2,'Restored receipts preserve stable retry semantics without duplicate pending writes');
+ check(recovered.duplicateDenied&&recovered.crossTargetDenied&&recovered.otherRows.length===0,'Restore refuses nonempty database and wrong target identity without changing records');
+ const rejected=await restoredPage.evaluate(async snapshot=>{
+  const repo=await window.openLocalCustomerDrafts({target:'live',accountKey:'synthetic_owner_C3'});let corrupt=false;
+  const invalid=structuredClone(snapshot);invalid.namespace=repo.namespace;invalid.pending[0].customerId='synthetic_broken_other';
+  try{await repo.restoreSnapshot(invalid);}catch{corrupt=true;}
+  const empty=(await repo.listCustomers()).length===0&&(await repo.listPending()).length===0;repo.close();return {corrupt,empty};
+ },initial.exported);
+ check(rejected.corrupt&&rejected.empty,'Corrupted pending operation fails validation before any IndexedDB write');
+ const rollback=await restoredPage.evaluate(async snapshot=>{
+  const repo=await window.openLocalCustomerDrafts({target:'live',accountKey:'synthetic_owner_D4'});
+  const translated=structuredClone(snapshot);translated.namespace=repo.namespace;
+  const original=IDBObjectStore.prototype.add;let interrupted=false;
+  IDBObjectStore.prototype.add=function(row,...args){if(this.name==='outbox')throw new DOMException('Synthetic quota','QuotaExceededError');return original.call(this,row,...args);};
+  try{await repo.restoreSnapshot(translated);}catch{interrupted=true;}finally{IDBObjectStore.prototype.add=original;}
+  const unchanged=(await repo.listCustomers()).length===0&&(await repo.listPending()).length===0;repo.close();return{interrupted,unchanged};
+ },initial.exported);
+ check(rollback.interrupted&&rollback.unchanged,'Injected restore quota failure atomically rolls back imported customers, receipts and outbox');
+ await restoredContext.close();
  await page.reload();await page.waitForFunction(()=>Boolean(window.openLocalCustomerDrafts));
  const reopened=await page.evaluate(async()=>{
   const open=window.openLocalCustomerDrafts;
