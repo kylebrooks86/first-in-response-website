@@ -24,6 +24,7 @@ const imports=[
 "import {saveOfflinePhotoCustomerDirectory,loadOfflinePhotoCustomerDirectory} from './lib/offline-photo-customer-directory';",
 "import {clearOfflinePhotoCustomerDirectory} from './lib/offline-photo-customer-directory';",
 "import {mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory} from './lib/offline-photo-availability';",
+"import {usableCustomerPhone,usableCustomerEmail} from './lib/customer-contact-links';",
 "import {listOfflinePhotos} from './lib/local-photo-vault';",
 "const Button=({children,onClick,disabled})=>React.createElement('button',{type:'button',onClick,disabled},children);",
 "const messageHistoryEntries=()=>[];const billingBalanceCents=()=>0;",
