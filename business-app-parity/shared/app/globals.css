@@ -2503,3 +2503,6 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 
 /* The saved customer name is the first thing to recognize when scanning map Places. */
 .territory-places .territory-place-customer-names{font-weight:700;color:var(--foreground)}
+
+/* Saved malformed contact data is visible for correction, but not offered as an unsafe native action. */
+.customer-profile .customer-contact>.customer-contact-warning{display:block;grid-column:1/-1;min-width:0;padding:7px 10px;border:1px solid var(--border);border-radius:8px;color:var(--foreground);font-size:12px;overflow-wrap:anywhere}
