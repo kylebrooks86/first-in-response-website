@@ -2564,3 +2564,13 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .customer-property-research-disclosure>summary{display:flex;align-items:center;min-height:44px;padding:8px 11px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer}
 .customer-property-research-disclosure[open]>.customer-property-research{margin-top:7px}
 .customer-property-research-disclosure>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Mobile customer create: optional source without false Referral defaults. */
+.customer-create-source{min-width:0}
+.customer-create-source>summary{display:flex;align-items:center;min-height:44px;padding:8px 11px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer}
+.customer-create-source>div{padding-top:9px;display:grid;gap:7px}
+.customer-create-source>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.customer-create-form .brand-button{min-height:44px}
+@media(max-width:760px){.customer-create-form{gap:12px}.customer-create-form>div{min-width:0}.customer-create-form input{min-height:44px;font-size:16px}.customer-create-form .brand-button{position:sticky;bottom:0;z-index:2;width:100%;background:var(--primary);color:var(--primary-foreground)}}
+/* New estimate descriptions keep full saved text, but avoid seven-line editors by default. */
+.estimate-edit-service .estimate-service-description{min-height:80px;resize:vertical;overflow:auto}

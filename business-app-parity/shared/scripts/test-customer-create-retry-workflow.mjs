@@ -13,10 +13,15 @@ export async function exerciseCustomerCreateRetry({page,context,origin,request,c
  };
  const read=async route=>loseRead?route.abort('failed'):route.continue();
  await context.route('**/api/customers',intercept);await context.route('**/api/customers/confirmation?*',read);
- await customers();let form=await open();await form.getByLabel('Customer name',{exact:true}).fill('Synthetic Name Only Lost Response');
+ await customers();let form=await open();
+ check(await form.locator('details.customer-create-source').count()===1,'Optional lead source is available without crowding customer form');
+ check(await form.locator('details.customer-create-source').getAttribute('open')===null,'Optional lead source starts collapsed');
+ check((await form.locator('details.customer-create-source summary').textContent()).includes('Unknown'),'Unspecified source is not falsely recorded as a referral');
+ await form.getByLabel('Customer name',{exact:true}).fill('Synthetic Name Only Lost Response');
  await form.getByRole('button',{name:'Save customer',exact:true}).evaluate(button=>{button.click();button.click()});
  await page.getByRole('heading',{name:'Synthetic Name Only Lost Response',exact:true}).waitFor();
  check(posts.length===1,'A name-only customer with double tap and lost acknowledgement sends one POST');
+ check(posts[0].leadSource==='Unknown','Name-only customer has a truthful unknown source');
  let backup=await (await request('/api/backup')).json(),saved=backup.tables.customers.filter(row=>row.name==='Synthetic Name Only Lost Response');
  check(saved.length===1&&saved[0].id===posts[0].requestId,'Saved customer uses stable creation ID with no duplicate contactless record');
  check(await page.evaluate(()=>localStorage.getItem('fire:customer-create-request:v1'))===null,'Confirmed customer clears recovery ID');

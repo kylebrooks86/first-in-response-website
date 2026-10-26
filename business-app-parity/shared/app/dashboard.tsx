@@ -851,7 +851,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
             {index<items.length-1&&<button type="button" className="min-h-11 rounded-md border px-3 text-sm font-semibold" disabled={saving||uncertainSave} onClick={()=>moveService(index,1)} aria-label={"Move service "+(index+1)+" down"}>↓ Move down</button>}
           </div>}
           <div><Label>Service</Label><Select disabled={!pricing.rates||pricing.loading||Boolean(pricing.error)||saving} value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,flatPriceCents:undefined,quantity:svc.unit==="job"?1:0});setError("");}}><SelectTrigger><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent>{services.map((svc)=><SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}</SelectContent></Select></div>
-          <div><Label htmlFor={`estimate-service-name-${index}`}>Service name</Label><Input id={`estimate-service-name-${index}`} value={item.name} onChange={event=>setItems(current=>current.map((line,i)=>i===index?{...line,name:event.target.value}:line))}/></div><div><Label>Service description and expectations</Label><Textarea rows={7} value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/><p className="service-description-help">Shown on the estimate and invoice.</p></div>
+          <div><Label htmlFor={`estimate-service-name-${index}`}>Service name</Label><Input id={`estimate-service-name-${index}`} value={item.name} onChange={event=>setItems(current=>current.map((line,i)=>i===index?{...line,name:event.target.value}:line))}/></div><div><Label>Service description and expectations</Label><Textarea rows={3} className="estimate-service-description" value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/><p className="service-description-help">Shown on the estimate and invoice.</p></div>
           <div className="edit-quantity-row"><div><Label htmlFor={`estimate-quantity-${index}`}>Quantity</Label><Input id={`estimate-quantity-${index}`} inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit||"unit"}</span></div>
           <EstimateLinePricing label={`estimate-service-${index}`} item={item} standardUnit={services.find(svc=>svc.id===item.serviceId)?.unit} standardRate={pricing.rates&&!pricing.loading&&!pricing.error?services.find(svc=>svc.id===item.serviceId)?.rate:undefined} onChange={patch=>updateItem(index,patch)}/><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>
         </section>)}</div>
@@ -1180,7 +1180,7 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
 function AddCustomer({ onAdded,initialAddress,onAddressUsed }: { onAdded: (customer: CustomerRow) => void;initialAddress?:string;onAddressUsed?:()=>void }) {
   const [open,setOpen]=useState(false);
   const [name,setName]=useState("");const [email,setEmail]=useState("");const [phone,setPhone]=useState("");const [address,setAddress]=useState("");
-  const [leadSource,setLeadSource]=useState("Referral");const [saving,setSaving]=useState(false);const [pending,setPending]=useState(false);const [error,setError]=useState("");
+  const [leadSource,setLeadSource]=useState("Unknown");const [saving,setSaving]=useState(false);const [pending,setPending]=useState(false);const [error,setError]=useState("");
   const [review,setReview]=useState<CreatedCustomer|null>(null);
   const requestId=useRef<string|null>(null),attempt=useRef<CustomerCreateInput|null>(null),saveLock=useRef(false),mounted=useRef(true);
   const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
@@ -1194,7 +1194,7 @@ function AddCustomer({ onAdded,initialAddress,onAddressUsed }: { onAdded: (custo
   const finish=(customer:CreatedCustomer)=>{
     const id=requestId.current;if(id)clearCustomerCreateRequest(storage(),id);
     requestId.current=null;attempt.current=null;setPending(false);setReview(null);setOpen(false);
-    setName("");setEmail("");setPhone("");setAddress("");setLeadSource("Referral");setError("");
+    setName("");setEmail("");setPhone("");setAddress("");setLeadSource("Unknown");setError("");
     onAdded(customer);
   };
   const save=async()=>{
@@ -1241,12 +1241,12 @@ function AddCustomer({ onAdded,initialAddress,onAddressUsed }: { onAdded: (custo
   return <Dialog open={open} onOpenChange={setOpenSafe}>
     <DialogTrigger asChild><Button className="brand-button"><UserPlus className="h-4 w-4"/>{pending?"Check previous customer save":"Add customer"}</Button></DialogTrigger>
     <DialogContent className="sm:max-w-[520px] max-h-[90dvh] overflow-y-auto">
-      <DialogHeader><DialogTitle>Add customer</DialogTitle></DialogHeader><div className="customer-form">
+      <DialogHeader><DialogTitle>Add customer</DialogTitle></DialogHeader><div className="customer-form customer-create-form">
         <div><Label htmlFor="newCustomerName">Customer name</Label><Input id="newCustomerName" disabled={saving||pending} placeholder="Full name" value={name} onChange={e=>setName(e.target.value)}/></div>
         <div><Label htmlFor="newCustomerEmail">Email</Label><Input id="newCustomerEmail" disabled={saving||pending} type="email" placeholder="customer@email.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
         <div><Label htmlFor="newCustomerPhone">Phone</Label><Input id="newCustomerPhone" disabled={saving||pending} inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={e=>setPhone(e.target.value)}/></div>
         <div><Label htmlFor="newCustomerAddress">Service address</Label><Input id="newCustomerAddress" disabled={saving||pending} placeholder="Tulsa-area address" value={address} onChange={e=>setAddress(e.target.value)}/></div>
-        <div><Label>How they found FIRE</Label><Select disabled={saving||pending} value={leadSource} onValueChange={setLeadSource}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Referral","Google","Facebook","Website","Repeat customer","Door knocking","Other"].map(source=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div>
+        <details className="customer-create-source"><summary>Lead source · {leadSource}</summary><div><Label>How they found FIRE</Label><Select disabled={saving||pending} value={leadSource} onValueChange={setLeadSource}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Unknown","Facebook","Google","Referral","Website","Repeat customer","Door knocking","Other"].map(source=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div></details>
         {error&&<p className="save-error" role="alert">{error}</p>}
         {review&&<div className="record-card" role="region" aria-label="Saved customer to review"><strong>{review.name}</strong><p>{[review.email,review.phone,review.address].filter(Boolean).join(" · ")}</p><Button className="brand-button" onClick={()=>finish(review)}>Open saved customer</Button></div>}
         {!review&&<Button className="brand-button" onClick={()=>void save()} disabled={saving}>{saving?"Checking customer…":pending?attempt.current?"Check / retry same customer save":"Check previous save":"Save customer"}</Button>}
