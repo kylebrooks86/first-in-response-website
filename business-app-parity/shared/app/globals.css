@@ -2466,3 +2466,12 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 .territory-revisit-editor label{flex:1 1 160px;min-width:0}
 .territory-revisit-editor input{width:100%;min-width:0;min-height:44px;font-size:16px;padding:6px 9px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground)}
 .territory-revisit-editor button{min-height:44px}
+
+/* FIRE map: four primary filters; secondary filters are available on demand. */
+.territory-filter-wrap{max-width:100%;min-width:0}
+.territory .territory-filter-wrap .territory-filters{overflow:visible;display:grid;grid-template-columns:.65fr 1.35fr 1.05fr 1fr;gap:5px;padding:5px 0}
+.territory .territory-filter-wrap .territory-filters button{min-width:0;padding:7px 5px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.territory-extra-filters{display:flex;flex-wrap:wrap;gap:5px;padding:2px 0 7px}
+.territory-extra-filters button{font-size:12px;padding:7px 9px}
+.territory-extra-filters button[aria-pressed=true]{background:#223850;color:#fff;border-color:#223850}
+.territory-extra-filters button:focus-visible{outline:3px solid #e52d38;outline-offset:2px}
