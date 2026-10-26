@@ -265,7 +265,7 @@ html,body{max-width:100%;overflow-x:clip}
 .view-switch button{display:flex;min-height:38px;align-items:center;gap:6px;border:0;border-radius:8px;background:transparent;padding:8px 11px;color:#66758a;font-size:13px;font-weight:800;cursor:pointer}
 .view-switch button.active{background:#fff0f1;color:#c9252f}
 .view-switch svg{width:16px}
-.pipeline-board{display:grid;grid-template-columns:repeat(7,minmax(235px,1fr));gap:12px;overflow-x:auto;margin-top:22px;padding:2px 2px 14px;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;scrollbar-width:thin}
+.pipeline-board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(235px,340px);grid-template-columns:none;gap:12px;overflow-x:auto;margin-top:16px;padding:2px 2px 14px;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;scrollbar-width:thin}
 .pipeline-column{overflow:hidden;min-height:330px;border:1px solid #dfe5ed;border-radius:15px;background:#f6f8fb;scroll-snap-align:start}
 .pipeline-column>header{display:flex;align-items:center;justify-content:space-between;border-top:4px solid #a9b3c1;border-bottom:1px solid #e4e9ef;padding:12px 13px 11px;background:#fff}
 .pipeline-column.sent>header{border-top-color:#2d75c7}.pipeline-column.approved>header{border-top-color:#1b9660}.pipeline-column.scheduled>header{border-top-color:#8b5ac9}.pipeline-column.completed>header{border-top-color:#146f46}.pipeline-column.paid>header{border-top-color:#13985b}.pipeline-column.declined>header{border-top-color:#8994a3}
@@ -284,7 +284,7 @@ html,body{max-width:100%;overflow-x:clip}
   .view-switch{flex:1}
   .view-switch button{flex:1;justify-content:center;min-height:44px}
   .workspace-head-actions>.brand-button{width:100%}
-  .pipeline-board{width:calc(100% + 18px);margin-right:-18px;grid-template-columns:repeat(7,minmax(82vw,82vw));scroll-padding-inline:2px}
+  .pipeline-board{width:calc(100% + 18px);margin-right:-18px;grid-auto-columns:minmax(82vw,82vw);grid-template-columns:none;scroll-padding-inline:2px}
   .pipeline-column{min-height:285px}
   .pipeline-card{min-height:112px;padding:14px}
   .route-day-button{width:100%;min-height:52px;justify-content:center}
@@ -2516,3 +2516,4 @@ html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color
 /* An empty calendar date needs one compact status, not a tall empty-data panel. */
 .schedule-view .schedule-day-empty{display:flex;align-items:center;gap:9px;min-height:44px;padding:9px 12px;color:var(--muted-foreground);font-size:13px}
 .schedule-view .schedule-day-empty svg{flex:none;width:17px;height:17px}
+\n/* Empty pipeline stages add no navigation or useful content; keep the first-use screen concise. */\n.estimate-pipeline-empty{display:flex;align-items:center;flex-wrap:wrap;gap:7px 10px;margin-top:16px;padding:12px;color:var(--foreground);font-size:13px}\n.estimate-pipeline-empty>svg{width:18px;height:18px;flex:none;color:var(--muted-foreground)}\n.estimate-pipeline-empty>small{flex:1 1 100%;color:var(--muted-foreground);padding-left:28px}\n
