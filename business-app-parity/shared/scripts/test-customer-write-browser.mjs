@@ -15,6 +15,7 @@ import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./componen
 import{summarizeCustomerBalances}from'./lib/customer-balance-summary';import{messageHistoryEntries}from'./lib/message-history';
 import{deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,LEAD_NO_ANSWER_NOTE,LEAD_CONTACTED_NOTE,LEAD_CALLBACK_HANDLED_NOTE,leadCallbackNote,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility}from'./lib/customer-activity-flags';
 import{mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory}from'./lib/offline-photo-availability';
+import{usableCustomerPhone,usableCustomerEmail}from'./lib/customer-contact-links';
 const saveOfflinePhotoCustomerDirectory=async()=>{},loadOfflinePhotoCustomerDirectory=async()=>[],clearOfflinePhotoCustomerDirectory=async()=>{};
 const money=c=>'$'+(c/100).toFixed(2),dateTime=v=>v,statusLabel=v=>v,resolvedBillingTotalCents=e=>e.invoiceTotalCents??e.totalCents,billingBalanceCents=e=>Math.max(0,resolvedBillingTotalCents(e)-e.paidCents);
 ${stubs}\n${functions.map(f=>f.getText(ast)).join('\n')}
