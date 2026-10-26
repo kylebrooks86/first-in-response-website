@@ -16,7 +16,7 @@ const sidebar=section('<aside className={`sidebar ', '</aside>')+'</aside>';
 const fixture=`import React,{Fragment,useState,useEffect}from'react';import{createRoot}from'react-dom/client';
 import{FileText,MessageSquareText,ChevronRight,ChevronDown,Save,X,Settings}from'lucide-react';
 import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';
-import{PricingSettings}from'./components/service-pricing';
+import{PricingSettings}from'./components/service-pricing';import{BusinessPreferencesPanel}from'./components/business-preferences';
 import{FIRE_TEMPLATES,type FireTemplate}from'./lib/fire-templates';import{GlobalSearch}from'./components/global-search';
 const statusLabel=(v:string)=>v.replaceAll('_',' ').replace(/^./,v=>v.toUpperCase());
 function FireMark(){return <span className="fire-mark">F</span>}
@@ -32,6 +32,7 @@ let saved,puts=0;
 const server=createServer((req,res)=>{
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);}
  else if(req.url==='/style.css'){res.setHeader('content-type','text/css');res.end(css.css);}
+ else if(req.url==='/api/business-preferences'){res.setHeader('content-type','application/json');res.end(JSON.stringify({preferences:{revision:null,blocks:[],repeatMonths:{}}}));}
  else if(req.url==='/api/message-templates'){
   res.setHeader('content-type','application/json');
   if(req.method==='PUT'){let body='';req.on('data',c=>body+=c);req.on('end',()=>{saved=JSON.parse(body);puts++;const agreement=saved.key==='contractTerms';res.end(JSON.stringify({template:{...saved,channel:agreement?'document':'both',category:agreement?'Documents':'Estimates',name:agreement?'Service agreement':'Estimate ready'}}));});}
