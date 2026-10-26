@@ -2593,3 +2593,13 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .payment-balance-tools>small{flex:1 1 100%;font-size:12px;color:var(--muted-foreground)}
 .payment-balance-more{display:block;width:calc(100% - 24px);margin:8px 12px 12px;text-align:center}
 .payment-balance-tools input:focus-visible,.payment-balance-tools>button:focus-visible,.payment-balance-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Compact, search-first Schedule booking chooser: every verified approved job remains selectable. */
+.schedule-booking-search{display:grid;gap:6px;min-width:0;padding:5px 0 8px}
+.schedule-booking-search>label{font-size:13px;font-weight:750;color:var(--foreground)}
+.schedule-booking-search>div{display:flex;gap:6px;min-width:0;flex-wrap:wrap}
+.schedule-booking-search input{flex:1 1 165px;min-width:0;min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 11px;background:var(--background);color:var(--foreground);font-size:16px}
+.schedule-booking-search button,.schedule-booking-more{min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 12px;background:var(--card);color:var(--foreground);font-weight:700;cursor:pointer}
+.schedule-booking-search>small{font-size:12px;color:var(--muted-foreground)}
+.schedule-choose-job>.schedule-booking-more{width:100%;justify-content:center;text-align:center}
+.schedule-booking-search input:focus-visible,.schedule-booking-search button:focus-visible,.schedule-booking-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}

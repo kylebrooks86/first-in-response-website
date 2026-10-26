@@ -49,6 +49,8 @@ const getScheduleVariable=name=>{
 };
 const savedDaySource=getScheduleVariable('selectedDaySavedJobs');
 const nextDaySource=getScheduleVariable('nextBookedJob');
+const readySource=getScheduleVariable('readyToBook');
+const filteredReadySource=getScheduleVariable('filteredReadyToBook');
 assert.match(markup,/schedule-day-buttons/);
 assert.match(markup,/route-day-button/);
 assert.match(markup,/schedule-choose-job/);
@@ -59,6 +61,7 @@ const fixture=[
  monthlyComponent,
  "function Fixture(){",
  " const [showBookingOptions,setShowBookingOptions]=useState(false);",
+ " const [bookingSearch,setBookingSearch]=useState(''); const [bookingLimit,setBookingLimit]=useState(20);",
  " const [selected,setSelected]=useState(null);",
  " const [bookingDate,setBookingDate]=useState(null);",
  " const [scenario,setScenario]=useState('normal');",
@@ -67,7 +70,7 @@ const fixture=[
  " const onNavigate=tab=>window.__navigation.push(tab);",
  " const [selectedDate,setSelectedDate]=useState('2026-10-24');",
  " const loading=false,error='';",
- " const rows=scenario==='empty'?[]:[",
+ " const rows=scenario==='empty'?[]:scenario==='bulk'?[...Array.from({length:55},(_,i)=>({id:'approved-'+i,customer:'Synthetic candidate '+i,service:i===47?'Gutter service':'House wash',address:i===47?'Owasso unique street':'Tulsa',status:'approved',scheduledAt:null})),{id:'scheduled-1',customer:'Synthetic scheduled customer',service:'Concrete wash',status:'scheduled',scheduledAt:'2026-10-24T16:00:00Z'}]:[",
  "  {id:'approved-1',customer:'Synthetic ready customer',service:'House wash',status:'approved',scheduledAt:null},",
  "  {id:'scheduled-1',customer:'Synthetic scheduled customer',service:'Concrete wash',status:'scheduled',scheduledAt:'2026-10-24T16:00:00Z'},",
  "  {id:'scheduled-2',customer:'Synthetic future customer',service:'Window cleaning',status:'scheduled',scheduledAt:'2026-11-12T16:00:00Z'}",
@@ -79,7 +82,7 @@ const fixture=[
  " const dayFilter='date';",
  " const allVerifiedUpcoming=rows.filter(row=>row.status==='scheduled'&&row.scheduledAt&&Date.parse(row.scheduledAt)>=Date.parse('2026-10-23T00:00:00Z')).sort((a,b)=>Date.parse(a.scheduledAt)-Date.parse(b.scheduledAt));",
  " const setDayFilter=()=>{}; const setWeatherReview=()=>{};",
- savedDaySource,nextDaySource,
+ savedDaySource,nextDaySource,readySource,filteredReadySource,
  " const routeJobs=[rows[1]].filter(Boolean),routeWithAddress=routeJobs;",
  " return <main className='workspace-view'>",
  " <ScheduleMonthCalendar jobs={rows} selectedDate={selectedDate} onSelectDate={date=>{setSelectedDate(date);setShowBookingOptions(false)}}/>",
@@ -163,7 +166,24 @@ try{
   const rebook=JSON.parse(await page.locator('#selection').textContent());
   check(rebook.bookingDate==='2026-12-01',width+': approved job picker uses December not stale October date');
  }
+ await page.evaluate(()=>window.__setScenario('bulk'));
+ await page.getByRole('button',{name:'+ Schedule job'}).click();
+ const picker=page.getByRole('region',{name:'Choose an approved job to schedule'});
+ await picker.waitFor();
+ check(await picker.locator(':scope > button').filter({hasText:'Synthetic candidate'}).count()===20,'Large approved queues initially show twenty exact jobs');
+ check(await picker.getByText('55 of 55 ready to schedule').count()===1,'Loaded booking count stays visible');
+ await picker.getByRole('button',{name:/Show next 20 jobs/}).click();
+ check(await picker.locator(':scope > button').filter({hasText:'Synthetic candidate'}).count()===40,'Next batch exposes the next twenty approved jobs');
+ await picker.getByRole('button',{name:/Show next 15 jobs/}).click();
+ check(await picker.locator(':scope > button').filter({hasText:'Synthetic candidate'}).count()===55,'Last batch retains every remaining approved job');
+ await picker.getByLabel('Find approved job').fill('Owasso unique');
+ check(await picker.locator(':scope > button').filter({hasText:'Synthetic candidate'}).count()===1,'Unique service address narrows to the exact saved approved job');
+ await picker.getByRole('button',{name:/Synthetic candidate 47/}).click();
+ check(JSON.parse(await page.locator('#selection').textContent()).selected==='approved-47','Search opens exact saved job, not first result or false creation');
+ await page.getByRole('button',{name:'+ Schedule job'}).click();
+ check(await picker.getByLabel('Find approved job').inputValue()==='', 'Opening the chooser resets old search for the next booking');
  await page.evaluate(()=>window.__setScenario('empty'));
+
  await page.waitForFunction(()=>!document.querySelector('.schedule-day-buttons>.route-day-button'));
  check(await page.locator('.schedule-day-buttons>.route-day-button').count()===0,'No misleading Maps route when there are no stops');
  await page.getByRole('button',{name:'+ Schedule job'}).click();

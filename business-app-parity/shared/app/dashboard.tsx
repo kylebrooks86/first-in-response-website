@@ -2959,6 +2959,8 @@ function ScheduleView({ searchQuery,onNavigate,onOpenCustomer }:{searchQuery:str
   const [weatherReview,setWeatherReview]=useState<{at:string;key:number}|null>(null);
   const [bookingDate,setBookingDate]=useState<string|null>(null);
   const [showBookingOptions,setShowBookingOptions]=useState(false);
+  const [bookingSearch,setBookingSearch]=useState("");
+  const [bookingLimit,setBookingLimit]=useState(20);
   const weatherReviewCount=useRef(0);
   const weatherPanelRef=useRef<HTMLDivElement>(null);
   const planningToolsRef=useRef<HTMLDetailsElement>(null);
@@ -3120,18 +3122,22 @@ function ScheduleView({ searchQuery,onNavigate,onOpenCustomer }:{searchQuery:str
   });
   const routeJobs=routeGroups[0]?.jobs??[];
   const routeUrl=routeGroups[0]?.url??"";
+  const readyToBook=rows.filter(job=>job.status==="approved"&&!job.scheduledAt);
+  const filteredReadyToBook=readyToBook.filter(job=>[job.customer,job.service,job.address].join(" ").toLowerCase().includes(bookingSearch.trim().toLowerCase()));
   const routeLabel=routeDate&&tulsaDay(routeDate.getTime())===today?"Route today":routeDate&&tulsaDay(routeDate.getTime())===tomorrow?"Route tomorrow":routeDate?`Route ${routeDate.toLocaleDateString("en-US",{weekday:"short",timeZone:"America/Chicago"})}`:"Route next jobs";
   return <div className="workspace-view schedule-view"><EstimateDetail estimate={loading||error?null:selected} initialScheduleDay={bookingDate} onClose={()=>{setSelected(null);setBookingDate(null);}} onChanged={(estimate)=>{setRows((current)=>current.map((row)=>row.id===estimate.id?estimate:row));setSelected(current=>current?.id===estimate.id?estimate:current);}}/><section className="workspace-head"><div><h1>Schedule</h1></div><div className="schedule-header-actions"><button type="button" disabled={loading} aria-label="Refresh schedule" title="Refresh schedule" onClick={()=>void load()}><RefreshCw aria-hidden="true"/></button></div></section>{!loading&&!error&&<ScheduleMonthCalendar jobs={rows} selectedDate={selectedDate} onSelectDate={date=>{setSelectedDate(date);setDayFilter("date");setShowBookingOptions(false);setWeatherReview(null);}}/>}
   {!loading&&!error&&<section className="schedule-day-actions" aria-label="Selected calendar day">
    <div><strong>{new Date(selectedDate+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric",timeZone:"UTC"})}</strong><small>{selectedDaySavedJobs.length} saved {selectedDaySavedJobs.length===1?"job":"jobs"}</small></div>
    {nextBookedJob&&<button type="button" className="schedule-next-booked" aria-label="Jump to next booked day" onClick={()=>{setSelectedDate(tulsaDay(nextBookedJob.scheduledAt!));setDayFilter("date");setShowBookingOptions(false);setWeatherReview(null);}}>Next booked: {new Date(nextBookedJob.scheduledAt!).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/Chicago"})} <ChevronRight aria-hidden="true"/></button>}
    <div className="schedule-day-buttons">
-    <button type="button" onClick={()=>setShowBookingOptions(v=>!v)} aria-expanded={showBookingOptions} aria-controls="schedule-choose-job">+ Schedule job</button>
+    <button type="button" onClick={()=>{setShowBookingOptions(v=>!v);setBookingSearch("");setBookingLimit(20);}} aria-expanded={showBookingOptions} aria-controls="schedule-choose-job">+ Schedule job</button>
     {!loading&&!error&&routeUrl&&<a className="route-day-button" href={routeUrl} target="_blank" rel="noopener noreferrer" aria-label={routeLabel+" in Google Maps"}><Navigation aria-hidden="true"/> {routeLabel}<small>{routeWithAddress.length>8?`${routeJobs.length} of ${routeWithAddress.length} mapped stops`:`${routeJobs.length} stop${routeJobs.length===1?"":"s"}`}{searchQuery.trim()?" · search does not filter route":""}</small></a>}
    </div>
    {showBookingOptions&&<div id="schedule-choose-job" className="schedule-choose-job" role="region" aria-label="Choose an approved job to schedule">
     <strong>Choose an approved job</strong>
-    {rows.filter(job=>job.status==="approved"&&!job.scheduledAt).length?rows.filter(job=>job.status==="approved"&&!job.scheduledAt).map(job=><button type="button" key={job.id} onClick={()=>{setBookingDate(selectedDate);setSelected(job);setShowBookingOptions(false);}}>{job.customer} · {job.service}<ChevronRight aria-hidden="true"/></button>):<p>No approved jobs waiting for a date.</p>}
+    {readyToBook.length>6&&<div className="schedule-booking-search"><label htmlFor="schedule-booking-find">Find approved job</label><div><input id="schedule-booking-find" type="search" maxLength={128} value={bookingSearch} placeholder="Customer, service or address" onChange={event=>{setBookingSearch(event.target.value);setBookingLimit(20);}}/>{bookingSearch&&<button type="button" onClick={()=>{setBookingSearch("");setBookingLimit(20);}}>Clear</button>}</div><small role="status">{filteredReadyToBook.length} of {readyToBook.length} ready to schedule</small></div>}
+    {filteredReadyToBook.length?filteredReadyToBook.slice(0,bookingLimit).map(job=><button type="button" key={job.id} onClick={()=>{setBookingDate(selectedDate);setSelected(job);setShowBookingOptions(false);setBookingSearch("");setBookingLimit(20);}}>{job.customer} · {job.service}<ChevronRight aria-hidden="true"/></button>):<p>{readyToBook.length?"No approved jobs match this search. Clear the search to see the full list.":"No approved jobs waiting for a date."}</p>}
+    {filteredReadyToBook.length>bookingLimit&&<button type="button" className="schedule-booking-more" onClick={()=>setBookingLimit(count=>Math.min(count+20,filteredReadyToBook.length))}>Show next {Math.min(20,filteredReadyToBook.length-bookingLimit)} jobs · {filteredReadyToBook.length-bookingLimit} remaining</button>}
     <button type="button" onClick={()=>onNavigate?.("estimates")}>Open estimates <ChevronRight aria-hidden="true"/></button>
     <button type="button" onClick={()=>onNavigate?.("customers")}>Add customer <ChevronRight aria-hidden="true"/></button>
    </div>}
