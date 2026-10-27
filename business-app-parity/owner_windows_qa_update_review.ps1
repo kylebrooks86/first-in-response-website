@@ -18,7 +18,7 @@ $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Wrangler deployments status: sole active version at 100% traffic.
 # Reject a different active version, split traffic, or changed D1 identity.
 # Reject older, split, changed or ambiguous versions before any upload.
-$expectedActiveVersion = '11576b67-50b3-4ea3-b377-436fd39d6016'
+$expectedActiveVersion = 'aa598f39-3611-4626-8fe8-350b57247d51'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }
