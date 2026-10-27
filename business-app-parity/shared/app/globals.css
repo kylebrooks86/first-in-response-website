@@ -601,6 +601,13 @@ html,body{max-width:100%;overflow-x:clip}
  .processing-report-table{font-size:12px}
  .processing-report-table th,.processing-report-table td{padding:8px 3px}
 }
+@media(max-width:350px){
+ .processing-report-table{font-size:11px}
+ .processing-report-table th:first-child{width:25%}
+ .processing-report-table th:nth-child(2){width:25%}
+ .processing-report-table th:nth-child(3){width:22%}
+ .processing-report-table th:nth-child(4){width:28%}
+}
 @media(max-width:760px){
   .payment-history>article{grid-template-columns:36px minmax(0,1fr)}
   .payment-history-amount{grid-column:2;grid-row:2}

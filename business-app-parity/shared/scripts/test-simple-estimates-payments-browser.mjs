@@ -75,7 +75,7 @@ try{
  const page=await browser.newPage();page.setDefaultTimeout(8000);
  page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():(outside.push(route.request().url()),route.abort()));
- for(const width of [320,375,390,430,768]){
+ for(const width of [320,375,390,430,768,1366]){
   await page.setViewportSize({width,height:844});await page.goto(origin);
   const metrics=page.locator('.payments-primary-metrics');
   check(await metrics.locator('article').count()===3,width+': all three actual Payments totals render');
@@ -127,5 +127,5 @@ try{
   check(geo.targets.every(x=>x.left>=-1&&x.right<=width+1&&x.height>=44),width+': controls stay within phone and have 44px targets');
  }
  check(errors.length===0&&outside.length===0,'No JavaScript errors or outside requests: '+errors.join(', '));
- console.log('PASS '+checks+' real JSX mobile Estimates and Payments Chrome assertions at 320/375/390/430/768px. No D1, Stripe or hosted writes.');
+ console.log('PASS '+checks+' real JSX mobile Estimates and Payments Chrome assertions at 320/375/390/430/768/1366px. No D1, Stripe or hosted writes.');
 }finally{await browser?.close();await new Promise(done=>server.close(done));}

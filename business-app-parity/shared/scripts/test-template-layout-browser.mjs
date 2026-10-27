@@ -13,7 +13,7 @@ const source=readFileSync('app/dashboard.tsx','utf8');
 const section=(a,b)=>{const start=source.indexOf(a),end=source.indexOf(b,start);assert.ok(start>=0&&end>start);return source.slice(start,end);};
 const settings=section('function SettingsView(){','function EmptyView(');
 const sidebar=section('<aside className={`sidebar ', '</aside>')+'</aside>';
-const fixture=`import React,{Fragment,useState,useEffect}from'react';import{createRoot}from'react-dom/client';
+const fixture=`import React,{Fragment,useState,useEffect,useRef}from'react';import{createRoot}from'react-dom/client';
 import{FileText,MessageSquareText,ChevronRight,ChevronDown,Save,X,Settings}from'lucide-react';
 import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';
 import{PricingSettings}from'./components/service-pricing';import{BusinessPreferencesPanel}from'./components/business-preferences';
@@ -28,6 +28,8 @@ return <main className="app-shell">${sidebar}<section className="main-area"><but
 createRoot(document.getElementById('app')).render(<Fixture/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,platform:'browser',format:'esm',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const css=await postcss([tailwind({base:process.cwd()})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
+const templateModule=await esbuild.build({stdin:{contents:"export{FIRE_TEMPLATES}from'./lib/fire-templates';",resolveDir:process.cwd(),loader:'ts'},bundle:true,write:false,platform:'node',format:'esm'});
+const {FIRE_TEMPLATES}=await import('data:text/javascript;base64,'+Buffer.from(templateModule.outputFiles[0].text).toString('base64'));
 let saved,puts=0;
 const server=createServer((req,res)=>{
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');res.end(bundle.outputFiles[0].text);}
@@ -35,8 +37,8 @@ const server=createServer((req,res)=>{
  else if(req.url==='/api/business-preferences'){res.setHeader('content-type','application/json');res.end(JSON.stringify({preferences:{revision:null,blocks:[],repeatMonths:{}}}));}
  else if(req.url==='/api/message-templates'){
   res.setHeader('content-type','application/json');
-  if(req.method==='PUT'){let body='';req.on('data',c=>body+=c);req.on('end',()=>{saved=JSON.parse(body);puts++;const agreement=saved.key==='contractTerms';res.end(JSON.stringify({template:{...saved,channel:agreement?'document':'both',category:agreement?'Documents':'Estimates',name:agreement?'Service agreement':'Estimate ready'}}));});}
-  else res.end(JSON.stringify({}));
+  if(req.method==='PUT'){let body='';req.on('data',c=>body+=c);req.on('end',()=>{saved=JSON.parse(body);puts++;const agreement=saved.key==='contractTerms';res.end(JSON.stringify({template:{...FIRE_TEMPLATES.find(item=>item.key===saved.key),...saved}}));});}
+  else res.end(JSON.stringify({templates:FIRE_TEMPLATES}));
  }else if(req.url==='/'){res.setHeader('content-type','text/html');res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script>');}
  else{res.statusCode=404;res.end();}
 });
@@ -47,9 +49,9 @@ try{
  browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
  const page=await browser.newPage();page.setDefaultTimeout(5000);page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',r=>new URL(r.request().url()).origin===origin?r.continue():(outside.push(r.request().url()),r.abort()));
- for(const width of [320,390,768,1024,1440])for(const theme of ['light','dark']){
-  await page.setViewportSize({width,height:844});await page.goto(origin);await page.locator('#templateBody').waitFor();
-  await page.evaluate(t=>{localStorage.setItem('fire-theme',t)},theme);await page.reload();await page.locator('#templateBody').waitFor();
+ for(const width of [320,375,390,430,768,1024,1440])for(const theme of ['light','dark']){
+  await page.setViewportSize({width,height:844});await page.goto(origin);await page.locator('#templateBody').waitFor();await page.waitForFunction(()=>!document.querySelector('#templateBody').disabled);
+  await page.evaluate(t=>{localStorage.setItem('fire-theme',t)},theme);await page.reload();await page.locator('#templateBody').waitFor();await page.waitForFunction(()=>!document.querySelector('#templateBody').disabled);
   check(await page.locator('html').getAttribute('data-theme')===theme,`${width}/${theme}: persisted theme applied`);
   if(process.env.FIRE_UI_SCREENSHOT_DIR&&width===390)await page.screenshot({path:resolve(process.env.FIRE_UI_SCREENSHOT_DIR,`settings-${theme}.png`),fullPage:true});
   if(width<=760){
@@ -90,7 +92,41 @@ try{
   check(colors.selected!==colors.bg,`${width}/${theme}: selected navigation distinguishable`);
   check(await page.locator('.sidebar-foot').isVisible(),`${width}/${theme}: owner account retained`);
  }
- check(puts===20,'One save per explicit confirmation; no automatic saves');
+ check(puts===28,'One save per explicit confirmation; no automatic saves');
+ // Exercise actual SettingsView recovery instead of silently editing fallback defaults.
+ await page.setViewportSize({width:390,height:844});
+ let failLoad=true,pendingSave=null,wrongReceipt=false,saveRequests=0;
+ await page.route('**/api/message-templates',async route=>{
+  if(route.request().method()==='GET'){
+   if(failLoad)return route.abort('failed');return route.continue();
+  }
+  saveRequests++;pendingSave=route;
+ });
+ await page.reload();await page.getByRole('alert').filter({hasText:'Templates could not be loaded'}).waitFor();
+ check(await page.locator('#templateBody').isDisabled(),'Failed load prevents editing unknown saved template state');
+ check(await page.getByRole('button',{name:'Save template',exact:true}).isDisabled(),'Failed load cannot overwrite templates with fallback defaults');
+ failLoad=false;await page.getByRole('button',{name:'Retry templates',exact:true}).click();
+ await page.waitForFunction(()=>!document.querySelector('#templateBody').disabled);
+ check(await page.getByRole('alert').count()===0,'Explicit retry restores saved templates and clears load error');
+ await page.locator('#templateBody').fill('Synthetic retry-safe template body');
+ await page.getByRole('button',{name:'Save template',exact:true}).evaluate(button=>{button.click();button.click();});
+ await page.waitForFunction(()=>document.querySelector('#templateBody').disabled);
+ check(saveRequests===1,'Rapid same-tick template saves send one request');
+ check(await page.getByLabel('Template',{exact:true}).isDisabled(),'Template selection is locked while saving the current record');
+ check(await page.locator('#templateBody').isDisabled(),'In-flight save cannot overwrite newer typed text');
+ for(let n=0;n<100&&!pendingSave;n++)await page.waitForTimeout(20);
+ assert.ok(pendingSave,'Expected pending synthetic save');
+ await pendingSave.fulfill({status:200,contentType:'application/json',body:JSON.stringify({template:{...FIRE_TEMPLATES.find(t=>t.key==='invoice')}})});
+ await page.getByText('Template save could not be confirmed. Your edits are retained.',{exact:true}).waitFor();
+ check(await page.locator('#templateBody').inputValue()==='Synthetic retry-safe template body','Wrong-template receipt retains the exact unsaved draft');
+ check(await page.getByLabel('Template',{exact:true}).inputValue()==='estimate','Wrong receipt cannot switch the selected template');
+ pendingSave=null;await page.getByRole('button',{name:'Save template',exact:true}).click();
+ for(let n=0;n<100&&!pendingSave;n++)await page.waitForTimeout(20);
+ assert.ok(pendingSave);await pendingSave.continue();await page.getByText('Template saved.',{exact:true}).waitFor();
+ check(saveRequests===2,'Owner retry works after rejected receipt');
+ check(await page.locator('#templateBody').inputValue()==='Synthetic retry-safe template body','Verified receipt preserves the saved content');
+ await page.unroute('**/api/message-templates');
+
  check(errors.length===0&&outside.length===0,`No runtime errors/external requests: ${errors}`);
  console.log(`PASS ${count} template/sidebar browser assertions; real shared JSX and compiled CSS. Chromium synthetic fixture, not native iOS or hosted acceptance.`);
 }finally{await browser?.close();await new Promise(r=>server.close(r));}
