@@ -2660,5 +2660,5 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .notification-popover>header{position:sticky;top:0;z-index:2;gap:8px;background:var(--card)}
 .notification-popover>header>div{min-width:0}
 .notification-popover>header button{min-height:44px;min-width:88px;padding:8px;flex-shrink:0}
-.payment-review-options{display:grid;gap:8px}.payment-review-options>summary,.payment-fee-details>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:12px;font-weight:700}
+.payment-review-options{display:grid;gap:8px}.payment-review-options>summary,.payment-fee-details>summary{min-height:44px;display:list-item;list-style-position:inside;line-height:44px;cursor:pointer;font-size:12px;font-weight:700}
 .payment-review-options[open]>div{margin-block:8px}.payment-fee-details{margin-top:4px}
