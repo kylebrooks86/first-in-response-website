@@ -29,8 +29,8 @@ export function validPromotion(input:unknown):input is SavedPromotion {
   if(typeof p.enabled!=='boolean'||typeof p.autoApply!=='boolean')return false;
   if(!validPromotionDate(p.startOn)||!validPromotionDate(p.endOn)||(p.startOn&&p.endOn&&p.startOn>p.endOn))return false;
   if(p.dateBasis!=='estimate-created'&&p.dateBasis!=='booking-confirmed')return false;
-  return Array.isArray(p.requiredServiceIds)&&p.requiredServiceIds.length<=ids.size&&
-    new Set(p.requiredServiceIds).size===p.requiredServiceIds.length&&p.requiredServiceIds.every(id=>typeof id==='string'&&ids.has(id));
+  return Array.isArray(p.requiredServiceIds)&&p.requiredServiceIds.length<=ids.size+500&&
+    new Set(p.requiredServiceIds).size===p.requiredServiceIds.length&&p.requiredServiceIds.every(id=>typeof id==='string'&&(ids.has(id)||/^catalog-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)));
 }
 export function validPromotions(input:unknown):input is SavedPromotion[] {
   return Array.isArray(input)&&input.length<=MAX_SAVED_PROMOTIONS&&input.every(validPromotion)&&new Set(input.map(p=>p.id)).size===input.length;

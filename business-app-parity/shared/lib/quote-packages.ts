@@ -19,7 +19,7 @@ export function validQuotePackages(value:unknown):value is QuotePackage[]{
    typeof p.name!=='string'||p.name.length<2||p.name.length>60||p.name!==p.name.trim()||
    /[\x00-\x1f\x7f<>]/.test(p.name)||seenIds.has(p.id)||seenNames.has(p.name.toLowerCase())||
    !Array.isArray(p.serviceIds)||!p.serviceIds.length||p.serviceIds.length>12||new Set(p.serviceIds).size!==p.serviceIds.length||
-   !p.serviceIds.every(id=>typeof id==='string'&&names.has(id)))return false;
+   !p.serviceIds.every(id=>typeof id==='string'&&(names.has(id)||/^catalog-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id))))return false;
   seenIds.add(p.id);seenNames.add(p.name.toLowerCase());return true;
  });
 }

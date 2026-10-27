@@ -5,6 +5,20 @@ import { LOCAL_CUSTOMER_DEPLOYMENT } from '../app/local-customer-deployment';
 // candidates under the same origin. Never derive identity from the URL, query,
  // browser storage, or untrusted environment variables.
 const DB_NAME='fire-private-offline-photos-'+LOCAL_CUSTOMER_DEPLOYMENT+'-v1',STORE='photos';
+export const OFFLINE_PHOTO_CHANGES_CHANNEL=DB_NAME+'-changed';
+// Each browser tab instantiates its own module identity. Do not mistake a
+// verified save from this tab for a concurrent edit made by ANOTHER tab.
+export const OFFLINE_PHOTO_PAGE_ID=crypto.randomUUID();
+/** Notify other tabs only after a verified committed mutation. Never broadcast
+ * images, filenames, customer IDs, or backup contents. The other tab must
+ * invalidate any prepared ZIP because it no longer proves current coverage. */
+function announcePhotoVaultChange(){
+ try{
+  if(typeof BroadcastChannel==='undefined')return;
+  const channel=new BroadcastChannel(OFFLINE_PHOTO_CHANGES_CHANNEL);
+  channel.postMessage({type:'changed',source:OFFLINE_PHOTO_PAGE_ID});channel.close();
+ }catch{/* BroadcastChannel unavailable; IndexedDB remains the source of truth. */}
+}
 const MAX_FILE=15*1024*1024;
 function requestDone<T>(request:IDBRequest<T>):Promise<T>{
  return new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error??Error('On-device photo operation failed'));});
@@ -51,6 +65,7 @@ export async function addOfflinePhoto(customerId:string,category:OfflinePhoto['c
  // A committed write followed by failed verification must never be replayed automatically.
  const check=(await listOfflinePhotos(customerId)).find(x=>x.id===record.id);
  if(!check||!await exactSavedPhotoMatch(check,record))throw Error('Photo save could not be verified. Review local photos before retrying.');
+ announcePhotoVaultChange();
  return record;
 }
 export async function removeOfflinePhoto(id:string,customerId:string):Promise<void>{
@@ -62,6 +77,7 @@ export async function removeOfflinePhoto(id:string,customerId:string):Promise<vo
   await requestDone(store.delete(id));await done;
  }finally{db.close();}
  if((await listOfflinePhotos(customerId)).some(x=>x.id===id))throw Error('Photo removal could not be verified.');
+ announcePhotoVaultChange();
 }
 /** Reject an all-customer or scoped ZIP if another tab changed the photo
  * inventory while the archive was being prepared. No additional blob reads. */
@@ -167,5 +183,6 @@ export async function restoreLocalPhotos(archive:Blob,knownCustomerIds:string[])
   }
  }finally{db.close();}
  await verifyRestoredOfflinePhotos(rows);
+ announcePhotoVaultChange();
  return {restored:additions.length,alreadyPresent};
 }

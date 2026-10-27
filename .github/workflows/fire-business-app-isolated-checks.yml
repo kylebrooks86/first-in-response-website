@@ -31,6 +31,7 @@ on:
       - work/fire-first-use-dashboard-2026-10-23
       - work/fire-qa-safe-23-to-25-upgrade-2026-10-23
       - work/fire-owner-qa-worker-serving-readonly-2026-10-23
+      - work/fire-qa-iphone-photo-button-fit-2026-10-23
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
@@ -122,6 +123,7 @@ on:
       - 'business-app-parity/test_owner_windows_qa_update_publish.py'
       - 'business-app-parity/prepare_qa_deploy_config.mjs'
       - 'business-app-parity/test_prepare_qa_deploy_config.mjs'
+      - 'business-app-parity/test_existing_qa_photo_vault_identity.mjs'
       - 'business-app-parity/verify_materialized_candidate.py'
       - 'business-app-parity/shared/scripts/test-real-wrangler-local-d1-export.mjs'
       - 'business-app-parity/shared/scripts/test-fire-service-catalog-pricing.mjs'
@@ -399,14 +401,24 @@ jobs:
             throw "FIRE QA Windows publish script contains PowerShell syntax errors."
           }
           Write-Host 'PASS: First QA release script parses without executing deployment.'
-      - name: QA deployment manifest compatibility must change exactly legacy_env=true
+      - name: QA deployment manifest compatibility and no-paid-R2 isolation regression
         run: node ../test_prepare_qa_deploy_config.mjs
+      - name: Preserve original hosted iPhone QA photo-vault IndexedDB identity and test drift refusal
+        run: node ../test_existing_qa_photo_vault_identity.mjs
       - name: Verify real Wrangler local D1 export and private SQL restoration
         run: |
           node scripts/test-real-wrangler-local-d1-export.mjs
           node scripts/test-real-wrangler-local-d1-export.mjs --qa
       - name: Protect owner-approved FIRE service rates in the shared source
         run: node --experimental-strip-types scripts/test-fire-service-catalog-pricing.mjs
+      - name: Detailed scopes survive estimate and invoice snapshots
+        run: node --experimental-sqlite scripts/test-service-descriptions.mjs
+      - name: Offline map proxy and bounded owner-only provider requests
+        run: node --experimental-sqlite scripts/test-offline-map-proxy.mjs
+      - name: Replacement quotes, new signatures and preserved original agreements
+        run: node --experimental-sqlite scripts/test-quote-revisions.mjs
+      - name: Owner availability, cadence settings and blocked scheduling
+        run: node --experimental-sqlite scripts/test-business-preferences.mjs
       - name: Custom standard pricing, real SQLite persistence, conflicts and historical protection
         run: node --experimental-sqlite scripts/test-custom-service-pricing.mjs
       - name: Saved promotions catalog date and discount eligibility contract
@@ -437,6 +449,8 @@ jobs:
         run: node --experimental-strip-types scripts/test-editable-line-totals.mjs
       - name: Owner-only house visits, scheduled callbacks, dashboard queue and duplicate suppression
         run: node --experimental-sqlite scripts/test-door-knocking.mjs
+      - name: Territory map categories, saved coordinates, suppression and authenticated SQLite APIs
+        run: node --experimental-sqlite scripts/test-territory.mjs
       - name: Reuse new estimate service setup without unexpected line charges
         run: node --experimental-strip-types scripts/test-reuse-estimate-service-line.mjs
       - name: iPhone and iPad Edit Estimate modal viewport accessibility — no remote changes
@@ -472,12 +486,14 @@ jobs:
           node --experimental-sqlite scripts/test-customer-create-retry.mjs
           node scripts/test-payment-load-errors.mjs
           node scripts/test-schedule-load-errors.mjs
+          node scripts/test-estimate-history-exact-cents.mjs
           node scripts/test-agreement-load-errors.mjs
           node scripts/test-complete-estimate-pages.mjs
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-customer-write-recovery.mjs
           node --experimental-sqlite scripts/test-customer-note-idempotency.mjs
+          node --experimental-strip-types scripts/test-customer-lead-contact-flags.mjs
           node scripts/test-estimate-history-recovery.mjs
           node scripts/test-insights-recovery.mjs
           node scripts/test-detail-selection-recovery.mjs
@@ -650,6 +666,7 @@ jobs:
           node --experimental-sqlite scripts/test-customer-create-retry.mjs
           node scripts/test-payment-load-errors.mjs
           node scripts/test-schedule-load-errors.mjs
+          node scripts/test-estimate-history-exact-cents.mjs
           node scripts/test-agreement-load-errors.mjs
           node scripts/test-complete-estimate-pages.mjs
           node scripts/test-payment-mobile-ui.mjs
@@ -752,6 +769,7 @@ jobs:
           node --experimental-sqlite scripts/test-customer-create-retry.mjs
           node scripts/test-payment-load-errors.mjs
           node scripts/test-schedule-load-errors.mjs
+          node scripts/test-estimate-history-exact-cents.mjs
           node scripts/test-agreement-load-errors.mjs
           node scripts/test-complete-estimate-pages.mjs
           node scripts/test-payment-mobile-ui.mjs
@@ -776,8 +794,36 @@ jobs:
           pnpm run build
       - name: Confirm entire compiled QA candidate retains exact shared and adapter source
         run: python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-candidate" --built
-      - name: Fail closed unless QA manifest binds only isolated D1 and dedicated photo R2
+      - name: Validate compiled QA source bindings before preparing no-paid-R2 deployment
         run: node business-app-parity/check_qa_runtime_config.mjs "$RUNNER_TEMP/fire-qa-candidate/dist/server/wrangler.json"
+      - name: Verify ACTUAL compiled QA Worker generates R2-free release config (NO upload)
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { randomUUID } from 'node:crypto';
+          import { readFileSync, unlinkSync } from 'node:fs';
+          import { join } from 'node:path';
+          import { prepare } from './business-app-parity/prepare_qa_deploy_config.mjs';
+          const folder = join(process.env.RUNNER_TEMP, 'fire-qa-candidate/dist/server');
+          const original = join(folder, 'wrangler.json');
+          const temporary = join(folder, 'wrangler.fire-qa-firstpublish-' + randomUUID() + '.json');
+          const previous = readFileSync(original, 'utf8');
+          try {
+            const result = prepare(original, temporary);
+            const before = JSON.parse(previous);
+            const clean = JSON.parse(readFileSync(temporary,'utf8'));
+            assert.equal(result.r2Free, true);
+            assert.equal(Object.hasOwn(clean,'r2_buckets'),false);
+            assert.equal(Object.hasOwn(clean,'legacy_env'),false);
+            delete before.r2_buckets;
+            delete before.legacy_env;
+            assert.deepEqual(clean,before,'All other Worker bindings/assets/secrets must be preserved');
+            assert.equal(clean.d1_databases[0].binding,'DB');
+            assert.equal(clean.d1_databases[0].database_name,'fire-fullapp-qa-db-20261016');
+            assert.equal(readFileSync(original,'utf8'),previous,'Never change compiled original');
+            console.log('PASS: Actual compiled QA Worker release config is R2-free and D1-only; zero remote operations.');
+          } finally { try { unlinkSync(temporary); } catch (error) { if (error.code!=='ENOENT') throw error; } }
+          NODE
       - name: Prepare pinned browser driver for built QA local-runtime integration
         run: |
           mkdir -p "$RUNNER_TEMP/fire-qa-http-browser"
@@ -861,12 +907,26 @@ jobs:
         env:
           FIRE_PRICING_SCREENSHOT_DIR: ${{ runner.temp }}/fire-pricing-ui
         run: node --experimental-sqlite scripts/test-custom-service-pricing-browser.mjs
+      - name: Final refund retry, quote-context and iPhone dialog audit
+        run: node scripts/test-final-interaction-audit-browser.mjs
+      - name: Notification touch actions, saved reads and independent reminders over real SQLite
+        run: node --experimental-sqlite scripts/test-notification-persistence-browser.mjs
+      - name: Owner shift blocks and repeat intervals on phone light/dark
+        run: node --experimental-sqlite scripts/test-business-preferences-browser.mjs
       - name: Saved promotion manager mobile add, pause, save and reload
         env:
           FIRE_PROMOTION_SCREENSHOT_DIR: ${{ runner.temp }}/fire-saved-promo-ui
         run: node scripts/test-saved-promotions-browser.mjs
       - name: Door knocking real mobile dropdown history and interrupted saves
         run: node --experimental-sqlite scripts/test-door-knocking-browser.mjs
+      - name: Encrypted offline territory drafts, manual sync, conflicts and IndexedDB failures
+        run: node --experimental-sqlite scripts/test-territory-offline-browser.mjs
+      - name: Real offline field cold restart, encrypted pins and private-cache boundaries
+        run: node scripts/test-offline-field-browser.mjs
+      - name: Experimental local customer IndexedDB records, atomic outbox and account isolation
+        run: node scripts/test-offline-customer-repository-browser.mjs
+      - name: Actual MapLibre territory canvas, mobile light/dark and clustered metro coverage
+        run: node scripts/test-territory-browser.mjs
       - name: Actual New Estimate service reuse on mobile light and dark
         run: node scripts/test-reuse-estimate-editor-browser.mjs
       - name: New estimate saved promotion suggestions on mobile and booking hold
@@ -970,6 +1030,18 @@ jobs:
           path: ${{ runner.temp }}/fire-business-ui/
           if-no-files-found: ignore
           retention-days: 7
+      - name: Today next-job real contact disclosure in Chrome at iPhone widths
+        run: node scripts/test-dashboard-next-contact-browser.mjs
+      - name: Real Schedule calendar-day booking and Google Maps route at iPhone widths
+        run: node scripts/test-schedule-day-shortcuts-browser.mjs
+      - name: Compact Estimates and Payments real JSX in Chromium at five iPhone widths
+        run: node scripts/test-simple-estimates-payments-browser.mjs
+      - name: Customer contact and complete activity disclosure in real Chromium at iPhone widths
+        run: node scripts/test-customer-simple-profile-browser.mjs
+      - name: Real sidebar navigation preserves all advanced tools under a keyboard-accessible disclosure
+        run: node scripts/test-compact-navigation-browser.mjs
+      - name: Estimate and invoice preview theme, touch targets, contrast and print
+        run: node scripts/test-owner-preview-theme-browser.mjs
       - name: Actual template editors and themed sidebar at phone tablet and desktop widths
         run: node scripts/test-template-layout-browser.mjs
       - name: Actual job reports and costs retain mobile controls and survive session connection loss

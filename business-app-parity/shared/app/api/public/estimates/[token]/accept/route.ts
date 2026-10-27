@@ -20,6 +20,7 @@ export async function POST(request:Request,context:{params:Promise<{token:string
       const audit=await env.DB.prepare('SELECT id FROM deposit_policy_events WHERE estimate_id=? LIMIT 1').bind(estimate.id).first();
       if(audit)return Response.json({error:'This estimate requires updated deposit terms and a new customer agreement before it can be approved. Contact First In Response Exteriors.'},{status:409});
     }
+    if(estimate.status==="superseded")return Response.json({error:"This quote was replaced. Please review and sign the latest quote."},{status:409});
     if(estimate.acceptedAt)return Response.json({ok:true,acceptedAt:estimate.acceptedAt,signedName:estimate.signedName,signedAt:estimate.signedAt,photoRelease:estimate.photoRelease});
     if(!["draft","sent"].includes(estimate.status))return Response.json({error:"This estimate is no longer available for approval. Please contact First In Response Exteriors."},{status:409});
     const now=new Date().toISOString();

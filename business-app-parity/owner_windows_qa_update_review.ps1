@@ -12,11 +12,13 @@ $branch = $CandidateBranch
 $workerName = 'fire-fullapp-qa-20261016'
 $qaDatabase = 'fire-fullapp-qa-db-20261016'
 $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
-$qaPhotoBucket = 'fire-fullapp-qa-photos-20261023'
-# Only recognize the serving version from the October 19 owner-authenticated metadata check
-# owner-captured Cloudflare status. Match the full
-# active version UUID; reject historical, split, changed or ambiguous versions.
-$expectedActiveVersion = '58a467fa-9dbc-45a3-971e-b5a4e478f54d'
+# Cloud photo R2 is intentionally not provisioned. The device-local photo vault and
+# independently saved ZIP backups must remain usable without billing.
+# Pin the latest QA version owner confirmed at 100% traffic after the October 26 release with authenticated
+# Wrangler deployments status: sole active version at 100% traffic.
+# Reject a different active version, split traffic, or changed D1 identity.
+# Reject older, split, changed or ambiguous versions before any upload.
+$expectedActiveVersion = 'aa598f39-3611-4626-8fe8-350b57247d51'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }
@@ -115,14 +117,10 @@ Require ([string]$row.journal_names -ceq ($orderedSQL -join '|') -and
     [int]$row.required_tables -eq 8 -and [int]$row.provider_index -eq 1 -and
     [int]$row.signed_agreement_triggers -eq 2) 'Hosted QA MUST have all 25 exact ordered migrations, refund/photo/deposit tables, provider index and immutable agreement triggers before code update.'
 Write-Host 'PASS: Remote QA-only D1 journal, 8 required tables, provider index and signed agreement triggers match full current code.'
-# The new Worker has a BUCKET binding. Never apply this update unless the
-# proposed R2 exists in the owner account under the EXACT independent name.
-$rawR2 = @(& $wrangler.Source r2 bucket info $qaPhotoBucket --json)
-Require-Exit 'Read-only QA R2 photo bucket identity'
-try { $r2 = ConvertFrom-Json -InputObject ($rawR2 -join [Environment]::NewLine) }
-catch { throw 'FIRE QA UPDATE STOP: QA photo storage identity response is not valid JSON.' }
-Require ($r2.name -ceq $qaPhotoBucket) 'Dedicated new QA photo R2 bucket missing/mismatched; do not update Worker.'
-Write-Host 'PASS: Distinct QA photo R2 bucket identity verified read-only; no photo bytes accessed.'
+# The disposable deployment manifest removes R2 entirely; no account call or
+# billable bucket is needed. Hosted/server photo endpoints stay unavailable,
+# while the existing per-device photo vault and ZIP backup UI remain intact.
+Write-Host 'PASS: QA update requires no R2 billing, bucket or photo cloud sync.'
 # Verify exactly the sole ACTIVE version, not arbitrary historical status text.
 $deploymentRaw = @(& $wrangler.Source deployments status --name $workerName --json)
 Require-Exit 'Read-only current QA Worker status'
@@ -133,7 +131,7 @@ $activeVersions = @($deploymentInfo.versions)
 Require ($activeVersions.Count -eq 1) 'QA Worker traffic is split or ambiguous. Stop.'
 Require ([double]$activeVersions[0].percentage -eq 100) 'Exactly one QA Worker version must serve 100 percent of requests.'
 $activeVersion = [string]$activeVersions[0].version_id
-Require ($activeVersion -ceq $expectedActiveVersion) 'Active QA Worker differs from owner-observed October 19 authenticated metadata check. Stop.'
+Require ($activeVersion -ceq $expectedActiveVersion) 'Active QA Worker differs from owner-confirmed October 26 authenticated QA deployment. Stop.'
 Write-Host ('PASS: Active QA Worker is exactly one 100-percent deployment: ' + $activeVersion)
 Write-Host ('PASS: Existing QA database name and UUID match: ' + $qaDatabase)
 # Dry-run requires ONLY a disposable normalized manifest, outside any app data.
@@ -153,5 +151,5 @@ try {
     }
 }
 Write-Host ('REVIEW PASS: New QA candidate Git source ' + $head)
-Write-Host 'NO PUBLISH. Existing QA Worker, private credentials, D1 rows and R2 photo bytes are untouched.'
+Write-Host 'NO PUBLISH. Existing QA Worker, credentials, D1 rows and on-device photos are untouched.'
 Write-Host 'Further steps require owner approval of a distinct UPDATE release and retained rollback version.'

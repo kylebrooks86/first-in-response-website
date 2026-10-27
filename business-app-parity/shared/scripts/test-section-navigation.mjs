@@ -35,4 +35,18 @@ assert.match(source,/onNavigate=\{setTab\}/);checks++;
 assert.match(source,/className="bottom-nav"[\s\S]*setTab\(id\)/);checks++;
 assert.match(source,/const goHome = [^\n]*setTab\("dashboard"\)/);checks++;
 assert.match(source,/const goBack = [^\n]*setTab\(target\)/);checks++;
+// Everyday shortcuts are prioritized, while EVERY original main section stays in the menu.
+const navSource=source.match(/const nav = useMemo\(\(\) => \[([\s\S]*?)\] as const, \[\]\);/)?.[1];
+assert.ok(navSource,'The real dashboard must still declare its navigation');
+const navIds=[...navSource.matchAll(/\["([^"]+)",\s*"[^"]+",/g)].map(match=>match[1]);
+eq(navIds,["dashboard","customers","estimates","schedule","followups","invoices","payments","door-knocking","business","insights","settings"],'One Estimates entry covers quotes and agreements; every other main section remains available');
+assert.match(source,/className="estimate-section-switch"/);checks++;
+assert.match(source,/ContractsView searchQuery=\{historySearch\} embedded/);checks++;
+assert.match(source,/tab === "contracts" \? <EstimatesView initialSection="agreements"/);checks++;
+assert.match(source,/<p className="sidebar-nav-heading">Everyday<\/p>/);checks++;
+assert.match(source,/nav\.slice\(0,7\)\.map/);checks++;
+assert.match(source,/className="sidebar-more-nav" open=\{moreNavOpen\}/);checks++;
+assert.match(source,/nav\.slice\(7\)\.map/);checks++;
+assert.match(source,/useEffect\(\(\)=>\{if\(nav\.slice\(7\)\.some\(\(\[id\]\)=>id===tab\)\)setMoreNavOpen\(true\);\},\[tab,nav\]\)/);checks++;
+assert.match(source,/\["dashboard","customers","estimates","schedule","followups"\]\.includes\(id\)/);checks++;
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);

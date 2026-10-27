@@ -1,3 +1,4 @@
+import {BUSINESS_PREFERENCES_KEY,decodeBusinessPreferences,scheduleBlockAt} from '../../../../lib/business-preferences';
 import {submittedDiscountCents, quoteDiscounts, discountSnapshot, verifiedSavedDiscounts, DISCOUNT_SNAPSHOT_PREFIX} from '../../../../lib/discount-input';
 import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,readPromotionAttribution,promotionAttributionStillApplies} from '../../../../lib/estimate-promotion-attribution';
 import { env } from "cloudflare:workers";
@@ -78,6 +79,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const changingStatus=Boolean(status)||Object.prototype.hasOwnProperty.call(body,"scheduledAt");
+    if(changingStatus&&existing.status==="superseded")return Response.json({error:"This quote is historical. Open its replacement to schedule or update the job."},{status:409});
     if(changingStatus){
       const nextStatus = scheduledAt ? "scheduled" : (status || existing.status);
       const nextSchedule = Object.prototype.hasOwnProperty.call(body, "scheduledAt") ? (scheduledAt || null) : existing.scheduledAt;
@@ -98,14 +100,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         const report=await env.DB.prepare("SELECT status FROM job_reports WHERE estimate_id=? ORDER BY created_at DESC LIMIT 1").bind(id).first<{status:string}>();
         if(report?.status!=="completed")return Response.json({error:"Complete and save the service completion report before marking this job complete."},{status:409});
       }
+      let availabilitySql='',availabilityValues:unknown[]=[];
+      if(nextStatus==='scheduled'&&nextSchedule){
+        const availability=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(BUSINESS_PREFERENCES_KEY).first<{body:string}>();
+        const blocked=scheduleBlockAt(decodeBusinessPreferences(availability),nextSchedule);
+        if(blocked)return Response.json({error:`Unavailable: ${blocked.label} · ${blocked.date} ${blocked.start}–${blocked.end} Central. Choose another time or update My availability.`},{status:409});
+        availabilitySql=' AND (SELECT body FROM message_templates WHERE key=?) IS ?';availabilityValues=[BUSINESS_PREFERENCES_KEY,availability?.body??null];
+        guardedSchedule=true;guardedScheduleIndex=statements.length;
+      }
       if(nextStatus==='scheduled'&&depositPolicyEnabled(env)){
         const row=await env.DB.prepare(`SELECT ${depositPolicyColumns} FROM estimates e WHERE e.id=?`).bind(id).first<DepositPolicyRow>();
         if(!row)return Response.json({error:'Estimate not found.'},{status:404});
         const policy=depositSchedulingPolicy(row,true);
         if(!policy.canSchedule)return Response.json({error:policy.message,depositPolicy:policy},{status:409});
         guardedSchedule=true;guardedScheduleIndex=statements.length;
-        statements.push(env.DB.prepare(`UPDATE estimates SET status=?,scheduled_at=? WHERE id=? AND EXISTS(SELECT 1 FROM (SELECT ${depositPolicyColumns} FROM estimates e WHERE e.id=?) eligibility WHERE ${depositSchedulingGuard} AND status=? AND acceptedAt IS ? AND signedAt IS ?)`).bind(nextStatus,nextSchedule,id,id,existing.status,existing.acceptedAt,existing.signedAt));
-      }else statements.push(env.DB.prepare("UPDATE estimates SET status=?, scheduled_at=? WHERE id=?").bind(nextStatus,nextSchedule,id));
+        statements.push(env.DB.prepare(`UPDATE estimates SET status=?,scheduled_at=? WHERE id=? AND EXISTS(SELECT 1 FROM (SELECT ${depositPolicyColumns} FROM estimates e WHERE e.id=?) eligibility WHERE ${depositSchedulingGuard} AND status=? AND acceptedAt IS ? AND signedAt IS ?)${availabilitySql}`).bind(nextStatus,nextSchedule,id,id,existing.status,existing.acceptedAt,existing.signedAt,...availabilityValues));
+      }else statements.push(env.DB.prepare(`UPDATE estimates SET status=?, scheduled_at=? WHERE id=?${availabilitySql}${availabilitySql?' AND status=? AND accepted_at IS ? AND signed_at IS ?':''}`).bind(nextStatus,nextSchedule,id,...availabilityValues,...(availabilitySql?[existing.status,existing.acceptedAt,existing.signedAt]:[])));
       responseFields={...responseFields,status:nextStatus,scheduledAt:nextSchedule};
     }
     if (body.resolveChangeRequests === true) return Response.json({error:"Refresh the app and resolve a specific request from Customer change-request history."},{status:409});
@@ -121,7 +131,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if(!latest||latest.signedAt||latest.acceptedAt||["approved","scheduled","completed"].includes(latest.status)||Number(latest.paidCents)>0||Number(latest.invoiceCount)>0)return Response.json({error:"This estimate became approved or financially active while you were editing it. Refresh the job; keep the accepted estimate unchanged and make later billing changes on the final invoice."},{status:409});
       if(!Number.isSafeInteger(Number(latest.paidCents))||Number(latest.paidCents)<0)return Response.json({error:"This estimate's payment state is outside FIRE's safe accounting range. Stop and review the job before editing the estimate."},{status:409});
     }
-    if(statements.length){const results=await env.DB.batch(statements);if(guardedScheduleIndex>=0&&results[guardedScheduleIndex]?.meta.changes!==1)return Response.json({error:'The deposit, payment or approval state changed before scheduling was saved. Refresh the job and review its records before another deliberate attempt.'},{status:409});}
+    if(statements.length){const results=await env.DB.batch(statements);if(guardedScheduleIndex>=0&&results[guardedScheduleIndex]?.meta.changes!==1)return Response.json({error:'Availability, deposit, payment or approval changed before scheduling was saved. Refresh the job and review its records before another deliberate attempt.'},{status:409});}
     return Response.json({ estimate: responseFields });
   } catch {
     if(guardedSchedule)return Response.json({error:'Schedule confirmation is uncertain. Refresh the job before another attempt; the schedule may already have saved. No payment was initiated.',saveUncertain:true},{status:503});

@@ -13,8 +13,9 @@ import{Textarea}from'./components/ui/textarea';import{Button}from'./components/u
 import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./components/ui/dialog';
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
 import{summarizeCustomerBalances}from'./lib/customer-balance-summary';import{messageHistoryEntries}from'./lib/message-history';
-import{deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility}from'./lib/customer-activity-flags';
+import{deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,LEAD_NO_ANSWER_NOTE,LEAD_CONTACTED_NOTE,LEAD_CALLBACK_HANDLED_NOTE,leadCallbackNote,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility}from'./lib/customer-activity-flags';
 import{mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory}from'./lib/offline-photo-availability';
+import{usableCustomerPhone,usableCustomerEmail}from'./lib/customer-contact-links';
 const saveOfflinePhotoCustomerDirectory=async()=>{},loadOfflinePhotoCustomerDirectory=async()=>[],clearOfflinePhotoCustomerDirectory=async()=>{};
 const money=c=>'$'+(c/100).toFixed(2),dateTime=v=>v,statusLabel=v=>v,resolvedBillingTotalCents=e=>e.invoiceTotalCents??e.totalCents,billingBalanceCents=e=>Math.max(0,resolvedBillingTotalCents(e)-e.paidCents);
 ${stubs}\n${functions.map(f=>f.getText(ast)).join('\n')}
@@ -59,7 +60,7 @@ reset();const server=createServer((req,res)=>{res.setHeader('cache-control','no-
  if((req.url==='/api/customers'&&req.method==='PATCH')||(req.url==='/api/customer-notes'&&req.method==='POST')){
   let body='';req.on('data',c=>body+=c);req.on('end',()=>{const data=JSON.parse(body);
    if(req.method==='PATCH'){customerPatches++;const submit=()=>{const previous=customers.find(c=>c.id===data.id);assert.ok(previous);const updated={...previous,...data};customers=customers.map(c=>c.id===updated.id?updated:c);send(200,{customer:updated});};if(customerHold){releaseCustomer=submit;onCustomer?.();}else submit();}
-   else{notePosts++;const submit=()=>{if(noteStatus!==201){send(noteStatus,{error:'Synthetic note failure'});return;}const note={id:data.requestId,customerId:data.customerId,body:data.body,createdAt:'2026-10-19T12:00:00Z'};const existing=notes.find(n=>n.id===data.requestId);if(existing){assert.equal(existing.body,data.body);assert.equal(existing.customerId,data.customerId);send(200,{note:existing});return;}notes.unshift(note);if(noteLoseReply){noteLoseReply=false;res.writeHead(201,{'content-type':'application/json'});res.end('not-json');return;}send(201,{note});};if(noteHold){releaseNote=submit;onNote?.();}else submit();}
+   else{notePosts++;const submit=()=>{if(noteStatus!==201){send(noteStatus,{error:'Synthetic note failure'});return;}const note={id:data.requestId,customerId:data.customerId,body:data.body,createdAt:new Date(Date.parse('2026-10-19T12:00:00Z')+notes.length*1000).toISOString()};const existing=notes.find(n=>n.id===data.requestId);if(existing){assert.equal(existing.body,data.body);assert.equal(existing.customerId,data.customerId);send(200,{note:existing});return;}notes.unshift(note);if(noteLoseReply){noteLoseReply=false;res.writeHead(201,{'content-type':'application/json'});res.end('not-json');return;}send(201,{note});};if(noteHold){releaseNote=submit;onNote?.();}else submit();}
   });return;
  }
  res.statusCode=404;res.end();
@@ -79,6 +80,71 @@ try{
  check(lifecycle.out==='out'&&lifecycle.pickupDate==='2026-10-27'&&lifecycle.location==='Front lawn','Structured yard sign note records placement and pickup target');
  check(lifecycle.review&&lifecycle.retrieved==='picked_up'&&lifecycle.unverified,'Review and sign completion require exact owner-logged saved note markers');
  const open=async name=>{await page.locator('.customer-card').filter({has:page.getByText(name,{exact:true})}).click();await page.getByRole('button',{name:/^Notes/}).click();};
+ // Real customer with ZERO estimates: explicit lead No answer note, without
+ // sending a message or generating a quote, followed by directory filtering.
+ await page.setViewportSize({width:390,height:700});
+ check(await page.getByRole('group',{name:'Filter manually logged lead contact attempts'}).count()===0,'Unused zero-count lead filters do not clutter initial customer directory');
+ await open('Fixture First');
+ const originalDraft=page.getByLabel('Customer note',{exact:true});
+ await originalDraft.fill('Unsent field note');
+ await page.getByRole('button',{name:'Log lead no answer'}).evaluate(button=>{button.click();button.click();});
+ await page.getByText('No answer logged.',{exact:true}).waitFor();
+ await page.getByRole('status',{name:'Last lead contact'}).filter({hasText:/No answer · not contacted · 1 unanswered attempt/}).waitFor();
+ check(notePosts===1&&notes.length===1&&notes[0].body==='[FIRE FLAG] LEAD_NO_ANSWER',
+  'One-tap No answer persists once without an estimate, message or duplicate rapid submission');
+ check(await originalDraft.inputValue()==='Unsent field note',
+  'Direct lead logging preserves a separate unsaved customer note');
+ await originalDraft.fill('');
+ await page.getByRole('button',{name:'← All customers',exact:true}).click();
+ await page.getByRole('button',{name:'No answer / not contacted (1)'}).click();
+ check(await page.locator('.customer-card').count()===1&&
+  await page.locator('.customer-card').first().getByText('Fixture First',{exact:true}).count()===1,
+  'Directory No answer filter isolates the exact saved unanswered lead');
+ await page.getByRole('button',{name:'Show all customers'}).click();
+ check(await page.locator('.customer-card').count()===2,
+  'Owner can clear the filter without deleting or contacting customers');
+ await open('Fixture First');
+ await page.getByText('Schedule or reschedule lead callback',{exact:true}).click();
+ await page.getByLabel('Lead callback date',{exact:true}).fill('2026-10-22');
+ const unsavedCustomerNote=page.getByLabel('Customer note',{exact:true});
+ await unsavedCustomerNote.fill('Keep this unrelated customer note draft');
+ await page.getByRole('button',{name:'Save lead callback'}).evaluate(button=>{button.click();button.click();});
+ await page.getByText('Callback saved.',{exact:true}).waitFor();
+ await page.getByRole('status').filter({hasText:'Callback due:'}).waitFor();
+ check(notePosts===2&&notes.length===2&&notes[0].body==='[FIRE FLAG] LEAD_CALLBACK | due:2026-10-22',
+  'One-tap callback persists exactly once using existing notes API, no estimate or messages needed');
+ check(await unsavedCustomerNote.inputValue()==='Keep this unrelated customer note draft',
+  'Saving callback does not replace an unrelated unsaved customer note');
+ check(await page.getByRole('button',{name:'Save lead callback'}).isDisabled(),
+  'Same pending callback date cannot be saved twice');
+ await unsavedCustomerNote.fill('');
+ await page.getByRole('button',{name:'← All customers',exact:true}).click();
+ await page.getByRole('region',{name:'Due customer lead callbacks'}).waitFor();
+ await page.getByRole('button',{name:'Callbacks due (1)'}).click();
+ check(await page.locator('.customer-card').count()===1,'Due-date filter identifies only outstanding owner-saved callbacks');
+ await page.locator('.customer-card').first().click();
+ await page.getByRole('button',{name:'Mark callback done'}).evaluate(button=>{button.click();button.click();});
+ await page.getByText('Callback marked done.',{exact:true}).waitFor();
+ check(notes[0]?.body==='[FIRE FLAG] LEAD_CALLBACK_HANDLED'&&notes.length===3&&notePosts===3,
+  'One-tap callback completion records one handled marker without claiming customer contact');
+ await page.getByRole('button',{name:'← All customers',exact:true}).click();
+ await page.getByText('No due callbacks match',{exact:true}).waitFor();
+ check(notes.length===3&&notes[0].body==='[FIRE FLAG] LEAD_CALLBACK_HANDLED',
+  'Handled callback leaves full append-only history and clears due queue without claiming contact');
+ await page.getByRole('button',{name:'Show all customers',exact:true}).click();
+ check(await page.getByRole('button',{name:'Callbacks due (0)'}).count()===0,'Cleared zero-count callback filter disappears after returning to all customers');
+ check(await page.locator('.customer-card').count()===2,
+  'After handling a due callback, reset the filter to restore the entire owner customer list');
+ await open('Fixture First');
+ const unsentBeforeContact=page.getByLabel('Customer note',{exact:true});
+ await unsentBeforeContact.fill('Unsent quote detail');
+ await page.getByRole('button',{name:'Log lead contacted'}).evaluate(button=>{button.click();button.click();});
+ await page.getByText('Contact logged.',{exact:true}).waitFor();
+ check(notes.length===4&&notePosts===4&&notes[0].body==='[FIRE FLAG] LEAD_CONTACT_RECORDED',
+  'One-tap contacted creates one owner-recorded contact without messaging or quotes');
+ check(await unsentBeforeContact.inputValue()==='Unsent quote detail',
+  'Contact logging leaves unrelated customer note draft unchanged');
+ await page.getByRole('button',{name:'← All customers',exact:true}).click();
  for(const width of [320,390])for(const theme of ['light','dark']){
   reset();await page.setViewportSize({width,height:700});await page.goto(origin);await page.evaluate(value=>window.setTheme(value),theme);await open('Fixture First');
   const noteInput=page.getByLabel('Customer note',{exact:true});await noteInput.fill('First gate note');noteHold=true;const noteAccepted=new Promise(r=>onNote=r),beforeNotes=notePosts;
@@ -92,7 +158,7 @@ try{
   noteStatus=201;noteLoseReply=true;await noteInput.fill('Gate instructions\nKeep side gate closed');await page.getByRole('button',{name:'Add note',exact:true}).click();await page.getByRole('alert').waitFor();const committedCount=notes.length;check(await noteInput.inputValue()==='Gate instructions\nKeep side gate closed','Lost reply retains multiline draft');await page.getByRole('button',{name:'Add note',exact:true}).click();await page.getByText('Note saved.',{exact:true}).waitFor();check(notes.length===committedCount,'Same-text retry after a committed lost reply creates no duplicate');const savedNote=page.locator('.note-row p').filter({hasText:'Gate instructions'});check(await savedNote.evaluate(n=>getComputedStyle(n).whiteSpace)==='pre-wrap','Saved note line breaks are readable');check(await noteInput.inputValue()==='','Confirmed retry clears only the saved draft');const noteGeometry=await noteInput.boundingBox();const addGeometry=await page.getByRole('button',{name:'Add note',exact:true}).boundingBox();check(noteGeometry.width>0&&noteGeometry.x>=0&&noteGeometry.x+noteGeometry.width<=width&&noteGeometry.height>=100&&addGeometry.height>=44,'Multiline note and save control fit narrow screen with usable touch targets');if(process.env.FIRE_NOTE_SCREENSHOT_DIR){mkdirSync(process.env.FIRE_NOTE_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.FIRE_NOTE_SCREENSHOT_DIR,`customer-notes-${width}-${theme}.png`),fullPage:true});}
 
 
-  await page.getByRole('button',{name:'Edit customer',exact:true}).click();const dialog=page.locator('.customer-edit-dialog');await dialog.getByLabel('Customer name',{exact:true}).fill(' Fixture First Updated ');
+  await page.locator('details.customer-header-more>summary').click();await page.getByRole('button',{name:'Edit customer',exact:true}).click();const dialog=page.locator('.customer-edit-dialog');await dialog.getByLabel('Customer name',{exact:true}).fill(' Fixture First Updated ');
   customerHold=true;const customerAccepted=new Promise(r=>onCustomer=r),beforeEdits=customerPatches;
   await dialog.getByRole('button',{name:'Save changes',exact:true}).evaluate(n=>{n.click();n.click();});await accepted(customerAccepted);
   check(customerPatches===beforeEdits+1,'Rapid edit taps submit once');check(await dialog.getByLabel('Customer name',{exact:true}).isDisabled(),'Pending customer fields are frozen');
@@ -101,12 +167,12 @@ try{
   const bounds=await page.locator('.customer-profile').evaluate(n=>({width:n.scrollWidth,viewport:innerWidth}));check(bounds.width<=bounds.viewport,'Customer profile stays within narrow viewport');
  }
  for(const width of [320,390])for(const theme of ['light','dark']){
-  historyFailure=false;await page.setViewportSize({width,height:700});await page.goto(origin+'/history');await page.evaluate(value=>window.setTheme(value),theme);await page.locator('.pipeline-card').filter({hasText:'Prior query customer'}).waitFor();
+  historyFailure=false;await page.setViewportSize({width,height:700});await page.goto(origin+'/history');await page.evaluate(value=>window.setTheme(value),theme);await page.locator('.estimate-card').filter({hasText:'Prior query customer'}).waitFor();check(await page.locator('.pipeline-card').count()===0,'Simple list is the default estimate view; pipeline stays available by selection');
   for(const mode of ['Pipeline','List']){
    await page.getByRole('button',{name:mode,exact:true}).click();historyFailure=true;await page.getByLabel('Search estimate history',{exact:true}).fill('Latest '+mode);
    await page.getByRole('alert').filter({hasText:'Synthetic history refresh failed'}).waitFor();
    check(await page.locator('.pipeline-card,.estimate-card').count()===0,'Fresh failed search hides prior query cards in '+mode);check(await page.getByRole('status').count()===0,'Fresh failed search hides old totals/counts');
-   historyFailure=false;await page.getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('status').filter({hasText:'1 estimate records loaded'}).waitFor();check(await page.getByText('Latest query customer',{exact:true}).isVisible(),'Fresh search retry restores correct result');check(historyReads.at(-1).includes('q=Latest%20'+mode),'Retry preserves the entered query');
+   historyFailure=false;await page.getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('status').filter({hasText:'1 estimate loaded'}).waitFor();check(await page.getByText('Latest query customer',{exact:true}).isVisible(),'Fresh search retry restores correct result');check(historyReads.at(-1).includes('q=Latest%20'+mode),'Retry preserves the entered query');
   }
  }
  insightMode=true;

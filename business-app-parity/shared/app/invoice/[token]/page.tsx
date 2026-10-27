@@ -9,6 +9,7 @@ import { PayButton } from "../../pay/[id]/pay-button";
 import { paymentHandles } from "../../../lib/payment-methods";
 import { shouldOfferReviewAfterPayment } from "../../../lib/customer-review-invite.mjs";
 import { CustomerReviewInvitation } from "../../../components/customer-review-invitation";
+import { OwnerPreviewTheme } from "../../../components/owner-preview-theme";
 
 export const dynamic = "force-dynamic";
 export const metadata={robots:{index:false,follow:false,nocache:true}};
@@ -55,14 +56,14 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
   const paymentReviewPending=state.review||Number(row.openCheckoutCount??0)>0;
   const showReviewInvitation=!ownerPreview&&state.safe&&balance===0&&shouldOfferReviewAfterPayment({status:row.estimateStatus,totalCents:Number(row.totalCents),paidCents:Number(row.paidCents),paymentReviewPending});
   const returnHref=from==='customer'?`/?openCustomer=${encodeURIComponent(row.customerId)}&customerSection=invoices`:from==='invoices'?`/?openInvoice=${encodeURIComponent(row.id)}`:`/?openEstimate=${encodeURIComponent(row.estimateId)}`;
-  const close=ownerPreview?<a className="owner-estimate-preview-close owner-invoice-preview-close" href={returnHref} aria-label="Close invoice preview" title="Return to FIRE"><X aria-hidden="true"/></a>:null;
+  const close=ownerPreview?<><OwnerPreviewTheme/><a className="owner-estimate-preview-close owner-invoice-preview-close" href={returnHref} aria-label="Close invoice preview" title="Close"><X aria-hidden="true"/></a></>:null;
   if(!state.safe)return <main className={`pay-page invoice-page${ownerPreview?' owner-estimate-preview':''}`}>{close}<section className="pay-card"><h1>Invoice account review</h1><p>We are checking this invoice. Please contact First In Response Exteriors before making a payment.</p></section></main>;
   const runtime = env as RuntimeEnv;
   const paymentsReady = Boolean(runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY);
   const handles = paymentHandles(runtime);
   const footer=await env.DB.prepare("SELECT body FROM message_templates WHERE key='invoiceFooter'").first<{body:string}>();
   return <main className={`pay-page invoice-page${ownerPreview?" owner-estimate-preview":""}`}>{close}<section className="pay-card estimate-portal invoice-portal">
-    {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><div><strong>Invoice preview</strong><span>Customer-facing view · viewing does not mark the invoice as opened by your customer.</span></div><a href={returnHref}>Return to FIRE <ArrowUpRight aria-hidden="true"/></a></aside>}
+    {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><strong>Customer view</strong></aside>}
     <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
     <div className="pay-title"><p>INVOICE FOR</p><h1>{row.customer}</h1>{row.address&&<span><MapPin/>{row.address}</span>}{row.serviceAddressSource==="legacy-current-unverified"&&<small>Current customer address; original service address unverified.</small>}</div>
     <div className="portal-service-list">{items.map((item,index)=><div className="pay-line" key={`${item.name}-${index}`}><div><strong>{item.name}</strong>{item.quantity&&<span>{item.quantity} {item.unit}</span>}<p className="portal-service-description">{item.description||serviceDescriptionFor(item.name)}</p></div><strong>{currency(item.totalCents)}</strong></div>)}</div>

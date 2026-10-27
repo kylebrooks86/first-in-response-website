@@ -96,7 +96,8 @@ for(const job of [undefined,'2026-10-13T14:00:00Z','2026-11-12T15:00:00Z']){
  assert.equal(region.props['aria-label'],'Seven-day Tulsa weather forecast');
  assert.equal(cards.filter(n=>n.props.className==='job-day').length,job?.startsWith('2026-10-13')?1:0,'Highlight next job without hiding other days');
  if(job?.startsWith('2026-10-13'))assert.ok(walk(cards[5]).some(n=>n.type==='small'&&String(n.props.children).startsWith('Next job ·')),'Next-job card must identify its date');
- assert.ok(nodes.some(n=>n.props?.className==='weather-scroll-hint'),'Full-week scrolling hint should render');
+ assert.ok(nodes.some(n=>n.props?.className==='weather-simple-footer'),'Compact current-plus-week view keeps manual refresh');
+ assert.ok(!nodes.some(n=>n.props?.className==='weather-hourly'||n.props?.className==='weather-radar-action'),'No hourly or radar panel appears in simplified weather');
 }
 assert.equal(weather.weatherDayHeading({date:'2026-10-14',temperatureMax:76,temperatureMin:48,rainChance:20,windMax:10},now),'Wed','The Tulsa weekday does not inherit host timezone');
 hooks[0]=result;

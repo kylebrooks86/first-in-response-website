@@ -40,6 +40,18 @@ try{
  check(pair.map(r=>r.status).sort().join(',')==='200,201','Snooze double-submit yields one save and one replay');
  const p=await Promise.all(pair.map(r=>r.json()));check(Boolean(p[0].snoozeUntil)&&p[0].snoozeUntil===p[1].snoozeUntil,'Persisted snooze date matches');
  check(count(3)===1,'One saved snooze event');
+ job('no-answer');
+ const missed=await Promise.all([route.POST(req('no-answer','no_answer',5)),route.POST(req('no-answer','no_answer',5))]);
+ check(missed.map(r=>r.status).sort().join(',')==='200,201','No answer double-submit produces one saved attempt and safe replay');
+ const missedRows=await Promise.all(missed.map(r=>r.json()));
+ check(missedRows.every(x=>x.action==='no_answer'&&x.createdAt===missedRows[0].createdAt&&x.snoozeUntil===null),'No answer receipt is consistent and has no snooze');
+ const attempted=db.prepare("SELECT channel,template,body FROM customer_messages WHERE id=?").get('followup-action:'+key(5));
+ check(attempted.channel==='contact_no_answer'&&attempted.template==='followupNoAnswer'&&attempted.body.includes('NOT contacted'),'No answer persists as a failed attempt, not successful contact');
+ check(db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE estimate_id='e-no-answer' AND channel='contact_recorded'").get().n===0,'No answer never generates a manual contacted event');
+ check(db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE estimate_id='e-no-answer' AND channel='followup_snoozed'").get().n===0,'No answer never sets a snooze');
+ check(timing.estimateReminderStage({status:'sent',firstEstimateSentAt:stamp(4),lastEstimateSentAt:stamp(4),lastEstimateContactAt:stamp(4),lastManualContactAt:null,snoozeUntil:null},Date.now()).template==='followUp3','No answer does not suppress the saved day-3/7 follow-up eligibility');
+ check(count(5)===1,'Repeated no answer cannot create duplicate attempt');
+ check((await route.POST(req('no-answer','contacted',5))).status===409,'No answer idempotency key cannot be reused to mark contacted');
  owner=null;const n=calls;check((await route.POST(req('double','contacted',4))).status===401&&calls===n,'Unauthenticated write blocked');
  owner={email:'other@example.invalid'};check((await route.POST(req('double','contacted',4))).status===401&&calls===n,'Other owner blocked');
  console.log('PASS '+assertions+' synthetic native SQLite owner follow-up concurrent saves and conflicting action guards.');

@@ -15,7 +15,7 @@ const slices=[
   ['final invoice',source.slice(source.indexOf('function EditInvoiceDialog('),source.indexOf('function ',source.indexOf('function EditInvoiceDialog(')+20))],
 ];
 let checks=0;
-assert.equal(FIRE_SERVICES.length,30,'All 30 services must remain available');checks++;
+assert.equal(FIRE_SERVICES.length,58,'All 58 services must remain available');checks++;
 for(const [label,editor] of slices){
   assert.ok(editor.includes('services.map((svc)=><SelectItem'),
     label+' must offer all current services from the shared catalog');checks++;
@@ -29,8 +29,8 @@ for(const [label,editor] of slices){
     label+' must let owner explain difficulty or scope');checks++;
   assert.ok(editor.includes('editableLineTotalCents(item)'),
     label+' must derive per-line totals from job-specific edited values');checks++;
-  assert.ok((/adjustable for this (job|invoice)/.test(editor)||editor.includes('EstimateLinePricing')),
-    label+' must visibly communicate prices are adjustable, not fixed');checks++;
+  assert.ok((/adjustable for this (job|invoice)/.test(editor)||editor.includes('EstimateLinePricing')||label==='final invoice'&&editor.includes('>Price per unit</Label>')&&editor.includes('id={`invoice-${estimate.invoiceId}-${index}-rate`}')),
+    label+' must expose the labeled editable unit price');checks++;
 }
 for(const svc of FIRE_SERVICES){
   const original=svc.rate;
@@ -61,6 +61,6 @@ assert.equal(FIRE_SERVICES.find(s=>s.id==='gutter-guards')?.rate,50,
   'Owner-confirmed existing gutter-guard default: $0.50 per linear foot');checks++;
 assert.equal(FIRE_SERVICES.find(s=>s.id==='trash-bins')?.rate,2500,
   'Owner-confirmed trash-bin default: $25 per bin');checks++;
-assert.equal(FIRE_SERVICES.find(s=>s.id==='trash-bins')?.unit,'bin',
-  'Trash bins quote per bin, not by 2-bin set');checks++;
+assert.equal(FIRE_SERVICES.find(s=>s.id==='trash-bins')?.unit,'quantity',
+  'Trash bins use QuoteIQ quantity, one bin per quantity');checks++;
 console.log('PASS: '+checks+' per-job editable rate/quantity/description, backend quoted totals, and unchanged catalog-default checks.');

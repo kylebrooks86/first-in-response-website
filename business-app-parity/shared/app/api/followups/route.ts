@@ -1,3 +1,6 @@
+import {FIRE_SERVICES} from '../../../lib/fire-services';
+import {SERVICE_RATE_PREFIX,decodeServiceRate,catalogServices,customServiceId} from '../../../lib/service-pricing';
+import {BUSINESS_PREFERENCES_KEY,decodeBusinessPreferences,repeatIntervalFor} from '../../../lib/business-preferences';
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import {env} from "cloudflare:workers";
 import {getChatGPTUser} from "../../chatgpt-auth";
@@ -36,6 +39,8 @@ export async function GET(request:Request){
                (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.template='followUp3' AND cm.channel IN ('text_confirmed','email_confirmed')) AS stage3At,
                (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.template='followUp7' AND cm.channel IN ('text_confirmed','email_confirmed')) AS stage7At,
           (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.channel='contact_recorded' AND cm.template='followupContact') AS lastManualContactAt,
+          (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.channel='contact_no_answer' AND cm.template='followupNoAnswer') AS lastNoAnswerAt,
+          (SELECT COUNT(*) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.channel='contact_no_answer' AND cm.template='followupNoAnswer') AS noAnswerCount,
           (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.channel IN ('text_confirmed','email_confirmed')) AS lastConfirmedMessageAt,
           (SELECT MAX(created_at) FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.channel IN ('text_prepared','email_prepared','copy')) AS lastPreparedAt,
           (SELECT body FROM customer_messages cm WHERE cm.estimate_id=e.id AND cm.channel='followup_snoozed' AND cm.template='followupSnooze' ORDER BY created_at DESC,id DESC LIMIT 1) AS snoozeUntil,
@@ -51,7 +56,17 @@ export async function GET(request:Request){
         WHERE ${focusedId!==null?"e.id = ?":"(? IS NULL OR e.created_at < ? OR (e.created_at = ? AND e.id < ?))"}
         ORDER BY e.created_at DESC,e.id DESC LIMIT ?
       `).bind(...(focusedId!==null?[focusedId,2]:[cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null,size+1])).all<{id:string;createdAt:string}>();
-  const estimates=result.results.slice(0,size),last=estimates.at(-1);
+  const base=result.results.slice(0,size),last=base.at(-1);
+  const prefRow=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(BUSINESS_PREFERENCES_KEY).first<{body:string}>();
+  let estimates:unknown[]=base;
+  if(prefRow&&base.length){
+    const prefs=decodeBusinessPreferences(prefRow),items=await env.DB.prepare(`SELECT estimate_id AS estimateId,name FROM estimate_items WHERE estimate_id IN (${base.map(()=>'?').join(',')})`).bind(...base.map(e=>e.id)).all<{estimateId:string;name:string}>();
+    const rateRows=await env.DB.prepare('SELECT key,body FROM message_templates WHERE key LIKE ?').bind(SERVICE_RATE_PREFIX+'%').all<{key:string;body:string}>();
+    const rateMap=new Map(rateRows.results.map(r=>[r.key.slice(SERVICE_RATE_PREFIX.length),r]));
+    const ids=[...FIRE_SERVICES.map(s=>s.id),...Array.from(rateMap.keys()).filter(customServiceId)];
+    const identities=catalogServices(ids.map(id=>decodeServiceRate(id,rateMap.get(id)??null)),true);
+    estimates=base.map(e=>({...e,repeatMonths:repeatIntervalFor(items.results.filter(i=>i.estimateId===e.id).map(i=>i.name),prefs.repeatMonths,identities)}));
+  }
   const nextCursor=result.results.length>size&&last?btoa(JSON.stringify({createdAt:last.createdAt,id:last.id})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,""):null;
   return Response.json({estimates,nextCursor,pageSize:size,...(focusedId!==null?{estimateId:focusedId}:{})});
  }catch{return Response.json({error:"Follow-up records could not be read."},{status:503});}

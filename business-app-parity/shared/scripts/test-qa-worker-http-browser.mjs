@@ -110,7 +110,11 @@ try{
  await start();
  browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
  const context=await browser.newContext({viewport:{width:390,height:844},ignoreHTTPSErrors:true,timezoneId:'America/Chicago'});
- await context.route('**/*',route=>{const url=new URL(route.request().url());if(url.origin!==origin){
+ await context.route('**/*',route=>{const url=new URL(route.request().url());
+  // Actual map renderer, synthetic basemap only: never dispatch map/provider traffic from CI.
+  if(process.argv.includes('--door-knocking')&&url.href==='https://tiles.openfreemap.org/styles/liberty')return route.fulfill({json:{version:8,glyphs:origin+'/synthetic-map-fonts/{fontstack}/{range}.pbf',sources:{},layers:[{id:'synthetic-territory-background',type:'background',paint:{'background-color':'#e4eceb'}}]}});
+  if(url.origin===origin&&url.pathname.startsWith('/synthetic-map-fonts/'))return route.fulfill({body:Buffer.alloc(0),contentType:'application/x-protobuf'});
+  if(url.origin!==origin){
   // Existing profile satellite embeds are optional third-party content. The
   // synthetic workflow must never dispatch them, nor permit any other host.
   if(url.origin==='https://maps.google.com'&&url.pathname==='/maps'&&((lookupMode&&['10 North Fixture Way','20 South Fixture Way'].includes(url.searchParams.get('q')))||(process.argv.includes('--global-search')&&url.searchParams.get('q')==='456 Synthetic Universal Lane')))blockedSyntheticMaps.push(url.href);
@@ -147,9 +151,9 @@ try{
  await initialPage.goto(origin+'/');
  const firstUse=initialPage.getByRole('region',{name:'Start using your empty FIRE app'});
  await firstUse.waitFor({timeout:12000});
- check(await firstUse.getByText('Your first FIRE job starts here').count()===1,
+ check(await firstUse.getByText('No estimates yet',{exact:true}).count()===1,
    'Real owner Dashboard shows first-use guidance only after verified empty API summary');
- await firstUse.getByRole('button',{name:'Open Customers · add or select a customer'}).click();
+ await firstUse.getByRole('button',{name:'Customers',exact:true}).click();
  await initialPage.getByRole('heading',{name:'Customers',exact:true}).waitFor({timeout:10000});
  check(await initialPage.getByRole('heading',{name:'Customers',exact:true}).count()===1,
    'First-use Dashboard call to action opens actual Customers page without sending messages');
@@ -187,8 +191,11 @@ try{
  check(premature.status()===409,'Actual invoice route blocks billing an incomplete job');
  const page=await context.newPage();page.on('pageerror',e=>clientErrors.push(e.message));
  await page.goto(origin+'/');
- await page.getByText('SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS',{exact:true}).waitFor();
- await page.getByRole('heading',{name:'Welcome to First In Response Exteriors'}).waitFor();
+ await page.getByText('QA · Test data only',{exact:true}).waitFor();
+ const qaIndicator=page.getByRole('status',{name:'Synthetic QA test environment. Do not use real customer records or payments.',exact:true});
+ check((await qaIndicator.boundingBox()).height<=22,'QA warning remains visible in a slim persistent strip');
+ check(await qaIndicator.evaluate(n=>getComputedStyle(n).position)==='sticky','QA test distinction stays persistent while scrolling');
+ await page.getByRole('heading',{name:'Today',exact:true}).waitFor();
  check(await page.getByRole('region',{name:'Start using your empty FIRE app'}).count()===0,
    'First-use empty-state guidance disappears once saved quote exists');
 
@@ -196,7 +203,10 @@ try{
  // Open the actual dashboard workflow, without fixture replacement or mocked API.
  await page.getByRole('button',{name:'Open menu',exact:true}).click();
  await page.getByRole('button',{name:/Estimates 1/}).click();
- await page.getByRole('button',{name:/Synthetic HTTP Customer.*\$200/}).click();
+ const firstEstimateCard=page.locator('.estimate-list .estimate-card').filter({hasText:'Synthetic HTTP Customer'});
+  await firstEstimateCard.waitFor();
+  check((await firstEstimateCard.locator('.estimate-amount').innerText()).includes('$200'),'Simple Estimates list retains the exact saved $200 amount');
+  await firstEstimateCard.click();
  await page.getByRole('button',{name:'Edit estimate',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Edit estimate',exact:true});await dialog.waitFor();
  const box=await dialog.boundingBox();
@@ -204,22 +214,32 @@ try{
  check(await dialog.getByRole('button',{name:'Save estimate changes',exact:true}).isVisible(),'Real framework modal retains accessible Save control');
  await dialog.getByRole('button',{name:'Close',exact:true}).click();
  const detail=()=>page.getByRole('dialog',{name:'Synthetic Gutter Service',exact:true});
- const previewLink=detail().getByRole('link',{name:'Customer view',exact:true});
+ const previewLink=detail().locator('details.detail-more-tools a').filter({hasText:'Customer view'});
+  check(await detail().locator('details.detail-more-tools').evaluate(node=>!node.open),'Customer preview stays behind collapsed More tools, not duplicated up front');
  const previewPath=await previewLink.getAttribute('href');
  check(previewPath===`/estimate/${estimate.shareToken}?ownerPreview=1`&&await previewLink.getAttribute('target')===null,'Owner Customer view opens explicit preview in same tab; shared customer link stays unchanged');
  let documentText='';
  const customerDocumentText=locator=>locator.evaluate(node=>[...node.children].filter(element=>!element.classList.contains('owner-preview-banner')).map(element=>element.innerText.trim()).join('\n'));
  for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,900]]){
   await page.setViewportSize({width,height});
-  await detail().getByRole('link',{name:'Customer view',exact:true}).click();
+  await detail().locator('details.detail-more-tools > summary').click();
+  await previewLink.click();
   await page.waitForURL(origin+previewPath);
   const close=page.getByRole('link',{name:'Close estimate preview',exact:true});await close.waitFor();
   const previewNav=page.getByRole('complementary',{name:'Owner preview navigation'});
-  const returnToFire=previewNav.getByRole('link',{name:'Return to FIRE'});
-  const backBox=await returnToFire.boundingBox();
-  check(await previewNav.isVisible()&&await returnToFire.getAttribute('href')===`/?openEstimate=${encodeURIComponent(estimate.id)}`&&backBox.width>=44&&backBox.height>=44,
-   'Actual Customer View has a usable owner return link at '+width+'x'+height);
+  check(await previewNav.isVisible()&&(await previewNav.innerText()).trim()==='Customer view'&&await previewNav.getByRole('link').count()===0&&(await previewNav.boundingBox()).height<=28,
+   'Actual Customer view is one compact label without explanatory text or duplicate return button at '+width+'x'+height);
+  check(await close.getAttribute('href')===`/?openEstimate=${encodeURIComponent(estimate.id)}`,'Preview X retains exact estimate return destination');
+  const themeToggle=page.locator('.owner-preview-theme-toggle');await themeToggle.waitFor();
+  const initialTheme=await page.locator('html').getAttribute('data-theme'),nextTheme=initialTheme==='dark'?'light':'dark';
+  const originalSummary=await page.locator('.pay-summary').innerText();
+  const cardColor=await page.locator('.estimate-portal').evaluate(n=>getComputedStyle(n).backgroundColor);
+  await themeToggle.click();
+  check(await page.locator('html').getAttribute('data-theme')===nextTheme&&await page.evaluate(()=>localStorage.getItem('fire-theme'))===nextTheme,'Estimate Customer view shares saved app light/dark choice');
+  check(await page.locator('.estimate-portal').evaluate(n=>getComputedStyle(n).backgroundColor)!==cardColor&&(await page.locator('.pay-summary').innerText())===originalSummary,'Estimate theme changes document colors, preserving quote and deposit');
   const top=await close.boundingBox();
+  const themeBox=await themeToggle.boundingBox();
+  check(themeBox.width>=44&&themeBox.height>=44&&themeBox.x>=0&&themeBox.x+themeBox.width<=top.x-4&&Math.abs(themeBox.y-top.y)<1,'Estimate theme icon fits beside X at '+width+'x'+height);
   check(top.width>=44&&top.height>=44&&top.x>=width-70&&top.x+top.width<=width&&top.y>=0,'Accessible upper-right preview X at '+width+'x'+height);
   await page.locator('.secure-note').scrollIntoViewIfNeeded();
   const bottom=await close.boundingBox();
@@ -228,7 +248,7 @@ try{
   documentText=await customerDocumentText(page.locator('.estimate-portal'));
   if(width===1366){
    await page.emulateMedia({media:'print'});
-   check(!await close.isVisible()&&!await previewNav.isVisible(),'Owner preview X and navigation hidden from printing and PDF output');
+   check(!await close.isVisible()&&!await previewNav.isVisible()&&!await themeToggle.isVisible(),'Owner preview X, theme and navigation hidden from printing and PDF output');
    await page.emulateMedia({media:'screen'});
   }
   await close.focus();await page.keyboard.press('Enter');
@@ -275,10 +295,12 @@ try{
    'Deleted photo can no longer be retrieved through its original private URL');
  }
  await page.setViewportSize({width:390,height:844});
- await page.reload();await page.getByText('SYNTHETIC QA ONLY · NO REAL CUSTOMERS OR PAYMENTS',{exact:true}).waitFor();
+ await page.reload();await page.getByText('QA · Test data only',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Open menu',exact:true}).click();
  await page.getByRole('button',{name:/Estimates 1/}).click();
- await page.getByRole('button',{name:/Synthetic HTTP Customer.*\$250/}).waitFor();
+ const restoredEstimateCard=page.locator('.estimate-list .estimate-card').filter({hasText:'Synthetic HTTP Customer'});
+  await restoredEstimateCard.waitFor();
+  check((await restoredEstimateCard.locator('.estimate-amount').innerText()).includes('$250'),'Simple Estimates list retains the updated $250 amount after Worker restart');
  check(true,'Actual Estimates screen shows saved estimate after full local Worker restart');
  if(!lookupMode){
   await page.goto(origin+'/');await page.getByRole('button',{name:'New estimate',exact:true}).click();

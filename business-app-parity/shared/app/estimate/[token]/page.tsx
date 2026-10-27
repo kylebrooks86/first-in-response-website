@@ -11,6 +11,7 @@ import { serviceDescriptionFor } from "../../../lib/fire-services";
 import { paymentHandles } from "../../../lib/payment-methods";
 import { shouldOfferReviewAfterPayment } from "../../../lib/customer-review-invite.mjs";
 import { CustomerReviewInvitation } from "../../../components/customer-review-invitation";
+import { OwnerPreviewTheme } from "../../../components/owner-preview-theme";
 import {agreementDigest,agreementScope,validateAgreementItems} from "../../../lib/deposit-agreement-commitment.mjs";
 import {RevisedDepositAcceptButton} from "./revised-deposit-accept-button";
 import {describeRevisedDepositTerms} from "../../../lib/deposit-agreement-revision.mjs";
@@ -178,16 +179,16 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
   const depositRemaining=billingStateSafe?Math.max(0,row.depositCents-paidCents):0;
   const showReviewInvitation=!ownerPreview&&billingStateSafe&&balance===0&&shouldOfferReviewAfterPayment({status:row.status,totalCents:billingTotalCents,paidCents,paymentReviewPending});
   const estimateApproved=Boolean(row.acceptedAt)||["approved","scheduled","completed"].includes(row.status);
-  const canPayDeposit=billingStateSafe&&!paymentReviewPending&&estimateApproved&&row.status!=="completed"&&depositRemaining>0;
+  const canPayDeposit=row.status!=="superseded"&&billingStateSafe&&!paymentReviewPending&&estimateApproved&&row.status!=="completed"&&depositRemaining>0;
   const canPayBalance=billingStateSafe&&!paymentReviewPending&&row.status==="completed"&&balance>0;
   let savedDiscount:DiscountSnapshot|null=null;
   try{const metadata=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(DISCOUNT_SNAPSHOT_PREFIX+row.id).first<{body:string}>();savedDiscount=readDiscountSnapshot(row.id,metadata?.body??null,row);}catch{return <main className="pay-page"><section className="pay-card"><h1>Estimate details need review</h1><p>The saved total remains {currency(row.totalCents)}. Please contact First In Response Exteriors to verify the discount breakdown before approving or paying.</p></section></main>;}
   const footer=await env.DB.prepare("SELECT body FROM message_templates WHERE key='estimateFooter'").first<{body:string}>();
   const contract=await env.DB.prepare("SELECT body FROM message_templates WHERE key='contractTerms'").first<{body:string}>();
   return <main className={`pay-page${ownerPreview?' owner-estimate-preview':''}`}>
-    {ownerPreview&&<a className="owner-estimate-preview-close" href={`/?openEstimate=${encodeURIComponent(row.id)}`} aria-label="Close estimate preview" title="Return to estimate details"><X aria-hidden="true"/></a>}
+    {ownerPreview&&<><OwnerPreviewTheme/><a className="owner-estimate-preview-close" href={`/?openEstimate=${encodeURIComponent(row.id)}`} aria-label="Close estimate preview" title="Close"><X aria-hidden="true"/></a></>}
     <section className="pay-card estimate-portal">
-    {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><div><strong>Customer view preview</strong><span>Customer-facing estimate · opening your preview does not count as a customer view.</span></div><a href={`/?openEstimate=${encodeURIComponent(row.id)}`}>Return to FIRE <span aria-hidden="true">↗</span></a></aside>}
+    {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><strong>Customer view</strong></aside>}
     <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
     {paymentConfirmed&&<div className="portal-payment-success"><CheckCircle2/><div><strong>Payment received</strong><p>Thank you, {row.customer}. First In Response Exteriors has been notified.</p></div></div>}
     {showReviewInvitation&&<CustomerReviewInvitation/>}
@@ -196,15 +197,15 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
     <div className="portal-breakdown"><span><small>Services subtotal</small><strong>{currency(row.subtotalCents)}</strong></span><span><small>Discount</small><strong className="green-text">−{currency(row.discountCents)}</strong></span></div>
     {savedDiscount&&<div className="portal-breakdown" aria-label="Agreed discount components">{savedDiscount.appreciationCents>0&&<span><small>Appreciation discount (requested)</small><strong>−{currency(savedDiscount.appreciationCents)}</strong></span>}{savedDiscount.additionalCents>0&&<span><small>{savedDiscount.additionalDiscountType==="percent"?`Promotion (${savedDiscount.additionalDiscountValue/100}%)`:'Other discount'} (requested)</small><strong>−{currency(savedDiscount.additionalCents)}</strong></span>}{savedDiscount.bundleDiscountCents>0&&<span><small>Bundle discount (requested)</small><strong>−{currency(savedDiscount.bundleDiscountCents)}</strong></span>}{savedDiscount.requestedDiscount>savedDiscount.appliedDiscount&&<p>The minimum job charge limits the discount applied. The saved total and applied discount above are the agreed amounts.</p>}</div>}
     <div className="pay-summary"><span><small>Estimate total</small><strong>{currency(row.totalCents)}</strong></span><span><small>50% deposit</small><strong className="red-text">{currency(row.depositCents)}</strong></span></div>
-    <AcceptEstimateButton token={token} accepted={Boolean(row.acceptedAt)||["approved","scheduled","completed"].includes(row.status)} signedName={row.signedName} photoRelease={row.photoRelease} terms={contract?.body?.startsWith("I authorize First In Response Exteriors to perform the services listed")?SERVICE_AGREEMENT:(contract?.body||SERVICE_AGREEMENT)}/>
+    {row.status==="superseded"?<p className="pay-note"><strong>Replaced quote.</strong> This copy retains the original scope and signature. Use the latest quote from First In Response Exteriors.</p>:<AcceptEstimateButton token={token} accepted={Boolean(row.acceptedAt)||["approved","scheduled","completed"].includes(row.status)} signedName={row.signedName} photoRelease={row.photoRelease} terms={contract?.body?.startsWith("I authorize First In Response Exteriors to perform the services listed")?SERVICE_AGREEMENT:(contract?.body||SERVICE_AGREEMENT)}/>}
     {!billingStateSafe&&<p className="pay-note"><strong>Billing review required.</strong> Please contact First In Response Exteriors before making a payment.</p>}
     {paymentReviewPending&&<p className="pay-note">Payment or refund review in progress. Please contact First In Response Exteriors before sending another payment.</p>}
     {paymentsReady&&canPayDeposit&&<div className="portal-payment"><PayButton shareToken={token} paymentType="deposit" label={`Pay ${currency(depositRemaining)} deposit securely`}/></div>}
     {paymentsReady&&canPayBalance&&<div className="portal-payment"><PayButton shareToken={token} paymentType="balance" dueAmountCents={balance} tipBaseCents={billingTotalCents} label={`Pay ${currency(balance)} remaining balance securely`}/></div>}
     {paymentsReady&&!estimateApproved&&<p className="pay-note">Approve and sign the estimate first. After approval, the 50% deposit reserves your place on the schedule.</p>}
-    {paymentsReady&&estimateApproved&&!canPayDeposit&&!canPayBalance&&balance>0&&<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
-    {!paymentsReady&&<p className="pay-note">After approval, First In Response Exteriors will contact you to schedule the job and arrange the 50% deposit.</p>}
-    {billingStateSafe&&!paymentReviewPending&&<p className="pay-note"><strong>Manual payment options:</strong> Cash App: {handles.cashApp} · Venmo: {handles.venmo}. Please include your name in the payment note.</p>}
+    {row.status!=="superseded"&&paymentsReady&&estimateApproved&&!canPayDeposit&&!canPayBalance&&balance>0&&<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
+    {row.status!=="superseded"&&!paymentsReady&&<p className="pay-note">After approval, First In Response Exteriors will contact you to schedule the job and arrange the 50% deposit.</p>}
+    {row.status!=="superseded"&&billingStateSafe&&!paymentReviewPending&&<p className="pay-note"><strong>Manual payment options:</strong> Cash App: {handles.cashApp} · Venmo: {handles.venmo}. Please include your name in the payment note.</p>}
     <p className="document-footer">{footer?.body||templateByKey("estimateFooter").body}</p>
     <div className="secure-note"><ShieldCheck/> Your private estimate link is unique to you.</div>
   </section></main>;

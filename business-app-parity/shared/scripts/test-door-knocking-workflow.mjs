@@ -2,7 +2,16 @@
 export async function exerciseDoorKnocking({page,origin,request,check}){
  const before=await(await request('/api/door-knocking')).json();check(Array.isArray(before.book?.houses),'Built owner API returns house tracker');
  await page.goto(origin);await page.setViewportSize({width:390,height:844});
- await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.locator('.sidebar').getByRole('button',{name:'Door knocking',exact:true}).click();
+ await page.getByRole('button',{name:'Open menu',exact:true}).click();
+ const extra=page.locator('.sidebar details.sidebar-more-nav');
+ await extra.locator('summary').click();
+ check(await extra.evaluate(node=>node.open),'Door knocking remains accessible after opening More tools');
+ await extra.getByRole('button',{name:'Door knocking',exact:true}).click();
+ await page.getByRole('region',{name:'Territory map',exact:true}).waitFor();
+ check(await page.getByRole('button',{name:'Map',exact:true}).getAttribute('aria-pressed')==='true','Built app opens map first');
+ const directory=await request('/api/territory');check(directory.ok(),'Built owner territory directory is available');
+ const pins=await directory.json();check(Array.isArray(pins.customers)&&Array.isArray(pins.jobs),'Built map uses saved customer/job records');
+ await page.getByRole('button',{name:'Visits',exact:true}).click();
  await page.getByLabel('House address',{exact:true}).waitFor();await page.getByLabel('House address',{exact:true}).fill('999 Native Synthetic Lane, Tulsa');await page.getByRole('button',{name:'Save house',exact:true}).click();
  const house=page.getByRole('article',{name:'House: 999 Native Synthetic Lane, Tulsa'});await house.getByText('Never visited',{exact:true}).waitFor();await house.getByLabel('Visit outcome').selectOption('door-hanger');await page.waitForFunction(()=>{const b=[...document.querySelectorAll('button')].find(el=>el.textContent?.trim()==='Save visit');if(!b)return false;const r=b.getBoundingClientRect(),at=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return r.top>=0&&r.bottom<=innerHeight&&(at===b||!!(at&&b.contains(at)));},null,{timeout:5000});check(true,'New house Save visit is not obscured by bottom navigation at 390px');await house.getByRole('button',{name:'Save visit',exact:true}).click();await house.getByText('Previously visited',{exact:false}).waitFor();
  const saved=await(await request('/api/door-knocking')).json(),h=saved.book.houses.find(h=>h.address==='999 Native Synthetic Lane, Tulsa');check(h?.visits.length===1&&h.visits[0].status==='door-hanger','Built mobile dropdown persisted one native D1 visit');
@@ -19,5 +28,13 @@ export async function exerciseDoorKnocking({page,origin,request,check}){
  await page.getByRole('article',{name:'House: 999 Native Synthetic Lane, Tulsa'}).getByText('Revisit scheduled · 2026-01-01').waitFor();
  check(true,'Dashboard callback alert opens the exact saved house in the actual mobile app');
  await page.getByLabel('Show houses').selectOption('unvisited');check(await house.count()===0,'Built tracker excludes visited home from never-visited view');
+ await page.getByRole('button',{name:'Map',exact:true}).click();
+ await page.getByRole('button',{name:/^Places ·/}).click();
+ await page.locator('.territory-places button').filter({hasText:'999 Native Synthetic Lane, Tulsa'}).click();
+ await page.getByRole('region',{name:'Selected place'}).getByRole('button',{name:'Create customer',exact:true}).click();
+ const customerDialog=page.getByRole('dialog',{name:'Add customer',exact:true});await customerDialog.waitFor();
+ check(await customerDialog.getByLabel('Service address',{exact:true}).inputValue()==='999 Native Synthetic Lane, Tulsa','Map Create customer opens original guarded form with exact address');
+ check((await customerDialog.textContent()).includes('Door knocking'),'Map customer draft retains Door knocking source');
+ await customerDialog.getByRole('button',{name:'Close',exact:true}).click();
  const template=(await(await request('/api/backup')).json());check(JSON.stringify(template).includes('999 Native Synthetic Lane, Tulsa'),'Existing full backup includes owner house visit history');
 }

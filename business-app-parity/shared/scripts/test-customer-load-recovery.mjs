@@ -8,6 +8,8 @@ const sharedHelpers={};
 {const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/message-history.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
 {const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/customer-activity-flags.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
 {const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/offline-photo-availability.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
+// The isolated CustomersView renderer must have the same pure contact-link helpers as the real app.
+{const module={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/customer-contact-links.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);Object.assign(sharedHelpers,module.exports);}
 function fixture(){let state=[],refs=[],cursor=0,refCursor=0,effect,fetcher;const writes=[];const context={exports:{},require,...sharedHelpers,navigator:{onLine:true},saveOfflinePhotoCustomerDirectory:async()=>0,loadOfflinePhotoCustomerDirectory:async()=>[],clearOfflinePhotoCustomerDirectory:async()=>{},...Object.fromEntries([...tags].map(t=>[t,()=>null])),money:c=>String(c),dateTime:v=>v,statusLabel:v=>v,resolvedBillingTotalCents:e=>e.totalCents,billingBalanceCents:e=>Math.max(0,e.totalCents-e.paidCents),
 useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{writes.push(names[i]);state[i]=typeof v==='function'?v(state[i]):v;}];},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){if(String(fn).includes("void load()"))effect=fn;},fetch:(url,options)=>{eq(url,'/api/customers');eq(options?.cache,'no-store','Owner customer GET cannot read cached private records');return fetcher();}};
 const source=fn.getText(ast).replace('  useEffect(() => { void load();','  exports.load=load;\n  useEffect(() => { void load();');vm.runInNewContext(ts.transpileModule(source+'\nexports.view=CustomersView;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);const render=()=>{cursor=0;refCursor=0;return context.exports.view({searchQuery:'',onEstimateSaved(){throw Error('No writes allowed');}});};render();return {render,load:(quiet=false)=>context.exports.load(quiet),get:k=>state[names.indexOf(k)],set:(k,v)=>state[names.indexOf(k)]=v,snapshot:()=>JSON.stringify(keys.map(k=>state[names.indexOf(k)])),setFetcher:f=>fetcher=f,cleanup:()=>effect(),writes};}
@@ -60,4 +62,48 @@ for(const failure of failures)for(const selected of [false,true]){
  eq(source.includes('window.addEventListener("fire:attention-saved",refresh)'),true,'Profile listens for confirmed save events');
  eq(source.includes('return()=>window.removeEventListener("fire:attention-saved",refresh)'),true,'Profile cleans up save listener');
 }
+// Customer directory stays compact without obscuring useful property/contact context.
+{
+ const f=fixture();
+ const b=body('saved');
+ const row={...b.customers[0],name:'Synthetic Customer',address:'123 Synthetic Street, Tulsa, OK',phone:'9185550101'};
+ f.setFetcher(async()=>ok({...b,customers:[row]}));await f.load();
+ const card=()=>nodes(f.render()).find(n=>n.props?.className==='customer-card');
+ const details=()=>nodes(card()).find(n=>n.type==='small');
+ eq(details().props.children,'123 Synthetic Street, Tulsa, OK · 9185550101','Directory shows property and contact in one compact line');
+ eq(nodes(card()).some(n=>n.props?.className==='customer-totals'),false,'New customer hides unhelpful zero estimate total');
+ eq(typeof card().props.onClick,'function','Directory card still opens exact saved customer');
+ f.setFetcher(async()=>ok({...b,customers:[{...row,estimateCount:2,estimateTotal:12000}]}));await f.load();
+ eq(nodes(card()).some(n=>n.props?.className==='customer-totals'),true,'Saved estimate totals remain visible when present');
+ f.setFetcher(async()=>ok({...b,customers:[{...row,address:'',phone:'',email:''}]}));await f.load();
+ eq(details().props.children,'Add address or contact','Missing details have a concise, useful cue');
+}
+// Search uses already-authorized directory records; expansion is local and read-only.
+{
+ const f=fixture(),original=body('one');
+ const all=Array.from({length:85},(_,i)=>({id:'dir-'+i,name:'Street Customer '+i,address:i===66?'66 Unique Drive, Owasso':'Tulsa Test Road '+i,phone:i===66?'9185550166':'9185550100',email:'',estimateCount:0,estimateTotal:0,paidTotal:0}));
+ f.setFetcher(async()=>ok({...original,customers:all}));await f.load();
+ const cards=()=>nodes(f.render()).filter(n=>n.props?.className==='customer-card');
+ const choose=()=>nodes(f.render()).find(n=>n.props?.className==='customer-directory-more');
+ eq(cards().length,40,'Initial customer directory limits scroll to 40 visible cards');
+ eq(Boolean(choose()),true,'All remaining authenticated customers stay reachable');
+ choose().props.onClick();
+ eq(cards().length,80,'One tap reveals the next forty saved customers');
+ choose().props.onClick();
+ eq(cards().length,85,'Last page reveals all saved customers without another server request');
+ f.set('directorySearch','Owasso');
+ eq(cards().length,1,'Local quick-find narrows by saved address, not API search');
+ eq(cards()[0].key,'dir-66','Quick-find opens the correct saved ID');
+ const clear=nodes(f.render()).find(n=>n.props?.className==='customer-directory-clear');
+ eq(Boolean(clear),true,'Quick-find clear action is discoverable');
+ clear.props.onClick();
+ eq(f.get('directorySearch'),'','Clear resets local search without mutating saved records');
+ eq(f.get('customers').length,85,'Pagination and search never truncate actual owner records');
+ const local=nodes(f.render()).find(n=>n.props?.['aria-label']==='Find saved customer');
+ eq(Boolean(local),true,'Dedicated in-page find is accessible on mobile');
+ eq(local.props.maxLength,128,'Find field has a bounded length');
+}
+const directoryCss=readFileSync('app/globals.css','utf8');
+assert.ok(directoryCss.includes('.customers-view>.customer-list .customer-card{gap:10px;min-height:60px'),'Compact directory leaves a full-size touch target');
+assert.ok(directoryCss.includes('.customers-view>.customer-list .customer-main small{overflow-wrap:anywhere'),'Long addresses cannot spill outside mobile customer cards');
 console.log(`PASS ${checks}/${checks}: actual CustomersView load/retry/profile gating, post-save refresh recovery, atomic collections and stale/error/unmount responses; synthetic GET only.`);

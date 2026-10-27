@@ -9,6 +9,20 @@ export function saveCustomerCreateRequest(storage:Pick<Storage,'getItem'|'setIte
  try{const existing=loadCustomerCreateRequest(storage);if(existing&&existing!==id)return false;storage.setItem(key,id);return storage.getItem(key)===id;}catch{return false;}
 }
 export function clearCustomerCreateRequest(storage:Pick<Storage,'getItem'|'removeItem'>|undefined,id:string){try{if(storage?.getItem(key)===id)storage.removeItem(key);}catch{/* Preserve the recovery ID if browser storage is unavailable. */}}
+// A non-sensitive, request-ID-only handoff remembers a deliberate Save & estimate
+// after a lost acknowledgement or iPhone tab reload. It never persists contact
+// details and cannot trigger a quote without an independently confirmed customer.
+const estimateHandoffKey='fire:customer-create-estimate-handoff:v1';
+export function loadCustomerEstimateHandoff(storage:Pick<Storage,'getItem'>|undefined,id:string){
+ try{return uuid.test(id)&&loadCustomerCreateRequest(storage)===id&&storage?.getItem(estimateHandoffKey)===id;}catch{return false;}
+}
+export function saveCustomerEstimateHandoff(storage:Pick<Storage,'getItem'|'setItem'>|undefined,id:string){
+ if(!storage||!uuid.test(id)||loadCustomerCreateRequest(storage)!==id)return false;
+ try{storage.setItem(estimateHandoffKey,id);return loadCustomerEstimateHandoff(storage,id);}catch{return false;}
+}
+export function clearCustomerEstimateHandoff(storage:Pick<Storage,'getItem'|'removeItem'>|undefined,id:string){
+ try{if(uuid.test(id)&&storage?.getItem(estimateHandoffKey)===id)storage.removeItem(estimateHandoffKey);}catch{/* The recovery marker is keyed to the original request; never clear another. */}
+}
 export function confirmedCreatedCustomer(value:unknown,id:string):CreatedCustomer|null{
  if(!value||typeof value!=='object'||!uuid.test(id))return null;
  const r=value as {requestId?:unknown;confirmed?:unknown;customer?:unknown};

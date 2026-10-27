@@ -18,7 +18,9 @@ export async function exerciseBusinessBrand({page,request,origin,check}){
  assert.equal((await request('/api/message-templates','PUT',{key:'estimate',reset:true})).status(),200);
  for(const width of [390,768,1366]){
   await page.setViewportSize({width,height:900});await page.goto(origin+'/');await page.locator('[data-app-ready="true"]').waitFor();
-  await page.getByRole('heading',{name:'Welcome to First In Response Exteriors',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Today',exact:true}).waitFor();
+  assert.equal(await page.locator('.brand strong').textContent(),'FIRE','Compact app navigation preserves FIRE identity');
+  assert.equal(await page.locator('.sidebar-foot strong').textContent(),'First In Response Exteriors','Business name stays in owner navigation without a duplicate Home subtitle');
   check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),width+'px business heading stays inside viewport');
   if(await page.getByRole('button',{name:'Open menu',exact:true}).isVisible()){await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.locator('.sidebar-foot').click();}else await page.locator('.avatar-button').click();await page.getByRole('heading',{name:'Owner Account',exact:true}).waitFor();
   for(const theme of ['light','dark']){

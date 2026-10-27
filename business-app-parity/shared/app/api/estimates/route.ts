@@ -1,6 +1,7 @@
+import {QUOTE_REVISION_PREFIX,readQuoteRevisionSource,quoteRevisionAllowed,supersedeQuoteStatement} from '../../../lib/quote-revisions';
 import {submittedDiscountCents, quoteDiscounts, discountSnapshot, readDiscountSnapshot, DISCOUNT_SNAPSHOT_PREFIX} from '../../../lib/discount-input';
 import {SAVED_PROMOTIONS_KEY,decodeSavedPromotions} from '../../../lib/saved-promotions';
-import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,buildPromotionAttribution} from '../../../lib/estimate-promotion-attribution';
+import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,buildPromotionAttribution,promotionServiceNames} from '../../../lib/estimate-promotion-attribution';
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import {customerPropertiesEnabled,propertyAssociationColumns,propertyEstimatesTestEnabled,selectEstimateProperty,PropertySelectionError} from '../../../lib/customer-properties';
 import { env } from "cloudflare:workers";
@@ -80,6 +81,12 @@ export async function POST(request: Request) {
       }
     }
     const existingCustomerId = String(body.customerId ?? "").trim();
+    let revisionSource:Awaited<ReturnType<typeof readQuoteRevisionSource>>=null;
+    if(body.revisionOf!==undefined){
+      if(typeof body.revisionOf!=='string'||!validEstimateCreateRequestId(body.requestId)||!existingCustomerId)return Response.json({error:'A replacement quote needs the original customer and a recovery request ID.'},{status:400});
+      revisionSource=await readQuoteRevisionSource(env.DB,body.revisionOf);
+      if(!quoteRevisionAllowed(revisionSource,existingCustomerId))return Response.json({error:'Only an approved, signed quote with no payment, checkout or invoice can be replaced here. Keep funded or scheduled work on its existing financial record and use invoice revisions.'},{status:409});
+    }
     const propertyTests=propertyEstimatesTestEnabled(env);
     if(Object.prototype.hasOwnProperty.call(body,'propertyId')&&(!propertyTests||!existingCustomerId))return Response.json({error:'Property-linked estimates are disabled pending association and backup verification. No estimate created.'},{status:409});
     if(!propertyTests&&customerPropertiesEnabled(env)&&existingCustomerId){const properties=await env.DB.prepare('SELECT COUNT(*) AS total FROM customer_properties WHERE customer_id=?').bind(existingCustomerId).first<{total:number}>();if(Number(properties?.total)>0)return Response.json({error:'This customer has retained properties. Property-linked estimate creation is not enabled until association and backup checks pass. No estimate created.'},{status:409});}
@@ -110,12 +117,16 @@ export async function POST(request: Request) {
     if(Object.prototype.hasOwnProperty.call(body,'promotionEvidence')){
       try{
         const row=await env.DB.prepare('SELECT body FROM message_templates WHERE key=?').bind(SAVED_PROMOTIONS_KEY).first<{body:string}>();
-        promotionAttribution=buildPromotionAttribution({estimateId,rawEvidence:body.promotionEvidence,
+        promotionAttribution=buildPromotionAttribution({serviceNames:await promotionServiceNames(env.DB),estimateId,rawEvidence:body.promotionEvidence,
          catalog:decodeSavedPromotions(row),now:new Date(),items,subtotalCents:subtotal,
          appreciationDiscount:Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents,totalCents:total,depositCents:deposit});
       }catch(err){return Response.json({error:err instanceof Error?err.message:'Promotion rules changed. Refresh before saving.'},{status:409});}
     }const shareToken=crypto.randomUUID().replaceAll("-","");const now=new Date().toISOString();
     const statements=[];
+    if(revisionSource){
+      statements.push(supersedeQuoteStatement(env.DB,revisionSource));
+      statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?)").bind(QUOTE_REVISION_PREFIX+revisionSource.id,JSON.stringify({version:1,originalId:revisionSource.id,replacementId:estimateId,originalStatus:revisionSource.status,originalTotalCents:revisionSource.totalCents,originalDepositCents:revisionSource.depositCents,originalAcceptedAt:revisionSource.acceptedAt,originalSignedAt:revisionSource.signedAt,createdAt:now}),now));
+    }
     let serviceAddress=address;
     if(existingCustomerId){
       const existing=await env.DB.prepare("SELECT id,name,email,phone,address FROM customers WHERE id=?").bind(existingCustomerId).first<{id:string;name:string;email:string|null;phone:string|null;address:string|null}>();
@@ -133,7 +144,8 @@ export async function POST(request: Request) {
       statements.push(env.DB.prepare(`INSERT INTO customers (id,name,email,phone,address,created_at) SELECT ?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM customers WHERE ${match.sql})`).bind(customerId,customer,email||null,phone||null,address||null,now,...match.values));
     }
     if(selection)serviceAddress=selection.property.address+(selection.property.designation?' · '+selection.property.designation:'');
-    statements.push(env.DB.prepare("INSERT INTO estimates (id,customer_id,status,subtotal_cents,discount_cents,appreciation_discount,additional_discount_type,additional_discount_value,total_cents,deposit_cents,share_token,created_at) VALUES (?,?,'draft',?,?,?,?,?,?,?,?,?)").bind(estimateId,customerId,subtotal,appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,total,deposit,shareToken,now));
+    const estimateValues=[estimateId,customerId,subtotal,appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,total,deposit,shareToken,now];
+    statements.push(revisionSource?env.DB.prepare("INSERT INTO estimates (id,customer_id,status,subtotal_cents,discount_cents,appreciation_discount,additional_discount_type,additional_discount_value,total_cents,deposit_cents,share_token,created_at) SELECT ?,?,'draft',?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM estimates e WHERE e.id=? AND e.status='superseded' AND NOT EXISTS(SELECT 1 FROM payments WHERE estimate_id=e.id) AND NOT EXISTS(SELECT 1 FROM payment_checkout_sessions WHERE estimate_id=e.id) AND NOT EXISTS(SELECT 1 FROM invoices WHERE estimate_id=e.id) AND NOT EXISTS(SELECT 1 FROM deposit_policy_events WHERE estimate_id=e.id))").bind(...estimateValues,revisionSource.id):env.DB.prepare("INSERT INTO estimates (id,customer_id,status,subtotal_cents,discount_cents,appreciation_discount,additional_discount_type,additional_discount_value,total_cents,deposit_cents,share_token,created_at) VALUES (?,?,'draft',?,?,?,?,?,?,?,?,?)").bind(...estimateValues));
     if(serviceLocationsEnabled(env))statements.push(env.DB.prepare("INSERT INTO estimate_service_locations(estimate_id,customer_id,address,captured_at) VALUES(?,?,?,?)").bind(estimateId,customerId,serviceAddress,now));
     if(selection)statements.push(env.DB.prepare('INSERT INTO estimate_property_links(estimate_id,customer_id,property_id,property_revision,selection_mode,captured_at) VALUES(?,?,?,?,?,?)').bind(estimateId,customerId,selection.property.id,selection.property.revision,selection.mode,now));
     for(const item of items)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),estimateId,item.name,item.description,item.quantity,item.unit,item.totalCents));

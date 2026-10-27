@@ -11,6 +11,18 @@ function fixture(){let state=[],refs=[],cursor=0,ref=0,fetcher,effects=[];const 
  const render=()=>{cursor=0;ref=0;effects=[];return context.exports.view({searchQuery:'',onSaved(){}});};render();const set=(key,v)=>state[names.indexOf(key)]=v,get=key=>state[names.indexOf(key)];return {render,set,get,requests,fetch:f=>fetcher=f,load:(append=false)=>context.exports.load(append),button:label=>nodes(render()).find(n=>n.props?.onClick&&n.props.children===label),cleanup:()=>effects.find(f=>String(f).includes('setTimeout'))()};
 }
 let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
+// Scheduled jobs need to be reachable in one tap, not behind advanced filters.
+{
+ const f=fixture();f.set('rows',[{...row('scheduled-one'),status:'scheduled'}]);f.set('loading',false);
+ const tree=nodes(f.render());
+ const filter=tree.find(n=>n.props?.['aria-label']==='Filter saved estimates by status');
+ assert.ok(filter,'Primary saved-estimate filters visible');checks++;
+ const buttons=nodes(filter).filter(n=>n.type==='button').map(n=>String(n.props?.children));
+ eq(buttons.includes('scheduled'),true,'Scheduled is a primary one-tap status');
+ const details=tree.find(n=>n.props?.className==='estimate-filter-more');
+ assert.ok(details);checks++;
+ eq(nodes(details).filter(n=>n.type==='button').map(n=>n.props.children).includes('scheduled'),false,'Scheduled not duplicated behind More statuses');
+}
 const failures=[()=>Promise.reject(Error('Offline')),()=>({ok:false,json:async()=>({error:'Denied'})}),()=>({ok:true,json:async()=>{throw Error('Unreadable');}}),()=>({ok:true,json:async()=>null}),()=>ok([null]),()=>ok([{}]),()=>ok([row('a'),row('a')]),()=>ok([row('a')],{}),()=>ok([row('a')],''),()=>ok([], 'next'),()=>ok([row('a')], 'x'.repeat(513)),()=>ok([{...row('a'),totalCents:'bad'}]),()=>ok([{...row('a'),paidCents:null}]),()=>ok([{...row('a'),invoiceTotalCents:Infinity}]),()=>ok([{...row('a'),depositCents:1.2}]),()=>ok(Array.from({length:51},(_,i)=>row(String(i))))];
 for(const mode of ['pipeline','list'])for(const fail of failures){
  const f=fixture();f.set('rows',[row('old')]);f.set('selected',row('old'));f.set('view',mode);f.set('nextCursor','old-cursor');f.set('loading',false);f.render();f.fetch(fail);await f.load();eq(f.get('rows')[0].id,'old','Failure preserves cached source rows');assert.ok(f.get('error'));checks++;
@@ -18,7 +30,7 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
  f.set('historySearch','New query');f.render();f.fetch(()=>ok([row('new')]));f.button('Try again').props.onClick();await flush();eq(f.get('rows').map(r=>r.id).join(','),'new');eq(f.get('error'),'');eq(f.requests.at(-1).includes('q=New%20query'),true,'Retry uses current query');eq(Boolean(f.button('Load older estimates')),false);
 }
 {
- const f=fixture();f.set('rows',[row('first')]);f.set('nextCursor','cursor-1');f.set('selected',row('first'));f.set('loading',false);f.render();f.fetch(()=>{throw Error('Older page offline');});await f.load(true);eq(f.get('selected').id,'first');eq(nodes(f.render()).some(n=>n.props?.className==='pipeline-board'),true);eq(Boolean(f.button('Retry older estimates')),true);eq(Boolean(f.button('Try again')),false);
+ const f=fixture();f.set('rows',[row('first')]);f.set('nextCursor','cursor-1');f.set('selected',row('first'));f.set('loading',false);f.render();f.fetch(()=>{throw Error('Older page offline');});await f.load(true);eq(f.get('selected').id,'first');eq(nodes(f.render()).some(n=>n.props?.className==='estimate-list'),true,'Preserved older records stay in the default simple Estimates list when another page fails');eq(Boolean(f.button('Retry older estimates')),true);eq(Boolean(f.button('Try again')),false);
  f.fetch(()=>ok([row('older')], 'cursor-1'));await f.load(true);assert.match(f.get('error'),/paging/);checks++;eq(f.get('rows').length,1,'Looped cursor cannot publish page');
  f.fetch(()=>ok([row('first'),row('older')]));await f.load(true);eq(f.get('rows').map(r=>r.id).join(','),'first,older');eq(f.get('selected').id,'first','Appending must preserve open details');eq(f.get('error'),'');
 }
@@ -32,7 +44,7 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
  f.set('error','');
  f.set('view','list');
  f.set('rows',[sent('viewed-48',48),sent('viewed-36',36),sent('too-new',8),sent('approved',72,{status:'approved'}),sent('invoice',60,{invoiceId:'inv-1'}),sent('no-view',4,{firstViewedAt:null})]);
- const button=nodes(f.render()).find(n=>n.props?.['aria-pressed']===false&&String(n.props?.children).includes('Viewed 24h+'));
+ const button=nodes(f.render()).find(n=>n.props?.['aria-pressed']===false&&String(n.props?.children).includes('Viewed · awaiting decision'));
  assert.ok(button,'Viewed-estimate filter is available on mobile');
  button.props.onClick();
  eq(f.get('viewedOnly'),true,'Owner controls viewed filter without mutating records');
@@ -41,7 +53,55 @@ for(const mode of ['pipeline','list'])for(const fail of failures){
  const cards=nodes(f.render()).filter(n=>n.props?.className==='estimate-card');
  eq(cards.length,2,'Only older viewed, unapproved, uninvoiced jobs are visible');
  eq(String(cards[0].props.children[1]?.props?.children?.[0]?.props?.children??'').length>0,true,'Cards retain saved job identity');
- const off=nodes(f.render()).find(n=>n.props?.['aria-pressed']===true&&String(n.props?.children).includes('Viewed 24h+'));
+ const off=nodes(f.render()).find(n=>n.props?.['aria-pressed']===true&&String(n.props?.children).includes('Viewed · awaiting decision'));
  off.props.onClick();eq(f.get('viewedOnly'),false,'Owner can restore full list without touching status or billing');
 }
-console.log(`PASS ${checks}/${checks}: real estimate-history recovery, viewed 24h+ mobile filters and guarded paging. Synthetic reads only.`);
+{
+ const f=fixture();f.set('loading',false);f.set('rows',[row('new-lead')]);f.set('view','list');
+ eq(nodes(f.render()).some(n=>String(n.props?.children).includes('Viewed · awaiting decision')),false,'No empty Viewed filter clutter before customer actually views a quote');
+ f.set('viewedOnly',true);
+ eq(nodes(f.render()).some(n=>String(n.props?.children).includes('Viewed · awaiting decision')),true,'Selected Viewed filter remains available to clear even if its queue becomes empty');
+}
+{
+  const f=fixture();f.set('loading',false);f.set('error','');f.set('view','pipeline');
+  f.set('rows',[]);let tree=nodes(f.render());
+  eq(tree.filter(n=>String(n.props?.className??'').startsWith('pipeline-column ')).length,0,'Brand-new account avoids seven empty pipeline columns');
+  eq(tree.filter(n=>n.props?.className==='estimate-first-use-empty').length,1,'Empty pipeline and list share one compact first-use state');
+  eq(tree.some(n=>n.props?.children==='No estimates yet'),true,'First use tells the owner what to do without seven labels');
+  eq(tree.some(n=>n.props?.role==='status'&&String(n.props.children).includes('0 estimates loaded')),false,'No redundant zero-estimates count on an empty account');
+  f.set('rows',[row('only-approved')]);tree=nodes(f.render());
+  let stages=tree.filter(n=>String(n.props?.className??'').startsWith('pipeline-column '));
+  eq(stages.length,1,'One saved quote shows only its occupied pipeline stage');
+  eq(stages[0].props.className,'pipeline-column approved','Single occupied column retains status');
+  eq(tree.some(n=>n.props?.className==='estimate-first-use-empty'),false,'First-use placeholder disappears with a saved estimate');
+  f.set('rows',[row('only-approved'),{...row('sent-quote'),status:'sent'}]);tree=nodes(f.render());
+  stages=tree.filter(n=>String(n.props?.className??'').startsWith('pipeline-column '));
+  eq(stages.length,2,'A second occupied pipeline stage is immediately visible');
+  eq(stages.map(n=>n.props.className).join(','),'pipeline-column sent,pipeline-column approved','Occupied stages retain business pipeline order');
+  eq(tree.filter(n=>n.props?.className==='pipeline-card').length,2,'All visible estimate cards remain accessible');
+}
+{
+  const f=fixture();f.set('loading',false);f.set('rows',[]);f.set('filter','all');f.set('nextCursor',null);
+  let tree=nodes(f.render());
+  eq(tree.filter(n=>n.props?.className==='estimate-first-use-empty').length,1,'First-use Estimates shows one small welcome instead of a tall empty report');
+  eq(tree.some(n=>n.props?.className==='view-switch'),false,'Empty account hides pipeline/list options until there is work');
+  eq(tree.some(n=>n.props?.className==='filter-row estimate-simple-filters'),false,'Empty account hides pointless status filters');
+  eq(tree.some(n=>n.props?.['aria-label']==='Search estimate history'),false,'Empty account hides pointless search box');
+  eq(tree.some(n=>n.props?.className==='workspace-head'),true,'New Estimate entry remains available above first-use message');
+  f.set('rows',[row('first-saved')]);tree=nodes(f.render());
+  eq(tree.some(n=>n.props?.className==='view-switch'),true,'Real saved quote restores List/Pipeline choices');
+  eq(tree.some(n=>n.props?.className==='filter-row estimate-simple-filters'),true,'Real saved quote restores status chips');
+  eq(tree.some(n=>n.props?.['aria-label']==='Search estimate history'),true,'Saved quote restores customer/job search');
+  eq(tree.some(n=>n.props?.className==='estimate-first-use-empty'),false,'First-use message disappears as soon as a quote exists');
+  f.set('rows',[]);f.set('historySearch','never found');f.set('filter','sent');f.set('viewedOnly',true);
+  tree=nodes(f.render());
+  const reset=tree.find(n=>n.props?.onClick&&n.props?.children==='Show all estimates');
+  eq(Boolean(reset),true,'No-match state offers one-tap reset when search/status/viewed filters are active');
+  reset.props.onClick();
+  eq(f.get('historySearch'),'','Reset clears saved query without editing records');
+  eq(f.get('filter'),'all','Reset clears selected status filter');
+  eq(f.get('viewedOnly'),false,'Reset clears viewed-only filter');
+  eq(f.get('view'),'list','Reset returns to the simplest list view');
+  eq(f.requests.length,0,'First-use changes and clear control do not write or fetch anything before the normal reload effect');
+}
+console.log(`PASS ${checks}/${checks}: real estimate-history recovery, compact useful-only viewed filters and guarded paging. Synthetic reads only.`);

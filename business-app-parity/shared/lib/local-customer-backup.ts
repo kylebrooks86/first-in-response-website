@@ -83,6 +83,15 @@ export async function protectLocalCustomerBackup(value: unknown, namespace: stri
 export async function recoverLocalCustomerBackup(value: unknown, namespace: string, phrase: string, provider: Crypto | undefined = globalThis.crypto) {
   return recoverArchive(value, phrase, payload => validateLocalCustomerExport(payload, namespace), provider);
 }
+/** Reuse the established authenticated encryption envelope for other private device journals.
+ * Callers must validate their own format and fixed account/target namespace on BOTH paths. */
+export async function protectPrivateDeviceJournal<T>(value: unknown, phrase: string, validate: (value: unknown) => T) {
+  return protectArchive(validate(value), phrase);
+}
+export async function recoverPrivateDeviceJournal<T>(value: unknown, phrase: string, validate: (value: unknown) => T) {
+  try { return await recoverArchive(value, phrase, validate); }
+  catch { throw new Error('Offline drafts could not be unlocked. Check the passphrase; saved drafts are unchanged.'); }
+}
 export type LocalCustomerResolutionArchive = { format: 'fire-local-customer-resolution'; version: 1; namespace: string;
   operationId: string; originalDraft: LocalCustomerInput; originalExpectedRevision: number; reviewedSnapshot: LocalCustomerExport; proposed: LocalCustomerInput };
 export function validateLocalCustomerResolutionArchive(value: unknown, namespace: string): LocalCustomerResolutionArchive {

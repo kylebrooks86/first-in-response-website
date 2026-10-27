@@ -9,6 +9,26 @@ const source=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='NotificationAttention');
 assert.ok(fn,'Real notification attention view exists');
+// The bell shows actionable reminders, not implementation tutorials. Retain
+// incomplete-coverage warnings and error/refresh actions when actually needed.
+const attentionMarkup=fn.getText(ast);
+for(const obsolete of [
+ 'All available estimate pages checked in this view',
+ 'Matching open due tasks consolidate duplicate sign and review reminders',
+ 'Live reminders are separate from unread activity'
+])assert.ok(!attentionMarkup.includes(obsolete),'Remove redundant bell prose: '+obsolete);
+for(const essential of [
+ 'Older estimates remain outside', // checked below via concise replacement
+ 'Attention items couldn',
+ 'Refresh attention items',
+ 'hasOlder',
+ 'hasMoreReviewCloseouts'
+]){
+ if(essential==='Older estimates remain outside')continue;
+ assert.ok(attentionMarkup.includes(essential),'Retain important failure/partial coverage behavior: '+essential);
+}
+assert.ok(attentionMarkup.includes('older ones not included'),'Older estimate counts must remain qualified');
+assert.ok(attentionMarkup.includes('older reviews not included'),'Older paid review counts must remain qualified');
 const tags=new Set(),stateNames=[];
 function visit(node){
  if((ts.isJsxOpeningElement(node)||ts.isJsxSelfClosingElement(node))&&/^[A-Z]/.test(node.tagName.getText(ast)))tags.add(node.tagName.getText(ast));
@@ -256,7 +276,7 @@ assert.ok(source.includes('window.removeEventListener("fire:attention-saved",ref
 assert.ok(source.includes('setTaskStatusMessage("Task status confirmed.")'),'Task status changes still require confirmed save before refresh');
 assert.ok(source.includes('setNoteFeedback({customerId,kind:"success",text:"Note saved."})'),'Customer activity flags only refresh after verified note save');
 assert.ok(source.includes('<PopoverContent forceMount className="notification-popover"'),'Bell reminder feed remains mounted while popover is closed');
-assert.ok(source.includes('className="notification-attention-dot"'),'Bell shows attention separately from unread events');
+assert.ok(!source.includes('className="notification-attention-dot"'),'After activity is read, no reminder-only bell dot is shown');
 assert.ok(source.includes('aria-label={unread?\`${unread} unread notifications\`:"Notifications"}'),'Legacy Notifications accessible button label remains stable for end-to-end navigation');
 assert.ok(source.includes('aria-description={attentionDescription}'),'Business reminder count remains accessible without renaming the bell');
 assert.ok(source.includes('activityFocus={customerActivityFocus}'),'Customer page accepts exact flag navigation');
@@ -321,6 +341,9 @@ function invokeDashboardPriority(label,values){
  checks++;
  assert.ok(source.includes('signs.filter(sign=>sign.pickupDate<=localDay)'),'Only due pickups qualify for Dashboard action');
  assert.ok(source.includes('b.elapsedDays-a.elapsedDays'),'Oldest review requests take priority independent of API order');
+  assert.ok(source.includes('preparedPaidReviewCount>0&&oldestPaidReview&&<button'), 'Only already-prepared paid review messages get the confirmation shortcut; unprepared reviews have their own action');
+  assert.ok(source.includes('unsentPaidReviewCount>0&&oldestUnpreparedReview&&<button'), 'Unprepared review work must not appear twice on Home');
+  checks+=2;
  checks+=2;
 }
 console.log('PASS '+(checks+2)+' notification and Dashboard attention checks; exact customer flags, safe priority callbacks and recovery.');
@@ -490,7 +513,11 @@ console.log('PASS customer Activity & Flags presentation: contact vs send, due s
  locate(customer);assert.ok(helper,'Source-extracted CustomersView contains its own timeline builder');
  const code=ts.transpileModule(helper.getText(ast)+'\nexports.timeline=buildCustomerTimeline;',{
    compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
- const ctx={exports:{}};vm.runInNewContext(code,ctx);
+ // The isolated helper needs the immutable lead flag markers normally imported
+ // by dashboard.tsx. No VM code may invent contact or message delivery.
+ const ctx={exports:{},LEAD_NO_ANSWER_NOTE:'[FIRE FLAG] LEAD_NO_ANSWER',
+  LEAD_CONTACTED_NOTE:'[FIRE FLAG] LEAD_CONTACT_RECORDED'};
+ vm.runInNewContext(code,ctx);
  const base={estimates:[],invoices:[],messages:[],notes:[],payments:[]};
  const iso='2026-10-20T12:00:00Z';
  const dated=[

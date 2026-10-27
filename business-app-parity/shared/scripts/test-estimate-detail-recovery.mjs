@@ -48,6 +48,7 @@ for(const response of ['network','bad-json','http','wrong-job','wrong-customer',
 for(const kind of ['schedule','invoice']){
  const f=fixture('custom');f.setFetcher(async()=>ok(true,'save'));f.open({...job('save'),status:kind==='invoice'?'completed':'scheduled'});await flush();
  let pending=deferred();const sent=[];f.setFetcher((url,options)=>{sent.push({url,options});return pending.promise;});
+ if(kind==='schedule')f.nodes().find(n=>n.props?.id==='scheduleDate').props.onChange({target:{value:'2026-10-21T10:45'}});
  const button=f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).some(c=>typeof c==='string'&&c.trim()===(kind==='invoice'?'Create invoice':'Save job date')));
  button.props.onClick();button.props.onClick();eq(sent.length,1,'Same-frame '+kind+' taps send one request');
  const dialog=f.render();dialog.props.onOpenChange(false);eq(f.closed,0,'Pending '+kind+' cannot be dismissed');
@@ -78,6 +79,96 @@ for(const hasSavedAppointment of [false,true]){
  eq(save.props.disabled,true,'Empty date cannot be saved as an accidental unscheduling');
  eq(f.nodes().some(n=>n.props?.onClick&&n.props.children==='Clear date/time selection'),false,'Clear option hides with empty selection');
  if(hasSavedAppointment)eq(f.nodes().some(n=>n.type==='small'&&n.props?.children==='Clearing this selection does not cancel the saved appointment.'),true,'Existing appointment is explicitly protected');
+}
+
+// Keep essential customer actions prominent while preserving every secondary job tool.
+let moreNode;function findMore(n){if(ts.isJsxElement(n)&&n.openingElement.tagName.getText(ast)==='details'&&n.openingElement.attributes.properties.some(p=>ts.isJsxAttribute(p)&&p.name.getText(ast)==='className'&&p.initializer?.text==='detail-more-tools'))moreNode=n;ts.forEachChild(n,findMore);}findMore(fn);assert.ok(moreNode,'More tools disclosure exists');
+const detailSource=fn.getText(ast),moreStart=moreNode.getStart(ast)-fn.getStart(ast),moreEnd=moreNode.end-fn.getStart(ast),mainStart=detailSource.indexOf('<div className="detail-actions" aria-label="Customer and estimate actions">');
+eq(moreStart>mainStart&&moreEnd>moreStart,true,'Secondary job tools exist in their own expandable section');
+const primary=detailSource.slice(mainStart,moreStart),secondary=detailSource.slice(moreStart,moreEnd);
+for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','tel:','sms:'])eq(primary.includes(label),true,'Daily customer action available: '+label);
+eq(primary.includes('Estimate research')&&primary.includes('Google Earth')&&primary.includes('Zillow'),true,'Quote preparation presents Earth and Zillow together');
+eq(primary.includes('Driving to job')&&primary.includes('Google Maps')&&!primary.includes('StrideButton'),true,'Scheduled work shows Maps without duplicating the Home Stride shortcut');
+eq(secondary.includes('Google Maps')&&!secondary.includes('StrideButton'),true,'Directions remain available under More tools without another Stride button');
+for(const label of ['Customer view','Google Earth','Zillow','OwnerJobTools'])eq(secondary.includes(label),true,'Existing research and job control retained: '+label);
+eq(secondary.includes('More tools')&&!secondary.includes('Job report, costs & more'),true,'Expandable tools use one short label, with job reports directly accessible');
+eq(ast.getText().includes('<StrideButton top/>'),true,'Home retains its single Stride button in the header');
+// Stage-specific actions stay available without a duplicate mileage shortcut.
+const researchJob=fixture();researchJob.setFetcher(()=>Promise.resolve(ok(false,'quote')));researchJob.open({...job('quote'),status:'draft',address:'123 Synthetic St'});await flush();
+const researchNodes=researchJob.nodes();
+eq(researchNodes.some(n=>n.props?.['aria-label']==='Estimate research'),true,'Quote stage exposes Earth and Zillow as research tools');
+eq(researchNodes.some(n=>n.props?.['aria-label']==='Driving to job'),false,'Draft quote does not clutter the screen with travel shortcuts');
+eq(researchNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Secondary owner tools stay available for a draft quote');
+const scheduledJob=fixture();scheduledJob.setFetcher(()=>Promise.resolve(ok(false,'booked')));scheduledJob.open({...job('booked'),address:'123 Synthetic St',scheduledAt:'2026-10-28T14:00:00.000Z'});await flush();
+const scheduledNodes=scheduledJob.nodes();
+eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Driving to job'),true,'Booked job exposes Google Maps directly; Stride stays in Home');
+eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Job report and costs'),true,'Scheduled work surfaces Job report and Job costs directly, without a More tools tap');
+eq(scheduledNodes.some(n=>n.props?.['aria-label']==='Estimate research'),false,'Booked job does not repeat pre-estimate research buttons up front');
+eq(scheduledNodes.some(n=>n.props?.className==='detail-more-tools'),true,'Booked job retains extra research and customer-view tools under More tools');
+const completedJob=fixture();completedJob.setFetcher(()=>Promise.resolve(ok(true,'completed')));completedJob.open({...job('completed'),status:'completed',address:'123 Synthetic St'});await flush();
+const completedNodes=completedJob.nodes();
+eq(completedNodes.some(n=>n.props?.['aria-label']==='Job report and costs'),true,'Completed job still exposes reports and costs without extra navigation');
+eq(completedNodes.some(n=>n.props?.['aria-label']==='Driving to job'),false,'Completed job does not show an active driving shortcut');
+const simpleJob=fixture();simpleJob.open(job('compact-scheduled'));await flush();
+eq(simpleJob.nodes().some(n=>n.props?.className==='next-action'),false,'Routine booked work has no redundant next-step box');
+eq(simpleJob.nodes().some(n=>n.type==='details'&&n.props?.className==='detail-scope detail-scope-optional'),true,'Booked job keeps complete service scope one tap away rather than forcing a long scroll');
+const quoteScope=fixture();quoteScope.open({...job('scope-quote'),status:'draft'});await flush();
+eq(quoteScope.nodes().some(n=>n.type==='div'&&n.props?.className==='detail-scope'),true,'Draft estimate shows service scope before customer approval');
+const exceptionJob=fixture();exceptionJob.open({...job('held-billing'),paymentOverageOpen:1});await flush();
+eq(exceptionJob.nodes().some(n=>n.props?.className==='change-alert'),true,'Unresolved overpayment keeps its actionable refund-or-retain controls');
+eq(exceptionJob.nodes().some(n=>n.props?.className==='next-action'),false,'Overpayment does not repeat a second warning above its controls');
+const pendingRefund=fixture();pendingRefund.open({...job('held-refund'),pendingRefundCount:1});await flush();
+eq(pendingRefund.nodes().some(n=>n.props?.className==='next-action'&&n.props.role==='alert'),true,'Pending refund remains an immediate financial alert');
+
+/* Regression: a FIRE job is scheduled in Tulsa/Central Time even when the
+ * owner's phone is set to UTC, Korea, or Central. DST gaps/folds fail closed.
+ * All checks use synthetic state and never write to a hosted database. */
+const originalTimezone=process.env.TZ;
+try{
+ for(const zone of ['America/Chicago','UTC','Asia/Seoul']){
+  process.env.TZ=zone;
+  for(const [stored,wall] of [
+   ['2026-07-15T15:45:00.000Z','2026-07-15T10:45'],
+   ['2026-01-15T16:45:00.000Z','2026-01-15T10:45'],
+   ['2026-03-08T08:30:00.000Z','2026-03-08T03:30'],
+   ['2026-11-01T08:30:00.000Z','2026-11-01T02:30']]){
+   const f=fixture();f.setFetcher(async()=>ok(false,'timezone'));
+   f.open({...job('timezone'),scheduledAt:stored});await flush();
+   eq(f.get('schedule'),wall,zone+': saved '+stored+' renders true Central clock time');
+   const label=f.nodes().find(n=>n.props?.htmlFor==='scheduleDate');
+   eq(label.props.children,'Job date and time (Tulsa / Central Time)');
+  }
+  for(const [wall,expected] of [
+   ['2026-07-15T10:45','2026-07-15T15:45:00.000Z'],
+   ['2026-01-15T10:45','2026-01-15T16:45:00.000Z'],
+   ['2026-03-08T03:30','2026-03-08T08:30:00.000Z'],
+   ['2026-11-01T02:30','2026-11-01T08:30:00.000Z']]){
+   const f=fixture('custom');f.setFetcher(async()=>ok(false,'central-save'));
+   f.open(job('central-save'));await flush();
+   f.nodes().find(n=>n.props?.id==='scheduleDate').props.onChange({target:{value:wall}});
+   const calls=[];f.setFetcher(async(url,options)=>{calls.push({url,body:JSON.parse(options.body)});return {ok:true,json:async()=>({estimate:{status:'scheduled',scheduledAt:expected}})};});
+   f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).some(c=>typeof c==='string'&&c.trim()==='Save job date')).props.onClick();
+   await flush();
+   eq(calls.length,1,zone+': one appointment save');
+   eq(calls[0].body.scheduledAt,expected,zone+': Tulsa clock time converted to correct UTC');
+  }
+  for(const [invalid,reason] of [
+   ['2026-03-08T02:30','does not exist'],
+   ['2026-11-01T01:30','occurs twice'],
+   ['2026-02-30T10:45','real calendar date']]){
+   const f=fixture('custom');f.setFetcher(async()=>ok(false,'invalid-schedule'));
+   f.open(job('invalid-schedule'));await flush();
+   f.nodes().find(n=>n.props?.id==='scheduleDate').props.onChange({target:{value:invalid}});
+   const calls=[];f.setFetcher(async(url,options)=>{calls.push(url);return {ok:true,json:async()=>({estimate:{status:'scheduled'}})};});
+   f.nodes().find(n=>n.props?.onClick&&[n.props.children].flat(Infinity).some(c=>typeof c==='string'&&c.trim()==='Save job date')).props.onClick();
+   await flush();
+   eq(calls.length,0,zone+': invalid '+invalid+' must never PATCH');
+   eq(f.get('error').includes(reason),true,zone+': visible DST/calendar error');
+  }
+ }
+}finally{
+ if(originalTimezone===undefined)delete process.env.TZ;
+ else process.env.TZ=originalTimezone;
 }
 
 console.log(`PASS ${checks}/${checks}: actual estimate-detail effect/button state guards report loads across estimate switches, pending reads, close/unmount, failed/malformed responses and retry; synthetic reads/PATCH only; closeout failures, ownership validation and duplicate taps.`);

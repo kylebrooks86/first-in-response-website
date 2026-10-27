@@ -1,3 +1,4 @@
+@import "maplibre-gl/dist/maplibre-gl.css";
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "../vendor/shadcn-tailwind-4.13.0.css";
@@ -264,7 +265,7 @@ html,body{max-width:100%;overflow-x:clip}
 .view-switch button{display:flex;min-height:38px;align-items:center;gap:6px;border:0;border-radius:8px;background:transparent;padding:8px 11px;color:#66758a;font-size:13px;font-weight:800;cursor:pointer}
 .view-switch button.active{background:#fff0f1;color:#c9252f}
 .view-switch svg{width:16px}
-.pipeline-board{display:grid;grid-template-columns:repeat(7,minmax(235px,1fr));gap:12px;overflow-x:auto;margin-top:22px;padding:2px 2px 14px;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;scrollbar-width:thin}
+.pipeline-board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(235px,340px);grid-template-columns:none;gap:12px;overflow-x:auto;margin-top:16px;padding:2px 2px 14px;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;scrollbar-width:thin}
 .pipeline-column{overflow:hidden;min-height:330px;border:1px solid #dfe5ed;border-radius:15px;background:#f6f8fb;scroll-snap-align:start}
 .pipeline-column>header{display:flex;align-items:center;justify-content:space-between;border-top:4px solid #a9b3c1;border-bottom:1px solid #e4e9ef;padding:12px 13px 11px;background:#fff}
 .pipeline-column.sent>header{border-top-color:#2d75c7}.pipeline-column.approved>header{border-top-color:#1b9660}.pipeline-column.scheduled>header{border-top-color:#8b5ac9}.pipeline-column.completed>header{border-top-color:#146f46}.pipeline-column.paid>header{border-top-color:#13985b}.pipeline-column.declined>header{border-top-color:#8994a3}
@@ -283,7 +284,7 @@ html,body{max-width:100%;overflow-x:clip}
   .view-switch{flex:1}
   .view-switch button{flex:1;justify-content:center;min-height:44px}
   .workspace-head-actions>.brand-button{width:100%}
-  .pipeline-board{width:calc(100% + 18px);margin-right:-18px;grid-template-columns:repeat(7,minmax(82vw,82vw));scroll-padding-inline:2px}
+  .pipeline-board{width:calc(100% + 18px);margin-right:-18px;grid-auto-columns:minmax(82vw,82vw);grid-template-columns:none;scroll-padding-inline:2px}
   .pipeline-column{min-height:285px}
   .pipeline-card{min-height:112px;padding:14px}
   .route-day-button{width:100%;min-height:52px;justify-content:center}
@@ -588,11 +589,25 @@ html,body{max-width:100%;overflow-x:clip}
 .payment-history>article>div{min-width:0;overflow-wrap:anywhere}
 .payment-history-amount{grid-column:3;grid-row:1;white-space:nowrap}
 .payment-history>article>.payment-refund-action{grid-column:2 / -1;justify-self:stretch;min-height:44px}
-.processing-report-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
+.processing-report-scroll{max-width:100%;min-width:0;overflow-x:visible}
 .processing-report-scroll:focus-visible{outline:2px solid currentColor;outline-offset:-2px}
-.processing-report-table{width:100%;min-width:400px;border-collapse:collapse}
-.processing-report-table th,.processing-report-table td{padding:8px;text-align:right;white-space:nowrap}
-.processing-report-table th:first-child{text-align:left}
+.processing-report-table{width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse}
+.processing-report-table th,.processing-report-table td{padding:8px 4px;text-align:right;white-space:normal;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.processing-report-table th:first-child{text-align:left;width:29%}
+.processing-report-table th:nth-child(2){width:24%}
+.processing-report-table th:nth-child(3){width:21%}
+.processing-report-table th:nth-child(4){width:26%}
+@media(max-width:430px){
+ .processing-report-table{font-size:12px}
+ .processing-report-table th,.processing-report-table td{padding:8px 3px}
+}
+@media(max-width:350px){
+ .processing-report-table{font-size:11px}
+ .processing-report-table th:first-child{width:25%}
+ .processing-report-table th:nth-child(2){width:25%}
+ .processing-report-table th:nth-child(3){width:22%}
+ .processing-report-table th:nth-child(4){width:28%}
+}
 @media(max-width:760px){
   .payment-history>article{grid-template-columns:36px minmax(0,1fr)}
   .payment-history-amount{grid-column:2;grid-row:2}
@@ -970,7 +985,16 @@ html,body{max-width:100%;overflow-x:clip}
 .schedule-date-picker-actions>*{flex:1 1 130px;min-width:0;min-height:44px}
 .schedule-date-picker-actions input{appearance:auto;border:1px solid var(--input);border-radius:8px;background:var(--background);color:var(--foreground);padding:9px 11px;font-size:16px;line-height:1.5;max-width:100%}
 .schedule-date-picker p{margin:0;color:var(--muted-foreground);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
-@media(max-width:420px){.schedule-date-picker-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.schedule-date-picker-actions input{grid-column:1/-1;grid-row:1;width:100%}.schedule-date-picker-actions button{width:100%;font-size:12px}}
+/* One-row date browser on phones: arrows flank the date instead of taking an extra row. */
+@media(max-width:760px){
+ .schedule-date-picker-actions{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:8px}
+ .schedule-date-picker-actions>*{min-width:0;min-height:44px;width:100%;flex:auto}
+ .schedule-date-picker-actions input{grid-column:auto;grid-row:auto;width:100%;padding:8px 5px;font-size:16px}
+ .schedule-date-picker-actions button{padding:0;display:flex;align-items:center;justify-content:center}
+ .schedule-date-picker-actions button svg{width:18px;height:18px}
+ .quick-actions-panel .quick-actions-grid small{display:none}
+ .recent-estimate-dates{display:none}
+}
 
 /* Day-specific work history separates completed records from active stops. */
 .schedule-history-status{display:inline-flex;justify-self:start;align-items:center;margin-top:4px;padding:3px 9px;border:1px solid var(--border);border-radius:99px;background:var(--background);color:var(--foreground)!important;font-size:12px!important;font-weight:750;line-height:1.4}
@@ -1617,3 +1641,1070 @@ html,body{max-width:100%;overflow-x:clip}
 .note-row>div{min-width:0;flex:1}
 .note-row p{white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:520px){.note-compose textarea,.note-compose .brand-button{flex-basis:100%;width:100%}}
+
+/* Keep common iPhone photo backups visible and secondary ZIP workflows optional. */
+.photo-backup-more{min-width:0;max-width:100%;margin-top:10px}
+.photo-backup-more>summary{display:flex;align-items:center;min-height:48px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;line-height:1.45;cursor:pointer}
+.photo-backup-more>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.photo-backup-more>.photo-buttons{margin-top:10px}
+/* The optional comparison editor appears only when the owner wants to combine images. */
+.photo-comparison-more{min-width:0;max-width:100%;margin-top:14px}
+.photo-comparison-more>summary{display:flex;align-items:center;min-height:48px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer}
+.photo-comparison-more>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.photo-comparison-more>.before-after-builder{margin-top:10px}
+.photo-backup-more>summary::after,.photo-comparison-more>summary::after{content:"▾";display:inline-flex;margin-left:auto;padding-left:12px;font-size:17px;line-height:1;transition:transform .15s ease}
+.photo-backup-more[open]>summary::after,.photo-comparison-more[open]>summary::after{transform:rotate(180deg)}
+
+/* FIRE QA real-iPhone review (Oct 23): on-device photo ZIP actions must never
+   form two half-hidden columns. Preserve the desktop layouts and photo logic. */
+@media (max-width:760px){
+  .customer-profile .photo-panel,.customer-profile .photo-panel>*,.customer-profile .photo-panel .photo-toolbar>*{min-width:0;max-width:100%}
+  .customer-profile .photo-panel .photo-toolbar{grid-template-columns:minmax(0,1fr)}
+  .customer-profile .photo-panel .photo-buttons{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    gap:10px;
+    min-width:0;
+    max-width:100%;
+  }
+  .customer-profile .photo-panel .photo-buttons>button{
+    display:flex;
+    flex:none;
+    align-items:center;
+    justify-content:center;
+    gap:9px;
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    height:auto;
+    min-height:48px;
+    padding:11px 12px;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    text-align:center;
+    line-height:1.4;
+  }
+  .customer-profile .photo-panel .photo-buttons>button svg{flex:none}
+  .customer-profile .photo-panel .before-after-builder>div:nth-child(2){grid-template-columns:minmax(0,1fr)}
+  .customer-profile .photo-panel .before-after-builder label,
+  .customer-profile .photo-panel .before-after-builder select{min-width:0;max-width:100%}
+  .customer-profile .photo-panel .before-after-preview{grid-template-columns:minmax(0,1fr)!important}
+  .customer-profile .photo-panel .photo-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))}
+  .customer-profile .photo-panel .photo-card{min-width:0}
+}
+
+/* FIRE customer-first mobile layout: visible record choices and optional detail. */
+.customer-balance-explanation>summary{cursor:pointer;font-weight:750;color:var(--foreground)}
+.customer-journey-disclosure>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:800;color:var(--foreground)}
+.customer-journey-disclosure>section{margin-top:12px}
+.customer-flag-panel>details.customer-sign-form{width:100%;min-width:0}
+.customer-flag-panel>details.customer-sign-form>summary{min-height:40px;display:flex;align-items:center}
+@media(max-width:760px){
+  .customers-view .record-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;overflow:visible;border-bottom:0}
+  .customers-view .record-tabs button{width:100%;min-width:0;max-width:100%;min-height:44px;padding:10px 5px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:12px;line-height:1.3;text-align:center;white-space:normal;overflow-wrap:anywhere}
+  .customers-view .record-tabs button.active{border-color:var(--primary);background:var(--accent);color:var(--accent-foreground)}
+}
+
+/* Simpler navigation: essential actions first, all other tools retained and scrollable. */
+.sidebar nav{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.sidebar-nav-heading{margin:15px 13px 5px;color:#9fb0c3;font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:800}
+.sidebar nav .sidebar-nav-heading:first-child{margin-top:0}
+[data-theme="light"] .sidebar-nav-heading{color:#607089}
+.sidebar-foot{flex-shrink:0}
+@media(max-width:760px){
+ .sidebar nav{padding-top:12px;padding-bottom:12px}
+ .sidebar nav button{min-height:44px}
+ .bottom-nav button{min-width:0}
+}
+
+/* Keep infrequently used export and restore controls available without crowding daily tasks. */
+.business-backup-tools{min-width:0;max-width:100%;flex:0 1 auto}
+.business-backup-tools>summary{min-height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid var(--border);border-radius:10px;background:var(--card);padding:10px 14px;font-size:13px;font-weight:750;color:var(--foreground)}
+.business-backup-tools>summary:hover{background:var(--muted)}
+.business-backup-tools>.workspace-head-actions{margin-top:10px;justify-content:flex-start}
+.business-backup-tools .export-button{min-height:44px;min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:760px){
+ .business-backup-tools{width:100%}
+ .business-backup-tools>.workspace-head-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+ .business-backup-tools .export-button{width:100%;justify-content:center;text-align:center}
+}
+
+/* Day-to-day customer totals stay short; full financial amounts remain available. */
+.customer-snapshot-more{grid-column:1/-1;min-width:0;overflow:hidden;background:var(--card)}
+.customer-snapshot-more>summary{padding:11px 12px;min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:12px;font-weight:800;color:var(--foreground)}
+.customer-snapshot-more:focus-within>summary{outline-offset:-2px}
+.customer-snapshot-extra{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;border-top:1px solid var(--border);background:var(--border)}
+.customer-snapshot-extra>span{display:grid;gap:3px;min-width:0;padding:11px 12px;background:var(--card)}
+.customer-snapshot-extra small{color:var(--muted-foreground);font-size:10px;font-weight:750;text-transform:uppercase}
+.customer-snapshot-extra strong{font-size:14px;overflow-wrap:anywhere}
+.followup-more-filters{flex:1 1 100%;min-width:0;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.followup-more-filters>summary{display:flex;align-items:center;cursor:pointer;min-height:44px;padding:9px 12px;font-size:13px;font-weight:800;color:var(--foreground)}
+.followup-more-filters[open]>summary{border-bottom:1px solid var(--border)}
+.followup-extra-categories{display:flex;flex-wrap:wrap;gap:7px;padding:10px 10px 0}
+.followup-more-filters>[role="group"],.followup-more-filters>.followup-priority-toggle{margin:0 10px 10px}
+@media(max-width:390px){
+  .customer-snapshot-extra{grid-template-columns:minmax(0,1fr)}
+  .followup-extra-categories button{flex:1 1 auto}
+}
+
+/* Customer-first navigation: primary contact and record tabs directly beneath the name. */
+.customer-profile .customer-contact{margin-top:14px;gap:8px}
+.customer-profile .record-tabs{margin-top:16px}
+.customer-profile .customer-records{max-width:100%;min-width:0;margin-bottom:12px}
+.customer-property-links{min-width:0;max-width:100%}
+.customer-property-links>summary{min-height:44px;display:flex;align-items:center;padding:9px 12px;border-radius:9px;border:1px solid var(--border);cursor:pointer;font-size:12px;font-weight:750;color:var(--foreground);background:var(--card)}
+.customer-property-links>div{display:flex;flex-wrap:wrap;gap:8px;padding-top:8px}
+.customer-property-links>div>a{min-height:44px;max-width:100%;overflow-wrap:anywhere}
+@media(max-width:760px){
+  .customer-profile .customer-contact>a,.customer-profile .customer-contact>span{min-height:44px}
+  .customer-profile .record-tabs{margin-top:12px}
+  .customer-property-links{flex:1 1 100%}
+}
+
+/* Space-saving, readable owner actions and safe iPhone bottom navigation. */
+@media(max-width:760px){
+  .customer-profile-head .profile-head-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;width:100%;gap:8px}
+  .customer-profile-head .profile-head-actions>*{min-width:0;max-width:100%;width:100%}
+  .customer-profile-head .profile-head-actions button{min-height:44px;max-width:100%;width:100%;white-space:normal;overflow-wrap:anywhere;padding:9px 7px;line-height:1.35}
+  .dashboard-view,.customers-view,.workspace-view{padding-bottom:calc(120px + env(safe-area-inset-bottom, 0px))}
+}
+@media(max-width:350px){
+  .customer-profile-head .profile-head-actions{grid-template-columns:minmax(0,1fr)}
+}
+
+
+/* Home: secondary reminder queues remain accessible without repeating every
+   alert in the primary iPhone feed. No data or controls are removed. */
+.dashboard-extra-reminders{min-width:0;margin-top:14px;border:1px solid var(--border);border-radius:12px;background:var(--card);overflow:hidden}
+.dashboard-extra-reminders>summary{min-height:48px;display:flex;align-items:center;gap:8px;cursor:pointer;padding:11px 14px;color:var(--foreground);font-size:14px;font-weight:750;list-style:none}
+.dashboard-extra-reminders>summary::-webkit-details-marker{display:none}
+.dashboard-extra-reminders>summary>span{margin-left:auto;color:var(--muted-foreground);font-size:12px;font-weight:500}
+.dashboard-extra-reminders>summary::after{content:"▾";margin-left:4px;color:var(--muted-foreground)}
+.dashboard-extra-reminders[open]>summary::after{transform:rotate(180deg)}
+.dashboard-extra-reminders>summary:focus-visible{outline:2px solid var(--ring);outline-offset:-3px}
+.dashboard-extra-reminder-content{display:grid;gap:12px;min-width:0;padding:0 12px 12px}
+.dashboard-extra-reminder-content>.dashboard-sign-reminders,.dashboard-extra-reminder-content>.dashboard-review-reminders{min-width:0;margin-top:0}
+@media(max-width:760px){.dashboard-extra-reminder-content{padding:0 8px 10px}.dashboard-extra-reminders>summary{min-height:48px}}
+
+
+/* Customer directory: saved review and yard-sign queues are accessible,
+   while due lead callbacks and the customer list remain immediately visible. */
+.customer-secondary-reminders{min-width:0;border:1px solid var(--border);background:var(--card);border-radius:12px;overflow:hidden}
+.customer-secondary-reminders>summary{list-style:none;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;min-height:48px;cursor:pointer;padding:11px 14px;color:var(--foreground);font-size:14px;font-weight:750}
+.customer-secondary-reminders>summary::-webkit-details-marker{display:none}
+.customer-secondary-reminders>summary>span{color:var(--muted-foreground);font-size:12px;font-weight:500}
+.customer-secondary-reminders>summary::after{content:"▾";margin-left:auto}
+.customer-secondary-reminders[open]>summary::after{transform:rotate(180deg)}
+.customer-secondary-reminders>summary:focus-visible{outline:2px solid var(--ring);outline-offset:-3px}
+.customer-secondary-reminder-list{display:grid;gap:12px;padding:0 12px 12px;min-width:0}
+
+
+/* Add an expense when needed; saved history remains visible by default. */
+.business-expense-entry{min-width:0;margin:0 0 12px;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.business-expense-entry>summary{list-style:none;min-height:48px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;font-weight:750;color:var(--foreground)}
+.business-expense-entry>summary::-webkit-details-marker{display:none}
+.business-expense-entry>summary::after{content:"▾";color:var(--muted-foreground)}
+.business-expense-entry[open]>summary::after{transform:rotate(180deg)}
+.business-expense-entry>summary:focus-visible{outline:2px solid var(--ring);outline-offset:-3px}
+.business-expense-entry>.business-form{padding:0 12px 12px;margin:0}
+
+
+/* FIRE follow-ups: scan the due action first, expand dates only when needed. */
+.followup-message-details{margin-top:8px;min-width:0;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground)}
+.followup-message-details>summary{min-height:44px;display:flex;align-items:center;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:750}
+.followup-message-details>summary:focus-visible{outline:2px solid var(--ring);outline-offset:-2px}
+.followup-message-details>small{display:block;padding:5px 12px;line-height:1.5;color:var(--muted-foreground)}
+.followup-message-details>small:last-child{padding-bottom:12px}
+@media(max-width:760px){
+ .payments-view .business-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .payments-view .business-metrics article{min-width:0;padding:11px 10px;overflow-wrap:anywhere}
+ .payments-view .business-metrics strong{overflow-wrap:anywhere}
+ .followup-card-tools{gap:7px}
+ .followup-card-tools>button,.followup-card-tools>a{flex:1 1 auto;min-height:44px;justify-content:center}
+ .followup-card-tools>details{flex:1 1 100%}
+}
+@media(max-width:350px){.payments-view .business-metrics{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Full financial explanation remains available, not repeated in the main collection list. */
+.payments-balance-help{margin-top:5px;min-width:0}
+.payments-balance-help>summary{min-height:44px;display:inline-flex;align-items:center;cursor:pointer;color:var(--muted-foreground);font-size:12px;font-weight:750}
+.payments-balance-help>summary:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+.payments-balance-help>p{margin:4px 0 8px;max-width:65ch;font-size:12px;line-height:1.5;color:var(--muted-foreground)}
+
+
+/* Keep scheduling risks visible; expand full appointment pairs only if needed. */
+.schedule-turnaround-details{margin-top:10px;min-width:0}
+.schedule-turnaround-details>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;border:1px solid currentColor;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:750}
+.schedule-turnaround-details>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.schedule-turnaround-details .schedule-turnaround-pair{margin-top:10px}
+.schedule-turnaround-details>small{display:block;margin-top:10px}
+.payment-history-more{width:100%;min-height:48px;margin-top:10px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer}
+.payment-history-more:hover{background:var(--muted)}
+.payment-history-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+
+/* The Follow-ups landing screen shows the deadline cue, not a wall of counters. */
+.followup-summary-details{min-width:0;flex:1 1 220px}
+.followup-summary-details>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:12px;font-weight:750;color:var(--foreground)}
+.followup-summary-details>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.followup-summary-details>.followup-breakdown{margin-top:6px;display:flex;flex-wrap:wrap;gap:10px}
+.followup-summary-details>p{margin:7px 0 0;font-size:12px;line-height:1.45}
+@media(max-width:820px){.followup-summary-details{width:100%;flex:auto}}
+
+
+/* The three amounts an owner actually acts on stay visible; other accounting totals are optional. */
+.payments-secondary-metrics{margin:10px 0 14px;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.payments-secondary-metrics>summary{min-height:48px;display:flex;align-items:center;padding:10px 14px;cursor:pointer;font-weight:750;font-size:13px;color:var(--foreground)}
+.payments-secondary-metrics>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.payments-secondary-metrics>.business-metrics{margin:0;padding:0 10px 12px}
+@media(max-width:760px){.payments-view .payments-primary-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:350px){.payments-view .payments-primary-metrics{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Top three customer actions stay scannable even with a large follow-up backlog. */
+.followup-all-actions-link{display:block;width:100%;min-height:44px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);text-align:center;font-size:12px;font-weight:750;cursor:pointer}
+.followup-all-actions-link:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+
+/* Existing Business task creation is one tap away; saved tasks and due work remain first. */
+.business-task-entry{min-width:0;margin:10px 0;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.business-task-entry>summary{display:flex;align-items:center;min-height:48px;padding:11px 14px;cursor:pointer;font-weight:800;font-size:14px;color:var(--foreground)}
+.business-task-entry>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.business-task-entry[open]>summary{border-bottom:1px solid var(--border)}
+.business-task-entry>.business-form{margin:0;padding:14px}
+@media(max-width:760px){.business-task-entry>.business-form{padding:12px}}
+
+
+.business-task-saved-notes{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}
+.business-task-saved-notes strong{font-weight:800}
+
+
+/* Business: keep actionable task counts first, with complete cost totals one tap away. */
+.business-secondary-metrics{min-width:0;margin:10px 0 14px;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.business-secondary-metrics>summary{display:flex;align-items:center;min-height:48px;padding:10px 14px;cursor:pointer;font-size:13px;font-weight:800}
+.business-secondary-metrics>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.business-secondary-metrics>.business-metrics{margin:0;padding:0 12px 12px}
+@media(max-width:760px){.business-operations-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:350px){.business-operations-metrics{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Compact owner weather: current conditions, one swipeable 7-day row, no hourly or radar UI. */
+.weather-strip.weather-simple:not(.unavailable):not(.loading){display:grid;grid-template-columns:minmax(0,1fr);gap:7px;align-items:start;padding:10px 12px;margin-top:12px}
+.weather-strip.weather-simple .weather-current{grid-column:1;grid-row:1;gap:8px}
+.weather-strip.weather-simple .weather-current>svg{width:24px;height:24px;flex:none}
+.weather-strip.weather-simple .weather-current strong{font-size:14px;line-height:1.2}
+.weather-strip.weather-simple .weather-current small{font-size:10px;letter-spacing:0}
+.weather-strip.weather-simple .weather-days{grid-column:1;grid-row:2;display:flex;gap:6px;min-width:0;width:100%;max-width:100%;padding:2px 1px 5px;overflow-x:auto;scroll-snap-type:x proximity}
+.weather-strip.weather-simple .weather-days article{display:grid;align-content:start;flex:0 0 105px;min-height:0;gap:3px;padding:7px 8px;border-radius:8px}
+.weather-strip.weather-simple .weather-days article>small{font-size:10px;line-height:1.25;min-height:0;letter-spacing:0}
+.weather-strip.weather-simple .weather-days article>strong{font-size:13px;line-height:1.25}
+.weather-strip.weather-simple .weather-days article>span{display:flex;align-items:center;gap:3px;flex-wrap:nowrap;font-size:11px;line-height:1.2}
+.weather-strip.weather-simple .weather-days article>span svg{width:12px;height:12px}
+.weather-strip.weather-simple .weather-simple-footer{grid-column:1;grid-row:3;display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0}
+.weather-strip.weather-simple .weather-simple-cautions{font-size:10px;line-height:1.3;color:#4d647f;min-width:0}
+.weather-strip.weather-simple .weather-simple-footer button{flex:none;min-height:36px;border:1px solid #a3b9d0;border-radius:8px;background:transparent;color:inherit;padding:5px 10px;font-size:11px;font-weight:750;cursor:pointer}
+.weather-strip.weather-simple .weather-simple-footer button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.weather-strip.weather-simple .weather-simple-footer button:disabled{opacity:.6;cursor:progress}
+[data-theme="dark"] .weather-strip.weather-simple .weather-simple-cautions{color:#c2d1e3}
+@media(max-width:390px){.weather-strip.weather-simple:not(.unavailable):not(.loading){padding:9px 10px}.weather-strip.weather-simple .weather-days article{flex-basis:99px}}
+
+
+/* FIRE monthly schedule: one calm calendar first, with daily jobs below it. */
+.schedule-month{margin-top:14px;padding:14px;border:1px solid var(--border);border-radius:15px;background:var(--card);min-width:0}
+.schedule-month-header{display:grid;grid-template-columns:44px minmax(0,1fr) 44px auto;align-items:center;gap:6px;margin-bottom:12px}
+.schedule-month-header h2{font-size:18px;line-height:1.25;text-align:center;margin:0;white-space:nowrap}
+.schedule-month-header button{min-height:44px;min-width:44px;border:1px solid var(--border);border-radius:10px;background:transparent;color:inherit;font-size:19px;font-weight:750;cursor:pointer}
+.schedule-month-header .schedule-month-today{font-size:12px;padding:0 10px}
+.schedule-month-weekdays,.schedule-month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;min-width:0}
+.schedule-month-weekdays{margin-bottom:5px}.schedule-month-weekdays span{text-align:center;font-size:11px;color:var(--muted-foreground);font-weight:750}
+.schedule-month-day,.schedule-month-empty{min-width:0;min-height:52px}
+.schedule-month-day{display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:2px;padding:6px 1px;border:1px solid var(--border);border-radius:9px;background:transparent;color:inherit;cursor:pointer}
+.schedule-month-day.today{border-color:#ce932f}
+.schedule-month-day.selected{background:#b32430;color:white;border-color:#b32430}
+.schedule-month-day .schedule-month-number{font-size:14px;font-weight:800;line-height:1.2}
+.schedule-month-dots{min-height:9px;display:flex;align-items:center;justify-content:center;gap:3px}
+.schedule-month-dots i,.schedule-month-legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.schedule-month-dots i.booked,.schedule-month-legend i.booked{background:#2d8acb}
+.schedule-month-dots i.done,.schedule-month-legend i.done{background:#29a16c}
+.schedule-month-dots small{font-size:9px;font-weight:750}
+.schedule-month-day.selected .schedule-month-dots i{box-shadow:0 0 0 1px #fff}
+.schedule-month-legend{display:flex;align-items:center;gap:15px;margin-top:10px;color:var(--muted-foreground);font-size:11px}
+.schedule-month-legend span{display:inline-flex;align-items:center;gap:5px}
+.schedule-month button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+[data-theme="dark"] .schedule-month{background:#111f31;border-color:#30445b}
+[data-theme="dark"] .schedule-month-day{border-color:#38516b}
+[data-theme="dark"] .schedule-month-day.selected{background:#a62330;color:white;border-color:#e05260}
+@media(max-width:430px){.schedule-month{padding:10px}.schedule-month-header{grid-template-columns:40px minmax(0,1fr) 40px auto;gap:3px}.schedule-month-header h2{font-size:15px}.schedule-month-header button{min-width:40px;min-height:44px}.schedule-month-header .schedule-month-today{padding:0 6px}.schedule-month-weekdays,.schedule-month-grid{gap:3px}.schedule-month-day{min-height:48px}.schedule-month-day .schedule-month-number{font-size:13px}}
+
+
+/* Day-first booking; keep advanced operations in one optional section. */
+.schedule-day-actions{display:grid;gap:10px;margin:10px 0 15px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card)}
+.schedule-day-actions>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.schedule-day-actions>div:first-child strong{font-size:14px}
+.schedule-day-actions>div:first-child small{font-size:12px;color:var(--muted-foreground)}
+.schedule-check-shortcut{display:flex;align-items:center;gap:10px;width:100%;min-width:0;min-height:50px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--border);border-radius:11px;background:var(--card);color:var(--foreground);text-align:left;cursor:pointer}
+.schedule-check-shortcut>svg{width:18px;height:18px;flex:0 0 auto}
+.schedule-check-shortcut>span{flex:1;min-width:0;display:grid;gap:2px}
+.schedule-check-shortcut strong{font-size:13px;line-height:1.3}
+.schedule-check-shortcut small{font-size:11px;line-height:1.4;color:var(--muted-foreground)}
+.schedule-check-shortcut:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.schedule-day-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.schedule-day-buttons>button,.schedule-choose-job>button{min-height:44px;padding:9px 13px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:inherit;font-weight:750;cursor:pointer}
+.schedule-day-buttons>button:first-child{background:#b32430;border-color:#b32430;color:white}
+.schedule-choose-job{display:grid;gap:8px;padding:12px;border:1px solid var(--border);border-radius:10px}
+.schedule-choose-job>button{display:flex;align-items:center;justify-content:space-between;text-align:left}
+.schedule-choose-job>p{margin:0;font-size:12px;color:var(--muted-foreground)}
+.schedule-planning-more{min-width:0;margin:12px 0;padding:0;border:1px solid var(--border);border-radius:11px;background:var(--card)}
+.schedule-planning-more>summary{min-height:48px;padding:12px 14px;cursor:pointer;font-size:13px;font-weight:750;color:inherit}
+.schedule-planning-content{display:grid;gap:12px;padding:0 12px 12px;min-width:0}
+.schedule-planning-content .schedule-weather-anchor{min-width:0}
+.schedule-planning-content .weather-strip{margin-top:0}
+.schedule-planning-more .schedule-window-controls{margin-top:2px}
+.schedule-date-confirmation{display:block;margin:5px 0 8px;font-size:12px;line-height:1.5;color:#a64c10}
+.schedule-day-buttons>button:focus-visible,.schedule-choose-job>button:focus-visible,.schedule-planning-more>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+[data-theme="dark"] .schedule-date-confirmation{color:#ffd0a8}
+@media(max-width:430px){.schedule-day-buttons>button{flex:1 1 115px;padding:9px 6px}.schedule-day-actions{padding:10px}}
+
+
+/* Estimates and signed agreements share one owner workflow and one navigation entry. */
+.estimate-section-switch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0}
+.estimate-section-switch>button{min-width:0;min-height:48px;padding:9px 12px;border:1px solid var(--border);border-radius:11px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer}
+.estimate-section-switch>button.active{border-color:#c52b35;background:#fff1f2;color:#a31d29}
+.estimate-section-switch>button:focus-visible,.agreement-status-details>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+[data-theme="dark"] .estimate-section-switch>button.active{background:#4b252c;border-color:#e86c73;color:#ffe2e5}
+.agreements-embedded{display:grid;gap:12px;min-width:0}
+.agreement-status-details{min-width:0;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.agreement-status-details>summary{min-height:46px;display:flex;align-items:center;padding:9px 12px;font-size:13px;font-weight:750;cursor:pointer}
+.agreement-status-details>.business-metrics{margin:0;padding:0 10px 12px}
+@media(max-width:430px){.estimate-section-switch{gap:6px}.estimate-section-switch>button{padding:10px 6px}}
+
+
+/* Quotes, unsigned agreements, and signed records live on the customer's existing history tab. */
+.customer-quote-switch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+.customer-quote-switch>button{min-width:0;min-height:44px;padding:8px 9px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:12px;font-weight:750;cursor:pointer;overflow-wrap:anywhere}
+.customer-quote-switch>button.active{border-color:#c52b35;background:#fff1f2;color:#a31d29}
+.customer-quote-switch>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+[data-theme="dark"] .customer-quote-switch>button.active{background:#4b252c;border-color:#e86c73;color:#ffe2e5}
+@media(max-width:350px){.customer-quote-switch{gap:6px}.customer-quote-switch>button{padding:8px 5px;font-size:11px}}
+
+
+/* FIRE job detail: ordinary customer actions first, secondary research and job administration one tap away. */
+.estimate-detail .detail-scope-optional{padding:0;overflow:hidden}
+.estimate-detail .detail-scope-optional>summary{display:flex;align-items:center;min-height:48px;padding:11px 14px;font-size:13px;font-weight:800;color:var(--foreground);cursor:pointer}
+.estimate-detail .detail-scope-optional>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
+.estimate-detail .detail-scope-optional>p{margin:0;padding:0 14px 14px;overflow-wrap:anywhere}
+.estimate-detail .detail-more-tools{min-width:0;border:1px solid var(--border);border-radius:11px;background:var(--card);overflow:hidden}
+.estimate-detail .detail-more-tools>summary{display:flex;align-items:center;min-height:48px;padding:11px 14px;font-size:13px;font-weight:800;color:var(--foreground);cursor:pointer}
+.estimate-detail .detail-more-tools>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
+.estimate-detail .detail-more-tools>.detail-actions{display:flex;flex-wrap:wrap;gap:8px;padding:2px 12px 12px;min-width:0}
+.estimate-detail .detail-more-tools .detail-actions>a,
+.estimate-detail .detail-more-tools .detail-actions>button{min-width:0;min-height:44px;justify-content:center}
+@media(max-width:760px){
+ .estimate-detail .detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0}
+ .estimate-detail .detail-actions>a,
+ .estimate-detail .detail-actions>button{min-width:0;width:100%;min-height:48px;justify-content:center;text-align:center;white-space:normal;overflow-wrap:anywhere}
+ .estimate-detail .detail-more-tools>.detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:350px){
+ .estimate-detail .detail-actions,.estimate-detail .detail-more-tools>.detail-actions{grid-template-columns:minmax(0,1fr)}
+}
+
+
+/* Estimate research and job-driving tools: all existing buttons remain, but where they are needed. */
+.estimate-detail .detail-context-tools{flex:1 1 100%;grid-column:1/-1;display:grid;gap:7px;min-width:0;margin:2px 0}
+.estimate-detail .detail-context-tools>strong{font-size:12px;font-weight:800;color:var(--muted-foreground)}
+.estimate-detail .detail-context-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0}
+.estimate-detail .detail-context-buttons>a,.estimate-detail .detail-context-buttons>button{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:48px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;text-align:center;text-decoration:none;white-space:normal;cursor:pointer}
+.estimate-detail .detail-context-buttons svg{flex-shrink:0;width:16px;height:16px}
+.estimate-detail .detail-context-buttons>a.primary-tool{border-color:#d52a33;background:#e12933;color:white}
+.estimate-detail .detail-context-buttons>a:focus-visible,.estimate-detail .detail-context-buttons>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+@media(max-width:350px){.estimate-detail .detail-context-buttons{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Business tax preparation: concise saved-expense rollup, not a tax return. */
+.business-tax-prep{margin:12px 0 16px;border:1px solid var(--border);border-radius:12px;background:var(--card);min-width:0}
+.business-tax-prep>summary{display:flex;min-height:48px;align-items:center;padding:10px 14px;cursor:pointer;font-weight:800;color:var(--foreground)}
+.business-tax-prep>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.business-tax-prep-body{display:grid;justify-items:start;gap:12px;padding:0 14px 14px;min-width:0}
+.business-tax-prep-heading{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;font-weight:750}
+.business-tax-prep-heading select{min-height:44px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--foreground)}
+.business-tax-prep-body p{margin:0;font-size:13px;line-height:1.5}
+.business-tax-prep-body p[role=status] strong{font-size:19px}
+.business-tax-categories{display:grid;gap:7px;width:100%;max-width:520px}
+.business-tax-categories>div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding:6px 0;font-size:13px}
+.business-tax-categories>div strong{font-variant-numeric:tabular-nums;white-space:nowrap}
+.business-tax-prep .export-button{min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.business-tax-prep-body .business-tax-caveat{font-size:12px;color:var(--muted-foreground);max-width:72ch}
+
+/* FIRE mobile follow-ups: daily contact stays one tap away; audit/history is optional. */
+.followup-card-tools{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.followup-contact-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;min-width:0}
+.followup-contact-actions>a{min-width:0;min-height:44px;justify-content:center;padding:9px 5px}
+.followup-optional-tools{min-width:0;width:100%;border:1px solid var(--border);border-radius:9px}
+.followup-optional-tools>summary{display:flex;align-items:center;min-height:44px;padding:9px 12px;cursor:pointer;font-size:12px;font-weight:750;list-style:none}
+.followup-optional-tools>summary::-webkit-details-marker{display:none}
+.followup-optional-tools>summary::after{content:"▾";margin-left:auto;color:var(--muted-foreground)}
+.followup-optional-tools[open]>summary::after{transform:rotate(180deg)}
+.followup-optional-tools>summary:focus-visible,.followup-optional-grid>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.followup-optional-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 10px 10px}
+.followup-optional-grid>button{display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:44px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:12px;font-weight:700;cursor:pointer}
+.followup-optional-grid>button svg{width:15px;height:15px;flex:0 0 auto}
+.followup-optional-grid>.followup-milestones{grid-column:1/-1;min-width:0;width:100%}
+@media(max-width:360px){.followup-optional-grid{grid-template-columns:minmax(0,1fr)}.followup-optional-grid>.followup-milestones{grid-column:1}}
+
+/* Today keeps the next scheduled job visible before small forecast and optional shortcuts. */
+.dashboard-shortcut-disclosure{min-width:0;overflow:hidden}
+.dashboard-shortcut-disclosure>summary{display:flex;align-items:center;min-height:48px;padding:12px 15px;color:var(--foreground);font-weight:750;font-size:14px;cursor:pointer;list-style:none}
+.dashboard-shortcut-disclosure>summary::-webkit-details-marker{display:none}
+.dashboard-shortcut-disclosure>summary::after{content:"▾";margin-left:auto;color:var(--muted-foreground)}
+.dashboard-shortcut-disclosure[open]>summary::after{transform:rotate(180deg)}
+.dashboard-shortcut-disclosure>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
+.dashboard-shortcut-disclosure>.quick-actions-grid{padding-top:0}
+
+/* Distinguish customer signature and approval milestones from workflow status. */
+.estimate-person .estimate-legal-state{font-size:11px;font-weight:750;color:var(--foreground);line-height:1.35}
+
+/* Today: keep driving/job actions prominent and expose customer contact on demand. */
+.dashboard-next-contact-tools{min-width:0;max-width:100%;flex:0 1 182px}
+.dashboard-next-contact-tools>summary{display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;border:1px solid var(--border);border-radius:9px;background:var(--background);padding:10px 12px;color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer;list-style:none;overflow-wrap:anywhere}
+.dashboard-next-contact-tools>summary::-webkit-details-marker{display:none}
+.dashboard-next-contact-tools>summary svg:last-child{transition:transform .15s ease}
+.dashboard-next-contact-tools[open]>summary svg:last-child{transform:rotate(180deg)}
+.dashboard-next-contact-tools>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.dashboard-next-contact-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-top:8px}
+.dashboard-next-contact-options>a{min-width:0;width:100%;min-height:44px;padding:10px 8px}
+.dashboard-next-contact-options>a:last-child:nth-child(odd){grid-column:1/-1}
+@media(max-width:760px){.dashboard-next-contact-tools{flex:1 1 100%}}
+@media(max-width:420px){.dashboard-next-contact-tools{width:100%}}
+
+/* Calendar-first scheduling: booking and next-stop Maps route are both one tap away. */
+.schedule-day-buttons{min-width:0}
+.schedule-day-buttons>button{flex:1 1 145px;min-width:0}
+.schedule-day-buttons>.route-day-button{display:grid;grid-template-columns:20px minmax(0,1fr);flex:1 1 180px;min-width:0;max-width:100%;min-height:48px;background:var(--background);border-color:var(--border);color:var(--foreground);overflow-wrap:anywhere;white-space:normal}
+.schedule-day-buttons>.route-day-button small{grid-column:2;overflow-wrap:anywhere}
+.schedule-day-buttons>.route-day-button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+@media(max-width:430px){.schedule-day-buttons>.route-day-button{flex-basis:100%;width:100%}}
+
+/* Estimates stay list-first on iPhone; secondary status filters are one disclosure away. */
+.estimate-simple-filters{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0;overflow:visible}
+.estimate-simple-filters>button{flex:0 1 auto;min-height:44px;white-space:normal}
+.estimate-filter-more{flex:1 1 160px;min-width:135px;max-width:100%;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.estimate-filter-more>summary{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:44px;padding:8px 12px;color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer;list-style:none;overflow-wrap:anywhere}
+.estimate-filter-more>summary::-webkit-details-marker{display:none}
+.estimate-filter-more>summary::after{content:"▾";color:var(--muted-foreground)}
+.estimate-filter-more[open]>summary::after{transform:rotate(180deg)}
+.estimate-filter-more>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.estimate-extra-filters{display:flex;flex-wrap:wrap;gap:7px;padding:2px 9px 10px}
+.estimate-extra-filters>button{flex:1 1 86px;min-width:0;min-height:44px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:13px;cursor:pointer}
+.estimate-extra-filters>button.active{border-color:var(--primary);font-weight:800}
+@media(max-width:430px){.estimate-simple-filters>button{flex:1 1 62px;padding-inline:7px}.estimate-filter-more{flex-basis:100%}}
+
+/* Payments default to collectible balances; full history/refund actions are retained. */
+.payments-history-disclosure{min-width:0}
+.payments-history-disclosure>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:13px 15px;color:var(--foreground);font-size:15px;font-weight:800;cursor:pointer;list-style:none;overflow-wrap:anywhere}
+.payments-history-disclosure>summary::-webkit-details-marker{display:none}
+.payments-history-disclosure>summary::after{content:"▾";color:var(--muted-foreground)}
+.payments-history-disclosure[open]>summary::after{transform:rotate(180deg)}
+.payments-history-disclosure>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
+.payments-history-disclosure>.payment-history{padding-inline:10px}
+
+/* Profile-first customer screen: a short contact row, full history on demand. */
+.customer-contact-empty{display:block;min-height:44px;padding:11px 12px;color:var(--muted-foreground);font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.customer-timeline-disclosure{min-width:0;margin:12px 0 20px;border:1px solid var(--border);border-radius:12px;background:var(--card);overflow:hidden}
+.customer-timeline-disclosure>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:12px 15px;color:var(--foreground);font-size:14px;font-weight:800;cursor:pointer;list-style:none;overflow-wrap:anywhere}
+.customer-timeline-disclosure>summary::-webkit-details-marker{display:none}
+.customer-timeline-disclosure>summary span{font-size:12px;font-weight:650;color:var(--muted-foreground)}
+.customer-timeline-disclosure>summary::after{content:"▾";color:var(--muted-foreground)}
+.customer-timeline-disclosure[open]>summary::after{transform:rotate(180deg)}
+.customer-timeline-disclosure>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
+.customer-timeline-disclosure>.customer-timeline{margin:0;border:0;border-top:1px solid var(--border);border-radius:0;background:transparent}
+@media(max-width:430px){.customer-timeline-disclosure>summary{padding:11px 12px}}
+
+/* Compact owner navigation: seven daily destinations first; all extras kept. */
+.sidebar-more-nav{margin-top:10px;min-width:0}
+.sidebar-more-nav>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:46px;margin:0 2px;padding:10px 12px;border:1px solid #334760;border-radius:10px;color:#c5d1e0;font-size:13px;font-weight:750;cursor:pointer;list-style:none}
+.sidebar-more-nav>summary::-webkit-details-marker{display:none}
+.sidebar-more-nav>summary svg{width:17px;height:17px;flex:none;transition:transform .12s ease}
+.sidebar-more-nav[open]>summary svg{transform:rotate(180deg)}
+.sidebar-more-nav>summary:hover{background:#1a2d47;color:#fff}
+.sidebar-more-nav>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.sidebar-more-items{padding-top:5px}
+.sidebar-more-items>button{min-height:44px}
+[data-theme="light"] .sidebar-more-nav>summary{border-color:var(--border);color:var(--foreground)}
+[data-theme="light"] .sidebar-more-nav>summary:hover{background:var(--muted);color:var(--foreground)}
+@media(max-width:760px){.sidebar-more-nav>summary{min-height:48px}}
+
+/* Owner-only secondary tracking: quick lead calls and due reminders stay above. */
+.customer-extra-tracking{width:100%;min-width:0;border:1px solid var(--border);border-radius:10px;background:var(--background)}
+.customer-extra-tracking>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:46px;padding:10px 12px;cursor:pointer;list-style:none;color:var(--foreground);font-size:13px;font-weight:800;overflow-wrap:anywhere}
+.customer-extra-tracking>summary::-webkit-details-marker{display:none}
+.customer-extra-tracking>summary span{color:var(--muted-foreground);font-size:11px;font-weight:650}
+.customer-extra-tracking>summary::after{content:"▾";color:var(--muted-foreground)}
+.customer-extra-tracking[open]>summary::after{transform:rotate(180deg)}
+.customer-extra-tracking>summary:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
+.customer-extra-tracking>.customer-flag-actions{padding:12px;border-top:1px solid var(--border)}
+@media(max-width:430px){.customer-extra-tracking>summary{padding:10px}.customer-extra-tracking>.customer-flag-actions{padding:10px}}
+
+/* Customer header: one primary estimate action with secondary tools on demand. */
+.customer-profile-head .profile-head-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:start;flex:0 1 330px;max-width:100%}
+.customer-profile-head .profile-head-actions>*{min-width:0;max-width:100%}
+.customer-profile-head .profile-head-actions>button{min-height:44px}
+.customer-header-more{position:relative;min-width:0}
+.customer-header-more>summary{display:flex;min-height:44px;align-items:center;justify-content:center;padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:12px;font-weight:750;line-height:1.35;cursor:pointer;list-style:none;text-align:center}
+.customer-header-more>summary::-webkit-details-marker{display:none}
+.customer-header-more>summary::after{content:"▾";margin-left:7px;color:var(--muted-foreground)}
+.customer-header-more[open]>summary::after{transform:rotate(180deg)}
+.customer-header-more>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.customer-header-more-items{display:grid;gap:8px;padding:10px;margin-top:5px;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.customer-header-more-items>*{min-width:0;max-width:100%;width:100%}
+.customer-header-more-items button{width:100%;min-height:44px;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:760px){
+ .customer-profile-head .profile-head-actions{width:100%;flex:1 0 100%;grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:360px){
+ .customer-profile-head .profile-head-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* iPhone contact shortcuts: four common actions in two compact rows, with estimating tools retained below. */
+@media(max-width:760px){
+  .customer-profile .customer-contact{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .customer-profile .customer-contact>a{min-width:0;min-height:48px;justify-content:center;padding:9px 6px;text-align:center;white-space:normal;overflow-wrap:anywhere}
+  .customer-profile .customer-contact>a svg{flex:0 0 15px}
+  .customer-profile .customer-contact>.customer-property-links,
+  .customer-profile .customer-contact>.customer-contact-empty{grid-column:1/-1;min-width:0;width:100%}
+}
+
+/* Only show this shortcut on an empty selected calendar day; no extra always-on controls. */
+.schedule-day-actions>.schedule-next-booked{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;text-align:left;cursor:pointer}
+.schedule-next-booked svg{width:16px;height:16px;flex:none}
+.schedule-next-booked:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Quiet iPhone-first Schedule: a single-row heading and icon refresh leave the month visible higher. */
+.schedule-view .workspace-head{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
+.schedule-view .workspace-head h1{font-size:25px;line-height:1.18;margin:0}
+.schedule-view .schedule-header-actions{flex:0 0 auto;justify-content:flex-end}
+.schedule-view .schedule-header-actions>button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--foreground);cursor:pointer}
+.schedule-view .schedule-header-actions>button>svg{width:18px;height:18px}
+.schedule-view .schedule-header-actions>button:disabled{opacity:.6;cursor:wait}
+.schedule-view .schedule-header-actions>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.schedule-view .schedule-month{margin-top:6px}
+@media(max-width:760px){.workspace-view.schedule-view{padding-top:12px}.schedule-view .workspace-head{flex-direction:row;align-items:center}.schedule-view .schedule-header-actions{width:auto;flex:0 0 auto}.schedule-view .schedule-header-actions>button{flex:none;width:44px}.schedule-view .schedule-month{margin-top:4px}}
+
+
+/* Owner-first layout: one compact title row and actions, no decorative subtitle.
+   Keep forms, important warnings, and 44px touch targets intact. */
+@media(max-width:760px){
+  .dashboard-view,.customers-view,.workspace-view{padding-top:12px}
+  .welcome-row,.customers-head{flex-direction:row;align-items:center;flex-wrap:wrap;gap:8px 12px}
+  .welcome-row>div,.customers-head>div{min-width:0;flex:1 1 95px}
+  .welcome-row .brand-button,.customers-head .brand-button{width:auto;min-height:44px;max-width:100%;padding-inline:12px}
+  .workspace-head{gap:9px;margin-bottom:7px}
+  .workspace-head h1,.customers-head h1{font-size:25px;line-height:1.2}
+  .customer-list{margin-top:12px}
+  .filter-row{margin-top:12px}
+}
+.customer-property-research{display:flex;flex:1 1 100%;flex-wrap:wrap;gap:8px;min-width:0}
+.customer-property-research>a{display:inline-flex;flex:1 1 110px;align-items:center;justify-content:center;min-height:44px;gap:6px;min-width:0;padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:12px;font-weight:750;text-decoration:none}
+.customer-property-research>a svg{width:16px;height:16px;flex:none}
+.customer-property-research>a:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+@media(max-width:760px){
+  .customer-profile .customer-contact>.customer-property-research{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .customer-profile .customer-contact>.customer-property-research>a{min-width:0}
+  .top-stride-button{grid-template-rows:18px 12px!important}
+  .top-stride-button span{font-size:10px!important;line-height:12px!important;margin-top:0!important;font-weight:800!important}
+}
+/* Always identify test-only data without sacrificing a whole iPhone header row. */
+.qa-test-banner{display:block;width:100%;padding:4px 8px;line-height:1.3;background:#601818;color:#fff;font-size:10px;font-weight:750;letter-spacing:.015em;text-align:center}
+@media(max-width:430px){.qa-test-banner{font-size:9px;padding:3px 4px}}
+
+/* Compact owner workspace. Scope density changes to FIRE, preserving readable
+   forms, financial warnings, safe-area clearance and the public website. */
+.ui-help{margin-block:6px;color:var(--muted-foreground);font-size:12px;min-width:0}
+.ui-help>summary{display:flex;align-items:center;gap:6px;min-height:44px;cursor:pointer;font-weight:700;color:var(--foreground);list-style:none}
+.ui-help>summary::after{content:"▾"}
+.ui-help[open]>summary::after{transform:rotate(180deg)}
+.ui-help>summary::-webkit-details-marker{display:none}
+.ui-help>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.ui-help>p{margin:0 0 8px;line-height:1.5}
+.template-mobile-picker{display:none}
+.template-section-title{margin:12px 0 8px;font-size:17px}
+.estimate-card{grid-template-columns:4px minmax(170px,1fr) auto auto auto}
+.estimate-person .estimate-card-state,.pipeline-card .estimate-card-state{display:inline-flex;align-items:center;justify-self:start;max-width:100%;padding:3px 7px;border-radius:6px;background:#eef2f6;color:#405269;font-size:11px;line-height:1.35;font-weight:750;white-space:normal}
+.estimate-person .estimate-card-state.sent,.pipeline-card .estimate-card-state.sent{background:#eaf3ff;color:#215e9f}
+.estimate-person .estimate-card-state.approved,.estimate-person .estimate-card-state.completed,.pipeline-card .estimate-card-state.approved,.pipeline-card .estimate-card-state.completed{background:#eaf8f0;color:#146f46}
+.estimate-person .estimate-card-state.scheduled,.pipeline-card .estimate-card-state.scheduled{background:#efebf9;color:#6f3f9d}
+[data-theme="dark"] .estimate-card-state{background:#28394c;color:#d5dfeb}
+[data-theme="dark"] .estimate-card-state.sent{background:#16324f;color:#9dcdff}
+[data-theme="dark"] .estimate-card-state.approved,[data-theme="dark"] .estimate-card-state.completed{background:#143b2b;color:#a2e4c2}
+[data-theme="dark"] .estimate-card-state.scheduled{background:#302341;color:#d9b9ff}
+.owner-preview-banner{display:block;margin:0 0 10px;padding:0;border:0;border-radius:0;background:transparent;color:#263348}
+.owner-preview-theme-toggle{position:fixed;z-index:60;top:max(12px,env(safe-area-inset-top));right:calc(max(12px,env(safe-area-inset-right)) + 56px);display:grid;place-items:center;width:48px;height:48px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--background);color:var(--foreground);box-shadow:0 2px 10px #0003;cursor:pointer}
+.owner-preview-theme-toggle svg{width:22px;height:22px}
+.owner-preview-theme-toggle:focus-visible{outline:3px solid var(--ring);outline-offset:3px}
+.pay-page.owner-estimate-preview{--invoice-card:#fff;--invoice-ink:#14243b;--invoice-muted:#536174;--invoice-panel:#f2f5f8;--invoice-line:#dfe5ed}
+[data-theme="dark"] .pay-page.owner-estimate-preview{--invoice-card:#111f31;--invoice-ink:#eef4fb;--invoice-muted:#bac9dc;--invoice-panel:#1b2d43;--invoice-line:#3d526c}
+.pay-page.owner-estimate-preview .pay-card{background:var(--invoice-card);color:var(--invoice-ink)}
+.pay-page.owner-estimate-preview :is(.owner-preview-banner,.pay-title span,.pay-title small,.pay-line span,.portal-service-description,.pay-summary small,.secure-note,.pay-card>header small){color:var(--invoice-muted)}
+.pay-page.owner-estimate-preview :is(.pay-line,.pay-card>header,.invoice-balance-row){border-color:var(--invoice-line)}
+.pay-page.owner-estimate-preview :is(.pay-summary,.portal-breakdown,.contract-box,.photo-release,.invoice-due,.invoice-footer-note,.invoice-other-payments){background:var(--invoice-panel);border-color:var(--invoice-line);color:var(--invoice-ink)}
+.pay-page.owner-estimate-preview :is(.photo-release label,.photo-release legend,.terms-check){color:var(--invoice-ink)}
+.pay-page.owner-estimate-preview :is(.invoice-footer-note p,.invoice-other-payments>p){color:var(--invoice-muted)}
+.pay-page.owner-estimate-preview :is(.pay-note,.document-footer,.portal-breakdown small){color:var(--invoice-muted)}
+.pay-page.owner-estimate-preview .portal-service-description{color:var(--invoice-muted)!important}
+[data-theme="dark"] .pay-page.owner-estimate-preview .red-text{color:#ff959d}
+[data-theme="dark"] .pay-page.owner-estimate-preview .change-request-toggle{color:#ff959d}
+[data-theme="dark"] .pay-page.owner-estimate-preview .green-text{color:#7cdda6}
+@media print{
+ .owner-preview-theme-toggle{display:none!important}
+ .pay-page.owner-estimate-preview{--invoice-card:#fff!important;--invoice-ink:#14243b!important;--invoice-muted:#536174!important;--invoice-panel:#f2f5f8!important;--invoice-line:#dfe5ed!important;background:#fff!important}
+ [data-theme="dark"] .pay-page.owner-estimate-preview .red-text{color:#ba1d2b}
+ [data-theme="dark"] .pay-page.owner-estimate-preview .green-text{color:#146f46}
+}
+.qa-test-banner{position:sticky;top:0;z-index:31;height:20px;padding:2px 8px;font-size:11px;line-height:16px;letter-spacing:0}
+.qa-test-banner + .app-shell .topbar{top:20px}
+.schedule-view>.schedule-board{margin-top:8px}
+.schedule-view>.schedule-board>header{padding:10px 12px}
+@media(max-width:760px){
+ .dashboard-view,.customers-view,.workspace-view{padding-top:10px}
+ .estimate-card{grid-template-columns:4px minmax(0,1fr) auto}
+ .estimate-card>.estimate-amount{grid-column:3;grid-row:1}
+ .estimate-card>.scheduled-chip{grid-column:2;grid-row:2}
+ .topbar{grid-template-rows:52px auto!important;min-height:0!important;padding-bottom:6px!important}
+ .topbar .search-box input{height:44px!important}
+ .workspace-head{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}
+ .workspace-head>div,.customers-head>div{min-width:0}
+ .workspace-head h1,.customers-head h1{margin:0;font-size:24px;line-height:1.2}
+ .workspace-head-actions{gap:8px}
+ .business-panel>header,.insight-panel>header{padding:12px}
+ .business-grid,.insight-grid,.payment-layout{gap:12px;margin-top:12px}
+ .insight-kpis{margin-top:12px;gap:8px}
+ .insight-kpis article{padding:12px}
+ .customer-profile-head{gap:8px}
+ .customer-profile .customer-contact{margin-top:10px;gap:6px}
+ .customer-profile .customer-contact>a{min-height:44px}
+ .customer-snapshot{margin-top:10px}
+ .customer-timeline-disclosure{margin:10px 0 12px}
+ .record-tabs{margin-block:10px}
+ .record-tabs button{min-height:44px}
+ .filter-row{margin-top:10px}
+ .estimate-list,.invoice-list,.customer-list{margin-top:10px;gap:8px}
+ .schedule-month{padding:8px 10px}
+ .schedule-month-header{margin-bottom:6px}
+ .schedule-month-day,.schedule-month-empty{min-height:44px}
+ .schedule-month-legend{margin-top:6px}
+ .schedule-job{padding:10px 12px;gap:10px}
+ .schedule-day-actions{margin-top:10px;padding:10px}
+ .notification-attention-list>button{min-height:52px;padding-block:9px}
+ .template-mobile-picker{display:grid;gap:5px;margin-top:8px}
+ .template-mobile-picker select{width:100%;min-width:0;min-height:44px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font:inherit;font-size:16px}
+ .template-mobile-picker select:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+ .settings-view .template-list{display:none}
+ .settings-view .template-layout{grid-template-columns:minmax(0,1fr);margin-top:10px;gap:10px}
+ .template-editor{padding:12px;gap:12px}
+ .template-editor>header h2{font-size:18px}
+ .template-editor textarea{font-size:16px}
+ .template-editor textarea{height:208px;min-height:180px}
+ .template-editor>footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-top:10px}
+ .template-editor>footer>button{min-height:44px;height:auto;flex:none;padding:10px 7px;line-height:1.35}
+ .settings-view>.pricing-disclosure{margin-bottom:12px;padding:8px 10px}
+ .template-fields .merge-tags{margin-top:0}
+}
+
+/* Compact mobile invoice records: preserve financial status and amount without widening iPhone cards. */
+.invoice-card>.status-chip.partial{background:#fff0dd;color:#854b08}
+[data-theme="dark"] .invoice-card>.status-chip.partial{background:#523215;color:#ffe0a6}
+@media(max-width:980px){
+  .invoice-card{grid-template-columns:40px minmax(0,1fr) auto;column-gap:10px;row-gap:8px;padding:12px}
+  .invoice-card>.invoice-icon{grid-column:1;grid-row:1/3;width:40px;height:40px}
+  .invoice-card>div:first-of-type{grid-column:2;grid-row:1;min-width:0;overflow-wrap:anywhere}
+  .invoice-card>.status-chip{display:inline-flex;grid-column:2;grid-row:2;justify-self:start;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+  .invoice-card>.invoice-total{display:grid;grid-column:3;grid-row:1/3;align-self:center;gap:3px;min-width:0}
+  .invoice-card>.invoice-actions{grid-column:1/-1;grid-row:3;justify-content:stretch!important;min-width:0}
+  .invoice-card>.invoice-actions>a,.invoice-card>.invoice-actions>button{flex:1 1 130px;min-height:44px}
+}
+@media(max-width:430px){
+  .invoice-card{grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:11px}
+  .invoice-card>.invoice-icon{display:none}
+  .invoice-card>div:first-of-type{grid-column:1;grid-row:1}
+  .invoice-card>.status-chip{grid-column:1;grid-row:2}
+  .invoice-card>.invoice-total{grid-column:2;grid-row:1/3}
+  .invoice-card>.invoice-actions{grid-column:1/-1;grid-row:3}
+}
+
+/* Territory uses the shared app palette; map content never controls page navigation. */
+.app-shell .door-workspace{padding-top:12px}
+.door-workspace-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.door-workspace-head h1{font-size:22px;margin:0}
+.door-workspace-head div{display:flex;gap:4px}
+.door-workspace-head button,.territory button,.territory a{min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 12px;background-color:var(--background);color:var(--foreground);font-size:13px;font-weight:650;cursor:pointer}
+.door-workspace-head button[aria-pressed=true],.territory-filters button[aria-pressed=true]{background:#223850;color:#fff;border-color:#223850}
+.territory button:disabled{opacity:.5;cursor:default}
+.territory button:focus-visible,.territory a:focus-visible{outline:3px solid #e52d38;outline-offset:2px}
+.territory-search{display:flex;gap:6px}
+.territory input{height:44px;min-width:0;border:1px solid var(--border);border-radius:9px;background:var(--background);color:var(--foreground);padding:8px;font-size:16px;width:100%}
+.territory-search input{flex:1}
+.territory-filters{display:flex;gap:5px;overflow-x:auto;max-width:100%;padding:6px 0}
+.territory-filters button{white-space:nowrap;flex-shrink:0}
+.territory-stage{position:relative;isolation:isolate;height:clamp(340px,62dvh,760px);border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#e6eced}
+.territory-canvas{height:100%;width:100%}
+.territory-legend{position:absolute;left:8px;top:8px;z-index:2;max-width:calc(100% - 70px)}
+.territory-legend>button,.territory-drop{background:#fff!important;color:#17283e!important;box-shadow:0 1px 5px #0003}
+.territory-legend ul{margin:4px 0 0;padding:8px;background:var(--background);color:var(--foreground);box-shadow:0 2px 8px #0003;border-radius:10px;list-style:none;font-size:12px}
+.territory-legend li{display:flex;gap:7px;align-items:center;padding:4px 0}
+.territory-legend i{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.territory-legend b{margin-left:auto;padding-left:6px}
+.territory .territory-drop{position:absolute;bottom:30px;right:8px}
+.territory .territory-overview{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:2;white-space:nowrap;background:#fff;color:#17283e;box-shadow:0 1px 5px #0003}
+.territory-card{position:fixed;z-index:35;bottom:calc(82px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);width:min(480px,calc(100% - 24px));max-height:44dvh;overflow:auto;border:1px solid var(--border);border-radius:14px;padding:12px;background:var(--background);color:var(--foreground);box-shadow:0 5px 35px #0005;display:grid;gap:8px;overscroll-behavior:contain}
+.territory-card header{display:flex;align-items:flex-start;gap:8px;justify-content:space-between}
+.territory-card h2{font-size:16px;font-weight:750;margin:0;overflow-wrap:anywhere}
+.territory-card header button{flex-shrink:0;width:44px;padding:0;font-size:24px}
+.territory-card p{margin:0;font-size:13px;overflow-wrap:anywhere}
+.territory-card small{font-size:12px}
+.territory-card label{font-size:12px;display:grid;gap:3px}
+.territory-actions{display:flex;gap:6px;flex-wrap:wrap}
+.territory-actions a{display:inline-flex;align-items:center;text-decoration:none}
+.territory-places{list-style:none;padding:0;margin:6px 0;display:grid;gap:5px}
+.territory-places button{width:100%;text-align:left}
+.territory-places strong,.territory-places small{display:block;overflow-wrap:anywhere}
+.territory-places small{font-size:12px;font-weight:400;margin-top:2px}
+.territory-places-toggle{margin-top:6px}
+.territory-help{font-size:12px;margin-top:8px}
+.territory-help summary{min-height:44px;display:flex;align-items:center;cursor:pointer}
+.territory-help p{margin:0;max-width:60ch}
+.territory .maplibregl-ctrl button{width:44px;height:44px;min-height:44px;border:0;border-radius:0;padding:0;background-color:#fff}
+.territory .maplibregl-ctrl-attrib{max-width:calc(100% - 16px)}
+@media(min-width:900px){.territory-card{left:calc(50% + 124px)}}
+/* Keep useful content high without shrinking touch targets. */
+.app-shell .business-panel>header,.app-shell .insight-panel>header{padding:12px 14px}
+.app-shell .business-record-tools{gap:8px;margin-top:10px}
+.app-shell .customer-record,.app-shell .notification-row{padding-top:10px;padding-bottom:10px}
+.territory-crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;color:#17283e;text-shadow:0 0 3px #fff,0 0 3px #fff;font:32px/1 sans-serif}
+.territory .territory-expand{position:absolute;bottom:30px;left:8px;background:#fff;color:#17283e}
+.territory-stage.territory-expanded{position:fixed;z-index:30;top:calc(76px + env(safe-area-inset-top,0px));bottom:calc(82px + env(safe-area-inset-bottom,0px));left:8px;right:8px;width:auto;height:auto}
+@media(min-width:900px){.territory-stage.territory-expanded{left:260px;bottom:12px}}
+
+/* FIRE: Focused Follow-ups density pass; keep touch controls at least 44px high. */
+.workspace-view.followups-view{--followups-density:1}
+.followups-view .followup-summary{margin-top:10px;padding:10px 12px;gap:9px}
+.followups-view .followup-filter-panel{gap:5px;margin:8px 0 4px}
+.followups-view .followup-list{margin-top:9px;gap:8px}
+.followups-view .followup-card{padding:11px 12px;gap:9px}
+.followups-view .followup-icon{width:36px;height:36px}
+@media(max-width:760px){
+ .workspace-view.followups-view{padding-top:12px}
+ .followups-view .followup-summary{flex-direction:row;align-items:center;flex-wrap:wrap}
+ .followups-view .followup-summary-details{flex:1 1 170px;width:auto}
+}
+/* Optional device drafts stay compact and separate from server-confirmed history. */
+.territory-offline{font-size:13px}
+.territory-offline summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:650}
+.territory-offline details>small{display:block;margin-top:8px;line-height:1.45;max-width:65ch;color:var(--muted-foreground)}
+.territory-offline form{display:grid;gap:8px;max-width:420px}
+.territory-offline label{display:grid;gap:4px}
+.territory-offline input{height:44px;width:100%;min-width:0;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:16px}
+.territory-offline button{min-height:44px;padding:8px 12px;margin:4px 6px 4px 0;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-weight:650}
+.territory-offline button:disabled{opacity:.5}
+.territory-offline button:focus-visible{outline:3px solid #e12933;outline-offset:2px}
+.territory-offline-status{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:32px;font-weight:650}
+.territory-offline-status span{overflow-wrap:anywhere}
+.territory-draft-review{max-width:480px;border:1px solid var(--border);border-radius:10px;padding:10px;display:grid;gap:5px;margin-top:8px;overflow-wrap:anywhere}
+.territory-draft-review p{margin:0}
+.territory-draft-review small{color:var(--muted-foreground)}
+.territory-offline details>small,.territory-draft-review small{color:#52647b}
+html[data-theme="dark"] .territory-offline details>small,html[data-theme="dark"] .territory-draft-review small{color:#b7c5d7}
+.door-workspace .door-house-card{padding:12px}
+.door-workspace .door-house-card p{margin-top:6px;margin-bottom:0}
+
+/* FIRE notification bell: short overview, full activity one tap away. */
+.notification-activity-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:10px 14px;border:0;border-bottom:1px solid var(--border);background:var(--card);color:var(--foreground);font-size:12px;font-weight:750;text-align:left;cursor:pointer}
+.notification-activity-toggle svg{width:16px;height:16px;flex:none;transition:transform .15s ease}
+.notification-activity-toggle[aria-expanded="true"] svg{transform:rotate(180deg)}
+.notification-activity-toggle:focus-visible{outline:3px solid var(--ring);outline-offset:-3px}
+.notification-list[hidden]{display:none}
+@media(max-width:760px){.notification-attention{gap:6px;padding:9px 11px}.notification-attention-list{max-height:min(260px,40dvh)}.notification-list>button{gap:9px;padding:10px 12px}.notification-popover>header{padding:11px 13px}}
+
+/* Insights on first use: no wall of zero-value metrics before records exist. */
+.insights-first-use{display:grid;justify-items:center;align-content:center;gap:8px;min-height:220px;padding:24px 16px;border:1px solid var(--border);border-radius:14px;background:var(--card);color:var(--foreground);text-align:center}
+.insights-first-use svg{width:25px;height:25px;color:var(--muted-foreground)}
+.insights-first-use strong{font-size:16px}
+.insights-first-use p{font-size:13px;line-height:1.45;color:var(--muted-foreground);margin:0;max-width:280px}
+@media(max-width:760px){.workspace-view.insights-view{padding-top:12px}.insights-view .workspace-head{margin-bottom:8px}}
+
+/* FIRE: compact customer directory. Keep street/phone visible and tap areas comfortable. */
+.customers-view>.customer-list{gap:7px;margin-top:10px}
+.customers-view>.customer-list .customer-card{gap:10px;min-height:60px;padding:11px 13px}
+.customers-view>.customer-list .customer-avatar{width:38px;height:38px}
+.customers-view>.customer-list .customer-main{min-width:0}
+.customers-view>.customer-list .customer-main small{overflow-wrap:anywhere;line-height:1.4;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+@media(max-width:760px){.customers-view>.customer-list .customer-card{min-height:58px;padding:10px 12px}}
+
+/* The saved-address locator is opt-in and wraps cleanly on narrow iPhones. */
+.territory-directory-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px;min-width:0}
+.territory .territory-directory-row .territory-places-toggle{flex:1 1 188px;margin-top:0;text-align:left;min-width:0;overflow-wrap:anywhere}
+.territory .territory-directory-row .territory-locate-next{flex:0 1 auto;min-width:0;white-space:nowrap}
+
+/* Optional one-at-a-time customer lookup: never auto-save Census coordinates. */
+.territory .territory-directory-row .territory-auto-find{white-space:nowrap;min-width:0}
+.territory .territory-directory-row .territory-auto-find[aria-pressed=true]{border-color:var(--ring);background:var(--muted);font-weight:800}
+.territory-auto-note{flex:1 1 100%;font-size:11px;color:var(--muted-foreground);line-height:1.45}
+
+/* FIRE map review: coordinate correction without retyping an existing customer address. */
+.territory-pin-adjust{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;min-width:0}
+.territory-pin-adjust small{flex:1 1 160px;color:var(--muted-foreground);line-height:1.4}
+.territory .territory-pin-adjust button{flex:0 0 auto;min-height:44px}
+
+/* Owner may defer a questionable Census match instead of pinning the wrong house. */
+.territory .territory-card .territory-skip-address{justify-self:start;min-height:44px;background:transparent;border-style:dashed}
+
+/* FIRE: compact street/aerial switch, offline still pins-only. */
+.territory-basemap{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:3px 0 1px}
+.territory-basemap button{min-height:44px;min-width:70px;padding:7px 11px;border:1px solid var(--border);border-radius:9px;background:var(--background);color:var(--foreground);font-size:12px;font-weight:700;cursor:pointer}
+.territory-basemap button[aria-pressed="true"]{border-color:var(--ring);box-shadow:inset 0 0 0 1px var(--ring);background:var(--muted)}
+.territory-basemap button:disabled{opacity:.45;cursor:not-allowed}
+.territory-basemap small{color:var(--muted-foreground);font-size:11px}
+.territory-basemap button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Territory revisit dates stay independent of primary customer/visit colors. */
+.territory .territory-legend .territory-revisit-key{background:transparent!important;border:3px solid #d97706;box-sizing:border-box;border-radius:50%}
+.territory .territory-card .territory-revisit-note{font-weight:700;color:#a45b08}
+html[data-theme="dark"] .territory .territory-card .territory-revisit-note{color:#fdba74}
+
+/* Fit current filtered locations without limiting nearby cities. */
+.territory .territory-directory-row .territory-fit-pins{min-height:44px;white-space:nowrap;flex:0 0 auto}
+.territory .territory-directory-row .territory-fit-pins:disabled{opacity:.5}
+
+/* Fast follow-up scheduling stays inside the existing verified house visit workflow. */
+.territory-revisit-editor{display:flex;align-items:end;flex-wrap:wrap;gap:8px;min-width:0}
+.territory-revisit-editor label{flex:1 1 160px;min-width:0}
+.territory-revisit-editor input{width:100%;min-width:0;min-height:44px;font-size:16px;padding:6px 9px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground)}
+.territory-revisit-editor button{min-height:44px}
+
+/* FIRE map: four primary filters; secondary filters are available on demand. */
+.territory-filter-wrap{max-width:100%;min-width:0}
+.territory .territory-filter-wrap .territory-filters{overflow:visible;display:grid;grid-template-columns:.65fr 1.35fr 1.05fr 1fr;gap:5px;padding:5px 0}
+.territory .territory-filter-wrap .territory-filters button{min-width:0;padding:7px 5px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.territory-extra-filters{display:flex;flex-wrap:wrap;gap:5px;padding:2px 0 7px}
+.territory-extra-filters button{font-size:12px;padding:7px 9px}
+.territory-extra-filters button[aria-pressed=true]{background:#223850;color:#fff;border-color:#223850}
+.territory-extra-filters button:focus-visible{outline:3px solid #e52d38;outline-offset:2px}
+
+/* Advanced location management stays one tap away from the full-width map. */
+.territory-places-tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:3px 0 6px}
+.territory-places-tools .territory-auto-note{flex:1 1 100%}
+.territory-places-tools button{min-height:44px}
+
+/* Keep the map's saved-place list fast even with many canvassed homes. */
+.territory-places-more button{font-weight:750;min-height:44px;width:100%;text-align:center}
+
+/* Saved customer address review stays compact on 320px iPhones. */
+.territory-places li.territory-missing-row{display:flex;align-items:center;gap:6px;min-width:0}
+.territory-places li.territory-missing-row>button:first-child{flex:1 1 auto;min-width:0}
+.territory-places li.territory-missing-row>.territory-row-locate{flex:0 0 auto;width:auto;min-width:68px;min-height:44px;padding:7px 9px;font-weight:700}
+
+/* Keep customer-to-Territory navigation as a full-size compact iPhone tap target. */
+.customer-profile .customer-contact>button[aria-label="Show customer on Territory Map"]{min-height:44px;min-width:0;justify-content:center;text-align:center;white-space:normal;overflow-wrap:anywhere}
+
+/* Optional, in-list customer/address search; map navigation and pin data are unaffected. */
+.territory-place-search{display:block;min-width:0;margin:4px 0 6px}
+.territory-place-search input{display:block;box-sizing:border-box;width:100%;min-width:0;min-height:44px;padding:8px 11px;border:1px solid var(--border);border-radius:9px;background:var(--background);color:var(--foreground);font-size:16px}
+.territory-place-search input:focus-visible{outline:3px solid var(--ring);outline-offset:1px}
+
+/* Open the saved customer from the next job without adding a row of Home buttons. */
+.dashboard-next-customer-link{display:inline-block;max-width:100%;min-height:44px;padding:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:inherit;line-height:inherit;letter-spacing:inherit;text-align:left;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:4px;overflow-wrap:anywhere;cursor:pointer}
+.dashboard-next-customer-link:focus-visible{outline:3px solid var(--ring);outline-offset:2px;border-radius:4px}
+
+/* The saved customer name is the first thing to recognize when scanning map Places. */
+.territory-places .territory-place-customer-names{font-weight:700;color:var(--foreground)}
+
+/* Saved malformed contact data is visible for correction, but not offered as an unsafe native action. */
+.customer-profile .customer-contact>.customer-contact-warning{display:block;grid-column:1/-1;min-width:0;padding:7px 10px;border:1px solid var(--border);border-radius:8px;color:var(--foreground);font-size:12px;overflow-wrap:anywhere}
+
+/* The saved customer's profile is one tap from Places, without shrinking mobile controls. */
+.territory-places li.territory-customer-row{display:flex;align-items:stretch;flex-wrap:wrap;gap:5px;min-width:0}
+.territory-places li.territory-customer-row>.territory-place-open{flex:1 1 100%;min-width:0}
+.territory-places li.territory-customer-row>.territory-row-customer{flex:0 0 auto;width:auto;min-height:44px;padding:7px 12px;font-weight:700}
+.territory-places li.territory-customer-row>.territory-row-locate{flex:0 0 auto;width:auto;min-height:44px;padding:7px 12px}
+
+/* An empty calendar date needs one compact status, not a tall empty-data panel. */
+.schedule-view .schedule-day-empty{display:flex;align-items:center;gap:9px;min-height:44px;padding:9px 12px;color:var(--muted-foreground);font-size:13px}
+.schedule-view .schedule-day-empty svg{flex:none;width:17px;height:17px}
+
+/* Empty pipeline stages add no navigation or useful content; keep the first-use screen concise. */
+.estimate-pipeline-empty{display:flex;align-items:center;flex-wrap:wrap;gap:7px 10px;margin-top:16px;padding:12px;color:var(--foreground);font-size:13px}
+.estimate-pipeline-empty>svg{width:18px;height:18px;flex:none;color:var(--muted-foreground)}
+.estimate-pipeline-empty>small{flex:1 1 100%;color:var(--muted-foreground);padding-left:28px}
+
+/* Keep first-use estimates simple until the owner has records to search/filter. */
+.estimate-first-use-empty,.estimate-no-matches{display:flex;align-items:center;flex-wrap:wrap;gap:7px 10px;margin-top:14px;padding:12px;color:var(--foreground);font-size:13px}
+.estimate-first-use-empty>svg,.estimate-no-matches>svg{width:18px;height:18px;flex:none;color:var(--muted-foreground)}
+.estimate-first-use-empty>span,.estimate-no-matches>small{flex:1 1 100%;color:var(--muted-foreground);padding-left:28px}
+.estimate-no-matches>button{min-height:44px;padding:9px 13px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-weight:700;cursor:pointer}
+.estimate-no-matches>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Due-revisit field shortcuts: only due rows offer a direct 44px route link. */
+.territory-places li.territory-due-row{display:flex;align-items:stretch;flex-wrap:wrap;gap:5px;min-width:0}
+.territory-places li.territory-due-row>.territory-place-open{flex:1 1 100%;min-width:0}
+.territory .territory-places li.territory-due-row>.territory-row-directions{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:95px;padding:7px 12px;text-decoration:none;font-weight:750}
+.territory .territory-place-summary{display:block;margin:7px 0 2px;font-size:12px;color:var(--muted-foreground)}
+
+/* Compact door-knocking cards avoid full visit forms for every house in a long iPhone list. */
+.door-house-detail[hidden]{display:none!important}
+.door-house-card button[aria-controls^="door-house-details-"]{min-height:44px}
+
+/* FIRE customer directory: local quick-find and short scan-first cards on narrow iPhones. */
+.customer-directory-tools{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-top:10px;min-width:0}
+.customer-directory-search{flex:1 1 205px;min-width:0}
+.customer-directory-search input{display:block;width:100%;min-width:0;min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 11px;background:var(--background);color:var(--foreground);font-size:16px}
+.customer-directory-clear,.customer-directory-more{min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 13px;background:var(--card);color:var(--foreground);font-weight:700;cursor:pointer}
+.customer-directory-tools>small{flex:1 1 100%;color:var(--muted-foreground);font-size:12px}
+.customers-view .customer-directory-alert,.customers-view .customer-directory-contact-state{display:block;max-width:100%;margin-top:2px;font-size:12px;line-height:1.35;font-weight:750;overflow-wrap:anywhere}
+.customers-view .customer-directory-alert{color:#a45b08}
+html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
+.customers-view .customer-directory-contact-state{color:var(--muted-foreground)}
+.customer-directory-more{width:100%;margin-top:8px;text-align:center}
+.customer-directory-search input:focus-visible,.customer-directory-clear:focus-visible,.customer-directory-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* iPhone estimates: one-tap Scheduled filter and a clearable local search row. */
+.estimate-quick-find{display:flex;align-items:center;gap:7px;min-width:0;max-width:100%}
+.estimate-quick-find>input{min-width:0;flex:1 1 auto;width:100%;font-size:16px;min-height:44px}
+.estimate-quick-find>button{flex:0 0 auto;min-height:44px;padding:8px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-weight:700}
+.estimate-quick-find>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+@media(max-width:430px){.estimate-simple-filters>button{flex:1 1 70px}.estimate-filter-more{flex-basis:100%}}
+
+/* Rare customer property research stays a tap away; phone/text/maps remain visible. */
+.customer-contact .customer-property-research-disclosure{grid-column:1/-1;min-width:0;width:100%;margin-top:0}
+.customer-property-research-disclosure>summary{display:flex;align-items:center;min-height:44px;padding:8px 11px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer}
+.customer-property-research-disclosure[open]>.customer-property-research{margin-top:7px}
+.customer-property-research-disclosure>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Mobile customer create: optional source without false Referral defaults. */
+.customer-create-source{min-width:0}
+.customer-create-source>summary{display:flex;align-items:center;min-height:44px;padding:8px 11px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer}
+.customer-create-source>div{padding-top:9px;display:grid;gap:7px}
+.customer-create-source>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.customer-create-form .brand-button{min-height:44px}
+@media(max-width:760px){.customer-create-form{gap:12px}.customer-create-form>div{min-width:0}.customer-create-form input{min-height:44px;font-size:16px}.customer-create-form .brand-button{position:sticky;bottom:0;z-index:2;width:100%;background:var(--primary);color:var(--primary-foreground)}}
+/* New estimate descriptions keep full saved text, but avoid seven-line editors by default. */
+.estimate-edit-service .estimate-service-description{min-height:80px;resize:vertical;overflow:auto}
+
+/* Invoice index: attention-first filtering without altering billing or refund handling. */
+.invoice-directory-tools{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:9px 0;min-width:0}
+.invoice-directory-search{flex:1 1 190px;min-width:0}
+.invoice-directory-search input{box-sizing:border-box;width:100%;min-width:0;min-height:44px;padding:8px 11px;border:1px solid var(--border);border-radius:9px;background:var(--background);color:var(--foreground);font-size:16px}
+.invoice-directory-tools>button,.invoice-directory-more{min-height:44px;padding:8px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-weight:750;cursor:pointer}
+.invoice-directory-tools>button.active{border-color:var(--primary);background:var(--primary);color:var(--primary-foreground)}
+.invoice-directory-tools>small{flex:1 1 100%;color:var(--muted-foreground);font-size:12px}
+.invoice-directory-more{display:block;width:100%;margin-top:8px;text-align:center}
+.invoice-directory-tools button:focus-visible,.invoice-directory-tools input:focus-visible,.invoice-directory-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Payments: keep long collectible lists scannable while retaining exact job and payment actions. */
+.payment-balance-tools{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:0 12px 9px;min-width:0}
+.payment-balance-search{flex:1 1 210px;min-width:0}
+.payment-balance-search input{width:100%;min-width:0;min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 11px;background:var(--background);color:var(--foreground);font-size:16px}
+.payment-balance-tools>button,.payment-balance-more{min-height:44px;padding:8px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-weight:700;cursor:pointer}
+.payment-balance-tools>small{flex:1 1 100%;font-size:12px;color:var(--muted-foreground)}
+.payment-balance-more{display:block;width:calc(100% - 24px);margin:8px 12px 12px;text-align:center}
+.payment-balance-tools input:focus-visible,.payment-balance-tools>button:focus-visible,.payment-balance-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Compact, search-first Schedule booking chooser: every verified approved job remains selectable. */
+.schedule-booking-search{display:grid;gap:6px;min-width:0;padding:5px 0 8px}
+.schedule-booking-search>label{font-size:13px;font-weight:750;color:var(--foreground)}
+.schedule-booking-search>div{display:flex;gap:6px;min-width:0;flex-wrap:wrap}
+.schedule-booking-search input{flex:1 1 165px;min-width:0;min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 11px;background:var(--background);color:var(--foreground);font-size:16px}
+.schedule-booking-search button,.schedule-booking-more{min-height:44px;border:1px solid var(--border);border-radius:9px;padding:8px 12px;background:var(--card);color:var(--foreground);font-weight:700;cursor:pointer}
+.schedule-booking-search>small{font-size:12px;color:var(--muted-foreground)}
+.schedule-choose-job>.schedule-booking-more{width:100%;justify-content:center;text-align:center}
+.schedule-booking-search input:focus-visible,.schedule-booking-search button:focus-visible,.schedule-booking-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Owner-selected due revisits use mobile-safe, read-only Google Maps route links. */
+.territory-due-routes{display:flex;flex-wrap:wrap;gap:6px;min-width:0;margin:4px 0 8px}
+.territory-due-routes>a{display:inline-flex;flex:1 1 150px;justify-content:center;align-items:center;min-width:0;min-height:44px;padding:8px 11px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;text-align:center;overflow-wrap:anywhere;text-decoration:none}
+.territory-due-routes>small{flex:1 1 100%;color:var(--muted-foreground);font-size:12px;line-height:1.5}
+.territory-due-routes>a:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Territory visits: render only first forty house cards, not every saved address at once. */
+.door-workspace .door-show-more{display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;width:100%;font-size:14px;font-weight:750;text-align:center}
+.door-workspace .door-show-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Door-to-door route: keep optional To knock selection compact on the iPhone. */
+.territory-places-tools .territory-next-door{min-height:44px;min-width:110px;padding:7px 12px;font-weight:750}
+.territory-places-tools .territory-next-door:disabled{opacity:.45;cursor:not-allowed}
+.territory-places-tools .territory-next-door:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* When an owner types an existing house, open it rather than creating a duplicate visit record. */
+.door-existing-house{display:grid;gap:5px;min-width:0}
+.door-existing-house>small{font-size:12px;color:var(--muted-foreground);line-height:1.4}
+.door-existing-house>button{min-height:44px;white-space:normal;overflow-wrap:anywhere;text-align:center}
+
+/* Scan 20 scheduled jobs and 10 overdue cards initially; load the rest by choice. */
+.schedule-show-more{display:flex;align-items:center;justify-content:center;width:calc(100% - 24px);margin:8px 12px 12px;min-height:44px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;text-align:center;padding:8px 10px;cursor:pointer}
+.schedule-show-more:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Catalog metadata stays optional; preserve the existing iPhone workspace. */
+.pricing-settings>article{border:1px solid var(--border);border-radius:12px;padding:1rem;min-width:0;display:grid;gap:.5rem}
+.pricing-settings>article>div{display:flex;align-items:center;gap:.5rem;min-width:0}
+.pricing-settings>article input{min-width:0;min-height:44px;font-size:16px}
+.pricing-grid details{min-width:0}.pricing-grid summary,.pricing-settings>article summary{min-height:44px;display:flex;align-items:center;cursor:pointer}
+.pricing-grid details[open],.pricing-settings>article details[open]{display:grid;gap:.5rem}
+.pricing-settings select{background:var(--background);color:var(--foreground);font-size:16px;min-width:0}
+.pricing-settings textarea{min-height:88px;resize:vertical}
+
+.business-preferences{display:grid;gap:.75rem;min-width:0}.business-preferences fieldset{display:grid;gap:.75rem;min-width:0}.business-preferences-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.business-preferences select{min-height:44px;font-size:16px;border:1px solid var(--border);border-radius:8px;padding:.5rem;max-width:100%;background:var(--background);color:var(--foreground)}.business-preferences article,.repeat-service-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;min-width:0}.business-preferences article span,.repeat-service-row label{min-width:0;overflow-wrap:anywhere}.business-preferences small{display:block}.business-preferences button{min-height:44px}.repeat-service-row select{flex-shrink:0}
+
+
+/* Mobile polish: preserve payment details while making each action easier to scan. */
+.payments-view .balance-list>article{row-gap:12px}
+.payments-view .balance-list>article>div{min-width:0}
+.payments-view .balance-list small{line-height:1.4}
+.payments-view .business-panel[aria-label="Paid jobs ready for review follow-up"]{padding-bottom:14px}
+.payments-view .business-panel[aria-label="Paid jobs ready for review follow-up"]> :not(header){margin-inline:14px}
+.notification-read-notice,.notification-read-hint{margin:0;padding:9px 14px;font-size:12px;line-height:1.45}
+.notification-read-notice{color:var(--foreground);background:var(--muted)}
+.notification-read-hint{color:var(--muted-foreground);border-bottom:1px solid var(--border)}
+.notification-popover>header button:disabled{color:var(--muted-foreground);cursor:default;opacity:.7}
+@media(max-width:760px){
+ .payments-view .balance-list>article{column-gap:10px;row-gap:12px;padding:13px 12px}
+ .payments-view .business-panel[aria-label="Paid jobs ready for review follow-up"]> :not(header){margin-inline:12px}
+}
+
+/* Keep read actions reachable inside short iPhone viewports; no business reminders are dismissed. */
+.notification-popover{max-height:min(75dvh,var(--radix-popover-content-available-height,75dvh));overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.notification-popover>header{position:sticky;top:0;z-index:2;gap:8px;background:var(--card)}
+.notification-popover>header>div{min-width:0}
+.notification-popover>header button{min-height:44px;min-width:88px;padding:8px;flex-shrink:0}
+.payment-review-options{display:grid;gap:8px}.payment-review-options>summary,.payment-fee-details>summary{min-height:44px;display:list-item;list-style-position:inside;line-height:44px;cursor:pointer;font-size:12px;font-weight:700}
+.payment-review-options[open]>div{margin-block:8px}.payment-fee-details{margin-top:4px}
+
+
+/* Final iPhone Payments pass: optional disclosures are readable, not dense walls. */
+.payment-processing-disclosure{margin-block:12px 0;min-width:0}
+.payment-processing-disclosure>summary{min-height:48px;padding:13px 15px;font-size:13px;font-weight:750;line-height:1.4;cursor:pointer}
+.payment-processing-disclosure>p{margin:0;padding:3px 15px 11px;font-size:12px;line-height:1.5;color:var(--muted-foreground);overflow-wrap:anywhere}
+.payment-processing-disclosure>.processing-report-scroll{margin:0 10px 12px}
+.payment-review-options>summary,.payment-fee-details>summary{line-height:1.4;padding-block:12px;white-space:normal;overflow-wrap:anywhere}
+.payment-entry-fees>summary{min-height:44px;padding-block:10px;line-height:1.45;cursor:pointer}
+@media(max-width:760px){
+ .payment-processing-disclosure>summary{padding:12px}
+ .payment-processing-disclosure>p{padding:2px 12px 12px}
+ .payments-view .payment-layout{row-gap:12px}
+}
+
+/* Payment entry stays comfortable to tap without changing the page layout. */
+.payment-form input:not([type="checkbox"]),.payment-form [data-slot="select-trigger"]{min-height:44px;font-size:16px}
+
+/* Final mobile audit: three Payments totals fill the card without a blank right-hand cell. */
+@media (min-width:351px) and (max-width:760px){
+ .payments-view .payments-primary-metrics>article:last-child:nth-child(odd),
+ .payments-view .payments-secondary-metrics>.business-metrics>article:last-child:nth-child(odd){
+  grid-column:1/-1;
+ }
+}
+
+/* Schedule mobile audit: reserve the full text column for the Maps route label. */
+.schedule-day-buttons>.route-day-button .route-day-label{
+ grid-column:2;grid-row:1;min-width:0;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35;
+}
+.schedule-day-buttons>.route-day-button small{grid-column:2;grid-row:2;min-width:0;line-height:1.4}

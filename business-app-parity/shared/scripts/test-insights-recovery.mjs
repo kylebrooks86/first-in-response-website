@@ -1,6 +1,8 @@
 /** Execute actual InsightsView with synthetic read failures; existing metrics stay intact. */
 import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';import vm from 'node:vm';import ts from 'typescript';
 const require=createRequire(import.meta.url),ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX),fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='InsightsView');
+assert.ok(fn?.getText(ast).includes('const noActivity=!customers.length&&!estimates.length&&!invoices.length&&!payments.length'),'Empty-state requires all four verified data collections empty');
+assert.ok(readFileSync('app/globals.css','utf8').includes('.insights-first-use'),'First-use layout styling remains scoped');
 const tags=new Set();function scan(n){if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const t=n.tagName.getText(ast);if(/^[A-Z]/.test(t))tags.add(t);}ts.forEachChild(n,scan);}scan(fn);
 const now='2026-10-20T12:00:00Z';const good=()=>({customers:[{id:'c',name:'Synthetic',createdAt:now,leadSource:'Referral'}],estimates:[{id:'e',customerId:'c',service:'Wash',status:'completed',createdAt:now,totalCents:'20000',invoiceTotalCents:'18000',paidCents:'5000',items:[{id:'line',name:'Wash',totalCents:'20000'}]}],invoices:[{id:'i',estimateId:'e',totalCents:'18000'}],payments:[{id:'p',estimateId:'e',type:'Cash',amountCents:'6000',createdAt:now},{id:'refund',estimateId:'e',type:'Refund',amountCents:'-1000',createdAt:now},{id:'tip',estimateId:'e',type:'Tip',amountCents:'500',createdAt:now}]});
 const ok=body=>({ok:true,json:async()=>body}),flush=()=>new Promise(r=>setImmediate(r));
@@ -18,7 +20,10 @@ for(const fail of failures)for(const populated of [false,true]){
 {
  const f=fixture();f.fetch(()=>ok(good()));await f.load();const metrics=nodes(f.render()).find(n=>n.props?.className==='insight-kpis');const metric=label=>metrics.props.children.find(n=>n.props.children[1].props.children===label).props.children[2].props.children;
  eq(metric('Collected'),'$55.00','Signed refunds and tips retain original collected calculation');eq(metric('Average completed job'),'$180.00','Revised invoice value retained');eq(metric('Unpaid invoice balance'),'$130.00','Tips do not reduce principal due');eq(metric('Close rate').join(''),'100%');
- f.fetch(()=>ok({customers:[],estimates:[],invoices:[],payments:[]}));await f.load();eq(f.state[6],'');eq(nodes(f.render()).some(n=>n.props?.className==='insight-kpis'),true,'Complete successful empty response may display zeros');
+ f.fetch(()=>ok({customers:[],estimates:[],invoices:[],payments:[]}));await f.load();eq(f.state[6],'');eq(nodes(f.render()).some(n=>n.props?.className==='insight-kpis'),false,'A truly empty verified dataset hides meaningless zero metrics');
+ const empty=nodes(f.render()).find(n=>n.props?.className==='insights-first-use');
+ eq(Boolean(empty),true,'Empty Insights shows one simple first-use state');
+ eq(nodes(f.render()).some(n=>n.props?.className==='insight-range'),false,'Unused date controls remain hidden until activity exists');
 }
 for(const outcome of ['new success','new failure','unmount']){
  const f=fixture();let resolve;f.fetch(()=>new Promise(r=>resolve=r));let old;if(outcome==='unmount'){const cleanup=f.cleanup();cleanup();}else old=f.load();

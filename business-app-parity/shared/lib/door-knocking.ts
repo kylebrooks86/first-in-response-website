@@ -1,11 +1,13 @@
-/** Owner-managed house visits. No customer, pricing or payment linkage. */
+/** Owner-managed visits and map locations. Customer/job state stays in its own records. */
 export const DOOR_STATUSES={
  'not-contacted':'Not contacted', 'business-card':'Left business card', 'door-hanger':'Left door hanger',
- contacted:'Contacted', 'follow-up':'Follow-up', 'not-interested':'Not interested', 'do-not-knock':'Do not knock',
+ contacted:'Contacted', 'no-answer':'No answer', 'follow-up':'Follow-up', 'not-interested':'Not interested', 'do-not-knock':'Do not knock',
 } as const;
 export type DoorStatus=keyof typeof DOOR_STATUSES;
 export type DoorVisit={id:string;status:DoorStatus;at:string;note:string;followUpOn?:string};
-export type DoorHouse={id:string;address:string;addressKey:string;createdAt:string;visits:DoorVisit[]};
+export type DoorPoint={lat:number;lng:number};
+export type DoorHouse={id:string;address:string;addressKey:string;createdAt:string;visits:DoorVisit[];location?:{point:DoorPoint|null;requestId:string;at:string}};
+export function validDoorPoint(v:unknown):v is DoorPoint {if(!v||typeof v!=='object'||Array.isArray(v))return false;const p=v as DoorPoint;return Object.keys(p).length===2&&Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&p.lat>=-85&&p.lat<=85&&p.lng>=-180&&p.lng<=180;}
 export type DoorBook={revision:string|null;houses:DoorHouse[]};
 export const DOOR_BOOK_KEY='fire:door-knocking:v1';
 export const doorId=(v:unknown):v is string=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
@@ -38,10 +40,11 @@ export function doorRevisitQueue(book:DoorBook,today:string):DoorRevisit[]{
 }
 export function validDoorBook(v:unknown):v is DoorBook{
  if(!v||typeof v!=='object'||Array.isArray(v))return false;
- const b=v as DoorBook;if(!(b.revision===null||doorId(b.revision))||!Array.isArray(b.houses)||b.houses.length>500)return false;
+ const b=v as DoorBook;if(!(b.revision===null||doorId(b.revision))||!Array.isArray(b.houses)||b.houses.length>5000)return false;
  const ids=new Set<string>(),keys=new Set<string>(),events=new Set<string>();
  return b.houses.every(h=>{
   if(!h||!doorId(h.id)||ids.has(h.id)||typeof h.address!=='string'||!h.address.trim()||h.address.length>240||h.addressKey!==houseKey(h.address)||keys.has(h.addressKey)||!stamp(h.createdAt)||!Array.isArray(h.visits)||h.visits.length>100)return false;
+  if(h.location!==undefined&&(!h.location||!(h.location.point===null||validDoorPoint(h.location.point))||!doorId(h.location.requestId)||!stamp(h.location.at)))return false;
   ids.add(h.id);keys.add(h.addressKey);
   return h.visits.every(e=>{if(!e||!doorId(e.id)||events.has(e.id)||!doorStatus(e.status)||!stamp(e.at)||typeof e.note!=='string'||e.note.length>1000||(e.followUpOn!==undefined&&(e.status!=='follow-up'||!validDoorFollowUpDate(e.followUpOn))))return false;events.add(e.id);return true;});
  });
@@ -52,3 +55,9 @@ export function decodeDoorBook(row:{body:string}|null):DoorBook{
 }
 export const latestDoorVisit=(h:DoorHouse)=>h.visits[h.visits.length-1]??null;
 export const doorSuppressed=(h:DoorHouse)=>['do-not-knock','not-interested'].includes(latestDoorVisit(h)?.status??'');
+
+/** Optional owner-captured offline time; never a financial or provider timestamp. */
+export function validDoorCapturedAt(value:unknown,now=Date.now()):value is string{
+ if(typeof value!=='string'||!/^\d{4}-\d\d-\d\dT/.test(value))return false;const at=Date.parse(value);
+ return Number.isFinite(at)&&at>=Date.UTC(2000,0,1)&&at<=now+300000&&new Date(at).toISOString()===value;
+}

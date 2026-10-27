@@ -8,6 +8,14 @@ const require=createRequire(import.meta.url);
 const source=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='FollowUpsView');
+// Layout regression: simplify only this workspace, not shared business screens.
+const followupCss=readFileSync('app/globals.css','utf8');
+assert.ok(source.includes('workspace-view followups-view'),'Follow-ups has its own compact styling scope');
+assert.ok(source.includes('Details · {bucketCount("due")} due'),'Concise summary still shows verified due counts');
+assert.ok(source.includes('loaded records only.'),'Filtering keeps the limited coverage visible');
+assert.ok(source.includes('Older records still unchecked'),'Historical coverage warning must remain');
+for(const selector of ['.followups-view .followup-summary','.followups-view .followup-filter-panel','.followups-view .followup-card'])assert.ok(followupCss.includes(selector),'Tighter spacing must remain scoped to Follow-ups: '+selector);
+assert.ok(followupCss.includes('min-height:44px'),'Touch target protections remain');
 assert.ok(view,'Real FollowUpsView exists');
 const required=['resolvedBillingTotalCents','billingBalanceCents'];
 const helpers=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>required.includes(d.name.getText(ast)))||ts.isFunctionDeclaration(n)&&['repeatCadenceMonths','addMonths'].includes(n.name?.text));
@@ -101,4 +109,11 @@ const financeCards=nodes(render());
 eq(financeCards.filter(n=>n.type===stubs.MessageComposer).length,0,'Fully paid invoices and unresolved financial exceptions cannot be treated as ordinary outreach; review exceptions are retained in the owner history lane');
 eq(JSON.stringify(financeCards.find(n=>n.props?.['aria-label']==='Filter follow-ups: Viewed 24h+')).includes('(0)'),true,'Billing and paid jobs excluded from viewed-ready count');
 eq(requests.every(x=>x.opts?.method!=='POST'&&x.opts?.method!=='PATCH'),true,'New triage controls never send or write customer data');
+// With more customers, the preview stays short, but full customer actions remain.
+states[0]=[estimate('priority-a','customer-a'),estimate('priority-b','customer-b'),estimate('priority-c','customer-c'),estimate('priority-d','customer-d')];
+const larger=nodes(render());
+eq(larger.filter(n=>n.props?.['aria-label']?.startsWith?.('Jump to ')).length,3,'Busy day shows only three priority shortcuts');
+eq(larger.filter(n=>n.type===stubs.MessageComposer).length,4,'Fourth customer retains a real full-list action');
+eq(larger.some(n=>n.props?.className==='followup-all-actions-link'),true,'Owner can jump to complete follow-up list');
+eq(requests.every(r=>r.opts?.method!=='POST'&&r.opts?.method!=='PATCH'),true,'Bounded priority preview creates no customer writes');
 console.log('PASS '+assertions+'/'+assertions+' synthetic daily action queue, communication-state and real component interaction checks. No sends or customer writes.');

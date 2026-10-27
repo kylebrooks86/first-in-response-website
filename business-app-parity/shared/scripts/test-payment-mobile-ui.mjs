@@ -49,8 +49,8 @@ check('Fee details retain gross invoice credit, separate tips and actual net pro
  const html=renderToStaticMarkup(ui.ProcessingDetails({payment:{...base,amountCents:10000,grossReceivedCents:11000,bundledTipCents:1000,processingFeeCents:300,processingMethod:'Cash App'}}));for(const amount of ['$100.00','$10.00','$110.00','−$3.00','$107.00'])assert.ok(html.includes(amount));
  assert.equal(ui.ProcessingDetails({payment:base}),null);
 });
-check('Fee report exposes a keyboard-focusable labeled scrolling region and table headings',()=>{
- const html=renderToStaticMarkup(ui.ProcessingReport({payments:[{...base,grossReceivedCents:7500,processingFeeCents:210,processingMethod:'Cash App'}]}));assert.match(html,/role="region" aria-label="Processing fees by payment method" tabindex="0"/);assert.equal((html.match(/scope="col"/g)||[]).length,4);assert.equal((html.match(/scope="row"/g)||[]).length,2);for(const amount of ['$75.00','$2.10','$72.90'])assert.ok(html.includes(amount));
+check('Fee report exposes a labeled four-column table without an unnecessary scroll focus stop',()=>{
+ const html=renderToStaticMarkup(ui.ProcessingReport({payments:[{...base,grossReceivedCents:7500,processingFeeCents:210,processingMethod:'Cash App'}]}));assert.match(html,/role="region" aria-label="Processing fees by payment method"/);assert.ok(!html.includes('tabindex="0"'));assert.equal((html.match(/scope="col"/g)||[]).length,4);assert.equal((html.match(/scope="row"/g)||[]).length,2);for(const amount of ['$75.00','$2.10','$72.90'])assert.ok(html.includes(amount));
 });
 check('Payment history amount is explicitly placed, not mixed with refund controls',()=>{
  const n=functions.find(n=>n.name.text==='PaymentsView');let found=false;function walk(node){if(ts.isJsxElement(node)&&node.openingElement.tagName.getText(ast)==='strong'&&node.openingElement.attributes.properties.some(a=>a.name?.text==='className'&&a.initializer?.text==='payment-history-amount')){assert.match(node.getText(ast),/money\(payment.amountCents\)/);found=true;}ts.forEachChild(node,walk);}walk(n);assert.ok(found);
@@ -64,7 +64,11 @@ check('Responsive stylesheet confines table overflow and places amount/action be
  assert.equal(value(rule('.payment-history>article',true),'grid-template-columns'),'36px minmax(0,1fr)');
  assert.equal(value(rule('.payment-history-amount',true),'grid-row'),'2');
  assert.equal(value(rule('.payment-history>article>.payment-refund-action',true),'grid-row'),'3');
- assert.equal(value(rule('.processing-report-scroll'),'overflow-x'),'auto');
+ assert.equal(value(rule('.processing-report-scroll'),'overflow-x'),'visible','Processing fee table does not scroll sideways');
+ assert.equal(value(rule('.processing-report-table'),'min-width'),'0','Table fits available card width');
+ assert.equal(value(rule('.processing-report-table'),'table-layout'),'fixed','Four columns share viewport width');
+ assert.equal(value(rule('.processing-report-table th,.processing-report-table td'),'white-space'),'normal','Large amounts may wrap instead of clipping');
+ assert.equal(value(rule('.processing-report-table th,.processing-report-table td'),'overflow-wrap'),'anywhere');
  assert.equal(value(rule('.payment-history>article>div'),'overflow-wrap'),'anywhere');
 });
 check('Customer-profile payment rows explicitly separate amount and retain refund callbacks',()=>{
@@ -95,10 +99,46 @@ check('Customer-profile payment layout wraps details and provides a full-row 44p
 check('Paid review queue controls preserve search, sort, filtered reset, and exact job navigation',()=>{
  const payments=functions.find(n=>n.name.text==='PaymentsView');
  const body=payments.getText(ast);
- for(const expected of ['reviewCloseoutSearch.trim().toLowerCase()','reviewCloseoutFilter==="prepared"','reviewCloseoutOrder==="customer"','reviewCloseoutOrder==="newest"','setReviewCloseoutSearch("")','setReviewCloseoutFilter("all")','setReviewCloseoutOrder("priority")','setShowAllReviewCloseouts(false)','encodeURIComponent(item.estimateId)','reviewMoreAvailable?" · Older jobs may remain unloaded"'])assert.ok(body.includes(expected),'Missing review queue behavior: '+expected);
+ for(const expected of ['reviewCloseoutSearch.trim().toLowerCase()','reviewCloseoutFilter==="prepared"','reviewCloseoutOrder==="customer"','reviewCloseoutOrder==="newest"','setReviewCloseoutSearch("")','setReviewCloseoutFilter("all")','setReviewCloseoutOrder("priority")','setShowAllReviewCloseouts(false)','encodeURIComponent(item.estimateId)','reviewMoreAvailable?" · Older jobs not loaded"'])assert.ok(body.includes(expected),'Missing review queue behavior: '+expected);
  let comparator;function find(node){if(ts.isCallExpression(node)&&ts.isPropertyAccessExpression(node.expression)&&node.expression.name.text==='sort'&&node.arguments[0]?.getText(ast).includes('reviewCloseoutOrder'))comparator=node.arguments[0].getText(ast);ts.forEachChild(node,find);}find(payments);assert.ok(comparator,'Actual paid-review comparator exists');
  const rows=[{estimateId:'new-ready',customerName:'Ada',state:'ready',lastPaidAt:'2026-10-20T12:00:00Z'},{estimateId:'old-ready',customerName:'Zed',state:'ready',lastPaidAt:'2026-10-01T12:00:00Z'},{estimateId:'prepared',customerName:'Ben',state:'prepared',lastPaidAt:'2026-10-19T12:00:00Z'}];
  for(const [order,expected] of [['priority',['prepared','old-ready','new-ready']],['newest',['new-ready','prepared','old-ready']],['customer',['new-ready','prepared','old-ready']]]){const context={exports:{},reviewCloseoutOrder:order};vm.runInNewContext(ts.transpileModule('exports.sort='+comparator,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,context);assert.deepEqual(rows.slice().sort(context.exports.sort).map(row=>row.estimateId),expected,order+' uses actual saved-record ordering');}
  assert.match(body,/reviewCloseoutError\?<p role="alert"/);
+});
+check('Read-only collectible job finder preserves all jobs and exposes additional pages',()=>{
+ const payments=functions.find(n=>n.name.text==='PaymentsView'),body=payments.getText(ast);
+ const match=payments.body.statements.find(node=>ts.isVariableStatement(node)&&node.declarationList.declarations.some(d=>d.name.getText(ast)==='matchingOpen'));
+ const decl=match?.declarationList.declarations.find(d=>d.name.getText(ast)==='matchingOpen');
+ assert.ok(decl,'Real PaymentsView has a scoped local filter');
+ const expr=ts.transpileModule('exports.filter='+decl.initializer.getText(ast)+';',{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
+ const balances=[{id:'A',customer:'Tulsa One',service:'House Wash',status:'approved',address:'South Tulsa'},{id:'B',customer:'Owasso Two',service:'Gutter Cleanout',status:'scheduled',address:'Owasso'},{id:'C',customer:'Broken Arrow Three',service:'Window Cleaning',status:'approved',address:'Broken Arrow'}];
+ for(const [term,expected] of [['',3],['Owasso',1],['Window',1],['missing',0]]){
+  const state={exports:{},open:balances,balanceSearch:term};vm.runInNewContext(expr,state);
+  assert.equal(state.exports.filter.length,expected,term+' filters existing verified balances only');
+  assert.equal(balances.length,3,'Filtering never truncates verified source balances');
+ }
+ assert.match(body,/matchingOpen\.slice\(0,balanceLimit\)/,'Only displayed balance cards are limited');
+ assert.match(body,/matchingOpen\.length>balanceLimit/,'All remaining balances remain reachable');
+ assert.match(body,/open\.length\?<div className="record-empty">/,'A search miss never says all caught up');
+ assert.match(body,/setBalanceLimit\(20\)/,'Search changes reset pagination');
+});
+check('Invoice mobile cards retain payment-review warning, balance and accessible actions',()=>{
+ const src=readFileSync('app/dashboard.tsx','utf8');
+ assert.ok(src.includes('className="invoice-card"')&&src.includes('Payment review')&&src.includes('Billing exception open'));
+ const sheet=postcss.parse(readFileSync('app/globals.css','utf8'));
+ const mobile=(selector,width)=>{let found;sheet.walkRules(r=>{if(r.selector===selector&&r.parent.type==='atrule'&&r.parent.params.includes('max-width:'+width+'px'))found=r;});return found;};
+ const decl=(selector,width,property)=>mobile(selector,width)?.nodes.find(n=>n.prop===property)?.value;
+ assert.equal(decl('.invoice-card>.status-chip',980,'display'),'inline-flex','Mobile invoice status must remain visible');
+ assert.equal(decl('.invoice-card>.invoice-total',980,'display'),'grid','Mobile invoice totals and outstanding balance must remain visible');
+ assert.equal(decl('.invoice-card>.invoice-actions',980,'grid-row'),'3','Payment controls follow invoice details');
+ assert.equal(decl('.invoice-card>.invoice-actions>a,.invoice-card>.invoice-actions>button',980,'min-height'),'44px','Touch controls remain 44px high');
+ assert.equal(decl('.invoice-card>.invoice-icon',430,'display'),'none','Decorative receipt icon can collapse on compact phones');
+ assert.equal(decl('.invoice-card>.invoice-total',430,'grid-column'),'2','Amounts remain visible next to the customer');
+ assert.equal(decl('.invoice-card>.status-chip',430,'grid-row'),'2','Status remains visible below customer details');
+ assert.ok(sheet.toString().includes('.invoice-card>.status-chip.partial{background:'));
+});
+check('Owner payment history and checkout alerts cannot be served from stale browser cache',()=>{
+ const route=readFileSync('app/api/payments/route.ts','utf8');
+ assert.ok(route.includes('return Response.json({payments:result.results,checkoutIssues:checkoutIssues.results},{headers:{"Cache-Control":"no-store, private"}});'));
 });
 console.log(`PASS: ${cases}/${cases} component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.`);

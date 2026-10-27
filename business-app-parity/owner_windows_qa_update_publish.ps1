@@ -1,11 +1,13 @@
 # Second (and later) QA Business App deployment. No writes unless -Publish,
 # and a fresh exact typed owner approval confirms updating this EXISTING Worker.
 # Runs the separately tested read-only update review first. The D1 and both
-# independent QA login secrets MUST remain in place. New QA-only R2 binding
-# must be confirmed by read-only review. No Stripe or LIVE.
+# independent QA login secrets MUST remain in place. No R2 storage or billing,
+# no Stripe or LIVE. Device-local photo vault/backups are not touched.
 [CmdletBinding()]
 param(
     [switch]$Publish,
+    [switch]$OwnerConfirmedPhotoZipBackup,
+    [switch]$OwnerConfirmedNoLocalPhotos,
     [string]$ApprovalText,
     [string]$CandidateBranch = 'work/fire-business-app-parity-2026-10-08',
     [string]$ExpectedCommit = ''
@@ -15,8 +17,10 @@ $ErrorActionPreference = 'Stop'
 $workerName = 'fire-fullapp-qa-20261016'
 $dbName = 'fire-fullapp-qa-db-20261016'
 $dbId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
-$qaPhotoBucket = 'fire-fullapp-qa-photos-20261023'
-$expectedActiveVersion = '58a467fa-9dbc-45a3-971e-b5a4e478f54d'
+$photoMode = 'ON-DEVICE-PHOTOS-NO-R2'
+# Owner-confirmed authenticated Wrangler status identified the latest sole
+# 100% active QA Worker version. Pin full UUID and fail closed on any later drift.
+$expectedActiveVersion = 'aa598f39-3611-4626-8fe8-350b57247d51'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
@@ -40,6 +44,14 @@ if (-not $Publish) {
     Write-Host 'A separate explicit owner approval is required to update existing QA Worker.'
     return
 }
+# Cloudflare cannot read local iPhone/other device photo vaults. Require
+# exactly one truthful owner attestation before touching the QA Worker.
+Require ($OwnerConfirmedPhotoZipBackup.IsPresent -xor $OwnerConfirmedNoLocalPhotos.IsPresent) 'Choose exactly one: -OwnerConfirmedPhotoZipBackup after SAVE to Files/iCloud, VERIFY saved ZIP; or -OwnerConfirmedNoLocalPhotos only if no QA photos exist on any device.'
+if ($OwnerConfirmedNoLocalPhotos.IsPresent) {
+    Write-Warning 'Owner attests no local QA photos exist on any device. No empty ZIP backup needed. Not remotely verifiable.'
+} else {
+    Write-Warning 'Owner attests saved and verified all-local-photos ZIP outside FIRE.'
+}
 $head = (& $git.Source -C $repo rev-parse HEAD).Trim()
 Require-Exit 'Git source commit'
 Require ($head -cmatch '^[0-9a-f]{40}$') 'Invalid Git source checkpoint.'
@@ -59,9 +71,10 @@ $beforeVersions = @($before.versions)
 Require ($beforeVersions.Count -eq 1 -and [double]$beforeVersions[0].percentage -eq 100) 'QA Worker must have one active 100-percent code version.'
 $expectedOldVersion = [string]$beforeVersions[0].version_id
 Require ($expectedOldVersion -ceq $expectedActiveVersion) 'Unknown currently active QA Worker version. Stop.'
-$approval = 'UPDATE QA ' + $workerName + ' ' + $dbId + ' ' + $qaPhotoBucket + ' ' + $head + ' FROM ' + $expectedOldVersion
+$approval = 'UPDATE QA ' + $workerName + ' ' + $dbId + ' ' + $photoMode + ' ' + $head + ' FROM ' + $expectedOldVersion
+Write-Warning 'Cloudflare cannot verify local photos. Release relies on the exact owner photo attestation above.'
 Write-Warning ('This will REPLACE ONLY the code/assets on existing QA Worker ' + $workerName +
-    ' while retaining its current D1 database, fictional customer records and existing owner secrets. A new, separately verified QA-only R2 photo bucket is bound.')
+    ' while retaining its current D1 database, synthetic customer records and owner secrets. No R2 bucket is bound or billed; photos remain on this device only.')
 Write-Warning ('Exact active QA code version retained for rollback: ' + $expectedOldVersion +
     '. This update does not reset or roll back database contents.')
 # An explicit CLI approval avoids clipboard/prompt confusion on the owner's Acer.
@@ -74,10 +87,10 @@ if ($PSBoundParameters.ContainsKey('ApprovalText')) {
 }
 Require ($typed -ceq $approval) 'Exact QA update owner approval not provided.'
 # Check AGAIN immediately before the change: fully ordered 25-migration
-# schema, separate R2, protected D1 and exact Git source are all mandatory.
+# schema, protected D1 and exact Git source are all mandatory.
 # A stale first preflight is not enough to publish after owner confirmation.
 & $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review -CandidateBranch $CandidateBranch -ExpectedCommit $ExpectedCommit
-Require-Exit 'Fresh post-approval read-only 25-schema, R2 and source revalidation'
+Require-Exit 'Fresh post-approval read-only 25-schema, D1 and source revalidation'
 # Race protection: refuse if active Worker changed after owner confirmation.
 $rawStatus = @(& $wrangler.Source deployments status --name $workerName --json)
 Require-Exit 'Fresh, read-only active QA deployment identity'

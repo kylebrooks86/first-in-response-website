@@ -11,7 +11,7 @@ export function createRouteFixtureLoader(root,env,user){
   const absolute=resolve(root,path);if(cache.has(absolute))return cache.get(absolute);
   const exports={};cache.set(absolute,exports);
   const code=ts.transpileModule(readFileSync(absolute,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
-  const context={exports,atob,btoa,Response,Request,Headers,URL,URLSearchParams,TextEncoder,TextDecoder,crypto,process,console,Error,structuredClone,fetch:(...args)=>globalThis.fetch(...args),require(name){
+  const context={exports,atob,btoa,Response,Request,Headers,URL,URLSearchParams,AbortSignal,AbortController,TextEncoder,TextDecoder,crypto,process,console,Error,structuredClone,fetch:(...args)=>globalThis.fetch(...args),require(name){
    if(name==='cloudflare:workers')return {env};
    if(name.endsWith('/chatgpt-auth')||name.endsWith('/owner-auth'))return {getChatGPTUser:async()=>user(),getOwnerUser:async()=>user()};
    if(name.startsWith('.')){const base=resolve(dirname(absolute),name);if(base.endsWith('.mjs'))return require(base);return load(existsSync(base)?base:base+'.ts');}

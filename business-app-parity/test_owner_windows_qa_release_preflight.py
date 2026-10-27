@@ -60,17 +60,15 @@ class QAPostMigrationReadOnlyContract(unittest.TestCase):
                          "[int]$row.provider_index -eq 1",
                          "[int]$row.signed_agreement_triggers -eq 2",
                          "deposit_agreement_snapshots_no_update",
-                         "deposit_agreement_snapshots_no_delete",
-                         "r2 bucket info $qaPhotoBucket --json",
-                         "$photoInfo.name -ceq $qaPhotoBucket"):
+                         "deposit_agreement_snapshots_no_delete"):
             with self.subTest(required=required):
                 self.assertIn(required, SCRIPT)
         self.assertNotIn("num_tables -eq 0", SCRIPT)
         self.assertNotIn("migrations apply", SCRIPT)
         self.assertIn("The hosted QA migration journal must match all 25 local migrations IN ORDER", SCRIPT)
-        self.assertIn("Dedicated QA-only R2 photo bucket identity missing/mismatched", SCRIPT)
+        self.assertNotIn("r2 bucket info", SCRIPT)
+        self.assertIn("No paid R2 photo service is required", SCRIPT)
         self.assertLess(SCRIPT.index("d1 list --json"),SCRIPT.index("d1 execute $qaName --remote"))
-        self.assertLess(SCRIPT.index("d1 execute $qaName --remote"),SCRIPT.index("r2 bucket info $qaPhotoBucket --json"))
         self.assertIn('STOP BEFORE PUBLISH', SCRIPT)
 
     def test_source_only_no_remote_changes_in_tests(self):

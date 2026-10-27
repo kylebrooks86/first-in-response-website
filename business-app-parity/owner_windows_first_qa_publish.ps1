@@ -1,3 +1,8 @@
+# HISTORICAL/RETIRED ENTRY POINT — EXISTING QA WORKER ALREADY PUBLISHED.
+# Deliberately blocked before any Cloudflare, secrets, or local backup operations.
+# DO NOT re-enable or use this R2-dependent first-publish flow for later updates.
+# Use owner_windows_qa_update_review.ps1 first, followed only by separate
+# owner-approved owner_windows_qa_update_publish.ps1 (both now R2-free).
 # First FULL FIRE Business App synthetic QA publication, never LIVE/staging/DR.
 # No remote mutation by default. -Publish requires a fresh typed exact approval.
 # Never paste the local DPAPI owner record, a secret or a verifier into ChatGPT.
@@ -9,6 +14,9 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+# Fail closed unconditionally: the Worker exists and owner refuses paid R2.
+# Preserve the historical first-release code only for audit/traceability.
+throw 'FIRE QA FIRST-PUBLISH RETIRED: Existing QA Worker already serves traffic. Do not activate R2 billing or invoke first-publish. Use the separately approved R2-free existing-Worker update review/publisher.'
 $workerName = 'fire-fullapp-qa-20261016'
 $qaName = 'fire-fullapp-qa-db-20261016'
 $qaUuid = '8ccfb1f8-1657-4074-b1b2-47de78f95003'

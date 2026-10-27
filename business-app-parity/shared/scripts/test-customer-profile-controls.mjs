@@ -5,11 +5,54 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  assert.equal(response.status(),201);const customer=(await response.json()).customer;
  const created=await request('/api/estimates','POST',{customerId:customer.id,customer:customer.name,items:[{name:'Synthetic Profile Service',quantity:1,unit:'job',totalCents:20000}]});assert.equal(created.status(),201);const estimate=await created.json();
  const profile=async()=>{await page.setViewportSize({width:390,height:844});await page.goto(origin+'/');await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('button',{name:'Customers',exact:true}).first().click();await page.locator('.customer-card').filter({hasText:customer.name}).click();await page.getByRole('heading',{name:customer.name,exact:true}).waitFor();};
- await profile();await page.getByRole('button',{name:'Photos (on-device)',exact:true}).click();
+ await profile();
+ const headerMore=page.locator('details.customer-header-more');
+ check(await headerMore.evaluate(node=>!node.open),'Occasional customer edit/message/history controls start collapsed');
+ const primaryEstimate=page.locator('.customer-profile-head').getByRole('button',{name:'New estimate',exact:true});
+ check(await primaryEstimate.isVisible(),'Primary New estimate stays visible without expanding More actions');
+ await headerMore.locator(':scope>summary').click();
+ check(await headerMore.getByRole('button',{name:'Edit customer',exact:true}).isVisible()&&await headerMore.getByRole('button',{name:'Customer history',exact:true}).isVisible(),'Existing edit and exact history shortcuts remain accessible');
+ await headerMore.getByRole('button',{name:'Customer history',exact:true}).click();
+ check(await page.evaluate(id=>document.activeElement?.id==='customer-history-'+id,customer.id),'History shortcut still focuses current record after compact menu');
+ await headerMore.locator(':scope>summary').click();
+ const customerQuotes=page.getByRole('group',{name:'Customer estimates and signed agreements'});
+ check(await customerQuotes.getByRole('button',{name:'All estimates (1)',exact:true}).getAttribute('aria-pressed')==='true','Customer profile opens all of this customer’s saved quotes first');
+ await customerQuotes.getByRole('button',{name:'Agreements (0)',exact:true}).click();
+ check(await page.getByText('No agreements found',{exact:true}).count()===1,'Unsent draft cannot be misrepresented as a signed or pending agreement');
+ check(await page.locator('.customer-records .customer-record').count()===0,'Agreement filter does not alter or duplicate draft records');
+ await customerQuotes.getByRole('button',{name:'All estimates (1)',exact:true}).click();
+ check(await page.locator('.customer-records .customer-record').filter({hasText:'Synthetic Profile Service'}).count()===1,'Full estimate remains reachable after switching views');
+ check(await page.getByRole('button',{name:/^Estimates\s+1$/}).count()===1,'Customer profile has one combined estimates and agreements tab');
+ await page.locator('.customer-records .customer-record').filter({hasText:'Synthetic Profile Service'}).click();
+ const quoteDetails=page.locator('.estimate-detail');
+ await quoteDetails.waitFor();
+ check(await quoteDetails.getByRole('button',{name:'Send estimate',exact:true}).count()===1,'Opening the customer quote retains Send estimate');
+ check(await quoteDetails.getByRole('button',{name:'Approval required',exact:true}).isDisabled(),'Original payment control remains visible but correctly blocks payment until quote approval');
+ check(await quoteDetails.locator('details.detail-more-tools').count()===1,'Job tools remain available without crowding the main action buttons');
+ await page.keyboard.press('Escape');
+ await quoteDetails.waitFor({state:'hidden'});
+ const firstUse=await page.evaluate(()=>{
+   const selectors=['.customer-profile-head','.customer-contact','.record-tabs','.customer-records','.customer-snapshot','.customer-flag-panel','.customer-timeline'];
+   const roots=selectors.map(selector=>document.querySelector(selector));
+   const profile=document.querySelector('.customer-profile'),tabs=[...document.querySelectorAll('.record-tabs button')];
+   const actions=document.querySelector('.profile-head-actions');
+   return {ordered:roots.every(Boolean)&&roots.every(node=>profile?.contains(node))&&roots.every((node,index)=>index===0||Boolean(roots[index-1].compareDocumentPosition(node)&Node.DOCUMENT_POSITION_FOLLOWING)),
+      tabs:tabs.map(node=>node.textContent?.trim()),tabFit:tabs.every(node=>{const r=node.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1&&r.height>=44}),
+      actionColumns:actions?getComputedStyle(actions).gridTemplateColumns.split(' ').filter(Boolean).length:0};
+ });
+ check(firstUse.ordered,'Quick contact and customer records appear before optional financial, flags and activity details');
+ check(firstUse.tabs.length===6&&firstUse.tabs.some(label=>label.startsWith('Photos'))&&firstUse.tabs.some(label=>label.startsWith('Notes'))&&firstUse.tabFit,'All six customer record tabs remain visible and finger-sized on iPhone');
+ check(firstUse.actionColumns===2,'Common customer actions use two compact touch-friendly columns on iPhone');
+ await page.getByRole('button',{name:'Photos',exact:true}).click();
  const photos=page.getByRole('region',{name:'On-device customer photos'});await photos.getByText('No on-device photos for this customer').waitFor();
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==','base64');
  await photos.locator('input[type=file][multiple]').setInputFiles({name:'synthetic-responsive-photo.png',mimeType:'image/png',buffer:png});await photos.getByText(/Photos verified on this device/).waitFor();
- await photos.getByRole('button',{name:'Prepare all local photos ZIP',exact:true}).click();await photos.getByRole('button',{name:'Download prepared ZIP',exact:true}).waitFor();
+ await photos.getByRole('button',{name:'Prepare all local photos ZIP',exact:true}).click();
+ await photos.getByRole('button',{name:'Save prepared ZIP to Files',exact:true}).waitFor();
+ const morePhotoTools=photos.locator('details.photo-backup-more');
+ check(await morePhotoTools.evaluate(node=>!node.open),'Rare ZIP and restore controls stay collapsed on a new customer photo screen');
+ await morePhotoTools.locator(':scope > summary').click();
+ await photos.getByRole('button',{name:'Download prepared ZIP',exact:true}).waitFor();
  const labels=['Camera','Photo library','Prepare all local photos ZIP',"Prepare this customer's photos ZIP",'Save prepared ZIP to Files','Download prepared ZIP','Verify saved ZIP from Files','Restore verified photo ZIP'];
  for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,900]]){
   await page.setViewportSize({width,height});
