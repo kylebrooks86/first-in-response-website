@@ -276,7 +276,7 @@ assert.ok(source.includes('window.removeEventListener("fire:attention-saved",ref
 assert.ok(source.includes('setTaskStatusMessage("Task status confirmed.")'),'Task status changes still require confirmed save before refresh');
 assert.ok(source.includes('setNoteFeedback({customerId,kind:"success",text:"Note saved."})'),'Customer activity flags only refresh after verified note save');
 assert.ok(source.includes('<PopoverContent forceMount className="notification-popover"'),'Bell reminder feed remains mounted while popover is closed');
-assert.ok(source.includes('className="notification-attention-dot"'),'Bell shows attention separately from unread events');
+assert.ok(!source.includes('className="notification-attention-dot"'),'After activity is read, no reminder-only bell dot is shown');
 assert.ok(source.includes('aria-label={unread?\`${unread} unread notifications\`:"Notifications"}'),'Legacy Notifications accessible button label remains stable for end-to-end navigation');
 assert.ok(source.includes('aria-description={attentionDescription}'),'Business reminder count remains accessible without renaming the bell');
 assert.ok(source.includes('activityFocus={customerActivityFocus}'),'Customer page accepts exact flag navigation');
