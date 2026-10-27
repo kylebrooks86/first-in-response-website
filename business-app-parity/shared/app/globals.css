@@ -2670,7 +2670,7 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .payment-processing-disclosure>p{margin:0;padding:3px 15px 11px;font-size:12px;line-height:1.5;color:var(--muted-foreground);overflow-wrap:anywhere}
 .payment-processing-disclosure>.processing-report-scroll{margin:0 10px 12px}
 .payment-review-options>summary,.payment-fee-details>summary{line-height:1.4;padding-block:12px;white-space:normal;overflow-wrap:anywhere}
-.payments-view .payment-form details>summary{min-height:44px;padding-block:10px;line-height:1.45;cursor:pointer}
+.payment-entry-fees>summary{min-height:44px;padding-block:10px;line-height:1.45;cursor:pointer}
 @media(max-width:760px){
  .payment-processing-disclosure>summary{padding:12px}
  .payment-processing-disclosure>p{padding:2px 12px 12px}
