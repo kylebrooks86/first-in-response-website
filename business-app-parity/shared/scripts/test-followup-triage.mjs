@@ -120,8 +120,10 @@ assert.ok(view.includes('Customer estimate to scheduled job journey')&&view.incl
 assert.ok(view.includes('Estimate link viewed')&&view.includes('Link opened · viewer identity and intent unverified'),'Timeline labels views correctly');n++;
 // Daily owner screens stay short without losing proof or financial safeguards.
 const ownerPaymentSection=view.slice(view.indexOf('function PaymentsView('),view.indexOf('function BusinessView(')>0?view.indexOf('function BusinessView('):undefined);
-assert.ok(ownerPaymentSection.indexOf('Card checkouts needing review')<ownerPaymentSection.indexOf('Collectible job balances'),'Unresolved Stripe checkouts still warn before recording more money');n++;
-assert.ok(ownerPaymentSection.indexOf('Collectible job balances')<ownerPaymentSection.indexOf('Job Closeout Center'),'Everyday balances appear before secondary review administration');n++;
+const checkoutWarning=ownerPaymentSection.indexOf('role="alert" aria-label="Stripe checkouts needing review"'),unpaidJobs=ownerPaymentSection.indexOf('<h2>Unpaid jobs</h2>'),reviewRequests=ownerPaymentSection.indexOf('aria-label="Paid jobs ready for review follow-up"');
+assert.ok(checkoutWarning>=0&&unpaidJobs>checkoutWarning,'Unresolved Stripe checkouts still warn before recording more money');n++;
+assert.ok(ownerPaymentSection.includes('Verify open checkouts in Stripe before recording another payment. Never clear an unverified session.'),'Checkout warning retains its complete financial safety instruction');n++;
+assert.ok(reviewRequests>unpaidJobs,'Everyday balances appear before secondary review administration');n++;
 assert.ok(ownerPaymentSection.includes('Payment history')&&ownerPaymentSection.includes('RecordPayment'),'All payment controls and history remain accessible');n++;
 const followUpSection=view.slice(view.indexOf('function FollowUpsView('),view.indexOf('function PaymentsView('));
 assert.ok(followUpSection.includes('className="followup-message-details"'),'Historical message timestamps remain available under a disclosure');n++;
@@ -153,8 +155,8 @@ const scheduleOwnerSection=view.slice(view.indexOf('function ScheduleView('),vie
 assert.ok(scheduleOwnerSection.includes('className="schedule-turnaround-review"')&&scheduleOwnerSection.includes('className="schedule-turnaround-details"'),'Closely spaced appointment warning stays visible while detailed pairs collapse');n++;
 assert.ok(scheduleOwnerSection.includes('className="schedule-turnaround-job"')&&scheduleOwnerSection.includes('onClick={()=>setSelected(job)}'),'Each affected schedule job stays navigable from the full warning');n++;
 assert.ok(ownerPaymentSection.includes('payments-primary-metrics')&&ownerPaymentSection.includes('payments-secondary-metrics'),'Three actionable money totals remain up front and additional values remain accessible');n++;
-assert.ok(ownerPaymentSection.indexOf('Card checkouts needing review')<ownerPaymentSection.indexOf('payments-primary-metrics'),'Unresolved checkout alerts remain ahead of compact totals');n++;
-for(const label of ['Collectible job balance','Deposit still required','Principal paid (net refunds)','Jobs with collectible balance','Potential estimate value','Net tips']){assert.ok(ownerPaymentSection.includes('<small>'+label+'</small>'),'Accounting summary preserves '+label);n++;}
+assert.ok(checkoutWarning>=0&&checkoutWarning<ownerPaymentSection.indexOf('payments-primary-metrics'),'Unresolved checkout alerts remain ahead of compact totals');n++;
+for(const label of ['Job balances due','Deposits due','Job payments (net)','Jobs with collectible balance','Unapproved quote value','Net tips']){assert.ok(ownerPaymentSection.includes('<small>'+label+'</small>'),'Accounting summary preserves '+label);n++;}
 assert.ok(followUpSection.includes('todayQueue.slice(0,3).map(')&&followUpSection.includes('All follow-ups · {visibleActions.length}')&&followUpSection.includes('document.querySelector(".followup-list")?.scrollIntoView')&&followUpSection.includes('visibleActions.map('),'Compact follow-up preview retains the full saved-action list and its navigation');n++;
 // Stride stays one tap away in Home, while scheduled jobs keep Maps without duplicating mileage tracking.
 const estimateDetailSource=view.slice(view.indexOf('function EstimateDetail('),view.indexOf('function EstimatesView('));

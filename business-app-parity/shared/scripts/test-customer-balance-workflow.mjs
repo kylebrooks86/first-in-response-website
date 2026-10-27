@@ -38,7 +38,7 @@ export async function exerciseCustomerBalances({page,origin,request,check}){
  await page.getByText('More amounts',{exact:true}).click();
  check(await metric('Job balance').innerText()==='$100'&&await metric('Deposit still required').innerText()==='$0'&&await metric('Paid').innerText()==='$100','Recorded deposit reduces principal and deposit requirement once');
  await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('button',{name:'Payments',exact:true}).first().click();
- await page.getByRole('heading',{name:'Collectible job balances',exact:true}).waitFor();
+ await page.getByRole('heading',{name:'Unpaid jobs',exact:true}).waitFor();
  const balances=page.locator('.balance-list article').filter({hasText:customer.name});
  check(await balances.count()===1&&await balances.first().innerText().then(text=>text.includes('Synthetic Scheduled Job')&&!text.includes('Synthetic Pending Quote')),'Payments excludes unapproved quote and retains scheduled collectible job');
  data=await (await request('/api/customers')).json();
