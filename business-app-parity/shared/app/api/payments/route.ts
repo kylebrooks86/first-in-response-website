@@ -40,7 +40,7 @@ export async function GET() {
     JOIN customers c ON c.id=e.customer_id
     WHERE s.status='open'
     ORDER BY s.created_at DESC LIMIT 50`).all();
-  return Response.json({payments:result.results,checkoutIssues:checkoutIssues.results});
+  return Response.json({payments:result.results,checkoutIssues:checkoutIssues.results},{headers:{"Cache-Control":"no-store, private"}});
 }
 
 export async function POST(request: Request) {
