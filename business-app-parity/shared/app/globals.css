@@ -2686,3 +2686,11 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 
 /* Payment entry stays comfortable to tap without changing the page layout. */
 .payment-form input:not([type="checkbox"]),.payment-form [data-slot="select-trigger"]{min-height:44px;font-size:16px}
+
+/* Final mobile audit: three Payments totals fill the card without a blank right-hand cell. */
+@media (min-width:351px) and (max-width:760px){
+ .payments-view .payments-primary-metrics>article:last-child:nth-child(odd),
+ .payments-view .payments-secondary-metrics>.business-metrics>article:last-child:nth-child(odd){
+  grid-column:1/-1;
+ }
+}
