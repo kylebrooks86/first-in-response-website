@@ -13,6 +13,8 @@ const css=readFileSync('app/globals.css','utf8');
 assert.ok(bellSource.includes('aria-expanded={showActivity}'),'Recent activity toggle exposes expanded state');
 assert.ok(bellSource.includes('hidden={!showActivity}'),'Read history can collapse without losing records');
 assert.ok(bellSource.includes('activityExpanded??unread>0'),'Unread activity stays visible by default');
+assert.ok(bellSource.includes('No unread activity. Reminders stay until handled.'),'Read all never falsely claims business reminders are completed');
+assert.ok(bellSource.includes('Recent activity marked read.'),'Mark all offers clear confirmed feedback');
 assert.ok(bellSource.includes('setActivityExpanded(null);setShowRead(false);setAttentionSummary'),'Opening bell resets to unread-aware default');
 assert.ok(css.includes('.notification-list[hidden]{display:none}'),'Collapsed history is visually hidden');
 assert.ok(css.includes('.notification-activity-toggle:focus-visible'),'Keyboard focus remains visible');
@@ -136,6 +138,8 @@ for(const success of [false,true]){
   }else patch.reject(Error('Lost response'));
   await flush();await flush();
   eq(f.get('unread'),success?0:1,'Mark all '+success+' updates badge only after confirmation');
+  eq(f.get('readNotice'),success?'Recent activity marked read.':'','Mark all '+success+' reports success only after confirmation');
+  if(success)eq(f.get('activityExpanded'),false,'Confirmed mark-all collapses recent activity without hiding business reminders');
   eq(Boolean(f.get('items')[0].readAt),success,'Mark all '+success+' keeps correct read state');
   eq(f.get('busy'),false,'Mark all always unlocks');
   f.unmount();
