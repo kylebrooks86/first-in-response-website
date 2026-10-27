@@ -2662,3 +2662,17 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .notification-popover>header button{min-height:44px;min-width:88px;padding:8px;flex-shrink:0}
 .payment-review-options{display:grid;gap:8px}.payment-review-options>summary,.payment-fee-details>summary{min-height:44px;display:list-item;list-style-position:inside;line-height:44px;cursor:pointer;font-size:12px;font-weight:700}
 .payment-review-options[open]>div{margin-block:8px}.payment-fee-details{margin-top:4px}
+
+
+/* Final iPhone Payments pass: optional disclosures are readable, not dense walls. */
+.payment-processing-disclosure{margin-block:12px 0;min-width:0}
+.payment-processing-disclosure>summary{min-height:48px;padding:13px 15px;font-size:13px;font-weight:750;line-height:1.4;cursor:pointer}
+.payment-processing-disclosure>p{margin:0;padding:3px 15px 11px;font-size:12px;line-height:1.5;color:var(--muted-foreground);overflow-wrap:anywhere}
+.payment-processing-disclosure>.processing-report-scroll{margin:0 10px 12px}
+.payment-review-options>summary,.payment-fee-details>summary{line-height:1.4;padding-block:12px;white-space:normal;overflow-wrap:anywhere}
+.payments-view .payment-form details>summary{min-height:44px;padding-block:10px;line-height:1.45;cursor:pointer}
+@media(max-width:760px){
+ .payment-processing-disclosure>summary{padding:12px}
+ .payment-processing-disclosure>p{padding:2px 12px 12px}
+ .payments-view .payment-layout{row-gap:12px}
+}
