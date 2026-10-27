@@ -2676,3 +2676,6 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
  .payment-processing-disclosure>p{padding:2px 12px 12px}
  .payments-view .payment-layout{row-gap:12px}
 }
+
+/* Payment entry stays comfortable to tap without changing the page layout. */
+.payment-form input:not([type="checkbox"]),.payment-form [data-slot="select-trigger"]{min-height:44px;font-size:16px}

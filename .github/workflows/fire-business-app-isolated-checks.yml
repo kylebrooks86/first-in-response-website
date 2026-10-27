@@ -907,6 +907,8 @@ jobs:
         env:
           FIRE_PRICING_SCREENSHOT_DIR: ${{ runner.temp }}/fire-pricing-ui
         run: node --experimental-sqlite scripts/test-custom-service-pricing-browser.mjs
+      - name: Final refund retry, quote-context and iPhone dialog audit
+        run: node scripts/test-final-interaction-audit-browser.mjs
       - name: Notification touch actions, saved reads and independent reminders over real SQLite
         run: node --experimental-sqlite scripts/test-notification-persistence-browser.mjs
       - name: Owner shift blocks and repeat intervals on phone light/dark
