@@ -38,6 +38,7 @@ function scan(node){
 scan(view);
 assert.equal(matches.length,1,'Render exactly one live calendar-day booking area');
 const markup=matches[0].getText(ast);
+assert.match(markup,/className="route-day-label"/,'Route title must own its grid cell, not be squeezed as anonymous text');
 const getScheduleVariable=name=>{
  const values=[];
  function visit(node){
@@ -132,6 +133,8 @@ try{
   const route=page.getByRole('link',{name:'Route today in Google Maps'});
   await book.waitFor();await route.waitFor();
   check(await route.count()===1,width+': exactly one direct daily route link');
+  const titleFit=await route.locator('.route-day-label').evaluate(n=>{const r=n.getBoundingClientRect(),p=n.closest('a').getBoundingClientRect();return r.width>=90&&r.height<=30&&r.left>=p.left-1&&r.right<=p.right+1&&n.scrollHeight<=n.clientHeight+1;});
+  check(titleFit,width+': Maps route label is a readable single line inside its phone-width action');
   check((await route.getAttribute('href')).includes('destination=123%20Synthetic%20Rd'),width+': Maps destination preserved');
   check(!(await page.getByRole('region',{name:'Choose an approved job to schedule'}).count()),width+': booking picker initially closed');
   const geometry=await page.evaluate(()=>({
