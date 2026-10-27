@@ -2694,3 +2694,10 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
   grid-column:1/-1;
  }
 }
+
+/* Schedule mobile audit: reserve the full text column for the Maps route label. */
+.schedule-day-buttons>.route-day-button .route-day-label{
+ grid-column:2;grid-row:1;min-width:0;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35;
+}
+.schedule-day-buttons>.route-day-button small{grid-column:2;grid-row:2;min-width:0;line-height:1.4}
