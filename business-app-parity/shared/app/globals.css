@@ -2638,3 +2638,19 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .pricing-settings textarea{min-height:88px;resize:vertical}
 
 .business-preferences{display:grid;gap:.75rem;min-width:0}.business-preferences fieldset{display:grid;gap:.75rem;min-width:0}.business-preferences-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.business-preferences select{min-height:44px;font-size:16px;border:1px solid var(--border);border-radius:8px;padding:.5rem;max-width:100%;background:var(--background);color:var(--foreground)}.business-preferences article,.repeat-service-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;min-width:0}.business-preferences article span,.repeat-service-row label{min-width:0;overflow-wrap:anywhere}.business-preferences small{display:block}.business-preferences button{min-height:44px}.repeat-service-row select{flex-shrink:0}
+
+
+/* Mobile polish: preserve payment details while making each action easier to scan. */
+.payments-view .balance-list>article{row-gap:12px}
+.payments-view .balance-list>article>div{min-width:0}
+.payments-view .balance-list small{line-height:1.4}
+.payments-view .business-panel[aria-label="Paid jobs ready for review follow-up"]{padding-bottom:14px}
+.payments-view .business-panel[aria-label="Paid jobs ready for review follow-up"]> :not(header){margin-inline:14px}
+.notification-read-notice,.notification-read-hint{margin:0;padding:9px 14px;font-size:12px;line-height:1.45}
+.notification-read-notice{color:var(--foreground);background:var(--muted)}
+.notification-read-hint{color:var(--muted-foreground);border-bottom:1px solid var(--border)}
+.notification-popover>header button:disabled{color:var(--muted-foreground);cursor:default;opacity:.7}
+@media(max-width:760px){
+ .payments-view .balance-list>article{column-gap:10px;row-gap:12px;padding:13px 12px}
+ .payments-view .business-panel[aria-label="Paid jobs ready for review follow-up"]> :not(header){margin-inline:12px}
+}
