@@ -133,4 +133,8 @@ check('Invoice mobile cards retain payment-review warning, balance and accessibl
  assert.equal(decl('.invoice-card>.status-chip',430,'grid-row'),'2','Status remains visible below customer details');
  assert.ok(sheet.toString().includes('.invoice-card>.status-chip.partial{background:'));
 });
+check('Owner payment history and checkout alerts cannot be served from stale browser cache',()=>{
+ const route=readFileSync('app/api/payments/route.ts','utf8');
+ assert.ok(route.includes('return Response.json({payments:result.results,checkoutIssues:checkoutIssues.results},{headers:{"Cache-Control":"no-store, private"}});'));
+});
 console.log(`PASS: ${cases}/${cases} component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.`);
