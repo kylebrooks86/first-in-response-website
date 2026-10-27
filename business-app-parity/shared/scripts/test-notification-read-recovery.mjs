@@ -118,7 +118,7 @@ for(const kind of ['network','http','malformed','negative']){
   f.fetch((url,options)=>options?.method==='PATCH'?patch.promise:Promise.resolve({ok:true,json:async()=>({notifications:current,unread:current.filter(x=>!x.readAt).length})}));
   f.markOne();eq(f.get('unread'),1,'Confirmed write has not happened yet');
   current=[{...original[0],readAt:'2026-10-19T22:00:00Z'},original[1]];
-  patch.resolve({ok:true,json:async()=>({ok:true,readAt:'2026-10-19T22:00:00Z'})});await flush();await flush();
+  patch.resolve({ok:true,json:async()=>({ok:true,unread:0,readAt:'2026-10-19T22:00:00Z'})});await flush();await flush();
   eq(f.get('unread'),0,'Successful server response refreshes unread badge');
   eq(f.get('items')[0].readAt,'2026-10-19T22:00:00Z','Successful confirmation persists read status');
   eq(f.get('busy'),false,'Success unlocks mutation');
@@ -134,7 +134,7 @@ for(const success of [false,true]){
   eq(f.get('unread'),1,'Mark all does not clear unread until confirmed');
   if(success){
     current=original.map(x=>({...x,readAt:x.readAt||'2026-10-19T22:00:00Z'}));
-    patch.resolve({ok:true,json:async()=>({ok:true,readAt:'2026-10-19T22:00:00Z'})});
+    patch.resolve({ok:true,json:async()=>({ok:true,unread:0,readAt:'2026-10-19T22:00:00Z'})});
   }else patch.reject(Error('Lost response'));
   await flush();await flush();
   eq(f.get('unread'),success?0:1,'Mark all '+success+' updates badge only after confirmation');
@@ -146,7 +146,7 @@ for(const success of [false,true]){
 }
 {
   const f=fixture(),pendingGet=deferred();let seen=0;
-  f.fetch((url,options)=>options?.method==='PATCH'?Promise.resolve({ok:true,json:async()=>({ok:true,readAt:'2026-10-19T22:00:00Z'})}):(++seen===1?Promise.resolve(ok()):seen===2?pendingGet.promise:Promise.resolve({ok:true,json:async()=>({notifications:original.map(x=>({...x,readAt:'2026-10-19T22:00:00Z'})),unread:0})})));
+  f.fetch((url,options)=>options?.method==='PATCH'?Promise.resolve({ok:true,json:async()=>({ok:true,unread:0,readAt:'2026-10-19T22:00:00Z'})}):(++seen===1?Promise.resolve(ok()):seen===2?pendingGet.promise:Promise.resolve({ok:true,json:async()=>({notifications:original.map(x=>({...x,readAt:'2026-10-19T22:00:00Z'})),unread:0})})));
   f.mount();await flush();
   f.render().props.onOpenChange(true);eq(seen,2,'Second GET deliberately remains in flight');
   f.markOne();await flush();await flush();
@@ -166,9 +166,15 @@ console.log('PASS '+checks+'/'+checks+': actual notification component validates
  eq(rows().length,2,'Read history remains available on request');
  eq(f.calls.filter(c=>c.options?.method==='PATCH').length,0,'Showing history changes no saved state');
  f.query().find(n=>n.type==='button'&&n.props.children==='Hide read notifications').props.onClick();eq(rows().length,1,'Hiding read history restores the unread list');
- f.fetch(async(url,options)=>options?.method==='PATCH'?{ok:true,json:async()=>({ok:true,readAt:'2026-10-26T20:00:00Z'})}:{ok:true,json:async()=>({notifications:original.map(n=>({...n,readAt:'2026-10-26T20:00:00Z'})),unread:0})});
+ f.fetch(async(url,options)=>options?.method==='PATCH'?{ok:true,json:async()=>({ok:true,unread:0,readAt:'2026-10-26T20:00:00Z'})}:{ok:true,json:async()=>({notifications:original.map(n=>({...n,readAt:'2026-10-26T20:00:00Z'})),unread:0})});
  f.markAll();await flush();eq(rows().length,0,'Confirmed mark-all removes rows from unread list');eq(f.get('items').length,2,'Mark-all preserves saved activity history');
  eq(f.query().find(n=>n.type==='button'&&n.props.children==='Mark all as read').props.disabled,true,'Mark-all remains visible and disabled when caught up');
  f.unmount();
 }
 console.log('PASS notification unread filtering, history access and confirmed mark-all behavior.');
+
+{
+ const f=fixture();f.fetch(async()=>({ok:true,json:async()=>({notifications:original,unread:47})}));f.mount();await flush();eq(f.get('unread'),47,'Global unread count may exceed the visible page');eq(Boolean(f.error()),false,'Older unread records do not invalidate the notification response');
+ let committed=false;f.fetch(async(url,options)=>{if(options?.method==='PATCH'){committed=true;throw Error('Lost synthetic acknowledgement');}return{ok:true,json:async()=>({notifications:original.map(n=>({...n,readAt:committed?'2026-10-27T02:00:00Z':n.readAt})),unread:committed?0:47})};});f.markAll();await flush();eq(Boolean(f.error()),true,'Lost acknowledgement remains unconfirmed');f.render().props.onOpenChange(true);await flush();eq(f.get('unread'),0,'Fresh GET reconciles an already committed read');eq(Boolean(f.error()),false,'Verified saved state clears the obsolete uncertainty warning');eq(f.calls.filter(c=>c.options?.method==='PATCH').length,1,'Readback never repeats the mutation');f.unmount();
+}
+console.log('PASS global unread count and lost-response reconciliation.');

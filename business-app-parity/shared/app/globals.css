@@ -2654,3 +2654,11 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
  .payments-view .balance-list>article{column-gap:10px;row-gap:12px;padding:13px 12px}
  .payments-view .business-panel[aria-label="Paid jobs ready for review follow-up"]> :not(header){margin-inline:12px}
 }
+
+/* Keep read actions reachable inside short iPhone viewports; no business reminders are dismissed. */
+.notification-popover{max-height:min(75dvh,var(--radix-popover-content-available-height,75dvh));overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.notification-popover>header{position:sticky;top:0;z-index:2;gap:8px;background:var(--card)}
+.notification-popover>header>div{min-width:0}
+.notification-popover>header button{min-height:44px;min-width:88px;padding:8px;flex-shrink:0}
+.payment-review-options{display:grid;gap:8px}.payment-review-options>summary,.payment-fee-details>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:12px;font-weight:700}
+.payment-review-options[open]>div{margin-block:8px}.payment-fee-details{margin-top:4px}

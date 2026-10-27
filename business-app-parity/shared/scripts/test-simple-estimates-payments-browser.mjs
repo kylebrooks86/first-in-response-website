@@ -45,7 +45,7 @@ const fixture=[
  " const base={service:'House wash',createdAt:'2026-10-24T12:00:00Z',totalCents:22000,paidCents:0};",
  " const examples=[{status:'sent',firstViewedAt:'2026-10-24T12:00:00Z'},{status:'approved',signedAt:'2026-10-24T12:00:00Z',signedName:'Synthetic Owner'},{status:'scheduled',scheduledAt:'2026-10-28T12:00:00Z',signedAt:'2026-10-24T12:00:00Z',signedName:'Synthetic Owner'},{status:'approved',acceptedAt:'2026-10-24T12:00:00Z'},{status:'scheduled',signedAt:'invalid',signedName:'Synthetic Owner'},{status:'draft',firstViewedAt:'invalid'},{status:'approved',signedName:'Synthetic Owner'},{status:'sent',signedAt:'2026-10-24T12:00:00Z',signedName:'Synthetic Owner'}].map((e,i)=>({...base,...e,id:'quote-'+i,customer:'Quote '+i}));",
  " const money=c=>'$'+(c/100).toFixed(2),load=()=>{};",
- " const payments=Array.from({length:9},(_,i)=>({id:'synthetic-'+i,customer:'Customer '+i,type:'Job payment',status:'paid',service:'House wash',createdAt:'2026-10-24T12:00:00Z',amountCents:12500+i,reference:'test-ref-'+i}));",
+ " const payments=Array.from({length:9},(_,i)=>({id:'synthetic-'+i,customer:'Customer '+i,type:'Job payment',status:'paid',service:'House wash',createdAt:'2026-10-24T12:00:00Z',amountCents:12500+i,grossReceivedCents:13000,processingMethod:'Cash App',reference:'test-ref-'+i}));",
  " return <main className='workspace-view payments-view'>",
  " <output id='selected-filter'>{filter}</output>",
  " <output id='opened-quote'>{selected?.id}</output>",
@@ -105,10 +105,12 @@ try{
   check((await more.locator('summary').textContent()).includes('Completed'),width+': advanced selection stays named when opened');
   await more.locator('summary').click();
   check(!(await group.getByRole('button',{name:'Completed',exact:true}).isVisible()),width+': optional statuses collapse again');
-  await panel.locator('summary').click();
+  await panel.locator(':scope > summary').click();
   check(await page.locator('.payment-history article').count()===8,width+': original recent eight payment records retained');
   check(await page.getByRole('button',{name:'Refund action for synthetic-0'}).isVisible(),width+': refunds still reachable');
-  check(await page.locator('.synthetic-processing').first().isVisible(),width+': payment fee detail retained');
+  check(!(await page.locator('.synthetic-processing').first().isVisible()),width+': fee breakdown starts collapsed');
+  await page.locator('.payment-fee-details summary').first().click();
+  check(await page.locator('.synthetic-processing').first().isVisible(),width+': full payment fee detail opens on demand');
   await page.getByRole('button',{name:/View all 9 payments/}).click();
   check(await page.locator('.payment-history article').count()===9,width+': full payment history available');
   await page.getByRole('button',{name:'Show recent 8 payments'}).click();
