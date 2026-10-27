@@ -589,11 +589,18 @@ html,body{max-width:100%;overflow-x:clip}
 .payment-history>article>div{min-width:0;overflow-wrap:anywhere}
 .payment-history-amount{grid-column:3;grid-row:1;white-space:nowrap}
 .payment-history>article>.payment-refund-action{grid-column:2 / -1;justify-self:stretch;min-height:44px}
-.processing-report-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
+.processing-report-scroll{max-width:100%;min-width:0;overflow-x:visible}
 .processing-report-scroll:focus-visible{outline:2px solid currentColor;outline-offset:-2px}
-.processing-report-table{width:100%;min-width:400px;border-collapse:collapse}
-.processing-report-table th,.processing-report-table td{padding:8px;text-align:right;white-space:nowrap}
-.processing-report-table th:first-child{text-align:left}
+.processing-report-table{width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse}
+.processing-report-table th,.processing-report-table td{padding:8px 4px;text-align:right;white-space:normal;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.processing-report-table th:first-child{text-align:left;width:29%}
+.processing-report-table th:nth-child(2){width:24%}
+.processing-report-table th:nth-child(3){width:21%}
+.processing-report-table th:nth-child(4){width:26%}
+@media(max-width:430px){
+ .processing-report-table{font-size:12px}
+ .processing-report-table th,.processing-report-table td{padding:8px 3px}
+}
 @media(max-width:760px){
   .payment-history>article{grid-template-columns:36px minmax(0,1fr)}
   .payment-history-amount{grid-column:2;grid-row:2}
