@@ -49,8 +49,8 @@ check('Fee details retain gross invoice credit, separate tips and actual net pro
  const html=renderToStaticMarkup(ui.ProcessingDetails({payment:{...base,amountCents:10000,grossReceivedCents:11000,bundledTipCents:1000,processingFeeCents:300,processingMethod:'Cash App'}}));for(const amount of ['$100.00','$10.00','$110.00','−$3.00','$107.00'])assert.ok(html.includes(amount));
  assert.equal(ui.ProcessingDetails({payment:base}),null);
 });
-check('Fee report exposes a keyboard-focusable labeled scrolling region and table headings',()=>{
- const html=renderToStaticMarkup(ui.ProcessingReport({payments:[{...base,grossReceivedCents:7500,processingFeeCents:210,processingMethod:'Cash App'}]}));assert.match(html,/role="region" aria-label="Processing fees by payment method" tabindex="0"/);assert.equal((html.match(/scope="col"/g)||[]).length,4);assert.equal((html.match(/scope="row"/g)||[]).length,2);for(const amount of ['$75.00','$2.10','$72.90'])assert.ok(html.includes(amount));
+check('Fee report exposes a labeled four-column table without an unnecessary scroll focus stop',()=>{
+ const html=renderToStaticMarkup(ui.ProcessingReport({payments:[{...base,grossReceivedCents:7500,processingFeeCents:210,processingMethod:'Cash App'}]}));assert.match(html,/role="region" aria-label="Processing fees by payment method"/);assert.ok(!html.includes('tabindex="0"'));assert.equal((html.match(/scope="col"/g)||[]).length,4);assert.equal((html.match(/scope="row"/g)||[]).length,2);for(const amount of ['$75.00','$2.10','$72.90'])assert.ok(html.includes(amount));
 });
 check('Payment history amount is explicitly placed, not mixed with refund controls',()=>{
  const n=functions.find(n=>n.name.text==='PaymentsView');let found=false;function walk(node){if(ts.isJsxElement(node)&&node.openingElement.tagName.getText(ast)==='strong'&&node.openingElement.attributes.properties.some(a=>a.name?.text==='className'&&a.initializer?.text==='payment-history-amount')){assert.match(node.getText(ast),/money\(payment.amountCents\)/);found=true;}ts.forEachChild(node,walk);}walk(n);assert.ok(found);
@@ -64,7 +64,11 @@ check('Responsive stylesheet confines table overflow and places amount/action be
  assert.equal(value(rule('.payment-history>article',true),'grid-template-columns'),'36px minmax(0,1fr)');
  assert.equal(value(rule('.payment-history-amount',true),'grid-row'),'2');
  assert.equal(value(rule('.payment-history>article>.payment-refund-action',true),'grid-row'),'3');
- assert.equal(value(rule('.processing-report-scroll'),'overflow-x'),'auto');
+ assert.equal(value(rule('.processing-report-scroll'),'overflow-x'),'visible','Processing fee table does not scroll sideways');
+ assert.equal(value(rule('.processing-report-table'),'min-width'),'0','Table fits available card width');
+ assert.equal(value(rule('.processing-report-table'),'table-layout'),'fixed','Four columns share viewport width');
+ assert.equal(value(rule('.processing-report-table th,.processing-report-table td'),'white-space'),'normal','Large amounts may wrap instead of clipping');
+ assert.equal(value(rule('.processing-report-table th,.processing-report-table td'),'overflow-wrap'),'anywhere');
  assert.equal(value(rule('.payment-history>article>div'),'overflow-wrap'),'anywhere');
 });
 check('Customer-profile payment rows explicitly separate amount and retain refund callbacks',()=>{
