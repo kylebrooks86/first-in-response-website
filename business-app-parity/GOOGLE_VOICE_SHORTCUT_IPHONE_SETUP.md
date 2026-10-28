@@ -29,9 +29,17 @@ After installing the available iOS update and restarting, the owner reported **t
 
 Draft PR #56, still **UNMERGED and NOT DEPLOYED**, removes automatic personal-number routing from primary actions, retains separately warned personal-number backups, and provides **Copy number**, **Copy message** for prepared texts, and **Open Google Voice**. The owner sends from the Google Voice app or website and manually confirms any prepared message in FIRE only after real delivery. This doesn't fabricate Google Voice delivery acknowledgments or promise automation.
 
-**Do not direct the owner to repeatedly test or rebuild their iPhone Shortcut.** The original `FIRE Google Voice Text` can remain saved for later troubleshooting, but it must not be used with customers in its current failing state. There is no supported direct Google Voice SMS API that FIRE can use to force the sender number. The customer-call path still requires a separate business-caller-ID solution and physical-iPhone acceptance.
+**Do not direct the owner to repeatedly test or rebuild their iPhone Shortcut.** The original `FIRE Google Voice Text` can remain saved for later troubleshooting, but it must not be used with customers in its current failing state. There is no supported direct Google Voice SMS API that FIRE can use to force the sender number. The owner subsequently verified the existing `Call 4` Shortcut: Safari launched it with `input=clipboard`, Google Voice called the intended person, and the recipient saw the FIRE business number. That is successful native calling evidence, separate from the unreliable texting action.
 
 Official reference: https://support.google.com/voice/answer/9345389
+
+## Call 4: direct selected-number candidate (not deployed)
+
+The existing primary Call panel now offers **Call via Call 4**, passing the validated selected customer number directly using Apple's documented `shortcuts://run-shortcut?name=Call%204&input=text&text=...` format. The leading `+` is URL-encoded; no clipboard content, new Shortcut, completion callback, personal-number fallback, or saved call-success status is involved. **Copy number / Open Google Voice** remain available. Personal **Call (Backup)** remains separate and warned.
+
+The owner's successful clipboard-input test does not yet verify this new text-input route from FIRE or the installed Home Screen app. After separate QA deployment approval, verify the intended recipient and FIRE caller ID once on the actual iPhone. Do not rebuild `Call 4` or repeat the failed texting setup.
+
+Apple reference: https://support.apple.com/guide/shortcuts/run-a-shortcut-from-a-url-apd624386f42/ios
 
 ## Non-negotiable boundaries
 

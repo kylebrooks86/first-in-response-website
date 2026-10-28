@@ -21,8 +21,17 @@ function handler({mode='text',phone='(918) 555-0102',message='  Exact saved body
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText,context);
  const render=()=>{si=0;ri=0;return context.exports.PersonalPhoneBackupAction({phone,mode,message,customerName:'Synthetic only'});};
  const button=()=>render().props.children[0];
- return{copies,routes,warnings,alerts,button,run:()=>button().props.onClick(),body:context.exports.personalBackupTextBody};
+ return{copies,routes,warnings,alerts,button,run:()=>button().props.onClick(),body:context.exports.personalBackupTextBody,shortcut:context.exports.googleVoiceCallShortcutHref};
 }
+const linkHelper=handler().shortcut;
+for(const phone of ['(918) 555-0102','+1 918 555 0102']){
+ const link=linkHelper(phone),url=new URL(link);
+ check(url.protocol==='shortcuts:'&&url.hostname==='run-shortcut','Only documented Shortcuts run route');
+ check(url.searchParams.get('name')==='Call 4'&&url.searchParams.get('input')==='text'&&url.searchParams.get('text')==='+19185550102','Exact existing Call 4 gets selected normalized recipient, including literal plus');
+ check([...url.searchParams.keys()].join(',')==='name,input,text','No clipboard, callbacks, automatic fallback or message payload');
+}
+check(new URL(linkHelper('9185550199')).searchParams.get('text')==='+19185550199','Changing selected customer changes only the passed destination');
+for(const phone of ['', 'not a phone', '9185550102&name=Other','9185550102?text=other'])check(linkHelper(phone)===null,'Invalid or injected phone cannot produce Shortcut URL');
 const cancelled=handler({confirm:false});await cancelled.run();check(cancelled.copies.length===0&&cancelled.routes.length===0,'Cancel never copies or opens personal Messages');
 for(const options of [{copy:async()=>{throw Error('Synthetic clipboard denial');}},{missingClipboard:true}]){const f=handler(options);await f.run();check(f.routes.length===0&&f.alerts.length===1,'Clipboard failure never opens an incomplete backup message');check(!f.button().props.disabled,'Failure releases backup control for explicit retry');}
 let release;const pending=handler({copy:()=>new Promise(r=>release=r)}),click=pending.button().props.onClick;
@@ -57,7 +66,11 @@ try{
   check(await dialog.locator('button:visible,a:visible').evaluateAll(nodes=>nodes.every(n=>{const r=n.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.height>=44;})),'Visible dialog controls fit with 44px touch targets '+width+'/'+theme);
   if(process.env.FIRE_VOICE_SCREENSHOT_DIR&&width===390){mkdirSync(process.env.FIRE_VOICE_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.FIRE_VOICE_SCREENSHOT_DIR,'voice-'+theme+'.png')});}
   await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});
-  await page.getByRole('button',{name:'Call Synthetic long customer name using Google Voice',exact:true}).click();const callDialog=page.getByRole('dialog',{name:'Call using Google Voice',exact:true});await callDialog.getByRole('button',{name:'Copy number',exact:true}).click();await callDialog.getByRole('status').filter({hasText:'Copy unavailable'}).waitFor();check(true,'Missing clipboard leaves call handoff usable');await page.keyboard.press('Escape');await callDialog.waitFor({state:'hidden'});
+  await page.getByRole('button',{name:'Call Synthetic long customer name using Google Voice',exact:true}).click();const callDialog=page.getByRole('dialog',{name:'Call using Google Voice',exact:true});await callDialog.evaluate(async element=>{await Promise.all(element.getAnimations({subtree:true}).map(animation=>animation.finished.catch(()=>{})));});const shortcut=callDialog.getByRole('link',{name:'Call via Call 4',exact:true});
+  check(await shortcut.getAttribute('href')==='shortcuts://run-shortcut?name=Call%204&input=text&text=%2B19185550102','Rendered Call 4 link has exact selected customer; no clipboard required');
+  check(await callDialog.getByRole('link',{name:'Open Google Voice',exact:true}).getAttribute('href')==='https://voice.google.com/','Manual business calling remains available');
+  check(await callDialog.locator('button:visible,a:visible').evaluateAll(nodes=>nodes.every(n=>{const r=n.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.height>=44;})),'Call controls fit viewport with 44px targets '+width+'/'+theme);
+  await callDialog.getByRole('button',{name:'Copy number',exact:true}).click();await callDialog.getByRole('status').filter({hasText:'Copy unavailable'}).waitFor();check(true,'Missing clipboard leaves call handoff usable');await page.keyboard.press('Escape');await callDialog.waitFor({state:'hidden'});
   page.once('dialog',async d=>{check(d.message().includes('PERSONAL cellphone number'),'Backup explicitly warns about personal number');await d.dismiss();});
   await page.getByRole('button',{name:'Text (Backup) for customer using your personal number',exact:true}).click();
   check(await page.getByRole('dialog').count()===0,'Cancelled backup does not open another dialog or trigger primary action');
