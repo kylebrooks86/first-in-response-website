@@ -5,6 +5,7 @@ on:
     paths:
       - 'business-app-parity/owner_windows_qa_current_readonly.ps1'
       - 'business-app-parity/test_owner_windows_qa_current_readonly.ps1'
+      - 'business-app-parity/test_qa_api_auth_inventory.py'
       - '.github/workflows/fire-qa-current-readonly-parse.yml'
 
 permissions:
@@ -44,3 +45,6 @@ jobs:
       - name: Execute guarded reviewer with synthetic provider responses only
         shell: pwsh
         run: ./business-app-parity/test_owner_windows_qa_current_readonly.ps1
+      - name: Audit all private route authorization entrypoints without host or D1
+        shell: pwsh
+        run: python ./business-app-parity/test_qa_api_auth_inventory.py
