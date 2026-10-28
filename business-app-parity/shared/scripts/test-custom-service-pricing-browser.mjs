@@ -45,5 +45,48 @@ try{
  const added=page.locator('.pricing-settings>article');await added.getByLabel('Name',{exact:true}).fill('Synthetic new catalog service');await added.getByLabel('Billing unit').selectOption('linear ft');await added.locator('input[inputmode="decimal"]').fill('2.25');mode='lost';await added.getByRole('button',{name:'Save service',exact:true}).click();await added.getByRole('alert').waitFor();check(await added.getByRole('button',{name:'Save service',exact:true}).isDisabled(),'Lost custom creation response blocks blind second creation');mode='normal';const savedWrites=puts;await page.getByRole('button',{name:'Refresh standard prices'}).click();await added.waitFor({state:'detached'});await page.locator('#pricing-search').fill('Synthetic new catalog');
  check(await page.locator('.pricing-grid article').count()===1,'Readback finds exactly one custom service after lost creation receipt');check(puts===savedWrites,'Readback creates no duplicate write');
  const custom=(await runtime.get()).data.rates.find(s=>s.details?.name==='Synthetic new catalog service');check(custom.rateCents===225&&custom.details.unit==='linear ft','Exact custom default retained');
+ // Explicit owner Delete/Restore applies to original catalog services, not just custom entries.
+ await page.locator('#pricing-search').fill('Window Frame Oxidation Removal');
+ const obsoleteCard=page.locator('.pricing-grid article').filter({has:page.locator('#standard-window-oxidation')});
+ page.once('dialog',d=>d.dismiss());
+ await obsoleteCard.getByRole('button',{name:'Delete service'}).click();
+ check(await page.locator('#standard-window-oxidation').count()===1,'Cancel deletion retains original service');
+ page.once('dialog',d=>d.accept());
+ await obsoleteCard.getByRole('button',{name:'Delete service'}).click();
+ await page.locator('#standard-window-oxidation').waitFor({state:'detached'});
+ check(!(await runtime.get()).data.rates.find(x=>x.id==='window-oxidation').details.active,'Generic window oxidation removed from active catalog');
+ check(await page.locator('#standard-window-oxidation-1f').count()===1&&await page.locator('#standard-window-oxidation-2f').count()===1,'Distinct first and second floor services retained');
+ await page.locator('#pricing-category').selectOption('inactive');
+ await page.locator('#standard-window-oxidation').waitFor();
+ await obsoleteCard.getByRole('button',{name:'Restore service'}).click();
+ await page.locator('#standard-window-oxidation').waitFor({state:'detached'});
+ await page.locator('#pricing-category').selectOption('all');
+ await page.locator('#standard-window-oxidation').waitFor();
+ check((await runtime.get()).data.rates.find(x=>x.id==='window-oxidation').details.active,'Deleted original service restores under same ID');
+ // Owner can delete even a numbered QuoteIQ entry without deleting its historical identity.
+ await page.locator('#pricing-search').fill('1st Floor Window Frame Oxidation Removal');
+ const numberedCard=page.locator('.pricing-grid article').filter({has:page.locator('#standard-window-oxidation-1f')});
+ page.once('dialog',d=>d.accept());await numberedCard.getByRole('button',{name:'Delete service'}).click();
+ await page.locator('#standard-window-oxidation-1f').waitFor({state:'detached'});
+ check((await runtime.get()).data.rates.find(x=>x.id==='window-oxidation-1f').details.active===false,'Numbered QuoteIQ entry can be deleted');
+ await page.locator('#pricing-category').selectOption('inactive');
+ await page.locator('#standard-window-oxidation-1f').waitFor();
+ await numberedCard.getByRole('button',{name:'Restore service'}).click();
+ await page.locator('#pricing-category').selectOption('all');
+ await page.locator('#standard-window-oxidation-1f').waitFor();
+ check((await runtime.get()).data.rates.find(x=>x.id==='window-oxidation-1f').details.active,'Numbered QuoteIQ entry can be restored');
+ // Owner-created custom items expose identical lifecycle controls.
+ await page.locator('#pricing-search').fill('Synthetic new catalog service');
+ const addedCard=page.locator('.pricing-grid article').filter({has:page.locator('#standard-'+custom.id)});
+ page.once('dialog',d=>d.accept());await addedCard.getByRole('button',{name:'Delete service'}).click();
+ await page.locator('#standard-'+custom.id).waitFor({state:'detached'});
+ check((await runtime.get()).data.rates.find(x=>x.id===custom.id).details.active===false,'Custom service can be deleted');
+ await page.locator('#pricing-category').selectOption('inactive');
+ await page.locator('#standard-'+custom.id).waitFor();
+ await addedCard.getByRole('button',{name:'Restore service'}).click();
+ await page.locator('#pricing-category').selectOption('all');
+ await page.locator('#standard-'+custom.id).waitFor();
+ check((await runtime.get()).data.rates.find(x=>x.id===custom.id).details.active,'Custom service can be restored');
+ check(await page.evaluate(()=>document.documentElement.scrollWidth)<=320,'Delete and restore controls fit 320px');
  check(errors.length===0,'No browser exceptions: '+errors.join(';'));console.log('PASS '+checks+' actual pricing mobile light/dark checks with SQLite API: defaults, search, touch geometry, duplicate taps, future-only rates, flat/reset and interrupted-save readback.');
 }finally{await browser?.close();await new Promise(r=>server.close(r));runtime.db.close();}
