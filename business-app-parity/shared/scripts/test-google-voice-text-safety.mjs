@@ -11,7 +11,9 @@ check(ui.includes('if(!await log("text_prepared"))return')&&ui.includes("setMess
 check(ui.includes('preparedMessage?.channel==="text_prepared"')&&ui.includes('navigator.clipboard.writeText(preparedMessage.body)'),"Owner can copy the exact saved prepared message into Voice");
 check(ui.includes('navigator.clipboard.writeText(customer.phone)')&&ui.includes('href={GOOGLE_VOICE_URL}'),"Recipient is copyable and verified Google Voice site is opened separately");
 check(ui.includes("confirmSent=async()=>")&&ui.includes("ownerConfirmedSent:true"),"Owner-confirmation audit remains explicit and separate from preparation");
-check(action.includes('https://voice.google.com/')&&action.includes("Copy number")&&action.includes("Opening Voice does not send anything automatically."),"Quick contact action does not claim automated Google Voice delivery");
+check(action.includes('https://voice.google.com/')&&action.includes("Copy number")&&action.includes("Nothing is marked sent by FIRE unless you confirm it."),"Quick contact action does not claim automated Google Voice delivery");
+check(action.includes("FIRE Google Voice Text") && action.includes("shortcuts://run-shortcut?name=") && action.includes("encodeURIComponent(input)"),"Official Apple Shortcuts URL passes encoded local input to owner-created Shortcut");
+check(action.includes("JSON.stringify({ phone, message })") && ui.includes("googleVoiceShortcutHref(customer.phone,preparedMessage.body)"),"Shortcut receives exact recipient and saved message only after preparation");
 check(!/\bgooglevoice:\/\//i.test(action),"No unsupported iPhone Google Voice deep link assumed");
 check(!/\b(?:twilio|sms\.send|GoogleVoiceAPI)\b/i.test(action),"No paid provider, fabricated SMS API, or automatic send path introduced");
 console.log("PASS "+checks+"/"+checks+" source-only Google Voice messaging safety checks. No calls, customer data, or deployment.");
