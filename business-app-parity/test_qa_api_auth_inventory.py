@@ -27,7 +27,7 @@ EXPECTED_PUBLIC_COUNT = len(PUBLIC)
 HANDLER = re.compile(r"export\s+async\s+function\s+(GET|POST|PUT|PATCH|DELETE)\s*\(")
 OWNER_CALL = re.compile(
     r"(?:getChatGPTUser\s*\(|getOwnerUser\s*\(|"
-    r"authorized\s*\(|requireChatGPTUser\s*\(|requireOwner\s*\()"
+    r"authorized\s*\(|owner\s*\(|requireChatGPTUser\s*\(|requireOwner\s*\()"
 )
 DENY = re.compile(r"(?:\b401\b|\bUnauthorized\b|\bunauthorized\b|\b403\b)")
 SENSITIVE = re.compile(r"(?:env\.DB|\.prepare\s*\(|\.batch\s*\(|BUCKET\.get\s*\(|BUCKET\.put\s*\()")
