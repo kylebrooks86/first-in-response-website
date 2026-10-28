@@ -98,7 +98,7 @@ assert.match(contact,/Zillow/);
 assert.match(contact,/onOpenTerritory\(selected.address\)/,'Profile reuses exact saved address for Territory');
 assert.match(activity,/customer-timeline-list/);
 const fixture=[
- "import React,{useState}from'react';import{createRoot}from'react-dom/client';",
+ "import React,{useState}from'react';import{createRoot}from'react-dom/client';import{GoogleVoiceCallAction,GoogleVoiceTextAction,PersonalPhoneBackupAction}from'./components/google-voice-text-action';",
   "import {usableCustomerPhone,usableCustomerEmail} from './lib/customer-contact-links';",
  "import{Phone,Send,Mail,Navigation,Globe2,House,MapPin,ChevronRight,Sparkles}from'lucide-react';",
  "function Fixture(){",
@@ -146,8 +146,8 @@ try{
   const row=page.getByRole('group',{name:'Customer contact and driving links'});
   const activityDisclosure=page.locator('details.customer-timeline-disclosure');
   await row.waitFor();await activityDisclosure.waitFor();
-  check(await row.getByRole('link',{name:'Call customer'}).getAttribute('href')==='tel:+19185550101',width+': existing phone destination');
-  check(await row.getByRole('link',{name:'Text customer'}).getAttribute('href')==='sms:+19185550101',width+': existing SMS destination');
+  await row.getByRole('button',{name:/Call .* using Google Voice/}).click();check(await page.getByRole('dialog',{name:'Call using Google Voice',exact:true}).isVisible(),width+': business call handoff remains accessible');await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
+  await row.getByRole('button',{name:/Text .* using Google Voice/}).click();check(await page.getByRole('dialog',{name:'Text using Google Voice',exact:true}).isVisible(),width+': business text handoff remains accessible');await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
   check(await row.getByRole('link',{name:'Email customer'}).getAttribute('href')==='mailto:synthetic%40example.invalid',width+': existing mail destination');
   check((await row.getByRole('link',{name:'Directions to customer in Google Maps'}).getAttribute('href')).includes('destination=123%20Synthetic%20Rd'),width+': maps destination preserved');
   await row.getByRole('button',{name:'Show customer on Territory Map'}).click();
@@ -162,10 +162,10 @@ try{
      const rect=e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,height:r.height}};
      return {columns:getComputedStyle(el).gridTemplateColumns.split(' ').length,actions:[...el.querySelectorAll(':scope>a,:scope>button')].map(rect),property:rect(el.querySelector('.customer-property-research'))};
     });
-    check(layout.columns===2&&layout.actions.length===5,width+': Call, Text, Email, Maps and Territory stay in compact iPhone grid');
+    check(layout.columns===2&&layout.actions.length===7,width+': business Call/Text, explicit backups, Email, Maps and Territory fit the iPhone grid');
     check(layout.actions.every(a=>a.height>=44&&a.left>=-1&&a.right<=width+1),width+': every contact action remains a full-height visible tap target');
     check(Math.abs(layout.actions[0].top-layout.actions[1].top)<3&&Math.abs(layout.actions[2].top-layout.actions[3].top)<3&&layout.actions[2].top>layout.actions[0].top+40&&layout.actions[4].top>layout.actions[2].top+40,width+': new Territory action adds only one compact row');
-    check(layout.property.top>layout.actions[4].top&&layout.property.left>=-1&&layout.property.right<=width+1,width+': expanded Earth and Zillow tools stay below quick actions without overflow');
+    check(layout.property.top>layout.actions[6].top&&layout.property.left>=-1&&layout.property.right<=width+1,width+': expanded Earth and Zillow tools stay below quick actions without overflow');
    }
   check(await page.getByRole('status',{name:'Last lead contact'}).count()===0,width+': new lead has no unnecessary contact explanation');
   await page.evaluate(()=>window.__setLeadContact({state:'no_answer',unansweredAttempts:2,at:'2026-10-23T15:00:00Z'}));
@@ -204,12 +204,12 @@ try{
  await page.evaluate(()=>window.__setSelected(s=>({...s,phone:'please call',email:'bad@@example.invalid'})));
  const guardedContacts=page.getByRole('group',{name:'Customer contact and driving links'});
  await guardedContacts.locator('.customer-contact-warning').waitFor();
- check(await guardedContacts.getByRole('link',{name:'Call customer'}).count()===0&&await guardedContacts.getByRole('link',{name:'Text customer'}).count()===0&&await guardedContacts.getByRole('link',{name:'Email customer'}).count()===0,'Invalid phone/email never creates unsafe recipient links');
+ check(await guardedContacts.getByRole('button',{name:/Call .* using Google Voice/}).count()===0&&await guardedContacts.getByRole('button',{name:/Text .* using Google Voice/}).count()===0&&await guardedContacts.getByRole('link',{name:'Email customer'}).count()===0,'Invalid phone/email never creates unsafe recipient links');
  check((await guardedContacts.locator('.customer-contact-warning').innerText()).includes('Check phone and email in Edit customer'),'Invalid saved contact fields show a short correction prompt');
  check(await guardedContacts.getByRole('link',{name:'Directions to customer in Google Maps'}).isVisible(),'Bad contact data never hides saved directions');
  await page.evaluate(()=>window.__setSelected(s=>({...s,phone:'+1 (918) 555-0102',email:'contact@example.invalid'})));
- await guardedContacts.getByRole('link',{name:'Call customer'}).waitFor();
- check(await guardedContacts.getByRole('link',{name:'Call customer'}).getAttribute('href')==='tel:+19185550102','Formatted US phone normalizes to E.164 dial target');
+ await guardedContacts.getByRole('button',{name:/Call .* using Google Voice/}).waitFor();
+ await guardedContacts.getByRole('button',{name:/Call .* using Google Voice/}).click();await page.getByRole('dialog',{name:'Call using Google Voice',exact:true}).waitFor();check(await page.getByText('+19185550102',{exact:true}).isVisible(),'Formatted US phone normalizes to business handoff recipient');await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
  check(await guardedContacts.locator('.customer-contact-warning').count()===0,'Corrected customer contact clears warning');
  await page.evaluate(()=>{window.__setSelected(s=>({...s,phone:'',email:'',address:''}));window.__setWithActions(false)});
  for(const [status,label] of [['draft','Continue draft estimate'],['sent','Open estimate'],['completed','Open completed job']]){

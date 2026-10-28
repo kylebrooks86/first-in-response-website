@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Copy, ExternalLink, MessageSquareText, Phone } from "lucide-react";
+import { usableCustomerPhone } from "@/lib/customer-contact-links";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -26,9 +27,10 @@ export function GoogleVoiceTextAction({
   className?: string;
 }) {
   const [copyStatus, setCopyStatus] = useState("");
+  const recipient = usableCustomerPhone(phone);
   async function copyNumber() {
     try {
-      await navigator.clipboard.writeText(phone);
+      await navigator.clipboard.writeText(recipient!);
       setCopyStatus("Number copied. Paste it into Google Voice.");
     } catch {
       setCopyStatus("Copy was unavailable. Enter the customer number shown above in Google Voice.");
@@ -37,27 +39,26 @@ export function GoogleVoiceTextAction({
   return (
     <Dialog onOpenChange={() => setCopyStatus("")}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" className={className} aria-label={ariaLabel ?? "Text " + (customerName || "customer") + " using Google Voice"}>
+        <Button type="button" variant="outline" disabled={!recipient} className={`${className ?? ""} min-h-11 whitespace-normal`} aria-label={ariaLabel ?? "Text " + (customerName || "customer") + " using Google Voice"}>
           <MessageSquareText aria-hidden="true" className="h-4 w-4" /> {label}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[430px]">
+      <DialogContent className="voice-contact-dialog sm:max-w-[430px]">
         <DialogHeader><DialogTitle>Text using Google Voice</DialogTitle></DialogHeader>
-        <p>To keep your personal number private, send from your signed-in FIRE business Google Voice account.</p>
+        <p>Send from your FIRE business account.</p>
         <p>Customer: <strong>{customerName || "Selected customer"}</strong></p>
         <p>Recipient number: <strong>{phone}</strong></p>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={() => void copyNumber()}><Copy className="h-4 w-4" /> Copy number</Button>
-          {message && <Button type="button" variant="outline" onClick={() => {
-            void navigator.clipboard.writeText(message).then(
-              () => setCopyStatus("Prepared message copied. Paste into Google Voice."),
-              () => setCopyStatus("Copy unavailable. Select and copy your prepared message manually."),
-            );
+          <Button type="button" variant="outline" className="min-h-11 whitespace-normal" onClick={() => void copyNumber()}><Copy className="h-4 w-4" /> Copy number</Button>
+          {message && <Button type="button" variant="outline" className="min-h-11 whitespace-normal" onClick={async () => {
+            try { await navigator.clipboard.writeText(message); setCopyStatus("Message copied. Paste into Google Voice."); }
+            catch { setCopyStatus("Copy unavailable. Select and copy the message below."); }
           }}><Copy className="h-4 w-4" /> Copy message</Button>}
           <a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={GOOGLE_VOICE_URL} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /> Open Google Voice</a>
         </div>
         {copyStatus && <p role="status">{copyStatus}</p>}
-        <p className="text-sm">An independent Google Voice Shortcut sent successfully after the owner's iOS update; direct FIRE-to-Shortcut recipient and message handoff is still unverified. For now, copy the recipient, open Google Voice and send using the FIRE account. Nothing is marked sent by FIRE unless you confirm it.</p>
+        {message && <textarea aria-label="Prepared message for Google Voice" className="w-full min-h-20 rounded-md border p-2 text-base" rows={3} value={message} readOnly onFocus={event => event.currentTarget.select()}/>}
+        <p className="text-sm">Nothing is marked sent by FIRE unless you confirm it.</p>
       </DialogContent>
     </Dialog>
   );
@@ -75,24 +76,23 @@ export function GoogleVoiceCallAction({
   className?: string;
 }) {
   const [copyStatus, setCopyStatus] = useState("");
+  const recipient = usableCustomerPhone(phone);
   return (
     <Dialog onOpenChange={() => setCopyStatus("")}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" className={className} aria-label={"Call " + (customerName || "customer") + " using Google Voice"}>
+        <Button type="button" variant="outline" disabled={!recipient} className={`${className ?? ""} min-h-11 whitespace-normal`} aria-label={"Call " + (customerName || "customer") + " using Google Voice"}>
           <Phone aria-hidden="true" className="h-4 w-4" /> Call
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[430px]">
+      <DialogContent className="voice-contact-dialog sm:max-w-[430px]">
         <DialogHeader><DialogTitle>Call using Google Voice</DialogTitle></DialogHeader>
-        <p>Use your signed-in FIRE Google Voice account for your business caller ID. Opening Voice does not place the call.</p>
+        <p>Call from your FIRE business account. Opening Voice does not place a call.</p>
         <p>Customer: <strong>{customerName || "Selected customer"}</strong></p>
         <p>Number: <strong>{phone}</strong></p>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={() => {
-            void navigator.clipboard.writeText(phone).then(
-              () => setCopyStatus("Number copied. Paste into Google Voice to call."),
-              () => setCopyStatus("Copy unavailable. Enter the number displayed above."),
-            );
+          <Button type="button" variant="outline" className="min-h-11 whitespace-normal" onClick={async () => {
+            try { await navigator.clipboard.writeText(recipient!); setCopyStatus("Number copied. Paste into Google Voice to call."); }
+            catch { setCopyStatus("Copy unavailable. Enter the number displayed above."); }
           }}><Copy className="h-4 w-4" /> Copy number</Button>
           <a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={GOOGLE_VOICE_URL} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /> Open Google Voice</a>
         </div>
@@ -105,8 +105,8 @@ export function GoogleVoiceCallAction({
 // Prepend only for explicitly selected PERSONAL-number backup texts. Never change saved templates.
 export const PERSONAL_BACKUP_TEXT_INTRO = "Hi, this is First In Response Exteriors. We're using an alternate number today.";
 export function personalBackupTextBody(message = ""): string {
-  const original = message.trim();
-  return original ? PERSONAL_BACKUP_TEXT_INTRO + "\n\n" + original : PERSONAL_BACKUP_TEXT_INTRO;
+  const original = message;
+  return original.trim() ? PERSONAL_BACKUP_TEXT_INTRO + "\n\n" + original : PERSONAL_BACKUP_TEXT_INTRO;
 }
 
 /** Explicit manual fallback only. A native sms:/tel: link can expose the owner's personal number. */
@@ -124,9 +124,16 @@ export function PersonalPhoneBackupAction({
   className?: string;
 }) {
   const [copyStatus, setCopyStatus] = useState("");
+  const recipient = usableCustomerPhone(phone);
+  const inFlight = useRef(false);
+  const [opening, setOpening] = useState(false);
   const isText = mode === "text";
   const label = isText ? "Text (Backup)" : "Call (Backup)";
   const openPersonalPhone = async () => {
+    if (inFlight.current || !recipient) return;
+    inFlight.current = true;
+    setOpening(true);
+    try {
     const warning = isText
       ? "BACKUP: Apple's Messages may send using your PERSONAL cellphone number, which the customer can see. Only use this if the message has NOT already been sent via Google Voice. FIRE copies the business introduction and your prepared message for you to paste and review. Continue?"
       : "BACKUP: Your iPhone's regular Phone app may reveal your PERSONAL cellphone number to the customer. Only continue if Google Voice is unavailable. Proceed?";
@@ -146,11 +153,13 @@ export function PersonalPhoneBackupAction({
         return;
       }
     }
-    window.location.href = (isText ? "sms:" : "tel:") + phone;
+    await Promise.resolve();
+    window.location.href = (isText ? "sms:" : "tel:") + recipient;
+    } finally { inFlight.current = false; setOpening(false); }
   };
   return (
     <>
-      <Button type="button" variant="outline" className={className} aria-label={label + " for " + (customerName || "customer") + " using your personal number"} onClick={openPersonalPhone}>
+      <Button type="button" data-personal-backup variant="ghost" disabled={opening || !recipient} className={`${className ?? ""} min-h-11 whitespace-normal text-xs`} aria-label={label + " for " + (customerName || "customer") + " using your personal number"} onClick={openPersonalPhone}>
         {isText ? <MessageSquareText className="h-4 w-4" aria-hidden="true" /> : <Phone className="h-4 w-4" aria-hidden="true" />} {label}
       </Button>
       {copyStatus && <span className="text-xs" role="status">{copyStatus}</span>}

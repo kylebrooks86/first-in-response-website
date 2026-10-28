@@ -12,7 +12,7 @@ The FIRE owner built `FIRE Google Voice Text` with Apple's documented JSON text 
 
 ## Follow-up: iPhone updated; a simplified Google Voice Shortcut sent a text
 
-After installing the available iOS update and restarting, the owner reported **the independent simple Shortcut test worked**. The user did not explicitly finish the separate business-sender-ID verification step before moving to backup design. The full `FIRE Google Voice Text` Shortcut with iOS URL, JSON extraction, live customer number and live prepared body has **not yet been re-accepted after the update**. Do not prematurely imply that the current FIRE draft button automatically texts through Google Voice. The primary draft UI therefore retains its manual Copy/Open Voice fallback pending a dedicated device test.
+After installing the available iOS update and restarting, the owner reported **the independent simple Shortcut test worked**. The user did not explicitly finish the separate business-sender-ID verification step before moving to backup design. The owner subsequently reported another failed attempt. The intermittent result does not establish dependable Shortcut sending. The full `FIRE Google Voice Text` Shortcut has **not been accepted** after the update; no further rebuild or repeated native-send test is required for this release. Do not prematurely imply that the current FIRE draft button automatically texts through Google Voice. The primary draft UI therefore retains its manual Copy/Open Voice fallback pending a dedicated device test.
 
 ## Personal-number emergency backups (user-requested)
 
@@ -27,7 +27,7 @@ After installing the available iOS update and restarting, the owner reported **t
 
 ## Safe current product decision
 
-Draft PR #56, still **UNMERGED and NOT DEPLOYED**, removes the personal-number iPhone `sms:` links and provides **Copy number**, **Copy message** for prepared texts, and **Open Google Voice**. The owner sends from the Google Voice app or website and manually confirms any prepared message in FIRE only after real delivery. This doesn't fabricate Google Voice delivery acknowledgments or promise automation.
+Draft PR #56, still **UNMERGED and NOT DEPLOYED**, removes automatic personal-number routing from primary actions, retains separately warned personal-number backups, and provides **Copy number**, **Copy message** for prepared texts, and **Open Google Voice**. The owner sends from the Google Voice app or website and manually confirms any prepared message in FIRE only after real delivery. This doesn't fabricate Google Voice delivery acknowledgments or promise automation.
 
 **Do not direct the owner to repeatedly test or rebuild their iPhone Shortcut.** The original `FIRE Google Voice Text` can remain saved for later troubleshooting, but it must not be used with customers in its current failing state. There is no supported direct Google Voice SMS API that FIRE can use to force the sender number. The customer-call path still requires a separate business-caller-ID solution and physical-iPhone acceptance.
 

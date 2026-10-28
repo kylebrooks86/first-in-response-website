@@ -16,8 +16,8 @@ check(action.includes("Hi, this is First In Response Exteriors. We\'re using an 
 check(action.includes("PERSONAL_BACKUP_TEXT_INTRO + \"\\n\\n\" + original"),"Alternate-number notice prepends without editing saved message template");
 check(ui.includes("message={contactDraft?.jobId===job.id?contactDraft.text:undefined}"),"Schedule reminders and on-my-way drafts flow into both text actions");
 check(ui.includes('if(!await log("text_prepared"))return')&&ui.includes("setMessageStatus(\"Prepared for Google Voice."),"Message composer preserves saved prepared/unconfirmed audit before handoff");
-check(ui.includes('preparedMessage?.channel==="text_prepared"')&&ui.includes('navigator.clipboard.writeText(preparedMessage.body)'),"Owner can copy the exact saved prepared message into Voice");
-check(ui.includes('navigator.clipboard.writeText(customer.phone)')&&ui.includes('href={GOOGLE_VOICE_URL}'),"Recipient is copyable and verified Google Voice site is opened separately");
+check(ui.includes('preparedMessage?.channel==="text_prepared"')&&ui.includes('copyVoiceField(preparedMessage.body'),"Owner can copy the exact saved prepared message into Voice");
+check(ui.includes('copyVoiceField(customer.phone')&&ui.includes('href={GOOGLE_VOICE_URL}'),"Recipient is copyable and verified Google Voice site is opened separately");
 check(ui.includes("confirmSent=async()=>")&&ui.includes("ownerConfirmedSent:true"),"Owner-confirmation audit remains explicit and separate from preparation");
 check(action.includes('https://voice.google.com/')&&action.includes("Copy number")&&action.includes("Nothing is marked sent by FIRE unless you confirm it."),"Quick contact action does not claim automated Google Voice delivery");
 check(!ui.includes("Use iPhone Shortcut")&&!action.includes("Use iPhone Shortcut"),"Failed Google Voice native Shortcut send action is not offered to customers");

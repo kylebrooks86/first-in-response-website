@@ -909,6 +909,8 @@ jobs:
         env:
           FIRE_PRICING_SCREENSHOT_DIR: ${{ runner.temp }}/fire-pricing-ui
         run: node --experimental-sqlite scripts/test-custom-service-pricing-browser.mjs
+      - name: Google Voice and personal backup interaction safety
+        run: node scripts/test-google-voice-actions-browser.mjs
       - name: Final refund retry, quote-context and iPhone dialog audit
         run: node scripts/test-final-interaction-audit-browser.mjs
       - name: Notification touch actions, saved reads and independent reminders over real SQLite

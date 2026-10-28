@@ -27,7 +27,7 @@ assert.equal(actionNodes.length,1,'Find exactly one ACTUAL Today next-job toolba
 const actions=actionNodes[0].getText(ast);
 assert.match(actions,/dashboard-next-contact-tools/,'Contact links must be grouped in the actual toolbar');
 const fixture=`import React,{useState} from 'react';
-import {GoogleVoiceTextAction} from './components/google-voice-text-action';
+import {GoogleVoiceTextAction,GoogleVoiceCallAction,PersonalPhoneBackupAction} from './components/google-voice-text-action';
 import {createRoot} from 'react-dom/client';
 import {Phone,MessageSquareText,Mail,Navigation,ChevronRight,ChevronDown} from 'lucide-react';
 function Button({variant,className,...props}){return <button className={className||''} {...props}/>;}
@@ -35,7 +35,7 @@ function Fixture(){
  const [flags,setFlags]=useState({phone:true,email:true,address:true});
  window.__setFlags=setFlags;
  window.__actions=[];
- const upcomingJobs=[{id:'synthetic-job',address:flags.address?'123 Synthetic Lane, Tulsa, OK':''}];
+ const upcomingJobs=[{id:'synthetic-job',customer:'Synthetic next customer',address:flags.address?'123 Synthetic Lane, Tulsa, OK':''}];
  const nextJobPhone=flags.phone?'9185550102':null;
  const canEmailNextJob=flags.email;
  const nextJobEmail=flags.email?'owner@example.invalid':'';
@@ -68,7 +68,7 @@ try{
   await page.setViewportSize({width,height:844});
   await page.goto(origin);await page.locator('.dashboard-next-contact-tools>summary').waitFor();
   const summary=page.locator('.dashboard-next-contact-tools>summary');
-  const call=page.getByRole('link',{name:'Call next job customer'});
+  const call=page.getByRole('button',{name:'Call Synthetic next customer using Google Voice',exact:true});
   const sms=page.getByRole('button',{name:'Text next job customer using Google Voice'});
   const email=page.getByRole('link',{name:'Email next job customer'});
   const dirs=page.getByRole('link',{name:'Directions to next job'});
@@ -78,12 +78,12 @@ try{
   check(await page.evaluate(()=>window.__actions.includes('job:synthetic-job')),width+': existing job navigation preserved');
   await summary.click();
   check(await call.isVisible()&&await sms.isVisible()&&await email.isVisible(),width+': all contact methods restored by one tap');
-  check(await call.getAttribute('href')==='tel:9185550102'&&await email.getAttribute('href')==='mailto:owner%40example.invalid',width+': call/email destinations remain unchanged');
+  check(await email.getAttribute('href')==='mailto:owner%40example.invalid',width+': email destination remains unchanged');await call.click();check(await page.getByRole('dialog',{name:'Call using Google Voice',exact:true}).isVisible(),width+': primary Call uses business Voice handoff');await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});check(await page.getByRole('button',{name:/Call \(Backup\)/}).isVisible()&&await page.getByRole('button',{name:/Text \(Backup\)/}).isVisible(),width+': personal backups remain explicit secondary actions');
   await sms.click();
   check(await page.getByRole('dialog',{name:'Text using Google Voice'}).isVisible(),width+': text action opens Google Voice handoff, not personal SMS');
   check(await page.getByRole('link',{name:'Open Google Voice'}).getAttribute('href')==='https://voice.google.com/',width+': only verified Google Voice website is offered');
   check(await page.getByText('9185550102',{exact:true}).isVisible(),width+': exact recipient number available for copying');
-  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
   const geometry=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,width:innerWidth,actions:[...document.querySelectorAll('.dashboard-next-job-actions button,.dashboard-next-job-actions a,.dashboard-next-contact-tools>summary')].filter(n=>n.getClientRects().length).map(n=>{const rect=n.getBoundingClientRect();return {label:n.textContent.trim(),left:rect.left,right:rect.right,height:rect.height};})}));
   check(geometry.scrollWidth<=width+1,width+': no page horizontal overflow');
   check(geometry.actions.every(box=>box.left>=-1&&box.right<=width+1&&box.height>=44),width+': all visible action boxes fit screen and 44px tap height');
@@ -97,7 +97,7 @@ try{
  check(await page.locator('.dashboard-next-contact-tools').count()===1,'Email-only customer still has contact disclosure');
  await page.locator('.dashboard-next-contact-tools>summary').click();
  check(await page.getByRole('link',{name:'Email next job customer'}).isVisible(),'Email-only link remains accessible');
- check(await page.getByRole('link',{name:'Call next job customer'}).count()===0,'Do not fabricate phone link');
+ check(await page.getByRole('button',{name:'Call Synthetic next customer using Google Voice',exact:true}).count()===0,'Do not fabricate phone link');
  await page.evaluate(()=>window.__setFlags({phone:false,email:false,address:true}));
  await page.waitForFunction(()=>!document.querySelector('.dashboard-next-contact-tools'));
  check(await page.locator('.dashboard-next-contact-tools').count()===0,'No empty contact disclosure if neither contact method exists');

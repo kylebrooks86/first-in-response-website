@@ -2708,3 +2708,8 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35;
 }
 .schedule-day-buttons>.route-day-button small{grid-column:2;grid-row:2;min-width:0;line-height:1.4}
+
+/* Keep business-contact handoffs usable without changing other dialogs. */
+.voice-contact-dialog [data-slot="dialog-close"]{width:44px;height:44px;display:grid;place-items:center;top:4px;right:4px}
+.voice-contact-dialog [data-slot="dialog-title"]{padding-right:24px}
+button[data-personal-backup],.customer-contact>button[data-personal-backup],.detail-actions>button[data-personal-backup]{color:var(--muted-foreground);font-weight:500;border-style:dashed}
