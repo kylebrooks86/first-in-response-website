@@ -21,7 +21,7 @@ check(ui.includes('copyVoiceField(customer.phone')&&ui.includes('href={GOOGLE_VO
 check(ui.includes("confirmSent=async()=>")&&ui.includes("ownerConfirmedSent:true"),"Owner-confirmation audit remains explicit and separate from preparation");
 check(action.includes('https://voice.google.com/')&&action.includes("Copy number")&&action.includes("Nothing is marked sent by FIRE unless you confirm it."),"Quick contact action does not claim automated Google Voice delivery");
 check(!ui.includes("Use iPhone Shortcut")&&!action.includes("Use iPhone Shortcut"),"Failed Google Voice native Shortcut send action is not offered to customers");
-check(!ui.includes("googleVoiceShortcutHref")&&!action.includes("name=FIRE%20Google%20Voice%20Text"),"Failed native SMS Shortcut is not reintroduced; Call 4 is calling only");
+check(!ui.includes("googleVoiceShortcutHref")&&!action.includes("name=FIRE%20Google%20Voice%20Text"),"Failed native SMS Shortcut is not reintroduced; FIRE Google Voice Call is calling only");
 check(!/\bgooglevoice:\/\//i.test(action),"No unsupported iPhone Google Voice deep link assumed");
 check(!/\b(?:twilio|sms\.send|GoogleVoiceAPI)\b/i.test(action),"No paid provider, fabricated SMS API, or automatic send path introduced");
 console.log("PASS "+checks+"/"+checks+" source-only Google Voice messaging safety checks. No calls, customer data, or deployment.");

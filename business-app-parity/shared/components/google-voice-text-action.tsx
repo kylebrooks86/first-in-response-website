@@ -68,10 +68,10 @@ export function GoogleVoiceTextAction({
 /** Apple documents text input for a named Shortcut. Never use clipboard state or a personal-phone fallback. */
 export function googleVoiceCallShortcutHref(phone: string): string | null {
   const recipient = usableCustomerPhone(phone);
-  return recipient ? "shortcuts://run-shortcut?name=Call%204&input=text&text=" + encodeURIComponent(recipient) : null;
+  return recipient ? "shortcuts://run-shortcut?name=FIRE%20Google%20Voice%20Call&input=text&text=" + encodeURIComponent(recipient) : null;
 }
 
-/** Keep the manual business-number path while the direct Call 4 handoff awaits iPhone acceptance. */
+/** Keep the manual business-number path while the direct FIRE Google Voice Call handoff awaits iPhone acceptance. */
 export function GoogleVoiceCallAction({
   phone,
   customerName,
@@ -93,10 +93,10 @@ export function GoogleVoiceCallAction({
       </DialogTrigger>
       <DialogContent className="voice-contact-dialog sm:max-w-[430px]">
         <DialogHeader><DialogTitle>Call using Google Voice</DialogTitle></DialogHeader>
-        <p>Call 4 uses your existing Google Voice Shortcut. Check the recipient before calling.</p>
+        <p>FIRE Google Voice Call uses your existing Google Voice Shortcut. Check the recipient before calling.</p>
         <p>Customer: <strong>{customerName || "Selected customer"}</strong></p>
         <p>Number: <strong>{phone}</strong></p>
-        {shortcutHref && <a className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-primary-foreground" href={shortcutHref}><Phone aria-hidden="true" className="h-4 w-4" /> Call via Call 4</a>}
+        {shortcutHref && <a className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-primary-foreground" href={shortcutHref}><Phone aria-hidden="true" className="h-4 w-4" /> Call via FIRE Google Voice Call</a>}
         <p className="text-sm">Or call manually in Google Voice:</p>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" className="min-h-11 whitespace-normal" onClick={async () => {

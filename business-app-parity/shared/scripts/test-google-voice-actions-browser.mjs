@@ -27,7 +27,7 @@ const linkHelper=handler().shortcut;
 for(const phone of ['(918) 555-0102','+1 918 555 0102']){
  const link=linkHelper(phone),url=new URL(link);
  check(url.protocol==='shortcuts:'&&url.hostname==='run-shortcut','Only documented Shortcuts run route');
- check(url.searchParams.get('name')==='Call 4'&&url.searchParams.get('input')==='text'&&url.searchParams.get('text')==='+19185550102','Exact existing Call 4 gets selected normalized recipient, including literal plus');
+ check(url.searchParams.get('name')==='FIRE Google Voice Call'&&url.searchParams.get('input')==='text'&&url.searchParams.get('text')==='+19185550102','Exact existing FIRE Google Voice Call gets selected normalized recipient, including literal plus');
  check([...url.searchParams.keys()].join(',')==='name,input,text','No clipboard, callbacks, automatic fallback or message payload');
 }
 check(new URL(linkHelper('9185550199')).searchParams.get('text')==='+19185550199','Changing selected customer changes only the passed destination');
@@ -66,8 +66,8 @@ try{
   check(await dialog.locator('button:visible,a:visible').evaluateAll(nodes=>nodes.every(n=>{const r=n.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.height>=44;})),'Visible dialog controls fit with 44px touch targets '+width+'/'+theme);
   if(process.env.FIRE_VOICE_SCREENSHOT_DIR&&width===390){mkdirSync(process.env.FIRE_VOICE_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.FIRE_VOICE_SCREENSHOT_DIR,'voice-'+theme+'.png')});}
   await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});
-  await page.getByRole('button',{name:'Call Synthetic long customer name using Google Voice',exact:true}).click();const callDialog=page.getByRole('dialog',{name:'Call using Google Voice',exact:true});await callDialog.evaluate(async element=>{await Promise.all(element.getAnimations({subtree:true}).map(animation=>animation.finished.catch(()=>{})));});const shortcut=callDialog.getByRole('link',{name:'Call via Call 4',exact:true});
-  check(await shortcut.getAttribute('href')==='shortcuts://run-shortcut?name=Call%204&input=text&text=%2B19185550102','Rendered Call 4 link has exact selected customer; no clipboard required');
+  await page.getByRole('button',{name:'Call Synthetic long customer name using Google Voice',exact:true}).click();const callDialog=page.getByRole('dialog',{name:'Call using Google Voice',exact:true});await callDialog.evaluate(async element=>{await Promise.all(element.getAnimations({subtree:true}).map(animation=>animation.finished.catch(()=>{})));});const shortcut=callDialog.getByRole('link',{name:'Call via FIRE Google Voice Call',exact:true});
+  check(await shortcut.getAttribute('href')==='shortcuts://run-shortcut?name=FIRE%20Google%20Voice%20Call&input=text&text=%2B19185550102','Rendered FIRE Google Voice Call link has exact selected customer; no clipboard required');
   check(await callDialog.getByRole('link',{name:'Open Google Voice',exact:true}).getAttribute('href')==='https://voice.google.com/','Manual business calling remains available');
   check(await callDialog.locator('button:visible,a:visible').evaluateAll(nodes=>nodes.every(n=>{const r=n.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.height>=44;})),'Call controls fit viewport with 44px targets '+width+'/'+theme);
   await callDialog.getByRole('button',{name:'Copy number',exact:true}).click();await callDialog.getByRole('status').filter({hasText:'Copy unavailable'}).waitFor();check(true,'Missing clipboard leaves call handoff usable');await page.keyboard.press('Escape');await callDialog.waitFor({state:'hidden'});
