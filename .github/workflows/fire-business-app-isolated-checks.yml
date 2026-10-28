@@ -32,6 +32,7 @@ on:
       - work/fire-qa-safe-23-to-25-upgrade-2026-10-23
       - work/fire-owner-qa-worker-serving-readonly-2026-10-23
       - work/fire-qa-iphone-photo-button-fit-2026-10-23
+      - work/fire-google-voice-text-safety-2026-10-28
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
@@ -556,6 +557,7 @@ jobs:
       - name: Verify idempotent text and email preparation and mobile retries
         run: |
           node --experimental-sqlite scripts/test-message-preparation-idempotency.mjs
+          node scripts/test-google-voice-text-safety.mjs
           node scripts/test-message-confirmation.mjs
           node scripts/test-job-review-shortcut.mjs
           node --experimental-sqlite scripts/test-review-closeout-metadata.mjs
