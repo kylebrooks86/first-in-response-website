@@ -42,7 +42,7 @@ switch ($kind) {
   }
   'd1 execute' {
     $commands=@($arguments | Where-Object { $_.StartsWith('--command=') })
-    if ($arguments.Count -ne 6 -or $arguments[2] -cne 'fire-fullapp-qa-db-20261016' -or
+    if ($arguments.Count -ne 7 -or $arguments[2] -cne 'fire-fullapp-qa-db-20261016' -or
         $arguments[3] -cne '--remote' -or $commands.Count -ne 1 -or
         -not $commands[0].Substring(10).StartsWith('SELECT ') -or
         $commands[0].Contains(';')) { throw 'Mock refuses any non-pinned or writable SQL request.' }
