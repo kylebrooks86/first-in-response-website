@@ -63,6 +63,18 @@ try{
  await page.locator('#pricing-category').selectOption('all');
  await page.locator('#standard-window-oxidation').waitFor();
  check((await runtime.get()).data.rates.find(x=>x.id==='window-oxidation').details.active,'Deleted original service restores under same ID');
+ // The overlapping catch-all vehicle wash is removable while specific RV, boat and trailer services remain.
+ await page.locator('#pricing-search').fill('RV / Boat / Trailer / Work Vehicle Wash');
+ const vehicleCard=page.locator('.pricing-grid article').filter({has:page.locator('#standard-vehicle-wash')});
+ page.once('dialog',d=>d.accept());await vehicleCard.getByRole('button',{name:'Delete service'}).click();
+ await page.locator('#standard-vehicle-wash').waitFor({state:'detached'});
+ check((await runtime.get()).data.rates.find(x=>x.id==='vehicle-wash').details.active===false,'Generic combined vehicle service removed');
+ await page.locator('#pricing-category').selectOption('inactive');
+ await page.locator('#standard-vehicle-wash').waitFor();
+ await vehicleCard.getByRole('button',{name:'Restore service'}).click();
+ await page.locator('#pricing-category').selectOption('all');
+ await page.locator('#standard-vehicle-wash').waitFor();
+ check((await runtime.get()).data.rates.find(x=>x.id==='vehicle-wash').details.active,'Generic vehicle item restores without changing specific service records');
  // Owner can delete even a numbered QuoteIQ entry without deleting its historical identity.
  await page.locator('#pricing-search').fill('1st Floor Window Frame Oxidation Removal');
  const numberedCard=page.locator('.pricing-grid article').filter({has:page.locator('#standard-window-oxidation-1f')});
