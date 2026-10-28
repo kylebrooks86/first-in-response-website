@@ -57,7 +57,7 @@ export function GoogleVoiceTextAction({
           <a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={GOOGLE_VOICE_URL} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /> Open Google Voice</a>
         </div>
         {copyStatus && <p role="status">{copyStatus}</p>}
-        <p className="text-sm">Google Voice's iPhone Shortcuts Send action failed on the owner's phone, even with a saved contact. Copy the recipient, open Google Voice and send from your FIRE account. Nothing is marked sent by FIRE unless you confirm it.</p>
+        <p className="text-sm">An independent Google Voice Shortcut sent successfully after the owner's iOS update; direct FIRE-to-Shortcut recipient and message handoff is still unverified. For now, copy the recipient, open Google Voice and send using the FIRE account. Nothing is marked sent by FIRE unless you confirm it.</p>
       </DialogContent>
     </Dialog>
   );
