@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/owner_windows_qa_current_readonly.ps1'
+      - 'business-app-parity/test_owner_windows_qa_current_readonly.ps1'
       - '.github/workflows/fire-qa-current-readonly-parse.yml'
 
 permissions:
@@ -40,3 +41,6 @@ jobs:
             throw 'Required read-only SQL guard is missing.'
           }
           Write-Host 'PASS: PowerShell parses; current QA version pinned; five limited provider read invocations; SELECT-only guard.'
+      - name: Execute guarded reviewer with synthetic provider responses only
+        shell: pwsh
+        run: ./business-app-parity/test_owner_windows_qa_current_readonly.ps1
