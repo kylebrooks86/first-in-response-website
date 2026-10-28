@@ -88,7 +88,7 @@ try {
         Set-Content -LiteralPath $env:FIRE_FAKE_CALL_LOG -Value '' -NoNewline
         $failed = $false
         $messages = ''
-        try { $messages = (& $target 2>&1 | Out-String) }
+        try { $messages = (& $target 2>&1 6>&1 | Out-String) }
         catch { $failed = $true; $messages += $_.Exception.Message }
         $expected = -not $c.pass
         if ($failed -ne $expected) { throw "Scenario $($c.name): expected failure=$expected; observed=$failed; output=$messages" }
