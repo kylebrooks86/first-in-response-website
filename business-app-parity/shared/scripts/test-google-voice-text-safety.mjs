@@ -1,4 +1,4 @@
-/** Source-only regression contract: FIRE never offers owner's personal Messages app for customer texting. */
+/** Source-only regression contract: business primary and explicitly warned personal emergency backups. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 const ui=readFileSync("app/dashboard.tsx","utf8");
@@ -7,11 +7,14 @@ let checks=0;
 function check(condition,label){assert.ok(condition,label);checks++;console.log("PASS: "+label);}
 check(!/sms:/i.test(ui),"No personal-number sms: route remains in main FIRE dashboard");
 check((ui.match(/<GoogleVoiceTextAction\b/g)||[]).length===5,"All five direct customer Text shortcuts use business Google Voice handoff");
-check((ui.match(/<GoogleVoiceCallAction\\b/g)||[]).length===5,"All five direct customer Call buttons use business Google Voice handoff");
-check((ui.match(/<PersonalPhoneBackupAction\\b/g)||[]).length===11,"Personal backup options exist on five call, five text and prepared-message actions");
+check((ui.match(/<GoogleVoiceCallAction\b/g)||[]).length===5,"All five direct customer Call buttons use business Google Voice handoff");
+check((ui.match(/<PersonalPhoneBackupAction\b/g)||[]).length===11,"Personal backup options exist on five call, five text and prepared-message actions");
 check(action.includes("window.confirm(warning)") && action.includes("PERSONAL cellphone number") && action.includes("Phone app"),"Personal backups warn before exposing the owner number");
-check(action.includes('"sms:" : "tel:"') && !/\b(?:sms:|tel:)\b/i.test(ui),"Personal iPhone routing is isolated to warned backup action, not primary app buttons");
-check(ui.includes('message={preparedMessage.body}') && action.includes("navigator.clipboard.writeText(message)"),"Prepared message backup reuses exact saved text via clipboard; owner pastes and sends");
+check(action.includes('"sms:" : "tel:"') && !/sms:|tel:/i.test(ui),"Personal iPhone routing is isolated to warned backup action, not primary app buttons");
+check(ui.includes('message={preparedMessage.body}') && action.includes("navigator.clipboard.writeText(personalBackupTextBody(message))"),"Prepared message backup reuses saved template with alternate-number introduction via clipboard");
+check(action.includes("Hi, this is First In Response Exteriors. We\'re using an alternate number today."),"All personal backup SMS texts begin with the correct alternate-number disclosure");
+check(action.includes("PERSONAL_BACKUP_TEXT_INTRO + \"\\n\\n\" + original"),"Alternate-number notice prepends without editing saved message template");
+check(ui.includes("message={contactDraft?.jobId===job.id?contactDraft.text:undefined}"),"Schedule reminders and on-my-way drafts flow into both text actions");
 check(ui.includes('if(!await log("text_prepared"))return')&&ui.includes("setMessageStatus(\"Prepared for Google Voice."),"Message composer preserves saved prepared/unconfirmed audit before handoff");
 check(ui.includes('preparedMessage?.channel==="text_prepared"')&&ui.includes('navigator.clipboard.writeText(preparedMessage.body)'),"Owner can copy the exact saved prepared message into Voice");
 check(ui.includes('navigator.clipboard.writeText(customer.phone)')&&ui.includes('href={GOOGLE_VOICE_URL}'),"Recipient is copyable and verified Google Voice site is opened separately");
