@@ -13,12 +13,14 @@ export const GOOGLE_VOICE_URL = "https://voice.google.com/";
 export function GoogleVoiceTextAction({
   phone,
   customerName,
+  message,
   label = "Text",
   ariaLabel,
   className,
 }: {
   phone: string;
   customerName?: string;
+  message?: string;
   label?: string;
   ariaLabel?: string;
   className?: string;
@@ -46,6 +48,12 @@ export function GoogleVoiceTextAction({
         <p>Recipient number: <strong>{phone}</strong></p>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={() => void copyNumber()}><Copy className="h-4 w-4" /> Copy number</Button>
+          {message && <Button type="button" variant="outline" onClick={() => {
+            void navigator.clipboard.writeText(message).then(
+              () => setCopyStatus("Prepared message copied. Paste into Google Voice."),
+              () => setCopyStatus("Copy unavailable. Select and copy your prepared message manually."),
+            );
+          }}><Copy className="h-4 w-4" /> Copy message</Button>}
           <a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={GOOGLE_VOICE_URL} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /> Open Google Voice</a>
         </div>
         {copyStatus && <p role="status">{copyStatus}</p>}
