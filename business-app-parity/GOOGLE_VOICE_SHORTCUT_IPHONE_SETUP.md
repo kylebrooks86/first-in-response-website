@@ -1,64 +1,26 @@
-# FIRE → Google Voice via iPhone Shortcuts (owner test, no deployment)
+# FIRE Google Voice iPhone handoff — real-device acceptance, Oct 28 2026
 
-Google Voice's official iOS help says **Voice → Send a message** is available as
-an action in Apple's Shortcuts app. Apple's official URL scheme lets the
-existing FIRE PWA launch a personally installed shortcut using
-`shortcuts://run-shortcut?name=FIRE%20Google%20Voice%20Text&input=text&text=...`.
-This is not an SMS API, and FIRE never sends or claims delivery.
+## Observed: native sending via iPhone Shortcuts is NOT reliable here
 
-## Setup on the owner's own iPhone (one time)
+The FIRE owner built `FIRE Google Voice Text` with Apple's documented JSON text input, `phone` and `message` dictionary fields, and a confirmation prompt. Actual iPhone tests confirmed:
+- Safari `shortcuts://run-shortcut` correctly launches the installed Shortcut.
+- The test data `phone` and `message` each extract correctly from the JSON input.
+- The Google Voice **Send a message** Shortcut action returned `Could Not Run Send a message — Couldn't send your message. Try again.` on two attempts.
+- Contact permission was already Full Access; Siri app access was subsequently enabled; Google Voice was up-to-date; manual messaging inside Voice **worked**.
+- An independently constructed, simple new Shortcut using a real saved personal contact and a fixed literal test message **also failed with the same error**. Thus the failed native action is **not attributable to FIRE JSON parsing, a self-text recipient or an unrecognized phone number alone**.
+- Native Voice Shortcut sending is **NOT accepted**, and must not be offered as a reliable production FIRE text path without a distinct owner-observed successful controlled test.
 
-1. Confirm **Google Voice** is installed and currently signed in to the FIRE
-   business Google account; if using multiple Voice accounts, set the
-   intended default in iOS. Do not use the phone's normal Messages action.
-2. Open **Shortcuts** → **+** → name it **FIRE Google Voice Text** exactly.
-   Check **Apps → Voice → Send a message** exists in the available actions.
-3. Receive `Shortcut Input`, then add **Get Dictionary from Input**;
-   Apple supports JSON text as dictionary input.
-4. Add **Get Dictionary Value** with key `phone` and store that as a
-   `FIRE Recipient` variable; get key `message` and store `FIRE Body`.
-   The PWA supplies JSON `{"phone":"9185550102","message":"..."}`,
-   properly encoded by the operating-system URL scheme.
-5. If `FIRE Body` is empty, prompt for the text with **Ask for Input**
-   rather than attempting to send an empty message.
-6. Add a mandatory **Show Alert** reviewing the recipient and full message
-   with a cancellation option. Do not continue if it displays a wrong
-   number or incomplete body. Avoid enabling blind unattended send.
-7. Configure the **Google Voice** action **Send a message**, not Apple's
-   **Messages → Send Message**. If the Voice action on the installed iOS
-   version allows dynamic variables, fill its message from `FIRE Body`
-   and recipient from `FIRE Recipient`. On-device availability and exact
-   action parameter behavior must be confirmed on this owner's phone.
-   **If dynamic recipients are unsupported, STOP**, switch to a safe
-   **Open App → Voice** action and paste the copied recipient/message
-   manually. Do not implement speculative Voice URL schemes or force
-   the user's personal SMS app.
-8. On a consenting test phone (not a customer), open a draft FIRE customer
-   record, select Text → **Use iPhone Shortcut**. Inspect the recipient,
-   ensure Google Voice sends from FIRE's business number, and confirm the
-   recipient sees that number; verify how the shortcut behaves on cancel.
-   FIRE's **I sent** button must only be used AFTER a verified send.
+## Safe current product decision
 
-## Fallback for any iPhone not yet configured
+Draft PR #56, still **UNMERGED and NOT DEPLOYED**, removes the personal-number iPhone `sms:` links and provides **Copy number**, **Copy message** for prepared texts, and **Open Google Voice**. The owner sends from the Google Voice app or website and manually confirms any prepared message in FIRE only after real delivery. This doesn't fabricate Google Voice delivery acknowledgments or promise automation.
 
-Every quick Text handoff also has **Copy number** + **Open Google Voice**.
-The prepared-message composer has **Copy number**, **Copy message**, and
-**Open Google Voice**. These manual controls must remain functional
-regardless of Shortcut setup or failures.
+**Do not direct the owner to repeatedly test or rebuild their iPhone Shortcut.** The original `FIRE Google Voice Text` can remain saved for later troubleshooting, but it must not be used with customers in its current failing state. There is no supported direct Google Voice SMS API that FIRE can use to force the sender number. The customer-call path still requires a separate business-caller-ID solution and physical-iPhone acceptance.
 
-## Privacy / rollout bounds
+Official reference: https://support.google.com/voice/answer/9345389
 
-- No PWA `sms:` links and no personal-number iPhone Messages fallbacks.
-- No Google account credentials, tokens, secret keys or external SMS service
-  are added. Shortcut input is passed locally to iOS as user-initiated text.
-- Owner stays in control of each send; never automatically spam customers,
-  assume an app launch equals message delivery, or mark sent without approval.
-- Treat Apple's Shortcut action and Google Voice account selection as
-  physical-iPhone acceptance still pending, NOT a source-code CI pass.
-- PR #56 remains **DRAFT**, not merged/deployed; existing QA photo vault,
-  customer data, Cloudflare resources, Stripe, LIVE and Doomsday unchanged.
+## Non-negotiable boundaries
 
-Official references:
-- Google Voice iOS Siri & Shortcuts: https://support.google.com/voice/answer/9345389
-- Apple run Shortcut URL: https://support.apple.com/guide/shortcuts/run-a-shortcut-from-a-url-apd624386f42/ios
-- Apple JSON Get Dictionary from Input: https://support.apple.com/guide/shortcuts/dictionaries-apd43b69f337/ios
+- No automatic personal-number Messages / Phone app fallback.
+- No silent sends, repeated retries, SMS blasts, real customer test targets or invented Google Voice deep links.
+- Keep existing customer and prepared-message records, financial data and local photo ZIP intact.
+- Keep QA Worker, QA D1, LIVE/Doomsday, Stripe and R2 unchanged absent separate exact approval.
