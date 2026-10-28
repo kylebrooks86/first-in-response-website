@@ -471,7 +471,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
         {!preparedMessage&&pendingError&&<p role="alert">{pendingError} Sending is not confirmed.</p>}
         {!preparedMessage&&pendingMessages.length>0&&<section aria-label="Saved unconfirmed messages" className="rounded-lg border p-3">
           <strong>Saved messages awaiting confirmation ({pendingMessages.length})</strong>
-          <p className="text-sm">Resume a saved draft. Confirm only after sending in Google Voice, Messages, or Mail.</p>
+          <p className="text-sm">Resume a saved draft. Only confirm if you actually sent it.</p>
           <div className="flex flex-col gap-2">{pendingMessages.map(item=><Button key={item.id} variant="outline" disabled={working} onClick={()=>{
             draftEdited.current=true;setTemplate(item.template);setBody(item.body);
             setPreparedMessage(item);setMessageStatus("Recovered an unconfirmed prepared message. Check the text before confirming a send.");
