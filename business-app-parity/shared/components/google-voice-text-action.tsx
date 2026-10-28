@@ -94,6 +94,13 @@ export function GoogleVoiceCallAction({
   );
 }
 
+// Prepend only for explicitly selected PERSONAL-number backup texts. Never change saved templates.
+export const PERSONAL_BACKUP_TEXT_INTRO = "Hi, this is First In Response Exteriors. We're using an alternate number today.";
+export function personalBackupTextBody(message = ""): string {
+  const original = message.trim();
+  return original ? PERSONAL_BACKUP_TEXT_INTRO + "\n\n" + original : PERSONAL_BACKUP_TEXT_INTRO;
+}
+
 /** Explicit manual fallback only. A native sms:/tel: link can expose the owner's personal number. */
 export function PersonalPhoneBackupAction({
   phone,
@@ -111,21 +118,24 @@ export function PersonalPhoneBackupAction({
   const [copyStatus, setCopyStatus] = useState("");
   const isText = mode === "text";
   const label = isText ? "Text (Backup)" : "Call (Backup)";
-  const openPersonalPhone = () => {
+  const openPersonalPhone = async () => {
     const warning = isText
-      ? "This opens Apple's Messages and may send using your PERSONAL cellphone number, which the customer can see. Only continue if Google Voice is unavailable. Proceed?"
-      : "This opens your iPhone's regular Phone app and may reveal your PERSONAL cellphone number to the customer. Only continue if Google Voice is unavailable. Proceed?";
+      ? "BACKUP: Apple's Messages may send using your PERSONAL cellphone number, which the customer can see. FIRE will copy a business identification and your original prepared message for you to paste. Continue?"
+      : "BACKUP: Your iPhone's regular Phone app may reveal your PERSONAL cellphone number to the customer. Only continue if Google Voice is unavailable. Proceed?";
     if (!window.confirm(warning)) return;
-    if (isText && message) {
-      // Apple's published sms: URL format supports a recipient, NOT a guaranteed message body.
-      // Start copying in the direct tap gesture; the owner pastes and verifies before sending.
-      if (navigator.clipboard?.writeText) {
-        void navigator.clipboard.writeText(message).then(
-          () => setCopyStatus("Prepared message copied. Paste it into Messages before sending."),
-          () => setCopyStatus("Copy unavailable. Return to FIRE and tap Copy message before sending."),
-        );
-      } else {
-        setCopyStatus("Clipboard unavailable. Return to FIRE and tap Copy message.");
+    if (isText) {
+      // Apple's documented sms: link supports only a recipient, not a prefilled body.
+      // Copy the alternate-number intro plus the original prepared message FIRST.
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+        await navigator.clipboard.writeText(personalBackupTextBody(message));
+        setCopyStatus("Backup message copied. Paste and verify in Messages before sending.");
+      } catch {
+        // Stay in FIRE if the text could not be copied; opening an empty compose window
+        // would silently lose both the alternate-number disclosure and the prepared template.
+        setCopyStatus("Could not copy the backup message. Do not send a blank or incomplete text.");
+        window.alert("Unable to copy the backup text. Stay in FIRE and copy the original prepared message manually, adding the alternate-number introduction before sending.");
+        return;
       }
     }
     window.location.href = (isText ? "sms:" : "tel:") + phone;
