@@ -128,7 +128,7 @@ export function PersonalPhoneBackupAction({
   const label = isText ? "Text (Backup)" : "Call (Backup)";
   const openPersonalPhone = async () => {
     const warning = isText
-      ? "BACKUP: Apple's Messages may send using your PERSONAL cellphone number, which the customer can see. FIRE will copy a business identification and your original prepared message for you to paste. Continue?"
+      ? "BACKUP: Apple's Messages may send using your PERSONAL cellphone number, which the customer can see. Only use this if the message has NOT already been sent via Google Voice. FIRE copies the business introduction and your prepared message for you to paste and review. Continue?"
       : "BACKUP: Your iPhone's regular Phone app may reveal your PERSONAL cellphone number to the customer. Only continue if Google Voice is unavailable. Proceed?";
     if (!window.confirm(warning)) return;
     if (isText) {
@@ -153,7 +153,7 @@ export function PersonalPhoneBackupAction({
       <Button type="button" variant="outline" className={className} aria-label={label + " for " + (customerName || "customer") + " using your personal number"} onClick={openPersonalPhone}>
         {isText ? <MessageSquareText className="h-4 w-4" aria-hidden="true" /> : <Phone className="h-4 w-4" aria-hidden="true" />} {label}
       </Button>
-      {copyStatus && <span className="sr-only" role="status">{copyStatus}</span>}
+      {copyStatus && <span className="text-xs" role="status">{copyStatus}</span>}
     </>
   );
 }
