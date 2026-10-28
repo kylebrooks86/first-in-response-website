@@ -1,0 +1,42 @@
+name: FIRE QA current read-only reviewer syntax
+
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/owner_windows_qa_current_readonly.ps1'
+      - '.github/workflows/fire-qa-current-readonly-parse.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  parse-only:
+    name: Windows parse-only — no provider access
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PowerShell source without executing it
+        shell: pwsh
+        run: |
+          $path = Join-Path (Get-Location) 'business-app-parity/owner_windows_qa_current_readonly.ps1'
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if (@($parseErrors).Count -ne 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            throw 'Read-only QA reviewer has invalid PowerShell syntax.'
+          }
+          $text = Get-Content -LiteralPath $path -Raw
+          if (-not $text.Contains("$" + "expectedVersion = 'f959bea7-c6bc-45b8-98ab-7f96f3ce46a8'")) {
+            throw 'Expected active QA Worker version is no longer pinned.'
+          }
+          $allowedCalls = [regex]::Matches($text, 'Read-Provider @\(')
+          if ($allowedCalls.Count -ne 5) { throw 'Reviewer read-only command count changed.' }
+          if ($text -match '(?i)\&\s*\$wrangler\.Source\s+(deploy|migrations|r2|secret|pages)\b') {
+            throw 'Unexpected provider command in reviewer.'
+          }
+          if ($text -notmatch "Require \(\$sql -cmatch '\^SELECT '") {
+            throw 'Required read-only SQL guard is missing.'
+          }
+          Write-Host 'PASS: PowerShell parses; current QA version pinned; five limited provider read invocations; SELECT-only guard.'
