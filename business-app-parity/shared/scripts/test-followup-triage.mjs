@@ -133,7 +133,8 @@ assert.ok(followUpSection.includes('Saved estimate activity (')&&followUpSection
 const contactStart=followUpSection.indexOf('className="followup-contact-actions"'),optionalStart=followUpSection.indexOf('className="followup-optional-tools"');
 assert.ok(contactStart>0&&optionalStart>contactStart,'Follow-ups keep immediate contact ahead of secondary tools');n++;
 const directContact=followUpSection.slice(contactStart,optionalStart);
-for(const target of ['Call ','Open text app for ','Open email app for ']){assert.ok(directContact.includes(target),'Customer contact remains one tap away: '+target);n++;}
+for(const target of ['Call ','GoogleVoiceTextAction','Open email app for ']){assert.ok(directContact.includes(target),'Customer contact remains available: '+target);n++;}
+ assert.ok(!directContact.includes('sms:'),'Follow-ups never open personal-number SMS');n++;
 const optionalTools=followUpSection.slice(optionalStart,followUpSection.indexOf('className="followup-contact-panel"',optionalStart));
 assert.ok(optionalTools.includes('Recent contact')&&optionalTools.includes('Open estimate')&&optionalTools.includes('Customer history')&&optionalTools.includes('Saved estimate activity ('),'Optional tools retain complete customer, estimate and activity history');n++;
 const homeSource=view.slice(view.indexOf('function DashboardView('),view.indexOf('function AddCustomer('));
