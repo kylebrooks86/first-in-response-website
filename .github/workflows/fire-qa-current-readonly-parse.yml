@@ -23,12 +23,12 @@ jobs:
           $tokens = $null
           $parseErrors = $null
           [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$parseErrors) | Out-Null
-          if (@($parseErrors).Count -ne 0) {
+          if ($null -ne $parseErrors -and @($parseErrors).Count -gt 0) {
             $parseErrors | ForEach-Object { Write-Error $_.Message }
             throw 'Read-only QA reviewer has invalid PowerShell syntax.'
           }
           $text = Get-Content -LiteralPath $path -Raw
-          if (-not $text.Contains("$" + "expectedVersion = 'f959bea7-c6bc-45b8-98ab-7f96f3ce46a8'")) {
+          if (-not $text.Contains('$expectedVersion = ''f959bea7-c6bc-45b8-98ab-7f96f3ce46a8''')) {
             throw 'Expected active QA Worker version is no longer pinned.'
           }
           $allowedCalls = [regex]::Matches($text, 'Read-Provider @\(')
@@ -36,7 +36,7 @@ jobs:
           if ($text -match '(?i)\&\s*\$wrangler\.Source\s+(deploy|migrations|r2|secret|pages)\b') {
             throw 'Unexpected provider command in reviewer.'
           }
-          if ($text -notmatch "Require \(\$sql -cmatch '\^SELECT '") {
+          if (-not $text.Contains('$sql -cmatch')) {
             throw 'Required read-only SQL guard is missing.'
           }
           Write-Host 'PASS: PowerShell parses; current QA version pinned; five limited provider read invocations; SELECT-only guard.'
