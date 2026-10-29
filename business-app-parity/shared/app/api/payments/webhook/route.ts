@@ -1,6 +1,6 @@
 import { LOCAL_CUSTOMER_DEPLOYMENT } from "../../../local-customer-deployment";
 import { recordRefundUpdate, type StripeRefund } from "../../../../lib/stripe-refunds";
-import { reconcileStripeCheckout, type StripeCheckoutSession } from "../../../../lib/stripe-payments";
+import { reconcileStripeCheckout, recordStripeCheckoutFailure, type StripeCheckoutSession } from "../../../../lib/stripe-payments";
 import { env } from "cloudflare:workers";
 
 type RuntimeEnv = Cloudflare.Env & { STRIPE_WEBHOOK_SECRET?: string; STRIPE_RESTRICTED_KEY?:string; STRIPE_SECRET_KEY?:string; FIRE_ENV?:string };
@@ -79,6 +79,17 @@ export async function POST(request:Request) {
       const result=await recordRefundUpdate(env.DB,event.data.object,runtime.STRIPE_RESTRICTED_KEY||runtime.STRIPE_SECRET_KEY);
       return Response.json({received:result.ok,...result},{status:result.ok?200:409});
     }catch{return Response.json({error:"Refund reconciliation unavailable; Stripe should retry."},{status:503});}
+  }
+  if(event.type==="checkout.session.async_payment_failed"){
+    const session=event.data?.object;
+    if(!session)return Response.json({error:"Missing failed checkout session."},{status:400});
+    if(typeof session.id!=="string"||!new RegExp(sandboxTarget?"^cs_test_[a-zA-Z0-9]+$":"^cs_live_[a-zA-Z0-9]+$").test(session.id))
+      return Response.json({error:"Failed checkout session ID does not match this FIRE environment."},{status:400});
+    try{
+      const result=await recordStripeCheckoutFailure(env.DB,session);
+      return Response.json({received:result.recorded||Boolean(result.ignored),...result},
+        {status:result.recorded||result.ignored?200:409});
+    }catch{return Response.json({error:"Failed checkout alert could not be confirmed; Stripe should retry."},{status:503});}
   }
   if (!["checkout.session.completed","checkout.session.async_payment_succeeded"].includes(event.type ?? "")) {
     return Response.json({ received:true, ignored:true });

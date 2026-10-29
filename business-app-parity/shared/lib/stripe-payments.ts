@@ -31,20 +31,62 @@ export async function retrieveStripeCheckoutSession(sessionId: string, secretKey
 }
 
 export async function recordStripeCheckoutFailure(db: Database, session: StripeCheckoutSession) {
-  const estimateId = session.metadata?.estimate_id;
-  if (!estimateId) return { recorded: false };
-  const estimate = await db.prepare(`
-    SELECT e.id,c.id AS customerId,c.name AS customer,
-      COALESCE((SELECT GROUP_CONCAT(ei.name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Exterior cleaning service') AS service
-    FROM estimates e JOIN customers c ON c.id=e.customer_id
-    WHERE e.id=? LIMIT 1
-  `).bind(estimateId).first<{id:string;customerId:string;customer:string;service:string}>();
-  if (!estimate) return { recorded: false };
-  const now = new Date().toISOString();
-  await db.prepare("INSERT OR IGNORE INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)")
-    .bind(`stripe-payment-failed:${session.id}`,"payment_failed",`Payment was not completed by ${estimate.customer}`,`Stripe could not complete the payment for ${estimate.service}. No payment was recorded.`,estimate.customerId,estimateId,now)
-    .run();
-  return { recorded: true };
+  // A correctly signed failure notification is NOT authorization to release
+  // a checkout lock or alter paid principal. Alert only for a matching open
+  // reserved checkout, and make event replay harmless.
+  const estimateId=session.metadata?.estimate_id?.trim();
+  const paymentType=session.metadata?.payment_type;
+  const amount=session.amount_total;
+  const sessionId=session.id;
+  if(!/^cs_(?:test|live)_[a-zA-Z0-9]+$/.test(sessionId||"")||
+     session.currency!=="usd"||session.payment_status!=="unpaid"||
+     !estimateId||session.client_reference_id!==estimateId||
+     !["deposit","balance"].includes(paymentType||"")||
+     !Number.isSafeInteger(amount)||Number(amount)<=0||
+     session.metadata?.expected_charge_cents!==String(amount))
+    return {recorded:false,reason:"failed_checkout_identity_mismatch"};
+
+  // Stripe may report failure before the in-flight provisional D1 reservation
+  // was promoted to the Stripe session ID. Both forms must match the job and
+  // exact charge before an owner alert can be trusted.
+  const reserveId=session.metadata?.fire_checkout_reservation_id;
+  if(reserveId&&!/^fire-creating:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reserveId))
+    return {recorded:false,reason:"invalid_checkout_reservation"};
+  const getTracked=(id:string)=>db.prepare(
+    "SELECT estimate_id AS estimateId,type,amount_cents AS amountCents,status FROM payment_checkout_sessions WHERE id=? LIMIT 1"
+  ).bind(id).first<{estimateId:string;type:string;amountCents:number;status:string}>();
+  const tracked=await getTracked(sessionId);
+  const reserved=tracked?null:reserveId?await getTracked(reserveId):null;
+  const checkout=tracked??reserved;
+  if(!checkout||checkout.estimateId!==estimateId||checkout.type!==paymentType||Number(checkout.amountCents)!==amount)
+    return {recorded:false,reason:"failed_checkout_untracked_or_mismatched"};
+  if(checkout.status==="paid")return {recorded:false,ignored:true,reason:"checkout_already_paid"};
+  if(checkout.status!=="open")return {recorded:false,ignored:true,reason:"checkout_not_open"};
+
+  // Signed webhook ordering is not guaranteed. Never generate a "not paid"
+  // alert after a payment ledger receipt has already been persisted.
+  const paid=await db.prepare("SELECT id FROM payments WHERE provider_id IN (?,?) AND status='paid' LIMIT 1")
+    .bind(sessionId,sessionId+":tip").first<{id:string}>();
+  if(paid)return {recorded:false,ignored:true,reason:"payment_already_recorded"};
+
+  const estimate=await db.prepare(
+    "SELECT e.id,c.id AS customerId,c.name AS customer FROM estimates e JOIN customers c ON c.id=e.customer_id WHERE e.id=? LIMIT 1"
+  ).bind(estimateId).first<{id:string;customerId:string;customer:string}>();
+  if(!estimate)return {recorded:false,reason:"failed_checkout_estimate_missing"};
+
+  const id="stripe-payment-failed:"+sessionId;
+  const now=new Date().toISOString();
+  const write=await db.prepare(
+    "INSERT OR IGNORE INTO notifications (id,type,title,body,customer_id,estimate_id,created_at) VALUES (?,?,?,?,?,?,?)"
+  ).bind(id,"payment_failed","Stripe payment failed — "+estimate.customer,
+    "Stripe reported a failed checkout. Verify the payment status and checkout in Stripe before retrying. FIRE has not recorded this checkout as paid.",
+    estimate.customerId,estimateId,now).run();
+  if((write as {success?:boolean}).success===false)throw Error("Failure alert write unconfirmed");
+  const stored=await db.prepare(
+    "SELECT id FROM notifications WHERE id=? AND type='payment_failed' AND estimate_id=? AND customer_id=? LIMIT 1"
+  ).bind(id,estimateId,estimate.customerId).first();
+  if(!stored)throw Error("Failure alert receipt unconfirmed");
+  return {recorded:true,duplicate:Number(write.meta?.changes)===0};
 }
 
 export async function reconcileStripeCheckout(db:Database,session:StripeCheckoutSession) {

@@ -10,12 +10,13 @@ function load(route,deployment,fireEnv,key){
  const file=new URL('../app/api/payments/'+route+'/route.ts',import.meta.url);
  const source=readFileSync(file,'utf8').replace(/^import .*?;\n/gm,'');
  const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
- const calls={db:0,network:0,reconciled:0,refunds:0},env={FIRE_ENV:fireEnv,STRIPE_RESTRICTED_KEY:key,STRIPE_WEBHOOK_SECRET:'whsec_synthetic-only',
+ const calls={db:0,network:0,reconciled:0,refunds:0,failures:0},env={FIRE_ENV:fireEnv,STRIPE_RESTRICTED_KEY:key,STRIPE_WEBHOOK_SECRET:'whsec_synthetic-only',
   DB:{prepare(){calls.db++;return {bind(){return {async first(){return {id:'synthetic-payment',estimateId:'job-1',type:'deposit',status:'paid',amountCents:5000,providerId:'cs_fake',customerId:'customer-1'};}}}};}}};
  const exports={};
- const fn=new Function('require','exports','Response','Request','crypto','fetch','LOCAL_CUSTOMER_DEPLOYMENT','getChatGPTUser','env','reconcileStripeCheckout','recordRefundUpdate','refundLedgerObjectsPresent','refundLedgerNotReady',code);
+ const fn=new Function('require','exports','Response','Request','crypto','fetch','LOCAL_CUSTOMER_DEPLOYMENT','getChatGPTUser','env','reconcileStripeCheckout','recordStripeCheckoutFailure','recordRefundUpdate','refundLedgerObjectsPresent','refundLedgerNotReady',code);
  fn(id=>{if(id==='cloudflare:workers')return {env};throw Error('Unexpected import '+id);},exports,Response,Request,webcrypto,async()=>{calls.network++;throw Error('Network forbidden');},deployment,async()=>({email:'kylebrooks8605@gmail.com'}),env,
  async()=>{calls.reconciled++;return {ok:true,duplicate:false};},
+ async()=>{calls.failures++;return {recorded:true,duplicate:false};},
  async()=>{calls.refunds++;return {ok:true};},
  async()=>true,()=>Response.json({error:'Synthetic refund schema missing'},{status:503}));
  return {POST:exports.POST,calls};
@@ -63,6 +64,7 @@ eq((await webhook(qaWebhook,{type:'checkout.session.async_payment_failed',livemo
   'QA denies signed asynchronous checkout failure before any provider/ledger action');
 eq(qaWebhook.calls.reconciled,0,'QA failed-payment event cannot reconcile a paid charge');
 eq(qaWebhook.calls.db,0,'QA failed-payment callback never touches D1');
+eq(qaWebhook.calls.failures,0,'QA failed-payment callback cannot create owner alert');
 
 const live=load('checkout','live','production','sk_live_fake-no-secrets');
 eq((await live.POST(new Request('https://synthetic.invalid/api/payments/checkout',{method:'POST',body:JSON.stringify({shareToken:'synthetic',paymentType:'invalid'})}))).status,400,'legitimate live candidate follows normal input validation');
@@ -73,21 +75,23 @@ eq((await webhook(stagingSigned,{type:'checkout.session.completed',livemode:fals
   data:{object:{id:'cs_test_correct123',livemode:false,payment_status:'paid'}}})).status,200,
   'Signed test checkout reaches isolated staging reconciliation');
 eq(stagingSigned.calls.reconciled,1,'Staging valid test event is dispatched exactly once');
-// Gate 9 characterization ONLY. A failed asynchronous payment must not be
-// miscounted as paid. The current handler acknowledges/ignores the event;
-// owner notification and provider-verified recovery remain UNACCEPTED.
+// The failed asynchronous payment now dispatches only to an idempotent owner
+// alert. It may NOT mark principal paid, release the checkout or issue refund.
+// Actual Stripe sandbox integration remains an independent Gate 9 requirement.
 const failedStagingEvent=await webhook(stagingSigned,{type:'checkout.session.async_payment_failed',livemode:false,
   data:{object:{id:'cs_test_failed123',livemode:false,status:'complete',payment_status:'unpaid'}}});
-eq(failedStagingEvent.status,200,'Signed sandbox asynchronous failure currently receives an acknowledgement');
+eq(failedStagingEvent.status,200,'Signed sandbox asynchronous failure receives acknowledged owner notification');
 const failedStagingBody=await failedStagingEvent.json();
-eq(failedStagingBody.received===true&&failedStagingBody.ignored===true,true,
-  'Known Gate 9 gap: failure is acknowledged without a verified owner recovery receipt');
+eq(failedStagingBody.received===true&&failedStagingBody.recorded===true&&failedStagingBody.ignored!==true,true,
+  'Signed failed checkout uses the owner-alert path, not ignored-event acknowledgement');
+eq(stagingSigned.calls.failures,1,'Staging failure notification dispatched once, no paid ledger write');
 eq(stagingSigned.calls.reconciled,1,'Failed asynchronous payment must never be recorded as paid');
 eq(stagingSigned.calls.refunds,0,'Failed asynchronous payment must never create a refund');
 eq((await webhook(stagingSigned,{type:'checkout.session.async_payment_failed',livemode:true,
   data:{object:{id:'cs_live_failed123',livemode:true,status:'complete',payment_status:'unpaid'}}})).status,400,
   'Sandbox rejects signed live-mode asynchronous failure before dispatch');
 eq(stagingSigned.calls.reconciled,1,'Wrong-mode failed event never reaches settlement');
+eq(stagingSigned.calls.failures,1,'Wrong-mode failed event cannot generate an alert');
 eq((await webhook(stagingSigned,{type:'checkout.session.completed',livemode:false,
   data:{object:{id:'cs_live_wrong123',livemode:false,payment_status:'paid'}}})).status,400,
   'Staging rejects live session ID even in an otherwise signed test envelope');
