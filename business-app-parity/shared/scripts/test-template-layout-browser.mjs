@@ -74,12 +74,13 @@ try{
    await page.locator('#templateBody').press('End');await page.locator('#templateBody').press('Enter');await page.locator('#templateBody').pressSequentially('Still editable');
    const geometry=await page.evaluate(()=>({page:document.documentElement.scrollWidth,width:innerWidth,boxes:[...document.querySelectorAll('.template-layout,.template-editor,.template-editor input,.template-editor textarea,.template-editor footer button,.merge-tags button')].map(n=>{const r=n.getBoundingClientRect();return {left:r.left,right:r.right}})}));
    check(geometry.page<=width+1,`${width}/${theme}/${name}: no page-level horizontal overflow`);
+   const subjectTargets=await page.locator('.template-editor input').evaluateAll(ns=>ns.filter(n=>n.getClientRects().length).map(n=>n.getBoundingClientRect().height));check(subjectTargets.every(h=>h>=44),`${width}/${theme}/${name}: template subject fields have 44px targets`);
    check(geometry.boxes.every(r=>r.left>=-1&&r.right<=width+1),`${width}/${theme}/${name}: editor fields/actions remain within viewport`);
    if(width<=760)check(await page.locator('.template-editor footer button').evaluateAll(ns=>ns.every(n=>{const r=n.getBoundingClientRect();return r.height>=44&&r.height<=80})),`${width}/${theme}: Save and Restore are compact tap targets, not 130px flex columns`);
    check((await page.locator('#templateBody').inputValue()).includes('Still editable'),`${name}: text editing preserved`);
    if(name==='Estimate Ready'){
     const fields=page.locator('.template-fields');check(!(await fields.getByRole('button').first().isVisible()),'Optional field tokens start collapsed');
-    await fields.locator('summary').click();await fields.getByRole('button',{name:'@customer_first_name',exact:true}).click();
+    await fields.locator('summary').click();check(await fields.getByRole('button').evaluateAll(ns=>ns.every(n=>n.getBoundingClientRect().height>=44)),`${width}/${theme}: every expanded merge-tag target has 44px height`);await fields.getByRole('button',{name:'@customer_first_name',exact:true}).click();
     check((await page.locator('#templateBody').inputValue()).includes('@customer_first_name'),'Personalized fields still insert into actual draft');
    }
    await page.getByRole('button',{name:'Save template',exact:true}).click();await page.getByText('Template saved.',{exact:true}).waitFor();

@@ -2670,6 +2670,9 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .new-estimate-dialog .estimate-edit-service>header>div{min-width:0;max-width:100%;flex-wrap:wrap}
 .new-estimate-dialog [data-slot="select-trigger"]{width:100%;max-width:100%;height:auto;min-height:44px;white-space:normal}
 .new-estimate-dialog [data-slot="select-value"]{min-width:0;white-space:normal;overflow-wrap:anywhere;-webkit-line-clamp:unset}
+/* Secondary owner tools keep existing placement and gain comfortable touch height. */
+.settings-view .template-editor input:not([type="checkbox"]):not([type="radio"]),.settings-view .template-editor [role="alert"] button,.template-editor .merge-tags button,.business-preferences input:not([type="checkbox"]):not([type="radio"]),.door-workspace input:not([type="checkbox"]):not([type="radio"]),button[aria-label="Copy full payment reference"]{min-height:44px}
+.weather-strip.weather-simple .weather-simple-footer button{min-height:44px}
 
 
 /* Mobile polish: preserve payment details while making each action easier to scan. */
