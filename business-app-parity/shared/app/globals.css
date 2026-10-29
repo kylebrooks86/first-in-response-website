@@ -2746,3 +2746,6 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 
 /* Preserve the existing nested checkout-review panel and its session identity. */
 .checkout-reconciliation{min-width:0;max-width:100%}.checkout-reconciliation input{min-width:0;max-width:100%;min-height:44px;font-size:16px}.checkout-reconciliation button{min-width:0;min-height:44px;height:auto;white-space:normal;overflow-wrap:anywhere}
+
+/* Sign-in keeps its approved white card readable under a retained app theme. */
+.access-card{color:#112238;color-scheme:light}.access-card input{background:#fff;color:#112238}
