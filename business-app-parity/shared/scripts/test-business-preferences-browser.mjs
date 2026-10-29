@@ -36,6 +36,8 @@ try{
  for(const width of [320,375,390,430,768,1366])for(const dark of [false,true]){
   await page.setViewportSize({width,height:844});await page.goto(origin);await page.getByLabel('Date',{exact:true}).waitFor();if(dark)await page.getByRole('button',{name:'Theme',exact:true}).click();
   check(await page.getByRole('button',{name:'Save settings',exact:true}).isDisabled(),'Unchanged settings are explicitly disabled');
+  const disclosure=await page.locator('.schedule-planning-content>details>summary').evaluate(n=>({height:n.getBoundingClientRect().height,display:getComputedStyle(n).display,marker:getComputedStyle(n).listStyleType}));
+  check(disclosure.height>=44&&disclosure.display==='list-item'&&disclosure.marker!=='none','Availability disclosure keeps its native expand marker and 44px target: '+JSON.stringify(disclosure));
   await geometry('Availability '+width+'/'+dark+' initial');
   await page.getByLabel('Reason').fill('Synthetic very long availability reason '.repeat(3).slice(0,100));
   await geometry('Availability '+width+'/'+dark+' long reason');
