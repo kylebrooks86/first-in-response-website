@@ -171,14 +171,15 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  // Customer switches must replace edited private drafts and job-scoped links.
  for(const theme of ['light','dark']){
  await page.goto('about:blank');seed();await page.setViewportSize({width:390,height:844});await page.goto(origin+'/composer');await page.evaluate(t=>window.setTheme(t),theme);await page.getByRole('button',{name:'Prepare review request',exact:true}).click();
- let scopeDialog=page.getByRole('dialog',{name:'Message Synthetic ready',exact:true});await scopeDialog.getByLabel('Personalized message',{exact:true}).fill('PRIVATE UNSAVED TEXT FOR FIRST CUSTOMER');
- await page.evaluate(()=>window.switchComposerCustomer('prepared'));scopeDialog=page.getByRole('dialog',{name:'Message Synthetic prepared',exact:true});
+ let scopeDialog=page.getByRole('dialog',{name:'Message',exact:true});await scopeDialog.waitFor();check(await scopeDialog.locator('.message-dialog-recipient').innerText()==='To: Synthetic ready','Composer identifies the first customer with a separate recipient line');await scopeDialog.getByLabel('Message text',{exact:true}).fill('PRIVATE UNSAVED TEXT FOR FIRST CUSTOMER');
+ await page.evaluate(()=>window.switchComposerCustomer('prepared'));scopeDialog=page.getByRole('dialog',{name:'Message',exact:true});
+ check(await scopeDialog.locator('.message-dialog-recipient').innerText()==='To: Synthetic prepared','Customer switch updates the recipient before any send');
  await page.waitForFunction(()=>document.querySelector('#customerMessage')?.value.includes('Synthetic'));
- check(!(await scopeDialog.getByLabel('Personalized message',{exact:true}).inputValue()).includes('PRIVATE UNSAVED'),'Switching customer clears an edited prior-customer draft');
- check((await scopeDialog.getByLabel('Personalized message',{exact:true}).inputValue()).includes('Hi Synthetic'),'New customer receives a fresh personalized template');
- await scopeDialog.getByLabel('Message type',{exact:true}).click();await page.getByRole('option',{name:'Estimate ready',exact:true}).click();
+ check(!(await scopeDialog.getByLabel('Message text',{exact:true}).inputValue()).includes('PRIVATE UNSAVED'),'Switching customer clears an edited prior-customer draft');
+ check((await scopeDialog.getByLabel('Message text',{exact:true}).inputValue()).includes('Hi Synthetic'),'New customer receives a fresh personalized template');
+ await scopeDialog.getByLabel('Template',{exact:true}).click();await page.getByRole('option',{name:'Estimate ready',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('#customerMessage')?.value.includes('/estimate/estimate-prepared'));
- check(!(await scopeDialog.getByLabel('Personalized message',{exact:true}).inputValue()).includes('/estimate/estimate-ready'),'Template uses new job link, never prior customer link');
+ check(!(await scopeDialog.getByLabel('Message text',{exact:true}).inputValue()).includes('/estimate/estimate-ready'),'Template uses new job link, never prior customer link');
  check(await scopeDialog.evaluate(n=>n.scrollWidth<=n.clientWidth),'Pending saved drafts and template controls fit the iPhone composer');
  check(await scopeDialog.getByRole('button',{name:/^Resume text/}).evaluate(n=>n.getBoundingClientRect().height>=44&&n.getBoundingClientRect().right<=innerWidth),'Long saved-draft recovery control wraps inside viewport with a 44px target');
  check(requests.every(r=>r.method==='GET'),'Customer switch never saves or sends the discarded draft');
@@ -201,14 +202,14 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   db.prepare("UPDATE payments SET amount_cents=10000 WHERE id='paid-ready'").run();
   check((await readAllReady()).actions.some(x=>x.estimateId==='job-ready'&&x.state==='ready'),'Confirmed exact payment makes completed job eligible');
   await page.goto(origin+'/composer');await page.evaluate(t=>window.setTheme(t),theme);await page.getByRole('button',{name:'Prepare review request',exact:true}).click();
-  const dialog=page.getByRole('dialog',{name:'Message Synthetic ready',exact:true});await dialog.getByRole('button',{name:'Text',exact:true}).click();await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).waitFor();
+  const dialog=page.getByRole('dialog',{name:'Message',exact:true});await dialog.getByRole('button',{name:'Text',exact:true}).click();await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).waitFor();
   check(await page.evaluate(()=>window.syntheticExternalHandoff===undefined),'Preparing a business text never silently opens personal Messages');check(await dialog.getByRole('link',{name:'Open Google Voice',exact:true}).getAttribute('href')==='https://voice.google.com/','Saved message exposes the supported business Voice handoff');check(await dialog.getByRole('button',{name:/Text \(Backup\)/}).isVisible(),'Explicit personal backup remains available for the saved draft');
-  const handoff=dialog.getByRole('region',{name:'Google Voice text handoff',exact:true});const beforeHandoff=requests.filter(r=>r.method==='POST'||r.method==='PATCH').length;const exactSavedBody=await dialog.getByLabel('Personalized message',{exact:true}).inputValue();await handoff.getByRole('button',{name:'Text',exact:true}).click();await handoff.getByRole('status').filter({hasText:'on this device'}).waitFor();check(requests.filter(r=>r.method==='POST'||r.method==='PATCH').length===beforeHandoff&&await dialog.getByLabel('Personalized message',{exact:true}).inputValue()===exactSavedBody,'Unsupported direct handoff preserves saved exact template and makes no API writes');
-  check((await dialog.getByLabel('Personalized message',{exact:true}).inputValue()).includes('https://firstinresponseexteriors.com/review'),'Existing review URL is used in actual personalized template');
+  const handoff=dialog.getByRole('region',{name:'Google Voice text handoff',exact:true});const beforeHandoff=requests.filter(r=>r.method==='POST'||r.method==='PATCH').length;const exactSavedBody=await dialog.getByLabel('Message text',{exact:true}).inputValue();await handoff.getByRole('button',{name:'Text',exact:true}).click();await handoff.getByRole('status').filter({hasText:'on this device'}).waitFor();check(requests.filter(r=>r.method==='POST'||r.method==='PATCH').length===beforeHandoff&&await dialog.getByLabel('Message text',{exact:true}).inputValue()===exactSavedBody,'Unsupported direct handoff preserves saved exact template and makes no API writes');
+  check((await dialog.getByLabel('Message text',{exact:true}).inputValue()).includes('https://firstinresponseexteriors.com/review'),'Existing review URL is used in actual personalized template');
   await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:undefined}));
   await dialog.getByRole('button',{name:'Copy number',exact:true}).click();await dialog.getByRole('status').filter({hasText:'Copy failed. Enter the displayed recipient number'}).waitFor();
   await dialog.getByRole('button',{name:'Copy message',exact:true}).click();await dialog.getByRole('status').filter({hasText:'Copy failed. Select the saved message'}).waitFor();
-  check(await dialog.getByLabel('Personalized message',{exact:true}).evaluate(field=>field.readOnly&&!field.disabled),'Saved prepared body remains selectable when clipboard is unavailable');
+  check(await dialog.getByLabel('Message text',{exact:true}).evaluate(field=>field.readOnly&&!field.disabled),'Saved prepared body remains selectable when clipboard is unavailable');
   check(db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE customer_id='ready' AND channel='text_confirmed'").get().n===0,'Copy failure cannot claim a sent message');
   check((await readAllReady()).actions.some(x=>x.estimateId==='job-ready'&&x.state==='prepared'),'Preparation remains eligible and unconfirmed');
   check(!(await readAllHistory()).items.some(x=>x.customerId==='ready'),'Preparing a message never starts a review-received clock');
