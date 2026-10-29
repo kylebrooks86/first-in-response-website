@@ -1164,3 +1164,7 @@ jobs:
           python test_qa_guarded_update.py
           python test_qa_evidence_intake.py
           python test_capture_qa_provider_identity.py
+      - name: Mock the current QA-only Worker and 25-migration read-only reviewer (11 fail-closed scenarios)
+        shell: pwsh
+        working-directory: business-app-parity
+        run: ./test_owner_windows_qa_current_readonly.ps1
