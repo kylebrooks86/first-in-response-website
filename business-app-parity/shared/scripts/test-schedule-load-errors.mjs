@@ -49,7 +49,9 @@ for(const [fail,message] of failures)for(const populated of [false,true]){
  assert.ok(dailyActions,'Schedule day must expose booking and navigation directly beneath the month');checks++;
  equal(nodes(dailyActions).filter(n=>n.props?.className==='route-day-button').length,1);
  equal(route.props['aria-label'],'Route tomorrow in Google Maps');
- equal(nodes(recovered.find(n=>n.props?.className==='schedule-planning-more')).some(n=>n.props?.className==='route-day-button'),false);
+ const inlineReview=recovered.find(n=>n.props?.className==='schedule-planning-content');
+ assert.ok(inlineReview,'Schedule weather and checks are visible without a disclosure wrapper');checks++;
+ equal(nodes(inlineReview).some(n=>n.props?.className==='route-day-button'),false);
  equal(nodes(dailyActions).some(n=>n.props?.children==='+ Schedule job'),true);
 }
 // Successful schedule retains sorted same-day routing and attention/balance rules.
@@ -159,14 +161,15 @@ const closeJobs=[
 state=[[],null,true,''];responder=()=>ok(closeJobs);requests=[];render();effect();await settle();
 const visibleChecks=nodes(render());
 const shortcut=visibleChecks.find(n=>n.props?.className==='schedule-check-shortcut');
-const advanced=visibleChecks.find(n=>n.props?.className==='schedule-planning-more');
-assert.ok(shortcut&&advanced,'Active appointment cautions remain visible while advanced tools are collapsed');checks++;
+const inlineReview=visibleChecks.find(n=>n.props?.className==='schedule-planning-content');
+assert.ok(shortcut&&inlineReview,'Active appointment cautions remain visible with no advanced-tools disclosure');checks++;
+assert.ok(nodes(inlineReview).some(n=>n.props?.className==='schedule-start-conflicts'),'Same-time appointment caution stays inside visible schedule content');checks++;
 equal(shortcut.props['aria-label'],'Review upcoming schedule checks');
 equal(nodes(shortcut).some(n=>String(n.props?.children).includes('same-time start')),true);
-let scrolled=0;const disclosure={open:false,scrollIntoView(options){equal(options.block,'start');scrolled++;}};
-advanced.props.ref.current=disclosure;
+let scrolled=0;const planning={scrollIntoView(options){equal(options.block,'start');scrolled++;}};
+inlineReview.props.ref.current=planning;
 shortcut.props.onClick();
-equal(disclosure.open,true);equal(scrolled,1);
+equal(scrolled,1,'Upcoming caution shortcut scrolls directly to visible schedule checks');
 equal(requests.length,1,'Reviewing a schedule warning does not change saved jobs or fetch data');
 const review=()=>nodes(render()).find(n=>n.props?.className==='schedule-turnaround-review');
 assert.ok(review(),'Close-start advisory must render on successful verified owner read');checks++;
