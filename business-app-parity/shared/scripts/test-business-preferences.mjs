@@ -18,7 +18,7 @@ try{
  response=await api.GET();eq(response.status,200);prefs=(await response.json()).preferences;
  eq(prefs.blocks,[],'Hidden legacy blocked dates are not returned as active preferences');
  eq(prefs.repeatMonths,legacy.repeatMonths,'Unrelated repeat intervals remain');
- eq(model.decodeBusinessPreferences({body:JSON.stringify(legacy)}).blocks,[],'Decode always ignores legacy blocks');
+ eq(model.decodeBusinessPreferences({body:JSON.stringify(legacy)}).blocks.length,0,'Decode always ignores legacy blocks');
 
  r.db.prepare("INSERT INTO customers(id,name,created_at) VALUES ('availability-c','Synthetic availability','now')").run();
  r.db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,accepted_at,signed_at,created_at) VALUES ('availability-e','availability-c','approved',20000,20000,10000,'signed','signed','now')").run();
