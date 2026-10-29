@@ -2772,3 +2772,10 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 .owner-deposit-review .owner-deposit-breakdown{margin-top:4px;border-top:1px solid var(--border);padding-top:10px}
 .owner-deposit-review .owner-deposit-breakdown>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-size:.875rem;font-weight:650}
 .owner-deposit-review .owner-deposit-breakdown .revision-totals{gap:9px;padding:8px 0 2px}
+
+/* Owner iPhone QA: preserve the message recipient while reserving a safe close-button hit area. */
+.message-dialog .message-dialog-header{min-width:0;max-width:100%;padding-right:56px;text-align:left}
+.message-dialog .message-dialog-header [data-slot="dialog-title"]{line-height:1.3;overflow-wrap:anywhere}
+.message-dialog .message-dialog-recipient{margin:0;max-width:100%;color:var(--muted-foreground);font-size:.875rem;line-height:1.4;overflow-wrap:anywhere;word-break:normal}
+.voice-contact-dialog .voice-contact-recipient{margin:0;min-width:0;font-size:.925rem;line-height:1.45;overflow-wrap:anywhere}
+.voice-contact-dialog .voice-contact-recipient span:last-child{white-space:nowrap}
