@@ -64,7 +64,7 @@ try{
    observations.push({view,state,width,theme,...measured});
    if(process.env.FIRE_FOLLOWUP_UX_DIR&&width===320){mkdirSync(process.env.FIRE_FOLLOWUP_UX_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.FIRE_FOLLOWUP_UX_DIR,`${view}-${theme}-${state}.png`),fullPage:true});}
    check(measured.left>=-1&&measured.right<=width+1,'Screen container fits '+JSON.stringify({view,state,width,theme}));
-   for(const c of measured.controls)check(c.left>=measured.left-1&&c.right<=measured.right+1,'Actual nested control fits '+JSON.stringify({view,state,width,theme,c}));
+   for(const c of measured.controls){check(c.left>=measured.left-1&&c.right<=measured.right+1,'Actual nested control fits '+JSON.stringify({view,state,width,theme,c}));if(view==='followups'&&c.tag==='BUTTON')check(c.height>=43.9,'Actual Follow-ups button has44px height '+JSON.stringify({state,width,theme,c}));}
    for(const t of measured.text)check(!t.outside,'Actual text fits '+JSON.stringify({view,state,width,theme,t}));
   };
   const reachable=async target=>{await target.evaluate(e=>e.scrollIntoView({block:'center',behavior:'instant'}));const m=await target.evaluate(e=>{const r=e.getBoundingClientRect(),nav=document.querySelector('.bottom-nav'),n=nav&&getComputedStyle(nav).display!=='none'?nav.getBoundingClientRect().top:innerHeight;const hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return{top:r.top,bottom:r.bottom,limit:n,hit:!!hit&&(hit===e||e.contains(hit))};});check(m.top>=-1&&m.bottom<=m.limit+1&&m.hit,'Scrolled final control is above actual bottom nav and receives pointer '+JSON.stringify({width,theme,m}));};

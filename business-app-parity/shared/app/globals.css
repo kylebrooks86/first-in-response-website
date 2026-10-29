@@ -2783,3 +2783,6 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 
 /* Keep the existing agreement identity column readable at tablet/desktop widths too. */
 .contract-list>button>span:nth-child(2){min-width:0;overflow-wrap:anywhere}
+
+/* Follow-ups actions and explicit retries retain comfortable touch targets. */
+.followups-view button{min-height:44px}
