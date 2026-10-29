@@ -4582,18 +4582,26 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   const [estimateRows, setEstimateRows] = useState(estimates);
   const [liveMetrics, setLiveMetrics] = useState(metrics);
   const [summaryVerified,setSummaryVerified] = useState(false);
-  const previousTab = useRef("dashboard");
   const currentTab = useRef("dashboard");
+  const tabHistory = useRef<string[]>([]);
+  // Back must consume history rather than record itself as a forward visit.
+  // Keep a small in-memory trail; dialogs and edits never change the section.
+  const backDestination = useRef<string|null>(null);
   useLayoutEffect(() => {
     if (tab === currentTab.current) return;
-    previousTab.current = currentTab.current;
+    if (backDestination.current === tab) {
+      backDestination.current = null;
+    } else {
+      backDestination.current = null;
+      tabHistory.current.push(currentTab.current);
+      if (tabHistory.current.length > 30) tabHistory.current.shift();
+    }
     currentTab.current = tab;
-    // Reset the document after the new section commits, before it paints.
-    // Same-section edits, retries, menus and modal updates keep their position.
+    // Reset only on committed section changes; never on modal/edit updates.
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, [tab]);
   const goHome = () => { setTab("dashboard"); setMobileMenu(false); };
-  const goBack = () => { const target = previousTab.current || "dashboard"; setTab(target); setMobileMenu(false); };
+  const goBack = () => { if(backDestination.current!==null)return; const target=tabHistory.current.pop()??"dashboard"; if(target!==currentTab.current){backDestination.current=target;setTab(target);}setMobileMenu(false); };
   const nav = useMemo(() => [
     ["dashboard", "Dashboard", House], ["customers", "Customers", Users], ["estimates", "Estimates", ClipboardList], ["schedule", "Schedule", CalendarDays], ["followups", "Follow-ups", Clock3], ["invoices", "Invoices", Receipt], ["payments", "Payments", CreditCard], ["door-knocking", "Door knocking", MapPin], ["business", "Business", BriefcaseBusiness], ["insights", "Insights", BarChart3], ["settings", "Settings", Settings],
   ] as const, []);

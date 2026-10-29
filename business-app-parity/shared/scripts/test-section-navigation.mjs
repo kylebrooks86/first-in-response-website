@@ -14,8 +14,12 @@ const effect=effects[0];assert.equal(effect.arguments[1].getText(ast),'[tab]');
 const js=ts.transpileModule(`(${effect.arguments[0].getText(ast)})()`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
 let checks=2;
 const eq=(a,b,m)=>{assert.deepEqual(a,b,m);checks++;};
-const currentTab={current:'dashboard'},previousTab={current:'dashboard'},scrolls=[];
-function commit(tab){vm.runInNewContext(js,{tab,currentTab,previousTab,window:{scrollTo:options=>scrolls.push({...options})}});}
+const currentTab={current:'dashboard'},tabHistory={current:[]},backDestination={current:null},scrolls=[];
+function commit(tab){vm.runInNewContext(js,{tab,currentTab,tabHistory,backDestination,window:{scrollTo:options=>scrolls.push({...options})}});}
+const backCall=dashboard.getText(ast).match(/const goBack = ([^\n]+);/)?.[1];
+assert.ok(backCall,'Actual top Back handler is present');
+const backJs=ts.transpileModule('('+backCall+')()', {compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+function pressBack(){vm.runInNewContext(backJs,{currentTab,tabHistory,backDestination,setTab:commit,setMobileMenu:()=>{}});}
 commit('dashboard');eq(scrolls.length,0,'Mount must not override browser/restored position');
 const sections=['customers','estimates','invoices','payments','schedule','contracts','followups','insights','business','settings','owner-account','dashboard'];
 for(const tab of sections){
@@ -23,12 +27,22 @@ for(const tab of sections){
  commit(tab);
  eq(scrolls.length,count+1,'Every committed main section resets once');
  eq(scrolls.at(-1),{top:0,left:0,behavior:'instant'},'Reset is immediate, never animated');
- eq(previousTab.current,old,'Back history preserves the section left');
+ eq(tabHistory.current.at(-1),old,'Forward visit records the section left');
  eq(currentTab.current,tab);
  for(const update of ['typing','editing','modal','retry','menu','theme','Strict Mode repeat']){commit(tab);eq(scrolls.length,count+1,`${update} in same section must not reset`);}
 }
-const count=scrolls.length,target=previousTab.current;commit(target);eq(currentTab.current,target,'Back transition uses same scroll policy');eq(scrolls.length,count+1);
-commit('dashboard');eq(currentTab.current,'dashboard','Home uses same policy');
+const count=scrolls.length;
+pressBack();eq(currentTab.current,'owner-account','Back returns to prior actual section, not a two-screen toggle');eq(scrolls.length,count+1);
+pressBack();eq(currentTab.current,'settings','Second Back moves farther through the history');
+pressBack();eq(currentTab.current,'business','Third Back skips prior Back destinations, rather than bouncing');
+eq(backDestination.current,null,'Committed Back clears the pending gesture guard');
+commit('customers');eq(tabHistory.current.at(-1),'business','New forward visit preserves the previous section');
+commit('dashboard');eq(currentTab.current,'dashboard','Home uses the same committed scroll/reset policy');
+pressBack();eq(currentTab.current,'customers','Back from Home returns to last working section');
+for(let i=0;i<40;i++)commit(i%2?'customers':'estimates');
+eq(tabHistory.current.length,30,'Navigation history is bounded without growing forever');
+const stableCount=scrolls.length;commit(currentTab.current);eq(scrolls.length,stableCount,'Same-section events do not create history or scroll');
+// Back uses a bounded navigation trail; it must never oscillate between two tabs.
 // The policy must stay in the shared committed-section effect: callers including
 // sidebar, bottom nav, dashboard shortcuts, notifications and Home/Back all set tab.
 assert.match(source,/onNavigate=\{setTab\}/);checks++;
