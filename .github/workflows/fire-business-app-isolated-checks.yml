@@ -940,6 +940,18 @@ jobs:
           path: ${{ runner.temp }}/fire-checkout-login-ux/
           if-no-files-found: ignore
           retention-days: 7
+      - name: Actual offline setup preparation, error, timeout and retry states
+        env:
+          FIRE_SETUP_UX_DIR: ${{ runner.temp }}/fire-offline-setup-ux
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-offline-field-setup-browser.mjs
+      - name: Retain synthetic offline setup state geometry
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-offline-setup-control-geometry
+          path: ${{ runner.temp }}/fire-offline-setup-ux/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Final refund retry, quote-context and iPhone dialog audit
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-final-interaction-audit-browser.mjs
       - name: Notification touch actions, saved reads and independent reminders over real SQLite
