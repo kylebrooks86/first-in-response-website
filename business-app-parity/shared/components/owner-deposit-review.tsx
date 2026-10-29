@@ -93,7 +93,7 @@ export function OwnerDepositReview({estimateId}:{estimateId:string}){
    const n=++requestNo.current;
    const r=await fetch("/api/estimates/"+encodeURIComponent(estimateId)+"/deposit-policy",{cache:"no-store"});
    const data=await r.json() as State;
-   if(!r.ok||!data.exceptionReview)throw Error(data.error||"Owner audit cannot be checked.");
+   if(!r.ok||!data.policy||!data.currentSnapshot||!data.exceptionReview||!Array.isArray(data.exceptionReview.events))throw Error(data.error||"Owner audit cannot be checked.");
    if(n!==requestNo.current)return;
    setState(data);
    const found=pending&&data.exceptionReview.events.find(e=>e.confirmation_id===pending.confirmationId);
