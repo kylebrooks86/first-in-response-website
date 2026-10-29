@@ -80,7 +80,7 @@ const failedStagingEvent=await webhook(stagingSigned,{type:'checkout.session.asy
   data:{object:{id:'cs_test_failed123',livemode:false,status:'complete',payment_status:'unpaid'}}});
 eq(failedStagingEvent.status,200,'Signed sandbox asynchronous failure currently receives an acknowledgement');
 const failedStagingBody=await failedStagingEvent.json();
-eq(failedStagingBody.received===true&&failedStagingBody.ignored===true,
+eq(failedStagingBody.received===true&&failedStagingBody.ignored===true,true,
   'Known Gate 9 gap: failure is acknowledged without a verified owner recovery receipt');
 eq(stagingSigned.calls.reconciled,1,'Failed asynchronous payment must never be recorded as paid');
 eq(stagingSigned.calls.refunds,0,'Failed asynchronous payment must never create a refund');
