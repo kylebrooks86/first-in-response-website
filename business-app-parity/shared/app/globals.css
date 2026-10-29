@@ -2749,3 +2749,6 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 
 /* Sign-in keeps its approved white card readable under a retained app theme. */
 .access-card{color:#112238;color-scheme:light}.access-card input{background:#fff;color:#112238}
+
+/* Keep offline setup diagnostics readable within their existing disclosure. */
+.offline-field-setup{min-width:0;max-width:100%;overflow-wrap:anywhere}
