@@ -2743,3 +2743,6 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 .signature-panel>.brand-button,.signature-panel .change-request>button{height:auto;min-height:48px;white-space:normal;overflow-wrap:anywhere}
 .signature-panel .change-request-toggle{min-height:44px}
 .signature-panel .photo-release label{min-height:44px;align-items:center}
+
+/* Preserve the existing nested checkout-review panel and its session identity. */
+.checkout-reconciliation{min-width:0;max-width:100%}.checkout-reconciliation input{min-width:0;max-width:100%;min-height:44px;font-size:16px}.checkout-reconciliation button{min-width:0;min-height:44px;height:auto;white-space:normal;overflow-wrap:anywhere}

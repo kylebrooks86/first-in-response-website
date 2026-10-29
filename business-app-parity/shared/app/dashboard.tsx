@@ -3708,10 +3708,12 @@ type CheckoutIssue={id:string;estimateId:string;customer:string;type:string;amou
 function ReconcileCheckout({issue,onResolved}:{issue:CheckoutIssue;onResolved:()=>void}){
   const [sessionId,setSessionId]=useState(issue.id.startsWith("cs_")?issue.id:"");
   const [busy,setBusy]=useState(false);
+  const verificationLock=useRef(false);
   const [message,setMessage]=useState("");
   const [error,setError]=useState("");
   const verify=async()=>{
-    if(busy)return;
+    if(verificationLock.current)return;
+    verificationLock.current=true;
     setBusy(true);setMessage("");setError("");
     try{
       const response=await fetch("/api/payments/checkout/reconcile",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reservationId:issue.id,sessionId:sessionId.trim()})});
@@ -3720,9 +3722,9 @@ function ReconcileCheckout({issue,onResolved}:{issue:CheckoutIssue;onResolved:()
       if(result.resolved){setMessage(result.message||"Checkout reconciled.");onResolved();}
       else setMessage(result.message||"Checkout remains under review.");
     }catch(err){setError(err instanceof Error?err.message:"Stripe checkout verification failed.");}
-    finally{setBusy(false);}
+    finally{verificationLock.current=false;setBusy(false);}
   };
-  return <div className="flex flex-col gap-2"><Label>Stripe Checkout Session ID</Label><Input value={sessionId} readOnly={issue.id.startsWith("cs_")} onChange={event=>setSessionId(event.target.value)} placeholder="cs_test_… or cs_live_…" autoComplete="off"/><Button variant="outline" disabled={busy||!sessionId.trim()} onClick={()=>void verify()}>{busy?"Verifying…":"Verify in Stripe & reconcile"}</Button>{message&&<p role="status">{message}</p>}{error&&<p role="alert" className="save-error">{error}</p>}</div>;
+  return <div className="checkout-reconciliation flex flex-col gap-2"><Label htmlFor={"checkout-session-"+issue.id}>Stripe Checkout Session ID</Label><Input id={"checkout-session-"+issue.id} disabled={busy} value={sessionId} readOnly={issue.id.startsWith("cs_")} onChange={event=>setSessionId(event.target.value)} placeholder="cs_test_… or cs_live_…" autoComplete="off"/><Button variant="outline" disabled={busy||!sessionId.trim()} onClick={()=>void verify()}>{busy?"Verifying…":"Verify in Stripe & reconcile"}</Button>{message&&<p role="status">{message}</p>}{error&&<p role="alert" className="save-error">{error}</p>}</div>;
 }
 
 type PaymentCloseoutAction={estimateId:string;customerId:string;customerName:string;totalCents:number;lastPaidAt:string;state:"ready"|"prepared";reviewPreparedAt:string|null};

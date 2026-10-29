@@ -928,6 +928,18 @@ jobs:
           path: ${{ runner.temp }}/fire-signature-ux/
           if-no-files-found: ignore
           retention-days: 7
+      - name: Actual nested checkout review and QA/DR sign-in states
+        env:
+          FIRE_CHECKOUT_UX_DIR: ${{ runner.temp }}/fire-checkout-login-ux
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-checkout-review-ux-browser.mjs
+      - name: Retain synthetic checkout and sign-in geometry
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-checkout-login-control-geometry
+          path: ${{ runner.temp }}/fire-checkout-login-ux/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Final refund retry, quote-context and iPhone dialog audit
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-final-interaction-audit-browser.mjs
       - name: Notification touch actions, saved reads and independent reminders over real SQLite
