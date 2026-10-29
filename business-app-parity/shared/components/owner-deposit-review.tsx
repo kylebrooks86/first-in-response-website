@@ -1,5 +1,6 @@
 "use client";
 import {useCallback,useEffect,useRef,useState} from "react";
+import {RefreshCw} from "lucide-react";
 
 type Snapshot={status:string;totalCents:number;depositCents:number;paidCents:number;acceptedAt:string|null;signedAt:string|null;contractVersion:string|null};
 type Audit={id:string;confirmation_id:string;created_at:string;mode:string;previous_deposit_cents:number;new_deposit_cents:number;actor_email:string;reason:string|null};
@@ -102,18 +103,22 @@ export function OwnerDepositReview({estimateId}:{estimateId:string}){
   }catch(e){setError(e instanceof Error?e.message:"Audit reconciliation failed.");}
   finally{setBusy(false);}
  };
- return <section className="estimate-change-history" aria-label="Owner deposit policy and audit history">
-  <header><h3>Deposit policy &amp; owner audit</h3><button type="button" className="brand-button" disabled={busy} onClick={()=>void refresh()}>Refresh</button></header>
+ return <section className="estimate-change-history owner-deposit-review" aria-label="Owner deposit policy and audit history">
+  <header className="owner-deposit-head"><h3>Deposit &amp; scheduling</h3><button type="button" className="owner-deposit-refresh" disabled={busy} onClick={()=>void refresh()} aria-label="Refresh deposit and scheduling status"><RefreshCw aria-hidden="true"/> Refresh</button></header>
   {error&&<p role="alert" className="save-error">{error}</p>}
   {!state?<p>Deposit policy is not currently verified.</p>:
-   <div className="revision-totals">
-    <span>Required deposit<strong>{current?money(current.depositCents):state.policy.remainingDepositCents===null?"Review required":"Standard policy"}</strong></span>
-    {current&&<><span>Total after discounts<strong>{money(current.totalCents)}</strong></span><span>Net principal paid<strong>{money(current.paidCents)}</strong></span></>}
-    <span>Scheduling<strong>{state.policy.canSchedule?"Policy checks passed":"Blocked until other requirements are met"}</strong></span>
-    {state.policy.message&&<p>{state.policy.message}</p>}
+   <div className="revision-totals owner-deposit-summary">
+    <span>Deposit still due<strong>{state.policy.remainingDepositCents===null?"Not verified":money(state.policy.remainingDepositCents)}</strong></span>
+    <span>Scheduling<strong>{state.policy.canSchedule?"Policy checks passed":"Not ready yet"}</strong></span>
+    {state.policy.message&&<p className="owner-deposit-guidance">{state.policy.message}</p>}
+    {current&&<details className="owner-deposit-breakdown"><summary>Deposit breakdown</summary><div className="revision-totals">
+      <span>Required deposit<strong>{money(current.depositCents)}</strong></span>
+      <span>Total after discounts<strong>{money(current.totalCents)}</strong></span>
+      <span>Net principal paid<strong>{money(current.paidCents)}</strong></span>
+    </div></details>}
    </div>}
   {review&&<div>
-   <p><strong>{review.syntheticOnly?"Synthetic owner exception review":"Deposit audit"}</strong> — customer signing and payment are separate.</p>
+   <p><strong>{review.syntheticOnly?"Owner audit & exception history (synthetic QA)":"Owner audit & exception history"}</strong> — customer signing and payment remain separate.</p>
    {review.events.length===0?<p>No owner deposit exceptions recorded.</p>:
     <div className="invoice-revision-list">{review.events.slice(0,12).map(event=><article key={event.id} className="invoice-revision-row">
      <strong>{event.mode}</strong><p>{money(event.previous_deposit_cents)} → {money(event.new_deposit_cents)}</p>
