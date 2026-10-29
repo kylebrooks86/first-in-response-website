@@ -16,7 +16,7 @@ let checks=2;
 const eq=(a,b,m)=>{assert.deepEqual(a,b,m);checks++;};
 const currentTab={current:'dashboard'},tabHistory={current:[]},backDestination={current:null},scrolls=[];
 function commit(tab){vm.runInNewContext(js,{tab,currentTab,tabHistory,backDestination,window:{scrollTo:options=>scrolls.push({...options})}});}
-const backCall=dashboard.getText(ast).match(/const goBack = ([^\n]+);/)?.[1];
+const backCall=variable(dashboard,'goBack').getText(ast);
 assert.ok(backCall,'Actual top Back handler is present');
 const backJs=ts.transpileModule('('+backCall+')()', {compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
 function pressBack(){vm.runInNewContext(backJs,{currentTab,tabHistory,backDestination,setTab:commit,setMobileMenu:()=>{}});}
