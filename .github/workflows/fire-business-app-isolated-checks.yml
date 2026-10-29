@@ -877,7 +877,7 @@ jobs:
       CI: 'true'
       CLOUDFLARE_CF_FETCH_ENABLED: 'false'
       WRANGLER_SEND_METRICS: 'false'
-      FIRE_UX_TRACE_DIR: ${{ runner.temp }}/fire-nested-ux-trace
+      FIRE_UX_TRACE_DIR: ${{ github.workspace }}/fire-nested-ux-trace
     defaults:
       run:
         working-directory: business-app-parity/shared
@@ -1099,7 +1099,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fire-nested-ux-observations
-          path: ${{ runner.temp }}/fire-nested-ux-trace/
+          path: ${{ github.workspace }}/fire-nested-ux-trace/
           if-no-files-found: ignore
           retention-days: 7
 
