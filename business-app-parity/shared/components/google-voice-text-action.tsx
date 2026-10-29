@@ -95,12 +95,10 @@ export function GoogleVoiceTextAction({
       </DialogTrigger>
       <DialogContent className="voice-contact-dialog sm:max-w-[430px]">
         <DialogHeader><DialogTitle>Text using Google Voice</DialogTitle></DialogHeader>
-        <p>Send from your FIRE business account.</p>
-        <p>Customer: <strong>{customerName || "Selected customer"}</strong></p>
-        <p>Recipient number: <strong>{phone}</strong></p>
-        {!message && <textarea aria-label="Message for Google Voice" className="w-full min-h-20 rounded-md border p-2 text-base" rows={3} value={text} onChange={event => setDraft({ phone, text: event.target.value })} />}
+        <p className="voice-contact-recipient"><strong>{customerName || "Selected customer"}</strong><span aria-hidden="true"> · </span><span>{phone}</span></p>
+        {!message && <textarea aria-label="Message for Google Voice" className="w-full min-h-20 rounded-md border p-2 text-base" placeholder="Write your message…" rows={3} value={text} onChange={event => setDraft({ phone, text: event.target.value })} />}
         <GoogleVoiceTextShortcutAction phone={phone} message={text} />
-        <p className="text-sm">Or send manually in Google Voice:</p>
+        <p className="text-sm font-semibold">Manual options</p>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" className="min-h-11 whitespace-normal" onClick={() => void copyNumber()}><Copy className="h-4 w-4" /> Copy number</Button>
           {text && <Button type="button" variant="outline" className="min-h-11 whitespace-normal" onClick={async () => {
@@ -111,7 +109,7 @@ export function GoogleVoiceTextAction({
         </div>
         {copyStatus && <p role="status">{copyStatus}</p>}
         {message && <textarea aria-label="Prepared message for Google Voice" className="w-full min-h-20 rounded-md border p-2 text-base" rows={3} value={message} readOnly onFocus={event => event.currentTarget.select()}/>}
-        <p className="text-sm">Nothing is marked sent by FIRE unless you confirm it.</p>
+        <p className="text-xs text-muted-foreground">Nothing is marked sent by FIRE unless you confirm it.</p>
       </DialogContent>
     </Dialog>
   );
