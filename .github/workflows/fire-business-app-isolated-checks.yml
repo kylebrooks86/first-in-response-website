@@ -910,6 +910,18 @@ jobs:
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
           test -n "$CHROME" || { echo "Chrome is not available on the runner; do not fall back to unreviewed installs."; exit 1; }
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Actual Follow-ups, Contracts owner list and Owner Account interactions
+        env:
+          FIRE_FOLLOWUP_UX_DIR: ${{ runner.temp }}/fire-followup-account-contracts-ux
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-followups-account-contracts-browser.mjs
+      - name: Retain synthetic three-screen interaction and scrolling evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-followup-account-contracts-geometry
+          path: ${{ runner.temp }}/fire-followup-account-contracts-ux/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Actual owner deposit policy, audit history and gated synthetic states
         env:
           FIRE_DEPOSIT_UX_DIR: ${{ runner.temp }}/fire-owner-deposit-ux
