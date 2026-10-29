@@ -245,6 +245,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Shared TypeScript check
         run: pnpm exec tsc --noEmit
+      - name: Section navigation and optional preference storage refusal
+        run: node scripts/test-section-navigation.mjs
       - name: Local migration and schema-journal integrity
         run: |
           node --experimental-sqlite scripts/test-local-schema-audit.mjs
