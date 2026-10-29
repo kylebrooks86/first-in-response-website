@@ -35,7 +35,8 @@ assert.match(source,/onNavigate=\{setTab\}/);checks++;
 assert.match(source,/className="bottom-nav"[\s\S]*setTab\(id\)/);checks++;
 assert.match(source,/const goHome = [^\n]*setTab\("dashboard"\)/);checks++;
 assert.match(source,/const goBack = [^\n]*setTab\(target\)/);checks++;
-assert.match(source,/item\.type==="payment_failed"\|\|item\.type==="payment_overage"/,'Payment activity destination is Payments');checks++;
+assert.match(source,/item\.type==="payment_failed"\?"payments"/,'Failed-Stripe-checkout notification must open Payments');checks++;
+assert.match(source,/item\.type==="payment_overage"\?\(item\.estimateId\?"estimates":"payments"\)/,'Overpayment alert opens exact estimate resolution when job is known');checks++;
 assert.match(source,/else if\(next==="payments"\)\{setTab\("payments"\);\}/,'Payment alerts override estimate-focused navigation');checks++;
 // Everyday shortcuts are prioritized, while EVERY original main section stays in the menu.
 const navSource=source.match(/const nav = useMemo\(\(\) => \[([\s\S]*?)\] as const, \[\]\);/)?.[1];
