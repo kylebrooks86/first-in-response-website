@@ -829,7 +829,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   useEffect(()=>{if(openOnMount){reset(true);onAutoOpened?.();}},[]);
   return <Dialog open={open} onOpenChange={reset}>
     <DialogTrigger asChild><Button className="brand-button" title={disabledReason}><Plus className="h-4 w-4" /> {revisionSource?"Revise quote":"New estimate"}</Button></DialogTrigger>
-    <DialogContent aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto border-0 p-0 sm:max-w-[620px]">
+    <DialogContent aria-describedby={undefined} className="new-estimate-dialog max-h-[92vh] overflow-y-auto border-0 p-0 sm:max-w-[620px]">
       <div className="estimate-head"><DialogHeader><DialogTitle className="text-xl">Create estimate</DialogTitle></DialogHeader><p className="mt-1 text-sm text-slate-500">Step {step} of 2 · {step===1?"Customer details":"Services and pricing"}</p><Progress value={step*50} className="mt-4 h-1.5"/></div>
       {!saved&&!saving&&(!createStorageReady||pendingCreateId)&&<section className="mx-6 mt-4 space-y-2 rounded-lg border p-3" aria-label="Unresolved new estimate request">
         <strong>New estimate save protection</strong>

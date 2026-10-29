@@ -2663,6 +2663,13 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 /* Keep secondary catalog and schedule tools as tappable as their primary actions. */
 .pricing-settings input:not([type="checkbox"]):not([type="radio"]),.pricing-settings button,.pricing-settings summary,.pricing-grid button{min-height:44px}
 .schedule-planning-content>details>summary{min-height:44px;padding-block:10px;cursor:pointer}
+/* Long catalog names must not establish a wider minimum size for a new estimate. */
+.new-estimate-dialog .estimate-edit-items{min-width:0;grid-template-columns:minmax(0,1fr)}
+.new-estimate-dialog .estimate-edit-service,.new-estimate-dialog .estimate-edit-service>*{min-width:0;max-width:100%}
+.new-estimate-dialog .estimate-edit-service>header{flex-wrap:wrap;gap:8px}
+.new-estimate-dialog .estimate-edit-service>header>div{min-width:0;max-width:100%;flex-wrap:wrap}
+.new-estimate-dialog [data-slot="select-trigger"]{width:100%;max-width:100%;height:auto;min-height:44px;white-space:normal}
+.new-estimate-dialog [data-slot="select-value"]{min-width:0;white-space:normal;overflow-wrap:anywhere;-webkit-line-clamp:unset}
 
 
 /* Mobile polish: preserve payment details while making each action easier to scan. */
