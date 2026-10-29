@@ -108,6 +108,8 @@ on:
       - 'business-app-parity/test_qa_d1_export.py'
       - 'business-app-parity/verify_current_qa25_export.py'
       - 'business-app-parity/test_verify_current_qa25_export.py'
+      - 'business-app-parity/qa_retired_availability_cleanup_plan.py'
+      - 'business-app-parity/test_qa_retired_availability_cleanup_plan.py'
       - 'business-app-parity/owner_windows_qa_backup.ps1'
       - 'business-app-parity/review_existing_qa_capture_offline.py'
       - 'business-app-parity/test_review_existing_qa_capture_offline.py'
@@ -353,6 +355,7 @@ jobs:
           python3 ../test_capture_qa_provider_identity.py
           python3 ../test_qa_d1_export.py
           python3 ../test_verify_current_qa25_export.py
+          python3 ../test_qa_retired_availability_cleanup_plan.py
       - name: Existing QA Worker update review must preserve all hosted customer records
         run: python3 ../test_owner_windows_qa_update_review.py
       - name: Code-only QA Worker updates must require distinct approval and preserve login/data
