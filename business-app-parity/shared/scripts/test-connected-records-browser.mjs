@@ -48,12 +48,14 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
    }});
  });
  page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){outside.push(r.request().url());return r.abort();}return r.continue();});
- // Month view is primary; optional route/date controls must reopen after
- // loading and error states remount the schedule results.
+ // Month view is primary; weather, route and date controls are always
+ // directly visible. The owner retired My availability and More tools.
  const openScheduleTools=async()=>{
-  const more=page.locator('details.schedule-planning-more');
-  await more.waitFor({state:'visible'});
-  if(!await more.evaluate(node=>node.open))await more.locator(':scope > summary').click();
+  const inline=page.locator('.schedule-planning-content');
+  await inline.waitFor({state:'visible'});
+  check(await inline.locator('.schedule-weather-anchor').count()===1,'Schedule weather remains directly visible in main content');
+  check(await page.locator('details.schedule-planning-more').count()===0,'Retired schedule disclosure is absent');
+  check(await page.getByText('My availability',{exact:true}).count()===0,'Retired owner availability panel is absent');
  };
  const showAllUpcoming=async count=>{
   await openScheduleTools();
@@ -210,7 +212,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   if(process.env.FIRE_CONNECTED_UI_SCREENSHOT_DIR)await page.screenshot({path:join(process.env.FIRE_CONNECTED_UI_SCREENSHOT_DIR,`schedule-month-${size.width}-${theme}.png`)});
   check(await oct20.getAttribute('aria-pressed')==='true'&&await page.locator('.schedule-job').count()===2,
     'Tapping a colored calendar day selects the matching two actual appointments');
-  await page.locator('.schedule-planning-more > summary').click();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).click();check(await page.locator('.schedule-job').count()===5,'All upcoming preserves full schedule');await page.getByRole('button',{name:'Today (2)',exact:true}).click();check(await page.locator('.schedule-job').count()===2,'Today includes Central late-night appointment');check(await page.locator('.needs-attention button').count()===1,'Today filter retains overdue work');check(!(await page.locator('.schedule-board').innerText()).includes('tomorrow-midnight'),'Central next-day appointment excluded from Today');let route=new URL(await page.locator('.route-day-button').getAttribute('href'));check(route.searchParams.get('destination')==='Address today-late'&&route.searchParams.get('waypoints')==='Address today-morning','Today route stays on one Central day');
+  await openScheduleTools();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).click();check(await page.locator('.schedule-job').count()===5,'All upcoming preserves full schedule');await page.getByRole('button',{name:'Today (2)',exact:true}).click();check(await page.locator('.schedule-job').count()===2,'Today includes Central late-night appointment');check(await page.locator('.needs-attention button').count()===1,'Today filter retains overdue work');check(!(await page.locator('.schedule-board').innerText()).includes('tomorrow-midnight'),'Central next-day appointment excluded from Today');let route=new URL(await page.locator('.route-day-button').getAttribute('href'));check(route.searchParams.get('destination')==='Address today-late'&&route.searchParams.get('waypoints')==='Address today-morning','Today route stays on one Central day');
   check(await page.locator('.schedule-job-inline-flags').count()===2,'Near-term jobs have compact timing and prep indicators');
   check(await page.locator('.schedule-job-needs-prep').count()===1,'Today job missing contact receives a visual highlight');
   check((await page.locator('.schedule-job-prep-chip').allTextContents()).includes('Review contact'),'Contact review cue is precise');
@@ -248,7 +250,7 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await showAllUpcoming(5);
   check(await page.locator('.schedule-job').count()===5,'Clearing date selection restores all upcoming records');
   await page.evaluate(()=>window.setQuery('beyond-week'));await page.getByRole('button',{name:'Today (0)',exact:true}).click();await page.getByText('No upcoming jobs today',{exact:true}).waitFor();check(await page.locator('.route-day-button').count()===1,'Search may hide cards, but never remove real upcoming jobs from driving directions');const verifiedTodaySearchRoute=new URL(await page.locator('.route-day-button').getAttribute('href'));check(verifiedTodaySearchRoute.searchParams.get('destination')==='Address today-late'&&verifiedTodaySearchRoute.searchParams.get('waypoints')==='Address today-morning','Route retains every verified address despite a nonmatching search');check((await page.locator('.route-day-button small').innerText()).includes('search does not filter route'),'Route makes its full-day search behavior visible');await page.getByRole('button',{name:'All upcoming (1)',exact:true}).click();check(await page.locator('.schedule-job').count()===1,'All upcoming recovers appointment outside current week');await page.evaluate(()=>window.setQuery(''));await showAllUpcoming(5);check(await page.locator('.schedule-window-controls button').evaluateAll(ns=>ns.every(n=>n.getBoundingClientRect().height>=44)),'Schedule window controls have 44px targets');if(process.env.FIRE_CONNECTED_UI_SCREENSHOT_DIR)await page.screenshot({path:join(process.env.FIRE_CONNECTED_UI_SCREENSHOT_DIR,`schedule-${size.width}-${theme}.png`)});
-  await page.goto(origin+'/schedule');await page.locator('.schedule-planning-more > summary').click();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).click();
+  await page.goto(origin+'/schedule');await openScheduleTools();await page.getByRole('button',{name:'All upcoming (5)',exact:true}).click();
   check(await page.locator('.schedule-job-weather-action').count()===5,'Every upcoming scheduled job has a direct weather review action');
    check(await page.locator('.schedule-job-customer-action').count()===4,'Scheduled jobs show direct customer links only for saved customer IDs');
    const topRowActions=await page.locator('.schedule-job-shell').filter({has:page.getByRole('button',{name:'Contact today-morning for scheduled job'})}).locator('.schedule-job-utilities').locator('button,a').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-label')));
@@ -298,12 +300,10 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await page.getByRole('button',{name:'Contact last-week-day for scheduled job'}).click();
   check(await page.locator('.schedule-job-directions-action').count()===5,'Only current saved addresses receive Maps shortcuts');
   const firstWeatherShortcut=page.getByRole('button',{name:'Check weather for today-morning job'});
-  const moreSchedule=page.locator('details.schedule-planning-more');
-  if(await moreSchedule.evaluate(node=>node.open))await moreSchedule.locator(':scope > summary').click();
-  check(!await moreSchedule.evaluate(node=>node.open),'Schedule forecast remains optional until requested by a job shortcut');
+  await openScheduleTools();
+  check(await page.getByTestId('schedule-weather-target').isVisible(),'Schedule forecast is visible before any job shortcut');
   await firstWeatherShortcut.click();
-  check(await moreSchedule.evaluate(node=>node.open),'Per-job Weather action opens the hidden forecast tools automatically');
-  check(await page.getByTestId('schedule-weather-target').isVisible(),'Requested forecast becomes actually visible, not only changed behind a collapsed panel');
+  check(await page.getByTestId('schedule-weather-target').isVisible(),'Per-job Weather action keeps the forecast visible directly on Schedule');
   check(await page.getByTestId('schedule-weather-target').getAttribute('data-requested-job')==='2026-10-20T15:00:00Z','Weather review selects exact clicked job appointment');
   const individualDirections=page.getByRole('link',{name:'Directions to today-morning job'});
   const individualDirectionsUrl=new URL(await individualDirections.getAttribute('href'));
