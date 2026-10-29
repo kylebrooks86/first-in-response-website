@@ -14,11 +14,11 @@ $qaDatabase = 'fire-fullapp-qa-db-20261016'
 $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Cloud photo R2 is intentionally not provisioned. The device-local photo vault and
 # independently saved ZIP backups must remain usable without billing.
-# Pin the latest QA version owner confirmed at 100% traffic after the October 26 release with authenticated
+# Pin the latest QA version owner confirmed at 100% traffic after the authenticated October 29 QA read-only inspection with authenticated
 # Wrangler deployments status: sole active version at 100% traffic.
 # Reject a different active version, split traffic, or changed D1 identity.
 # Reject older, split, changed or ambiguous versions before any upload.
-$expectedActiveVersion = 'aa598f39-3611-4626-8fe8-350b57247d51'
+$expectedActiveVersion = 'f959bea7-c6bc-45b8-98ab-7f96f3ce46a8'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }
@@ -131,7 +131,7 @@ $activeVersions = @($deploymentInfo.versions)
 Require ($activeVersions.Count -eq 1) 'QA Worker traffic is split or ambiguous. Stop.'
 Require ([double]$activeVersions[0].percentage -eq 100) 'Exactly one QA Worker version must serve 100 percent of requests.'
 $activeVersion = [string]$activeVersions[0].version_id
-Require ($activeVersion -ceq $expectedActiveVersion) 'Active QA Worker differs from owner-confirmed October 26 authenticated QA deployment. Stop.'
+Require ($activeVersion -ceq $expectedActiveVersion) 'Active QA Worker differs from authenticated owner October 29 QA preflight. STOP; do not re-pin or deploy. Stop.'
 Write-Host ('PASS: Active QA Worker is exactly one 100-percent deployment: ' + $activeVersion)
 Write-Host ('PASS: Existing QA database name and UUID match: ' + $qaDatabase)
 # Dry-run requires ONLY a disposable normalized manifest, outside any app data.
