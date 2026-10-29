@@ -27,4 +27,11 @@ check(!/\b(?:twilio|sms\.send|GoogleVoiceAPI)\b/i.test(action),"No paid provider
 check(action.includes('GOOGLE_VOICE_TEXT_URL_LIMIT = 8000')&&action.includes('href.length <= GOOGLE_VOICE_TEXT_URL_LIMIT'),"Oversized encoded input refused, never truncated");
 check(action.includes('window.location.assign(href)')&&!action.includes('setTimeout(')&&!action.includes('fetch('),"User-initiated handoff has no timer, callback, send receipt or database write");
 check(action.includes('Only retry if this message was NOT sent')&&action.includes('supportsGoogleVoiceTextShortcut'),"Unsupported devices/launch failure and unsent retries preserve manual control");
+const css=readFileSync("app/globals.css","utf8");
+const templates=readFileSync("lib/fire-templates.ts","utf8");
+check(ui.includes('<DialogHeader className="message-dialog-header"><DialogTitle>Message</DialogTitle><p className="message-dialog-recipient">To: {customer.name}</p>'),"Real composer uses short title and separate recipient, leaving X space");
+check(css.includes('.message-dialog .message-dialog-header{')&&css.includes('padding-right:56px')&&css.includes('.message-dialog .message-dialog-recipient{'),"Composer header reserves 56px for mobile close button and wraps customer names");
+check(ui.includes('}>Template</Label>')&&ui.includes('>Message text</Label>'),"Composer field labels are concise without changing IDs or handlers");
+check(action.includes('className="voice-contact-recipient"')&&action.includes('placeholder="Write your message…"')&&action.includes('>Manual options</p>'),"Quick Voice handoff groups recipient and removes redundant directions");
+check(templates.includes('A 50% deposit is required to book; the balance is due upon completion.')&&templates.includes('Review and approve: @estimate_link'),"Short default estimate template retains link, approval and financial terms");
 console.log("PASS "+checks+"/"+checks+" source-only Google Voice messaging safety checks. No calls, customer data, or deployment.");
