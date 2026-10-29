@@ -71,11 +71,11 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  }
  await page.getByRole('button',{name:/^Messages\s+0$/}).click();
  const messages=page.getByRole('region',{name:'Customer messages'});await messages.getByText('No messages prepared yet').waitFor();
- const composer=()=>page.getByRole('dialog',{name:'Message '+customer.name,exact:true});
+ const composer=()=>page.getByRole('dialog',{name:'Message',exact:true});
  for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,900]]){
   await page.setViewportSize({width,height});const compose=messages.getByRole('button',{name:'+ Compose Message',exact:true});await compose.scrollIntoViewIfNeeded();const box=await compose.boundingBox();
   check(box.x>=0&&box.x+box.width<=width&&box.height>=44,'Messages tab exposes accessible Compose Message at '+width);
-  await compose.click();await composer().waitFor();check(await composer().getByRole('button',{name:'Text',exact:true}).isVisible()&&await composer().getByRole('button',{name:'Email',exact:true}).isVisible()&&await composer().getByLabel('Personalized message').inputValue().then(text=>text.includes('/estimate/'+estimate.shareToken)),'Shared composer uses current customer and estimate with text/email options at '+width);
+  await compose.click();await composer().waitFor();check(await composer().locator('.message-dialog-recipient').innerText()==='To: '+customer.name,'Compact composer keeps the correct recipient at '+width);check(await composer().getByRole('button',{name:'Text',exact:true}).isVisible()&&await composer().getByRole('button',{name:'Email',exact:true}).isVisible()&&await composer().getByLabel('Message text').inputValue().then(text=>text.includes('/estimate/'+estimate.shareToken)),'Shared composer uses current customer and estimate with text/email options at '+width);
   await composer().getByRole('button',{name:'Close',exact:true}).click();
  }
  // Prepare synthetic audit events through the real existing messaging API;
@@ -84,8 +84,8 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  const prepared=await request('/api/customer-messages','POST',{customerId:customer.id,estimateId:estimate.id,channel:'text_prepared',template:'estimate',body});assert.equal(prepared.status(),201);const record=(await prepared.json()).message;
  await profile();await page.getByRole('button',{name:/^Messages\s+1$/}).click();
  check(await messages.locator('.message-history').filter({hasText:body}).count()===1&&await messages.getByText(/Prepared · sending unconfirmed/).count()===1,'Messages tab displays actual prepared history without claiming delivery');
- await messages.getByRole('button',{name:'+ Compose Message',exact:true}).click();await composer().getByLabel('Personalized message').fill('Synthetic unsent edited message');await composer().getByRole('button',{name:'Close',exact:true}).click();await messages.getByRole('button',{name:'+ Compose Message',exact:true}).click();
- check(await composer().getByLabel('Personalized message').inputValue()==='Synthetic unsent edited message','Messages tab reuses existing composer draft protection across close/reopen');await composer().getByRole('button',{name:'Close',exact:true}).click();
+ await messages.getByRole('button',{name:'+ Compose Message',exact:true}).click();await composer().getByLabel('Message text').fill('Synthetic unsent edited message');await composer().getByRole('button',{name:'Close',exact:true}).click();await messages.getByRole('button',{name:'+ Compose Message',exact:true}).click();
+ check(await composer().getByLabel('Message text').inputValue()==='Synthetic unsent edited message','Messages tab reuses existing composer draft protection across close/reopen');await composer().getByRole('button',{name:'Close',exact:true}).click();
  const saved=await (await request('/api/customers')).json();
  check(saved.messages.filter(row=>row.customerId===customer.id).length===1&&saved.messages.some(row=>row.id===record.id&&row.body===body&&row.channel==='text_prepared'),'Opening and editing composer does not send or duplicate history');
  check(saved.estimates.find(row=>row.id===originalEstimateId).totalCents===25000&&saved.estimates.find(row=>row.id===estimate.id).totalCents===20000&&saved.estimates.find(row=>row.id===estimate.id).depositCents===10000&&saved.payments.length===0,'Profile UI tests preserve original estimate, $200/$100 fixture and empty payment ledger');
