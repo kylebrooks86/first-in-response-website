@@ -1694,7 +1694,9 @@ html,body{max-width:100%;overflow-x:clip}
 }
 
 /* FIRE customer-first mobile layout: visible record choices and optional detail. */
-.customer-balance-explanation>summary{cursor:pointer;font-weight:750;color:var(--foreground)}
+.customers-view>.back-link{display:inline-flex;align-items:center;min-height:44px}
+.customer-balance-explanation>summary{cursor:pointer;font-weight:750;color:var(--foreground);min-height:44px;padding:13px 0}
+.customer-journey-disclosure button{min-height:44px;white-space:normal;overflow-wrap:anywhere}
 .customer-journey-disclosure>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:800;color:var(--foreground)}
 .customer-journey-disclosure>section{margin-top:12px}
 .customer-flag-panel>details.customer-sign-form{width:100%;min-width:0}
