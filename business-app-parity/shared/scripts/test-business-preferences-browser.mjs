@@ -1,51 +1,50 @@
-import assert from 'node:assert/strict';import {createServer} from 'node:http';import {createRequire} from 'node:module';import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';import {resolve} from 'node:path';import {stackedRuntime} from './stacked-discount-test-runtime.mjs';
+/** Real repeat-service settings UI after removing the availability editor. */
+import assert from 'node:assert/strict';
+import {createServer} from 'node:http';
+import {createRequire} from 'node:module';
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {stackedRuntime} from './stacked-discount-test-runtime.mjs';
 const require=createRequire(import.meta.url),esbuild=require('../node_modules/.pnpm/esbuild@0.28.0/node_modules/esbuild'),{chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright'),postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),tailwind=require('@tailwindcss/postcss');
-const bundle=(await esbuild.build({stdin:{contents:`import React,{useState}from'react';import{createRoot}from'react-dom/client';import{BusinessPreferencesPanel}from'./components/business-preferences';function Fixture(){const[mode,setMode]=useState('availability'),[theme,setTheme]=useState('light');document.documentElement.dataset.theme=theme;return <main style={{padding:12,maxWidth:900,margin:'auto'}}><button onClick={()=>setTheme(theme==='light'?'dark':'light')}>Theme</button><button onClick={()=>setMode(mode==='availability'?'repeat':'availability')}>Switch tools</button><details className="schedule-planning-more" open><summary>More schedule tools</summary><div className="schedule-planning-content"><details open><summary>My availability</summary><BusinessPreferencesPanel key={mode} mode={mode}/></details></div></details></main>};createRoot(document.getElementById('app')).render(<Fixture/>);`,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,platform:'browser',format:'esm',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}})).outputFiles[0].text;
+const bundle=(await esbuild.build({stdin:{contents:`import React,{useState} from 'react';import{createRoot}from'react-dom/client';import{BusinessPreferencesPanel}from'./components/business-preferences';function Fixture(){const[theme,setTheme]=useState('light');document.documentElement.dataset.theme=theme;return <main style={{padding:12,maxWidth:900,margin:'auto'}}><button onClick={()=>setTheme(theme==='light'?'dark':'light')}>Theme</button><details open><summary>Repeat-service reminders</summary><BusinessPreferencesPanel mode="repeat"/></details></main>};createRoot(document.getElementById('app')).render(<Fixture/>);`,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,platform:'browser',format:'esm',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}})).outputFiles[0].text;
 const css=(await postcss([tailwind({base:process.cwd()})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')})).css,r=stackedRuntime(),api=r.load('app/api/business-preferences/route.ts'),pricing=r.load('app/api/service-pricing/route.ts');let lost=false,puts=0;
-const server=createServer(async(req,res)=>{if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundle);}if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(css);}if(req.url==='/api/service-pricing'){const response=await pricing.GET();res.setHeader('content-type','application/json');return res.end(await response.text());}if(req.url==='/api/business-preferences'){let response;if(req.method==='PUT'){puts++;let body='';for await(const c of req)body+=c;response=await api.PUT(new Request('https://synthetic.invalid/api/business-preferences',{method:'PUT',body}));}else response=await api.GET();res.setHeader('content-type','application/json');res.statusCode=response.status;return res.end(lost&&req.method==='PUT'?'lost receipt':await response.text());}res.setHeader('content-type','text/html');res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script>');});await new Promise(ok=>server.listen(0,'127.0.0.1',ok));const origin='http://127.0.0.1:'+server.address().port;let browser,count=0;const check=(v,m)=>{assert.ok(v,m);count++;};
+const server=createServer(async(req,res)=>{if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundle);}if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(css);}if(req.url==='/api/service-pricing'){const response=await pricing.GET();res.setHeader('content-type','application/json');return res.end(await response.text());}if(req.url==='/api/business-preferences'){let response;if(req.method==='PUT'){puts++;let body='';for await(const c of req)body+=c;response=await api.PUT(new Request('https://synthetic.invalid/api/business-preferences',{method:'PUT',body}));}else response=await api.GET();res.setHeader('content-type','application/json');res.statusCode=response.status;return res.end(lost&&req.method==='PUT'?'lost receipt':await response.text());}res.setHeader('content-type','text/html');res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script>');});
+await new Promise(ok=>server.listen(0,'127.0.0.1',ok));const origin='http://127.0.0.1:'+server.address().port;let browser,count=0;
+const check=(v,m)=>{assert.ok(v,m);count++;};const evidence=[];
 try{
  browser=await chromium.launch({executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});const page=await browser.newPage();page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
- const evidence=[];
- const geometry=async(label)=>{
-  // Inputs animate color on theme changes. Measure the settled state rather
-  // than comparing a light foreground mid-transition to the new dark surface.
-  await page.locator('.business-preferences-grid').evaluate(async grid=>{
-   void grid.getBoundingClientRect();
-   await Promise.all(grid.getAnimations({subtree:true}).map(animation=>animation.finished.catch(()=>{})));
-  });
-  const g=await page.evaluate(()=>{
-   const box=n=>{const b=n.getBoundingClientRect();return {left:b.left,right:b.right,top:b.top,bottom:b.bottom,width:b.width,height:b.height};};
-   const canvas=document.createElement('canvas'),context=canvas.getContext('2d');canvas.width=canvas.height=1;
-   const luminance=color=>{context.clearRect(0,0,1,1);context.fillStyle=color;context.fillRect(0,0,1,1);const channels=[...context.getImageData(0,0,1,1).data].slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});return channels[0]*.2126+channels[1]*.7152+channels[2]*.0722;};
-   const fields=[...document.querySelectorAll('.business-preferences-grid>div')].map(cell=>{const input=cell.querySelector('input,select'),caption=cell.querySelector('label'),style=getComputedStyle(input),foreground=luminance(style.color),background=luminance(style.backgroundColor);return {id:input.id,cell:box(cell),input:box(input),label:box(caption),fontSize:style.fontSize,color:style.color,background:style.backgroundColor,contrast:(Math.max(foreground,background)+.05)/(Math.min(foreground,background)+.05)};});
-   const overlap=(a,b)=>Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1;
-   return {width:innerWidth,pageWidth:document.documentElement.scrollWidth,fields,overlaps:fields.flatMap((a,i)=>fields.slice(i+1).filter(b=>overlap(a.input,b.input)||overlap(a.input,b.label)||overlap(a.label,b.input)).map(b=>[a.id,b.id]))};
-  });
-  check(g.pageWidth<=g.width+1,label+' document fits');
-  check(g.fields.length===4,label+' all four actual native fields inspected');
-  for(const f of g.fields){
-   check(f.input.left>=f.cell.left-1&&f.input.right<=f.cell.right+1&&f.input.left>=0&&f.input.right<=g.width,label+' '+f.id+' fits its own cell: '+JSON.stringify(f));
-   check(f.input.height>=44&&parseFloat(f.fontSize)>=16,label+' '+f.id+' native input touch size and text size');
-   check(f.contrast>=4.5,label+' '+f.id+' settled entered-text contrast >=4.5:1: '+JSON.stringify(f));
-   check(f.label.bottom<=f.input.top+1,label+' '+f.id+' label does not collide with field');
-  }
-  check(g.overlaps.length===0,label+' no input/input or input/adjacent-label overlap: '+JSON.stringify(g.overlaps));
-  if(g.width<=430)check(g.fields.every(f=>Math.abs(f.input.left-g.fields[0].input.left)<1),label+' native controls form one narrow-screen column');
-  evidence.push({label,...g});
- };
  for(const width of [320,375,390,430,768,1366])for(const dark of [false,true]){
-  await page.setViewportSize({width,height:844});await page.goto(origin);await page.getByLabel('Date',{exact:true}).waitFor();if(dark)await page.getByRole('button',{name:'Theme',exact:true}).click();
-  check(await page.getByRole('button',{name:'Save settings',exact:true}).isDisabled(),'Unchanged settings are explicitly disabled');
-  const disclosure=await page.locator('.schedule-planning-content>details>summary').evaluate(n=>({height:n.getBoundingClientRect().height,display:getComputedStyle(n).display,marker:getComputedStyle(n).listStyleType}));
-  check(disclosure.height>=44&&disclosure.display==='list-item'&&disclosure.marker!=='none','Availability disclosure keeps its native expand marker and 44px target: '+JSON.stringify(disclosure));
-  await geometry('Availability '+width+'/'+dark+' initial');
-  await page.getByLabel('Reason').fill('Synthetic very long availability reason '.repeat(3).slice(0,100));
-  await geometry('Availability '+width+'/'+dark+' long reason');
-  if(process.env.FIRE_UX_AUDIT_DIR){mkdirSync(process.env.FIRE_UX_AUDIT_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.FIRE_UX_AUDIT_DIR,'availability-'+width+'-'+(dark?'dark':'light')+'.png'),fullPage:true});}
+  await page.setViewportSize({width,height:844});await page.goto(origin);await page.getByLabel('Find service').waitFor();
+  if(dark)await page.getByRole('button',{name:'Theme',exact:true}).click();
+  check(await page.getByRole('button',{name:'Save settings',exact:true}).isDisabled(),'Unchanged repeat settings cannot write');
+  check(await page.getByText('My availability').count()===0,'Retired availability panel absent');
+  check(await page.locator('#availability-date,#availability-start,#availability-end,#availability-label').count()===0,'Retired availability inputs absent');
+  const g=await page.evaluate(()=>{
+   const rect=n=>{let b=n.getBoundingClientRect();return {left:b.left,right:b.right,width:b.width,height:b.height};};
+   const input=document.querySelector('#repeat-service-search');
+   return {width:innerWidth,pageWidth:document.documentElement.scrollWidth,search:rect(input)};
+  });
+  check(g.pageWidth<=g.width+1,'Repeat settings fit at '+width+'/'+dark+': '+JSON.stringify(g));
+  check(g.search.height>=44&&g.search.left>=0&&g.search.right<=g.width,'Repeat search touch and viewport fit '+width+'/'+dark);
+  await page.getByLabel('Find service').fill('roof');await page.locator('#repeat-roof-wash').waitFor();
+  const row=await page.locator('#repeat-roof-wash').evaluate(n=>{let b=n.getBoundingClientRect();return {left:b.left,right:b.right,height:b.height};});
+  check(row.height>=44&&row.left>=0&&row.right<=width+1,'Native repeat dropdown fits '+width+'/'+dark);
+  evidence.push({width,dark,...g,row});
  }
- if(process.env.FIRE_UX_AUDIT_DIR)writeFileSync(resolve(process.env.FIRE_UX_AUDIT_DIR,'availability-control-bounds.json'),JSON.stringify(evidence,null,2));
- await page.reload();await page.getByLabel('Date',{exact:true}).waitFor();
- await page.setViewportSize({width:390,height:844});await page.getByLabel('Date',{exact:true}).fill('2026-11-02');check(await page.locator('#availability-end option[value="17:00"]').textContent()==='5:00 PM','Until 17:00 displays 5:00 PM');check(await page.locator('#availability-end option[value="00:00"]').textContent()==='12:00 AM','Until midnight displays 12:00 AM');check(await page.locator('#availability-end option[value="12:00"]').textContent()==='12:00 PM','Until noon displays 12:00 PM');check(await page.locator('#availability-end option[value="24:00"]').textContent()==='12:00 AM (next day)','End-of-day 24:00 stays distinct from same-day midnight');check(await page.getByLabel('Reason').inputValue()==='Unavailable','Generic availability label is the default');check(await page.getByRole('button',{name:'Add 24-hour shift'}).count()===0,'No firefighter shift shortcut');await page.getByRole('button',{name:'Add time block',exact:true}).click();check(await page.locator('.business-preferences article').count()===1,'Standard time block added');await page.getByLabel('Date',{exact:true}).fill('2026-11-03');await page.getByLabel('From').fill('00:00');await page.locator('#availability-end').selectOption('07:00');await page.getByRole('button',{name:'Add time block',exact:true}).click();check(await page.locator('.business-preferences article').count()===2,'A second date can be blocked without shift shortcuts');await page.getByRole('button',{name:'Save settings',exact:true}).evaluate(b=>{b.click();b.click();});await page.getByRole('status').filter({hasText:'Saved.'}).waitFor();check(puts===1,'Double tap sends one settings write');let stored=(await(await api.GET()).json()).preferences;check(stored.blocks.length===2&&stored.blocks[0].end==='17:00'&&stored.blocks[0].label==='Unavailable'&&stored.blocks[1].date==='2026-11-03'&&stored.blocks[1].start==='00:00'&&stored.blocks[1].end==='07:00','Generic date/time blocks are saved correctly');
- await page.getByRole('button',{name:'Switch tools',exact:true}).click();await page.locator('#repeat-roof-wash').waitFor();check(await page.locator('#repeat-service-search').evaluate(n=>n.getBoundingClientRect().height>=44),'Repeat-service search has a 44px target');await page.getByLabel('Find service').fill('roof');await page.locator('#repeat-roof-wash').selectOption('18');await page.getByRole('button',{name:'Save settings',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved.'}).waitFor();stored=(await(await api.GET()).json()).preferences;check(stored.repeatMonths['roof-wash']===18&&stored.blocks.length===2,'Repeat settings preserve ordinary availability blocks');
- await page.locator('#repeat-roof-wash').selectOption('0');lost=true;await page.getByRole('button',{name:'Save settings',exact:true}).click();await page.getByRole('alert').filter({hasText:'Save not confirmed'}).waitFor();check(await page.getByRole('button',{name:'Save settings',exact:true}).isDisabled(),'Uncertain receipt blocks blind replay');lost=false;const before=puts;page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Refresh settings',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#repeat-roof-wash')?.value==='0');await page.waitForFunction(()=>!document.querySelector('.business-preferences fieldset')?.disabled);check(puts===before,'Readback confirms already saved off switch without another write');check(await page.getByRole('alert').count()===0,'Confirmed readback clears uncertain-save hold');check(errors.length===0,'No browser exceptions');console.log('PASS '+count+' actual owner availability/cadence mobile, generic time blocks, persistence and uncertain-save browser checks.');
+ if(process.env.FIRE_UX_AUDIT_DIR){mkdirSync(process.env.FIRE_UX_AUDIT_DIR,{recursive:true});writeFileSync(resolve(process.env.FIRE_UX_AUDIT_DIR,'repeat-settings-control-bounds.json'),JSON.stringify(evidence,null,2));}
+ await page.setViewportSize({width:390,height:844});await page.goto(origin);await page.getByLabel('Find service').waitFor();
+ await page.getByLabel('Find service').fill('roof');await page.locator('#repeat-roof-wash').selectOption('18');
+ await page.getByRole('button',{name:'Save settings',exact:true}).evaluate(b=>{b.click();b.click();});
+ await page.getByRole('status').filter({hasText:'Saved.'}).waitFor();check(puts===1,'Double tap sends only one repeat-setting write');
+ let stored=(await(await api.GET()).json()).preferences;check(stored.repeatMonths['roof-wash']===18&&stored.blocks.length===0,'Service interval saved with no availability blocks');
+ await page.locator('#repeat-roof-wash').selectOption('0');lost=true;
+ await page.getByRole('button',{name:'Save settings',exact:true}).click();
+ await page.getByRole('alert').filter({hasText:'Save not confirmed'}).waitFor();check(await page.getByRole('button',{name:'Save settings',exact:true}).isDisabled(),'Uncertain receipt blocks blind replay');
+ lost=false;const before=puts;page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Refresh settings',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('#repeat-roof-wash')?.value==='0');
+ await page.waitForFunction(()=>!document.querySelector('.business-preferences fieldset')?.disabled);
+ check(puts===before,'Readback confirms saved off switch without duplicate write');
+ check(await page.getByRole('alert').count()===0,'Readback clears uncertain save');
+ check(errors.length===0,'No browser errors');
+ console.log('PASS '+count+' repeat-only settings mobile, retired availability UI and save reconciliation checks.');
 }finally{await browser?.close();await new Promise(ok=>server.close(ok));r.db.close();}
