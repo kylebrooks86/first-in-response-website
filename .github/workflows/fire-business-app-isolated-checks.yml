@@ -916,6 +916,18 @@ jobs:
         run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-custom-service-pricing-browser.mjs
       - name: Google Voice and personal backup interaction safety
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-google-voice-actions-browser.mjs
+      - name: Actual original and revised signature nested UX and receipt states
+        env:
+          FIRE_SIGNATURE_UX_DIR: ${{ runner.temp }}/fire-signature-ux
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-public-signature-ux-browser.mjs
+      - name: Retain synthetic signature control geometry
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-signature-control-geometry
+          path: ${{ runner.temp }}/fire-signature-ux/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Final refund retry, quote-context and iPhone dialog audit
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-final-interaction-audit-browser.mjs
       - name: Notification touch actions, saved reads and independent reminders over real SQLite
