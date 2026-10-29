@@ -2652,6 +2652,11 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .pricing-settings textarea{min-height:88px;resize:vertical}
 
 .business-preferences{display:grid;gap:.75rem;min-width:0}.business-preferences fieldset{display:grid;gap:.75rem;min-width:0}.business-preferences-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.business-preferences select{min-height:44px;font-size:16px;border:1px solid var(--border);border-radius:8px;padding:.5rem;max-width:100%;background:var(--background);color:var(--foreground)}.business-preferences article,.repeat-service-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;min-width:0}.business-preferences article span,.repeat-service-row label{min-width:0;overflow-wrap:anywhere}.business-preferences small{display:block}.business-preferences button{min-height:44px}.repeat-service-row select{flex-shrink:0}
+/* Native iPhone date/time fields must fit their own grid cells, not just the page. */
+.business-preferences-grid>div{min-width:0;max-width:100%}
+.business-preferences-grid label{display:block;margin-bottom:4px}
+.business-preferences-grid input,.business-preferences-grid select{box-sizing:border-box;min-width:0;max-width:100%;width:100%;min-height:44px;font-size:16px}
+@media(max-width:430px){.business-preferences-grid{grid-template-columns:minmax(0,1fr)}}
 
 
 /* Mobile polish: preserve payment details while making each action easier to scan. */

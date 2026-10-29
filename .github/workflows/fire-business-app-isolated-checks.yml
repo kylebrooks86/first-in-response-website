@@ -919,8 +919,18 @@ jobs:
         run: node scripts/test-final-interaction-audit-browser.mjs
       - name: Notification touch actions, saved reads and independent reminders over real SQLite
         run: node --experimental-sqlite scripts/test-notification-persistence-browser.mjs
-      - name: Owner shift blocks and repeat intervals on phone light/dark
+      - name: Actual nested availability controls — per-field geometry and repeat intervals
+        env:
+          FIRE_UX_AUDIT_DIR: ${{ runner.temp }}/fire-availability-ux
         run: node --experimental-sqlite scripts/test-business-preferences-browser.mjs
+      - name: Retain synthetic availability control bounds and mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-availability-control-geometry
+          path: ${{ runner.temp }}/fire-availability-ux/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Saved promotion manager mobile add, pause, save and reload
         env:
           FIRE_PROMOTION_SCREENSHOT_DIR: ${{ runner.temp }}/fire-saved-promo-ui
