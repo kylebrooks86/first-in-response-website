@@ -2780,3 +2780,6 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 
 /* Long saved customer names must remain readable inside Follow-ups cards. */
 .followups-view .followup-card>div>strong{overflow-wrap:anywhere}
+
+/* Keep the existing agreement identity column readable at tablet/desktop widths too. */
+.contract-list>button>span:nth-child(2){min-width:0;overflow-wrap:anywhere}
