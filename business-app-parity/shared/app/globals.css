@@ -2777,3 +2777,6 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 .message-dialog .message-dialog-recipient{margin:0;max-width:100%;color:var(--muted-foreground);font-size:.875rem;line-height:1.4;overflow-wrap:anywhere;word-break:normal}
 .voice-contact-dialog .voice-contact-recipient{margin:0;min-width:0;font-size:.925rem;line-height:1.45;overflow-wrap:anywhere}
 .voice-contact-dialog .voice-contact-recipient span:last-child{white-space:nowrap}
+
+/* Long saved customer names must remain readable inside Follow-ups cards. */
+.followups-view .followup-card>div>strong{overflow-wrap:anywhere}
