@@ -2752,3 +2752,6 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 
 /* Keep offline setup diagnostics readable within their existing disclosure. */
 .offline-field-setup{min-width:0;max-width:100%;overflow-wrap:anywhere}
+
+/* Comfortable targets only inside the existing paid-job review queue. */
+.payments-view section[aria-label="Paid jobs ready for review follow-up"] button{min-height:44px}

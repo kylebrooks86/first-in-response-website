@@ -122,6 +122,36 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(await progress.locator('.closeout-status-controls button,.closeout-card-actions button').evaluateAll(ns=>ns.every(n=>n.getBoundingClientRect().height>=44)),'Mobile controls have 44px touch targets');check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Light/dark view fits narrow and landscape screens');
   if(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR){mkdirSync(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR,{recursive:true});await progress.scrollIntoViewIfNeeded();await progress.screenshot({path:join(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR,`closeout-${size.width}-${theme}.png`)});}
  }
+ // Actual review-request queue controls, distinct from the review-progress panel.
+ // Existing owner APIs use synthetic SQLite; pagination is held only at localhost.
+ for(const width of [320,375,390,430,768,1366])for(const theme of ['light','dark']){
+  await page.goto('about:blank');seed();await page.setViewportSize({width,height:844});await page.goto(origin);await page.evaluate(t=>window.setTheme(t),theme);
+  const queue=page.getByRole('region',{name:'Paid jobs ready for review follow-up',exact:true});
+  await queue.getByRole('button',{name:'Refresh review queue',exact:true}).waitFor();
+  const measure=async state=>{
+   const result=await queue.locator('button').evaluateAll(nodes=>nodes.filter(n=>n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden').map(n=>{const r=n.getBoundingClientRect();return {label:n.textContent.trim(),height:r.height,left:r.left,right:r.right,disabled:n.disabled};}));
+   check(result.length>0,'Review queue has actual controls: '+state);
+   check(result.every(r=>r.height>=44),'Review queue controls have 44px height: '+width+'/'+theme+'/'+state+' '+JSON.stringify(result));
+   check(result.every(r=>r.left>=-1&&r.right<=width+1),'Review queue controls fit requested viewport: '+width+'/'+theme+'/'+state);
+  };
+  await measure('collapsed');await queue.locator('.payment-review-options>summary').click();await measure('expanded');
+  await queue.getByRole('button',{name:'Verify send (1)',exact:true}).click();await measure('prepared filter');
+  await queue.getByRole('button',{name:'Clear filters',exact:true}).click();
+  await queue.getByLabel('Search paid review follow-ups',{exact:true}).fill('missing-synthetic-queue');
+  await queue.getByText('No matching review requests. Clear filters or choose All.',{exact:true}).waitFor();await measure('empty search');
+  await queue.getByRole('button',{name:'Clear filters',exact:true}).click();
+  let resume;const gate=new Promise(resolve=>{resume=resolve;});
+  const hold=async route=>{await gate;await route.continue();};
+  await page.route(/\/api\/payment-closeouts\?cursor=/,hold);
+  try{
+   await queue.getByRole('button',{name:'Load older paid jobs',exact:true}).click();
+   const loading=queue.getByRole('button',{name:'Loading older jobs…',exact:true});await loading.waitFor();
+   check(await loading.isDisabled(),'Review queue pagination stays disabled while pending');await measure('pagination pending');
+  }finally{resume();}
+  await queue.getByRole('status').filter({hasText:'203 jobs'}).waitFor();await page.unroute(/\/api\/payment-closeouts\?cursor=/,hold);await measure('older loaded');
+  check(requests.every(r=>r.method==='GET'),'Geometry/filter/pagination audit performs no synthetic writes');
+  if(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR&&width===320){await queue.scrollIntoViewIfNeeded();await queue.screenshot({path:join(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR,`review-queue-${width}-${theme}.png`)});}
+ }
  // Long payment history starts with eight visible entries; every older entry stays one tap away.
  await page.goto('about:blank');seed();mode='ledger';await page.setViewportSize({width:390,height:844});await page.goto(origin);
  const historyDisclosure=page.locator('details.payments-history-disclosure');
