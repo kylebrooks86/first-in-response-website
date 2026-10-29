@@ -191,11 +191,13 @@ function StrideButton({ top = false }: { top?: boolean }) {
   const shortcutUrl = "shortcuts://run-shortcut?name=Open%20Stride";
   const openShortcut = () => { window.location.href = shortcutUrl; };
   const openStride = () => {
-    if (window.localStorage.getItem("fire-stride-shortcut-ready") === "yes") openShortcut();
+    let ready = false;
+    try { ready = window.localStorage.getItem("fire-stride-shortcut-ready") === "yes"; } catch { /* Optional device preference. */ }
+    if (ready) openShortcut();
     else setShowSetup(true);
   };
   const testShortcut = () => {
-    window.localStorage.setItem("fire-stride-shortcut-ready", "yes");
+    try { window.localStorage.setItem("fire-stride-shortcut-ready", "yes"); } catch { /* Still honor this explicit launch. */ }
     setShowSetup(false);
     openShortcut();
   };
@@ -4598,7 +4600,8 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   const [moreNavOpen,setMoreNavOpen]=useState(false);
   useEffect(()=>{if(nav.slice(7).some(([id])=>id===tab))setMoreNavOpen(true);},[tab,nav]);
   useEffect(()=>{
-    const saved=window.localStorage.getItem("fire-theme");
+    let saved:string|null=null;
+    try { saved=window.localStorage.getItem("fire-theme"); } catch { /* Storage denial must not prevent app startup. */ }
     const next=saved==="dark"||saved==="light"?saved:(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
     setTheme(next);
     document.documentElement.dataset.theme=next;
@@ -4607,7 +4610,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
     const next=theme==="dark"?"light":"dark";
     setTheme(next);
     document.documentElement.dataset.theme=next;
-    window.localStorage.setItem("fire-theme",next);
+    try { window.localStorage.setItem("fire-theme",next); } catch { /* Keep the selected theme for this session. */ }
   };
   useEffect(()=>{
     if(tab!=="dashboard")return;

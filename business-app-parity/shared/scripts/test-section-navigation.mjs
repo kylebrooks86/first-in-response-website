@@ -49,4 +49,22 @@ assert.match(source,/className="sidebar-more-nav" open=\{moreNavOpen\}/);checks+
 assert.match(source,/nav\.slice\(7\)\.map/);checks++;
 assert.match(source,/useEffect\(\(\)=>\{if\(nav\.slice\(7\)\.some\(\(\[id\]\)=>id===tab\)\)setMoreNavOpen\(true\);\},\[tab,nav\]\)/);checks++;
 assert.match(source,/\["dashboard","customers","estimates","schedule","followups"\]\.includes\(id\)/);checks++;
+// Optional preferences must not crash the app or strand an explicit Shortcut action.
+function variable(fn,name){let result;function walk(n){if(ts.isVariableDeclaration(n)&&n.name.getText(ast)===name)result=n.initializer;ts.forEachChild(n,walk);}walk(fn);assert.ok(result,name);return result;}
+let themeEffect;function findTheme(n){if(ts.isCallExpression(n)&&n.expression.getText(ast)==='useEffect'&&n.arguments[0]?.getText(ast).includes('"fire-theme"'))themeEffect=n.arguments[0];ts.forEachChild(n,findTheme);}findTheme(dashboard);assert.ok(themeEffect);
+const stride=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='StrideButton');
+function run(node,mode='normal',saved=null,dark=false){
+ const result={theme:null,setup:null,opens:0,writes:[],dataset:{}};
+ const storage={getItem:()=>{if(mode==='read-denied')throw Error('Synthetic read refusal');return saved;},setItem:(...args)=>{if(mode==='write-denied')throw Error('Synthetic write refusal');result.writes.push(args);},clear:()=>{throw Error('Never clear device data');}};
+ const window={matchMedia:()=>({matches:dark})};Object.defineProperty(window,'localStorage',{get(){if(mode==='access-denied')throw Error('Synthetic storage access refusal');return storage;}});
+ const context={window,document:{documentElement:{dataset:result.dataset}},theme:'light',setTheme:value=>result.theme=value,setShowSetup:value=>result.setup=value,openShortcut:()=>result.opens++};
+ vm.runInNewContext(ts.transpileModule('('+node.getText(ast)+')()',{}).outputText,context);return result;
+}
+for(const mode of ['read-denied','access-denied']){const r=run(themeEffect,mode,null,true);eq(r.theme,'dark','Denied preference reads preserve system theme');eq(r.dataset.theme,'dark','Denied preference reads still complete app theme mount');}
+eq(run(themeEffect,'normal','light',true).theme,'light','Saved valid theme wins over system');eq(run(themeEffect,'normal','unexpected',true).theme,'dark','Unknown preference uses system theme');
+for(const mode of ['write-denied','access-denied']){const r=run(variable(dashboard,'toggleTheme'),mode);eq(r.theme,'dark','Theme toggles in memory when saving unavailable');eq(r.dataset.theme,'dark','Theme toggles in DOM when saving unavailable');}
+eq(run(variable(dashboard,'toggleTheme')).writes,[['fire-theme','dark']],'Normal toggle still saves only its theme preference');
+for(const mode of ['read-denied','access-denied']){const r=run(variable(stride,'openStride'),mode);eq(r.setup,true,'Storage refusal leaves explicit Stride setup/launch available');eq(r.opens,0,'Storage refusal cannot automatically launch a Shortcut');}
+const ready=run(variable(stride,'openStride'),'normal','yes');eq(ready.opens,1,'Existing ready Shortcut remains a direct explicit action');eq(ready.setup,null,'Existing ready Shortcut does not repeat setup');
+for(const mode of ['write-denied','access-denied']){const r=run(variable(stride,'testShortcut'),mode);eq(r.opens,1,'Owner-confirmed Shortcut launch survives unavailable preference writes');eq(r.setup,false,'Owner-confirmed setup closes normally');}
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
