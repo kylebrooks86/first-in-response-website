@@ -57,6 +57,12 @@ const qaWebhook=load('webhook','qa','synthetic-qa','sk_test_fake-no-secrets');
 eq((await webhook(qaWebhook,{type:'checkout.session.completed',livemode:false,data:{object:{id:'cs_test_synthetic'}}})).status,503,'QA rejects signed event before decoding or reconciling');
 eq(qaWebhook.calls.reconciled,0,'QA webhook never reconciles');
 eq(qaWebhook.calls.db,0,'QA webhook no database access');
+// Async-payment failures remain completely isolated from QA financial endpoints.
+eq((await webhook(qaWebhook,{type:'checkout.session.async_payment_failed',livemode:false,
+  data:{object:{id:'cs_test_failedqa123',livemode:false,status:'complete',payment_status:'unpaid'}}})).status,503,
+  'QA denies signed asynchronous checkout failure before any provider/ledger action');
+eq(qaWebhook.calls.reconciled,0,'QA failed-payment event cannot reconcile a paid charge');
+eq(qaWebhook.calls.db,0,'QA failed-payment callback never touches D1');
 
 const live=load('checkout','live','production','sk_live_fake-no-secrets');
 eq((await live.POST(new Request('https://synthetic.invalid/api/payments/checkout',{method:'POST',body:JSON.stringify({shareToken:'synthetic',paymentType:'invalid'})}))).status,400,'legitimate live candidate follows normal input validation');
@@ -67,6 +73,21 @@ eq((await webhook(stagingSigned,{type:'checkout.session.completed',livemode:fals
   data:{object:{id:'cs_test_correct123',livemode:false,payment_status:'paid'}}})).status,200,
   'Signed test checkout reaches isolated staging reconciliation');
 eq(stagingSigned.calls.reconciled,1,'Staging valid test event is dispatched exactly once');
+// Gate 9 characterization ONLY. A failed asynchronous payment must not be
+// miscounted as paid. The current handler acknowledges/ignores the event;
+// owner notification and provider-verified recovery remain UNACCEPTED.
+const failedStagingEvent=await webhook(stagingSigned,{type:'checkout.session.async_payment_failed',livemode:false,
+  data:{object:{id:'cs_test_failed123',livemode:false,status:'complete',payment_status:'unpaid'}}});
+eq(failedStagingEvent.status,200,'Signed sandbox asynchronous failure currently receives an acknowledgement');
+const failedStagingBody=await failedStagingEvent.json();
+eq(failedStagingBody.received===true&&failedStagingBody.ignored===true,
+  'Known Gate 9 gap: failure is acknowledged without a verified owner recovery receipt');
+eq(stagingSigned.calls.reconciled,1,'Failed asynchronous payment must never be recorded as paid');
+eq(stagingSigned.calls.refunds,0,'Failed asynchronous payment must never create a refund');
+eq((await webhook(stagingSigned,{type:'checkout.session.async_payment_failed',livemode:true,
+  data:{object:{id:'cs_live_failed123',livemode:true,status:'complete',payment_status:'unpaid'}}})).status,400,
+  'Sandbox rejects signed live-mode asynchronous failure before dispatch');
+eq(stagingSigned.calls.reconciled,1,'Wrong-mode failed event never reaches settlement');
 eq((await webhook(stagingSigned,{type:'checkout.session.completed',livemode:false,
   data:{object:{id:'cs_live_wrong123',livemode:false,payment_status:'paid'}}})).status,400,
   'Staging rejects live session ID even in an otherwise signed test envelope');
