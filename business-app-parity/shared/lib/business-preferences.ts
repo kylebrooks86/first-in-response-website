@@ -9,13 +9,9 @@ export function validBusinessPreferences(v:unknown):v is BusinessPreferences{
  if(!v||typeof v!=='object'||Array.isArray(v))return false;const p=v as BusinessPreferences;
  return exact(p,['revision','blocks','repeatMonths'])&&(p.revision===null||typeof p.revision==='string'&&uuid.test(p.revision))&&Array.isArray(p.blocks)&&p.blocks.length<=500&&new Set(p.blocks.map(b=>b?.id)).size===p.blocks.length&&p.blocks.every(b=>b&&exact(b,['id','date','start','end','label'])&&uuid.test(b.id)&&validBusinessDate(b.date)&&/^([01]\d|2[0-3]):[0-5]\d$/.test(b.start)&&/^(([01]\d|2[0-3]):[0-5]\d|24:00)$/.test(b.end)&&b.end>b.start&&typeof b.label==='string'&&b.label.trim().length>0&&b.label.length<=100)&&!!p.repeatMonths&&typeof p.repeatMonths==='object'&&!Array.isArray(p.repeatMonths)&&Object.keys(p.repeatMonths).length<=558&&Object.entries(p.repeatMonths).every(([id,n])=>(FIRE_SERVICES.some(s=>s.id===id)||/^catalog-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id))&&Number.isInteger(n)&&n>=0&&n<=120);
 }
-export function decodeBusinessPreferences(row:{body:string}|null):BusinessPreferences{if(!row)return{revision:null,blocks:[],repeatMonths:{}};if(row.body.length>150000)throw Error('Preferences too large.');const p=JSON.parse(row.body);if(!validBusinessPreferences(p))throw Error('Business preferences need review.');return p;}
-export function scheduleBlockAt(p:BusinessPreferences,instant:string):AvailabilityBlock|null{
- if(!Number.isFinite(Date.parse(instant)))throw Error('Invalid appointment time.');
- const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(instant));const part=(key:string)=>parts.find(p=>p.type===key)?.value??'';
- const date=`${part('year')}-${part('month')}-${part('day')}`,time=`${part('hour')}:${part('minute')}`;
- return p.blocks.find(b=>b.date===date&&time>=b.start&&time<b.end)??null;
-}
+export function decodeBusinessPreferences(row:{body:string}|null):BusinessPreferences{if(!row)return{revision:null,blocks:[],repeatMonths:{}};if(row.body.length>150000)throw Error('Preferences too large.');const p=JSON.parse(row.body);if(!validBusinessPreferences(p))throw Error('Business preferences need review.');// Legacy availability blocks are retired. Ignore any historical saved blocks
+// while preserving saved repeat-service intervals until a guarded QA cleanup.
+return {...p,blocks:[]};}
 /** Choose the earliest enabled interval across a multi-service job, not whichever
  * word happens to occur first in its combined title. Zero explicitly disables it. */
 export function repeatIntervalFor(names:string[],overrides:Record<string,number>,identities:readonly {id:string;name:string}[]=FIRE_SERVICES):number|null{
