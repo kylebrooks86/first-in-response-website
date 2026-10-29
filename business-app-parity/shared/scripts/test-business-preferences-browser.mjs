@@ -9,7 +9,9 @@ try{
  const geometry=async(label)=>{
   const g=await page.evaluate(()=>{
    const box=n=>{const b=n.getBoundingClientRect();return {left:b.left,right:b.right,top:b.top,bottom:b.bottom,width:b.width,height:b.height};};
-   const fields=[...document.querySelectorAll('.business-preferences-grid>div')].map(cell=>{const input=cell.querySelector('input,select'),caption=cell.querySelector('label');return {id:input.id,cell:box(cell),input:box(input),label:box(caption),fontSize:getComputedStyle(input).fontSize};});
+   const canvas=document.createElement('canvas'),context=canvas.getContext('2d');canvas.width=canvas.height=1;
+   const luminance=color=>{context.clearRect(0,0,1,1);context.fillStyle=color;context.fillRect(0,0,1,1);const channels=[...context.getImageData(0,0,1,1).data].slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});return channels[0]*.2126+channels[1]*.7152+channels[2]*.0722;};
+   const fields=[...document.querySelectorAll('.business-preferences-grid>div')].map(cell=>{const input=cell.querySelector('input,select'),caption=cell.querySelector('label'),style=getComputedStyle(input),foreground=luminance(style.color),background=luminance(style.backgroundColor);return {id:input.id,cell:box(cell),input:box(input),label:box(caption),fontSize:style.fontSize,color:style.color,background:style.backgroundColor,contrast:(Math.max(foreground,background)+.05)/(Math.min(foreground,background)+.05)};});
    const overlap=(a,b)=>Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1;
    return {width:innerWidth,pageWidth:document.documentElement.scrollWidth,fields,overlaps:fields.flatMap((a,i)=>fields.slice(i+1).filter(b=>overlap(a.input,b.input)||overlap(a.input,b.label)||overlap(a.label,b.input)).map(b=>[a.id,b.id]))};
   });
@@ -18,6 +20,7 @@ try{
   for(const f of g.fields){
    check(f.input.left>=f.cell.left-1&&f.input.right<=f.cell.right+1&&f.input.left>=0&&f.input.right<=g.width,label+' '+f.id+' fits its own cell: '+JSON.stringify(f));
    check(f.input.height>=44&&parseFloat(f.fontSize)>=16,label+' '+f.id+' native input touch size and text size');
+   check(f.contrast>=4.5,label+' '+f.id+' entered text contrast >=4.5:1: '+f.contrast);
    check(f.label.bottom<=f.input.top+1,label+' '+f.id+' label does not collide with field');
   }
   check(g.overlaps.length===0,label+' no input/input or input/adjacent-label overlap: '+JSON.stringify(g.overlaps));

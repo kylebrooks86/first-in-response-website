@@ -877,6 +877,7 @@ jobs:
       CI: 'true'
       CLOUDFLARE_CF_FETCH_ENABLED: 'false'
       WRANGLER_SEND_METRICS: 'false'
+      FIRE_UX_TRACE_DIR: ${{ runner.temp }}/fire-nested-ux-trace
     defaults:
       run:
         working-directory: business-app-parity/shared
@@ -904,25 +905,25 @@ jobs:
           test -n "$CHROME" || { echo "Chrome is not available on the runner; do not fall back to unreviewed installs."; exit 1; }
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
       - name: Verify shared payments toolbar across phone, tablet and desktop in light and dark
-        run: node scripts/test-payments-shortcut-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-payments-shortcut-browser.mjs
       - name: Verify actual Edit Estimate viewport geometry, scrolling and reachable actions in Chrome
-        run: node scripts/test-estimate-editor-geometry-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-estimate-editor-geometry-browser.mjs
       - name: Actual nested React editor, Radix portals, compiled Tailwind, keyboard and save recovery
-        run: node scripts/test-estimate-editor-react-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-estimate-editor-react-browser.mjs
       - name: Actual customizable pricing on mobile light and dark with synthetic SQLite
         env:
           FIRE_PRICING_SCREENSHOT_DIR: ${{ runner.temp }}/fire-pricing-ui
-        run: node --experimental-sqlite scripts/test-custom-service-pricing-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-custom-service-pricing-browser.mjs
       - name: Google Voice and personal backup interaction safety
-        run: node scripts/test-google-voice-actions-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-google-voice-actions-browser.mjs
       - name: Final refund retry, quote-context and iPhone dialog audit
-        run: node scripts/test-final-interaction-audit-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-final-interaction-audit-browser.mjs
       - name: Notification touch actions, saved reads and independent reminders over real SQLite
-        run: node --experimental-sqlite scripts/test-notification-persistence-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-notification-persistence-browser.mjs
       - name: Actual nested availability controls — per-field geometry and repeat intervals
         env:
           FIRE_UX_AUDIT_DIR: ${{ runner.temp }}/fire-availability-ux
-        run: node --experimental-sqlite scripts/test-business-preferences-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-business-preferences-browser.mjs
       - name: Retain synthetic availability control bounds and mobile screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -934,27 +935,27 @@ jobs:
       - name: Saved promotion manager mobile add, pause, save and reload
         env:
           FIRE_PROMOTION_SCREENSHOT_DIR: ${{ runner.temp }}/fire-saved-promo-ui
-        run: node scripts/test-saved-promotions-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-saved-promotions-browser.mjs
       - name: Door knocking real mobile dropdown history and interrupted saves
-        run: node --experimental-sqlite scripts/test-door-knocking-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-door-knocking-browser.mjs
       - name: Encrypted offline territory drafts, manual sync, conflicts and IndexedDB failures
-        run: node --experimental-sqlite scripts/test-territory-offline-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-territory-offline-browser.mjs
       - name: Real offline field cold restart, encrypted pins and private-cache boundaries
-        run: node scripts/test-offline-field-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-offline-field-browser.mjs
       - name: Experimental local customer IndexedDB records, atomic outbox and account isolation
-        run: node scripts/test-offline-customer-repository-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-offline-customer-repository-browser.mjs
       - name: Actual MapLibre territory canvas, mobile light/dark and clustered metro coverage
-        run: node scripts/test-territory-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-territory-browser.mjs
       - name: Actual New Estimate service reuse on mobile light and dark
-        run: node scripts/test-reuse-estimate-editor-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-reuse-estimate-editor-browser.mjs
       - name: New estimate saved promotion suggestions on mobile and booking hold
         env:
           FIRE_PROMOTION_ESTIMATE_SCREENSHOT_DIR: ${{ runner.temp }}/fire-promotions-new-estimate-ui
-        run: node scripts/test-new-estimate-promotions-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-new-estimate-promotions-browser.mjs
       - name: Owner saved promotion history, original rule preservation and read retry on mobile
-        run: node --experimental-sqlite scripts/test-estimate-promotion-history-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-estimate-promotion-history-browser.mjs
       - name: Booking amendment owner preview on mobile with real SQLite
-        run: node --experimental-sqlite scripts/test-post-estimate-booking-preview-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-post-estimate-booking-preview-browser.mjs
       - name: Retain synthetic saved-promotion mobile evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -968,7 +969,7 @@ jobs:
       - name: Stacked promotion and bundle mobile save and recovery
         env:
           FIRE_STACKED_SCREENSHOT_DIR: ${{ runner.temp }}/fire-stacked-ui
-        run: node --experimental-sqlite scripts/test-stacked-estimate-discounts-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-stacked-estimate-discounts-browser.mjs
       - name: Retain synthetic stacked-discount mobile screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -986,7 +987,7 @@ jobs:
       - name: Actual customer writes, estimate search and Insights recovery on narrow light and dark screens
         env:
           FIRE_NOTE_SCREENSHOT_DIR: ${{ runner.temp }}/fire-note-ui
-        run: node scripts/test-customer-write-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-customer-write-browser.mjs
       - name: Retain synthetic multiline note mobile evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -998,7 +999,7 @@ jobs:
       - name: Job Closeout Center over real synthetic SQLite owner APIs on mobile light and dark
         env:
           FIRE_CLOSEOUT_SCREENSHOT_DIR: ${{ runner.temp }}/fire-closeout-ui
-        run: node --experimental-sqlite scripts/test-job-closeout-center-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs --experimental-sqlite scripts/test-job-closeout-center-browser.mjs
       - name: Save synthetic Job Closeout Center screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -1010,7 +1011,7 @@ jobs:
       - name: Customer history search, focused records, Schedule windows and Dashboard job targets
         env:
           FIRE_CONNECTED_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-connected-ui
-        run: node scripts/test-connected-records-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-connected-records-browser.mjs
       - name: Seven-day NWS forecast, hourly auth, safe dates and device timezones
         run: |
           TZ=America/Chicago node scripts/test-weather-photo-safety.mjs
@@ -1019,7 +1020,7 @@ jobs:
       - name: Real Dashboard and Schedule full-week weather on phone, tablet and desktop in Chrome
         env:
           FIRE_WEATHER_WEEK_SCREENSHOT_DIR: ${{ runner.temp }}/fire-weather-week
-        run: node scripts/test-weather-week-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-weather-week-browser.mjs
       - name: Save synthetic seven-day weather screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -1039,7 +1040,7 @@ jobs:
       - name: Actual Business record search, task filters, older expenses and status recovery
         env:
           FIRE_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-business-ui
-        run: node scripts/test-business-records-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-business-records-browser.mjs
       - name: Save synthetic Business UI screenshots for owner review
         if: always()
         uses: actions/upload-artifact@v4
@@ -1049,23 +1050,23 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Today next-job real contact disclosure in Chrome at iPhone widths
-        run: node scripts/test-dashboard-next-contact-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-dashboard-next-contact-browser.mjs
       - name: Real Schedule calendar-day booking and Google Maps route at iPhone widths
-        run: node scripts/test-schedule-day-shortcuts-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-schedule-day-shortcuts-browser.mjs
       - name: Compact Estimates and Payments real JSX in Chromium at five iPhone widths
-        run: node scripts/test-simple-estimates-payments-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-simple-estimates-payments-browser.mjs
       - name: Customer contact and complete activity disclosure in real Chromium at iPhone widths
-        run: node scripts/test-customer-simple-profile-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-customer-simple-profile-browser.mjs
       - name: Real sidebar navigation preserves all advanced tools under a keyboard-accessible disclosure
-        run: node scripts/test-compact-navigation-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-compact-navigation-browser.mjs
       - name: Estimate and invoice preview theme, touch targets, contrast and print
-        run: node scripts/test-owner-preview-theme-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-preview-theme-browser.mjs
       - name: Actual template editors and themed sidebar at phone tablet and desktop widths
-        run: node scripts/test-template-layout-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-template-layout-browser.mjs
       - name: Actual job reports and costs retain mobile controls and survive session connection loss
         env:
           FIRE_JOB_UI_SCREENSHOT_DIR: ${{ runner.temp }}/fire-job-ui
-        run: node scripts/test-job-session-offline-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-job-session-offline-browser.mjs
       - name: Save synthetic job dialog screenshots for owner review
         if: always()
         uses: actions/upload-artifact@v4
@@ -1075,21 +1076,32 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Verify actual IndexedDB customer photos, ZIP restore and offline additions in Chrome
-        run: node scripts/test-offline-photo-indexeddb-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-offline-photo-indexeddb-browser.mjs
       - name: Verify durable photo interruption receipts, native cross-tab locking and browser restart
-        run: node scripts/test-photo-mutation-journal-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-photo-mutation-journal-browser.mjs
       - name: Exercise actual photo screen, offline ZIP, stopped-server cold launch and Files readback
-        run: node scripts/test-offline-photo-ui-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-offline-photo-ui-browser.mjs
       - name: Exercise actual Customers dashboard offline-photo fallback, authenticated directory and 401 revocation
-        run: node scripts/test-actual-customer-photo-fallback-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-actual-customer-photo-fallback-browser.mjs
       - name: Test native Chromium persistent profile and offline cold launch
-        run: node scripts/test-local-customer-demo-cold-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-local-customer-demo-cold-browser.mjs
       - name: Test portable synthetic PWA export, install assets and offline recovery
-        run: node scripts/test-local-customer-demo-package.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-local-customer-demo-package.mjs
       - name: Test exact-origin HTTPS Pages fixture, CSP and service-worker scope
-        run: node scripts/test-local-customer-pages-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-local-customer-pages-browser.mjs
       - name: Exercise actual guarded React offline-customer screen and synthetic auth in Chrome
-        run: node scripts/test-candidate-local-customers-browser.mjs
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-candidate-local-customers-browser.mjs
+
+      - name: Summarize actual nested control geometry observations
+        run: node scripts/summarize-ux-geometry-trace.mjs
+      - name: Retain synthetic nested UX geometry observations for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-nested-ux-observations
+          path: ${{ runner.temp }}/fire-nested-ux-trace/
+          if-no-files-found: ignore
+          retention-days: 7
 
   windows-qa-migration-source:
     name: Windows CRLF pinned migrations and private offline restore
