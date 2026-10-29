@@ -910,6 +910,18 @@ jobs:
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
           test -n "$CHROME" || { echo "Chrome is not available on the runner; do not fall back to unreviewed installs."; exit 1; }
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Actual owner deposit policy, audit history and gated synthetic states
+        env:
+          FIRE_DEPOSIT_UX_DIR: ${{ runner.temp }}/fire-owner-deposit-ux
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-owner-deposit-ux-browser.mjs
+      - name: Retain synthetic owner deposit geometry and state evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-owner-deposit-control-geometry
+          path: ${{ runner.temp }}/fire-owner-deposit-ux/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Verify shared payments toolbar across phone, tablet and desktop in light and dark
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-payments-shortcut-browser.mjs
       - name: Verify actual Edit Estimate viewport geometry, scrolling and reachable actions in Chrome
