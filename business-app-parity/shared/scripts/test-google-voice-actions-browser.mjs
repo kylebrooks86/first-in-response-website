@@ -1,5 +1,6 @@
 /** Actual contact handlers and React/Radix UI. Synthetic localhost only; no calls/texts. */
 import assert from 'node:assert/strict';
+import './test-google-voice-text-shortcut.mjs';
 import {readFileSync,mkdirSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {createServer} from 'node:http';
@@ -44,7 +45,7 @@ check(call.warnings.length===1&&call.copies.length===0&&call.routes.join()==='te
 for(const phone of ['','not a phone','9185550102?body=unwanted','9185550102;123']){const f=handler({phone});check(f.button().props.disabled,'Malformed recipient is disabled');await f.run();check(f.routes.length===0&&f.warnings.length===0,'Malformed recipient cannot launch a native app');}
 const esbuild=require('../node_modules/.pnpm/esbuild@0.28.0/node_modules/esbuild'),postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),tailwind=require('@tailwindcss/postcss'),{chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const message='  Synthetic prepared service description and estimate link\nhttps://example.invalid/'+('x'.repeat(180))+'  ';
-const fixture=`import React from'react';import{createRoot}from'react-dom/client';import{GoogleVoiceTextAction,GoogleVoiceCallAction,PersonalPhoneBackupAction}from'./components/google-voice-text-action';const message=${JSON.stringify(message)};window.fixtureMessage=message;createRoot(document.getElementById('app')).render(<main style={{padding:12}}><GoogleVoiceTextAction phone="(918) 555-0102" customerName="Synthetic long customer name" message={message}/><GoogleVoiceCallAction phone="(918) 555-0102" customerName="Synthetic long customer name"/><PersonalPhoneBackupAction phone="(918) 555-0102" mode="text" message={message}/><PersonalPhoneBackupAction phone="(918) 555-0102" mode="call"/></main>);`;
+const fixture=`import React from'react';import{createRoot}from'react-dom/client';import{GoogleVoiceTextAction,GoogleVoiceCallAction,PersonalPhoneBackupAction}from'./components/google-voice-text-action';const message=${JSON.stringify(message)};window.fixtureMessage=message;createRoot(document.getElementById('app')).render(<main style={{padding:12}}><GoogleVoiceTextAction phone="(918) 555-0102" customerName="Synthetic long customer name" message={message}/><GoogleVoiceTextAction phone="9185550199" customerName="Quick customer"/><GoogleVoiceCallAction phone="(918) 555-0102" customerName="Synthetic long customer name"/><PersonalPhoneBackupAction phone="(918) 555-0102" mode="text" message={message}/><PersonalPhoneBackupAction phone="(918) 555-0102" mode="call"/></main>);`;
 const bundle=(await esbuild.build({stdin:{contents:fixture,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,platform:'browser',format:'esm',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}})).outputFiles[0].text;
 const css=(await postcss([tailwind({base:process.cwd()})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')})).css;
 const server=createServer((req,res)=>{if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundle);}if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(css);}res.setHeader('content-type','text/html; charset=utf-8');res.end('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><div id="app"></div><script type="module" src="/bundle.js"></script>');});
@@ -58,6 +59,7 @@ try{
   await page.setViewportSize({width,height:width===320?568:844});await page.goto(origin);await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
   await page.getByRole('button',{name:'Text Synthetic long customer name using Google Voice',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'Text using Google Voice',exact:true});await dialog.waitFor();
+  await dialog.getByRole('button',{name:'Text via Google Voice',exact:true}).click();await dialog.getByRole('status').filter({hasText:'on this device'}).waitFor();check(true,'Unsupported desktop keeps manual fallback without native launch');
   await dialog.getByRole('button',{name:'Copy message',exact:true}).click();await dialog.getByRole('status').filter({hasText:'Copy unavailable'}).waitFor();
   const field=dialog.getByRole('textbox',{name:'Prepared message for Google Voice',exact:true});
   check(await field.inputValue()===message,'Clipboard failure keeps exact selectable prepared message '+width+'/'+theme);
@@ -75,6 +77,7 @@ try{
   await page.getByRole('button',{name:'Text (Backup) for customer using your personal number',exact:true}).click();
   check(await page.getByRole('dialog').count()===0,'Cancelled backup does not open another dialog or trigger primary action');
  }
+ await page.getByRole('button',{name:'Text Quick customer using Google Voice',exact:true}).click();const quick=page.getByRole('dialog',{name:'Text using Google Voice',exact:true});check(await quick.getByRole('button',{name:'Text via Google Voice',exact:true}).isDisabled(),'Quick text refuses blank message');await quick.getByRole('textbox',{name:'Message for Google Voice',exact:true}).fill('  Quick exact\nbody  ');check(await quick.getByRole('button',{name:'Text via Google Voice',exact:true}).isEnabled(),'Quick text accepts explicitly composed message');await page.keyboard.press('Escape');
  check(errors.length===0&&outside.length===0,'No runtime errors, external requests, real calls or texts: '+errors.join(';'));
  console.log('PASS '+checks+' actual Voice/backup handler and mobile light/dark assertions; no provider calls or device acceptance claimed.');
 }finally{await browser?.close();await new Promise(r=>server.close(r));}

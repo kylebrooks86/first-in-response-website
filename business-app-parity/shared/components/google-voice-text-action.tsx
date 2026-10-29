@@ -6,10 +6,58 @@ import { usableCustomerPhone } from "@/lib/customer-contact-links";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
-// Google Voice does not provide FIRE with a supported direct SMS send API.
-// Do not use sms: (the iPhone's personal Messages) or assume that opening
-// Google Voice has sent a message. The owner completes the send in Voice.
+// The owner-tested Shortcut confirms in Shortcuts before using Google Voice.
+// Requesting a handoff never proves delivery or authorizes personal fallback.
 export const GOOGLE_VOICE_URL = "https://voice.google.com/";
+
+// Conservative FIRE transport limit, not a documented Apple maximum. Never truncate.
+export const GOOGLE_VOICE_TEXT_URL_LIMIT = 8000;
+export function googleVoiceTextShortcutHref(phone: string, message: string): string | null {
+  const recipient = usableCustomerPhone(phone);
+  if (!recipient || !message.trim() || message.length > GOOGLE_VOICE_TEXT_URL_LIMIT) return null;
+  const href = "shortcuts://run-shortcut?name=FIRE%20Google%20Voice%20Text&input=text&text=" +
+    encodeURIComponent(JSON.stringify({ phone: recipient, message }));
+  return href.length <= GOOGLE_VOICE_TEXT_URL_LIMIT ? href : null;
+}
+
+export function supportsGoogleVoiceTextShortcut(userAgent: string, platform: string, maxTouchPoints: number): boolean {
+  return /iPhone|iPad|iPod/.test(userAgent) || (platform === "MacIntel" && maxTouchPoints > 1);
+}
+
+/** No callbacks, timers, delivery claims, automatic retries, or database writes. */
+export function GoogleVoiceTextShortcutAction({ phone, message, label = "Text via Google Voice" }: {
+  phone: string; message: string; label?: string;
+}) {
+  const lock = useRef<{ phone: string; message: string } | null>(null);
+  const [attempt, setAttempt] = useState<{ phone: string; message: string; status: string; requested: boolean } | null>(null);
+  const current = attempt?.phone === phone && attempt.message === message ? attempt : null;
+  const href = googleVoiceTextShortcutHref(phone, message);
+  const blocked = !usableCustomerPhone(phone) ? "A valid customer number is required." :
+    !message.trim() ? "Write a message before opening the Shortcut." :
+    !href ? "This message is too long for the Shortcut handoff. Copy the full message into Google Voice instead." : "";
+  function launch() {
+    if (!href || (lock.current?.phone === phone && lock.current.message === message)) return;
+    if (!supportsGoogleVoiceTextShortcut(navigator.userAgent, navigator.platform, navigator.maxTouchPoints)) {
+      setAttempt({ phone, message, requested: false, status: "Use Copy number / Copy message and Open Google Voice on this device. Nothing was sent by FIRE." });
+      return;
+    }
+    lock.current = { phone, message };
+    setAttempt({ phone, message, requested: true, status: "Shortcut handoff requested — sending is unconfirmed. Approve only in your Shortcut. If it did not open or you cancelled, use the manual options. Check Google Voice before retrying." });
+    try { window.location.assign(href); }
+    catch {
+      lock.current = null;
+      setAttempt({ phone, message, requested: false, status: "The Shortcut could not be opened. Use the manual Google Voice options. Sending remains unconfirmed." });
+    }
+  }
+  return <div className="min-w-0">
+    <Button type="button" className="min-h-11 whitespace-normal" disabled={!href || Boolean(current?.requested)} onClick={launch}><MessageSquareText aria-hidden="true" className="h-4 w-4" /> {label}</Button>
+    {(blocked || current?.status) && <p role="status" className="text-sm">{blocked || current?.status}</p>}
+    {current?.requested && <Button type="button" variant="outline" className="min-h-11 whitespace-normal" onClick={() => {
+      if (!window.confirm("Only retry if this message was NOT sent in Google Voice. Retrying could send a duplicate. Reset the Shortcut handoff?")) return;
+      lock.current = null; setAttempt(null);
+    }}>Not sent — allow retry</Button>}
+  </div>;
+}
 
 export function GoogleVoiceTextAction({
   phone,
@@ -27,7 +75,9 @@ export function GoogleVoiceTextAction({
   className?: string;
 }) {
   const [copyStatus, setCopyStatus] = useState("");
+  const [draft, setDraft] = useState({ phone, text: "" });
   const recipient = usableCustomerPhone(phone);
+  const text = message || (draft.phone === phone ? draft.text : "");
   async function copyNumber() {
     try {
       await navigator.clipboard.writeText(recipient!);
@@ -48,10 +98,13 @@ export function GoogleVoiceTextAction({
         <p>Send from your FIRE business account.</p>
         <p>Customer: <strong>{customerName || "Selected customer"}</strong></p>
         <p>Recipient number: <strong>{phone}</strong></p>
+        {!message && <textarea aria-label="Message for Google Voice" className="w-full min-h-20 rounded-md border p-2 text-base" rows={3} value={text} onChange={event => setDraft({ phone, text: event.target.value })} />}
+        <GoogleVoiceTextShortcutAction phone={phone} message={text} />
+        <p className="text-sm">Or send manually in Google Voice:</p>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" className="min-h-11 whitespace-normal" onClick={() => void copyNumber()}><Copy className="h-4 w-4" /> Copy number</Button>
-          {message && <Button type="button" variant="outline" className="min-h-11 whitespace-normal" onClick={async () => {
-            try { await navigator.clipboard.writeText(message); setCopyStatus("Message copied. Paste into Google Voice."); }
+          {text && <Button type="button" variant="outline" className="min-h-11 whitespace-normal" onClick={async () => {
+            try { await navigator.clipboard.writeText(text); setCopyStatus("Message copied. Paste into Google Voice."); }
             catch { setCopyStatus("Copy unavailable. Select and copy the message below."); }
           }}><Copy className="h-4 w-4" /> Copy message</Button>}
           <a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={GOOGLE_VOICE_URL} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /> Open Google Voice</a>
