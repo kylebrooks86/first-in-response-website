@@ -2660,6 +2660,9 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .business-preferences{color-scheme:light}
 [data-theme="dark"] .business-preferences{color-scheme:dark}
 @media(max-width:430px){.business-preferences-grid{grid-template-columns:minmax(0,1fr)}}
+/* Keep secondary catalog and schedule tools as tappable as their primary actions. */
+.pricing-settings input:not([type="checkbox"]):not([type="radio"]),.pricing-settings button,.pricing-settings summary,.pricing-grid button{min-height:44px}
+.schedule-planning-content>details>summary{min-height:44px;display:flex;align-items:center;cursor:pointer}
 
 
 /* Mobile polish: preserve payment details while making each action easier to scan. */

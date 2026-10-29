@@ -20,6 +20,9 @@ if(process.env.FIRE_UX_TRACE_DIR){
    let timer,last='',frames=0,eventAt=null;
    const capture=()=>{
     timer=null;if(frames>=120||!document.body)return;
+    // Animated dialog scale and theme colors are transient geometry, not a
+    // settled layout defect. Infinite loading spinners must not suppress states.
+    if(document.getAnimations().some(a=>a.playState==='running'&&a.effect?.getTiming().iterations!==Infinity)){schedule();return;}
     const rect=n=>{const r=n.getBoundingClientRect();return {x:Math.round(r.x*10)/10,y:Math.round(r.y*10)/10,width:Math.round(r.width*10)/10,height:Math.round(r.height*10)/10};};
     const controls=[];
     for(const n of document.querySelectorAll('button,input,select,textarea,a[href],summary,[role="button"],[role="combobox"],[role="dialog"]')){

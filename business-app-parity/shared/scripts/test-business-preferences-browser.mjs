@@ -7,6 +7,12 @@ try{
  browser=await chromium.launch({executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});const page=await browser.newPage();page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  const evidence=[];
  const geometry=async(label)=>{
+  // Inputs animate color on theme changes. Measure the settled state rather
+  // than comparing a light foreground mid-transition to the new dark surface.
+  await page.locator('.business-preferences-grid').evaluate(async grid=>{
+   void grid.getBoundingClientRect();
+   await Promise.all(grid.getAnimations({subtree:true}).map(animation=>animation.finished.catch(()=>{})));
+  });
   const g=await page.evaluate(()=>{
    const box=n=>{const b=n.getBoundingClientRect();return {left:b.left,right:b.right,top:b.top,bottom:b.bottom,width:b.width,height:b.height};};
    const canvas=document.createElement('canvas'),context=canvas.getContext('2d');canvas.width=canvas.height=1;
@@ -20,7 +26,7 @@ try{
   for(const f of g.fields){
    check(f.input.left>=f.cell.left-1&&f.input.right<=f.cell.right+1&&f.input.left>=0&&f.input.right<=g.width,label+' '+f.id+' fits its own cell: '+JSON.stringify(f));
    check(f.input.height>=44&&parseFloat(f.fontSize)>=16,label+' '+f.id+' native input touch size and text size');
-   check(f.contrast>=4.5,label+' '+f.id+' entered text contrast >=4.5:1: '+f.contrast);
+   check(f.contrast>=4.5,label+' '+f.id+' settled entered-text contrast >=4.5:1: '+JSON.stringify(f));
    check(f.label.bottom<=f.input.top+1,label+' '+f.id+' label does not collide with field');
   }
   check(g.overlaps.length===0,label+' no input/input or input/adjacent-label overlap: '+JSON.stringify(g.overlaps));
