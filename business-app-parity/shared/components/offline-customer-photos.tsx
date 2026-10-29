@@ -151,11 +151,17 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
    // customer-scoped ZIP may have perfect checksums but miss newer photos.
    const details=result.archivePhotoCount+' photo(s) in archive; '+
     result.byteIdenticalOnDevice+' exactly match this device; '+
-    result.notYetOnDevice+' older archive photo(s) are not on this device.';
+    result.notYetOnDevice+' archive photo(s) are not on this device.';
    if(result.localPhotosNotInArchive>0){
     setError('INCOMPLETE PHOTO BACKUP: '+result.localPhotosNotInArchive+
      ' current device photo(s) are NOT in this saved ZIP. Preserve it, but prepare and save a NEW all-local-photos ZIP before relying on the backup.');
     setMessage('Saved ZIP checksum verification passed, but backup coverage is incomplete: '+details);
+   }else if(result.notYetOnDevice>0){
+    setMessage('Saved ZIP VERIFIED: '+details+' '+
+     (result.byteIdenticalOnDevice===0?'Current local library is empty. ':'All current on-device photos are included. ')+
+     'Verification did not restore any photos. Keep this ZIP in Files; open More photo backup tools, then Restore verified photo ZIP to recover missing photos.');
+   }else if(result.archivePhotoCount===0){
+    setMessage('Saved ZIP VERIFIED: archive and current local library are empty. No photos were restored. Keep any older photo backups.');
    }else{
     setMessage('Backup COMPLETE: all current on-device photos included. '+
      details+' Keep this ZIP in Files; back up again after adding photos.');

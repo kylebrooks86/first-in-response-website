@@ -247,6 +247,8 @@ jobs:
         run: pnpm exec tsc --noEmit
       - name: Section navigation and optional preference storage refusal
         run: node scripts/test-section-navigation.mjs
+      - name: Saved photo ZIP verification versus device recovery
+        run: node scripts/test-photo-zip-verification-message.mjs
       - name: Local migration and schema-journal integrity
         run: |
           node --experimental-sqlite scripts/test-local-schema-audit.mjs
