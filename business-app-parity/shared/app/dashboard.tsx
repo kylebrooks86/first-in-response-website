@@ -298,7 +298,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const renderedBody=fillTemplate(activeTemplate?.body??"",variables).replace(/\s{2,}/g," ").trim();
   const renderedSubject=fillTemplate(activeTemplate?.subject||"A message from First In Response Exteriors",variables);
   // When launched from Text, do not offer email-only templates that cannot be sent by Google Voice.
-  const composerTemplates=[customMessageTemplate,...templates.filter((item)=>item.channel!=="document"&&item.key!=="custom"&&(triggerLabel!=="Text"||item.channel!=="both"||item.channel==="sms"))];
+  const composerTemplates=[customMessageTemplate,...templates.filter((item)=>item.channel!=="document"&&item.key!=="custom"&&(triggerLabel!=="Text"||item.channel==="both"||item.channel==="sms"))];
   const needsInvoiceLink=["invoice","invoiceReminder","overdue"].includes(template);
   const needsEstimateLink=["estimate","followUp1","followUp3","followUp7"].includes(template);
   useEffect(()=>{
