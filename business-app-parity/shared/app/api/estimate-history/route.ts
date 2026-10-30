@@ -22,7 +22,7 @@ export async function GET(request:Request){
   const showJobs=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
   // The same owner search input should find a real Job #, not a UUID prefix.
   // Never reference the candidate link table in SQL before its schema exists.
-  const match=showJobs?/^(?:job\\s*#?\\s*|#)0*([1-9]\\d{0,14})$/i.exec(search):null;
+  const match=showJobs?/^(?:job\s*#?\s*|#)0*([1-9]\d{0,14})$/i.exec(search):null;
   const requestedNumber=match?Number(match[1]):null;
   const hasLinks=requestedNumber&&Number.isSafeInteger(requestedNumber)?
     Boolean(await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='fire_job_estimate_links'").first()):false;
