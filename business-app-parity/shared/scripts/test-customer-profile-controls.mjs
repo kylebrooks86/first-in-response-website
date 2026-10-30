@@ -114,4 +114,22 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  const saved=await (await request('/api/customers')).json();
  check(saved.messages.filter(row=>row.customerId===customer.id).length===1&&saved.messages.some(row=>row.id===record.id&&row.body===body&&row.channel==='text_prepared'),'Opening and editing composer does not send or duplicate history');
  check(saved.estimates.find(row=>row.id===originalEstimateId).totalCents===25000&&saved.estimates.find(row=>row.id===estimate.id).totalCents===20000&&saved.estimates.find(row=>row.id===estimate.id).depositCents===10000&&saved.payments.length===0,'Profile UI tests preserve original estimate, $200/$100 fixture and empty payment ledger');
+ // A real-looking address-only synthetic customer must not appear to have
+ // mysteriously lost the contact buttons. The app should explain the reason
+ // without inventing a phone/email or opening the wrong destination.
+ const noContact=await request('/api/customers','POST',{name:'Synthetic Address Only',address:'100 Test Lane, Tulsa, OK'});
+ assert.equal(noContact.status(),201);
+ await page.goto(origin+'/');
+ await page.getByRole('button',{name:'Open menu',exact:true}).click();
+ await page.getByRole('button',{name:'Customers',exact:true}).first().click();
+ await page.locator('.customer-card').filter({hasText:'Synthetic Address Only'}).click();
+ await page.getByRole('heading',{name:'Synthetic Address Only',exact:true}).waitFor();
+ const blankContact=page.locator('.customer-contact');
+ check(await blankContact.getByText('Add a phone or email under More actions → Edit customer to contact them.',{exact:true}).isVisible(),
+   'Address-only customer explains absent Call/Text/Email actions');
+ check(await blankContact.getByRole('button',{name:'Text',exact:true}).count()===0,
+   'Missing phone must not expose an actionable wrong-recipient Text button');
+ check(await blankContact.getByRole('link',{name:'Directions to customer in Google Maps'}).count()===1,
+   'Customer address still supports Google Maps even without contact details');
+
 }
