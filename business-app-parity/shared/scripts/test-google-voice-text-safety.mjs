@@ -6,7 +6,7 @@ const action=readFileSync("components/google-voice-text-action.tsx","utf8");
 let checks=0;
 function check(condition,label){assert.ok(condition,label);checks++;console.log("PASS: "+label);}
 check(!/sms:/i.test(ui),"No personal-number sms: route remains in main FIRE dashboard");
-check((ui.match(/<GoogleVoiceTextAction\\b/g)||[]).length===2,"Two contextual short-text actions still use direct validated Google Voice handoff");
+check((ui.match(/<GoogleVoiceTextAction\b/g)||[]).length===2,"Two contextual short-text actions still use direct validated Google Voice handoff");
 for(const location of [
  'estimate.phone&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"',
  'contactPhone&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Text"',
