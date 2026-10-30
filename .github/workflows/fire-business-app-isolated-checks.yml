@@ -509,6 +509,7 @@ jobs:
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-customer-write-recovery.mjs
+          node scripts/test-customer-edit-route.mjs
           node --experimental-sqlite scripts/test-customer-note-idempotency.mjs
           node --experimental-strip-types scripts/test-customer-lead-contact-flags.mjs
           node scripts/test-estimate-history-recovery.mjs
@@ -690,6 +691,7 @@ jobs:
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-customer-write-recovery.mjs
+          node scripts/test-customer-edit-route.mjs
           node scripts/test-estimate-history-recovery.mjs
           node scripts/test-insights-recovery.mjs
           node scripts/test-detail-selection-recovery.mjs
@@ -793,6 +795,7 @@ jobs:
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-customer-write-recovery.mjs
+          node scripts/test-customer-edit-route.mjs
           node scripts/test-estimate-history-recovery.mjs
           node scripts/test-insights-recovery.mjs
           node scripts/test-detail-selection-recovery.mjs
