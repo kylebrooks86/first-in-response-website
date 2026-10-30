@@ -1,4 +1,4 @@
-import {submittedDiscountCents} from '../lib/discount-input.ts';
+import {submittedDiscountCents,quoteDiscounts,discountSnapshot,readDiscountSnapshot,verifiedSavedDiscounts} from '../lib/discount-input.ts';
 /** Test the production parser and discount math using synthetic values only. */
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -39,5 +39,21 @@ eq(discountMath(subtotal,false,'percent',parse('15','percent')/100,true).total,3
 eq(discountMath(subtotal,false,'percent',parse('15','percent')/100,true).deposit,19550,'50% deposit');
 eq(discountMath(subtotal,false,'dollar',parse('25','dollar')/100,true).total,43500,'Exact $25 discount');
 eq(discountMath(44000,true,'percent',parse('45','percent',45)/100,true).total,22000,'Existing combined percent cap');
-eq(discountMath(0,false,'percent',0,true).total,15000,'Minimum charge remains');
-console.log('PASS '+checks+' strict discount entry, percentage caps, exact cents, minimum and deposit checks.');
+eq(discountMath(0,false,'percent',0,true).total,0,'Zero-priced line remains zero, not $150');
+for(const [subtotal,percent,bundle,expected,deposit] of [[2500,0,0,2500,1250],[7500,0,0,7500,3750],[7500,1500,2500,3875,1938],[46000,1500,2500,36600,18300],[2500,0,2500,0,0]]){
+ const server=quoteDiscounts(subtotal,false,'percent',percent,bundle);
+ const ui=discountMath(subtotal,false,'percent',percent/100,true,bundle);
+ eq(server.total,expected,'Exact server total '+subtotal);eq(server.deposit,deposit,'Exact server deposit '+subtotal);
+ eq(ui.total,server.total,'Editor/server total parity '+subtotal);eq(ui.deposit,server.deposit,'Editor/server deposit parity '+subtotal);
+}
+// Historical prices remain readable as the amount that was actually agreed,
+// even when the old automatic floor was higher than all service lines.
+const original=discountSnapshot('synthetic-history',2500,false,'percent',0,0);
+const old={...original,total:15000,appliedDiscount:0,deposit:7500};
+const stored={subtotalCents:2500,discountCents:0,totalCents:15000,depositCents:7500};
+eq(readDiscountSnapshot('synthetic-history',JSON.stringify(old),stored)?.total,15000,'Legacy snapshot remains verifiable');
+eq(verifiedSavedDiscounts('synthetic-history',JSON.stringify(old),{...stored,appreciationDiscount:0,additionalDiscountType:'percent',additionalDiscountValue:0})?.total,15000,'Legacy snapshot remains unchanged');
+eq(verifiedSavedDiscounts('synthetic-history',null,{...stored,appreciationDiscount:0,additionalDiscountType:'percent',additionalDiscountValue:0}),null,'Safe legacy quote without snapshot stays unchanged');
+assert.throws(()=>readDiscountSnapshot('synthetic-history',JSON.stringify({...old,total:16000}),stored),'Tampered historical total rejected');checks++;
+eq(readDiscountSnapshot('synthetic-current',JSON.stringify(discountSnapshot('synthetic-current',2500,false,'percent',0,0)),{subtotalCents:2500,discountCents:0,totalCents:2500,depositCents:1250})?.total,2500,'New below-minimum snapshot verifies');
+console.log('PASS '+checks+' exact discount entry, legitimate sub-$150 totals, frozen legacy agreements and deposits.');
