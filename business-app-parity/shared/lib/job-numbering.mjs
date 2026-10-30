@@ -65,3 +65,26 @@ export async function jobNumberLabelForEstimate(db, estimateId) {
   const row=await db.prepare(JOB_NUMBER_FOR_ESTIMATE_SQL).bind(estimateId).first();
   return jobNumberLabel(row?.jobNumber);
 }
+
+/** Owner-only batched read (after existing auth checks).
+ * Missing schema is a source rollout compatibility case, never a made-up ID.
+ * Keep SQL placeholders bounded for older or larger invoice histories.
+ */
+export async function attachedJobNumbers(db, estimateIds) {
+  const ids=[...new Set(estimateIds.filter(id=>typeof id==='string'&&id.length>0))];
+  if (!ids.length) return new Map();
+  const hasTable=await db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='fire_job_estimate_links'"
+  ).first();
+  if (!hasTable) return new Map();
+  const numbers=new Map();
+  for(let offset=0;offset<ids.length;offset+=400) {
+    const batch=ids.slice(offset,offset+400);
+    const sql='SELECT estimate_id AS estimateId,job_number AS jobNumber FROM fire_job_estimate_links WHERE estimate_id IN ('+batch.map(()=>'?').join(',')+')';
+    const found=await db.prepare(sql).bind(...batch).all();
+    for(const row of found.results??[]) {
+      if(jobNumberLabel(row.jobNumber)) numbers.set(row.estimateId,row.jobNumber);
+    }
+  }
+  return numbers;
+}
