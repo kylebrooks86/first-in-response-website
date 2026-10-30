@@ -11,6 +11,15 @@ import {customerIdentityPredicate,duplicateCustomer} from '../../../lib/customer
 import {ESTIMATE_CREATE_PROOF_PREFIX,validEstimateCreateRequestId,fingerprintEstimateCreateRequest,readEstimateCreateProof,type EstimateCreateProof} from '../../../lib/estimate-create-idempotency';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
+// Optional post-save read. Never turn a successfully committed estimate into a
+// retryable failed POST merely because a Job # display lookup is unavailable.
+async function savedJobReference(estimateId:string):Promise<number|null>{
+  if((env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE!=='owner-approved-schema-v1')return null;
+  try{
+    const row=await env.DB.prepare(JOB_NUMBER_FOR_ESTIMATE_SQL).bind(estimateId).first<{jobNumber:number}>();
+    return jobNumberLabel(row?.jobNumber)?Number(row!.jobNumber):null;
+  }catch{return null;}
+}
 async function authorized(){ const user=await getChatGPTUser(); return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL); }
 
 type ItemRow={id:string;estimateId:string;name:string;description:string;quantity:number;unit:string;totalCents:number};
@@ -80,7 +89,8 @@ export async function POST(request: Request) {
         if(JSON.stringify(incoming)!==JSON.stringify(persisted))return Response.json({error:'The saved service scope changed after this request. Review the existing estimate; no duplicate created.'},{status:409});
         if(proof.promotionAttributionSaved&&!await env.DB.prepare('SELECT key FROM message_templates WHERE key=?').bind(ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX+requestId).first())return Response.json({error:'Original promotion audit is unavailable. Review saved estimate.'},{status:409});
         if(proof.bundleDiscountCents>0&&!await env.DB.prepare('SELECT key FROM message_templates WHERE key=?').bind(DISCOUNT_SNAPSHOT_PREFIX+requestId).first())return Response.json({error:'Original bundle discount audit is unavailable. Review saved estimate.'},{status:409});
-        return Response.json({id:requestId,requestId,replayed:true,customerId:proof.customerId,customer:String(body.customer??'').trim(),email:String(body.email??'').trim(),phone:String(body.phone??'').trim(),address:String(body.address??'').trim(),propertyId:proof.propertyId,propertyRevision:proof.propertyRevision,shareToken:existing.shareToken,customerPath:'/estimate/'+existing.shareToken,subtotalCents:proof.subtotalCents,discountCents:proof.discountCents,totalCents:proof.totalCents,depositCents:proof.depositCents,appreciationDiscount:proof.appreciationDiscount,additionalDiscountType:proof.additionalDiscountType,additionalDiscountValue:proof.additionalDiscountValue,bundleDiscountCents:proof.bundleDiscountCents,promotionAttributionSaved:proof.promotionAttributionSaved},{status:200,headers:{'cache-control':'private, no-store'}});
+        const replayJobNumber=await savedJobReference(requestId);
+        return Response.json({id:requestId,requestId,replayed:true,...(replayJobNumber!==null?{jobNumber:replayJobNumber}:{}),customerId:proof.customerId,customer:String(body.customer??'').trim(),email:String(body.email??'').trim(),phone:String(body.phone??'').trim(),address:String(body.address??'').trim(),propertyId:proof.propertyId,propertyRevision:proof.propertyRevision,shareToken:existing.shareToken,customerPath:'/estimate/'+existing.shareToken,subtotalCents:proof.subtotalCents,discountCents:proof.discountCents,totalCents:proof.totalCents,depositCents:proof.depositCents,appreciationDiscount:proof.appreciationDiscount,additionalDiscountType:proof.additionalDiscountType,additionalDiscountValue:proof.additionalDiscountValue,bundleDiscountCents:proof.bundleDiscountCents,promotionAttributionSaved:proof.promotionAttributionSaved},{status:200,headers:{'cache-control':'private, no-store'}});
       }
     }
     const existingCustomerId = String(body.customerId ?? "").trim();
@@ -174,7 +184,8 @@ export async function POST(request: Request) {
     if(requestId&&requestHash){const proof:EstimateCreateProof={version:1,requestId,requestHash,customerId,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,bundleDiscountCents,appreciationDiscount,additionalDiscountType,additionalDiscountValue,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,promotionAttributionSaved:Boolean(promotionAttribution)};
       statements.push(env.DB.prepare("INSERT INTO message_templates(key,subject,body,updated_at) VALUES (?,'',?,?)").bind(ESTIMATE_CREATE_PROOF_PREFIX+requestId,JSON.stringify(proof),now));}
     await env.DB.batch(statements);
-    return Response.json({id:estimateId,...(requestId?{requestId,replayed:false}:{}),customerId,customer,email,phone,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents,promotionAttributionSaved:Boolean(promotionAttribution)},{status:201,headers:{'cache-control':'private, no-store'}});
+    const savedJobNumber=await savedJobReference(estimateId);
+    return Response.json({id:estimateId,...(savedJobNumber!==null?{jobNumber:savedJobNumber}:{}),...(requestId?{requestId,replayed:false}:{}),customerId,customer,email,phone,address:serviceAddress,propertyId:selection?.property.id??null,propertyRevision:selection?.property.revision??null,shareToken,customerPath:`/estimate/${shareToken}`,subtotalCents:subtotal,discountCents:appliedDiscount,totalCents:total,depositCents:deposit,appreciationDiscount,additionalDiscountType,additionalDiscountValue,bundleDiscountCents,promotionAttributionSaved:Boolean(promotionAttribution)},{status:201,headers:{'cache-control':'private, no-store'}});
   } catch {
     return Response.json({ error: propertyEstimatesTestEnabled(env)?'Estimate save was not confirmed. Review stored records before another deliberate attempt.':"We couldn't save this estimate. Please try again." }, { status: 500 });
   }
