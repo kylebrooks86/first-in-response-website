@@ -2,6 +2,7 @@ import {customerPropertiesEnabled,propertyAssociationColumns} from '../../../lib
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import {env} from "cloudflare:workers";
 import {getChatGPTUser} from "../../chatgpt-auth";
+import {attachedJobNumbers} from '../../../lib/job-numbering.mjs';
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 export async function GET(request:Request){
  const user=await getChatGPTUser();if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401});
@@ -53,7 +54,12 @@ export async function GET(request:Request){
   if(page.length){const placeholders=page.map(()=>"?").join(",");const items=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id IN (${placeholders}) ORDER BY rowid ASC`).bind(...page.map(row=>row.id)).all<Record<string,unknown>>();
    for(const raw of items.results){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};const id=String(raw.estimateId);grouped.set(id,[...(grouped.get(id)??[]),row]);}
   }
-  const estimates=page.map(row=>({...row,items:grouped.get(row.id)??[]}));
+  // The Schedule, Estimates and owner history screens read this same paginated
+  // route. Attach permanent Job # references without touching records or UUIDs.
+  // Unmigrated/disabled environments continue returning their legacy shape.
+  const showJobs=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
+  const numbers=showJobs?await attachedJobNumbers(env.DB,page.map(row=>row.id)):new Map();
+  const estimates=page.map(row=>({...row,...(showJobs?{jobNumber:numbers.get(row.id)??null}:{}),items:grouped.get(row.id)??[]}));
   const nextCursor=!focus&&result.results.length>size&&last?btoa(JSON.stringify({createdAt:last.createdAt,id:last.id})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,""):null;
   return Response.json({estimates,nextCursor,pageSize:size},{headers:{"Cache-Control":"no-store"}});
  }catch{return Response.json({error:"Estimate history could not be read."},{status:503});}
