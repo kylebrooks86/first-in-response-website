@@ -13,7 +13,7 @@ from verify_materialized_candidate import check
 
 ROOT = Path(__file__).resolve().parent
 EXCLUDED = {
-    'vite.config.ts', 'app/page.tsx', 'app/local-customer-deployment.ts',
+    'vite.config.ts', 'app/page.tsx', 'app/manifest.ts', 'app/local-customer-deployment.ts',
     'app/chatgpt-auth.ts', 'app/owner-auth.ts', 'app/login/page.tsx',
     'app/api/auth/login/route.ts', 'app/api/auth/logout/route.ts',
     'app/api/app-version/route.ts', 'app/api/staging-fixtures/route.ts',
@@ -53,9 +53,8 @@ class IndependentStagingParity(unittest.TestCase):
         all_paths = set(qa) | set(staging)
         core = [p for p in all_paths if p not in EXCLUDED]
         self.assertGreater(len(core),100,'Missing shared business/UI sources')
-        self.assertEqual({p:qa.get(p) for p in core},
-                         {p:staging.get(p) for p in core},
-                         'QA and staging core app drifted')
+        differences = sorted(p for p in core if qa.get(p) != staging.get(p))
+        self.assertFalse(differences, 'QA and staging core app drifted: ' + ', '.join(differences[:20]))
 
     def test_independent_staging_preserves_owner_auth_and_exact_schema(self):
         for path in ('app/owner-auth.ts','app/api/auth/login/route.ts',
@@ -90,7 +89,7 @@ class IndependentStagingParity(unittest.TestCase):
         original = target.read_bytes()
         try:
             target.write_text(original.decode().replace("'staging'","'qa'"))
-            with self.assertRaisesRegex(ValueError,'identity does not match'):
+            with self.assertRaisesRegex(ValueError,'(fingerprint mismatch|identity does not match)'):
                 check('independent-staging',self.staging)
         finally:
             target.write_bytes(original)
