@@ -7,6 +7,8 @@ import {createRouteFixtureLoader} from './route-test-loader.mjs';
 const db=new DatabaseSync(':memory:');
 for(const file of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
 let owner={email:'kylebrooks8605@gmail.com'},remoteCalls=0,checks=0;
+const originalFetch=globalThis.fetch;
+globalThis.fetch=async()=>{remoteCalls++;throw Error('Synthetic invoice test forbids all remote provider requests');};
 const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);checks++;};
 const statement=(sql,args=[])=>({sql,args,bind(...p){return statement(sql,p);},
   async first(){return db.prepare(sql).get(...args)??null;},
@@ -57,4 +59,4 @@ try{
  owner=null;response=await patch('paid',items(10000));eq(response.status,401,'Owner authentication required');
  eq(remoteCalls,0,'No Stripe or external provider calls');
  console.log('PASS '+checks+' actual invoice PATCH/GET SQLite checks: $25/$75/stacked $38.75/$0, revisions, readback, payment guard and auth; no remote writes.');
-}finally{db.close();}
+}finally{globalThis.fetch=originalFetch;db.close();}
