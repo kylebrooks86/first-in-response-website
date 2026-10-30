@@ -4,6 +4,7 @@ import {serviceLocationsEnabled,serviceAddressColumns} from "../../../lib/servic
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {customerIdentityPredicate,customerCreationReceipt} from '../../../lib/customer-identity';
+import {usableCustomerPhone,usableCustomerEmail} from '../../../lib/customer-contact-links';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized() {
@@ -133,6 +134,8 @@ export async function PATCH(request: Request) {
     const leadSource = String(body.leadSource ?? "Unknown").trim() || "Unknown";
     if (!id) return Response.json({ error: "Customer ID is required." }, { status: 400 });
     if (!name) return Response.json({ error: "Customer name is required." }, { status: 400 });
+    if(email&&!usableCustomerEmail(email))return Response.json({error:'Enter a valid email address or leave it blank.'},{status:400});
+    if(phone&&!usableCustomerPhone(phone))return Response.json({error:'Enter a valid 10-digit U.S. phone number or leave it blank.'},{status:400});
 
     const existing = await env.DB.prepare("SELECT id FROM customers WHERE id=? LIMIT 1").bind(id).first<{id:string}>();
     if (!existing) return Response.json({ error: "That customer record could not be found." }, { status: 404 });
