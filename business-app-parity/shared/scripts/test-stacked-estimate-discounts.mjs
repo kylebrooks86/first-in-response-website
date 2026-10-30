@@ -14,7 +14,7 @@ try{
  for(const [name,price,percent,bundle,expected] of [['Trash bin',2500,0,0,2500],['Gutter cleanout',7500,0,0,7500],['Gutter promo plus bundle',7500,1500,2500,3875]]){
   const body={customer:'Synthetic '+name,email:name.replaceAll(' ','-')+'@example.invalid',items:[{name,description:'Owner-selected line',quantity:1,unit:'job',totalCents:price}],appreciationDiscount:false,additionalDiscountType:'percent',additionalDiscountValue:percent,bundleDiscountCents:bundle};
   const quote=await r.post(body);eq(quote.status,201,'New '+name+' quote saves');const created=await quote.json();eq(created.totalCents,expected,'New '+name+' has no automatic minimum');eq(created.depositCents,Math.round(expected/2),'Exact 50% deposit');eq(created.discountCents,price-expected,'Exact applied discount');
-  const reopened=await r.get(created.id);eq(reopened.status,200,'Reopen '+name);eq((await reopened.json()).snapshot?.total,expected,'Saved customer amount survives reopen');
+  const reopened=await r.get(created.id);eq(reopened.status,200,'Reopen '+name);eq((await reopened.json()).totalCents,expected,'Saved customer amount survives reopen even without optional discount metadata');
  }
  const zeroQuote=await r.post({customer:'Synthetic zero amount',items:[{name:'Owner-approved free service',description:'Zero-dollar line',quantity:1,unit:'job',totalCents:0}],additionalDiscountType:'percent',additionalDiscountValue:0,bundleDiscountCents:0});eq(zeroQuote.status,201);const free=await zeroQuote.json();eq(free.totalCents,0);eq(free.depositCents,0);
  // Preserve every original historical row while changing a different draft.
