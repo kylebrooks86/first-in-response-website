@@ -458,6 +458,8 @@ jobs:
         run: node --experimental-strip-types scripts/test-quote-discount-input.mjs
       - name: Stacked estimate discounts and atomic synthetic SQLite persistence
         run: node --experimental-sqlite scripts/test-stacked-estimate-discounts.mjs
+      - name: Actual invoice price changes below $150 retain ledger guards and historical revisions
+        run: node --experimental-sqlite scripts/test-invoice-below-minimum.mjs
       - name: Verify all thirty starting rates remain fully adjustable per job
         run: node --experimental-strip-types scripts/test-per-job-price-overrides.mjs
       - name: Preserve historical estimate and invoice line totals during no-op edits
