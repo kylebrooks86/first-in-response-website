@@ -6,9 +6,9 @@ let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
 function nodes(tree){const result=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;result.push(n);walk(n.props?.children);}walk(tree);return result;}
 const customer=id=>({id,name:'Synthetic '+id,email:'qa-'+id+'@example.invalid',phone:'',address:'Synthetic address',leadSource:'Unknown',createdAt:'2026-10-19',estimateCount:0,estimateTotal:0,paidTotal:0});
 const helpers={};for(const file of ['customer-balance-summary.ts','message-history.ts','customer-activity-flags.ts','offline-photo-availability.ts','customer-contact-links.ts']){const c={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/'+file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,c);Object.assign(helpers,c.exports);}
-function fixture(name){const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name),states=[],tags=new Set();function visit(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&n.initializer&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')states.push(n.name.elements[0].getText(ast));if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}visit(fn);
- let state=[],cursor=0,refs=[],refCursor=0,effects=[],fetcher,currentCustomer=customer('first');const requests=[],updated=[];
- const context={exports:{},require,crypto:{randomUUID:()=>lastNoteId=randomUUID()},...helpers,...Object.fromEntries([...tags].map(t=>[t,()=>null])),navigator:{onLine:true},money:String,dateTime:String,statusLabel:String,resolvedBillingTotalCents:r=>r.totalCents,billingBalanceCents:r=>Math.max(0,r.totalCents-r.paidCents),saveOfflinePhotoCustomerDirectory:async()=>{},loadOfflinePhotoCustomerDirectory:async()=>[],clearOfflinePhotoCustomerDirectory:async()=>{},
+function fixture(name,editRecord=null){const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name),states=[],tags=new Set();function visit(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&n.initializer&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')states.push(n.name.elements[0].getText(ast));if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}visit(fn);
+ let state=[],cursor=0,refs=[],refCursor=0,effects=[],fetcher,currentCustomer=editRecord??customer('first');const requests=[],updated=[];
+ const context={exports:{},require,AbortController,setTimeout,clearTimeout,crypto:{randomUUID:()=>lastNoteId=randomUUID()},...helpers,...Object.fromEntries([...tags].map(t=>[t,()=>null])),navigator:{onLine:true},money:String,dateTime:String,statusLabel:String,resolvedBillingTotalCents:r=>r.totalCents,billingBalanceCents:r=>Math.max(0,r.totalCents-r.paidCents),saveOfflinePhotoCustomerDirectory:async()=>{},loadOfflinePhotoCustomerDirectory:async()=>[],clearOfflinePhotoCustomerDirectory:async()=>{},
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){effects.push(fn);},fetch:(url,options)=>{requests.push({url,options});return fetcher(url,options);}};
  const source=fn.getText(ast).replace('  // The server-backed customer workflow','  exports.load=load;\n  // The server-backed customer workflow');
  vm.runInNewContext(ts.transpileModule(source+`\nexports.view=${name};`,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
@@ -47,6 +47,33 @@ for(const kind of ['success','http','network','json','wrong-customer','wrong-fie
  await flush();eq(f.get('saving'),false);
  if(kind==='success'){eq(f.updated.length,1);eq(f.get('open'),false);}else{eq(f.updated.length,0);eq(f.get('open'),true);eq(Boolean(f.get('error')),true);eq(f.get('name'),' Synthetic updated ');f.render().props.onOpenChange(false);eq(f.get('open'),false);}
 }
+// Exact real-world failure: API returns SQL NULL for missing email/phone
+// when an address-only QA customer is being edited. Save must not throw
+// before entering its try/catch or silently remain open without a request.
+for(const missing of ['email','phone','address','all']){
+ const initial={...customer('first'),email:'synthetic@example.invalid',phone:'9185550123',address:'123 Synthetic Street'};
+ if(missing==='all'){initial.email=null;initial.phone=null;initial.address=null;}
+ else initial[missing]=null;
+ const f=fixture('EditCustomer',initial),pending=deferred();
+ f.render().props.onOpenChange(true);
+ f.set('name','  Synthetic updated  ');
+ if(missing==='email'||missing==='all')f.set('phone','9185550175');
+ if(missing==='phone'||missing==='all')f.set('email','update@example.invalid');
+ f.setFetcher(()=>pending.promise);
+ f.button('Save changes').props.onClick();
+ eq(f.requests.length,1,'Nullable '+missing+' customer edit must submit exactly once');
+ const sent=JSON.parse(f.requests[0].options.body);
+ eq(sent.name,'Synthetic updated');
+ for(const field of ['email','phone','address'])
+   eq(typeof sent[field],'string','Customer PATCH always contains strings, field '+field);
+ const receipt={...initial,...sent};
+ pending.resolve({ok:true,json:async()=>({customer:receipt})});
+ await flush();
+ eq(f.get('saving'),false);
+ eq(f.updated.length,1,'Existing nullable customer can be edited');
+ eq(f.get('open'),false,'Successful nullable edit closes form');
+}
+
 for(const leave of ['switch','unmount']){
  const f=fixture('EditCustomer'),pending=deferred();f.render().props.onOpenChange(true);f.setFetcher(()=>pending.promise);f.button('Save changes').props.onClick();if(leave==='switch')f.switch('second');else f.unmount();pending.resolve({ok:true,json:async()=>({customer:customer('first')})});await flush();eq(f.updated.length,0,'Late edit response cannot update a different/unmounted customer');
 }
