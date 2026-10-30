@@ -42,16 +42,20 @@ try{
  for(const width of [320,390,768])for(const theme of ['light','dark']){
   await page.setViewportSize({width,height:844});await page.goto(origin);
   await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
+  const history=page.locator('[aria-label="Saved promotions on estimate"]');
+  await history.locator('summary').first().waitFor();
+  check(await history.getByText('Promotion history',{exact:true}).isVisible(),'Compact promotions summary appears before opening');
+  await history.locator('summary').first().click();
   await page.getByText(rule.name,{exact:true}).waitFor();
   check(await page.getByText('$391.00',{exact:false}).count()>0,'Frozen 15% quote subtotal $460 total $391');
-  const geom=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,button:[...document.querySelectorAll('[aria-label="Saved promotions on estimate"] button')].map(n=>{const box=n.getBoundingClientRect();return{left:box.left,right:box.right,height:box.height};})}));
+  const geom=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,button:[...document.querySelectorAll('[aria-label="Saved promotions on estimate"] button')].filter(n=>n.getClientRects().length>0).map(n=>{const box=n.getBoundingClientRect();return{left:box.left,right:box.right,height:box.height};})}));
   check(geom.scroll<=width+1&&geom.button.every(b=>b.left>=0&&b.right<=width+1&&b.height>=42),'Owner history is usable at '+width+'/'+theme);
  }
  runtime.db.prepare("UPDATE message_templates SET body=? WHERE key=?").run(JSON.stringify({revision:'aaaaaaaa-aaaa-4aaa-8aaa-000000000098',promotions:[]}),promotion.SAVED_PROMOTIONS_KEY);
- await page.reload();await page.getByText(rule.name,{exact:true}).waitFor();
+ await page.reload();await page.locator('[aria-label="Saved promotions on estimate"] summary').first().click();await page.getByText(rule.name,{exact:true}).waitFor();
  check(true,'Original saved name visible despite later catalog deletion');
  broken=true;await page.getByRole('button',{name:'Refresh history'}).click();
- await page.getByText('Saved promotion evidence could not be verified',{exact:false}).waitFor();
+ await page.getByText('Promotion history unavailable.',{exact:false}).waitFor();
  check(await page.getByText('$391.00',{exact:false}).count()===0,'Failed history refresh never displays unverified saved rule');
  broken=false;await page.getByRole('button',{name:'Refresh history'}).click();
  await page.getByText(rule.name,{exact:true}).waitFor();
