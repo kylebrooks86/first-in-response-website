@@ -1289,40 +1289,80 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
   const saveLock=useRef(false);
   const currentCustomer=useRef(customer.id);currentCustomer.current=customer.id;
   useEffect(()=>{currentCustomer.current=customer.id;return()=>{currentCustomer.current="";};},[customer.id]);
-  const [name,setName]=useState(customer.name);const [email,setEmail]=useState(customer.email);const [phone,setPhone]=useState(customer.phone);const [address,setAddress]=useState(customer.address);
+  const [name,setName]=useState(customer.name??"");const [email,setEmail]=useState(customer.email??"");const [phone,setPhone]=useState(customer.phone??"");const [address,setAddress]=useState(customer.address??"");
   const [leadSource,setLeadSource]=useState(customer.leadSource||"Unknown");
   const [saving,setSaving]=useState(false);
+  const [checking,setChecking]=useState(false);
+  const [uncertain,setUncertain]=useState(false);
   const [error,setError]=useState("");
-  const reset=()=>{setName(customer.name);setEmail(customer.email);setPhone(customer.phone);setAddress(customer.address);setLeadSource(customer.leadSource||"Unknown");setError("");};
+  const attempted=useRef<{id:string;name:string;email:string;phone:string;address:string;leadSource:string}|null>(null);
+  const matchesSaved=(row:CustomerRow|undefined|null,payload:NonNullable<typeof attempted.current>)=>
+    Boolean(row&&Object.entries(payload).every(([key,value])=>row[key as keyof CustomerRow]===value));
+  const reset=()=>{setName(customer.name??"");setEmail(customer.email??"");setPhone(customer.phone??"");setAddress(customer.address??"");setLeadSource(customer.leadSource||"Unknown");setError("");setUncertain(false);attempted.current=null;};
+  const finish=(row:CustomerRow,id:string)=>{
+    if(currentCustomer.current!==id)return;
+    setUncertain(false);attempted.current=null;onUpdated({...customer,...row});setOpen(false);
+  };
+  const checkSaved=async()=>{
+    const payload=attempted.current;
+    if(!payload||saveLock.current||currentCustomer.current!==payload.id)return;
+    saveLock.current=true;setChecking(true);setError("");
+    try {
+      const response=await fetch("/api/customers?confirmEdit="+encodeURIComponent(payload.id),{cache:"no-store"});
+      const result=await response.json() as {customer?:CustomerRow;error?:string};
+      if(currentCustomer.current!==payload.id)return;
+      if(!response.ok||!result?.customer)throw new Error(result?.error||"Saved customer details could not be checked.");
+      if(matchesSaved(result.customer,payload)){finish(result.customer,payload.id);return;}
+      setUncertain(false);attempted.current=null;
+      setError("The saved record does not match this edit. Review these details before trying Save changes again. Nothing was resent.");
+    }catch {
+      if(currentCustomer.current===payload.id)setError("Still unable to confirm the last save. Keep these details and check again when connected. No second update was sent.");
+    }finally{saveLock.current=false;if(currentCustomer.current===payload.id)setChecking(false);}
+  };
   const save=async()=>{
     if(saveLock.current||currentCustomer.current!==customer.id)return;
+    if(uncertain){setError("Check saved details before trying another update.");return;}
     if(!name.trim()){setError("Customer name is required.");return;}
+    if(email.trim()&&!usableCustomerEmail(email)){setError("Enter a valid email address or leave it blank.");return;}
+    if(phone.trim()&&!usableCustomerPhone(phone)){setError("Enter a valid 10-digit U.S. phone number or leave it blank.");return;}
     const id=customer.id;const payload={id,name:name.trim(),email:email.trim(),phone:phone.trim(),address:address.trim(),leadSource};
+    attempted.current=payload;
     saveLock.current=true;setSaving(true);setError("");
-    try{
+    let responseStatus=0;
+    try {
       const response=await fetch("/api/customers",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
+      responseStatus=response.status;
       const result=await response.json() as {customer?:CustomerRow;error?:string};
       if(currentCustomer.current!==id)return;
       if(!response.ok)throw new Error(result?.error||"The customer could not be updated.");
-      if(!result?.customer||Object.entries(payload).some(([key,value])=>result.customer?.[key as keyof CustomerRow]!==value))throw new Error("The saved customer could not be verified. Reopen this profile to check its details before trying again.");
-      onUpdated({...customer,...result.customer});
-      setOpen(false);
-    }catch(saveError){if(currentCustomer.current===id)setError(saveError instanceof Error?saveError.message:"The customer could not be updated.");}
-    finally{saveLock.current=false;if(currentCustomer.current===id)setSaving(false);}
+      if(!matchesSaved(result?.customer,payload))throw new Error("The save response did not match these customer details.");
+      finish(result.customer!,id);
+    }catch(saveError){
+      if(currentCustomer.current!==id)return;
+      if(responseStatus>=400&&responseStatus<500){
+        attempted.current=null;
+        setError(saveError instanceof Error?saveError.message:"The edit was rejected. No update was confirmed.");
+      }else {
+        setUncertain(true);
+        setError("Save confirmation was interrupted. Your entries are kept. Tap Check saved details before trying another save.");
+      }
+    }finally{saveLock.current=false;if(currentCustomer.current===id)setSaving(false);}
   };
-  return <Dialog open={open} onOpenChange={(value)=>{if(saveLock.current||currentCustomer.current!==customer.id)return;setOpen(value);if(value)reset();else setError("");}}>
+  return <Dialog open={open} onOpenChange={(value)=>{if(saveLock.current||currentCustomer.current!==customer.id)return;setOpen(value);if(value&&!uncertain)reset();else if(!value)setError("");}}>
     <DialogTrigger asChild><Button variant="outline"><PenLine className="h-4 w-4"/> Edit customer</Button></DialogTrigger>
     <DialogContent className="customer-edit-dialog sm:max-w-[520px] max-h-[90dvh] overflow-y-auto">
       <DialogHeader><DialogTitle>Edit customer</DialogTitle></DialogHeader>
-      <div className="customer-form"><fieldset disabled={saving} className="contents">
-        <div><Label htmlFor={`edit-customer-${customer.id}-name`}>Customer name</Label><Input id={`edit-customer-${customer.id}-name`} placeholder="Full name" value={name} onChange={(event)=>setName(event.target.value)}/></div>
-        <div><Label htmlFor={`edit-customer-${customer.id}-email`}>Email</Label><Input id={`edit-customer-${customer.id}-email`} type="email" placeholder="customer@email.com" value={email} onChange={(event)=>setEmail(event.target.value)}/></div>
-        <div><Label htmlFor={`edit-customer-${customer.id}-phone`}>Phone</Label><Input id={`edit-customer-${customer.id}-phone`} inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={(event)=>setPhone(event.target.value)}/></div>
-        <div><Label htmlFor={`edit-customer-${customer.id}-address`}>Service address</Label><Input id={`edit-customer-${customer.id}-address`} placeholder="Tulsa-area address" value={address} onChange={(event)=>setAddress(event.target.value)}/></div>
-        <div><Label htmlFor={`edit-customer-${customer.id}-source`}>How they found FIRE</Label><Select value={leadSource} onValueChange={setLeadSource}><SelectTrigger id={`edit-customer-${customer.id}-source`}><SelectValue/></SelectTrigger><SelectContent>{["Referral","Google","Facebook","Website","Repeat customer","Door knocking","Other","Unknown"].map((source)=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div>
+      <div className="customer-form"><fieldset disabled={saving||checking||uncertain} className="contents">
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-name"}>Customer name</Label><Input id={"edit-customer-"+customer.id+"-name"} placeholder="Full name" value={name} onChange={(event)=>setName(event.target.value)}/></div>
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-email"}>Email</Label><Input id={"edit-customer-"+customer.id+"-email"} type="email" placeholder="customer@email.com" value={email} onChange={(event)=>setEmail(event.target.value)}/></div>
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-phone"}>Phone</Label><Input id={"edit-customer-"+customer.id+"-phone"} inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={(event)=>setPhone(event.target.value)}/></div>
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-address"}>Service address</Label><Input id={"edit-customer-"+customer.id+"-address"} placeholder="Tulsa-area address" value={address} onChange={(event)=>setAddress(event.target.value)}/></div>
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-source"}>How they found FIRE</Label><Select value={leadSource} onValueChange={setLeadSource}><SelectTrigger id={"edit-customer-"+customer.id+"-source"}><SelectValue/></SelectTrigger><SelectContent>{["Referral","Google","Facebook","Website","Repeat customer","Door knocking","Other","Unknown"].map((source)=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div>
         {error&&<p className="save-error" role="alert">{error}</p>}
-        <Button className="brand-button" onClick={()=>void save()} disabled={saving}>{saving?"Saving…":"Save changes"}</Button>
-      </fieldset></div>
+        <Button className="brand-button" onClick={()=>void save()} disabled={saving||checking||uncertain}>{saving?"Saving…":"Save changes"}</Button>
+      </fieldset>
+      {uncertain&&<Button variant="outline" type="button" onClick={()=>void checkSaved()} disabled={saving||checking}>{checking?"Checking…":"Check saved details"}</Button>}
+      </div>
     </DialogContent>
   </Dialog>;
 }

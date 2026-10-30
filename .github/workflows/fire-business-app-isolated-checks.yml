@@ -35,6 +35,7 @@ on:
       - work/fire-google-voice-text-safety-2026-10-28
       - work/fire-staging-safe-migration-rehearsal-2026-10-29
       - work/fire-quoteiq-style-job-numbers-2026-10-29
+      - work/fire-customer-save-readback-reliability-2026-10-30
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
@@ -505,6 +506,7 @@ jobs:
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-customer-write-recovery.mjs
+          node scripts/test-customer-edit-route.mjs
           node --experimental-sqlite scripts/test-customer-note-idempotency.mjs
           node --experimental-strip-types scripts/test-customer-lead-contact-flags.mjs
           node scripts/test-estimate-history-recovery.mjs
@@ -686,6 +688,7 @@ jobs:
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-customer-write-recovery.mjs
+          node scripts/test-customer-edit-route.mjs
           node scripts/test-estimate-history-recovery.mjs
           node scripts/test-insights-recovery.mjs
           node scripts/test-detail-selection-recovery.mjs
@@ -789,6 +792,7 @@ jobs:
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-customer-write-recovery.mjs
+          node scripts/test-customer-edit-route.mjs
           node scripts/test-estimate-history-recovery.mjs
           node scripts/test-insights-recovery.mjs
           node scripts/test-detail-selection-recovery.mjs
