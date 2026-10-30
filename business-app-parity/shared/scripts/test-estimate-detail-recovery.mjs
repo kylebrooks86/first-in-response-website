@@ -3,10 +3,13 @@ const require=createRequire(import.meta.url),ast=ts.createSourceFile('dashboard.
 const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='EstimateDetail');assert.ok(fn);
 const detailLayout=fn.getText(ast);
 const actionsAt=detailLayout.indexOf('aria-label="Customer and estimate actions"');
+const scopeAt=detailLayout.indexOf('Service scope & expectations');
 const historyAt=detailLayout.indexOf('<EstimatePromotionHistory');
 const toolsAt=detailLayout.indexOf('className="detail-more-tools"');
-assert.ok(actionsAt>0&&historyAt>actionsAt&&toolsAt>historyAt,
- 'Primary estimate actions must be above optional promotion history and More tools.');
+assert.ok(actionsAt>0&&scopeAt>actionsAt&&historyAt>scopeAt&&toolsAt>historyAt,
+ 'Primary estimate actions must precede service scope, promotion history and More tools.');
+assert.ok(detailLayout.includes('jobNumberLabel(estimate.jobNumber)'),
+ 'Verified permanent Job # should appear in the selected estimate detail header.');
 
 const names=[],tags=new Set();function visit(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&n.initializer&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')names.push(n.name.elements[0].getText(ast));if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}visit(fn);
 let checks=0;const eq=(a,b,message)=>{assert.deepEqual(a,b,message);checks++;};const flush=()=>new Promise(r=>setImmediate(r));const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};const ok=(complete,id,customerId='customer')=>({ok:true,json:async()=>({reports:[{estimateId:id,customerId,status:complete?'completed':'draft'}]})});
