@@ -77,7 +77,7 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
       if(discountValue>subtotalCents)return Response.json({error:"Dollar discount cannot exceed the invoice subtotal."},{status:400});
       discountCents=discountValue;
     }
-    const totalCents=subtotalCents>0?Math.max(15000,subtotalCents-discountCents):0;
+    const totalCents=subtotalCents>0?Math.max(0,subtotalCents-discountCents):0;
     const appliedDiscountCents=Math.max(0,subtotalCents-totalCents);
     const paidRow=await env.DB.prepare("SELECT COALESCE(SUM(amount_cents),0) AS paidCents FROM payments WHERE estimate_id=? AND status='paid' AND type NOT IN ('Tip','Tip Refund')").bind(existing.estimateId).first<{paidCents:number}>();
     const paidCents=Number(paidRow?.paidCents||0);
