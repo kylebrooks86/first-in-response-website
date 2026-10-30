@@ -88,8 +88,8 @@ def check(target, directory, built=False):
     expected.update({name: digest for name, digest in adapters.items() if name != "ABSENT_FILES.json"})
     for name in absent:
         expected.pop(name, None)
-    if built and target != "qa":
-        raise ValueError("Built output verification currently supports isolated QA only.")
+    if built and target not in ("qa", "independent-staging"):
+        raise ValueError("Built output verification supports isolated QA and independent staging only.")
     actual = inventory_built_sources(directory) if built else inventory(directory)
     missing = sorted(set(expected) - set(actual))
     unexpected = sorted(set(actual) - set(expected))
