@@ -27,6 +27,7 @@ try{
  const historyGet=(query='')=>history.GET(new Request('https://synthetic.invalid/api/estimate-history?'+query));
  const withoutJob=(await (await historyGet('focus=estimate-000')).json()).estimates;
  eq(withoutJob.length,1);eq('jobNumber' in withoutJob[0],false);
+ eq((await (await historyGet('q=Job%20%230001')).json()).estimates.length,0);
  user=null;const beforeHistoryReads=reads;eq((await historyGet('focus=estimate-000')).status,401);eq(reads,beforeHistoryReads);
  user={email:'kylebrooks8605@gmail.com'};
  // Disposable search fixture: full trigger/FK invariants are separately tested
@@ -52,6 +53,10 @@ try{
  eq(historyUnlinked.length,1);eq(historyUnlinked[0].jobNumber,null);
  const historyService=(await (await historyGet('q=Special%20Search')).json()).estimates;
  eq(historyService.some(row=>row.id==='estimate-000'&&row.jobNumber===1),true);
+ const byJob=(await (await historyGet('q=Job%20%230001')).json()).estimates;
+ eq(byJob.length,1);eq(byJob[0].id,'estimate-000');eq(byJob[0].jobNumber,1);
+ eq((await (await historyGet('q=Job%20%239999')).json()).estimates.length,0);
+ eq((await (await historyGet('q=Job%20%230')).json()).estimates.length,0);
  const linkedJob=(await search('Job #0001','jobs')).results;
  eq(linkedJob.length,1);eq(linkedJob[0].id,'estimate-000');eq(linkedJob[0].jobNumber,1);
  const linkedInvoice=(await search('Job #0001','invoices')).results;
@@ -66,6 +71,7 @@ try{
  env.FIRE_JOB_NUMBERS_CANDIDATE=undefined;
  const historyDisabled=(await (await historyGet('focus=estimate-000')).json()).estimates;
  eq(historyDisabled.length,1);eq('jobNumber' in historyDisabled[0],false);
+ eq((await (await historyGet('q=Job%20%230001')).json()).estimates.length,0);
  eq((await search('Job #0001','jobs')).results.length,0);
  eq('jobNumber' in (await search('Special Search','jobs')).results[0],false);
  const broad=await search('Generic');eq(broad.hasMore,true);eq(broad.results.length,8);eq(broad.results.every(x=>x.kind==='estimate'),true);
