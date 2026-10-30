@@ -670,7 +670,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   const saveLock=useRef(false);
   const [reviewedRecords,setReviewedRecords]=useState<EstimateRow[]>([]);
   const [reviewingRecords,setReviewingRecords]=useState(false);
-  const [savedReceipt,setSavedReceipt]=useState<{address:string;total:number;deposit:number}|null>(null);
+  const [savedReceipt,setSavedReceipt]=useState<{address:string;total:number;deposit:number;jobNumber?:number}|null>(null);
   const createRequestRef=useRef<string|null>(null);
   const [pendingCreateId,setPendingCreateId]=useState<string|null>(null);
   const [createStorageReady,setCreateStorageReady]=useState(false);
@@ -794,7 +794,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ requestId,...(revisionSource?{revisionOf:revisionSource.id}:{}),customerId: selectedCustomer?.id, customerLookupSelection:Boolean(selectedCustomer), customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:resolvedAddress.trim(), ...(propertyWorkflowReady&&estimateProperty?{propertyId:estimateProperty.property.id,propertyRevision:estimateProperty.property.revision,propertySelectionMode:estimateProperty.mode}:{}), items:payloadItems, appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents, ...(promotionEvidence?{promotionEvidence}:{} ) }),
       });
-      const result = await response.json() as { id?: string; requestId?:string;replayed?:boolean;customerId?:string; shareToken?:string; subtotalCents?:number;discountCents?:number;totalCents?:number;depositCents?:number;bundleDiscountCents?:number;promotionAttributionSaved?:boolean;address?:string;propertyId?:string|null;propertyRevision?:number|null;error?: string };
+      const result = await response.json() as { id?: string; requestId?:string;replayed?:boolean;customerId?:string; shareToken?:string; subtotalCents?:number;discountCents?:number;totalCents?:number;depositCents?:number;bundleDiscountCents?:number;promotionAttributionSaved?:boolean;jobNumber?:number|null;address?:string;propertyId?:string|null;propertyRevision?:number|null;error?: string };
       if(!response.ok){
         safelyRejected=response.status>=400&&response.status<500;
         if(response.status>=500)setUncertainSave(true);
@@ -807,9 +807,10 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
       if(!releasePendingEstimateCreate(estimateCreateStorage(),requestId)){setUncertainSave(true);throw new Error("Estimate was saved but its on-device recovery marker could not be cleared. Check stored estimates before sending another quote.");}
       createRequestRef.current=null;setPendingCreateId(null);setPendingCheck(null);
       const confirmedAddress=typeof result.address==='string'?result.address:resolvedAddress.trim();
-      setSavedReceipt({address:confirmedAddress,total:Number(result.totalCents??total),deposit:Number(result.depositCents??deposit)});
+      const savedJobNumber=jobNumberLabel(result.jobNumber)?Number(result.jobNumber):undefined;
+      setSavedReceipt({address:confirmedAddress,total:Number(result.totalCents??total),deposit:Number(result.depositCents??deposit),jobNumber:savedJobNumber});
       const createdAt = new Date().toISOString();
-      onSaved?.({ id: result.id, customerId: result.customerId, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:confirmedAddress,propertyId:result.propertyId,propertyRevision:result.propertyRevision,serviceAddressSource:result.propertyId?'captured':undefined, service: items.map((item)=>item.name).join(", "), serviceDescription:items[0]?.description||"", items:payloadItems.map((item,index)=>({...item,id:`new-${index}`})), status: "draft", subtotalCents:Number(result.subtotalCents??subtotal), discountCents:Number(result.discountCents??discount.appliedDiscount), appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents, totalCents: Number(result.totalCents??total), depositCents: Number(result.depositCents??deposit), paidCents: 0, shareToken:result.shareToken, createdAt });
+      onSaved?.({ id: result.id,jobNumber:savedJobNumber, customerId: result.customerId, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:confirmedAddress,propertyId:result.propertyId,propertyRevision:result.propertyRevision,serviceAddressSource:result.propertyId?'captured':undefined, service: items.map((item)=>item.name).join(", "), serviceDescription:items[0]?.description||"", items:payloadItems.map((item,index)=>({...item,id:`new-${index}`})), status: "draft", subtotalCents:Number(result.subtotalCents??subtotal), discountCents:Number(result.discountCents??discount.appliedDiscount), appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents, totalCents: Number(result.totalCents??total), depositCents: Number(result.depositCents??deposit), paidCents: 0, shareToken:result.shareToken, createdAt });
       setSaved(true);
     } catch (saveError) { if(!safelyRejected)setUncertainSave(true);setError(saveError instanceof Error ? saveError.message : "The estimate could not be saved. Please try again."); }
     finally { setSaving(false);saveLock.current=false; }
@@ -853,7 +854,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         :<p role="alert">Browser recovery storage is unavailable. New quote creation is disabled to prevent untraceable repeat saves.</p>}
         {createStorageError&&<p role="alert">{createStorageError}</p>}
       </section>}
-      {saved?<div className="px-6 py-12 text-center"><span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-8 w-8"/></span><h2 className="text-2xl font-extrabold">Estimate ready</h2><p className="mx-auto mt-2 max-w-sm text-slate-500">{money(savedReceipt?.total??total)} total. A {money(savedReceipt?.deposit??deposit)} (50%) deposit reserves the customer&apos;s place on the schedule; the remaining balance is due when the work is completed.</p><p className="mt-3" data-saved-service-address>{savedReceipt?.address}</p><div className="mt-7 flex justify-center"><Button className="brand-button" onClick={()=>reset(false)}>Done</Button></div></div>
+      {saved?<div className="px-6 py-12 text-center"><span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-8 w-8"/></span><h2 className="text-2xl font-extrabold">Estimate ready</h2>{jobNumberLabel(savedReceipt?.jobNumber)&&<p className="mt-2 font-semibold">{jobNumberLabel(savedReceipt?.jobNumber)}</p>}<p className="mx-auto mt-2 max-w-sm text-slate-500">{money(savedReceipt?.total??total)} total. A {money(savedReceipt?.deposit??deposit)} (50%) deposit reserves the customer&apos;s place on the schedule; the remaining balance is due when the work is completed.</p><p className="mt-3" data-saved-service-address>{savedReceipt?.address}</p><div className="mt-7 flex justify-center"><Button className="brand-button" onClick={()=>reset(false)}>Done</Button></div></div>
       :step===1?<div className="space-y-5 px-6 py-6">
         <CustomerLookup disabled={Boolean(revisionSource)||saving||uncertainSave||customerLoading} onSelect={row=>void chooseCustomer(row)} onCreate={()=>void chooseCustomer(null)}/>
         {customerLoading&&<p role="status">Checking saved customer information…</p>}{revisionSource&&revisionBundle.error&&<div role="alert"><p>{revisionBundle.error}</p><Button variant="outline" onClick={()=>void revisionBundle.reload()}>Retry saved discounts</Button></div>}
