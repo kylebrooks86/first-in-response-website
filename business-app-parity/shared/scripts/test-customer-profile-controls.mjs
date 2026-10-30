@@ -43,6 +43,31 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  check(firstUse.ordered,'Quick contact and customer records appear before optional financial, flags and activity details');
  check(firstUse.tabs.length===6&&firstUse.tabs.some(label=>label.startsWith('Photos'))&&firstUse.tabs.some(label=>label.startsWith('Notes'))&&firstUse.tabFit,'All six customer record tabs remain visible and finger-sized on iPhone');
  check(firstUse.actionColumns===2,'Common customer actions use two compact touch-friendly columns on iPhone');
+ // The primary customer Text action must use the same template-enabled
+ // composer as customer history, not the separate blank-only Voice modal.
+ const quickText=page.locator('.customer-contact').getByRole('button',{name:'Text',exact:true});
+ check(await quickText.count()===1,'Primary customer Text action remains immediately visible');
+ await quickText.click();
+ const quickDialog=page.getByRole('dialog',{name:'Message',exact:true});
+ await quickDialog.waitFor();
+ const choice=quickDialog.getByRole('combobox');
+ const textField=quickDialog.getByRole('textbox',{name:'Message text',exact:true});
+ check(await choice.count()===1&&await textField.inputValue()==='','Text opens editable composer with blank custom default');
+ await choice.click();
+ await page.getByRole('option',{name:'Request estimate photos',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('[role=dialog] textarea')?.value?.includes('photos help me prepare your estimate'));
+ check((await textField.inputValue()).includes('photos help me prepare your estimate'),
+   'Existing FIRE photo estimate template is discoverable and personalized');
+ await choice.click();
+ await page.getByRole('option',{name:'Custom message',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('[role=dialog] textarea')?.value==='');
+ await textField.fill('Synthetic custom text — do not send');
+ check(await textField.inputValue()==='Synthetic custom text — do not send','Owner can switch back to custom editable text');
+ check(await quickDialog.getByRole('button',{name:'Text',exact:true}).count()===1,
+   'Actual Google Voice preparation is still an explicit step, never an automatic send');
+ await page.keyboard.press('Escape');
+ await quickDialog.waitFor({state:'hidden'});
+
  await page.getByRole('button',{name:'Photos',exact:true}).click();
  const photos=page.getByRole('region',{name:'On-device customer photos'});await photos.getByText('No on-device photos for this customer').waitFor();
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==','base64');
