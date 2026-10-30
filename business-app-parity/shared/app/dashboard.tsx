@@ -1289,7 +1289,7 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
   const saveLock=useRef(false);
   const currentCustomer=useRef(customer.id);currentCustomer.current=customer.id;
   useEffect(()=>{currentCustomer.current=customer.id;return()=>{currentCustomer.current="";};},[customer.id]);
-  const [name,setName]=useState(customer.name);const [email,setEmail]=useState(customer.email);const [phone,setPhone]=useState(customer.phone);const [address,setAddress]=useState(customer.address);
+  const [name,setName]=useState(customer.name??"");const [email,setEmail]=useState(customer.email??"");const [phone,setPhone]=useState(customer.phone??"");const [address,setAddress]=useState(customer.address??"");
   const [leadSource,setLeadSource]=useState(customer.leadSource||"Unknown");
   const [saving,setSaving]=useState(false);
   const [checking,setChecking]=useState(false);
@@ -1298,7 +1298,7 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
   const attempted=useRef<{id:string;name:string;email:string;phone:string;address:string;leadSource:string}|null>(null);
   const matchesSaved=(row:CustomerRow|undefined|null,payload:NonNullable<typeof attempted.current>)=>
     Boolean(row&&Object.entries(payload).every(([key,value])=>row[key as keyof CustomerRow]===value));
-  const reset=()=>{setName(customer.name);setEmail(customer.email);setPhone(customer.phone);setAddress(customer.address);setLeadSource(customer.leadSource||"Unknown");setError("");setUncertain(false);attempted.current=null;};
+  const reset=()=>{setName(customer.name??"");setEmail(customer.email??"");setPhone(customer.phone??"");setAddress(customer.address??"");setLeadSource(customer.leadSource||"Unknown");setError("");setUncertain(false);attempted.current=null;};
   const finish=(row:CustomerRow,id:string)=>{
     if(currentCustomer.current!==id)return;
     setUncertain(false);attempted.current=null;onUpdated({...customer,...row});setOpen(false);
