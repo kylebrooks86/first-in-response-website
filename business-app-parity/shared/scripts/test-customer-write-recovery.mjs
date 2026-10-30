@@ -6,8 +6,8 @@ let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
 function nodes(tree){const result=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;result.push(n);walk(n.props?.children);}walk(tree);return result;}
 const customer=id=>({id,name:'Synthetic '+id,email:'qa-'+id+'@example.invalid',phone:'',address:'Synthetic address',leadSource:'Unknown',createdAt:'2026-10-19',estimateCount:0,estimateTotal:0,paidTotal:0});
 const helpers={};for(const file of ['customer-balance-summary.ts','message-history.ts','customer-activity-flags.ts','offline-photo-availability.ts','customer-contact-links.ts']){const c={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync('lib/'+file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,c);Object.assign(helpers,c.exports);}
-function fixture(name){const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name),states=[],tags=new Set();function visit(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&n.initializer&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')states.push(n.name.elements[0].getText(ast));if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}visit(fn);
- let state=[],cursor=0,refs=[],refCursor=0,effects=[],fetcher,currentCustomer=customer('first');const requests=[],updated=[];
+function fixture(name,editSeed){const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name),states=[],tags=new Set();function visit(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&n.initializer&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')states.push(n.name.elements[0].getText(ast));if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}visit(fn);
+ let state=[],cursor=0,refs=[],refCursor=0,effects=[],fetcher,currentCustomer=editSeed??customer('first');const requests=[],updated=[];
  const context={exports:{},require,crypto:{randomUUID:()=>lastNoteId=randomUUID()},...helpers,...Object.fromEntries([...tags].map(t=>[t,()=>null])),navigator:{onLine:true},money:String,dateTime:String,statusLabel:String,resolvedBillingTotalCents:r=>r.totalCents,billingBalanceCents:r=>Math.max(0,r.totalCents-r.paidCents),saveOfflinePhotoCustomerDirectory:async()=>{},loadOfflinePhotoCustomerDirectory:async()=>[],clearOfflinePhotoCustomerDirectory:async()=>{},
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){effects.push(fn);},fetch:(url,options)=>{requests.push({url,options});return fetcher(url,options);}};
  const source=fn.getText(ast).replace('  // The server-backed customer workflow','  exports.load=load;\n  // The server-backed customer workflow');
@@ -46,6 +46,22 @@ for(const kind of ['success','http','network','json','wrong-customer','wrong-fie
  if(kind==='network')pending.reject(Error('Offline'));else if(kind==='json')pending.resolve({ok:true,json:async()=>{throw Error('Malformed JSON');}});else{const row={...customer('first'),...payload};if(kind==='wrong-customer')row.id='second';if(kind==='wrong-fields')row.name='Unconfirmed';pending.resolve({ok:kind!=='http',json:async()=>({customer:row})});}
  await flush();eq(f.get('saving'),false);
  if(kind==='success'){eq(f.updated.length,1);eq(f.get('open'),false);}else{eq(f.updated.length,0);eq(f.get('open'),true);eq(Boolean(f.get('error')),true);eq(f.get('name'),' Synthetic updated ');f.render().props.onOpenChange(false);eq(f.get('open'),false);}
+}
+
+// Regression: first QA customers may have NULL email/phone in D1. Entering only a
+// phone must not crash when the editor trims the untouched email field.
+{
+ const f=fixture('EditCustomer',{...customer('first'),email:null,phone:null,address:null});
+ f.render().props.onOpenChange(true);f.set('phone','9185550199');
+ f.setFetcher(async()=>({status:200,ok:true,json:async()=>({customer:{...customer('first'),email:'',phone:'9185550199',address:''}})}));
+ f.button('Save changes').props.onClick();await flush();
+ eq(f.requests.length,1,'Null-contact customer can submit a PATCH');
+ const submitted=JSON.parse(f.requests[0].options.body);
+ eq(submitted.email,'','Missing email normalized to safe empty string');
+ eq(submitted.phone,'9185550199','New phone retained when email was initially missing');
+ eq(submitted.address,'','Missing address safely remains empty');
+ eq(f.updated.length,1,'Confirmed null-contact save updates correct customer');
+ eq(f.get('open'),false,'Null-contact save closes after verification');
 }
 
 // An edit may commit even if its PATCH response is lost. Never blindly PATCH twice.
