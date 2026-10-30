@@ -13,6 +13,7 @@ const fixture=`import React,{useEffect,useRef,useState}from'react';import{create
 import{UserPlus,PenLine}from'lucide-react';import{Button}from'./components/ui/button';import{Input}from'./components/ui/input';import{Label}from'./components/ui/label';
 import{Dialog,DialogContent,DialogHeader,DialogTitle,DialogTrigger}from'./components/ui/dialog';
 import{Select,SelectContent,SelectItem,SelectTrigger,SelectValue}from'./components/ui/select';
+import{usableCustomerPhone,usableCustomerEmail}from'./lib/customer-contact-links';
 import{loadCustomerCreateRequest,saveCustomerCreateRequest,clearCustomerCreateRequest,loadCustomerEstimateHandoff,saveCustomerEstimateHandoff,clearCustomerEstimateHandoff,confirmedCreatedCustomer,sameCustomerCreateInput}from'./lib/customer-create-retry';
 ${fn('AddCustomer')}\n${fn('EditCustomer')}
 document.documentElement.dataset.theme=new URLSearchParams(location.search).get('theme')||'light';
