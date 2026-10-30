@@ -47,6 +47,52 @@ for(const kind of ['success','http','network','json','wrong-customer','wrong-fie
  await flush();eq(f.get('saving'),false);
  if(kind==='success'){eq(f.updated.length,1);eq(f.get('open'),false);}else{eq(f.updated.length,0);eq(f.get('open'),true);eq(Boolean(f.get('error')),true);eq(f.get('name'),' Synthetic updated ');f.render().props.onOpenChange(false);eq(f.get('open'),false);}
 }
+
+// An edit may commit even if its PATCH response is lost. Never blindly PATCH twice.
+{
+ const f=fixture('EditCustomer');f.render().props.onOpenChange(true);f.set('phone','9185550111');
+ f.setFetcher((url,options)=>options?.method==='PATCH'?Promise.reject(Error('Lost after server commit')):Promise.resolve({ok:true,json:async()=>({customer:{...customer('first'),phone:'9185550111'}})}));
+ f.button('Save changes').props.onClick();await flush();
+ eq(f.get('uncertain'),true,'Lost acknowledgement is marked uncertain');
+ eq(f.get('open'),true,'Uncertain edit remains open');
+ eq(f.button('Save changes').props.disabled,true,'Second PATCH disabled until authoritative readback');
+ eq(f.requests.filter(x=>x.options?.method==='PATCH').length,1);
+ f.button('Check saved details').props.onClick();await flush();
+ eq(f.updated.length,1,'Matching customer GET confirms already committed save');
+ eq(f.updated[0].phone,'9185550111');
+ eq(f.get('open'),false);
+ eq(f.requests.filter(x=>x.options?.method==='PATCH').length,1,'Readback does not issue another update');
+ eq(f.requests.some(x=>x.url==='/api/customers?confirmEdit=first'),true);
+}
+{
+ const f=fixture('EditCustomer');f.render().props.onOpenChange(true);f.set('phone','9185550111');
+ f.setFetcher((url,options)=>options?.method==='PATCH'?Promise.reject(Error('Lost reply')):Promise.resolve({ok:true,json:async()=>({customer:customer('first')})}));
+ f.button('Save changes').props.onClick();await flush();
+ f.button('Check saved details').props.onClick();await flush();
+ eq(f.updated.length,0,'Unchanged stored customer cannot be reported saved');
+ eq(f.get('uncertain'),false,'Verified mismatch unlocks explicit edit retry');
+ eq(Boolean(f.get('error')),true,'User sees an explanatory mismatch');
+ eq(f.get('phone'),'9185550111','Draft survives mismatch');
+}
+{
+ const f=fixture('EditCustomer');f.render().props.onOpenChange(true);f.set('phone','9185550111');
+ f.setFetcher(async(url,options)=>options?.method==='PATCH'?{status:409,ok:false,json:async()=>({error:'This phone number is already on another customer. Nothing was changed.'})}:null);
+ f.button('Save changes').props.onClick();await flush();
+ eq(f.get('uncertain'),false,'Explicit conflict is not confused with a lost reply');
+ eq(f.get('phone'),'9185550111','Duplicate contact error preserves edit draft');
+ eq(f.get('error').includes('phone number'),true,'Owner sees which contact field conflicts');
+ eq(f.requests.length,1,'No retry or confirmation read was issued for a rejected edit');
+}
+{
+ const f=fixture('EditCustomer');f.render().props.onOpenChange(true);
+ f.setFetcher(()=>Promise.reject(Error('Offline')));
+ f.button('Save changes').props.onClick();await flush();
+ f.button('Check saved details').props.onClick();await flush();
+ eq(f.get('uncertain'),true,'Unreadable saved customer remains uncertain');
+ eq(f.updated.length,0,'Readback failure cannot falsely confirm a save');
+ eq(f.requests.filter(x=>x.options?.method==='PATCH').length,1,'Offline verification does not issue duplicate PATCH');
+}
+
 for(const leave of ['switch','unmount']){
  const f=fixture('EditCustomer'),pending=deferred();f.render().props.onOpenChange(true);f.setFetcher(()=>pending.promise);f.button('Save changes').props.onClick();if(leave==='switch')f.switch('second');else f.unmount();pending.resolve({ok:true,json:async()=>({customer:customer('first')})});await flush();eq(f.updated.length,0,'Late edit response cannot update a different/unmounted customer');
 }
