@@ -5,14 +5,15 @@ import vm from 'node:vm';
 import ts from 'typescript';
 const db=new DatabaseSync(':memory:');
 for(const file of readdirSync('drizzle').filter(name=>name.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
-const env={DB:{prepare(sql){return {sql};},async batch(queries){return queries.map(({sql})=>({results:db.prepare(sql).all()}));}}};
+const env={DB:{prepare(sql){return {sql,async first(){return db.prepare(sql).get()??null;}};},async batch(queries){return queries.map(({sql})=>({results:db.prepare(sql).all()}));}}};
 function load(path,imports){const exports={};const code=ts.transpileModule(readFileSync(path,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;vm.runInNewContext(code,{exports,require:name=>{if(!(name in imports))throw Error('Unexpected import '+name);return imports[name];},Response,process:{env:{NODE_ENV:'production'}}});return exports;}
 let user={email:'kylebrooks8605@gmail.com',fullName:'Kyle Brooks'};
 const auth={getChatGPTUser:async()=>user,requireChatGPTUser:async()=>user,chatGPTSignOutPath:()=>'/logout'};
 const location=load('lib/service-location.ts',{});
 const data=load('lib/dashboard-data.ts',{'./service-location':location});
-const home=load('app/page.tsx',{'../lib/dashboard-data':data,'cloudflare:workers':{env},'./chatgpt-auth':auth,'./dashboard':{Dashboard:'Dashboard'},'react/jsx-runtime':{jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})}});
-const api=load('app/api/dashboard-summary/route.ts',{'../../../lib/dashboard-data':data,'cloudflare:workers':{env},'../../chatgpt-auth':auth});
+const jobs=await import('../lib/job-numbering.mjs');
+const home=load('app/page.tsx',{'../lib/dashboard-data':data,'../lib/job-numbering.mjs':jobs,'cloudflare:workers':{env},'./chatgpt-auth':auth,'./dashboard':{Dashboard:'Dashboard'},'react/jsx-runtime':{jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})}});
+const api=load('app/api/dashboard-summary/route.ts',{'../../../lib/dashboard-data':data,'../../../lib/job-numbering.mjs':jobs,'cloudflare:workers':{env},'../../chatgpt-auth':auth});
 let checks=0;
 function equal(actual,expected){assert.equal(actual,expected);checks++;}
 function seed({status='completed',invoice=null,payments=[],total=10000,deposit=5000}){
@@ -53,6 +54,21 @@ try {
  equal(completedSummary.completedJobs,13);
  equal(completedSummary.recent.length,8);
  equal(completedHome.props.estimates.length,8);
+ // Once permanent numbers are approved, two completed quote revisions are
+ // still one completed JOB in BOTH the server-rendered Home and refreshed API.
+ // This is a disposable in-memory fixture; no hosted migration is applied.
+ db.exec("CREATE TABLE fire_job_estimate_links(estimate_id TEXT PRIMARY KEY,job_number INTEGER NOT NULL)");
+ db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES('e',1)").run();
+ db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES('older-0',1)").run();
+ for(let i=1;i<12;i++)db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES(?,?)").run('older-'+i,i+1);
+ env.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+ const enabledHome=await home.default(),enabledSummary=await (await api.GET()).json();
+ equal(enabledHome.props.metrics.completedJobs,12);
+ equal(enabledSummary.completedJobs,12);
+ // Feature disabled: full historical completed estimate count is still correct.
+ env.FIRE_JOB_NUMBERS_CANDIDATE=undefined;
+ equal((await home.default()).props.metrics.completedJobs,13);
+ equal((await (await api.GET()).json()).completedJobs,13);
  user=null;equal((await api.GET()).status,401);user={email:'other@example.test',fullName:'Other'};equal((await api.GET()).status,401);equal((await home.default()).type,'main');
  console.log(`PASS ${checks}/${checks}: initial page and refreshed API agree for draft/sent/declined, deposit due, revised invoice, principal/tip/refund, overpayment, pending/failed payment and full refund; whole-database completed counts beyond the eight displayed cards; owner access preserved. Synthetic SQLite only.`);
 }finally{db.close();}
