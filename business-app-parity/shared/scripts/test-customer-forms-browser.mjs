@@ -14,6 +14,7 @@ import{UserPlus,PenLine}from'lucide-react';import{Button}from'./components/ui/bu
 import{Dialog,DialogContent,DialogHeader,DialogTitle,DialogTrigger}from'./components/ui/dialog';
 import{Select,SelectContent,SelectItem,SelectTrigger,SelectValue}from'./components/ui/select';
 import{loadCustomerCreateRequest,saveCustomerCreateRequest,clearCustomerCreateRequest,loadCustomerEstimateHandoff,saveCustomerEstimateHandoff,clearCustomerEstimateHandoff,confirmedCreatedCustomer,sameCustomerCreateInput}from'./lib/customer-create-retry';
+import{usableCustomerEmail,usableCustomerPhone}from'./lib/customer-contact-links';
 ${fn('AddCustomer')}\n${fn('EditCustomer')}
 document.documentElement.dataset.theme=new URLSearchParams(location.search).get('theme')||'light';
 window.added=[];window.updated=[];
