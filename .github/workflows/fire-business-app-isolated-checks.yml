@@ -910,6 +910,18 @@ jobs:
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
           test -n "$CHROME" || { echo "Chrome is not available on the runner; do not fall back to unreviewed installs."; exit 1; }
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Actual Add and Edit customer labels, mobile fields and receipt recovery
+        env:
+          FIRE_CUSTOMER_FORMS_DIR: ${{ runner.temp }}/fire-customer-forms-ui
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-customer-forms-browser.mjs
+      - name: Retain synthetic customer form control and recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-customer-forms-control-geometry
+          path: ${{ runner.temp }}/fire-customer-forms-ui/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Actual Follow-ups, Contracts owner list and Owner Account interactions
         env:
           FIRE_FOLLOWUP_UX_DIR: ${{ runner.temp }}/fire-followup-account-contracts-ux
