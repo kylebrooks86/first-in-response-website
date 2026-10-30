@@ -25,6 +25,8 @@ def parse_date(value):
         date=datetime.fromisoformat(value.replace('Z','+00:00'))
         require(date.tzinfo is not None,'Creation date has no timezone')
         return date.timestamp()
+    except HistoryBlocked:
+        raise
     except ValueError:
         raise HistoryBlocked('Invalid creation timestamp') from None
 
