@@ -86,7 +86,9 @@ let moreNode;function findMore(n){if(ts.isJsxElement(n)&&n.openingElement.tagNam
 const detailSource=fn.getText(ast),moreStart=moreNode.getStart(ast)-fn.getStart(ast),moreEnd=moreNode.end-fn.getStart(ast),mainStart=detailSource.indexOf('<div className="detail-actions" aria-label="Customer and estimate actions">');
 eq(moreStart>mainStart&&moreEnd>moreStart,true,'Secondary job tools exist in their own expandable section');
 const primary=detailSource.slice(mainStart,moreStart),secondary=detailSource.slice(moreStart,moreEnd);
-for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','GoogleVoiceCallAction','GoogleVoiceTextAction','PersonalPhoneBackupAction'])eq(primary.includes(label),true,'Daily customer action available: '+label);
+for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','GoogleVoiceCallAction','PersonalPhoneBackupAction'])eq(primary.includes(label),true,'Daily customer action available: '+label);
+eq(primary.includes('initialTemplate="custom" triggerLabel="Text"'),true,'Primary estimate Text opens editable saved/custom template composer');
+eq(primary.includes('GoogleVoiceTextAction phone={estimate.phone}'),false,'No duplicate blank-only Text modal remains in estimate actions');
 eq(primary.includes('tel:')||primary.includes('sms:'),false,'Primary estimate actions never directly launch personal Phone or Messages');
 eq((primary.match(/PersonalPhoneBackupAction/g)||[]).length>=2,true,'Estimate detail keeps explicitly labeled personal call and text backup components');
  eq(primary.includes('sms:'),false,'Estimate detail never offers iPhone personal SMS sender');
