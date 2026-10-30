@@ -52,3 +52,16 @@ export function completedJobCount(row) {
   const value=row?.completedJobs;
   return Number.isSafeInteger(value) && value>=0 ? value : null;
 }
+
+/** Safe customer-link read. Call ONLY after an estimate or invoice was resolved
+ * using its existing unguessable share token. A not-yet-migrated database
+ * omits Job # rather than inventing or exposing a wrong number.
+ */
+export async function jobNumberLabelForEstimate(db, estimateId) {
+  const available=await db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='fire_job_estimate_links'"
+  ).first();
+  if (!available) return null;
+  const row=await db.prepare(JOB_NUMBER_FOR_ESTIMATE_SQL).bind(estimateId).first();
+  return jobNumberLabel(row?.jobNumber);
+}
