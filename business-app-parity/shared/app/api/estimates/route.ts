@@ -41,10 +41,11 @@ export async function GET() {
       `),
       env.DB.prepare(`SELECT i.id,i.estimate_id AS estimateId,i.name,i.description,i.quantity,i.unit,i.total_cents AS totalCents FROM estimate_items i JOIN estimates e ON e.id=i.estimate_id ORDER BY e.created_at DESC,i.rowid ASC`),
     ]);
-    const jobNumbers=await attachedJobNumbers(env.DB,(estimateResult.results as Record<string,unknown>[]).map(row=>String(row.id)));
+    const showJobs=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
+    const jobNumbers=showJobs?await attachedJobNumbers(env.DB,(estimateResult.results as Record<string,unknown>[]).map(row=>String(row.id))):new Map();
     const grouped=new Map<string,ItemRow[]>();
     for(const raw of itemResult.results as unknown as ItemRow[]){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};grouped.set(row.estimateId,[...(grouped.get(row.estimateId)??[]),row]);}
-    const estimates=(estimateResult.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,jobNumber:jobNumbers.get(String(row.id))??null,items,service:items.map((item)=>item.name).join(", ")||"Custom service",serviceDescription:items[0]?.description??""};});
+    const estimates=(estimateResult.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,...(showJobs?{jobNumber:jobNumbers.get(String(row.id))??null}:{}),items,service:items.map((item)=>item.name).join(", ")||"Custom service",serviceDescription:items[0]?.description??""};});
     return Response.json({ estimates });
   } catch {
     return Response.json({ estimates: [], message: "Estimates are temporarily unavailable." }, { status: 503 });
