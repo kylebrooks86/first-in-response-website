@@ -27,7 +27,7 @@ export async function GET() {
   try {
     const [customers, estimates, notes, invoices, photos, messages, payments, estimateItems] = await env.DB.batch([
       env.DB.prepare(`
-        SELECT c.id,c.name,c.email,c.phone,c.address,c.lead_source AS leadSource,c.created_at AS createdAt,
+        SELECT c.id,c.name,COALESCE(c.email,'') AS email,COALESCE(c.phone,'') AS phone,COALESCE(c.address,'') AS address,COALESCE(c.lead_source,'Unknown') AS leadSource,c.created_at AS createdAt,
           COUNT(DISTINCT e.id) AS estimateCount,
           COALESCE((SELECT SUM(COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=ce.id LIMIT 1),ce.total_cents)) FROM estimates ce WHERE ce.customer_id=c.id),0) AS estimateTotal,
           COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN estimates pe ON pe.id=p.estimate_id WHERE pe.customer_id=c.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidTotal
