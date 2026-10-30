@@ -24,7 +24,18 @@ try{
  eq((await search('Synthetic Same','customers')).results.length,2);eq((await search('Special Search','estimates')).results[0].id,'estimate-000');eq((await search('limitation','jobs')).results[0].id,'estimate-000');eq((await search('Invoice-only','invoices')).results[0].kind,'invoice');eq((await search('estimate-064','estimates')).results[0].id,'estimate-064');
  // Job # lookup stays OFF on unmigrated environments. Local SQLite only.
  eq((await search('Job #0001','jobs')).results.length,0);
- db.exec(readFileSync('../job-numbering/job_numbers_v1.sql','utf8'));
+ // Disposable search fixture: full trigger/FK invariants are separately tested
+ // against the authoritative review-only schema in test_job_numbering_schema.py.
+ // Do not depend on a sibling source folder absent in materialized candidates.
+ db.exec(`CREATE TABLE fire_job_numbers (
+   job_number INTEGER PRIMARY KEY AUTOINCREMENT,
+   root_estimate_id TEXT NOT NULL UNIQUE,
+   created_at TEXT NOT NULL
+ );
+ CREATE TABLE fire_job_estimate_links (
+   estimate_id TEXT PRIMARY KEY NOT NULL,
+   job_number INTEGER NOT NULL REFERENCES fire_job_numbers(job_number)
+ );`);
  db.prepare("INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES('estimate-000','2026-10-01')").run();
  db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES('estimate-000',1)").run();
  env.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
