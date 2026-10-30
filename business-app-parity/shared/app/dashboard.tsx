@@ -2012,7 +2012,6 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
     <div className="detail-customer"><span className="customer-avatar">{estimate.customer.split(" ").map((part)=>part[0]).join("").slice(0,2).toUpperCase()}</span><div><strong>{estimate.customer}</strong><small>{estimate.address || "No service address saved"}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong></div>
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current address · original job address unverified.</p>}
     {workingOnJob?<details className="detail-scope detail-scope-optional"><summary>Service scope & expectations</summary><p>{shownDescription}</p></details>:<div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>}
-    <EstimatePromotionHistory key={`promotions:${estimate.id}`} estimateId={estimate.id} totalCents={estimate.totalCents}/>
     {(Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)&&<div className="next-action" role="alert"><AlertTriangle aria-hidden="true"/><div><strong>Payment review needed</strong><p>{paymentReviewMessage}</p></div></div>}
     <div className="detail-actions" aria-label="Customer and estimate actions">
       <EditEstimateDialog estimate={estimate} onSaved={onChanged}/>
@@ -2034,6 +2033,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       {estimate.invoiceId&&estimate.invoiceShareToken&&<a href={`/invoice/${encodeURIComponent(estimate.invoiceShareToken)}?ownerPreview=1&from=estimate`}><Receipt/> View invoice</a>}
       {estimate.status!=="superseded"&&<RecordPayment key={estimate.id} estimate={estimate} onRecorded={(paidCents)=>onChanged({...estimate,paidCents})}/>}
     </div>
+    <EstimatePromotionHistory key={`promotions:${estimate.id}`} estimateId={estimate.id} totalCents={estimate.totalCents}/>
     {estimate.status==="completed"&&(estimate.reviewReceivedAt||estimate.lastReviewRequestAt)&&<p className="text-sm text-muted-foreground" role="status">{estimate.reviewReceivedAt?"Review received · owner logged. Google verification is unavailable.":"Review request send confirmed by owner. Delivery is unverified; check review progress before considering more contact."}</p>}
     <details className="detail-more-tools">
       <summary>More tools</summary>
