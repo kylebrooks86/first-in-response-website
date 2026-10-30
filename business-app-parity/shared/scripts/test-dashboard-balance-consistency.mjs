@@ -38,8 +38,21 @@ try {
  ];
  for(const [fixture,outstanding,openValue] of fixtures){
   seed(fixture);const rendered=await home.default();const refreshed=await (await api.GET()).json();
-  equal(rendered.props.metrics.outstanding,outstanding);equal(refreshed.outstanding,outstanding);equal(rendered.props.metrics.openValue,openValue);equal(refreshed.openValue,openValue);equal(rendered.props.metrics.estimates,refreshed.estimates);equal(rendered.props.estimates[0].paidCents,refreshed.recent[0].paidCents);
+  equal(rendered.props.metrics.outstanding,outstanding);equal(refreshed.outstanding,outstanding);equal(rendered.props.metrics.openValue,openValue);equal(refreshed.openValue,openValue);equal(rendered.props.metrics.estimates,refreshed.estimates);
+  const completed=fixture.status===undefined||fixture.status==='completed'?1:0;
+  equal(rendered.props.metrics.completedJobs,completed);
+  equal(refreshed.completedJobs,completed);
+  equal(rendered.props.estimates[0].paidCents,refreshed.recent[0].paidCents);
  }
+ // The dashboard only renders eight recent jobs. The completed count must
+ // still include every completed database record rather than those eight.
+ seed({status:'completed'});
+ for(let i=0;i<12;i++)db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,'c','completed',10000,10000,5000,?)").run('older-'+i,'2026-10-'+String(i+1).padStart(2,'0'));
+ const completedHome=await home.default(),completedSummary=await (await api.GET()).json();
+ equal(completedHome.props.metrics.completedJobs,13);
+ equal(completedSummary.completedJobs,13);
+ equal(completedSummary.recent.length,8);
+ equal(completedHome.props.estimates.length,8);
  user=null;equal((await api.GET()).status,401);user={email:'other@example.test',fullName:'Other'};equal((await api.GET()).status,401);equal((await home.default()).type,'main');
- console.log(`PASS ${checks}/${checks}: initial page and refreshed API agree for draft/sent/declined, deposit due, revised invoice, principal/tip/refund, overpayment, pending/failed payment and full refund; owner access preserved. Synthetic SQLite only.`);
+ console.log(`PASS ${checks}/${checks}: initial page and refreshed API agree for draft/sent/declined, deposit due, revised invoice, principal/tip/refund, overpayment, pending/failed payment and full refund; whole-database completed counts beyond the eight displayed cards; owner access preserved. Synthetic SQLite only.`);
 }finally{db.close();}
