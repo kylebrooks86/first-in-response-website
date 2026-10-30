@@ -87,8 +87,54 @@ def analyze(db):
         'historicalNumberAssignmentProposedOnly':True,
         'remoteD1Changed':False,
         'deployedAppChanged':False,
-        'mapping':mapping
+        'mapping':mapping,
+        'rootEstimates':{position[id]:id for id in original_ids}
     }
+
+def rehearse_in_memory(db,plan):
+    """Apply proposed Job # schema ONLY to a disposable in-memory restored copy.
+
+    Never call this with a hosted/provider connection. No SQL export, identifiers,
+    or backfill statements are produced for external execution.
+    """
+    require(db.execute('PRAGMA database_list').fetchall()[0][2]=='',
+            'Rehearsal requires a private in-memory database')
+    require(len(plan['mapping'])==plan['estimateCount'] and
+            len(plan['rootEstimates'])==plan['distinctJobs'],
+            'Historical numbering plan is incomplete')
+    sql=Path(__file__).with_name('job_numbers_v1.sql').read_text(encoding='utf-8')
+    db.executescript(sql)
+    db.execute('PRAGMA foreign_keys=ON')
+    require(db.execute('PRAGMA foreign_keys').fetchone()==(1,),
+            'Foreign key enforcement unavailable')
+    try:
+        db.execute('BEGIN')
+        for number,root in sorted(plan['rootEstimates'].items()):
+            created=db.execute('SELECT created_at FROM estimates WHERE id=?',(root,)).fetchone()
+            require(created is not None and isinstance(created[0],str),
+                    'Historical root estimate missing before rehearsal')
+            db.execute('INSERT INTO fire_job_numbers(job_number,root_estimate_id,created_at) VALUES(?,?,?)',
+                       (number,root,created[0]))
+        for estimate,number in plan['mapping'].items():
+            db.execute('INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES(?,?)',
+                       (estimate,number))
+        require(db.execute('SELECT COUNT(*) FROM fire_job_numbers').fetchone()[0]==plan['distinctJobs'],
+                'Historical distinct Job # count mismatch')
+        require(db.execute('SELECT COUNT(*) FROM fire_job_estimate_links').fetchone()[0]==plan['estimateCount'],
+                'Historical estimate-to-job linkage mismatch')
+        count=db.execute("""SELECT COUNT(DISTINCT l.job_number)
+                            FROM fire_job_estimate_links l
+                            JOIN estimates e ON e.id=l.estimate_id WHERE e.status='completed'""").fetchone()[0]
+        require(count==plan['completedJobs'],'Historical completed work count mismatch')
+        require(db.execute('PRAGMA foreign_key_check').fetchall()==[],
+                'Historical backfill would violate foreign keys')
+        require(db.execute('PRAGMA integrity_check').fetchone()==('ok',),
+                'Historical backfill failed SQLite integrity')
+        db.commit()
+    except:
+        db.rollback()
+        raise
+    return {'inMemoryBackfillRehearsalPassed':True,'hostedMigrationApplied':False}
 
 def read_export(path):
     file=Path(path)
@@ -102,7 +148,10 @@ def read_export(path):
         except (sqlite3.Error,UnicodeError):
             raise HistoryBlocked('Private export could not be restored in memory') from None
         require(db.execute('PRAGMA integrity_check').fetchone()==('ok',),'Private export failed integrity check')
-        return analyze(db)
+        plan=analyze(db)
+        proof=rehearse_in_memory(db,plan)
+        plan.update(proof)
+        return plan
     finally:
         db.close()
 
@@ -113,6 +162,7 @@ if __name__=='__main__':
     try:
         result=read_export(args.sql_export)
         result.pop('mapping',None)
+        result.pop('rootEstimates',None)
         print(json.dumps(result,indent=2))
     except (HistoryBlocked,sqlite3.Error,OSError) as e:
         # Never print SQLite SQL, DB values, archive paths, or any exception details
