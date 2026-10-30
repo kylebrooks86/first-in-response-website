@@ -27,7 +27,7 @@ copy of `fire-app-staging-db` with a 22-entry ordered journal, run on the owner'
 private Acer account:
 
 ```
-python business-app-parity/rehearse_staging_22_to_25.py --sql-export "C:\Users\Kyleb\AppData\Local\FIRE-Private-Backups\fire-app-staging-db-20261029-215537.sql"
+python business-app-parity/rehearse_staging_22_to_25.py --sql-export "$env:LOCALAPPDATA\FIRE-Private-Backups\fire-app-staging-db-20261029-215537.sql"
 ```
 
 Do not provide the SQL file, file contents, or encryption password to ChatGPT,
