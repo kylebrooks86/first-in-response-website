@@ -22,9 +22,18 @@ async function readCustomerRequest(request: Request): Promise<Record<string, unk
   }
 }
 
-export async function GET() {
+export async function GET(request?: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
+    // Bounded read-only check for a possibly committed customer edit.
+    // This never triggers another PATCH or exposes owner data to unauthenticated callers.
+    const checkId=request?new URL(request.url).searchParams.get('confirmEdit'):null;
+    if(checkId!==null){
+      if(!checkId||checkId.length>128)return Response.json({error:'Invalid customer confirmation ID.'},{status:400});
+      const customer=await env.DB.prepare("SELECT id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address,lead_source AS leadSource,created_at AS createdAt FROM customers WHERE id=? LIMIT 1")
+        .bind(checkId).first();
+      return customer?Response.json({customer},{headers:{'Cache-Control':'no-store, private'}}):Response.json({error:'Customer record not found.'},{status:404,headers:{'Cache-Control':'no-store, private'}});
+    }
     const [customers, estimates, notes, invoices, photos, messages, payments, estimateItems] = await env.DB.batch([
       env.DB.prepare(`
         SELECT c.id,c.name,c.email,c.phone,c.address,c.lead_source AS leadSource,c.created_at AS createdAt,
@@ -131,17 +140,21 @@ export async function PATCH(request: Request) {
     const normalizedEmail = email.toLowerCase();
     const normalizedPhone = phone.replace(/\D/g, "");
     const others = await env.DB.prepare("SELECT id,email,phone FROM customers WHERE id<>?").bind(id).all<{id:string;email:string|null;phone:string|null}>();
-    const duplicate = others.results.find((customer) =>
-      (normalizedEmail && String(customer.email ?? "").trim().toLowerCase() === normalizedEmail) ||
-      (normalizedPhone && String(customer.phone ?? "").replace(/\D/g, "") === normalizedPhone)
-    );
-    if (duplicate) return Response.json({ error: "Another customer already uses that email or phone number." }, { status: 409 });
+    const duplicateEmail=normalizedEmail&&others.results.some((customer)=>
+      String(customer.email ?? "").trim().toLowerCase()===normalizedEmail);
+    const duplicatePhone=normalizedPhone&&others.results.some((customer)=>
+      String(customer.phone ?? "").replace(/\D/g,"")===normalizedPhone);
+    if(duplicateEmail||duplicatePhone)
+      return Response.json({error:duplicateEmail&&duplicatePhone?
+        "Another customer already has this email and phone number. Nothing was changed.":
+        duplicateEmail?"This email is already on another customer. Nothing was changed.":
+        "This phone number is already on another customer. Nothing was changed."},{status:409});
 
     await env.DB.prepare("UPDATE customers SET name=?,email=?,phone=?,address=?,lead_source=? WHERE id=?")
       .bind(name, email || null, phone || null, address || null, leadSource, id).run();
     const customer = await env.DB.prepare("SELECT id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address,lead_source AS leadSource,created_at AS createdAt FROM customers WHERE id=? LIMIT 1")
       .bind(id).first();
-    return Response.json({ customer });
+    return Response.json({customer},{headers:{'Cache-Control':'no-store, private'}});
   } catch {
     return Response.json({ error: "We couldn't update this customer. Please try again." }, { status: 500 });
   }
