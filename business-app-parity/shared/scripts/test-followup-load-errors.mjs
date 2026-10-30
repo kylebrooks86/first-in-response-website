@@ -52,7 +52,9 @@ function fixture(){
   refresh(){render();effect();},
   unmount(){cleanup?.();},
   clickText(label){const button=lookup(n=>typeof n.props?.onClick==='function'&&n.props?.children===label);assert.ok(button,'Missing button '+label);button.props.onClick();},
-  messageCards:()=>nodes(render()).filter(n=>n.type===stubs.MessageComposer),
+  // Recommendations are separate from the new optional quick Text composer.
+  messageCards:()=>nodes(render()).filter(n=>n.type===stubs.MessageComposer&&n.props?.triggerLabel!=="Text"),
+  quickTexts:()=>nodes(render()).filter(n=>n.type===stubs.MessageComposer&&n.props?.triggerLabel==="Text"),
  };
 }
 // Start with an unreachable server: never claim there are zero follow-ups.
@@ -74,6 +76,7 @@ for(const [name,handler] of [
  eq(f.get(0)[0].id,'synthetic-job',name+' loads actual saved rows after retry');
  eq(f.requests.at(-1).url,'/api/followups?limit=50',name+' requests the current paginated endpoint');
  eq(f.messageCards().length,1,name+' reopens the confirmed follow-up recommendation');
+ eq(f.quickTexts().length,1,name+' preserves the separate quick Text action');
  f.unmount();
 }
 // Refresh fails after a successful load: preserve old recommendations but show the error.
