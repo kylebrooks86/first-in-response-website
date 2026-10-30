@@ -317,7 +317,7 @@ for(const [name,handler] of [
  eq(f.handled.at(-1),'customer:synthetic-customer','Follow-up shortcut targets exact saved customer profile');
  const links=f.nodes().filter(n=>n.type==='a'&&typeof n.props?.href==='string').map(n=>n.props.href);
  eq(f.nodes().some(n=>n.type===f.component('GoogleVoiceCallAction')&&n.props.phone==='9185550100'&&n.props.customerName==='Synthetic QA'),true,'Primary Call retains exact saved recipient through business Voice');
- eq(f.nodes().some(n=>n.type===f.component('GoogleVoiceTextAction')&&n.props.phone==='9185550100'),true,'Primary Text retains exact saved recipient through business Voice');eq(f.nodes().filter(n=>n.type===f.component('PersonalPhoneBackupAction')&&n.props.phone==='9185550100').length,2,'Call/text personal backups remain separate from primary actions');eq(links.some(href=>/^(sms|tel):/.test(href)),false,'No silent primary personal-number route remains');
+ eq(f.quickTexts().some(n=>n.props.customer?.phone==='9185550100'&&n.props.customer?.id==='synthetic-customer'&&n.props.initialTemplate==='custom'),true,'Primary Text retains exact saved recipient through template-enabled business Voice composer');eq(f.nodes().filter(n=>n.type===f.component('PersonalPhoneBackupAction')&&n.props.phone==='9185550100').length,2,'Call/text personal backups remain separate from primary actions');eq(links.some(href=>/^(sms|tel):/.test(href)),false,'No silent primary personal-number route remains');
  eq(links.includes('mailto:qa@example.test'),true,'Manual email opens mail composer without sending');
  const posts=f.requests.filter(x=>x.options?.method==='POST');
  eq(posts.length,0,'Priority filter and contact navigation never POST');
