@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';import vm from 'node:vm';import ts from 'typescript';
 const require=createRequire(import.meta.url),ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='EstimateDetail');assert.ok(fn);
+const detailLayout=fn.getText(ast);
+const actionsAt=detailLayout.indexOf('aria-label="Customer and estimate actions"');
+const historyAt=detailLayout.indexOf('<EstimatePromotionHistory');
+const toolsAt=detailLayout.indexOf('className="detail-more-tools"');
+assert.ok(actionsAt>0&&historyAt>actionsAt&&toolsAt>historyAt,
+ 'Primary estimate actions must be above optional promotion history and More tools.');
+
 const names=[],tags=new Set();function visit(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&n.initializer&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')names.push(n.name.elements[0].getText(ast));if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}visit(fn);
 let checks=0;const eq=(a,b,message)=>{assert.deepEqual(a,b,message);checks++;};const flush=()=>new Promise(r=>setImmediate(r));const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};const ok=(complete,id,customerId='customer')=>({ok:true,json:async()=>({reports:[{estimateId:id,customerId,status:complete?'completed':'draft'}]})});
 const job=id=>({id,customerId:'customer',customer:'Synthetic',service:'Wash',status:'scheduled',items:[],totalCents:20000,depositCents:10000,paidCents:0,createdAt:'2026-10-09',paymentOverageOpen:0});
