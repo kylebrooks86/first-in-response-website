@@ -2,6 +2,7 @@ import {currentInvoice} from "../../../lib/invoice-state.mjs";
 import {customerPropertiesEnabled,propertyAssociationColumns} from '../../../lib/customer-properties';
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import { env } from "cloudflare:workers";
+import {attachedJobNumbers} from "../../../lib/job-numbering.mjs";
 import { getChatGPTUser } from "../../chatgpt-auth";
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
@@ -17,7 +18,9 @@ export async function GET() {
       COALESCE((SELECT COUNT(*) FROM notifications n WHERE n.estimate_id=e.id AND n.type='payment_overage' AND n.resolved_at IS NULL),0) AS paymentOverageOpen,
       (SELECT COUNT(*) FROM payment_refunds r WHERE r.estimate_id=e.id AND r.status='pending') AS pendingRefundCount
       FROM invoices inv JOIN customers c ON c.id=inv.customer_id JOIN estimates e ON e.id=inv.estimate_id ORDER BY inv.created_at DESC`).all();
-    return Response.json({ invoices: result.results.map(currentInvoice) },{headers:{"Cache-Control":"no-store, private"}});
+    const showJobs=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
+    const jobNumbers=showJobs?await attachedJobNumbers(env.DB,result.results.map(row=>String(row.estimateId))):new Map();
+    return Response.json({ invoices: result.results.map(row=>currentInvoice({...row,...(showJobs?{jobNumber:jobNumbers.get(String(row.estimateId))??null}:{})})) },{headers:{"Cache-Control":"no-store, private"}});
   } catch { return Response.json({ error: "Invoices are temporarily unavailable." }, { status: 503 }); }
 }
 

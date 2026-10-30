@@ -7,6 +7,7 @@ import { publicInvoiceFooter } from "../../../lib/fire-templates";
 import { serviceDescriptionFor } from "../../../lib/fire-services";
 import { PayButton } from "../../pay/[id]/pay-button";
 import { paymentHandles } from "../../../lib/payment-methods";
+import {jobNumberLabelForEstimate} from "../../../lib/job-numbering.mjs";
 import { shouldOfferReviewAfterPayment } from "../../../lib/customer-review-invite.mjs";
 import { CustomerReviewInvitation } from "../../../components/customer-review-invitation";
 import { OwnerPreviewTheme } from "../../../components/owner-preview-theme";
@@ -41,6 +42,8 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
     WHERE inv.share_token=? LIMIT 1
   `).bind(token).first<{id:string;estimateId:string;customerId:string;status:string;totalCents:number;dueAt:string|null;createdAt:string;firstViewedAt:string|null;customer:string;address:string|null;serviceAddressSource?:string;estimateShareToken:string|null;estimateStatus:string;paidCents:number;paymentOverageOpen:number;pendingRefundCount:number;openCheckoutCount:number}>();
   if (!row) return <main className="pay-page invoice-page"><section className="pay-card"><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><h1>Invoice not found</h1><p>Please check the link or contact First In Response Exteriors.</p></section></main>;
+  const jobLabel=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1'
+    ?await jobNumberLabelForEstimate(env.DB,row.estimateId):null;
   const itemResult=await env.DB.prepare(`SELECT name,description,quantity,unit,total_cents AS totalCents FROM invoice_items WHERE invoice_id=? ORDER BY rowid ASC`).bind(row.id).all<{name:string;description:string;quantity:number;unit:string;totalCents:number}>();
   const items=itemResult.results.map((item)=>({...item,quantity:Number(item.quantity),totalCents:Number(item.totalCents)}));
   const serviceSummary=items.map((item)=>item.name).join(", ")||"Exterior cleaning service";
@@ -65,7 +68,7 @@ export default async function CustomerInvoicePage({ params, searchParams }: { pa
   return <main className={`pay-page invoice-page${ownerPreview?" owner-estimate-preview":""}`}>{close}<section className="pay-card estimate-portal invoice-portal">
     {ownerPreview&&<aside className="owner-preview-banner" aria-label="Owner preview navigation"><strong>Customer view</strong></aside>}
     <header><img className="portal-logo" src="/fire-app-logo.png" alt="First In Response Exteriors"/><div><strong>FIRST IN RESPONSE</strong><small>EXTERIORS</small></div></header>
-    <div className="pay-title"><p>INVOICE FOR</p><h1>{row.customer}</h1>{row.address&&<span><MapPin/>{row.address}</span>}{row.serviceAddressSource==="legacy-current-unverified"&&<small>Current customer address; original service address unverified.</small>}</div>
+    <div className="pay-title"><p>INVOICE FOR</p><h1>{row.customer}</h1>{jobLabel&&<small>{jobLabel}</small>}{row.address&&<span><MapPin/>{row.address}</span>}{row.serviceAddressSource==="legacy-current-unverified"&&<small>Current customer address; original service address unverified.</small>}</div>
     <div className="portal-service-list">{items.map((item,index)=><div className="pay-line" key={`${item.name}-${index}`}><div><strong>{item.name}</strong>{item.quantity&&<span>{item.quantity} {item.unit}</span>}<p className="portal-service-description">{item.description||serviceDescriptionFor(item.name)}</p></div><strong>{currency(item.totalCents)}</strong></div>)}</div>
     <div className="pay-summary invoice-payment-summary" aria-label="Invoice payment breakdown">
       <span><small>Invoice total</small><strong>{currency(row.totalCents)}</strong></span>

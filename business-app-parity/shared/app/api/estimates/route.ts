@@ -5,6 +5,7 @@ import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,buildPromotionAttribution,promotio
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import {customerPropertiesEnabled,propertyAssociationColumns,propertyEstimatesTestEnabled,selectEstimateProperty,PropertySelectionError} from '../../../lib/customer-properties';
 import { env } from "cloudflare:workers";
+import {attachedJobNumbers,newJobStatements,replacementJobStatement,JOB_NUMBER_FOR_ESTIMATE_SQL,jobNumberLabel} from "../../../lib/job-numbering.mjs";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {customerIdentityPredicate,duplicateCustomer} from '../../../lib/customer-identity';
 import {ESTIMATE_CREATE_PROOF_PREFIX,validEstimateCreateRequestId,fingerprintEstimateCreateRequest,readEstimateCreateProof,type EstimateCreateProof} from '../../../lib/estimate-create-idempotency';
@@ -40,9 +41,11 @@ export async function GET() {
       `),
       env.DB.prepare(`SELECT i.id,i.estimate_id AS estimateId,i.name,i.description,i.quantity,i.unit,i.total_cents AS totalCents FROM estimate_items i JOIN estimates e ON e.id=i.estimate_id ORDER BY e.created_at DESC,i.rowid ASC`),
     ]);
+    const showJobs=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
+    const jobNumbers=showJobs?await attachedJobNumbers(env.DB,(estimateResult.results as Record<string,unknown>[]).map(row=>String(row.id))):new Map();
     const grouped=new Map<string,ItemRow[]>();
     for(const raw of itemResult.results as unknown as ItemRow[]){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};grouped.set(row.estimateId,[...(grouped.get(row.estimateId)??[]),row]);}
-    const estimates=(estimateResult.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,items,service:items.map((item)=>item.name).join(", ")||"Custom service",serviceDescription:items[0]?.description??""};});
+    const estimates=(estimateResult.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,...(showJobs?{jobNumber:jobNumbers.get(String(row.id))??null}:{}),items,service:items.map((item)=>item.name).join(", ")||"Custom service",serviceDescription:items[0]?.description??""};});
     return Response.json({ estimates });
   } catch {
     return Response.json({ estimates: [], message: "Estimates are temporarily unavailable." }, { status: 503 });
@@ -122,6 +125,19 @@ export async function POST(request: Request) {
          appreciationDiscount:Boolean(appreciationDiscount),additionalDiscountType,additionalDiscountValue,bundleDiscountCents,totalCents:total,depositCents:deposit});
       }catch(err){return Response.json({error:err instanceof Error?err.message:'Promotion rules changed. Refresh before saving.'},{status:409});}
     }const shareToken=crypto.randomUUID().replaceAll("-","");const now=new Date().toISOString();
+    // A feature flag cannot bypass hosted schema and immutability checks.
+    // Existing QA/staging/LIVE remain on their unchanged estimate workflow.
+    const jobNumberFlag=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
+    if(jobNumberFlag){
+      const jobSchema=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('fire_job_numbers','fire_job_estimate_links')) AS tableCount,(SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name IN ('fire_job_numbers_no_update','fire_job_numbers_no_delete','fire_job_estimate_links_no_update','fire_job_estimate_links_no_delete')) AS triggerCount").first<{tableCount:number;triggerCount:number}>();
+      if(Number(jobSchema?.tableCount)!==2||Number(jobSchema?.triggerCount)!==4)
+        return Response.json({error:'Job numbering schema is not fully installed. No estimate was created.'},{status:503});
+      if(revisionSource){
+        const sourceNumber=await env.DB.prepare(JOB_NUMBER_FOR_ESTIMATE_SQL).bind(revisionSource.id).first<{jobNumber:number}>();
+        if(!jobNumberLabel(sourceNumber?.jobNumber))
+          return Response.json({error:'Original Job # not verified. No replacement quote was created.'},{status:409});
+      }
+    }
     const statements=[];
     if(revisionSource){
       statements.push(supersedeQuoteStatement(env.DB,revisionSource));
@@ -146,6 +162,10 @@ export async function POST(request: Request) {
     if(selection)serviceAddress=selection.property.address+(selection.property.designation?' · '+selection.property.designation:'');
     const estimateValues=[estimateId,customerId,subtotal,appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,total,deposit,shareToken,now];
     statements.push(revisionSource?env.DB.prepare("INSERT INTO estimates (id,customer_id,status,subtotal_cents,discount_cents,appreciation_discount,additional_discount_type,additional_discount_value,total_cents,deposit_cents,share_token,created_at) SELECT ?,?,'draft',?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM estimates e WHERE e.id=? AND e.status='superseded' AND NOT EXISTS(SELECT 1 FROM payments WHERE estimate_id=e.id) AND NOT EXISTS(SELECT 1 FROM payment_checkout_sessions WHERE estimate_id=e.id) AND NOT EXISTS(SELECT 1 FROM invoices WHERE estimate_id=e.id) AND NOT EXISTS(SELECT 1 FROM deposit_policy_events WHERE estimate_id=e.id))").bind(...estimateValues,revisionSource.id):env.DB.prepare("INSERT INTO estimates (id,customer_id,status,subtotal_cents,discount_cents,appreciation_discount,additional_discount_type,additional_discount_value,total_cents,deposit_cents,share_token,created_at) VALUES (?,?,'draft',?,?,?,?,?,?,?,?,?)").bind(...estimateValues));
+    if(jobNumberFlag){
+      if(revisionSource)statements.push(replacementJobStatement(env.DB,estimateId,revisionSource.id));
+      else statements.push(...newJobStatements(env.DB,estimateId,now));
+    }
     if(serviceLocationsEnabled(env))statements.push(env.DB.prepare("INSERT INTO estimate_service_locations(estimate_id,customer_id,address,captured_at) VALUES(?,?,?,?)").bind(estimateId,customerId,serviceAddress,now));
     if(selection)statements.push(env.DB.prepare('INSERT INTO estimate_property_links(estimate_id,customer_id,property_id,property_revision,selection_mode,captured_at) VALUES(?,?,?,?,?,?)').bind(estimateId,customerId,selection.property.id,selection.property.revision,selection.mode,now));
     for(const item of items)statements.push(env.DB.prepare("INSERT INTO estimate_items (id,estimate_id,name,description,quantity,unit,total_cents) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),estimateId,item.name,item.description,item.quantity,item.unit,item.totalCents));
