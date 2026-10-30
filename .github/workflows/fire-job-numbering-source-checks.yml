@@ -7,6 +7,7 @@ on:
     paths:
       - 'business-app-parity/job-numbering/**'
       - 'business-app-parity/test_job_numbering_schema.py'
+      - 'business-app-parity/test_job_history_preflight.py'
       - 'business-app-parity/shared/lib/job-numbering.mjs'
       - 'business-app-parity/shared/scripts/test-job-numbering.mjs'
       - '.github/workflows/fire-job-numbering-source-checks.yml'
@@ -14,6 +15,7 @@ on:
     paths:
       - 'business-app-parity/job-numbering/**'
       - 'business-app-parity/test_job_numbering_schema.py'
+      - 'business-app-parity/test_job_history_preflight.py'
       - 'business-app-parity/shared/lib/job-numbering.mjs'
       - 'business-app-parity/shared/scripts/test-job-numbering.mjs'
       - '.github/workflows/fire-job-numbering-source-checks.yml'
@@ -41,6 +43,8 @@ jobs:
           node-version: '22'
       - name: SQLite jobs, revision, invoice linkage and no-reuse invariants
         run: python -m unittest discover -s business-app-parity -p 'test_job_numbering_schema.py' -v
+      - name: Preflight historical quote revisions and completed-job counts
+        run: python -m unittest discover -s business-app-parity -p 'test_job_history_preflight.py' -v
       - name: Job labels and database statement contract
         run: node business-app-parity/shared/scripts/test-job-numbering.mjs
       - name: Assert no active migration journal was changed for this prototype
