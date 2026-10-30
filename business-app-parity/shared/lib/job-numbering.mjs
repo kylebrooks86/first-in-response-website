@@ -1,0 +1,54 @@
+/** FIRE Job # source contract.
+ * Internal UUIDs remain unchanged. One permanent job number is shared by a
+ * first estimate, its signed revisions, its schedule and its final invoice.
+ * New estimates allocate in the SAME atomic D1 batch as the new estimate row.
+ * Importing this module never connects to D1 or modifies a database.
+ */
+export const JOB_NUMBER_FOR_ESTIMATE_SQL =
+  'SELECT job_number AS jobNumber FROM fire_job_estimate_links WHERE estimate_id=?';
+
+export const COMPLETED_JOB_COUNT_SQL =
+  "SELECT COUNT(DISTINCT links.job_number) AS completedJobs FROM fire_job_estimate_links links JOIN estimates e ON e.id=links.estimate_id WHERE e.status='completed'";
+
+export const JOB_REFERENCE_BY_INVOICE_SQL =
+  'SELECT links.job_number AS jobNumber FROM invoices inv JOIN fire_job_estimate_links links ON links.estimate_id=inv.estimate_id WHERE inv.id=?';
+
+export function jobNumberLabel(value) {
+  const number = typeof value==='number' ? value
+    : typeof value==='string' && /^[1-9]\d*$/.test(value) ? Number(value) : NaN;
+  return Number.isSafeInteger(number) && number > 0
+    ? 'Job #' + String(number).padStart(4,'0') : null;
+}
+
+/** Call ONLY in the same atomic batch that persists a first estimate. */
+export function newJobStatements(db, estimateId, createdAt) {
+  if (typeof estimateId !== 'string' || !/^[0-9a-f-]{36}$/i.test(estimateId) ||
+      typeof createdAt !== 'string' || !Number.isFinite(Date.parse(createdAt))) {
+    throw new TypeError('New FIRE job requires a saved estimate ID and creation time');
+  }
+  return [
+    db.prepare('INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES (?,?)')
+      .bind(estimateId,createdAt),
+    db.prepare('INSERT INTO fire_job_estimate_links(estimate_id,job_number) SELECT ?,job_number FROM fire_job_numbers WHERE root_estimate_id=?')
+      .bind(estimateId,estimateId)
+  ];
+}
+
+/** New quote revisions keep their original job number. A missing original link
+ * must block the operation; it must never silently allocate a second Job #.
+ * The caller must assert that exactly one link was inserted.
+ */
+export function replacementJobStatement(db, newEstimateId, previousEstimateId) {
+  if (![newEstimateId, previousEstimateId].every(
+      x => typeof x === 'string' && /^[0-9a-f-]{36}$/i.test(x)) ||
+      newEstimateId === previousEstimateId) {
+    throw new TypeError('Replacement must reference two distinct estimate IDs');
+  }
+  return db.prepare('INSERT INTO fire_job_estimate_links(estimate_id,job_number) SELECT ?,job_number FROM fire_job_estimate_links WHERE estimate_id=?')
+    .bind(newEstimateId,previousEstimateId);
+}
+
+export function completedJobCount(row) {
+  const value=row?.completedJobs;
+  return Number.isSafeInteger(value) && value>=0 ? value : null;
+}
