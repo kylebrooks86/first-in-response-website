@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync,readdirSync} from 'node:fs';
 import ts from 'typescript';
+import {stackedRuntime} from './stacked-discount-test-runtime.mjs';
 import {jobNumberLabelForEstimate,newJobStatements,replacementJobStatement} from '../lib/job-numbering.mjs';
 
 let checks=0;
@@ -80,3 +81,45 @@ try{
    'Two completed jobs, not three completed/replaced estimate records');
  console.log(`PASS ${checks} real page structure, token-scoped permanent Job #, revised estimate/invoice consistency and unrelated customer isolation. Local SQLite only.`);
 }finally{db.close();}
+
+// Actual owner estimate POST and replay, with isolated candidate-like schema.
+// A committed estimate returns its real database Job # on the first receipt;
+// repeating the same request must never allocate another job or mutate records.
+const runtime=stackedRuntime();
+try{
+ runtime.db.exec(`CREATE TABLE fire_job_numbers(job_number INTEGER PRIMARY KEY AUTOINCREMENT,root_estimate_id TEXT NOT NULL UNIQUE REFERENCES estimates(id),created_at TEXT NOT NULL);
+ CREATE TABLE fire_job_estimate_links(estimate_id TEXT PRIMARY KEY NOT NULL REFERENCES estimates(id),job_number INTEGER NOT NULL REFERENCES fire_job_numbers(job_number));
+ CREATE TRIGGER fire_job_numbers_no_update BEFORE UPDATE ON fire_job_numbers BEGIN SELECT RAISE(ABORT,'immutable'); END;
+ CREATE TRIGGER fire_job_numbers_no_delete BEFORE DELETE ON fire_job_numbers BEGIN SELECT RAISE(ABORT,'immutable'); END;
+ CREATE TRIGGER fire_job_estimate_links_no_update BEFORE UPDATE ON fire_job_estimate_links BEGIN SELECT RAISE(ABORT,'immutable'); END;
+ CREATE TRIGGER fire_job_estimate_links_no_delete BEFORE DELETE ON fire_job_estimate_links BEGIN SELECT RAISE(ABORT,'immutable'); END;`);
+ runtime.env.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+ const requestId='44444444-4444-4444-8444-444444444444';
+ const quote={requestId,customer:'Synthetic Job Number Receipt',email:'synthetic-job@example.invalid',phone:'9185550100',address:'100 Synthetic Job St',
+  items:[{name:'Custom Service',description:'Synthetic only',quantity:1,unit:'job',totalCents:2500}],
+  appreciationDiscount:false,additionalDiscountType:'percent',additionalDiscountValue:0,bundleDiscountCents:0};
+ const firstResponse=await runtime.post(quote),first=await firstResponse.json();
+ eq(firstResponse.status,201,'New permanent-numbered estimate saves once');
+ eq(first.jobNumber,1,'First saved receipt includes the database-assigned Job #0001');
+ eq(first.id,requestId,'Original idempotent operation ID is unchanged');
+ const beforeReplay=runtime.counters().writes;
+ const repeatResponse=await runtime.post(quote),repeat=await repeatResponse.json();
+ eq(repeatResponse.status,200,'Retry returns the original receipt');
+ eq(repeat.replayed,true,'Retry is explicitly identified');
+ eq(repeat.id,first.id,'Retry cannot create a second estimate');
+ eq(repeat.jobNumber,first.jobNumber,'Retry returns the identical permanent Job #');
+ eq(runtime.counters().writes,beforeReplay,'Retry has no financial/customer writes');
+ eq(runtime.db.prepare('SELECT COUNT(*) AS n FROM fire_job_numbers').get().n,1,'One job number was allocated');
+ eq(runtime.db.prepare('SELECT COUNT(*) AS n FROM fire_job_estimate_links').get().n,1,'One estimate link was allocated');
+ const secondResponse=await runtime.post({...quote,requestId:'55555555-5555-4555-8555-555555555555',customer:'Synthetic Second Customer',email:'second-job@example.invalid'});
+ const second=await secondResponse.json();
+ eq(secondResponse.status,201,'Second independent job saves');
+ eq(second.jobNumber,2,'Second independent customer receives Job #0002');
+ eq(runtime.db.prepare('SELECT COUNT(*) AS n FROM fire_job_numbers').get().n,2,'Two independent jobs each have permanent numbers');
+ // If the owner deliberately has not enabled numbering, never invent a
+ // serial in the quote receipt, even when other local mappings exist.
+ runtime.env.FIRE_JOB_NUMBERS_CANDIDATE=undefined;
+ const third=await (await runtime.post({...quote,requestId:'66666666-6666-4666-8666-666666666666',customer:'Synthetic Legacy Customer',email:'legacy-job@example.invalid'})).json();
+ eq('jobNumber' in third,false,'Disabled candidate never advertises an unverified reference');
+}finally{runtime.db.close();}
+
