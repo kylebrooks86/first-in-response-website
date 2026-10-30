@@ -1,0 +1,39 @@
+name: FIRE Staging Offline Migration Rehearsal
+
+on:
+  push:
+    branches:
+      - work/fire-staging-safe-migration-rehearsal-2026-10-29
+    paths:
+      - 'business-app-parity/rehearse_staging_22_to_25.py'
+      - 'business-app-parity/test_rehearse_staging_22_to_25.py'
+      - 'business-app-parity/adapters/doomsday/drizzle/**'
+      - '.github/workflows/fire-staging-offline-rehearsal.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/rehearse_staging_22_to_25.py'
+      - 'business-app-parity/test_rehearse_staging_22_to_25.py'
+      - 'business-app-parity/adapters/doomsday/drizzle/**'
+      - '.github/workflows/fire-staging-offline-rehearsal.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source-only-migration-rehearsal:
+    name: Synthetic 22-to-25 D1 migration rehearsal (NO Cloudflare writes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout candidate; never persist credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Six negative-control unit tests
+        run: python -m unittest discover -s business-app-parity -p 'test_rehearse_staging_22_to_25.py' -v
+      - name: Rehearse actual 25-source migration files in memory (no customer export)
+        run: python business-app-parity/rehearse_staging_22_to_25.py
