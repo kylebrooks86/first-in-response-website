@@ -1289,26 +1289,40 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
   const saveLock=useRef(false);
   const currentCustomer=useRef(customer.id);currentCustomer.current=customer.id;
   useEffect(()=>{currentCustomer.current=customer.id;return()=>{currentCustomer.current="";};},[customer.id]);
-  const [name,setName]=useState(customer.name);const [email,setEmail]=useState(customer.email);const [phone,setPhone]=useState(customer.phone);const [address,setAddress]=useState(customer.address);
+  // D1 stores blank contact fields as SQL NULL; customer GET can return null
+  // even though the UI inputs must always hold strings.
+  const [name,setName]=useState(customer.name??"");const [email,setEmail]=useState(customer.email??"");const [phone,setPhone]=useState(customer.phone??"");const [address,setAddress]=useState(customer.address??"");
   const [leadSource,setLeadSource]=useState(customer.leadSource||"Unknown");
   const [saving,setSaving]=useState(false);
+  const [saveUncertain,setSaveUncertain]=useState(false);
   const [error,setError]=useState("");
-  const reset=()=>{setName(customer.name);setEmail(customer.email);setPhone(customer.phone);setAddress(customer.address);setLeadSource(customer.leadSource||"Unknown");setError("");};
+  const reset=()=>{setName(customer.name??"");setEmail(customer.email??"");setPhone(customer.phone??"");setAddress(customer.address??"");setLeadSource(customer.leadSource||"Unknown");setError("");setSaveUncertain(false);};
   const save=async()=>{
-    if(saveLock.current||currentCustomer.current!==customer.id)return;
-    if(!name.trim()){setError("Customer name is required.");return;}
-    const id=customer.id;const payload={id,name:name.trim(),email:email.trim(),phone:phone.trim(),address:address.trim(),leadSource};
+    if(saveLock.current||saveUncertain||currentCustomer.current!==customer.id)return;
+    const id=customer.id;
+    const payload={id,name:String(name??"").trim(),email:String(email??"").trim(),phone:String(phone??"").trim(),address:String(address??"").trim(),leadSource:String(leadSource||"Unknown")};
+    if(!payload.name){setError("Customer name is required.");return;}
     saveLock.current=true;setSaving(true);setError("");
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),15000);
     try{
-      const response=await fetch("/api/customers",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
+      const response=await fetch("/api/customers",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(payload),signal:controller.signal});
       const result=await response.json() as {customer?:CustomerRow;error?:string};
       if(currentCustomer.current!==id)return;
       if(!response.ok)throw new Error(result?.error||"The customer could not be updated.");
       if(!result?.customer||Object.entries(payload).some(([key,value])=>result.customer?.[key as keyof CustomerRow]!==value))throw new Error("The saved customer could not be verified. Reopen this profile to check its details before trying again.");
       onUpdated({...customer,...result.customer});
       setOpen(false);
-    }catch(saveError){if(currentCustomer.current===id)setError(saveError instanceof Error?saveError.message:"The customer could not be updated.");}
-    finally{saveLock.current=false;if(currentCustomer.current===id)setSaving(false);}
+    }catch(saveError){
+      if(currentCustomer.current===id){
+        // A timed-out request might have committed on D1; do not silently
+        // retry or claim failure. Require reopening/refetching this record.
+        const timedOut=controller.signal.aborted;
+        if(timedOut)setSaveUncertain(true);
+        setError(timedOut?"Save confirmation timed out. The change might have saved. Close this window, refresh this customer, and check the fields before trying again.":saveError instanceof Error?saveError.message:"The customer could not be updated.");
+      }
+    }
+    finally{clearTimeout(timer);saveLock.current=false;if(currentCustomer.current===id)setSaving(false);}
   };
   return <Dialog open={open} onOpenChange={(value)=>{if(saveLock.current||currentCustomer.current!==customer.id)return;setOpen(value);if(value)reset();else setError("");}}>
     <DialogTrigger asChild><Button variant="outline"><PenLine className="h-4 w-4"/> Edit customer</Button></DialogTrigger>
@@ -1321,7 +1335,7 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
         <div><Label htmlFor={`edit-customer-${customer.id}-address`}>Service address</Label><Input id={`edit-customer-${customer.id}-address`} placeholder="Tulsa-area address" value={address} onChange={(event)=>setAddress(event.target.value)}/></div>
         <div><Label htmlFor={`edit-customer-${customer.id}-source`}>How they found FIRE</Label><Select value={leadSource} onValueChange={setLeadSource}><SelectTrigger id={`edit-customer-${customer.id}-source`}><SelectValue/></SelectTrigger><SelectContent>{["Referral","Google","Facebook","Website","Repeat customer","Door knocking","Other","Unknown"].map((source)=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div>
         {error&&<p className="save-error" role="alert">{error}</p>}
-        <Button className="brand-button" onClick={()=>void save()} disabled={saving}>{saving?"Saving…":"Save changes"}</Button>
+        <Button className="brand-button" onClick={()=>void save()} disabled={saving||saveUncertain}>{saving?"Saving…":saveUncertain?"Refresh customer before retrying":"Save changes"}</Button>
       </fieldset></div>
     </DialogContent>
   </Dialog>;
