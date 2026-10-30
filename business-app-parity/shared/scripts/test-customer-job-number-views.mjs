@@ -19,7 +19,8 @@ for(const [path,fn,sourceEstimate] of [
  const page=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===fn);
  assert.ok(page,'Actual customer-facing page found: '+fn);checks++;
  const pageText=page.getText(ast);
- assert.ok(pageText.indexOf('if(!row)')<pageText.indexOf('const jobLabel='),
+ const notFound=pageText.match(/if\s*\(\s*!row\s*\)/);
+ assert.ok(notFound&&pageText.indexOf(notFound[0])<pageText.indexOf('const jobLabel='),
   'Unknown or invalid customer token cannot resolve a job reference');checks++;
  assert.ok(pageText.includes('FIRE_JOB_NUMBERS_CANDIDATE')&&pageText.includes("'owner-approved-schema-v1'"),
   'Job # is only displayed after an explicitly approved schema enablement');checks++;
