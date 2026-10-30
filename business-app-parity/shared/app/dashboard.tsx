@@ -385,7 +385,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   };
   const log=async(channel:"text_prepared"|"email_prepared"|"copy")=>{
     if(preparationLock.current)return false;
-    const payload={customerId:customer.id,estimateId:estimate?.id,channel,template,body};
+    // Match the API's normalization before signing or comparing its receipt.
+    // Keep internal line breaks; only surrounding whitespace is discarded.
+    const messageBody=body.trim();
+    if(!messageBody){setMessageStatus("Write a message before preparing it.");return false;}
+    const payload={customerId:customer.id,estimateId:estimate?.id,channel,template,body:messageBody};
     const signature=JSON.stringify(payload);
     if(uncertainPreparation.current&&uncertainPreparation.current.signature!==signature){
       setMessageStatus("A previous message preparation is unconfirmed. Restore its original text and retry the same request, or reopen saved drafts to verify it first.");
@@ -393,9 +397,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     }
     if(!uncertainPreparation.current)uncertainPreparation.current={requestId:crypto.randomUUID(),signature};
     const operation=uncertainPreparation.current,scope=messageScope.current;
-    preparationLock.current=true;setWorking(true);
+    preparationLock.current=true;setWorking(true);setMessageStatus("Preparing message…");
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),15000);
     try{
-      const response=await fetch("/api/customer-messages",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...payload,requestId:operation.requestId})});
+      const response=await fetch("/api/customer-messages",{method:"POST",signal:controller.signal,headers:{"content-type":"application/json"},body:JSON.stringify({...payload,requestId:operation.requestId})});
       const result=await response.json() as {message?:CustomerMessage;error?:string};
       const saved=result.message;
       if(scope!==messageScope.current)return false;
@@ -404,7 +410,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
         return false;
       }
       if(saved.id!=="owner-message-prep:"+operation.requestId||saved.customerId!==customer.id||
-        (saved.estimateId??"")!==(estimate?.id??"")||saved.channel!==channel||saved.template!==template||saved.body!==body){
+        (saved.estimateId??"")!==(estimate?.id??"")||saved.channel!==channel||saved.template!==template||saved.body!==messageBody){
         setMessageStatus("The saved message receipt does not match this preparation. Review saved drafts before trying again.");
         return false;
       }
@@ -418,11 +424,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       if(scope!==messageScope.current)return false;
       setMessageStatus("Message preparation may already be saved. Retry the unchanged draft with the same request or reopen saved drafts.");
       return false;
-    }finally{preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
+    }finally{clearTimeout(timeout);preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
   };
   const copyVoiceField=async(text:string,success:string,failure:string)=>{try{await navigator.clipboard.writeText(text);setMessageStatus(success);}catch{setMessageStatus(failure);}};
   const sendText=async()=>{if(!await log("text_prepared"))return;setMessageStatus("Prepared for Google Voice. Tap Text below to approve in your Shortcut, or use the manual options. Sending remains unconfirmed.");};
-  const sendEmail=async()=>{if(!await log("email_prepared"))return;window.location.href=`mailto:${customer.email}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(body)}`;};
+  const sendEmail=async()=>{if(!await log("email_prepared"))return;setMessageStatus("Email prepared. Tap Open email app below, then send from your business account. Sending remains unconfirmed.");};
   const confirmSent=async()=>{
     if(!preparedMessage||preparationLock.current)return;
     const draft=preparedMessage,scope=messageScope.current;
@@ -487,6 +493,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
         </section>}
         {!preparedMessage&&pendingMessages.length===0&&pendingNextCursor&&<Button variant="outline" onClick={()=>void loadOlderPendingMessages()} disabled={pendingOlderLoading}>{pendingOlderLoading?"Loading older drafts…":"Load older prepared messages"}</Button>}
         {preparedMessage?.channel==="text_prepared"&&<section className="rounded-lg border p-3" aria-label="Google Voice text handoff"><strong>Send using FIRE Google Voice</strong><p>To: {customer.name} · {customer.phone}</p><div className="flex flex-wrap gap-2"><GoogleVoiceTextShortcutAction phone={customer.phone} message={preparedMessage.body} label="Text"/><Button variant="outline" type="button" onClick={()=>void copyVoiceField(customer.phone,"Customer number copied for Google Voice. Sending not yet confirmed.","Copy failed. Enter the displayed recipient number in Google Voice.")}><Copy className="h-4 w-4"/> Copy number</Button><Button variant="outline" type="button" onClick={()=>void copyVoiceField(preparedMessage.body,"Prepared message copied. Paste and send it in Google Voice.","Copy failed. Select the saved message below to copy it.")}><Copy className="h-4 w-4"/> Copy message</Button><a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={GOOGLE_VOICE_URL} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4"/> Open Google Voice</a><PersonalPhoneBackupAction phone={customer.phone} mode="text" customerName={customer.name} message={preparedMessage.body}/></div><small>Approve the recipient and message in your Shortcut, or paste them into Google Voice. Text (Backup) uses your personal number and adds an alternate-number introduction.</small></section>}
+        {preparedMessage?.channel==="email_prepared"&&<section className="rounded-lg border p-3" aria-label="Prepared email handoff"><strong>Send email</strong>{usableCustomerEmail(customer.email)?<a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={`mailto:${encodeURIComponent(usableCustomerEmail(customer.email)!)}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(preparedMessage.body)}`}><Mail className="h-4 w-4"/> Open email app</a>:<p role="alert">Add a valid customer email before sending.</p>}<small>Choose your business sender in the email app. If no app opens, copy the message into your business email.</small><Button type="button" variant="outline" onClick={()=>void copyVoiceField(preparedMessage.body,"Prepared email copied. Sending remains unconfirmed.","Copy failed. Select the saved message below to copy it.")}>Copy email message</Button></section>}
          {preparedMessage&&<div className="message-confirm-actions"><p>Confirm here only after you send the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}. Opening another app does not confirm sending.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button><Button variant="outline" disabled={working} onClick={()=>void cancelPrepared()}>Discard unsent draft</Button></div>}
         <div><Label htmlFor={`message-template-${customer.id}-${estimate?.id??"general"}`}>Template</Label><Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}><SelectTrigger id={`message-template-${customer.id}-${estimate?.id??"general"}`}><SelectValue/></SelectTrigger><SelectContent>{composerTemplates.map((item)=><SelectItem key={item.key} value={item.key}>{item.name}</SelectItem>)}</SelectContent></Select></div>
         <div><Label htmlFor="customerMessage">Message text</Label><Textarea id="customerMessage" disabled={working} readOnly={Boolean(preparedMessage)} value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={8}/></div>

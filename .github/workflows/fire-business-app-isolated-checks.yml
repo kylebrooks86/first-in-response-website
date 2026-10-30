@@ -919,6 +919,8 @@ jobs:
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
           test -n "$CHROME" || { echo "Chrome is not available on the runner; do not fall back to unreviewed installs."; exit 1; }
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Actual prepared text and email handoff on narrow phones in both themes
+        run: node scripts/test-message-composer-handoff-browser.mjs
       - name: Actual Add and Edit customer labels, mobile fields and receipt recovery
         env:
           FIRE_CUSTOMER_FORMS_DIR: ${{ runner.temp }}/fire-customer-forms-ui
