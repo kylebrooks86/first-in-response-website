@@ -485,6 +485,8 @@ jobs:
           node --experimental-sqlite scripts/test-invoice-current-state.mjs
           node --experimental-sqlite scripts/test-change-request-history.mjs
           node --experimental-sqlite scripts/test-global-search.mjs
+          node --experimental-sqlite scripts/test-customer-job-number-views.mjs
+          node --experimental-sqlite scripts/test-dashboard-balance-consistency.mjs
           node --experimental-sqlite scripts/test-deposit-policy.mjs
            node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
            node --experimental-sqlite scripts/test-deposit-exception-transaction.mjs
@@ -667,6 +669,8 @@ jobs:
           node --experimental-sqlite scripts/test-invoice-current-state.mjs
           node --experimental-sqlite scripts/test-change-request-history.mjs
           node --experimental-sqlite scripts/test-global-search.mjs
+          node --experimental-sqlite scripts/test-customer-job-number-views.mjs
+          node --experimental-sqlite scripts/test-dashboard-balance-consistency.mjs
           node --experimental-sqlite scripts/test-deposit-policy.mjs
            node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
            node --experimental-sqlite scripts/test-deposit-exception-transaction.mjs
@@ -771,6 +775,8 @@ jobs:
           node --experimental-sqlite scripts/test-invoice-current-state.mjs
           node --experimental-sqlite scripts/test-change-request-history.mjs
           node --experimental-sqlite scripts/test-global-search.mjs
+          node --experimental-sqlite scripts/test-customer-job-number-views.mjs
+          node --experimental-sqlite scripts/test-dashboard-balance-consistency.mjs
           node --experimental-sqlite scripts/test-deposit-policy.mjs
            node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
            node --experimental-sqlite scripts/test-deposit-exception-transaction.mjs
