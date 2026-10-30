@@ -36,18 +36,31 @@ export function EstimatePromotionHistory({estimateId,totalCents}:{estimateId:str
   return()=>{live=false;};
  },[estimateId,totalCents,seq]);
  if(state==='none')return null;
- return <section data-estimate-id={estimateId} aria-label="Saved promotions on estimate" className="rounded-xl border p-3 space-y-2">
-  <div className="flex flex-wrap items-center justify-between gap-2"><strong>Saved promotion history</strong>
-   <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={()=>setSeq(value=>value+1)}>Refresh history</Button></div>
-  {state==='loading'&&<p role="status" className="text-sm">Verifying original promotion terms…</p>}
-  {state==='error'&&<p role="alert" className="text-sm">Saved promotion evidence could not be verified. The agreed quote total is unchanged. Refresh history before relying on rule details.</p>}
-  {state==='ready'&&record&&<>
-   <p className="text-sm">Rules verified when the estimate was created on {record.checkedOn}. Later promotions or expirations do not change these frozen terms.</p>
-   {record.bookingConfirmedOn&&<p className="text-sm"><strong>Owner-attested booking date:</strong> {record.bookingConfirmedOn}. Recorded for promotion eligibility, not as a customer signature.</p>}
-   {record.rules.length?record.rules.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{p.name}</span><strong>{label(p)}</strong></div>):
-    <p className="text-sm">No automatic discounts qualified at the original promotion check.</p>}
-   <div className="text-sm"><span>Original subtotal {cents(record.subtotalCents)} · Quote total {cents(record.totalCents)} · 50% deposit {cents(record.depositCents)}</span></div>
-   {!record.bookingConfirmedOn&&<BookingAmendmentPreview estimateId={estimateId} totalCents={record.totalCents}/> }
-  </>}
+ const summary=state==='loading'?'Checking…':state==='error'?'Unavailable · open to retry':
+  record?(record.rules.length?record.rules.length+' saved offer'+(record.rules.length===1?'':'s'):
+   'No discount applied')+' · '+record.checkedOn:'';
+ return <section data-estimate-id={estimateId} aria-label="Saved promotions on estimate" className="rounded-xl border p-3">
+  <details>
+   <summary className="cursor-pointer py-1">
+    <strong>Promotion history</strong>
+    <span className="ml-2 text-sm text-muted-foreground">{summary}</span>
+   </summary>
+   <div className="space-y-2 pt-3">
+    <Button type="button" variant="outline" size="sm" className="min-h-11" aria-label="Refresh history" onClick={()=>setSeq(value=>value+1)}>Refresh</Button>
+    {state==='loading'&&<p role="status" className="text-sm">Checking saved offers…</p>}
+    {state==='error'&&<p role="alert" className="text-sm">Promotion history unavailable. The quote is unchanged. Tap Refresh to retry.</p>}
+    {state==='ready'&&record&&<>
+     <p className="text-sm text-muted-foreground">Terms saved {record.checkedOn}. Later offers will not change this quote.</p>
+     {record.bookingConfirmedOn&&<p className="text-sm">Owner-confirmed booking date: {record.bookingConfirmedOn}. Not a customer signature.</p>}
+     {record.rules.length?record.rules.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{p.name}</span><strong>{label(p)}</strong></div>):
+      <p className="text-sm">No discount applied.</p>}
+     <p className="text-sm">Subtotal {cents(record.subtotalCents)} · Total {cents(record.totalCents)} · Deposit {cents(record.depositCents)}</p>
+     {!record.bookingConfirmedOn&&<details className="rounded-lg border p-3">
+      <summary className="cursor-pointer font-semibold">Check booking-date savings</summary>
+      <div className="pt-3"><BookingAmendmentPreview estimateId={estimateId} totalCents={record.totalCents}/></div>
+     </details>}
+    </>}
+   </div>
+  </details>
  </section>;
 }
