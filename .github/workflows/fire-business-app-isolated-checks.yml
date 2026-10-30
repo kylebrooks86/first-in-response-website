@@ -36,6 +36,7 @@ on:
       - work/fire-staging-safe-migration-rehearsal-2026-10-29
       - work/fire-quoteiq-style-job-numbers-2026-10-29
       - work/fire-customer-edit-save-null-guard-2026-10-30
+      - work/fire-remove-automatic-minimum-pricing-2026-10-30
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
