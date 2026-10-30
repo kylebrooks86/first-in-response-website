@@ -35,7 +35,7 @@ assert.match(history,/RefundPayment/,'Preserve exact refund component');
 assert.match(history,/ProcessingDetails/,'Preserve exact payment fee details');
 assert.match(filters,/aria-pressed/,'Selected status remains accessible');
 const fixture=[
- "import React,{useState}from'react';import{createRoot}from'react-dom/client';import{CircleDollarSign,ChevronRight,CalendarDays}from'lucide-react';",
+ "import React,{useState}from'react';import{createRoot}from'react-dom/client';import{CircleDollarSign,ChevronRight,CalendarDays}from'lucide-react';import{jobNumberLabel}from'./lib/job-numbering.mjs';",
  "function ProcessingDetails({payment}){return <span className='synthetic-processing'>Fee {payment.id}</span>}",
  "function RefundPayment({payment}){return <button type='button' aria-label={'Refund action for '+payment.id}>Refund</button>}",
  "function Fixture(){",
