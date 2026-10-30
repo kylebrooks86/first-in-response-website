@@ -1323,6 +1323,8 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
     if(saveLock.current||currentCustomer.current!==customer.id)return;
     if(uncertain){setError("Check saved details before trying another update.");return;}
     if(!name.trim()){setError("Customer name is required.");return;}
+    if(email.trim()&&!usableCustomerEmail(email)){setError("Enter a valid email address or leave it blank.");return;}
+    if(phone.trim()&&!usableCustomerPhone(phone)){setError("Enter a valid 10-digit U.S. phone number or leave it blank.");return;}
     const id=customer.id;const payload={id,name:name.trim(),email:email.trim(),phone:phone.trim(),address:address.trim(),leadSource};
     attempted.current=payload;
     saveLock.current=true;setSaving(true);setError("");
