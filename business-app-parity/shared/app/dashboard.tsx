@@ -3689,7 +3689,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
 <div className="followup-card-tools">
   <div className="followup-contact-actions" role="group" aria-label={"Contact "+estimate.customer}>
     {customer.phone&&<GoogleVoiceCallAction phone={customer.phone} customerName={estimate.customer}/>}{customer.phone&&<PersonalPhoneBackupAction phone={customer.phone} mode="call" customerName={estimate.customer}/>}
-    {customer.phone&&<MessageComposer customer={customer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"/>}}{customer.phone&&<PersonalPhoneBackupAction phone={customer.phone} mode="text" customerName={estimate.customer}/>}
+    {customer.phone&&<MessageComposer customer={customer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"/>}{customer.phone&&<PersonalPhoneBackupAction phone={customer.phone} mode="text" customerName={estimate.customer}/>}
     {customer.email&&<a href={"mailto:"+customer.email} aria-label={"Open email app for "+estimate.customer}><Mail aria-hidden="true"/> Email</a>}
   </div>
   <details className="followup-optional-tools">
