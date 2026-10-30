@@ -33,7 +33,7 @@ export function verify(cfg) {
   }
   assert.ok(empty(cfg.routes) && empty(cfg.route) && !cfg.zone_id && !cfg.account_id && empty(cfg.triggers),
     'No production/custom routes or account overrides');
-  assert.ok(!cfg.tail_consumers && !cfg.migrations,'No secondary Worker consumers or migrations');
+  assert.ok(empty(cfg.tail_consumers) && empty(cfg.migrations),'No secondary Worker consumers or migrations');
   return {candidateBuildIdentityVerified:true,worker:NAME,db:DB,
     dbBindingVerified:true,requiredAuthSecretNamesVerified:true,
     hostedBindingsRechecked:false,actualHostedSourceMatched:false,
