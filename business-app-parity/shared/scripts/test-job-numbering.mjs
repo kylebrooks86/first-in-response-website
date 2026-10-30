@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   jobNumberLabel,newJobStatements,replacementJobStatement,
-  completedJobCount,JOB_NUMBER_FOR_ESTIMATE_SQL,
+  completedJobCount,jobNumberLabelForEstimate,attachedJobNumbers,JOB_NUMBER_FOR_ESTIMATE_SQL,
   JOB_REFERENCE_BY_INVOICE_SQL,COMPLETED_JOB_COUNT_SQL,
 } from '../lib/job-numbering.mjs';
 
@@ -39,3 +39,37 @@ for(const bad of ['abc','',null,undefined,'1);DROP TABLE estimates;--']){
 assert.throws(()=>replacementJobStatement(fakeDb,first,first),TypeError);
 assert.throws(()=>newJobStatements(fakeDb,first,'not-a-date'),TypeError);
 console.log('PASS: Job # labels, safe SQL bindings, revision preservation, completed count');
+
+// Public pages may only display a DB-backed reference after resolving a token.
+const noSchema={
+  prepare(sql){
+    assert.match(sql,/sqlite_master/);
+    return {first:async()=>null};
+  }
+};
+assert.equal(await jobNumberLabelForEstimate(noSchema,first),null);
+assert.equal((await attachedJobNumbers(noSchema,[first,second])).size,0);
+
+let lastBound=[];
+const populated={
+  prepare(sql){
+    if(sql.includes('sqlite_master'))return {first:async()=>({name:'fire_job_estimate_links'})};
+    return {
+      bind(...ids){
+        lastBound=ids;
+        return {
+          first:async()=>({jobNumber:42}),
+          all:async()=>({results:ids.map((id,index)=>({estimateId:id,jobNumber:index+1}))})
+        };
+      }
+    };
+  }
+};
+assert.equal(await jobNumberLabelForEstimate(populated,first),'Job #0042');
+const numbers=await attachedJobNumbers(populated,[first,first,second]);
+assert.deepEqual(lastBound,[first,second]);
+assert.equal(numbers.get(first),1);
+assert.equal(numbers.get(second),2);
+assert.equal(numbers.size,2);
+assert.equal((await attachedJobNumbers(populated,[])).size,0);
+console.log('PASS: token-scoped customer display and owner batched lookups');
