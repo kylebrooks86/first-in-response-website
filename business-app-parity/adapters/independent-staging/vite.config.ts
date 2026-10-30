@@ -40,7 +40,7 @@ export default defineConfig(async () => {
           workers_dev: true,
           secrets: { required: ["FIRE_ADMIN_PASSWORD_HASH", "FIRE_SESSION_SECRET"] },
           vars: {
-            FIRE_ENV: "independent-staging",
+            FIRE_ENV: "staging",
             SITE_ORIGIN: ORIGIN
           },
           d1_databases: [{ binding: "DB", database_name: DB_NAME, database_id: DB_ID }]
