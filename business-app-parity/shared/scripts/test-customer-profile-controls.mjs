@@ -50,7 +50,9 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  const quickDialog=page.getByRole('dialog',{name:'Message',exact:true});await quickDialog.waitFor();
  const choice=quickDialog.getByRole('combobox'),textField=quickDialog.getByRole('textbox',{name:'Message text',exact:true});
  check(await choice.count()===1&&await textField.inputValue()==='','Text opens a blank, editable custom message');
- await choice.click();await page.getByRole('option',{name:'Request estimate photos',exact:true}).click();
+ await choice.click();
+ check(await page.getByRole('option',{name:'Inspection or job report',exact:true}).count()===0,'Email-only report template is not offered when starting a Google Voice Text');
+ await page.getByRole('option',{name:'Request estimate photos',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('[role=dialog] textarea')?.value?.includes('photos help me prepare your estimate'));
  check((await textField.inputValue()).includes('photos help me prepare your estimate'),'Saved photo-request template is available to the primary Text action');
  await choice.click();await page.getByRole('option',{name:'Custom message',exact:true}).click();
