@@ -111,7 +111,7 @@ try{
  eq(runtime.counters().writes,beforeReplay,'Retry has no financial/customer writes');
  eq(runtime.db.prepare('SELECT COUNT(*) AS n FROM fire_job_numbers').get().n,1,'One job number was allocated');
  eq(runtime.db.prepare('SELECT COUNT(*) AS n FROM fire_job_estimate_links').get().n,1,'One estimate link was allocated');
- const secondResponse=await runtime.post({...quote,requestId:'55555555-5555-4555-8555-555555555555',customer:'Synthetic Second Customer',email:'second-job@example.invalid'});
+ const secondResponse=await runtime.post({...quote,requestId:'55555555-5555-4555-8555-555555555555',customer:'Synthetic Second Customer',email:'second-job@example.invalid',phone:'9185550199',address:'200 Separate Synthetic St'});
  const second=await secondResponse.json();
  eq(secondResponse.status,201,'Second independent job saves');
  eq(second.jobNumber,2,'Second independent customer receives Job #0002');
@@ -119,7 +119,7 @@ try{
  // If the owner deliberately has not enabled numbering, never invent a
  // serial in the quote receipt, even when other local mappings exist.
  runtime.env.FIRE_JOB_NUMBERS_CANDIDATE=undefined;
- const third=await (await runtime.post({...quote,requestId:'66666666-6666-4666-8666-666666666666',customer:'Synthetic Legacy Customer',email:'legacy-job@example.invalid'})).json();
+ const third=await (await runtime.post({...quote,requestId:'66666666-6666-4666-8666-666666666666',customer:'Synthetic Legacy Customer',email:'legacy-job@example.invalid',phone:'9185550188',address:'300 Legacy Synthetic St'})).json();
  eq('jobNumber' in third,false,'Disabled candidate never advertises an unverified reference');
 }finally{runtime.db.close();}
 
