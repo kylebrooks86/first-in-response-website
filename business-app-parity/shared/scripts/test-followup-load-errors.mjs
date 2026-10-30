@@ -18,7 +18,7 @@ const compiled=ts.transpileModule(readFileSync('lib/follow-up-timing.ts','utf8')
 }).outputText;
 const fixedTime=Date.parse('2026-10-09T12:00:00Z');
 class FixedDate extends Date {static now(){return fixedTime;}}
-const components=['EstimateDetail','Button','MessageComposer','Clock3','Star','CalendarDays','CheckCircle2','FileText','ChevronRight','Users','Phone','MessageSquareText','Mail','AlertTriangle'];
+const components=['GoogleVoiceCallAction','GoogleVoiceTextAction','PersonalPhoneBackupAction','EstimateDetail','Button','MessageComposer','Clock3','Star','CalendarDays','CheckCircle2','FileText','ChevronRight','Users','Phone','MessageSquareText','Mail','AlertTriangle'];
 const job=(id='synthetic-job')=>({
  id,customerId:'synthetic-customer',customer:'Synthetic QA',email:'qa@example.test',phone:'9185550100',
  service:'House Wash',status:'sent',createdAt:'2026-10-01T12:00:00Z',
@@ -45,7 +45,7 @@ function fixture(){
  vm.runInNewContext(compiled,context);
  const render=(searchQuery='')=>{cursor=0;refCursor=0;effectCursor=0;return context.exports.view({searchQuery,focusEstimateId:focusId,onFocusHandled:id=>{handled.push(id);focusId=null;},onOpenEstimate:id=>handled.push("fallback:"+id),onOpenCustomer:id=>handled.push("customer:"+id)});};
  const lookup=(predicate)=>nodes(render()).find(predicate);
- return {requests,render,nodes:()=>nodes(render()),lookup,focusCalls,handled,focus(id){focusId=id;render();focusEffect?.();},
+ return {component:name=>stubs[name],requests,render,nodes:()=>nodes(render()),lookup,focusCalls,handled,focus(id){focusId=id;render();focusEffect?.();},
   get:idx=>state[idx],
   response(fn){handler=fn;},
   mount(){render();cleanup=effect();},
@@ -313,8 +313,8 @@ for(const [name,handler] of [
  customer.props.onClick();
  eq(f.handled.at(-1),'customer:synthetic-customer','Follow-up shortcut targets exact saved customer profile');
  const links=f.nodes().filter(n=>n.type==='a'&&typeof n.props?.href==='string').map(n=>n.props.href);
- eq(links.includes('tel:9185550100'),true,'Manual call opens phone app without tracking contact');
- eq(links.includes('sms:9185550100'),true,'Manual text opens SMS composer without sending');
+ eq(f.nodes().some(n=>n.type===f.component('GoogleVoiceCallAction')&&n.props.phone==='9185550100'&&n.props.customerName==='Synthetic QA'),true,'Primary Call retains exact saved recipient through business Voice');
+ eq(f.nodes().some(n=>n.type===f.component('GoogleVoiceTextAction')&&n.props.phone==='9185550100'),true,'Primary Text retains exact saved recipient through business Voice');eq(f.nodes().filter(n=>n.type===f.component('PersonalPhoneBackupAction')&&n.props.phone==='9185550100').length,2,'Call/text personal backups remain separate from primary actions');eq(links.some(href=>/^(sms|tel):/.test(href)),false,'No silent primary personal-number route remains');
  eq(links.includes('mailto:qa@example.test'),true,'Manual email opens mail composer without sending');
  const posts=f.requests.filter(x=>x.options?.method==='POST');
  eq(posts.length,0,'Priority filter and contact navigation never POST');

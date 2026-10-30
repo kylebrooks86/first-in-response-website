@@ -14,8 +14,12 @@ const effect=effects[0];assert.equal(effect.arguments[1].getText(ast),'[tab]');
 const js=ts.transpileModule(`(${effect.arguments[0].getText(ast)})()`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
 let checks=2;
 const eq=(a,b,m)=>{assert.deepEqual(a,b,m);checks++;};
-const currentTab={current:'dashboard'},previousTab={current:'dashboard'},scrolls=[];
-function commit(tab){vm.runInNewContext(js,{tab,currentTab,previousTab,window:{scrollTo:options=>scrolls.push({...options})}});}
+const currentTab={current:'dashboard'},tabHistory={current:[]},backDestination={current:null},scrolls=[];
+function commit(tab){vm.runInNewContext(js,{tab,currentTab,tabHistory,backDestination,window:{scrollTo:options=>scrolls.push({...options})}});}
+const backCall=variable(dashboard,'goBack').getText(ast);
+assert.ok(backCall,'Actual top Back handler is present');
+const backJs=ts.transpileModule('('+backCall+')()', {compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+function pressBack(){vm.runInNewContext(backJs,{currentTab,tabHistory,backDestination,setTab:commit,setMobileMenu:()=>{}});}
 commit('dashboard');eq(scrolls.length,0,'Mount must not override browser/restored position');
 const sections=['customers','estimates','invoices','payments','schedule','contracts','followups','insights','business','settings','owner-account','dashboard'];
 for(const tab of sections){
@@ -23,18 +27,31 @@ for(const tab of sections){
  commit(tab);
  eq(scrolls.length,count+1,'Every committed main section resets once');
  eq(scrolls.at(-1),{top:0,left:0,behavior:'instant'},'Reset is immediate, never animated');
- eq(previousTab.current,old,'Back history preserves the section left');
+ eq(tabHistory.current.at(-1),old,'Forward visit records the section left');
  eq(currentTab.current,tab);
  for(const update of ['typing','editing','modal','retry','menu','theme','Strict Mode repeat']){commit(tab);eq(scrolls.length,count+1,`${update} in same section must not reset`);}
 }
-const count=scrolls.length,target=previousTab.current;commit(target);eq(currentTab.current,target,'Back transition uses same scroll policy');eq(scrolls.length,count+1);
-commit('dashboard');eq(currentTab.current,'dashboard','Home uses same policy');
+const count=scrolls.length;
+pressBack();eq(currentTab.current,'owner-account','Back returns to prior actual section, not a two-screen toggle');eq(scrolls.length,count+1);
+pressBack();eq(currentTab.current,'settings','Second Back moves farther through the history');
+pressBack();eq(currentTab.current,'business','Third Back skips prior Back destinations, rather than bouncing');
+eq(backDestination.current,null,'Committed Back clears the pending gesture guard');
+commit('customers');eq(tabHistory.current.at(-1),'business','New forward visit preserves the previous section');
+commit('dashboard');eq(currentTab.current,'dashboard','Home uses the same committed scroll/reset policy');
+pressBack();eq(currentTab.current,'customers','Back from Home returns to last working section');
+for(let i=0;i<40;i++)commit(i%2?'customers':'estimates');
+eq(tabHistory.current.length,30,'Navigation history is bounded without growing forever');
+const stableCount=scrolls.length;commit(currentTab.current);eq(scrolls.length,stableCount,'Same-section events do not create history or scroll');
+// Back uses a bounded navigation trail; it must never oscillate between two tabs.
 // The policy must stay in the shared committed-section effect: callers including
 // sidebar, bottom nav, dashboard shortcuts, notifications and Home/Back all set tab.
 assert.match(source,/onNavigate=\{setTab\}/);checks++;
 assert.match(source,/className="bottom-nav"[\s\S]*setTab\(id\)/);checks++;
 assert.match(source,/const goHome = [^\n]*setTab\("dashboard"\)/);checks++;
 assert.match(source,/const goBack = [^\n]*setTab\(target\)/);checks++;
+assert.match(source,/item\.type==="payment_failed"\?"payments"/,'Failed-Stripe-checkout notification must open Payments');checks++;
+assert.match(source,/item\.type==="payment_overage"\?\(item\.estimateId\?"estimates":"payments"\)/,'Overpayment alert opens exact estimate resolution when job is known');checks++;
+assert.match(source,/else if\(next==="payments"\)\{setTab\("payments"\);\}/,'Payment alerts override estimate-focused navigation');checks++;
 // Everyday shortcuts are prioritized, while EVERY original main section stays in the menu.
 const navSource=source.match(/const nav = useMemo\(\(\) => \[([\s\S]*?)\] as const, \[\]\);/)?.[1];
 assert.ok(navSource,'The real dashboard must still declare its navigation');
@@ -49,4 +66,22 @@ assert.match(source,/className="sidebar-more-nav" open=\{moreNavOpen\}/);checks+
 assert.match(source,/nav\.slice\(7\)\.map/);checks++;
 assert.match(source,/useEffect\(\(\)=>\{if\(nav\.slice\(7\)\.some\(\(\[id\]\)=>id===tab\)\)setMoreNavOpen\(true\);\},\[tab,nav\]\)/);checks++;
 assert.match(source,/\["dashboard","customers","estimates","schedule","followups"\]\.includes\(id\)/);checks++;
+// Optional preferences must not crash the app or strand an explicit Shortcut action.
+function variable(fn,name){let result;function walk(n){if(ts.isVariableDeclaration(n)&&n.name.getText(ast)===name)result=n.initializer;ts.forEachChild(n,walk);}walk(fn);assert.ok(result,name);return result;}
+let themeEffect;function findTheme(n){if(ts.isCallExpression(n)&&n.expression.getText(ast)==='useEffect'&&n.arguments[0]?.getText(ast).includes('"fire-theme"'))themeEffect=n.arguments[0];ts.forEachChild(n,findTheme);}findTheme(dashboard);assert.ok(themeEffect);
+const stride=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='StrideButton');
+function run(node,mode='normal',saved=null,dark=false){
+ const result={theme:null,setup:null,opens:0,writes:[],dataset:{}};
+ const storage={getItem:()=>{if(mode==='read-denied')throw Error('Synthetic read refusal');return saved;},setItem:(...args)=>{if(mode==='write-denied')throw Error('Synthetic write refusal');result.writes.push(args);},clear:()=>{throw Error('Never clear device data');}};
+ const window={matchMedia:()=>({matches:dark})};Object.defineProperty(window,'localStorage',{get(){if(mode==='access-denied')throw Error('Synthetic storage access refusal');return storage;}});
+ const context={window,document:{documentElement:{dataset:result.dataset}},theme:'light',setTheme:value=>result.theme=value,setShowSetup:value=>result.setup=value,openShortcut:()=>result.opens++};
+ vm.runInNewContext(ts.transpileModule('('+node.getText(ast)+')()',{}).outputText,context);return result;
+}
+for(const mode of ['read-denied','access-denied']){const r=run(themeEffect,mode,null,true);eq(r.theme,'dark','Denied preference reads preserve system theme');eq(r.dataset.theme,'dark','Denied preference reads still complete app theme mount');}
+eq(run(themeEffect,'normal','light',true).theme,'light','Saved valid theme wins over system');eq(run(themeEffect,'normal','unexpected',true).theme,'dark','Unknown preference uses system theme');
+for(const mode of ['write-denied','access-denied']){const r=run(variable(dashboard,'toggleTheme'),mode);eq(r.theme,'dark','Theme toggles in memory when saving unavailable');eq(r.dataset.theme,'dark','Theme toggles in DOM when saving unavailable');}
+eq(run(variable(dashboard,'toggleTheme')).writes,[['fire-theme','dark']],'Normal toggle still saves only its theme preference');
+for(const mode of ['read-denied','access-denied']){const r=run(variable(stride,'openStride'),mode);eq(r.setup,true,'Storage refusal leaves explicit Stride setup/launch available');eq(r.opens,0,'Storage refusal cannot automatically launch a Shortcut');}
+const ready=run(variable(stride,'openStride'),'normal','yes');eq(ready.opens,1,'Existing ready Shortcut remains a direct explicit action');eq(ready.setup,null,'Existing ready Shortcut does not repeat setup');
+for(const mode of ['write-denied','access-denied']){const r=run(variable(stride,'testShortcut'),mode);eq(r.opens,1,'Owner-confirmed Shortcut launch survives unavailable preference writes');eq(r.setup,false,'Owner-confirmed setup closes normally');}
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);

@@ -86,7 +86,10 @@ let moreNode;function findMore(n){if(ts.isJsxElement(n)&&n.openingElement.tagNam
 const detailSource=fn.getText(ast),moreStart=moreNode.getStart(ast)-fn.getStart(ast),moreEnd=moreNode.end-fn.getStart(ast),mainStart=detailSource.indexOf('<div className="detail-actions" aria-label="Customer and estimate actions">');
 eq(moreStart>mainStart&&moreEnd>moreStart,true,'Secondary job tools exist in their own expandable section');
 const primary=detailSource.slice(mainStart,moreStart),secondary=detailSource.slice(moreStart,moreEnd);
-for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','tel:','sms:'])eq(primary.includes(label),true,'Daily customer action available: '+label);
+for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','GoogleVoiceCallAction','GoogleVoiceTextAction','PersonalPhoneBackupAction'])eq(primary.includes(label),true,'Daily customer action available: '+label);
+eq(primary.includes('tel:')||primary.includes('sms:'),false,'Primary estimate actions never directly launch personal Phone or Messages');
+eq((primary.match(/PersonalPhoneBackupAction/g)||[]).length>=2,true,'Estimate detail keeps explicitly labeled personal call and text backup components');
+ eq(primary.includes('sms:'),false,'Estimate detail never offers iPhone personal SMS sender');
 eq(primary.includes('Estimate research')&&primary.includes('Google Earth')&&primary.includes('Zillow'),true,'Quote preparation presents Earth and Zillow together');
 eq(primary.includes('Driving to job')&&primary.includes('Google Maps')&&!primary.includes('StrideButton'),true,'Scheduled work shows Maps without duplicating the Home Stride shortcut');
 eq(secondary.includes('Google Maps')&&!secondary.includes('StrideButton'),true,'Directions remain available under More tools without another Stride button');

@@ -6,7 +6,7 @@ export async function exerciseBusinessBrand({page,request,origin,check}){
  const legacy=LEGACY_BUSINESS_TEMPLATE_DEFAULTS.estimate;
  const saved=await request('/api/message-templates','PUT',{key:'estimate',...legacy});assert.equal(saved.status(),200);
  const read=await request('/api/message-templates');assert.equal(read.status(),200);const template=(await read.json()).templates.find(item=>item.key==='estimate');
- check(!/\bKyle\b/.test(template.body)&&template.body.includes('this is First In Response Exteriors.'),'Saved legacy default displays current business identity through authenticated template API');
+ check(!/\bKyle\b/.test(template.body)&&template.body.includes('First In Response Exteriors')&&template.body.includes('@estimate_link')&&template.body.includes('@estimate_total')&&template.body.includes('50%')&&template.body!==legacy.body,'Saved legacy default displays current business identity, amount, approval link and booking deposit without preserving old wording');
  const backupResponse=await request('/api/backup');assert.equal(backupResponse.status(),200);const archive=await backupResponse.json();
  const tables=archive.tables??archive.data?.tables;assert.ok(tables,'Native backup table structure');
  const raw=tables.message_templates.find(row=>row.key==='estimate');

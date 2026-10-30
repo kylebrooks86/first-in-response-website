@@ -97,7 +97,9 @@ try{
  await widget.locator('.weather-days article').first().waitFor();
  weatherOutage=true;
  const readCount=requests;
- await widget.getByRole('button',{name:'Refresh seven-day Tulsa weather forecast'}).click();
+ const refreshControl=widget.getByRole('button',{name:'Refresh seven-day Tulsa weather forecast'});
+ check(await refreshControl.evaluate(n=>n.getBoundingClientRect().height>=44),'Actual seven-day forecast refresh has a 44px target');
+ await refreshControl.click();
  await widget.getByRole('alert').waitFor();
  check(requests>readCount,'Refresh performs a new NWS daily request');
  check(await widget.locator('.weather-days article').count()===7,'Last known daily forecast preserved if update fails');

@@ -361,6 +361,31 @@ try{
  await coldVerify.setInputFiles({name:filename,mimeType:'application/zip',buffer:exported});
  await coldPage.getByText(/Backup COMPLETE: all current on-device photos included/).waitFor({timeout:30000});
  check((await coldPage.getByRole('status').allInnerTexts()).some(t=>t.includes('2 exactly match this device')),'Saved photo ZIP verification still works after a genuinely offline cold launch');
+ // Reproduce owner-reported 3 archived / 0 present / 3 recoverable state
+ // with actual React controls, real IndexedDB and the saved ZIP bytes.
+ coldPage.on('dialog',dialog=>dialog.accept());
+ await coldPage.locator('input[type="file"][accept="image/*"]').last().setInputFiles({name:'third-synthetic.png',mimeType:'image/png',buffer:png});
+ await coldPage.locator('.photo-card').nth(2).waitFor();
+ await coldPage.getByRole('button',{name:"Prepare this customer's photos ZIP"}).click();
+ await coldPage.getByText(/ZIP is ready/).waitFor({timeout:30000});
+ await coldPage.evaluate(()=>Object.defineProperty(navigator,'share',{configurable:true,value:async({files})=>{
+   window.fixtureThreePhotoZip=Array.from(new Uint8Array(await files[0].arrayBuffer()));
+ }}));
+ await coldPage.getByRole('button',{name:'Save prepared ZIP to Files'}).click();
+ await coldPage.waitForFunction(()=>window.fixtureThreePhotoZip?.length>100);
+ const threePhotoZip=Buffer.from(await coldPage.evaluate(()=>window.fixtureThreePhotoZip));
+ for(let remaining=2;remaining>=0;remaining--){
+  await coldPage.getByRole('button',{name:'Delete on-device photo'}).first().click();
+  await coldPage.waitForFunction(count=>document.querySelectorAll('.photo-card').length===count,remaining);
+  await coldPage.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='Verify saved ZIP from Files'&&!b.disabled));
+  await coldVerify.setInputFiles({name:'synthetic-three.zip',mimeType:'application/zip',buffer:threePhotoZip});
+  await coldPage.getByText(/Saved ZIP VERIFIED: 3 photo\(s\) in archive/).waitFor({timeout:30000});
+  const status=(await coldPage.getByRole('status').allInnerTexts()).join(' ');
+  check(status.includes(remaining+' exactly match this device')&&status.includes((3-remaining)+' archive photo(s) are not on this device'),'Actual archive inspection reports exact present/missing counts');
+  check(!status.includes('Backup COMPLETE')&&status.includes('Verification did not restore any photos'),'Missing-photo ZIP never implies gallery recovery or full presence');
+  check(await coldPage.locator('.photo-card').count()===remaining,'ZIP verification leaves actual synthetic photo inventory unchanged');
+ }
+ check((await coldPage.getByRole('status').allInnerTexts()).some(t=>t.includes('Current local library is empty.')),'Owner 3/0/3 case explicitly identifies empty device library');
  check(remote.length===0,'No external network, Cloudflare, R2, or Stripe requests occurred');
  check(browserErrors.length===0,'Actual browser photo UI produced no uncaught client errors: '+browserErrors.join(' / '));
  await context.close();context=null;

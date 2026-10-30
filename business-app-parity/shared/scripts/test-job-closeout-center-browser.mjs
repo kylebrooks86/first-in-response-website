@@ -3,12 +3,12 @@ import assert from'node:assert/strict';import{readFileSync,readdirSync,mkdirSync
 const require=createRequire(import.meta.url),root=process.cwd(),esbuild=require('../node_modules/.pnpm/esbuild@0.28.0/node_modules/esbuild'),postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss'),tailwind=require('@tailwindcss/postcss');const{chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||'playwright');
 const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX),view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='PaymentsView'),helpers=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>['resolvedBillingTotalCents','billingBalanceCents'].includes(d.name.getText(ast)))),tags=new Set();
 function walk(n){if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const t=n.tagName.getText(ast);if(/^[A-Z]/.test(t))tags.add(t);}ts.forEachChild(n,walk);}walk(view);const composer=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='MessageComposer');
-const fixture=`import React,{useState,useEffect,useRef}from'react';import{createRoot}from'react-dom/client';import{Button}from'./components/ui/button';import{JobCloseoutHistory}from'./components/job-closeout-history';import{hasCollectibleJobValue,summarizeCustomerBalances}from'./lib/customer-balance-summary';import{completeEstimatePages}from'./lib/estimate-pagination';import{Dialog,DialogContent,DialogHeader,DialogTitle,DialogTrigger}from'./components/ui/dialog';import{Select,SelectContent,SelectItem,SelectTrigger,SelectValue}from'./components/ui/select';import{Label}from'./components/ui/label';import{Textarea}from'./components/ui/textarea';import{MessageSquareText,Copy,Mail,Send}from'lucide-react';import{FIRE_TEMPLATES,fillTemplate}from'./lib/fire-templates';const reviewLink='https://firstinresponseexteriors.com/review',dateTime=v=>v;const money=c=>'$'+(c/100).toFixed(2),statusLabel=x=>x;
+const fixture=`import React,{useState,useEffect,useRef}from'react';import{createRoot}from'react-dom/client';import{Button}from'./components/ui/button';import{JobCloseoutHistory}from'./components/job-closeout-history';import{hasCollectibleJobValue,summarizeCustomerBalances}from'./lib/customer-balance-summary';import{completeEstimatePages}from'./lib/estimate-pagination';import{Dialog,DialogContent,DialogHeader,DialogTitle,DialogTrigger}from'./components/ui/dialog';import{Select,SelectContent,SelectItem,SelectTrigger,SelectValue}from'./components/ui/select';import{Label}from'./components/ui/label';import{Textarea}from'./components/ui/textarea';import{MessageSquareText,Copy,Mail,Send,ExternalLink}from'lucide-react';import{GoogleVoiceTextShortcutAction,PersonalPhoneBackupAction,GOOGLE_VOICE_URL}from'./components/google-voice-text-action';import{FIRE_TEMPLATES,fillTemplate}from'./lib/fire-templates';const reviewLink='https://firstinresponseexteriors.com/review',dateTime=v=>v;const money=c=>'$'+(c/100).toFixed(2),statusLabel=x=>x;
 ${[...tags].filter(t=>!['Button','JobCloseoutHistory'].includes(t)).map(t=>`const ${t}=()=>null;`).join('\n')}
 ${helpers.map(n=>n.getText(ast)).join('\n')}
 ${view.getText(ast)}
 ${composer.getText(ast).replaceAll('window.location.href=', 'window.syntheticExternalHandoff=')}
-function ComposerHarness(){const[customerId,setCustomerId]=useState('ready');window.switchComposerCustomer=setCustomerId;return <MessageComposer customer={{id:customerId,name:'Synthetic '+customerId,phone:'5550100999',email:'synthetic@example.invalid',address:'Synthetic address'}} estimate={{id:'job-'+customerId,shareToken:'estimate-'+customerId,invoiceShareToken:'invoice-'+customerId,status:'completed',totalCents:10000,paidCents:10000,service:'Synthetic wash'}} initialTemplate="review" triggerLabel="Prepare review request" onLogged={m=>window.loggedMessage=m} onSent={()=>{window.confirmedSend=true;if(window.failRefresh)throw Error('Synthetic refresh failure')}}/>;}
+function ComposerHarness(){const[customerId,setCustomerId]=useState('ready'),[customerName,setCustomerName]=useState('');window.setComposerCustomerName=setCustomerName;window.switchComposerCustomer=id=>{setCustomerName('');setCustomerId(id);};return <MessageComposer customer={{id:customerId,name:customerName||'Synthetic '+customerId,phone:'5550100999',email:'synthetic@example.invalid',address:'Synthetic address'}} estimate={{id:'job-'+customerId,shareToken:'estimate-'+customerId,invoiceShareToken:'invoice-'+customerId,status:'completed',totalCents:10000,paidCents:10000,service:'Synthetic wash'}} initialTemplate="review" triggerLabel="Prepare review request" onLogged={m=>window.loggedMessage=m} onSent={()=>{window.confirmedSend=true;if(window.failRefresh)throw Error('Synthetic refresh failure')}}/>;}
 window.setTheme=t=>document.documentElement.dataset.theme=t;createRoot(document.getElementById('app')).render(location.pathname==='/composer'?<ComposerHarness/>:<PaymentsView searchQuery="" onOpenEstimate={id=>window.openedJob=id} onOpenCustomerReview={id=>window.openedCustomer=id}/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}}),css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 if(process.argv.includes('--compile-only')){assert.ok(bundle.outputFiles[0].text.length>1000);console.log('PASS: real Payments and Job Closeout History browser fixture compiles; rendered assertions not run.');process.exit(0);}
@@ -122,6 +122,36 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   check(await progress.locator('.closeout-status-controls button,.closeout-card-actions button').evaluateAll(ns=>ns.every(n=>n.getBoundingClientRect().height>=44)),'Mobile controls have 44px touch targets');check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Light/dark view fits narrow and landscape screens');
   if(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR){mkdirSync(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR,{recursive:true});await progress.scrollIntoViewIfNeeded();await progress.screenshot({path:join(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR,`closeout-${size.width}-${theme}.png`)});}
  }
+ // Actual review-request queue controls, distinct from the review-progress panel.
+ // Existing owner APIs use synthetic SQLite; pagination is held only at localhost.
+ for(const width of [320,375,390,430,768,1366])for(const theme of ['light','dark']){
+  await page.goto('about:blank');seed();await page.setViewportSize({width,height:844});await page.goto(origin);await page.evaluate(t=>window.setTheme(t),theme);
+  const queue=page.getByRole('region',{name:'Paid jobs ready for review follow-up',exact:true});
+  await queue.getByRole('button',{name:'Refresh review queue',exact:true}).waitFor();
+  const measure=async state=>{
+   const result=await queue.locator('button').evaluateAll(nodes=>nodes.filter(n=>n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden').map(n=>{const r=n.getBoundingClientRect();return {label:n.textContent.trim(),height:r.height,left:r.left,right:r.right,disabled:n.disabled};}));
+   check(result.length>0,'Review queue has actual controls: '+state);
+   check(result.every(r=>r.height>=44),'Review queue controls have 44px height: '+width+'/'+theme+'/'+state+' '+JSON.stringify(result));
+   check(result.every(r=>r.left>=-1&&r.right<=width+1),'Review queue controls fit requested viewport: '+width+'/'+theme+'/'+state);
+  };
+  await measure('collapsed');await queue.locator('.payment-review-options>summary').click();await measure('expanded');
+  await queue.getByRole('button',{name:'Verify send (1)',exact:true}).click();await measure('prepared filter');
+  await queue.getByRole('button',{name:'Clear filters',exact:true}).click();
+  await queue.getByLabel('Search paid review follow-ups',{exact:true}).fill('missing-synthetic-queue');
+  await queue.getByText('No matching review requests. Clear filters or choose All.',{exact:true}).waitFor();await measure('empty search');
+  await queue.getByRole('button',{name:'Clear filters',exact:true}).click();
+  let resume;const gate=new Promise(resolve=>{resume=resolve;});
+  const hold=async route=>{await gate;await route.continue();};
+  await page.route(/\/api\/payment-closeouts\?cursor=/,hold);
+  try{
+   await queue.getByRole('button',{name:'Load older paid jobs',exact:true}).click();
+   const loading=queue.getByRole('button',{name:'Loading older jobs…',exact:true});await loading.waitFor();
+   check(await loading.isDisabled(),'Review queue pagination stays disabled while pending');await measure('pagination pending');
+  }finally{resume();}
+  await queue.getByRole('status').filter({hasText:'203 jobs'}).waitFor();await page.unroute(/\/api\/payment-closeouts\?cursor=/,hold);await measure('older loaded');
+  check(requests.every(r=>r.method==='GET'),'Geometry/filter/pagination audit performs no synthetic writes');
+  if(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR&&width===320){await queue.scrollIntoViewIfNeeded();await queue.screenshot({path:join(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR,`review-queue-${width}-${theme}.png`)});}
+ }
  // Long payment history starts with eight visible entries; every older entry stays one tap away.
  await page.goto('about:blank');seed();mode='ledger';await page.setViewportSize({width:390,height:844});await page.goto(origin);
  const historyDisclosure=page.locator('details.payments-history-disclosure');
@@ -141,18 +171,47 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
  // Customer switches must replace edited private drafts and job-scoped links.
  for(const theme of ['light','dark']){
  await page.goto('about:blank');seed();await page.setViewportSize({width:390,height:844});await page.goto(origin+'/composer');await page.evaluate(t=>window.setTheme(t),theme);await page.getByRole('button',{name:'Prepare review request',exact:true}).click();
- let scopeDialog=page.getByRole('dialog',{name:'Message Synthetic ready',exact:true});await scopeDialog.getByLabel('Personalized message',{exact:true}).fill('PRIVATE UNSAVED TEXT FOR FIRST CUSTOMER');
- await page.evaluate(()=>window.switchComposerCustomer('prepared'));scopeDialog=page.getByRole('dialog',{name:'Message Synthetic prepared',exact:true});
+ let scopeDialog=page.getByRole('dialog',{name:'Message',exact:true});await scopeDialog.waitFor();check(await scopeDialog.locator('.message-dialog-recipient').innerText()==='To: Synthetic ready','Composer identifies the first customer with a separate recipient line');await scopeDialog.getByLabel('Message text',{exact:true}).fill('PRIVATE UNSAVED TEXT FOR FIRST CUSTOMER');
+ await page.evaluate(()=>window.switchComposerCustomer('prepared'));scopeDialog=page.getByRole('dialog',{name:'Message',exact:true});
+ check(await scopeDialog.locator('.message-dialog-recipient').innerText()==='To: Synthetic prepared','Customer switch updates the recipient before any send');
  await page.waitForFunction(()=>document.querySelector('#customerMessage')?.value.includes('Synthetic'));
- check(!(await scopeDialog.getByLabel('Personalized message',{exact:true}).inputValue()).includes('PRIVATE UNSAVED'),'Switching customer clears an edited prior-customer draft');
- check((await scopeDialog.getByLabel('Personalized message',{exact:true}).inputValue()).includes('Hi Synthetic'),'New customer receives a fresh personalized template');
- await scopeDialog.getByLabel('Message type',{exact:true}).click();await page.getByRole('option',{name:'Estimate ready',exact:true}).click();
+ check(!(await scopeDialog.getByLabel('Message text',{exact:true}).inputValue()).includes('PRIVATE UNSAVED'),'Switching customer clears an edited prior-customer draft');
+ check((await scopeDialog.getByLabel('Message text',{exact:true}).inputValue()).includes('Hi Synthetic'),'New customer receives a fresh personalized template');
+ await scopeDialog.getByLabel('Template',{exact:true}).click();await page.getByRole('option',{name:'Estimate ready',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('#customerMessage')?.value.includes('/estimate/estimate-prepared'));
- check(!(await scopeDialog.getByLabel('Personalized message',{exact:true}).inputValue()).includes('/estimate/estimate-ready'),'Template uses new job link, never prior customer link');
+ check(!(await scopeDialog.getByLabel('Message text',{exact:true}).inputValue()).includes('/estimate/estimate-ready'),'Template uses new job link, never prior customer link');
  check(await scopeDialog.evaluate(n=>n.scrollWidth<=n.clientWidth),'Pending saved drafts and template controls fit the iPhone composer');
  check(await scopeDialog.getByRole('button',{name:/^Resume text/}).evaluate(n=>n.getBoundingClientRect().height>=44&&n.getBoundingClientRect().right<=innerWidth),'Long saved-draft recovery control wraps inside viewport with a 44px target');
  check(requests.every(r=>r.method==='GET'),'Customer switch never saves or sends the discarded draft');
  if(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR)await scopeDialog.screenshot({path:join(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR,`closeout-customer-scope-${theme}.png`)});
+ }
+ // Exact compact composer header, long recipient, template confirmation and unsaved reopening.
+ // Reduced-height viewport is a geometry probe, not a physical iOS keyboard test.
+ for(const width of [320,375,390,430,768,1366])for(const theme of ['light','dark']){
+  await page.goto('about:blank');seed();await page.setViewportSize({width,height:width===320?568:844});await page.goto(origin+'/composer');
+  const trigger=page.getByRole('button',{name:'Prepare review request',exact:true});await trigger.waitFor();await page.evaluate(t=>window.setTheme(t),theme);
+  const longName='Synthetic Customer With A Long Household And Business Name '+ 'LongRecipient'.repeat(6);
+  await page.evaluate(name=>window.setComposerCustomerName(name),longName);await trigger.click();
+  const dialog=page.getByRole('dialog',{name:'Message',exact:true}),field=dialog.getByLabel('Message text',{exact:true});await field.waitFor();
+  const sample=async state=>{
+   await page.evaluate(async()=>{await Promise.all(document.getAnimations().filter(a=>a.effect?.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));});
+   const m=await dialog.evaluate(d=>{const b=d.getBoundingClientRect(),h=d.querySelector('.message-dialog-header'),r=d.querySelector('.message-dialog-recipient'),c=d.querySelector('[data-slot="dialog-close"]'),rect=n=>{const x=n.getBoundingClientRect();return{left:x.left,right:x.right,top:x.top,bottom:x.bottom,width:x.width,height:x.height};};const range=document.createRange();range.selectNodeContents(r);return{box:rect(d),header:rect(h),recipient:rect(r),close:rect(c),text:[...range.getClientRects()].map(x=>({left:x.left,right:x.right,top:x.top,bottom:x.bottom})),controls:[...d.querySelectorAll('input,textarea,[role="combobox"],button')].filter(n=>n.getClientRects().length).map(rect),scrollWidth:d.scrollWidth,clientWidth:d.clientWidth,viewportHeight:innerHeight};});
+   check(m.box.left>=-1&&m.box.right<=width+1,'Compact composer fits requested viewport '+state);
+   check(m.close.left>=m.box.left&&m.close.right<=m.box.right&&m.close.top>=0&&m.close.bottom<=m.viewportHeight,'Compact message close is fully visible '+JSON.stringify({width,theme,state,m}));
+   if(width<=430)check(m.close.width>=44&&m.close.height>=44,'Compact message mobile close target is comfortable');
+   check(m.text.every(r=>r.left>=m.box.left&&r.right<=m.box.right&&!(r.left<m.close.right&&r.right>m.close.left&&r.top<m.close.bottom&&r.bottom>m.close.top)),'Actual recipient text avoids the close control');
+   check(m.controls.every(r=>r.left>=m.box.left-1&&r.right<=m.box.right+1)&&m.scrollWidth<=m.clientWidth+1,'Nested message controls fit the dialog');
+  };
+  check(await dialog.locator('.message-dialog-recipient').innerText()==='To: '+longName,'Exact long recipient remains clear');await sample('long-recipient');
+  const draft='Synthetic exact multiline draft\nSecond line — $1,234.56\n'+'Long message detail '.repeat(50);await field.fill(draft);await field.focus();check(await field.evaluate(n=>document.activeElement===n),'Actual editable message receives keyboard focus');
+  await dialog.getByLabel('Template',{exact:true}).click();page.once('dialog',d=>d.dismiss());await page.getByRole('option',{name:'Estimate ready',exact:true}).click();check(await field.inputValue()===draft,'Cancel template replacement retains exact multiline unsaved draft');
+  await dialog.locator('[data-slot="dialog-close"]').click();await trigger.click();await field.waitFor();check(await field.inputValue()===draft,'Closing/reopening same customer retains unsaved exact message');await sample('reopened-draft');
+  if(width<=430)await page.setViewportSize({width,height:360});await dialog.locator('[data-slot="dialog-close"]').scrollIntoViewIfNeeded();await sample(width<=430?'reduced-height':'desktop-reopened');
+  await field.scrollIntoViewIfNeeded();check(await field.isVisible(),'Message remains reachable in reduced-height viewport');await page.keyboard.press('Escape');await trigger.click();await field.waitFor();
+  await page.evaluate(()=>window.switchComposerCustomer('prepared'));await dialog.locator('.message-dialog-recipient').filter({hasText:'To: Synthetic prepared'}).waitFor();await page.waitForFunction(()=>!document.querySelector('#customerMessage')?.value.includes('Synthetic exact multiline draft'));
+  check(await dialog.locator('.message-dialog-recipient').innerText()==='To: Synthetic prepared','Switch uses exact new recipient');check(!(await field.inputValue()).includes('Synthetic exact multiline draft'),'Prior customer unsaved content cannot leak');
+  check(requests.every(r=>r.method==='GET'),'Header/template/unsaved/close/switch geometry checks never send or save');
+  if(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR&&width===320){await page.setViewportSize({width,height:568});await dialog.locator('[data-slot="dialog-close"]').scrollIntoViewIfNeeded();await dialog.screenshot({path:join(process.env.FIRE_CLOSEOUT_SCREENSHOT_DIR,`compact-message-${theme}.png`)});}
  }
  // Committed write + malformed response: an explicit retry reuses the original receipt ID.
  await page.goto('about:blank');seed();await page.goto(origin);await stage().getByRole('button',{name:'Review progress',exact:true}).click();await page.locator('#closeout-progress-a-due').waitFor();postMode='lost';await page.getByRole('button',{name:'Snooze status check 7 days',exact:true}).click();await page.getByRole('button',{name:'Confirm check snooze',exact:true}).click();await page.getByRole('alert').filter({hasText:'Retry this same confirmation'}).waitFor();check(requests.filter(r=>r.method==='POST').length===1,'Lost reply never auto-retries');await page.getByRole('button',{name:'Confirm check snooze',exact:true}).click();await page.getByRole('button',{name:'Check due (0)',exact:true}).waitFor();const posts=requests.filter(r=>r.method==='POST');check(posts.length===2&&posts[0].body.operationId===posts[1].body.operationId,'Retry uses exact original operation ID');check(db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE customer_id='a-due' AND template='reviewCheckSnooze'").get().n===1,'Retry cannot append duplicate real SQL history');
@@ -171,9 +230,15 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   db.prepare("UPDATE payments SET amount_cents=10000 WHERE id='paid-ready'").run();
   check((await readAllReady()).actions.some(x=>x.estimateId==='job-ready'&&x.state==='ready'),'Confirmed exact payment makes completed job eligible');
   await page.goto(origin+'/composer');await page.evaluate(t=>window.setTheme(t),theme);await page.getByRole('button',{name:'Prepare review request',exact:true}).click();
-  const dialog=page.getByRole('dialog',{name:'Message Synthetic ready',exact:true});await dialog.getByRole('button',{name:'Text',exact:true}).click();await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).waitFor();
-  check(await page.evaluate(()=>window.syntheticExternalHandoff?.startsWith('sms:5550100999')),'External SMS handoff captured without opening or sending to another app');
-  check((await dialog.getByLabel('Personalized message',{exact:true}).inputValue()).includes('https://firstinresponseexteriors.com/review'),'Existing review URL is used in actual personalized template');
+  const dialog=page.getByRole('dialog',{name:'Message',exact:true});await dialog.getByRole('button',{name:'Text',exact:true}).click();await dialog.getByRole('button',{name:'I sent the prepared message',exact:true}).waitFor();
+  check(await page.evaluate(()=>window.syntheticExternalHandoff===undefined),'Preparing a business text never silently opens personal Messages');check(await dialog.getByRole('link',{name:'Open Google Voice',exact:true}).getAttribute('href')==='https://voice.google.com/','Saved message exposes the supported business Voice handoff');check(await dialog.getByRole('button',{name:/Text \(Backup\)/}).isVisible(),'Explicit personal backup remains available for the saved draft');
+  const handoff=dialog.getByRole('region',{name:'Google Voice text handoff',exact:true});const beforeHandoff=requests.filter(r=>r.method==='POST'||r.method==='PATCH').length;const exactSavedBody=await dialog.getByLabel('Message text',{exact:true}).inputValue();await handoff.getByRole('button',{name:'Text',exact:true}).click();await handoff.getByRole('status').filter({hasText:'on this device'}).waitFor();check(requests.filter(r=>r.method==='POST'||r.method==='PATCH').length===beforeHandoff&&await dialog.getByLabel('Message text',{exact:true}).inputValue()===exactSavedBody,'Unsupported direct handoff preserves saved exact template and makes no API writes');
+  check((await dialog.getByLabel('Message text',{exact:true}).inputValue()).includes('https://firstinresponseexteriors.com/review'),'Existing review URL is used in actual personalized template');
+  await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:undefined}));
+  await dialog.getByRole('button',{name:'Copy number',exact:true}).click();await dialog.getByRole('status').filter({hasText:'Copy failed. Enter the displayed recipient number'}).waitFor();
+  await dialog.getByRole('button',{name:'Copy message',exact:true}).click();await dialog.getByRole('status').filter({hasText:'Copy failed. Select the saved message'}).waitFor();
+  check(await dialog.getByLabel('Message text',{exact:true}).evaluate(field=>field.readOnly&&!field.disabled),'Saved prepared body remains selectable when clipboard is unavailable');
+  check(db.prepare("SELECT COUNT(*) AS n FROM customer_messages WHERE customer_id='ready' AND channel='text_confirmed'").get().n===0,'Copy failure cannot claim a sent message');
   check((await readAllReady()).actions.some(x=>x.estimateId==='job-ready'&&x.state==='prepared'),'Preparation remains eligible and unconfirmed');
   check(!(await readAllHistory()).items.some(x=>x.customerId==='ready'),'Preparing a message never starts a review-received clock');
   page.once('dialog',event=>event.accept());await dialog.getByRole('button',{name:'Discard unsent draft',exact:true}).click();

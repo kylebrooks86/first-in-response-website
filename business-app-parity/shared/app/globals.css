@@ -1694,7 +1694,9 @@ html,body{max-width:100%;overflow-x:clip}
 }
 
 /* FIRE customer-first mobile layout: visible record choices and optional detail. */
-.customer-balance-explanation>summary{cursor:pointer;font-weight:750;color:var(--foreground)}
+.customers-view>.back-link{display:inline-flex;align-items:center;min-height:44px}
+.customer-balance-explanation>summary{cursor:pointer;font-weight:750;color:var(--foreground);min-height:44px;padding:13px 0}
+.customer-journey-disclosure button{min-height:44px;white-space:normal;overflow-wrap:anywhere}
 .customer-journey-disclosure>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:800;color:var(--foreground)}
 .customer-journey-disclosure>section{margin-top:12px}
 .customer-flag-panel>details.customer-sign-form{width:100%;min-width:0}
@@ -1955,14 +1957,12 @@ html,body{max-width:100%;overflow-x:clip}
 .schedule-choose-job{display:grid;gap:8px;padding:12px;border:1px solid var(--border);border-radius:10px}
 .schedule-choose-job>button{display:flex;align-items:center;justify-content:space-between;text-align:left}
 .schedule-choose-job>p{margin:0;font-size:12px;color:var(--muted-foreground)}
-.schedule-planning-more{min-width:0;margin:12px 0;padding:0;border:1px solid var(--border);border-radius:11px;background:var(--card)}
-.schedule-planning-more>summary{min-height:48px;padding:12px 14px;cursor:pointer;font-size:13px;font-weight:750;color:inherit}
-.schedule-planning-content{display:grid;gap:12px;padding:0 12px 12px;min-width:0}
+.schedule-planning-content{display:grid;gap:12px;margin:12px 0;min-width:0}
 .schedule-planning-content .schedule-weather-anchor{min-width:0}
 .schedule-planning-content .weather-strip{margin-top:0}
-.schedule-planning-more .schedule-window-controls{margin-top:2px}
+.schedule-planning-content .schedule-window-controls{margin-top:2px}
 .schedule-date-confirmation{display:block;margin:5px 0 8px;font-size:12px;line-height:1.5;color:#a64c10}
-.schedule-day-buttons>button:focus-visible,.schedule-choose-job>button:focus-visible,.schedule-planning-more>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.schedule-day-buttons>button:focus-visible,.schedule-choose-job>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
 [data-theme="dark"] .schedule-date-confirmation{color:#ffd0a8}
 @media(max-width:430px){.schedule-day-buttons>button{flex:1 1 115px;padding:9px 6px}.schedule-day-actions{padding:10px}}
 
@@ -2584,7 +2584,8 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .customer-create-source>summary{display:flex;align-items:center;min-height:44px;padding:8px 11px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:13px;font-weight:750;cursor:pointer}
 .customer-create-source>div{padding-top:9px;display:grid;gap:7px}
 .customer-create-source>summary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
-.customer-create-form .brand-button{min-height:44px}
+.customer-create-form .brand-button{min-height:44px;min-width:0;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:760px){.customer-form button[role="combobox"],.customer-edit-dialog input,.customer-edit-dialog button.brand-button{min-height:44px}}
 @media(max-width:760px){.customer-create-form{gap:12px}.customer-create-form>div{min-width:0}.customer-create-form input{min-height:44px;font-size:16px}.customer-create-form .brand-button{position:sticky;bottom:0;z-index:2;width:100%;background:var(--primary);color:var(--primary-foreground)}}
 /* New estimate descriptions keep full saved text, but avoid seven-line editors by default. */
 .estimate-edit-service .estimate-service-description{min-height:80px;resize:vertical;overflow:auto}
@@ -2652,6 +2653,27 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
 .pricing-settings textarea{min-height:88px;resize:vertical}
 
 .business-preferences{display:grid;gap:.75rem;min-width:0}.business-preferences fieldset{display:grid;gap:.75rem;min-width:0}.business-preferences-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.business-preferences select{min-height:44px;font-size:16px;border:1px solid var(--border);border-radius:8px;padding:.5rem;max-width:100%;background:var(--background);color:var(--foreground)}.business-preferences article,.repeat-service-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;min-width:0}.business-preferences article span,.repeat-service-row label{min-width:0;overflow-wrap:anywhere}.business-preferences small{display:block}.business-preferences button{min-height:44px}.repeat-service-row select{flex-shrink:0}
+/* Native iPhone date/time fields must fit their own grid cells, not just the page. */
+.business-preferences-grid>div{min-width:0;max-width:100%}
+.business-preferences-grid label{display:block;margin-bottom:4px}
+.business-preferences-grid input,.business-preferences-grid select{box-sizing:border-box;min-width:0;max-width:100%;width:100%;min-height:44px;font-size:16px}
+.business-preferences-grid input{background:var(--background);color:var(--foreground)}
+.business-preferences{color-scheme:light}
+[data-theme="dark"] .business-preferences{color-scheme:dark}
+@media(max-width:430px){.business-preferences-grid{grid-template-columns:minmax(0,1fr)}}
+/* Keep secondary catalog and schedule tools as tappable as their primary actions. */
+.pricing-settings input:not([type="checkbox"]):not([type="radio"]),.pricing-settings button,.pricing-settings summary,.pricing-grid button{min-height:44px}
+.schedule-planning-content>details>summary{min-height:44px;padding-block:10px;cursor:pointer}
+/* Long catalog names must not establish a wider minimum size for a new estimate. */
+.new-estimate-dialog .estimate-edit-items{min-width:0;grid-template-columns:minmax(0,1fr)}
+.new-estimate-dialog .estimate-edit-service,.new-estimate-dialog .estimate-edit-service>*{min-width:0;max-width:100%}
+.new-estimate-dialog .estimate-edit-service>header{flex-wrap:wrap;gap:8px}
+.new-estimate-dialog .estimate-edit-service>header>div{min-width:0;max-width:100%;flex-wrap:wrap}
+.new-estimate-dialog [data-slot="select-trigger"]{width:100%;max-width:100%;height:auto;min-height:44px;white-space:normal}
+.new-estimate-dialog [data-slot="select-value"]{min-width:0;white-space:normal;overflow-wrap:anywhere;-webkit-line-clamp:unset}
+/* Secondary owner tools keep existing placement and gain comfortable touch height. */
+.settings-view .template-editor input:not([type="checkbox"]):not([type="radio"]),.settings-view .template-editor [role="alert"] button,.template-editor .merge-tags button,.business-preferences input:not([type="checkbox"]):not([type="radio"]),.door-workspace input:not([type="checkbox"]):not([type="radio"]),button[aria-label="Copy full payment reference"]{min-height:44px}
+.weather-strip.weather-simple .weather-simple-footer button{min-height:44px}
 
 
 /* Mobile polish: preserve payment details while making each action easier to scan. */
@@ -2708,3 +2730,62 @@ html[data-theme="dark"] .customers-view .customer-directory-alert{color:#fdba74}
  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35;
 }
 .schedule-day-buttons>.route-day-button small{grid-column:2;grid-row:2;min-width:0;line-height:1.4}
+
+/* Keep business-contact handoffs usable without changing other dialogs. */
+.voice-contact-dialog [data-slot="dialog-close"]{width:44px;height:44px;display:grid;place-items:center;top:4px;right:4px}
+.voice-contact-dialog [data-slot="dialog-title"]{padding-right:24px}
+button[data-personal-backup],.customer-contact>button[data-personal-backup],.detail-actions>button[data-personal-backup]{color:var(--muted-foreground);font-weight:500;border-style:dashed}
+
+/* Keep signature controls within the existing customer agreement card. */
+.estimate-portal:has(.signature-panel){min-width:0}
+.signature-panel{min-width:0;grid-template-columns:minmax(0,1fr)}
+.signature-panel :is(.signature-input,input:not([type=radio]):not([type=checkbox]),.change-request){min-width:0;max-width:100%}
+.signature-panel input:not([type=radio]):not([type=checkbox]){width:100%;min-height:44px;font-size:16px}
+.signature-panel>.brand-button,.signature-panel .change-request>button{height:auto;min-height:48px;white-space:normal;overflow-wrap:anywhere}
+.signature-panel .change-request-toggle{min-height:44px}
+.signature-panel .photo-release label{min-height:44px;align-items:center}
+
+/* Preserve the existing nested checkout-review panel and its session identity. */
+.checkout-reconciliation{min-width:0;max-width:100%}.checkout-reconciliation input{min-width:0;max-width:100%;min-height:44px;font-size:16px}.checkout-reconciliation button{min-width:0;min-height:44px;height:auto;white-space:normal;overflow-wrap:anywhere}
+
+/* Sign-in keeps its approved white card readable under a retained app theme. */
+.access-card{color:#112238;color-scheme:light}.access-card input{background:#fff;color:#112238}
+
+/* Keep offline setup diagnostics readable within their existing disclosure. */
+.offline-field-setup{min-width:0;max-width:100%;overflow-wrap:anywhere}
+
+/* Comfortable targets only inside the existing paid-job review queue. */
+.payments-view section[aria-label="Paid jobs ready for review follow-up"] button{min-height:44px}
+
+/* Scoped owner iPhone QA polish: neutral refresh, concise policy status.
+   Preserve shared financial controls and existing estimate modal layout. */
+.owner-deposit-review .owner-deposit-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px}
+.owner-deposit-review .owner-deposit-head h3{min-width:0;line-height:1.3;font-size:1rem}
+.owner-deposit-review .owner-deposit-refresh{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:transparent;color:inherit;font:inherit;font-size:.875rem;font-weight:600;line-height:1.2;white-space:nowrap}
+.owner-deposit-review .owner-deposit-refresh svg{width:17px;height:17px;flex-shrink:0}
+.owner-deposit-review .owner-deposit-refresh:hover{background:var(--muted)}
+.owner-deposit-review .owner-deposit-refresh:focus-visible{outline:3px solid #df2933;outline-offset:2px}
+.owner-deposit-review .owner-deposit-refresh:disabled{opacity:.6;cursor:not-allowed}
+.owner-deposit-review .owner-deposit-summary{display:grid;gap:10px;padding-top:14px}
+.owner-deposit-review .owner-deposit-summary>span{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,auto);align-items:start;gap:12px;font-size:.875rem;line-height:1.4}
+.owner-deposit-review .owner-deposit-summary>span strong{font-size:.875rem;max-width:100%;white-space:normal;text-align:right;overflow-wrap:anywhere}
+.owner-deposit-review .owner-deposit-guidance{margin:2px 0 0;line-height:1.5;font-size:.875rem}
+.owner-deposit-review .owner-deposit-breakdown{margin-top:4px;border-top:1px solid var(--border);padding-top:10px}
+.owner-deposit-review .owner-deposit-breakdown>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-size:.875rem;font-weight:650}
+.owner-deposit-review .owner-deposit-breakdown .revision-totals{gap:9px;padding:8px 0 2px}
+
+/* Owner iPhone QA: preserve the message recipient while reserving a safe close-button hit area. */
+.message-dialog .message-dialog-header{min-width:0;max-width:100%;padding-right:56px;text-align:left}
+.message-dialog .message-dialog-header [data-slot="dialog-title"]{line-height:1.3;overflow-wrap:anywhere}
+.message-dialog .message-dialog-recipient{margin:0;max-width:100%;color:var(--muted-foreground);font-size:.875rem;line-height:1.4;overflow-wrap:anywhere;word-break:normal}
+.voice-contact-dialog .voice-contact-recipient{margin:0;min-width:0;font-size:.925rem;line-height:1.45;overflow-wrap:anywhere}
+.voice-contact-dialog .voice-contact-recipient span:last-child{white-space:nowrap}
+
+/* Long saved customer names must remain readable inside Follow-ups cards. */
+.followups-view .followup-card>div>strong{overflow-wrap:anywhere}
+
+/* Keep the existing agreement identity column readable at tablet/desktop widths too. */
+.contract-list>button>span:nth-child(2){min-width:0;overflow-wrap:anywhere}
+
+/* Follow-ups actions and explicit retries retain comfortable touch targets. */
+.followups-view button{min-height:44px}

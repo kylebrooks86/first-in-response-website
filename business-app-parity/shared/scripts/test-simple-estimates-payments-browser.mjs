@@ -115,6 +115,8 @@ try{
   await panel.locator(':scope > summary').click();
   check(await page.locator('.payment-history article').count()===8,width+': original recent eight payment records retained');
   check(await page.getByRole('button',{name:'Refund action for synthetic-0'}).isVisible(),width+': refunds still reachable');
+  const referenceCopy=page.getByRole('button',{name:'Copy full payment reference'}).first();
+  check(await referenceCopy.isVisible()&&await referenceCopy.evaluate(n=>n.getBoundingClientRect().height>=44),width+': actual payment-reference copy action has a 44px target');
   check(!(await page.locator('.synthetic-processing').first().isVisible()),width+': fee breakdown starts collapsed');
   await page.locator('.payment-fee-details summary').first().click();
   check(await page.locator('.synthetic-processing').first().isVisible(),width+': full payment fee detail opens on demand');

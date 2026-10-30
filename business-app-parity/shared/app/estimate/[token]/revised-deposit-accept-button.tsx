@@ -1,6 +1,7 @@
 "use client";
 import {useRef,useState} from "react";
 import {useRouter} from "next/navigation";
+import {Input} from "@/components/ui/input";
 type Receipt={ok?:boolean;version?:string;documentDigest?:string;acceptedAt?:string;signedAt?:string;signedName?:string;photoRelease?:string;replayed?:boolean;error?:string;saveUncertain?:boolean};
 export function RevisedDepositAcceptButton({token,version,documentDigest}:{token:string;version:string;documentDigest:string}){
  const router=useRouter();
@@ -49,7 +50,7 @@ export function RevisedDepositAcceptButton({token,version,documentDigest}:{token
     <label><input type="radio" name="revisedPhoto" value="no" checked={photo==="no"} onChange={()=>setPhoto("no")}/> No — do not allow marketing use</label>
    </fieldset>
    <label htmlFor="revisedDepositSignatureName">Full legal name</label>
-   <input id="revisedDepositSignatureName" className="signature-input" autoComplete="name" maxLength={120}
+   <Input id="revisedDepositSignatureName" autoComplete="name" maxLength={120}
     value={name} disabled={busy||uncertain} onChange={event=>setName(event.target.value)}/>
    <label className="terms-check"><input type="checkbox" checked={checked} disabled={busy||uncertain}
     onChange={event=>setChecked(event.target.checked)}/>

@@ -53,13 +53,26 @@ await page.getByRole('button',{name:'Continue to services'}).click();
 // Every QuoteIQ service is offered by the actual estimate selector with its
 // exact unit/rate, without automatically adding any supplemental service.
 const firstService=page.locator('.estimate-edit-service').first();
-for(const service of FIRE_SERVICES.filter(s=>s.quoteIqNumber)){
+const verifyServiceGeometry=async(label)=>{
+ await firstService.evaluate(async n=>{void n.getBoundingClientRect();await Promise.all(n.getAnimations({subtree:true}).map(a=>a.finished.catch(()=>{})));});
+ const g=await firstService.evaluate(n=>{const box=e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,width:r.width,height:r.height};};return {viewport:innerWidth,card:box(n),controls:[...n.querySelectorAll('input,textarea,button')].filter(e=>e.getClientRects().length).map(e=>({name:e.getAttribute('aria-label')||e.id||e.textContent,box:box(e)}))};});
+ check(g.card.left>=0&&g.card.right<=g.viewport+1,label+' service card fits viewport: '+JSON.stringify(g));
+ check(g.controls.every(c=>c.box.left>=g.card.left-1&&c.box.right<=g.card.right+1),label+' each native field/selector/line action fits its own card: '+JSON.stringify(g));
+};
+for(const service of FIRE_SERVICES){
  await firstService.getByRole('combobox').click();await page.getByRole('option',{name:service.name,exact:true}).click();
  check(await firstService.getByLabel('Service name',{exact:true}).inputValue()===service.name,'QuoteIQ #'+service.quoteIqNumber+' selectable');
- check(await firstService.locator('input[id$="-price"]').inputValue()===String(service.rate/100),'QuoteIQ #'+service.quoteIqNumber+' exact standard rate');
+ check([String(service.rate/100),...(service.rate===0?['']:[])].includes(await firstService.locator('input[id$="-price"]').inputValue()),'Catalog '+service.id+' exact standard rate');
  check((await firstService.locator('.edit-quantity-row').innerText()).includes(service.unit),'QuoteIQ #'+service.quoteIqNumber+' exact unit');
  check(await page.locator('.estimate-edit-service').count()===1,'Selecting service never auto-adds surcharges');
+ await verifyServiceGeometry('Catalog '+service.id);
 }
+const longestServices=[...FIRE_SERVICES].sort((a,b)=>b.name.length-a.name.length).slice(0,3);
+for(const width of [320,375,390,430,768,1366])for(const theme of ['light','dark']){
+ await page.setViewportSize({width,height:844});await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
+ for(const service of longestServices){await firstService.getByRole('combobox').click();await page.getByRole('option',{name:service.name,exact:true}).click();await verifyServiceGeometry(width+'/'+theme+'/'+service.id);}
+}
+await page.setViewportSize({width:390,height:844});
 // Oddball quote-only work stays separate from reusable standard catalog entries.
 let customCatalogWrites=0;page.on('request',r=>{if(r.url().endsWith('/api/service-pricing')&&r.method()==='PUT')customCatalogWrites++;});
 await firstService.getByRole('combobox').click();await page.getByRole('option',{name:'Custom Service',exact:true}).click();

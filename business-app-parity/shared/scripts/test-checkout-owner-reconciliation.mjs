@@ -103,6 +103,30 @@ const confirmedTracked=await call(trackedPaidId,trackedPaidId);
 check(confirmedTracked.status===200&&(await confirmedTracked.json()).action==='paid','Owner can reconcile paid tracked checkout against actual D1 ledger');
 check(sql.prepare('SELECT status FROM payment_checkout_sessions WHERE id=?').get(trackedPaidId).status==='paid','Reconciled tracked checkout is marked paid');
 check(sql.prepare('SELECT COUNT(*) n FROM payments WHERE provider_id=?').get(trackedPaidId).n===1,'Tracked checkout adds exactly one verified payment');
+// Signed async-failure handling: real helper, native disposable SQLite only.
+// A failure alert must never resolve or release checkout reservations.
+const failedId='cs_test_failedowner';
+sql.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES (?,'job-tracked','balance',10000,'open','now')").run(failedId);
+const failedSession=trackedSession(failedId,'complete','unpaid');
+const failedOnce=await stripe.recordStripeCheckoutFailure(DB,failedSession);
+check(failedOnce.recorded===true&&failedOnce.duplicate===false,'Verified failed checkout creates owner notification');
+check(sql.prepare("SELECT COUNT(*) AS n FROM notifications WHERE id=? AND type='payment_failed'").get('stripe-payment-failed:'+failedId).n===1,'Actual failure alert persisted once');
+check(sql.prepare("SELECT status FROM payment_checkout_sessions WHERE id=?").get(failedId).status==='open','Failure alert never unlocks the anti-double-charge reservation');
+const failedRepeat=await stripe.recordStripeCheckoutFailure(DB,failedSession);
+check(failedRepeat.recorded===true&&failedRepeat.duplicate===true,'Replayed failure is idempotent');
+check(sql.prepare("SELECT COUNT(*) AS n FROM notifications WHERE id=?").get('stripe-payment-failed:'+failedId).n===1,'Replay cannot duplicate notifications');
+const alteredFailure=structuredClone(failedSession);alteredFailure.client_reference_id='job-owner';
+check((await stripe.recordStripeCheckoutFailure(DB,alteredFailure)).recorded===false,'Cross-job failure cannot create false alert');
+alteredFailure.client_reference_id='job-tracked';alteredFailure.amount_total=9999;
+check((await stripe.recordStripeCheckoutFailure(DB,alteredFailure)).recorded===false,'Incorrect failed checkout amount cannot create false alert');
+check((await stripe.recordStripeCheckoutFailure(DB,{...failedSession,payment_status:'paid'})).recorded===false,'Paid event can never produce failed-checkout alert');
+const settledFailureId='cs_test_settledfailed';
+sql.prepare("INSERT INTO payment_checkout_sessions(id,estimate_id,type,amount_cents,status,created_at) VALUES (?,'job-tracked','balance',10000,'paid','now')").run(settledFailureId);
+check((await stripe.recordStripeCheckoutFailure(DB,{...failedSession,id:settledFailureId})).ignored===true,
+  'Out-of-order failure cannot produce alert for already paid checkout');
+check(sql.prepare("SELECT COUNT(*) AS n FROM payments WHERE provider_id=?").get(failedId).n===0,
+  'Failed checkout generates zero financial ledger records');
+
 const ownerUi=readFileSync(resolve(root,'app/dashboard.tsx'),'utf8');
 const ownerPayments=readFileSync(resolve(root,'app/api/payments/route.ts'),'utf8');
 check(ownerUi.includes('issue.id.startsWith("cs_")?issue.id:""'),'Actual owner UI pre-fills known Stripe session IDs');
