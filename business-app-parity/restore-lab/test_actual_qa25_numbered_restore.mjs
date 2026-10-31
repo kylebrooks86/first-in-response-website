@@ -70,6 +70,14 @@ const localD1={
   return results;
  }
 };
+const reviewed=new Set([...FIRE_NUMBERED_RECORDS_TABLES,
+ 'fire_customer_numbers','fire_job_numbers','fire_job_estimate_links','d1_migrations','_cf_KV']);
+const actualTableNames=source.prepare(
+ "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+).all().map(x=>x.name);
+console.log('QA25_SCHEMA_INVENTORY_EXTRA_TABLE_NAMES='+JSON.stringify(
+ actualTableNames.filter(name=>!reviewed.has(name))));
+// This reports migration-defined table NAMES only, no user records or values.
 const strictRealCapture=await captureFinanciallyVerifiedNumberedRecordsV2FromD1({
  db:localD1,now:()=> '2026-10-31T14:05:00Z'
 });
