@@ -22,6 +22,21 @@ export const FIRE_NUMBERED_V2_READ_TABLES=Object.freeze([
   ...FIRE_NUMBERED_RECORDS_TABLES,...NUMBER_TABLES
 ]);
 const SEQUENCE_SQL="SELECT name, seq FROM sqlite_sequence WHERE name IN ('fire_customer_numbers','fire_job_numbers') ORDER BY name";
+const INVENTORY_SQL="SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name";
+const EXTRA_PROVIDER_TABLES=new Set(['d1_migrations','_cf_KV']);
+function requireCompleteTableInventory(rows){
+ const required=new Set(FIRE_NUMBERED_V2_READ_TABLES),seen=new Set();
+ for(const row of rows){
+  const name=row?.name;
+  if(typeof name!=='string'||!name||seen.has(name)||
+    !(required.has(name)||EXTRA_PROVIDER_TABLES.has(name)))
+   fail('unexpected, duplicated or missing source table inventory');
+  seen.add(name);
+ }
+ if([...required].some(name=>!seen.has(name)))
+  fail('source table inventory is missing a required saved record family');
+}
+
 
 function fail(reason){throw new Error('FIRE numbered D1 READ REFUSED: '+reason);}
 function hasRows(reply){return reply&&reply.success===true&&Array.isArray(reply.results)&&reply.results.every(r=>r!==null&&typeof r==='object'&&!Array.isArray(r));}
@@ -50,12 +65,14 @@ export async function captureNumberedRecordsV2FromD1({
   const statements=FIRE_NUMBERED_V2_READ_TABLES.map(table=>
     db.prepare('SELECT * FROM "'+table+'"'));
   statements.push(db.prepare(SEQUENCE_SQL));
+  statements.push(db.prepare(INVENTORY_SQL));
   // Source-only; all SELECTs in ONE D1 transactional batch, no writes.
   const batch=await db.batch(statements);
   if(!Array.isArray(batch)||batch.length!==statements.length||!batch.every(hasRows))
     fail('incomplete, failed or unreviewed transactional D1 batch');
   const read=Object.fromEntries(FIRE_NUMBERED_V2_READ_TABLES.map((table,i)=>[table,batch[i].results]));
-  const seq=batch[batch.length-1].results;
+  const seq=batch[FIRE_NUMBERED_V2_READ_TABLES.length].results;
+  requireCompleteTableInventory(batch[FIRE_NUMBERED_V2_READ_TABLES.length+1].results);
   if(seq.some(r=>!['fire_customer_numbers','fire_job_numbers'].includes(r.name)))
     fail('unexpected SQLite sequence row');
   if(seq.length!==new Set(seq.map(r=>r.name)).size)
