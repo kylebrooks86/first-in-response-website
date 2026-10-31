@@ -12,6 +12,21 @@ export function customerNumberLabel(value){
   return Number.isSafeInteger(n)&&n>0?'Customer #'+String(n).padStart(4,'0'):null;
 }
 
+/** Match an explicit permanent Customer # or a padded 4+-digit exact number.
+ * Keep the ordinary name/address/phone search independent; never treat a
+ * 1-3 digit bare query as an ID and never match an ID by prefix.
+ */
+export function matchesCustomerNumberQuery(customerNumber,query){
+  if(!customerNumberLabel(customerNumber)||typeof query!=='string')return false;
+  const term=query.trim().toLowerCase();
+  const explicit=/^(?:customer\s*#?\s*|#)0*([1-9]\d*)$/.exec(term);
+  const padded=/^0*([1-9]\d{3,})$/.exec(term);
+  const number=explicit?.[1]??padded?.[1];
+  if(!number)return false;
+  const parsed=Number(number);
+  return Number.isSafeInteger(parsed)&&parsed===Number(customerNumber);
+}
+
 /** Fail closed if flag is enabled without a complete immutable numbering map.
  * Call after owner authorization or successful opaque customer share-token
  * resolution, never from an unauthenticated directory query.
