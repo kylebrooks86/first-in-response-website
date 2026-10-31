@@ -8,6 +8,7 @@
  * Server returns only authenticated encrypted JSON kit; no restore.
  */
 import {useRef,useState,type FormEvent} from "react";
+import {inspectLocalEncryptedRecoveryKit,FIRE_PRIVATE_REVIEW_MAX_FILE_BYTES} from "../../lib/numbered-records-v2-local-review.mjs";
 
 export function PrivateRecoveryExportClient(){
  const pass=useRef<HTMLInputElement>(null);
@@ -28,9 +29,25 @@ export function PrivateRecoveryExportClient(){
    if(!response.ok)throw Error("Export source was incomplete or not authorized");
    if(!response.headers.get("content-type")?.includes("application/json"))
     throw Error("Unrecognized export reply");
+   const declaredSize=response.headers.get("content-length");
+   if(declaredSize!==null){
+    const declared=Number(declaredSize);
+    if(!Number.isSafeInteger(declared)||declared<=0||
+       declared>FIRE_PRIVATE_REVIEW_MAX_FILE_BYTES)
+     throw Error("Unreviewed encrypted kit response length");
+   }
    const sealed=await response.blob();
-   if(sealed.size<=0||sealed.size>110*1024*1024)
+   if(sealed.size<=0||sealed.size>FIRE_PRIVATE_REVIEW_MAX_FILE_BYTES)
     throw Error("Encrypted kit outside reviewed download limit");
+   // No saved-backup claim without decrypting and verifying EXACTLY the
+   // server response, including original image bytes and financial history.
+   // This local check makes no API call and returns aggregate counts only.
+   const proof=await inspectLocalEncryptedRecoveryKit({
+    text:await sealed.text(),passphrase:password
+   });
+   if(!proof.validEncryptedRecordsAndPhotos||proof.filesUploaded||
+      proof.recordsRestored||proof.photosRestored||proof.releaseApproved)
+    throw Error("Encrypted response failed full local backup verification");
    const url=URL.createObjectURL(sealed);
    try{
     const link=document.createElement("a");
@@ -39,13 +56,13 @@ export function PrivateRecoveryExportClient(){
     document.body.appendChild(link);
     link.click();
     link.remove();
-    setStatus("Encrypted kit prepared for download. Save it privately with the passphrase stored separately.");
+    setStatus("Verified encrypted kit; browser download requested. Check your Downloads folder, then use the review above to verify the SAVED file. Keep your passphrase separately.");
    }finally{
     // The browser needs the blob URL long enough to begin the download.
     setTimeout(()=>URL.revokeObjectURL(url),60_000);
    }
   }catch{
-   setStatus("The private QA export is unavailable or a required record/photo check failed. No database or photo records were changed.");
+   setStatus("Export was not downloaded: private source or full local encrypted records/photo verification failed. No database or photo records were changed.");
   }finally{
    if(pass.current)pass.current.value="";
    setBusy(false);
@@ -76,7 +93,7 @@ export function PrivateRecoveryExportClient(){
     style={{minHeight:46,padding:"10px 16px",borderRadius:9,
      background:"var(--primary)",color:"var(--primary-foreground)",
      fontWeight:700}}>
-    {busy?"Verifying and encrypting…":"Create private encrypted kit"}
+    {busy?"Checking source, encrypting and verifying…":"Create private encrypted kit"}
    </button>
   </form>
   {status?<p role="status" aria-live="polite" style={{
