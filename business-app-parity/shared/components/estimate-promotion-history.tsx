@@ -41,25 +41,24 @@ export function EstimatePromotionHistory({estimateId,totalCents}:{estimateId:str
    'No discount applied')+' · '+record.checkedOn:'';
  return <section data-estimate-id={estimateId} aria-label="Saved promotions on estimate" className="rounded-xl border p-3">
   <details>
-   <summary className="cursor-pointer py-1">
+   <summary className="cursor-pointer min-h-11 py-2">
     <strong>Promotion history</strong>
     <span className="ml-2 text-sm text-muted-foreground">{summary}</span>
    </summary>
-   <div className="space-y-2 pt-3">
-    <Button type="button" variant="outline" size="sm" className="min-h-11" aria-label="Refresh history" onClick={()=>setSeq(value=>value+1)}>Refresh</Button>
+   <div className="space-y-3 pt-2">
     {state==='loading'&&<p role="status" className="text-sm">Checking saved offers…</p>}
-    {state==='error'&&<p role="alert" className="text-sm">Promotion history unavailable. The quote is unchanged. Tap Refresh to retry.</p>}
+    {state==='error'&&<p role="alert" className="text-sm">Promotion history unavailable. The quote is unchanged. Refresh to retry.</p>}
     {state==='ready'&&record&&<>
-     <p className="text-sm text-muted-foreground">Terms saved {record.checkedOn}. Later offers will not change this quote.</p>
-     {record.bookingConfirmedOn&&<p className="text-sm">Owner-confirmed booking date: {record.bookingConfirmedOn}. Not a customer signature.</p>}
-     {record.rules.length?record.rules.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{p.name}</span><strong>{label(p)}</strong></div>):
-      <p className="text-sm">No discount applied.</p>}
-     <p className="text-sm">Subtotal {cents(record.subtotalCents)} · Total {cents(record.totalCents)} · Deposit {cents(record.depositCents)}</p>
-     {!record.bookingConfirmedOn&&<details className="rounded-lg border p-3">
-      <summary className="cursor-pointer font-semibold">Check booking-date savings</summary>
-      <div className="pt-3"><BookingAmendmentPreview estimateId={estimateId} totalCents={record.totalCents}/></div>
+     <p className="text-sm text-muted-foreground">Saved {record.checkedOn} · Total {cents(record.totalCents)} · Deposit {cents(record.depositCents)}</p>
+     {record.rules.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{p.name}</span><strong>{label(p)}</strong></div>)}
+     {record.bookingConfirmedOn&&<p className="text-sm">Confirmed booking date: {record.bookingConfirmedOn} (owner-recorded only).</p>}
+     <p className="text-xs text-muted-foreground">Later offers do not change this saved estimate.</p>
+     {!record.bookingConfirmedOn&&<details className="rounded-lg border px-3">
+      <summary className="cursor-pointer min-h-11 py-2 font-medium">Review booking savings (optional)</summary>
+      <div className="pb-3"><BookingAmendmentPreview estimateId={estimateId} totalCents={record.totalCents}/></div>
      </details>}
     </>}
+    <Button type="button" variant="outline" size="sm" className="min-h-11" aria-label="Refresh history" onClick={()=>setSeq(value=>value+1)}>Refresh</Button>
    </div>
   </details>
  </section>;

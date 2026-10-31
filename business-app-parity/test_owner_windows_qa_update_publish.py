@@ -39,7 +39,7 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
         for text in ("fire-fullapp-qa-20261016",
                      "fire-fullapp-qa-db-20261016",
                      "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                     "db6ef897-edd3-439e-8679-b6f6620f18af",
+                     "1783ded7-43db-4769-8708-fa86c47b002d",
                      "owner_windows_qa_update_review.ps1",
                      "$beforeVersions.Count -eq 1",
                      "[double]$beforeVersions[0].percentage -eq 100",
@@ -84,5 +84,23 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
         self.assertIn("Remove-Item -LiteralPath $temporaryManifest -Force",S)
         self.assertLess(S.index("deploy --dry-run"), S.index("deploy --config $temporaryManifest --name"))
         self.assertIn("} finally {",S)
+
+
+    def test_physical_worker_d1_binding_checked_before_and_after_owner_approval(self):
+        for required in (
+            "verify_qa_worker_version_bindings.ps1",
+            "QA active physical D1 binding check missing.",
+            "versions view $expectedOldVersion --name $workerName --json",
+            "-ExpectedVersion $expectedOldVersion -ExpectedDatabaseId $dbId",
+            "$beforeBinding.bindingVerified -eq $true",
+            "$afterBinding.bindingVerified -eq $true",
+            "$afterBinding.remoteWrites -eq $false",
+        ):
+            self.assertIn(required, S)
+        self.assertEqual(S.count("versions view $expectedOldVersion --name $workerName --json"), 2)
+        self.assertLess(S.index("$beforeBindingRaw ="), S.index("$typed = Read-Host"))
+        self.assertLess(S.index("Require ($typed -ceq $approval)"), S.index("$afterBindingRaw ="))
+        self.assertLess(S.index("$afterBindingRaw ="), S.index("deploy --dry-run --config $temporaryManifest"))
+        self.assertLess(S.index("$afterBindingRaw ="), S.index("deploy --config $temporaryManifest --name"))
 
 if __name__=="__main__":unittest.main(verbosity=2)

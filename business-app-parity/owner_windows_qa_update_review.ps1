@@ -14,11 +14,11 @@ $qaDatabase = 'fire-fullapp-qa-db-20261016'
 $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Cloud photo R2 is intentionally not provisioned. The device-local photo vault and
 # independently saved ZIP backups must remain usable without billing.
-# Pin the owner-observed October 30 QA version (Issue #19, comment 6523826652).
+# Pin the exact QA Worker version shown by the owner's authenticated Acer Wrangler read-only status on October 30, 2026.
 # Fresh authenticated Wrangler review must independently confirm the same sole 100% active version.
 # Reject a different active version, split traffic, or changed D1 identity.
 # Reject older, split, changed or ambiguous versions before any upload.
-$expectedActiveVersion = 'db6ef897-edd3-439e-8679-b6f6620f18af'
+$expectedActiveVersion = '1783ded7-43db-4769-8708-fa86c47b002d'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }
@@ -93,7 +93,9 @@ Require-Exit 'Exactly isolated QA Worker/D1 bindings'
 # d1 info returns API code 10000. Check BOTH QA and protected staging identities,
 # fail closed on collisions, and never infer schema from num_tables metadata.
 $identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'
+$bindingHelper = Join-Path $PSScriptRoot 'verify_qa_worker_version_bindings.ps1'
 Require (Test-Path -LiteralPath $identityHelper -PathType Leaf) 'Strict read-only D1 identity validator is missing.'
+Require (Test-Path -LiteralPath $bindingHelper -PathType Leaf) 'Strict active QA physical D1 binding validator is missing.'
 $databaseRaw = @(& $wrangler.Source d1 list --json)
 Require-Exit 'Read-only existing QA/staging D1 list'
 $databaseInfo = & $identityHelper -Json ($databaseRaw -join [Environment]::NewLine)
@@ -131,8 +133,13 @@ $activeVersions = @($deploymentInfo.versions)
 Require ($activeVersions.Count -eq 1) 'QA Worker traffic is split or ambiguous. Stop.'
 Require ([double]$activeVersions[0].percentage -eq 100) 'Exactly one QA Worker version must serve 100 percent of requests.'
 $activeVersion = [string]$activeVersions[0].version_id
-Require ($activeVersion -ceq $expectedActiveVersion) 'Active QA Worker differs from authenticated owner October 29 QA preflight. STOP; do not re-pin or deploy. Stop.'
+Require ($activeVersion -ceq $expectedActiveVersion) 'Active QA Worker differs from the owner-confirmed latest 100-percent serving version. STOP; do not deploy.'
+$versionRaw = @(& $wrangler.Source versions view $activeVersion --name $workerName --json)
+Require-Exit 'Authenticated read-only active QA Worker version metadata'
+$bindingProof = & $bindingHelper -Json ($versionRaw -join [Environment]::NewLine) -ExpectedVersion $activeVersion -ExpectedDatabaseId $qaId
+Require ($bindingProof.bindingVerified -eq $true -and $bindingProof.remoteWrites -eq $false) 'Active serving QA Worker does not prove exact physical DB binding.'
 Write-Host ('PASS: Active QA Worker is exactly one 100-percent deployment: ' + $activeVersion)
+Write-Host 'PASS: The serving version physically binds DB to the isolated QA D1 UUID; no R2 storage.'
 Write-Host ('PASS: Existing QA database name and UUID match: ' + $qaDatabase)
 # Dry-run requires ONLY a disposable normalized manifest, outside any app data.
 $temporaryManifest = Join-Path (Split-Path -Parent $manifest) (

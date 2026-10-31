@@ -53,8 +53,7 @@ export function BookingAmendmentPreview({estimateId,totalCents}:{estimateId:stri
   }catch(e){if(run.current===seq){setMessage(e instanceof Error&&e.name!=='AbortError'?e.message:'Could not verify the amendment preview. No changes made.');setStatus('error');}}
  };
  return <section className="rounded-lg border p-3 space-y-3" aria-label="Booking promotion adjustment preview">
-   <div className="space-y-1"><strong>Booked after this estimate?</strong>
-    <p className="text-sm">Check possible savings without changing the customer's existing quote. This is for owner review only—not a revised estimate or agreement.</p></div>
+   <p className="text-sm text-muted-foreground">Optional: preview savings for a later booking. The original quote stays unchanged.</p>
    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
     <div className="flex-1 space-y-1"><label htmlFor={'booking-preview-date-'+estimateId} className="block text-sm font-semibold">Booking date confirmed by owner (Tulsa)</label>
      <input type="date" id={'booking-preview-date-'+estimateId} className="min-h-11 w-full rounded-md border bg-background p-2 text-foreground"
@@ -62,7 +61,10 @@ export function BookingAmendmentPreview({estimateId,totalCents}:{estimateId:stri
     <Button type="button" variant="outline" className="min-h-11 w-full sm:w-auto" disabled={status==='loading'||!bookingOn} onClick={()=>void check()}>
      {status==='loading'?'Checking saved offers…':'Preview booking adjustment'}</Button>
    </div>
-   <BookingReviewDraftPanel estimateId={estimateId} totalCents={totalCents} preview={status==='ready'?result:null}/>
+   <details className="rounded-lg border px-3" aria-label="Advanced booking review">
+    <summary className="cursor-pointer min-h-11 py-2 font-medium">Internal review (optional)</summary>
+    <div className="pb-3"><BookingReviewDraftPanel estimateId={estimateId} totalCents={totalCents} preview={status==='ready'?result:null}/></div>
+   </details>
    {status==='loading'&&<p role="status" className="text-sm">Rechecking original saved offer rules and current eligibility…</p>}
    {status==='error'&&<p role="alert" className="text-sm">{message}</p>}
    {status==='ready'&&result&&<div role="status" className="space-y-2 text-sm">

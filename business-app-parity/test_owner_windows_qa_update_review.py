@@ -40,7 +40,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "db6ef897-edd3-439e-8679-b6f6620f18af",
+                         "1783ded7-43db-4769-8708-fa86c47b002d",
                          "deployments status --name $workerName --json",
                          "d1 list --json", "databaseInfo.qaUuid -ceq $qaId",
                          "$activeVersions.Count -eq 1",
@@ -98,10 +98,10 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         publisher = (Path(__file__).parent / "owner_windows_qa_update_publish.ps1").read_text(encoding="utf-8")
         readonly = (Path(__file__).parent / "owner_windows_qa_current_readonly.ps1").read_text(encoding="utf-8")
         readonly_pins = re.findall(r"^\$expectedVersion = '([^']+)'$", readonly, re.M)
-        self.assertEqual(readonly_pins, ["db6ef897-edd3-439e-8679-b6f6620f18af"])
+        self.assertEqual(readonly_pins, ["1783ded7-43db-4769-8708-fa86c47b002d"])
         for script in (S, publisher):
             pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", script, re.M)
-            self.assertEqual(pins, ["db6ef897-edd3-439e-8679-b6f6620f18af"])
+            self.assertEqual(pins, ["1783ded7-43db-4769-8708-fa86c47b002d"])
             self.assertNotIn("expectedActiveVersionPrefix", script)
             self.assertNotIn("da71b08f", script)
         self.assertIn("Require ($activeVersion -ceq $expectedActiveVersion)", S)
@@ -117,6 +117,22 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertIn("Remove-Item -LiteralPath $temporaryManifest -Force", S)
         self.assertIn("} finally {", S)
         self.assertNotIn("FIRE-QA-Private", S)
+
+
+    def test_active_serving_worker_must_physically_bind_isolated_qa_d1(self):
+        for required in (
+            "verify_qa_worker_version_bindings.ps1",
+            "Strict active QA physical D1 binding validator is missing.",
+            "& $wrangler.Source versions view $activeVersion --name $workerName --json",
+            "-ExpectedVersion $activeVersion -ExpectedDatabaseId $qaId",
+            "$bindingProof.bindingVerified -eq $true",
+            "$bindingProof.remoteWrites -eq $false",
+        ):
+            self.assertIn(required, S)
+        self.assertLess(S.index("deployments status --name $workerName --json"),
+                        S.index("versions view $activeVersion --name $workerName --json"))
+        self.assertLess(S.index("versions view $activeVersion --name $workerName --json"),
+                        S.index("deploy --dry-run --config $temporaryManifest"))
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

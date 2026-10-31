@@ -86,8 +86,11 @@ try{
  eq((await read()).status,503,'Corrupt saved catalog cannot silently become empty');
  eq((await put([mix],null)).status,503,'Corrupt saved catalog cannot be overwritten');
  const source=readFileSync('app/dashboard.tsx','utf8');
- eq(source.includes('onApply={addQuotePackage}'),true,'Real NewEstimate renders package chooser');
- eq(source.includes('setPromotionEvidence(null);setPromotionsVerifiedFor(null)'),true,'Import invalidates previous promotional approval');
- eq(source.includes("setDiscountMode('percent');setDiscountValue('');setBundleValue('')"),true,'Import clears stale promotional amounts before new review');
- console.log('PASS '+checks+'/'+checks+' owner package SQLite/API validations, CAS/races, replay, zero-quantity current owner rates, legacy financial isolation, privacy, corruption, quote editor wiring.');
+ eq(source.includes('<QuotePackages')||source.includes('onApply={addQuotePackage}'),false,
+   'Owner-approved New Estimate simplification leaves no visible reusable-package chooser');
+ eq(source.includes('Add another service'),true,'Ordinary manual multi-service quoting remains available');
+ eq(source.includes('Separate bundle discount ($)'),true,'Stackable bundle discount remains independent of saved package mixes');
+ eq(source.includes('<NewEstimatePromotions '),true,'Saved-promotion verification is still part of New Estimate');
+ eq(source.includes('setPromotionEvidence(null)'),true,'Manual quote changes continue clearing stale promotion evidence');
+ console.log('PASS '+checks+'/'+checks+' legacy owner package SQLite/API compatibility, CAS/races, privacy, corruption and simplified New Estimate with manual service additions/discounts.');
 }finally{r.db.close();}
