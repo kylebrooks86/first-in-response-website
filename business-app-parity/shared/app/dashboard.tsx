@@ -1075,6 +1075,16 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
   const nextJobPhone=digits.length===10?"+1"+digits:digits.length===11&&digits.startsWith("1")?"+"+digits:null;
   const nextJobEmail=nextJob?.email?.trim()??"";
   const canEmailNextJob=/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(nextJobEmail);
+  // The same owner-saved message composer belongs on Home's Next Job as in
+  // customer profiles/estimate details. Never create message history without
+  // a verified saved customer ID, and never infer contact fields from a name.
+  const nextJobMessageCustomer:CustomerRow|null=nextJob?.customerId?.trim()?{
+    id:nextJob.customerId,name:nextJob.customer,
+    email:canEmailNextJob?nextJobEmail:"",
+    phone:nextJobPhone??"",
+    address:nextJob.address??"",createdAt:nextJob.createdAt,
+    estimateCount:1,estimateTotal:nextJob.totalCents,paidTotal:nextJob.paidCents,
+  }:null;
   // The customer profile may hold other details, so report only fields
   // available on THIS scheduled appointment. Highlight today/tomorrow only.
   const nextJobCentralDay=nextJob?.scheduledAt?new Date(nextJob.scheduledAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"}):null;
@@ -1155,7 +1165,7 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
             <summary><Phone className="h-4 w-4" aria-hidden="true"/> Contact customer <ChevronDown className="h-4 w-4" aria-hidden="true"/></summary>
             <div className="dashboard-next-contact-options">
               {nextJobPhone&&<GoogleVoiceCallAction phone={nextJobPhone} customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}{nextJobPhone&&<PersonalPhoneBackupAction phone={nextJobPhone} mode="call" customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}
-              {nextJobPhone&&<GoogleVoiceTextAction phone={nextJobPhone} customerName={upcomingJobs[0].customer} label="Text" ariaLabel="Text next job customer using Google Voice" className="dashboard-next-directions dashboard-next-contact" />}{nextJobPhone&&<PersonalPhoneBackupAction phone={nextJobPhone} mode="text" customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}
+              {nextJobPhone&&nextJobMessageCustomer?<MessageComposer customer={nextJobMessageCustomer} estimate={upcomingJobs[0]} initialTemplate="custom" triggerLabel="Text" triggerClassName="dashboard-next-directions dashboard-next-contact"/>:nextJobPhone&&<Button variant="outline" className="dashboard-next-directions dashboard-next-contact" onClick={()=>onOpenEstimate?onOpenEstimate(upcomingJobs[0].id):onNavigate("schedule")}>Open job to text</Button>}{nextJobPhone&&<PersonalPhoneBackupAction phone={nextJobPhone} mode="text" customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}
               {canEmailNextJob&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Email next job customer" href={"mailto:"+encodeURIComponent(nextJobEmail)}><Mail className="h-4 w-4"/> Email</a>}
             </div>
           </details>}
