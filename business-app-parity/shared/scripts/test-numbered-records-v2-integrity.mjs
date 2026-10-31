@@ -39,7 +39,8 @@ tables.customers=[{id:'c1',created_at:time},{id:'c2',created_at:time}];
 tables.estimates=[
  {id:'e1',customer_id:'c1',created_at:time,contract_version:version+':sha256:'+documentDigest,
   signed_name:'Synthetic Customer',photo_release:'yes',accepted_at:time,signed_at:time},
- {id:'e2',customer_id:'c2',created_at:time}
+ {id:'e2',customer_id:'c2',created_at:time,contract_version:null,
+  signed_name:null,photo_release:null,accepted_at:null,signed_at:null}
 ];
 tables.invoices=[{id:'i1',estimate_id:'e1',customer_id:'c1'}];
 tables.estimate_items=[{id:'item1',estimate_id:'e1'}];
