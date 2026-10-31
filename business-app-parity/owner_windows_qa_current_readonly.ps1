@@ -13,6 +13,7 @@ $expectedVersion = '1783ded7-43db-4769-8708-fa86c47b002d'
 $config = Join-Path $PSScriptRoot 'wrangler.qa-migrations.json'
 $migrationsRoot = Join-Path $PSScriptRoot 'adapters\doomsday\drizzle'
 $identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'
+$bindingHelper = Join-Path $PSScriptRoot 'verify_qa_worker_version_bindings.ps1'
 
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA CURRENT REVIEW STOP: ' + $reason) }
@@ -35,12 +36,17 @@ function Verify-Serving([object]$reply) {
     Require ($null -ne $versions[0].percentage -and [double]$versions[0].percentage -eq 100) 'Worker is not serving 100 percent on one version.'
     Require ([string]$versions[0].version_id -ceq $expectedVersion) 'Active Worker version is not the owner-confirmed current QA release.'
 }
+function Verify-Binding {
+    $view = Read-Provider @('versions','view',$expectedVersion,'--name',$workerName,'--json') 'active Worker resource bindings'
+    $receipt = & $bindingHelper -Json (ConvertTo-Json -InputObject $view -Depth 16 -Compress) -ExpectedVersion $expectedVersion -ExpectedDatabaseId $qaUuid
+    Require ($receipt.bindingVerified -eq $true -and $receipt.remoteWrites -eq $false) 'Physical QA Worker D1 binding proof failed.'
+}
 function Verify-Identity([object]$databaseList) {
     $identity = & $identityHelper -Json (ConvertTo-Json -InputObject @($databaseList) -Compress -Depth 8)
     Require ($identity.qaName -ceq $qaName -and $identity.qaUuid -ceq $qaUuid) 'QA or protected staging D1 identity differs.'
 }
 Require ($env:OS -eq 'Windows_NT') 'Run only from the original authenticated Windows owner profile.'
-foreach ($p in @($config, $migrationsRoot, $identityHelper)) {
+foreach ($p in @($config, $migrationsRoot, $identityHelper, $bindingHelper)) {
     Require (Test-Path -LiteralPath $p) 'Missing protected review input. No remote requests made.'
 }
 $wrangler = Get-Command 'wrangler.cmd' -ErrorAction SilentlyContinue
@@ -62,6 +68,7 @@ Require ($names[22] -ceq '0022_stripe_provider_uniqueness.sql' -and
 Write-Host 'FIRE QA CURRENT RELEASE: READ-ONLY VERIFICATION'
 Verify-Identity (Read-Provider @('d1','list','--json') 'initial D1 identity')
 Verify-Serving (Read-Provider @('deployments','status','--name',$workerName,'--json') 'initial Worker routing')
+Verify-Binding
 
 # ONE metadata-only SELECT. No customer names, amounts, photos or SQL mutations.
 $sql = "SELECT (SELECT GROUP_CONCAT(name,'|') FROM (SELECT name FROM d1_migrations ORDER BY id)) AS journal_names, " +
@@ -79,9 +86,11 @@ Require ([string]$row.journal_names -ceq ($names -join '|') -and
 
 Verify-Identity (Read-Provider @('d1','list','--json') 'final D1 identity')
 Verify-Serving (Read-Provider @('deployments','status','--name',$workerName,'--json') 'final Worker routing')
+Verify-Binding
 Write-Host 'PASS: Single current QA Worker version serves 100 percent.'
 Write-Host 'PASS: QA and protected staging D1 account identities match pinned values.'
 Write-Host 'PASS: All 25 migration names, 8 required tables, Stripe provider index, and 2 agreement triggers match.'
-Write-Host 'LIMIT: Serving Worker to physically bound DB remains unverified; inspect Worker Settings separately.'
+Write-Host 'PASS: Active Worker version physical DB binding matches QA D1 UUID; no R2 bound.'
+Write-Host 'LIMIT: Source artifact fingerprint, QA photo-vault custody, and independent production gates are not authenticated by this check.'
 Write-Host 'LIMIT: No customer data, session security, Stripe integration, or LIVE/Doomsday release gate is attested.'
 Write-Host 'REMOTE_WRITES=NONE; DEPLOYED=NO; CUSTOMER_ROWS_READ=NONE; RELEASE_APPROVED=NO'
