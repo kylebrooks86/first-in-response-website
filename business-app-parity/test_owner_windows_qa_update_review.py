@@ -118,5 +118,21 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertIn("} finally {", S)
         self.assertNotIn("FIRE-QA-Private", S)
 
+
+    def test_active_serving_worker_must_physically_bind_isolated_qa_d1(self):
+        for required in (
+            "verify_qa_worker_version_bindings.ps1",
+            "Strict active QA physical D1 binding validator is missing.",
+            "& $wrangler.Source versions view $activeVersion --name $workerName --json",
+            "-ExpectedVersion $activeVersion -ExpectedDatabaseId $qaId",
+            "$bindingProof.bindingVerified -eq $true",
+            "$bindingProof.remoteWrites -eq $false",
+        ):
+            self.assertIn(required, S)
+        self.assertLess(S.index("deployments status --name $workerName --json"),
+                        S.index("versions view $activeVersion --name $workerName --json"))
+        self.assertLess(S.index("versions view $activeVersion --name $workerName --json"),
+                        S.index("deploy --dry-run --config $temporaryManifest"))
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
