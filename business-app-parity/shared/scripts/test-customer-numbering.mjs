@@ -73,6 +73,19 @@ eq(await customerNumberForCustomer(d1,id,enabled),4,'Next customer gets unique c
 eq(await customerNumberingReady(d1,enabled),true,'After atomic create, full coverage remains');
 assert.throws(()=>db.prepare('INSERT INTO fire_customer_numbers(customer_id,created_at) VALUES(?,?)').run(id,created),/UNIQUE/);checks++;
 eq(await customerNumberForCustomer(d1,id,enabled),4,'Duplicate save cannot consume a second number');
+
+// A second concurrent request may pass the pre-read before the first insert.
+// Repeating the number statement must be a no-op, never consume a new number.
+await newCustomerNumberStatement(d1,id,created).run();
+eq(await customerNumberForCustomer(d1,id,enabled),4,'Overlapping same-request allocation preserves original Customer #');
+eq(db.prepare("SELECT seq FROM sqlite_sequence WHERE name='fire_customer_numbers'").get().seq,4,
+  'Idempotent retry does not consume or skip a future Customer #');
+const repeatId='33333333-3333-4333-8333-333333333333';
+db.prepare("INSERT INTO customers(id,created_at) VALUES(?,?)").run(repeatId,'2028-02-01T00:00:00Z');
+await newCustomerNumberStatement(d1,repeatId,'2028-02-01T00:00:00Z').run();
+eq(await customerNumberForCustomer(d1,repeatId,enabled),5,
+  'Next real customer follows the prior number with no ghost allocation');
+
 assert.throws(()=>newCustomerNumberStatement(d1,'invalid','2028-01-01T00:00:00Z'),TypeError);checks++;
 assert.throws(()=>newCustomerNumberStatement(d1,id,'invalid date'),TypeError);checks++;
 
