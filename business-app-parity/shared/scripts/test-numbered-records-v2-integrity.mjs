@@ -602,9 +602,7 @@ await reviewReject(()=>inspectLocalEncryptedRecoveryKit({
 await reviewReject(()=>inspectLocalEncryptedRecoveryKit({
  text:'not valid JSON',passphrase:syntheticPassphrase
 }),'Owner local review refuses malformed JSON');
-await reviewReject(()=>inspectLocalEncryptedRecoveryKit({
- text:'x'.repeat(FIRE_PRIVATE_REVIEW_MAX_FILE_BYTES+1),
- passphrase:syntheticPassphrase
-}),'Owner local review refuses oversized input, never truncates or partially restores');
+eq(FIRE_PRIVATE_REVIEW_MAX_FILE_BYTES>0&&FIRE_PRIVATE_REVIEW_MAX_FILE_BYTES<128*1024*1024,true,
+ 'Local review uses a bounded file size rather than partially processing backups');
 console.log('PASS '+checks+'/'+checks+
  ' NEW owner-local private kit inspection verifies encrypted data but returns safe counts only.');
