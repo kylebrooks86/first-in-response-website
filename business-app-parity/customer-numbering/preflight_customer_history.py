@@ -108,7 +108,8 @@ def rehearse_in_memory(db,plan):
         count=db.execute('SELECT COUNT(*) FROM fire_customer_numbers').fetchone()[0]
         require(count==plan['historicalCustomers'],'Customer count and saved numbers diverged')
         high=db.execute("SELECT seq FROM sqlite_sequence WHERE name='fire_customer_numbers'").fetchone()
-        require(high is not None and high[0]==plan['historicalCustomers'],
+        require((high is None and plan['historicalCustomers']==0) or
+                (high is not None and high[0]==plan['historicalCustomers']),
                 'Autoincrement history does not match the assigned customer count')
         require(db.execute('PRAGMA foreign_key_check').fetchall()==[],
                 'Customer-number FK integrity failed')
