@@ -39,11 +39,39 @@ export async function loadDashboardData(db: D1Database, serviceLocations=false) 
       ORDER BY julianday(e.scheduled_at) ASC,e.id ASC LIMIT 25`),
   ]);
   const result=(summaryResult.results[0]??{estimates:0,openValue:0,outstanding:0}) as {estimates:number;completedJobs?:number;upcomingCount?:number;openValue:number;outstanding:number};
+  // Validate D1's untyped rows before sharing an appointment with one-tap
+  // navigation or an editable customer message. Never invent an identity,
+  // contact, date or amount when the saved result cannot be verified.
+  const upcomingJobs=upcomingResult.results.map(raw=>{
+    const row=raw as Record<string,unknown>;
+    const amount=(value:unknown)=>typeof value==='number'&&Number.isSafeInteger(value)&&value>=0?value:null;
+    if(typeof row.id!=='string'||!row.id||typeof row.customerId!=='string'||!row.customerId||
+       typeof row.customer!=='string'||!row.customer.trim()||
+       typeof row.service!=='string'||!row.service.trim()||row.status!=='scheduled'||
+       typeof row.createdAt!=='string'||!Number.isFinite(Date.parse(row.createdAt))||
+       typeof row.scheduledAt!=='string'||!Number.isFinite(Date.parse(row.scheduledAt))||
+       amount(row.totalCents)===null||amount(row.depositCents)===null||
+       amount(row.paidCents)===null||row.invoiceTotalCents!=null&&amount(row.invoiceTotalCents)===null)
+      throw Error('Upcoming job data could not be verified.');
+    return {
+      id:row.id,customerId:row.customerId,customer:row.customer,service:row.service,
+      status:'scheduled',totalCents:row.totalCents as number,depositCents:row.depositCents as number,
+      paidCents:row.paidCents as number,createdAt:row.createdAt,scheduledAt:row.scheduledAt,
+      email:typeof row.email==='string'?row.email:'',
+      phone:typeof row.phone==='string'?row.phone:'',
+      address:typeof row.address==='string'?row.address:'',
+      shareToken:typeof row.shareToken==='string'?row.shareToken:null,
+      invoiceId:typeof row.invoiceId==='string'?row.invoiceId:null,
+      invoiceShareToken:typeof row.invoiceShareToken==='string'?row.invoiceShareToken:null,
+      invoiceTotalCents:row.invoiceTotalCents==null?null:row.invoiceTotalCents as number,
+      serviceAddressSource:typeof row.serviceAddressSource==='string'?row.serviceAddressSource:undefined,
+    };
+  });
   return {
     estimates:Number(result.estimates??0),
     completedJobs:Number(result.completedJobs??0),
     upcomingCount:Number(result.upcomingCount??0),
-    upcomingJobs:upcomingResult.results,
+    upcomingJobs,
     openValue:Number(result.openValue??0),
     outstanding:Number(result.outstanding??0),
     recent:recentResult.results,
