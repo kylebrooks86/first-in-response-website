@@ -72,9 +72,29 @@ Require ($custody -ceq 'PRIVATE CURRENT25') 'Private backup custody and export w
 # This exact, previously owner-tested reviewer reads only QA D1 inventory,
 # current 100%-serving Worker, actual physical binding and 25 schema objects.
 # It fails closed on a resource switch; it never exports or updates records.
+function Invoke-VerifiedQaReview {
+    param([Parameter(Mandatory=$true)][string]$Stage)
+    # A fresh Windows PowerShell process prevents the parent's native command
+    # state and scope from contaminating Wrangler's read-only exit code.
+    # Use the SAME pinned identity/schema review before and after export.
+    $output = @(& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $review 2>&1 | ForEach-Object { [string]$_ })
+    $reviewExit = $LASTEXITCODE
+    $bounded = @($output | Where-Object { $_ -match '^(FIRE QA CURRENT RELEASE:|PASS: |LIMIT: |REMOTE_WRITES=NONE;|FIRE QA CURRENT REVIEW STOP:)' })
+    foreach ($line in $bounded) { Write-Host $line }
+    Require ($reviewExit -eq 0) ('Isolated QA read-only ' + $Stage + ' failed (exit ' + $reviewExit + '); STOP. No release or bypass.')
+    foreach ($proof in @(
+        'PASS: Single current QA Worker version serves 100 percent.',
+        'PASS: QA and protected staging D1 account identities match pinned values.',
+        'PASS: All 25 migration names, 8 required tables, Stripe provider index, and 2 agreement triggers match.',
+        'PASS: Active Worker version physical DB binding matches QA D1 UUID; no R2 bound.',
+        'REMOTE_WRITES=NONE; DEPLOYED=NO; CUSTOMER_ROWS_READ=NONE; RELEASE_APPROVED=NO'
+    )) {
+        Require (@($bounded | Where-Object { $_ -ceq $proof }).Count -eq 1) 'Incomplete or ambiguous owner QA read-only verification. STOP.'
+    }
+    Write-Host ('PASS: '+$Stage+' exact QA-only identity/schema review, in isolated PowerShell.')
+}
 Write-Host 'READ-ONLY: Checking the active QA Worker, physical DB and all 25 migrations.'
-& $review
-Write-Host 'PASS: Pre-export exact QA-only identity/schema review.'
+Invoke-VerifiedQaReview -Stage 'Pre-export'
 
 $stamp=Get-Date -Format 'yyyyMMdd-HHmmss'
 $out=Join-Path $private ('FIRE-QA-CURRENT25-'+$stamp+'.sql')
@@ -105,8 +125,7 @@ Require ($exportCode -eq 0 -and (Test-Path -LiteralPath $out -PathType Leaf)) 'Q
 Require (-not ((Get-Item -LiteralPath $out).Attributes -band [IO.FileAttributes]::ReparsePoint)) 'Linked SQL export refused.'
 # Refuse changed source Worker or physical DB before marking a private
 # export usable: export success alone is not a rollback seal.
-& $review
-Write-Host 'PASS: Post-export QA Worker and physical DB identities unchanged.'
+Invoke-VerifiedQaReview -Stage 'Post-export'
 
 $hash=(Get-FileHash -LiteralPath $out -Algorithm SHA256).Hash.ToLowerInvariant()
 $validation=@(& $python.Source $verifier $out --expected-sha256 $hash 2>$null)
