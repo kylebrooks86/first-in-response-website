@@ -14,7 +14,12 @@ export function OwnerPreviewTheme() {
     document.documentElement.dataset.theme = next;
   }, []);
   const toggle = () => {
-    const next = theme === "dark" ? "light" : "dark";
+    // A saved theme can already be painted on <html> before this small
+    // client control finishes hydrating. Read what the user actually sees,
+    // not an initial React "light" value that may still be stale.
+    const rendered = document.documentElement.dataset.theme;
+    const current = rendered === "dark" || rendered === "light" ? rendered : theme;
+    const next = current === "dark" ? "light" : "dark";
     setTheme(next);
     document.documentElement.dataset.theme = next;
     try { window.localStorage.setItem("fire-theme", next); } catch { /* Keep the current page usable. */ }
