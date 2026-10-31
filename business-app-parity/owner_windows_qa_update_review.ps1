@@ -124,13 +124,35 @@ Require-Exit 'Exactly isolated QA Worker/D1 bindings'
 # d1 info returns API code 10000. Check BOTH QA and protected staging identities,
 # fail closed on collisions, and never infer schema from num_tables metadata.
 $identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'
+$individualInfoHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_info.ps1'
 $bindingHelper = Join-Path $PSScriptRoot 'verify_qa_worker_version_bindings.ps1'
-Require (Test-Path -LiteralPath $identityHelper -PathType Leaf) 'Strict read-only D1 identity validator is missing.'
+Require (Test-Path -LiteralPath $identityHelper -PathType Leaf) 'Strict read-only D1 list identity validator is missing.'
+Require (Test-Path -LiteralPath $individualInfoHelper -PathType Leaf) 'Strict independently verified dual D1 info identity validator is missing.'
 Require (Test-Path -LiteralPath $bindingHelper -PathType Leaf) 'Strict active QA physical D1 binding validator is missing.'
-$databaseRaw = @(& $wrangler.Source d1 list --json)
-Require-Exit 'Read-only existing QA/staging D1 list'
-$databaseInfo = & $identityHelper -Json ($databaseRaw -join [Environment]::NewLine)
-Require ($databaseInfo.qaName -ceq $qaDatabase -and $databaseInfo.qaUuid -ceq $qaId) 'Isolated QA D1 identity differs. No publish.'
+# Prefer the complete D1 LIST. On a nonzero exit ONLY, fetch both actual
+# physical database identities independently from supported d1 info endpoints.
+# A successful but malformed/changed list NEVER falls back; it must STOP.
+# The fallback is NOT authorization to skip QA/staging separation or Worker binding.
+$databaseRaw = @(& $wrangler.Source d1 list --json 2>$null)
+$listExit = $LASTEXITCODE
+if ($listExit -eq 0) {
+    $databaseInfo = & $identityHelper -Json ($databaseRaw -join [Environment]::NewLine)
+    Write-Host 'PASS: QA and protected staging D1 identities verified from full D1 listing.'
+} else {
+    Write-Host 'LIMIT: D1 LIST endpoint unavailable. Verifying BOTH individually queried database identities instead.'
+    $qaInfoRaw = @(& $wrangler.Source d1 info $qaDatabase "--config=$qaD1Config" --json 2>$null)
+    Require-Exit 'Read-only exact QA D1 INFO lookup'
+    $stagingInfoRaw = @(& $wrangler.Source d1 info 'fire-app-staging-db' "--config=$qaD1Config" --json 2>$null)
+    Require-Exit 'Read-only protected staging D1 INFO lookup'
+    $databaseInfo = & $individualInfoHelper -QaJson ($qaInfoRaw -join [Environment]::NewLine) -StagingJson ($stagingInfoRaw -join [Environment]::NewLine)
+    Write-Host 'PASS: Separate QA and protected staging identities verified from two exact D1 INFO responses.'
+}
+Require ($null -ne $databaseInfo -and
+    $databaseInfo.qaName -ceq $qaDatabase -and $databaseInfo.qaUuid -ceq $qaId -and
+    $databaseInfo.stagingName -ceq 'fire-app-staging-db' -and
+    $databaseInfo.stagingUuid -ceq 'afb2c05a-d794-4a9a-b580-924ce01c26ad' -and
+    $databaseInfo.qaUuid -cne $databaseInfo.stagingUuid
+) 'Isolated QA and protected staging D1 identities must both match independent pinned physical resources. No publish.'
 # Do not rely on Cloudflare stale num_tables metadata. Read only schema and
 # migration journal names (no customer rows, names, payment amounts or photos).
 $orderedSQL = @(Get-ChildItem -LiteralPath (Join-Path $candidate 'drizzle') -File -Filter '*.sql' | Sort-Object Name | ForEach-Object { $_.Name })
