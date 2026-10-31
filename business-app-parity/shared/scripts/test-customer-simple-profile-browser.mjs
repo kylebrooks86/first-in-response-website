@@ -6,6 +6,7 @@ import {createServer} from 'node:http';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import ts from 'typescript';
+import {matchesCustomerNumberQuery} from '../lib/customer-numbering.mjs';
 const require=createRequire(import.meta.url);
 const esbuild=require('../node_modules/.pnpm/esbuild@0.28.0/node_modules/esbuild');
 const postcss=createRequire(require.resolve('@tailwindcss/postcss'))('postcss');
@@ -17,13 +18,13 @@ const customerViewAst=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name
 assert.ok(customerViewAst,'Find actual CustomersView source function');
 const directoryFn=customerViewAst.body.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='matchesCustomerDirectory');
 assert.ok(directoryFn,'Extract the real customer-directory matcher from CustomersView');
-const directoryContext={exports:{}};
+const directoryContext={exports:{},matchesCustomerNumberQuery};
 vm.runInNewContext(ts.transpileModule(directoryFn.getText(ast)+'\nexports.match=matchesCustomerDirectory;',{
  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
 }).outputText,directoryContext);
 const match=directoryContext.exports.match;
-const searchFixture={name:'Synthetic Customer',email:'owner@example.invalid',phone:'(918) 555-0147',address:'123 Test Street, Tulsa'};
-for(const [query,want] of [['Synthetic',true],['EXAMPLE.INVALID',true],['Tulsa',true],['555-0147',true],['9185550147',true],['0147',true],['(918) 555',true],['0148',false],['147',false],['555',false],['123',true],['Unknown',false],['',true],['   ',true]]){
+const searchFixture={name:'Synthetic Customer',customerNumber:42,email:'owner@example.invalid',phone:'(918) 555-0147',address:'123 Test Street, Tulsa'};
+for(const [query,want] of [['Customer #0042',true],['customer #42',true],['#42',true],['0042',true],['0043',false],['Customer #0043',false],['Synthetic',true],['EXAMPLE.INVALID',true],['Tulsa',true],['555-0147',true],['9185550147',true],['0147',true],['(918) 555',true],['0148',false],['147',false],['555',false],['123',true],['Unknown',false],['',true],['   ',true]]){
  assert.equal(match(searchFixture,query),want,'Actual customer search handles '+JSON.stringify(query));
 }
 const priorityFn=customerViewAst.body.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='pickCustomerNextEstimate');
