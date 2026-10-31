@@ -56,7 +56,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertIn("d1 info 'fire-app-staging-db'", S)
         self.assertNotIn("d1 execute 'fire-app-staging-db'", S)
         self.assertNotIn('d1 execute $stagingDatabase', S)
-        self.assertNotRegex(S, r"&\\s*\\$wrangler\\.Source\\s+d1\\s+info\\b")
+        # Individual D1 INFO reads are allowed; staging D1 SQL writes remain forbidden.
         self.assertIn("qa_d1_identity_from_list.ps1", S)
         self.assertIn("& $identityHelper -Json ($databaseRaw -join [Environment]::NewLine)", S)
         self.assertIn("& $individualInfoHelper -QaJson ($qaInfoRaw -join [Environment]::NewLine) -StagingJson ($stagingInfoRaw -join [Environment]::NewLine)", S)
@@ -64,13 +64,16 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertIn("Require ($null -ne $databaseInfo -and", S)
         self.assertLess(S.index("d1 info $qaDatabase"), S.index("d1 execute $qaDatabase --remote"))
         self.assertLess(S.index("d1 info 'fire-app-staging-db'"), S.index("d1 execute $qaDatabase --remote"))
-        self.assertIn("Strict read-only D1 list identity validator is missing",
-                         "qa_d1_identity_from_info.ps1",
-                         "Strict independently verified dual D1 info identity validator is missing",
-                         "d1 info $qaDatabase", "d1 info 'fire-app-staging-db'",
-                         "$databaseInfo.stagingUuid -ceq 'afb2c05a-d794-4a9a-b580-924ce01c26ad'",
-                         "Require-Exit 'Read-only exact QA D1 INFO lookup'",
-                         "Require-Exit 'Read-only protected staging D1 INFO lookup'", S)
+        for expected in (
+            "Strict read-only D1 list identity validator is missing",
+            "qa_d1_identity_from_info.ps1",
+            "Strict independently verified dual D1 info identity validator is missing",
+            "d1 info $qaDatabase", "d1 info 'fire-app-staging-db'",
+            "$databaseInfo.stagingUuid -ceq 'afb2c05a-d794-4a9a-b580-924ce01c26ad'",
+            "Require-Exit 'Read-only exact QA D1 INFO lookup'",
+            "Require-Exit 'Read-only protected staging D1 INFO lookup'",
+        ):
+            self.assertIn(expected, S)
         self.assertNotIn("$deploymentText -match", S)
         self.assertNotIn("82fba39a-5736-41d7-a944-d55776ccc670", S)
         self.assertIn("f650d25b18d23bc9f71a4d55c9322bfd5870ef75", S)
