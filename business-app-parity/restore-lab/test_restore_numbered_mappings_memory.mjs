@@ -15,7 +15,7 @@ import {restoreNumberedMappingsToDisposableMemory}
 
 let checks=0;
 const eq=(a,b,msg)=>{assert.deepEqual(a,b,msg);checks++;};
-const refuse=async(fn,msg)=>{await assert.rejects(fn,/FIRE DISPOSABLE numbered restore REFUSED|FIRE numbered records v2 REFUSED|Unsafe FIRE numbered-identity archive/,msg);checks++;};
+const refuse=async(fn,msg)=>{await assert.rejects(fn,/FIRE DISPOSABLE (?:numbered restore|FULL RESTORE) REFUSED|FIRE numbered records v2 REFUSED|Unsafe FIRE numbered-identity archive/,msg);checks++;};
 const customerSQL=readFileSync('business-app-parity/customer-numbering/customer_numbers_v1.sql','utf8');
 const jobSQL=readFileSync('business-app-parity/job-numbering/job_numbers_v1.sql','utf8');
 const rows=Object.fromEntries(FIRE_NUMBERED_RECORDS_TABLES.map(table=>[table,[]]));
