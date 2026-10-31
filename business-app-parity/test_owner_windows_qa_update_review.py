@@ -51,7 +51,11 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertLess(S.index("qa $candidate --built"), S.index("d1 list --json"))
         self.assertLess(S.index("d1 list --json"), S.index("& $wrangler.Source deployments status --name $workerName --json"))
         self.assertLess(S.index("& $wrangler.Source deployments status --name $workerName --json"), S.index("deploy --dry-run"))
-        self.assertNotIn("fire-app-staging-db", S)
+        # Staging may be named ONLY for independent metadata verification, never
+        # as a D1 SQL target, deploy target, or migration destination.
+        self.assertIn("d1 info 'fire-app-staging-db'", S)
+        self.assertNotIn("d1 execute 'fire-app-staging-db'", S)
+        self.assertNotIn('d1 execute $stagingDatabase', S)
         self.assertNotRegex(S, r"&\\s*\\$wrangler\\.Source\\s+d1\\s+info\\b")
         self.assertIn("qa_d1_identity_from_list.ps1", S)
         self.assertIn("& $identityHelper -Json ($databaseRaw -join [Environment]::NewLine)", S)
