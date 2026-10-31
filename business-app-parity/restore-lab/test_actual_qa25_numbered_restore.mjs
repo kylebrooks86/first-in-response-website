@@ -13,6 +13,8 @@ import {verifyNumberedRecordsV2CriticalIntegrity}
   from '../shared/lib/numbered-records-v2-integrity.mjs';
 import {restoreFinanciallyVerifiedNumberedRecordsToDisposableMemory}
   from './restore_complete_numbered_records_memory.mjs';
+import {captureFinanciallyVerifiedNumberedRecordsV2FromD1}
+  from '../shared/lib/numbered-records-v2-d1-read.mjs';
 
 const root='business-app-parity/';
 const path=root+'adapters/doomsday/drizzle/';
@@ -24,7 +26,7 @@ const numbers=['customer-numbering/customer_numbers_v1.sql',
  'job-numbering/job_numbers_v1.sql'].map(p=>readFileSync(root+p,'utf8')).join('\n');
 let checks=0;
 function eq(a,b,label){assert.deepEqual(a,b,label);checks++;}
-async function reject(fn,label){await assert.rejects(fn,/FIRE DISPOSABLE FULL RESTORE REFUSED|FIRE v2 FINANCIAL INTEGRITY REFUSED|FIRE numbered records v2 REFUSED/,label);checks++;}
+async function reject(fn,label){await assert.rejects(fn,/FIRE DISPOSABLE FULL RESTORE REFUSED|FIRE v2 FINANCIAL INTEGRITY REFUSED|FIRE numbered records v2 REFUSED|FIRE numbered D1 READ REFUSED/,label);checks++;}
 function fresh(){
  const db=new DatabaseSync(':memory:');
  db.exec(schema);
@@ -53,6 +55,34 @@ source.exec(
   "UPDATE sqlite_sequence SET seq=12 WHERE name='fire_customer_numbers';"+
   "UPDATE sqlite_sequence SET seq=15 WHERE name='fire_job_numbers';"
 );
+
+// Test the new SOURCE inventory guard against the ACTUAL 25-migration schema.
+// This D1-shaped adapter executes only in disposable SQLite, never Wrangler.
+const localD1={
+ prepare(sql){return{sql};},
+ async batch(statements){
+  const results=[];
+  source.exec('BEGIN');
+  try{
+   for(const {sql} of statements)results.push({success:true,results:source.prepare(sql).all()});
+   source.exec('COMMIT');
+  }catch(error){source.exec('ROLLBACK');throw error;}
+  return results;
+ }
+};
+const strictRealCapture=await captureFinanciallyVerifiedNumberedRecordsV2FromD1({
+ db:localD1,now:()=> '2026-10-31T14:05:00Z'
+});
+eq(strictRealCapture.archive.tableCounts.payment_refunds,1,
+ 'Strict one-batch D1 capture includes real QA refund history');
+eq(strictRealCapture.archive.identities.highWater.job,15,
+ 'Strict one-batch source capture includes old Job number allocations');
+source.exec('CREATE TABLE unreviewed_future_customer_data(id TEXT PRIMARY KEY)');
+await reject(()=>captureFinanciallyVerifiedNumberedRecordsV2FromD1({
+ db:localD1,now:()=> '2026-10-31T14:05:00Z'
+}),'Extra real SQLite app table refuses a silent partial records backup');
+source.exec('DROP TABLE unreviewed_future_customer_data');
+
 const tableRows=Object.fromEntries(FIRE_NUMBERED_RECORDS_TABLES.map(name=>
  [name,source.prepare('SELECT * FROM "'+name+'"').all()]));
 eq(Object.keys(tableRows).length,20,'All 20 actual QA record families read');
