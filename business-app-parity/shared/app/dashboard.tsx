@@ -17,7 +17,7 @@ import {expenseDateInstant} from "../lib/expense-date";
 import {loadCustomerCreateRequest,saveCustomerCreateRequest,clearCustomerCreateRequest,loadCustomerEstimateHandoff,saveCustomerEstimateHandoff,clearCustomerEstimateHandoff,confirmedCreatedCustomer,sameCustomerCreateInput,type CreatedCustomer,type CustomerCreateInput} from "../lib/customer-create-retry";
 import {completeEstimatePages} from "@/lib/estimate-pagination";
 import {jobNumberLabel} from "../lib/job-numbering.mjs";
-import {customerNumberLabel,completedCustomerJobHistory} from "../lib/customer-numbering.mjs";
+import {customerNumberLabel,completedCustomerJobHistory,matchesCustomerNumberQuery} from "../lib/customer-numbering.mjs";
 import {hasCollectibleJobValue,summarizeCustomerBalances} from "@/lib/customer-balance-summary";
 
 import { CandidateLayoutTrace } from "../components/candidate-layout-trace";
@@ -2021,7 +2021,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
   const balanceCents=Math.max(0,billingTotalCents-estimate.paidCents);
   const resolveOverpayment=async(resolutionMode:"refund"|"keep")=>{if(mutationLock.current||closeoutLock.current)return;mutationLock.current=true;setSaving(true);setError("");try{const refundAmountCents=resolutionMode==="refund"?Math.round(Number(refundAmount)*100):undefined;if(resolutionMode==="refund"&&(!refundAmountCents||refundAmountCents<=0))throw new Error("Enter the actual refund amount before marking the refund handled.");const updateResponse=await fetch("/api/notifications",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,resolveOverpayment:true,reconciliationHandled:true,resolutionMode,refundAmountCents})});const result=await updateResponse.json() as {remainingOverpaymentCount?:number;paidCents?:number;error?:string};if(!updateResponse.ok)throw new Error(result.error||"The billing exception could not be resolved.");setRefundAmount("");onChanged({...estimate,paidCents:result.paidCents??estimate.paidCents,paymentOverageOpen:Number(result.remainingOverpaymentCount??Math.max(0,Number(estimate.paymentOverageOpen)-1))});}catch(resolveError){setError(resolveError instanceof Error?resolveError.message:"The billing exception could not be resolved.");}finally{mutationLock.current=false;setSaving(false);}};
   return <Dialog open onOpenChange={(value) => { if (!value&&!mutationLock.current&&!closeoutLock.current) onClose(); }}><DialogContent className="estimate-detail sm:max-w-[650px]">
-    <DialogHeader><DialogTitle>{estimate.service}</DialogTitle>{customerNumberLabel(estimate.customerNumber)&&<small className="text-sm text-muted-foreground">{customerNumberLabel(estimate.customerNumber)}</small>}{jobNumberLabel(estimate.jobNumber)&&<small className="text-sm text-muted-foreground">{jobNumberLabel(estimate.jobNumber)}</small>}</DialogHeader>
+    <DialogHeader><DialogTitle>{estimate.service}</DialogTitle>{jobNumberLabel(estimate.jobNumber)&&<small className="text-sm text-muted-foreground">{jobNumberLabel(estimate.jobNumber)}</small>}</DialogHeader>
     <div className="detail-customer"><span className="customer-avatar">{estimate.customer.split(" ").map((part)=>part[0]).join("").slice(0,2).toUpperCase()}</span><div><strong>{estimate.customer}</strong>{customerNumberLabel(estimate.customerNumber)&&<small>{customerNumberLabel(estimate.customerNumber)}</small>}<small>{estimate.address || "No service address saved"}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong></div>
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current address · original job address unverified.</p>}
     {(Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)&&<div className="next-action" role="alert"><AlertTriangle aria-hidden="true"/><div><strong>Payment review needed</strong><p>{paymentReviewMessage}</p></div></div>}
@@ -2084,9 +2084,10 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   /** Search saved contact fields as entered, and accept the last four or more
    * phone digits without requiring matching parentheses, dashes or spaces.
    * Numeric address searches still use the ordinary text match. */
-  function matchesCustomerDirectory(customer:Pick<CustomerRow,"name"|"email"|"phone"|"address">,query:string){
+  function matchesCustomerDirectory(customer:Pick<CustomerRow,"name"|"email"|"phone"|"address"|"customerNumber">,query:string){
     const term=query.trim().toLocaleLowerCase();
     if(!term)return true;
+    if(matchesCustomerNumberQuery(customer.customerNumber,term))return true;
     // Keep names, email and street-number searches usable at any length.
     if([customer.name,customer.email,customer.address].join(" ").toLocaleLowerCase().includes(term))return true;
     // Numeric phone search requires 4+ digits even when punctuation matches
@@ -2847,7 +2848,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       </Button>}
     </div>}
     {!loading&&!error&&customers.length>0&&<div className="customer-directory-tools">
-      <label className="customer-directory-search"><span className="sr-only">Find saved customer</span><input type="search" aria-label="Find saved customer" value={directorySearch} maxLength={128} placeholder="Find name, address or phone" onChange={event=>setDirectorySearch(event.target.value)}/></label>
+      <label className="customer-directory-search"><span className="sr-only">Find saved customer</span><input type="search" aria-label="Find saved customer" value={directorySearch} maxLength={128} placeholder="Find name, Customer #, address or phone" onChange={event=>setDirectorySearch(event.target.value)}/></label>
       {directorySearch&&<button type="button" className="customer-directory-clear" onClick={()=>setDirectorySearch("")}>Clear</button>}
       <small role="status">{filteredCustomers.length} of {customers.length} customers</small>
     </div>}
