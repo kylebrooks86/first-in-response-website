@@ -64,8 +64,11 @@ async function derive(c,p,salt,iterations){
   salt,iterations},material,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
 }
 function random(c,size){return c.getRandomValues(new Uint8Array(size));}
-async function seal(c,key,bytes,checksum,index){
+async function seal(c,key,bytes,checksum,index,usedNonces){
  const nonce=random(c,12);
+ const unique=encode(nonce);
+ if(usedNonces.has(unique))fail('duplicate AES-GCM nonce; refusing unsafe encryption');
+ usedNonces.add(unique);
  const ciphertext=new Uint8Array(await c.subtle.encrypt({name:'AES-GCM',
   iv:nonce,additionalData:associated(checksum,index,nonce),tagLength:128},key,bytes));
  return {nonceBase64:encode(nonce),ciphertextBase64:encode(ciphertext)};
@@ -103,10 +106,11 @@ export async function sealNumberedV2PhotoBytes({
  const manifest=await buildNumberedV2PhotoVaultManifest({archive,files,cryptoImpl:c});
  const sorted=[...files].sort((a,b)=>a.objectKey.localeCompare(b.objectKey,'en'));
  const salt=random(c,16),key=await derive(c,p,salt,ITERATIONS);
- const encryptedManifest=await seal(c,key,utf8(JSON.stringify(manifest)),checksum,-1);
+ const usedNonces=new Set();
+ const encryptedManifest=await seal(c,key,utf8(JSON.stringify(manifest)),checksum,-1,usedNonces);
  const items=[];
  for(let i=0;i<sorted.length;i++)
-  items.push(await seal(c,key,sorted[i].bytes,checksum,i));
+  items.push(await seal(c,key,sorted[i].bytes,checksum,i,usedNonces));
  return Object.freeze({format:FIRE_SEALED_PHOTO_VAULT_FORMAT,
   version:FIRE_SEALED_PHOTO_VAULT_VERSION,recordChecksum:checksum,
   kdf:'PBKDF2-SHA256',iterations:ITERATIONS,cipher:'AES-256-GCM',
