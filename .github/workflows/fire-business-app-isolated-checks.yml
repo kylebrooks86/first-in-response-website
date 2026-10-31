@@ -106,6 +106,8 @@ on:
       - 'business-app-parity/qa_d1_identity_from_list.ps1'
       - 'business-app-parity/test_qa_d1_identity_from_list.ps1'
       - 'business-app-parity/owner_windows_qa_update_review.ps1'
+      - 'business-app-parity/owner_windows_qa_current_readonly.ps1'
+      - 'business-app-parity/test_owner_windows_qa_current_readonly.ps1'
       - 'business-app-parity/review_qa_update_schema.py'
       - 'business-app-parity/test_review_qa_update_schema.py'
       - 'business-app-parity/test_qa_migration_line_endings.py'
