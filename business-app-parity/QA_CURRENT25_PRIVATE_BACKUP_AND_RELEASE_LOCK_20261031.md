@@ -63,6 +63,41 @@ checkpoint, numbered-schema migration or production release is attested
 by these screenshots. Never merge database rollback and app-code rollback
 into one automatic destructive action.
 
+## Owner-observed Oct 31 current-25 SQL export and offline restore — PASS
+
+The owner expressly approved **QA-only** database export and supplied a
+photo of the actual Acer PowerShell result. The reviewed backup helper
+`owner_windows_qa_backup_current25.ps1 -Export` was updated to run its
+identity/schema checks in independent PowerShell sessions and then:
+- **PASS**: pre-export current 100%-served QA Worker, exact QA D1 UUID,
+  protected staging separation, all 25 migration names, required eight
+  tables, unique payment provider index and both signed-agreement triggers;
+- Wrangler reported **successful download** of an isolated QA D1 SQL export
+  to the local `FIRE-Private-Backups` directory at
+  `FIRE-QA-CURRENT25-20261031-111316.sql` (49,069 bytes);
+- **PASS**: post-export exact QA Worker/DB/schema inspection with no resource drift;
+- **PASS**: offline disposable SQLite restore and verification of the
+  exported current-25 SQL, including exact migration history/schema and
+  financial/foreign-key integrity checks; a SHA-256 digest and private
+  adjacent `.restore-review.json` receipt were produced;
+- Terminal reported `REMOTE_D1_ROW_WRITES=NONE; DEPLOYED=NO;
+  QA_RELEASE_APPROVED=NO; PRODUCTION_GATES=3/10`.
+
+This is **owner-observed evidence from a screenshot, not an independently
+retrieved private backup**. Do not copy the SQL, signed Cloudflare export
+URL, user credentials or local private backup bytes into GitHub/chat.
+Do not repeat an export solely to recreate this verified local backup.
+The existing older PRE0023 and Doomsday PRE0022 backups remain preserved.
+
+**Completed:** current pre-upgrade QA SQL archive + local SQLite recovery
+checkpoint. **Still separate:** proof of durable off-device encrypted
+custody, private receipt/SHA durability, photo/vault recovery, latest
+app source/Worker artifact sealing, untouched LIVE/staging/Doomsday gate
+evidence, hosted QA candidate acceptance and actual iPhone tests.
+**Do not enable permanent numbering or publish PR #72 on the strength of
+this data backup alone.** No integrated production gate may be auto-closed;
+formal readiness remains 3/10 pending its own exact release checklist.
+
 ## Important boundaries / remaining release work
 
 1. **Nothing on the Acer needs another command yet.** First verify whether an
