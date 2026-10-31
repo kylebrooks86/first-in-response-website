@@ -13,7 +13,7 @@ const base='business-app-parity/';
 const backupSource=readFileSync(base+'shared/app/api/backup/route.ts','utf8');
 // Backup v1 does not carry immutable identity serial/link tables. Never
 // permit a valid-looking v1 JSON archive or restore under either enabled flag.
-const backupGate='if(numberedIdentityBackupLocked())return Response.json({error:NUMBERED_BACKUP_LOCK_MESSAGE}';
+const backupGate='if(await numberedIdentityBackupLocked())return Response.json({error:NUMBERED_BACKUP_LOCK_MESSAGE}';
 const backupGet=backupSource.slice(backupSource.indexOf('export async function GET()'),backupSource.indexOf('export async function POST('));
 const backupPost=backupSource.slice(backupSource.indexOf('export async function POST('));
 
@@ -22,7 +22,7 @@ let checks=0;
 const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;};
 const truth=(value,label)=>{assert.ok(value,label);checks++;};
 
-eq((backupSource.match(/if\(numberedIdentityBackupLocked\(\)\)/g)||[]).length,2,
+eq((backupSource.match(/if\(await numberedIdentityBackupLocked\(\)\)/g)||[]).length,2,
   'Backup and restore both protect permanent Customer # and Job # mappings');
 for(const [name,handler] of [['export',backupGet],['restore',backupPost]]){
   truth(handler.indexOf('if (!await authorized())')>=0&&
@@ -35,6 +35,11 @@ truth(backupSource.includes("flags.FIRE_CUSTOMER_NUMBERS_CANDIDATE==='owner-appr
   'Both immutable identity numbering flags are protected by JSON backup/restore gate');
 truth(backupSource.includes("JSON backup and restore are locked to protect permanent numbers"),
   'Owner receives an explicit numbered-identity backup-format limitation');
+truth(backupSource.includes("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('fire_customer_numbers','fire_job_numbers','fire_job_estimate_links') LIMIT 1"),
+  'Schema-level lock protects immutable numbering even when feature flags have been rolled back');
+truth(backupSource.includes('async function numberedIdentityBackupLocked()')&&backupSource.includes('return Boolean(schema);'),
+  'Owner records export and import asynchronously check for existing permanent-number tables');
+
 
 eq(customerNumberLabel(1),'Customer #0001','First customer');
 eq(customerNumberLabel(42),'Customer #0042','Compact permanent number');
