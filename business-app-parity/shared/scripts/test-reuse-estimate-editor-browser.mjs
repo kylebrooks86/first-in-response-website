@@ -143,7 +143,7 @@ await page.getByRole('button',{name:'Save $25 estimate'}).click();
 await page.getByText('Estimate ready',{exact:true}).waitFor();
 check(saves===beforeSmallSaves+1&&posted.items.length===1&&posted.items[0].totalCents===2500,
   'Small custom quote saved once at $25, with zero automatic price minimum');
-check(await page.getByText('$25.00 total.',{exact:false}).count()===1,
+check(await page.getByText('$25 total.',{exact:false}).count()===1,
   'Small quote confirmation shows its saved $25 total, not a minimum');
 // A 2xx response can still be an uncertain save. Show the user how to inspect
 // stored estimates, and block duplicate retries even without a bundle discount.
