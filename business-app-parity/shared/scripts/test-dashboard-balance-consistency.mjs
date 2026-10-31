@@ -14,6 +14,18 @@ const data=load('lib/dashboard-data.ts',{'./service-location':location});
 const jobs=await import('../lib/job-numbering.mjs');
 const home=load('app/page.tsx',{'../lib/dashboard-data':data,'../lib/job-numbering.mjs':jobs,'cloudflare:workers':{env},'./chatgpt-auth':auth,'./dashboard':{Dashboard:'Dashboard'},'react/jsx-runtime':{jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})}});
 const api=load('app/api/dashboard-summary/route.ts',{'../../../lib/dashboard-data':data,'../../../lib/job-numbering.mjs':jobs,'cloudflare:workers':{env},'../../chatgpt-auth':auth});
+const qaPage=readFileSync('app/page.tsx','utf8').includes('FIRE_QA_SYNTHETIC_ONLY');
+if(qaPage)env.FIRE_QA_SYNTHETIC_ONLY='enabled';
+// QA wraps the actual Dashboard in a test-data banner. Read its real props,
+// rather than accidentally testing the wrapping Fragment or disabled notice.
+function dashboardFrom(node){
+ if(node?.props?.metrics&&node?.props?.estimates)return node;
+ const children=node?.props?.children;
+ const items=Array.isArray(children)?children:[children];
+ const views=items.filter(x=>x?.props?.metrics&&x?.props?.estimates);
+ assert.equal(views.length,1,'Expected exactly one real Dashboard under QA banner');
+ return views[0];
+}
 let checks=0;
 function equal(actual,expected){assert.equal(actual,expected);checks++;}
 function seed({status='completed',invoice=null,payments=[],total=10000,deposit=5000}){
@@ -38,7 +50,7 @@ try {
   [{payments:[['balance',10000],['Refund',-10000]]},10000,0],
  ];
  for(const [fixture,outstanding,openValue] of fixtures){
-  seed(fixture);const rendered=await home.default();const refreshed=await (await api.GET()).json();
+  seed(fixture);const rendered=dashboardFrom(await home.default());const refreshed=await (await api.GET()).json();
   equal(rendered.props.metrics.outstanding,outstanding);equal(refreshed.outstanding,outstanding);equal(rendered.props.metrics.openValue,openValue);equal(refreshed.openValue,openValue);equal(rendered.props.metrics.estimates,refreshed.estimates);
   const completed=fixture.status===undefined||fixture.status==='completed'?1:0;
   equal(rendered.props.metrics.completedJobs,completed);
@@ -49,7 +61,7 @@ try {
  // still include every completed database record rather than those eight.
  seed({status:'completed'});
  for(let i=0;i<12;i++)db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,'c','completed',10000,10000,5000,?)").run('older-'+i,'2026-10-'+String(i+1).padStart(2,'0'));
- const completedHome=await home.default(),completedSummary=await (await api.GET()).json();
+ const completedHome=dashboardFrom(await home.default()),completedSummary=await (await api.GET()).json();
  equal(completedHome.props.metrics.completedJobs,13);
  equal(completedSummary.completedJobs,13);
  equal(completedSummary.recent.length,8);
@@ -62,12 +74,12 @@ try {
  db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES('older-0',1)").run();
  for(let i=1;i<12;i++)db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES(?,?)").run('older-'+i,i+1);
  env.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
- const enabledHome=await home.default(),enabledSummary=await (await api.GET()).json();
+ const enabledHome=dashboardFrom(await home.default()),enabledSummary=await (await api.GET()).json();
  equal(enabledHome.props.metrics.completedJobs,12);
  equal(enabledSummary.completedJobs,12);
  // Feature disabled: full historical completed estimate count is still correct.
  env.FIRE_JOB_NUMBERS_CANDIDATE=undefined;
- equal((await home.default()).props.metrics.completedJobs,13);
+ equal(dashboardFrom(await home.default()).props.metrics.completedJobs,13);
  equal((await (await api.GET()).json()).completedJobs,13);
  user=null;equal((await api.GET()).status,401);user={email:'other@example.test',fullName:'Other'};equal((await api.GET()).status,401);equal((await home.default()).type,'main');
  console.log(`PASS ${checks}/${checks}: initial page and refreshed API agree for draft/sent/declined, deposit due, revised invoice, principal/tip/refund, overpayment, pending/failed payment and full refund; whole-database completed counts beyond the eight displayed cards; owner access preserved. Synthetic SQLite only.`);
