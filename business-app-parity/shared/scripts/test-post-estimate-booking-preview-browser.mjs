@@ -63,6 +63,8 @@ try{
  const baseline=JSON.stringify(r.db.prepare('SELECT * FROM estimates ORDER BY rowid').all());
  for(const width of [320,390,768])for(const theme of ['light','dark']){
   await page.setViewportSize({width,height:844});await page.goto(origin);await page.evaluate(v=>document.documentElement.dataset.theme=v,theme);
+  check(await page.getByLabel('Private owner note (never sent automatically)').isVisible()===false,
+    'The optional private review form does not crowd the ordinary booking preview');
   await page.getByRole('button',{name:'Preview booking adjustment'}).click();
   await page.getByText('Potential additional savings: $69.00').waitFor();
   check(await page.getByText('Agreed estimate').isVisible(),'Agreed estimate visible');
@@ -83,11 +85,12 @@ try{
  fail=true;await page.getByRole('button',{name:'Preview booking adjustment'}).click();await page.getByRole('alert').waitFor();
  check(await page.getByText('Read-only synthetic preview temporarily unavailable').count()===1,'Network/server read failure visible');
  fail=false;await page.getByRole('button',{name:'Preview booking adjustment'}).click();await page.getByText('Potential additional savings: $69.00').waitFor();
+ await page.getByText('Internal review (optional)',{exact:true}).click();
  await page.getByLabel('Private owner note (never sent automatically)').fill('Confirmed phone booking; review revised terms first.');
  await page.getByRole('button',{name:'Save internal review draft'}).click();
  await page.getByText('Saved for owner review only').waitFor();
  check(r.db.prepare('SELECT COUNT(*) AS count FROM message_templates WHERE key=?').get('fire:booking-amendment-review:v1:'+saved.id).count===1,'Owner review stored under dedicated backup key');
- await page.reload();await page.getByText('Saved for owner review only').waitFor();
+ await page.reload();await page.getByText('Internal review (optional)',{exact:true}).click();await page.getByText('Saved for owner review only').waitFor();
  check(await page.getByText('Original $435.00',{exact:false}).count()===1,'Saved owner review survives reload');
  await page.getByRole('button',{name:'Prepare internal worksheet'}).click();
  await page.getByText('Owner review required before proposing new terms').waitFor();
