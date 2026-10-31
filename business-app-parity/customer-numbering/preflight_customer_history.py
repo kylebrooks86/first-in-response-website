@@ -59,7 +59,10 @@ def analyze(db):
         require(isinstance(identity,str) and identity.strip() and identity not in customers,
                 'Customer identity is missing or duplicated')
         customers[identity]=(parse_date(item['created_at']),item['created_at'])
-        matched=re.search(r'\.(\d+)Z
+        matched=re.search(r'\.(\d+)Z$',item['created_at'])
+        timestamp_precisions.add(len(matched.group(1)) if matched else 0)
+        require(len(timestamp_precisions)<=1,
+                'Mixed saved UTC timestamp precisions could renumber historical customers')
         email=item.get('email')
         if isinstance(email,str) and email.strip():
             key=email.strip().casefold()
