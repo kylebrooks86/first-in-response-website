@@ -93,7 +93,9 @@ Require-Exit 'Exactly isolated QA Worker/D1 bindings'
 # d1 info returns API code 10000. Check BOTH QA and protected staging identities,
 # fail closed on collisions, and never infer schema from num_tables metadata.
 $identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'
+$bindingHelper = Join-Path $PSScriptRoot 'verify_qa_worker_version_bindings.ps1'
 Require (Test-Path -LiteralPath $identityHelper -PathType Leaf) 'Strict read-only D1 identity validator is missing.'
+Require (Test-Path -LiteralPath $bindingHelper -PathType Leaf) 'Strict active QA physical D1 binding validator is missing.'
 $databaseRaw = @(& $wrangler.Source d1 list --json)
 Require-Exit 'Read-only existing QA/staging D1 list'
 $databaseInfo = & $identityHelper -Json ($databaseRaw -join [Environment]::NewLine)
@@ -132,7 +134,12 @@ Require ($activeVersions.Count -eq 1) 'QA Worker traffic is split or ambiguous. 
 Require ([double]$activeVersions[0].percentage -eq 100) 'Exactly one QA Worker version must serve 100 percent of requests.'
 $activeVersion = [string]$activeVersions[0].version_id
 Require ($activeVersion -ceq $expectedActiveVersion) 'Active QA Worker differs from the owner-confirmed latest 100-percent serving version. STOP; do not deploy.'
+$versionRaw = @(& $wrangler.Source versions view $activeVersion --name $workerName --json)
+Require-Exit 'Authenticated read-only active QA Worker version metadata'
+$bindingProof = & $bindingHelper -Json ($versionRaw -join [Environment]::NewLine) -ExpectedVersion $activeVersion -ExpectedDatabaseId $qaId
+Require ($bindingProof.bindingVerified -eq $true -and $bindingProof.remoteWrites -eq $false) 'Active serving QA Worker does not prove exact physical DB binding.'
 Write-Host ('PASS: Active QA Worker is exactly one 100-percent deployment: ' + $activeVersion)
+Write-Host 'PASS: The serving version physically binds DB to the isolated QA D1 UUID; no R2 storage.'
 Write-Host ('PASS: Existing QA database name and UUID match: ' + $qaDatabase)
 # Dry-run requires ONLY a disposable normalized manifest, outside any app data.
 $temporaryManifest = Join-Path (Split-Path -Parent $manifest) (
