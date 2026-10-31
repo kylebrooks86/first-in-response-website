@@ -36,6 +36,7 @@ const snapshot={
 };
 const tables=Object.fromEntries(FIRE_NUMBERED_RECORDS_TABLES.map(table=>[table,[]]));
 tables.customers=[{id:'c1',created_at:time},{id:'c2',created_at:time}];
+tables.auth_rate_limits=[{key:'synthetic-throttle',attempts:2,window_started_at:1780000000,blocked_until:1780000120}];
 tables.estimates=[
  {id:'e1',customer_id:'c1',created_at:time,contract_version:version+':sha256:'+documentDigest,
   signed_name:'Synthetic Customer',photo_release:'yes',accepted_at:time,signed_at:time},
@@ -94,6 +95,9 @@ const cases=[
  ['cross customer message',x=>x.customer_messages[0].customer_id='c2'],
  ['cross customer report',x=>x.job_reports[0].customer_id='c2'],
  ['missing required record family',x=>delete x.payment_refunds],
+ ['duplicate login throttle key',x=>x.auth_rate_limits.push({...x.auth_rate_limits[0]})],
+ ['invalid login attempts',x=>x.auth_rate_limits[0].attempts=-1],
+ ['missing login counter',x=>delete x.auth_rate_limits],
  ['unreviewed property family',x=>x.customer_properties=[]]
 ];
 for(const [name,edit] of cases){
@@ -129,6 +133,7 @@ const archive=await captureFinanciallyVerifiedNumberedRecordsV2FromD1({
 });
 eq(archive.archive.version,2,'Strict D1 capture produces version 2');
 eq(archive.archive.tableCounts.payment_refunds,1,'Strict D1 capture preserves completed refund');
+eq(archive.archive.tableCounts.auth_rate_limits,1,'Strict D1 capture preserves login throttling history');
 eq(good.calls.batches,1,'Strict D1 capture uses one database batch');
 eq(good.calls.statements.every(s=>s.startsWith('SELECT ')),true,'Strict capture never prepares writes');
 const bad=clone(tables);bad.deposit_agreement_snapshots[0].agreement_text+=' tamper';
@@ -180,6 +185,8 @@ eq(result.restoredJobNumbers,2,'Strict full restore retains distinct jobs');
 eq(result.restoredRevisionLinks,2,'Strict full restore retains all estimate/job links');
 eq(scratch.prepare('SELECT COUNT(*) AS n FROM deposit_agreement_snapshots').get().n,1,
  'Strict full restore retains matching signed artifact');
+eq(scratch.prepare("SELECT attempts FROM auth_rate_limits WHERE key='synthetic-throttle'").get().attempts,2,
+ 'Strict full restore preserves original authentication throttle counter');
 eq(scratch.prepare('SELECT amount_cents FROM payment_refunds').get().amount_cents,2500,
  'Strict full restore retains original refund amount');
 eq(scratch.prepare("SELECT seq FROM sqlite_sequence WHERE name='fire_customer_numbers'").get().seq,8,
