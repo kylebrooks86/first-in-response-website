@@ -75,18 +75,47 @@ Require (-not ((Get-Item -LiteralPath $original).Attributes -band [IO.FileAttrib
 $previousSQL = @(Get-ChildItem -LiteralPath (Join-Path $original 'drizzle') -Filter '*.sql' -File)
 $nextSQL = @(Get-ChildItem -LiteralPath (Join-Path $candidate 'drizzle') -Filter '*.sql' -File)
 Require ($previousSQL.Count -eq 23 -and $nextSQL.Count -eq 25) 'QA upgrade must preserve 23 original migrations and append exactly 2 reviewed additive migrations.'
+# Preserve raw SHA-256 checks to observe Windows CRLF/LF differences.
+# Raw-byte differences MUST NOT automatically pass: the independent Python
+# reviewer must verify every original and appended file against immutable
+# Git blob pins after strictly CRLF -> LF normalization (nothing else).
 $baseline = @{}
 foreach ($file in $previousSQL) { $baseline[$file.Name] = (Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName).Hash }
+$rawByteDifferences = @()
 foreach ($file in $previousSQL) {
     $currentFile = Join-Path (Join-Path $candidate 'drizzle') $file.Name
-    Require ((Test-Path -LiteralPath $currentFile -PathType Leaf) -and
-        $baseline[$file.Name] -ceq (Get-FileHash -Algorithm SHA256 -LiteralPath $currentFile).Hash) 'QA migration bytes differ from original published app. Stop without touching D1.'
+    Require (Test-Path -LiteralPath $currentFile -PathType Leaf) 'QA migration file missing from current candidate. Stop without touching D1.'
+    if ($baseline[$file.Name] -cne (Get-FileHash -Algorithm SHA256 -LiteralPath $currentFile).Hash) {
+        $rawByteDifferences += $file.Name
+    }
 }
-# Historical and 0023/0024 SQL must also match their immutable Git-blob pins;
-# merely counting or matching the old 23 would admit unreviewed new SQL.
-& $python.Source $pinnedReview --baseline (Join-Path $original 'drizzle') --candidate (Join-Path $candidate 'drizzle') --checkpoint $head | Out-Null
+# Pinned history proof fails closed for any real content change, bare CR,
+# unexpected/missing migration, invalid name, or changed 0023/0024 SQL.
+# Keep this BEFORE all Cloudflare/provider calls and do not overwrite SQL.
+$pinnedRaw = @(& $python.Source $pinnedReview --baseline (Join-Path $original 'drizzle') --candidate (Join-Path $candidate 'drizzle') --checkpoint $head)
 Require-Exit 'Exact 23 historical plus two append-only SQL Git blob identity review'
-Write-Host 'PASS: All 23 first-hosted QA migrations remain unchanged; exactly 2 pinned additive migrations verified locally. No migrations run.'
+try { $pinnedResult = ConvertFrom-Json -InputObject ($pinnedRaw -join [Environment]::NewLine) }
+catch { throw 'FIRE QA UPDATE STOP: Pinned migration verification returned malformed JSON. No remote changes.' }
+Require ($null -ne $pinnedResult -and
+    $pinnedResult.result -ceq 'CODE_ONLY_QA_UPDATE_BLOCKED' -and
+    $pinnedResult.candidateSourceCommit -ceq $head -and
+    $pinnedResult.pinnedOriginalSource -ceq $firstSource -and
+    [int]$pinnedResult.originalSqlCount -eq 23 -and
+    [int]$pinnedResult.candidateSqlCount -eq 25 -and
+    $pinnedResult.originalMigrationsLfEquivalent -eq $true -and
+    $pinnedResult.migrationLineEndingPolicy -ceq 'CRLF-to-LF only, then exact pinned Git blob verification' -and
+    @($pinnedResult.additionalMigrations).Count -eq 2 -and
+    $pinnedResult.publicationAuthorized -eq $false -and
+    $pinnedResult.migrationPermissionGranted -eq $false
+) 'Pinned original and appended migrations not independently verified. Stop without touching D1.'
+if ($rawByteDifferences.Count -gt 0) {
+    Require ($pinnedResult.originalMigrationsByteIdentical -eq $false) 'Raw-byte difference report disagrees with pinned migration verifier.'
+    Write-Host ('PASS: Original migrations differ only by verified CRLF/LF line endings (' + $rawByteDifferences.Count + ' files); no SQL rewrite permitted.')
+} else {
+    Require ($pinnedResult.originalMigrationsByteIdentical -eq $true) 'Raw migration identity report disagrees with pinned verifier.'
+    Write-Host 'PASS: Original migration raw bytes also match exactly.'
+}
+Write-Host 'PASS: All 23 first-hosted migrations and two pinned additive migrations match immutable Git blobs; no migrations run.'
 & $python.Source $sourceCheck qa $candidate --built
 Require-Exit 'Latest full-app QA compiled source verification'
 & $node.Source $runtimeCheck $manifest
