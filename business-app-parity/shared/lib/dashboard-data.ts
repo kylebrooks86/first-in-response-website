@@ -1,7 +1,8 @@
 import {serviceAddressColumns} from "./service-location";
 export async function loadDashboardData(db: D1Database, serviceLocations=false) {
-  const [summaryResult,recentResult] = await db.batch([
+  const [summaryResult,recentResult,upcomingResult] = await db.batch([
     db.prepare(`SELECT COUNT(*) AS estimates,
+      (SELECT COUNT(*) FROM estimates future WHERE future.status='scheduled' AND future.scheduled_at IS NOT NULL AND julianday(future.scheduled_at)>=julianday('now')) AS upcomingCount,
       COALESCE(SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END),0) AS completedJobs,
       COALESCE(SUM(CASE WHEN status IN ('draft','sent') THEN total_cents ELSE 0 END),0) AS openValue,
       COALESCE(SUM(CASE
@@ -22,11 +23,27 @@ export async function loadDashboardData(db: D1Database, serviceLocations=false) 
       (SELECT message FROM estimate_change_requests cr WHERE cr.estimate_id=e.id ORDER BY cr.created_at DESC LIMIT 1) AS latestChangeRequest
       FROM estimates e JOIN customers c ON c.id=e.customer_id
       ORDER BY e.created_at DESC LIMIT 8`),
+    // The next scheduled appointment is NOT necessarily among the eight most
+    // recently-created quotes. Read the earliest future jobs separately.
+    // The exact upcomingCount above remains correct beyond these first 25 cards.
+    db.prepare(`SELECT e.id,e.customer_id AS customerId,e.status,e.total_cents AS totalCents,
+      e.deposit_cents AS depositCents,e.scheduled_at AS scheduledAt,e.share_token AS shareToken,
+      e.created_at AS createdAt,c.name AS customer,c.email,c.phone,${serviceAddressColumns(serviceLocations)},
+      COALESCE((SELECT GROUP_CONCAT(name, ', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Custom service') AS service,
+      (SELECT share_token FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceShareToken,
+      (SELECT id FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceId,
+      (SELECT total_cents FROM invoices inv WHERE inv.estimate_id=e.id LIMIT 1) AS invoiceTotalCents,
+      COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.estimate_id=e.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidCents
+      FROM estimates e JOIN customers c ON c.id=e.customer_id
+      WHERE e.status='scheduled' AND e.scheduled_at IS NOT NULL AND julianday(e.scheduled_at)>=julianday('now')
+      ORDER BY julianday(e.scheduled_at) ASC,e.id ASC LIMIT 25`),
   ]);
-  const result=(summaryResult.results[0]??{estimates:0,openValue:0,outstanding:0}) as {estimates:number;completedJobs?:number;openValue:number;outstanding:number};
+  const result=(summaryResult.results[0]??{estimates:0,openValue:0,outstanding:0}) as {estimates:number;completedJobs?:number;upcomingCount?:number;openValue:number;outstanding:number};
   return {
     estimates:Number(result.estimates??0),
     completedJobs:Number(result.completedJobs??0),
+    upcomingCount:Number(result.upcomingCount??0),
+    upcomingJobs:upcomingResult.results,
     openValue:Number(result.openValue??0),
     outstanding:Number(result.outstanding??0),
     recent:recentResult.results,
