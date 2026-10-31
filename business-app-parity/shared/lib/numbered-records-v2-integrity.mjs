@@ -149,6 +149,16 @@ export async function verifyNumberedRecordsV2CriticalIntegrity(tables){
  if(audit)fail('deposit policy history integrity');
  const signed=validateSignedAgreementSnapshots(tables,true);
  if(signed)fail('signed agreement relationships or terms');
+ // In this reviewed v2 schema an estimate that declares a signed exception
+ // digest must also retain its immutable snapshot; the old validator
+ // validates present rows, not the absence of an already-signed artifact.
+ for(const estimate of estimates.values()){
+  const version=estimate.contract_version;
+  if(typeof version==='string'&&version.startsWith('deposit-exception-v1:')&&
+     !tables.deposit_agreement_snapshots.some(s=>
+       s.estimate_id===estimate.id&&version===s.document_version+':sha256:'+s.document_digest))
+    fail('signed estimate commitment has no matching immutable document');
+ }
  const digest=await verifySignedAgreementDigests(tables);
  if(digest)fail('signed agreement cryptographic digest');
  inspectPhotoMetadata(tables,customers,estimates);
