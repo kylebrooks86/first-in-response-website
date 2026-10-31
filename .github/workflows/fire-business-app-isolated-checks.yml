@@ -107,6 +107,8 @@ on:
       - 'business-app-parity/test_qa_d1_identity_from_list.ps1'
       - 'business-app-parity/owner_windows_qa_update_review.ps1'
       - 'business-app-parity/owner_windows_qa_current_readonly.ps1'
+      - 'business-app-parity/verify_qa_worker_version_bindings.ps1'
+      - 'business-app-parity/test_verify_qa_worker_version_bindings.ps1'
       - 'business-app-parity/test_owner_windows_qa_current_readonly.ps1'
       - 'business-app-parity/review_qa_update_schema.py'
       - 'business-app-parity/test_review_qa_update_schema.py'
@@ -1229,7 +1231,11 @@ jobs:
           python test_qa_guarded_update.py
           python test_qa_evidence_intake.py
           python test_capture_qa_provider_identity.py
-      - name: Mock the current QA-only Worker and 25-migration read-only reviewer (11 fail-closed scenarios)
+      - name: Validate active QA Worker physical D1 bindings from synthetic provider JSON (offline)
+        shell: pwsh
+        working-directory: business-app-parity
+        run: ./test_verify_qa_worker_version_bindings.ps1
+      - name: Mock the current QA-only Worker, physical DB binding and 25-migration read-only reviewer
         shell: pwsh
         working-directory: business-app-parity
         run: ./test_owner_windows_qa_current_readonly.ps1
