@@ -74,19 +74,25 @@ export async function restoreCompleteNumberedRecordsToDisposableMemory({db,archi
   const proof=await inspectNumberedRecordsV2(archive);
   assertDisposableNumberedScratchDb(db);
   checkEmpty(db);
-  let begun=false;
+  let begun=false,stage='begin';
   try{
     db.exec('BEGIN IMMEDIATE');begun=true;
     // Defers immediate relationship checks until the full consistent table
     // set has arrived, then PRAGMA foreign_key_check is enforced before COMMIT.
     db.exec('PRAGMA defer_foreign_keys=ON');
-    for(const table of FIRE_NUMBERED_RECORDS_TABLES)
+    for(const table of FIRE_NUMBERED_RECORDS_TABLES){
+      stage='ordinary:'+table;
       insertTable(db,table,archive.records.tables[table]);
+    }
+    stage='permanent-numbering';
     applyNumberTables(db,archive.identities);
+    stage='full-record-parity';
     for(const table of FIRE_NUMBERED_RECORDS_TABLES)
       assertExactArchiveTableRows(db.prepare('SELECT * FROM '+quote(table)).all(),
         archive.records.tables[table],table);
+    stage='numbered-parity';
     assertRestoredNumberedRows(db,archive.identities);
+    stage='sqlite-integrity';
     if(db.prepare('PRAGMA foreign_key_check').all().length)
       fail('cross-record relational constraints have orphaned records');
     if(db.prepare('PRAGMA integrity_check').get().integrity_check!=='ok')
@@ -94,7 +100,7 @@ export async function restoreCompleteNumberedRecordsToDisposableMemory({db,archi
     db.exec('COMMIT');begun=false;
   }catch{
     if(begun){try{db.exec('ROLLBACK');}catch{/* never retry blindly */}}
-    fail('atomic restore did not fully pass; transaction rolled back or stopped');
+    fail('atomic restore stopped during '+stage+'; transaction rolled back or stopped');
   }
   return Object.freeze({
     ordinaryRecordTables:FIRE_NUMBERED_RECORDS_TABLES.length,
