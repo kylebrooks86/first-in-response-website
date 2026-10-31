@@ -135,3 +135,71 @@ await rejects(()=>captureFinanciallyVerifiedNumberedRecordsV2FromD1({db:badDb.db
 eq(badDb.calls.batches,1,'Strict refused capture performs just one read batch');
 console.log('PASS '+checks+'/'+checks+
  ' NEW v2 strict real financial/refund/signed text and scoped-photo audit checks. No hosted resources.');
+
+
+
+// Integration of NEW strict archive inspection + complete disposable restore.
+// The original archive checksum is recomputed for negative cases to ensure
+// the semantic validation (not merely SHA-256) catches historical tampering.
+const {inspectFinanciallyVerifiedNumberedRecordsV2}=
+ await import('../lib/numbered-records-v2-integrity.mjs');
+const {buildNumberedRecordsV2}=await import('../lib/numbered-records-v2.mjs');
+const {restoreFinanciallyVerifiedNumberedRecordsToDisposableMemory}=
+ await import('../../restore-lab/restore_complete_numbered_records_memory.mjs');
+const {DatabaseSync}=await import('node:sqlite');
+const {readFileSync}=await import('node:fs');
+const valid=await inspectFinanciallyVerifiedNumberedRecordsV2(archive.archive);
+eq(valid.financialAuditContractVerified,true,'Strict v2 archive has full financial gate');
+eq(valid.signedDocumentTextDigestVerified,true,'Strict v2 archive has original signed text digest');
+eq(valid.ownerAuthenticated,false,'Cryptographic checksum alone does not prove owner authentication');
+function freshStrictMemory(){
+ const db=new DatabaseSync(':memory:');
+ db.exec('PRAGMA foreign_keys=ON');
+ for(const table of FIRE_NUMBERED_RECORDS_TABLES){
+  const example=tables[table][0]??{id:'empty'};
+  const cols=Object.entries(example).map(([key,value])=>{
+   if(!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key))throw Error('Unsafe synthetic column');
+   return '"'+key+'" '+(key==='id'?'TEXT PRIMARY KEY':
+     typeof value==='number'?'INTEGER':'TEXT');
+  });
+  db.exec('CREATE TABLE "'+table+'" ('+cols.join(',')+')');
+ }
+ db.exec(readFileSync('business-app-parity/customer-numbering/customer_numbers_v1.sql','utf8'));
+ db.exec(readFileSync('business-app-parity/job-numbering/job_numbers_v1.sql','utf8'));
+ return db;
+}
+const scratch=freshStrictMemory();
+const result=await restoreFinanciallyVerifiedNumberedRecordsToDisposableMemory({
+ db:scratch,archive:archive.archive
+});
+eq(result.restoredCustomerNumbers,2,'Strict full restore retains both permanent Customers');
+eq(result.restoredJobNumbers,2,'Strict full restore retains distinct jobs');
+eq(result.restoredRevisionLinks,2,'Strict full restore retains all estimate/job links');
+eq(scratch.prepare('SELECT COUNT(*) AS n FROM deposit_agreement_snapshots').get().n,1,
+ 'Strict full restore retains matching signed artifact');
+eq(scratch.prepare('SELECT amount_cents FROM payment_refunds').get().amount_cents,2500,
+ 'Strict full restore retains original refund amount');
+eq(scratch.prepare("SELECT seq FROM sqlite_sequence WHERE name='fire_customer_numbers'").get().seq,8,
+ 'Strict full restore preserves original customer allocator');
+eq(scratch.prepare("SELECT seq FROM sqlite_sequence WHERE name='fire_job_numbers'").get().seq,9,
+ 'Strict full restore preserves original job allocator');
+eq(result.hostedWritesPerformed,false,'Strict full restore never touches hosted data');
+scratch.close();
+for(const [name,mutate] of [
+ ['Forged signed agreement with valid archive checksum',r=>r.deposit_agreement_snapshots[0].agreement_text+=' tampered'],
+ ['Forged refund ledger with valid archive checksum',r=>r.payment_refunds[0].amount_cents=2700],
+ ['Missing immutable signed snapshot with valid archive checksum',r=>r.deposit_agreement_snapshots=[]]
+]){
+ const records=clone(archive.archive.records);
+ mutate(records.tables);
+ const newArchive=(await buildNumberedRecordsV2({records,identities:archive.archive.identities})).archive;
+ const unused=freshStrictMemory();
+ await assert.rejects(
+  ()=>restoreFinanciallyVerifiedNumberedRecordsToDisposableMemory({db:unused,archive:newArchive}),
+  /FIRE v2 FINANCIAL INTEGRITY REFUSED/,name);
+ checks++;
+ eq(unused.prepare('SELECT COUNT(*) AS n FROM customers').get().n,0,
+  'Strict archive semantic rejection occurs before any customer insert');
+ unused.close();
+}
+console.log('PASS '+checks+'/'+checks+' NEW complete financial-gated v2 archive and disposable restore integration checks.');
