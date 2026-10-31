@@ -179,8 +179,7 @@ class Gate9ReadOnlyPreflight(unittest.TestCase):
             lambda d: d["staging"].update(otherTargetD1Uuids={}),
         ):
             with self.assertRaises(ValueError):
-                self.review(dict(copy.deepcopy(fixture()), **{})) if False else gate.evaluate(
-                    self.patched(patch), SOURCE, ORIGIN, NOW)
+                self.review(self.patched(patch))
 
     @staticmethod
     def patched(patch):
