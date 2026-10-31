@@ -24,6 +24,7 @@ if ($scenario -eq 'provider-failed' -and $kind -eq 'd1 list') { $global:LASTEXIT
 if ($scenario -eq 'malformed-json' -and $kind -eq 'd1 list') { Write-Output '{not-valid-json'; return }
 switch ($kind) {
   'd1 list' {
+    if ($arguments.Count -ne 3 -or $arguments[2] -cne '--json') { throw 'Mock refuses incorrect D1 list arguments.' }
     $qa = @{name='fire-fullapp-qa-db-20261016';uuid='8ccfb1f8-1657-4074-b1b2-47de78f95003'}
     $staging = @{name='fire-app-staging-db';uuid='afb2c05a-d794-4a9a-b580-924ce01c26ad'}
     if ($scenario -eq 'wrong-db') { $qa.uuid = 'ffffffff-ffff-4fff-8fff-ffffffffffff' }
