@@ -53,3 +53,20 @@ export async function customerNumberForCustomer(db,customerId,environment){
     throw new Error('Saved customer has no permanent number.');
   return Number(record.customerNumber);
 }
+
+/** One completed job per permanent Job #, not per invoice or revision.
+ * In older/unmigrated sources, completed estimate IDs are the only reliable
+ * distinct key; no serial is ever guessed or fabricated.
+ */
+export function completedCustomerJobHistory(estimates){
+  if(!Array.isArray(estimates))return [];
+  const seen=new Set();
+  return estimates.filter(row=>row&&row.status==='completed'&&typeof row.id==='string')
+    .sort((a,b)=>(Date.parse(b.scheduledAt||b.createdAt)||0)-(Date.parse(a.scheduledAt||a.createdAt)||0)||String(b.id).localeCompare(String(a.id)))
+    .filter(row=>{
+      const label=customerNumberLabel(row.jobNumber);
+      const key=label?'job:'+Number(row.jobNumber):'estimate:'+row.id;
+      if(seen.has(key))return false;
+      seen.add(key);return true;
+    });
+}
