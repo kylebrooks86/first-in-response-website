@@ -279,7 +279,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const [pendingOlderError,setPendingOlderError]=useState("");
   const pendingOlderLock=useRef(false),pendingPageRequest=useRef(0);
   const [messageStatus,setMessageStatus]=useState("");
-  const sessionNotice="Your FIRE session has expired or is unavailable. Sign in again in this app, then reopen your message. Nothing was sent.";
+  const sessionNotice="Your FIRE session has expired or is unavailable. Sign in again in this app to continue. Sending is not confirmed here.";
   const firstName=customer.name.trim().split(/\s+/)[0] || customer.name;
   const service=estimate?.service || "exterior cleaning service";
   const scheduled=estimate?.scheduledAt ? dateTime(estimate.scheduledAt) : "your scheduled time";
@@ -413,7 +413,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
           // An explicit 401 is a definite refusal, not an uncertain save:
           // unlock the local draft, while retaining idempotency for timeouts/5xx.
           uncertainPreparation.current=null;
-          setMessageStatus(sessionNotice);
+          setMessageStatus("FIRE sign-in is unavailable. Sign in again to prepare this draft. No text or email handoff was started.");
           return false;
         }
         setMessageStatus(result.error||"Message preparation is unconfirmed. Retry the unchanged draft using the same request.");
@@ -448,7 +448,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       const result=await response.json() as {message?:CustomerMessage;estimateStatus?:string;error?:string};
       if(scope!==messageScope.current)return;
       const receipt=result.message;
-      if(!response.ok)throw new Error(response.status===401?sessionNotice:(result.error||"Send confirmation could not be saved."));
+      if(!response.ok)throw new Error(response.status===401?"Sign in to FIRE again before confirming. Check Google Voice or your email Sent folder first; delivery is unknown here.":(result.error||"Send confirmation could not be saved."));
       if(!receipt||receipt.id!==draft.id+":owner-confirmed"||receipt.customerId!==draft.customerId||
         (receipt.estimateId??"")!==(draft.estimateId??"")||receipt.template!==draft.template||receipt.body!==draft.body||
         receipt.channel!==(draft.channel==="text_prepared"?"text_confirmed":"email_confirmed")||
@@ -473,7 +473,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       const result=await response.json() as {message?:CustomerMessage;cancelled?:boolean;error?:string};
       if(scope!==messageScope.current)return;
       if(!response.ok||result.cancelled!==true||result.message?.id!==draft.id+":owner-cancelled"||result.message.customerId!==customer.id)
-        throw Error(response.status===401?sessionNotice:(result.error||"Could not verify that the unsent message was discarded. Refresh its saved status."));
+        throw Error(response.status===401?"Sign in to FIRE again before discarding this prepared draft. Its status is still unconfirmed.":(result.error||"Could not verify that the unsent message was discarded. Refresh its saved status."));
       onLogged?.(result.message);
       setPendingMessages(current=>current.filter(item=>item.id!==draft.id));
       setPreparedMessage(null);draftEdited.current=false;setBody(renderedBody);
