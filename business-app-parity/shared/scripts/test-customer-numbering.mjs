@@ -6,7 +6,7 @@ import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {
   customerNumberLabel,customerNumberingReady,newCustomerNumberStatement,
-  customerNumberForCustomer,completedCustomerJobHistory,matchesCustomerNumberQuery
+  customerNumberForCustomer,completedCustomerJobHistory,matchesCustomerNumberQuery,parseCustomerNumberQuery
 } from '../lib/customer-numbering.mjs';
 
 const base='business-app-parity/';
@@ -27,6 +27,10 @@ for(const query of ['42','#4','#420','Customer #0043','00043','abc42','42 Main S
 eq(matchesCustomerNumberQuery(null,'#42'),false,'Feature-off customer cannot be found by invented number');
 eq(matchesCustomerNumberQuery(1001,'1001'),true,'Four-digit bare exact customer number is searchable');
 eq(matchesCustomerNumberQuery(42,'10042'),false,'Do not match suffixes or adjacent customer numbers');
+eq(parseCustomerNumberQuery('Customer #0002'),2,'Safe exact number parser is shared with estimate picker');
+eq(parseCustomerNumberQuery('0042'),42,'Padded numeric lookup resolves exact saved Customer #');
+eq(parseCustomerNumberQuery('42'),null,'Bare two-digit phone search is not reinterpreted as Customer #');
+eq(parseCustomerNumberQuery('#10000000000000000'),null,'Unsafe integers cannot enter bound SQL lookup');
 for(const bad of [undefined,null,0,-1,1.5,NaN,Infinity,'','0002','abc','2;DROP',Number.MAX_SAFE_INTEGER+1])
   eq(customerNumberLabel(bad),null,'Never invent a customer number: '+bad);
 const inactive={prepare(){throw Error('Disabled numbering must not query D1');}};
@@ -57,6 +61,7 @@ eq(await customerNumberingReady(d1,enabled),true,'Verified full immutable backfi
 eq(await customerNumberForCustomer(d1,'first',enabled),1,'Oldest customer #1');
 eq(await customerNumberForCustomer(d1,'second',enabled),2,'Timestamp ties resolve by stable ID');
 eq(await customerNumberForCustomer(d1,'third',enabled),3,'Third historical record');
+eq(db.prepare("SELECT customer_id AS id FROM fire_customer_numbers WHERE customer_number=?").get(parseCustomerNumberQuery('Customer #0002')).id,'second','Exact Customer # lookup returns the right old customer');
 db.prepare('UPDATE customers SET created_at=? WHERE id=?').run('2027-01-01T00:00:00Z','first');
 eq(await customerNumberForCustomer(d1,'first',enabled),1,'Changing customer metadata never renumbers');
 assert.throws(()=>db.prepare("UPDATE fire_customer_numbers SET customer_number=99 WHERE customer_id='first'").run(),/permanent/);checks++;
@@ -104,6 +109,8 @@ eq(completedCustomerJobHistory([{id:'a',status:'draft'},{id:'b',status:'approved
 eq(completedCustomerJobHistory(null),[],'Missing history never fabricates counts');
 
 const dashboard=source('shared/app/dashboard.tsx');
+const customerLookupApi=source('shared/app/api/customers/lookup/route.ts');
+const customerPicker=source('shared/components/customer-lookup.tsx');
 const customerApi=source('shared/app/api/customers/route.ts');
 const invoiceApi=source('shared/app/api/invoices/route.ts');
 const estimateApi=source('shared/app/api/estimate-history/route.ts');
@@ -123,6 +130,12 @@ truth(customerApi.includes('await attachedJobNumbers(env.DB,')&&
   customerApi.includes('jobNumber:jobNumbers.get(String(row.id))??null')&&
   customerApi.includes('jobNumber:jobNumbers.get(String(row.estimateId))??null'),
   'Customer history estimates AND invoices attach real immutable Job # when enabled, so revisions count once');
+truth(customerLookupApi.includes('parseCustomerNumberQuery(query)')&&
+  customerLookupApi.includes('n.customer_number=?')&&customerLookupApi.includes('customerNumber!==null?'),
+  'Estimate customer lookup supports safe and gated exact Customer # binding');
+truth(customerPicker.includes('customerNumberLabel(row.customerNumber)')&&
+  customerPicker.includes('Name, Customer #, phone, or address'),
+  'Estimate picker identifies matching saved customers by permanent number');
 truth(customerApi.includes('FIRE_JOB_NUMBERS_CANDIDATE')&&customerApi.includes('showJobs?await attachedJobNumbers'),
   'Job numbering lookup remains gated and never touches unmigrated D1');
 truth(customerApi.includes('customerNumbers.get(String(row.customerId))'),
