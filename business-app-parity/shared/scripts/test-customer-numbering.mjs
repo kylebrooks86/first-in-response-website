@@ -130,6 +130,8 @@ truth(customerApi.includes('await attachedJobNumbers(env.DB,')&&
   customerApi.includes('jobNumber:jobNumbers.get(String(row.id))??null')&&
   customerApi.includes('jobNumber:jobNumbers.get(String(row.estimateId))??null'),
   'Customer history estimates AND invoices attach real immutable Job # when enabled, so revisions count once');
+truth(customerLookupApi.includes('const columns=customerColumns+(numbered?')&&!customerLookupApi.includes('NULL AS customerNumber'),
+  'Flag-off customer lookup preserves the original five-column response so existing clients and QA remain compatible');
 truth(customerLookupApi.includes('parseCustomerNumberQuery(query)')&&
   customerLookupApi.includes('n.customer_number=?')&&customerLookupApi.includes('customerNumber!==null?'),
   'Estimate customer lookup supports safe and gated exact Customer # binding');
