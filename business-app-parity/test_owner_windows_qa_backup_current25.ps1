@@ -43,7 +43,7 @@ Require ($text.Contains("PRIVATE CURRENT25")) 'Separate private-custody approval
 Require ($text.Contains("KEEP THE SQL AND RECEIPT ENCRYPTED")) 'Owner custody warning missing.'
 $checks+=7
 $before=Get-ChildItem -LiteralPath $PSScriptRoot -File | Measure-Object
-$output = (& $file 2>&1 | Out-String)
+$output = (& $file 6>&1 2>&1 | Out-String)
 $after=Get-ChildItem -LiteralPath $PSScriptRoot -File | Measure-Object
 Require ($output -match 'DRY RUN ONLY: no Cloudflare connection') 'Default must print dry run with no cloud action.'
 Require ($output -match 'EXPORT_ATTEMPTED=NO; REMOTE_WRITES=NONE; QA_RELEASE_APPROVED=NO') 'Default must not claim export or release.'
