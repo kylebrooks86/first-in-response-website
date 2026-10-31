@@ -41,6 +41,18 @@ switch ($kind) {
     }
     Write-Output (ConvertTo-Json -InputObject @{versions=$versions} -Compress -Depth 6)
   }
+  'versions view' {
+    $version='1783ded7-43db-4769-8708-fa86c47b002d'
+    $physicalDb='8ccfb1f8-1657-4074-b1b2-47de78f95003'
+    $binding=@{type='d1';name='DB';id=$physicalDb}
+    if ($scenario -eq 'wrong-physical-db' -or ($scenario -eq 'changed-physical-db-during-check' -and $priorStatus -ge 2)) { $binding.id='ffffffff-ffff-4fff-8fff-ffffffffffff' }
+    if ($scenario -eq 'wrong-detailed-version') { $version='ffffffff-ffff-4fff-8fff-ffffffffffff' }
+    $bindings=@($binding)
+    if ($scenario -eq 'duplicate-physical-db') { $bindings+=@{type='d1';name='ADDITIONAL';id='ffffffff-ffff-4fff-8fff-ffffffffffff'} }
+    if ($scenario -eq 'unexpected-r2') { $bindings+=@{type='r2_bucket';name='BUCKET'} }
+    if ($scenario -eq 'missing-binding') { $bindings=@() }
+    Write-Output (ConvertTo-Json -InputObject @{id=$version;number=17;resources=@{bindings=$bindings}} -Compress -Depth 8)
+  }
   'd1 execute' {
     $commands=@($arguments | Where-Object { $_.StartsWith('--command=') })
     if ($arguments.Count -ne 7 -or $arguments[2] -cne 'fire-fullapp-qa-db-20261016' -or
@@ -70,16 +82,22 @@ function global:Get-Command {
     throw 'Offline test blocks all other external command resolution.'
 }
 $cases = @(
-  @{name='healthy';pass=$true;calls=5},
+  @{name='healthy';pass=$true;calls=7},
   @{name='wrong-db';pass=$false;calls=1},
   @{name='wrong-version';pass=$false;calls=2},
   @{name='stale-previous-version';pass=$false;calls=2},
   @{name='split-traffic';pass=$false;calls=2},
-  @{name='journal-short';pass=$false;calls=3},
-  @{name='missing-table';pass=$false;calls=3},
-  @{name='missing-index';pass=$false;calls=3},
-  @{name='missing-trigger';pass=$false;calls=3},
-  @{name='version-changed-during-check';pass=$false;calls=5},
+  @{name='wrong-physical-db';pass=$false;calls=3},
+  @{name='changed-physical-db-during-check';pass=$false;calls=7},
+  @{name='wrong-detailed-version';pass=$false;calls=3},
+  @{name='duplicate-physical-db';pass=$false;calls=3},
+  @{name='unexpected-r2';pass=$false;calls=3},
+  @{name='missing-binding';pass=$false;calls=3},
+  @{name='journal-short';pass=$false;calls=4},
+  @{name='missing-table';pass=$false;calls=4},
+  @{name='missing-index';pass=$false;calls=4},
+  @{name='missing-trigger';pass=$false;calls=4},
+  @{name='version-changed-during-check';pass=$false;calls=6},
   @{name='provider-failed';pass=$false;calls=1},
   @{name='malformed-json';pass=$false;calls=1}
 )
@@ -94,13 +112,13 @@ try {
         catch { $failed = $true; $messages += $_.Exception.Message }
         $expected = -not $c.pass
         if ($failed -ne $expected) { throw "Scenario $($c.name): expected failure=$expected; observed=$failed; output=$messages" }
-        if ($c.pass -and $messages -notmatch 'PASS: All 25 migration names') { throw 'Healthy test lacks explicit schema PASS.' }
+        if ($c.pass -and ($messages -notmatch 'PASS: All 25 migration names' -or $messages -notmatch 'PASS: Active Worker version physical DB binding')) { throw 'Healthy test lacks schema and physical-binding PASS.' }
         if (-not $c.pass -and $messages -match 'REMOTE_WRITES=NONE; DEPLOYED=NO') { throw "Failure $($c.name) improperly claimed PASS." }
         $actual = @(Get-Content -LiteralPath $env:FIRE_FAKE_CALL_LOG | Where-Object { $_.Trim() }).Count
         if ($actual -ne $c.calls) { throw "Scenario $($c.name) invoked $actual provider read commands, expected $($c.calls)." }
         $commands = @(Get-Content -LiteralPath $env:FIRE_FAKE_CALL_LOG | Where-Object { $_.Trim() })
         foreach ($cmd in $commands) {
-            if ($cmd -cnotin @('d1 list','deployments status','d1 execute')) { throw 'Unexpected provider command in read-only test.' }
+            if ($cmd -cnotin @('d1 list','deployments status','versions view','d1 execute')) { throw 'Unexpected provider command in read-only test.' }
         }
         $checks++
         Write-Host ("PASS: " + $c.name + " (mock read calls " + $actual + ")")
