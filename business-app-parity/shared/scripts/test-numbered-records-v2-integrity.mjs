@@ -361,3 +361,112 @@ await photoReject(()=>verifyNumberedV2PhotoVault({
 }),'Unknown photo manifest fields refused');
 console.log('PASS '+checks+'/'+checks+
  ' NEW source-only photo vault file/size/SHA-256 reconciliation checks; no actual file restore.');
+
+
+
+// NEW recoverable, encrypted PHOTO BYTES package, independently bound to the
+// original sealed records archive by its full authenticated records checksum.
+// No R2, ZIP, hosted writes, customer files, or browser downloads are involved.
+const {sealNumberedV2PhotoBytes,unsealNumberedV2PhotoBytes}
+ =await import('../lib/numbered-records-v2-sealed-photos.mjs');
+const photoPrivate=await sealNumberedV2PhotoBytes({
+ archive:archive.archive,files:photoFiles,passphrase:syntheticPassphrase
+});
+eq(photoPrivate.format,'fire-numbered-v2-encrypted-photo-bytes',
+ 'Actual encrypted photo file bundle has its own versioned type');
+eq(photoPrivate.recordChecksum,archive.archive.checksum.hex,
+ 'All photos cryptographically bind to the exact saved records archive');
+eq(photoPrivate.items.length,1,'One encrypted photo BYTES payload is included');
+eq(typeof photoPrivate.items[0].ciphertextBase64,'string',
+ 'Image bytes are present as AES-GCM encrypted data');
+eq(JSON.stringify(photoPrivate).includes(sourcePhoto.object_key),false,
+ 'Encrypted photo package does not reveal customer/object storage key');
+eq(JSON.stringify(photoPrivate).includes('synthetic-throttle'),false,
+ 'Encrypted photo package does not expose private database history');
+const openedPhotos=await unsealNumberedV2PhotoBytes({
+ archive:archive.archive,sealed:JSON.parse(JSON.stringify(photoPrivate)),
+ passphrase:syntheticPassphrase
+});
+eq(openedPhotos.files.length,1,'Recover one photo into volatile memory');
+eq(openedPhotos.files[0].objectKey,sourcePhoto.object_key,
+ 'Recovered decrypted image retains exact original customer object key');
+eq(openedPhotos.files[0].bytes,photoFiles[0].bytes,
+ 'Recovered photo BYTES match exactly, not just a manifest count');
+eq(openedPhotos.proof.encryptedFilesOpened,true,
+ 'Full authenticated photo bytes were opened from encrypted package');
+eq(openedPhotos.proof.photoFilesPersisted,false,
+ 'In-memory recovery does not imply a hosted R2 restore');
+eq(openedPhotos.proof.ownerAuthenticated,false,
+ 'Password decrypt does not authorize restoring files to a hosting account');
+const privatePhotoRefuse=async(fn,label)=>{
+ await assert.rejects(fn,/FIRE SEALED PHOTO VAULT REFUSED/,label);checks++;
+};
+await privatePhotoRefuse(()=>unsealNumberedV2PhotoBytes({
+ archive:archive.archive,sealed:photoPrivate,
+ passphrase:'This is the wrong synthetic photo backup passphrase'
+}),'Wrong passphrase refuses original encrypted photo bytes');
+const swappedCipher=clone(photoPrivate);
+swappedCipher.items[0].ciphertextBase64=
+ (swappedCipher.items[0].ciphertextBase64[0]==='A'?'B':'A')+
+ swappedCipher.items[0].ciphertextBase64.slice(1);
+await privatePhotoRefuse(()=>unsealNumberedV2PhotoBytes({
+ archive:archive.archive,sealed:swappedCipher,passphrase:syntheticPassphrase
+}),'Tampered encrypted photo contents rejected even when count is unchanged');
+const changedHeader=clone(photoPrivate);changedHeader.recordChecksum='0'.repeat(64);
+await privatePhotoRefuse(()=>unsealNumberedV2PhotoBytes({
+ archive:archive.archive,sealed:changedHeader,passphrase:syntheticPassphrase
+}),'Archive checksum cannot be edited to link a different record snapshot');
+const droppedFile=clone(photoPrivate);droppedFile.items.pop();
+await privatePhotoRefuse(()=>unsealNumberedV2PhotoBytes({
+ archive:archive.archive,sealed:droppedFile,passphrase:syntheticPassphrase
+}),'Missing encrypted image causes whole recovery refusal');
+const addedFile=clone(photoPrivate);addedFile.items.push(clone(photoPrivate.items[0]));
+await privatePhotoRefuse(()=>unsealNumberedV2PhotoBytes({
+ archive:archive.archive,sealed:addedFile,passphrase:syntheticPassphrase
+}),'Unexpected image entry causes whole recovery refusal');
+const alternateRecords=clone(archive.archive.records);
+alternateRecords.tables.customer_notes.push({id:'extra-note',customer_id:'c1'});
+const alternative=(await buildNumberedRecordsV2({
+ records:alternateRecords,identities:archive.archive.identities
+})).archive;
+await privatePhotoRefuse(()=>unsealNumberedV2PhotoBytes({
+ archive:alternative,sealed:photoPrivate,passphrase:syntheticPassphrase
+}),'Valid but different customer-records snapshot cannot consume another photo vault');
+const secondRecords=clone(archive.archive.records);
+secondRecords.tables.customer_photos.push({
+ ...sourcePhoto,id:'photo2',object_key:'customers/c1/photo2.jpg',size_bytes:4
+});
+const twoArchive=(await buildNumberedRecordsV2({
+ records:secondRecords,identities:archive.archive.identities
+})).archive;
+const twoOriginalFiles=[
+ {objectKey:'customers/c1/photo2.jpg',contentType:'image/jpeg',
+  bytes:new Uint8Array([10,20,30,40])},
+ photoFiles[0]
+];
+const twoSealed=await sealNumberedV2PhotoBytes({
+ archive:twoArchive,files:twoOriginalFiles,passphrase:syntheticPassphrase
+});
+const twoOpened=await unsealNumberedV2PhotoBytes({
+ archive:twoArchive,sealed:twoSealed,passphrase:syntheticPassphrase
+});
+eq(twoOpened.files.length,2,'Two photo-file recovery handles manifest ordering');
+eq(twoOpened.files.find(x=>x.objectKey.endsWith('photo2.jpg')).bytes,
+ new Uint8Array([10,20,30,40]),'Second photo bytes preserved despite unordered input');
+const movedCipher=clone(twoSealed);
+[movedCipher.items[0],movedCipher.items[1]]=[movedCipher.items[1],movedCipher.items[0]];
+await privatePhotoRefuse(()=>unsealNumberedV2PhotoBytes({
+ archive:twoArchive,sealed:movedCipher,passphrase:syntheticPassphrase
+}),'Swapping encrypted photo slots invalidates AEAD record/index binding');
+const weakRng={subtle:globalThis.crypto.subtle,
+ getRandomValues(array){array.fill(7);return array;}};
+await privatePhotoRefuse(()=>sealNumberedV2PhotoBytes({
+ archive:archive.archive,files:photoFiles,
+ passphrase:syntheticPassphrase,cryptoImpl:weakRng
+}),'A duplicate AES-GCM nonce from broken RNG fails closed');
+const shortEncrypted=await sealNumberedV2PhotoBytes({
+ archive:archive.archive,files:[],passphrase:syntheticPassphrase
+}).catch(()=>null);
+eq(shortEncrypted,null,'Cannot create owner photo vault omitting saved image bytes');
+console.log('PASS '+checks+'/'+checks+
+ ' NEW encrypted photo-BYTES roundtrip and cross-record/tamper/nonce refusal checks (source-only).');
