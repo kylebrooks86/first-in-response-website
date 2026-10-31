@@ -15,6 +15,39 @@
 - This validator does **not** yet implement or authorize the actual owner JSON backup/restore v2 endpoint, full finance/photo archive, authenticated versioned export, atomic production restore, or private migration/backfill. Keep the HTTP 409 lock until all that is independently verified.
 
 
+## Oct 31 owner QA backup: private source-only numbering rehearsal
+
+Owner-observed **pre-upgrade QA backup and offline SQLite recovery PASS**:
+`FIRE-QA-CURRENT25-20261031-111316.sql` plus its private
+`.restore-review.json` under the encrypted Acer's
+`FIRE-Private-Backups` folder. This is the 25-migration QA database,
+**not** a final app rollback bundle. Never post the SQL, receipt, sensitive
+identifiers or the signed Cloudflare export URL to GitHub or ChatGPT.
+
+New opt-in `business-app-parity/owner_windows_qa_numbering_history_readonly.ps1`
+performs an independent **local-only** prerequisite. By default it does not
+open any private file or call a provider. `-Inspect` requires that exact
+existing QA SQL + same SHA256/size as its private restore receipt, then
+re-verifies all 25 migrations, ledger and SQLite recovery. The existing
+Customer # and Job # preflights subsequently restore their own disposable
+in-memory databases, check immutable numbering feasibility and return
+**counts only** (customers, duplicate-date ties, distinct jobs, revision
+links and completed jobs). No permanent numbers are assigned or printed,
+no D1 write or numbered schema migration runs, and no app is deployed.
+
+Safety regression workflows: `fire-qa-private-numbering-history-safety.yml`
+(Winshell default no-private-read + synthetic SQLite history). A CI PASS
+does **not** establish a PASS on the owner's private QA history. This is
+a required precursor to any migration proposal, not permission to enable
+`FIRE_CUSTOMER_NUMBERS_CANDIDATE` or
+`FIRE_JOB_NUMBERS_CANDIDATE`.
+
+The current backup API still **refuses v1 JSON backup/restore when
+permanent number tables exist**. Before any feature activation, implement
+and verify fully lossless archive + restore preserving exact serial values,
+root/revision links and SQLite allocation counters, and rehearse a private
+target-specific historical migration. Do not relax the v1 JSON lock.
+
 ## Release prerequisite — NEVER automatically run this SQL
 
 1. Identify exact authenticated LIVE/QA/staging/Doomsday Worker and bound D1 UUID, current migration journals, and verified private rollback/archive per environment. LIVE's prior `payment_refunds` discrepancy remains an independent Gate 5 blocker.
