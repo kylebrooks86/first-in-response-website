@@ -1,0 +1,32 @@
+name: FIRE QA Current-25 Private Recovery (synthetic)
+on:
+  push:
+    branches:
+      - work/fire-permanent-customer-numbers-history-2026-10-31
+    paths:
+      - 'business-app-parity/verify_qa_current25_d1_export.py'
+      - 'business-app-parity/test_verify_qa_current25_d1_export.py'
+      - '.github/workflows/fire-qa-current25-private-recovery.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/verify_qa_current25_d1_export.py'
+      - 'business-app-parity/test_verify_qa_current25_d1_export.py'
+      - '.github/workflows/fire-qa-current25-private-recovery.yml'
+permissions:
+  contents: read
+jobs:
+  current25:
+    name: Current 25 SQL backup restore and protection
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test private 25 migration SQL export and in-memory recovery only
+        run: python3 -m unittest discover -s business-app-parity -p test_verify_qa_current25_d1_export.py -v
