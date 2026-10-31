@@ -606,3 +606,79 @@ eq(FIRE_PRIVATE_REVIEW_MAX_FILE_BYTES>0&&FIRE_PRIVATE_REVIEW_MAX_FILE_BYTES<128*
  'Local review uses a bounded file size rather than partially processing backups');
 console.log('PASS '+checks+'/'+checks+
  ' NEW owner-local private kit inspection verifies encrypted data but returns safe counts only.');
+
+
+
+// NEW REAL PROVIDER-BINDING SHAPE: prepare() + batch() on source D1,
+// exact read-only R2 .get(object_key). No remote providers, owner data,
+// uploads, or writes. A second FULL DB read catches mid-export changes.
+const {captureEncryptedNumberedV2PrivateKitFromProviders}
+ =await import('../lib/numbered-records-v2-source-export.mjs');
+const d1Source=d1Double(tables);
+const goodR2={
+ reads:[],
+ async get(key){
+  this.reads.push(key);
+  if(key!==sourcePhoto.object_key)return null;
+  return{size:photoFiles[0].bytes.byteLength,
+   httpMetadata:{contentType:sourcePhoto.content_type},
+   async arrayBuffer(){return new Uint8Array(photoFiles[0].bytes).buffer;}};
+ }
+};
+const providerKit=await captureEncryptedNumberedV2PrivateKitFromProviders({
+ db:d1Source.db,bucket:goodR2,passphrase:syntheticPassphrase,now:()=>time
+});
+eq(providerKit.proof.databaseReadBatches,2,
+ 'Before-and-after D1 batches detect incomplete source changes');
+eq(d1Source.calls.batches,2,'Exactly two provider-style readonly D1 batches');
+eq(goodR2.reads,[sourcePhoto.object_key],
+ 'R2 gets only the original photo key bound to saved D1 metadata');
+eq(providerKit.proof.providerWritesPerformed,false,
+ 'Provider capture never writes to R2/D1');
+eq(providerKit.proof.providerAtomicPhotoSnapshotGuaranteed,false,
+ 'One logical source review is not falsely claimed atomic across D1 and R2');
+const providerOpened=await openNumberedV2PrivateRecoveryKit({
+ kit:providerKit.kit,passphrase:syntheticPassphrase
+});
+eq(providerOpened.photos[0].bytes,photoFiles[0].bytes,
+ 'Actual R2-shaped image bytes survive encrypted private export and unseal');
+eq(providerOpened.archive.records.tables.auth_rate_limits[0].attempts,2,
+ 'Actual D1-shaped capture includes authentication throttling counters');
+const providerReject=async(fn,label)=>{
+ await assert.rejects(fn,/FIRE v2 SOURCE EXPORT REFUSED|FIRE v2 FINANCIAL INTEGRITY REFUSED|FIRE PHOTO VAULT V2 REFUSED/,label);
+ checks++;
+};
+await providerReject(()=>captureEncryptedNumberedV2PrivateKitFromProviders({
+ db:d1Double(tables).db,bucket:{get:async()=>null},
+ passphrase:syntheticPassphrase,now:()=>time
+}),'Missing R2 image refuses the entire records backup');
+await providerReject(()=>captureEncryptedNumberedV2PrivateKitFromProviders({
+ db:d1Double(tables).db,bucket:{get:async()=>({
+  size:sourcePhoto.size_bytes,httpMetadata:{contentType:'image/png'},
+  async arrayBuffer(){return photoFiles[0].bytes.buffer;}
+ })},passphrase:syntheticPassphrase,now:()=>time
+}),'R2 object type mismatched to D1 metadata refuses backup');
+await providerReject(()=>captureEncryptedNumberedV2PrivateKitFromProviders({
+ db:d1Double(tables).db,bucket:{get:async()=>({
+  size:sourcePhoto.size_bytes-1,httpMetadata:{contentType:sourcePhoto.content_type},
+  async arrayBuffer(){return photoFiles[0].bytes.buffer;}
+ })},passphrase:syntheticPassphrase,now:()=>time
+}),'R2 object size mismatch refuses backup');
+const alteredSource=clone(tables),racingD1=d1Double(alteredSource);
+const oldBatch=racingD1.db.batch;
+racingD1.db.batch=async statements=>{
+ if(racingD1.calls.batches===1)alteredSource.customer_notes[0].body='altered during photo read';
+ return oldBatch(statements);
+};
+await providerReject(()=>captureEncryptedNumberedV2PrivateKitFromProviders({
+ db:racingD1.db,bucket:{get:async()=>({
+  size:sourcePhoto.size_bytes,httpMetadata:{contentType:sourcePhoto.content_type},
+  async arrayBuffer(){return photoFiles[0].bytes.buffer;}
+ })},passphrase:syntheticPassphrase,now:()=>time
+}),'Customer/financial record changes during R2 fetch block stale private kit');
+eq(racingD1.calls.batches,2,'Race detector performs second complete D1 review');
+await providerReject(()=>captureEncryptedNumberedV2PrivateKitFromProviders({
+ db:d1Double(tables).db,bucket:null,passphrase:syntheticPassphrase,now:()=>time
+}),'Missing actual R2 binding never produces a partial photos-omitted kit');
+console.log('PASS '+checks+'/'+checks+
+ ' NEW actual D1/R2-shaped encrypted export, missing photo, changed metadata and source-race checks.');
