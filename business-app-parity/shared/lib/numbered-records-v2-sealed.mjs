@@ -90,7 +90,8 @@ export async function encryptFinanciallyVerifiedNumberedV2({
  archive,passphrase,cryptoImpl=globalThis.crypto
 }={}){
  const c=requireCrypto(cryptoImpl),password=verifyPassword(passphrase);
- await inspectFinanciallyVerifiedNumberedRecordsV2(archive);
+ try{await inspectFinanciallyVerifiedNumberedRecordsV2(archive);}
+ catch{reject('unverified full source archive cannot be sealed');}
  const plain=bytesUtf8(JSON.stringify(archive));
  if(plain.byteLength===0||plain.byteLength>MAX_JSON_BYTES)
   reject('records exceed reviewed private archive size; do not split silently');
