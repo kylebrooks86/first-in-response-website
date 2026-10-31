@@ -14,6 +14,9 @@ const base=resolve(new URL('..',import.meta.url).pathname);
 const dashboard=readFileSync(join(base,'app/dashboard.tsx'),'utf8');
 const a=dashboard.indexOf('function CustomersView('),b=dashboard.indexOf('\nfunction ',a+25);
 if(a<0||b<0||!dashboard.slice(a,b).includes('if(offlinePhotoOnly)'))throw Error('Missing actual CustomersView offline source.');
+for(const helper of ['completedCustomerJobHistory','customerNumberLabel','matchesCustomerNumberQuery']){
+ if(!dashboard.slice(a,b).includes(helper))throw Error('Customer-numbering source helper not found: '+helper);
+}
 const imports=[
 "import {summarizeCustomerBalances} from './lib/customer-balance-summary';",
 "import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility} from './lib/customer-activity-flags';",
@@ -26,6 +29,7 @@ const imports=[
 "import {mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory} from './lib/offline-photo-availability';",
 "import {usableCustomerPhone,usableCustomerEmail} from './lib/customer-contact-links';",
 "import {listOfflinePhotos} from './lib/local-photo-vault';",
+ "import {customerNumberLabel,matchesCustomerNumberQuery,completedCustomerJobHistory} from './lib/customer-numbering.mjs';",
 "const Button=({children,onClick,disabled})=>React.createElement('button',{type:'button',onClick,disabled},children);",
 "const messageHistoryEntries=()=>[];const billingBalanceCents=()=>0;",
 "const resolvedBillingTotalCents=()=>0;const money=()=>'$0.00';"
