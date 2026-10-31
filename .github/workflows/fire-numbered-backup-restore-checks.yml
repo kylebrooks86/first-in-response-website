@@ -1,0 +1,45 @@
+name: FIRE Numbered Backup / Restore Source Safety
+on:
+  push:
+    branches: [work/fire-permanent-customer-numbers-history-2026-10-31]
+    paths:
+      - 'business-app-parity/shared/app/api/backup/route.ts'
+      - 'business-app-parity/shared/scripts/test-records-recovery.mjs'
+      - 'business-app-parity/shared/lib/numbered-identity-archive.mjs'
+      - '.github/workflows/fire-numbered-backup-restore-checks.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/backup/route.ts'
+      - 'business-app-parity/shared/scripts/test-records-recovery.mjs'
+      - 'business-app-parity/shared/lib/numbered-identity-archive.mjs'
+      - '.github/workflows/fire-numbered-backup-restore-checks.yml'
+permissions:
+  contents: read
+concurrency:
+  group: fire-numbered-backup-source-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  backup:
+    name: Actual synthetic SQLite backup and restore refusal
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Test full local records export, refund/audit integrity, restore refusal, idempotency
+        run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-records-recovery.mjs
+      - name: Test immutable numbered archive and offline SQLite high-water collision plan
+        run: node --experimental-sqlite scripts/test-numbered-identity-archive.mjs
