@@ -93,8 +93,16 @@ function fixture(opts={}){
     ') VALUES ('+columns.map(()=>'?').join(',')+')';
   db.prepare(sql).run(...columns.map(k=>data[k]));
  }
- if(!opts.empty)for(const table of FIRE_NUMBERED_RECORDS_TABLES)
-  for(const record of rows[table])insert(table,record);
+ if(!opts.empty){
+  db.exec('BEGIN IMMEDIATE; PRAGMA defer_foreign_keys=ON;');
+  try{
+   for(const table of FIRE_NUMBERED_RECORDS_TABLES)
+    for(const record of rows[table])insert(table,record);
+   if(db.prepare('PRAGMA foreign_key_check').all().length)
+    throw Error('Synthetic fixture has invalid cross-table references');
+   db.exec('COMMIT');
+  }catch(error){db.exec('ROLLBACK');throw error;}
+ }
  db.exec(customerSQL);db.exec(jobSQL);
  if(opts.additionalRecord)db.prepare("INSERT INTO customers(id,created_at,name) VALUES('EXTRA','2026-10-21','Not in backup')").run();
  return db;
