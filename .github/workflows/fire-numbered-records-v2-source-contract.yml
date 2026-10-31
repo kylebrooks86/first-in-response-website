@@ -6,6 +6,7 @@ on:
       - 'business-app-parity/shared/lib/numbered-records-v2-d1-read.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2.mjs'
       - 'business-app-parity/restore-lab/restore_numbered_mappings_memory.mjs'
+      - 'business-app-parity/restore-lab/restore_complete_numbered_records_memory.mjs'
       - 'business-app-parity/restore-lab/test_restore_numbered_mappings_memory.mjs'
       - '.github/workflows/fire-numbered-records-v2-source-contract.yml'
   push:
@@ -15,6 +16,7 @@ on:
       - 'business-app-parity/shared/lib/numbered-records-v2-d1-read.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2.mjs'
       - 'business-app-parity/restore-lab/restore_numbered_mappings_memory.mjs'
+      - 'business-app-parity/restore-lab/restore_complete_numbered_records_memory.mjs'
       - 'business-app-parity/restore-lab/test_restore_numbered_mappings_memory.mjs'
       - '.github/workflows/fire-numbered-records-v2-source-contract.yml'
 permissions:
