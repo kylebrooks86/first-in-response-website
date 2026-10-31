@@ -13,10 +13,17 @@ const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 // customer-number or job-number link tables. Block backup AND restore whenever
 // either numbered identity feature is enabled rather than silently creating
 // an archive that would lose historical references.
-function numberedIdentityBackupLocked(){
+async function numberedIdentityBackupLocked(){
   const flags=env as typeof env & {FIRE_CUSTOMER_NUMBERS_CANDIDATE?:string;FIRE_JOB_NUMBERS_CANDIDATE?:string};
-  return flags.FIRE_CUSTOMER_NUMBERS_CANDIDATE==='owner-approved-schema-v1'||
-    flags.FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
+  if(flags.FIRE_CUSTOMER_NUMBERS_CANDIDATE==='owner-approved-schema-v1'||
+    flags.FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1')return true;
+  // Feature flags can be rolled back independently of a prior D1 migration.
+  // A v1 JSON archive that omits EXISTING immutable identity tables is unsafe
+  // even while the numbered UI is disabled. Fail closed if metadata is unreadable.
+  const schema=await env.DB.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('fire_customer_numbers','fire_job_numbers','fire_job_estimate_links') LIMIT 1"
+  ).first<{name:string}>();
+  return Boolean(schema);
 }
 const NUMBERED_BACKUP_LOCK_MESSAGE='Numbered customer/job record backups need a verified versioned archive format. JSON backup and restore are locked to protect permanent numbers; use a separately verified full D1 export until that feature is released.';
 const TABLES = [
@@ -219,7 +226,7 @@ async function authorized() {
 
 export async function GET() {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if(numberedIdentityBackupLocked())return Response.json({error:NUMBERED_BACKUP_LOCK_MESSAGE},{status:409,headers:{"cache-control":"no-store"}});
+  if(await numberedIdentityBackupLocked())return Response.json({error:NUMBERED_BACKUP_LOCK_MESSAGE},{status:409,headers:{"cache-control":"no-store"}});
   if(customerPropertiesEnabled(env)&&!propertyRecoveryTestEnabled(env))return Response.json({error:'Property-aware backup is not verified yet. Candidate export is blocked to prevent omitted property records.'},{status:409});
   try {
     if(propertyRecoveryTestEnabled(env)){const payload=await exportPropertyRecords(env.DB);return new Response(JSON.stringify(payload),{headers:{'cache-control':'no-store','content-type':'application/json','content-disposition':'attachment; filename=fire-property-records-backup.json'}});}
@@ -290,7 +297,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if(numberedIdentityBackupLocked())return Response.json({error:NUMBERED_BACKUP_LOCK_MESSAGE},{status:409,headers:{"cache-control":"no-store"}});
+  if(await numberedIdentityBackupLocked())return Response.json({error:NUMBERED_BACKUP_LOCK_MESSAGE},{status:409,headers:{"cache-control":"no-store"}});
   if(customerPropertiesEnabled(env)&&!propertyRecoveryTestEnabled(env))return Response.json({error:'Property-aware recovery is not verified yet. No records changed.'},{status:409});
   const restoreAudit={
     attemptId:crypto.randomUUID(),
