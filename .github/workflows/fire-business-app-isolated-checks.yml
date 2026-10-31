@@ -33,6 +33,7 @@ on:
       - work/fire-owner-qa-worker-serving-readonly-2026-10-23
       - work/fire-qa-iphone-photo-button-fit-2026-10-23
       - work/fire-google-voice-text-safety-2026-10-28
+      - work/fire-qa-active-version-lock-2026-10-30
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
@@ -55,6 +56,9 @@ on:
       - 'business-app-parity/verify_hosted_schema_capture.py'
       - 'business-app-parity/review_integrated_release_gates.py'
       - 'business-app-parity/test_review_integrated_release_gates.py'
+      - 'business-app-parity/gate9_staging_preflight.py'
+      - 'business-app-parity/test_gate9_staging_preflight.py'
+      - 'business-app-parity/GATE9_STAGING_RELEASE_LOCK_20261030.md'
       - 'business-app-parity/LIVE_REFUND_GAP_READ_ONLY.sql'
       - 'business-app-parity/triage_live_refund_gap.py'
       - 'business-app-parity/test_triage_live_refund_gap.py'
@@ -269,6 +273,8 @@ jobs:
         run: |
           python3 ../test_review_integrated_release_gates.py
           python3 ../review_integrated_release_gates.py --candidate-sha "$GITHUB_SHA" > /dev/null
+      - name: Gate 9 independent staging and Stripe metadata must fail closed (synthetic, no provider calls)
+        run: python3 ../test_gate9_staging_preflight.py
       - name: Real owner refund ledger failure guard — zero financial writes on missing LIVE schema
         run: node scripts/test-refund-ledger-readiness.mjs
       - name: LIVE 0019 refund gap — actual saved Sites inventory and safe missing-table journal preflight
