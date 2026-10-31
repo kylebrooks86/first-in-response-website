@@ -1,0 +1,39 @@
+name: FIRE QA Owner Read-Only Evidence Guard
+on:
+  push:
+    branches:
+      - work/fire-permanent-customer-numbers-history-2026-10-31
+    paths:
+      - 'business-app-parity/owner_windows_qa_current_readonly.ps1'
+      - 'business-app-parity/test_owner_windows_qa_current_readonly.ps1'
+      - 'business-app-parity/verify_qa_worker_version_bindings.ps1'
+      - 'business-app-parity/qa_d1_identity_from_list.ps1'
+      - '.github/workflows/fire-qa-owner-readonly-evidence.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/owner_windows_qa_current_readonly.ps1'
+      - 'business-app-parity/test_owner_windows_qa_current_readonly.ps1'
+      - 'business-app-parity/verify_qa_worker_version_bindings.ps1'
+      - 'business-app-parity/qa_d1_identity_from_list.ps1'
+      - '.github/workflows/fire-qa-owner-readonly-evidence.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic-owner-qa-evidence:
+    name: Windows offline exact QA Worker and physical DB safety
+    runs-on: windows-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: business-app-parity
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify owner Acer read-only command permits no writes and refuses drift
+        run: ./test_owner_windows_qa_current_readonly.ps1
+      - name: Verify strict worker version bindings
+        run: ./test_verify_qa_worker_version_bindings.ps1
+      - name: Verify offline D1 isolation proof
+        run: ./test_qa_d1_identity_from_list.ps1

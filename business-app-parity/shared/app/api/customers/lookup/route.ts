@@ -2,7 +2,8 @@ import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../../chatgpt-auth';
 import {CUSTOMER_PHONE_SQL} from '../../../../lib/customer-identity';
 import {customerPropertiesEnabled} from '../../../../lib/customer-properties';
-const columns="id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address";
+import {customerNumberingReady,parseCustomerNumberQuery} from '../../../../lib/customer-numbering.mjs';
+const customerColumns="id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address";
 export async function GET(request:Request){
  const user=await getChatGPTUser();
  const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'cache-control':'no-store','vary':'Cookie'}});
@@ -10,11 +11,20 @@ export async function GET(request:Request){
  const url=new URL(request.url),id=url.searchParams.get('customerId'),query=(url.searchParams.get('q')??'').trim();
  if(query.length>160||id!==null&&(!id.trim()||id.length>128)||id!==null&&url.searchParams.has('q'))return json({error:'Invalid customer lookup.'},400);
  try{
+  const numbered=await customerNumberingReady(env.DB,env);
+  const columns=customerColumns+(numbered?",(SELECT customer_number FROM fire_customer_numbers WHERE customer_id=customers.id) AS customerNumber":"");
   if(id!==null){const customer=await env.DB.prepare(`SELECT ${columns} FROM customers WHERE id=? LIMIT 1`).bind(id).first();return customer?json({customer}):json({error:'That customer is no longer available. Choose a customer again.'},404);}
   if(!query)return json({customers:[],hasMore:false});
+  const customerNumber=numbered?parseCustomerNumberQuery(query):null;
+  // A prefixed Customer # is a precise lookup, never a partial phone/name hit.
+  if(customerNumber!==null&&/^(?:#|customer\s*#?)/i.test(query)){
+   const exact=await env.DB.prepare(`SELECT ${columns} FROM customers WHERE EXISTS(SELECT 1 FROM fire_customer_numbers n WHERE n.customer_id=customers.id AND n.customer_number=?) LIMIT 1`).bind(customerNumber).all();
+   return json({customers:exact.results,hasMore:false});
+  }
   const raw=query.replace(/\D/g,''),digits=raw.startsWith('1')&&(query.startsWith('+1')||raw.length===11)?raw.slice(1):raw;
   const properties=customerPropertiesEnabled(env);
-  const result=await env.DB.prepare(`SELECT ${columns} FROM customers WHERE instr(lower(name),lower(?))>0 OR instr(lower(COALESCE(email,'')),lower(?))>0 OR instr(lower(COALESCE(address,'')),lower(?))>0 OR (?<>'' AND instr(${CUSTOMER_PHONE_SQL},?)>0)${properties?" OR EXISTS(SELECT 1 FROM customer_properties p WHERE p.customer_id=customers.id AND instr(lower(p.address||' '||p.designation),lower(?))>0)":''} ORDER BY name COLLATE NOCASE,id LIMIT 13`).bind(query,query,query,digits.length>=2?digits:'',digits,...(properties?[query]:[])).all();
+  const numberPredicate=customerNumber!==null?" OR EXISTS(SELECT 1 FROM fire_customer_numbers n WHERE n.customer_id=customers.id AND n.customer_number=?)":'';
+  const result=await env.DB.prepare(`SELECT ${columns} FROM customers WHERE instr(lower(name),lower(?))>0 OR instr(lower(COALESCE(email,'')),lower(?))>0 OR instr(lower(COALESCE(address,'')),lower(?))>0 OR (?<>'' AND instr(${CUSTOMER_PHONE_SQL},?)>0)${numberPredicate}${properties?" OR EXISTS(SELECT 1 FROM customer_properties p WHERE p.customer_id=customers.id AND instr(lower(p.address||' '||p.designation),lower(?))>0)":''} ORDER BY name COLLATE NOCASE,id LIMIT 13`).bind(query,query,query,digits.length>=2?digits:'',digits,...(customerNumber!==null?[customerNumber]:[]),...(properties?[query]:[])).all();
   return json({customers:result.results.slice(0,12),hasMore:result.results.length>12});
  }catch{return json({error:'Customer search is unavailable. No records changed.'},503);}
 }

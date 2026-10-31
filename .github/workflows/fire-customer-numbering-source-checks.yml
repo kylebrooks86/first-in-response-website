@@ -1,0 +1,52 @@
+name: FIRE Customer Numbering Candidate Safety
+
+on:
+  push:
+    branches:
+      - work/fire-permanent-customer-numbers-history-2026-10-31
+    paths:
+      - 'business-app-parity/customer-numbering/**'
+      - 'business-app-parity/shared/lib/customer-numbering.mjs'
+      - 'business-app-parity/shared/lib/numbered-identity-archive.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-identity-archive.mjs'
+      - 'business-app-parity/shared/scripts/test-customer-numbering.mjs'
+      - 'business-app-parity/shared/app/**'
+      - '.github/workflows/fire-customer-numbering-source-checks.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/customer-numbering/**'
+      - 'business-app-parity/shared/lib/customer-numbering.mjs'
+      - 'business-app-parity/shared/lib/numbered-identity-archive.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-identity-archive.mjs'
+      - 'business-app-parity/shared/scripts/test-customer-numbering.mjs'
+      - 'business-app-parity/shared/app/**'
+      - '.github/workflows/fire-customer-numbering-source-checks.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  customer-number-contract:
+    name: Immutable Customer # and completed-job source (SQLite memory ONLY)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout source without stored GitHub credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 22 in-memory SQLite
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test historical backfill, uniqueness, no reuse, and record labels
+        run: node business-app-parity/shared/scripts/test-customer-numbering.mjs
+      - name: Validate lossless Customer # and Job # snapshot — synthetic SQLite only
+        run: node --experimental-sqlite business-app-parity/shared/scripts/test-numbered-identity-archive.mjs
+      - name: Test private historical Customer # preflight against synthetic, disposable SQLite
+        run: python3 -m unittest discover -s business-app-parity/customer-numbering -p test_preflight_customer_history.py -v
+      - name: Confirm candidate has no real migration or provider write configuration
+        shell: bash
+        run: |
+          test -f business-app-parity/customer-numbering/customer_numbers_v1.sql
+          test -z "$(git diff --name-only ${{ github.event.pull_request.base.sha || github.event.before }} HEAD -- business-app-parity/shared/drizzle business-app-parity/adapters fire-app-dr/drizzle)"

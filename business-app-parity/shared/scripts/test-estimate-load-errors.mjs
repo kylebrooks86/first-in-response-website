@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {customerNumberLabel} from '../lib/customer-numbering.mjs';
 const require=createRequire(import.meta.url);
 const source=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
@@ -10,7 +11,7 @@ const helpers=ast.statements.filter(n=>ts.isVariableStatement(n)&&n.declarationL
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='EstimatesView');
 let state=[],cursor=0,effects=[],requests=[],responder,saved=[];
 const stubs=Object.fromEntries(['Button','EstimateDetail','NewEstimate','SquareKanban','List','Star','CalendarDays','ClipboardList','ChevronRight'].map(name=>[name,()=>null]));
-const context={exports:{},require,Error,Array,...stubs,
+const context={exports:{},require,Error,Array,customerNumberLabel,...stubs,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},
  useRef:initial=>({current:initial}),useEffect(fn){effects.push(fn);},fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,dateTime:s=>s,
  window:{setTimeout(fn){fn();return 1;},clearTimeout(){}},

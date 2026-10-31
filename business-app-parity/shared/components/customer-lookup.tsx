@@ -2,11 +2,12 @@
 import {useEffect,useId,useRef,useState} from 'react';
 import {Input} from './ui/input';
 import {Button} from './ui/button';
-export type LookupCustomer={id:string;name:string;email:string;phone:string;address:string};
+import {customerNumberLabel} from '../lib/customer-numbering.mjs';
+export type LookupCustomer={id:string;name:string;email:string;phone:string;address:string;customerNumber?:number|null};
 export function validLookupCustomer(value:unknown):value is LookupCustomer{
  if(!value||typeof value!=='object')return false;
  const row=value as Record<string,unknown>;
- return typeof row.id==='string'&&row.id.length>0&&row.id.length<=128&&['name','email','phone','address'].every(key=>typeof row[key]==='string')&&Boolean(String(row.name).trim());
+ return typeof row.id==='string'&&row.id.length>0&&row.id.length<=128&&['name','email','phone','address'].every(key=>typeof row[key]==='string')&&Boolean(String(row.name).trim())&&(row.customerNumber===undefined||row.customerNumber===null||Boolean(customerNumberLabel(row.customerNumber)));
 }
 export function CustomerLookup({disabled,onSelect,onCreate}:{disabled:boolean;onSelect:(customer:LookupCustomer)=>void;onCreate:()=>void}){
  const id=useId(),[query,setQuery]=useState(''),[rows,setRows]=useState<LookupCustomer[]>([]),[expanded,setExpanded]=useState(false),[active,setActive]=useState(-1),[loading,setLoading]=useState(false),[error,setError]=useState(''),[more,setMore]=useState(false);
@@ -29,7 +30,7 @@ export function CustomerLookup({disabled,onSelect,onCreate}:{disabled:boolean;on
  const choose=(row:LookupCustomer)=>{setExpanded(false);setQuery('');setRows([]);setActive(-1);onSelect(row);};
  return <section className="customer-lookup" aria-label="Customer lookup">
   <label htmlFor={id}>Find an existing customer</label>
-  <Input id={id} role="combobox" autoComplete="off" aria-autocomplete="list" aria-expanded={expanded} aria-controls={id+'-matches'} aria-activedescendant={expanded&&active>=0?id+'-match-'+active:undefined} placeholder="Search name, phone, email, or address" value={query} disabled={disabled} maxLength={160} onFocus={()=>setExpanded(true)} onChange={event=>{setQuery(event.target.value);setExpanded(true);setActive(-1);}} onKeyDown={event=>{
+  <Input id={id} role="combobox" autoComplete="off" aria-autocomplete="list" aria-expanded={expanded} aria-controls={id+'-matches'} aria-activedescendant={expanded&&active>=0?id+'-match-'+active:undefined} placeholder="Name, Customer #, phone, or address" value={query} disabled={disabled} maxLength={160} onFocus={()=>setExpanded(true)} onChange={event=>{setQuery(event.target.value);setExpanded(true);setActive(-1);}} onKeyDown={event=>{
    if(event.key==='ArrowDown'&&rows.length){event.preventDefault();setExpanded(true);setActive(index=>(index+1)%rows.length);}
    else if(event.key==='ArrowUp'&&rows.length){event.preventDefault();setExpanded(true);setActive(index=>index<0?rows.length-1:(index-1+rows.length)%rows.length);}
    else if(event.key==='Enter'&&expanded){event.preventDefault();if(active>=0&&rows[active])choose(rows[active]);}
@@ -37,7 +38,7 @@ export function CustomerLookup({disabled,onSelect,onCreate}:{disabled:boolean;on
   }}/>
   {expanded&&query.trim()&&<div className="customer-lookup-results">
    {loading?<p role="status">Searching customers…</p>:error?<div><p role="alert">{error}</p><Button type="button" variant="outline" onClick={()=>setRetry(value=>value+1)}>Retry customer search</Button></div>:<>
-    <div id={id+'-matches'} role="listbox" aria-label="Matching customers">{rows.map((row,index)=><button type="button" role="option" id={id+'-match-'+index} aria-selected={active===index} tabIndex={-1} key={row.id} onClick={()=>choose(row)}><strong>{row.name}</strong><span>{[row.phone,row.email].filter(Boolean).join(' · ')||'No phone or email saved'}</span><span>{row.address||'No address saved'}</span></button>)}</div>
+    <div id={id+'-matches'} role="listbox" aria-label="Matching customers">{rows.map((row,index)=><button type="button" role="option" id={id+'-match-'+index} aria-selected={active===index} tabIndex={-1} key={row.id} onClick={()=>choose(row)}><strong>{row.name}</strong>{customerNumberLabel(row.customerNumber)&&<span>{customerNumberLabel(row.customerNumber)}</span>}<span>{[row.phone,row.email].filter(Boolean).join(' · ')||'No phone or email saved'}</span><span>{row.address||'No address saved'}</span></button>)}</div>
     {!rows.length&&<p role="status">No matching customers. Create a new customer if needed.</p>}{more&&<p role="status">More matches available. Keep typing to narrow the search.</p>}
    </>}
   </div>}
