@@ -55,8 +55,8 @@ export function newCustomerNumberStatement(db,customerId,createdAt){
      typeof createdAt!=='string'||!Number.isFinite(Date.parse(createdAt)))
     throw new TypeError('Saved customer ID and timestamp are required.');
   return db.prepare(
-    'INSERT INTO fire_customer_numbers(customer_id,created_at) SELECT id,created_at FROM customers WHERE id=?'
-  ).bind(customerId);
+    'INSERT INTO fire_customer_numbers(customer_id,created_at) SELECT id,created_at FROM customers WHERE id=? AND NOT EXISTS (SELECT 1 FROM fire_customer_numbers WHERE customer_id=?)'
+  ).bind(customerId,customerId);
 }
 
 export async function customerNumberForCustomer(db,customerId,environment){
