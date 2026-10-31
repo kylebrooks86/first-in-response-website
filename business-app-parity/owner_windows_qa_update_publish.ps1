@@ -18,11 +18,13 @@ $workerName = 'fire-fullapp-qa-20261016'
 $dbName = 'fire-fullapp-qa-db-20261016'
 $dbId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 $photoMode = 'ON-DEVICE-PHOTOS-NO-R2'
-# Owner-verified Acer Wrangler status: QA Worker version 1783ded7-43db-4769-8708-fa86c47b002d at 100% traffic.
-# The previously active db6ef897-edd3-439e-8679-b6f6620f18af is historical rollback evidence, NOT the current serving pin.
-# This read-only observation is not approval to publish or migrate.
-# Require a fresh authenticated 100% serving-version match before any new QA publication.
-$expectedActiveVersion = '1783ded7-43db-4769-8708-fa86c47b002d'
+# Owner-observed Oct 31 exact QA reviewer independently PASS at source
+# 3d8b3aea161dde6501d19336ab965e11d13ee345: sole 100% serving
+# QA version below and physical QA D1 binding. Retain it for code-only rollback.
+# This observation NEVER authorizes publication: require a fresh exact source,
+# two independently verified database identities, 25-journal, device-photo
+# protection and typed owner consent before any existing QA Worker update.
+$expectedActiveVersion = '99fa8c27-df83-48d3-b953-9a84eb295334'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
@@ -108,15 +110,39 @@ Require ($null -ne $after -and $null -ne $after.versions) 'Active QA Worker depl
 $afterVersions = @($after.versions)
 Require ($afterVersions.Count -eq 1 -and [double]$afterVersions[0].percentage -eq 100 -and
     [string]$afterVersions[0].version_id -ceq $expectedOldVersion) 'QA Worker was updated by another operation. Refusing overwrite.'
-# Repeat the WORKING read-only D1 listing after exact owner confirmation.
-# Check exact QA and protected staging UUIDs; do not trust stale table-count
-# metadata from Wrangler's list response.
+# After explicit approval, independently reconfirm BOTH exact QA and protected
+# staging physical database identities. The D1 LIST endpoint can fail with 10000
+# on Windows even while two individual D1 INFO endpoints work. A successful but
+# malformed LIST must fail closed; only a nonzero LIST exit permits exact INFO.
+# Never query staging customer records, deploy staging, or mutate any D1 database.
 $identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'
-Require (Test-Path -LiteralPath $identityHelper -PathType Leaf) 'QA-only D1 identity validator missing.'
-$rawD1 = @(& $wrangler.Source d1 list --json)
-Require-Exit 'Fresh, read-only QA/staging D1 identities'
-$d1 = & $identityHelper -Json ($rawD1 -join [Environment]::NewLine)
-Require ($d1.qaName -ceq $dbName -and $d1.qaUuid -ceq $dbId) 'QA database identity changed after review. Refusing overwrite.'
+$individualInfoHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_info.ps1'
+$qaD1Config = Join-Path $PSScriptRoot 'wrangler.qa-migrations.json'
+Require (Test-Path -LiteralPath $identityHelper -PathType Leaf) 'Strict full D1 LIST identity validator missing.'
+Require (Test-Path -LiteralPath $individualInfoHelper -PathType Leaf) 'Strict dual D1 INFO identity validator missing.'
+Require (Test-Path -LiteralPath $qaD1Config -PathType Leaf) 'Pinned QA-only D1 info config missing.'
+$previousErrorAction = $ErrorActionPreference
+try {
+    $ErrorActionPreference = 'Continue'
+    $rawD1 = @(& $wrangler.Source d1 list --json 2>$null)
+    $listExit = $LASTEXITCODE
+} finally { $ErrorActionPreference = $previousErrorAction }
+if ($listExit -eq 0) {
+    $d1 = & $identityHelper -Json ($rawD1 -join [Environment]::NewLine)
+    Write-Host 'PASS: Fresh QA/staging physical IDs verified from complete D1 LIST.'
+} else {
+    Write-Host 'LIMIT: D1 LIST unavailable; verifying fresh QA and protected staging IDs from two separate INFO requests.'
+    $qaInfoRaw = @(& $wrangler.Source d1 info $dbName "--config=$qaD1Config" --json 2>$null)
+    Require-Exit 'Post-approval exact QA D1 INFO'
+    $stageInfoRaw = @(& $wrangler.Source d1 info 'fire-app-staging-db' "--config=$qaD1Config" --json 2>$null)
+    Require-Exit 'Post-approval protected staging D1 INFO'
+    $d1 = & $individualInfoHelper -QaJson ($qaInfoRaw -join [Environment]::NewLine) -StagingJson ($stageInfoRaw -join [Environment]::NewLine)
+}
+Require ($null -ne $d1 -and $d1.qaName -ceq $dbName -and $d1.qaUuid -ceq $dbId -and
+    $d1.stagingName -ceq 'fire-app-staging-db' -and
+    $d1.stagingUuid -ceq 'afb2c05a-d794-4a9a-b580-924ce01c26ad' -and
+    $d1.qaUuid -cne $d1.stagingUuid
+) 'QA/staging physical D1 identity changed after exact owner approval. Refusing overwrite.'
 # Bindings may change without a different listed D1. Verify the actual still-serving
 # immutable Worker version again after approval, just before any code upload.
 $afterBindingRaw = @(& $wrangler.Source versions view $expectedOldVersion --name $workerName --json)
