@@ -79,48 +79,37 @@ await firstService.getByRole('combobox').click();await page.getByRole('option',{
 await firstService.getByLabel('Service name',{exact:true}).fill('Oddball exterior request');await firstService.locator('textarea').fill('Only the customized work agreed for this job.');await firstService.locator('input[id$="-price"]').fill('199.95');
 check(await firstService.getByText('Line total $199.95',{exact:true}).count()===1,'Custom quote title, price and description are editable');check(customCatalogWrites===0&&FIRE_SERVICES.find(s=>s.id==='custom').rate===0,'Quote-only custom line never changes master defaults');
 await firstService.getByLabel('Quantity',{exact:true}).fill('');
-// Clear the intentionally selected line before testing the unchanged package flow.
-await firstService.getByLabel('Service name',{exact:true}).fill('');
-await page.getByRole('button',{name:'House + gutters',exact:true}).click();
-const packageLines=page.locator('.estimate-edit-service');
-check(await packageLines.count()===2,'Quick House + gutters package adds two editable service lines');
-check(await packageLines.nth(0).getByLabel('Service name',{exact:true}).inputValue()==='House Wash','Quick package applies current House Wash service');
-check(await packageLines.nth(1).getByLabel('Service name',{exact:true}).inputValue()==='Gutter Cleaning + Flush','Quick package applies current gutter service');
-check(await packageLines.nth(0).getByLabel('Quantity',{exact:true}).inputValue()===''&&await packageLines.nth(1).getByLabel('Quantity',{exact:true}).inputValue()==='','Even flat-price packages require deliberate quantities');
-check(await packageLines.nth(0).getByText('Line total $0',{exact:true}).count()===1&&await packageLines.nth(1).getByText('Line total $0',{exact:true}).count()===1,'New package starts with no charge');
-await packageLines.nth(0).getByLabel('Quantity',{exact:true}).fill('1000');
-await packageLines.nth(1).getByLabel('Quantity',{exact:true}).fill('50');
-check(await packageLines.nth(0).getByText('Line total $220',{exact:true}).count()===1,'Current house rate applied to first package line');
-check(await packageLines.nth(1).getByText('Line total $75',{exact:true}).count()===1,'Current gutter rate applied to second package line');
-await page.getByLabel('Save current selected services as a package').count().then(v=>check(v===1,'Owner sees saved package name field'));
-await page.getByLabel('Save current selected services as a package').fill('FIRE standard duo');
+// Quick package shortcuts were intentionally removed from this owner workflow.
+// Exercise the supported two-service path and exact cents instead.
+check(await page.getByText('Quick multi-service packages',{exact:true}).count()===0,
+ 'Owner-approved Quick Packages UI is absent from New Estimate');
+check(await page.getByRole('button',{name:'Add another service'}).count()===1,
+ 'Manual multi-service quoting remains one visible action');
 const beforeQuoteSaves=saves, beforePackageWrites=packageWrites;
-await page.getByRole('button',{name:'Save this mix'}).click();
-await page.getByRole('button',{name:'Use saved package FIRE standard duo'}).waitFor();
-check(packageWrites===beforePackageWrites+1,'Package catalog saves once independently from financial quotes');
-check(saves===beforeQuoteSaves,'Saving a package creates no customer quote');
-check(catalog.packages[0].serviceIds.join(',')==='house-wash,gutters','Saved package stores only service catalog IDs');
-check(!JSON.stringify(catalog.packages).includes('1000')&&!JSON.stringify(catalog.packages).includes('customer'),'Saved package stores no measurements or customer information');
-page.once('dialog',d=>d.accept());
-await page.getByRole('button',{name:'Use saved package FIRE standard duo'}).click();
-await page.waitForFunction(()=>document.querySelectorAll('.estimate-edit-service').length===4);
-check(await packageLines.nth(0).getByLabel('Quantity',{exact:true}).inputValue()==='1000'&&await packageLines.nth(1).getByLabel('Quantity',{exact:true}).inputValue()==='50','Applying saved package does not alter existing line quantities');
-check(await packageLines.nth(2).getByLabel('Quantity',{exact:true}).inputValue()===''&&await packageLines.nth(3).getByLabel('Quantity',{exact:true}).inputValue()==='','Reused package requires new quantities');
-check(await packageLines.nth(2).getByText('Line total $0',{exact:true}).count()===1,'Copied package never carries previous saved price');
-await page.waitForFunction(()=>{const b=[...document.querySelectorAll('button')].find(e=>e.textContent?.includes('Save $295 estimate'));return Boolean(b&&!b.disabled);});
+await firstService.getByRole('combobox').click();
+await page.getByRole('option',{name:'House Wash',exact:true}).click();
+await firstService.getByLabel('Quantity',{exact:true}).fill('1000');
+check(await firstService.getByText('Line total $220',{exact:true}).count()===1,
+ 'House washing uses owner rate of 22 cents per square foot');
+await page.getByRole('button',{name:'Add another service'}).click();
+const manualLines=page.locator('.estimate-edit-service');
+check(await manualLines.count()===2,'Manual Add another service inserts a second line');
+check(await manualLines.nth(1).getByLabel('Quantity',{exact:true}).inputValue()==='',
+ 'New manual line never inherits previous measurements');
+await manualLines.nth(1).getByRole('combobox').click();
+await page.getByRole('option',{name:'Gutter Cleaning + Flush',exact:true}).click();
+await manualLines.nth(1).getByLabel('Quantity',{exact:true}).fill('50');
+check(await manualLines.nth(1).getByText('Line total $75',{exact:true}).count()===1,
+ 'Gutter cleanout keeps 50 linear feet at $1.50 per foot');
+check(await page.getByText('Separate bundle discount ($)',{exact:true}).count()===1,
+ 'Stackable bundle discount stays available without packages');
+check(packageWrites===beforePackageWrites,'Ordinary estimate edits never write legacy package data');
+await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent?.includes('Save $295 estimate')&&!b.disabled));
 await page.getByRole('button',{name:'Save $295 estimate'}).click();
-await page.getByText('Every service needs a service, quantity, and valid price.',{exact:true}).waitFor();
-check(saves===beforeQuoteSaves,'Copied package refuses financial save until both new quantities are reviewed');
-page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Delete saved package FIRE standard duo'}).click();
-await page.getByText('Reusable package removed.',{exact:false}).waitFor();
-check(catalog.packages.length===0,'Deleted package no longer present in saved catalog');
-check(saves===beforeQuoteSaves,'Package editing never triggers an estimate save');
-// A read failure must not prevent SAFE built-in presets from using verified current pricing.
-packageReadUnavailable=true;await page.goto(origin);await page.getByRole('button',{name:'New estimate',exact:true}).click();await page.getByRole('button',{name:'Create New Customer',exact:false}).click();await page.getByLabel('Customer name',{exact:true}).fill('Synthetic Package Outage');await page.getByRole('button',{name:'Continue to services'}).click();await page.getByText('Packages temporarily unavailable.',{exact:false}).waitFor();
-await page.getByRole('button',{name:'House + concrete',exact:true}).click();
-check(await page.locator('.estimate-edit-service').count()===2,'Built-in service package works despite saved-package lookup failure');
-check(await page.locator('.estimate-edit-service').nth(1).getByLabel('Quantity',{exact:true}).inputValue()==='','Outage fallback still requires deliberate quantity');
-packageReadUnavailable=false;
+await page.getByText('Estimate ready',{exact:true}).waitFor();
+check(saves===beforeQuoteSaves+1&&posted.items.length===2&&posted.items[0].totalCents===22000&&posted.items[1].totalCents===7500,
+ 'Manual house-plus-gutter quote saves two exact-priced lines once');
+check(packageWrites===beforePackageWrites,'Saving quote does not create reusable mixes');
 // A 2xx response can still be an uncertain save. Show the user how to inspect
 // stored estimates, and block duplicate retries even without a bundle discount.
 for(const mismatch of ['total','deposit']){
