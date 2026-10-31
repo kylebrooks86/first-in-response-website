@@ -615,12 +615,15 @@ console.log('PASS '+checks+'/'+checks+
 const {captureEncryptedNumberedV2PrivateKitFromProviders}
  =await import('../lib/numbered-records-v2-source-export.mjs');
 const d1Source=d1Double(tables);
+const stablePhotoHead=()=>({etag:'synthetic-r2-etag-v1',
+ size:sourcePhoto.size_bytes,httpMetadata:{contentType:sourcePhoto.content_type}});
 const goodR2={
- reads:[],
+ reads:[],heads:[],
+ async head(key){this.heads.push(key);return stablePhotoHead();},
  async get(key){
   this.reads.push(key);
   if(key!==sourcePhoto.object_key)return null;
-  return{size:photoFiles[0].bytes.byteLength,
+  return{etag:'synthetic-r2-etag-v1',size:photoFiles[0].bytes.byteLength,
    httpMetadata:{contentType:sourcePhoto.content_type},
    async arrayBuffer(){return new Uint8Array(photoFiles[0].bytes).buffer;}};
  }
@@ -633,6 +636,10 @@ eq(providerKit.proof.databaseReadBatches,2,
 eq(d1Source.calls.batches,2,'Exactly two provider-style readonly D1 batches');
 eq(goodR2.reads,[sourcePhoto.object_key],
  'R2 gets only the original photo key bound to saved D1 metadata');
+eq(goodR2.heads,[sourcePhoto.object_key],
+ 'R2 HEAD rechecks every original photo after complete database recapture');
+eq(providerKit.proof.photoObjectHeadsRechecked,1,
+ 'The encrypted export attests a final original-photo ETag recheck');
 eq(providerKit.proof.providerWritesPerformed,false,
  'Provider capture never writes to R2/D1');
 eq(providerKit.proof.providerAtomicPhotoSnapshotGuaranteed,false,
@@ -649,18 +656,18 @@ const providerReject=async(fn,label)=>{
  checks++;
 };
 await providerReject(()=>captureEncryptedNumberedV2PrivateKitFromProviders({
- db:d1Double(tables).db,bucket:{get:async()=>null},
+ db:d1Double(tables).db,bucket:{get:async()=>null,head:stablePhotoHead},
  passphrase:syntheticPassphrase,now:()=>time
 }),'Missing R2 image refuses the entire records backup');
 await providerReject(()=>captureEncryptedNumberedV2PrivateKitFromProviders({
- db:d1Double(tables).db,bucket:{get:async()=>({
-  size:sourcePhoto.size_bytes,httpMetadata:{contentType:'image/png'},
+ db:d1Double(tables).db,bucket:{head:stablePhotoHead,get:async()=>({
+  etag:'synthetic-r2-etag-v1',size:sourcePhoto.size_bytes,httpMetadata:{contentType:'image/png'},
   async arrayBuffer(){return photoFiles[0].bytes.buffer;}
  })},passphrase:syntheticPassphrase,now:()=>time
 }),'R2 object type mismatched to D1 metadata refuses backup');
 await providerReject(()=>captureEncryptedNumberedV2PrivateKitFromProviders({
- db:d1Double(tables).db,bucket:{get:async()=>({
-  size:sourcePhoto.size_bytes-1,httpMetadata:{contentType:sourcePhoto.content_type},
+ db:d1Double(tables).db,bucket:{head:stablePhotoHead,get:async()=>({
+  etag:'synthetic-r2-etag-v1',size:sourcePhoto.size_bytes-1,httpMetadata:{contentType:sourcePhoto.content_type},
   async arrayBuffer(){return photoFiles[0].bytes.buffer;}
  })},passphrase:syntheticPassphrase,now:()=>time
 }),'R2 object size mismatch refuses backup');
@@ -671,12 +678,26 @@ racingD1.db.batch=async statements=>{
  return oldBatch(statements);
 };
 await providerReject(()=>captureEncryptedNumberedV2PrivateKitFromProviders({
- db:racingD1.db,bucket:{get:async()=>({
-  size:sourcePhoto.size_bytes,httpMetadata:{contentType:sourcePhoto.content_type},
+ db:racingD1.db,bucket:{head:stablePhotoHead,get:async()=>({
+  etag:'synthetic-r2-etag-v1',size:sourcePhoto.size_bytes,httpMetadata:{contentType:sourcePhoto.content_type},
   async arrayBuffer(){return photoFiles[0].bytes.buffer;}
  })},passphrase:syntheticPassphrase,now:()=>time
 }),'Customer/financial record changes during R2 fetch block stale private kit');
 eq(racingD1.calls.batches,2,'Race detector performs second complete D1 review');
+await providerReject(()=>captureEncryptedNumberedV2PrivateKitFromProviders({
+ db:d1Double(tables).db,bucket:{
+  get:async()=>({
+   ...stablePhotoHead(),async arrayBuffer(){return photoFiles[0].bytes.buffer;}
+  }),
+  head:async()=>({...stablePhotoHead(),etag:'different-same-size-etag'})
+ },
+ passphrase:syntheticPassphrase,now:()=>time
+}),'R2 image replaced with same-size content after read refuses private kit');
+await providerReject(()=>captureEncryptedNumberedV2PrivateKitFromProviders({
+ db:d1Double(tables).db,bucket:{get:async()=>({...stablePhotoHead(),
+   async arrayBuffer(){return photoFiles[0].bytes.buffer;}})},
+ passphrase:syntheticPassphrase,now:()=>time
+}),'R2 bucket lacking final HEAD support refuses unverified export');
 await providerReject(()=>captureEncryptedNumberedV2PrivateKitFromProviders({
  db:d1Double(tables).db,bucket:null,passphrase:syntheticPassphrase,now:()=>time
 }),'Missing actual R2 binding never produces a partial photos-omitted kit');
