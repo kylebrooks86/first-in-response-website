@@ -555,3 +555,56 @@ eq(zeroOpened.photos,[],'Photo-free customers recover with explicit encrypted em
 eq(zeroOpened.archive,zeroArchive,'Photo-free private kit still preserves complete records');
 console.log('PASS '+checks+'/'+checks+
  ' NEW portable encrypted full-records-plus-photo-BYTES private kit roundtrip and fail-closed checks.');
+
+
+
+// NEW owner-only local REVIEW primitive uses exactly the same portable
+// encrypted kit as the future gated browser route. It must return counts only,
+// never decrypted IDs, records, signed names, passphrase or photo byte arrays.
+const {inspectLocalEncryptedRecoveryKit,FIRE_PRIVATE_REVIEW_MAX_FILE_BYTES}
+ =await import('../lib/numbered-records-v2-local-review.mjs');
+const privateKitText=JSON.stringify(kit);
+const preview=await inspectLocalEncryptedRecoveryKit({
+ text:privateKitText,passphrase:syntheticPassphrase
+});
+eq(preview.validEncryptedRecordsAndPhotos,true,
+ 'Local kit review verifies records, refund agreement and all photo bytes');
+eq(preview.recordTables,21,'Owner preview reports exact 21 preserved data families');
+eq(preview.customers,2,'Owner preview counts customers without names');
+eq(preview.estimates,2,'Owner preview reports estimates without saved identifiers');
+eq(preview.verifiedPhotoFiles,1,'Owner preview verifies original image bytes');
+eq(preview.filesUploaded,false,'Owner preview never uploads the private kit');
+eq(preview.recordsRestored,false,'Local review is never represented as a hosted restore');
+eq(preview.photosRestored,false,'Local review never claims image restore to R2');
+eq(preview.releaseApproved,false,'Owner review is not permission to release');
+eq(Object.values(preview).some(v=>v instanceof Uint8Array),false,
+ 'Owner preview never returns image bytes');
+eq(JSON.stringify(preview).includes(sourcePhoto.object_key),false,
+ 'Owner preview never returns sensitive object keys');
+eq(JSON.stringify(preview).includes('Synthetic Customer'),false,
+ 'Owner preview never returns signed customer name');
+eq(JSON.stringify(preview).includes('cs_test'),false,
+ 'Owner preview never returns payment processor details');
+eq(JSON.stringify(preview).includes(syntheticPassphrase),false,
+ 'Owner preview never persists or returns the passphrase');
+const reviewReject=async(fn,label)=>{
+ await assert.rejects(fn,/FIRE LOCAL RECOVERY REVIEW REFUSED/,label);checks++;
+};
+await reviewReject(()=>inspectLocalEncryptedRecoveryKit({
+ text:privateKitText,passphrase:'wrong long recovery passphrase - synthetic'
+}),'Owner local review refuses incorrect decryption without data leakage');
+await reviewReject(()=>inspectLocalEncryptedRecoveryKit({
+ text:JSON.stringify(changedKit),passphrase:syntheticPassphrase
+}),'Owner local review refuses corrupted encrypted photo bytes');
+await reviewReject(()=>inspectLocalEncryptedRecoveryKit({
+ text:'{"incomplete":true}',passphrase:syntheticPassphrase
+}),'Owner local review refuses unrelated JSON');
+await reviewReject(()=>inspectLocalEncryptedRecoveryKit({
+ text:'not valid JSON',passphrase:syntheticPassphrase
+}),'Owner local review refuses malformed JSON');
+await reviewReject(()=>inspectLocalEncryptedRecoveryKit({
+ text:'x'.repeat(FIRE_PRIVATE_REVIEW_MAX_FILE_BYTES+1),
+ passphrase:syntheticPassphrase
+}),'Owner local review refuses oversized input, never truncates or partially restores');
+console.log('PASS '+checks+'/'+checks+
+ ' NEW owner-local private kit inspection verifies encrypted data but returns safe counts only.');
