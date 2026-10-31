@@ -9,7 +9,7 @@ Require (Test-Path -LiteralPath $script -PathType Leaf) 'Expected owner staging 
 $source=Get-Content -LiteralPath $script -Raw
 $must=@(
   '[switch]$Stage','[Parameter(Mandatory=$true)][string]$ExpectedCommit',
-  "if(-not $Stage)",'DRY RUN ONLY. No network',
+  'if(-not $Stage)','DRY RUN ONLY. No network',
   "^[0-9a-f]{40}$","'FIREQA'",'git.exe',
   "core.autocrlf=false clone --depth 1 --single-branch --branch",
   "rev-parse HEAD","refs/remotes/origin/","status --porcelain --untracked-files=no",
