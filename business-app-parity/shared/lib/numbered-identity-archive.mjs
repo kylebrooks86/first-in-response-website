@@ -109,3 +109,64 @@ export function validateNumberedIdentityArchive(snapshot){
     jobLinks:linksByEstimate.size,customerHighWater:customerHigh,jobHighWater:jobHigh
   });
 }
+
+
+/** PURE restore preflight: no SQL generated, DB touched, secrets or hosted calls.
+ * Validates both complete archives, then checks every immutable identity
+ * collision and original sqlite_sequence use. Returns counts only.
+ * Caller must separately restore all ordinary records in an owner-approved,
+ * atomic, lossless migration before considering the mappings.
+ */
+export function planNumberedIdentityRestore(source,destination){
+  const sourceCheck=validateNumberedIdentityArchive(source);
+  const targetCheck=validateNumberedIdentityArchive(destination);
+  const strict=(value)=>String(value);
+  const keySpec=[
+    ['customers','id',['created_at']],
+    ['estimates','id',['customer_id','created_at']],
+    ['fire_customer_numbers','customer_id',['customer_number','created_at']],
+    ['fire_job_numbers','root_estimate_id',['job_number','created_at']],
+    ['fire_job_estimate_links','estimate_id',['job_number']]
+  ];
+  const plan={};
+  const combined={...destination,
+    customers:destination.customers.slice(),estimates:destination.estimates.slice(),
+    fire_customer_numbers:destination.fire_customer_numbers.slice(),
+    fire_job_numbers:destination.fire_job_numbers.slice(),
+    fire_job_estimate_links:destination.fire_job_estimate_links.slice(),
+    highWater:{customer:Math.max(sourceCheck.customerHighWater,targetCheck.customerHighWater),
+               job:Math.max(sourceCheck.jobHighWater,targetCheck.jobHighWater)}};
+  for(const [table,key,fields] of keySpec){
+    const targetIndex=new Map(destination[table].map(row=>[row[key],row]));
+    let inserted=0;
+    for(const row of source[table]){
+      const original=targetIndex.get(row[key]);
+      if(original){
+        for(const field of fields)if(strict(original[field])!==strict(row[field]))
+          fail('restore collision: immutable '+table+'.'+field+' differs on an existing record');
+      }else{
+        // A prior SQLite AUTOINCREMENT value might have belonged to a deleted
+        // row. A missing mapping cannot claim an already-consumed number.
+        if(table==='fire_customer_numbers'&&row.customer_number<=targetCheck.customerHighWater)
+          fail('restore would reuse a consumed customer number');
+        if(table==='fire_job_numbers'&&row.job_number<=targetCheck.jobHighWater)
+          fail('restore would reuse a consumed job number');
+        combined[table].push(row);
+        inserted++;
+      }
+    }
+    plan[table]=inserted;
+  }
+  // Cross-index collisions and complete merged coverage are revalidated, too.
+  // Source rows can never change a destination ID, serial, root or job link.
+  const mergedCheck=validateNumberedIdentityArchive(combined);
+  return Object.freeze({
+    sourceCustomers:sourceCheck.customers,sourceEstimates:sourceCheck.estimates,
+    insertedCustomers:plan.customers,insertedEstimates:plan.estimates,
+    insertedCustomerNumbers:plan.fire_customer_numbers,insertedJobNumbers:plan.fire_job_numbers,
+    insertedJobLinks:plan.fire_job_estimate_links,
+    destinationCustomers:mergedCheck.customers,destinationEstimates:mergedCheck.estimates,
+    customerHighWater:mergedCheck.customerHighWater,jobHighWater:mergedCheck.jobHighWater,
+    requiresOwnerApprovedRestore:true,hostedWritesPerformed:false
+  });
+}
