@@ -30,8 +30,8 @@ switch ($kind) {
     Write-Output (ConvertTo-Json -InputObject @($qa,$staging) -Compress -Depth 6)
   }
   'deployments status' {
-    $version = 'db6ef897-edd3-439e-8679-b6f6620f18af'
-    if ($scenario -eq 'stale-previous-version') { $version = '650a31c1-ad98-47d6-bb57-0ffbae243855' }
+    $version = '1783ded7-43db-4769-8708-fa86c47b002d'
+    if ($scenario -eq 'stale-previous-version') { $version = 'db6ef897-edd3-439e-8679-b6f6620f18af' }
     if ($scenario -eq 'wrong-version' -or ($scenario -eq 'version-changed-during-check' -and $priorStatus -ge 1)) {
       $version = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
     }
