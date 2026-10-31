@@ -81,6 +81,24 @@ try {
  env.FIRE_JOB_NUMBERS_CANDIDATE=undefined;
  equal(dashboardFrom(await home.default()).props.metrics.completedJobs,13);
  equal((await (await api.GET()).json()).completedJobs,13);
+ // A long-running business can have many older quotes booked in the future:
+ // only eight newest quotes are shown as recent, but every future booking counts
+ // and the earliest is the Next Job. No invented dates or hosted changes.
+ seed({status:'completed'});
+ for(let i=0;i<31;i++){
+  const id='future-'+String(i).padStart(2,'0'),day=String(i+1).padStart(2,'0');
+  db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,scheduled_at,created_at) VALUES(?,'c','scheduled',2500,2500,1250,?,?)")
+    .run(id,'2099-12-'+day+'T14:00:00Z','2026-09-'+String(i%28+1).padStart(2,'0'));
+ }
+ const futureHome=dashboardFrom(await home.default()),futureApi=await (await api.GET()).json();
+ equal(futureHome.props.metrics.upcomingCount,31);
+ equal(futureApi.upcomingCount,31);
+ equal(futureHome.props.metrics.upcomingJobs.length,25);
+ equal(futureApi.upcomingJobs.length,25);
+ equal(futureApi.upcomingJobs[0].id,'future-00');
+ equal(futureHome.props.metrics.upcomingJobs[0].id,'future-00');
+ equal(futureApi.recent.length,8);
+ equal(futureHome.props.estimates.length,8);
  user=null;equal((await api.GET()).status,401);user={email:'other@example.test',fullName:'Other'};equal((await api.GET()).status,401);equal((await home.default()).type,'main');
  console.log(`PASS ${checks}/${checks}: initial page and refreshed API agree for draft/sent/declined, deposit due, revised invoice, principal/tip/refund, overpayment, pending/failed payment and full refund; whole-database completed counts beyond the eight displayed cards; owner access preserved. Synthetic SQLite only.`);
 }finally{db.close();}
