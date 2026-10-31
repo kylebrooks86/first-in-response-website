@@ -133,8 +133,17 @@ Require (Test-Path -LiteralPath $bindingHelper -PathType Leaf) 'Strict active QA
 # physical database identities independently from supported d1 info endpoints.
 # A successful but malformed/changed list NEVER falls back; it must STOP.
 # The fallback is NOT authorization to skip QA/staging separation or Worker binding.
-$databaseRaw = @(& $wrangler.Source d1 list --json 2>$null)
-$listExit = $LASTEXITCODE
+# A rejected LIST can emit native stderr; Windows PowerShell 5 with
+# ErrorActionPreference=Stop must not terminate before the validated fallback.
+# Capture only the exit status; never log raw provider or account metadata.
+$previousErrorAction = $ErrorActionPreference
+try {
+    $ErrorActionPreference = 'Continue'
+    $databaseRaw = @(& $wrangler.Source d1 list --json 2>$null)
+    $listExit = $LASTEXITCODE
+} finally {
+    $ErrorActionPreference = $previousErrorAction
+}
 if ($listExit -eq 0) {
     $databaseInfo = & $identityHelper -Json ($databaseRaw -join [Environment]::NewLine)
     Write-Host 'PASS: QA and protected staging D1 identities verified from full D1 listing.'
