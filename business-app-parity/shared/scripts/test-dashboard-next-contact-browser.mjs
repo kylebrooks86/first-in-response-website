@@ -26,19 +26,25 @@ scan(ast);
 assert.equal(actionNodes.length,1,'Find exactly one ACTUAL Today next-job toolbar');
 const actions=actionNodes[0].getText(ast);
 assert.match(actions,/dashboard-next-contact-tools/,'Contact links must be grouped in the actual toolbar');
+assert.match(actions,/<MessageComposer customer=\{nextJobMessageCustomer\}/,'Home next-job Text opens full saved-template composer');
+assert.doesNotMatch(actions,/<GoogleVoiceTextAction/,'Do not substitute the unlogged blank Google Voice dialog when a customer record exists');
 const fixture=`import React,{useState} from 'react';
 import {GoogleVoiceTextAction,GoogleVoiceCallAction,PersonalPhoneBackupAction} from './components/google-voice-text-action';
 import {createRoot} from 'react-dom/client';
 import {Phone,MessageSquareText,Mail,Navigation,ChevronRight,ChevronDown} from 'lucide-react';
 function Button({variant,className,...props}){return <button className={className||''} {...props}/>;}
+function MessageComposer({customer,estimate,initialTemplate,triggerLabel,triggerClassName,triggerAriaLabel}){
+ return <button className={triggerClassName||''} aria-label={triggerAriaLabel||'Text next job customer using Google Voice'} onClick={()=>{window.__composer={customer,estimate,initialTemplate,triggerLabel};}}>{triggerLabel}</button>;
+}
 function Fixture(){
  const [flags,setFlags]=useState({phone:true,email:true,address:true});
  window.__setFlags=setFlags;
  window.__actions=[];
- const upcomingJobs=[{id:'synthetic-job',customer:'Synthetic next customer',address:flags.address?'123 Synthetic Lane, Tulsa, OK':''}];
+ const upcomingJobs=[{id:'synthetic-job',customerId:'synthetic-customer',customer:'Synthetic next customer',email:'owner@example.invalid',phone:'9185550102',service:'House Wash',createdAt:'2026-10-30T12:00:00Z',totalCents:2500,paidCents:0,address:flags.address?'123 Synthetic Lane, Tulsa, OK':''}];
  const nextJobPhone=flags.phone?'9185550102':null;
  const canEmailNextJob=flags.email;
  const nextJobEmail=flags.email?'owner@example.invalid':'';
+ const nextJobMessageCustomer=flags.phone||flags.email?{id:'synthetic-customer',name:'Synthetic next customer',phone:nextJobPhone??'',email:nextJobEmail,address:upcomingJobs[0].address,createdAt:'2026-10-30T12:00:00Z',estimateCount:1,estimateTotal:2500,paidTotal:0}:null;
  const onOpenEstimate=id=>window.__actions.push('job:'+id);
  const onNavigate=tab=>window.__actions.push('nav:'+tab);
  return <main className="dashboard-view"><section className="dashboard-next-job">
@@ -70,7 +76,7 @@ try{
   const summary=page.locator('.dashboard-next-contact-tools>summary');
   const call=page.getByRole('button',{name:'Call Synthetic next customer using Google Voice',exact:true});
   const sms=page.getByRole('button',{name:'Text next job customer using Google Voice'});
-  const email=page.getByRole('link',{name:'Email next job customer'});
+  const email=page.getByRole('button',{name:'Email next job customer'});
   const dirs=page.getByRole('link',{name:'Directions to next job'});
   check(await dirs.isVisible(),width+': driving link remains one tap away');
   check(!(await call.isVisible())&&!(await sms.isVisible())&&!(await email.isVisible()),width+': contacts initially tucked away');
@@ -78,12 +84,14 @@ try{
   check(await page.evaluate(()=>window.__actions.includes('job:synthetic-job')),width+': existing job navigation preserved');
   await summary.click();
   check(await call.isVisible()&&await sms.isVisible()&&await email.isVisible(),width+': all contact methods restored by one tap');
-  check(await email.getAttribute('href')==='mailto:owner%40example.invalid',width+': email destination remains unchanged');await call.click();check(await page.getByRole('dialog',{name:'Call using Google Voice',exact:true}).isVisible(),width+': primary Call uses business Voice handoff');await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});check(await page.getByRole('button',{name:/Call \(Backup\)/}).isVisible()&&await page.getByRole('button',{name:/Text \(Backup\)/}).isVisible(),width+': personal backups remain explicit secondary actions');
+  await email.click();const emailContext=await page.evaluate(()=>window.__composer);
+  check(emailContext.customer.email==='owner@example.invalid'&&emailContext.estimate.id==='synthetic-job',width+': email composer gets exact customer and job context');
+  check(emailContext.initialTemplate==='custom'&&emailContext.triggerLabel==='Email',width+': email opens editable composer, not an unlogged bare mailto');await call.click();check(await page.getByRole('dialog',{name:'Call using Google Voice',exact:true}).isVisible(),width+': primary Call uses business Voice handoff');await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});check(await page.getByRole('button',{name:/Call \(Backup\)/}).isVisible()&&await page.getByRole('button',{name:/Text \(Backup\)/}).isVisible(),width+': personal backups remain explicit secondary actions');
   await sms.click();
-  check(await page.getByRole('dialog',{name:'Text using Google Voice'}).isVisible(),width+': text action opens Google Voice handoff, not personal SMS');
-  check(await page.getByRole('link',{name:'Open Google Voice'}).getAttribute('href')==='https://voice.google.com/',width+': only verified Google Voice website is offered');
-  check(await page.getByText('9185550102',{exact:true}).isVisible(),width+': exact recipient number available for copying');
-  await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
+  const textParams=await page.evaluate(()=>window.__composer);
+  check(textParams.customer.id==='synthetic-customer'&&textParams.customer.phone==='9185550102',width+': text composer uses exact persisted customer and recipient');
+  check(textParams.estimate.id==='synthetic-job'&&textParams.estimate.totalCents===2500,width+': original job and price context delivered to composer');
+  check(textParams.initialTemplate==='custom'&&textParams.triggerLabel==='Text',width+': custom text draft opens in full template composer');
   const geometry=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,width:innerWidth,actions:[...document.querySelectorAll('.dashboard-next-job-actions button,.dashboard-next-job-actions a,.dashboard-next-contact-tools>summary')].filter(n=>n.getClientRects().length).map(n=>{const rect=n.getBoundingClientRect();return {label:n.textContent.trim(),left:rect.left,right:rect.right,height:rect.height};})}));
   check(geometry.scrollWidth<=width+1,width+': no page horizontal overflow');
   check(geometry.actions.every(box=>box.left>=-1&&box.right<=width+1&&box.height>=44),width+': all visible action boxes fit screen and 44px tap height');
@@ -96,7 +104,7 @@ try{
  await page.waitForFunction(()=>!document.querySelector('.dashboard-next-contact-options a[href^="tel:"]'));
  check(await page.locator('.dashboard-next-contact-tools').count()===1,'Email-only customer still has contact disclosure');
  await page.locator('.dashboard-next-contact-tools>summary').click();
- check(await page.getByRole('link',{name:'Email next job customer'}).isVisible(),'Email-only link remains accessible');
+ check(await page.getByRole('button',{name:'Email next job customer'}).isVisible(),'Email-only customer opens the full message composer');
  check(await page.getByRole('button',{name:'Call Synthetic next customer using Google Voice',exact:true}).count()===0,'Do not fabricate phone link');
  await page.evaluate(()=>window.__setFlags({phone:false,email:false,address:true}));
  await page.waitForFunction(()=>!document.querySelector('.dashboard-next-contact-tools'));

@@ -18,9 +18,9 @@ $workerName = 'fire-fullapp-qa-20261016'
 $dbName = 'fire-fullapp-qa-db-20261016'
 $dbId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 $photoMode = 'ON-DEVICE-PHOTOS-NO-R2'
-# Last owner-approved October 29 QA Worker publication: version 650a31c1.
+# Owner-observed October 30 QA Worker version; observation is not deployment approval.
 # Require a fresh authenticated 100% serving-version match before any new QA publication.
-$expectedActiveVersion = '650a31c1-ad98-47d6-bb57-0ffbae243855'
+$expectedActiveVersion = 'db6ef897-edd3-439e-8679-b6f6620f18af'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'

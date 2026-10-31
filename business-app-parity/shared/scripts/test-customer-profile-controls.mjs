@@ -43,6 +43,36 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  check(firstUse.ordered,'Quick contact and customer records appear before optional financial, flags and activity details');
  check(firstUse.tabs.length===6&&firstUse.tabs.some(label=>label.startsWith('Photos'))&&firstUse.tabs.some(label=>label.startsWith('Notes'))&&firstUse.tabFit,'All six customer record tabs remain visible and finger-sized on iPhone');
  check(firstUse.actionColumns===2,'Common customer actions use two compact touch-friendly columns on iPhone');
+ // The primary Text action uses the same saved/custom editor as the Messages tab.
+ const quickText=page.locator('.customer-contact').getByRole('button',{name:'Text',exact:true});
+ check(await quickText.count()===1,'Primary customer Text remains immediately visible');
+ await quickText.click();
+ const quickDialog=page.getByRole('dialog',{name:'Message',exact:true});await quickDialog.waitFor();
+ const choice=quickDialog.getByRole('combobox'),textField=quickDialog.getByRole('textbox',{name:'Message text',exact:true});
+ check(await choice.count()===1&&await textField.inputValue()==='','Text opens a blank, editable custom message');
+ await choice.click();
+ check(await page.getByRole('option',{name:'Inspection or job report',exact:true}).count()===0,'Email-only report template is not offered when starting a Google Voice Text');
+ await page.getByRole('option',{name:'Request estimate photos',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('[role=dialog] textarea')?.value?.includes('photos help me prepare your estimate'));
+ check((await textField.inputValue()).includes('photos help me prepare your estimate'),'Saved photo-request template is available to the primary Text action');
+ await choice.click();await page.getByRole('option',{name:'Custom message',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('[role=dialog] textarea')?.value==='');
+ await textField.fill('Synthetic unsent custom text');
+ check(await textField.inputValue()==='Synthetic unsent custom text','Custom message remains editable; never sent during QA');
+ await page.keyboard.press('Escape');await quickDialog.waitFor({state:'hidden'});
+ // Customer email uses the same saved draft/owner confirmation path as Text.
+ // A bare mailto link would bypass the audit and fail silently on some phones.
+ const quickEmail=page.locator('.customer-contact').getByRole('button',{name:'Email customer'});
+ check(await quickEmail.count()===1,'Primary Email action is the verified editable composer');
+ await quickEmail.click();const emailDialog=page.getByRole('dialog',{name:'Message',exact:true});await emailDialog.waitFor();
+ check(await emailDialog.locator('.message-dialog-recipient').innerText()==='To: '+customer.name,'Email composer retains the exact saved customer');
+ check(await emailDialog.getByRole('textbox',{name:'Message text'}).inputValue()==='','Email opens a blank editable draft without sending');
+ await emailDialog.getByRole('combobox').click();
+ check(await page.getByRole('option',{name:'Inspection or job report',exact:true}).count()===1,'Email-only saved templates are available when composing email');
+ await page.keyboard.press('Escape');
+ await emailDialog.getByRole('textbox',{name:'Message text'}).fill('Synthetic draft email, not sent');
+ check(await emailDialog.getByRole('button',{name:'Email',exact:true}).isVisible(),'Prepared-email handoff stays available');
+ await emailDialog.getByRole('button',{name:'Close',exact:true}).click();await emailDialog.waitFor({state:'hidden'});
  await page.getByRole('button',{name:'Photos',exact:true}).click();
  const photos=page.getByRole('region',{name:'On-device customer photos'});await photos.getByText('No on-device photos for this customer').waitFor();
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==','base64');
@@ -89,4 +119,15 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  const saved=await (await request('/api/customers')).json();
  check(saved.messages.filter(row=>row.customerId===customer.id).length===1&&saved.messages.some(row=>row.id===record.id&&row.body===body&&row.channel==='text_prepared'),'Opening and editing composer does not send or duplicate history');
  check(saved.estimates.find(row=>row.id===originalEstimateId).totalCents===25000&&saved.estimates.find(row=>row.id===estimate.id).totalCents===20000&&saved.estimates.find(row=>row.id===estimate.id).depositCents===10000&&saved.payments.length===0,'Profile UI tests preserve original estimate, $200/$100 fixture and empty payment ledger');
+ // An address-only customer retains Maps but explains why Call/Text are unavailable.
+ const noContact=await request('/api/customers','POST',{name:'Synthetic Address Only',address:'100 Test Lane, Tulsa, OK'});
+ assert.equal(noContact.status(),201);
+ await page.goto(origin+'/');await page.getByRole('button',{name:'Open menu',exact:true}).click();
+ await page.getByRole('button',{name:'Customers',exact:true}).first().click();
+ await page.locator('.customer-card').filter({hasText:'Synthetic Address Only'}).click();
+ await page.getByRole('heading',{name:'Synthetic Address Only',exact:true}).waitFor();
+ const blankContact=page.locator('.customer-contact');
+ check(await blankContact.getByText('Add a phone or email under More actions → Edit customer to contact them.',{exact:true}).isVisible(),'Address-only customer explains missing contact actions');
+ check(await blankContact.getByRole('button',{name:'Text',exact:true}).count()===0,'Missing phone does not expose an invalid recipient Text button');
+ check(await blankContact.getByRole('link',{name:'Directions to customer in Google Maps'}).count()===1,'Address-only customer can still open Maps');
 }

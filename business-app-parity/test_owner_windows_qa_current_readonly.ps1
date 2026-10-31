@@ -30,7 +30,8 @@ switch ($kind) {
     Write-Output (ConvertTo-Json -InputObject @($qa,$staging) -Compress -Depth 6)
   }
   'deployments status' {
-    $version = '650a31c1-ad98-47d6-bb57-0ffbae243855'
+    $version = 'db6ef897-edd3-439e-8679-b6f6620f18af'
+    if ($scenario -eq 'stale-previous-version') { $version = '650a31c1-ad98-47d6-bb57-0ffbae243855' }
     if ($scenario -eq 'wrong-version' -or ($scenario -eq 'version-changed-during-check' -and $priorStatus -ge 1)) {
       $version = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
     }
@@ -72,6 +73,7 @@ $cases = @(
   @{name='healthy';pass=$true;calls=5},
   @{name='wrong-db';pass=$false;calls=1},
   @{name='wrong-version';pass=$false;calls=2},
+  @{name='stale-previous-version';pass=$false;calls=2},
   @{name='split-traffic';pass=$false;calls=2},
   @{name='journal-short';pass=$false;calls=3},
   @{name='missing-table';pass=$false;calls=3},

@@ -4,10 +4,24 @@ const require=createRequire(import.meta.url),root=process.cwd(),esbuild=require(
 const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX),views=['CustomersView','ScheduleMonthCalendar','ScheduleView','DashboardView'].map(name=>ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name)),tags=new Set();
 function visit(n){if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const t=n.tagName.getText(ast);if(/^[A-Z]/.test(t))tags.add(t);}ts.forEachChild(n,visit);}views.forEach(visit);
 const dashboardSource=ast.getText();const footer=dashboardSource.slice(dashboardSource.indexOf('<nav className="bottom-nav">'),dashboardSource.indexOf('</nav>',dashboardSource.indexOf('<nav className="bottom-nav">'))+6);assert.ok(footer.length>100);
-const fixture=`import React,{useState,useEffect,useRef}from'react';import{createRoot}from'react-dom/client';import{Button}from'./components/ui/button';import{GoogleVoiceCallAction,GoogleVoiceTextAction,PersonalPhoneBackupAction}from'./components/google-voice-text-action';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';import{Label}from'./components/ui/label';import{summarizeCustomerBalances}from'./lib/customer-balance-summary';import{messageHistoryEntries}from'./lib/message-history';import{taskDueBucket}from'./lib/task-due';import{tightScheduleTurnarounds}from'./lib/schedule-turnarounds';import{completeEstimatePages}from'./lib/estimate-pagination';import{deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,LEAD_NO_ANSWER_NOTE,LEAD_CONTACTED_NOTE,LEAD_CALLBACK_HANDLED_NOTE,leadCallbackNote,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility}from'./lib/customer-activity-flags';import{mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory}from'./lib/offline-photo-availability';import{customerJobJourney}from'./lib/customer-job-journey';import{estimateReminderStage,viewedEstimateReminderCue}from'./lib/follow-up-timing';import{validDoorFollowUpDate}from'./lib/door-knocking';import{usableCustomerPhone,usableCustomerEmail}from'./lib/customer-contact-links';
+const fixture=`import React,{useState,useEffect,useRef}from'react';import{createRoot}from'react-dom/client';import{Button}from'./components/ui/button';import{GoogleVoiceCallAction,GoogleVoiceTextAction,PersonalPhoneBackupAction}from'./components/google-voice-text-action';import{Input}from'./components/ui/input';import{Textarea}from'./components/ui/textarea';import{Label}from'./components/ui/label';import{summarizeCustomerBalances}from'./lib/customer-balance-summary';import{messageHistoryEntries}from'./lib/message-history';import{taskDueBucket}from'./lib/task-due';import{tightScheduleTurnarounds}from'./lib/schedule-turnarounds';import{completeEstimatePages}from'./lib/estimate-pagination';import{deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,LEAD_NO_ANSWER_NOTE,LEAD_CONTACTED_NOTE,LEAD_CALLBACK_HANDLED_NOTE,leadCallbackNote,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility}from'./lib/customer-activity-flags';import{mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory}from'./lib/offline-photo-availability';import{customerJobJourney}from'./lib/customer-job-journey';import{estimateReminderStage,viewedEstimateReminderCue}from'./lib/follow-up-timing';import{validDoorFollowUpDate}from'./lib/door-knocking';import{usableCustomerPhone,usableCustomerEmail}from'./lib/customer-contact-links';import{jobNumberLabel}from'./lib/job-numbering.mjs';
 const money=c=>'$'+(c/100).toFixed(2),dateTime=v=>v,statusLabel=v=>v,paymentTypeLabel=v=>v,messageLabels={},resolvedBillingTotalCents=e=>e.invoiceTotalCents??e.totalCents,billingBalanceCents=e=>Math.max(0,resolvedBillingTotalCents(e)-e.paidCents),useCurrentTime=()=>Date.parse('2026-10-20T14:00:00Z');
 const saveOfflinePhotoCustomerDirectory=async()=>{},loadOfflinePhotoCustomerDirectory=async()=>[],clearOfflinePhotoCustomerDirectory=async()=>{};
-${[...tags].filter(t=>!['EstimateDetail','Button','Input','Textarea','Label','ScheduleWeather','ScheduleMonthCalendar','GoogleVoiceCallAction','GoogleVoiceTextAction','PersonalPhoneBackupAction'].includes(t)).map(t=>`const ${t}=()=>null;`).join('\n')}
+${[...tags].filter(t=>!['EstimateDetail','Button','Input','Textarea','Label','ScheduleWeather','ScheduleMonthCalendar','GoogleVoiceCallAction','GoogleVoiceTextAction','PersonalPhoneBackupAction','MessageComposer'].includes(t)).map(t=>`const ${t}=()=>null;`).join('\n')}
+// This browser fixture extracts the REAL Home JSX. The separately tested
+// MessageComposer is represented by a visible, strictly local and unsent
+// boundary so we can verify the same customer/job/recipient are passed on Home.
+function MessageComposer({customer,estimate,initialTemplate,triggerLabel,triggerAriaLabel,triggerClassName}){
+ const[open,setOpen]=useState(false);
+ return <><button type="button" className={triggerClassName||""} aria-label={triggerAriaLabel}
+ onClick={()=>{window.__connectedComposer={customer,estimate,initialTemplate,triggerLabel};setOpen(true);}}>{triggerLabel}</button>
+ {open&&<div role="dialog" aria-label="Message"><strong>To: {customer.name}</strong>
+ <output data-testid="composer-number">{customer.phone}</output>
+ <output data-testid="composer-email">{customer.email}</output>
+ <output data-testid="composer-job">{estimate?.id??""}</output>
+ <output data-testid="composer-template">{initialTemplate}</output>
+ <button type="button" onClick={()=>setOpen(false)}>Close message fixture</button></div>}</>;
+}
 function EstimateDetail({estimate,onClose}){return location.search.includes('profile-controls')&&estimate?<section aria-label="Selected estimate test boundary"><output>{estimate.id}</output><button onClick={onClose}>Close selected record fixture</button></section>:null;}
 ${views.map(n=>n.getText(ast)).join('\n')}
 const ScheduleWeather=({nextJobAt,requestedJobAt,reviewKey})=><output data-testid="schedule-weather-target" data-requested-job={requestedJobAt??""} data-review-key={reviewKey??0}>{nextJobAt??""}</output>;
@@ -446,11 +460,19 @@ try{browser=await chromium.launch({headless:true,executablePath:process.env.FIRE
   await contactDisclosure.locator('summary').click();
   check(await contactDisclosure.evaluate(node=>node.open),'Contact menu opens without leaving the next job');
   const call=nextJob.getByRole('button',{name:'Call Exact customer using Google Voice',exact:true});
-  const sms=nextJob.getByRole('button',{name:'Text next job customer using Google Voice',exact:true});
-  const email=nextJob.getByRole('link',{name:'Email next job customer',exact:true});
+  const sms=nextJob.getByRole('button',{name:'Text',exact:true});
+  const email=nextJob.getByRole('button',{name:'Email next job customer',exact:true});
   await call.click();const homeCall=page.getByRole('dialog',{name:'Call using Google Voice',exact:true});await homeCall.waitFor();check(await homeCall.getByText('+19185550146',{exact:true}).isVisible(),'Dashboard Call retains normalized business recipient');await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
-  await sms.click();const homeText=page.getByRole('dialog',{name:'Text using Google Voice',exact:true});await homeText.waitFor();check(await homeText.getByText('+19185550146',{exact:true}).isVisible(),'Dashboard Text retains normalized business recipient');await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
-  check(await email.getAttribute('href')==='mailto:customer%40example.invalid','Dashboard email shortcut encodes its recipient');
+  await sms.click();const homeText=page.getByRole('dialog',{name:'Message',exact:true});await homeText.waitFor();
+  const textCtx=await page.evaluate(()=>window.__connectedComposer);
+  check(textCtx.customer.id==='first'&&textCtx.customer.phone==='+19185550146'&&textCtx.estimate.id==='exact-dashboard-job','Next Job Text passes verified owner customer, normalized business recipient and exact job to full composer');
+  check(textCtx.initialTemplate==='custom'&&textCtx.triggerLabel==='Text'&&await homeText.getByTestId('composer-number').innerText()==='+19185550146','Text opens editable custom template context, not bare or personal SMS');
+  await homeText.getByRole('button',{name:'Close message fixture'}).click();await homeText.waitFor({state:'hidden'});
+  await email.click();const homeEmail=page.getByRole('dialog',{name:'Message',exact:true});await homeEmail.waitFor();
+  const emailCtx=await page.evaluate(()=>window.__connectedComposer);
+  check(emailCtx.customer.id==='first'&&emailCtx.customer.email==='customer@example.invalid'&&emailCtx.estimate.id==='exact-dashboard-job','Next Job Email opens the same customer-scoped prepared-message flow with the exact stored email and job');
+  check(emailCtx.initialTemplate==='custom'&&emailCtx.triggerLabel==='Email'&&await homeEmail.getByTestId('composer-email').innerText()==='customer@example.invalid','Email handoff begins as editable custom draft, not untracked mailto');
+  await homeEmail.getByRole('button',{name:'Close message fixture'}).click();await homeEmail.waitFor({state:'hidden'});
   check(await nextJob.locator('.dashboard-next-contact').count()===5,'Valid phone and email show primary actions and explicit personal backups');
   check(await nextJob.locator('.dashboard-next-prep').count()===0,'Next appointment with contact and address has no distracting warning');
   const directions=nextJob.getByRole('link',{name:'Directions to next job',exact:true});

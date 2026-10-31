@@ -1,11 +1,22 @@
 import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';import vm from 'node:vm';import ts from 'typescript';
+import {jobNumberLabel} from '../lib/job-numbering.mjs';
 const require=createRequire(import.meta.url),ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='EstimateDetail');assert.ok(fn);
+const detailLayout=fn.getText(ast);
+const actionsAt=detailLayout.indexOf('aria-label="Customer and estimate actions"');
+const scopeAt=detailLayout.indexOf('Service scope & expectations');
+const historyAt=detailLayout.indexOf('<EstimatePromotionHistory');
+const toolsAt=detailLayout.indexOf('className="detail-more-tools"');
+assert.ok(actionsAt>0&&scopeAt>actionsAt&&historyAt>scopeAt&&toolsAt>historyAt,
+ 'Primary estimate actions must precede service scope, promotion history and More tools.');
+assert.ok(detailLayout.includes('jobNumberLabel(estimate.jobNumber)'),
+ 'Verified permanent Job # should appear in the selected estimate detail header.');
+
 const names=[],tags=new Set();function visit(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&n.initializer&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')names.push(n.name.elements[0].getText(ast));if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}visit(fn);
 let checks=0;const eq=(a,b,message)=>{assert.deepEqual(a,b,message);checks++;};const flush=()=>new Promise(r=>setImmediate(r));const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};const ok=(complete,id,customerId='customer')=>({ok:true,json:async()=>({reports:[{estimateId:id,customerId,status:complete?'completed':'draft'}]})});
 const job=id=>({id,customerId:'customer',customer:'Synthetic',service:'Wash',status:'scheduled',items:[],totalCents:20000,depositCents:10000,paidCents:0,createdAt:'2026-10-09',paymentOverageOpen:0});
 function nodes(tree){const out=[];function walk(n){if(Array.isArray(n))return n.forEach(walk);if(!n||typeof n!=='object')return;out.push(n);walk(n.props?.children);}walk(tree);return out;}
-function fixture(allowWrites=false){const changedRows=[];let state=[],cursor=0,effect,cleanup,estimate,fetcher;const refs=[];let refCursor=0,closed=0;const requests=[],writes=[];const context={exports:{},require,...Object.fromEntries([...tags].map(t=>[t,()=>null])),money:c=>String(c),dateTime:v=>v,statusLabel:v=>v,serviceDescriptionFor:()=>'',resolvedBillingTotalCents:e=>e.totalCents,
+function fixture(allowWrites=false){const changedRows=[];let state=[],cursor=0,effect,cleanup,estimate,fetcher;const refs=[];let refCursor=0,closed=0;const requests=[],writes=[];const context={exports:{},require,jobNumberLabel,...Object.fromEntries([...tags].map(t=>[t,()=>null])),money:c=>String(c),dateTime:v=>v,statusLabel:v=>v,serviceDescriptionFor:()=>'',resolvedBillingTotalCents:e=>e.totalCents,
 useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{writes.push(names[i]);state[i]=typeof v==='function'?v(state[i]):v;}];},useEffect(fn){effect=fn;},fetch:(url,options)=>{if(allowWrites==='custom'&&options?.method)return fetcher(url,options);if(options?.method==='PATCH'){eq(allowWrites,true);eq(url,`/api/estimates/${estimate.id}`);eq(options.body,JSON.stringify({status:'completed'}));return Promise.resolve({ok:true,json:async()=>({estimate:{status:'completed'}})});}if(options!==undefined)eq(JSON.stringify(options),JSON.stringify({cache:'no-store'}),'Closeout report read bypasses cached responses');requests.push(url);return fetcher(url);}};
 vm.runInNewContext(ts.transpileModule(fn.getText(ast)+'\nexports.view=EstimateDetail;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,context);
 const render=()=>{cursor=0;refCursor=0;return context.exports.view({estimate,onClose(){closed++;},onChanged(row){if(!allowWrites)throw Error('No financial/job writes allowed in report-read tests');changedRows.push(row);}});};
@@ -86,7 +97,9 @@ let moreNode;function findMore(n){if(ts.isJsxElement(n)&&n.openingElement.tagNam
 const detailSource=fn.getText(ast),moreStart=moreNode.getStart(ast)-fn.getStart(ast),moreEnd=moreNode.end-fn.getStart(ast),mainStart=detailSource.indexOf('<div className="detail-actions" aria-label="Customer and estimate actions">');
 eq(moreStart>mainStart&&moreEnd>moreStart,true,'Secondary job tools exist in their own expandable section');
 const primary=detailSource.slice(mainStart,moreStart),secondary=detailSource.slice(moreStart,moreEnd);
-for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','GoogleVoiceCallAction','GoogleVoiceTextAction','PersonalPhoneBackupAction'])eq(primary.includes(label),true,'Daily customer action available: '+label);
+for(const label of ['EditEstimateDialog','MessageComposer','RecordPayment','GoogleVoiceCallAction','PersonalPhoneBackupAction'])eq(primary.includes(label),true,'Daily customer action available: '+label);
+eq(primary.includes('initialTemplate="custom" triggerLabel="Text"'),true,'Primary estimate Text opens editable saved/custom template composer');
+eq(primary.includes('GoogleVoiceTextAction phone={estimate.phone}'),false,'No duplicate blank-only Text modal remains in estimate actions');
 eq(primary.includes('tel:')||primary.includes('sms:'),false,'Primary estimate actions never directly launch personal Phone or Messages');
 eq((primary.match(/PersonalPhoneBackupAction/g)||[]).length>=2,true,'Estimate detail keeps explicitly labeled personal call and text backup components');
  eq(primary.includes('sms:'),false,'Estimate detail never offers iPhone personal SMS sender');

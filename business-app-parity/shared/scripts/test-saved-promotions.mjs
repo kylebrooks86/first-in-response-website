@@ -58,10 +58,10 @@ try{
  result=mod.evaluateSavedPromotions({revision:null,promotions:[rule(5,'Flat A','dollar',8000),rule(6,'Flat B','dollar',5000)]},{...quote,subtotalCents:10000});
  ok(Boolean(result.blocked)&&result.totalCents===null&&result.depositCents===null,'Two flat offers over subtotal block preview instead of causing a later rejected save');
  result=mod.evaluateSavedPromotions({revision:null,promotions:[rule(5,'Flat A','dollar',8000),rule(6,'Flat B','dollar',5000)]},{...quote,subtotalCents:13000});
- same(result.totalCents,15000,'Two flat offers at subtotal still respect $150 minimum');
+ same(result.totalCents,0,'Two owner-saved flat discounts exactly cover the subtotal');
 
  result=mod.evaluateSavedPromotions({revision:null,promotions:[bundle]},{...quote,subtotalCents:10000});
- same(result.totalCents,15000,'Existing minimum remains $150');
+ same(result.totalCents,7500,'Owner-saved $25 bundle reduces a $100 job to $75');
  let response=await api.GET();same(response.status,200,'Owner may read');same((await response.json()).catalog.promotions.length,0,'New catalog empty by default');
  db.exec("INSERT INTO customers(id,name,created_at) VALUES('historic-c','Synthetic','2026-01-01'); INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES('historic-e','historic-c','approved',46000,46000,23000,'2026-01-01');");
  const historical=()=>JSON.stringify(db.prepare('SELECT * FROM estimates WHERE id=?').get('historic-e'));

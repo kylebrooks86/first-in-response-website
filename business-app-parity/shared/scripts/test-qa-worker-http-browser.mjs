@@ -117,7 +117,7 @@ try{
   if(url.origin!==origin){
   // Existing profile satellite embeds are optional third-party content. The
   // synthetic workflow must never dispatch them, nor permit any other host.
-  if(url.origin==='https://maps.google.com'&&url.pathname==='/maps'&&((lookupMode&&['10 North Fixture Way','20 South Fixture Way'].includes(url.searchParams.get('q')))||(process.argv.includes('--global-search')&&url.searchParams.get('q')==='456 Synthetic Universal Lane')))blockedSyntheticMaps.push(url.href);
+  if(url.origin==='https://maps.google.com'&&url.pathname==='/maps'&&((lookupMode&&['10 North Fixture Way','20 South Fixture Way'].includes(url.searchParams.get('q')))||(process.argv.includes('--global-search')&&url.searchParams.get('q')==='456 Synthetic Universal Lane')||(profileMode&&url.searchParams.get('q')==='100 Test Lane, Tulsa, OK')))blockedSyntheticMaps.push(url.href);
   else outside.push(url.href);
   return route.abort();
  }return route.continue();});

@@ -36,6 +36,7 @@ on:
       - work/fire-staging-safe-migration-rehearsal-2026-10-29
       - work/fire-quoteiq-style-job-numbers-2026-10-29
       - work/fire-customer-edit-save-null-guard-2026-10-30
+      - work/fire-remove-automatic-minimum-pricing-2026-10-30
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
@@ -457,6 +458,8 @@ jobs:
         run: node --experimental-strip-types scripts/test-quote-discount-input.mjs
       - name: Stacked estimate discounts and atomic synthetic SQLite persistence
         run: node --experimental-sqlite scripts/test-stacked-estimate-discounts.mjs
+      - name: Actual invoice price changes below $150 retain ledger guards and historical revisions
+        run: node --experimental-sqlite scripts/test-invoice-below-minimum.mjs
       - name: Verify all thirty starting rates remain fully adjustable per job
         run: node --experimental-strip-types scripts/test-per-job-price-overrides.mjs
       - name: Preserve historical estimate and invoice line totals during no-op edits
@@ -482,6 +485,8 @@ jobs:
           node --experimental-sqlite scripts/test-invoice-current-state.mjs
           node --experimental-sqlite scripts/test-change-request-history.mjs
           node --experimental-sqlite scripts/test-global-search.mjs
+          node --experimental-sqlite scripts/test-customer-job-number-views.mjs
+          node --experimental-sqlite scripts/test-dashboard-balance-consistency.mjs
           node --experimental-sqlite scripts/test-deposit-policy.mjs
            node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
            node --experimental-sqlite scripts/test-deposit-exception-transaction.mjs
@@ -506,6 +511,7 @@ jobs:
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-customer-write-recovery.mjs
+          node scripts/test-customer-edit-route.mjs
           node --experimental-sqlite scripts/test-customer-note-idempotency.mjs
           node --experimental-strip-types scripts/test-customer-lead-contact-flags.mjs
           node scripts/test-estimate-history-recovery.mjs
@@ -663,6 +669,8 @@ jobs:
           node --experimental-sqlite scripts/test-invoice-current-state.mjs
           node --experimental-sqlite scripts/test-change-request-history.mjs
           node --experimental-sqlite scripts/test-global-search.mjs
+          node --experimental-sqlite scripts/test-customer-job-number-views.mjs
+          node --experimental-sqlite scripts/test-dashboard-balance-consistency.mjs
           node --experimental-sqlite scripts/test-deposit-policy.mjs
            node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
            node --experimental-sqlite scripts/test-deposit-exception-transaction.mjs
@@ -687,6 +695,7 @@ jobs:
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-customer-write-recovery.mjs
+          node scripts/test-customer-edit-route.mjs
           node scripts/test-estimate-history-recovery.mjs
           node scripts/test-insights-recovery.mjs
           node scripts/test-detail-selection-recovery.mjs
@@ -766,6 +775,8 @@ jobs:
           node --experimental-sqlite scripts/test-invoice-current-state.mjs
           node --experimental-sqlite scripts/test-change-request-history.mjs
           node --experimental-sqlite scripts/test-global-search.mjs
+          node --experimental-sqlite scripts/test-customer-job-number-views.mjs
+          node --experimental-sqlite scripts/test-dashboard-balance-consistency.mjs
           node --experimental-sqlite scripts/test-deposit-policy.mjs
            node --experimental-sqlite scripts/test-deposit-audit-storage.mjs
            node --experimental-sqlite scripts/test-deposit-exception-transaction.mjs
@@ -790,6 +801,7 @@ jobs:
           node scripts/test-payment-mobile-ui.mjs
           node scripts/test-customer-load-recovery.mjs
           node scripts/test-customer-write-recovery.mjs
+          node scripts/test-customer-edit-route.mjs
           node scripts/test-estimate-history-recovery.mjs
           node scripts/test-insights-recovery.mjs
           node scripts/test-detail-selection-recovery.mjs
@@ -913,6 +925,8 @@ jobs:
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
           test -n "$CHROME" || { echo "Chrome is not available on the runner; do not fall back to unreviewed installs."; exit 1; }
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Actual prepared text and email handoff on narrow phones in both themes
+        run: node scripts/test-message-composer-handoff-browser.mjs
       - name: Actual Add and Edit customer labels, mobile fields and receipt recovery
         env:
           FIRE_CUSTOMER_FORMS_DIR: ${{ runner.temp }}/fire-customer-forms-ui

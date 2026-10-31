@@ -6,8 +6,8 @@ import {createRouteFixtureLoader} from './route-test-loader.mjs';
 const db=new DatabaseSync(':memory:');for(const file of readdirSync('drizzle').filter(n=>n.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+file,'utf8'));
 db.exec(readFileSync('db/candidate-service-locations.sql','utf8'));db.exec(readFileSync('db/candidate-customer-properties.sql','utf8'));
 let user={email:'kylebrooks8605@gmail.com'},reads=0,fail=false;
-const env={FIRE_SERVICE_LOCATIONS_CANDIDATE:'synthetic-only',FIRE_CUSTOMER_PROPERTIES_CANDIDATE:'synthetic-only',DB:{prepare(sql){return {values:[],bind(...values){return {...this,values}},async all(){reads++;if(fail)throw Error('Synthetic unavailable');try{return {results:db.prepare(sql).all(...this.values)}}catch(e){console.error('Synthetic search SQL error',e.message,sql,this.values);throw e}},async run(){throw Error('Unexpected write')},async first(){throw Error('Unexpected read')}}},async batch(){throw Error('Unexpected write')}}};
-const load=createRouteFixtureLoader(process.cwd(),env,()=>user),route=load('app/api/search/route.ts');
+const env={FIRE_SERVICE_LOCATIONS_CANDIDATE:'synthetic-only',FIRE_CUSTOMER_PROPERTIES_CANDIDATE:'synthetic-only',DB:{prepare(sql){return {values:[],bind(...values){return {...this,values}},async all(){reads++;if(fail)throw Error('Synthetic unavailable');try{return {results:db.prepare(sql).all(...this.values)}}catch(e){console.error('Synthetic search SQL error',e.message,sql,this.values);throw e}},async run(){throw Error('Unexpected write')},async first(){reads++;if(fail)throw Error('Synthetic unavailable');return db.prepare(sql).get(...this.values)}}},async batch(){throw Error('Unexpected write')}}};
+const load=createRouteFixtureLoader(process.cwd(),env,()=>user),route=load('app/api/search/route.ts'),history=load('app/api/estimate-history/route.ts');
 const get=(q,scope='all')=>route.GET(new Request('https://synthetic.invalid/api/search?q='+encodeURIComponent(q)+'&scope='+encodeURIComponent(scope)));
 const search=async(q,scope)=>{const r=await get(q,scope);assert.equal(r.status,200);return r.json()};
 let checks=0;const eq=(a,b)=>{assert.deepEqual(a,b);checks++};
@@ -22,6 +22,58 @@ try{
  for(const q of ['6528C9','6528c9','#6528C9','Invoice #6528c9','6528c9aa-0000-4000-8000-000000000001']){const r=await search(q);eq(r.results[0].id,'6528c9aa-0000-4000-8000-000000000001');eq(r.results[0].title,'Invoice #6528C9');eq(r.results[0].kind,'invoice');eq(r.results.some(x=>'shareToken' in x),false);}
  for(const q of ['sYnThEtIc SaMe','first@','918-555-010','+1 9185550101','Synthetic QA La'])eq((await search(q,'customers')).results.some(x=>x.id==='c'),true);
  eq((await search('Synthetic Same','customers')).results.length,2);eq((await search('Special Search','estimates')).results[0].id,'estimate-000');eq((await search('limitation','jobs')).results[0].id,'estimate-000');eq((await search('Invoice-only','invoices')).results[0].kind,'invoice');eq((await search('estimate-064','estimates')).results[0].id,'estimate-064');
+ // Job # lookup stays OFF on unmigrated environments. Local SQLite only.
+ eq((await search('Job #0001','jobs')).results.length,0);
+ const historyGet=(query='')=>history.GET(new Request('https://synthetic.invalid/api/estimate-history?'+query));
+ const withoutJob=(await (await historyGet('focus=estimate-000')).json()).estimates;
+ eq(withoutJob.length,1);eq('jobNumber' in withoutJob[0],false);
+ eq((await (await historyGet('q=Job%20%230001')).json()).estimates.length,0);
+ user=null;const beforeHistoryReads=reads;eq((await historyGet('focus=estimate-000')).status,401);eq(reads,beforeHistoryReads);
+ user={email:'kylebrooks8605@gmail.com'};
+ // Disposable search fixture: full trigger/FK invariants are separately tested
+ // against the authoritative review-only schema in test_job_numbering_schema.py.
+ // Do not depend on a sibling source folder absent in materialized candidates.
+ db.exec(`CREATE TABLE fire_job_numbers (
+   job_number INTEGER PRIMARY KEY AUTOINCREMENT,
+   root_estimate_id TEXT NOT NULL UNIQUE,
+   created_at TEXT NOT NULL
+ );
+ CREATE TABLE fire_job_estimate_links (
+   estimate_id TEXT PRIMARY KEY NOT NULL,
+   job_number INTEGER NOT NULL REFERENCES fire_job_numbers(job_number)
+ );`);
+ db.prepare("INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES('estimate-000','2026-10-01')").run();
+ db.prepare("INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES('estimate-000',1)").run();
+ env.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+ const historyLinked=await historyGet('focus=estimate-000');
+ eq(historyLinked.status,200);
+ const historyJob=(await historyLinked.json()).estimates;
+ eq(historyJob.length,1);eq(historyJob[0].id,'estimate-000');eq(historyJob[0].jobNumber,1);
+ const historyUnlinked=(await (await historyGet('focus=estimate-001')).json()).estimates;
+ eq(historyUnlinked.length,1);eq(historyUnlinked[0].jobNumber,null);
+ const historyService=(await (await historyGet('q=Special%20Search')).json()).estimates;
+ eq(historyService.some(row=>row.id==='estimate-000'&&row.jobNumber===1),true);
+ const byJob=(await (await historyGet('q=Job%20%230001')).json()).estimates;
+ eq(byJob.length,1);eq(byJob[0].id,'estimate-000');eq(byJob[0].jobNumber,1);
+ eq((await (await historyGet('q=Job%20%239999')).json()).estimates.length,0);
+ eq((await (await historyGet('q=Job%20%230')).json()).estimates.length,0);
+ const linkedJob=(await search('Job #0001','jobs')).results;
+ eq(linkedJob.length,1);eq(linkedJob[0].id,'estimate-000');eq(linkedJob[0].jobNumber,1);
+ const linkedInvoice=(await search('Job #0001','invoices')).results;
+ eq(linkedInvoice.length,1);eq(linkedInvoice[0].id,'6528c9aa-0000-4000-8000-000000000001');eq(linkedInvoice[0].jobNumber,1);
+ const both=(await search('Job #0001')).results;
+ eq(new Set(both.map(x=>x.kind)),new Set(['job','invoice']));
+ eq((await search('Special Search','jobs')).results[0].jobNumber,1);
+ eq((await search('Job #0','jobs')).results.length,0);
+ eq((await search('Job #9999','jobs')).results.length,0);
+ user=null;const jobReads=reads;eq((await get('Job #0001','jobs')).status,401);eq(reads,jobReads);
+ user={email:'kylebrooks8605@gmail.com'};
+ env.FIRE_JOB_NUMBERS_CANDIDATE=undefined;
+ const historyDisabled=(await (await historyGet('focus=estimate-000')).json()).estimates;
+ eq(historyDisabled.length,1);eq('jobNumber' in historyDisabled[0],false);
+ eq((await (await historyGet('q=Job%20%230001')).json()).estimates.length,0);
+ eq((await search('Job #0001','jobs')).results.length,0);
+ eq('jobNumber' in (await search('Special Search','jobs')).results[0],false);
  const broad=await search('Generic');eq(broad.hasMore,true);eq(broad.results.length,8);eq(broad.results.every(x=>x.kind==='estimate'),true);
  for(const scope of ['customers','estimates','invoices','jobs']){const r=await search('Synthetic',scope);eq(r.results.every(x=>x.kind===scope.slice(0,-1)),true);}
  for(const q of ["%' OR 1=1 --",'not-found-xyz','%','_'])eq((await search(q)).results.length,0);

@@ -2,6 +2,7 @@ import {customerPropertiesEnabled,propertyAssociationColumns} from '../../../lib
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import {env} from "cloudflare:workers";
 import {getChatGPTUser} from "../../chatgpt-auth";
+import {attachedJobNumbers} from '../../../lib/job-numbering.mjs';
 const OWNER_EMAIL="kylebrooks8605@gmail.com";
 export async function GET(request:Request){
  const user=await getChatGPTUser();if(!user||user.email.toLowerCase()!==OWNER_EMAIL)return Response.json({error:"Unauthorized"},{status:401});
@@ -18,6 +19,14 @@ export async function GET(request:Request){
   cursor={createdAt:value.createdAt,id:value.id};
  }catch{return Response.json({error:"Invalid estimate history cursor."},{status:400});}}
  try{
+  const showJobs=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
+  // The same owner search input should find a real Job #, not a UUID prefix.
+  // Never reference the candidate link table in SQL before its schema exists.
+  const match=showJobs?/^(?:job\s*#?\s*|#)0*([1-9]\d{0,14})$/i.exec(search):null;
+  const requestedNumber=match?Number(match[1]):null;
+  const hasLinks=requestedNumber&&Number.isSafeInteger(requestedNumber)?
+    Boolean(await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='fire_job_estimate_links'").first()):false;
+  const jobSearch=hasLinks?' OR EXISTS(SELECT 1 FROM fire_job_estimate_links links WHERE links.estimate_id=e.id AND links.job_number=?)':'';
   const result=await env.DB.prepare(`
         SELECT e.id,e.customer_id AS customerId,e.status,e.subtotal_cents AS subtotalCents,e.discount_cents AS discountCents,e.appreciation_discount AS appreciationDiscount,e.additional_discount_type AS additionalDiscountType,e.additional_discount_value AS additionalDiscountValue,e.total_cents AS totalCents,e.deposit_cents AS depositCents,
                e.scheduled_at AS scheduledAt,e.share_token AS shareToken,e.first_viewed_at AS firstViewedAt,e.accepted_at AS acceptedAt,e.signed_name AS signedName,e.signed_at AS signedAt,e.contract_initials AS contractInitials,e.photo_release AS photoRelease,e.created_at AS createdAt,
@@ -44,16 +53,20 @@ export async function GET(request:Request){
         FROM estimates e JOIN customers c ON c.id = e.customer_id
         WHERE (? IS NULL OR e.id=?)
           AND (?='all' OR e.status=?)
-          AND (?='' OR c.name LIKE ? ESCAPE '\\' OR c.email LIKE ? ESCAPE '\\' OR c.phone LIKE ? ESCAPE '\\' OR ${serviceAddressSql(serviceLocationsEnabled(env))} LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM estimate_items ei WHERE ei.estimate_id=e.id AND ei.name LIKE ? ESCAPE '\\'))
+          AND (?='' OR c.name LIKE ? ESCAPE '\\' OR c.email LIKE ? ESCAPE '\\' OR c.phone LIKE ? ESCAPE '\\' OR ${serviceAddressSql(serviceLocationsEnabled(env))} LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM estimate_items ei WHERE ei.estimate_id=e.id AND ei.name LIKE ? ESCAPE '\\')${jobSearch})
           AND (? IS NULL OR e.created_at < ? OR (e.created_at = ? AND e.id < ?))
         ORDER BY e.created_at DESC,e.id DESC LIMIT ?
-      `).bind(focus,focus,status,status,search,pattern,pattern,pattern,pattern,pattern,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null,size+1).all<{id:string;createdAt:string}>();
+      `).bind(focus,focus,status,status,search,pattern,pattern,pattern,pattern,pattern,...(hasLinks?[requestedNumber!]:[]),cursor?.createdAt??null,cursor?.createdAt??null,cursor?.createdAt??null,cursor?.id??null,size+1).all<{id:string;createdAt:string}>();
   const page=result.results.slice(0,size),last=page.at(-1);
   const grouped=new Map<string,Record<string,unknown>[]>();
   if(page.length){const placeholders=page.map(()=>"?").join(",");const items=await env.DB.prepare(`SELECT id,estimate_id AS estimateId,name,description,quantity,unit,total_cents AS totalCents FROM estimate_items WHERE estimate_id IN (${placeholders}) ORDER BY rowid ASC`).bind(...page.map(row=>row.id)).all<Record<string,unknown>>();
    for(const raw of items.results){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};const id=String(raw.estimateId);grouped.set(id,[...(grouped.get(id)??[]),row]);}
   }
-  const estimates=page.map(row=>({...row,items:grouped.get(row.id)??[]}));
+  // The Schedule, Estimates and owner history screens read this same paginated
+  // route. Attach permanent Job # references without touching records or UUIDs.
+  // Unmigrated/disabled environments continue returning their legacy shape.
+  const numbers=showJobs?await attachedJobNumbers(env.DB,page.map(row=>row.id)):new Map();
+  const estimates=page.map(row=>({...row,...(showJobs?{jobNumber:numbers.get(row.id)??null}:{}),items:grouped.get(row.id)??[]}));
   const nextCursor=!focus&&result.results.length>size&&last?btoa(JSON.stringify({createdAt:last.createdAt,id:last.id})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,""):null;
   return Response.json({estimates,nextCursor,pageSize:size},{headers:{"Cache-Control":"no-store"}});
  }catch{return Response.json({error:"Estimate history could not be read."},{status:503});}

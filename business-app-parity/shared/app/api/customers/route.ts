@@ -4,6 +4,7 @@ import {serviceLocationsEnabled,serviceAddressColumns} from "../../../lib/servic
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {customerIdentityPredicate,customerCreationReceipt} from '../../../lib/customer-identity';
+import {usableCustomerPhone,usableCustomerEmail} from '../../../lib/customer-contact-links';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized() {
@@ -22,9 +23,16 @@ async function readCustomerRequest(request: Request): Promise<Record<string, unk
   }
 }
 
-export async function GET() {
+export async function GET(request?:Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
+    // Read-only, owner-authenticated verification of an uncertain edit.
+    const confirmId=request?new URL(request.url).searchParams.get("confirmEdit"):null;
+    if(confirmId!==null){
+      if(!confirmId||confirmId.length>128)return Response.json({error:"Invalid customer confirmation ID."},{status:400,headers:{"Cache-Control":"no-store, private"}});
+      const customer=await env.DB.prepare("SELECT id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address,COALESCE(lead_source,'Unknown') AS leadSource,created_at AS createdAt FROM customers WHERE id=? LIMIT 1").bind(confirmId).first();
+      return customer?Response.json({customer},{headers:{"Cache-Control":"no-store, private"}}):Response.json({error:"Customer record not found."},{status:404,headers:{"Cache-Control":"no-store, private"}});
+    }
     const [customers, estimates, notes, invoices, photos, messages, payments, estimateItems] = await env.DB.batch([
       env.DB.prepare(`
         SELECT c.id,c.name,COALESCE(c.email,'') AS email,COALESCE(c.phone,'') AS phone,COALESCE(c.address,'') AS address,COALESCE(c.lead_source,'Unknown') AS leadSource,c.created_at AS createdAt,
@@ -124,6 +132,8 @@ export async function PATCH(request: Request) {
     const leadSource = String(body.leadSource ?? "Unknown").trim() || "Unknown";
     if (!id) return Response.json({ error: "Customer ID is required." }, { status: 400 });
     if (!name) return Response.json({ error: "Customer name is required." }, { status: 400 });
+    if(email&&!usableCustomerEmail(email))return Response.json({error:"Enter a valid email address or leave it blank."},{status:400});
+    if(phone&&!usableCustomerPhone(phone))return Response.json({error:"Enter a valid 10-digit U.S. phone number or leave it blank."},{status:400});
 
     const existing = await env.DB.prepare("SELECT id FROM customers WHERE id=? LIMIT 1").bind(id).first<{id:string}>();
     if (!existing) return Response.json({ error: "That customer record could not be found." }, { status: 404 });
@@ -131,17 +141,18 @@ export async function PATCH(request: Request) {
     const normalizedEmail = email.toLowerCase();
     const normalizedPhone = phone.replace(/\D/g, "");
     const others = await env.DB.prepare("SELECT id,email,phone FROM customers WHERE id<>?").bind(id).all<{id:string;email:string|null;phone:string|null}>();
-    const duplicate = others.results.find((customer) =>
-      (normalizedEmail && String(customer.email ?? "").trim().toLowerCase() === normalizedEmail) ||
-      (normalizedPhone && String(customer.phone ?? "").replace(/\D/g, "") === normalizedPhone)
-    );
-    if (duplicate) return Response.json({ error: "Another customer already uses that email or phone number." }, { status: 409 });
+    const duplicateEmail=Boolean(normalizedEmail)&&others.results.some(customer=>String(customer.email??"").trim().toLowerCase()===normalizedEmail);
+    const duplicatePhone=Boolean(normalizedPhone)&&others.results.some(customer=>String(customer.phone??"").replace(/\D/g,"")===normalizedPhone);
+    if(duplicateEmail||duplicatePhone)return Response.json({error:duplicateEmail&&duplicatePhone?
+      "Another customer already has this email and phone number. Nothing was changed.":
+      duplicateEmail?"This email is already on another customer. Nothing was changed.":
+      "This phone number is already on another customer. Nothing was changed."},{status:409});
 
     await env.DB.prepare("UPDATE customers SET name=?,email=?,phone=?,address=?,lead_source=? WHERE id=?")
       .bind(name, email || null, phone || null, address || null, leadSource, id).run();
     const customer = await env.DB.prepare("SELECT id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address,lead_source AS leadSource,created_at AS createdAt FROM customers WHERE id=? LIMIT 1")
       .bind(id).first();
-    return Response.json({ customer });
+    return Response.json({ customer },{headers:{"Cache-Control":"no-store, private"}});
   } catch {
     return Response.json({ error: "We couldn't update this customer. Please try again." }, { status: 500 });
   }

@@ -45,7 +45,7 @@ let fail=false,reads=0,held=null;const server=createServer(async(req,res)=>{
   const dollars=qualifies?2500:0;
   const pendingBooking=typeof value.bookingConfirmedOn==='string'?[]:[{id:'promo-oct',name:'October 15% booking offer',type:'percent',valueCents:1500,startOn:'2026-10-01',endOn:'2026-10-31'}];
   const percent=bookingApplies?1500:0;
-  const resultTotal=Math.max(15000,value.subtotalCents-Math.round(value.subtotalCents*percent/10000)-dollars);
+  const resultTotal=Math.max(0,value.subtotalCents-Math.round(value.subtotalCents*percent/10000)-dollars);
   return res.end(JSON.stringify({revision:'synthetic-revision',checkedOn:'2026-10-22',bookingConfirmedOn:value.bookingConfirmedOn??null,
    eligible:qualifies?[{id:'bundle',name:'House and gutters $25 bundle',type:'dollar',valueCents:2500}]:[],
    pendingBooking,percentBasisPoints:percent,dollarCents:dollars,blocked:null,

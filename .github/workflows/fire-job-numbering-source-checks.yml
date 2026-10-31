@@ -49,5 +49,15 @@ jobs:
         run: node business-app-parity/shared/scripts/test-job-numbering.mjs
       - name: Assert no active migration journal was changed for this prototype
         run: |
+          # The only permitted overlay changes in this PR are Home UI source
+          # parity for the distinct completed-job count. Migration journals,
+          # secrets, bindings and all other adapter files remain forbidden.
           git diff --name-only ${{ github.event.pull_request.base.sha || github.event.before }} HEAD -- business-app-parity/adapters/ | tee /tmp/fire_adapter_changes.txt
-          test ! -s /tmp/fire_adapter_changes.txt
+          : > /tmp/fire_unapproved_adapter_changes.txt
+          while IFS= read -r changed; do
+            case "$changed" in
+              business-app-parity/adapters/live/app/page.tsx|business-app-parity/adapters/staging/app/page.tsx|business-app-parity/adapters/doomsday/app/page.tsx|business-app-parity/adapters/qa/app/page.tsx|business-app-parity/adapters/independent-staging/app/page.tsx) ;;
+              *) printf "%s\n" "$changed" >> /tmp/fire_unapproved_adapter_changes.txt ;;
+            esac
+          done < /tmp/fire_adapter_changes.txt
+          test ! -s /tmp/fire_unapproved_adapter_changes.txt

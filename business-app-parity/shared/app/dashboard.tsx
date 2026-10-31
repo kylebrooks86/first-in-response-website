@@ -257,7 +257,7 @@ function PropertyPreview({ address }: { address: string }) {
 
 const messageLabels: Record<string,string> = Object.fromEntries(FIRE_TEMPLATES.map((item)=>[item.key,item.name]));
 
-function MessageComposer({ customer, estimate, initialTemplate="estimate", triggerLabel="Message", triggerClassName, onLogged, onSent }: { customer:CustomerRow; estimate?:CustomerEstimate|EstimateRow|null; initialTemplate?:string; triggerLabel?:string; triggerClassName?:string; onLogged?:(message:CustomerMessage)=>void; onSent?:(message:CustomerMessage,estimateStatus?:string)=>void|Promise<void> }) {
+function MessageComposer({ customer, estimate, initialTemplate="estimate", triggerLabel="Message", triggerClassName, triggerAriaLabel, onLogged, onSent }: { customer:CustomerRow; estimate?:CustomerEstimate|EstimateRow|null; initialTemplate?:string; triggerLabel?:string; triggerClassName?:string; triggerAriaLabel?:string; onLogged?:(message:CustomerMessage)=>void; onSent?:(message:CustomerMessage,estimateStatus?:string)=>void|Promise<void> }) {
   const [open,setOpen]=useState(false);
   const [template,setTemplate]=useState(initialTemplate);
   const [body,setBody]=useState("");
@@ -292,10 +292,13 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     "@estimate_total":total,"@estimate_link":customerLink,"@invoice_total":balance,"@invoice_link":invoiceLink,
     "@schedule_date":scheduled,"@callback_number":"reply to this message","@form_link":"your customer report link","@review_link":reviewLink,
   };
-  const activeTemplate=templates.find((item)=>item.key===template)??templates[0];
+  // Include a blank custom choice alongside the saved customer message templates.
+  const customMessageTemplate:FireTemplate={key:"custom",name:"Custom message",category:"Estimates",channel:"both",subject:"Message from First In Response Exteriors",body:""};
+  const activeTemplate=template==="custom"?customMessageTemplate:templates.find((item)=>item.key===template)??templates[0];
   const renderedBody=fillTemplate(activeTemplate?.body??"",variables).replace(/\s{2,}/g," ").trim();
   const renderedSubject=fillTemplate(activeTemplate?.subject||"A message from First In Response Exteriors",variables);
-  const composerTemplates=templates.filter((item)=>item.channel!=="document");
+  // When launched from Text, do not offer email-only templates that cannot be sent by Google Voice.
+  const composerTemplates=[customMessageTemplate,...templates.filter((item)=>item.channel!=="document"&&item.key!=="custom"&&(triggerLabel==="Text"?(item.channel==="both"||item.channel==="sms"):triggerLabel==="Email"?(item.channel==="both"||item.channel==="email"):true))];
   const needsInvoiceLink=["invoice","invoiceReminder","overdue"].includes(template);
   const needsEstimateLink=["estimate","followUp1","followUp3","followUp7"].includes(template);
   useEffect(()=>{
@@ -382,7 +385,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   };
   const log=async(channel:"text_prepared"|"email_prepared"|"copy")=>{
     if(preparationLock.current)return false;
-    const payload={customerId:customer.id,estimateId:estimate?.id,channel,template,body};
+    // Match the API's normalization before signing or comparing its receipt.
+    // Keep internal line breaks; only surrounding whitespace is discarded.
+    const messageBody=body.trim();
+    if(!messageBody){setMessageStatus("Write a message before preparing it.");return false;}
+    const payload={customerId:customer.id,estimateId:estimate?.id,channel,template,body:messageBody};
     const signature=JSON.stringify(payload);
     if(uncertainPreparation.current&&uncertainPreparation.current.signature!==signature){
       setMessageStatus("A previous message preparation is unconfirmed. Restore its original text and retry the same request, or reopen saved drafts to verify it first.");
@@ -390,9 +397,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     }
     if(!uncertainPreparation.current)uncertainPreparation.current={requestId:crypto.randomUUID(),signature};
     const operation=uncertainPreparation.current,scope=messageScope.current;
-    preparationLock.current=true;setWorking(true);
+    preparationLock.current=true;setWorking(true);setMessageStatus("Preparing message…");
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),15000);
     try{
-      const response=await fetch("/api/customer-messages",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...payload,requestId:operation.requestId})});
+      const response=await fetch("/api/customer-messages",{method:"POST",signal:controller.signal,headers:{"content-type":"application/json"},body:JSON.stringify({...payload,requestId:operation.requestId})});
       const result=await response.json() as {message?:CustomerMessage;error?:string};
       const saved=result.message;
       if(scope!==messageScope.current)return false;
@@ -401,7 +410,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
         return false;
       }
       if(saved.id!=="owner-message-prep:"+operation.requestId||saved.customerId!==customer.id||
-        (saved.estimateId??"")!==(estimate?.id??"")||saved.channel!==channel||saved.template!==template||saved.body!==body){
+        (saved.estimateId??"")!==(estimate?.id??"")||saved.channel!==channel||saved.template!==template||saved.body!==messageBody){
         setMessageStatus("The saved message receipt does not match this preparation. Review saved drafts before trying again.");
         return false;
       }
@@ -415,11 +424,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       if(scope!==messageScope.current)return false;
       setMessageStatus("Message preparation may already be saved. Retry the unchanged draft with the same request or reopen saved drafts.");
       return false;
-    }finally{preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
+    }finally{clearTimeout(timeout);preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
   };
   const copyVoiceField=async(text:string,success:string,failure:string)=>{try{await navigator.clipboard.writeText(text);setMessageStatus(success);}catch{setMessageStatus(failure);}};
   const sendText=async()=>{if(!await log("text_prepared"))return;setMessageStatus("Prepared for Google Voice. Tap Text below to approve in your Shortcut, or use the manual options. Sending remains unconfirmed.");};
-  const sendEmail=async()=>{if(!await log("email_prepared"))return;window.location.href=`mailto:${customer.email}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(body)}`;};
+  const sendEmail=async()=>{if(!await log("email_prepared"))return;setMessageStatus("Email prepared. Tap Open email app below, then send from your business account. Sending remains unconfirmed.");};
   const confirmSent=async()=>{
     if(!preparedMessage||preparationLock.current)return;
     const draft=preparedMessage,scope=messageScope.current;
@@ -465,7 +474,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   };
   const copy=async()=>{try{await navigator.clipboard.writeText(body);await log("copy");}catch{setMessageStatus("Copy failed. No sending is confirmed.");}};
   return <Dialog open={open} onOpenChange={(value)=>{if(working&&!value)return;setOpen(value);if(value){setSiteOrigin(window.location.origin);}}}>
-    <DialogTrigger asChild><Button variant="outline" className={triggerClassName}><MessageSquareText className="h-4 w-4" /> {triggerLabel}</Button></DialogTrigger>
+    <DialogTrigger asChild><Button variant="outline" className={triggerClassName} aria-label={triggerAriaLabel}>{triggerLabel==="Email"?<Mail className="h-4 w-4"/>:<MessageSquareText className="h-4 w-4" />} {triggerLabel}</Button></DialogTrigger>
     <DialogContent className="message-dialog sm:max-w-[620px]">
       <DialogHeader className="message-dialog-header"><DialogTitle>Message</DialogTitle><p className="message-dialog-recipient">To: {customer.name}</p></DialogHeader>
       <div className="message-builder">
@@ -484,6 +493,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
         </section>}
         {!preparedMessage&&pendingMessages.length===0&&pendingNextCursor&&<Button variant="outline" onClick={()=>void loadOlderPendingMessages()} disabled={pendingOlderLoading}>{pendingOlderLoading?"Loading older drafts…":"Load older prepared messages"}</Button>}
         {preparedMessage?.channel==="text_prepared"&&<section className="rounded-lg border p-3" aria-label="Google Voice text handoff"><strong>Send using FIRE Google Voice</strong><p>To: {customer.name} · {customer.phone}</p><div className="flex flex-wrap gap-2"><GoogleVoiceTextShortcutAction phone={customer.phone} message={preparedMessage.body} label="Text"/><Button variant="outline" type="button" onClick={()=>void copyVoiceField(customer.phone,"Customer number copied for Google Voice. Sending not yet confirmed.","Copy failed. Enter the displayed recipient number in Google Voice.")}><Copy className="h-4 w-4"/> Copy number</Button><Button variant="outline" type="button" onClick={()=>void copyVoiceField(preparedMessage.body,"Prepared message copied. Paste and send it in Google Voice.","Copy failed. Select the saved message below to copy it.")}><Copy className="h-4 w-4"/> Copy message</Button><a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={GOOGLE_VOICE_URL} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4"/> Open Google Voice</a><PersonalPhoneBackupAction phone={customer.phone} mode="text" customerName={customer.name} message={preparedMessage.body}/></div><small>Approve the recipient and message in your Shortcut, or paste them into Google Voice. Text (Backup) uses your personal number and adds an alternate-number introduction.</small></section>}
+        {preparedMessage?.channel==="email_prepared"&&<section className="rounded-lg border p-3" aria-label="Prepared email handoff"><strong>Send email</strong>{usableCustomerEmail(customer.email)?<a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={`mailto:${encodeURIComponent(usableCustomerEmail(customer.email)!)}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(preparedMessage.body)}`}><Mail className="h-4 w-4"/> Open email app</a>:<p role="alert">Add a valid customer email before sending.</p>}<small>Choose your business sender in the email app. If no app opens, copy the message into your business email.</small><Button type="button" variant="outline" onClick={()=>void copyVoiceField(preparedMessage.body,"Prepared email copied. Sending remains unconfirmed.","Copy failed. Select the saved message below to copy it.")}>Copy email message</Button></section>}
          {preparedMessage&&<div className="message-confirm-actions"><p>Confirm here only after you send the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}. Opening another app does not confirm sending.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button><Button variant="outline" disabled={working} onClick={()=>void cancelPrepared()}>Discard unsent draft</Button></div>}
         <div><Label htmlFor={`message-template-${customer.id}-${estimate?.id??"general"}`}>Template</Label><Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}><SelectTrigger id={`message-template-${customer.id}-${estimate?.id??"general"}`}><SelectValue/></SelectTrigger><SelectContent>{composerTemplates.map((item)=><SelectItem key={item.key} value={item.key}>{item.name}</SelectItem>)}</SelectContent></Select></div>
         <div><Label htmlFor="customerMessage">Message text</Label><Textarea id="customerMessage" disabled={working} readOnly={Boolean(preparedMessage)} value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={8}/></div>
@@ -604,7 +614,7 @@ function discountMath(subtotal:number, appreciation:boolean, mode:DiscountMode, 
     additionalCents=Math.min(subtotal,Math.max(0,Math.round((Number(rawValue)||0)*100)));
   }
   const requestedDiscount=Math.min(subtotal,appreciationCents+additionalCents+bundleDiscountCents);
-  const total=subtotal>0||hasPricedService?Math.max(15000,subtotal-requestedDiscount):0;
+  const total=subtotal>0||hasPricedService?Math.max(0,subtotal-requestedDiscount):0;
   const appliedDiscount=Math.max(0,subtotal-total);
   return {appreciationCents,additionalCents,requestedDiscount,total,appliedDiscount,deposit:Math.round(total/2)};
 }
@@ -660,7 +670,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   const saveLock=useRef(false);
   const [reviewedRecords,setReviewedRecords]=useState<EstimateRow[]>([]);
   const [reviewingRecords,setReviewingRecords]=useState(false);
-  const [savedReceipt,setSavedReceipt]=useState<{address:string;total:number;deposit:number}|null>(null);
+  const [savedReceipt,setSavedReceipt]=useState<{address:string;total:number;deposit:number;jobNumber?:number}|null>(null);
   const createRequestRef=useRef<string|null>(null);
   const [pendingCreateId,setPendingCreateId]=useState<string|null>(null);
   const [createStorageReady,setCreateStorageReady]=useState(false);
@@ -784,7 +794,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ requestId,...(revisionSource?{revisionOf:revisionSource.id}:{}),customerId: selectedCustomer?.id, customerLookupSelection:Boolean(selectedCustomer), customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:resolvedAddress.trim(), ...(propertyWorkflowReady&&estimateProperty?{propertyId:estimateProperty.property.id,propertyRevision:estimateProperty.property.revision,propertySelectionMode:estimateProperty.mode}:{}), items:payloadItems, appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents, ...(promotionEvidence?{promotionEvidence}:{} ) }),
       });
-      const result = await response.json() as { id?: string; requestId?:string;replayed?:boolean;customerId?:string; shareToken?:string; subtotalCents?:number;discountCents?:number;totalCents?:number;depositCents?:number;bundleDiscountCents?:number;promotionAttributionSaved?:boolean;address?:string;propertyId?:string|null;propertyRevision?:number|null;error?: string };
+      const result = await response.json() as { id?: string; requestId?:string;replayed?:boolean;customerId?:string; shareToken?:string; subtotalCents?:number;discountCents?:number;totalCents?:number;depositCents?:number;bundleDiscountCents?:number;promotionAttributionSaved?:boolean;jobNumber?:number|null;address?:string;propertyId?:string|null;propertyRevision?:number|null;error?: string };
       if(!response.ok){
         safelyRejected=response.status>=400&&response.status<500;
         if(response.status>=500)setUncertainSave(true);
@@ -797,9 +807,10 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
       if(!releasePendingEstimateCreate(estimateCreateStorage(),requestId)){setUncertainSave(true);throw new Error("Estimate was saved but its on-device recovery marker could not be cleared. Check stored estimates before sending another quote.");}
       createRequestRef.current=null;setPendingCreateId(null);setPendingCheck(null);
       const confirmedAddress=typeof result.address==='string'?result.address:resolvedAddress.trim();
-      setSavedReceipt({address:confirmedAddress,total:Number(result.totalCents??total),deposit:Number(result.depositCents??deposit)});
+      const savedJobNumber=jobNumberLabel(result.jobNumber)?Number(result.jobNumber):undefined;
+      setSavedReceipt({address:confirmedAddress,total:Number(result.totalCents??total),deposit:Number(result.depositCents??deposit),jobNumber:savedJobNumber});
       const createdAt = new Date().toISOString();
-      onSaved?.({ id: result.id, customerId: result.customerId, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:confirmedAddress,propertyId:result.propertyId,propertyRevision:result.propertyRevision,serviceAddressSource:result.propertyId?'captured':undefined, service: items.map((item)=>item.name).join(", "), serviceDescription:items[0]?.description||"", items:payloadItems.map((item,index)=>({...item,id:`new-${index}`})), status: "draft", subtotalCents:Number(result.subtotalCents??subtotal), discountCents:Number(result.discountCents??discount.appliedDiscount), appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents, totalCents: Number(result.totalCents??total), depositCents: Number(result.depositCents??deposit), paidCents: 0, shareToken:result.shareToken, createdAt });
+      onSaved?.({ id: result.id,jobNumber:savedJobNumber, customerId: result.customerId, customer: customerName.trim(), email:email.trim(), phone:phone.trim(), address:confirmedAddress,propertyId:result.propertyId,propertyRevision:result.propertyRevision,serviceAddressSource:result.propertyId?'captured':undefined, service: items.map((item)=>item.name).join(", "), serviceDescription:items[0]?.description||"", items:payloadItems.map((item,index)=>({...item,id:`new-${index}`})), status: "draft", subtotalCents:Number(result.subtotalCents??subtotal), discountCents:Number(result.discountCents??discount.appliedDiscount), appreciationDiscount, additionalDiscountType:discountMode, additionalDiscountValue:discountInputCents,bundleDiscountCents:bundleInputCents, totalCents: Number(result.totalCents??total), depositCents: Number(result.depositCents??deposit), paidCents: 0, shareToken:result.shareToken, createdAt });
       setSaved(true);
     } catch (saveError) { if(!safelyRejected)setUncertainSave(true);setError(saveError instanceof Error ? saveError.message : "The estimate could not be saved. Please try again."); }
     finally { setSaving(false);saveLock.current=false; }
@@ -843,7 +854,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         :<p role="alert">Browser recovery storage is unavailable. New quote creation is disabled to prevent untraceable repeat saves.</p>}
         {createStorageError&&<p role="alert">{createStorageError}</p>}
       </section>}
-      {saved?<div className="px-6 py-12 text-center"><span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-8 w-8"/></span><h2 className="text-2xl font-extrabold">Estimate ready</h2><p className="mx-auto mt-2 max-w-sm text-slate-500">{money(savedReceipt?.total??total)} total. A {money(savedReceipt?.deposit??deposit)} (50%) deposit reserves the customer&apos;s place on the schedule; the remaining balance is due when the work is completed.</p><p className="mt-3" data-saved-service-address>{savedReceipt?.address}</p><div className="mt-7 flex justify-center"><Button className="brand-button" onClick={()=>reset(false)}>Done</Button></div></div>
+      {saved?<div className="px-6 py-12 text-center"><span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-8 w-8"/></span><h2 className="text-2xl font-extrabold">Estimate ready</h2>{jobNumberLabel(savedReceipt?.jobNumber)&&<p className="mt-2 font-semibold">{jobNumberLabel(savedReceipt?.jobNumber)}</p>}<p className="mx-auto mt-2 max-w-sm text-slate-500">{money(savedReceipt?.total??total)} total. A {money(savedReceipt?.deposit??deposit)} (50%) deposit reserves the customer&apos;s place on the schedule; the remaining balance is due when the work is completed.</p><p className="mt-3" data-saved-service-address>{savedReceipt?.address}</p><div className="mt-7 flex justify-center"><Button className="brand-button" onClick={()=>reset(false)}>Done</Button></div></div>
       :step===1?<div className="space-y-5 px-6 py-6">
         <CustomerLookup disabled={Boolean(revisionSource)||saving||uncertainSave||customerLoading} onSelect={row=>void chooseCustomer(row)} onCreate={()=>void chooseCustomer(null)}/>
         {customerLoading&&<p role="status">Checking saved customer information…</p>}{revisionSource&&revisionBundle.error&&<div role="alert"><p>{revisionBundle.error}</p><Button variant="outline" onClick={()=>void revisionBundle.reload()}>Retry saved discounts</Button></div>}
@@ -881,14 +892,14 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         <button type="button" onClick={()=>setAppreciationDiscount((value)=>!value)} className={`discount-row ${appreciationDiscount?"selected":""}`}><span><strong>5% First Responder & Military</strong><small>Year-round appreciation discount</small></span><span className="check-box">{appreciationDiscount&&<Check className="h-4 w-4"/>}</span></button>
         <section className="edit-discount-card"><Label>Promotion or other discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");setPromotionEvidence(null);setPromotionOwnerOverride(true);}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");setPromotionEvidence(null);setPromotionOwnerOverride(true);}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} aria-invalid={discountInvalid} onChange={(event)=>{setDiscountValue(event.target.value);setPromotionEvidence(null);setPromotionOwnerOverride(true);}} placeholder="0"/>{discountInvalid&&<p role="alert" className="service-description-help">Enter a nonnegative discount with at most two decimals. Percentages are limited to {appreciationDiscount?45:50}%, and dollar discounts cannot exceed the subtotal.</p>}</div><p className="service-description-help">Choose the promotion type here; use the separate bundle field below to stack a dollar discount. Percentage discounts stack with the 5% appreciation discount, up to 50% total.</p></section>
         <section className="edit-discount-card"><Label htmlFor="estimate-bundle-discount">Separate bundle discount ($)</Label><div className="discount-input"><span>$</span><Input id="estimate-bundle-discount" inputMode="decimal" value={bundleValue} aria-invalid={bundleInvalid} onChange={event=>{setBundleValue(event.target.value);setPromotionEvidence(null);setPromotionOwnerOverride(true);}} placeholder="0"/></div>{bundleInvalid&&<p role="alert">Enter a nonnegative amount with up to two decimals, no greater than the subtotal.</p>}<p className="service-description-help">Stacks with the promotion above.</p></section><details className="ui-help"><summary>Promotion help</summary><p className="service-description-help">Eligible saved estimate-date promotions are filled in automatically unless you manually adjust them. Booking-based promotions, including October 15%, remain reminders until you explicitly confirm the booking date above. Customer signature and schedule are separate. Saved quotes retain agreed totals.</p></details><div className="discount-components" aria-label="Discount components"><span>Appreciation (requested)<strong>−{money(discount.appreciationCents)}</strong></span><span>{discountMode==="percent"?"Promotion":"Other discount"} (requested)<strong>−{money(discount.additionalCents)}</strong></span><span>Bundle (requested)<strong>−{money(bundleInputCents??0)}</strong></span></div><div className="edit-totals"><span>Service subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(discount.appliedDiscount)}</strong></span><span>Customer total<strong>{money(total)}</strong></span><span>50% deposit to schedule<strong>{money(deposit)}</strong></span></div>
-        {items.some(item=>Boolean(item.name)&&item.quantity>0)&&subtotal-discount.requestedDiscount<15000&&<p className="service-description-help">$150 minimum job charge.</p>}{error&&<p className="save-error" role="alert">{error}</p>}
+        {error&&<p className="save-error" role="alert">{error}</p>}
         <div className="flex gap-3"><Button variant="outline" onClick={()=>setStep(1)} disabled={saving}>Back</Button><Button className="brand-button flex-1" onClick={()=>void saveEstimate()} disabled={saving||uncertainSave||!createStorageReady||Boolean(pendingCreateId&&pendingCreateId!==createRequestRef.current)||customerLoading||!identityConfirmed||Boolean(selectedCustomer)&&propertyBlocked||promotionsVerifiedFor!==promotionQuoteKey}>{saving?"Saving…":`Save ${money(total)} estimate`}</Button></div>
       </div>}
       {uncertainSave&&<section className="px-6 pb-6" aria-label="Unconfirmed estimate save"><p role="status">Save was not confirmed. Another save is blocked to prevent duplicate estimates.</p><Button variant="outline" disabled={reviewingRecords} onClick={()=>void reviewStored()}>Review stored estimates</Button>{reviewedRecords.map(row=><p key={row.id}>{row.service} · {row.address} · {money(row.totalCents)} · {row.id}</p>)}</section>}
     </DialogContent>
   </Dialog>;
 }
-function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNavigate,onOpenEstimate,onOpenCustomer,onOpenCustomerActivity,onOpenTask,onOpenDoorHouse}:{userName:string;metrics:{estimates:number;openValue:number;outstanding:number;completedJobs?:number};estimates:EstimateRow[];summaryVerified:boolean;onSaved:(estimate:EstimateRow)=>void;onNavigate:(tab:string)=>void;onOpenEstimate?:(id:string)=>void;onOpenCustomer?:(id:string)=>void;onOpenCustomerActivity?:(id:string,kind:"sign"|"review")=>void;onOpenTask?:(id:string)=>void;onOpenDoorHouse?:(id:string)=>void}) {
+function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNavigate,onOpenEstimate,onOpenCustomer,onOpenCustomerActivity,onOpenTask,onOpenDoorHouse}:{userName:string;metrics:{estimates:number;openValue:number;outstanding:number;completedJobs?:number;upcomingCount?:number;upcomingJobs?:EstimateRow[]};estimates:EstimateRow[];summaryVerified:boolean;onSaved:(estimate:EstimateRow)=>void;onNavigate:(tab:string)=>void;onOpenEstimate?:(id:string)=>void;onOpenCustomer?:(id:string)=>void;onOpenCustomerActivity?:(id:string,kind:"sign"|"review")=>void;onOpenTask?:(id:string)=>void;onOpenDoorHouse?:(id:string)=>void}) {
   const now = useCurrentTime();
   const [priorityTasks,setPriorityTasks]=useState<TaskRow[]>([]);
   const [priorityTaskStatus,setPriorityTaskStatus]=useState<"loading"|"ready"|"error">("loading");
@@ -1053,8 +1064,10 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
   },[paidReviewReload]);
   // Match Schedule: future completed/declined jobs are not upcoming appointments.
   // The first supplied record is not necessarily the next appointment.
-  const upcomingJobs=estimates.filter((estimate)=>estimate.status==="scheduled"&&estimate.scheduledAt&&Number.isFinite(Date.parse(estimate.scheduledAt))&&Date.parse(estimate.scheduledAt)>=now).sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
-  const upcoming=upcomingJobs.length;
+  const scheduledSource=Array.isArray(metrics.upcomingJobs)?metrics.upcomingJobs:estimates;
+  const upcomingJobs=scheduledSource.filter((estimate)=>estimate.status==="scheduled"&&estimate.scheduledAt&&Number.isFinite(Date.parse(estimate.scheduledAt))&&Date.parse(estimate.scheduledAt)>=now).sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
+  // All scheduled records are counted by the DB, not just the first 25 cards.
+  const upcoming=Number.isSafeInteger(metrics.upcomingCount)&&Number(metrics.upcomingCount)>=0?Number(metrics.upcomingCount):upcomingJobs.length;
   const completed = Number.isSafeInteger(metrics.completedJobs)&&Number(metrics.completedJobs)>=0?Number(metrics.completedJobs):estimates.filter((estimate)=>estimate.status === "completed").length;
   const nextJob=upcomingJobs[0];
   // Native dial/compose shortcuts never submit or send through FIRE.
@@ -1064,6 +1077,16 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
   const nextJobPhone=digits.length===10?"+1"+digits:digits.length===11&&digits.startsWith("1")?"+"+digits:null;
   const nextJobEmail=nextJob?.email?.trim()??"";
   const canEmailNextJob=/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(nextJobEmail);
+  // The same owner-saved message composer belongs on Home's Next Job as in
+  // customer profiles/estimate details. Never create message history without
+  // a verified saved customer ID, and never infer contact fields from a name.
+  const nextJobMessageCustomer:CustomerRow|null=nextJob?.customerId?.trim()?{
+    id:nextJob.customerId,name:nextJob.customer,
+    email:canEmailNextJob?nextJobEmail:"",
+    phone:nextJobPhone??"",
+    address:nextJob.address??"",createdAt:nextJob.createdAt,
+    estimateCount:1,estimateTotal:nextJob.totalCents,paidTotal:nextJob.paidCents,
+  }:null;
   // The customer profile may hold other details, so report only fields
   // available on THIS scheduled appointment. Highlight today/tomorrow only.
   const nextJobCentralDay=nextJob?.scheduledAt?new Date(nextJob.scheduledAt).toLocaleDateString("en-CA",{timeZone:"America/Chicago"}):null;
@@ -1133,7 +1156,7 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
         <div className="dashboard-next-job-info">
           <p className="eyebrow">Next job</p>
           <h2>{onOpenCustomer&&upcomingJobs[0].customerId?.trim()?<button type="button" className="dashboard-next-customer-link" aria-label={`View ${upcomingJobs[0].customer} profile`} onClick={()=>onOpenCustomer(upcomingJobs[0].customerId!)}>{upcomingJobs[0].customer}</button>:upcomingJobs[0].customer}</h2>
-          <p>{upcomingJobs[0].service} · {dateTime(upcomingJobs[0].scheduledAt!)}</p>
+          <p>{jobNumberLabel(upcomingJobs[0].jobNumber)&&<>{jobNumberLabel(upcomingJobs[0].jobNumber)} · </>}{upcomingJobs[0].service} · {dateTime(upcomingJobs[0].scheduledAt!)}</p>
           <small>{upcomingJobs[0].address||"No job address saved"}</small>
           {nextJobNeedsPrep&&<div className="dashboard-next-prep" role="status" aria-label="Next job details to review"><strong><AlertTriangle aria-hidden="true"/> Check before this appointment</strong><div>{nextJobNeedsAddress&&<span>Service address not saved on job</span>}{nextJobNeedsContact&&<span>No usable phone or email on job</span>}</div><small>Check job details and customer profile.</small></div>}
         </div>
@@ -1144,8 +1167,8 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
             <summary><Phone className="h-4 w-4" aria-hidden="true"/> Contact customer <ChevronDown className="h-4 w-4" aria-hidden="true"/></summary>
             <div className="dashboard-next-contact-options">
               {nextJobPhone&&<GoogleVoiceCallAction phone={nextJobPhone} customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}{nextJobPhone&&<PersonalPhoneBackupAction phone={nextJobPhone} mode="call" customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}
-              {nextJobPhone&&<GoogleVoiceTextAction phone={nextJobPhone} customerName={upcomingJobs[0].customer} label="Text" ariaLabel="Text next job customer using Google Voice" className="dashboard-next-directions dashboard-next-contact" />}{nextJobPhone&&<PersonalPhoneBackupAction phone={nextJobPhone} mode="text" customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}
-              {canEmailNextJob&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Email next job customer" href={"mailto:"+encodeURIComponent(nextJobEmail)}><Mail className="h-4 w-4"/> Email</a>}
+              {nextJobPhone&&nextJobMessageCustomer?<MessageComposer customer={nextJobMessageCustomer} estimate={upcomingJobs[0]} initialTemplate="custom" triggerLabel="Text" triggerClassName="dashboard-next-directions dashboard-next-contact"/>:nextJobPhone&&<Button variant="outline" className="dashboard-next-directions dashboard-next-contact" onClick={()=>onOpenEstimate?onOpenEstimate(upcomingJobs[0].id):onNavigate("schedule")}>Open job to text</Button>}{nextJobPhone&&<PersonalPhoneBackupAction phone={nextJobPhone} mode="text" customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}
+              {canEmailNextJob&&nextJobMessageCustomer?<MessageComposer customer={nextJobMessageCustomer} estimate={upcomingJobs[0]} initialTemplate="custom" triggerLabel="Email" triggerAriaLabel="Email next job customer" triggerClassName="dashboard-next-directions dashboard-next-contact"/>:canEmailNextJob&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Email next job customer" href={"mailto:"+encodeURIComponent(nextJobEmail)}><Mail className="h-4 w-4"/> Email</a>}
             </div>
           </details>}
           <Button variant="outline" onClick={()=>onNavigate("schedule")}>Full schedule</Button>
@@ -1289,54 +1312,82 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
   const saveLock=useRef(false);
   const currentCustomer=useRef(customer.id);currentCustomer.current=customer.id;
   useEffect(()=>{currentCustomer.current=customer.id;return()=>{currentCustomer.current="";};},[customer.id]);
-  // D1 stores blank contact fields as SQL NULL; customer GET can return null
-  // even though the UI inputs must always hold strings.
   const [name,setName]=useState(customer.name??"");const [email,setEmail]=useState(customer.email??"");const [phone,setPhone]=useState(customer.phone??"");const [address,setAddress]=useState(customer.address??"");
   const [leadSource,setLeadSource]=useState(customer.leadSource||"Unknown");
   const [saving,setSaving]=useState(false);
-  const [saveUncertain,setSaveUncertain]=useState(false);
+  const [checking,setChecking]=useState(false);
+  const [uncertain,setUncertain]=useState(false);
   const [error,setError]=useState("");
-  const reset=()=>{setName(customer.name??"");setEmail(customer.email??"");setPhone(customer.phone??"");setAddress(customer.address??"");setLeadSource(customer.leadSource||"Unknown");setError("");setSaveUncertain(false);};
+  const attempted=useRef<{id:string;name:string;email:string;phone:string;address:string;leadSource:string}|null>(null);
+  const matchesSaved=(row:CustomerRow|undefined|null,payload:NonNullable<typeof attempted.current>)=>
+    Boolean(row&&Object.entries(payload).every(([key,value])=>row[key as keyof CustomerRow]===value));
+  const reset=()=>{setName(customer.name??"");setEmail(customer.email??"");setPhone(customer.phone??"");setAddress(customer.address??"");setLeadSource(customer.leadSource||"Unknown");setError("");setUncertain(false);attempted.current=null;};
+  const finish=(row:CustomerRow,id:string)=>{
+    if(currentCustomer.current!==id)return;
+    setUncertain(false);attempted.current=null;onUpdated({...customer,...row});setOpen(false);
+  };
+  const checkSaved=async()=>{
+    const payload=attempted.current;
+    if(!payload||saveLock.current||currentCustomer.current!==payload.id)return;
+    saveLock.current=true;setChecking(true);setError("");
+    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
+    try {
+      const response=await fetch("/api/customers?confirmEdit="+encodeURIComponent(payload.id),{cache:"no-store",signal:controller.signal});
+      const result=await response.json() as {customer?:CustomerRow;error?:string};
+      if(currentCustomer.current!==payload.id)return;
+      if(!response.ok||!result?.customer)throw new Error(result?.error||"Saved customer details could not be checked.");
+      if(matchesSaved(result.customer,payload)){finish(result.customer,payload.id);return;}
+      setUncertain(false);attempted.current=null;
+      setError("The saved record does not match this edit. Review these details before trying Save changes again. Nothing was resent.");
+    }catch {
+      if(currentCustomer.current===payload.id)setError("Still unable to confirm the last save. Keep these details and check again when connected. No second update was sent.");
+    }finally{clearTimeout(timer);saveLock.current=false;if(currentCustomer.current===payload.id)setChecking(false);}
+  };
   const save=async()=>{
-    if(saveLock.current||saveUncertain||currentCustomer.current!==customer.id)return;
-    const id=customer.id;
-    const payload={id,name:String(name??"").trim(),email:String(email??"").trim(),phone:String(phone??"").trim(),address:String(address??"").trim(),leadSource:String(leadSource||"Unknown")};
-    if(!payload.name){setError("Customer name is required.");return;}
+    if(saveLock.current||currentCustomer.current!==customer.id)return;
+    if(uncertain){setError("Check saved details before trying another update.");return;}
+    if(!name.trim()){setError("Customer name is required.");return;}
+    if(email.trim()&&!usableCustomerEmail(email)){setError("Enter a valid email address or leave it blank.");return;}
+    if(phone.trim()&&!usableCustomerPhone(phone)){setError("Enter a valid 10-digit U.S. phone number or leave it blank.");return;}
+    const id=customer.id;const payload={id,name:name.trim(),email:email.trim(),phone:phone.trim(),address:address.trim(),leadSource};
+    attempted.current=payload;
     saveLock.current=true;setSaving(true);setError("");
-    const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),15000);
-    try{
+    let responseStatus=0;
+    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
+    try {
       const response=await fetch("/api/customers",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(payload),signal:controller.signal});
+      responseStatus=response.status;
       const result=await response.json() as {customer?:CustomerRow;error?:string};
       if(currentCustomer.current!==id)return;
       if(!response.ok)throw new Error(result?.error||"The customer could not be updated.");
-      if(!result?.customer||Object.entries(payload).some(([key,value])=>result.customer?.[key as keyof CustomerRow]!==value))throw new Error("The saved customer could not be verified. Reopen this profile to check its details before trying again.");
-      onUpdated({...customer,...result.customer});
-      setOpen(false);
+      if(!matchesSaved(result?.customer,payload))throw new Error("The save response did not match these customer details.");
+      finish(result.customer!,id);
     }catch(saveError){
-      if(currentCustomer.current===id){
-        // A timed-out request might have committed on D1; do not silently
-        // retry or claim failure. Require reopening/refetching this record.
-        const timedOut=controller.signal.aborted;
-        if(timedOut)setSaveUncertain(true);
-        setError(timedOut?"Save confirmation timed out. The change might have saved. Close this window, refresh this customer, and check the fields before trying again.":saveError instanceof Error?saveError.message:"The customer could not be updated.");
+      if(currentCustomer.current!==id)return;
+      if(responseStatus>=400&&responseStatus<500){
+        attempted.current=null;
+        setError(saveError instanceof Error?saveError.message:"The edit was rejected. No update was confirmed.");
+      }else {
+        setUncertain(true);
+        setError("Save confirmation was interrupted. Your entries are kept. Tap Check saved details before trying another save.");
       }
-    }
-    finally{clearTimeout(timer);saveLock.current=false;if(currentCustomer.current===id)setSaving(false);}
+    }finally{clearTimeout(timer);saveLock.current=false;if(currentCustomer.current===id)setSaving(false);}
   };
-  return <Dialog open={open} onOpenChange={(value)=>{if(saveLock.current||currentCustomer.current!==customer.id)return;setOpen(value);if(value)reset();else setError("");}}>
+  return <Dialog open={open} onOpenChange={(value)=>{if(saveLock.current||currentCustomer.current!==customer.id)return;setOpen(value);if(value&&!uncertain)reset();else if(!value)setError("");}}>
     <DialogTrigger asChild><Button variant="outline"><PenLine className="h-4 w-4"/> Edit customer</Button></DialogTrigger>
     <DialogContent className="customer-edit-dialog sm:max-w-[520px] max-h-[90dvh] overflow-y-auto">
       <DialogHeader><DialogTitle>Edit customer</DialogTitle></DialogHeader>
-      <div className="customer-form"><fieldset disabled={saving} className="contents">
-        <div><Label htmlFor={`edit-customer-${customer.id}-name`}>Customer name</Label><Input id={`edit-customer-${customer.id}-name`} placeholder="Full name" value={name} onChange={(event)=>setName(event.target.value)}/></div>
-        <div><Label htmlFor={`edit-customer-${customer.id}-email`}>Email</Label><Input id={`edit-customer-${customer.id}-email`} type="email" placeholder="customer@email.com" value={email} onChange={(event)=>setEmail(event.target.value)}/></div>
-        <div><Label htmlFor={`edit-customer-${customer.id}-phone`}>Phone</Label><Input id={`edit-customer-${customer.id}-phone`} inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={(event)=>setPhone(event.target.value)}/></div>
-        <div><Label htmlFor={`edit-customer-${customer.id}-address`}>Service address</Label><Input id={`edit-customer-${customer.id}-address`} placeholder="Tulsa-area address" value={address} onChange={(event)=>setAddress(event.target.value)}/></div>
-        <div><Label htmlFor={`edit-customer-${customer.id}-source`}>How they found FIRE</Label><Select value={leadSource} onValueChange={setLeadSource}><SelectTrigger id={`edit-customer-${customer.id}-source`}><SelectValue/></SelectTrigger><SelectContent>{["Referral","Google","Facebook","Website","Repeat customer","Door knocking","Other","Unknown"].map((source)=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div>
+      <div className="customer-form"><fieldset disabled={saving||checking||uncertain} className="contents">
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-name"}>Customer name</Label><Input id={"edit-customer-"+customer.id+"-name"} placeholder="Full name" value={name} onChange={(event)=>setName(event.target.value)}/></div>
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-email"}>Email</Label><Input id={"edit-customer-"+customer.id+"-email"} type="email" placeholder="customer@email.com" value={email} onChange={(event)=>setEmail(event.target.value)}/></div>
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-phone"}>Phone</Label><Input id={"edit-customer-"+customer.id+"-phone"} inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={(event)=>setPhone(event.target.value)}/></div>
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-address"}>Service address</Label><Input id={"edit-customer-"+customer.id+"-address"} placeholder="Tulsa-area address" value={address} onChange={(event)=>setAddress(event.target.value)}/></div>
+        <div><Label htmlFor={"edit-customer-"+customer.id+"-source"}>How they found FIRE</Label><Select value={leadSource} onValueChange={setLeadSource}><SelectTrigger id={"edit-customer-"+customer.id+"-source"}><SelectValue/></SelectTrigger><SelectContent>{["Referral","Google","Facebook","Website","Repeat customer","Door knocking","Other","Unknown"].map((source)=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div>
         {error&&<p className="save-error" role="alert">{error}</p>}
-        <Button className="brand-button" onClick={()=>void save()} disabled={saving||saveUncertain}>{saving?"Saving…":saveUncertain?"Refresh customer before retrying":"Save changes"}</Button>
-      </fieldset></div>
+        <Button className="brand-button" onClick={()=>void save()} disabled={saving||checking||uncertain}>{saving?"Saving…":"Save changes"}</Button>
+      </fieldset>
+      {uncertain&&<Button variant="outline" type="button" onClick={()=>void checkSaved()} disabled={saving||checking}>{checking?"Checking…":"Check saved details"}</Button>}
+      </div>
     </DialogContent>
   </Dialog>;
 }
@@ -1786,7 +1837,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
     <button type="button" onClick={()=>setAppreciationDiscount((value)=>!value)} className={`discount-row ${appreciationDiscount?"selected":""}`}><span><strong>5% First Responder & Military</strong><small>Year-round appreciation discount</small></span><span className="check-box">{appreciationDiscount&&<Check className="h-4 w-4"/>}</span></button>
     <section className="edit-discount-card"><Label>Promotion or other discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} aria-invalid={discountInvalid} onChange={(event)=>setDiscountValue(event.target.value)} placeholder="0"/>{discountInvalid&&<p role="alert" className="service-description-help">Enter a nonnegative discount with at most two decimals. Percentages are limited to {appreciationDiscount?45:50}%, and dollar discounts cannot exceed the subtotal.</p>}</div><p className="service-description-help">Choose the promotion type here; use the separate bundle field below to stack a dollar discount. Percentage discounts stack with the 5% appreciation discount, up to 50% total.</p></section>
     <section className="edit-discount-card"><Label htmlFor="estimate-bundle-discount">Separate bundle discount ($)</Label><div className="discount-input"><span>$</span><Input id="estimate-bundle-discount" inputMode="decimal" value={bundleValue} aria-invalid={bundleInvalid} onChange={event=>setBundleValue(event.target.value)} placeholder="0"/></div>{bundleInvalid&&<p role="alert">Enter a nonnegative amount with up to two decimals, no greater than the subtotal.</p>}<p className="service-description-help">Stacks with the promotion above.</p></section><p className="service-description-help">Promotions are owner-applied. October 15% requires a qualifying booking placed on the schedule by October 31, 2026; the work may be performed later. Nothing is applied automatically.</p><div className="discount-components" aria-label="Discount components"><span>Appreciation (requested)<strong>−{money(discount.appreciationCents)}</strong></span><span>{discountMode==="percent"?"Promotion":"Other discount"} (requested)<strong>−{money(discount.additionalCents)}</strong></span><span>Bundle (requested)<strong>−{money(bundleInputCents??0)}</strong></span></div><div className="edit-totals"><span>Service subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(discount.appliedDiscount)}</strong></span><span>Estimate total<strong>{money(discount.total)}</strong></span><span>50% deposit<strong>{money(discount.deposit)}</strong></span></div>
-    {items.some(item=>Boolean(item.name)&&item.quantity>0)&&subtotal-discount.requestedDiscount<15000&&<p className="service-description-help">$150 minimum job charge.</p>}{error&&<p className="save-error" role="alert">{error}</p>}
+    {error&&<p className="save-error" role="alert">{error}</p>}
     </fieldset>
     </div>
     <div className="estimate-edit-modal-footer"><Button className="brand-button w-full" onClick={()=>void save()} disabled={saving||!bundle.ready}>{saving?"Saving…":"Save estimate changes"}</Button></div>
@@ -1818,7 +1869,7 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
   const invoiceDiscountInputCents=parseDiscountCents(discountValue,discountMode);
   const invoiceDiscountInvalid=invoiceDiscountInputCents===null||(discountMode==="dollar"&&invoiceDiscountInputCents>subtotal);
   const invoiceDiscount=(()=>{if(invoiceDiscountInputCents===null)return 0;if(discountMode==="percent")return Math.round(subtotal*invoiceDiscountInputCents/10000);return Math.min(subtotal,invoiceDiscountInputCents);})();
-  const total=subtotal>0?Math.max(15000,subtotal-invoiceDiscount):0;
+  const total=subtotal>0?Math.max(0,subtotal-invoiceDiscount):0;
   const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?editMoneyLine(item,patch):item));
   const addService=()=>setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);
   const hydrate=async()=>{
@@ -1869,7 +1920,7 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
     <section className="edit-discount-card"><Label id={`invoice-${estimate.invoiceId}-due-label`}>Payment due</Label><div className="discount-mode-row"><Button type="button" aria-pressed={dueMode==="receipt"} variant={dueMode==="receipt"?"default":"outline"} onClick={()=>{setDueMode("receipt");setDueDate("");}}>Due on receipt</Button><Button type="button" aria-pressed={dueMode==="date"} variant={dueMode==="date"?"default":"outline"} onClick={()=>setDueMode("date")}>Specific date</Button></div>{dueMode==="date"&&<Input aria-labelledby={`invoice-${estimate.invoiceId}-due-label`} type="date" value={dueDate} onChange={(event)=>setDueDate(event.target.value)}/>}</section>
     <section className="edit-discount-card"><Label htmlFor={`invoice-${estimate.invoiceId}-discount`}>Final invoice discount</Label><div className="discount-mode-row"><Button type="button" aria-pressed={discountMode==="percent"} variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");}}>% Percentage</Button><Button type="button" aria-pressed={discountMode==="dollar"} variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input id={`invoice-${estimate.invoiceId}-discount`} inputMode="decimal" value={discountValue} aria-invalid={invoiceDiscountInvalid} onChange={(event)=>setDiscountValue(event.target.value)} placeholder="0"/>{invoiceDiscountInvalid&&<p role="alert" className="service-description-help">Enter a nonnegative discount with at most two decimals, no more than 50% or the invoice subtotal.</p>}</div></section>
     <div className="edit-totals"><span>Invoice subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(Math.max(0,subtotal-total))}</strong></span><span>Invoice total<strong>{money(total)}</strong></span><span>Paid already<strong>{money(estimate.paidCents)}</strong></span></div>
-    {subtotal>0&&subtotal-invoiceDiscount<15000&&<p className="service-description-help">$150 minimum job charge.</p>}
+    
     {revisions.length>0&&<section className="edit-discount-card"><Label>Invoice revision history</Label><div className="invoice-revision-list">{revisions.slice(0,5).map((revision)=>{const expanded=expandedRevisionId===revision.id;return <div className={expanded?"invoice-revision-row expanded":"invoice-revision-row"} key={revision.id}><button type="button" className="invoice-revision-summary" onClick={()=>setExpandedRevisionId(expanded?null:revision.id)} aria-expanded={expanded}><span><strong>{money(revision.totalCents)}</strong><small>{revision.status} · {dateTime(revision.createdAt)}</small></span><span className="invoice-revision-due"><small>{revision.dueAt?`Due ${new Date(revision.dueAt).toLocaleDateString()}`:"Due on receipt"}</small><ChevronRight className={expanded?"revision-chevron open":"revision-chevron"}/></span></button>{expanded&&<div className="invoice-revision-details"><div className="revision-item-list">{revision.items.map((item,index)=><div key={`${revision.id}-${item.id||index}`}><span><strong>{item.name}</strong><small>{item.description||"No description"}</small></span><small>{Number(item.quantity)||0} {item.unit} · {money(Number(item.totalCents)||0)}</small></div>)}</div><div className="revision-totals"><span>Subtotal<strong>{money(revision.subtotalCents)}</strong></span><span>Discount<strong>−{money(revision.discountCents)}</strong></span><span>Discount mode<strong>{revision.discountType==="percent"?`${(revision.discountValue/100).toFixed(2).replace(/\.00$/,'')}%`:`${money(revision.discountValue)}`}</strong></span><span>Total<strong>{money(revision.totalCents)}</strong></span></div></div>}</div>;})}</div></section>}
     </>}
     </fieldset></div>
@@ -1977,11 +2028,9 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
   const balanceCents=Math.max(0,billingTotalCents-estimate.paidCents);
   const resolveOverpayment=async(resolutionMode:"refund"|"keep")=>{if(mutationLock.current||closeoutLock.current)return;mutationLock.current=true;setSaving(true);setError("");try{const refundAmountCents=resolutionMode==="refund"?Math.round(Number(refundAmount)*100):undefined;if(resolutionMode==="refund"&&(!refundAmountCents||refundAmountCents<=0))throw new Error("Enter the actual refund amount before marking the refund handled.");const updateResponse=await fetch("/api/notifications",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({estimateId:estimate.id,resolveOverpayment:true,reconciliationHandled:true,resolutionMode,refundAmountCents})});const result=await updateResponse.json() as {remainingOverpaymentCount?:number;paidCents?:number;error?:string};if(!updateResponse.ok)throw new Error(result.error||"The billing exception could not be resolved.");setRefundAmount("");onChanged({...estimate,paidCents:result.paidCents??estimate.paidCents,paymentOverageOpen:Number(result.remainingOverpaymentCount??Math.max(0,Number(estimate.paymentOverageOpen)-1))});}catch(resolveError){setError(resolveError instanceof Error?resolveError.message:"The billing exception could not be resolved.");}finally{mutationLock.current=false;setSaving(false);}};
   return <Dialog open onOpenChange={(value) => { if (!value&&!mutationLock.current&&!closeoutLock.current) onClose(); }}><DialogContent className="estimate-detail sm:max-w-[650px]">
-    <DialogHeader><DialogTitle>{estimate.service}</DialogTitle></DialogHeader>
+    <DialogHeader><DialogTitle>{estimate.service}</DialogTitle>{jobNumberLabel(estimate.jobNumber)&&<small className="text-sm text-muted-foreground">{jobNumberLabel(estimate.jobNumber)}</small>}</DialogHeader>
     <div className="detail-customer"><span className="customer-avatar">{estimate.customer.split(" ").map((part)=>part[0]).join("").slice(0,2).toUpperCase()}</span><div><strong>{estimate.customer}</strong><small>{estimate.address || "No service address saved"}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong></div>
     {estimate.serviceAddressSource==="legacy-current-unverified"&&<p>Current address · original job address unverified.</p>}
-    {workingOnJob?<details className="detail-scope detail-scope-optional"><summary>Service scope & expectations</summary><p>{shownDescription}</p></details>:<div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>}
-    <EstimatePromotionHistory key={`promotions:${estimate.id}`} estimateId={estimate.id} totalCents={estimate.totalCents}/>
     {(Number(estimate.pendingRefundCount)>0||Number(estimate.openCheckoutCount)>0)&&<div className="next-action" role="alert"><AlertTriangle aria-hidden="true"/><div><strong>Payment review needed</strong><p>{paymentReviewMessage}</p></div></div>}
     <div className="detail-actions" aria-label="Customer and estimate actions">
       <EditEstimateDialog estimate={estimate} onSaved={onChanged}/>
@@ -1996,13 +2045,15 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       {estimate.customerId&&estimate.status==="scheduled"&&estimate.scheduledAt&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="onMyWay" triggerLabel="On my way"/>}
       {estimate.customerId&&estimate.status==="completed"&&!estimate.lastReviewRequestAt&&!estimate.reviewReceivedAt&&Number(estimate.paymentOverageOpen)===0&&Number(estimate.pendingRefundCount)===0&&Number(estimate.openCheckoutCount)===0&&Number.isSafeInteger(resolvedBillingTotalCents(estimate))&&resolvedBillingTotalCents(estimate)>0&&estimate.paidCents===resolvedBillingTotalCents(estimate)&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="review" triggerLabel={estimate.lastReviewRequestAt?"Review requested":"Request review"} onSent={(message)=>onChanged({...estimate,lastReviewRequestAt:message.createdAt})}/>}
       {estimate.phone&&<GoogleVoiceCallAction phone={estimate.phone} customerName={estimate.customer}/>}{estimate.phone&&<PersonalPhoneBackupAction phone={estimate.phone} mode="call" customerName={estimate.customer}/>}
-      {estimate.phone&&<GoogleVoiceTextAction phone={estimate.phone} customerName={estimate.customer} label="Text"/>}{estimate.phone&&<PersonalPhoneBackupAction phone={estimate.phone} mode="text" customerName={estimate.customer}/>}
+      {estimate.phone&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"/>}{estimate.phone&&<PersonalPhoneBackupAction phone={estimate.phone} mode="text" customerName={estimate.customer}/>}
       {estimating&&estimate.address&&<div className="detail-context-tools" role="group" aria-label="Estimate research"><strong>Estimate research</strong><div className="detail-context-buttons"><a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a><a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a></div></div>}
       {travelingToJob&&<div className="detail-context-tools" role="group" aria-label="Driving to job"><strong>Driving to job</strong><div className="detail-context-buttons">{estimate.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}</div></div>}
       {workingOnJob&&<div className="detail-context-tools" role="group" aria-label="Job report and costs"><strong>Job tools</strong><div className="detail-context-buttons"><OwnerJobTools estimate={estimate} onSaved={setReportComplete}/></div></div>}
       {estimate.invoiceId&&estimate.invoiceShareToken&&<a href={`/invoice/${encodeURIComponent(estimate.invoiceShareToken)}?ownerPreview=1&from=estimate`}><Receipt/> View invoice</a>}
       {estimate.status!=="superseded"&&<RecordPayment key={estimate.id} estimate={estimate} onRecorded={(paidCents)=>onChanged({...estimate,paidCents})}/>}
     </div>
+    {workingOnJob?<details className="detail-scope detail-scope-optional"><summary>Service scope & expectations</summary><p>{shownDescription}</p></details>:<div className="detail-scope"><strong>Service scope & expectations</strong><p>{shownDescription}</p></div>}
+    <EstimatePromotionHistory key={`promotions:${estimate.id}`} estimateId={estimate.id} totalCents={estimate.totalCents}/>
     {estimate.status==="completed"&&(estimate.reviewReceivedAt||estimate.lastReviewRequestAt)&&<p className="text-sm text-muted-foreground" role="status">{estimate.reviewReceivedAt?"Review received · owner logged. Google verification is unavailable.":"Review request send confirmed by owner. Delivery is unverified; check review progress before considering more contact."}</p>}
     <details className="detail-more-tools">
       <summary>More tools</summary>
@@ -2628,11 +2679,11 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       <div className="customer-profile-head"><span className="customer-avatar">{selected.name.split(" ").map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><div><h1>{selected.name}</h1></div><div className="profile-head-actions"><NewEstimate key={selected.id} openOnMount={estimateAfterCreateId===selected.id} onAutoOpened={()=>setEstimateAfterCreateId(null)} onClosed={()=>setPropertyListRefresh(value=>value+1)} propertySelection={selectedProperty} propertyWorkflowReady={propertyWorkflowReady} disabledReason={propertyEstimateBlocked?'Review properties and select an active service property.':undefined} customer={selected} onSaved={handleEstimateSaved} /><details className="customer-header-more"><summary>More actions</summary><div className="customer-header-more-items"><MessageComposer customer={selected} initialTemplate="photoEstimate" triggerLabel="Request photos" onLogged={(message)=>setMessages(current=>[message,...current.filter(entry=>entry.id!==message.id)])}/><Button variant="outline" onClick={()=>{const target=document.getElementById(`customer-history-${selected.id}`);target?.scrollIntoView({block:"start"});target?.focus({preventScroll:true});}}>Customer history</Button><EditCustomer key={selected.id} customer={selected} onUpdated={(updated)=>{setCustomers((current)=>current.map((item)=>item.id===updated.id?updated:item));void load(true);}}/><MessageComposer customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div></details></div></div>
       <div className="customer-contact" role="group" aria-label="Customer contact and driving links">
         {contactPhone&&<GoogleVoiceCallAction phone={contactPhone} customerName={selected.name}/>}{contactPhone&&<PersonalPhoneBackupAction phone={contactPhone} mode="call" customerName={selected.name}/>}
-        {contactPhone&&<GoogleVoiceTextAction phone={contactPhone} customerName={selected.name} label="Text" ariaLabel="Text customer using Google Voice"/>}{contactPhone&&<PersonalPhoneBackupAction phone={contactPhone} mode="text" customerName={selected.name}/>}
-        {contactEmail&&<a href={"mailto:"+encodeURIComponent(contactEmail)} aria-label="Email customer"><Mail />Email</a>}
+        {contactPhone&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Text" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/>}{contactPhone&&<PersonalPhoneBackupAction phone={contactPhone} mode="text" customerName={selected.name}/>}
+        {contactEmail&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Email" triggerAriaLabel="Email customer" onLogged={message=>setMessages(current=>[message,...current.filter(entry=>entry.id!==message.id)])}/>}
         {selected.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selected.address)}&travelmode=driving`} target="_blank" rel="noopener noreferrer" aria-label="Directions to customer in Google Maps"><Navigation />Google Maps</a>}
         {selected.address&&onOpenTerritory&&<button type="button" aria-label="Show customer on Territory Map" onClick={()=>onOpenTerritory(selected.address)}><MapPin aria-hidden="true"/> Territory</button>}
-        {!selected.phone&&!selected.email&&!selected.address&&<small className="customer-contact-empty">No contact or address saved · use Edit customer to add details</small>}
+        {!contactPhone&&!contactEmail&&!selected.phone&&!selected.email&&<small className="customer-contact-empty">Add a phone or email under More actions → Edit customer to contact them.</small>}
         {(selected.phone&&!contactPhone||selected.email&&!contactEmail)&&<small className="customer-contact-warning" role="status">Check {selected.phone&&!contactPhone?"phone":""}{selected.phone&&!contactPhone&&selected.email&&!contactEmail?" and ":""}{selected.email&&!contactEmail?"email":""} in Edit customer.</small>}
         {selected.address&&<details className="customer-property-research-disclosure"><summary>Property research</summary><div className="customer-property-research" role="group" aria-label="Property research for estimates">
           <a href={`https://www.zillow.com/homes/${encodeURIComponent(selected.address.trim().replace(/\s+/g,"-"))}_rb/`} target="_blank" rel="noopener noreferrer" aria-label="Research customer property on Zillow"><House aria-hidden="true"/> Zillow</a>
@@ -3210,7 +3261,7 @@ function ScheduleView({ searchQuery,onNavigate,onOpenCustomer }:{searchQuery:str
     <button type="button" onClick={()=>onNavigate?.("customers")}>Add customer <ChevronRight aria-hidden="true"/></button>
    </div>}
   </section>}
-  {!loading&&!error&&<section className="schedule-board"><header><h2>{dayFilter==="date"?"Selected day’s jobs":"Upcoming jobs"}</h2><span>{upcoming.length}</span></header>{upcoming.length?visibleUpcoming.map((job)=>{const phone=safePhone(job.phone);const email=safeEmail(job.email);const nearDay=tulsaDay(job.scheduledAt!);const nearTerm=job.status==="scheduled"&&Date.parse(job.scheduledAt!)>=now&&(nearDay===today||nearDay===tomorrow);const missingAddress=!job.address?.trim();const missingContact=!phone&&!email;return <div className={`schedule-job-shell${nearTerm&&(missingAddress||missingContact)?" schedule-job-needs-prep":""}`} key={job.id}><button className="schedule-job" onClick={()=>setSelected(job)}><span className="schedule-date"><b>{new Date(job.scheduledAt!).toLocaleDateString("en-US",{day:"numeric",timeZone:"America/Chicago"})}</b><small>{new Date(job.scheduledAt!).toLocaleString("en-US",{month:"short",timeZone:"America/Chicago"}).toUpperCase()}</small></span><span><strong>{job.customer}</strong><small>{job.service} · {new Date(job.scheduledAt!).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})}</small><em>{job.address||"No address saved"}</em>{nearTerm&&<span className="schedule-job-inline-flags">{dayFilter!=="today"&&dayFilter!=="tomorrow"&&<small className="schedule-job-day-chip">{nearDay===today?"Today":"Tomorrow"}</small>}{missingAddress&&<small className="schedule-job-prep-chip">Review address</small>}{missingContact&&<small className="schedule-job-prep-chip">Review contact</small>}</span>}{dayFilter==="date"&&<small className="schedule-history-status">{statusLabel(job.status)}</small>}{startConflictIds.has(job.id)&&<small className="schedule-conflict-chip">Shares a start time — review</small>}</span><strong>{money(resolvedBillingTotalCents(job))}</strong><ChevronRight/></button>{job.status==="scheduled"&&Date.parse(job.scheduledAt!)>=now&&<div className="schedule-job-utilities">{job.address?.trim()&&<a className="schedule-job-directions-action" aria-label={`Directions to ${job.customer} job`} href={`https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate&destination=${encodeURIComponent(job.address.trim())}`} target="_blank" rel="noopener noreferrer"><Navigation aria-hidden="true"/> Directions</a>}{(phone||email)&&<button type="button" className="schedule-job-contact-toggle" aria-label={`Contact ${job.customer} for scheduled job`} aria-expanded={openContactJobId===job.id} onClick={()=>{setContactDraft(null);setOpenContactJobId(current=>current===job.id?null:job.id);}}><Phone aria-hidden="true"/> Contact</button>}{onOpenCustomer&&job.customerId?.trim()&&<button type="button" className="schedule-job-customer-action" aria-label={`View ${job.customer} profile`} onClick={()=>onOpenCustomer(job.customerId!)}><Users aria-hidden="true"/> Customer</button>}<button type="button" className="schedule-job-weather-action" aria-label={`Check weather for ${job.customer} job`} onClick={()=>reviewScheduledWeather(job.scheduledAt!)}><CloudSun aria-hidden="true"/> Weather</button></div>}{openContactJobId===job.id&&(phone||email)&&<div className="schedule-job-contact-panel" role="group" aria-label={`Contact options for ${job.customer}`}>{phone&&<><GoogleVoiceCallAction phone={phone} customerName={job.customer}/><PersonalPhoneBackupAction phone={phone} mode="call" customerName={job.customer}/><GoogleVoiceTextAction phone={phone} customerName={job.customer} message={contactDraft?.jobId===job.id?contactDraft.text:undefined} label="Text" ariaLabel={`Text ${job.customer} about scheduled job using Google Voice`}/><PersonalPhoneBackupAction phone={phone} mode="text" message={contactDraft?.jobId===job.id?contactDraft.text:undefined} customerName={job.customer}/></>}{email&&<a aria-label={`Email ${job.customer} about scheduled job`} href={"mailto:"+encodeURIComponent(email)}><Mail aria-hidden="true"/> Email</a>}<div className="schedule-job-message-tools"><button type="button" aria-label={`Copy appointment reminder for ${job.customer}`} onClick={()=>void copyScheduledMessage(job,"reminder")}><Copy aria-hidden="true"/> Copy reminder</button>{nearDay===today&&<button type="button" aria-label={`Copy on-my-way message for ${job.customer}`} onClick={()=>void copyScheduledMessage(job,"arrival")}><Copy aria-hidden="true"/> Copy on my way</button>}</div>{contactDraft?.jobId===job.id&&<div className="schedule-job-message-preview"><strong role="status">{contactDraft.status==="copied"?"Message copied — paste into a text or email.":contactDraft.status==="manual"?"Clipboard unavailable — select and copy this message manually.":"Copying message…"}</strong><textarea readOnly aria-label={`Prepared message for ${job.customer}`} value={contactDraft.text} rows={3} onFocus={event=>event.currentTarget.select()}/><small>Review or edit after pasting. Nothing was sent or marked confirmed.</small></div>}<small>Contact links open your phone apps; nothing is sent automatically.</small></div>}</div>}):dayFilter==="date"?<div className="schedule-day-empty" role="status"><CalendarDays aria-hidden="true"/><span>No jobs on this day</span></div>:<div className="record-empty"><CalendarDays/><strong>{dayFilter==="all"?"No upcoming jobs":dayFilter==="today"?"No upcoming jobs today":dayFilter==="tomorrow"?"No upcoming jobs tomorrow":"No upcoming jobs in the next 7 days"}</strong><p>{dayFilter==="all"?"Open an approved estimate and save a job date.":"Choose All upcoming to see later appointments. Past-due work remains under Needs attention."}</p></div>}{upcoming.length>scheduleCardLimit&&<button type="button" className="schedule-show-more" onClick={()=>setScheduleCardLimit(count=>Math.min(count+20,upcoming.length))}>Show next {Math.min(20,upcoming.length-scheduleCardLimit)} jobs · {upcoming.length-scheduleCardLimit} remaining</button>}</section>}
+  {!loading&&!error&&<section className="schedule-board"><header><h2>{dayFilter==="date"?"Selected day’s jobs":"Upcoming jobs"}</h2><span>{upcoming.length}</span></header>{upcoming.length?visibleUpcoming.map((job)=>{const phone=safePhone(job.phone);const email=safeEmail(job.email);const nearDay=tulsaDay(job.scheduledAt!);const nearTerm=job.status==="scheduled"&&Date.parse(job.scheduledAt!)>=now&&(nearDay===today||nearDay===tomorrow);const missingAddress=!job.address?.trim();const missingContact=!phone&&!email;return <div className={`schedule-job-shell${nearTerm&&(missingAddress||missingContact)?" schedule-job-needs-prep":""}`} key={job.id}><button className="schedule-job" onClick={()=>setSelected(job)}><span className="schedule-date"><b>{new Date(job.scheduledAt!).toLocaleDateString("en-US",{day:"numeric",timeZone:"America/Chicago"})}</b><small>{new Date(job.scheduledAt!).toLocaleString("en-US",{month:"short",timeZone:"America/Chicago"}).toUpperCase()}</small></span><span><strong>{job.customer}</strong><small>{jobNumberLabel(job.jobNumber)&&<>{jobNumberLabel(job.jobNumber)} · </>}{job.service} · {new Date(job.scheduledAt!).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})}</small><em>{job.address||"No address saved"}</em>{nearTerm&&<span className="schedule-job-inline-flags">{dayFilter!=="today"&&dayFilter!=="tomorrow"&&<small className="schedule-job-day-chip">{nearDay===today?"Today":"Tomorrow"}</small>}{missingAddress&&<small className="schedule-job-prep-chip">Review address</small>}{missingContact&&<small className="schedule-job-prep-chip">Review contact</small>}</span>}{dayFilter==="date"&&<small className="schedule-history-status">{statusLabel(job.status)}</small>}{startConflictIds.has(job.id)&&<small className="schedule-conflict-chip">Shares a start time — review</small>}</span><strong>{money(resolvedBillingTotalCents(job))}</strong><ChevronRight/></button>{job.status==="scheduled"&&Date.parse(job.scheduledAt!)>=now&&<div className="schedule-job-utilities">{job.address?.trim()&&<a className="schedule-job-directions-action" aria-label={`Directions to ${job.customer} job`} href={`https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate&destination=${encodeURIComponent(job.address.trim())}`} target="_blank" rel="noopener noreferrer"><Navigation aria-hidden="true"/> Directions</a>}{(phone||email)&&<button type="button" className="schedule-job-contact-toggle" aria-label={`Contact ${job.customer} for scheduled job`} aria-expanded={openContactJobId===job.id} onClick={()=>{setContactDraft(null);setOpenContactJobId(current=>current===job.id?null:job.id);}}><Phone aria-hidden="true"/> Contact</button>}{onOpenCustomer&&job.customerId?.trim()&&<button type="button" className="schedule-job-customer-action" aria-label={`View ${job.customer} profile`} onClick={()=>onOpenCustomer(job.customerId!)}><Users aria-hidden="true"/> Customer</button>}<button type="button" className="schedule-job-weather-action" aria-label={`Check weather for ${job.customer} job`} onClick={()=>reviewScheduledWeather(job.scheduledAt!)}><CloudSun aria-hidden="true"/> Weather</button></div>}{openContactJobId===job.id&&(phone||email)&&<div className="schedule-job-contact-panel" role="group" aria-label={`Contact options for ${job.customer}`}>{phone&&<><GoogleVoiceCallAction phone={phone} customerName={job.customer}/><PersonalPhoneBackupAction phone={phone} mode="call" customerName={job.customer}/><GoogleVoiceTextAction phone={phone} customerName={job.customer} message={contactDraft?.jobId===job.id?contactDraft.text:undefined} label="Text" ariaLabel={`Text ${job.customer} about scheduled job using Google Voice`}/><PersonalPhoneBackupAction phone={phone} mode="text" message={contactDraft?.jobId===job.id?contactDraft.text:undefined} customerName={job.customer}/></>}{email&&<a aria-label={`Email ${job.customer} about scheduled job`} href={"mailto:"+encodeURIComponent(email)}><Mail aria-hidden="true"/> Email</a>}<div className="schedule-job-message-tools"><button type="button" aria-label={`Copy appointment reminder for ${job.customer}`} onClick={()=>void copyScheduledMessage(job,"reminder")}><Copy aria-hidden="true"/> Copy reminder</button>{nearDay===today&&<button type="button" aria-label={`Copy on-my-way message for ${job.customer}`} onClick={()=>void copyScheduledMessage(job,"arrival")}><Copy aria-hidden="true"/> Copy on my way</button>}</div>{contactDraft?.jobId===job.id&&<div className="schedule-job-message-preview"><strong role="status">{contactDraft.status==="copied"?"Message copied — paste into a text or email.":contactDraft.status==="manual"?"Clipboard unavailable — select and copy this message manually.":"Copying message…"}</strong><textarea readOnly aria-label={`Prepared message for ${job.customer}`} value={contactDraft.text} rows={3} onFocus={event=>event.currentTarget.select()}/><small>Review or edit after pasting. Nothing was sent or marked confirmed.</small></div>}<small>Contact links open your phone apps; nothing is sent automatically.</small></div>}</div>}):dayFilter==="date"?<div className="schedule-day-empty" role="status"><CalendarDays aria-hidden="true"/><span>No jobs on this day</span></div>:<div className="record-empty"><CalendarDays/><strong>{dayFilter==="all"?"No upcoming jobs":dayFilter==="today"?"No upcoming jobs today":dayFilter==="tomorrow"?"No upcoming jobs tomorrow":"No upcoming jobs in the next 7 days"}</strong><p>{dayFilter==="all"?"Open an approved estimate and save a job date.":"Choose All upcoming to see later appointments. Past-due work remains under Needs attention."}</p></div>}{upcoming.length>scheduleCardLimit&&<button type="button" className="schedule-show-more" onClick={()=>setScheduleCardLimit(count=>Math.min(count+20,upcoming.length))}>Show next {Math.min(20,upcoming.length-scheduleCardLimit)} jobs · {upcoming.length-scheduleCardLimit} remaining</button>}</section>}
   {!loading&&!error&&(startConflicts.length>0||turnarounds.length>0||jobPrepIssues.length>0)&&<button type="button" className="schedule-check-shortcut" aria-label="Review upcoming schedule checks" onClick={()=>{const panel=planningToolsRef.current;if(panel)panel.scrollIntoView({block:"start",behavior:"smooth"});}}>
    <AlertTriangle aria-hidden="true"/>
    <span><strong>Upcoming schedule checks</strong><small>{[startConflicts.length?`${startConflicts.length} same-time start${startConflicts.length===1?"":"s"}`:null,turnarounds.length?`${turnarounds.length} tight gap${turnarounds.length===1?"":"s"}`:null,jobPrepIssues.length?`${jobPrepIssues.length} missing-detail job${jobPrepIssues.length===1?"":"s"}`:null].filter(Boolean).join(" · ")}</small></span>
@@ -3687,7 +3738,7 @@ function FollowUpsView({searchQuery,focusEstimateId,onFocusHandled,onOpenEstimat
 <div className="followup-card-tools">
   <div className="followup-contact-actions" role="group" aria-label={"Contact "+estimate.customer}>
     {customer.phone&&<GoogleVoiceCallAction phone={customer.phone} customerName={estimate.customer}/>}{customer.phone&&<PersonalPhoneBackupAction phone={customer.phone} mode="call" customerName={estimate.customer}/>}
-    {customer.phone&&<GoogleVoiceTextAction phone={customer.phone} customerName={estimate.customer} label="Text" ariaLabel={"Text "+estimate.customer+" using Google Voice"}/>}{customer.phone&&<PersonalPhoneBackupAction phone={customer.phone} mode="text" customerName={estimate.customer}/>}
+    {customer.phone&&<MessageComposer customer={customer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"/>}{customer.phone&&<PersonalPhoneBackupAction phone={customer.phone} mode="text" customerName={estimate.customer}/>}
     {customer.email&&<a href={"mailto:"+customer.email} aria-label={"Open email app for "+estimate.customer}><Mail aria-hidden="true"/> Email</a>}
   </div>
   <details className="followup-optional-tools">
@@ -4564,7 +4615,7 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
   </PopoverContent></Popover>;
 }
 
-export function Dashboard({userName,metrics,estimates,environment="LIVE",localCustomersCandidate=false}:{localCustomersCandidate?:boolean;environment?:"LIVE"|"DOOMSDAY"|"STAGING"|"QA";userName:string;metrics:{estimates:number;openValue:number;outstanding:number;completedJobs?:number};estimates:EstimateRow[]}) {
+export function Dashboard({userName,metrics,estimates,environment="LIVE",localCustomersCandidate=false}:{localCustomersCandidate?:boolean;environment?:"LIVE"|"DOOMSDAY"|"STAGING"|"QA";userName:string;metrics:{estimates:number;openValue:number;outstanding:number;completedJobs?:number;upcomingCount?:number;upcomingJobs?:EstimateRow[]};estimates:EstimateRow[]}) {
   const [tab, setTab] = useState("dashboard");
   const [interactive, setInteractive] = useState(false);
   useEffect(() => { setInteractive(true); }, []);
@@ -4640,16 +4691,17 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
       const request=++generation;
       void fetch("/api/dashboard-summary",{cache:"no-store"}).then(async(response)=>{
         if(!response.ok){if(!cancelled&&request===generation)setSummaryVerified(false);return;}
-        const summary=await response.json() as {estimates:number;openValue:number;outstanding:number;completedJobs?:number;recent?:EstimateRow[]};
+        const summary=await response.json() as {estimates:number;openValue:number;outstanding:number;completedJobs?:number;upcomingCount?:number;upcomingJobs?:EstimateRow[];recent?:EstimateRow[]};
         if(!Number.isSafeInteger(summary.estimates)||summary.estimates<0||
           !Number.isSafeInteger(summary.openValue)||summary.openValue<0||
           !Number.isSafeInteger(summary.outstanding)||summary.outstanding<0||
-          !Array.isArray(summary.recent)||summary.recent.some(row=>!row||typeof row.id!=="string"||typeof row.customer!=="string")){
+          !Array.isArray(summary.recent)||summary.recent.some(row=>!row||typeof row.id!=="string"||typeof row.customer!=="string")||
+          !Number.isSafeInteger(summary.upcomingCount)||Number(summary.upcomingCount)<0||!Array.isArray(summary.upcomingJobs)||summary.upcomingJobs.length>25||summary.upcomingJobs.some(row=>!row||typeof row.id!=="string"||typeof row.customer!=="string"||row.status!=="scheduled"||typeof row.scheduledAt!=="string"||!Number.isFinite(Date.parse(row.scheduledAt)))){
             if(!cancelled&&request===generation)setSummaryVerified(false);
             return;
         }
         if(!cancelled&&request===generation){
-          setLiveMetrics({estimates:summary.estimates,openValue:summary.openValue,outstanding:summary.outstanding,...(Number.isSafeInteger(summary.completedJobs)&&Number(summary.completedJobs)>=0?{completedJobs:summary.completedJobs}:{})});
+          setLiveMetrics({estimates:summary.estimates,openValue:summary.openValue,outstanding:summary.outstanding,upcomingCount:summary.upcomingCount,upcomingJobs:summary.upcomingJobs,...(Number.isSafeInteger(summary.completedJobs)&&Number(summary.completedJobs)>=0?{completedJobs:summary.completedJobs}:{})});
           setEstimateRows(summary.recent);
           setSummaryVerified(true);
         }

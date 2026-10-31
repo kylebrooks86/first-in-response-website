@@ -3,6 +3,7 @@ import {getChatGPTUser} from '../../chatgpt-auth';
 import {CUSTOMER_PHONE_SQL} from '../../../lib/customer-identity';
 import {customerPropertiesEnabled} from '../../../lib/customer-properties';
 import {serviceLocationsEnabled,serviceAddressSql} from '../../../lib/service-location';
+import {attachedJobNumbers,jobNumberLabel} from '../../../lib/job-numbering.mjs';
 const headers={'Cache-Control':'no-store, private','Vary':'Cookie'};
 const scopes=['all','customers','estimates','invoices','jobs','payments','notes','properties'];
 export async function GET(request:Request){
@@ -70,8 +71,40 @@ export async function GET(request:Request){
       FROM customer_properties p JOIN customers c ON c.id=p.customer_id
       WHERE ${contact} OR instr(lower(p.address),lower(?))>0 OR instr(lower(p.designation),lower(?))>0 OR instr(lower(p.id),lower(?))>0
       ORDER BY rank,p.active DESC,p.address COLLATE NOCASE,p.id LIMIT 9`,[q,q,...values,q,q,q]);
+    // Only read migrated Job # links on explicitly enabled environments.
+    if((env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1'){
+      const links=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='fire_job_estimate_links'").first();
+      if(links){
+        const match=/^(?:job\s*#?\s*|#)0*([1-9]\d{0,14})$/i.exec(q);
+        const jobNumber=match?Number(match[1]):null;
+        if(jobNumber&&Number.isSafeInteger(jobNumber)){
+          if(scope==='all'||scope==='jobs')await collect('job',`SELECT e.id,c.name AS title,c.id AS customerId,e.status,e.scheduled_at AS scheduledAt,${address} AS address,
+            COALESCE((SELECT GROUP_CONCAT(name,', ') FROM estimate_items ei WHERE ei.estimate_id=e.id),'Custom service') AS service,0 AS rank
+            FROM fire_job_estimate_links links JOIN estimates e ON e.id=links.estimate_id JOIN customers c ON c.id=e.customer_id
+            WHERE links.job_number=? ORDER BY e.created_at DESC,e.id LIMIT 9`,[jobNumber]);
+          if(scope==='all'||scope==='invoices')await collect('invoice',`SELECT inv.id,'Invoice #'||upper(substr(inv.id,1,6)) AS title,c.name AS customer,c.id AS customerId,e.id AS estimateId,
+            ${address} AS address,COALESCE((SELECT GROUP_CONCAT(name,', ') FROM invoice_items ii WHERE ii.invoice_id=inv.id),'Custom service') AS service,0 AS rank
+            FROM fire_job_estimate_links links JOIN estimates e ON e.id=links.estimate_id
+            JOIN invoices inv ON inv.estimate_id=e.id AND inv.customer_id=e.customer_id JOIN customers c ON c.id=e.customer_id
+            WHERE links.job_number=? ORDER BY inv.created_at DESC,inv.id LIMIT 9`,[jobNumber]);
+        }
+        const estimateIds=results.map(row=>row.kind==='estimate'||row.kind==='job'?row.id:
+          row.kind==='invoice'||row.kind==='payment'?row.estimateId:null)
+          .filter((id):id is string=>typeof id==='string'&&id.length>0);
+        const linked=await attachedJobNumbers(env.DB,estimateIds);
+        for(const row of results){
+          const estimateId=row.kind==='estimate'||row.kind==='job'?row.id:
+            row.kind==='invoice'||row.kind==='payment'?row.estimateId:null;
+          const number=typeof estimateId==='string'?linked.get(estimateId):null;
+          if(jobNumberLabel(number))row.jobNumber=number;
+        }
+      }
+    }
     for(const row of results)if(row.kind==='property'&&!row.title)row.title='Service property';
-    results.sort((a,b)=>Number(a.rank)-Number(b.rank));
-    return Response.json({results,hasMore:more.length>0,more,scope},{headers});
+    // Preserve one result per record even when Job # and service terms overlap.
+    const seen=new Set<string>();
+    const unique=results.filter(row=>{const key=String(row.kind)+':'+String(row.id);if(seen.has(key))return false;seen.add(key);return true;});
+    unique.sort((a,b)=>Number(a.rank)-Number(b.rank));
+    return Response.json({results:unique,hasMore:more.length>0,more,scope},{headers});
   }catch{return Response.json({error:'Search is unavailable. Check your connection and try again. No records changed.'},{status:503,headers});}
 }

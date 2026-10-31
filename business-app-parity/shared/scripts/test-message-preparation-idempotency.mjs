@@ -83,7 +83,7 @@ try{
  const a=dashboard.indexOf("function MessageComposer("),b=dashboard.indexOf("\nfunction ",a+20),ui=dashboard.slice(a,b);
  check(ui.includes("preparationLock.current=true")&&ui.includes("if(preparationLock.current)return false"),"Composer prevents double tap while in flight");
  check(ui.includes("uncertainPreparation.current")&&ui.includes("requestId:operation.requestId")&&ui.includes("signature!==signature"),"Composer replays exact request ID and refuses changed uncertain details");
- check(ui.includes('saved.id!=="owner-message-prep:"+operation.requestId')&&ui.includes('saved.body!==body'),"Composer verifies scoped immutable server receipt before opening SMS/Mail");
+ check(ui.includes('saved.id!=="owner-message-prep:"+operation.requestId')&&ui.includes('saved.body!==messageBody'),"Composer verifies scoped immutable server receipt before opening SMS/Mail");
  check(ui.includes('if(!await log("text_prepared"))return')&&ui.includes('if(!await log("email_prepared"))return'),"External SMS/Email handoff follows only a verified saved record");
  console.log("PASS "+n+" synthetic idempotent message prep, lost acknowledgement, concurrent retries, owner isolation and mobile handoff contracts.");
 }finally{db.close()}
