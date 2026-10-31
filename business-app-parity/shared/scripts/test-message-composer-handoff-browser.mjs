@@ -82,7 +82,7 @@ try{
  const beforeDenied=requests.length;
  await authDialog.getByLabel('Message text').fill('Original unsent draft');
  await authDialog.getByRole('button',{name:'Text',exact:true}).click();
- await authDialog.getByText('Your FIRE session has expired or is unavailable. Sign in again in this app, then reopen your message. Nothing was sent.',{exact:true}).waitFor();
+ await authDialog.getByText('FIRE sign-in is unavailable. Sign in again to prepare this draft. No text or email handoff was started.',{exact:true}).waitFor();
  check(requests.length===beforeDenied&&await authDialog.getByRole('region',{name:'Google Voice text handoff'}).count()===0,
    'Explicit 401 never creates a prepared receipt or shows SMS handoff');
  denyHistory=false;denyPreparation=false;
@@ -93,7 +93,7 @@ try{
    'Definite 401 clears only the false pending lock so a new authorized draft may be prepared');
  denyConfirmation=true;
  await authDialog.getByRole('button',{name:'I sent the prepared message',exact:true}).click();
- await authDialog.getByText('Your FIRE session has expired or is unavailable. Sign in again in this app, then reopen your message. Nothing was sent.',{exact:true}).waitFor();
+ await authDialog.getByText('Sign in to FIRE again before confirming. Check Google Voice or your email Sent folder first; delivery is unknown here.',{exact:true}).waitFor();
  check(await authDialog.getByRole('region',{name:'Google Voice text handoff'}).count()===1,
    '401 on confirmation preserves unconfirmed draft; never marks message as sent');
  denyConfirmation=false;
