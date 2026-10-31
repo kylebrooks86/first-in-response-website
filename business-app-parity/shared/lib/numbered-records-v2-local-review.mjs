@@ -22,11 +22,11 @@ export async function inspectLocalEncryptedRecoveryKit({
  try{kit=JSON.parse(text);}
  catch{fail('the selected file is not a valid encrypted recovery kit');}
  try{
-  const {proof}=await openNumberedV2PrivateRecoveryKit({kit,passphrase});
+  const {proof,archive}=await openNumberedV2PrivateRecoveryKit({kit,passphrase});
   if(proof.completePrivateKitDecryptedInMemory!==true||
      proof.financialAuditContractVerified!==true||
      proof.signedDocumentTextDigestVerified!==true||
-     proof.verifiedPhotoFiles!==proof.photoRecords||
+     proof.verifiedPhotoFiles!==archive.records.tables.customer_photos.length||
      proof.ownerAuthenticated!==false||
      proof.productionRestoreAuthorized!==false||
      proof.hostedRecoveryPerformed!==false)
