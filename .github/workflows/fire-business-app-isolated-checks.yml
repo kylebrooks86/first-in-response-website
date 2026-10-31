@@ -33,6 +33,7 @@ on:
       - work/fire-owner-qa-worker-serving-readonly-2026-10-23
       - work/fire-qa-iphone-photo-button-fit-2026-10-23
       - work/fire-google-voice-text-safety-2026-10-28
+      - work/fire-qa-active-version-lock-2026-10-30
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
