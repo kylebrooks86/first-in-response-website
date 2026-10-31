@@ -41,6 +41,15 @@ Require ($text.IndexOf('owner_windows_qa_current_readonly.ps1') -lt $text.IndexO
 Require ($text.Contains('Test-Path -LiteralPath $PrivateFolder -PathType Container')) 'Never implicitly create potentially unencrypted private folders.'
 Require ($text.Contains("PRIVATE CURRENT25")) 'Separate private-custody approval missing.'
 Require ($text.Contains("KEEP THE SQL AND RECEIPT ENCRYPTED")) 'Owner custody warning missing.'
+Require ($text.Contains('powershell.exe -NoProfile -ExecutionPolicy Bypass -File $review')) 'Owner QA runtime preflight must use a fresh, separately verified PowerShell process.'
+Require ($text.Contains('Require ($reviewExit -eq 0)')) 'Nonzero QA proof exit code must prevent backup export.'
+Require ($text.Contains("'REMOTE_WRITES=NONE; DEPLOYED=NO; CUSTOMER_ROWS_READ=NONE; RELEASE_APPROVED=NO'")) 'Preflight must verify full no-write proof marker.'
+Require ($text.Contains("Invoke-VerifiedQaReview -Stage 'Pre-export'")) 'Pre-export full QA identity review missing.'
+Require ($text.Contains("Invoke-VerifiedQaReview -Stage 'Post-export'")) 'Post-export full QA identity review missing.'
+Require ($text.IndexOf("Invoke-VerifiedQaReview -Stage 'Pre-export'") -lt $text.IndexOf('& $wrangler.Source d1 export')) 'Pre-export review must execute before D1 export.'
+Require ($text.IndexOf("Invoke-VerifiedQaReview -Stage 'Post-export'") -gt $text.IndexOf('& $wrangler.Source d1 export')) 'Post-export review must execute after D1 export.'
+Require (-not $text.Contains([Environment]::NewLine+'& $review'+[Environment]::NewLine)) 'Nested same-process QA review must not be used again.'
+$checks+=8
 $checks+=7
 $before=Get-ChildItem -LiteralPath $PSScriptRoot -File | Measure-Object
 $output = (& $file 6>&1 2>&1 | Out-String)
