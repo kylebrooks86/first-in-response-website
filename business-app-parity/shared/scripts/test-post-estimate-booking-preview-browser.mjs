@@ -77,7 +77,7 @@ try{
    buttons:[...document.querySelectorAll('[aria-label="Booking promotion adjustment preview"] button')].map(x=>{
     const t=x.getBoundingClientRect();
     return {label:x.textContent?.trim().slice(0,75),left:t.left,right:t.right,height:t.height,
-      visible:x.getClientRects().length>0&&getComputedStyle(x).visibility!=='hidden'};
+      visible:t.width>0&&t.height>0&&getComputedStyle(x).visibility!=='hidden'};
    })
   }));
   // Buttons under a closed <details> have no layout box and are not
