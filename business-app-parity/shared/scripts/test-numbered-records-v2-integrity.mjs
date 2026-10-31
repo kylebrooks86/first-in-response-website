@@ -117,6 +117,8 @@ function d1Double(data){
   async batch(statements){calls.batches++;return statements.map((q,i)=>{
    if(i===FIRE_NUMBERED_V2_READ_TABLES.length)return{success:true,results:[
     {name:'fire_customer_numbers',seq:8},{name:'fire_job_numbers',seq:9}]};
+   if(i===FIRE_NUMBERED_V2_READ_TABLES.length+1)
+    return{success:true,results:FIRE_NUMBERED_V2_READ_TABLES.map(name=>({name}))};
    return{success:true,results:clone(read[FIRE_NUMBERED_V2_READ_TABLES[i]])};
   })}
  }};
