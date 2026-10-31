@@ -181,3 +181,77 @@ try{
  disk.close();
 }finally{rmSync(folder,{recursive:true,force:true});}
 console.log('PASS '+checks+'/'+checks+' NEW disposable numbered restore, complete records parity, immutable IDs, exact sequence and atomic rollback checks. No hosted resources.');
+
+
+
+// NEW complete scratch-DB import: 20 ordinary record families and the
+// immutable numbering maps must commit together or ALL roll back.
+const {restoreCompleteNumberedRecordsToDisposableMemory}=
+  await import('./restore_complete_numbered_records_memory.mjs');
+const full=fixture({empty:true});
+const complete=await restoreCompleteNumberedRecordsToDisposableMemory({db:full,archive});
+eq(complete.ordinaryRecordTables,20,'Complete restore covers all existing 20 ordinary record tables');
+eq(complete.restoredCustomerNumbers,2,'Complete restore includes permanent Customer numbers');
+eq(complete.restoredJobNumbers,2,'Complete restore includes permanent Job numbers');
+eq(complete.restoredRevisionLinks,3,'Complete restore retains all estimate/job revision links');
+eq(complete.photoFileBytesRestored,false,'No false claim that external photo file bytes were restored');
+eq(complete.hostedWritesPerformed,false,'Scratch restore never writes hosted records');
+eq(complete.productionRestoreApproved,false,'Scratch restoration is not production authorization');
+eq(q(full,'customers'),2,'Both customer records restored');
+eq(q(full,'estimates'),3,'All historical estimate revisions restored');
+eq(q(full,'payments'),1,'Payment record restored exactly');
+eq(q(full,'payment_refunds'),1,'Refund record restored exactly');
+eq(q(full,'deposit_agreement_snapshots'),1,'Signed document audit retained');
+eq(q(full,'customer_photos'),1,'Photo metadata retained; not photo files');
+eq(q(full,'fire_customer_numbers'),2,'Permanent Customer mapping materialized');
+eq(q(full,'fire_job_estimate_links'),3,'Job revision mapping materialized');
+eq(sqlSeq(full,'fire_customer_numbers'),12,'Full restore retains old consumed Customer serials');
+eq(sqlSeq(full,'fire_job_numbers'),15,'Full restore retains old consumed Job serials');
+eq(full.prepare('PRAGMA foreign_key_check').all(),[],'Real linked records and number mappings satisfy all FKs');
+await refuse(()=>restoreCompleteNumberedRecordsToDisposableMemory({db:full,archive}),
+ 'Repeat restore refuses overwrite of existing history');
+full.close();
+
+const fullRollback=fixture({empty:true});
+fullRollback.exec("CREATE TRIGGER fixture_refund_fail BEFORE INSERT ON payment_refunds BEGIN SELECT RAISE(ABORT,'synthetic refund failure'); END");
+await refuse(()=>restoreCompleteNumberedRecordsToDisposableMemory({db:fullRollback,archive}),
+ 'Injected refund failure after ordinary inserts must abort entire restore');
+eq(q(fullRollback,'customers'),0,'Atomic failure removes previously inserted customer records');
+eq(q(fullRollback,'estimates'),0,'Atomic failure removes previously inserted estimates');
+eq(q(fullRollback,'invoices'),0,'Atomic failure removes previously inserted invoices');
+eq(q(fullRollback,'payments'),0,'Atomic failure removes previously inserted payments');
+eq(q(fullRollback,'fire_customer_numbers'),0,'Atomic failure never leaves orphan permanent numbers');
+fullRollback.close();
+
+const inconsistent=structuredClone(records);
+inconsistent.tables.payment_refunds[0].payment_id='nonexistent-payment';
+const forged=await buildNumberedRecordsV2({records:inconsistent,identities});
+const unrelated=fixture({empty:true});
+await refuse(()=>restoreCompleteNumberedRecordsToDisposableMemory({db:unrelated,archive:forged.archive}),
+ 'Cross-table orphan refund is blocked by actual SQLite FK review');
+eq(q(unrelated,'customers'),0,'Malformed financial graph rolls back all customers');
+eq(q(unrelated,'payment_refunds'),0,'Malformed financial graph does not retain any refund');
+unrelated.close();
+
+const incompleteSchema=fixture({empty:true});
+incompleteSchema.exec('ALTER TABLE payment_refunds ADD COLUMN extra_unreviewed TEXT');
+await refuse(()=>restoreCompleteNumberedRecordsToDisposableMemory({db:incompleteSchema,archive}),
+ 'Extra unreviewed refund column refuses silent historic loss');
+eq(q(incompleteSchema,'customers'),0,'Schema mismatch rolls back earlier customer insertion');
+incompleteSchema.close();
+
+const populated=fixture();
+await refuse(()=>restoreCompleteNumberedRecordsToDisposableMemory({db:populated,archive}),
+ 'Existing populated record database may never be overwritten or merged');
+eq(q(populated,'fire_customer_numbers'),0,'Blocked nonempty target retains absent numbering');
+populated.close();
+
+const fullDiskDir=mkdtempSync(join(tmpdir(),'fire-fullrestore-file-'));
+try{
+ const fullDisk=fixture({filename:join(fullDiskDir,'blocked.sqlite'),empty:true});
+ await refuse(()=>restoreCompleteNumberedRecordsToDisposableMemory({db:fullDisk,archive}),
+   'Full restore must refuse file-backed SQLite even when empty');
+ eq(q(fullDisk,'customers'),0,'File-backed database remains unchanged');
+ fullDisk.close();
+}finally{rmSync(fullDiskDir,{recursive:true,force:true});}
+console.log('PASS '+checks+'/'+checks+' NEW complete 20-family + immutable-number atomic disposable restore checks (no hosted D1).');
