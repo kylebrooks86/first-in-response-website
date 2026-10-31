@@ -1,4 +1,5 @@
 import { loadDashboardData } from "../lib/dashboard-data";
+import {COMPLETED_JOB_COUNT_SQL,completedJobCount} from "../lib/job-numbering.mjs";
 import { env } from "cloudflare:workers";
 import { Dashboard } from "./dashboard";
 import { chatGPTSignOutPath, requireChatGPTUser } from "./chatgpt-auth";
@@ -14,6 +15,13 @@ export default async function Home() {
   if ((env as typeof env & { FIRE_QA_SYNTHETIC_ONLY?: string }).FIRE_QA_SYNTHETIC_ONLY !== "enabled") {
     return <main><h1>FIRE QA disabled</h1></main>;
   }
-  const { recent, ...metrics } = await loadDashboardData(env.DB,env.FIRE_SERVICE_LOCATIONS_CANDIDATE==="synthetic-only");
+  const { recent, ...baseMetrics } = await loadDashboardData(env.DB,env.FIRE_SERVICE_LOCATIONS_CANDIDATE==="synthetic-only");
+  // All materialized environments must match /api/dashboard-summary. Distinct
+  // permanent jobs, not quote revisions or only the eight visible cards.
+  const enabled=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
+  const row=enabled?await env.DB.prepare(COMPLETED_JOB_COUNT_SQL).first<{completedJobs:number}>():null;
+  const completed=enabled?completedJobCount(row):null;
+  if(enabled&&completed===null)throw Error('Completed-job count could not be verified.');
+  const metrics=enabled?{...baseMetrics,completedJobs:completed!}:baseMetrics;
   return <><div role="status" aria-label="Synthetic QA test environment. Do not use real customer records or payments." className="qa-test-banner">QA · Test data only</div><Dashboard localCustomersCandidate={(env as typeof env & { FIRE_LOCAL_CUSTOMERS_CANDIDATE?: string }).FIRE_LOCAL_CUSTOMERS_CANDIDATE === "synthetic-only"} environment="QA" userName="First In Response Exteriors" metrics={metrics} estimates={recent as never[]} /></>;
 }
