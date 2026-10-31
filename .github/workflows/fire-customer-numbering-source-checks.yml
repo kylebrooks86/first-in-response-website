@@ -16,6 +16,8 @@ on:
     paths:
       - 'business-app-parity/customer-numbering/**'
       - 'business-app-parity/shared/lib/customer-numbering.mjs'
+      - 'business-app-parity/shared/lib/numbered-identity-archive.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-identity-archive.mjs'
       - 'business-app-parity/shared/scripts/test-customer-numbering.mjs'
       - 'business-app-parity/shared/app/**'
       - '.github/workflows/fire-customer-numbering-source-checks.yml'
