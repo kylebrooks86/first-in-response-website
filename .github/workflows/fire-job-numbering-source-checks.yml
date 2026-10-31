@@ -53,6 +53,11 @@ jobs:
           # parity for the distinct completed-job count. Migration journals,
           # secrets, bindings and all other adapter files remain forbidden.
           git diff --name-only ${{ github.event.pull_request.base.sha || github.event.before }} HEAD -- business-app-parity/adapters/ | tee /tmp/fire_adapter_changes.txt
-          grep -Ev '^business-app-parity/adapters/(live|staging|doomsday|qa|independent-staging)/app/page\.tsx
- /tmp/fire_adapter_changes.txt > /tmp/fire_unapproved_adapter_changes.txt || true
+          : > /tmp/fire_unapproved_adapter_changes.txt
+          while IFS= read -r changed; do
+            case "$changed" in
+              business-app-parity/adapters/live/app/page.tsx|business-app-parity/adapters/staging/app/page.tsx|business-app-parity/adapters/doomsday/app/page.tsx|business-app-parity/adapters/qa/app/page.tsx|business-app-parity/adapters/independent-staging/app/page.tsx) ;;
+              *) printf "%s\n" "$changed" >> /tmp/fire_unapproved_adapter_changes.txt ;;
+            esac
+          done < /tmp/fire_adapter_changes.txt
           test ! -s /tmp/fire_unapproved_adapter_changes.txt
