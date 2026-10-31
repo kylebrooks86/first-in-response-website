@@ -192,13 +192,13 @@ console.log('PASS '+checks+'/'+checks+' NEW disposable numbered restore, complet
 
 
 
-// NEW complete scratch-DB import: 20 ordinary record families and the
+// NEW complete scratch-DB import: 21 ordinary record families and the
 // immutable numbering maps must commit together or ALL roll back.
 const {restoreCompleteNumberedRecordsToDisposableMemory}=
   await import('./restore_complete_numbered_records_memory.mjs');
 const full=fixture({empty:true});
 const complete=await restoreCompleteNumberedRecordsToDisposableMemory({db:full,archive});
-eq(complete.ordinaryRecordTables,20,'Complete restore covers all existing 20 ordinary record tables');
+eq(complete.ordinaryRecordTables,21,'Complete restore covers all existing 21 ordinary record tables');
 eq(complete.restoredCustomerNumbers,2,'Complete restore includes permanent Customer numbers');
 eq(complete.restoredJobNumbers,2,'Complete restore includes permanent Job numbers');
 eq(complete.restoredRevisionLinks,3,'Complete restore retains all estimate/job revision links');
@@ -262,4 +262,4 @@ try{
  eq(q(fullDisk,'customers'),0,'File-backed database remains unchanged');
  fullDisk.close();
 }finally{rmSync(fullDiskDir,{recursive:true,force:true});}
-console.log('PASS '+checks+'/'+checks+' NEW complete 20-family + immutable-number atomic disposable restore checks (no hosted D1).');
+console.log('PASS '+checks+'/'+checks+' NEW complete 21-family + immutable-number atomic disposable restore checks (no hosted D1).');
