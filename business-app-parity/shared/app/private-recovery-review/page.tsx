@@ -12,6 +12,7 @@ import {env} from "cloudflare:workers";
 import {notFound} from "next/navigation";
 import {getChatGPTUser} from "../chatgpt-auth";
 import {PrivateRecoveryReviewClient} from "./recovery-preview-client";
+import {PrivateRecoveryExportClient} from "./recovery-export-client";
 
 export const dynamic="force-dynamic";
 export const revalidate=0;
@@ -19,7 +20,7 @@ const OWNER_EMAIL="kylebrooks8605@gmail.com";
 const REVIEW_FLAG="qa-owner-review-only";
 
 export default async function PrivateRecoveryReviewPage(){
- const flags=env as typeof env & {FIRE_V2_PRIVATE_RECOVERY_REVIEW?:string};
+ const flags=env as typeof env & {FIRE_V2_PRIVATE_RECOVERY_REVIEW?:string;FIRE_V2_PRIVATE_RECOVERY_EXPORT?:string};
  // No information about this page leaks unless explicitly enabled.
  if(flags.FIRE_V2_PRIVATE_RECOVERY_REVIEW!==REVIEW_FLAG)notFound();
  const user=await getChatGPTUser();
@@ -32,5 +33,6 @@ export default async function PrivateRecoveryReviewPage(){
     alignItems:"center",textDecoration:"underline"}}>Back to FIRE App</a>
   </div>
   <PrivateRecoveryReviewClient/>
+  {flags.FIRE_V2_PRIVATE_RECOVERY_EXPORT==="qa-owner-encrypted-export-only"&&Boolean(env.DB)&&Boolean(env.BUCKET)?<PrivateRecoveryExportClient/>:null}
  </main>;
 }
