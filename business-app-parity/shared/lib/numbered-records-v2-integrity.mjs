@@ -6,7 +6,7 @@
  */
 import {validateDepositAuditIntegrity} from './deposit-audit-backup.mjs';
 import {validateSignedAgreementSnapshots,verifySignedAgreementDigests} from './deposit-agreement-backup.mjs';
-import {FIRE_NUMBERED_RECORDS_TABLES} from './numbered-records-v2.mjs';
+import {FIRE_NUMBERED_RECORDS_TABLES,inspectNumberedRecordsV2} from './numbered-records-v2.mjs';
 
 const fail=reason=>{throw new Error('FIRE v2 FINANCIAL INTEGRITY REFUSED: '+reason);};
 const object=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
@@ -163,4 +163,18 @@ export async function verifyNumberedRecordsV2CriticalIntegrity(tables){
  if(digest)fail('signed agreement cryptographic digest');
  inspectPhotoMetadata(tables,customers,estimates);
  return true;
+}
+
+
+/** Strict review of an already packaged v2 archive prior to a restore plan.
+ * Requires BOTH byte-integrity/full identity coverage and underlying current
+ * deposit/refund/signed-agreement/photo metadata contract validation.
+ * Does not authenticate who created the archive or restore any records.
+ */
+export async function inspectFinanciallyVerifiedNumberedRecordsV2(archive){
+ const summary=await inspectNumberedRecordsV2(archive);
+ await verifyNumberedRecordsV2CriticalIntegrity(archive.records.tables);
+ return Object.freeze({...summary,financialAuditContractVerified:true,
+   signedDocumentTextDigestVerified:true,photoMetadataOnly:true,
+   photoFilesRecovered:false,ownerAuthenticated:false,hostedWritesPerformed:false});
 }
