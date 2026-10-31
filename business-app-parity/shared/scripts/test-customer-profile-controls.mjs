@@ -60,6 +60,19 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  await textField.fill('Synthetic unsent custom text');
  check(await textField.inputValue()==='Synthetic unsent custom text','Custom message remains editable; never sent during QA');
  await page.keyboard.press('Escape');await quickDialog.waitFor({state:'hidden'});
+ // Customer email uses the same saved draft/owner confirmation path as Text.
+ // A bare mailto link would bypass the audit and fail silently on some phones.
+ const quickEmail=page.locator('.customer-contact').getByRole('button',{name:'Email customer'});
+ check(await quickEmail.count()===1,'Primary Email action is the verified editable composer');
+ await quickEmail.click();const emailDialog=page.getByRole('dialog',{name:'Message',exact:true});await emailDialog.waitFor();
+ check(await emailDialog.locator('.message-dialog-recipient').innerText()==='To: '+customer.name,'Email composer retains the exact saved customer');
+ check(await emailDialog.getByRole('textbox',{name:'Message text'}).inputValue()==='','Email opens a blank editable draft without sending');
+ await emailDialog.getByRole('combobox').click();
+ check(await page.getByRole('option',{name:'Inspection or job report',exact:true}).count()===1,'Email-only saved templates are available when composing email');
+ await page.keyboard.press('Escape');
+ await emailDialog.getByRole('textbox',{name:'Message text'}).fill('Synthetic draft email, not sent');
+ check(await emailDialog.getByRole('button',{name:'Email',exact:true}).isVisible(),'Prepared-email handoff stays available');
+ await emailDialog.getByRole('button',{name:'Close',exact:true}).click();await emailDialog.waitFor({state:'hidden'});
  await page.getByRole('button',{name:'Photos',exact:true}).click();
  const photos=page.getByRole('region',{name:'On-device customer photos'});await photos.getByText('No on-device photos for this customer').waitFor();
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==','base64');
