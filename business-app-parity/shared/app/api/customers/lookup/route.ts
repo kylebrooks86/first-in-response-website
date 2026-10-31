@@ -2,7 +2,8 @@ import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../../chatgpt-auth';
 import {CUSTOMER_PHONE_SQL} from '../../../../lib/customer-identity';
 import {customerPropertiesEnabled} from '../../../../lib/customer-properties';
-const columns="id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address";
+import {customerNumberingReady} from '../../../../lib/customer-numbering.mjs';
+const customerColumns="id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address";
 export async function GET(request:Request){
  const user=await getChatGPTUser();
  const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'cache-control':'no-store','vary':'Cookie'}});
@@ -10,6 +11,8 @@ export async function GET(request:Request){
  const url=new URL(request.url),id=url.searchParams.get('customerId'),query=(url.searchParams.get('q')??'').trim();
  if(query.length>160||id!==null&&(!id.trim()||id.length>128)||id!==null&&url.searchParams.has('q'))return json({error:'Invalid customer lookup.'},400);
  try{
+  const numbered=await customerNumberingReady(env.DB,env);
+  const columns=customerColumns+(numbered?",(SELECT customer_number FROM fire_customer_numbers WHERE customer_id=customers.id) AS customerNumber":",NULL AS customerNumber");
   if(id!==null){const customer=await env.DB.prepare(`SELECT ${columns} FROM customers WHERE id=? LIMIT 1`).bind(id).first();return customer?json({customer}):json({error:'That customer is no longer available. Choose a customer again.'},404);}
   if(!query)return json({customers:[],hasMore:false});
   const raw=query.replace(/\D/g,''),digits=raw.startsWith('1')&&(query.startsWith('+1')||raw.length===11)?raw.slice(1):raw;
