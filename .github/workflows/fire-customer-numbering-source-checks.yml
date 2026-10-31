@@ -7,6 +7,8 @@ on:
     paths:
       - 'business-app-parity/customer-numbering/**'
       - 'business-app-parity/shared/lib/customer-numbering.mjs'
+      - 'business-app-parity/shared/lib/numbered-identity-archive.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-identity-archive.mjs'
       - 'business-app-parity/shared/scripts/test-customer-numbering.mjs'
       - 'business-app-parity/shared/app/**'
       - '.github/workflows/fire-customer-numbering-source-checks.yml'
@@ -37,6 +39,8 @@ jobs:
           node-version: '22'
       - name: Test historical backfill, uniqueness, no reuse, and record labels
         run: node business-app-parity/shared/scripts/test-customer-numbering.mjs
+      - name: Validate lossless Customer # and Job # snapshot — synthetic SQLite only
+        run: node --experimental-sqlite business-app-parity/shared/scripts/test-numbered-identity-archive.mjs
       - name: Confirm candidate has no real migration or provider write configuration
         shell: bash
         run: |
