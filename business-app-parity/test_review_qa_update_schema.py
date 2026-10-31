@@ -47,6 +47,31 @@ class ExistingQAReadOnlyDriftReview(unittest.TestCase):
             self.assertFalse(result[key])
         self.assertIn("owner approval", result["requiredNextStep"])
 
+    def test_windows_crlf_only_in_original_baseline_remains_pinned(self):
+        # Windows can store the original candidate using CRLF while the new
+        # clean checkout retains LF. SQL semantics and immutable Git pins agree.
+        file = self.first / "0007_open_bloodaxe.sql"
+        raw = file.read_bytes().replace(b"\r\n", b"\n")
+        self.assertIn(b"\n", raw)
+        file.write_bytes(raw.replace(b"\n", b"\r\n"))
+        result = review(self.first, self.latest, CHECKPOINT)
+        self.assertTrue(result["originalMigrationsLfEquivalent"])
+        self.assertFalse(result["originalMigrationsByteIdentical"])
+        self.assertFalse(result["publicationAuthorized"])
+        self.assertFalse(result["migrationPermissionGranted"])
+
+    def test_windows_crlf_does_not_hide_real_sql_change(self):
+        file = self.first / "0007_open_bloodaxe.sql"
+        raw = file.read_bytes().replace(b"\r\n", b"\n")
+        file.write_bytes(raw.replace(b"\n", b"\r\n") + b"-- unapproved content\r\n")
+        self.check_stop("pinned history")
+
+    def test_bare_carriage_return_is_never_accepted(self):
+        file = self.first / "0007_open_bloodaxe.sql"
+        raw = file.read_bytes().replace(b"\r\n", b"\n")
+        file.write_bytes(raw.replace(b"\n", b"\r", 1))
+        self.check_stop("Unreviewed bare CR")
+
     def test_existing_historical_migration_modified_refused(self):
         file = self.latest / "0007_open_bloodaxe.sql"
         file.write_bytes(file.read_bytes() + b"\n-- silent rewrite\n")
