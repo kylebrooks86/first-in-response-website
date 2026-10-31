@@ -322,8 +322,8 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     void (async()=>{
       try{
         const response=await fetch("/api/customer-messages?"+query.toString(),{cache:"no-store"});
-        const result=await response.json() as {pending?:CustomerMessage[];nextCursor?:string|null;mayHaveMore?:boolean;error?:string};
         if(response.status===401)throw Error(sessionNotice);
+        const result=await response.json() as {pending?:CustomerMessage[];nextCursor?:string|null;mayHaveMore?:boolean;error?:string};
         if(!response.ok||!Array.isArray(result.pending))throw Error(result.error||"Unconfirmed messages could not be checked.");
         if(active&&request===pendingPageRequest.current){setPendingNextCursor(typeof result.nextCursor==="string"?result.nextCursor:null);setPendingMessages(result.pending.filter(item=>
           item.customerId===customer.id&&(item.estimateId??"")===(estimate?.id??"")&&
@@ -361,9 +361,10 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     try{
       const query=new URLSearchParams({customerId:scopeCustomer,estimateId:scopeJob,cursor});
       const response=await fetch("/api/customer-messages?"+query.toString(),{cache:"no-store"});
+      if(response.status===401)throw Error(sessionNotice);
       const result=await response.json() as {pending?:CustomerMessage[];nextCursor?:string|null;mayHaveMore?:boolean;error?:string};
       if(!response.ok||!Array.isArray(result.pending)||Boolean(result.mayHaveMore)&&typeof result.nextCursor!=="string")
-        throw Error(response.status===401?sessionNotice:(result.error||"Older prepared messages could not be verified."));
+        throw Error(result.error||"Older prepared messages could not be verified.");
       if(page!==pendingPageRequest.current)return;
       const verified=result.pending.filter(item=>
         item.customerId===scopeCustomer&&(item.estimateId??"")===scopeJob&&
@@ -404,18 +405,18 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     const timeout=setTimeout(()=>controller.abort(),15000);
     try{
       const response=await fetch("/api/customer-messages",{method:"POST",signal:controller.signal,headers:{"content-type":"application/json"},body:JSON.stringify({...payload,requestId:operation.requestId})});
+      if(response.status===401){
+        if(scope!==messageScope.current)return false;
+        // Auth rejects before database writes; a definitive 401 is NOT an
+        // uncertain save even when an upstream gateway returns non-JSON HTML.
+        uncertainPreparation.current=null;
+        setMessageStatus("FIRE sign-in is unavailable. Sign in again to prepare this draft. No text or email handoff was started.");
+        return false;
+      }
       const result=await response.json() as {message?:CustomerMessage;error?:string};
       const saved=result.message;
       if(scope!==messageScope.current)return false;
       if(!response.ok||!saved){
-        if(response.status===401){
-          // Authentication is checked BEFORE any message write in this API.
-          // An explicit 401 is a definite refusal, not an uncertain save:
-          // unlock the local draft, while retaining idempotency for timeouts/5xx.
-          uncertainPreparation.current=null;
-          setMessageStatus("FIRE sign-in is unavailable. Sign in again to prepare this draft. No text or email handoff was started.");
-          return false;
-        }
         setMessageStatus(result.error||"Message preparation is unconfirmed. Retry the unchanged draft using the same request.");
         return false;
       }
@@ -445,10 +446,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     preparationLock.current=true;setWorking(true);setMessageStatus("");
     try{
       const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:draft.id,customerId:customer.id,ownerConfirmedSent:true})});
+      if(response.status===401)throw new Error("Sign in to FIRE again before confirming. Check Google Voice or your email Sent folder first; delivery is unknown here.");
       const result=await response.json() as {message?:CustomerMessage;estimateStatus?:string;error?:string};
       if(scope!==messageScope.current)return;
       const receipt=result.message;
-      if(!response.ok)throw new Error(response.status===401?"Sign in to FIRE again before confirming. Check Google Voice or your email Sent folder first; delivery is unknown here.":(result.error||"Send confirmation could not be saved."));
+      if(!response.ok)throw new Error(result.error||"Send confirmation could not be saved.");
       if(!receipt||receipt.id!==draft.id+":owner-confirmed"||receipt.customerId!==draft.customerId||
         (receipt.estimateId??"")!==(draft.estimateId??"")||receipt.template!==draft.template||receipt.body!==draft.body||
         receipt.channel!==(draft.channel==="text_prepared"?"text_confirmed":"email_confirmed")||
@@ -470,10 +472,11 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     preparationLock.current=true;setWorking(true);setMessageStatus("");
     try{
       const response=await fetch("/api/customer-messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({preparedMessageId:draft.id,customerId:customer.id,ownerConfirmedNotSent:true})});
+      if(response.status===401)throw Error("Sign in to FIRE again before discarding this prepared draft. Its status is still unconfirmed.");
       const result=await response.json() as {message?:CustomerMessage;cancelled?:boolean;error?:string};
       if(scope!==messageScope.current)return;
       if(!response.ok||result.cancelled!==true||result.message?.id!==draft.id+":owner-cancelled"||result.message.customerId!==customer.id)
-        throw Error(response.status===401?"Sign in to FIRE again before discarding this prepared draft. Its status is still unconfirmed.":(result.error||"Could not verify that the unsent message was discarded. Refresh its saved status."));
+        throw Error(result.error||"Could not verify that the unsent message was discarded. Refresh its saved status.");
       onLogged?.(result.message);
       setPendingMessages(current=>current.filter(item=>item.id!==draft.id));
       setPreparedMessage(null);draftEdited.current=false;setBody(renderedBody);
