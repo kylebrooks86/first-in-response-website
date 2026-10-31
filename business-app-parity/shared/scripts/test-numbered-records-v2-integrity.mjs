@@ -213,3 +213,81 @@ for(const [name,mutate] of [
  unused.close();
 }
 console.log('PASS '+checks+'/'+checks+' NEW complete financial-gated v2 archive and disposable restore integration checks.');
+
+
+// NEW private archive custody boundary (synthetic-only data).
+const {encryptFinanciallyVerifiedNumberedV2,decryptFinanciallyVerifiedNumberedV2}
+ =await import('../lib/numbered-records-v2-sealed.mjs');
+const syntheticPassphrase='TEST ONLY deterministic long passphrase - never use for a real customer backup';
+const sealed=await encryptFinanciallyVerifiedNumberedV2({
+ archive:archive.archive,passphrase:syntheticPassphrase
+});
+const sealedAgain=await encryptFinanciallyVerifiedNumberedV2({
+ archive:archive.archive,passphrase:syntheticPassphrase
+});
+eq(sealed.photoFilesIncluded,false,'Encrypted metadata explicitly excludes actual photo files');
+eq(sealed.format,'fire-app-numbered-records-v2-sealed','Versioned encrypted format explicit');
+eq(sealed.cipher,'AES-256-GCM','Authenticated encryption algorithm explicit');
+eq(sealed.kdf,'PBKDF2-SHA256','Key derivation algorithm explicit');
+eq(sealed.iterations,600000,'Owner-held passphrase key derivation is nontrivial');
+eq(sealed.saltBase64!==sealedAgain.saltBase64,true,'Each backup uses a fresh random salt');
+eq(sealed.nonceBase64!==sealedAgain.nonceBase64,true,'Each backup uses a fresh random GCM nonce');
+eq(JSON.stringify(sealed).includes('Synthetic Customer'),false,
+ 'Encrypted container never exposes signed customer name as plaintext');
+eq(JSON.stringify(sealed).includes('cs_test'),false,
+ 'Encrypted container never exposes payment provider references as plaintext');
+const opened=await decryptFinanciallyVerifiedNumberedV2({
+ sealed:JSON.parse(JSON.stringify(sealed)),passphrase:syntheticPassphrase
+});
+eq(opened.archive,archive.archive,'Encrypted archive round trips all original records and numbers');
+eq(opened.summary.financialAuditContractVerified,true,
+ 'Unsealed archive requires complete refund and signed-document validation');
+eq(opened.summary.ownerAuthenticated,false,
+ 'A correct passphrase does not pretend to authenticate owner identity');
+eq(opened.summary.photoFilesRecovered,false,'Encrypted record backup does not contain photo file bytes');
+const sealedRefuse=async(run,label)=>{await assert.rejects(run,/FIRE PRIVATE v2 ARCHIVE REFUSED/,label);checks++;};
+await sealedRefuse(()=>decryptFinanciallyVerifiedNumberedV2({
+ sealed,passphrase:'completely wrong long passphrase for test'
+}),'Wrong passphrase cannot decrypt saved customer/payment data');
+const tamperedCipher=clone(sealed);
+tamperedCipher.ciphertextBase64=tamperedCipher.ciphertextBase64.slice(0,8)+
+ (tamperedCipher.ciphertextBase64[8]==='A'?'B':'A')+
+ tamperedCipher.ciphertextBase64.slice(9);
+await sealedRefuse(()=>decryptFinanciallyVerifiedNumberedV2({
+ sealed:tamperedCipher,passphrase:syntheticPassphrase
+}),'Modified ciphertext rejected by AES-GCM tag');
+const tamperedSalt=clone(sealed);
+tamperedSalt.saltBase64=tamperedSalt.saltBase64.slice(0,5)+
+ (tamperedSalt.saltBase64[5]==='A'?'B':'A')+
+ tamperedSalt.saltBase64.slice(6);
+await sealedRefuse(()=>decryptFinanciallyVerifiedNumberedV2({
+ sealed:tamperedSalt,passphrase:syntheticPassphrase
+}),'Changed salt cannot derive original authentication key');
+const tamperedNonce=clone(sealed);
+tamperedNonce.nonceBase64=tamperedNonce.nonceBase64.slice(0,5)+
+ (tamperedNonce.nonceBase64[5]==='A'?'B':'A')+
+ tamperedNonce.nonceBase64.slice(6);
+await sealedRefuse(()=>decryptFinanciallyVerifiedNumberedV2({
+ sealed:tamperedNonce,passphrase:syntheticPassphrase
+}),'Changed GCM nonce cannot decrypt');
+const weakKdf=clone(sealed);weakKdf.iterations=1;
+await sealedRefuse(()=>decryptFinanciallyVerifiedNumberedV2({
+ sealed:weakKdf,passphrase:syntheticPassphrase
+}),'No downgrade to cheap KDF rounds');
+const falsePhoto=clone(sealed);falsePhoto.photoFilesIncluded=true;
+await sealedRefuse(()=>decryptFinanciallyVerifiedNumberedV2({
+ sealed:falsePhoto,passphrase:syntheticPassphrase
+}),'Encrypted container cannot claim photo files that are missing');
+const novelField=clone(sealed);novelField.ownerProof='forged';
+await sealedRefuse(()=>decryptFinanciallyVerifiedNumberedV2({
+ sealed:novelField,passphrase:syntheticPassphrase
+}),'Unreviewed encrypted metadata rejected');
+await sealedRefuse(()=>encryptFinanciallyVerifiedNumberedV2({
+ archive:archive.archive,passphrase:'password'
+}),'Weak/short passphrase rejected by minimum length');
+const badFinancial=clone(archive.archive);badFinancial.records.tables.payment_refunds[0].amount_cents=3333;
+await sealedRefuse(()=>encryptFinanciallyVerifiedNumberedV2({
+ archive:badFinancial,passphrase:syntheticPassphrase
+}),'Financially invalid archive cannot be encrypted and falsely treated as valid');
+console.log('PASS '+checks+'/'+checks+
+ ' NEW owner-passphrase AES-256-GCM encrypted v2 records and wrong-key/tamper refusal checks (synthetic only).');
