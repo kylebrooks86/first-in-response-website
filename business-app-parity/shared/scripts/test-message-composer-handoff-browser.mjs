@@ -23,12 +23,19 @@ ${composer.getText(ast)}
 createRoot(document.getElementById('app')).render(<MessageComposer initialTemplate="custom" customer={{id:'synthetic',name:'FIRE Synthetic Customer',email:'fixture+qa@example.invalid',phone:'9185550102',address:''}}/>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx',sourcefile:'composer-test.tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const styles=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
-let requests=[];const server=createServer(async(req,res)=>{
+let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false;const server=createServer(async(req,res)=>{
  res.setHeader('cache-control','no-store');
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundle.outputFiles[0].text);}
  if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(styles.css);}
  if(req.url?.startsWith('/api/customer-messages')){
-  res.setHeader('content-type','application/json');if(req.method==='GET')return res.end(JSON.stringify({pending:[],nextCursor:null}));
+  res.setHeader('content-type','application/json');
+  if(req.method==='GET'){
+   if(denyHistory){res.statusCode=401;return res.end(JSON.stringify({error:'Unauthorized'}));}
+   return res.end(JSON.stringify({pending:[],nextCursor:null}));
+  }
+  if((req.method==='POST'&&denyPreparation)||(req.method==='PATCH'&&denyConfirmation)){
+   res.statusCode=401;return res.end(JSON.stringify({error:'Unauthorized'}));
+  }
   let body='';for await(const chunk of req)body+=chunk;const data=JSON.parse(body);requests.push(data);
   return res.end(JSON.stringify({message:{...data,body:data.body.trim(),id:'owner-message-prep:'+data.requestId,createdAt:'2026-10-30T12:00:00Z'}}));
  }
@@ -61,6 +68,35 @@ try{
   check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Composer has no horizontal page overflow');
   check(await dialog.getByRole('button',{name:'Copy email message',exact:true}).isVisible(),'Manual email fallback remains available');
  }
+ // Auth can expire while a message modal is open. The explicit 401 comes
+ // before any DB write, so it must not strand an immutable pending-operation
+ // lock or mislabel the draft as sent. Real unknown 5xx/timeout stays locked.
+ denyHistory=true;denyPreparation=true;
+ await page.setViewportSize({width:390,height:844});await page.goto(origin);
+ await page.getByRole('button',{name:'Message',exact:true}).click();
+ const authDialog=page.getByRole('dialog',{name:'Message',exact:true});
+ await authDialog.getByRole('alert').waitFor();
+ check((await authDialog.getByRole('alert').innerText()).includes('Your FIRE session has expired or is unavailable')&&
+   !(await authDialog.getByRole('alert').innerText()).includes('Unauthorized'),
+   '401 on pending history gives safe re-sign-in guidance without raw Unauthorized');
+ const beforeDenied=requests.length;
+ await authDialog.getByLabel('Message text').fill('Original unsent draft');
+ await authDialog.getByRole('button',{name:'Text',exact:true}).click();
+ await authDialog.getByText('Your FIRE session has expired or is unavailable. Sign in again in this app, then reopen your message. Nothing was sent.',{exact:true}).waitFor();
+ check(requests.length===beforeDenied&&await authDialog.getByRole('region',{name:'Google Voice text handoff'}).count()===0,
+   'Explicit 401 never creates a prepared receipt or shows SMS handoff');
+ denyHistory=false;denyPreparation=false;
+ await authDialog.getByLabel('Message text').fill('Revised after definite auth refusal');
+ await authDialog.getByRole('button',{name:'Text',exact:true}).click();
+ await authDialog.getByRole('region',{name:'Google Voice text handoff'}).waitFor();
+ check(requests.length===beforeDenied+1&&requests.at(-1).body==='Revised after definite auth refusal',
+   'Definite 401 clears only the false pending lock so a new authorized draft may be prepared');
+ denyConfirmation=true;
+ await authDialog.getByRole('button',{name:'I sent the prepared message',exact:true}).click();
+ await authDialog.getByText('Your FIRE session has expired or is unavailable. Sign in again in this app, then reopen your message. Nothing was sent.',{exact:true}).waitFor();
+ check(await authDialog.getByRole('region',{name:'Google Voice text handoff'}).count()===1,
+   '401 on confirmation preserves unconfirmed draft; never marks message as sent');
+ denyConfirmation=false;
  check(errors.length===0,'No browser exceptions: '+errors.join(';'));
  console.log('PASS '+checks+' actual composer mobile/light-dark text/email handoff assertions; no external sends.');
 }finally{await browser?.close();await new Promise(ok=>server.close(ok));}
