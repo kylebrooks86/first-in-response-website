@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
-import {validateNumberedIdentityArchive,NUMBERED_IDENTITY_ARCHIVE_FORMAT,NUMBERED_IDENTITY_ARCHIVE_VERSION} from '../lib/numbered-identity-archive.mjs';
+import {validateNumberedIdentityArchive,planNumberedIdentityRestore,NUMBERED_IDENTITY_ARCHIVE_FORMAT,NUMBERED_IDENTITY_ARCHIVE_VERSION} from '../lib/numbered-identity-archive.mjs';
 let checks=0;
 function eq(actual,expected,message){assert.deepEqual(actual,expected,message);checks++;}
 function rejects(fn,message){assert.throws(fn,/Unsafe FIRE numbered-identity archive/,message);checks++;}
@@ -39,6 +39,36 @@ const template={
  highWater:{customer:7,job:9}
 };
 const clone=()=>structuredClone(template);
+const blank=()=>({...structuredClone(template),
+ customers:[],estimates:[],fire_customer_numbers:[],
+ fire_job_numbers:[],fire_job_estimate_links:[],highWater:{customer:0,job:0}});
+const freshPlan=planNumberedIdentityRestore(clone(),blank());
+eq(freshPlan.insertedCustomers,3,'Fresh archive restore can insert all customers');
+eq(freshPlan.insertedEstimates,3,'Fresh archive restore can insert all estimates');
+eq(freshPlan.insertedCustomerNumbers,3,'Fresh archive restore can insert all numbered customers');
+eq(freshPlan.insertedJobNumbers,2,'Fresh archive restore can insert each distinct job once');
+eq(freshPlan.insertedJobLinks,3,'Fresh archive restore can insert revision and root links');
+eq(freshPlan.customerHighWater,7,'Restore preserves original consumed Customer # high-water');
+eq(freshPlan.jobHighWater,9,'Restore preserves original consumed Job # high-water');
+eq(freshPlan.hostedWritesPerformed,false,'Preflight makes no remote changes');
+const replayPlan=planNumberedIdentityRestore(clone(),clone());
+eq([replayPlan.insertedCustomers,replayPlan.insertedEstimates,
+ replayPlan.insertedCustomerNumbers,replayPlan.insertedJobNumbers,replayPlan.insertedJobLinks],
+ [0,0,0,0,0],'Idempotent restore preflight does not duplicate any identity rows');
+for(const [label,change] of [
+ ['conflicting existing customer timestamp',x=>x.customers[0].created_at='2025-01-01T00:00:00Z'],
+ ['conflicting existing estimate customer',x=>x.estimates[0].customer_id='c2'],
+ ['already assigned Customer # to a different customer',x=>{x.fire_customer_numbers[0].customer_id='c2';x.fire_customer_numbers[1].customer_id='c1';}],
+ ['already assigned Job # to a different root',x=>{x.fire_job_numbers[0].root_estimate_id='e3';x.fire_job_numbers[1].root_estimate_id='e1';}],
+ ['different original revision Job #',x=>{x.fire_job_estimate_links[1].job_number=5;}],
+ ['destination consumed larger Customer # sequence',x=>{x.highWater.customer=11;x.fire_customer_numbers=[];x.customers=[];x.estimates=[];x.fire_job_numbers=[];x.fire_job_estimate_links=[];x.highWater.job=0;}],
+ ['destination consumed larger Job # sequence',x=>{x.highWater.job=11;x.fire_job_numbers=[];x.fire_job_estimate_links=[];x.estimates=[];x.customers=[];x.fire_customer_numbers=[];x.highWater.customer=0;}]
+]){
+ const other=clone();change(other);
+ if(label.includes('different original revision'))rejects(()=>planNumberedIdentityRestore(clone(),other),label);
+ else rejects(()=>planNumberedIdentityRestore(clone(),other),label);
+}
+
 eq(validateNumberedIdentityArchive(template),{
  customers:3,estimates:3,customerNumbers:3,jobNumbers:2,jobLinks:3,
  customerHighWater:7,jobHighWater:9
