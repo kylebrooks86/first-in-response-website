@@ -71,14 +71,14 @@ class CurrentQA25RestoreTests(unittest.TestCase):
               (id,estimate_id,confirmation_id,actor_email,mode,
                previous_total_cents,previous_deposit_cents,
                new_deposit_cents,paid_principal_cents,created_at)
-              VALUES ('evt-current','private-estimate','owner-confirm',
+              VALUES ('00000000-0000-4000-8000-000000000099','private-estimate','owner-confirm',
                'synthetic-owner@example.invalid','waive',10000,5000,0,0,
                '2026-10-31T12:00:00Z')""")
             db.execute("""INSERT INTO deposit_agreement_snapshots
               (event_id,estimate_id,document_version,document_digest,total_cents,
                deposit_cents,mode,scope_json,agreement_text,signed_name,
                photo_release,signed_at,accepted_at)
-              VALUES('evt-current','private-estimate','deposit-exception-v1:evt-current',
+              VALUES('00000000-0000-4000-8000-000000000099','private-estimate','deposit-exception-v1:00000000-0000-4000-8000-000000000099',
                ?,10000,0,'waive','[]',
                'A synthetic complete agreement over fifty characters for local tests only.',
                'Synthetic Customer','no','2026-10-31','2026-10-31')""",("a"*64,))
