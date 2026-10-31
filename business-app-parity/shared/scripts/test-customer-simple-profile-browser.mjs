@@ -101,7 +101,7 @@ const fixture=[
  "import React,{useState}from'react';import{createRoot}from'react-dom/client';import{GoogleVoiceCallAction,GoogleVoiceTextAction,PersonalPhoneBackupAction}from'./components/google-voice-text-action';",
   "import {usableCustomerPhone,usableCustomerEmail} from './lib/customer-contact-links';",
  "import{Phone,Send,Mail,Navigation,Globe2,House,MapPin,ChevronRight,Sparkles}from'lucide-react';",
- "function MessageComposer({customer,initialTemplate,triggerLabel}){const [open,setOpen]=React.useState(false);return <><button type='button' aria-label={'Text '+customer.name+' using templates'} data-recipient={customer.phone} data-template={initialTemplate} onClick={()=>setOpen(true)}>{triggerLabel}</button>{open&&<div role='dialog' aria-label='Synthetic template handoff'><output>{customer.phone}</output><output>{initialTemplate}</output><button type='button' onClick={()=>setOpen(false)}>Close synthetic handoff</button></div>}</>}",
+ "function MessageComposer({customer,initialTemplate,triggerLabel,triggerAriaLabel}){const [open,setOpen]=React.useState(false);const isEmail=triggerLabel==='Email';const recipient=isEmail?customer.email:customer.phone;return <><button type='button' aria-label={triggerAriaLabel||(isEmail?'Email '+customer.name:'Text '+customer.name+' using templates')} data-recipient={recipient} data-template={initialTemplate} onClick={()=>setOpen(true)}>{triggerLabel}</button>{open&&<div role='dialog' aria-label='Synthetic template handoff'><output>{recipient}</output><output>{initialTemplate}</output><button type='button' onClick={()=>setOpen(false)}>Close synthetic handoff</button></div>}</>}",
  "function Fixture(){",
  " const [selected,setSelected]=useState({id:'synthetic',name:'Synthetic customer',phone:'9185550101',email:'synthetic@example.invalid',address:'123 Synthetic Rd, Tulsa, OK'});",
   " const contactPhone=usableCustomerPhone(selected.phone),contactEmail=usableCustomerEmail(selected.email);",
@@ -149,7 +149,11 @@ try{
   await row.waitFor();await activityDisclosure.waitFor();
   await row.getByRole('button',{name:/Call .* using Google Voice/}).click();check(await page.getByRole('dialog',{name:'Call using Google Voice',exact:true}).isVisible(),width+': business call handoff remains accessible');await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
   const templateText=row.getByRole('button',{name:'Text Synthetic customer using templates',exact:true});check(await templateText.getAttribute('data-recipient')==='9185550101'&&await templateText.getAttribute('data-template')==='custom',width+': primary Text retains exact saved customer and custom template');await templateText.click();check(await page.getByRole('dialog',{name:'Synthetic template handoff',exact:true}).isVisible(),width+': primary Text composer is discoverable without auto-send');await page.getByRole('button',{name:'Close synthetic handoff',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
-  check(await row.getByRole('link',{name:'Email customer'}).getAttribute('href')==='mailto:synthetic%40example.invalid',width+': existing mail destination');
+  const emailAction=row.getByRole('button',{name:'Email customer',exact:true});
+  check(await emailAction.getAttribute('data-recipient')==='synthetic@example.invalid'&&await emailAction.getAttribute('data-template')==='custom',width+': primary Email opens exact saved customer and editable custom template');
+  await emailAction.click();const emailModal=page.getByRole('dialog',{name:'Synthetic template handoff',exact:true});await emailModal.waitFor();
+  check(await emailModal.getByText('synthetic@example.invalid',{exact:true}).isVisible(),width+': email preparation keeps the verified recipient instead of a bare mailto');
+  await emailModal.getByRole('button',{name:'Close synthetic handoff'}).click();await emailModal.waitFor({state:'hidden'});
   check((await row.getByRole('link',{name:'Directions to customer in Google Maps'}).getAttribute('href')).includes('destination=123%20Synthetic%20Rd'),width+': maps destination preserved');
   await row.getByRole('button',{name:'Show customer on Territory Map'}).click();
   check(await page.evaluate(()=>window.__openedTerritory)==='123 Synthetic Rd, Tulsa, OK',width+': territory shortcut reuses exact saved customer address without typing');
@@ -205,7 +209,7 @@ try{
  await page.evaluate(()=>window.__setSelected(s=>({...s,phone:'please call',email:'bad@@example.invalid'})));
  const guardedContacts=page.getByRole('group',{name:'Customer contact and driving links'});
  await guardedContacts.locator('.customer-contact-warning').waitFor();
- check(await guardedContacts.getByRole('button',{name:/Call .* using Google Voice/}).count()===0&&await guardedContacts.getByRole('button',{name:/Text .* using templates/}).count()===0&&await guardedContacts.getByRole('link',{name:'Email customer'}).count()===0,'Invalid phone/email never creates unsafe recipient links');
+ check(await guardedContacts.getByRole('button',{name:/Call .* using Google Voice/}).count()===0&&await guardedContacts.getByRole('button',{name:/Text .* using templates/}).count()===0&&await guardedContacts.getByRole('button',{name:'Email customer'}).count()===0,'Invalid phone/email never creates unsafe recipient links');
  check((await guardedContacts.locator('.customer-contact-warning').innerText()).includes('Check phone and email in Edit customer'),'Invalid saved contact fields show a short correction prompt');
  check(await guardedContacts.getByRole('link',{name:'Directions to customer in Google Maps'}).isVisible(),'Bad contact data never hides saved directions');
  await page.evaluate(()=>window.__setSelected(s=>({...s,phone:'+1 (918) 555-0102',email:'contact@example.invalid'})));
