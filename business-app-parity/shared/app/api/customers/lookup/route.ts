@@ -12,7 +12,7 @@ export async function GET(request:Request){
  if(query.length>160||id!==null&&(!id.trim()||id.length>128)||id!==null&&url.searchParams.has('q'))return json({error:'Invalid customer lookup.'},400);
  try{
   const numbered=await customerNumberingReady(env.DB,env);
-  const columns=customerColumns+(numbered?",(SELECT customer_number FROM fire_customer_numbers WHERE customer_id=customers.id) AS customerNumber":",NULL AS customerNumber");
+  const columns=customerColumns+(numbered?",(SELECT customer_number FROM fire_customer_numbers WHERE customer_id=customers.id) AS customerNumber":"");
   if(id!==null){const customer=await env.DB.prepare(`SELECT ${columns} FROM customers WHERE id=? LIMIT 1`).bind(id).first();return customer?json({customer}):json({error:'That customer is no longer available. Choose a customer again.'},404);}
   if(!query)return json({customers:[],hasMore:false});
   const customerNumber=numbered?parseCustomerNumberQuery(query):null;
