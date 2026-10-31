@@ -24,7 +24,7 @@ const ctx={exports:{},require,Response,URL,Date,crypto,customerNumberingReady,cu
       async first(){
         reads++;
         if(sql.includes('SELECT id FROM customers'))return rows.has(values[0])?{id:values[0]}:null;
-        if(sql.includes('FROM customers WHERE id=? LIMIT 1')) {
+        if(/FROM customers(?: c)? WHERE (?:c\.)?id=\? LIMIT 1/.test(sql)) {
           if(throwAfterWrite){throwAfterWrite=false;throw Error('Synthetic lost readback after commit');}
           return rows.get(values[0])??null;
         }
