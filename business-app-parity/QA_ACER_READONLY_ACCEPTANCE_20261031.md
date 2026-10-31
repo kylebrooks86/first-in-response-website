@@ -4,6 +4,36 @@
 This is a READ-ONLY metadata acceptance step, NOT a code publication or
 authorization to change D1, LIVE, protected staging, Doomsday, Stripe or data.
 
+## October 31 Acer owner-observed verification — PASSED (QA-only)
+
+The owner supplied a photo of their actual Windows PowerShell output after
+running the corrected, pinned read-only source script against the existing
+isolated Cloudflare QA Worker. This is **owner-observed runtime evidence**, not
+an uploaded provider-signed attestation, source/build artifact seal or a
+production release. The screenshot showed:
+
+- PASS: Exactly one current QA Worker version serves 100% of traffic.
+- PASS: QA and protected staging D1 account identities match pinned values.
+- PASS: 25 migration names, 8 required table names, Stripe provider unique
+  index and 2 immutable signed-agreement triggers match expected QA schema.
+- PASS: Active QA Worker physical D1 binding matches the pinned QA database,
+  with no R2 bucket bound to this version.
+- `REMOTE_WRITES=NONE; DEPLOYED=NO; CUSTOMER_ROWS_READ=NONE; RELEASE_APPROVED=NO`.
+
+The first attempt stopped during the initial Wrangler D1 list because of a
+PowerShell invocation issue; the corrected, checked-in script succeeded.
+The owner independently confirmed Wrangler D1 list returned both database
+names. There is no need to rerun that exact inspection on an unchanged
+Worker just to repeat evidence.
+
+**QA-only identity/schema prereqs: observed PASS.** **Formal integrated
+production gates 4–10: still NOT ACCEPTED** (3/10 overall) because separate
+LIVE/staging/Doomsday evidence, exact served artifact-source identity,
+backup custody/recovery, owner auth and physical iPhone acceptance remain
+outstanding. Do not infer PR #72 deployed, source fingerprint verified,
+Stripe integration passed, photos migrated or backups restored. No hosted
+migration/deployment is authorized by this report.
+
 ## Latest owner-confirmed QA baseline (must be freshly reverified)
 
 - Active QA Worker version: `99fa8c27-df83-48d3-b953-9a84eb295334`.
