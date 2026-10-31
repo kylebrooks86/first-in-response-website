@@ -48,6 +48,10 @@ try{
   await history.locator('summary').first().click();
   await page.getByText(rule.name,{exact:true}).waitFor();
   check(await page.getByText('$391.00',{exact:false}).count()>0,'Frozen 15% quote subtotal $460 total $391');
+  check(await history.getByText('Review booking savings (optional)',{exact:true}).isVisible(),
+    'Optional advanced booking controls are discoverable without occupying default quote detail');
+  check(!(await history.getByLabel('Booking date confirmed by owner (Tulsa)').isVisible()),
+    'Booking-date entry and internal amendment review stay collapsed during normal history check');
   const geom=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,button:[...document.querySelectorAll('[aria-label="Saved promotions on estimate"] button')].filter(n=>n.getClientRects().length>0).map(n=>{const box=n.getBoundingClientRect();return{left:box.left,right:box.right,height:box.height};})}));
   check(geom.scroll<=width+1&&geom.button.every(b=>b.left>=0&&b.right<=width+1&&b.height>=42),'Owner history is usable at '+width+'/'+theme);
  }
