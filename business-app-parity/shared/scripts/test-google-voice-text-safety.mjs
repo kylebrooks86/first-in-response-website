@@ -6,7 +6,10 @@ const action=readFileSync("components/google-voice-text-action.tsx","utf8");
 let checks=0;
 function check(condition,label){assert.ok(condition,label);checks++;console.log("PASS: "+label);}
 check(!/sms:/i.test(ui),"No personal-number sms: route remains in main FIRE dashboard");
-check((ui.match(/<GoogleVoiceTextAction\b/g)||[]).length===2,"Two contextual short-text actions still use direct validated Google Voice handoff");
+check((ui.match(/<GoogleVoiceTextAction\\b/g)||[]).length===1,"Only the remaining unlinked contextual quick-text action uses manual Google Voice handoff");
+check(ui.includes('nextJobPhone&&nextJobMessageCustomer?<MessageComposer customer={nextJobMessageCustomer} estimate={upcomingJobs[0]} initialTemplate="custom" triggerLabel="Text"'),"Next Job Text uses verified customer/job-scoped saved-template composer, not an unlogged blank quick text");
+check(ui.includes('triggerLabel="Email" triggerAriaLabel="Email next job customer"'),"Next Job Email uses the same prepared-message workflow");
+check(ui.includes('contactEmail&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Email"'),"Primary customer Email uses saved templates and explicit owner-confirmed handoff");
 for(const location of [
  'estimate.phone&&<MessageComposer customer={messageCustomer} estimate={estimate} initialTemplate="custom" triggerLabel="Text"',
  'contactPhone&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Text"',
