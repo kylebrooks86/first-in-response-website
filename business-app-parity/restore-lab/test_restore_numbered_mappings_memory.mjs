@@ -75,8 +75,17 @@ function fixture(opts={}){
   if(table==='customers'||table==='estimates')continue;
   const example=rows[table][0]||{id:''};
   const columns=Object.keys(example).map(key=>quote(key)+' '+
-    (key.endsWith('_cents')?'INTEGER':'TEXT')).join(',');
-  db.exec('CREATE TABLE '+quote(table)+' ('+columns+')');
+    (key==='id'?'TEXT PRIMARY KEY':key.endsWith('_cents')?'INTEGER':'TEXT')).join(',');
+  const foreign={
+   invoices:'FOREIGN KEY(estimate_id) REFERENCES estimates(id)',
+   invoice_revisions:'FOREIGN KEY(invoice_id) REFERENCES invoices(id)',
+   payments:'FOREIGN KEY(estimate_id) REFERENCES estimates(id)',
+   payment_refunds:'FOREIGN KEY(payment_id) REFERENCES payments(id)',
+   deposit_policy_events:'FOREIGN KEY(estimate_id) REFERENCES estimates(id)',
+   deposit_agreement_snapshots:'FOREIGN KEY(event_id) REFERENCES deposit_policy_events(id)',
+   customer_photos:'FOREIGN KEY(customer_id) REFERENCES customers(id)'
+  }[table];
+  db.exec('CREATE TABLE '+quote(table)+' ('+columns+(foreign?','+foreign:'')+')');
  }
  function insert(table,data){
   const columns=Object.keys(data);
@@ -84,7 +93,7 @@ function fixture(opts={}){
     ') VALUES ('+columns.map(()=>'?').join(',')+')';
   db.prepare(sql).run(...columns.map(k=>data[k]));
  }
- for(const table of FIRE_NUMBERED_RECORDS_TABLES)
+ if(!opts.empty)for(const table of FIRE_NUMBERED_RECORDS_TABLES)
   for(const record of rows[table])insert(table,record);
  db.exec(customerSQL);db.exec(jobSQL);
  if(opts.additionalRecord)db.prepare("INSERT INTO customers(id,created_at,name) VALUES('EXTRA','2026-10-21','Not in backup')").run();
