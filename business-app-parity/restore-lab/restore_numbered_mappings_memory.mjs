@@ -1,7 +1,7 @@
 /** FIRE numbered v2 restore: DISPOSABLE, IN-MEMORY SQLite LAB ONLY.
  *
  * This restores only the immutable Customer # / Job # and estimate-link tables
- * after ALL 20 legacy business-record tables have independently been populated
+ * after ALL 21 reviewed business-record tables have independently been populated
  * and match the verified v2 archive EXACTLY. Never call it on a hosted D1,
  * production database, persistent SQLite file, or before financial/document
  * audits and owner approval for a real recovery workflow.
@@ -119,7 +119,7 @@ function setHighWater(db,table,value){
 
 /** Restore only NUMBERING into an ALREADY RECORD-COMPLETE disposable in-memory DB.
  * Entire set is one local SQLite transaction with rollback on any failure.
- * It does not populate or merge business records; all 20 record families
+ * It does not populate or merge business records; all 21 record families
  * must match the original authenticated/financially reviewed source archive
  * before a single number is inserted.
  */
