@@ -43,6 +43,8 @@ jobs:
         run: node business-app-parity/shared/scripts/test-customer-numbering.mjs
       - name: Validate lossless Customer # and Job # snapshot — synthetic SQLite only
         run: node --experimental-sqlite business-app-parity/shared/scripts/test-numbered-identity-archive.mjs
+      - name: Test private historical Customer # preflight against synthetic, disposable SQLite
+        run: python3 -m unittest discover -s business-app-parity/customer-numbering -p test_preflight_customer_history.py -v
       - name: Confirm candidate has no real migration or provider write configuration
         shell: bash
         run: |
