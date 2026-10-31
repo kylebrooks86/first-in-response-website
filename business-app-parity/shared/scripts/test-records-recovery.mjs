@@ -49,7 +49,7 @@ try{
  sourceDb.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,first_viewed_at,accepted_at,signed_name,signed_at,photo_release,contract_version,created_at) VALUES('signed-job','customer','approved',14000,14000,0,?,?,?,?,?,?,'2026-10-09')").run('2026-10-09T10:00:00Z','2026-10-09T11:00:00Z','Synthetic Customer','2026-10-09T11:00:00Z','no',archivedVersion+':sha256:'+archivedDigest);
  sourceDb.exec("INSERT INTO deposit_policy_events(id,estimate_id,confirmation_id,actor_email,mode,previous_total_cents,previous_deposit_cents,new_deposit_cents,paid_principal_cents,created_at) VALUES('00000000-0000-4000-8000-0000000000aa','signed-job','signed-confirmation','synthetic-owner','waive',14000,7000,0,0,'2026-10-09T09:00:00Z')");
  sourceDb.prepare("INSERT INTO deposit_agreement_snapshots(event_id,estimate_id,document_version,document_digest,total_cents,deposit_cents,mode,scope_json,agreement_text,signed_name,photo_release,signed_at,accepted_at) VALUES('00000000-0000-4000-8000-0000000000aa','signed-job',?,?,14000,0,'waive',?,?, 'Synthetic Customer','no','2026-10-09T11:00:00Z','2026-10-09T11:00:00Z')").run(archivedVersion,archivedDigest,archivedScope,archivedText);
- const adapter=db=>({prepare(query){return {query,args:[],bind(...args){this.args=args;return this;},async all(){return {results:db.prepare(query).all(...this.args)};}};},async batch(statements){return statements.map(s=>({results:db.prepare(s.query).all(...s.args)}));}});
+ const adapter=db=>({prepare(query){return {query,args:[],bind(...args){this.args=args;return this;},async all(){return {results:db.prepare(query).all(...this.args)};},async first(){return db.prepare(query).get(...this.args)??null;}};},async batch(statements){return statements.map(s=>({results:db.prepare(s.query).all(...s.args)}));}});
  globalThis.__recordsRecoveryDb=adapter(sourceDb);
  const raw=readFileSync(join(root,'app/api/backup/route.ts'),'utf8');
  const ast=ts.createSourceFile('route.ts',raw,ts.ScriptTarget.Latest,true);
@@ -68,7 +68,21 @@ const restorePropertyRecords=()=>{throw Error('Property restore must not run wit
 `;
  const source=globals+raw.replace(/^import .*?;\n/gm,'').replace(/async function authorized\(\) \{[\s\S]*?\n\}/,'async function authorized(){return true;}');
  const backupApi=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64'));
- const exported=await backupApi.GET();equal(exported.status,200);const backup=await exported.json();equal(backup.tables.payment_refunds.length,4);equal(validateRefundIntegrity(backup.tables),null);equal(backup.tables.deposit_policy_events.length,2);equal(backup.includes.depositPolicyAuditHistory,true);equal(backup.includes.signedDepositAgreementHistory,true);equal(backup.tables.deposit_agreement_snapshots.length,1);equal(validateSignedAgreementSnapshots(backup.tables,true),null);equal(await verifySignedAgreementDigests(backup.tables),null);equal(validateDepositAuditIntegrity(backup.tables,true),null);
+ const exported=await backupApi.GET();equal(exported.status,200);const backup=await exported.json();
+// The actual v1 JSON backup must fail closed on an already-migrated numbered
+// schema even if feature flags were subsequently disabled. This is a
+// disposable local SQLite test; no real customer IDs or hosted D1 touched.
+for(const identityTable of ['fire_customer_numbers','fire_job_numbers','fire_job_estimate_links']){
+ sourceDb.exec('CREATE TABLE '+identityTable+' (id INTEGER PRIMARY KEY)');
+ const deniedExport=await backupApi.GET();
+ equal(deniedExport.status,409,identityTable+' blocks incomplete JSON export even with feature OFF');
+ const deniedRestore=await backupApi.POST(new Request('https://synthetic.invalid/api/backup',{method:'POST',body:JSON.stringify(backup)}));
+ equal(deniedRestore.status,409,identityTable+' blocks unsafe JSON import before writes');
+ equal(sourceDb.prepare('SELECT COUNT(*) n FROM customers').get().n,1,
+  identityTable+' refuses the import without touching original customers');
+ sourceDb.exec('DROP TABLE '+identityTable);
+}
+equal(backup.tables.payment_refunds.length,4);equal(validateRefundIntegrity(backup.tables),null);equal(backup.tables.deposit_policy_events.length,2);equal(backup.includes.depositPolicyAuditHistory,true);equal(backup.includes.signedDepositAgreementHistory,true);equal(backup.tables.deposit_agreement_snapshots.length,1);equal(validateSignedAgreementSnapshots(backup.tables,true),null);equal(await verifySignedAgreementDigests(backup.tables),null);equal(validateDepositAuditIntegrity(backup.tables,true),null);
  const backupPath=join(work,'backup.json');const save=payload=>writeFileSync(backupPath,JSON.stringify(payload));save(backup);
  const invoke=(file,args=[],env={})=>spawnSync(process.execPath,[join(work,'scripts',file),...args],{cwd:work,encoding:'utf8',env:{...process.env,...env},maxBuffer:8*1024*1024});
  const validate=()=>invoke('validate-records-backup.mjs',[backupPath]);
