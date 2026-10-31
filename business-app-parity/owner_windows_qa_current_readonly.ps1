@@ -1,6 +1,6 @@
 # FIRE QA current-release evidence review — READ ONLY, no publication or data mutation.
 # Designed for the owner's existing authenticated Windows Wrangler session.
-# Independent of the guarded update/release scripts; do not edit their pins.
+# The expected 100%-serving Worker ID matches the guarded QA update scripts.
 [CmdletBinding()]
 param()
 Set-StrictMode -Version Latest
@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 $workerName = 'fire-fullapp-qa-20261016'
 $qaName = 'fire-fullapp-qa-db-20261016'
 $qaUuid = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
-$expectedVersion = 'db6ef897-edd3-439e-8679-b6f6620f18af'
+$expectedVersion = '1783ded7-43db-4769-8708-fa86c47b002d'
 $config = Join-Path $PSScriptRoot 'wrangler.qa-migrations.json'
 $migrationsRoot = Join-Path $PSScriptRoot 'adapters\doomsday\drizzle'
 $identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'
