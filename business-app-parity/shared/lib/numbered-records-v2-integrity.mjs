@@ -108,6 +108,14 @@ export async function verifyNumberedRecordsV2CriticalIntegrity(tables){
       [...FIRE_NUMBERED_RECORDS_TABLES].sort().join('|'))
    fail('record-family inventory differs from approved v2 scope');
  for(const key of FIRE_NUMBERED_RECORDS_TABLES)allRows(tables,key);
+ const throttleKeys=new Set();
+ for(const row of allRows(tables,'auth_rate_limits')){
+  if(!text(row.key)||throttleKeys.has(row.key)||!Number.isSafeInteger(row.attempts)||
+     row.attempts<0||!Number.isSafeInteger(row.window_started_at)||
+     row.window_started_at<0||!Number.isSafeInteger(row.blocked_until)||row.blocked_until<0)
+   fail('invalid or duplicate authentication throttling history');
+  throttleKeys.add(row.key);
+ }
  const customers=identities(tables,'customers');
  const estimates=identities(tables,'estimates');
  const invoices=identities(tables,'invoices');
