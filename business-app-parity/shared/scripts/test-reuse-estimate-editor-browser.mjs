@@ -17,7 +17,7 @@ const server=createServer(async(req,res)=>{res.setHeader('content-type','applica
  if(req.url.startsWith('/api/customer-properties'))return res.end(JSON.stringify({enabled:false}));
  if(req.url.startsWith('/api/customers/lookup')&&req.url.includes('customerId='))return res.end(JSON.stringify({customer:{id:'synthetic-customer',name:'Synthetic Revision',email:'revision@example.invalid',phone:'9185550100',address:'100 Synthetic Revision St'}}));
  if(req.url.startsWith('/api/customers/lookup'))return res.end(JSON.stringify({customers:[]}));
- if(req.url==='/api/saved-promotions/preview'){previews++;let body='';for await(const c of req)body+=c;const v=JSON.parse(body);if(hold)await new Promise(r=>release=r);return res.end(JSON.stringify({revision:'synthetic',checkedOn:'2026-10-22',bookingConfirmedOn:null,eligible:[],pendingBooking:[],percentBasisPoints:0,dollarCents:0,blocked:null,previewTotalCents:Math.max(15000,v.subtotalCents),previewDepositCents:Math.round(Math.max(15000,v.subtotalCents)/2)}));}
+ if(req.url==='/api/saved-promotions/preview'){previews++;let body='';for await(const c of req)body+=c;const v=JSON.parse(body);if(hold)await new Promise(r=>release=r);return res.end(JSON.stringify({revision:'synthetic',checkedOn:'2026-10-22',bookingConfirmedOn:null,eligible:[],pendingBooking:[],percentBasisPoints:0,dollarCents:0,blocked:null,previewTotalCents:Math.max(0,v.subtotalCents),previewDepositCents:Math.round(Math.max(0,v.subtotalCents)/2)}));}
  if(req.url?.startsWith('/api/estimates/create-status?')){const requestId=new URL(req.url,'http://localhost').searchParams.get('requestId'),item=confirmedQuotes.get(requestId);res.setHeader('cache-control','private, no-store');return res.end(JSON.stringify(item?{found:true,recognized:true,requestId,estimate:{id:requestId,customer:item.customer,status:'draft',totalCents:item.total,depositCents:item.deposit}}:{found:false,requestId}));}
  if(req.url==='/api/estimates'){saves++;let body='';for await(const c of req)body+=c;posted=JSON.parse(body);const total=posted.items.reduce((n,i)=>n+i.totalCents,0);const mismatch=receiptMismatch;receiptMismatch=null;confirmedQuotes.set(posted.requestId,{customer:posted.customer,total,deposit:Math.round(total/2)});return res.end(JSON.stringify({id:posted.requestId,requestId:posted.requestId,customerId:'synthetic-customer',address:posted.address,subtotalCents:total,discountCents:0,totalCents:total+(mismatch==='total'?1:0),depositCents:Math.round(total/2)+(mismatch==='deposit'?1:0),promotionAttributionSaved:true,bundleDiscountCents:0}));}
  if(req.url==='/bundle.js'){res.setHeader('content-type','text/javascript');return res.end(bundle.outputFiles[0].text);}if(req.url==='/style.css'){res.setHeader('content-type','text/css');return res.end(css.css);}
@@ -120,6 +120,31 @@ await page.getByText('Estimate ready',{exact:true}).waitFor();
 check(saves===beforeQuoteSaves+1&&posted.items.length===2&&posted.items[0].totalCents===22000&&posted.items[1].totalCents===7500,
  'Manual house-plus-gutter quote saves two exact-priced lines once');
 check(packageWrites===beforePackageWrites,'Saving quote does not create reusable mixes');
+// A quote below $150 must remain below $150: neither promotion preview nor
+// server receipt may manufacture a minimum charge the owner never approved.
+await page.goto(origin);
+await page.getByRole('button',{name:'New estimate',exact:true}).click();
+await page.getByRole('button',{name:'Create New Customer',exact:false}).click();
+await page.getByLabel('Customer name',{exact:true}).fill('Synthetic Small Job');
+await page.getByLabel('Estimate service address').fill('25 Exact Cents Lane, Tulsa');
+await page.getByRole('button',{name:'Continue to services'}).click();
+const smallLine=page.locator('.new-estimate-dialog .estimate-edit-service').first();
+await smallLine.getByRole('combobox').click();
+await page.getByRole('option',{name:'Custom Service',exact:true}).click();
+await smallLine.getByLabel('Service name',{exact:true}).fill('Small custom exterior service');
+await smallLine.getByLabel('Quantity',{exact:true}).fill('1');
+await smallLine.locator('input[id$="-price"]').fill('25');
+check(await smallLine.getByText('Line total $25',{exact:true}).count()===1,
+  'Custom small-job line remains exactly $25 without an app-added minimum');
+await page.waitForFunction(()=>{const button=[...document.querySelectorAll('button')]
+  .find(b=>b.textContent?.includes('Save $25 estimate'));return Boolean(button&&!button.disabled);});
+const beforeSmallSaves=saves;
+await page.getByRole('button',{name:'Save $25 estimate'}).click();
+await page.getByText('Estimate ready',{exact:true}).waitFor();
+check(saves===beforeSmallSaves+1&&posted.items.length===1&&posted.items[0].totalCents===2500,
+  'Small custom quote saved once at $25, with zero automatic price minimum');
+check(await page.getByText('$25.00 total.',{exact:false}).count()===1,
+  'Small quote confirmation shows its saved $25 total, not a minimum');
 // A 2xx response can still be an uncertain save. Show the user how to inspect
 // stored estimates, and block duplicate retries even without a bundle discount.
 for(const mismatch of ['total','deposit']){
