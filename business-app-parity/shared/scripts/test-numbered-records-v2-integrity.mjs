@@ -291,3 +291,73 @@ await sealedRefuse(()=>encryptFinanciallyVerifiedNumberedV2({
 }),'Financially invalid archive cannot be encrypted and falsely treated as valid');
 console.log('PASS '+checks+'/'+checks+
  ' NEW owner-passphrase AES-256-GCM encrypted v2 records and wrong-key/tamper refusal checks (synthetic only).');
+
+
+
+// NEW photo-file custody comparison against the already reviewed metadata.
+// Synthetic 2 KB image bytes, no R2/ZIP/filesystem access or owner photos.
+const {buildNumberedV2PhotoVaultManifest,verifyNumberedV2PhotoVault}
+ =await import('../lib/numbered-records-v2-photo-vault.mjs');
+const sourcePhoto=archive.archive.records.tables.customer_photos[0];
+const photoFiles=[{
+ objectKey:sourcePhoto.object_key,contentType:sourcePhoto.content_type,
+ bytes:new Uint8Array(sourcePhoto.size_bytes).fill(0x91)
+}];
+const originalManifest=await buildNumberedV2PhotoVaultManifest({
+ archive:archive.archive,files:photoFiles
+});
+eq(originalManifest.files.length,1,'Every original metadata row has one hashed file');
+eq(originalManifest.files[0].sha256.length,64,'Photo bytes get SHA-256 digest');
+const verifiedPhotos=await verifyNumberedV2PhotoVault({
+ archive:archive.archive,files:photoFiles,protectedManifest:originalManifest
+});
+eq(verifiedPhotos.completeMetadataMatchesFiles,true,
+ 'Owner photo bytes match all archived photo metadata and their protected hashes');
+eq(verifiedPhotos.photoFilesVerified,1,'One actual photo object validated');
+eq(verifiedPhotos.verifiedBytes,sourcePhoto.size_bytes,'Exact photo byte size verified');
+eq(verifiedPhotos.cloudPhotoRestorePerformed,false,'No false claim that R2 photo bytes are restored');
+eq(verifiedPhotos.trustedManifestOriginProven,false,
+ 'New SHA-256 manifest does not itself authenticate original ownership');
+const photoReject=async(fn,label)=>{
+ await assert.rejects(fn,/FIRE PHOTO VAULT V2 REFUSED/,label);checks++;
+};
+await photoReject(()=>verifyNumberedV2PhotoVault({
+ archive:archive.archive,files:[],protectedManifest:originalManifest
+}),'Missing original photo file refuses recovery');
+const extraPhotos=[...photoFiles,{
+ objectKey:'customers/c1/not-in-records.jpg',contentType:'image/jpeg',bytes:new Uint8Array(2)
+}];
+await photoReject(()=>verifyNumberedV2PhotoVault({
+ archive:archive.archive,files:extraPhotos,protectedManifest:originalManifest
+}),'Unexpected extra photo refuses custody verification');
+const wrongType=[{...photoFiles[0],contentType:'image/png'}];
+await photoReject(()=>verifyNumberedV2PhotoVault({
+ archive:archive.archive,files:wrongType,protectedManifest:originalManifest
+}),'Changed image MIME rejected');
+const shortFile=[{...photoFiles[0],bytes:new Uint8Array(100)}];
+await photoReject(()=>verifyNumberedV2PhotoVault({
+ archive:archive.archive,files:shortFile,protectedManifest:originalManifest
+}),'Truncated photo bytes rejected');
+const alteredBytes=[{...photoFiles[0],bytes:new Uint8Array(photoFiles[0].bytes)}];
+alteredBytes[0].bytes[0]=0;
+await photoReject(()=>verifyNumberedV2PhotoVault({
+ archive:archive.archive,files:alteredBytes,protectedManifest:originalManifest
+}),'Same-size corrupted photo rejected against original protected SHA-256');
+const forgery=clone(originalManifest);forgery.files[0].sha256='0'.repeat(64);
+await photoReject(()=>verifyNumberedV2PhotoVault({
+ archive:archive.archive,files:photoFiles,protectedManifest:forgery
+}),'Forged original photo hash rejected');
+const omittedManifest=clone(originalManifest);omittedManifest.files=[];
+await photoReject(()=>verifyNumberedV2PhotoVault({
+ archive:archive.archive,files:photoFiles,protectedManifest:omittedManifest
+}),'Missing original photo manifest entry rejected');
+const changedClaim=clone(originalManifest);changedClaim.photoFilesIncludedInRecords=true;
+await photoReject(()=>verifyNumberedV2PhotoVault({
+ archive:archive.archive,files:photoFiles,protectedManifest:changedClaim
+}),'Photo manifest cannot claim image files are inside database records');
+const malformed=clone(originalManifest);malformed.files[0].unreviewed='value';
+await photoReject(()=>verifyNumberedV2PhotoVault({
+ archive:archive.archive,files:photoFiles,protectedManifest:malformed
+}),'Unknown photo manifest fields refused');
+console.log('PASS '+checks+'/'+checks+
+ ' NEW source-only photo vault file/size/SHA-256 reconciliation checks; no actual file restore.');
