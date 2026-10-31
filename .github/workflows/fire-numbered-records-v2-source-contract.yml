@@ -4,6 +4,7 @@ on:
     paths:
       - 'business-app-parity/shared/lib/numbered-records-v2.mjs'
       - 'business-app-parity/shared/lib/numbered-records-v2-integrity.mjs'
+      - 'business-app-parity/shared/lib/numbered-records-v2-sealed.mjs'
       - 'business-app-parity/shared/lib/numbered-records-v2-d1-read.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2-integrity.mjs'
@@ -17,6 +18,7 @@ on:
     paths:
       - 'business-app-parity/shared/lib/numbered-records-v2.mjs'
       - 'business-app-parity/shared/lib/numbered-records-v2-integrity.mjs'
+      - 'business-app-parity/shared/lib/numbered-records-v2-sealed.mjs'
       - 'business-app-parity/shared/lib/numbered-records-v2-d1-read.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2-integrity.mjs'
