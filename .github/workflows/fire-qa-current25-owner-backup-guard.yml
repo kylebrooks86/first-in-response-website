@@ -1,0 +1,31 @@
+name: FIRE QA Current-25 Owner Backup Guard
+on:
+  push:
+    branches:
+      - work/fire-permanent-customer-numbers-history-2026-10-31
+    paths:
+      - 'business-app-parity/owner_windows_qa_backup_current25.ps1'
+      - 'business-app-parity/test_owner_windows_qa_backup_current25.ps1'
+      - '.github/workflows/fire-qa-current25-owner-backup-guard.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/owner_windows_qa_backup_current25.ps1'
+      - 'business-app-parity/test_owner_windows_qa_backup_current25.ps1'
+      - '.github/workflows/fire-qa-current25-owner-backup-guard.yml'
+permissions:
+  contents: read
+jobs:
+  dry:
+    name: Owner backup defaults to zero provider calls, files or exports
+    runs-on: windows-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: business-app-parity
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test current25 no-op owner wrapper and exact target safeguards
+        run: ./test_owner_windows_qa_backup_current25.ps1

@@ -14,11 +14,13 @@ $qaDatabase = 'fire-fullapp-qa-db-20261016'
 $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Cloud photo R2 is intentionally not provisioned. The device-local photo vault and
 # independently saved ZIP backups must remain usable without billing.
-# Pin the exact QA Worker version shown by the owner's authenticated Acer Wrangler read-only status on October 30, 2026.
+# Pin current QA-only Worker from the owner's Oct 31 authenticated read-only PASS.
+# This script is READ ONLY; the separate publisher remains deliberately locked
+# to an older version until owner-held 25-schema recovery is authenticated.
 # Fresh authenticated Wrangler review must independently confirm the same sole 100% active version.
 # Reject a different active version, split traffic, or changed D1 identity.
 # Reject older, split, changed or ambiguous versions before any upload.
-$expectedActiveVersion = '1783ded7-43db-4769-8708-fa86c47b002d'
+$expectedActiveVersion = '99fa8c27-df83-48d3-b953-9a84eb295334'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }
@@ -73,18 +75,47 @@ Require (-not ((Get-Item -LiteralPath $original).Attributes -band [IO.FileAttrib
 $previousSQL = @(Get-ChildItem -LiteralPath (Join-Path $original 'drizzle') -Filter '*.sql' -File)
 $nextSQL = @(Get-ChildItem -LiteralPath (Join-Path $candidate 'drizzle') -Filter '*.sql' -File)
 Require ($previousSQL.Count -eq 23 -and $nextSQL.Count -eq 25) 'QA upgrade must preserve 23 original migrations and append exactly 2 reviewed additive migrations.'
+# Preserve raw SHA-256 checks to observe Windows CRLF/LF differences.
+# Raw-byte differences MUST NOT automatically pass: the independent Python
+# reviewer must verify every original and appended file against immutable
+# Git blob pins after strictly CRLF -> LF normalization (nothing else).
 $baseline = @{}
 foreach ($file in $previousSQL) { $baseline[$file.Name] = (Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName).Hash }
+$rawByteDifferences = @()
 foreach ($file in $previousSQL) {
     $currentFile = Join-Path (Join-Path $candidate 'drizzle') $file.Name
-    Require ((Test-Path -LiteralPath $currentFile -PathType Leaf) -and
-        $baseline[$file.Name] -ceq (Get-FileHash -Algorithm SHA256 -LiteralPath $currentFile).Hash) 'QA migration bytes differ from original published app. Stop without touching D1.'
+    Require (Test-Path -LiteralPath $currentFile -PathType Leaf) 'QA migration file missing from current candidate. Stop without touching D1.'
+    if ($baseline[$file.Name] -cne (Get-FileHash -Algorithm SHA256 -LiteralPath $currentFile).Hash) {
+        $rawByteDifferences += $file.Name
+    }
 }
-# Historical and 0023/0024 SQL must also match their immutable Git-blob pins;
-# merely counting or matching the old 23 would admit unreviewed new SQL.
-& $python.Source $pinnedReview --baseline (Join-Path $original 'drizzle') --candidate (Join-Path $candidate 'drizzle') --checkpoint $head | Out-Null
+# Pinned history proof fails closed for any real content change, bare CR,
+# unexpected/missing migration, invalid name, or changed 0023/0024 SQL.
+# Keep this BEFORE all Cloudflare/provider calls and do not overwrite SQL.
+$pinnedRaw = @(& $python.Source $pinnedReview --baseline (Join-Path $original 'drizzle') --candidate (Join-Path $candidate 'drizzle') --checkpoint $head)
 Require-Exit 'Exact 23 historical plus two append-only SQL Git blob identity review'
-Write-Host 'PASS: All 23 first-hosted QA migrations remain unchanged; exactly 2 pinned additive migrations verified locally. No migrations run.'
+try { $pinnedResult = ConvertFrom-Json -InputObject ($pinnedRaw -join [Environment]::NewLine) }
+catch { throw 'FIRE QA UPDATE STOP: Pinned migration verification returned malformed JSON. No remote changes.' }
+Require ($null -ne $pinnedResult -and
+    $pinnedResult.result -ceq 'CODE_ONLY_QA_UPDATE_BLOCKED' -and
+    $pinnedResult.candidateSourceCommit -ceq $head -and
+    $pinnedResult.pinnedOriginalSource -ceq $firstSource -and
+    [int]$pinnedResult.originalSqlCount -eq 23 -and
+    [int]$pinnedResult.candidateSqlCount -eq 25 -and
+    $pinnedResult.originalMigrationsLfEquivalent -eq $true -and
+    $pinnedResult.migrationLineEndingPolicy -ceq 'CRLF-to-LF only, then exact pinned Git blob verification' -and
+    @($pinnedResult.additionalMigrations).Count -eq 2 -and
+    $pinnedResult.publicationAuthorized -eq $false -and
+    $pinnedResult.migrationPermissionGranted -eq $false
+) 'Pinned original and appended migrations not independently verified. Stop without touching D1.'
+if ($rawByteDifferences.Count -gt 0) {
+    Require ($pinnedResult.originalMigrationsByteIdentical -eq $false) 'Raw-byte difference report disagrees with pinned migration verifier.'
+    Write-Host ('PASS: Original migrations differ only by verified CRLF/LF line endings (' + $rawByteDifferences.Count + ' files); no SQL rewrite permitted.')
+} else {
+    Require ($pinnedResult.originalMigrationsByteIdentical -eq $true) 'Raw migration identity report disagrees with pinned verifier.'
+    Write-Host 'PASS: Original migration raw bytes also match exactly.'
+}
+Write-Host 'PASS: All 23 first-hosted migrations and two pinned additive migrations match immutable Git blobs; no migrations run.'
 & $python.Source $sourceCheck qa $candidate --built
 Require-Exit 'Latest full-app QA compiled source verification'
 & $node.Source $runtimeCheck $manifest
@@ -93,13 +124,44 @@ Require-Exit 'Exactly isolated QA Worker/D1 bindings'
 # d1 info returns API code 10000. Check BOTH QA and protected staging identities,
 # fail closed on collisions, and never infer schema from num_tables metadata.
 $identityHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_list.ps1'
+$individualInfoHelper = Join-Path $PSScriptRoot 'qa_d1_identity_from_info.ps1'
 $bindingHelper = Join-Path $PSScriptRoot 'verify_qa_worker_version_bindings.ps1'
-Require (Test-Path -LiteralPath $identityHelper -PathType Leaf) 'Strict read-only D1 identity validator is missing.'
+Require (Test-Path -LiteralPath $identityHelper -PathType Leaf) 'Strict read-only D1 list identity validator is missing.'
+Require (Test-Path -LiteralPath $individualInfoHelper -PathType Leaf) 'Strict independently verified dual D1 info identity validator is missing.'
 Require (Test-Path -LiteralPath $bindingHelper -PathType Leaf) 'Strict active QA physical D1 binding validator is missing.'
-$databaseRaw = @(& $wrangler.Source d1 list --json)
-Require-Exit 'Read-only existing QA/staging D1 list'
-$databaseInfo = & $identityHelper -Json ($databaseRaw -join [Environment]::NewLine)
-Require ($databaseInfo.qaName -ceq $qaDatabase -and $databaseInfo.qaUuid -ceq $qaId) 'Isolated QA D1 identity differs. No publish.'
+# Prefer the complete D1 LIST. On a nonzero exit ONLY, fetch both actual
+# physical database identities independently from supported d1 info endpoints.
+# A successful but malformed/changed list NEVER falls back; it must STOP.
+# The fallback is NOT authorization to skip QA/staging separation or Worker binding.
+# A rejected LIST can emit native stderr; Windows PowerShell 5 with
+# ErrorActionPreference=Stop must not terminate before the validated fallback.
+# Capture only the exit status; never log raw provider or account metadata.
+$previousErrorAction = $ErrorActionPreference
+try {
+    $ErrorActionPreference = 'Continue'
+    $databaseRaw = @(& $wrangler.Source d1 list --json 2>$null)
+    $listExit = $LASTEXITCODE
+} finally {
+    $ErrorActionPreference = $previousErrorAction
+}
+if ($listExit -eq 0) {
+    $databaseInfo = & $identityHelper -Json ($databaseRaw -join [Environment]::NewLine)
+    Write-Host 'PASS: QA and protected staging D1 identities verified from full D1 listing.'
+} else {
+    Write-Host 'LIMIT: D1 LIST endpoint unavailable. Verifying BOTH individually queried database identities instead.'
+    $qaInfoRaw = @(& $wrangler.Source d1 info $qaDatabase "--config=$qaD1Config" --json 2>$null)
+    Require-Exit 'Read-only exact QA D1 INFO lookup'
+    $stagingInfoRaw = @(& $wrangler.Source d1 info 'fire-app-staging-db' "--config=$qaD1Config" --json 2>$null)
+    Require-Exit 'Read-only protected staging D1 INFO lookup'
+    $databaseInfo = & $individualInfoHelper -QaJson ($qaInfoRaw -join [Environment]::NewLine) -StagingJson ($stagingInfoRaw -join [Environment]::NewLine)
+    Write-Host 'PASS: Separate QA and protected staging identities verified from two exact D1 INFO responses.'
+}
+Require ($null -ne $databaseInfo -and
+    $databaseInfo.qaName -ceq $qaDatabase -and $databaseInfo.qaUuid -ceq $qaId -and
+    $databaseInfo.stagingName -ceq 'fire-app-staging-db' -and
+    $databaseInfo.stagingUuid -ceq 'afb2c05a-d794-4a9a-b580-924ce01c26ad' -and
+    $databaseInfo.qaUuid -cne $databaseInfo.stagingUuid
+) 'Isolated QA and protected staging D1 identities must both match independent pinned physical resources. No publish.'
 # Do not rely on Cloudflare stale num_tables metadata. Read only schema and
 # migration journal names (no customer rows, names, payment amounts or photos).
 $orderedSQL = @(Get-ChildItem -LiteralPath (Join-Path $candidate 'drizzle') -File -Filter '*.sql' | Sort-Object Name | ForEach-Object { $_.Name })

@@ -17,6 +17,7 @@ import{deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,LEAD_NO_ANSWER_NOTE,LEAD_C
 import{mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory}from'./lib/offline-photo-availability';
 import{usableCustomerPhone,usableCustomerEmail}from'./lib/customer-contact-links';
 import{jobNumberLabel}from'./lib/job-numbering.mjs';
+import{customerNumberLabel,matchesCustomerNumberQuery,completedCustomerJobHistory}from'./lib/customer-numbering.mjs';
 const saveOfflinePhotoCustomerDirectory=async()=>{},loadOfflinePhotoCustomerDirectory=async()=>[],clearOfflinePhotoCustomerDirectory=async()=>{};
 const money=c=>'$'+(c/100).toFixed(2),dateTime=v=>v,statusLabel=v=>v,resolvedBillingTotalCents=e=>e.invoiceTotalCents??e.totalCents,billingBalanceCents=e=>Math.max(0,resolvedBillingTotalCents(e)-e.paidCents);
 ${stubs}\n${functions.map(f=>f.getText(ast)).join('\n')}
@@ -46,7 +47,7 @@ createRoot(document.getElementById('app')).render(location.pathname==='/insights
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const css=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 if(process.argv.includes('--compile-only')){assert.ok(bundle.outputFiles[0].text.length>1000&&css.css.includes('.customer-profile'));console.log('PASS: actual customer write browser fixture and shared CSS compile; browser assertions not executed.');process.exit(0);}
-const customer=id=>({id,name:'Fixture '+(id==='first'?'First':'Second'),email:id+'@example.invalid',phone:'',address:'Synthetic only',leadSource:'Unknown',createdAt:'2026-10-19',estimateCount:0,estimateTotal:0,paidTotal:0});
+const customer=id=>({id,name:'Fixture '+(id==='first'?'First':'Second'),customerNumber:id==='first'?1:2,email:id+'@example.invalid',phone:'',address:'Synthetic only',leadSource:'Unknown',createdAt:'2026-10-19',estimateCount:0,estimateTotal:0,paidTotal:0});
 let insightMode=false,insightPayload=null;
 let historyFailure=false,historyReads=[];
 let customers,notes,noteStatus=201,noteHold=false,noteLoseReply=false,customerHold=false,releaseNote,releaseCustomer,onNote,onCustomer,notePosts=0,customerPatches=0;
@@ -72,6 +73,7 @@ try{
  browser=await chromium.launch({headless:true,executablePath:process.env.FIRE_BROWSER_TEST_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});const page=await browser.newPage();page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',r=>{if(new URL(r.request().url()).origin!==origin){outside.push(r.request().url());return r.abort();}return r.continue();});
  await page.goto(origin+'/');await page.locator('.customer-card').first().waitFor();
+ check(await page.locator('.customer-card').first().getByText('Customer #0001',{exact:true}).count()===1, 'Permanent Customer #0001 renders alongside customer name on existing directory');
  const state=await page.evaluate(()=>window.testReviewEligibility());
  check(state.due==='due'&&state.days===7&&state.waiting==='waiting','Review eligibility waits seven full days after a real request');
  check(state.prepared==='not-recorded'&&state.confirmed==='due','Prepared review messages do not count as confirmed requests');

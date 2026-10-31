@@ -72,8 +72,21 @@ try{
   check(await page.getByText('$366.00',{exact:true}).count()===1,'New possible total visible');
   check(await page.getByText('FIRE confirmed booking 15%',{exact:false}).count()===1,'New rule identified');
   check(await page.getByText('No quote, contract, invoice',{exact:false}).count()>0,'Explicit no-change warning');
-  const bounds=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,buttons:[...document.querySelectorAll('[aria-label="Booking promotion adjustment preview"] button')].map(x=>{const t=x.getBoundingClientRect();return{left:t.left,right:t.right,height:t.height}})}));
-  check(bounds.scroll<=width+1&&bounds.buttons.every(x=>x.left>=0&&x.right<=width+1&&x.height>=42),'No overflow and usable touch at '+width+'/'+theme);
+  const bounds=await page.evaluate(()=>({
+   scroll:document.documentElement.scrollWidth,
+   buttons:[...document.querySelectorAll('[aria-label="Booking promotion adjustment preview"] button')].map(x=>{
+    const t=x.getBoundingClientRect();
+    return {label:x.textContent?.trim().slice(0,75),left:t.left,right:t.right,height:t.height,
+      visible:t.width>0&&t.height>0&&getComputedStyle(x).visibility!=='hidden'};
+   })
+  }));
+  // Buttons under a closed <details> have no layout box and are not
+  // actionable. Never count their zero-height phantom rectangles as broken
+  // touch targets; DO validate all actually rendered controls.
+  const actionable=bounds.buttons.filter(x=>x.visible);
+  check(bounds.scroll<=width+1&&actionable.length>0&&
+    actionable.every(x=>x.left>=0&&x.right<=width+1&&x.height>=42),
+    'No overflow and usable visible touch at '+width+'/'+theme+': '+JSON.stringify(bounds));
  }
  await page.setViewportSize({width:390,height:844});await page.goto(origin);
  await page.getByRole('button',{name:'Preview booking adjustment'}).click();await page.getByText('Potential additional savings: $69.00').waitFor();

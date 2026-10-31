@@ -40,6 +40,23 @@ try{
   await page.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));check(Math.abs((await toggle.boundingBox()).y-a.y)<1,`${kind}: control fixed during scroll`);
   await page.emulateMedia({media:'print'});check(!await toggle.isVisible()&&!await close.isVisible()&&await page.locator('.pay-card').evaluate(n=>getComputedStyle(n).backgroundColor)==='rgb(255, 255, 255)',`${kind}: print hides controls and uses white paper`);await page.emulateMedia({media:'screen'});
  }
+ // Deterministically exercise a stale client state before rehydration or
+ // after a document-level theme switch. The visible root theme, not React's
+ // last state, controls the next user click.
+ await page.goto(origin+'/invoice');
+ await page.evaluate(()=>{
+  localStorage.setItem('fire-theme','light');
+  document.documentElement.dataset.theme='light';
+ });
+ await page.getByRole('button',{name:'Switch to dark mode',exact:true}).waitFor();
+ await page.evaluate(()=>{document.documentElement.dataset.theme='dark';});
+ check(await page.locator('html').getAttribute('data-theme')==='dark',
+  'Synthetic document theme changed after client button had light state');
+ await page.locator('.owner-preview-theme-toggle').click();
+ await page.waitForFunction(()=>document.documentElement.dataset.theme==='light');
+ check(await page.evaluate(()=>localStorage.getItem('fire-theme'))==='light'&&
+   await page.getByRole('button',{name:'Switch to dark mode',exact:true}).count()===1,
+  'Invoice toggle follows actually rendered dark root when React light state lags');
  const denied=await browser.newContext({colorScheme:'light'});
  await denied.addInitScript(()=>{Storage.prototype.getItem=()=>{throw Error('Synthetic storage denied')};Storage.prototype.setItem=()=>{throw Error('Synthetic storage denied')};});
  const fallback=await denied.newPage();fallback.on('pageerror',e=>errors.push(e.message));await fallback.goto(origin+'/invoice');await fallback.getByRole('button',{name:'Switch to dark mode',exact:true}).click();await fallback.getByRole('button',{name:'Switch to light mode',exact:true}).waitFor();

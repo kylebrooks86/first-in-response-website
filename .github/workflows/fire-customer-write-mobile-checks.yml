@@ -1,0 +1,57 @@
+name: FIRE Customer Writes and Permanent Numbers Mobile
+on:
+  push:
+    branches: [work/fire-permanent-customer-numbers-history-2026-10-31]
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/lib/customer-numbering.mjs'
+      - 'business-app-parity/shared/scripts/test-customer-write-browser.mjs'
+      - 'business-app-parity/shared/scripts/test-customer-simple-profile-browser.mjs'
+      - '.github/workflows/fire-customer-write-mobile-checks.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/lib/customer-numbering.mjs'
+      - 'business-app-parity/shared/scripts/test-customer-write-browser.mjs'
+      - 'business-app-parity/shared/scripts/test-customer-simple-profile-browser.mjs'
+      - '.github/workflows/fire-customer-write-mobile-checks.yml'
+permissions:
+  contents: read
+concurrency:
+  group: fire-customer-write-mobile-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  customer-writes:
+    name: Actual Chrome customer list, note/callback saves and permanent # layout
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Install pinned isolated browser driver
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Use preinstalled runner Chrome only
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Test actual customer directory and notes on phones, persisted records, no external sends
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-customer-write-browser.mjs
+      - name: Test extracted actual customer search with permanent IDs and profile interaction at iPhone widths
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-customer-simple-profile-browser.mjs

@@ -40,7 +40,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "1783ded7-43db-4769-8708-fa86c47b002d",
+                         "99fa8c27-df83-48d3-b953-9a84eb295334",
                          "deployments status --name $workerName --json",
                          "d1 list --json", "databaseInfo.qaUuid -ceq $qaId",
                          "$activeVersions.Count -eq 1",
@@ -51,11 +51,29 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertLess(S.index("qa $candidate --built"), S.index("d1 list --json"))
         self.assertLess(S.index("d1 list --json"), S.index("& $wrangler.Source deployments status --name $workerName --json"))
         self.assertLess(S.index("& $wrangler.Source deployments status --name $workerName --json"), S.index("deploy --dry-run"))
-        self.assertNotIn("fire-app-staging-db", S)
-        self.assertNotRegex(S, r"&\\s*\\$wrangler\\.Source\\s+d1\\s+info\\b")
+        # Staging may be named ONLY for independent metadata verification, never
+        # as a D1 SQL target, deploy target, or migration destination.
+        self.assertIn("d1 info 'fire-app-staging-db'", S)
+        self.assertNotIn("d1 execute 'fire-app-staging-db'", S)
+        self.assertNotIn('d1 execute $stagingDatabase', S)
+        # Individual D1 INFO reads are allowed; staging D1 SQL writes remain forbidden.
         self.assertIn("qa_d1_identity_from_list.ps1", S)
         self.assertIn("& $identityHelper -Json ($databaseRaw -join [Environment]::NewLine)", S)
-        self.assertIn("Strict read-only D1 identity validator is missing", S)
+        self.assertIn("& $individualInfoHelper -QaJson ($qaInfoRaw -join [Environment]::NewLine) -StagingJson ($stagingInfoRaw -join [Environment]::NewLine)", S)
+        self.assertIn("if ($listExit -eq 0)", S)
+        self.assertIn("Require ($null -ne $databaseInfo -and", S)
+        self.assertLess(S.index("d1 info $qaDatabase"), S.index("d1 execute $qaDatabase --remote"))
+        self.assertLess(S.index("d1 info 'fire-app-staging-db'"), S.index("d1 execute $qaDatabase --remote"))
+        for expected in (
+            "Strict read-only D1 list identity validator is missing",
+            "qa_d1_identity_from_info.ps1",
+            "Strict independently verified dual D1 info identity validator is missing",
+            "d1 info $qaDatabase", "d1 info 'fire-app-staging-db'",
+            "$databaseInfo.stagingUuid -ceq 'afb2c05a-d794-4a9a-b580-924ce01c26ad'",
+            "Require-Exit 'Read-only exact QA D1 INFO lookup'",
+            "Require-Exit 'Read-only protected staging D1 INFO lookup'",
+        ):
+            self.assertIn(expected, S)
         self.assertNotIn("$deploymentText -match", S)
         self.assertNotIn("82fba39a-5736-41d7-a944-d55776ccc670", S)
         self.assertIn("f650d25b18d23bc9f71a4d55c9322bfd5870ef75", S)
@@ -65,10 +83,22 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         self.assertIn("--candidate (Join-Path $candidate 'drizzle')", S)
         self.assertIn("--checkpoint $head", S)
         self.assertIn("Get-FileHash -Algorithm SHA256", S)
-        self.assertIn("$baseline[$file.Name] -ceq (Get-FileHash", S)
-        self.assertIn("QA migration bytes differ from original published app", S)
+        self.assertIn("$baseline[$file.Name] -cne (Get-FileHash", S)
+        self.assertIn("$rawByteDifferences += $file.Name", S)
+        self.assertIn("originalMigrationsLfEquivalent -eq $true", S)
+        self.assertIn("originalMigrationsByteIdentical -eq $false", S)
+        self.assertIn("originalMigrationsByteIdentical -eq $true", S)
+        self.assertIn("CRLF-to-LF only, then exact pinned Git blob verification", S)
+        self.assertIn("$pinnedResult.result -ceq 'CODE_ONLY_QA_UPDATE_BLOCKED'", S)
+        self.assertIn("$pinnedResult.candidateSourceCommit -ceq $head", S)
+        self.assertIn("$pinnedResult.pinnedOriginalSource -ceq $firstSource", S)
+        self.assertIn("$pinnedResult.publicationAuthorized -eq $false", S)
+        self.assertIn("$pinnedResult.migrationPermissionGranted -eq $false", S)
+        self.assertIn("Require-Exit 'Exact 23 historical plus two append-only SQL Git blob identity review'", S)
+        self.assertIn("'Pinned original and appended migrations not independently verified.", S)
+        self.assertNotIn("QA migration bytes differ from original published app", S)
         self.assertLess(S.index("Get-FileHash -Algorithm SHA256"), S.index("& $wrangler.Source deployments status --name $workerName --json"))
-        self.assertLess(S.index("review_qa_update_schema.py"), S.index("d1 list --json"))
+        self.assertLess(S.index("$pinnedResult.originalMigrationsLfEquivalent"), S.index("d1 list --json"))
 
     def test_exact_hosted_25_schema_without_paid_r2(self):
         for expected in (
@@ -94,16 +124,28 @@ class ExistingQAUpdateSafety(unittest.TestCase):
                           "r2 bucket create", "r2 object put", "r2 object delete"):
             self.assertNotIn(forbidden,S)
 
-    def test_review_and_publisher_share_one_full_observed_version(self):
+    def test_owner_verified_readonly_version_and_stale_publisher_deliberate_block(self):
+        # Safe QA-only candidate review may advance after owner metadata PASS,
+        # but the distinct -Publish command MUST NOT become actionable until
+        # private current-25 recovery and an exact target approval exist.
         publisher = (Path(__file__).parent / "owner_windows_qa_update_publish.ps1").read_text(encoding="utf-8")
         readonly = (Path(__file__).parent / "owner_windows_qa_current_readonly.ps1").read_text(encoding="utf-8")
         readonly_pins = re.findall(r"^\$expectedVersion = '([^']+)'$", readonly, re.M)
-        self.assertEqual(readonly_pins, ["1783ded7-43db-4769-8708-fa86c47b002d"])
-        for script in (S, publisher):
-            pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", script, re.M)
-            self.assertEqual(pins, ["1783ded7-43db-4769-8708-fa86c47b002d"])
-            self.assertNotIn("expectedActiveVersionPrefix", script)
-            self.assertNotIn("da71b08f", script)
+        review_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", S, re.M)
+        publish_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", publisher, re.M)
+        self.assertEqual(readonly_pins, ["99fa8c27-df83-48d3-b953-9a84eb295334"])
+        self.assertEqual(review_pins, readonly_pins)
+        self.assertEqual(publish_pins, readonly_pins)
+        self.assertIn("[switch]$Publish", publisher)
+        self.assertIn("Require ($typed -ceq $approval)", publisher)
+        self.assertIn("Require ($OwnerConfirmedPhotoZipBackup.IsPresent -xor $OwnerConfirmedNoLocalPhotos.IsPresent)", publisher)
+        self.assertIn("if (-not $Publish)", publisher)
+        self.assertIn("qa_d1_identity_from_info.ps1", publisher)
+        self.assertIn("Require-Exit 'Post-approval protected staging D1 INFO'", publisher)
+        self.assertIn("Require ($null -ne $d1 -and", publisher)
+        for script in (S,publisher):
+            self.assertNotIn("expectedActiveVersionPrefix",script)
+            self.assertNotIn("da71b08f",script)
         self.assertIn("Require ($activeVersion -ceq $expectedActiveVersion)", S)
         self.assertIn("Require ($expectedOldVersion -ceq $expectedActiveVersion)", publisher)
         self.assertIn("[string]$afterVersions[0].version_id -ceq $expectedOldVersion", publisher)

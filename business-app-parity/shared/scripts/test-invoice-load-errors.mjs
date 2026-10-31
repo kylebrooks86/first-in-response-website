@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {customerNumberLabel} from '../lib/customer-numbering.mjs';
 const require=createRequire(import.meta.url);
 const source=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
@@ -12,7 +13,7 @@ const index=name=>{const i=stateNames.indexOf(name);assert.ok(i>=0,'Expected '+n
 let state=[],refs=[],cursor=0,refCursor=0,effect,requests=[],responder;
 const get=name=>state[index(name)],reset=(rows,loading,error)=>{state=[];state[index('rows')]=rows;state[index('loading')]=loading;state[index('error')]=error;};
 const Button=()=>null,RecordPayment=()=>null,Receipt=()=>null,ExternalLink=()=>null;
-const context={exports:{},require,Error,Array,Button,RecordPayment,Receipt,ExternalLink,
+const context={exports:{},require,Error,Array,customerNumberLabel,Button,RecordPayment,Receipt,ExternalLink,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],value=>{state[i]=typeof value==='function'?value(state[i]):value;}];},
  useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){if(String(fn).includes('void load()'))effect=fn;},fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),statusLabel:s=>s,
 };

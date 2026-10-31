@@ -1,0 +1,62 @@
+name: FIRE QA Invoice Theme Built-Worker Native D1
+on:
+  push:
+    branches:
+      - work/fire-permanent-customer-numbers-history-2026-10-31
+    paths:
+      - 'business-app-parity/shared/components/owner-preview-theme.tsx'
+      - 'business-app-parity/shared/scripts/test-invoice-state-workflow.mjs'
+      - 'business-app-parity/shared/scripts/test-qa-worker-http-browser.mjs'
+      - '.github/workflows/fire-qa-invoice-theme-native-d1-regression.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/components/owner-preview-theme.tsx'
+      - 'business-app-parity/shared/scripts/test-invoice-state-workflow.mjs'
+      - 'business-app-parity/shared/scripts/test-qa-worker-http-browser.mjs'
+      - '.github/workflows/fire-qa-invoice-theme-native-d1-regression.yml'
+permissions:
+  contents: read
+jobs:
+  invoice:
+    name: Built isolated QA HTTPS Invoice light/dark at 320/390/768 and real synthetic payments
+    runs-on: ubuntu-latest
+    timeout-minutes: 32
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exact pnpm package version
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Materialize synthetic-only QA full app without deployment
+        run: python3 business-app-parity/materialize.py qa "$RUNNER_TEMP/fire-qa-candidate"
+      - name: Verify exact two-layer QA source assembly
+        run: python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-candidate"
+      - name: Install pinned dependencies, typecheck and compile full QA Worker
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          pnpm install --frozen-lockfile
+          pnpm exec tsc --noEmit
+          pnpm run build
+      - name: Enforce isolated QA code manifest and no external Stripe config
+        run: |
+          python3 business-app-parity/verify_materialized_candidate.py qa "$RUNNER_TEMP/fire-qa-candidate" --built
+          node business-app-parity/check_qa_runtime_config.mjs "$RUNNER_TEMP/fire-qa-candidate/dist/server/wrangler.json"
+      - name: Prepare pinned local Chromium driver, no remote browser install
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-qa-http-browser"
+          npm --prefix "$RUNNER_TEMP/fire-qa-http-browser" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-qa-http-browser/node_modules/playwright" >> "$GITHUB_ENV"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Actual compiled QA over local HTTPS, local D1 and invoice paid/refund/theme/mobile workflow
+        run: |
+          cd "$RUNNER_TEMP/fire-qa-candidate"
+          node scripts/test-qa-worker-http-browser.mjs --invoice-state

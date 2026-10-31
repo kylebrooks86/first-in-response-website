@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {customerNumberLabel} from '../lib/customer-numbering.mjs';
 const require=createRequire(import.meta.url);
 const dependencies={};for(const file of ['lib/customer-balance-summary.ts','lib/estimate-pagination.ts']){const mod={exports:{},require};vm.runInNewContext(ts.transpileModule(readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,mod);Object.assign(dependencies,mod.exports);}
 
@@ -19,7 +20,7 @@ function fixture(name){
  const stateNames=[];const tags=new Set();function walk(n){if(ts.isVariableDeclaration(n)&&ts.isArrayBindingPattern(n.name)&&n.initializer&&ts.isCallExpression(n.initializer)&&n.initializer.expression.getText(ast)==='useState')stateNames.push(n.name.elements[0].getText(ast));if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,walk);}walk(view);
  let state=[],refs=[],cursor=0,refCursor=0,effect,fetcher=url=>Promise.resolve(ok(body(url,'initial')));
  class Clock extends Date{constructor(...args){super(...(args.length?args:['2026-10-09T12:00:00Z']));}static now(){return new Date('2026-10-09T12:00:00Z').getTime();}}
- const context={exports:{},require,...dependencies,Error,Date:Clock,Array,Number,...Object.fromEntries([...tags].map(tag=>[tag,()=>null])),
+ const context={exports:{},require,...dependencies,customerNumberLabel,Error,Date:Clock,Array,Number,...Object.fromEntries([...tags].map(tag=>[tag,()=>null])),
   useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},
   useRef(initial){const i=refCursor++;return refs[i]??(refs[i]={current:initial});},useEffect(fn){if(!effect)effect=fn;},
   fetch:(...args)=>fetcher(...args),useCurrentTime:()=>Clock.now(),money:c=>'$'+(c/100).toFixed(2),dateTime:v=>v,

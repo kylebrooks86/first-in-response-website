@@ -39,7 +39,7 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
         for text in ("fire-fullapp-qa-20261016",
                      "fire-fullapp-qa-db-20261016",
                      "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                     "1783ded7-43db-4769-8708-fa86c47b002d",
+                     "99fa8c27-df83-48d3-b953-9a84eb295334",
                      "owner_windows_qa_update_review.ps1",
                      "$beforeVersions.Count -eq 1",
                      "[double]$beforeVersions[0].percentage -eq 100",
@@ -56,12 +56,20 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
                      "$head -ceq $ExpectedCommit",
                      "Fresh post-approval read-only 25-schema, D1 and source revalidation"):
             self.assertIn(text,S)
-        self.assertNotIn("fire-app-staging-db",S)
+        # Staging is inspected as identity metadata ONLY, never SQL/query target.
+        self.assertIn("d1 info 'fire-app-staging-db'",S)
+        self.assertNotIn("d1 execute 'fire-app-staging-db'",S)
         self.assertIn("No R2 bucket is bound or billed",S)
         self.assertNotIn("r2 bucket info",S)
-        self.assertNotRegex(S, r"&\\s*\\$wrangler\\.Source\\s+d1\\s+info\\b")
         self.assertIn("qa_d1_identity_from_list.ps1", S)
+        self.assertIn("qa_d1_identity_from_info.ps1", S)
         self.assertIn("& $identityHelper -Json ($rawD1 -join [Environment]::NewLine)", S)
+        self.assertIn("& $individualInfoHelper -QaJson ($qaInfoRaw -join [Environment]::NewLine) -StagingJson ($stageInfoRaw -join [Environment]::NewLine)", S)
+        self.assertIn("if ($listExit -eq 0)", S)
+        self.assertIn("Require-Exit 'Post-approval exact QA D1 INFO'", S)
+        self.assertIn("Require-Exit 'Post-approval protected staging D1 INFO'", S)
+        self.assertIn("$d1.stagingUuid -ceq 'afb2c05a-d794-4a9a-b580-924ce01c26ad'", S)
+        self.assertIn("$d1.qaUuid -cne $d1.stagingUuid", S)
         self.assertLess(S.index("Require ($typed -ceq $approval)"), S.index("d1 list --json"))
         self.assertLess(S.index("deployments status --name $workerName --json"),S.index("$typed = Read-Host"))
         self.assertLess(S.index("$typed = Read-Host"),S.rindex("deployments status --name $workerName --json"))

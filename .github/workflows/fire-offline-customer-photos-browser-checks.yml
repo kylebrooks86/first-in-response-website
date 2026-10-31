@@ -1,0 +1,54 @@
+name: FIRE Offline Customer Photos and Auth Denial Browser Regression
+on:
+  push:
+    branches:
+      - work/fire-permanent-customer-numbers-history-2026-10-31
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/lib/customer-numbering.mjs'
+      - 'business-app-parity/shared/scripts/test-actual-customer-photo-fallback-browser.mjs'
+      - '.github/workflows/fire-offline-customer-photos-browser-checks.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/lib/customer-numbering.mjs'
+      - 'business-app-parity/shared/scripts/test-actual-customer-photo-fallback-browser.mjs'
+      - '.github/workflows/fire-offline-customer-photos-browser-checks.yml'
+permissions:
+  contents: read
+concurrency:
+  group: fire-offline-customer-photos-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser:
+    name: Real Chromium 503 fallback, 401 revocation, photo ZIP retention
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Install isolated pinned Chromium harness
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Use preinstalled Chrome only
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Prove actual CustomersView uses cached photos only on outage and removes names on 401
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-actual-customer-photo-fallback-browser.mjs
