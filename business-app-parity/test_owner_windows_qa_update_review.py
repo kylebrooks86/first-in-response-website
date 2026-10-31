@@ -135,9 +135,14 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         publish_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", publisher, re.M)
         self.assertEqual(readonly_pins, ["99fa8c27-df83-48d3-b953-9a84eb295334"])
         self.assertEqual(review_pins, readonly_pins)
-        self.assertEqual(publish_pins, ["1783ded7-43db-4769-8708-fa86c47b002d"])
-        self.assertNotEqual(review_pins,publish_pins,
-            "No accidental QA deployment until private 25-schema backup and separate owner approval")
+        self.assertEqual(publish_pins, readonly_pins)
+        self.assertIn("[switch]$Publish", publisher)
+        self.assertIn("Require ($typed -ceq $approval)", publisher)
+        self.assertIn("Require ($OwnerConfirmedPhotoZipBackup.IsPresent -xor $OwnerConfirmedNoLocalPhotos.IsPresent)", publisher)
+        self.assertIn("if (-not $Publish)", publisher)
+        self.assertIn("qa_d1_identity_from_info.ps1", publisher)
+        self.assertIn("Require-Exit 'Post-approval protected staging D1 INFO'", publisher)
+        self.assertIn("Require ($null -ne $d1 -and", publisher)
         for script in (S,publisher):
             self.assertNotIn("expectedActiveVersionPrefix",script)
             self.assertNotIn("da71b08f",script)
