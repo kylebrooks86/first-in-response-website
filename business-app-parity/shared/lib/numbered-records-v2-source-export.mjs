@@ -40,6 +40,8 @@ async function fetchExactOriginalPhoto(bucket,photo){
  try{object=await bucket.get(photo.object_key);}catch{fail('original photo provider read failed');}
  if(!object||typeof object.arrayBuffer!=='function')
   fail('original photo object missing or unreadable');
+ if(typeof object.etag!=='string'||!object.etag.trim())
+  fail('original photo object ETag unavailable; cannot attest source stability');
  if(object.size!==photo.size_bytes)
   fail('original R2 object size differs from D1 metadata');
  const contentType=object.httpMetadata?.contentType;
@@ -50,7 +52,19 @@ async function fetchExactOriginalPhoto(bucket,photo){
  catch{fail('original photo body could not be read');}
  if(bytes.byteLength!==photo.size_bytes)
   fail('original photo file is incomplete');
- return {objectKey:photo.object_key,contentType,bytes};
+ return {objectKey:photo.object_key,contentType,bytes,originalEtag:object.etag};
+}
+async function verifyUnchangedPhotoHeads(bucket,photos,files){
+ for(let i=0;i<photos.length;i++){
+  const photo=photos[i],expected=files[i];
+  let object;
+  try{object=await bucket.head(photo.object_key);}
+  catch{fail('final original-photo metadata read failed');}
+  if(!object||object.etag!==expected.originalEtag||
+     object.size!==photo.size_bytes||
+     object.httpMetadata?.contentType!==photo.content_type)
+   fail('original photo changed or disappeared during encrypted backup');
+ }
 }
 /** Produce an owner-held PRIVATE KIT from independently verified source.
  * A separately authenticated caller supplies both correct provider bindings
@@ -61,7 +75,7 @@ export async function captureEncryptedNumberedV2PrivateKitFromProviders({
  db,bucket,passphrase,now=()=>new Date().toISOString(),cryptoImpl=globalThis.crypto
 }={}){
  if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function'||
-    !bucket||typeof bucket.get!=='function')
+    !bucket||typeof bucket.get!=='function'||typeof bucket.head!=='function')
   fail('actual reviewed D1 and R2 bindings are both required');
  if(typeof passphrase!=='string'||passphrase.length<20||
     new TextEncoder().encode(passphrase).byteLength>1024)
@@ -83,11 +97,16 @@ export async function captureEncryptedNumberedV2PrivateKitFromProviders({
  });
  if(first.archive.checksum.hex!==after.archive.checksum.hex)
   fail('database changed while photos were being captured; do not export');
+ // Provider HEAD/ETag is a second independent photo-object consistency
+ // check. It detects a same-size replacement during export without fetching
+ // the image bytes twice. Still NOT an atomic cross-provider snapshot.
+ await verifyUnchangedPhotoHeads(bucket,photos,files);
+ const portableFiles=files.map(({objectKey,contentType,bytes})=>({objectKey,contentType,bytes}));
  const kit=await createNumberedV2PrivateRecoveryKit({
-  archive:first.archive,files,passphrase,cryptoImpl
+  archive:first.archive,files:portableFiles,passphrase,cryptoImpl
  });
  return {kit,proof:Object.freeze({
-  databaseReadBatches:2,photoObjectsRead:photos.length,
+  databaseReadBatches:2,photoObjectsRead:photos.length,photoObjectHeadsRechecked:photos.length,
   encryptedPrivateKitCreated:true,allReferencedPhotosIncluded:true,
   providerAtomicPhotoSnapshotGuaranteed:false,
   ownerAuthorizationPerformedHere:false,providerWritesPerformed:false,
