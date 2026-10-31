@@ -106,6 +106,12 @@ truth(dashboard.includes('completedCustomerJobHistory(customerEstimates)'),
   'Completed count follows ONLY selected customer history');
 truth(customerApi.includes('newCustomerNumberStatement(env.DB,id,createdAt)')&&customerApi.includes('env.DB.batch([insertStatement,'),
   'Number allocated atomically with guarded new customer creation');
+truth(customerApi.includes('await attachedJobNumbers(env.DB,')&&
+  customerApi.includes('jobNumber:jobNumbers.get(String(row.id))??null')&&
+  customerApi.includes('jobNumber:jobNumbers.get(String(row.estimateId))??null'),
+  'Customer history estimates AND invoices attach real immutable Job # when enabled, so revisions count once');
+truth(customerApi.includes('FIRE_JOB_NUMBERS_CANDIDATE')&&customerApi.includes('showJobs?await attachedJobNumbers'),
+  'Job numbering lookup remains gated and never touches unmigrated D1');
 truth(customerApi.includes('customerNumbers.get(String(row.customerId))'),
   'Owner estimate and invoice rows use the same customer mapping');
 truth(estimateApi.includes('customerNumberColumn')&&invoiceApi.includes('customerNumberColumn'),
