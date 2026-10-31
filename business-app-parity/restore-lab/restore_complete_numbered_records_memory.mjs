@@ -1,6 +1,6 @@
 /** FIRE COMPLETE v2 DB-record RESTORE REHEARSAL — DISPOSABLE SQLITE ONLY.
  *
- * Restores the reviewed 20 legacy ordinary record tables and immutable
+ * Restores the reviewed 21 reviewed ordinary record tables and immutable
  * Customer#/Job#/revision-link maps as ONE local SQLite transaction into an
  * EMPTY, existing-schema DatabaseSync(':memory:'). This cannot run on hosted
  * D1, a file-backed database, or a reused/historic database.
@@ -65,7 +65,7 @@ function applyNumberTables(db,identities){
   setSequence(db,'fire_customer_numbers',identities.highWater.customer);
   setSequence(db,'fire_job_numbers',identities.highWater.job);
 }
-/** Atomic scratch restore of all 20 DB-record families and permanent mapping.
+/** Atomic scratch restore of all 21 DB-record families and permanent mapping.
  * No photo file bytes, external files, named databases, or provider actions.
  */
 export async function restoreCompleteNumberedRecordsToDisposableMemory({db,archive}={}){
