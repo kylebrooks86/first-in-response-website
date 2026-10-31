@@ -19,16 +19,23 @@ $bindingHelper = Join-Path $PSScriptRoot 'verify_qa_worker_version_bindings.ps1'
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA CURRENT REVIEW STOP: ' + $reason) }
 }
-function Read-Provider([string[]]$arguments, [string]$stage) {
+function Read-Provider {
+    param(
+        [Parameter(Mandatory=$true)][string[]]$Arguments,
+        [Parameter(Mandatory=$true)][string]$Stage
+    )
+    # Keep the literal argument list intact instead of relying on positional
+    # PowerShell binding from a nested expression. Never echo provider JSON.
+    Require ($Arguments.Count -gt 1 -and $Arguments[0] -in @('d1','deployments','versions')) 'Only reviewed read-only Cloudflare operations are permitted.'
     $prior = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
-        $raw = @(& $wrangler.Source @arguments 2>$null)
+        $raw = @(& $wrangler.Source @Arguments 2>$null)
         $code = $LASTEXITCODE
     } finally { $ErrorActionPreference = $prior }
-    Require ($code -eq 0) ('Authenticated read-only ' + $stage + ' failed. STOP; do not change resources.')
+    Require ($code -eq 0) ('Authenticated read-only ' + $Stage + ' failed (exit ' + $code + '). STOP; do not change resources.')
     try { return ConvertFrom-Json -InputObject ($raw -join [Environment]::NewLine) }
-    catch { throw ('FIRE QA CURRENT REVIEW STOP: Malformed provider reply for ' + $stage) }
+    catch { throw ('FIRE QA CURRENT REVIEW STOP: Malformed provider reply for ' + $Stage) }
 }
 function Verify-Serving([object]$reply) {
     Require ($null -ne $reply -and $null -ne $reply.versions) 'Missing Worker routing data.'
@@ -38,7 +45,7 @@ function Verify-Serving([object]$reply) {
     Require ([string]$versions[0].version_id -ceq $expectedVersion) 'Active Worker version is not the owner-confirmed current QA release.'
 }
 function Verify-Binding {
-    $view = Read-Provider @('versions','view',$expectedVersion,'--name',$workerName,'--json') 'active Worker resource bindings'
+    $view = Read-Provider -Arguments @('versions','view',$expectedVersion,'--name',$workerName,'--json') -Stage 'active Worker resource bindings'
     $receipt = & $bindingHelper -Json (ConvertTo-Json -InputObject $view -Depth 16 -Compress) -ExpectedVersion $expectedVersion -ExpectedDatabaseId $qaUuid
     Require ($receipt.bindingVerified -eq $true -and $receipt.remoteWrites -eq $false) 'Physical QA Worker D1 binding proof failed.'
 }
@@ -67,8 +74,8 @@ Require ($names[22] -ceq '0022_stripe_provider_uniqueness.sql' -and
     $names[24] -ceq '0024_deposit_agreement_snapshots.sql') 'QA latest migrations differ.'
 
 Write-Host 'FIRE QA CURRENT RELEASE: READ-ONLY VERIFICATION'
-Verify-Identity (Read-Provider @('d1','list','--json') 'initial D1 identity')
-Verify-Serving (Read-Provider @('deployments','status','--name',$workerName,'--json') 'initial Worker routing')
+Verify-Identity (Read-Provider -Arguments @('d1','list','--json') -Stage 'initial D1 identity')
+Verify-Serving (Read-Provider -Arguments @('deployments','status','--name',$workerName,'--json') -Stage 'initial Worker routing')
 Verify-Binding
 
 # ONE metadata-only SELECT. No customer names, amounts, photos or SQL mutations.
@@ -77,7 +84,7 @@ $sql = "SELECT (SELECT GROUP_CONCAT(name,'|') FROM (SELECT name FROM d1_migratio
     "(SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_payments_stripe_provider_unique' AND tbl_name='payments') AS provider_index, " +
     "(SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name IN ('deposit_agreement_snapshots_no_update','deposit_agreement_snapshots_no_delete')) AS agreement_triggers"
 Require ($sql -cmatch '^SELECT ' -and $sql -notmatch ';') 'Only the pinned single SELECT is permitted.'
-$result = @(Read-Provider @('d1','execute',$qaName,'--remote',("--config=" + $config),("--command=" + $sql),'--json') 'QA schema metadata')
+$result = @(Read-Provider -Arguments @('d1','execute',$qaName,'--remote',("--config=" + $config),("--command=" + $sql),'--json') -Stage 'QA schema metadata')
 Require ($result.Count -eq 1 -and $result[0].success -eq $true -and
     @($result[0].results).Count -eq 1) 'Unexpected or failed metadata query.'
 $row = @($result[0].results)[0]
@@ -85,8 +92,8 @@ Require ([string]$row.journal_names -ceq ($names -join '|') -and
     [int]$row.required_tables -eq 8 -and [int]$row.provider_index -eq 1 -and
     [int]$row.agreement_triggers -eq 2) 'QA hosted migration journal or required schema differs.'
 
-Verify-Identity (Read-Provider @('d1','list','--json') 'final D1 identity')
-Verify-Serving (Read-Provider @('deployments','status','--name',$workerName,'--json') 'final Worker routing')
+Verify-Identity (Read-Provider -Arguments @('d1','list','--json') -Stage 'final D1 identity')
+Verify-Serving (Read-Provider -Arguments @('deployments','status','--name',$workerName,'--json') -Stage 'final Worker routing')
 Verify-Binding
 Write-Host 'PASS: Single current QA Worker version serves 100 percent.'
 Write-Host 'PASS: QA and protected staging D1 account identities match pinned values.'
