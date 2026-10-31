@@ -1,0 +1,31 @@
+name: FIRE QA Exact Git Source Staging Guard
+on:
+  push:
+    branches:
+      - work/fire-permanent-customer-numbers-history-2026-10-31
+    paths:
+      - 'business-app-parity/owner_windows_stage_exact_qa_source.ps1'
+      - 'business-app-parity/test_owner_windows_stage_exact_qa_source.ps1'
+      - '.github/workflows/fire-qa-exact-git-source-stage-safety.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/owner_windows_stage_exact_qa_source.ps1'
+      - 'business-app-parity/test_owner_windows_stage_exact_qa_source.ps1'
+      - '.github/workflows/fire-qa-exact-git-source-stage-safety.yml'
+permissions:
+  contents: read
+jobs:
+  no-network-by-default:
+    name: Separate short-path Git checkout is opt-in, source-pinned and non-deploying
+    runs-on: windows-latest
+    timeout-minutes: 7
+    defaults:
+      run:
+        working-directory: business-app-parity
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate no-network dry run and exact source/owner preservation
+        run: ./test_owner_windows_stage_exact_qa_source.ps1
