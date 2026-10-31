@@ -45,8 +45,6 @@ import { editMoneyLine, editableLineTotalCents, restoreEditableLineMoney, validE
 import { reuseEstimateServiceLine } from "../lib/reuse-estimate-service-line";
 import { matchesReviewedEstimateReceipt } from "../lib/estimate-quote-receipt";
 import { moveEstimateServiceLine } from "../lib/reorder-estimate-service-line";
-import { QuotePackages } from "../components/quote-packages";
-import type { QuotePackageDraftLine } from "../lib/quote-packages";
 import {estimateCreateStorage,readPendingEstimateCreate,reservePendingEstimateCreate,releasePendingEstimateCreate} from "../lib/pending-estimate-create";
 
 import {weatherIconKind,formatDailyTemperatures,weatherDayHeading} from "../lib/tulsa-weather";
@@ -672,7 +670,6 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   const [promotionEvidence,setPromotionEvidence]=useState<PromotionEvidence|null>(null);
   const [bookingConfirmedOn,setBookingConfirmedOn]=useState<string|null>(null);
   const [saved, setSaved] = useState(false);
-  const [packageNotice,setPackageNotice]=useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [estimateProperty,setEstimateProperty]=useState<PropertyEstimateSelection|null>(null);
@@ -722,7 +719,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   const chooseCustomer=async(input:LookupCustomer|null,initial=false)=>{
     if(saving||uncertainSave)return;
     if(!initial&&hasUnsavedChanges&&!window.confirm('Switch customer? This discards the unfinished estimate, including customer information, property choices, services, prices and discounts. Choose Cancel to keep all changes.'))return;
-    const generation=++customerRequest.current;setCustomerLoading(true);setError('');setPackageNotice('');
+    const generation=++customerRequest.current;setCustomerLoading(true);setError('');
     try{
       let fresh:LookupCustomer|null=null;
       if(input){const response=await fetch('/api/customers/lookup?customerId='+encodeURIComponent(input.id),{cache:'no-store'});const data=await response.json() as {customer?:unknown;error?:string};if(!response.ok||!validLookupCustomer(data.customer)||data.customer.id!==input.id)throw Error(data.error||'Selected customer could not be verified.');fresh=data.customer;}
@@ -757,22 +754,6 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
     if(saving||uncertainSave)return;
     setItems(current=>moveEstimateServiceLine(current,index,index+direction));
     setError("");
-  };
-  const addQuotePackage=(lines:QuotePackageDraftLine[],name:string)=>{
-    if(saving||uncertainSave||Boolean(pendingCreateId)||!pricing.rates||pricing.loading||pricing.error)return;
-    if(!lines.length||lines.some(item=>!item.serviceId||item.quantity!==0||!Number.isSafeInteger(item.unitRateCents)||item.unitRateCents<0)){
-      setError('Package services could not be verified against current standard rates. No services added.');return;
-    }
-    const populated=items.some(item=>Boolean(item.name.trim())||item.quantity>0);
-    if(populated&&!window.confirm('Add '+name+' to the current quote? Existing services will be retained. Each new service starts at zero quantity. Saved promotion amounts will be cleared and checked again.'))return;
-    setItems(current=>{
-      const keep=current.filter(item=>Boolean(item.name.trim())||item.quantity>0);
-      return [...keep,...lines.map(line=>({...line,draftKey:'new-line-'+(++nextDraftKey.current)}))];
-    });
-    setPromotionEvidence(null);setPromotionsVerifiedFor(null);setPromotionOwnerOverride(false);
-    setDiscountMode('percent');setDiscountValue('');setBundleValue('');
-    setPackageNotice(name+' added. Enter quantities, review current rates and service expectations, then verify promotions again. Previous promotional amounts were cleared.');
-    setError('');
   };
   const reuseService=(index:number)=>{
     if(saving||uncertainSave)return;
@@ -845,7 +826,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
       customerRequest.current++;setCustomerLoading(false);setIdentityConfirmed(false);setSelectedCustomer(customer??null);setCustomerMode(customer?'existing':'lookup');setPropertyWorkflowReady(false);setEstimateProperty(null);
       onClosed?.();
       // No delayed reset: reopening cannot be wiped by a timer from the prior dialog.
-      revisionSeeded.current=false;setStep(1);setSaved(false);setSavedReceipt(null);setUncertainSave(false);setReviewedRecords([]);setError("");setPackageNotice("");setItems([blankServiceLine()]);setAppreciationDiscount(false);setDiscountMode("percent");setDiscountValue("");setBundleValue("");setPromotionsVerifiedFor(null);setPromotionOwnerOverride(false);setPromotionEvidence(null);setBookingConfirmedOn(null);
+      revisionSeeded.current=false;setStep(1);setSaved(false);setSavedReceipt(null);setUncertainSave(false);setReviewedRecords([]);setError("");setItems([blankServiceLine()]);setAppreciationDiscount(false);setDiscountMode("percent");setDiscountValue("");setBundleValue("");setPromotionsVerifiedFor(null);setPromotionOwnerOverride(false);setPromotionEvidence(null);setBookingConfirmedOn(null);
       setCustomerName(customer?.name??"");setEmail(customer?.email??"");setPhone(customer?.phone??"");setAddress(customer?.address??"");
     }
   };
@@ -897,8 +878,6 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
           <div className="edit-quantity-row"><div><Label htmlFor={`estimate-quantity-${index}`}>Quantity</Label><Input id={`estimate-quantity-${index}`} inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit||"unit"}</span></div>
           <EstimateLinePricing label={`estimate-service-${index}`} item={item} standardUnit={services.find(svc=>svc.id===item.serviceId)?.unit} standardRate={pricing.rates&&!pricing.loading&&!pricing.error?services.find(svc=>svc.id===item.serviceId)?.rate:undefined} onChange={patch=>updateItem(index,patch)}/><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>
         </section>)}</div>
-        <QuotePackages active={open&&step===2} services={services} ready={Boolean(pricing.rates&&!pricing.loading&&!pricing.error)} currentServiceIds={items.filter(item=>Boolean(item.name.trim())&&Boolean(item.serviceId)).map(item=>item.serviceId)} disabled={saving||uncertainSave||Boolean(pendingCreateId)} onApply={addQuotePackage}/>
-        {packageNotice&&<p role="status" className="rounded-lg border p-3 text-sm">{packageNotice}</p>}
         <Button variant="outline" className="w-full" disabled={saving||uncertainSave} onClick={addService}><Plus className="h-4 w-4"/> Add another service</Button>
         <details className="ui-help"><summary>Service line help</summary><p className="text-xs text-muted-foreground">Reuse setup copies the service details and rate for another area, but leaves quantity blank. Enter and review the new quantity before saving. Move lines up or down to control their order on the customer quote.</p></details>
         <NewEstimatePromotions active={open&&step===2&&items.some(item=>Boolean(item.name)&&item.quantity>0)} quoteKey={promotionQuoteKey} serviceIds={promotionServiceIds} subtotalCents={subtotal} appreciationDiscount={appreciationDiscount} bookingConfirmedOn={bookingConfirmedOn} onBookingConfirmedOn={setBookingConfirmedOn} manualOverride={promotionOwnerOverride} onApply={(basisPoints,dollars,evidence)=>{setPromotionEvidence(evidence);setDiscountMode("percent");setDiscountValue(basisPoints?String(basisPoints/100):"");setBundleValue(dollars?(dollars/100).toFixed(2):"");setPromotionOwnerOverride(false);}} onVerified={setPromotionsVerifiedFor}/>
