@@ -899,7 +899,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
     </DialogContent>
   </Dialog>;
 }
-function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNavigate,onOpenEstimate,onOpenCustomer,onOpenCustomerActivity,onOpenTask,onOpenDoorHouse}:{userName:string;metrics:{estimates:number;openValue:number;outstanding:number;completedJobs?:number};estimates:EstimateRow[];summaryVerified:boolean;onSaved:(estimate:EstimateRow)=>void;onNavigate:(tab:string)=>void;onOpenEstimate?:(id:string)=>void;onOpenCustomer?:(id:string)=>void;onOpenCustomerActivity?:(id:string,kind:"sign"|"review")=>void;onOpenTask?:(id:string)=>void;onOpenDoorHouse?:(id:string)=>void}) {
+function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNavigate,onOpenEstimate,onOpenCustomer,onOpenCustomerActivity,onOpenTask,onOpenDoorHouse}:{userName:string;metrics:{estimates:number;openValue:number;outstanding:number;completedJobs?:number;upcomingCount?:number;upcomingJobs?:EstimateRow[]};estimates:EstimateRow[];summaryVerified:boolean;onSaved:(estimate:EstimateRow)=>void;onNavigate:(tab:string)=>void;onOpenEstimate?:(id:string)=>void;onOpenCustomer?:(id:string)=>void;onOpenCustomerActivity?:(id:string,kind:"sign"|"review")=>void;onOpenTask?:(id:string)=>void;onOpenDoorHouse?:(id:string)=>void}) {
   const now = useCurrentTime();
   const [priorityTasks,setPriorityTasks]=useState<TaskRow[]>([]);
   const [priorityTaskStatus,setPriorityTaskStatus]=useState<"loading"|"ready"|"error">("loading");
@@ -1064,8 +1064,10 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
   },[paidReviewReload]);
   // Match Schedule: future completed/declined jobs are not upcoming appointments.
   // The first supplied record is not necessarily the next appointment.
-  const upcomingJobs=estimates.filter((estimate)=>estimate.status==="scheduled"&&estimate.scheduledAt&&Number.isFinite(Date.parse(estimate.scheduledAt))&&Date.parse(estimate.scheduledAt)>=now).sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
-  const upcoming=upcomingJobs.length;
+  const scheduledSource=Array.isArray(metrics.upcomingJobs)?metrics.upcomingJobs:estimates;
+  const upcomingJobs=scheduledSource.filter((estimate)=>estimate.status==="scheduled"&&estimate.scheduledAt&&Number.isFinite(Date.parse(estimate.scheduledAt))&&Date.parse(estimate.scheduledAt)>=now).sort((a,b)=>Date.parse(a.scheduledAt!)-Date.parse(b.scheduledAt!));
+  // All scheduled records are counted by the DB, not just the first 25 cards.
+  const upcoming=Number.isSafeInteger(metrics.upcomingCount)&&Number(metrics.upcomingCount)>=0?Number(metrics.upcomingCount):upcomingJobs.length;
   const completed = Number.isSafeInteger(metrics.completedJobs)&&Number(metrics.completedJobs)>=0?Number(metrics.completedJobs):estimates.filter((estimate)=>estimate.status === "completed").length;
   const nextJob=upcomingJobs[0];
   // Native dial/compose shortcuts never submit or send through FIRE.
@@ -4613,7 +4615,7 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
   </PopoverContent></Popover>;
 }
 
-export function Dashboard({userName,metrics,estimates,environment="LIVE",localCustomersCandidate=false}:{localCustomersCandidate?:boolean;environment?:"LIVE"|"DOOMSDAY"|"STAGING"|"QA";userName:string;metrics:{estimates:number;openValue:number;outstanding:number;completedJobs?:number};estimates:EstimateRow[]}) {
+export function Dashboard({userName,metrics,estimates,environment="LIVE",localCustomersCandidate=false}:{localCustomersCandidate?:boolean;environment?:"LIVE"|"DOOMSDAY"|"STAGING"|"QA";userName:string;metrics:{estimates:number;openValue:number;outstanding:number;completedJobs?:number;upcomingCount?:number;upcomingJobs?:EstimateRow[]};estimates:EstimateRow[]}) {
   const [tab, setTab] = useState("dashboard");
   const [interactive, setInteractive] = useState(false);
   useEffect(() => { setInteractive(true); }, []);
@@ -4689,16 +4691,17 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
       const request=++generation;
       void fetch("/api/dashboard-summary",{cache:"no-store"}).then(async(response)=>{
         if(!response.ok){if(!cancelled&&request===generation)setSummaryVerified(false);return;}
-        const summary=await response.json() as {estimates:number;openValue:number;outstanding:number;completedJobs?:number;recent?:EstimateRow[]};
+        const summary=await response.json() as {estimates:number;openValue:number;outstanding:number;completedJobs?:number;upcomingCount?:number;upcomingJobs?:EstimateRow[];recent?:EstimateRow[]};
         if(!Number.isSafeInteger(summary.estimates)||summary.estimates<0||
           !Number.isSafeInteger(summary.openValue)||summary.openValue<0||
           !Number.isSafeInteger(summary.outstanding)||summary.outstanding<0||
-          !Array.isArray(summary.recent)||summary.recent.some(row=>!row||typeof row.id!=="string"||typeof row.customer!=="string")){
+          !Array.isArray(summary.recent)||summary.recent.some(row=>!row||typeof row.id!=="string"||typeof row.customer!=="string")||
+          !Number.isSafeInteger(summary.upcomingCount)||Number(summary.upcomingCount)<0||!Array.isArray(summary.upcomingJobs)||summary.upcomingJobs.length>25||summary.upcomingJobs.some(row=>!row||typeof row.id!=="string"||typeof row.customer!=="string"||row.status!=="scheduled"||typeof row.scheduledAt!=="string"||!Number.isFinite(Date.parse(row.scheduledAt)))){
             if(!cancelled&&request===generation)setSummaryVerified(false);
             return;
         }
         if(!cancelled&&request===generation){
-          setLiveMetrics({estimates:summary.estimates,openValue:summary.openValue,outstanding:summary.outstanding,...(Number.isSafeInteger(summary.completedJobs)&&Number(summary.completedJobs)>=0?{completedJobs:summary.completedJobs}:{})});
+          setLiveMetrics({estimates:summary.estimates,openValue:summary.openValue,outstanding:summary.outstanding,upcomingCount:summary.upcomingCount,upcomingJobs:summary.upcomingJobs,...(Number.isSafeInteger(summary.completedJobs)&&Number(summary.completedJobs)>=0?{completedJobs:summary.completedJobs}:{})});
           setEstimateRows(summary.recent);
           setSummaryVerified(true);
         }
