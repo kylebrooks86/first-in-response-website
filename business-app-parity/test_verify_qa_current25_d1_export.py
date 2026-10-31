@@ -115,7 +115,7 @@ class CurrentQA25RestoreTests(unittest.TestCase):
             lambda db: db.execute("DELETE FROM d1_migrations WHERE id=1"),
             lambda db: db.execute("UPDATE estimates SET customer_id='missing'"),
             lambda db: db.execute("UPDATE payments SET estimate_id='missing'"),
-            lambda db: db.execute("UPDATE payments SET amount_cents=-20 WHERE id='private-payment'"),
+            lambda db: db.execute("DROP TRIGGER deposit_policy_events_no_delete"),
         )
         for i,change in enumerate(cases):
             with self.subTest(case=i),tempfile.TemporaryDirectory() as folder:
