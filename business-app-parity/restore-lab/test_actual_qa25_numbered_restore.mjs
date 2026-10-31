@@ -52,6 +52,8 @@ source.exec(
   "INSERT INTO fire_job_numbers(job_number,root_estimate_id,created_at)"+
   " VALUES(6,'e1','2026-10-31T14:01:00Z');"+
   "INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES('e1',6);"+
+  "INSERT INTO auth_rate_limits(key,attempts,window_started_at,blocked_until)"+
+  " VALUES('synthetic-login-throttle',3,1780000000,1780000120);"+
   "UPDATE sqlite_sequence SET seq=12 WHERE name='fire_customer_numbers';"+
   "UPDATE sqlite_sequence SET seq=15 WHERE name='fire_job_numbers';"
 );
@@ -81,6 +83,8 @@ console.log('QA25_SCHEMA_INVENTORY_EXTRA_TABLE_NAMES='+JSON.stringify(
 const strictRealCapture=await captureFinanciallyVerifiedNumberedRecordsV2FromD1({
  db:localD1,now:()=> '2026-10-31T14:05:00Z'
 });
+eq(strictRealCapture.archive.tableCounts.auth_rate_limits,1,
+ 'Strict capture includes originally omitted auth throttling history');
 eq(strictRealCapture.archive.tableCounts.payment_refunds,1,
  'Strict one-batch D1 capture includes real QA refund history');
 eq(strictRealCapture.archive.identities.highWater.job,15,
@@ -93,7 +97,8 @@ source.exec('DROP TABLE unreviewed_future_customer_data');
 
 const tableRows=Object.fromEntries(FIRE_NUMBERED_RECORDS_TABLES.map(name=>
  [name,source.prepare('SELECT * FROM "'+name+'"').all()]));
-eq(Object.keys(tableRows).length,20,'All 20 actual QA record families read');
+eq(Object.keys(tableRows).length,21,'All 21 actual QA application record families read');
+eq(tableRows.auth_rate_limits.length,1,'Real QA throttle security state included in backup');
 eq(tableRows.payment_refunds.length,1,'Real QA schema contains synthetic refund');
 eq(tableRows.invoices.length,1,'Real QA schema contains synthetic invoice');
 eq(await verifyNumberedRecordsV2CriticalIntegrity(tableRows),true,
@@ -138,6 +143,8 @@ eq(target.prepare("SELECT seq FROM sqlite_sequence WHERE name='fire_job_numbers'
  'Original job sequence retained in true QA schema');
 eq(target.prepare('SELECT amount_cents FROM payment_refunds WHERE id=?').get('r1').amount_cents,2500,
  'True real-schema refund original cents retained');
+eq(target.prepare('SELECT attempts FROM auth_rate_limits WHERE key=?').get('synthetic-login-throttle').attempts,3,
+ 'Real-schema restore retains authentication throttling counters');
 source.close();target.close();
 const injected=fresh();
 injected.exec("CREATE TRIGGER synthetic_fail_payment BEFORE INSERT ON payment_refunds BEGIN SELECT RAISE(ABORT,'synthetic error'); END");
