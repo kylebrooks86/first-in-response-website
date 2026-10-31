@@ -46,6 +46,23 @@ class CustomerHistoryPreflight(unittest.TestCase):
         finally:
             db.close()
 
+    def test_first_launch_zero_customers_has_no_fake_serial_and_starts_at_one(self):
+        db=sqlite3.connect(':memory:')
+        try:
+            db.execute('PRAGMA foreign_keys=ON')
+            db.executescript("""CREATE TABLE customers(id TEXT PRIMARY KEY,
+              created_at TEXT NOT NULL,email TEXT,phone TEXT);""")
+            plan=analyze(db)
+            self.assertEqual(plan['historicalCustomers'],0)
+            self.assertEqual(plan['mapping'],{})
+            self.assertTrue(rehearse_in_memory(db,plan)['inMemoryBackfillRehearsalPassed'])
+            self.assertIsNone(db.execute("SELECT seq FROM sqlite_sequence WHERE name='fire_customer_numbers'").fetchone())
+            db.execute("INSERT INTO customers VALUES ('first','2026-11-01T00:00:00Z',NULL,NULL)")
+            db.execute("INSERT INTO fire_customer_numbers(customer_id,created_at) VALUES('first','2026-11-01T00:00:00Z')")
+            self.assertEqual(db.execute("SELECT customer_number FROM fire_customer_numbers WHERE customer_id='first'").fetchone(),(1,))
+        finally:
+            db.close()
+
     def test_duplicate_email_refused_without_migration(self):
         db=synthetic()
         try:
