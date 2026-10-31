@@ -20,7 +20,7 @@ export function matchesCustomerNumberQuery(customerNumber,query){
   if(!customerNumberLabel(customerNumber)||typeof query!=='string')return false;
   const term=query.trim().toLowerCase();
   const explicit=/^(?:customer\s*#?\s*|#)0*([1-9]\d*)$/.exec(term);
-  const padded=/^0*([1-9]\d{3,})$/.exec(term);
+  const padded=/^\d{4,}$/.test(term)?/^0*([1-9]\d*)$/.exec(term):null;
   const number=explicit?.[1]??padded?.[1];
   if(!number)return false;
   const parsed=Number(number);
