@@ -8,6 +8,7 @@ import {exerciseSearchMetadata} from './test-search-metadata-workflow.mjs';
 import {exercisePropertySearch} from './test-property-search-workflow.mjs';
 import {exerciseDepositPolicy} from './test-deposit-policy-workflow.mjs';
 import {exerciseChangeRequestHistory} from './test-change-request-history-workflow.mjs';
+import {verifyAnonymousMessageDenial,verifySignedMessageHandoff} from './test-qa-message-auth-workflow.mjs';
 /** Entire BUILT QA Worker, real local workerd/D1, auth cookies and mobile UI.
  * Only a disposable loopback runtime; no remote mode, provider or deployed data.
  */
@@ -130,6 +131,7 @@ try{
   return response;
  };
  check((await request('/api/customers')).status()===401,'Real built Worker rejects unauthenticated customer read');
+ await verifyAnonymousMessageDenial(request,check);
  if(photoMode)check((await request('/api/customer-photos/'+randomUUID())).status()===401,
    'Untrusted caller cannot view private customer photo bytes before owner login');
  check((await request('/api/estimates','POST',{customer:'Synthetic forged request'},{'oai-authenticated-user-email':'kylebrooks8605@gmail.com'})).status()===401,'Real HTTP gateway-header spoof cannot authorize an estimate write');
@@ -192,6 +194,7 @@ try{
  const page=await context.newPage();page.on('pageerror',e=>clientErrors.push(e.message));
  await page.goto(origin+'/');
  await page.getByText('QA · Test data only',{exact:true}).waitFor();
+ await verifySignedMessageHandoff({request,page,customer,estimate,check});
  const qaIndicator=page.getByRole('status',{name:'Synthetic QA test environment. Do not use real customer records or payments.',exact:true});
  check((await qaIndicator.boundingBox()).height<=22,'QA warning remains visible in a slim persistent strip');
  check(await qaIndicator.evaluate(n=>getComputedStyle(n).position)==='sticky','QA test distinction stays persistent while scrolling');
