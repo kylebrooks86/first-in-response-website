@@ -6,6 +6,7 @@ import { getChatGPTUser } from "../../chatgpt-auth";
 import {customerIdentityPredicate,customerCreationReceipt} from '../../../lib/customer-identity';
 import {usableCustomerPhone,usableCustomerEmail} from '../../../lib/customer-contact-links';
 import {customerNumberingReady,customerNumberForCustomer,newCustomerNumberStatement} from '../../../lib/customer-numbering.mjs';
+import {attachedJobNumbers} from '../../../lib/job-numbering.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized() {
@@ -84,8 +85,13 @@ export async function GET(request?:Request) {
     const grouped=new Map<string,Record<string,unknown>[]>();
     for(const raw of estimateItems.results as Record<string,unknown>[]){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};const key=String(raw.estimateId);grouped.set(key,[...(grouped.get(key)??[]),row]);}
     const customerNumbers=new Map((customers.results as Record<string,unknown>[]).map(row=>[String(row.id),row.customerNumber??null]));
-    const mappedEstimates=(estimates.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,customerNumber:customerNumbers.get(String(row.customerId))??null,items,service:items.map((item)=>String(item.name)).join(", ")||"Custom service",serviceDescription:String(items[0]?.description??"")};});
-    return Response.json({ customers: customers.results, estimates: mappedEstimates, notes: notes.results, invoices: invoices.results.map(row=>({...currentInvoice(row),customerNumber:customerNumbers.get(String(row.customerId))??null})), photos: photos.results, messages: messages.results, payments:payments.results },{headers:{"Cache-Control":"no-store, private"}});
+    // The customer's completed-job counter and history MUST use the same
+    // persisted Job # links as the global estimate/invoice views. Distinct
+    // revisions of a single job otherwise look like multiple finished jobs.
+    const showJobs=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
+    const jobNumbers=showJobs?await attachedJobNumbers(env.DB,(estimates.results as Record<string,unknown>[]).map(row=>String(row.id))):new Map();
+    const mappedEstimates=(estimates.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,customerNumber:customerNumbers.get(String(row.customerId))??null,jobNumber:jobNumbers.get(String(row.id))??null,items,service:items.map((item)=>String(item.name)).join(", ")||"Custom service",serviceDescription:String(items[0]?.description??"")};});
+    return Response.json({ customers: customers.results, estimates: mappedEstimates, notes: notes.results, invoices: invoices.results.map(row=>({...currentInvoice(row),customerNumber:customerNumbers.get(String(row.customerId))??null,jobNumber:jobNumbers.get(String(row.estimateId))??null})), photos: photos.results, messages: messages.results, payments:payments.results },{headers:{"Cache-Control":"no-store, private"}});
   } catch {
     return Response.json({ error: "Customer records are temporarily unavailable." }, { status: 503 });
   }
