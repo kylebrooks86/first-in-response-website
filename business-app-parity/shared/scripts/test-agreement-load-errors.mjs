@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {customerNumberLabel} from '../lib/customer-numbering.mjs';
 const require=createRequire(import.meta.url);
 const ast=ts.createSourceFile('dashboard.tsx',readFileSync('app/dashboard.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const view=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='ContractsView');
@@ -10,7 +11,7 @@ let state=[],cursor=0,effect,requests=[],responder;
 const stubs=Object.fromEntries(['Button','EstimateDetail','PenLine','MessageSquareText','Clock3','ChevronRight'].map(name=>[name,()=>null]));
 const pagination={exports:{},require};
 vm.runInNewContext(ts.transpileModule(readFileSync('lib/estimate-pagination.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,pagination);
-const context={exports:{},require,...pagination.exports,Error,Array,...stubs,
+const context={exports:{},require,...pagination.exports,Error,Array,customerNumberLabel,...stubs,
  useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return [state[i],v=>{state[i]=typeof v==='function'?v(state[i]):v;}];},
  useRef:initial=>({current:initial}),useEffect(fn){effect=fn;},fetch:async url=>{requests.push(url);return responder(url);},money:c=>'$'+(c/100).toFixed(2),
 };
