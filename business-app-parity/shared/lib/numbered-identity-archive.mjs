@@ -98,8 +98,10 @@ export function validateNumberedIdentityArchive(snapshot){
     fail('missing original SQLite AUTOINCREMENT high-water marks');
   const customerHigh=serial(snapshot.highWater.customer,'customer high-water mark',true);
   const jobHigh=serial(snapshot.highWater.job,'job high-water mark',true);
-  const maxCustomer=Math.max(0,...numbersBySerial.keys());
-  const maxJob=Math.max(0,...jobsByNumber.keys());
+  // Do not spread unbounded record counts into Math.max (stack overflow).
+  let maxCustomer=0,maxJob=0;
+  for(const value of numbersBySerial.keys())if(value>maxCustomer)maxCustomer=value;
+  for(const value of jobsByNumber.keys())if(value>maxJob)maxJob=value;
   if(customerHigh<maxCustomer||jobHigh<maxJob)fail('high-water mark would reuse an assigned number');
   return Object.freeze({
     customers:customerIds.size,estimates:estimateIds.size,
