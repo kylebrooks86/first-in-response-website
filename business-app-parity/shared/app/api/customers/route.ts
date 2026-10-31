@@ -5,6 +5,7 @@ import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {customerIdentityPredicate,customerCreationReceipt} from '../../../lib/customer-identity';
 import {usableCustomerPhone,usableCustomerEmail} from '../../../lib/customer-contact-links';
+import {customerNumberingReady,customerNumberForCustomer,newCustomerNumberStatement} from '../../../lib/customer-numbering.mjs';
 
 const OWNER_EMAIL = "kylebrooks8605@gmail.com";
 async function authorized() {
@@ -27,15 +28,17 @@ export async function GET(request?:Request) {
   if (!await authorized()) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
     // Read-only, owner-authenticated verification of an uncertain edit.
+    const numbered=await customerNumberingReady(env.DB,env);
+    const numberColumn=numbered?"(SELECT customer_number FROM fire_customer_numbers WHERE customer_id=c.id) AS customerNumber":"NULL AS customerNumber";
     const confirmId=request?new URL(request.url).searchParams.get("confirmEdit"):null;
     if(confirmId!==null){
       if(!confirmId||confirmId.length>128)return Response.json({error:"Invalid customer confirmation ID."},{status:400,headers:{"Cache-Control":"no-store, private"}});
-      const customer=await env.DB.prepare("SELECT id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address,COALESCE(lead_source,'Unknown') AS leadSource,created_at AS createdAt FROM customers WHERE id=? LIMIT 1").bind(confirmId).first();
+      const customer=await env.DB.prepare("SELECT c.id,c.name,COALESCE(c.email,'') AS email,COALESCE(c.phone,'') AS phone,COALESCE(c.address,'') AS address,COALESCE(c.lead_source,'Unknown') AS leadSource,c.created_at AS createdAt,"+numberColumn+" FROM customers c WHERE c.id=? LIMIT 1").bind(confirmId).first();
       return customer?Response.json({customer},{headers:{"Cache-Control":"no-store, private"}}):Response.json({error:"Customer record not found."},{status:404,headers:{"Cache-Control":"no-store, private"}});
     }
     const [customers, estimates, notes, invoices, photos, messages, payments, estimateItems] = await env.DB.batch([
       env.DB.prepare(`
-        SELECT c.id,c.name,COALESCE(c.email,'') AS email,COALESCE(c.phone,'') AS phone,COALESCE(c.address,'') AS address,COALESCE(c.lead_source,'Unknown') AS leadSource,c.created_at AS createdAt,
+        SELECT c.id,c.name,COALESCE(c.email,'') AS email,COALESCE(c.phone,'') AS phone,COALESCE(c.address,'') AS address,COALESCE(c.lead_source,'Unknown') AS leadSource,c.created_at AS createdAt,${numberColumn},
           COUNT(DISTINCT e.id) AS estimateCount,
           COALESCE((SELECT SUM(COALESCE((SELECT inv.total_cents FROM invoices inv WHERE inv.estimate_id=ce.id LIMIT 1),ce.total_cents)) FROM estimates ce WHERE ce.customer_id=c.id),0) AS estimateTotal,
           COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN estimates pe ON pe.id=p.estimate_id WHERE pe.customer_id=c.id AND p.status='paid' AND p.type NOT IN ('Tip','Tip Refund')),0) AS paidTotal
@@ -80,8 +83,9 @@ export async function GET(request?:Request) {
     ]);
     const grouped=new Map<string,Record<string,unknown>[]>();
     for(const raw of estimateItems.results as Record<string,unknown>[]){const row={...raw,quantity:Number(raw.quantity),totalCents:Number(raw.totalCents)};const key=String(raw.estimateId);grouped.set(key,[...(grouped.get(key)??[]),row]);}
-    const mappedEstimates=(estimates.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,items,service:items.map((item)=>String(item.name)).join(", ")||"Custom service",serviceDescription:String(items[0]?.description??"")};});
-    return Response.json({ customers: customers.results, estimates: mappedEstimates, notes: notes.results, invoices: invoices.results.map(currentInvoice), photos: photos.results, messages: messages.results, payments:payments.results },{headers:{"Cache-Control":"no-store, private"}});
+    const customerNumbers=new Map((customers.results as Record<string,unknown>[]).map(row=>[String(row.id),row.customerNumber??null]));
+    const mappedEstimates=(estimates.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,customerNumber:customerNumbers.get(String(row.customerId))??null,items,service:items.map((item)=>String(item.name)).join(", ")||"Custom service",serviceDescription:String(items[0]?.description??"")};});
+    return Response.json({ customers: customers.results, estimates: mappedEstimates, notes: notes.results, invoices: invoices.results.map(row=>({...currentInvoice(row),customerNumber:customerNumbers.get(String(row.customerId))??null})), photos: photos.results, messages: messages.results, payments:payments.results },{headers:{"Cache-Control":"no-store, private"}});
   } catch {
     return Response.json({ error: "Customer records are temporarily unavailable." }, { status: 503 });
   }
@@ -101,19 +105,26 @@ export async function POST(request: Request) {
     const requestId=body.requestId;
     if(requestId!==undefined&&(typeof requestId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(requestId)))return Response.json({error:'Invalid customer save identifier.'},{status:400});
     const id = typeof requestId==='string'?requestId:crypto.randomUUID();
+    const numbered=await customerNumberingReady(env.DB,env);
     const replay=async()=>{
       const customer=await customerCreationReceipt(env.DB,id);
       if(!customer)return null;
       if(customer.name!==name||customer.email!==email||customer.phone!==phone||customer.address!==address||customer.leadSource!==leadSource)return Response.json({error:'This save identifier already belongs to different customer details. Check the saved customer; no records were overwritten.'},{status:409});
-      return Response.json({requestId:id,duplicate:true,customer},{headers:{'Cache-Control':'no-store, private'}});
+      const customerNumber=numbered?await customerNumberForCustomer(env.DB,id,env):null;
+      return Response.json({requestId:id,duplicate:true,customer:{...customer,customerNumber}},{headers:{'Cache-Control':'no-store, private'}});
     };
     if(requestId){const receipt=await replay();if(receipt)return receipt;}
     const createdAt = new Date().toISOString();
     const match=customerIdentityPredicate({name,email,phone,address});
-    const inserted=await env.DB.prepare(`INSERT INTO customers (id,name,email,phone,address,lead_source,created_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM customers WHERE id=? OR ${match.sql}) RETURNING id`)
-      .bind(id,name,email||null,phone||null,address||null,leadSource,createdAt,id,...match.values).first();
+    const insertStatement=env.DB.prepare(`INSERT INTO customers (id,name,email,phone,address,lead_source,created_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM customers WHERE id=? OR ${match.sql}) RETURNING id`)
+      .bind(id,name,email||null,phone||null,address||null,leadSource,createdAt,id,...match.values);
+    // D1 batch is atomic. No customer record can be committed without its
+    // permanent number once the approved schema and backfill are enabled.
+    const inserted=numbered?(await env.DB.batch([insertStatement,newCustomerNumberStatement(env.DB,id,createdAt)]))[0]?.results?.[0]
+      :await insertStatement.first();
     if(!inserted){if(requestId){const receipt=await replay();if(receipt)return receipt;}return Response.json({error:'A matching customer already exists. Search and select their saved record instead of creating a duplicate.'},{status:409});}
-    return Response.json({ requestId:id,customer: { id, name, email, phone, address, leadSource, createdAt, estimateCount: 0, estimateTotal: 0, paidTotal: 0 } }, { status: 201,headers:{"Cache-Control":"no-store, private"} });
+    const customerNumber=numbered?await customerNumberForCustomer(env.DB,id,env):null;
+    return Response.json({ requestId:id,customer: { id, name, email, phone, address, leadSource, createdAt,customerNumber, estimateCount: 0, estimateTotal: 0, paidTotal: 0 } }, { status: 201,headers:{"Cache-Control":"no-store, private"} });
   } catch {
     return Response.json({ error: "Customer save confirmation is uncertain. Check the same request before creating another record." }, { status: 500 });
   }
@@ -152,7 +163,8 @@ export async function PATCH(request: Request) {
       .bind(name, email || null, phone || null, address || null, leadSource, id).run();
     const customer = await env.DB.prepare("SELECT id,name,COALESCE(email,'') AS email,COALESCE(phone,'') AS phone,COALESCE(address,'') AS address,lead_source AS leadSource,created_at AS createdAt FROM customers WHERE id=? LIMIT 1")
       .bind(id).first();
-    return Response.json({ customer },{headers:{"Cache-Control":"no-store, private"}});
+    const customerNumber=await customerNumberForCustomer(env.DB,id,env);
+    return Response.json({ customer:{...customer,customerNumber} },{headers:{"Cache-Control":"no-store, private"}});
   } catch {
     return Response.json({ error: "We couldn't update this customer. Please try again." }, { status: 500 });
   }
