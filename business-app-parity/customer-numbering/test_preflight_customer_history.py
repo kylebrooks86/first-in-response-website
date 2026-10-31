@@ -86,7 +86,7 @@ class CustomerHistoryPreflight(unittest.TestCase):
     def test_missing_schema_refused(self):
         db=sqlite3.connect(':memory:')
         try:
-            with self.assertRaisesRegex(CustomerHistoryBlocked,'schema'):
+            with self.assertRaisesRegex(CustomerHistoryBlocked,'identity fields'):
                 analyze(db)
         finally:
             db.close()
