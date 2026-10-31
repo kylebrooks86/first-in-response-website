@@ -40,7 +40,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "1783ded7-43db-4769-8708-fa86c47b002d",
+                         "99fa8c27-df83-48d3-b953-9a84eb295334",
                          "deployments status --name $workerName --json",
                          "d1 list --json", "databaseInfo.qaUuid -ceq $qaId",
                          "$activeVersions.Count -eq 1",
@@ -94,16 +94,23 @@ class ExistingQAUpdateSafety(unittest.TestCase):
                           "r2 bucket create", "r2 object put", "r2 object delete"):
             self.assertNotIn(forbidden,S)
 
-    def test_review_and_publisher_share_one_full_observed_version(self):
+    def test_owner_verified_readonly_version_and_stale_publisher_deliberate_block(self):
+        # Safe QA-only candidate review may advance after owner metadata PASS,
+        # but the distinct -Publish command MUST NOT become actionable until
+        # private current-25 recovery and an exact target approval exist.
         publisher = (Path(__file__).parent / "owner_windows_qa_update_publish.ps1").read_text(encoding="utf-8")
         readonly = (Path(__file__).parent / "owner_windows_qa_current_readonly.ps1").read_text(encoding="utf-8")
         readonly_pins = re.findall(r"^\$expectedVersion = '([^']+)'$", readonly, re.M)
-        self.assertEqual(readonly_pins, ["1783ded7-43db-4769-8708-fa86c47b002d"])
-        for script in (S, publisher):
-            pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", script, re.M)
-            self.assertEqual(pins, ["1783ded7-43db-4769-8708-fa86c47b002d"])
-            self.assertNotIn("expectedActiveVersionPrefix", script)
-            self.assertNotIn("da71b08f", script)
+        review_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", S, re.M)
+        publish_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", publisher, re.M)
+        self.assertEqual(readonly_pins, ["99fa8c27-df83-48d3-b953-9a84eb295334"])
+        self.assertEqual(review_pins, readonly_pins)
+        self.assertEqual(publish_pins, ["1783ded7-43db-4769-8708-fa86c47b002d"])
+        self.assertNotEqual(review_pins,publish_pins,
+            "No accidental QA deployment until private 25-schema backup and separate owner approval")
+        for script in (S,publisher):
+            self.assertNotIn("expectedActiveVersionPrefix",script)
+            self.assertNotIn("da71b08f",script)
         self.assertIn("Require ($activeVersion -ceq $expectedActiveVersion)", S)
         self.assertIn("Require ($expectedOldVersion -ceq $expectedActiveVersion)", publisher)
         self.assertIn("[string]$afterVersions[0].version_id -ceq $expectedOldVersion", publisher)
