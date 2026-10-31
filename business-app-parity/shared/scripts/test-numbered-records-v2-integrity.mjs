@@ -470,3 +470,88 @@ const shortEncrypted=await sealNumberedV2PhotoBytes({
 eq(shortEncrypted,null,'Cannot create owner photo vault omitting saved image bytes');
 console.log('PASS '+checks+'/'+checks+
  ' NEW encrypted photo-BYTES roundtrip and cross-record/tamper/nonce refusal checks (source-only).');
+
+
+
+// NEW single portable PRIVATE recovery kit: encrypted 21-table records and
+// actual encrypted image bytes travel together, bound by original checksum.
+const {createNumberedV2PrivateRecoveryKit,openNumberedV2PrivateRecoveryKit}
+ =await import('../lib/numbered-records-v2-private-kit.mjs');
+const kit=await createNumberedV2PrivateRecoveryKit({
+ archive:archive.archive,files:photoFiles,passphrase:syntheticPassphrase
+});
+eq(kit.format,'fire-app-complete-numbered-private-recovery-kit',
+ 'Portable one-object encrypted recovery bundle has explicit format');
+eq(Object.keys(kit).sort(),
+ ['format','sealedPhotoBytes','sealedRecords','version'].sort(),
+ 'Recovery kit cannot hold unexpected plaintext sidecar fields');
+const kitText=JSON.stringify(kit);
+eq(kitText.includes('Synthetic Customer'),false,
+ 'Portable recovery kit has no readable signed customer name');
+eq(kitText.includes(sourcePhoto.object_key),false,
+ 'Portable recovery kit has no readable customer photo object key');
+eq(kitText.includes('cs_test'),false,
+ 'Portable recovery kit does not expose payment provider reference');
+eq(kitText.includes(syntheticPassphrase),false,
+ 'Passphrase is never bundled into the recoverable object');
+const recoveredKit=await openNumberedV2PrivateRecoveryKit({
+ kit:JSON.parse(kitText),passphrase:syntheticPassphrase
+});
+eq(recoveredKit.archive,archive.archive,
+ 'Portable kit decrypts exact full original numbered-records archive');
+eq(recoveredKit.photos[0].bytes,photoFiles[0].bytes,
+ 'Portable kit decrypts the original photo BYTE contents');
+eq(recoveredKit.proof.completePrivateKitDecryptedInMemory,true,
+ 'One operation verifies records and all photos in memory');
+eq(recoveredKit.proof.verifiedPhotoFiles,1,
+ 'Portable kit verifies count of real photo byte objects');
+eq(recoveredKit.proof.recordsPersisted,false,
+ 'No false claim of database restore from merely opening private kit');
+eq(recoveredKit.proof.hostedRecoveryPerformed,false,
+ 'No false claim of actual hosted R2 or D1 recovery');
+const kitRefuse=async(fn,label)=>{
+ await assert.rejects(fn,/FIRE PRIVATE RECOVERY KIT REFUSED/,label);checks++;
+};
+await kitRefuse(()=>openNumberedV2PrivateRecoveryKit({
+ kit,passphrase:'wrong long passphrase for the synthetic owner'
+}),'Wrong password prevents opening both encrypted halves');
+const changedKit=clone(kit);changedKit.sealedPhotoBytes.items[0].ciphertextBase64=
+ (changedKit.sealedPhotoBytes.items[0].ciphertextBase64[0]==='A'?'B':'A')+
+ changedKit.sealedPhotoBytes.items[0].ciphertextBase64.slice(1);
+await kitRefuse(()=>openNumberedV2PrivateRecoveryKit({
+ kit:changedKit,passphrase:syntheticPassphrase
+}),'One tampered photo invalidates the complete kit');
+const brokenKit=clone(kit);delete brokenKit.sealedRecords;
+await kitRefuse(()=>openNumberedV2PrivateRecoveryKit({
+ kit:brokenKit,passphrase:syntheticPassphrase
+}),'Missing original records half refuses private recovery');
+const injectedKit=clone(kit);injectedKit.archive=archive.archive;
+await kitRefuse(()=>openNumberedV2PrivateRecoveryKit({
+ kit:injectedKit,passphrase:syntheticPassphrase
+}),'Plaintext or unreviewed fields cannot be slipped into private kit');
+const alternativeKit=await createNumberedV2PrivateRecoveryKit({
+ archive:alternative,files:photoFiles,passphrase:syntheticPassphrase
+});
+const crossMixed=clone(kit);crossMixed.sealedRecords=alternativeKit.sealedRecords;
+await kitRefuse(()=>openNumberedV2PrivateRecoveryKit({
+ kit:crossMixed,passphrase:syntheticPassphrase
+}),'Photos from original customer record snapshot cannot pair with another valid backup');
+const missingOriginal=await assert.rejects(()=>createNumberedV2PrivateRecoveryKit({
+ archive:archive.archive,files:[],passphrase:syntheticPassphrase
+}),/FIRE PHOTO VAULT V2 REFUSED/,
+ 'Cannot assemble complete kit when even one image is missing');checks++;
+const zeroPhotoRecords=clone(archive.archive.records);
+zeroPhotoRecords.tables.customer_photos=[];
+const zeroArchive=(await buildNumberedRecordsV2({
+ records:zeroPhotoRecords,identities:archive.archive.identities
+})).archive;
+const zeroKit=await createNumberedV2PrivateRecoveryKit({
+ archive:zeroArchive,files:[],passphrase:syntheticPassphrase
+});
+const zeroOpened=await openNumberedV2PrivateRecoveryKit({
+ kit:zeroKit,passphrase:syntheticPassphrase
+});
+eq(zeroOpened.photos,[],'Photo-free customers recover with explicit encrypted empty manifest');
+eq(zeroOpened.archive,zeroArchive,'Photo-free private kit still preserves complete records');
+console.log('PASS '+checks+'/'+checks+
+ ' NEW portable encrypted full-records-plus-photo-BYTES private kit roundtrip and fail-closed checks.');
