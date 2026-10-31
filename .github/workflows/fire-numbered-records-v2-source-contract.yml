@@ -40,6 +40,6 @@ jobs:
       - name: Verify new versioned archive preservation and failure refusal
         run: node business-app-parity/shared/scripts/test-numbered-records-v2.mjs
       - name: Verify full financial, signed agreement, and photo-scoped v2 capture (new tests only)
-        run: node business-app-parity/shared/scripts/test-numbered-records-v2-integrity.mjs
+        run: node --experimental-sqlite business-app-parity/shared/scripts/test-numbered-records-v2-integrity.mjs
       - name: Test disposable SQLite full-record parity and atomic numbering rollback
         run: node --experimental-sqlite business-app-parity/restore-lab/test_restore_numbered_mappings_memory.mjs
