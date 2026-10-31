@@ -257,7 +257,7 @@ function PropertyPreview({ address }: { address: string }) {
 
 const messageLabels: Record<string,string> = Object.fromEntries(FIRE_TEMPLATES.map((item)=>[item.key,item.name]));
 
-function MessageComposer({ customer, estimate, initialTemplate="estimate", triggerLabel="Message", triggerClassName, onLogged, onSent }: { customer:CustomerRow; estimate?:CustomerEstimate|EstimateRow|null; initialTemplate?:string; triggerLabel?:string; triggerClassName?:string; onLogged?:(message:CustomerMessage)=>void; onSent?:(message:CustomerMessage,estimateStatus?:string)=>void|Promise<void> }) {
+function MessageComposer({ customer, estimate, initialTemplate="estimate", triggerLabel="Message", triggerClassName, triggerAriaLabel, onLogged, onSent }: { customer:CustomerRow; estimate?:CustomerEstimate|EstimateRow|null; initialTemplate?:string; triggerLabel?:string; triggerClassName?:string; triggerAriaLabel?:string; onLogged?:(message:CustomerMessage)=>void; onSent?:(message:CustomerMessage,estimateStatus?:string)=>void|Promise<void> }) {
   const [open,setOpen]=useState(false);
   const [template,setTemplate]=useState(initialTemplate);
   const [body,setBody]=useState("");
@@ -298,7 +298,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   const renderedBody=fillTemplate(activeTemplate?.body??"",variables).replace(/\s{2,}/g," ").trim();
   const renderedSubject=fillTemplate(activeTemplate?.subject||"A message from First In Response Exteriors",variables);
   // When launched from Text, do not offer email-only templates that cannot be sent by Google Voice.
-  const composerTemplates=[customMessageTemplate,...templates.filter((item)=>item.channel!=="document"&&item.key!=="custom"&&(triggerLabel!=="Text"||item.channel==="both"||item.channel==="sms"))];
+  const composerTemplates=[customMessageTemplate,...templates.filter((item)=>item.channel!=="document"&&item.key!=="custom"&&(triggerLabel==="Text"?(item.channel==="both"||item.channel==="sms"):triggerLabel==="Email"?(item.channel==="both"||item.channel==="email"):true))];
   const needsInvoiceLink=["invoice","invoiceReminder","overdue"].includes(template);
   const needsEstimateLink=["estimate","followUp1","followUp3","followUp7"].includes(template);
   useEffect(()=>{
@@ -474,7 +474,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
   };
   const copy=async()=>{try{await navigator.clipboard.writeText(body);await log("copy");}catch{setMessageStatus("Copy failed. No sending is confirmed.");}};
   return <Dialog open={open} onOpenChange={(value)=>{if(working&&!value)return;setOpen(value);if(value){setSiteOrigin(window.location.origin);}}}>
-    <DialogTrigger asChild><Button variant="outline" className={triggerClassName}><MessageSquareText className="h-4 w-4" /> {triggerLabel}</Button></DialogTrigger>
+    <DialogTrigger asChild><Button variant="outline" className={triggerClassName} aria-label={triggerAriaLabel}>{triggerLabel==="Email"?<Mail className="h-4 w-4"/>:<MessageSquareText className="h-4 w-4" />} {triggerLabel}</Button></DialogTrigger>
     <DialogContent className="message-dialog sm:max-w-[620px]">
       <DialogHeader className="message-dialog-header"><DialogTitle>Message</DialogTitle><p className="message-dialog-recipient">To: {customer.name}</p></DialogHeader>
       <div className="message-builder">
@@ -1168,7 +1168,7 @@ function DashboardView({userName,metrics,estimates,summaryVerified,onSaved,onNav
             <div className="dashboard-next-contact-options">
               {nextJobPhone&&<GoogleVoiceCallAction phone={nextJobPhone} customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}{nextJobPhone&&<PersonalPhoneBackupAction phone={nextJobPhone} mode="call" customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}
               {nextJobPhone&&nextJobMessageCustomer?<MessageComposer customer={nextJobMessageCustomer} estimate={upcomingJobs[0]} initialTemplate="custom" triggerLabel="Text" triggerClassName="dashboard-next-directions dashboard-next-contact"/>:nextJobPhone&&<Button variant="outline" className="dashboard-next-directions dashboard-next-contact" onClick={()=>onOpenEstimate?onOpenEstimate(upcomingJobs[0].id):onNavigate("schedule")}>Open job to text</Button>}{nextJobPhone&&<PersonalPhoneBackupAction phone={nextJobPhone} mode="text" customerName={upcomingJobs[0].customer} className="dashboard-next-directions dashboard-next-contact"/>}
-              {canEmailNextJob&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Email next job customer" href={"mailto:"+encodeURIComponent(nextJobEmail)}><Mail className="h-4 w-4"/> Email</a>}
+              {canEmailNextJob&&nextJobMessageCustomer?<MessageComposer customer={nextJobMessageCustomer} estimate={upcomingJobs[0]} initialTemplate="custom" triggerLabel="Email" triggerAriaLabel="Email next job customer" triggerClassName="dashboard-next-directions dashboard-next-contact"/>:canEmailNextJob&&<a className="dashboard-next-directions dashboard-next-contact" aria-label="Email next job customer" href={"mailto:"+encodeURIComponent(nextJobEmail)}><Mail className="h-4 w-4"/> Email</a>}
             </div>
           </details>}
           <Button variant="outline" onClick={()=>onNavigate("schedule")}>Full schedule</Button>
@@ -2680,7 +2680,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       <div className="customer-contact" role="group" aria-label="Customer contact and driving links">
         {contactPhone&&<GoogleVoiceCallAction phone={contactPhone} customerName={selected.name}/>}{contactPhone&&<PersonalPhoneBackupAction phone={contactPhone} mode="call" customerName={selected.name}/>}
         {contactPhone&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Text" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/>}{contactPhone&&<PersonalPhoneBackupAction phone={contactPhone} mode="text" customerName={selected.name}/>}
-        {contactEmail&&<a href={"mailto:"+encodeURIComponent(contactEmail)} aria-label="Email customer"><Mail />Email</a>}
+        {contactEmail&&<MessageComposer customer={selected} initialTemplate="custom" triggerLabel="Email" triggerAriaLabel="Email customer" onLogged={message=>setMessages(current=>[message,...current.filter(entry=>entry.id!==message.id)])}/>}
         {selected.address&&<a className="primary-tool" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selected.address)}&travelmode=driving`} target="_blank" rel="noopener noreferrer" aria-label="Directions to customer in Google Maps"><Navigation />Google Maps</a>}
         {selected.address&&onOpenTerritory&&<button type="button" aria-label="Show customer on Territory Map" onClick={()=>onOpenTerritory(selected.address)}><MapPin aria-hidden="true"/> Territory</button>}
         {!contactPhone&&!contactEmail&&!selected.phone&&!selected.email&&<small className="customer-contact-empty">Add a phone or email under More actions → Edit customer to contact them.</small>}
