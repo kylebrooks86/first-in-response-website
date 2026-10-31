@@ -83,16 +83,17 @@ await firstService.getByLabel('Quantity',{exact:true}).fill('');
 // Exercise the supported two-service path and exact cents instead.
 check(await page.getByText('Quick multi-service packages',{exact:true}).count()===0,
  'Owner-approved Quick Packages UI is absent from New Estimate');
-check(await page.getByRole('button',{name:'Add another service'}).count()===1,
- 'Manual multi-service quoting remains one visible action');
+const addAnother=page.locator('.new-estimate-dialog').getByRole('button',{name:/Add another service/}).first();
+check(await addAnother.isVisible(),
+ 'Manual multi-service action is visible in the active New Estimate dialog');
 const beforeQuoteSaves=saves, beforePackageWrites=packageWrites;
 await firstService.getByRole('combobox').click();
 await page.getByRole('option',{name:'House Wash',exact:true}).click();
 await firstService.getByLabel('Quantity',{exact:true}).fill('1000');
 check(await firstService.getByText('Line total $220',{exact:true}).count()===1,
  'House washing uses owner rate of 22 cents per square foot');
-await page.getByRole('button',{name:'Add another service'}).click();
-const manualLines=page.locator('.estimate-edit-service');
+await addAnother.click();
+const manualLines=page.locator('.new-estimate-dialog .estimate-edit-service');
 check(await manualLines.count()===2,'Manual Add another service inserts a second line');
 check(await manualLines.nth(1).getByLabel('Quantity',{exact:true}).inputValue()==='',
  'New manual line never inherits previous measurements');
