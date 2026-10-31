@@ -1,7 +1,7 @@
 /** FIRE numbered-records v2 content packer/reader — SOURCE ONLY.
  * No API, database, filesystem, provider, network, deployment or restore calls.
  * The existing v1 JSON backup/restore HTTP 409 lock MUST remain in place.
- * All tables are exact-scope; later service-location/property variants require
+ * All 21 application tables are exact-scope; later service-location/property variants require
  * an explicitly reviewed schema version, never silent omission.
  * SHA-256 detects accidental alteration, NOT authenticity or authorization.
  * Customer photo BYTES are never in this database-record package.
@@ -15,7 +15,7 @@ export const FIRE_NUMBERED_RECORDS_TABLES=Object.freeze([
   'payment_checkout_sessions','payment_refunds','deposit_policy_events',
   'deposit_agreement_snapshots','estimate_items','payments','customer_photos',
   'customer_messages','notifications','message_templates','estimate_change_requests',
-  'tasks','expenses','job_reports'
+  'tasks','expenses','job_reports','auth_rate_limits'
 ]);
 
 function reject(reason){throw new Error('FIRE numbered records v2 REFUSED: '+reason);}
