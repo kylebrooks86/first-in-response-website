@@ -23,7 +23,7 @@ const REQUIRED_TRIGGERS=[
  'fire_job_estimate_links_no_update','fire_job_estimate_links_no_delete'
 ];
 
-function exactRecordRows(actual,expected,label){
+export function assertExactArchiveTableRows(actual,expected,label){
   if(!Array.isArray(actual)||!Array.isArray(expected)||actual.length!==expected.length)
     fail(label+' records/count mismatch');
   // Byte-for-byte logical record parity with independent JSON key order and
@@ -40,7 +40,7 @@ function readAll(db,table){
   // The only source of table names is a constant reviewed allowlist.
   return db.prepare('SELECT * FROM "'+table+'"').all();
 }
-function checkDisposableDb(db){
+export function assertDisposableNumberedScratchDb(db){
   if(!(db instanceof DatabaseSync))fail('requires a native node:sqlite DatabaseSync');
   const files=db.prepare('PRAGMA database_list').all();
   if(files.length!==1||files[0].name!=='main'||files[0].file!=='')
@@ -85,7 +85,7 @@ function checkDisposableDb(db){
   }
 }
 
-function verifyNumbers(db,original){
+export function assertRestoredNumberedRows(db,original){
   const persisted={
     ...original,
     fire_customer_numbers:readAll(db,'fire_customer_numbers'),
@@ -98,7 +98,7 @@ function verifyNumbers(db,original){
   };
   // Compare exact original numbers / estimate revisions / allocators,
   // in addition to the validator's relationship and coverage checks.
-  for(const key of NUMBER_TABLES)exactRecordRows(persisted[key],original[key],key);
+  for(const key of NUMBER_TABLES)assertExactArchiveTableRows(persisted[key],original[key],key);
   if(persisted.highWater.customer!==original.highWater.customer||
      persisted.highWater.job!==original.highWater.job)
     fail('permanent sequence high-water was not restored exactly');
@@ -126,9 +126,9 @@ function setHighWater(db,table,value){
 export async function restoreNumberedMappingsToDisposableMemory({db,archive}={}){
   if(!archive)fail('no archive');
   const inspected=await inspectNumberedRecordsV2(archive);
-  checkDisposableDb(db);
+  assertDisposableNumberedScratchDb(db);
   for(const table of FIRE_NUMBERED_RECORDS_TABLES)
-    exactRecordRows(readAll(db,table),archive.records.tables[table],table);
+    assertExactArchiveTableRows(readAll(db,table),archive.records.tables[table],table);
   const original=archive.identities;
   const numbering=validateNumberedIdentityArchive(original);
   if(numbering.customers!==inspected.customers||
@@ -152,11 +152,11 @@ export async function restoreNumberedMappingsToDisposableMemory({db,archive}={})
       links.run(row.estimate_id,row.job_number);
     setHighWater(db,'fire_customer_numbers',original.highWater.customer);
     setHighWater(db,'fire_job_numbers',original.highWater.job);
-    verifyNumbers(db,original);
+    assertRestoredNumberedRows(db,original);
     // Recheck complete records within the transaction: no hidden changes to
     // invoices, payments, refunds, agreements, customers or other history.
     for(const table of FIRE_NUMBERED_RECORDS_TABLES)
-      exactRecordRows(readAll(db,table),archive.records.tables[table],table);
+      assertExactArchiveTableRows(readAll(db,table),archive.records.tables[table],table);
     db.exec('COMMIT');begun=false;
   }catch{
     if(begun){try{db.exec('ROLLBACK');}catch{/* fail closed; don't retry */}}
