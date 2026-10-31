@@ -16,15 +16,19 @@ export function customerNumberLabel(value){
  * Keep the ordinary name/address/phone search independent; never treat a
  * 1-3 digit bare query as an ID and never match an ID by prefix.
  */
-export function matchesCustomerNumberQuery(customerNumber,query){
-  if(!customerNumberLabel(customerNumber)||typeof query!=='string')return false;
+export function parseCustomerNumberQuery(query){
+  if(typeof query!=='string')return null;
   const term=query.trim().toLowerCase();
   const explicit=/^(?:customer\s*#?\s*|#)0*([1-9]\d*)$/.exec(term);
   const padded=/^\d{4,}$/.test(term)?/^0*([1-9]\d*)$/.exec(term):null;
   const number=explicit?.[1]??padded?.[1];
-  if(!number)return false;
+  if(!number)return null;
   const parsed=Number(number);
-  return Number.isSafeInteger(parsed)&&parsed===Number(customerNumber);
+  return Number.isSafeInteger(parsed)&&parsed>0?parsed:null;
+}
+export function matchesCustomerNumberQuery(customerNumber,query){
+  if(!customerNumberLabel(customerNumber))return false;
+  return parseCustomerNumberQuery(query)===Number(customerNumber);
 }
 
 /** Fail closed if flag is enabled without a complete immutable numbering map.
