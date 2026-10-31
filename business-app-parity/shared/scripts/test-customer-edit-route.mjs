@@ -6,6 +6,7 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {customerNumberingReady,customerNumberForCustomer} from '../lib/customer-numbering.mjs';
 const require=createRequire(import.meta.url);
 const source=ts.createSourceFile('customers-route.ts',readFileSync('app/api/customers/route.ts','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
 const get=n=>source.statements.find(s=>ts.isFunctionDeclaration(s)&&s.name?.text===n)?.getText(source);
@@ -16,7 +17,7 @@ assert.ok(code.includes('GET(')&&code.includes('PATCH('),'Could not extract actu
 const js=ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const rows=new Map([['first',{id:'first',name:'Original',email:'first@example.invalid',phone:'9185550100',address:'123 Synthetic',leadSource:'Referral',createdAt:'2026-10-29T00:00:00Z'}],['second',{id:'second',name:'Other',email:'other@example.invalid',phone:'9185550101',address:'555 Synthetic',leadSource:'Google',createdAt:'2026-10-29T00:00:00Z'}]]);
 let writes=0,reads=0,authorized=true,throwAfterWrite=false;
-const ctx={exports:{},require,Response,URL,Date,crypto,
+const ctx={exports:{},require,Response,URL,Date,crypto,customerNumberingReady,customerNumberForCustomer,
   getChatGPTUser:async()=>authorized?{email:'qa-owner@example.invalid'}:null,
   env:{DB:{prepare(sql){return {bind(...values){
     return {
