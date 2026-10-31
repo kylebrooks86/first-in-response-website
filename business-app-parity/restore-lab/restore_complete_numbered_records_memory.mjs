@@ -110,3 +110,17 @@ export async function restoreCompleteNumberedRecordsToDisposableMemory({db,archi
     productionRestoreApproved:false
   });
 }
+
+
+/** Default STRICT full-records restore lab entry point. Both full archive and
+ * financial/signed agreement checks MUST pass before the first SQLite write.
+ * The underlying low-level primitive remains only for regression fixtures.
+ * Still disposable memory ONLY, and still never a hosted restore authorization.
+ */
+export async function restoreFinanciallyVerifiedNumberedRecordsToDisposableMemory(input={}){
+ const {inspectFinanciallyVerifiedNumberedRecordsV2}=
+   await import('../shared/lib/numbered-records-v2-integrity.mjs');
+ if(!input.archive)fail('missing archive');
+ await inspectFinanciallyVerifiedNumberedRecordsV2(input.archive);
+ return restoreCompleteNumberedRecordsToDisposableMemory(input);
+}
