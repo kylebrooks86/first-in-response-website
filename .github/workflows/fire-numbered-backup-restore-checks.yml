@@ -42,4 +42,4 @@ jobs:
       - name: Test full local records export, refund/audit integrity, restore refusal, idempotency
         run: node --experimental-sqlite scripts/run-ci-regression.mjs ./test-records-recovery.mjs
       - name: Test immutable numbered archive and offline SQLite high-water collision plan
-        run: node --experimental-sqlite scripts/test-numbered-identity-archive.mjs
+        run: cd ../.. && node --experimental-sqlite business-app-parity/shared/scripts/test-numbered-identity-archive.mjs
