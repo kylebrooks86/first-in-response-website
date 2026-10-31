@@ -18,9 +18,11 @@ $workerName = 'fire-fullapp-qa-20261016'
 $dbName = 'fire-fullapp-qa-db-20261016'
 $dbId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 $photoMode = 'ON-DEVICE-PHOTOS-NO-R2'
-# Owner-observed October 30 QA Worker version; observation is not deployment approval.
+# Owner-verified Acer Wrangler status: QA Worker version 1783ded7-43db-4769-8708-fa86c47b002d at 100% traffic.
+# The previously active db6ef897-edd3-439e-8679-b6f6620f18af is historical rollback evidence, NOT the current serving pin.
+# This read-only observation is not approval to publish or migrate.
 # Require a fresh authenticated 100% serving-version match before any new QA publication.
-$expectedActiveVersion = 'db6ef897-edd3-439e-8679-b6f6620f18af'
+$expectedActiveVersion = '1783ded7-43db-4769-8708-fa86c47b002d'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
