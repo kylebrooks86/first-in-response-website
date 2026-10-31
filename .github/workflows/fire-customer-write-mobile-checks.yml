@@ -6,12 +6,14 @@ on:
       - 'business-app-parity/shared/app/dashboard.tsx'
       - 'business-app-parity/shared/lib/customer-numbering.mjs'
       - 'business-app-parity/shared/scripts/test-customer-write-browser.mjs'
+      - 'business-app-parity/shared/scripts/test-customer-simple-profile-browser.mjs'
       - '.github/workflows/fire-customer-write-mobile-checks.yml'
   pull_request:
     paths:
       - 'business-app-parity/shared/app/dashboard.tsx'
       - 'business-app-parity/shared/lib/customer-numbering.mjs'
       - 'business-app-parity/shared/scripts/test-customer-write-browser.mjs'
+      - 'business-app-parity/shared/scripts/test-customer-simple-profile-browser.mjs'
       - '.github/workflows/fire-customer-write-mobile-checks.yml'
 permissions:
   contents: read
@@ -51,3 +53,5 @@ jobs:
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
       - name: Test actual customer directory and notes on phones, persisted records, no external sends
         run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-customer-write-browser.mjs
+      - name: Test extracted actual customer search with permanent IDs and profile interaction at iPhone widths
+        run: node --require ./scripts/ux-geometry-trace.cjs scripts/test-customer-simple-profile-browser.mjs
