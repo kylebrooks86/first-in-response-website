@@ -3,12 +3,14 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/shared/lib/numbered-records-v2.mjs'
+      - 'business-app-parity/shared/lib/numbered-records-v2-d1-read.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2.mjs'
       - '.github/workflows/fire-numbered-records-v2-source-contract.yml'
   push:
     branches: [work/fire-numbered-records-v2-source-only-2026-10-31]
     paths:
       - 'business-app-parity/shared/lib/numbered-records-v2.mjs'
+      - 'business-app-parity/shared/lib/numbered-records-v2-d1-read.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2.mjs'
       - '.github/workflows/fire-numbered-records-v2-source-contract.yml'
 permissions:
