@@ -83,9 +83,18 @@ await firstService.getByLabel('Quantity',{exact:true}).fill('');
 // Exercise the supported two-service path and exact cents instead.
 check(await page.getByText('Quick multi-service packages',{exact:true}).count()===0,
  'Owner-approved Quick Packages UI is absent from New Estimate');
-const addAnother=page.locator('.new-estimate-dialog').getByRole('button',{name:/Add another service/}).first();
-check(await addAnother.isVisible(),
- 'Manual multi-service action is visible in the active New Estimate dialog');
+const addAnother=page.locator('.new-estimate-dialog button').filter({hasText:'Add another service'}).first();
+const addAnotherState=await page.evaluate(()=>{
+ const dialog=document.querySelector('.new-estimate-dialog');
+ const buttons=[...document.querySelectorAll('.new-estimate-dialog button')].filter(b=>b.textContent?.includes('Add another service'));
+ return {dialogExists:Boolean(dialog),dialogVisible:Boolean(dialog?.getClientRects().length),dialogState:dialog?.getAttribute('data-state'),
+   ariaHidden:dialog?.getAttribute('aria-hidden'),buttonCount:buttons.length,buttonVisible:Boolean(buttons[0]?.getClientRects().length),
+   buttonDisabled:buttons[0]?.disabled,buttonLabel:buttons[0]?.textContent?.trim(),activeElement:document.activeElement?.getAttribute('role'),
+   estimateLines:dialog?.querySelectorAll('.estimate-edit-service').length};
+});
+check(addAnotherState.dialogExists&&addAnotherState.dialogVisible&&
+ addAnotherState.buttonCount===1&&addAnotherState.buttonVisible&&await addAnother.isVisible(),
+ 'Manual multi-service action is visible in the active New Estimate dialog: '+JSON.stringify(addAnotherState));
 const beforeQuoteSaves=saves, beforePackageWrites=packageWrites;
 await firstService.getByRole('combobox').click();
 await page.getByRole('option',{name:'House Wash',exact:true}).click();
