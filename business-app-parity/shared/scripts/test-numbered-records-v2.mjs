@@ -108,3 +108,63 @@ eq(built.archive.identities.fire_job_estimate_links[1].job_number,3,'Same job se
 customers[0].name='Changed AFTER package build';
 eq(built.archive.records.tables.customers[0].name,'Synthetic A','Content is detached from caller');
 console.log('PASS '+checks+'/'+checks+' focused NEW numbered-records v2 pack/read/immutability/refusal checks. No hosted resources, deployment, migration, payments or photo files.');
+
+
+
+// Distinct new scope: the actual read-only transactional D1 batch adapter.
+// This is an isolated in-process D1 double. NO owner or hosted D1 was accessed.
+const {captureNumberedRecordsV2FromD1,FIRE_NUMBERED_V2_READ_TABLES}=
+  await import('../lib/numbered-records-v2-d1-read.mjs');
+const baseRows=copy(built.archive.records.tables);
+const identityTables={
+ fire_customer_numbers:copy(identities.fire_customer_numbers),
+ fire_job_numbers:copy(identities.fire_job_numbers),
+ fire_job_estimate_links:copy(identities.fire_job_estimate_links)
+};
+function d1Double({missingSequence=false,badReply=false}={}){
+ const calls={batches:0,sql:[]};
+ const db={
+  prepare(sql){calls.sql.push(sql);return{sql};},
+  async batch(prepared){
+   calls.batches++;
+   return prepared.map((item,i)=>{
+    if(i===FIRE_NUMBERED_V2_READ_TABLES.length){
+      return{success:true,results:missingSequence?[]:[
+        {name:'fire_customer_numbers',seq:7},{name:'fire_job_numbers',seq:10}]};
+    }
+    const table=FIRE_NUMBERED_V2_READ_TABLES[i];
+    if(badReply&&table==='payment_refunds')return{success:false,results:[]};
+    return{success:true,results:copy(baseRows[table]??identityTables[table])};
+   });
+  }
+ };
+ return{db,calls};
+}
+const reader=d1Double();
+const fromDb=await captureNumberedRecordsV2FromD1({
+ db:reader.db,integrityVerifier:async tables=>{
+  eq(tables.payment_refunds.length,1,'Read adapter passes refunds to external integrity review');
+  eq(tables.deposit_agreement_snapshots.length,1,'Read adapter passes signed audit to external review');
+  return true;
+ },now:()=>records.exportedAt
+});
+eq(reader.calls.batches,1,'All 20 legacy and three numbered tables/sequence read in one D1 batch');
+eq(reader.calls.sql.length,FIRE_NUMBERED_V2_READ_TABLES.length+1,'Exact read-only table inventory plus sequence');
+eq(reader.calls.sql.every(x=>x.startsWith('SELECT ')),true,'No write SQL is prepared');
+eq((await inspectNumberedRecordsV2(fromDb.archive)).jobHighWater,10,
+ 'One-batch snapshot preserves real job allocator high water');
+eq(fromDb.archive.records.tables.payment_refunds[0].amount_cents,1000,
+ 'One-batch archive retains exact refund amount');
+await blocked(()=>captureNumberedRecordsV2FromD1({
+ db:d1Double().db,now:()=>records.exportedAt
+}),'No financial/agreement integrity gate means no read');
+await blocked(()=>captureNumberedRecordsV2FromD1({
+ db:d1Double({missingSequence:true}).db,integrityVerifier:()=>true,now:()=>records.exportedAt
+}),'Unobservable permanent number allocator must stop');
+await blocked(()=>captureNumberedRecordsV2FromD1({
+ db:d1Double({badReply:true}).db,integrityVerifier:()=>true,now:()=>records.exportedAt
+}),'A failed D1 result must block the archive');
+await blocked(()=>captureNumberedRecordsV2FromD1({
+ db:d1Double().db,integrityVerifier:()=>false,now:()=>records.exportedAt
+}),'No affirmative document/finance validation must block archiving');
+console.log('PASS '+checks+'/'+checks+' NEW v2 content and transactional D1 read-only adapter checks (synthetic only).');
