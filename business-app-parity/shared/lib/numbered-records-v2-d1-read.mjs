@@ -11,6 +11,7 @@
  */
 import {buildNumberedRecordsV2,FIRE_NUMBERED_RECORDS_TABLES}
   from './numbered-records-v2.mjs';
+import {verifyNumberedRecordsV2CriticalIntegrity} from './numbered-records-v2-integrity.mjs';
 import {NUMBERED_IDENTITY_ARCHIVE_FORMAT,NUMBERED_IDENTITY_ARCHIVE_VERSION}
   from './numbered-identity-archive.mjs';
 
@@ -88,4 +89,22 @@ export async function captureNumberedRecordsV2FromD1({
     fire_job_estimate_links:read.fire_job_estimate_links,
     highWater:counts};
   return buildNumberedRecordsV2({records,identities});
+}
+
+
+/** Strict reviewed capture: cannot substitute an arbitrary caller-provided
+ * 'true' for the required refund, agreement, deposit and photo validation.
+ * No route currently calls this function. Provider identity/owner auth and
+ * separate photo FILE custody remain external release prerequisites.
+ */
+export async function captureFinanciallyVerifiedNumberedRecordsV2FromD1({
+ db,now
+}={}){
+ return captureNumberedRecordsV2FromD1({
+  db,now,
+  integrityVerifier:async read=>{
+   const records=Object.fromEntries(FIRE_NUMBERED_RECORDS_TABLES.map(t=>[t,read[t]]));
+   return verifyNumberedRecordsV2CriticalIntegrity(records);
+  }
+ });
 }
