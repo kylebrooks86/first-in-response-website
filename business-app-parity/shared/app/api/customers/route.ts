@@ -91,7 +91,7 @@ export async function GET(request?:Request) {
     const showJobs=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
     const jobNumbers=showJobs?await attachedJobNumbers(env.DB,(estimates.results as Record<string,unknown>[]).map(row=>String(row.id))):new Map();
     const mappedEstimates=(estimates.results as Record<string,unknown>[]).map((row)=>{const items=grouped.get(String(row.id))??[];return {...row,customerNumber:customerNumbers.get(String(row.customerId))??null,jobNumber:jobNumbers.get(String(row.id))??null,items,service:items.map((item)=>String(item.name)).join(", ")||"Custom service",serviceDescription:String(items[0]?.description??"")};});
-    return Response.json({ customers: customers.results, estimates: mappedEstimates, notes: notes.results, invoices: invoices.results.map(row=>({...currentInvoice(row),customerNumber:customerNumbers.get(String(row.customerId))??null,jobNumber:jobNumbers.get(String(row.estimateId))??null})), photos: photos.results, messages: messages.results, payments:payments.results },{headers:{"Cache-Control":"no-store, private"}});
+    return Response.json({ customers: customers.results, estimates: mappedEstimates, notes: notes.results, invoices: (invoices.results as Record<string,unknown>[]).map(row=>({...currentInvoice(row),customerNumber:customerNumbers.get(String(row.customerId))??null,jobNumber:jobNumbers.get(String(row.estimateId))??null})), photos: photos.results, messages: messages.results, payments:payments.results },{headers:{"Cache-Control":"no-store, private"}});
   } catch {
     return Response.json({ error: "Customer records are temporarily unavailable." }, { status: 503 });
   }
