@@ -153,7 +153,7 @@ const fromDb=await captureNumberedRecordsV2FromD1({
   return true;
  },now:()=>records.exportedAt
 });
-eq(reader.calls.batches,1,'All 20 legacy and three numbered tables/sequence read in one D1 batch');
+eq(reader.calls.batches,1,'All 21 reviewed and three numbered tables/sequence read in one D1 batch');
 eq(reader.calls.sql.length,FIRE_NUMBERED_V2_READ_TABLES.length+2,'Exact read-only table inventory, allocator and schema object list');
 eq(reader.calls.sql.every(x=>x.startsWith('SELECT ')),true,'No write SQL is prepared');
 eq((await inspectNumberedRecordsV2(fromDb.archive)).jobHighWater,10,
