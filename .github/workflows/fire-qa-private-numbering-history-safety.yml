@@ -1,0 +1,52 @@
+name: FIRE QA Private Customer and Job History Guard
+on:
+  push:
+    branches:
+      - work/fire-permanent-customer-numbers-history-2026-10-31
+    paths:
+      - 'business-app-parity/owner_windows_qa_numbering_history_readonly.ps1'
+      - 'business-app-parity/test_owner_windows_qa_numbering_history_readonly.ps1'
+      - 'business-app-parity/customer-numbering/preflight_customer_history.py'
+      - 'business-app-parity/job-numbering/preflight_job_history.py'
+      - '.github/workflows/fire-qa-private-numbering-history-safety.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/owner_windows_qa_numbering_history_readonly.ps1'
+      - 'business-app-parity/test_owner_windows_qa_numbering_history_readonly.ps1'
+      - 'business-app-parity/customer-numbering/preflight_customer_history.py'
+      - 'business-app-parity/job-numbering/preflight_job_history.py'
+      - '.github/workflows/fire-qa-private-numbering-history-safety.yml'
+permissions:
+  contents: read
+jobs:
+  owner-dry:
+    name: Windows current-25 local backup read is opt-in and never cloud
+    runs-on: windows-latest
+    timeout-minutes: 6
+    defaults:
+      run:
+        working-directory: business-app-parity
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate history read-only contracts and actual default no-file-read
+        run: ./test_owner_windows_qa_numbering_history_readonly.ps1
+  synthetic:
+    name: Synthetic historical customer/job integrity and no-renumber proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exercise in-memory customer numbering history only
+        run: python3 -m unittest discover -s business-app-parity/customer-numbering -p test_preflight_customer_history.py -v
+      - name: Validate job numbering history against synthetic source tests
+        run: |
+          python3 -m compileall -q business-app-parity/job-numbering/preflight_job_history.py
+          python3 -m unittest discover -s business-app-parity/job-numbering -p 'test_*.py' -v
