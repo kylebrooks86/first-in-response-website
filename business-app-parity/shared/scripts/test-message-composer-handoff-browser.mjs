@@ -30,11 +30,11 @@ let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false;c
  if(req.url?.startsWith('/api/customer-messages')){
   res.setHeader('content-type','application/json');
   if(req.method==='GET'){
-   if(denyHistory){res.statusCode=401;return res.end(JSON.stringify({error:'Unauthorized'}));}
+   if(denyHistory){res.statusCode=401;res.setHeader('content-type','text/html');return res.end('<h1>Unauthorized</h1>');}
    return res.end(JSON.stringify({pending:[],nextCursor:null}));
   }
   if((req.method==='POST'&&denyPreparation)||(req.method==='PATCH'&&denyConfirmation)){
-   res.statusCode=401;return res.end(JSON.stringify({error:'Unauthorized'}));
+   res.statusCode=401;res.setHeader('content-type','text/html');return res.end('<h1>Unauthorized</h1>');
   }
   let body='';for await(const chunk of req)body+=chunk;const data=JSON.parse(body);requests.push(data);
   return res.end(JSON.stringify({message:{...data,body:data.body.trim(),id:'owner-message-prep:'+data.requestId,createdAt:'2026-10-30T12:00:00Z'}}));
