@@ -74,6 +74,24 @@ class CustomerHistoryPreflight(unittest.TestCase):
         finally:
             db.close()
 
+    def test_utc_offset_must_not_silently_change_number_order(self):
+        db=synthetic()
+        try:
+            db.execute("UPDATE customers SET created_at='2026-10-01T01:00:00+01:00' WHERE id='later'")
+            with self.assertRaisesRegex(CustomerHistoryBlocked,'canonical UTC'):
+                analyze(db)
+        finally:
+            db.close()
+
+    def test_mixed_utc_timestamp_precision_is_blocked(self):
+        db=synthetic()
+        try:
+            db.execute("UPDATE customers SET created_at='2026-10-01T00:00:00.000Z' WHERE id='later'")
+            with self.assertRaisesRegex(CustomerHistoryBlocked,'precisions'):
+                analyze(db)
+        finally:
+            db.close()
+
     def test_existing_number_table_blocks_renumbering(self):
         db=synthetic()
         try:
