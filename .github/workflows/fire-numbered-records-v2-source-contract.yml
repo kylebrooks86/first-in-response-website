@@ -1,0 +1,29 @@
+name: FIRE New Numbered Records v2 Source Contract
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/lib/numbered-records-v2.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-records-v2.mjs'
+      - '.github/workflows/fire-numbered-records-v2-source-contract.yml'
+  push:
+    branches: [work/fire-numbered-records-v2-source-only-2026-10-31]
+    paths:
+      - 'business-app-parity/shared/lib/numbered-records-v2.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-records-v2.mjs'
+      - '.github/workflows/fire-numbered-records-v2-source-contract.yml'
+permissions:
+  contents: read
+jobs:
+  numbered-records-v2:
+    name: Focused new backup v2 pack/read refusal checks only
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify new versioned archive preservation and failure refusal
+        run: node business-app-parity/shared/scripts/test-numbered-records-v2.mjs
