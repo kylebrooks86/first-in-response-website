@@ -6,7 +6,7 @@ import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {
   customerNumberLabel,customerNumberingReady,newCustomerNumberStatement,
-  customerNumberForCustomer,completedCustomerJobHistory
+  customerNumberForCustomer,completedCustomerJobHistory,matchesCustomerNumberQuery
 } from '../lib/customer-numbering.mjs';
 
 const base='business-app-parity/';
@@ -19,6 +19,14 @@ eq(customerNumberLabel(1),'Customer #0001','First customer');
 eq(customerNumberLabel(42),'Customer #0042','Compact permanent number');
 eq(customerNumberLabel(100000),'Customer #100000','Never rolls over');
 eq(customerNumberLabel('23'),'Customer #0023','Safe string integer');
+
+for(const query of ['#42','Customer #0042','customer 42','0042','  #00042  '])
+  eq(matchesCustomerNumberQuery(42,query),true,'Exact Customer # search: '+query);
+for(const query of ['42','#4','#420','Customer #0043','00043','abc42','42 Main St','555-0042','001', ''])
+  eq(matchesCustomerNumberQuery(42,query),false,'Reject ambiguous or unrelated number search: '+query);
+eq(matchesCustomerNumberQuery(null,'#42'),false,'Feature-off customer cannot be found by invented number');
+eq(matchesCustomerNumberQuery(1001,'1001'),true,'Four-digit bare exact customer number is searchable');
+eq(matchesCustomerNumberQuery(42,'10042'),false,'Do not match suffixes or adjacent customer numbers');
 for(const bad of [undefined,null,0,-1,1.5,NaN,Infinity,'','0002','abc','2;DROP',Number.MAX_SAFE_INTEGER+1])
   eq(customerNumberLabel(bad),null,'Never invent a customer number: '+bad);
 const inactive={prepare(){throw Error('Disabled numbering must not query D1');}};
@@ -88,6 +96,10 @@ const invoiceApi=source('shared/app/api/invoices/route.ts');
 const estimateApi=source('shared/app/api/estimate-history/route.ts');
 truth(dashboard.includes('customerNumberLabel(selected.customerNumber)')&&dashboard.includes('customerNumberLabel(customer.customerNumber)'),
   'Customer directory and profile show same DB-backed customer label');
+truth(dashboard.includes('matchesCustomerNumberQuery(customer.customerNumber,term)')&&dashboard.includes('Find name, Customer #, address or phone'),
+  'Directory finds exact Customer # without replacing name/address/phone search');
+truth((dashboard.match(/customerNumberLabel\(estimate.customerNumber\)/g)||[]).length>=1,
+  'Customer # stays visible below the estimate customer name');
 truth(dashboard.includes('Completed jobs ({completedCustomerJobs.length})'),
   'Single collapsed completed-job dropdown includes a count');
 truth(dashboard.includes('completedCustomerJobHistory(customerEstimates)'),
