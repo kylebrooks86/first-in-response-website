@@ -26,6 +26,7 @@ $expectedActiveVersion = '1783ded7-43db-4769-8708-fa86c47b002d'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $review = Join-Path $PSScriptRoot 'owner_windows_qa_update_review.ps1'
 $prepare = Join-Path $PSScriptRoot 'prepare_qa_deploy_config.mjs'
+$bindingHelper = Join-Path $PSScriptRoot 'verify_qa_worker_version_bindings.ps1'
 function Require([bool]$ok,[string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }
 }
@@ -39,6 +40,7 @@ $node = Get-Command 'node.exe' -ErrorAction SilentlyContinue
 $wrangler = Get-Command 'wrangler.cmd' -ErrorAction SilentlyContinue
 Require ($null -ne $ps -and $null -ne $git -and $null -ne $node -and $null -ne $wrangler) 'Windows PowerShell, Git, Node and global Wrangler are required.'
 Require (Test-Path -LiteralPath $review -PathType Leaf) 'QA update read-only reviewer missing.'
+Require (Test-Path -LiteralPath $bindingHelper -PathType Leaf) 'QA active physical D1 binding check missing.'
 & $ps.Source -NoProfile -ExecutionPolicy Bypass -File $review -CandidateBranch $CandidateBranch -ExpectedCommit $ExpectedCommit
 Require-Exit 'Existing Worker/data protection read-only update review'
 if (-not $Publish) {
@@ -73,6 +75,10 @@ $beforeVersions = @($before.versions)
 Require ($beforeVersions.Count -eq 1 -and [double]$beforeVersions[0].percentage -eq 100) 'QA Worker must have one active 100-percent code version.'
 $expectedOldVersion = [string]$beforeVersions[0].version_id
 Require ($expectedOldVersion -ceq $expectedActiveVersion) 'Unknown currently active QA Worker version. Stop.'
+$beforeBindingRaw = @(& $wrangler.Source versions view $expectedOldVersion --name $workerName --json)
+Require-Exit 'Read-only pre-approval physical QA Worker binding'
+$beforeBinding = & $bindingHelper -Json ($beforeBindingRaw -join [Environment]::NewLine) -ExpectedVersion $expectedOldVersion -ExpectedDatabaseId $dbId
+Require ($beforeBinding.bindingVerified -eq $true -and $beforeBinding.remoteWrites -eq $false) 'Before-approval Worker D1 binding could not be proven.'
 $approval = 'UPDATE QA ' + $workerName + ' ' + $dbId + ' ' + $photoMode + ' ' + $head + ' FROM ' + $expectedOldVersion
 Write-Warning 'Cloudflare cannot verify local photos. Release relies on the exact owner photo attestation above.'
 Write-Warning ('This will REPLACE ONLY the code/assets on existing QA Worker ' + $workerName +
@@ -111,6 +117,12 @@ $rawD1 = @(& $wrangler.Source d1 list --json)
 Require-Exit 'Fresh, read-only QA/staging D1 identities'
 $d1 = & $identityHelper -Json ($rawD1 -join [Environment]::NewLine)
 Require ($d1.qaName -ceq $dbName -and $d1.qaUuid -ceq $dbId) 'QA database identity changed after review. Refusing overwrite.'
+# Bindings may change without a different listed D1. Verify the actual still-serving
+# immutable Worker version again after approval, just before any code upload.
+$afterBindingRaw = @(& $wrangler.Source versions view $expectedOldVersion --name $workerName --json)
+Require-Exit 'Fresh, read-only pre-deploy physical QA Worker binding'
+$afterBinding = & $bindingHelper -Json ($afterBindingRaw -join [Environment]::NewLine) -ExpectedVersion $expectedOldVersion -ExpectedDatabaseId $dbId
+Require ($afterBinding.bindingVerified -eq $true -and $afterBinding.remoteWrites -eq $false) 'Worker binding changed after owner approval. Refusing overwrite.'
 # Normalize ONLY the obsolete, default legacy_env=true. The build's original
 # manifest and all D1 customer rows must be preserved. No secrets are read,
 # written, generated, displayed, or submitted during a code-only QA update.
