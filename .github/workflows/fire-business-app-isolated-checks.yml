@@ -38,6 +38,7 @@ on:
       - work/fire-customer-edit-save-null-guard-2026-10-30
       - work/fire-remove-automatic-minimum-pricing-2026-10-30
       - work/fire-unified-release-candidate-2026-10-30
+      - work/fire-qa-message-auth-release-2026-10-30
     paths:
       - 'verify-site.mjs'
       - 'verify-site-ci.mjs'
