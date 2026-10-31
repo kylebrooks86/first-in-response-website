@@ -121,7 +121,7 @@ const identityTables={
  fire_job_numbers:copy(identities.fire_job_numbers),
  fire_job_estimate_links:copy(identities.fire_job_estimate_links)
 };
-function d1Double({missingSequence=false,badReply=false}={}){
+function d1Double({missingSequence=false,badReply=false,extraTable=false,missingTable=false}={}){
  const calls={batches:0,sql:[]};
  const db={
   prepare(sql){calls.sql.push(sql);return{sql};},
@@ -131,6 +131,11 @@ function d1Double({missingSequence=false,badReply=false}={}){
     if(i===FIRE_NUMBERED_V2_READ_TABLES.length){
       return{success:true,results:missingSequence?[]:[
         {name:'fire_customer_numbers',seq:7},{name:'fire_job_numbers',seq:10}]};
+    }
+    if(i===FIRE_NUMBERED_V2_READ_TABLES.length+1){
+      const names=FIRE_NUMBERED_V2_READ_TABLES.filter(t=>!(missingTable&&t==='payment_refunds'));
+      if(extraTable)names.push('future_unreviewed_customer_records');
+      return{success:true,results:names.map(name=>({name}))};
     }
     const table=FIRE_NUMBERED_V2_READ_TABLES[i];
     if(badReply&&table==='payment_refunds')return{success:false,results:[]};
@@ -149,7 +154,7 @@ const fromDb=await captureNumberedRecordsV2FromD1({
  },now:()=>records.exportedAt
 });
 eq(reader.calls.batches,1,'All 20 legacy and three numbered tables/sequence read in one D1 batch');
-eq(reader.calls.sql.length,FIRE_NUMBERED_V2_READ_TABLES.length+1,'Exact read-only table inventory plus sequence');
+eq(reader.calls.sql.length,FIRE_NUMBERED_V2_READ_TABLES.length+2,'Exact read-only table inventory, allocator and schema object list');
 eq(reader.calls.sql.every(x=>x.startsWith('SELECT ')),true,'No write SQL is prepared');
 eq((await inspectNumberedRecordsV2(fromDb.archive)).jobHighWater,10,
  'One-batch snapshot preserves real job allocator high water');
@@ -167,4 +172,10 @@ await blocked(()=>captureNumberedRecordsV2FromD1({
 await blocked(()=>captureNumberedRecordsV2FromD1({
  db:d1Double().db,integrityVerifier:()=>false,now:()=>records.exportedAt
 }),'No affirmative document/finance validation must block archiving');
+await blocked(()=>captureNumberedRecordsV2FromD1({
+ db:d1Double({extraTable:true}).db,integrityVerifier:()=>true,now:()=>records.exportedAt
+}),'New unreviewed source table refuses silent data loss');
+await blocked(()=>captureNumberedRecordsV2FromD1({
+ db:d1Double({missingTable:true}).db,integrityVerifier:()=>true,now:()=>records.exportedAt
+}),'Missing source table inventory refuses incomplete backup');
 console.log('PASS '+checks+'/'+checks+' NEW v2 content and transactional D1 read-only adapter checks (synthetic only).');
