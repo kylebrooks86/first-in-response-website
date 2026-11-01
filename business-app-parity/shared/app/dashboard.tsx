@@ -2441,13 +2441,14 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [recordFocusError,setRecordFocusError]=useState("");
   useEffect(()=>{setRecordFocusError("");},[selectedId]);
   const [savingNote, setSavingNote] = useState(false);
-  // Drafts persist between customers in this screen, but not after leaving it.
+  const [reviewCheckSnoozing,setReviewCheckSnoozing]=useState(false);
+  // Keep the parent informed of both note writes and review-check deferrals.
+  // Only clear this guard when Customers really unmounts, not on every edit.
   useEffect(()=>{
     const dirty=Boolean(noteText.trim())||Object.values(noteDrafts.current).some(value=>Boolean(value.trim()));
-    onNoteDraftStatusChange?.({dirty,saving:savingNote});
-    return()=>onNoteDraftStatusChange?.({dirty:false,saving:false});
-  },[noteText,selectedId,savingNote,onNoteDraftStatusChange]);
-  const [reviewCheckSnoozing,setReviewCheckSnoozing]=useState(false);
+    onNoteDraftStatusChange?.({dirty,saving:savingNote||reviewCheckSnoozing});
+  },[noteText,selectedId,savingNote,reviewCheckSnoozing,onNoteDraftStatusChange]);
+  useEffect(()=>()=>onNoteDraftStatusChange?.({dirty:false,saving:false}),[onNoteDraftStatusChange]);
   const [reviewCheckSnoozeError,setReviewCheckSnoozeError]=useState("");
   const reviewCheckSnoozeAttempt=useRef<{customerId:string;requestedAt:string;operationId:string}|null>(null);
   const reviewCheckSnoozeLock=useRef(false);
@@ -4755,7 +4756,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   // A canceled transition keeps Settings mounted and its draft intact.
   const setTab = useCallback((destination:string)=>{
     if(destination!==currentTab.current&&currentTab.current==="customers"&&customerNoteStateRef.current.saving){
-      window.alert("A customer note or activity update is saving. Wait for confirmation before leaving Customers.");
+      window.alert("A customer update is saving. Wait for confirmation before leaving Customers.");
       return false;
     }
     if(destination!==currentTab.current&&currentTab.current==="customers"&&customerNoteStateRef.current.dirty){
