@@ -235,4 +235,21 @@ eq(unmounted[0].dirty,false,'Unmount clears customer dirty status');
 eq(unmounted[0].saving,false,'Unmount releases customer saving lock');
 assert.match(source,/A customer update is saving\. Wait for confirmation before leaving Customers\./,'Saving warning covers review-status check as well as customer notes');checks++;
 
+
+// High-frequency quote/payment fields: accessible names must point to controls.
+const estimateEditor=source.slice(source.indexOf('function EditEstimateDialog('),source.indexOf('function EditInvoiceDialog('));
+assert.ok(estimateEditor.length>1000,'Estimate editing source exists');
+for(const key of ['edit-estimate-service','edit-estimate-description','edit-estimate-quantity']){
+ const expression=String.fromCharCode(96)+key+'- resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
++'{index}'+String.fromCharCode(96);
+ assert.ok(estimateEditor.includes('htmlFor={'+expression+'}'),key+' has an associated visible label');
+ assert.ok(estimateEditor.includes('id={'+expression+'}'),key+' has a corresponding real input or select');
+ checks+=2;
+}
+for(const key of ['payment-gross-','payment-fee-','payment-net-','payment-reference-','payment-tip-']){
+ assert.ok(source.includes('htmlFor={"'+key+'"+estimate.id}'),key+' has a visible label');
+ assert.ok(source.includes('id={"'+key+'"+estimate.id}'),key+' label points to the matching payment input');
+ checks+=2;
+}
+
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
