@@ -92,7 +92,8 @@ assert.match(job,/^\{activeCustomerEstimate&&<button/,'Actual guard hides the sh
 const profileSource=view.getText(ast);
 assert.match(profileSource,/pickCustomerNextEstimate\(customerEstimates,Date\.now\(\)\)/,'Actual customer profile uses the tested next-job logic');
 assert.ok(profileSource.indexOf('className="customer-contact"')<profileSource.indexOf('className="customer-next-job"')&&profileSource.indexOf('className="customer-next-job"')<profileSource.indexOf('className="record-tabs"'),'The current job shortcut is above records and after contacts');
-assert.match(profileSource,/setSection\("photos"\)\}>Photos<\/button>/,'Photos tab uses short label');
+assert.match(profileSource,/setSection\("photos"\)\}>Photos \{onDevicePhotoCount!==null/,'Photos tab retains short label and shows verified on-device count only');
+assert.match(profileSource,/onPhotoCountChange=\{acceptPhotoCount\}/,'Local photo gallery updates the badge after verified vault reads');
 assert.match(contact,/Google Maps/);
 assert.match(contact,/Google Earth/);
 assert.match(contact,/Zillow/);
