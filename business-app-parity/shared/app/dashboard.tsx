@@ -1242,9 +1242,23 @@ function AddCustomer({ onAdded,initialAddress,onAddressUsed }: { onAdded: (custo
   const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
   useEffect(()=>{mounted.current=true;const id=loadCustomerCreateRequest(storage());if(id){requestId.current=id;startEstimateAfterSave.current=loadCustomerEstimateHandoff(storage(),id);setPending(true);}return()=>{mounted.current=false;};},[]);
   const setOpenSafe=(value:boolean)=>{
-    if(!value&&saveLock.current)return;
-    if(value){const id=requestId.current??loadCustomerCreateRequest(storage());if(id){requestId.current=id;startEstimateAfterSave.current=loadCustomerEstimateHandoff(storage(),id);setPending(true);setError("An earlier customer save needs confirmation. Check it before creating another customer.");}}
-    setOpen(value);
+    if(!value){
+      if(saveLock.current||saving){
+        window.alert("A customer save is being checked. Keep this form open until the result is known.");
+        return;
+      }
+      if(pending||requestId.current){
+        if(!window.confirm("This customer save is not confirmed. Closing will not cancel the original request. Reopen Add customer and check the SAME request before entering another record. Close?"))return;
+      }else if(name.trim()||email.trim()||phone.trim()||address.trim()||leadSource!=="Unknown"){
+        if(!window.confirm("Discard unsaved customer details? No customer will be created."))return;
+        setName("");setEmail("");setPhone("");setAddress("");setLeadSource("Unknown");setError("");
+      }
+      setOpen(false);
+      return;
+    }
+    const id=requestId.current??loadCustomerCreateRequest(storage());
+    if(id){requestId.current=id;startEstimateAfterSave.current=loadCustomerEstimateHandoff(storage(),id);setPending(true);setError("An earlier customer save needs confirmation. Check it before creating another customer.");}
+    setOpen(true);
   };
   useEffect(()=>{if(!initialAddress)return;if(!requestId.current){setAddress(initialAddress);setLeadSource("Door knocking");}setOpenSafe(true);onAddressUsed?.();},[initialAddress]);
   const finish=(customer:CreatedCustomer)=>{
