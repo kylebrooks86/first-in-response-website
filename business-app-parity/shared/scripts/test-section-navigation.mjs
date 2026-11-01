@@ -230,7 +230,9 @@ for(const [savingNote,reviewCheckSnoozing,draft,expectedDirty,expectedSaving] of
 const unmounted=[];const dispose=runCustomerEffect(unmountStatusEffect,{onNoteDraftStatusChange:status=>unmounted.push(status)});
 eq(unmounted.length,0,'Customer section stays protected until the component actually unmounts');
 dispose();
-eq(unmounted,[{dirty:false,saving:false}],'Unmount releases the customer navigation guard');
+eq(unmounted.length,1,'Unmount fires exactly one status cleanup');
+eq(unmounted[0].dirty,false,'Unmount clears customer dirty status');
+eq(unmounted[0].saving,false,'Unmount releases customer saving lock');
 assert.match(source,/A customer update is saving\. Wait for confirmation before leaving Customers\./,'Saving warning covers review-status check as well as customer notes');checks++;
 
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
