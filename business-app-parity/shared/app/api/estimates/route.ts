@@ -5,7 +5,7 @@ import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,buildPromotionAttribution,promotio
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import {customerPropertiesEnabled,propertyAssociationColumns,propertyEstimatesTestEnabled,selectEstimateProperty,PropertySelectionError} from '../../../lib/customer-properties';
 import { env } from "cloudflare:workers";
-import {attachedJobNumbers,newJobStatements,replacementJobStatement,JOB_NUMBER_FOR_ESTIMATE_SQL,jobNumberLabel} from "../../../lib/job-numbering.mjs";
+import {attachedJobNumbers,newJobStatements,replacementJobStatement,JOB_NUMBER_FOR_ESTIMATE_SQL,jobNumberLabel,jobNumberingReady,JOB_NUMBER_FLAG} from "../../../lib/job-numbering.mjs";
 import {customerNumberingReady,newCustomerNumberStatement,CUSTOMER_NUMBER_FLAG} from "../../../lib/customer-numbering.mjs";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {customerIdentityPredicate,duplicateCustomer} from '../../../lib/customer-identity';
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
     }const shareToken=crypto.randomUUID().replaceAll("-","");const now=new Date().toISOString();
     // A feature flag cannot bypass hosted schema and immutability checks.
     // Existing QA/staging/LIVE remain on their unchanged estimate workflow.
-    const jobNumberFlag=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
+    const jobNumberFlag=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE===JOB_NUMBER_FLAG;
     // New Estimate can create a *new customer* without visiting Add Customer.
     // When Customer # is approved, this must allocate the customer's number
     // in the SAME atomic batch as customer+estimate+Job #, not leave a gap.
@@ -157,9 +157,15 @@ export async function POST(request: Request) {
       }
     }
     if(jobNumberFlag){
-      const jobSchema=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('fire_job_numbers','fire_job_estimate_links')) AS tableCount,(SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name IN ('fire_job_numbers_no_update','fire_job_numbers_no_delete','fire_job_estimate_links_no_update','fire_job_estimate_links_no_delete')) AS triggerCount").first<{tableCount:number;triggerCount:number}>();
-      if(Number(jobSchema?.tableCount)!==2||Number(jobSchema?.triggerCount)!==4)
-        return Response.json({error:'Job numbering schema is not fully installed. No estimate was created.'},{status:503});
+      // A six-object schema can still be missing historical job links.
+      // Refuse *both* new and repeat-customer estimates until the entire
+      // immutable Job # history and original customer ownership are proven.
+      try{
+        if(!await jobNumberingReady(env.DB,env))
+          return Response.json({error:'Job numbering has not been approved. No estimate was created.'},{status:503});
+      }catch{
+        return Response.json({error:'Permanent Job # schema or historical links were not verified. No estimate was created.'},{status:503});
+      }
       if(revisionSource){
         const sourceNumber=await env.DB.prepare(JOB_NUMBER_FOR_ESTIMATE_SQL).bind(revisionSource.id).first<{jobNumber:number}>();
         if(!jobNumberLabel(sourceNumber?.jobNumber))
