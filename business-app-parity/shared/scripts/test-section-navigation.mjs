@@ -190,4 +190,47 @@ for(const {kind,prop,node} of quickActionNodes){
 assert.match(source,/onClick=\{\(\)=>\{if\(setTab\(id\)\)setMobileMenu\(false\);\}\}/,'Sidebar menu only closes after accepted navigation');checks++;
 assert.match(source,/const goHome = \(\) => \{ if\(setTab\("dashboard"\)\)setMobileMenu\(false\); \};/,'Home retains menu context when navigation is rejected');checks++;
 
+
+// Customer review-status deferral is a persisted write, just like a note.
+// Extract and execute the real Customer screen's parent status effects.
+const customerScreen=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='CustomersView');
+assert.ok(customerScreen,'Customer screen is present');
+const customerGuardEffects=[];
+function findCustomerStatusEffects(node){
+ if(ts.isCallExpression(node)&&node.expression.getText(ast)==='useEffect'&&node.arguments[0]?.getText(ast).includes('onNoteDraftStatusChange'))
+  customerGuardEffects.push(node.arguments[0]);
+ ts.forEachChild(node,findCustomerStatusEffects);
+}
+findCustomerStatusEffects(customerScreen);
+eq(customerGuardEffects.length,2,'Customer status update and unmount cleanup are separate effects');
+const updateStatusEffect=customerGuardEffects.find(node=>node.getText(ast).includes('const dirty='));
+const unmountStatusEffect=customerGuardEffects.find(node=>node!==updateStatusEffect);
+assert.ok(updateStatusEffect&&unmountStatusEffect,'Both customer status lifetimes are represented');
+function runCustomerEffect(node,scope){
+ const js=ts.transpileModule('const __customerEffect='+node.getText(ast)+';\n__customerEffect()',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ return vm.runInNewContext(js,scope);
+}
+for(const [savingNote,reviewCheckSnoozing,draft,expectedDirty,expectedSaving] of [
+ [false,false,'',false,false],
+ [false,false,'Unfinished gate code',true,false],
+ [true,false,'',false,true],
+ [false,true,'',false,true],
+ [true,true,'Unfinished draft',true,true],
+]){
+ const statuses=[];
+ const cleanup=runCustomerEffect(updateStatusEffect,{
+  noteText:draft,noteDrafts:{current:{}},savingNote,reviewCheckSnoozing,
+  onNoteDraftStatusChange:status=>statuses.push(status)
+ });
+ eq(cleanup,undefined,'Typing cannot run a false-cleanup between customer draft status updates');
+ eq(statuses.length,1,'One status update per rendered customer editor state');
+ eq(statuses[0].dirty,expectedDirty,'Unsaved customer draft status is accurate');
+ eq(statuses[0].saving,expectedSaving,'In-flight customer note and review-check saves are both protected');
+}
+const unmounted=[];const dispose=runCustomerEffect(unmountStatusEffect,{onNoteDraftStatusChange:status=>unmounted.push(status)});
+eq(unmounted.length,0,'Customer section stays protected until the component actually unmounts');
+dispose();
+eq(unmounted,[{dirty:false,saving:false}],'Unmount releases the customer navigation guard');
+assert.match(source,/A customer update is saving\. Wait for confirmation before leaving Customers\./,'Saving warning covers review-status check as well as customer notes');checks++;
+
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
