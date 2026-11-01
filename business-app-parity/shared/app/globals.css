@@ -1390,7 +1390,7 @@ html,body{max-width:100%;overflow-x:clip}
 .notification-attention>header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .notification-attention>header strong{display:inline-flex;align-items:center;gap:6px;font-size:13px}
 .notification-attention>header svg{width:15px;height:15px}
-.notification-attention>header button{display:inline-flex;align-items:center;gap:4px;min-height:36px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:11px;cursor:pointer}
+.notification-attention>header button{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:11px;cursor:pointer}
 .notification-attention>p,.notification-attention>small{margin:0;font-size:11px;line-height:1.5;color:var(--muted-foreground)}
 .notification-attention>p[role="alert"]{color:#a95f12}
 .notification-attention-list{display:grid;gap:6px;max-height:260px;overflow:auto}
@@ -1404,7 +1404,7 @@ html,body{max-width:100%;overflow-x:clip}
 .notification-activity-title{padding:10px 14px 6px;font-size:12px;font-weight:850;border-bottom:1px solid var(--border)}
 [data-theme="dark"] .notification-attention>p[role="alert"]{color:#ffcb84}
 
-.notification-attention-more{min-height:40px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:11px;font-weight:750;cursor:pointer}
+.notification-attention-more{min-height:44px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:11px;font-weight:750;cursor:pointer}
 .notification-attention-more:hover{background:var(--muted)}
 
 /* Reminder attention is independent of unread customer activity. */
@@ -1416,7 +1416,7 @@ html,body{max-width:100%;overflow-x:clip}
 
 /* Compact owner reminder filters: accessible pressed state, no extra iPhone rows. */
 .notification-attention-filters{display:flex;gap:6px;min-width:0}
-.notification-attention-filters>button{min-height:36px;padding:7px 10px;font-size:11px;font-weight:750;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);cursor:pointer}
+.notification-attention-filters>button{min-height:44px;padding:7px 10px;font-size:11px;font-weight:750;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);cursor:pointer}
 .notification-attention-filters>button[aria-pressed="true"]{border-color:var(--ring);box-shadow:inset 0 0 0 1px var(--ring);background:var(--muted)}
 .notification-attention-filters>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
 
