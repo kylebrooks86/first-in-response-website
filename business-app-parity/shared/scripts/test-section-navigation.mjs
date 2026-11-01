@@ -51,7 +51,7 @@ assert.match(source,/const goHome = [^\n]*setTab\("dashboard"\)/);checks++;
 assert.match(source,/const goBack = [^\n]*setTab\(target\)/);checks++;
 assert.match(source,/item\.type==="payment_failed"\?"payments"/,'Failed-Stripe-checkout notification must open Payments');checks++;
 assert.match(source,/item\.type==="payment_overage"\?\(item\.estimateId\?"estimates":"payments"\)/,'Overpayment alert opens exact estimate resolution when job is known');checks++;
-assert.match(source,/else if\(next==="payments"\)\{setTab\("payments"\);\}/,'Payment alerts override estimate-focused navigation');checks++;
+assert.match(source,/const destination=taskId\?"business":next==="payments"\?"payments":invoiceId\?"invoices"/,'Payment alerts cannot jump to linked estimates when Payments is requested');checks++;
 // Everyday shortcuts are prioritized, while EVERY original main section stays in the menu.
 const navSource=source.match(/const nav = useMemo\(\(\) => \[([\s\S]*?)\] as const, \[\]\);/)?.[1];
 assert.ok(navSource,'The real dashboard must still declare its navigation');
@@ -84,4 +84,67 @@ eq(run(variable(dashboard,'toggleTheme')).writes,[['fire-theme','dark']],'Normal
 for(const mode of ['read-denied','access-denied']){const r=run(variable(stride,'openStride'),mode);eq(r.setup,true,'Storage refusal leaves explicit Stride setup/launch available');eq(r.opens,0,'Storage refusal cannot automatically launch a Shortcut');}
 const ready=run(variable(stride,'openStride'),'normal','yes');eq(ready.opens,1,'Existing ready Shortcut remains a direct explicit action');eq(ready.setup,null,'Existing ready Shortcut does not repeat setup');
 for(const mode of ['write-denied','access-denied']){const r=run(variable(stride,'testShortcut'),mode);eq(r.opens,1,'Owner-confirmed Shortcut launch survives unavailable preference writes');eq(r.setup,false,'Owner-confirmed setup closes normally');}
+
+// Regression: Cancel on an unsaved customer note or settings template must not
+// clear search context, change record focus or consume a notification shortcut.
+function runHandler(initializer,tree,scope){
+ const compiled=ts.transpileModule('const __handler='+initializer.getText(tree)+';\\n__handler',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ return vm.runInNewContext(compiled,scope);
+}
+const searchSource=readFileSync('components/global-search.tsx','utf8');
+const searchAst=ts.createSourceFile('global-search.tsx',searchSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+const searchComponent=searchAst.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='GlobalSearch');
+assert.ok(searchComponent,'Actual search component must be exercised');
+let chooseInitializer;
+function findChoose(n){if(ts.isVariableDeclaration(n)&&n.name.getText(searchAst)==='choose')chooseInitializer=n.initializer;ts.forEachChild(n,findChoose);}
+findChoose(searchComponent);
+assert.ok(chooseInitializer,'Actual search selection handler must be present');
+for(const permit of [false,true]){
+ const calls=[];
+ const context={
+  onSelect:()=>{calls.push('navigate');return permit;},
+  input:{current:{blur:()=>calls.push('blur')}},
+  setExpanded:()=>calls.push('close'),
+  setScope:()=>calls.push('reset scope'),
+  onQuery:value=>calls.push('query:'+value),
+ };
+ runHandler(chooseInitializer,searchAst,context)({id:'synthetic-customer'});
+ eq(calls,permit?['navigate','blur','close','reset scope','query:']:['navigate'],
+  'Global search '+(permit?'clears only after accepted navigation':'keeps the query, dropdown and focus when navigation is refused'));
+}
+const searchJump=variable(dashboard,'openSearchResult');
+for(const permit of [false,true]){
+ const calls=[];
+ const scope={setTab:dest=>{calls.push('navigate:'+dest);return permit;}};
+ for(const n of ['setSearchQuery','setGlobalQuery','setMobileMenu','setFocusCustomerRecord','setFocusCustomerSection','setFocusCustomerId','setCustomerRecordRequestKey','setFocusInvoiceId','setFocusEstimateId','setEstimateRefreshKey'])scope[n]=()=>calls.push(n);
+ const result=runHandler(searchJump,ast,scope)({kind:'customer',id:'synthetic-customer'});
+ eq(result,permit,'Customer search selection reports navigation approval accurately');
+ if(!permit)eq(calls,['navigate:customers'],'Refused customer result does not erase or retarget the current editor');
+ else eq(calls[0],'navigate:customers','Accepted customer result guards before changing search or focus');
+}
+let notificationCallback;
+function findNotification(n){
+ if(ts.isJsxSelfClosingElement(n)&&n.tagName.getText(ast)==='NotificationBell'){
+  const attr=n.attributes.properties.find(p=>ts.isJsxAttribute(p)&&p.name.text==='onNavigate');
+  if(attr&&ts.isJsxExpression(attr.initializer))notificationCallback=attr.initializer.expression;
+ }
+ ts.forEachChild(n,findNotification);
+}
+findNotification(dashboard);
+assert.ok(notificationCallback,'Actual notification navigation callback is present');
+for(const [permit,args,destination] of [
+ [false,['customers',null,null,'customer-1',null,'review'],'customers'],
+ [false,['invoices',null,'invoice-1',null,null,null],'invoices'],
+ [true,['payments','estimate-1',null,null,null,null],'payments'],
+ [true,['followups','estimate-1',null,null,null,null],'followups'],
+ [true,['business',null,null,'customer-1','task-1',null],'business']
+]){
+ const calls=[];const scope={customerActivityRequest:{current:0},setTab:dest=>{calls.push('navigate:'+dest);return permit;}};
+ for(const n of ['setSearchQuery','setGlobalQuery','setCustomerActivityFocus','setPickupTaskDraft','setReviewTaskDraft','setFocusBusinessTaskHint','setFocusBusinessTaskId','setFocusInvoiceId','setFocusFollowupEstimateId','setFocusEstimateId','setEstimateRefreshKey','setFocusCustomerSection','setFocusCustomerId'])scope[n]=()=>calls.push(n);
+ runHandler(notificationCallback,ast,scope)(...args);
+ eq(calls[0],'navigate:'+destination,'Notification routes to intended destination before any focus update');
+ if(!permit)eq(calls.length,1,'Canceled notification leaves search and record context completely untouched');
+ else eq(calls.filter(x=>x.startsWith('navigate:')).length,1,'Accepted notification changes section once, avoiding duplicate prompts');
+}
+
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
