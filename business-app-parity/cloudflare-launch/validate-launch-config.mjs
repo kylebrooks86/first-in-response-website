@@ -1,6 +1,8 @@
 // Offline review of proposed resource mappings. Never creates/updates any resource.
 import {readFileSync} from "node:fs";
 const KNOWN_DENIED_IDS=new Set([
+  "00000000-0000-0000-0000-000000000000", // no database (nil UUID)
+  "00000000-0000-4000-8000-000000000000", // inherited Vite LOCAL-ONLY placeholder
   "8ccfb1f8-1657-4074-b1b2-47de78f95003", // existing synthetic QA
   "afb2c05a-d794-4a9a-b580-924ce01c26ad" // existing protected Doomsday staging
 ]);
