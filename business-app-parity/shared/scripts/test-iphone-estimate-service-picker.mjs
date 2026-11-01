@@ -85,4 +85,40 @@ check(css.includes('.estimate-new-services-step')&&css.includes('padding-bottom:
  'New estimate bottom actions are not flush against iPhone edge');
 check(!helper.includes('fetch(')&&!helper.includes('localStorage'),
  'Picker is display-only, no network, writes, or persistence changes');
-console.log('PASS '+checks+'/'+checks+' NEW service picker tap targets, Custom-first ordering and shorter estimate guidance checks.');
+
+const selectBase=readFileSync('components/ui/select.tsx','utf8');
+check(selectBase.includes('position = "popper"')&&selectBase.includes('collisionPadding = 20'),
+ 'All shared selects use screen-edge collision handling, not the item-aligned bottom-clip mode');
+check(selectBase.includes('sideOffset = 6'),
+ 'Shared select menus leave trigger clearance');
+check(selectBase.includes('min-h-11 w-full cursor-default'),
+ 'Shared dropdown options have 44px minimum tap height');
+const dropdownBase=readFileSync('components/ui/dropdown-menu.tsx','utf8');
+check(dropdownBase.includes('collisionPadding = 20'),
+ 'Dropdown action menus also avoid screen edge');
+check(dropdownBase.includes('min-h-11 cursor-default items-center'),
+ 'Dropdown action items have at least 44px targets');
+const popoverBase=readFileSync('components/ui/popover.tsx','utf8');
+check(popoverBase.includes('collisionPadding = 20'),
+ 'Notification and secondary popovers use screen-edge collision handling');
+const sheetBase=readFileSync('components/ui/sheet.tsx','utf8');
+check(sheetBase.includes('data-side={side}'),
+ 'Bottom sheets expose side for iPhone safe-area alignment');
+check(css.includes('.estimate-service-picker[data-slot="select-content"]')&&
+ css.includes('max-height:min(50dvh,'),
+ 'Long Custom Service list is no taller than half the mobile viewport');
+check(css.includes('.estimate-service-picker [data-slot="select-viewport"]')&&
+ css.includes('max-height:min(46dvh,'),
+ 'Inner service choices scroll inside a compact mobile menu');
+check(css.includes('[data-slot="select-content"]')&&
+ css.includes('[data-slot="dropdown-menu-content"]')&&
+ css.includes('[data-slot="popover-content"]'),
+ 'All common modal menu families have independent max-height bounds');
+check(css.includes('[data-slot="sheet-content"][data-side="bottom"]'),
+ 'Bottom action sheets never take the entire iPhone viewport');
+check(css.includes('[data-slot="dialog-content"]:not(.estimate-edit-dialog)'),
+ 'Other long dialogs can scroll rather than lose their final action');
+check(css.includes('min-width:44px;')&&css.includes('min-height:44px;'),
+ 'Mobile dialog close controls provide minimum usable touch area');
+
+console.log('PASS '+checks+'/'+checks+' NEW whole-app menu edge safety, Custom-first estimate choice, 44px tap targets and reduced wording checks.');
