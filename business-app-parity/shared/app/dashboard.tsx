@@ -2371,9 +2371,8 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [propertyListRefresh,setPropertyListRefresh]=useState(0);
   const [payments,setPayments]=useState<PaymentRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // The topbar Back button returns from a customer record to the directory
-  // before leaving Customers. The registered action never writes or saves.
-  useEffect(()=>{onRegisterBack?.(selectedId?()=>{setSelectedId(null);setActiveEstimate(null);setSection("estimates");}:null);return()=>onRegisterBack?.(null);},[selectedId,onRegisterBack]);
+  // Topbar Back returns to the directory before leaving Customers.
+  // Register it after the save guards so an active write can't be hidden.
   // Photo badge shows ONLY IndexedDB on-device photos. Historical hosted
   // photo records are separately disclosed inside the gallery; never mix them.
   const [onDevicePhotoCount,setOnDevicePhotoCount]=useState<number|null>(null);
@@ -2453,6 +2452,17 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const reviewCheckSnoozeAttempt=useRef<{customerId:string;requestedAt:string;operationId:string}|null>(null);
   const reviewCheckSnoozeLock=useRef(false);
   const noteSaveLock=useRef(false),noteSavingCustomer=useRef<string|null>(null);
+  const closeCustomerRecord=useCallback(()=>{
+    if(noteSaveLock.current||reviewCheckSnoozeLock.current){
+      window.alert("A customer update is saving. Wait for confirmation before closing this record.");
+      return;
+    }
+    setSelectedId(null);setActiveEstimate(null);setSection("estimates");
+  },[]);
+  useEffect(()=>{
+    onRegisterBack?.(selectedId?closeCustomerRecord:null);
+    return()=>onRegisterBack?.(null);
+  },[selectedId,onRegisterBack,closeCustomerRecord]);
   const noteAttempts=useRef(new Map<string,string>());
   const noteSelection=useRef(selectedId);noteSelection.current=selectedId;
   const noteMounted=useRef(true),noteAccessEpoch=useRef(0);
@@ -2548,12 +2558,12 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     return()=>window.removeEventListener("fire:attention-saved",refresh);
   },[recordRequestKey]);
   useEffect(()=>{
-    if(!focusCustomerId||loading||error||offlinePhotoOnly)return;
+    if(!focusCustomerId||loading||error||offlinePhotoOnly||savingNote||reviewCheckSnoozing)return;
     const customer=customers.find(row=>row.id===focusCustomerId);
     if(customer){setSelectedId(customer.id);setSection(focusSection);}
     else setError("The selected customer is unavailable. Refresh the customer list or check your connection.");
     onFocusHandled?.(focusCustomerId);
-  },[focusCustomerId,loading,error,offlinePhotoOnly,customers,focusSection]);
+  },[focusCustomerId,loading,error,offlinePhotoOnly,customers,focusSection,savingNote,reviewCheckSnoozing]);
   // A reminder targets the flag inside its actual customer, not just the Customers tab.
   // Wait until that saved profile has rendered, then move visual and keyboard focus.
   useEffect(()=>{
@@ -2784,12 +2794,12 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     </div>;
   }
   if(loading||error)return <div className="customers-view">
-    {selected&&<button type="button" className="back-link" aria-label="Back to all customers" onClick={()=>{setSelectedId(null);setActiveEstimate(null);setSection("estimates");}}><ArrowLeft aria-hidden="true"/> All customers</button>}
+    {selected&&<button type="button" className="back-link" aria-label="Back to all customers" onClick={closeCustomerRecord}><ArrowLeft aria-hidden="true"/> All customers</button>}
     {loading?<div className="customers-state" role="status">Loading customers…</div>:<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>}
   </div>;
   if (selected) return <div className="customers-view">
     <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={()=>{ setActiveEstimate(null); void load(); }} />
-    <button type="button" className="back-link" aria-label="Back to all customers" onClick={() => { setSelectedId(null); setActiveEstimate(null); setSection("estimates"); }}><ArrowLeft aria-hidden="true"/> All customers</button>
+    <button type="button" className="back-link" aria-label="Back to all customers" onClick={closeCustomerRecord}><ArrowLeft aria-hidden="true"/> All customers</button>
     {refreshIssue&&<div className="customer-flag-next" role="alert"><AlertTriangle aria-hidden="true"/><span><strong>Customer activity needs refreshing</strong><small>A saved change could not be rechecked. Review current records before acting on these statuses.</small></span><Button variant="outline" onClick={()=>void load()}>Refresh customer history</Button></div>}
     <section className="customer-profile">
       {recordFocusError&&<p role="alert">{recordFocusError}</p>}
