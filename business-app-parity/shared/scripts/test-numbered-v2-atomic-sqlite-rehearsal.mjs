@@ -125,7 +125,7 @@ try{
  item(blank,'INSERT INTO fire_customer_numbers(customer_id,created_at) VALUES(?,?)',['synthetic-c3',now]);
  eq(blank.prepare("SELECT customer_number FROM fire_customer_numbers WHERE customer_id='synthetic-c3'").get().customer_number,
   12,'Customer # resumes from stored 11, never historical maximum 6');
- item(blank,"INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,created_at) VALUES(?,?,'draft',100,0,100,50,?)",
+ item(blank,"INSERT INTO estimates(id,customer_id,status,subtotal_cents,discount_cents,total_cents,deposit_cents,created_at) VALUES(?,?,'draft',100,0,100,50,?)",
   ['synthetic-e3','synthetic-c3',now]);
  item(blank,'INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES(?,?)',['synthetic-e3',now]);
  eq(blank.prepare("SELECT job_number FROM fire_job_numbers WHERE root_estimate_id='synthetic-e3'").get().job_number,
