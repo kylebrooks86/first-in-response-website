@@ -193,30 +193,31 @@ export async function rehearseCompleteKitIntoDisposableWorkerd({
   const fk=await rows(targetDb,'PRAGMA foreign_key_check');
   if(fk.length)fail('recovered local D1 foreign keys are inconsistent');
   stage='integrity-check';
-  let integrity;
+  // workerd-local Cloudflare D1 forbids PRAGMA integrity_check with
+  // D1_ERROR: not authorized: SQLITE_AUTH. Never claim that physical
+  // inspection passed. Require exact post-restore D1 recapture/checksum,
+  // separate FK verification above, and explicit unsupported status.
+  let physicalIntegritySupported=false;
   try {
    const raw=await targetDb.prepare('PRAGMA integrity_check').all();
-   console.log('DISPOSABLE_D1_INTEGRITY_API='+JSON.stringify({
-    success:raw?.success,resultsType:typeof raw?.results,
-    resultCount:Array.isArray(raw?.results)?raw.results.length:null,
-    fields:Object.keys(raw?.results?.[0]??{})
-   }));
-   if(raw?.success!==true||!Array.isArray(raw.results))
-    fail('local workerd could not attest physical SQLite integrity');
-   integrity=raw.results;
+   if(raw?.success!==true||!Array.isArray(raw.results)||
+      raw.results.length!==1||raw.results[0].integrity_check!=='ok')
+    fail('actual SQLite integrity check reported non-OK');
+   physicalIntegritySupported=true;
   }catch(error){
-   // Synthetic ephemeral test only; no app route ever imports this module.
-   console.log('DISPOSABLE_D1_INTEGRITY_ERROR='+String(error?.message??'unknown').slice(0,180));
-   throw error;
+   if(!/^D1_ERROR: not authorized: SQLITE_AUTH/.test(
+     String(error?.message??'')))throw error;
+   // This is a documented test finding, not a quiet verification pass.
+   physicalIntegritySupported=false;
   }
-  if(integrity.length!==1||integrity[0].integrity_check!=='ok')
-   fail('recovered local SQLite integrity check failed');
   stage='photo-verify-after-db';
   await verifyR2(targetBucket,photos);
   return Object.freeze({
    reviewedRecordTables:orderedTables,reviewedNumberedTables:3,
    photosRestored:photos.length,originalNumberHighWaterPreserved:true,
    verifiedOriginalDatabaseChecksum:true,verifiedOriginalPhotoBytes:true,
+   physicalSqliteIntegrityCheckPassed:physicalIntegritySupported,
+   providerD1SqliteIntegrityPragmaUnsupported:!physicalIntegritySupported,
    restoredOnlyToDisposableWorkerd:true,realHostedRestorePerformed:false,
    independentD1R2AtomicCommitGuaranteed:false,productionReleaseApproved:false
   });
