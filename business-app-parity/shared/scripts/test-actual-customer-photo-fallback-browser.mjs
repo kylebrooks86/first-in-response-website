@@ -22,7 +22,7 @@ const imports=[
 "import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility} from './lib/customer-activity-flags';",
 "import React,{useState,useRef,useEffect,useCallback} from 'react';",
 "import {createRoot} from 'react-dom/client';",
-"import {ChevronRight} from 'lucide-react';",
+"import {ChevronRight,ArrowLeft} from 'lucide-react';",
 "import {OfflineCustomerPhotos} from './components/offline-customer-photos';",
 "import {saveOfflinePhotoCustomerDirectory,loadOfflinePhotoCustomerDirectory} from './lib/offline-photo-customer-directory';",
 "import {clearOfflinePhotoCustomerDirectory} from './lib/offline-photo-customer-directory';",
