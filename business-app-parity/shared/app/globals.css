@@ -2789,3 +2789,45 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 
 /* Follow-ups actions and explicit retries retain comfortable touch targets. */
 .followups-view button{min-height:44px}
+
+
+/* FIRE owner QA — iPhone estimate/service picker accessibility.
+   Owner observed last Custom Service option difficult to tap at screen edge.
+   Only the new-estimate, edit-estimate and edit-invoice SERVICE picker is
+   affected; all other Radix dropdowns and the selected pricing are unchanged.
+   Portal content is outside dialog DOM, hence explicit scoped picker class. */
+.estimate-service-picker-trigger{width:100%;min-height:48px;touch-action:manipulation}
+.estimate-service-picker{
+  max-height:min(68dvh,var(--radix-select-content-available-height,68dvh));
+  max-width:calc(100vw - 32px);
+  overscroll-behavior:contain
+}
+.estimate-service-picker [data-slot="select-viewport"]{
+  width:100%;
+  height:auto!important;
+  max-height:min(65dvh,var(--radix-select-content-available-height,65dvh));
+  min-width:min(250px,calc(100vw - 42px));
+  padding:6px 6px max(20px,env(safe-area-inset-bottom))!important;
+  scroll-padding-bottom:max(20px,env(safe-area-inset-bottom));
+  overscroll-behavior:contain
+}
+.estimate-service-picker-item{
+  min-height:48px;
+  padding:11px 34px 11px 12px;
+  white-space:normal;
+  line-height:1.4;
+  touch-action:manipulation
+}
+.estimate-service-picker-item:focus-visible{
+  outline:2px solid var(--ring);
+  outline-offset:-2px
+}
+@media(max-width:760px){
+  /* Give final estimate actions clearance above the iPhone home indicator. */
+  .estimate-new-services-step{
+    padding-bottom:max(34px,calc(env(safe-area-inset-bottom) + 18px))
+  }
+  .estimate-edit-modal-footer{
+    padding-bottom:max(12px,env(safe-area-inset-bottom))
+  }
+}
