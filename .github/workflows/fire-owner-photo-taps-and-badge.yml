@@ -1,0 +1,57 @@
+name: FIRE Owner Photo Tap Targets and Local Badge
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/app/globals.css'
+      - 'business-app-parity/shared/components/offline-customer-photos.tsx'
+      - 'business-app-parity/shared/lib/local-photo-vault.ts'
+      - 'business-app-parity/shared/scripts/test-owner-mobile-spacing-audit-browser.mjs'
+      - 'business-app-parity/shared/scripts/test-offline-photo-indexeddb-browser.mjs'
+      - '.github/workflows/fire-owner-photo-taps-and-badge.yml'
+  push:
+    branches:
+      - work/fire-mobile-contact-consolidation-2026-10-31
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/app/globals.css'
+      - 'business-app-parity/shared/components/offline-customer-photos.tsx'
+      - 'business-app-parity/shared/lib/local-photo-vault.ts'
+      - 'business-app-parity/shared/scripts/test-owner-mobile-spacing-audit-browser.mjs'
+      - 'business-app-parity/shared/scripts/test-offline-photo-indexeddb-browser.mjs'
+      - '.github/workflows/fire-owner-photo-taps-and-badge.yml'
+permissions:
+  contents: read
+jobs:
+  photos-and-mobile:
+    name: IndexedDB local-only badge and real CSS mobile photo controls
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned package manager
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install verified app dependencies without changes
+        run: pnpm install --frozen-lockfile
+      - name: Install test-only Playwright harness
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Use preinstalled Chrome without browser downloads
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Test real IndexedDB count, customer isolation and reload durability
+        run: node scripts/test-offline-photo-indexeddb-browser.mjs
+      - name: Test mobile Photos delete button tap and navigation footer (synthetic)
+        run: node scripts/test-owner-mobile-spacing-audit-browser.mjs
