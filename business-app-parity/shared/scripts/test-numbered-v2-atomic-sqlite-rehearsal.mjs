@@ -98,7 +98,7 @@ try{
   missingTrigger.exec('DROP TRIGGER fire_job_numbers_no_update');
   assert.throws(()=>insert(missingTrigger,original),/immutability triggers missing/);checks++;
  }finally{missingTrigger.close();}
- assert.throws(()=>insert(blank,original,{interruptAfter:4}),/Synthetic crash/);checks++;
+ assert.throws(()=>insert(blank,original,{interruptAfter:4}),/FIRE synthetic interrupted restore/);checks++;
  const emptyAgain=makeRows(blank);
  eq(emptyAgain.rowCounts,originalBlank.rowCounts,'Interrupted restore leaves all 23 tables empty');
  eq(emptyAgain.highWater,originalBlank.highWater,'Rolled-back failed restore cannot consume serial history');
