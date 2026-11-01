@@ -4,6 +4,7 @@ on:
     branches: [work/fire-mobile-contact-consolidation-2026-10-31]
     paths:
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
+      - 'business-app-parity/shared/lib/disposable-numbered-v2-restore.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2-preflight.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-schema-coverage.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-atomic-sqlite-rehearsal.mjs'
@@ -16,6 +17,7 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
+      - 'business-app-parity/shared/lib/disposable-numbered-v2-restore.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2-preflight.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-schema-coverage.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-atomic-sqlite-rehearsal.mjs'
