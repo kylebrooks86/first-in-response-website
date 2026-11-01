@@ -1819,6 +1819,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   const bundle=useEstimateBundleDiscount(open,estimate.id,estimate.totalCents);
   const bundleValue=bundle.value,setBundleValue=bundle.setValue;
   const saveLock=useRef(false);
+  const initialEditSnapshot=useRef("");
   const [items,setItems]=useState<EditableEstimateItem[]>([]);
   const [appreciationDiscount,setAppreciationDiscount]=useState(false);
   const [discountMode,setDiscountMode]=useState<DiscountMode>("percent");
@@ -1826,12 +1827,22 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   const [saving,setSaving]=useState(false);const [error,setError]=useState("");
   const hydrate=()=>{
     const source=estimate.items?.length?estimate.items:[{id:"",name:estimate.service,description:estimate.serviceDescription||serviceDescriptionFor(estimate.service),quantity:1,unit:"job",totalCents:estimate.totalCents}];
-    setItems(source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity)||1;return {id:item.id||undefined,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents)),flatPriceCents:Number(item.totalCents)};}));
+    const nextItems=source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity)||1;return {id:item.id||undefined,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents)),flatPriceCents:Number(item.totalCents)};});
+    setItems(nextItems);
     const appreciation=Boolean(Number(estimate.appreciationDiscount||0));setAppreciationDiscount(appreciation);
     const mode:DiscountMode=estimate.additionalDiscountType==="dollar"?"dollar":"percent";setDiscountMode(mode);
-    const stored=Number(estimate.additionalDiscountValue||0);setDiscountValue(stored?mode==="percent"?(stored/100).toString():(stored/100).toFixed(2):"");setError("");
+    const stored=Number(estimate.additionalDiscountValue||0);const input=stored?mode==="percent"?(stored/100).toString():(stored/100).toFixed(2):"";
+    setDiscountValue(input);setError("");
+    initialEditSnapshot.current=JSON.stringify({items:nextItems,appreciationDiscount:appreciation,discountMode:mode,discountValue:input});
   };
-  const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;setOpen(value);if(value)hydrate();};
+  const currentEditSnapshot=JSON.stringify({items,appreciationDiscount,discountMode,discountValue});
+  const bundleCents=parseDiscountCents(bundleValue,"dollar");
+  const changedSinceOpen=Boolean(initialEditSnapshot.current&&currentEditSnapshot!==initialEditSnapshot.current)||(bundle.ready&&(bundleCents===null||bundleCents!==Number(estimate.bundleDiscountCents??0)));
+  const setOpenSafe=(value:boolean)=>{
+    if(saveLock.current||saving)return;
+    if(!value&&changedSinceOpen&&!window.confirm("Discard your unsaved estimate changes? Saved pricing and discounts will stay unchanged."))return;
+    setOpen(value);if(value)hydrate();
+  };
   const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?editMoneyLine(item,patch):item));
   const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
   const discountInputCents=parseDiscountCents(discountValue,discountMode,appreciationDiscount?45:50);
@@ -1865,7 +1876,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
     {error&&<p className="save-error" role="alert">{error}</p>}
     </fieldset>
     </div>
-    <div className="estimate-edit-modal-footer"><Button className="brand-button w-full" onClick={()=>void save()} disabled={saving||!bundle.ready}>{saving?"Saving…":"Save estimate changes"}</Button></div>
+    <div className="estimate-edit-modal-footer fire-edit-actions"><Button variant="outline" type="button" onClick={()=>setOpenSafe(false)} disabled={saving}>Cancel</Button><Button className="brand-button" onClick={()=>void save()} disabled={saving||!bundle.ready||!changedSinceOpen}>{saving?"Saving…":"Save estimate changes"}</Button></div>
   </DialogContent></Dialog>;
 }
 
