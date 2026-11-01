@@ -1,0 +1,38 @@
+name: FIRE Customer Text Email Readiness (new only)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/lib/customer-contact-links.ts'
+      - 'business-app-parity/shared/scripts/test-customer-contact-ready-actions.mjs'
+      - '.github/workflows/fire-customer-contact-readiness.yml'
+  push:
+    branches:
+      - 'work/fire-customer-contact-handoff-*'
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/lib/customer-contact-links.ts'
+      - 'business-app-parity/shared/scripts/test-customer-contact-ready-actions.mjs'
+      - '.github/workflows/fire-customer-contact-readiness.yml'
+permissions:
+  contents: read
+jobs:
+  new-contact-handoff-guard:
+    name: New Text/Email recipient, draft and owner-approval contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install pinned source dependencies
+        working-directory: business-app-parity/shared
+        run: pnpm install --frozen-lockfile
+      - name: Run NEW targeted customer contact checks only
+        working-directory: business-app-parity/shared
+        run: node scripts/test-customer-contact-ready-actions.mjs
