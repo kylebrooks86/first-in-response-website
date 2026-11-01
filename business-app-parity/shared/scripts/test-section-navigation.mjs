@@ -91,6 +91,9 @@ function runHandler(initializer,tree,scope){
  const compiled=ts.transpileModule('const __handler='+initializer.getText(tree)+';\n__handler',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
  return vm.runInNewContext(compiled,scope);
 }
+const alertsSource=readFileSync('components/ui/alert-dialog.tsx','utf8');
+assert.match(alertsSource,/max-h-\\[calc\\(100dvh-2rem\\)\\]/,'Short-screen confirmation fits within dynamic iPhone viewport');checks++;
+assert.match(alertsSource,/overflow-y-auto overscroll-contain/,'Long confirmation remains scrollable with Cancel reachable');checks++;
 const searchSource=readFileSync('components/global-search.tsx','utf8');
 const searchAst=ts.createSourceFile('global-search.tsx',searchSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const searchComponent=searchAst.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='GlobalSearch');
