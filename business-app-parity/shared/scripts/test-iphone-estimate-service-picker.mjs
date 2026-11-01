@@ -128,8 +128,11 @@ check(!dashboard.includes('Service description and expectations'),
  'Redundant long service description headings removed');
 check(!dashboard.includes('rows={7}'),
  'Estimate editor no longer reserves seven lines per service');
-check(dashboard.includes('<Textarea rows={3} className="estimate-service-description" value={item.description}'),
- 'Long saved customer-facing scope stays fully editable in compact textarea');
+check(dashboard.split('className="estimate-service-description" value={item.description}').length-1===2&&
+ dashboard.includes('className="estimate-service-description" value={item.description}'),
+ 'New estimate and edit estimate both preserve description state with shared compact editor');
+check(dashboard.includes('id={`invoice-${estimate.invoiceId}-${index}-description`} rows={3} className="estimate-service-description"'),
+ 'Final invoice scope field also uses compact three-line editor without losing saved text');
 check(!dashboard.includes('Shown on the estimate and invoice.'),
  'Repeated per-service guidance removed from every quote line');
 check(dashboard.includes('Descriptions appear on estimates and invoices.'),
@@ -156,5 +159,14 @@ check(dashboard.includes('>Tax prep</summary>')&&dashboard.includes('>Tasks</h2>
  'Business navigation uses compact plain-language section labels');
 check(dashboard.includes('Promotions are owner-applied. October 15% requires a qualifying booking'),
  'Promotional booking qualification and owner application warning retained');
+
+
+check(css.includes('field-sizing:fixed;')&&css.includes('.estimate-edit-service .estimate-service-description{'),
+ 'Compact scope overrides shared field-sizing:content auto-growth');
+check(css.includes('height:96px;')&&css.includes('overflow-y:auto;')&&css.includes('resize:vertical'),
+ 'Long description stays scrollable and manually expandable, not truncated');
+check(css.includes('.estimate-edit-service .estimate-service-description:focus')&&
+ css.includes('height:min(30dvh,180px)'),
+ 'Focused service descriptions expand for editing without consuming the entire mobile screen');
 
 console.log('PASS '+checks+'/'+checks+' NEW whole-app menu edge safety, Custom-first estimate choice, 44px tap targets and reduced wording checks.');
