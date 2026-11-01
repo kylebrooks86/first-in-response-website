@@ -82,15 +82,30 @@ if (destination / "dist").exists():
 
 # Do not silently carry other legacy personal-email checks into the TEST build.
 legacy_email = "kylebrooks8605@gmail.com"
+test_owner_email = "kyle@firstinresponseexteriors.com"
+# Legacy Sites adapters contain historical owner email checks throughout the app,
+# not just in refunds and the dashboard. For this ONE isolated test candidate,
+# pin all remaining fixed references to the exact owner email already approved
+# by the Cloudflare Access policy. Do not mutate shared or LIVE sources.
+changed = []
+for p in (destination / "app").rglob("*"):
+    if not p.is_file() or p.suffix not in (".ts", ".tsx", ".js", ".mjs"):
+        continue
+    original = p.read_text(encoding="utf-8")
+    if legacy_email in original:
+        p.write_text(original.replace(legacy_email, test_owner_email), encoding="utf-8")
+        changed.append(str(p.relative_to(destination)))
 remaining = [
     str(p.relative_to(destination))
     for p in (destination / "app").rglob("*")
     if p.is_file() and p.suffix in (".ts", ".tsx", ".js", ".mjs")
     and legacy_email in p.read_text(encoding="utf-8")
 ]
-if remaining:
-    raise SystemExit("STOP: unresolved legacy LIVE owner checks: " + ", ".join(remaining))
-
+if remaining or len(changed) < 30:
+    raise SystemExit("STOP: incomplete owner-email isolation: " +
+                     ", ".join(remaining) + "; converted: " + str(len(changed)))
+print("PASS: migrated " + str(len(changed)) +
+      " remaining historical Sites owner-email references ONLY in isolated generated TEST files.")
 print("PASS: SOURCE ONLY isolated Stripe TEST candidate; Access owner identity + staging mode.")
 print("STOP: generated D1 UUID is a FAKE PLACEHOLDER. Never deploy this directory.")
 print("NO Cloudflare/Stripe/D1 writes; existing QA, Sites LIVE and DR untouched.")
