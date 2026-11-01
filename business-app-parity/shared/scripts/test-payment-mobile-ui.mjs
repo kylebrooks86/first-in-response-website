@@ -200,4 +200,30 @@ check('Manual payment prefill survives open-editor balance refresh and clears pr
  assert.ok(events.some(([key,value])=>key==='setReference'&&value==='receipt-1'),'Unresolved payment retains original reference');
 });
 
+check('Refund close preserves active Stripe/manual request and unsaved refund details',()=>{
+ const refundFn=functions.find(n=>n.name?.text==='RefundPayment');
+ assert.ok(refundFn,'Actual RefundPayment component');
+ let initializer;
+ function visit(n){if(ts.isVariableDeclaration(n)&&n.name.getText(ast)==='openChange')initializer=n.initializer;ts.forEachChild(n,visit);}
+ visit(refundFn);
+ assert.ok(initializer,'Actual RefundPayment close handler');
+ const compiled=ts.transpileModule('exports.close='+initializer.getText(ast)+';',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const exercise=({busy=false,pending=false,dirty=false,approve=false}={})=>{
+  const calls=[];
+  const scope={exports:{},refundLock:{current:busy},saving:busy,submitted:pending,
+   activeRefund:{current:pending?{requestId:'synthetic-refund-id',amountCents:7500}:null},
+   amount:dirty?'25.00':'75.00',refundable:7500,note:'',confirmed:false,
+   setOpen:v=>calls.push('open:'+v),
+   window:{alert:()=>calls.push('alert'),confirm:()=>{calls.push('confirm');return approve;}}};
+  vm.runInNewContext(compiled,scope);scope.exports.close(false);
+  return calls;
+ };
+ assert.deepEqual(exercise({busy:true,approve:true}),['alert'],'A pending write cannot hide even with consent');
+ assert.deepEqual(exercise({pending:true}),['confirm'],'Cancel retains pending refund context');
+ assert.deepEqual(exercise({pending:true,approve:true}),['confirm','open:false'],'Closing pending refund requires explicit owner acknowledgement');
+ assert.deepEqual(exercise({dirty:true}),['confirm'],'Cancel retains edited refund amount');
+ assert.deepEqual(exercise({dirty:true,approve:true}),['confirm','open:false'],'Unsaved refund details discarded only with confirmation');
+ assert.deepEqual(exercise(),['open:false'],'Untouched refund modal closes without unnecessary friction');
+});
+
 console.log(`PASS: ${cases}/${cases} component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.`);
