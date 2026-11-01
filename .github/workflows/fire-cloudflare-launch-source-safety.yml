@@ -76,7 +76,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [staging, production]
+        target: [staging, production, stripe-test]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -93,7 +93,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 business-app-parity/cloudflare-launch/materialize-cloudflare.py "${{ matrix.target }}" "$RUNNER_TEMP/fire-launch-${{ matrix.target }}-src"
+          if [ "${{ matrix.target }}" = "stripe-test" ]; then
+            python3 business-app-parity/cloudflare-launch/materialize-stripe-test.py "$RUNNER_TEMP/fire-launch-stripe-test-src"
+          else
+            python3 business-app-parity/cloudflare-launch/materialize-cloudflare.py "${{ matrix.target }}" "$RUNNER_TEMP/fire-launch-${{ matrix.target }}-src"
+          fi
           grep -q '00000000-0000-4000-8000-000000000000' "$RUNNER_TEMP/fire-launch-${{ matrix.target }}-src/vite.config.ts"
       - name: Install pinned dependencies and typecheck real Cloudflare Access adapter
         shell: bash
