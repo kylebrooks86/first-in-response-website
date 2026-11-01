@@ -2996,3 +2996,66 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
     padding-bottom:max(16px,env(safe-area-inset-bottom))
   }
 }
+
+
+/* FIRE navigation/exit audit — the same clear actions in the header, menus,
+   customer records and long estimate dialogs. Preserve owner-save guards. */
+.back-link{
+  display:inline-flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+  min-height:44px;
+  max-width:100%;
+  padding:8px 12px;
+  border-radius:9px;
+  touch-action:manipulation
+}
+.back-link svg{width:18px;height:18px;flex:none}
+.back-link:focus-visible,.estimate-header-back:focus-visible,.notification-header-close:focus-visible{
+  outline:3px solid var(--ring);
+  outline-offset:2px
+}
+.estimate-header-back{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  width:max-content;
+  max-width:100%;
+  min-height:44px;
+  margin-top:8px;
+  padding:8px 11px;
+  border:1px solid var(--border);
+  border-radius:9px;
+  background:var(--background);
+  color:var(--foreground);
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  touch-action:manipulation
+}
+.estimate-header-back svg{width:18px;height:18px;flex:none}
+.estimate-header-back:disabled{cursor:wait;opacity:.5}
+.notification-header-actions{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+.notification-popover>header .notification-header-close{
+  flex:0 0 44px;
+  min-width:44px;
+  min-height:44px;
+  width:44px;
+  height:44px;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--border);
+  border-radius:9px;
+  background:var(--background);
+  color:var(--foreground);
+  cursor:pointer;
+  touch-action:manipulation
+}
+.notification-header-close svg{width:19px;height:19px}
+@media(max-width:420px){
+  .notification-popover>header{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}
+  .notification-header-actions{grid-column:1;justify-content:space-between;min-width:0}
+  .notification-popover>header .notification-header-actions>button:first-child{flex:0 1 auto}
+}
