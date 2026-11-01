@@ -19,7 +19,7 @@ function commit(tab){vm.runInNewContext(js,{tab,currentTab,tabHistory,backDestin
 const backCall=variable(dashboard,'goBack').getText(ast);
 assert.ok(backCall,'Actual top Back handler is present');
 const backJs=ts.transpileModule('('+backCall+')()', {compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
-function pressBack(){vm.runInNewContext(backJs,{currentTab,tabHistory,backDestination,setTab:commit,setMobileMenu:()=>{}});}
+function pressBack(){vm.runInNewContext(backJs,{currentTab,tabHistory,backDestination,tab:currentTab.current,mobileMenu:false,customerBackHandler:{current:null},setTab:target=>{commit(target);return true;},setMobileMenu:()=>{}});}
 commit('dashboard');eq(scrolls.length,0,'Mount must not override browser/restored position');
 const sections=['customers','estimates','invoices','payments','schedule','contracts','followups','insights','business','settings','owner-account','dashboard'];
 for(const tab of sections){
@@ -48,7 +48,7 @@ const stableCount=scrolls.length;commit(currentTab.current);eq(scrolls.length,st
 assert.match(source,/onNavigate=\{setTab\}/);checks++;
 assert.match(source,/className="bottom-nav"[\s\S]*setTab\(id\)/);checks++;
 assert.match(source,/const goHome = [^\n]*setTab\("dashboard"\)/);checks++;
-assert.match(source,/const goBack = [^\n]*setTab\(target\)/);checks++;
+assert.match(source,/const goBack = \(\) => \{[\s\S]*?setTab\(target\)[\s\S]*?\};/);checks++;
 assert.match(source,/item\.type==="payment_failed"\?"payments"/,'Failed-Stripe-checkout notification must open Payments');checks++;
 assert.match(source,/item\.type==="payment_overage"\?\(item\.estimateId\?"estimates":"payments"\)/,'Overpayment alert opens exact estimate resolution when job is known');checks++;
 assert.match(source,/const destination=taskId\?"business":next==="payments"\?"payments":invoiceId\?"invoices"/,'Payment alerts cannot jump to linked estimates when Payments is requested');checks++;
