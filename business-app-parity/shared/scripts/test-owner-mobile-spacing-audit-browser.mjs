@@ -44,6 +44,11 @@ assert.ok(dashboard.includes('customerNoteStateRef.current.saving')&&dashboard.i
 assert.ok(dashboard.includes('Leave Customers and discard unfinished customer notes?'), 'Dirty note navigation requires explicit confirmation');
 assert.ok(dashboard.includes('if(!setTab(destination))return;'), 'Canceled global-search navigation does not clear search or redirect');
 assert.ok(dashboard.includes('if(target!==currentTab.current&&setTab(target))'), 'Back history is consumed only after navigation is approved');
+assert.ok(dashboard.includes('const customerDirty=')&&dashboard.includes('Discard unsaved customer changes?'), 'Edit Customer guards changes when Close or Cancel is requested');
+assert.ok(dashboard.includes('const changedSinceOpen=')&&dashboard.includes('Discard your unsaved estimate changes?'), 'Edit Estimate protects unsaved service and discount edits');
+assert.ok(dashboard.includes('const invoiceHasUnsavedChanges=')&&dashboard.includes('Discard unsaved invoice changes?'), 'Edit Invoice protects service, due date and final totals');
+assert.ok(dashboard.includes('className="estimate-edit-modal-footer fire-edit-actions"'), 'Estimate editor has Save and Cancel in stationary footer');
+assert.ok(dashboard.includes('className="fire-edit-actions"')&&dashboard.includes('Save invoice changes'), 'Customer and invoice editors expose Cancel and Save');
 const dialog=readFileSync('components/ui/dialog.tsx','utf8');
 assert.ok(dialog.includes('aria-label="Close"')&&dialog.includes('absolute top-2 right-2 z-20 flex size-11'), 'Every shared dialog has a 44px labeled X');
 const css=(await postcss([tailwind({base:root})]).process(cssSource,{from:resolve('app/globals.css')})).css;
@@ -94,6 +99,13 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
   </div>
   <div id="modal-long-content" style="height:800px" aria-hidden="true"></div>
   <button data-slot="dialog-close" type="button" class="absolute top-2 right-2 z-20 flex size-11 items-center justify-center rounded-md border border-border bg-background text-foreground" aria-label="Close" onclick="this.dataset.tapped='yes'">×</button>
+ </section>
+ <section class="edit-modal-fixture" id="synthetic-edit-dialogs" style="display:none;position:fixed;z-index:130;top:50%;left:50%;transform:translate(-50%,-50%);width:min(570px,calc(100vw - 32px));background:var(--background);padding:16px;border:1px solid var(--border)">
+   <div class="customer-edit-dialog customer-form">
+     <div class="fire-edit-actions"><button type="button" onclick="this.dataset.tapped='yes'">Cancel customer edits</button><button type="button" class="brand-button" onclick="this.dataset.tapped='yes'">Save customer changes</button></div>
+   </div>
+   <div class="estimate-edit-modal-footer fire-edit-actions"><button type="button" onclick="this.dataset.tapped='yes'">Cancel estimate edits</button><button type="button" class="brand-button" onclick="this.dataset.tapped='yes'">Save $123,456.78 estimate changes</button></div>
+   <div class="estimate-edit-modal-footer"><div class="fire-edit-actions"><button type="button" onclick="this.dataset.tapped='yes'">Cancel invoice edits</button><button type="button" class="brand-button" onclick="this.dataset.tapped='yes'">Save invoice changes</button></div></div>
  </section>
  <section class="settings-view" id="synthetic-settings" style="display:none"><div class="template-layout"><div class="template-editor">
    <p class="template-unsaved-state" role="status">Unsaved edits — save or discard before leaving.</p>
@@ -237,6 +249,18 @@ try{
   await closeNotifications.tap();
   check(await closeNotifications.getAttribute('data-tapped')==='yes',label+' notifications X accepts tap');
   await notifications.evaluate(e=>{e.style.display='none';});
+  const editDialogs=page.locator('#synthetic-edit-dialogs');
+  await editDialogs.evaluate(e=>{e.style.display='grid';});
+  const editButtons=await editDialogs.locator('.fire-edit-actions > button').evaluateAll(rows=>rows.map(e=>{
+    const r=e.getBoundingClientRect();const hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+    return{label:e.textContent.trim(),left:r.left,right:r.right,height:r.height,width:r.width,tappable:hit===e||e.contains(hit)};
+  }));
+  check(editButtons.length===6&&editButtons.every(b=>b.width>=44&&b.height>=44),label+' customer/estimate/invoice Save and Cancel have touch-size controls '+JSON.stringify(editButtons));
+  check(editButtons.every(b=>b.left>=0&&b.right<=width+1),label+' all six editor buttons fit small-screen width '+JSON.stringify(editButtons));
+  const finalInvoiceCancel=page.getByRole('button',{name:'Cancel invoice edits'});
+  await finalInvoiceCancel.tap();
+  check(await finalInvoiceCancel.getAttribute('data-tapped')==='yes',label+' invoice Cancel can be tapped');
+  await editDialogs.evaluate(e=>{e.style.display='none';});
   await page.locator('#synthetic-settings').evaluate(e=>{e.style.display='block';});
   const settingsButtons=await page.locator('#synthetic-settings footer button').evaluateAll(rows=>rows.map(e=>{
     const r=e.getBoundingClientRect();return {width:r.width,height:r.height,left:r.left,right:r.right};
