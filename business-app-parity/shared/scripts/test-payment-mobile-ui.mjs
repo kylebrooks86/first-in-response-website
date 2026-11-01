@@ -141,4 +141,31 @@ check('Owner payment history and checkout alerts cannot be served from stale bro
  const route=readFileSync('app/api/payments/route.ts','utf8');
  assert.ok(route.includes('return Response.json({payments:result.results,checkoutIssues:checkoutIssues.results},{headers:{"Cache-Control":"no-store, private"}});'));
 });
+check('Manual payment close guard blocks live writes and preserves unresolved/edited forms',()=>{
+ const form=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='RecordPayment');
+ assert.ok(form,'Record Payment is an actual saved-record editor');
+ const closeSource=form.getText(ast);
+ assert.match(closeSource,/<Dialog open=\{open\} onOpenChange=\{setOpenSafe\}/,'Payment dialog must use its guarded close callback');
+ let callback;
+ function find(node){if(ts.isVariableDeclaration(node)&&node.name.getText(ast)==='setOpenSafe')callback=node.initializer;ts.forEachChild(node,find);}
+ find(form);
+ assert.ok(callback,'Real guarded close handler must exist');
+ const compiled=ts.transpileModule('exports.guard='+callback.getText(ast)+';',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const exercise=({busy=false,pending=false,edited=false,approve=false,open=false}={})=>{
+  const events=[];
+  const scope={exports:{},saving:busy,paymentLock:{current:busy},retryPending:pending,
+   amount:edited?'25.00':'75.00',balance:7500,tip:'',fee:'',reference:'',method:'Wave',
+   setOpen:value=>events.push('set:'+value),
+   window:{alert:()=>events.push('alert'),confirm:()=>{events.push('confirm');return approve;}}};
+  vm.runInNewContext(compiled,scope);scope.exports.guard(open);return events;
+ };
+ assert.deepEqual(exercise({open:true}),['set:true'],'Opening is still immediate');
+ assert.deepEqual(exercise({busy:true,approve:true}),['alert'],'Saving cannot be dismissed by any Radix close route');
+ assert.deepEqual(exercise({pending:true,approve:false}),['confirm'],'Cancel retains uncertain receipt review');
+ assert.deepEqual(exercise({pending:true,approve:true}),['confirm','set:false'],'Owner can intentionally leave persisted pending receipt');
+ assert.deepEqual(exercise({edited:true,approve:false}),['confirm'],'Cancel retains unsaved financial entry');
+ assert.deepEqual(exercise({edited:true,approve:true}),['confirm','set:false'],'Owner can discard unsaved payment details');
+ assert.deepEqual(exercise(),['set:false'],'Untouched prefilled payment can close without needless confirmation');
+});
+
 console.log(`PASS: ${cases}/${cases} component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.`);
