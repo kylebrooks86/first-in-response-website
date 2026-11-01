@@ -60,8 +60,8 @@ check(dashboard.includes('updateItem(index,{serviceId:value,name:svc.name'),
  'Existing selection to configured service mapping untouched');
 check(dashboard.includes('estimate-new-services-step space-y-5 px-6 py-6'),
  'New estimate service-and-save actions have mobile safe-area clearance');
-check(dashboard.includes('Reuse copies the service and rate but leaves quantity blank.'),
- 'Repetitive setup help shortened without hiding blank quantity requirement');
+check(dashboard.includes('Reuse copies the service and rate, leaving quantity blank.'),
+ 'Service help stays available in one collapsed guide with blank quantity requirement');
 check(dashboard.includes('Bundle discounts are separate and can stack.'),
  'Stacking discount terms preserved while trimming wording');
 check(dashboard.includes('Combined percentage discounts are capped at 50%.'),
@@ -120,5 +120,41 @@ check(css.includes('[data-slot="dialog-content"]:not(.estimate-edit-dialog)'),
  'Other long dialogs can scroll rather than lose their final action');
 check(css.includes('min-width:44px;')&&css.includes('min-height:44px;'),
  'Mobile dialog close controls provide minimum usable touch area');
+
+
+check(dashboard.split('>Scope &amp; description</Label>').length-1===3,
+ 'All estimate/new and invoice editing labels are short and consistent');
+check(!dashboard.includes('Service description and expectations'),
+ 'Redundant long service description headings removed');
+check(!dashboard.includes('rows={7}'),
+ 'Estimate editor no longer reserves seven lines per service');
+check(dashboard.includes('<Textarea rows={3} className="estimate-service-description" value={item.description}'),
+ 'Long saved customer-facing scope stays fully editable in compact textarea');
+check(!dashboard.includes('Shown on the estimate and invoice.'),
+ 'Repeated per-service guidance removed from every quote line');
+check(dashboard.includes('Descriptions appear on estimates and invoices.'),
+ 'Description visibility remains discoverable in single collapsed guide');
+check(dashboard.split(' Add service</Button>').length-1===3,
+ 'New estimate/edit estimate/edit invoice have one concise Add service control each');
+check(!dashboard.includes('Stacks with the promotion above.'),
+ 'No redundant stacking paragraph under each bundle discount input');
+check(dashboard.includes('Bundle discounts are separate and can stack.'),
+ 'Owner explicitly retains promo plus dollar bundle stacking information');
+check(dashboard.includes('Combined percentage discounts are capped at 50%.'),
+ 'Combined percent discount cap remains visible');
+check(dashboard.includes('>Bundle discount ($)</Label>'),
+ 'Bundle discount label is concise and retains monetary unit');
+check(dashboard.includes('>50% deposit to schedule<strong>')&&
+ dashboard.includes('>50% deposit<strong>'),
+ 'Quote and edit-estimate retained owner 50% deposit summaries');
+check(dashboard.includes('>Check interrupted save</h2>')&&
+ dashboard.includes('Verify the last {taskRecoveryId?"task":"expense"} save before retrying to avoid duplicates.'),
+ 'Business recovery warning condensed without losing duplicate-save safeguard');
+check(dashboard.includes('>Refresh alerts</Button>')&&dashboard.includes('>Refresh</Button>'),
+ 'Payment alert and review list actions remain but use short labels');
+check(dashboard.includes('>Tax prep</summary>')&&dashboard.includes('>Tasks</h2>'),
+ 'Business navigation uses compact plain-language section labels');
+check(dashboard.includes('Promotions are owner-applied. October 15% requires a qualifying booking'),
+ 'Promotional booking qualification and owner application warning retained');
 
 console.log('PASS '+checks+'/'+checks+' NEW whole-app menu edge safety, Custom-first estimate choice, 44px tap targets and reduced wording checks.');
