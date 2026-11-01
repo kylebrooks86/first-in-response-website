@@ -43,3 +43,12 @@ export function customerMessageHandoffReadiness(
  };
  return{ready:true,reason:""};
 }
+
+/** 400/404 are issued by the preparation API before any INSERT.
+ * 409 may indicate a previously saved immutable draft or a business hold;
+ * 5xx, network loss and timeouts cannot establish noncommit.
+ * Auth 401 is explicitly handled independently by the caller.
+ */
+export function definitiveUnwrittenMessagePreparation(status:number):boolean{
+ return status===400||status===404;
+}
