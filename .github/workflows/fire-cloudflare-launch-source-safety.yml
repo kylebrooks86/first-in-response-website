@@ -36,6 +36,8 @@ jobs:
         run: node --test business-app-parity/cloudflare-launch/public-access.test.mjs
       - name: Assert isolated Stripe test Worker has NO public route or data access
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/test-private-stub.mjs
+      - name: Exact Stripe TEST signed callback review, no Access policy changes
+        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/webhook-path.test.mjs
       - name: Rehearse all 25 schema migrations in NEW empty local database only
         run: python3 business-app-parity/cloudflare-launch/stripe-test-worker/rehearse-new-db-migrations.py
       - name: Staging and production materializers are source only and private
