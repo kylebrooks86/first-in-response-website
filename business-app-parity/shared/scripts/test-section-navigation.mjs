@@ -396,4 +396,37 @@ for(const mode of ['fresh','recovery']){
  eq(events.includes('pending:true'),mode==='recovery','Only saved unresolved request opens recovery flow');
 }
 
+// Customer Text/Email handoff modal must not silently hide an edited draft,
+// a previously prepared but unconfirmed handoff, or an uncertain save.
+const messageScreen=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='MessageComposer');
+assert.ok(messageScreen,'Actual customer message composer exists');
+const messageClose=variable(messageScreen,'changeComposerOpen');
+for(const scene of [
+ {name:'open',value:true,expected:['setOpen:true','setSiteOrigin:https://synthetic.invalid']},
+ {name:'clean close',expected:['setOpen:false']},
+ {name:'busy save',busy:true,expected:['alert']},
+ {name:'locked save',locked:true,expected:['alert']},
+ {name:'uncertain cancel',uncertain:true,expected:['confirm']},
+ {name:'uncertain intentional close',uncertain:true,approve:true,expected:['confirm','setOpen:false']},
+ {name:'prepared cancel',prepared:true,expected:['confirm']},
+ {name:'prepared intentional close',prepared:true,approve:true,expected:['confirm','setOpen:false']},
+ {name:'edited cancel',edited:true,expected:['confirm']},
+ {name:'edited intentional discard',edited:true,approve:true,expected:['confirm','setBody:','setOpen:false']},
+ ]){
+ const calls=[],edited={current:Boolean(scene.edited)},scope={
+  working:Boolean(scene.busy),preparationLock:{current:Boolean(scene.locked)},
+  uncertainPreparation:{current:scene.uncertain?{requestId:'synthetic-unchanged',signature:'synthetic'}:null},
+  preparedMessage:scene.prepared?{id:'synthetic-prepared'}:null,
+  draftEdited:edited,setBody:value=>calls.push('setBody:'+value),
+  setOpen:value=>calls.push('setOpen:'+value),
+  setSiteOrigin:value=>calls.push('setSiteOrigin:'+value),
+  window:{location:{origin:'https://synthetic.invalid'},alert:()=>calls.push('alert'),confirm:()=>{calls.push('confirm');return Boolean(scene.approve)}},
+ };
+ runHandler(messageClose,ast,scope)(Boolean(scene.value));
+ eq(calls,scene.expected,'Message composer safe exit: '+scene.name);
+ if(scene.edited)eq(edited.current,!scene.approve,'Canceled discard keeps edited draft, confirmed discard clears it');
+ if(scene.uncertain)eq(scope.uncertainPreparation.current?.requestId,'synthetic-unchanged','Closing unconfirmed text cannot fabricate or replace the request ID');
+ }
+assert.match(source,/onOpenChange=\{changeComposerOpen\}/,'Customer composer X, Escape and outside taps share the same guarded close callback');checks++;
+
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
