@@ -6,6 +6,7 @@ on:
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2-preflight.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-schema-coverage.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-atomic-sqlite-rehearsal.mjs'
       - 'business-app-parity/adapters/doomsday/drizzle/**'
       - 'business-app-parity/customer-numbering/customer_numbers_v1.sql'
       - 'business-app-parity/job-numbering/job_numbers_v1.sql'
@@ -17,6 +18,7 @@ on:
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2-preflight.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-schema-coverage.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-atomic-sqlite-rehearsal.mjs'
       - 'business-app-parity/adapters/doomsday/drizzle/**'
       - 'business-app-parity/customer-numbering/customer_numbers_v1.sql'
       - 'business-app-parity/job-numbering/job_numbers_v1.sql'
@@ -50,3 +52,5 @@ jobs:
         run: node --experimental-sqlite scripts/test-numbered-records-v2-preflight.mjs
       - name: Reject newly added durable QA tables not represented in recovery
         run: node scripts/test-numbered-v2-schema-coverage.mjs
+      - name: Prove full 25-SQL SQLite recovery, interruption rollback, and original serial high-water
+        run: node --experimental-sqlite scripts/test-numbered-v2-atomic-sqlite-rehearsal.mjs
