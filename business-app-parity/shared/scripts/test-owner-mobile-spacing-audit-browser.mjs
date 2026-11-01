@@ -79,7 +79,7 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
 </div>
 </section>
 <nav class="bottom-nav"><button>Home</button><button>Customers</button><button>Estimates</button><button>Schedule</button><button>Follow-ups</button></nav>
-</main></body></html>`;
+</main><button id="portalled-select" data-slot="select-trigger" style="position:fixed;left:0;bottom:0;visibility:hidden">Portal select</button></body></html>`;
 const server=createServer((req,res)=>{res.setHeader('cache-control','no-store');if(req.url==='/style.css'){res.setHeader('content-type','text/css');res.end(css);}else{res.setHeader('content-type','text/html');res.end(html);}});
 await new Promise(done=>server.listen(0,'127.0.0.1',done));
 const url='http://127.0.0.1:'+server.address().port;
@@ -149,6 +149,8 @@ try{
   // Verify a long price cannot push Back/Save outside the dialog on narrow phones.
   const selectHeight=await page.locator('.new-estimate-dialog [data-slot="select-trigger"]').evaluate(e=>e.getBoundingClientRect().height);
   check(selectHeight>=44,label+' service selector has at least 44px tap height');
+  const portalHeight=await page.locator('#portalled-select').evaluate(e=>e.getBoundingClientRect().height);
+  check(portalHeight>=44,label+' portalled customer-dialog select is also touch-sized');
   const estimateActions=await page.locator('.new-estimate-dialog .estimate-new-save-actions').evaluate(e=>{
     const box=e.getBoundingClientRect();
     const buttons=[...e.querySelectorAll('button')].map(button=>{
