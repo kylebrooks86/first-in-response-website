@@ -1642,7 +1642,22 @@ function RefundPayment({payment,onRefunded}:{payment:PaymentRow;onRefunded?:()=>
   // least across dialog closing in memory, even when persistence is disabled.
   const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
   const openChange=(value:boolean)=>{
-    setOpen(value);
+    if(!value){
+      // Stripe can accept a refund before FIRE receives its final response.
+      // Never hide an in-flight request without its confirmation/retry context.
+      if(refundLock.current||saving){
+        window.alert("Refund submission is still being checked. Keep this window open until the request finishes.");
+        return;
+      }
+      if(submitted&&activeRefund.current){
+        if(!window.confirm("This refund is not confirmed complete. Closing will not cancel Stripe or the original refund request. Reopen Check refund to review the SAME request ID before doing anything else. Close?"))return;
+      }else if(!submitted&&(note.trim()||confirmed||amount!==(refundable/100).toFixed(2))){
+        if(!window.confirm("Discard these unsaved refund details? No refund will be sent or recorded."))return;
+      }
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
     if(value){
       const pending=payment.pendingRefundId&&Number.isSafeInteger(Number(payment.pendingRefundAmountCents))&&Number(payment.pendingRefundAmountCents)>0
         ?{requestId:payment.pendingRefundId,amountCents:Number(payment.pendingRefundAmountCents)}:null;
