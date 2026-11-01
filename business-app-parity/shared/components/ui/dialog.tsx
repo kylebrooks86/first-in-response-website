@@ -73,7 +73,7 @@ function DialogContent({
             type="button"
             aria-label="Close dialog"
             title="Close"
-            className="absolute top-2 right-2 z-20 flex size-11 items-center justify-center rounded-md border border-border bg-background text-foreground shadow-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-5"
+            className="fixed top-2 right-2 z-20 flex size-11 items-center justify-center rounded-md border border-border bg-background text-foreground shadow-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-5"
           >
             <XIcon />
             <span className="sr-only">Close</span>
