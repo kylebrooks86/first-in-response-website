@@ -9,7 +9,7 @@ import {EstimatePromotionHistory} from "../components/estimate-promotion-history
 import {businessReceiptStorage,readBusinessReceipt,reserveBusinessReceipt,releaseBusinessReceipt,type BusinessCreateKind} from "../lib/business-create-receipt";
 import {taskDueBucket} from "../lib/task-due";
 import {tightScheduleTurnarounds} from "../lib/schedule-turnarounds";
-import {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness} from "../lib/customer-contact-links";
+import {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation} from "../lib/customer-contact-links";
 import {estimateAttentionItems,type AttentionEstimate,type AttentionEstimateItem} from "../lib/attention-estimates";
 import {flagHasMatchingDueTask} from "../lib/attention-flag-dedupe";
 import {businessTaskContext,taskLinkedFlag} from "../lib/business-task-context";
@@ -416,7 +416,7 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       const saved=result.message;
       if(scope!==messageScope.current)return false;
       if(!response.ok||!saved){
-        if(response.status===400||response.status===404){
+        if(definitiveUnwrittenMessagePreparation(response.status)){
           // These explicit API rejections occur before customer-message
           // writes. The draft is definitively NOT saved, so allow editing
           // and a new operation ID. Never apply this to 409, 5xx or timeout:
