@@ -2955,3 +2955,201 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 .estimate-edit-service .estimate-service-description:focus{
   height:min(30dvh,180px)
 }
+
+
+/* FIRE November 1 owner workflow pass: keep estimate Save and Back usable
+   at 320–430px without shrinking text, clipping the final price, or
+   pushing either action into the home-indicator area. No pricing changes. */
+@media(max-width:760px){
+  .new-estimate-dialog .estimate-new-save-actions{
+    display:grid;
+    grid-template-columns:minmax(72px,auto) minmax(0,1fr);
+    align-items:stretch;
+    gap:8px
+  }
+  .new-estimate-dialog .estimate-new-save-actions>button{
+    width:100%;
+    min-width:0;
+    height:auto;
+    min-height:48px;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    line-height:1.3;
+    padding-block:10px;
+    touch-action:manipulation
+  }
+  /* Standard Radix form selects are otherwise only 36px high in some
+     customer, task and settings workflows. Keep all phone selects tappable. */
+  [data-slot="select-trigger"]{
+    min-height:44px;
+    max-width:100%;
+    touch-action:manipulation
+  }
+  /* Radix sheets are mounted in a portal outside the app shell; a long
+     left/right drawer also needs scrolling and home-indicator clearance. */
+  [data-slot="sheet-content"][data-side="left"],
+  [data-slot="sheet-content"][data-side="right"]{
+    max-height:100dvh;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:max(16px,env(safe-area-inset-bottom))
+  }
+}
+
+
+/* FIRE navigation/exit audit — the same clear actions in the header, menus,
+   customer records and long estimate dialogs. Preserve owner-save guards. */
+.back-link{
+  display:inline-flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+  min-height:44px;
+  max-width:100%;
+  padding:8px 12px;
+  border-radius:9px;
+  touch-action:manipulation
+}
+.back-link svg{width:18px;height:18px;flex:none}
+.back-link:focus-visible,.estimate-header-back:focus-visible,.notification-header-close:focus-visible{
+  outline:3px solid var(--ring);
+  outline-offset:2px
+}
+.estimate-header-back{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  width:max-content;
+  max-width:100%;
+  min-height:44px;
+  margin-top:8px;
+  padding:8px 11px;
+  border:1px solid var(--border);
+  border-radius:9px;
+  background:var(--background);
+  color:var(--foreground);
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  touch-action:manipulation
+}
+.estimate-header-back svg{width:18px;height:18px;flex:none}
+.estimate-header-back:disabled{cursor:wait;opacity:.5}
+.notification-header-actions{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+.notification-popover>header .notification-header-close{
+  flex:0 0 44px;
+  min-width:44px;
+  min-height:44px;
+  width:44px;
+  height:44px;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--border);
+  border-radius:9px;
+  background:var(--background);
+  color:var(--foreground);
+  cursor:pointer;
+  touch-action:manipulation
+}
+.notification-header-close svg{width:19px;height:19px}
+@media(max-width:420px){
+  .notification-popover>header{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}
+  .notification-header-actions{grid-column:1;justify-content:space-between;min-width:0}
+  .notification-popover>header .notification-header-actions>button:first-child{flex:0 1 auto}
+}
+
+
+/* Keep Close visible when scrolling long, grid-based modal forms. Radix
+   renders Close last; explicit first-grid-row placement lets sticky pin
+   the X beside the title without moving the form. The separately designed
+   Edit Estimate/Invoice and Job dialogs already have stationary headers. */
+[data-slot="dialog-content"]:not(.estimate-edit-dialog):not(.fire-job-dialog)>[data-slot="dialog-close"]{
+  position:sticky;
+  top:8px;
+  right:8px;
+  grid-row:1;
+  grid-column:1;
+  justify-self:end;
+  align-self:start;
+  margin-bottom:-44px
+}
+
+
+/* Owner daily-flow polish: explicit unsaved-template state, reachable save
+   controls and a return affordance at the end of long task details. */
+.template-unsaved-state{
+  margin:0;
+  padding:8px 11px;
+  border:1px solid var(--border);
+  border-left:3px solid var(--primary);
+  border-radius:8px;
+  background:var(--card);
+  color:var(--foreground);
+  font-size:12px;
+  font-weight:700;
+  line-height:1.5
+}
+.template-editor>footer{min-width:0;gap:8px}
+.template-editor>footer>button{min-width:0;min-height:44px;overflow-wrap:anywhere}
+.business-task-context-close{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  justify-self:start;
+  gap:8px;
+  min-height:44px;
+  max-width:100%;
+  margin-top:5px;
+  padding:9px 12px;
+  border:1px solid var(--border);
+  border-radius:9px;
+  background:var(--card);
+  color:var(--foreground);
+  font-weight:700;
+  font-size:12px;
+  cursor:pointer;
+  touch-action:manipulation
+}
+.business-task-context-close svg{width:17px;height:17px;flex:none}
+.business-task-context-close:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+@media(max-width:760px){
+  .settings-view .template-editor>footer:has(>button:nth-child(3))>button:last-child{
+    grid-column:1/-1;
+    width:100%
+  }
+  .settings-view .template-editor>footer>button{min-height:48px}
+  .business-task-context-close{width:100%;justify-self:stretch}
+}
+
+
+/* Clear, compact Cancel/Save controls across owner edit dialogs.
+   Long save labels wrap instead of pushing Cancel off a narrow iPhone. */
+.fire-edit-actions{
+  display:grid;
+  grid-template-columns:minmax(90px,auto) minmax(0,1fr);
+  align-items:stretch;
+  gap:9px;
+  min-width:0
+}
+.fire-edit-actions>button{
+  width:100%;
+  min-width:0;
+  min-height:44px;
+  height:auto;
+  padding:10px 12px;
+  white-space:normal;
+  line-height:1.4;
+  overflow-wrap:anywhere
+}
+.fire-edit-actions>button:focus-visible{
+  outline:3px solid var(--ring);
+  outline-offset:2px
+}
+@media(max-width:760px){
+  .fire-edit-actions{grid-template-columns:minmax(76px,auto) minmax(0,1fr)}
+  .fire-edit-actions>button{min-height:48px}
+  .customer-edit-dialog .customer-form{min-width:0}
+  .estimate-edit-modal-footer .fire-edit-actions{width:100%}
+}

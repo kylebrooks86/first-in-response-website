@@ -29,6 +29,33 @@ for(const [label,selector,minimum] of expected){
 assert.ok(dashboard.includes('className="notification-attention"'), 'Actual owner reminder panel is covered');
 assert.ok(dashboard.includes('className="mobile-primary-actions"'), 'Actual owner header is covered');
 assert.ok(dashboard.includes('className="bottom-nav"'), 'Actual 5-tab navigation is covered');
+assert.ok(dashboard.includes('if(mobileMenu){setMobileMenu(false);return;}'), 'Topbar Back exits an open mobile menu first');
+assert.ok(dashboard.includes('tab==="customers"&&customerBackHandler.current'), 'Topbar Back exits the customer profile first');
+assert.ok(dashboard.includes('onRegisterBack={registerCustomerBack}'), 'Customer page registers nested Back');
+assert.ok(dashboard.includes('aria-label="Close notifications"'), 'Notifications include an explicit X');
+assert.ok(dashboard.includes('aria-label="Back to customer details"'), 'New estimate has a top Back button');
+assert.ok(dashboard.includes('currentTab.current==="settings"&&settingsDirtyRef.current'), 'Unsaved Settings edits guard all app tab transitions');
+assert.ok(dashboard.includes('window.confirm("Discard unsaved message-template edits and leave Settings?'), 'Leaving Settings asks before losing edits');
+assert.ok(dashboard.includes('onDirtyChange={setSettingsDirty}')&&dashboard.includes('onDirtyChange?.(hasUnsavedTemplateChanges)'), 'Template editor reports unsaved state to shell');
+assert.ok(dashboard.includes('Back to tasks')&&dashboard.includes('setContextTaskId(null)'), 'Expanded task detail can return to list');
+assert.ok(dashboard.includes('Discard edits')&&dashboard.includes('setDraft(savedTemplate)'), 'Template editor can discard without changing saved template');
+assert.ok(dashboard.includes('onNoteDraftStatusChange={setCustomerNoteState}'), 'Customers reports pending note state to shell');
+assert.ok(dashboard.includes('customerNoteStateRef.current.saving')&&dashboard.includes('customerNoteStateRef.current.dirty'), 'Topbar and tabs guard pending or unsaved customer notes');
+assert.ok(dashboard.includes('Leave Customers and discard unfinished customer notes?'), 'Dirty note navigation requires explicit confirmation');
+assert.ok(dashboard.includes('if(!setTab(destination))return;'), 'Canceled global-search navigation does not clear search or redirect');
+assert.ok(dashboard.includes('if(target!==currentTab.current&&setTab(target))'), 'Back history is consumed only after navigation is approved');
+assert.ok(dashboard.includes('const customerDirty=')&&dashboard.includes('Discard unsaved customer changes?'), 'Edit Customer guards changes when Close or Cancel is requested');
+assert.ok(dashboard.includes('const changedSinceOpen=')&&dashboard.includes('Discard your unsaved estimate changes?'), 'Edit Estimate protects unsaved service and discount edits');
+assert.ok(dashboard.includes('const invoiceHasUnsavedChanges=')&&dashboard.includes('Discard unsaved invoice changes?'), 'Edit Invoice protects service, due date and final totals');
+assert.ok(dashboard.includes('className="estimate-edit-modal-footer fire-edit-actions"'), 'Estimate editor has Save and Cancel in stationary footer');
+assert.ok(dashboard.includes('className="fire-edit-actions"')&&dashboard.includes('Save invoice changes'), 'Customer and invoice editors expose Cancel and Save');
+assert.ok(dashboard.includes('savedReportDraft.current=reportFingerprint(')&&dashboard.includes('Discard unsaved job report notes and checklist changes?'), 'Job report close checks saved checklist and notes without changing actual report save');
+assert.ok(dashboard.includes('const hasUnfinishedCost=Boolean(description.trim()||amount.trim())')&&dashboard.includes('Discard the unfinished job cost entry?'), 'Job costs protect partially filled entries');
+assert.ok(dashboard.includes('settingsSavingRef.current')&&dashboard.includes('onSavingChange={setSettingsSaving}'), 'In-flight template saves block tab navigation');
+assert.ok(dashboard.includes('<summary>Pricing help</summary>')&&dashboard.includes('<summary>Promotion rules</summary>'), 'Secondary price explanations are optional disclosures');
+assert.ok(dashboard.includes('message==="Template saved."||message==="Default restored."'), 'Settings shows failed template saves as errors, not success');
+const dialog=readFileSync('components/ui/dialog.tsx','utf8');
+assert.ok(dialog.includes('aria-label="Close"')&&dialog.includes('absolute top-2 right-2 z-20 flex size-11'), 'Every shared dialog has a 44px labeled X');
 const css=(await postcss([tailwind({base:root})]).process(cssSource,{from:resolve('app/globals.css')})).css;
 const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body>
 <main class="app-shell" data-app-ready="true"><section class="main-area">
@@ -53,6 +80,7 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
  </section>
  <section class="customer-flag-panel"><details class="customer-sign-form"><summary>Yard sign details</summary><p>Saved activity</p></details></section>
  <section class="customer-profile customers-view">
+  <button type="button" class="back-link" aria-label="Back to all customers" onclick="this.dataset.tapped='yes'"><svg viewBox="0 0 24 24"><path d="M15 6L9 12L15 18"/></svg> All customers</button>
  <nav class="record-tabs" aria-label="Customer record sections" tabindex="-1">
   <button type="button" aria-current="page" class="active" onclick="this.dataset.tapped='yes'">Estimates <b>4</b></button>
   <button type="button" onclick="this.dataset.tapped='yes'">Payments</button>
@@ -65,12 +93,42 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
  <article class="photo-card"><a aria-label="Synthetic photo A" href="#photo-a"><div style="width:100%;height:90px;background:#ccc"></div></a><div><p>Long siding caption for narrow photo A</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
  <article class="photo-card"><a aria-label="Synthetic photo B" href="#photo-b"><div style="width:100%;height:90px;background:#ddd"></div></a><div><p>Long gutter caption for narrow photo B</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
  </div></section></div></section></section>
+ <section data-slot="dialog-content" class="new-estimate-dialog" aria-label="Synthetic estimate footer" style="display:none;position:fixed;z-index:100;top:50%;left:50%;transform:translate(-50%,-50%);width:min(620px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;background:var(--background);border:1px solid var(--border)">
+  <div class="estimate-head"><button type="button" class="estimate-header-back" aria-label="Back to customer details" onclick="this.dataset.tapped='yes'">‹ Customer details</button></div>
+  <div class="estimate-new-services-step space-y-5 px-6 py-6">
+    <button type="button" data-slot="select-trigger" class="h-9" aria-label="Choose service">Choose service</button>
+    <div class="estimate-new-save-actions flex gap-3">
+      <button type="button" class="h-9 whitespace-nowrap" onclick="this.dataset.tapped='yes'">Back</button>
+      <button type="button" class="brand-button flex-1 h-9 whitespace-nowrap" onclick="this.dataset.tapped='yes'">Save $123,456.78 estimate</button>
+    </div>
+  </div>
+  <div id="modal-long-content" style="height:800px" aria-hidden="true"></div>
+  <button data-slot="dialog-close" type="button" class="absolute top-2 right-2 z-20 flex size-11 items-center justify-center rounded-md border border-border bg-background text-foreground" aria-label="Close" onclick="this.dataset.tapped='yes'">×</button>
+ </section>
+ <section class="edit-modal-fixture" id="synthetic-edit-dialogs" style="display:none;position:fixed;z-index:130;top:50%;left:50%;transform:translate(-50%,-50%);width:min(570px,calc(100vw - 32px));background:var(--background);padding:16px;border:1px solid var(--border)">
+   <div class="customer-edit-dialog customer-form">
+     <div class="fire-edit-actions"><button type="button" onclick="this.dataset.tapped='yes'">Cancel customer edits</button><button type="button" class="brand-button" onclick="this.dataset.tapped='yes'">Save customer changes</button></div>
+   </div>
+   <div class="estimate-edit-modal-footer fire-edit-actions"><button type="button" onclick="this.dataset.tapped='yes'">Cancel estimate edits</button><button type="button" class="brand-button" onclick="this.dataset.tapped='yes'">Save $123,456.78 estimate changes</button></div>
+   <div class="estimate-edit-modal-footer"><div class="fire-edit-actions"><button type="button" onclick="this.dataset.tapped='yes'">Cancel invoice edits</button><button type="button" class="brand-button" onclick="this.dataset.tapped='yes'">Save invoice changes</button></div></div>
+ </section>
+ <section class="settings-view" id="synthetic-settings" style="display:none"><div class="template-layout"><div class="template-editor">
+   <p class="template-unsaved-state" role="status">Unsaved edits — save or discard before leaving.</p>
+   <footer><button type="button" onclick="this.dataset.tapped='yes'">Discard edits</button><button type="button">Restore default</button><button type="button" class="brand-button" onclick="this.dataset.tapped='yes'">Save template</button></footer>
+ </div></div></section>
+ <section class="business-task-context" id="synthetic-task" style="display:none"><p>Saved task details</p><button type="button" class="business-task-context-close" onclick="this.dataset.tapped='yes'">‹ Back to tasks</button></section>
  <div style="height:700px">Long business workflow content</div>
  <button class="brand-button" type="button" id="final-day-action" style="min-height:48px;width:100%">Final workflow action</button>
 </div>
 </section>
-<nav class="bottom-nav"><button>Home</button><button>Customers</button><button>Estimates</button><button>Schedule</button><button>Follow-ups</button></nav>
-</main></body></html>`;
+<section class="notification-popover" style="display:none;position:fixed;z-index:120;top:40px;right:8px;background:var(--background)">
+  <header><div><strong>Notifications</strong><small>Unread activity</small></div><div class="notification-header-actions">
+    <button type="button">Mark all as read</button>
+    <button type="button" class="notification-header-close" aria-label="Close notifications" onclick="this.dataset.tapped='yes'">×</button>
+  </div></header>
+ </section>
+ <nav class="bottom-nav"><button>Home</button><button>Customers</button><button>Estimates</button><button>Schedule</button><button>Follow-ups</button></nav>
+</main><button id="portalled-select" data-slot="select-trigger" style="position:fixed;left:0;bottom:0;visibility:hidden">Portal select</button></body></html>`;
 const server=createServer((req,res)=>{res.setHeader('cache-control','no-store');if(req.url==='/style.css'){res.setHeader('content-type','text/css');res.end(css);}else{res.setHeader('content-type','text/html');res.end(html);}});
 await new Promise(done=>server.listen(0,'127.0.0.1',done));
 const url='http://127.0.0.1:'+server.address().port;
@@ -108,6 +166,12 @@ try{
   check(tabs.length===6,label+' all six customer record sections are rendered');
   check(tabs.every(x=>x.height>=44),label+' record tabs have finger-sized vertical tap area '+JSON.stringify(tabs));
   check(tabs.every(x=>x.left>=-1&&x.right<=width+1),label+' customer record tabs have no clipped left/right edge '+JSON.stringify(tabs));
+  const recordBack=page.getByRole('button',{name:'Back to all customers'});
+  await recordBack.scrollIntoViewIfNeeded();
+  const backShape=await recordBack.evaluate(e=>{const r=e.getBoundingClientRect();return{h:r.height,left:r.left,right:r.right};});
+  check(backShape.h>=44&&backShape.left>=0&&backShape.right<=width+1,label+' customer profile Back fits and is touch-sized '+JSON.stringify(backShape));
+  await recordBack.tap();
+  check(await recordBack.getAttribute('data-tapped')==='yes',label+' customer profile Back accepts tap');
   const recordsNav=page.locator('.record-tabs');
   const photosBadge=recordsNav.getByRole('button',{name:/Photos/}).locator('b');
   check(await photosBadge.getAttribute('aria-label')==='12 on-device photos',label+' photo badge explicitly identifies on-device-only count');
@@ -136,6 +200,89 @@ try{
   check(photoHit.reachable&&photoHit.withinViewport,label+' last photo delete target is on-screen and unobstructed '+JSON.stringify(photoHit));
   await photoButton.tap();
   check(await photoButton.getAttribute('data-tapped')==='yes',label+' actual synthetic touch activates last photo card button');
+  // Real compiled CSS against the actual new-estimate mobile class hierarchy.
+  // Verify a long price cannot push Back/Save outside the dialog on narrow phones.
+  // Real New Estimate is portalled above bottom tabs, not a normal document card.
+  await page.locator('.new-estimate-dialog').evaluate(e=>{e.style.display="grid";});
+  const estimateTopBack=page.getByRole('button',{name:'Back to customer details'});
+  const estimateBackHeight=await estimateTopBack.evaluate(e=>e.getBoundingClientRect().height);
+  check(estimateBackHeight>=44,label+' estimate header Back is thumb-sized');
+  await estimateTopBack.tap();
+  check(await estimateTopBack.getAttribute('data-tapped')==='yes',label+' estimate header Back works on touch');
+  const selectHeight=await page.locator('.new-estimate-dialog [data-slot="select-trigger"]').evaluate(e=>e.getBoundingClientRect().height);
+  check(selectHeight>=44,label+' service selector has at least 44px tap height');
+  const portalHeight=await page.locator('#portalled-select').evaluate(e=>e.getBoundingClientRect().height);
+  check(portalHeight>=44,label+' portalled customer-dialog select is also touch-sized');
+  const estimateActions=await page.locator('.new-estimate-dialog .estimate-new-save-actions').evaluate(e=>{
+    const box=e.getBoundingClientRect();
+    const buttons=[...e.querySelectorAll('button')].map(button=>{
+      const r=button.getBoundingClientRect();
+      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,
+        text:button.textContent.trim()};
+    });
+    return {box:{left:box.left,right:box.right,top:box.top,bottom:box.bottom},buttons};
+  });
+  check(estimateActions.buttons.length===2&&estimateActions.buttons.every(b=>b.width>=44&&b.height>=48),
+    label+' final Back and long-price Save have usable size '+JSON.stringify(estimateActions));
+  check(estimateActions.buttons.every(b=>b.left>=estimateActions.box.left-1&&b.right<=estimateActions.box.right+1&&b.right<=width+1),
+    label+' long Save price never clips off the right edge '+JSON.stringify(estimateActions));
+  const saveButton=page.locator('.new-estimate-dialog .estimate-new-save-actions button').last();
+  await saveButton.scrollIntoViewIfNeeded();
+  const saveHit=await saveButton.evaluate(e=>{const r=e.getBoundingClientRect(),at=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return {hit:at===e||e.contains(at),right:r.right,bottom:r.bottom};});
+  check(saveHit.hit&&saveHit.right<=width+1,label+' estimate Save button is not obstructed '+JSON.stringify(saveHit));
+  await saveButton.tap();
+  check(await saveButton.getAttribute('data-tapped')==='yes',label+' actual synthetic tap activates estimate Save');
+  const dialogClose=page.getByRole('button',{name:'Close'});
+  const closeGeometry=await dialogClose.evaluate(e=>{const r=e.getBoundingClientRect();return{w:r.width,h:r.height,left:r.left,right:r.right,top:r.top};});
+  check(closeGeometry.w>=44&&closeGeometry.h>=44&&closeGeometry.left>=0&&closeGeometry.right<=width+1&&closeGeometry.top>=0,label+' modal X is visible and touch-sized '+JSON.stringify(closeGeometry));
+  await page.locator('.new-estimate-dialog').evaluate(e=>{e.scrollTop=e.scrollHeight;});
+  const scrolledClose=await dialogClose.evaluate(e=>{
+    const r=e.getBoundingClientRect(),frame=e.closest('.new-estimate-dialog').getBoundingClientRect(),
+      hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+    return{top:r.top,frameTop:frame.top,right:r.right,visible:r.top>=frame.top&&r.right<=frame.right+1,
+      tappable:hit===e||e.contains(hit)};
+  });
+  check(scrolledClose.visible&&scrolledClose.tappable,label+' scrolled long dialog keeps X visible and reachable '+JSON.stringify(scrolledClose));
+  await dialogClose.tap();
+  check(await dialogClose.getAttribute('data-tapped')==='yes',label+' modal X accepts tap');
+  await page.locator('.new-estimate-dialog').evaluate(e=>{e.style.display='none';});
+  const notifications=page.locator('.notification-popover');
+  await notifications.evaluate(e=>{e.style.display='block';});
+  const menuButtons=await notifications.locator('header button').evaluateAll(buttons=>buttons.map(e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,height:r.height};}));
+  check(menuButtons.every(b=>b.height>=44&&b.left>=-1&&b.right<=width+1),label+' notification X and action fit without clipping '+JSON.stringify(menuButtons));
+  const closeNotifications=page.getByRole('button',{name:'Close notifications'});
+  await closeNotifications.tap();
+  check(await closeNotifications.getAttribute('data-tapped')==='yes',label+' notifications X accepts tap');
+  await notifications.evaluate(e=>{e.style.display='none';});
+  const editDialogs=page.locator('#synthetic-edit-dialogs');
+  await editDialogs.evaluate(e=>{e.style.display='grid';});
+  const editButtons=await editDialogs.locator('.fire-edit-actions > button').evaluateAll(rows=>rows.map(e=>{
+    const r=e.getBoundingClientRect();const hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+    return{label:e.textContent.trim(),left:r.left,right:r.right,height:r.height,width:r.width,tappable:hit===e||e.contains(hit)};
+  }));
+  check(editButtons.length===6&&editButtons.every(b=>b.width>=44&&b.height>=44),label+' customer/estimate/invoice Save and Cancel have touch-size controls '+JSON.stringify(editButtons));
+  check(editButtons.every(b=>b.left>=0&&b.right<=width+1),label+' all six editor buttons fit small-screen width '+JSON.stringify(editButtons));
+  const finalInvoiceCancel=page.getByRole('button',{name:'Cancel invoice edits'});
+  await finalInvoiceCancel.tap();
+  check(await finalInvoiceCancel.getAttribute('data-tapped')==='yes',label+' invoice Cancel can be tapped');
+  await editDialogs.evaluate(e=>{e.style.display='none';});
+  await page.locator('#synthetic-settings').evaluate(e=>{e.style.display='block';});
+  const settingsButtons=await page.locator('#synthetic-settings footer button').evaluateAll(rows=>rows.map(e=>{
+    const r=e.getBoundingClientRect();return {width:r.width,height:r.height,left:r.left,right:r.right};
+  }));
+  check(settingsButtons.length===3&&settingsButtons.every(b=>b.width>=44&&b.height>=44&&b.left>=-1&&b.right<=width+1),
+    label+' template Save/Restore/Discard controls fit narrow settings editor '+JSON.stringify(settingsButtons));
+  const discard=page.getByRole('button',{name:'Discard edits'});
+  await discard.scrollIntoViewIfNeeded();await discard.tap();
+  check(await discard.getAttribute('data-tapped')==='yes',label+' template discard remains touch-accessible');
+  await page.locator('#synthetic-settings').evaluate(e=>{e.style.display='none';});
+  await page.locator('#synthetic-task').evaluate(e=>{e.style.display='grid';});
+  const taskBack=page.getByRole('button',{name:/Back to tasks/});
+  await taskBack.scrollIntoViewIfNeeded();
+  const taskGeo=await taskBack.evaluate(e=>{const r=e.getBoundingClientRect();return {height:r.height,left:r.left,right:r.right};});
+  check(taskGeo.height>=44&&taskGeo.left>=0&&taskGeo.right<=width+1,label+' expanded task bottom Back is thumb-sized and within viewport '+JSON.stringify(taskGeo));
+  await taskBack.tap();check(await taskBack.getAttribute('data-tapped')==='yes',label+' expanded task Back works by touch');
+  await page.locator('#synthetic-task').evaluate(e=>{e.style.display='none';});
   await page.locator('#final-day-action').scrollIntoViewIfNeeded();
   const hit=await page.locator('#final-day-action').evaluate(e=>{
    const r=e.getBoundingClientRect(),at=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);

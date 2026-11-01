@@ -99,7 +99,7 @@ try{
  check(await originalDraft.inputValue()==='Unsent field note',
   'Direct lead logging preserves a separate unsaved customer note');
  await originalDraft.fill('');
- await page.getByRole('button',{name:'← All customers',exact:true}).click();
+ await page.getByRole('button',{name:'Back to all customers',exact:true}).click();
  await page.getByRole('button',{name:'No answer / not contacted (1)'}).click();
  check(await page.locator('.customer-card').count()===1&&
   await page.locator('.customer-card').first().getByText('Fixture First',{exact:true}).count()===1,
@@ -122,7 +122,7 @@ try{
  check(await page.getByRole('button',{name:'Save lead callback'}).isDisabled(),
   'Same pending callback date cannot be saved twice');
  await unsavedCustomerNote.fill('');
- await page.getByRole('button',{name:'← All customers',exact:true}).click();
+ await page.getByRole('button',{name:'Back to all customers',exact:true}).click();
  await page.getByRole('region',{name:'Due customer lead callbacks'}).waitFor();
  await page.getByRole('button',{name:'Callbacks due (1)'}).click();
  check(await page.locator('.customer-card').count()===1,'Due-date filter identifies only outstanding owner-saved callbacks');
@@ -131,7 +131,7 @@ try{
  await page.getByText('Callback marked done.',{exact:true}).waitFor();
  check(notes[0]?.body==='[FIRE FLAG] LEAD_CALLBACK_HANDLED'&&notes.length===3&&notePosts===3,
   'One-tap callback completion records one handled marker without claiming customer contact');
- await page.getByRole('button',{name:'← All customers',exact:true}).click();
+ await page.getByRole('button',{name:'Back to all customers',exact:true}).click();
  await page.getByText('No due callbacks match',{exact:true}).waitFor();
  check(notes.length===3&&notes[0].body==='[FIRE FLAG] LEAD_CALLBACK_HANDLED',
   'Handled callback leaves full append-only history and clears due queue without claiming contact');
@@ -148,16 +148,16 @@ try{
   'One-tap contacted creates one owner-recorded contact without messaging or quotes');
  check(await unsentBeforeContact.inputValue()==='Unsent quote detail',
   'Contact logging leaves unrelated customer note draft unchanged');
- await page.getByRole('button',{name:'← All customers',exact:true}).click();
+ await page.getByRole('button',{name:'Back to all customers',exact:true}).click();
  for(const width of [320,390])for(const theme of ['light','dark']){
   reset();await page.setViewportSize({width,height:700});await page.goto(origin);await page.evaluate(value=>window.setTheme(value),theme);await open('Fixture First');
   const noteInput=page.getByLabel('Customer note',{exact:true});await noteInput.fill('First gate note');noteHold=true;const noteAccepted=new Promise(r=>onNote=r),beforeNotes=notePosts;
   await page.getByRole('button',{name:'Add note',exact:true}).evaluate(n=>{n.click();n.click();});await accepted(noteAccepted);
   check(notePosts===beforeNotes+1,'Rapid note taps submit once');check(await noteInput.isDisabled(),'Saving note draft is frozen');
-  await page.getByRole('button',{name:'← All customers',exact:true}).click();await open('Fixture Second');await noteInput.fill('Second customer draft');
+  await page.getByRole('button',{name:'Back to all customers',exact:true}).click();await open('Fixture Second');await noteInput.fill('Second customer draft');
   releaseNote();noteHold=false;await page.getByRole('button',{name:'Add note',exact:true}).waitFor();
   check(await noteInput.inputValue()==='Second customer draft','Late first save preserves second draft');check(await page.getByText('First gate note',{exact:true}).count()===0,'First note is not shown on second customer');
-  await page.getByRole('button',{name:'← All customers',exact:true}).click();await open('Fixture First');await page.getByText('First gate note',{exact:true}).waitFor();check(await noteInput.inputValue()==='','Saved first draft clears only its customer');
+  await page.getByRole('button',{name:'Back to all customers',exact:true}).click();await open('Fixture First');await page.getByText('First gate note',{exact:true}).waitFor();check(await noteInput.inputValue()==='','Saved first draft clears only its customer');
   noteStatus=503;await noteInput.fill('Keep failure draft');await page.getByRole('button',{name:'Add note',exact:true}).click();await page.getByRole('alert').waitFor();check(await noteInput.inputValue()==='Keep failure draft','Failed note retains draft');check(await page.getByRole('button',{name:'Refresh saved notes'}).isVisible(),'Failed note offers read-only recovery');
   noteStatus=201;noteLoseReply=true;await noteInput.fill('Gate instructions\nKeep side gate closed');await page.getByRole('button',{name:'Add note',exact:true}).click();await page.getByRole('alert').waitFor();const committedCount=notes.length;check(await noteInput.inputValue()==='Gate instructions\nKeep side gate closed','Lost reply retains multiline draft');await page.getByRole('button',{name:'Add note',exact:true}).click();await page.getByText('Note saved.',{exact:true}).waitFor();check(notes.length===committedCount,'Same-text retry after a committed lost reply creates no duplicate');const savedNote=page.locator('.note-row p').filter({hasText:'Gate instructions'});check(await savedNote.evaluate(n=>getComputedStyle(n).whiteSpace)==='pre-wrap','Saved note line breaks are readable');check(await noteInput.inputValue()==='','Confirmed retry clears only the saved draft');const noteGeometry=await noteInput.boundingBox();const addGeometry=await page.getByRole('button',{name:'Add note',exact:true}).boundingBox();check(noteGeometry.width>0&&noteGeometry.x>=0&&noteGeometry.x+noteGeometry.width<=width&&noteGeometry.height>=100&&addGeometry.height>=44,'Multiline note and save control fit narrow screen with usable touch targets');if(process.env.FIRE_NOTE_SCREENSHOT_DIR){mkdirSync(process.env.FIRE_NOTE_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.FIRE_NOTE_SCREENSHOT_DIR,`customer-notes-${width}-${theme}.png`),fullPage:true});}
 

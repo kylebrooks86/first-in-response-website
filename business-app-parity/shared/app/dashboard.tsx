@@ -859,7 +859,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   return <Dialog open={open} onOpenChange={reset}>
     <DialogTrigger asChild><Button className="brand-button" title={disabledReason}><Plus className="h-4 w-4" /> {revisionSource?"Revise quote":"New estimate"}</Button></DialogTrigger>
     <DialogContent aria-describedby={undefined} className="new-estimate-dialog max-h-[92vh] overflow-y-auto border-0 p-0 sm:max-w-[620px]">
-      <div className="estimate-head"><DialogHeader><DialogTitle className="text-xl">Create estimate</DialogTitle></DialogHeader><p className="mt-1 text-sm text-slate-500">Step {step} of 2 · {step===1?"Customer details":"Services and pricing"}</p><Progress value={step*50} className="mt-4 h-1.5"/></div>
+      <div className="estimate-head"><DialogHeader><DialogTitle className="text-xl">Create estimate</DialogTitle></DialogHeader>{step===2&&!saved&&<button type="button" className="estimate-header-back" aria-label="Back to customer details" disabled={saving||uncertainSave} onClick={()=>setStep(1)}><ArrowLeft aria-hidden="true"/> Customer details</button>}<p className="mt-1 text-sm text-slate-500">Step {step} of 2 · {step===1?"Customer details":"Services and pricing"}</p><Progress value={step*50} className="mt-4 h-1.5"/></div>
       {!saved&&!saving&&(!createStorageReady||pendingCreateId)&&<section className="mx-6 mt-4 space-y-2 rounded-lg border p-3" aria-label="Unresolved new estimate request">
         <strong>New estimate save protection</strong>
         {pendingCreateId?<><p className="text-sm">A quote request is recorded on this device. Do not submit a new quote until the exact request has been checked. Request ID: <code>{pendingCreateId}</code></p>
@@ -876,7 +876,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         <CustomerLookup disabled={Boolean(revisionSource)||saving||uncertainSave||customerLoading} onSelect={row=>void chooseCustomer(row)} onCreate={()=>void chooseCustomer(null)}/>
         {customerLoading&&<p role="status">Checking saved customer information…</p>}{revisionSource&&revisionBundle.error&&<div role="alert"><p>{revisionBundle.error}</p><Button variant="outline" onClick={()=>void revisionBundle.reload()}>Retry saved discounts</Button></div>}
         {customerMode==='lookup'?<p>Choose a saved customer or create a new one.</p>:<>
-          <p role="status">{selectedCustomer?'Saved customer · existing history.':'New customer for this estimate.'}</p>
+          <p role="status">{selectedCustomer?"Saved customer":"New customer"}</p>
           <div className="grid gap-2"><Label htmlFor="estimate-customer-name">Customer name</Label><Input id="estimate-customer-name" placeholder="Full name" value={customerName} onChange={event=>setCustomerName(event.target.value)} readOnly={Boolean(selectedCustomer)}/></div>
           <div className="grid gap-2"><Label htmlFor="estimate-customer-email">Email</Label><Input id="estimate-customer-email" type="email" placeholder="customer@email.com" value={email} onChange={event=>setEmail(event.target.value)} readOnly={Boolean(selectedCustomer)}/></div>
           <div className="grid gap-2"><Label htmlFor="estimate-customer-phone">Phone</Label><Input id="estimate-customer-phone" inputMode="tel" placeholder="(918) 555-0123" value={phone} onChange={event=>setPhone(event.target.value)} readOnly={Boolean(selectedCustomer)}/></div>
@@ -897,7 +897,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
             {index<items.length-1&&<button type="button" className="min-h-11 rounded-md border px-3 text-sm font-semibold" disabled={saving||uncertainSave} onClick={()=>moveService(index,1)} aria-label={"Move service "+(index+1)+" down"}>↓ Move down</button>}
           </div>}
           <div><Label>Service</Label><Select disabled={!pricing.rates||pricing.loading||Boolean(pricing.error)||saving} value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,flatPriceCents:undefined,quantity:["job","quantity","each"].includes(svc.unit)?1:0});setError("");}}><SelectTrigger className="estimate-service-picker-trigger" aria-label="Choose service"><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent className="estimate-service-picker" position="popper" sideOffset={6} collisionPadding={16}>{estimateServicePickerOptions(services).map((svc)=><SelectItem className="estimate-service-picker-item" key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}</SelectContent></Select></div>
-          <div><Label htmlFor={`estimate-service-name-${index}`}>Service name</Label><Input id={`estimate-service-name-${index}`} value={item.name} onChange={event=>setItems(current=>current.map((line,i)=>i===index?{...line,name:event.target.value}:line))}/></div><div><Label>Scope &amp; description</Label><Textarea rows={3} className="estimate-service-description" value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/></div>
+          <div><Label htmlFor={`estimate-service-name-${index}`}>Service name</Label><Input id={`estimate-service-name-${index}`} value={item.name} onChange={event=>setItems(current=>current.map((line,i)=>i===index?{...line,name:event.target.value}:line))}/></div><div><Label htmlFor={`estimate-service-description-${index}`}>Scope &amp; description</Label><Textarea id={`estimate-service-description-${index}`} rows={3} className="estimate-service-description" value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/></div>
           <div className="edit-quantity-row"><div><Label htmlFor={`estimate-quantity-${index}`}>Quantity</Label><Input id={`estimate-quantity-${index}`} inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit||"unit"}</span></div>
           <EstimateLinePricing label={`estimate-service-${index}`} item={item} standardUnit={services.find(svc=>svc.id===item.serviceId)?.unit} standardRate={pricing.rates&&!pricing.loading&&!pricing.error?services.find(svc=>svc.id===item.serviceId)?.rate:undefined} onChange={patch=>updateItem(index,patch)}/><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>
         </section>)}</div>
@@ -908,7 +908,7 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
         <section className="edit-discount-card"><Label>Promotion or other discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");setPromotionEvidence(null);setPromotionOwnerOverride(true);}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");setPromotionEvidence(null);setPromotionOwnerOverride(true);}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} aria-invalid={discountInvalid} onChange={(event)=>{setDiscountValue(event.target.value);setPromotionEvidence(null);setPromotionOwnerOverride(true);}} placeholder="0"/>{discountInvalid&&<p role="alert" className="service-description-help">Enter a nonnegative discount with at most two decimals. Percentages are limited to {appreciationDiscount?45:50}%, and dollar discounts cannot exceed the subtotal.</p>}</div><p className="service-description-help">Choose % or $ savings. Bundle discounts are separate and can stack. Combined percentage discounts are capped at 50%.</p></section>
         <section className="edit-discount-card"><Label htmlFor="estimate-bundle-discount">Bundle discount ($)</Label><div className="discount-input"><span>$</span><Input id="estimate-bundle-discount" inputMode="decimal" value={bundleValue} aria-invalid={bundleInvalid} onChange={event=>{setBundleValue(event.target.value);setPromotionEvidence(null);setPromotionOwnerOverride(true);}} placeholder="0"/></div>{bundleInvalid&&<p role="alert">Enter a nonnegative amount with up to two decimals, no greater than the subtotal.</p>}</section><details className="ui-help"><summary>Promotion help</summary><p className="service-description-help">Eligible saved estimate-date promotions are filled in automatically unless you manually adjust them. Booking-based promotions, including October 15%, remain reminders until you explicitly confirm the booking date above. Customer signature and schedule are separate. Saved quotes retain agreed totals.</p></details><div className="discount-components" aria-label="Discount components"><span>Appreciation (requested)<strong>−{money(discount.appreciationCents)}</strong></span><span>{discountMode==="percent"?"Promotion":"Other discount"} (requested)<strong>−{money(discount.additionalCents)}</strong></span><span>Bundle (requested)<strong>−{money(bundleInputCents??0)}</strong></span></div><div className="edit-totals"><span>Service subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(discount.appliedDiscount)}</strong></span><span>Customer total<strong>{money(total)}</strong></span><span>50% deposit to schedule<strong>{money(deposit)}</strong></span></div>
         {error&&<p className="save-error" role="alert">{error}</p>}
-        <div className="flex gap-3"><Button variant="outline" onClick={()=>setStep(1)} disabled={saving}>Back</Button><Button className="brand-button flex-1" onClick={()=>void saveEstimate()} disabled={saving||uncertainSave||!createStorageReady||Boolean(pendingCreateId&&pendingCreateId!==createRequestRef.current)||customerLoading||!identityConfirmed||Boolean(selectedCustomer)&&propertyBlocked||promotionsVerifiedFor!==promotionQuoteKey}>{saving?"Saving…":`Save ${money(total)} estimate`}</Button></div>
+        <div className="estimate-new-save-actions flex gap-3"><Button type="button" variant="outline" onClick={()=>setStep(1)} disabled={saving||uncertainSave}>Back</Button><Button type="button" className="brand-button flex-1" onClick={()=>void saveEstimate()} disabled={saving||uncertainSave||!createStorageReady||Boolean(pendingCreateId&&pendingCreateId!==createRequestRef.current)||customerLoading||!identityConfirmed||Boolean(selectedCustomer)&&propertyBlocked||promotionsVerifiedFor!==promotionQuoteKey}>{saving?"Saving…":`Save ${money(total)} estimate`}</Button></div>
       </div>}
       {uncertainSave&&<section className="px-6 pb-6" aria-label="Unconfirmed estimate save"><p role="status">Save was not confirmed. Another save is blocked to prevent duplicate estimates.</p><Button variant="outline" disabled={reviewingRecords} onClick={()=>void reviewStored()}>Review stored estimates</Button>{reviewedRecords.map(row=><p key={row.id}>{row.service} · {row.address} · {money(row.totalCents)} · {row.id}</p>)}</section>}
     </DialogContent>
@@ -1337,6 +1337,16 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
   const matchesSaved=(row:CustomerRow|undefined|null,payload:NonNullable<typeof attempted.current>)=>
     Boolean(row&&Object.entries(payload).every(([key,value])=>row[key as keyof CustomerRow]===value));
   const reset=()=>{setName(customer.name??"");setEmail(customer.email??"");setPhone(customer.phone??"");setAddress(customer.address??"");setLeadSource(customer.leadSource||"Unknown");setError("");setUncertain(false);attempted.current=null;};
+  const customerDirty=name!==(customer.name??"")||email!==(customer.email??"")||phone!==(customer.phone??"")||address!==(customer.address??"")||leadSource!==(customer.leadSource||"Unknown");
+  const changeOpen=(value:boolean)=>{
+    if(saveLock.current||saving||checking||currentCustomer.current!==customer.id)return;
+    if(!value&&(customerDirty||uncertain)&&!window.confirm(uncertain
+      ?"Save confirmation is uncertain. Closing keeps the possible server change; reopen this customer and check the saved record before another edit. Close?"
+      :"Discard unsaved customer changes?"))return;
+    setOpen(value);
+    if(value&&!uncertain)reset();
+    else if(!value)setError("");
+  };
   const finish=(row:CustomerRow,id:string)=>{
     if(currentCustomer.current!==id)return;
     setUncertain(false);attempted.current=null;onUpdated({...customer,...row});setOpen(false);
@@ -1388,7 +1398,7 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
       }
     }finally{clearTimeout(timer);saveLock.current=false;if(currentCustomer.current===id)setSaving(false);}
   };
-  return <Dialog open={open} onOpenChange={(value)=>{if(saveLock.current||currentCustomer.current!==customer.id)return;setOpen(value);if(value&&!uncertain)reset();else if(!value)setError("");}}>
+  return <Dialog open={open} onOpenChange={changeOpen}>
     <DialogTrigger asChild><Button variant="outline"><PenLine className="h-4 w-4"/> Edit customer</Button></DialogTrigger>
     <DialogContent className="customer-edit-dialog sm:max-w-[520px] max-h-[90dvh] overflow-y-auto">
       <DialogHeader><DialogTitle>Edit customer</DialogTitle></DialogHeader>
@@ -1399,7 +1409,7 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
         <div><Label htmlFor={"edit-customer-"+customer.id+"-address"}>Service address</Label><Input id={"edit-customer-"+customer.id+"-address"} placeholder="Tulsa-area address" value={address} onChange={(event)=>setAddress(event.target.value)}/></div>
         <div><Label htmlFor={"edit-customer-"+customer.id+"-source"}>How they found FIRE</Label><Select value={leadSource} onValueChange={setLeadSource}><SelectTrigger id={"edit-customer-"+customer.id+"-source"}><SelectValue/></SelectTrigger><SelectContent>{["Referral","Google","Facebook","Website","Repeat customer","Door knocking","Other","Unknown"].map((source)=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div>
         {error&&<p className="save-error" role="alert">{error}</p>}
-        <Button className="brand-button" onClick={()=>void save()} disabled={saving||checking||uncertain}>{saving?"Saving…":"Save changes"}</Button>
+        <div className="fire-edit-actions"><Button type="button" variant="outline" onClick={()=>changeOpen(false)} disabled={saving||checking}>Cancel</Button><Button className="brand-button" onClick={()=>void save()} disabled={saving||checking||uncertain||!customerDirty}>{saving?"Saving…":"Save changes"}</Button></div>
       </fieldset>
       {uncertain&&<Button variant="outline" type="button" onClick={()=>void checkSaved()} disabled={saving||checking}>{checking?"Checking…":"Check saved details"}</Button>}
       </div>
@@ -1415,9 +1425,19 @@ function OwnerJobTools({estimate,onSaved}:{estimate:EstimateRow;onSaved:(complet
 function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(complete:boolean)=>void;snapshots?:OwnerJobSnapshotAccess}){
   const [open,setOpen]=useState(false);const [checks,setChecks]=useState<string[]>([]);const [notes,setNotes]=useState("");const [before,setBefore]=useState("");const [after,setAfter]=useState("");const [saved,setSaved]=useState(false);const [saving,setSaving]=useState(false);const [loading,setLoading]=useState(false);const [error,setError]=useState("");
   const saveLock=useRef(false);const loadRequest=useRef(0);const [retry,setRetry]=useState(0);const [loadError,setLoadError]=useState("");
+  const savedReportDraft=useRef("");
+  const reportFingerprint=(marked:string[],text:string,first:string,last:string)=>JSON.stringify([reportChecks.filter(item=>marked.includes(item)),text,first,last]);
   const [snapshotAt,setSnapshotAt]=useState<string|null>(null);const [checkedEpoch,setCheckedEpoch]=useState<number|null>(null);const readOnly=Boolean(snapshotAt)||snapshots?.online===false||Boolean(snapshots&&checkedEpoch!==snapshots.networkEpoch);
   const [loadedReportKey,setLoadedReportKey]=useState<string|null>(null);const reportKey=JSON.stringify([estimate.id,estimate.customerId]);
-  const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;if(!value)loadRequest.current++;setOpen(value);};
+  const reportChanged=Boolean(savedReportDraft.current&&loadedReportKey===reportKey&&savedReportDraft.current!==reportFingerprint(checks,notes,before,after));
+  const setOpenSafe=(value:boolean)=>{
+    if(saveLock.current||saving)return;
+    if(!value&&reportChanged&&!window.confirm(error
+      ?"The report save was not confirmed. Closing loses these local edits; verify saved job reports before saving again. Close?"
+      :"Discard unsaved job report notes and checklist changes?"))return;
+    if(!value)loadRequest.current++;
+    setOpen(value);
+  };
   useEffect(()=>{if(!open)return;const request=++loadRequest.current;setLoading(true);setSaved(false);setError("");setLoadError("");setSnapshotAt(null);let transportFailed=false;void (async()=>{try{
     let response:Response;try{if(snapshots?.online===false)throw new TypeError("Offline");response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`,{cache:"no-store"});}catch(error){transportFailed=error instanceof TypeError;throw error;}
     if(response.status===401||response.status===403)snapshots?.records.revoke();
@@ -1431,12 +1451,14 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
       checklist=JSON.parse(report.checklist||"{}");
       if(!checklist||typeof checklist!=="object"||Array.isArray(checklist)||Object.values(checklist).some(value=>typeof value!=="boolean"))throw new Error("Invalid saved checklist.");
     }else if(result.reports.length)throw new Error("Invalid saved report.");
-    setChecks(reportChecks.filter(item=>checklist[item]));setNotes(report?.notes||"");setBefore(report?.airflowBefore||"");setAfter(report?.airflowAfter||"");
+    const savedChecks=reportChecks.filter(item=>checklist[item]);const savedNotes=report?.notes||"";const savedBefore=report?.airflowBefore||"";const savedAfter=report?.airflowAfter||"";
+    setChecks(savedChecks);setNotes(savedNotes);setBefore(savedBefore);setAfter(savedAfter);
+    savedReportDraft.current=reportFingerprint(savedChecks,savedNotes,savedBefore,savedAfter);
     setLoadedReportKey(reportKey);setCheckedEpoch(snapshots?.networkEpoch??null);
     snapshots?.records.remember('report',estimate.id,estimate.customerId,report??null);
   }catch{if(request===loadRequest.current){
     const cached=transportFailed?snapshots?.records.read<JobReportRow|null>('report',estimate.id,estimate.customerId):null;
-    if(cached){const report=cached.value,checklist=report?JSON.parse(report.checklist||"{}"):{};setChecks(reportChecks.filter(item=>checklist[item]));setNotes(report?.notes||"");setBefore(report?.airflowBefore||"");setAfter(report?.airflowAfter||"");setSnapshotAt(cached.checkedAt);setLoadedReportKey(reportKey);}
+    if(cached){const report=cached.value,checklist=report?JSON.parse(report.checklist||"{}"):{};const savedChecks=reportChecks.filter(item=>checklist[item]);const savedNotes=report?.notes||"";const savedBefore=report?.airflowBefore||"";const savedAfter=report?.airflowAfter||"";setChecks(savedChecks);setNotes(savedNotes);setBefore(savedBefore);setAfter(savedAfter);savedReportDraft.current=reportFingerprint(savedChecks,savedNotes,savedBefore,savedAfter);setSnapshotAt(cached.checkedAt);setLoadedReportKey(reportKey);}
     else{if(!transportFailed)snapshots?.records.forget('report',estimate.id,estimate.customerId);setLoadError(transportFailed?"No verified report is available in this app session. Reconnect and load it before editing or saving.":"The saved report could not be loaded. Retry before editing or saving.");}
   }}finally{if(request===loadRequest.current)setLoading(false);}})();return()=>{loadRequest.current++;};},[open,estimate.id,estimate.customerId,retry]);
   const toggle=(item:string)=>{setSaved(false);setChecks((current)=>current.includes(item)?current.filter((value)=>value!==item):[...current,item]);};
@@ -1455,6 +1477,7 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
       let confirmed:Record<string,boolean>;
       try{confirmed=JSON.parse(report.checklist);}catch{throw new Error(unconfirmed);}
       if(!confirmed||typeof confirmed!=="object"||Array.isArray(confirmed)||Object.keys(confirmed).length!==reportChecks.length||reportChecks.some(item=>confirmed[item]!==checklist[item]))throw new Error(unconfirmed);
+      savedReportDraft.current=reportFingerprint(checks,notes,before,after);
       setSaved(true);onSaved?.(complete);
     }catch(saveError){setError(saveError instanceof Error?saveError.message:"The report could not be saved.");}
     finally{saveLock.current=false;setSaving(false);}
@@ -1505,7 +1528,16 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
   const billingTotal=resolvedBillingTotalCents(estimate);
   const loadRequest=useRef(0);const currentJob=useRef<string|null>(null);const saveLock=useRef(false);const [loading,setLoading]=useState(false);const [loadError,setLoadError]=useState("");const [loadedJob,setLoadedJob]=useState<string|null>(null);
   const [snapshotAt,setSnapshotAt]=useState<string|null>(null);const [checkedEpoch,setCheckedEpoch]=useState<number|null>(null);const readOnly=Boolean(snapshotAt)||snapshots?.online===false||Boolean(snapshots&&checkedEpoch!==snapshots.networkEpoch);
-  const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;if(!value){currentJob.current=null;loadRequest.current++;}else{setLoading(true);setLoadError("");}setOpen(value);};
+  const hasUnfinishedCost=Boolean(description.trim()||amount.trim());
+  const setOpenSafe=(value:boolean)=>{
+    if(saveLock.current||saving)return;
+    if(!value&&hasUnfinishedCost&&!window.confirm(saveError
+      ?"This cost entry was not confirmed. Check saved costs before submitting it again. Discard the local fields and close?"
+      :"Discard the unfinished job cost entry?"))return;
+    if(!value){currentJob.current=null;loadRequest.current++;setDescription("");setAmount("");setSaveError("");}
+    else{setLoading(true);setLoadError("");}
+    setOpen(value);
+  };
   const load=async()=>{
     if(currentJob.current!==estimate.id)return;
     const request=++loadRequest.current;setLoading(true);setLoadError("");setSnapshotAt(null);let transportFailed=false;
@@ -1809,6 +1841,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   const bundle=useEstimateBundleDiscount(open,estimate.id,estimate.totalCents);
   const bundleValue=bundle.value,setBundleValue=bundle.setValue;
   const saveLock=useRef(false);
+  const initialEditSnapshot=useRef("");
   const [items,setItems]=useState<EditableEstimateItem[]>([]);
   const [appreciationDiscount,setAppreciationDiscount]=useState(false);
   const [discountMode,setDiscountMode]=useState<DiscountMode>("percent");
@@ -1816,12 +1849,22 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   const [saving,setSaving]=useState(false);const [error,setError]=useState("");
   const hydrate=()=>{
     const source=estimate.items?.length?estimate.items:[{id:"",name:estimate.service,description:estimate.serviceDescription||serviceDescriptionFor(estimate.service),quantity:1,unit:"job",totalCents:estimate.totalCents}];
-    setItems(source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity)||1;return {id:item.id||undefined,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents)),flatPriceCents:Number(item.totalCents)};}));
+    const nextItems=source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity)||1;return {id:item.id||undefined,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents)),flatPriceCents:Number(item.totalCents)};});
+    setItems(nextItems);
     const appreciation=Boolean(Number(estimate.appreciationDiscount||0));setAppreciationDiscount(appreciation);
     const mode:DiscountMode=estimate.additionalDiscountType==="dollar"?"dollar":"percent";setDiscountMode(mode);
-    const stored=Number(estimate.additionalDiscountValue||0);setDiscountValue(stored?mode==="percent"?(stored/100).toString():(stored/100).toFixed(2):"");setError("");
+    const stored=Number(estimate.additionalDiscountValue||0);const input=stored?mode==="percent"?(stored/100).toString():(stored/100).toFixed(2):"";
+    setDiscountValue(input);setError("");
+    initialEditSnapshot.current=JSON.stringify({items:nextItems,appreciationDiscount:appreciation,discountMode:mode,discountValue:input});
   };
-  const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;setOpen(value);if(value)hydrate();};
+  const currentEditSnapshot=JSON.stringify({items,appreciationDiscount,discountMode,discountValue});
+  const bundleCents=parseDiscountCents(bundleValue,"dollar");
+  const changedSinceOpen=Boolean(initialEditSnapshot.current&&currentEditSnapshot!==initialEditSnapshot.current)||(bundle.ready&&(bundleCents===null||bundleCents!==Number(estimate.bundleDiscountCents??0)));
+  const setOpenSafe=(value:boolean)=>{
+    if(saveLock.current||saving)return;
+    if(!value&&changedSinceOpen&&!window.confirm("Discard your unsaved estimate changes? Saved pricing and discounts will stay unchanged."))return;
+    setOpen(value);if(value)hydrate();
+  };
   const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?editMoneyLine(item,patch):item));
   const subtotal=items.reduce((sum,item)=>sum+editableLineTotalCents(item),0);
   const discountInputCents=parseDiscountCents(discountValue,discountMode,appreciationDiscount?45:50);
@@ -1846,16 +1889,16 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
   return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><button type="button"><PenLine/> Edit estimate</button></DialogTrigger><DialogContent className="estimate-edit-dialog sm:max-w-[650px]"><div className="estimate-edit-modal-header"><DialogHeader><DialogTitle>Edit estimate</DialogTitle></DialogHeader></div>
     <div className="estimate-edit-scroll-area" role="region" aria-label="Estimate services and pricing" tabIndex={0}>
     {bundle.error&&<div role="alert"><p>{bundle.error}</p><Button variant="outline" onClick={()=>void bundle.reload()}>Retry saved discounts</Button></div>}{!bundle.ready&&!bundle.error&&<p role="status">Verifying saved discount components…</p>}
-    <fieldset disabled={saving||!bundle.ready} className="contents"><p className="service-description-help">Saved line totals stay unchanged while you edit. Choose Per unit or Reset to standard to recalculate.</p>
+    <fieldset disabled={saving||!bundle.ready} className="contents"><details className="ui-help estimate-editor-help"><summary>Pricing help</summary><p className="service-description-help">Saved line totals stay unchanged while you edit. Choose Per unit or Reset to standard to recalculate.</p></details>
     {pricing.loading&&<p role="status">Loading standard prices…</p>}{pricing.error&&<div role="alert"><p>{pricing.error}</p><Button variant="outline" onClick={()=>void pricing.reload()}>Retry standard prices</Button></div>}<div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.id||index}><header><strong>Service {index+1}</strong>{items.length>1&&<button type="button" onClick={()=>setItems((current)=>current.filter((_,i)=>i!==index))} aria-label={`Remove service ${index+1}`}><Trash2/></button>}</header><div><Label>Service</Label><Select disabled={!pricing.rates||pricing.loading||Boolean(pricing.error)||saving} value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,flatPriceCents:undefined,quantity:["job","quantity","each"].includes(svc.unit)?1:0});}}><SelectTrigger className="estimate-service-picker-trigger" aria-label="Choose service"><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent className="estimate-service-picker" position="popper" sideOffset={6} collisionPadding={16}>{estimateServicePickerOptions(services).map((svc)=><SelectItem className="estimate-service-picker-item" key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}</SelectContent></Select></div><div><Label htmlFor={`estimate-service-name-${index}`}>Service name</Label><Input id={`estimate-service-name-${index}`} value={item.name} onChange={event=>setItems(current=>current.map((line,i)=>i===index?{...line,name:event.target.value}:line))}/></div><div><Label>Scope &amp; description</Label><Textarea rows={3} className="estimate-service-description" value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/></div><div className="edit-quantity-row"><div><Label>Quantity</Label><Input inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit}</span></div><EstimateLinePricing label={`estimate-service-${index}`} item={item} standardUnit={services.find(svc=>svc.id===item.serviceId)?.unit} standardRate={pricing.rates&&!pricing.loading&&!pricing.error?services.find(svc=>svc.id===item.serviceId)?.rate:undefined} onChange={patch=>updateItem(index,patch)}/><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>{item.preservedLineTotalCents!==undefined&&item.preservedLineTotalCents!==Math.round(item.quantity*item.unitRateCents)&&<p className="service-description-help">This saved line total is preserved exactly. Changing its service, quantity, or price will recalculate it.</p>}</section>)}</div>
     <Button variant="outline" className="w-full" onClick={addService}><Plus className="h-4 w-4"/> Add another service</Button>
     <button type="button" onClick={()=>setAppreciationDiscount((value)=>!value)} className={`discount-row ${appreciationDiscount?"selected":""}`}><span><strong>5% First Responder & Military</strong><small>Year-round appreciation discount</small></span><span className="check-box">{appreciationDiscount&&<Check className="h-4 w-4"/>}</span></button>
     <section className="edit-discount-card"><Label>Promotion or other discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} aria-invalid={discountInvalid} onChange={(event)=>setDiscountValue(event.target.value)} placeholder="0"/>{discountInvalid&&<p role="alert" className="service-description-help">Enter a nonnegative discount with at most two decimals. Percentages are limited to {appreciationDiscount?45:50}%, and dollar discounts cannot exceed the subtotal.</p>}</div><p className="service-description-help">Choose % or $ savings. Bundle discounts are separate and can stack. Combined percentage discounts are capped at 50%.</p></section>
-    <section className="edit-discount-card"><Label htmlFor="estimate-bundle-discount">Bundle discount ($)</Label><div className="discount-input"><span>$</span><Input id="estimate-bundle-discount" inputMode="decimal" value={bundleValue} aria-invalid={bundleInvalid} onChange={event=>setBundleValue(event.target.value)} placeholder="0"/></div>{bundleInvalid&&<p role="alert">Enter a nonnegative amount with up to two decimals, no greater than the subtotal.</p>}</section><p className="service-description-help">Promotions are owner-applied. October 15% requires a qualifying booking placed on the schedule by October 31, 2026; the work may be performed later. Nothing is applied automatically.</p><div className="discount-components" aria-label="Discount components"><span>Appreciation (requested)<strong>−{money(discount.appreciationCents)}</strong></span><span>{discountMode==="percent"?"Promotion":"Other discount"} (requested)<strong>−{money(discount.additionalCents)}</strong></span><span>Bundle (requested)<strong>−{money(bundleInputCents??0)}</strong></span></div><div className="edit-totals"><span>Service subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(discount.appliedDiscount)}</strong></span><span>Estimate total<strong>{money(discount.total)}</strong></span><span>50% deposit<strong>{money(discount.deposit)}</strong></span></div>
+    <section className="edit-discount-card"><Label htmlFor="estimate-bundle-discount">Bundle discount ($)</Label><div className="discount-input"><span>$</span><Input id="estimate-bundle-discount" inputMode="decimal" value={bundleValue} aria-invalid={bundleInvalid} onChange={event=>setBundleValue(event.target.value)} placeholder="0"/></div>{bundleInvalid&&<p role="alert">Enter a nonnegative amount with up to two decimals, no greater than the subtotal.</p>}</section><details className="ui-help estimate-editor-help"><summary>Promotion rules</summary><p className="service-description-help">Promotions are owner-applied. October 15% requires a qualifying booking placed on the schedule by October 31, 2026; the work may be performed later. Nothing is applied automatically.</p></details><div className="discount-components" aria-label="Discount components"><span>Appreciation (requested)<strong>−{money(discount.appreciationCents)}</strong></span><span>{discountMode==="percent"?"Promotion":"Other discount"} (requested)<strong>−{money(discount.additionalCents)}</strong></span><span>Bundle (requested)<strong>−{money(bundleInputCents??0)}</strong></span></div><div className="edit-totals"><span>Service subtotal<strong>{money(subtotal)}</strong></span><span>Discount<strong>−{money(discount.appliedDiscount)}</strong></span><span>Estimate total<strong>{money(discount.total)}</strong></span><span>50% deposit<strong>{money(discount.deposit)}</strong></span></div>
     {error&&<p className="save-error" role="alert">{error}</p>}
     </fieldset>
     </div>
-    <div className="estimate-edit-modal-footer"><Button className="brand-button w-full" onClick={()=>void save()} disabled={saving||!bundle.ready}>{saving?"Saving…":"Save estimate changes"}</Button></div>
+    <div className="estimate-edit-modal-footer fire-edit-actions"><Button variant="outline" type="button" onClick={()=>setOpenSafe(false)} disabled={saving}>Cancel</Button><Button className="brand-button" onClick={()=>void save()} disabled={saving||!bundle.ready||!changedSinceOpen}>{saving?"Saving…":"Save estimate changes"}</Button></div>
   </DialogContent></Dialog>;
 }
 
@@ -1865,6 +1908,7 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
   const pricing=useServicePricing(open);
   const services=pricing.services;
   const saveLock=useRef(false);
+  const initialInvoiceEditSnapshot=useRef("");
   const [items,setItems]=useState<EditableEstimateItem[]>([]);
   const [discountMode,setDiscountMode]=useState<DiscountMode>("dollar");
   const [discountValue,setDiscountValue]=useState("");
@@ -1889,7 +1933,7 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
   const addService=()=>setItems((current)=>[...current,{serviceId:"",name:"",description:"",quantity:0,unit:"unit",unitRateCents:0}]);
   const hydrate=async()=>{
     const request=++loadRequest.current;const key=invoiceKey;
-    loadedInvoice.current=null;setItems([]);setRevisions([]);setExpandedRevisionId(null);setLoadError("");
+    loadedInvoice.current=null;initialInvoiceEditSnapshot.current="";setItems([]);setRevisions([]);setExpandedRevisionId(null);setLoadError("");
     if(!estimate.invoiceId){setLoadError("This job does not have an invoice to edit.");return;}
     setLoading(true);setError("");
     try{
@@ -1898,14 +1942,23 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
       if(!response.ok||!result?.invoice||result.invoice.id!==estimate.invoiceId||result.invoice.estimateId!==estimate.id||(estimate.customerId&&result.invoice.customerId!==estimate.customerId))throw new Error("Saved invoice identity could not be verified.");
       const source=result.invoice.items;
       if(!Array.isArray(source)||!source.length||source.some((item)=>!item||typeof item.name!=="string"||!item.name.trim()||!Number.isFinite(item.quantity)||item.quantity<=0||!Number.isSafeInteger(item.totalCents)||item.totalCents<0))throw new Error("Saved invoice services could not be verified.");
-      setItems(source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity);return {id:item.id,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents))};}));
-      const mode=result.invoice.discountType==="percent"?"percent":"dollar";setDiscountMode(mode);const stored=Number(result.invoice.discountValue||0);setDiscountValue(stored?mode==="percent"?(stored/100).toString():(stored/100).toFixed(2):"");
-      const rawDue=String(result.invoice.dueAt||"");const dueDay=rawDue?rawDue.slice(0,10):"";const createdDay=String(result.invoice.createdAt||"").slice(0,10);if(!rawDue||(createdDay&&dueDay===createdDay)){setDueMode("receipt");setDueDate("");}else{setDueMode("date");setDueDate(dueDay);}
+      const nextItems=source.map((item)=>{const svc=services.find((entry)=>entry.name===item.name);const qty=Number(item.quantity);return {id:item.id,serviceId:svc?.id||"custom",name:item.name,description:item.description||serviceDescriptionFor(item.name),quantity:qty,unit:item.unit||svc?.unit||"job",...restoreEditableLineMoney(qty,Number(item.totalCents))};});
+      setItems(nextItems);
+      const mode=result.invoice.discountType==="percent"?"percent":"dollar";setDiscountMode(mode);const stored=Number(result.invoice.discountValue||0);const nextDiscount=stored?mode==="percent"?(stored/100).toString():(stored/100).toFixed(2):"";setDiscountValue(nextDiscount);
+      const rawDue=String(result.invoice.dueAt||"");const dueDay=rawDue?rawDue.slice(0,10):"";const createdDay=String(result.invoice.createdAt||"").slice(0,10);const nextDueMode=!rawDue||(createdDay&&dueDay===createdDay)?"receipt":"date";const nextDueDate=nextDueMode==="receipt"?"":dueDay;setDueMode(nextDueMode);setDueDate(nextDueDate);
+      initialInvoiceEditSnapshot.current=JSON.stringify({items:nextItems,discountMode:mode,discountValue:nextDiscount,dueMode:nextDueMode,dueDate:nextDueDate});
       setRevisions((result.invoice.revisions??[]).map((revision)=>({...revision,subtotalCents:Number(revision.subtotalCents||0),totalCents:Number(revision.totalCents||0),discountCents:Number(revision.discountCents||0),discountValue:Number(revision.discountValue||0),discountType:revision.discountType==="percent"?"percent":"dollar",items:Array.isArray(revision.items)?revision.items:[]})));
       setExpandedRevisionId(null);loadedInvoice.current=key;setError("");
     }catch{if(request===loadRequest.current&&currentInvoice.current===key){loadedInvoice.current=null;setItems([]);setLoadError("The saved invoice could not be loaded. Reconnect and try again. No invoice changes were submitted.");}}finally{if(request===loadRequest.current&&currentInvoice.current===key)setLoading(false);}
   };
-  const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;if(!value){loadRequest.current++;loadedInvoice.current=null;setLoading(false);}setOpen(value);if(value)void hydrate();};
+  const currentInvoiceEditSnapshot=JSON.stringify({items,discountMode,discountValue,dueMode,dueDate});
+  const invoiceHasUnsavedChanges=Boolean(initialInvoiceEditSnapshot.current&&loadedInvoice.current===invoiceKey&&initialInvoiceEditSnapshot.current!==currentInvoiceEditSnapshot);
+  const setOpenSafe=(value:boolean)=>{
+    if(saveLock.current||saving)return;
+    if(!value&&invoiceHasUnsavedChanges&&!window.confirm("Discard unsaved invoice changes? The current saved invoice and recorded payments will stay unchanged."))return;
+    if(!value){loadRequest.current++;loadedInvoice.current=null;initialInvoiceEditSnapshot.current="";setLoading(false);}
+    setOpen(value);if(value)void hydrate();
+  };
   const save=async()=>{
     if(saveLock.current)return;
     if(!estimate.invoiceId)return;
@@ -1939,7 +1992,7 @@ function EditInvoiceDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(tot
     {revisions.length>0&&<section className="edit-discount-card"><Label>Invoice revision history</Label><div className="invoice-revision-list">{revisions.slice(0,5).map((revision)=>{const expanded=expandedRevisionId===revision.id;return <div className={expanded?"invoice-revision-row expanded":"invoice-revision-row"} key={revision.id}><button type="button" className="invoice-revision-summary" onClick={()=>setExpandedRevisionId(expanded?null:revision.id)} aria-expanded={expanded}><span><strong>{money(revision.totalCents)}</strong><small>{revision.status} · {dateTime(revision.createdAt)}</small></span><span className="invoice-revision-due"><small>{revision.dueAt?`Due ${new Date(revision.dueAt).toLocaleDateString()}`:"Due on receipt"}</small><ChevronRight className={expanded?"revision-chevron open":"revision-chevron"}/></span></button>{expanded&&<div className="invoice-revision-details"><div className="revision-item-list">{revision.items.map((item,index)=><div key={`${revision.id}-${item.id||index}`}><span><strong>{item.name}</strong><small>{item.description||"No description"}</small></span><small>{Number(item.quantity)||0} {item.unit} · {money(Number(item.totalCents)||0)}</small></div>)}</div><div className="revision-totals"><span>Subtotal<strong>{money(revision.subtotalCents)}</strong></span><span>Discount<strong>−{money(revision.discountCents)}</strong></span><span>Discount mode<strong>{revision.discountType==="percent"?`${(revision.discountValue/100).toFixed(2).replace(/\.00$/,'')}%`:`${money(revision.discountValue)}`}</strong></span><span>Total<strong>{money(revision.totalCents)}</strong></span></div></div>}</div>;})}</div></section>}
     </>}
     </fieldset></div>
-    <div className="estimate-edit-modal-footer">{error&&<p className="save-error" role="alert">{error}</p>}{!loading&&!loadError&&loadedInvoice.current===invoiceKey&&<Button className="brand-button w-full" onClick={()=>void save()} disabled={saving}>{saving?"Saving…":"Save invoice changes"}</Button>}</div>
+    <div className="estimate-edit-modal-footer">{error&&<p className="save-error" role="alert">{error}</p>}<div className="fire-edit-actions"><Button type="button" variant="outline" onClick={()=>setOpenSafe(false)} disabled={saving}>Cancel</Button>{!loading&&!loadError&&loadedInvoice.current===invoiceKey&&<Button className="brand-button" onClick={()=>void save()} disabled={saving||!invoiceHasUnsavedChanges}>{saving?"Saving…":"Save invoice changes"}</Button>}</div></div>
   </DialogContent></Dialog>;
 }
 
@@ -2102,7 +2155,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
 }
 
 
-function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSection="estimates",onFocusHandled,focusRecord,recordRequestKey=0,onRecordFocusHandled,onPreparePickupTask,onPrepareReviewTask,activityFocus,onActivityFocusHandled,createAtAddress,onCreateStarted,onOpenTerritory }: { onOpenTerritory?:(address:string)=>void;createAtAddress?:string;onCreateStarted?:()=>void;onEstimateSaved: (estimate: EstimateRow) => void; searchQuery: string;focusCustomerId?:string|null;focusSection?:"estimates"|"invoices"|"payments"|"notes";focusRecord?:CustomerRecordFocus|null;recordRequestKey?:number;onRecordFocusHandled?:(id:string)=>void;onFocusHandled?:(id:string)=>void;onPreparePickupTask?:(draft:YardSignPickupDraft)=>void;onPrepareReviewTask?:(draft:ReviewCheckDraft)=>void;activityFocus?:{customerId:string;kind:"sign"|"review";request:number}|null;onActivityFocusHandled?:(request:number)=>void }) {
+function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSection="estimates",onFocusHandled,focusRecord,recordRequestKey=0,onRecordFocusHandled,onPreparePickupTask,onPrepareReviewTask,activityFocus,onActivityFocusHandled,createAtAddress,onCreateStarted,onOpenTerritory,onRegisterBack,onNoteDraftStatusChange }: { onNoteDraftStatusChange?:(state:{dirty:boolean;saving:boolean})=>void;onRegisterBack?:(handler:(()=>void)|null)=>void;onOpenTerritory?:(address:string)=>void;createAtAddress?:string;onCreateStarted?:()=>void;onEstimateSaved: (estimate: EstimateRow) => void; searchQuery: string;focusCustomerId?:string|null;focusSection?:"estimates"|"invoices"|"payments"|"notes";focusRecord?:CustomerRecordFocus|null;recordRequestKey?:number;onRecordFocusHandled?:(id:string)=>void;onFocusHandled?:(id:string)=>void;onPreparePickupTask?:(draft:YardSignPickupDraft)=>void;onPrepareReviewTask?:(draft:ReviewCheckDraft)=>void;activityFocus?:{customerId:string;kind:"sign"|"review";request:number}|null;onActivityFocusHandled?:(request:number)=>void }) {
   /** Search saved contact fields as entered, and accept the last four or more
    * phone digits without requiring matching parentheses, dashes or spaces.
    * Numeric address searches still use the ordinary text match. */
@@ -2318,6 +2371,9 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [propertyListRefresh,setPropertyListRefresh]=useState(0);
   const [payments,setPayments]=useState<PaymentRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // The topbar Back button returns from a customer record to the directory
+  // before leaving Customers. The registered action never writes or saves.
+  useEffect(()=>{onRegisterBack?.(selectedId?()=>{setSelectedId(null);setActiveEstimate(null);setSection("estimates");}:null);return()=>onRegisterBack?.(null);},[selectedId,onRegisterBack]);
   // Photo badge shows ONLY IndexedDB on-device photos. Historical hosted
   // photo records are separately disclosed inside the gallery; never mix them.
   const [onDevicePhotoCount,setOnDevicePhotoCount]=useState<number|null>(null);
@@ -2385,6 +2441,12 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [recordFocusError,setRecordFocusError]=useState("");
   useEffect(()=>{setRecordFocusError("");},[selectedId]);
   const [savingNote, setSavingNote] = useState(false);
+  // Drafts persist between customers in this screen, but not after leaving it.
+  useEffect(()=>{
+    const dirty=Boolean(noteText.trim())||Object.values(noteDrafts.current).some(value=>Boolean(value.trim()));
+    onNoteDraftStatusChange?.({dirty,saving:savingNote});
+    return()=>onNoteDraftStatusChange?.({dirty:false,saving:false});
+  },[noteText,selectedId,savingNote,onNoteDraftStatusChange]);
   const [reviewCheckSnoozing,setReviewCheckSnoozing]=useState(false);
   const [reviewCheckSnoozeError,setReviewCheckSnoozeError]=useState("");
   const reviewCheckSnoozeAttempt=useRef<{customerId:string;requestedAt:string;operationId:string}|null>(null);
@@ -2712,7 +2774,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
         <p>The server is unreachable. FIRE is showing names last saved on this device and your on-device photos only. Estimates, invoices, payments, messaging, and editing are unavailable until you reconnect.</p>
         <Button variant="outline" onClick={()=>void load()}>Reconnect & refresh customer records</Button>
       </section>
-      {selectedOffline?<><button className="back-link" onClick={()=>setSelectedId(null)}>← Offline customers</button>
+      {selectedOffline?<><button type="button" className="back-link" aria-label="Back to offline customers" onClick={()=>setSelectedId(null)}><ArrowLeft aria-hidden="true"/> Offline customers</button>
         <h2>{selectedOffline.name} — on-device photos</h2>
         <OfflineCustomerPhotos key={selectedOffline.id} customerId={selectedOffline.id} customerName={selectedOffline.name} knownCustomerIds={offlinePhotoCustomers.map(item=>item.id)}/>
        </>:<div className="customer-list">{offlinePhotoCustomers.filter(customer=>customer.name.toLowerCase().includes(searchQuery.toLowerCase())).map(customer=>
@@ -2721,12 +2783,12 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     </div>;
   }
   if(loading||error)return <div className="customers-view">
-    {selected&&<button className="back-link" onClick={()=>{setSelectedId(null);setSection("estimates");}}>← All customers</button>}
+    {selected&&<button type="button" className="back-link" aria-label="Back to all customers" onClick={()=>{setSelectedId(null);setActiveEstimate(null);setSection("estimates");}}><ArrowLeft aria-hidden="true"/> All customers</button>}
     {loading?<div className="customers-state" role="status">Loading customers…</div>:<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>}
   </div>;
   if (selected) return <div className="customers-view">
     <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={()=>{ setActiveEstimate(null); void load(); }} />
-    <button className="back-link" onClick={() => { setSelectedId(null); setSection("estimates"); }}>← All customers</button>
+    <button type="button" className="back-link" aria-label="Back to all customers" onClick={() => { setSelectedId(null); setActiveEstimate(null); setSection("estimates"); }}><ArrowLeft aria-hidden="true"/> All customers</button>
     {refreshIssue&&<div className="customer-flag-next" role="alert"><AlertTriangle aria-hidden="true"/><span><strong>Customer activity needs refreshing</strong><small>A saved change could not be rechecked. Review current records before acting on these statuses.</small></span><Button variant="outline" onClick={()=>void load()}>Refresh customer history</Button></div>}
     <section className="customer-profile">
       {recordFocusError&&<p role="alert">{recordFocusError}</p>}
@@ -4338,19 +4400,19 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
  return <div key={task.id} className={"business-task-item"+(highlightTaskId===task.id?" task-dashboard-focus":"")}>
  <div className="business-task-row">
  <button type="button" className={"business-task-toggle "+task.status} aria-label={`Toggle completion for ${task.title}`} aria-pressed={task.status==="completed"} aria-busy={taskToggling===task.id} onClick={()=>void toggleTask(task)} disabled={Boolean(taskToggling)||taskStatusUncertain}><span className="task-check">{task.status==="completed"&&<Check/>}</span><span><strong>{task.title}</strong><small>{task.customer?`${task.customer} · `:""}{task.dueAt?dateTime(task.dueAt):"No due date"}</small>{taskDueBucket(task,taskNow)==="overdue"&&<span className="business-due-chip overdue">Past due</span>}{taskDueBucket(task,taskNow)==="today"&&<span className="business-due-chip today">Due today</span>}</span></button>
- <button type="button" id={"business-task-"+task.id} className="business-task-details-button" aria-expanded={expanded} aria-controls={"business-task-context-"+task.id} aria-label={`Review details for ${task.title}`} onClick={()=>setContextTaskId(current=>current===task.id?null:task.id)}><FileText aria-hidden="true"/><span>{expanded?"Hide details":"Review details"}</span></button>
+ <button type="button" id={"business-task-"+task.id} className="business-task-details-button" aria-expanded={expanded} aria-controls={"business-task-context-"+task.id} aria-label={`Review details for ${task.title}`} onClick={()=>setContextTaskId(current=>current===task.id?null:task.id)}><FileText aria-hidden="true"/><span>{expanded?"Hide":"Details"}</span></button>
  </div>
  {expanded&&<section id={"business-task-context-"+task.id} className="business-task-context" role="region" aria-label={`Task context for ${task.title}`}>
- <div className="business-task-context-heading"><strong>{task.title}</strong><span>{task.status==="completed"?"Task saved as completed":taskDueBucket(task,taskNow)==="overdue"?"Task past due":taskDueBucket(task,taskNow)==="today"?"Task due today":"Saved business task"}</span></div>
- <p>{task.dueAt?"Due "+dateTime(task.dueAt):"No task due date recorded"}</p>{task.notes&&<p className="business-task-saved-notes"><strong>Notes:</strong> {task.notes}</p>}
+ <div className="business-task-context-heading"><strong>{task.title}</strong><span>{task.status==="completed"?"Completed":taskDueBucket(task,taskNow)==="overdue"?"Past due":taskDueBucket(task,taskNow)==="today"?"Due today":"Open"}</span></div>
+ <p>{task.dueAt?"Due "+dateTime(task.dueAt):"No due date"}</p>{task.notes&&<p className="business-task-saved-notes"><strong>Notes:</strong> {task.notes}</p>}
  {task.status==="open"&&<div className="flex flex-wrap items-center gap-2">
    <Button variant="outline" disabled={Boolean(taskToggling)||taskStatusUncertain} onClick={()=>{setRescheduleEditingId(task.id);setRescheduleDateInput(localTaskDueInput(task.dueAt));setTaskStatusMessage("");}}>Change due date</Button>
    {rescheduleEditingId===task.id&&<div className="flex w-full flex-wrap items-end gap-2" role="group" aria-label={`Reschedule ${task.title}`}>
-     <div className="business-field"><Label htmlFor={`business-task-reschedule-${task.id}`}>New due date and time (leave empty to clear)</Label>
+     <div className="business-field"><Label htmlFor={`business-task-reschedule-${task.id}`}>Due date &amp; time (blank clears)</Label>
        <Input id={`business-task-reschedule-${task.id}`} type="datetime-local" value={rescheduleDateInput} onChange={event=>setRescheduleDateInput(event.target.value)} disabled={rescheduleSaving||taskStatusUncertain}/></div>
-     <Button onClick={()=>void rescheduleTask(task)} disabled={rescheduleSaving||Boolean(taskToggling)||taskStatusUncertain}>{rescheduleSaving?"Saving…":"Save new due date"}</Button>
+     <Button onClick={()=>void rescheduleTask(task)} disabled={rescheduleSaving||Boolean(taskToggling)||taskStatusUncertain}>{rescheduleSaving?"Saving…":"Save date"}</Button>
      <Button variant="outline" onClick={()=>setRescheduleEditingId(null)} disabled={rescheduleSaving}>Cancel</Button>
-     <small className="w-full">Only the due date changes. Linked customer, notes, yard-sign and review flags remain untouched.</small>
+     <small className="w-full">Only the due date changes. Customer notes and flags are unchanged.</small>
    </div>}
  </div>}
  {context.customer?<><div className="business-task-customer-summary"><strong>{context.customer.name}</strong>{context.customer.address&&<small>{context.customer.address}</small>}{context.customer.phone&&<small>{context.customer.phone}</small>}<small>{context.estimateCount} saved estimate{context.estimateCount===1?"":"s"} · {context.scheduledCount} scheduled · {context.completedCount} completed</small></div>
@@ -4359,6 +4421,7 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
  <p>No matching yard-sign or review-event marker is recorded for this task. Review the saved customer profile for broader history.</p>}
  {onOpenCustomer&&<button type="button" className="business-task-context-link" onClick={()=>onOpenCustomer(context.customer!.id)}><Users aria-hidden="true"/> Open customer profile <ChevronRight aria-hidden="true"/></button>}
  </>:task.customerId?<p role="status">The linked customer could not be verified in the loaded customer list. No customer flag was assumed.</p>:<p>General business task · no linked customer.</p>}
+ <button type="button" className="business-task-context-close" aria-label={`Back to task list from ${task.title}`} onClick={()=>setContextTaskId(null)}><ArrowLeft aria-hidden="true"/> Back to tasks</button>
  </section>}
  </div>;
  })}{!visibleTasks.length&&<p className="business-record-empty">{tasks.length?"No matching tasks.":"No tasks yet."}</p>}</div></section><section className="business-panel"><header><div><h2 id="business-expenses-heading" tabIndex={-1}>Expenses</h2></div></header><details className="business-expense-entry"><summary>Add expense</summary><div className="business-form"><div className="business-field"><Label id="business-expense-category-label" htmlFor="business-expense-category">Expense category</Label><Select value={category} disabled={expenseSaving} onValueChange={setCategory}><SelectTrigger id="business-expense-category" aria-labelledby="business-expense-category-label"><SelectValue/></SelectTrigger><SelectContent>{["Supplies","Chemicals","Equipment","Fuel","Insurance","Marketing","Labor","Other"].map((item)=><SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div><div className="business-field"><Label id="business-expense-job-label" htmlFor="business-expense-job">Job</Label><Select value={expenseEstimate} disabled={expenseSaving} onValueChange={setExpenseEstimate}><SelectTrigger id="business-expense-job" aria-labelledby="business-expense-job-label"><SelectValue placeholder="Link a job"/></SelectTrigger><SelectContent><SelectItem value="none">General business expense</SelectItem>{estimates.map((estimate)=>{const customer=customers.find((item)=>item.id===estimate.customerId);return <SelectItem key={estimate.id} value={estimate.id}>{customer?.name||"Customer"} · {estimate.service}</SelectItem>;})}</SelectContent></Select></div><div className="business-field"><Label htmlFor="business-expense-description">Expense description</Label><Input id="business-expense-description" disabled={expenseSaving} value={description} onChange={(event)=>setDescription(event.target.value)} placeholder="What was the expense?"/></div><div className="business-field"><Label htmlFor="business-expense-amount">Amount ($)</Label><Input id="business-expense-amount" disabled={expenseSaving} value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="$ Amount"/></div><div className="business-field"><Label htmlFor="business-expense-date">Purchase date (optional)</Label><Input id="business-expense-date" type="date" disabled={expenseSaving} value={expenseDate} onChange={(event)=>setExpenseDate(event.target.value)}/></div><Button className="brand-button" onClick={()=>void addExpense()} disabled={expenseSaving}><Plus className="h-4 w-4"/> {expenseSaving?"Adding…":"Add expense"}</Button></div></details><div className="business-record-tools"><Label htmlFor="business-expense-search">Find an expense</Label><Input id="business-expense-search" type="search" value={expenseSearch} onChange={event=>{setExpenseSearch(event.target.value);setExpenseLimit(12);}} placeholder="Search expense, category, customer, or job"/>{expenseQuery&&<Button variant="outline" onClick={()=>{setExpenseSearch("");setExpenseLimit(12);}}>Clear expense search</Button>}<p role="status">Showing {Math.min(expenseLimit,matchingExpenses.length)} of {matchingExpenses.length}{expenseQuery?" matching":""} expenses. {expenseQuery?`${expenses.length} saved in total.`:""}</p></div><div className="expense-list">{matchingExpenses.slice(0,expenseLimit).map((row)=><div key={row.id}><span><strong>{row.description}</strong><small>{row.category}{row.customer?` · ${row.customer}`:""} · {new Date(row.incurredAt).toLocaleDateString()}</small></span><b>{money(row.amountCents)}</b></div>)}{!matchingExpenses.length&&<p className="business-record-empty">{expenses.length?"No matching expenses.":"No expenses recorded yet."}</p>}</div>{matchingExpenses.length>expenseLimit&&<div className="business-record-more"><Button variant="outline" onClick={()=>setExpenseLimit(current=>Math.min(current+12,matchingExpenses.length))}>Show {Math.min(12,matchingExpenses.length-expenseLimit)} more expenses</Button></div>}</section></div></>}<AlertDialog open={Boolean(pendingBackup)} onOpenChange={(open)=>{if(!open&&!restoreBusy)setPendingBackup(null);}}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Restore missing FIRE App records?</AlertDialogTitle><AlertDialogDescription>The app will add records that are missing from this backup. It will not delete or overwrite records already in the app. Customer photo files are not included and will be skipped.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={restoreBusy}>Cancel</AlertDialogCancel><AlertDialogAction disabled={restoreBusy} onClick={(event)=>{event.preventDefault();void restoreBackup();}}>{restoreBusy?"Restoring…":"Restore missing records"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog><AlertDialog open={Boolean(discardReceipt)} onOpenChange={(open)=>{if(!open)setDiscardReceipt(null);}}>
@@ -4419,7 +4482,7 @@ function InsightsView(){
   </div>;
 }
 
-function SettingsView(){
+function SettingsView({onDirtyChange,onSavingChange}:{onDirtyChange?:(dirty:boolean)=>void;onSavingChange?:(saving:boolean)=>void}){
   const [templates,setTemplates]=useState<FireTemplate[]>(FIRE_TEMPLATES);
   const [selectedKey,setSelectedKey]=useState("estimate");
   const [draft,setDraft]=useState<FireTemplate>(FIRE_TEMPLATES[0]);
@@ -4443,6 +4506,9 @@ function SettingsView(){
   })();return()=>{active=false;};},[templateRetry]);
   const savedTemplate=templates.find((item)=>item.key===draft.key);
   const hasUnsavedTemplateChanges=Boolean(savedTemplate&&(savedTemplate.subject!==draft.subject||savedTemplate.body!==draft.body));
+  // The shell guards in-app tab changes; beforeunload below covers leaving the site.
+  useEffect(()=>{onDirtyChange?.(hasUnsavedTemplateChanges);return()=>onDirtyChange?.(false);},[hasUnsavedTemplateChanges,onDirtyChange]);
+  useEffect(()=>{onSavingChange?.(saving);return()=>onSavingChange?.(false);},[saving,onSavingChange]);
   const choose=(item:FireTemplate)=>{if(templateSaveLock.current||templatesLoading||templatesError)return;if(hasUnsavedTemplateChanges&&!window.confirm("Discard your unsaved template changes?"))return;setSelectedKey(item.key);setDraft(item);setMessage("");};
   useEffect(()=>{const warn=(event:BeforeUnloadEvent)=>{if(!hasUnsavedTemplateChanges)return;event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn);},[hasUnsavedTemplateChanges]);
   const save=async(reset=false)=>{if(templateSaveLock.current||templatesLoading||templatesError)return;if(reset&&!window.confirm("Restore the original FIRE template and replace your current edits?"))return;templateSaveLock.current=true;setSaving(true);setMessage("");try{const response=await fetch("/api/message-templates",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(reset?{key:draft.key,reset:true}:{key:draft.key,subject:draft.subject,body:draft.body})});const result=await response.json() as {template?:FireTemplate;error?:string};if(!response.ok||!validTemplate(result.template)||result.template.key!==draft.key)throw new Error(result.error||"Template save could not be confirmed. Your edits are retained.");setTemplates((current)=>current.map((item)=>item.key===draft.key?result.template!:item));setDraft(result.template);setMessage(reset?"Default restored.":"Template saved.");}catch(error){setMessage(error instanceof Error?error.message:"Template could not be saved.");}finally{templateSaveLock.current=false;setSaving(false);}};
@@ -4454,8 +4520,9 @@ function SettingsView(){
         {draft.channel!=="sms"&&draft.channel!=="document"&&<div><Label htmlFor="templateSubject">Email subject</Label><Input id="templateSubject" disabled={saving||templatesLoading||Boolean(templatesError)} value={draft.subject} onChange={(event)=>setDraft({...draft,subject:event.target.value})}/></div>}
         <div><Label htmlFor="templateBody">{draft.channel==="document"?"Service agreement text":"Message"}</Label><Textarea id="templateBody" rows={11} disabled={saving||templatesLoading||Boolean(templatesError)} value={draft.body} onChange={(event)=>setDraft({...draft,body:event.target.value})}/><small>{draft.channel==="document"?"This is the full agreement customers review before signing once.":"Personalized fields are filled automatically when you prepare the message."}</small></div>
         {draft.channel!=="document"&&<details className="ui-help template-fields"><summary>Personalized fields</summary><div className="merge-tags"><div>{tags.map((tag)=><button key={tag} disabled={saving||templatesLoading||Boolean(templatesError)} onClick={()=>setDraft({...draft,body:`${draft.body}${draft.body.endsWith(" ")?"":" "}${tag}`})}>{tag}</button>)}</div></div></details>}
-        {message&&<p className={message.includes("saved")||message.includes("restored")?"save-success":"save-error"}>{message}</p>}
-        <footer><Button variant="outline" onClick={()=>void save(true)} disabled={saving||templatesLoading||Boolean(templatesError)}>Restore default</Button><Button className="brand-button" onClick={()=>void save()} disabled={saving||templatesLoading||Boolean(templatesError)||!draft.body.trim()||!hasUnsavedTemplateChanges}><Save className="h-4 w-4"/>{saving?"Saving…":"Save template"}</Button></footer>
+        {message&&<p className={message==="Template saved."||message==="Default restored."?"save-success":"save-error"} role={message==="Template saved."||message==="Default restored."?"status":"alert"}>{message}</p>}
+        {hasUnsavedTemplateChanges&&<p className="template-unsaved-state" role="status">Unsaved edits — save or discard before leaving.</p>}
+        <footer>{hasUnsavedTemplateChanges&&<Button variant="outline" type="button" disabled={saving||templatesLoading||Boolean(templatesError)} onClick={()=>{if(savedTemplate){setDraft(savedTemplate);setMessage("");}}}>Discard edits</Button>}<Button variant="outline" onClick={()=>void save(true)} disabled={saving||templatesLoading||Boolean(templatesError)}>Restore default</Button><Button className="brand-button" onClick={()=>void save()} disabled={saving||templatesLoading||Boolean(templatesError)||!draft.body.trim()||!hasUnsavedTemplateChanges}><Save className="h-4 w-4"/>{saving?"Saving…":"Save template"}</Button></footer>
       </section>
     </div>
   </div>;
@@ -4666,7 +4733,7 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
   const visibleItems=showRead?items:items.filter(item=>!item.readAt);
   const attentionDescription=attentionCount?`${attentionCount} business reminders need attention`:attentionSummary.status==="error"?"Business reminders could not be verified":undefined;
   return <Popover open={open} onOpenChange={(value)=>{setOpen(value);if(value){setActivityExpanded(null);setShowRead(false);setAttentionSummary({status:"loading",count:0});setAttentionRefreshKey(n=>n+1);setReadNotice("");void load();}}}><PopoverTrigger asChild><button className="notification-button" aria-label={unread?`${unread} unread notifications`:"Notifications"} aria-description={attentionDescription} title={attentionDescription}><Bell/>{unread>0&&<b>{unread>9?"9+":unread}</b>}</button></PopoverTrigger><PopoverContent forceMount className="notification-popover" align="end">
-    <header><div><strong>Notifications</strong><small>{unread?`${unread} unread activity`:attentionSummary.status==="error"?"Reminders unavailable":attentionCount?`${attentionCount} business reminder${attentionCount===1?"":"s"}`:attentionSummary.status==="loading"?"Checking business reminders…":"No outstanding reminders in checked records"}</small></div><button type="button" disabled={busy||unread===0} title="Marks recent activity read; does not complete business reminders" onClick={()=>void updateRead({all:true})}>Mark all as read</button></header>
+    <header><div><strong>Notifications</strong><small>{unread?`${unread} unread activity`:attentionSummary.status==="error"?"Reminders unavailable":attentionCount?`${attentionCount} business reminder${attentionCount===1?"":"s"}`:attentionSummary.status==="loading"?"Checking business reminders…":"No outstanding reminders in checked records"}</small></div><div className="notification-header-actions"><button type="button" disabled={busy||unread===0} title="Marks recent activity read; does not complete business reminders" onClick={()=>void updateRead({all:true})}>Mark all as read</button><button type="button" className="notification-header-close" aria-label="Close notifications" title="Close notifications" onClick={()=>setOpen(false)}><X aria-hidden="true"/></button></div></header>
     {error&&<p className="save-error" role="alert">{error}</p>}
     {readNotice&&<p className="notification-read-notice" role="status">{readNotice}</p>}
     {busy&&<p role="status" aria-live="polite">Confirming notification update…</p>}
@@ -4679,10 +4746,40 @@ function NotificationBell({onNavigate}:{onNavigate:(tab:string,estimateId?:strin
 }
 
 export function Dashboard({userName,metrics,estimates,environment="LIVE",localCustomersCandidate=false}:{localCustomersCandidate?:boolean;environment?:"LIVE"|"DOOMSDAY"|"STAGING"|"QA";userName:string;metrics:{estimates:number;openValue:number;outstanding:number;completedJobs?:number;upcomingCount?:number;upcomingJobs?:EstimateRow[]};estimates:EstimateRow[]}) {
-  const [tab, setTab] = useState("dashboard");
+  const [tab, setTabState] = useState("dashboard");
+  const currentTab = useRef("dashboard");
+  const settingsDirtyRef = useRef(false);
+  const settingsSavingRef = useRef(false);
+  const customerNoteStateRef = useRef({dirty:false,saving:false});
+  // Route internal section changes through a single unsaved-editor guard.
+  // A canceled transition keeps Settings mounted and its draft intact.
+  const setTab = useCallback((destination:string)=>{
+    if(destination!==currentTab.current&&currentTab.current==="customers"&&customerNoteStateRef.current.saving){
+      window.alert("A customer note or activity update is saving. Wait for confirmation before leaving Customers.");
+      return false;
+    }
+    if(destination!==currentTab.current&&currentTab.current==="customers"&&customerNoteStateRef.current.dirty){
+      if(!window.confirm("Leave Customers and discard unfinished customer notes? Choose Cancel to keep editing."))return false;
+      customerNoteStateRef.current={dirty:false,saving:false};
+    }
+    if(destination!==currentTab.current&&currentTab.current==="settings"&&settingsSavingRef.current){
+      window.alert("Template save is still being confirmed. Stay in Settings until it finishes.");
+      return false;
+    }
+    if(destination!==currentTab.current&&currentTab.current==="settings"&&settingsDirtyRef.current){
+      if(!window.confirm("Discard unsaved message-template edits and leave Settings? Choose Cancel to keep editing."))return false;
+      settingsDirtyRef.current=false;
+    }
+    setTabState(destination);
+    return true;
+  },[]);
+  const setSettingsDirty = useCallback((dirty:boolean)=>{settingsDirtyRef.current=dirty;},[]);
+  const setSettingsSaving = useCallback((saving:boolean)=>{settingsSavingRef.current=saving;},[]);
+  const setCustomerNoteState = useCallback((state:{dirty:boolean;saving:boolean})=>{customerNoteStateRef.current=state;},[]);
   const [interactive, setInteractive] = useState(false);
   useEffect(() => { setInteractive(true); }, []);
   const [mobileMenu, setMobileMenu] = useState(false);
+  useEffect(()=>{if(!mobileMenu)return;const handleEscape=(event:KeyboardEvent)=>{if(event.key==="Escape")setMobileMenu(false);};window.addEventListener("keydown",handleEscape);return()=>window.removeEventListener("keydown",handleEscape);},[mobileMenu]);
   const [searchQuery,setSearchQuery]=useState("");
   const [globalQuery,setGlobalQuery]=useState("");
   const [theme,setTheme]=useState<"light"|"dark">("light");
@@ -4706,8 +4803,9 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   const [estimateRows, setEstimateRows] = useState(estimates);
   const [liveMetrics, setLiveMetrics] = useState(metrics);
   const [summaryVerified,setSummaryVerified] = useState(false);
-  const currentTab = useRef("dashboard");
   const tabHistory = useRef<string[]>([]);
+  const customerBackHandler = useRef<(()=>void)|null>(null);
+  const registerCustomerBack = useCallback((handler:(()=>void)|null)=>{customerBackHandler.current=handler;},[]);
   // Back must consume history rather than record itself as a forward visit.
   // Keep a small in-memory trail; dialogs and edits never change the section.
   const backDestination = useRef<string|null>(null);
@@ -4725,7 +4823,13 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, [tab]);
   const goHome = () => { setTab("dashboard"); setMobileMenu(false); };
-  const goBack = () => { if(backDestination.current!==null)return; const target=tabHistory.current.pop()??"dashboard"; if(target!==currentTab.current){backDestination.current=target;setTab(target);}setMobileMenu(false); };
+  const goBack = () => {
+    if(mobileMenu){setMobileMenu(false);return;}
+    if(tab==="customers"&&customerBackHandler.current){customerBackHandler.current();return;}
+    if(backDestination.current!==null)return;
+    const target=tabHistory.current.at(-1)??"dashboard";
+    if(target!==currentTab.current&&setTab(target)){if(tabHistory.current.length)tabHistory.current.pop();backDestination.current=target;}
+  };
   const nav = useMemo(() => [
     ["dashboard", "Dashboard", House], ["customers", "Customers", Users], ["estimates", "Estimates", ClipboardList], ["schedule", "Schedule", CalendarDays], ["followups", "Follow-ups", Clock3], ["invoices", "Invoices", Receipt], ["payments", "Payments", CreditCard], ["door-knocking", "Door knocking", MapPin], ["business", "Business", BriefcaseBusiness], ["insights", "Insights", BarChart3], ["settings", "Settings", Settings],
   ] as const, []);
@@ -4790,12 +4894,14 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
     return()=>window.clearTimeout(timer);
   },[]);
   const openSearchResult=(row:SearchResult)=>{
+    const destination=row.kind==="payment"||row.kind==="note"||row.kind==="property"||row.kind==="customer"?"customers":row.kind==="invoice"?"invoices":"estimates";
+    if(!setTab(destination))return;
     setSearchQuery("");setGlobalQuery("");setMobileMenu(false);
     setFocusCustomerRecord(null);
-    if((row.kind==="payment"||row.kind==="note"||row.kind==="property")&&row.customerId){setFocusCustomerRecord({id:row.id,customerId:row.customerId,kind:row.kind});setCustomerRecordRequestKey(value=>value+1);setFocusCustomerSection(row.kind==="payment"?"payments":row.kind==="note"?"notes":"estimates");setFocusCustomerId(row.customerId);setTab("customers");}
-    else if(row.kind==="customer"){setFocusCustomerSection("estimates");setFocusCustomerId(row.id);setTab("customers");}
-    else if(row.kind==="invoice"){setFocusInvoiceId(row.id);setTab("invoices");}
-    else{setFocusEstimateId(row.id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}
+    if((row.kind==="payment"||row.kind==="note"||row.kind==="property")&&row.customerId){setFocusCustomerRecord({id:row.id,customerId:row.customerId,kind:row.kind});setCustomerRecordRequestKey(value=>value+1);setFocusCustomerSection(row.kind==="payment"?"payments":row.kind==="note"?"notes":"estimates");setFocusCustomerId(row.customerId);}
+    else if(row.kind==="customer"){setFocusCustomerSection("estimates");setFocusCustomerId(row.id);}
+    else if(row.kind==="invoice"){setFocusInvoiceId(row.id);}
+    else{setFocusEstimateId(row.id);setEstimateRefreshKey(value=>value+1);}
   };
   const handleSaved = (estimate: EstimateRow) => {
     if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
@@ -4824,7 +4930,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
         {process.env.NODE_ENV === "development" && localCustomersCandidate && <CandidateLayoutTrace/>}
         {!interactive && <p role="status" className="app-loading-status">Loading app…</p>}
         {tab === "customers" && localCustomersCandidate && <a className="brand-button" href="/development/local-customers">Offline Customers · synthetic development</a>}
-        {tab === "dashboard" ? <DashboardView userName={userName} metrics={liveMetrics} estimates={estimateRows} summaryVerified={summaryVerified} onSaved={handleSaved} onNavigate={setTab} onOpenEstimate={id=>{setSearchQuery("");setGlobalQuery("");setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}} onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}} onOpenCustomerActivity={(id,kind)=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind,request:++customerActivityRequest.current});setFocusCustomerSection("estimates");setFocusCustomerId(id);setTab("customers");}} onOpenTask={id=>{setPickupTaskDraft(null);setReviewTaskDraft(null);setFocusBusinessTaskHint({customerId:null,activity:null});setFocusBusinessTaskId(id);setTab("business");}} onOpenDoorHouse={id=>{setSearchQuery("");setGlobalQuery("");setFocusDoorHouseId(id);setTab("door-knocking");}} /> : tab === "contracts" ? <EstimatesView initialSection="agreements" onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "customers" ? <CustomersView createAtAddress={territoryCustomerAddress} onCreateStarted={()=>setTerritoryCustomerAddress(undefined)} onEstimateSaved={handleSaved} searchQuery={searchQuery} focusCustomerId={focusCustomerId} focusSection={focusCustomerSection} focusRecord={focusCustomerRecord} recordRequestKey={customerRecordRequestKey} activityFocus={customerActivityFocus} onActivityFocusHandled={request=>setCustomerActivityFocus(current=>current?.request===request?null:current)} onRecordFocusHandled={id=>setFocusCustomerRecord(current=>current?.id===id?null:current)} onPreparePickupTask={draft=>{setReviewTaskDraft(null);setPickupTaskDraft(draft);setTab("business");}} onPrepareReviewTask={draft=>{setPickupTaskDraft(null);setReviewTaskDraft(draft);setTab("business");}} onFocusHandled={id=>setFocusCustomerId(current=>current===id?null:current)} onOpenTerritory={address=>{setSearchQuery("");setGlobalQuery("");setFocusTerritoryAddress(address);setTab("door-knocking");}}/> : tab === "estimates" ? <EstimatesView key={estimateRefreshKey} onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "followups" ? <FollowUpsView searchQuery={searchQuery} focusEstimateId={focusFollowupEstimateId} onFocusHandled={id=>setFocusFollowupEstimateId(current=>current===id?null:current)} onOpenEstimate={id=>{setFocusFollowupEstimateId(null);setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}} onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/> : tab === "schedule" ? <ScheduleView searchQuery={searchQuery} onNavigate={next=>{setSearchQuery("");setTab(next);}} onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/> : tab === "invoices" ? <InvoicesView searchQuery={searchQuery} focusInvoiceId={focusInvoiceId} onFocusHandled={id=>setFocusInvoiceId(current=>current===id?null:current)}/> : tab === "insights" ? <InsightsView/> : tab === "door-knocking" ? <DoorKnocking focusHouseId={focusDoorHouseId} focusAddress={focusTerritoryAddress} onTerritoryFocusHandled={address=>setFocusTerritoryAddress(current=>current===address?null:current)} onCreateCustomer={address=>{setTerritoryCustomerAddress(address);setFocusCustomerId(null);setSearchQuery("");setGlobalQuery("");setTab("customers");}} mapFirst onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}} onFocusHandled={id=>setFocusDoorHouseId(current=>current===id?null:current)}/> : tab === "business" ? <BusinessView initialPickupDraft={pickupTaskDraft} onPickupDraftConsumed={()=>setPickupTaskDraft(null)} initialReviewDraft={reviewTaskDraft} onReviewDraftConsumed={()=>setReviewTaskDraft(null)} focusTaskId={focusBusinessTaskId} focusTaskCustomerId={focusBusinessTaskHint.customerId} focusTaskActivity={focusBusinessTaskHint.activity} onFocusTaskHandled={()=>setFocusBusinessTaskId(null)} onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus(null);setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}} onOpenCustomerActivity={(id,kind)=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind,request:++customerActivityRequest.current});setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/> : tab === "payments" ? <PaymentsView searchQuery={searchQuery} onOpenEstimate={id=>{setSearchQuery("");setGlobalQuery("");setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}} onOpenCustomerReview={id=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind:"review",request:++customerActivityRequest.current});setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/> : tab === "settings" ? <SettingsView/> : tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/> : <EmptyView tab={tab} onSaved={handleSaved} />}
+        {tab === "dashboard" ? <DashboardView userName={userName} metrics={liveMetrics} estimates={estimateRows} summaryVerified={summaryVerified} onSaved={handleSaved} onNavigate={setTab} onOpenEstimate={id=>{setSearchQuery("");setGlobalQuery("");setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}} onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}} onOpenCustomerActivity={(id,kind)=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind,request:++customerActivityRequest.current});setFocusCustomerSection("estimates");setFocusCustomerId(id);setTab("customers");}} onOpenTask={id=>{setPickupTaskDraft(null);setReviewTaskDraft(null);setFocusBusinessTaskHint({customerId:null,activity:null});setFocusBusinessTaskId(id);setTab("business");}} onOpenDoorHouse={id=>{setSearchQuery("");setGlobalQuery("");setFocusDoorHouseId(id);setTab("door-knocking");}} /> : tab === "contracts" ? <EstimatesView initialSection="agreements" onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "customers" ? <CustomersView onRegisterBack={registerCustomerBack} onNoteDraftStatusChange={setCustomerNoteState} createAtAddress={territoryCustomerAddress} onCreateStarted={()=>setTerritoryCustomerAddress(undefined)} onEstimateSaved={handleSaved} searchQuery={searchQuery} focusCustomerId={focusCustomerId} focusSection={focusCustomerSection} focusRecord={focusCustomerRecord} recordRequestKey={customerRecordRequestKey} activityFocus={customerActivityFocus} onActivityFocusHandled={request=>setCustomerActivityFocus(current=>current?.request===request?null:current)} onRecordFocusHandled={id=>setFocusCustomerRecord(current=>current?.id===id?null:current)} onPreparePickupTask={draft=>{setReviewTaskDraft(null);setPickupTaskDraft(draft);setTab("business");}} onPrepareReviewTask={draft=>{setPickupTaskDraft(null);setReviewTaskDraft(draft);setTab("business");}} onFocusHandled={id=>setFocusCustomerId(current=>current===id?null:current)} onOpenTerritory={address=>{setSearchQuery("");setGlobalQuery("");setFocusTerritoryAddress(address);setTab("door-knocking");}}/> : tab === "estimates" ? <EstimatesView key={estimateRefreshKey} onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "followups" ? <FollowUpsView searchQuery={searchQuery} focusEstimateId={focusFollowupEstimateId} onFocusHandled={id=>setFocusFollowupEstimateId(current=>current===id?null:current)} onOpenEstimate={id=>{setFocusFollowupEstimateId(null);setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}} onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/> : tab === "schedule" ? <ScheduleView searchQuery={searchQuery} onNavigate={next=>{setSearchQuery("");setTab(next);}} onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/> : tab === "invoices" ? <InvoicesView searchQuery={searchQuery} focusInvoiceId={focusInvoiceId} onFocusHandled={id=>setFocusInvoiceId(current=>current===id?null:current)}/> : tab === "insights" ? <InsightsView/> : tab === "door-knocking" ? <DoorKnocking focusHouseId={focusDoorHouseId} focusAddress={focusTerritoryAddress} onTerritoryFocusHandled={address=>setFocusTerritoryAddress(current=>current===address?null:current)} onCreateCustomer={address=>{setTerritoryCustomerAddress(address);setFocusCustomerId(null);setSearchQuery("");setGlobalQuery("");setTab("customers");}} mapFirst onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}} onFocusHandled={id=>setFocusDoorHouseId(current=>current===id?null:current)}/> : tab === "business" ? <BusinessView initialPickupDraft={pickupTaskDraft} onPickupDraftConsumed={()=>setPickupTaskDraft(null)} initialReviewDraft={reviewTaskDraft} onReviewDraftConsumed={()=>setReviewTaskDraft(null)} focusTaskId={focusBusinessTaskId} focusTaskCustomerId={focusBusinessTaskHint.customerId} focusTaskActivity={focusBusinessTaskHint.activity} onFocusTaskHandled={()=>setFocusBusinessTaskId(null)} onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus(null);setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}} onOpenCustomerActivity={(id,kind)=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind,request:++customerActivityRequest.current});setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/> : tab === "payments" ? <PaymentsView searchQuery={searchQuery} onOpenEstimate={id=>{setSearchQuery("");setGlobalQuery("");setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}} onOpenCustomerReview={id=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind:"review",request:++customerActivityRequest.current});setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/> : tab === "settings" ? <SettingsView onDirtyChange={setSettingsDirty} onSavingChange={setSettingsSaving}/> : tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/> : <EmptyView tab={tab} onSaved={handleSaved} />}
       </section>
       {mobileMenu && <button aria-label="Close menu overlay" className="menu-scrim" onClick={() => setMobileMenu(false)} />}
       <nav className="bottom-nav">{nav.filter(([id])=>["dashboard","customers","estimates","schedule","followups"].includes(id)).map(([id, label, Icon]) => <button key={id} disabled={!interactive} className={tab === id ? "active" : ""} onClick={() => setTab(id)}><Icon /><span>{id==="dashboard"?"Home":label}</span></button>)}</nav>

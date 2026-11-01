@@ -181,4 +181,33 @@ check(css.includes('.estimate-edit-service>header>button{display:grid;min-height
 check(css.includes('touch-action:manipulation;'),
  'Service action taps do not rely on tiny default icon hit areas');
 
+
+/* Owner November 1: final-estimate action geometry and concise repeat work. */
+check(dashboard.includes('className="estimate-new-save-actions flex gap-3"'),
+ 'New estimate has a scoped mobile footer for Back and Save');
+check(dashboard.includes('onClick={()=>setStep(1)} disabled={saving||uncertainSave}'),
+ 'Back cannot interrupt an uncertain saved-estimate recovery');
+check(dashboard.includes('aria-label="Choose service"')&&dashboard.includes('onClick={()=>void saveEstimate()}'),
+ 'Service selection and explicit estimate save actions remain available');
+check(dashboard.includes('htmlFor={`estimate-service-description-${index}`}')&&
+ dashboard.includes('id={`estimate-service-description-${index}`} rows={3}'),
+ 'New-estimate description label activates its matching editable field');
+check(css.includes('.new-estimate-dialog .estimate-new-save-actions{')&&
+ css.includes('grid-template-columns:minmax(72px,auto) minmax(0,1fr)'),
+ 'Narrow iPhones preserve room for both Back and Save controls');
+check(css.includes('.new-estimate-dialog .estimate-new-save-actions>button{')&&
+ css.includes('min-height:48px;')&&css.includes('white-space:normal;'),
+ 'Final-price Save text can wrap rather than clip and retains 48px tap target');
+check(css.includes('[data-slot="select-trigger"]{')&&
+ css.includes('min-height:44px;'),
+ 'All standard app and portalled dialog selects meet the minimum mobile tap target');
+check(dashboard.includes('<span>{expanded?"Hide":"Details"}</span>')&&
+ dashboard.includes('aria-label={`Review details for ${task.title}`}'),
+ 'Repeated task buttons have concise visible text and specific accessible names');
+check(dashboard.includes('>Due date &amp; time (blank clears)</Label>')&&
+ dashboard.includes('{rescheduleSaving?"Saving…":"Save date"}'),
+ 'Task rescheduling copy is compact and keeps clear-date semantics');
+check(dashboard.includes('Customer notes and flags are unchanged.'),
+ 'Task rescheduling continues to explain that customer activity remains untouched');
+
 console.log('PASS '+checks+'/'+checks+' NEW whole-app menu edge safety, Custom-first estimate choice, 44px tap targets and reduced wording checks.');
