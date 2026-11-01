@@ -66,3 +66,46 @@ jobs:
             echo 'FAIL: materializer overwrote an existing directory' >&2; exit 1
           fi
           echo 'PASS: No hosted writes, Stripe, secrets, D1 creation, routes, or deployments.'
+
+  compile-proposed-launch:
+    name: Compile independent Access-auth staging source (NO deploy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Materialize local proposed staging only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 business-app-parity/cloudflare-launch/materialize-cloudflare.py staging "$RUNNER_TEMP/fire-launch-staging-src"
+          grep -q '00000000-0000-4000-8000-000000000000' "$RUNNER_TEMP/fire-launch-staging-src/vite.config.ts"
+      - name: Install pinned dependencies and typecheck real Cloudflare Access adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/fire-launch-staging-src"
+          pnpm install --frozen-lockfile
+          pnpm exec tsc --noEmit --incremental false
+      - name: Local compile only (artifact deliberately discarded)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/fire-launch-staging-src"
+          pnpm run build
+          test -e dist/server/wrangler.json
+          grep -q '00000000-0000-4000-8000-000000000000' dist/server/wrangler.json
+          echo 'PASS: Source compiles locally. Bundle contains fake D1 and MUST NEVER DEPLOY.'
+      - name: Delete nondeployable compiled output
+        if: always()
+        shell: bash
+        run: rm -rf -- "$RUNNER_TEMP/fire-launch-staging-src"
