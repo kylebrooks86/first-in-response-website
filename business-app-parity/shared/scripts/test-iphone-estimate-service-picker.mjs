@@ -128,9 +128,9 @@ check(!dashboard.includes('Service description and expectations'),
  'Redundant long service description headings removed');
 check(!dashboard.includes('rows={7}'),
  'Estimate editor no longer reserves seven lines per service');
-check(dashboard.split('className="estimate-service-description" value={item.description}').length-1===2&&
+check(dashboard.split('className="estimate-service-description" value={item.description}').length-1===3&&
  dashboard.includes('className="estimate-service-description" value={item.description}'),
- 'New estimate and edit estimate both preserve description state with shared compact editor');
+ 'New estimate, edit estimate, and invoice preserve the exact description with shared compact editing');
 check(dashboard.includes('id={`invoice-${estimate.invoiceId}-${index}-description`} rows={3} className="estimate-service-description"'),
  'Final invoice scope field also uses compact three-line editor without losing saved text');
 check(!dashboard.includes('Shown on the estimate and invoice.'),
