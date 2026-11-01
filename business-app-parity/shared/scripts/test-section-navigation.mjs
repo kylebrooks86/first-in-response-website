@@ -240,8 +240,7 @@ assert.match(source,/A customer update is saving\. Wait for confirmation before 
 const estimateEditor=source.slice(source.indexOf('function EditEstimateDialog('),source.indexOf('function EditInvoiceDialog('));
 assert.ok(estimateEditor.length>1000,'Estimate editing source exists');
 for(const key of ['edit-estimate-service','edit-estimate-description','edit-estimate-quantity']){
- const expression=String.fromCharCode(96)+key+'- resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
-+'{index}'+String.fromCharCode(96);
+ const expression=String.fromCharCode(96)+key+'-'+String.fromCharCode(36)+'{index}'+String.fromCharCode(96);
  assert.ok(estimateEditor.includes('htmlFor={'+expression+'}'),key+' has an associated visible label');
  assert.ok(estimateEditor.includes('id={'+expression+'}'),key+' has a corresponding real input or select');
  checks+=2;
