@@ -35,7 +35,7 @@ assert.ok(dashboard.includes('onRegisterBack={registerCustomerBack}'), 'Customer
 assert.ok(dashboard.includes('aria-label="Close notifications"'), 'Notifications include an explicit X');
 assert.ok(dashboard.includes('aria-label="Back to customer details"'), 'New estimate has a top Back button');
 const dialog=readFileSync('components/ui/dialog.tsx','utf8');
-assert.ok(dialog.includes('aria-label="Close dialog"')&&dialog.includes('size-11'), 'Every shared dialog has a 44px labeled X');
+assert.ok(dialog.includes('aria-label="Close dialog"')&&dialog.includes('fixed top-2 right-2 z-20 flex size-11'), 'Every shared dialog has a 44px labeled X');
 const css=(await postcss([tailwind({base:root})]).process(cssSource,{from:resolve('app/globals.css')})).css;
 const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body>
 <main class="app-shell" data-app-ready="true"><section class="main-area">
@@ -82,7 +82,8 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
       <button type="button" class="brand-button flex-1 h-9 whitespace-nowrap" onclick="this.dataset.tapped='yes'">Save $123,456.78 estimate</button>
     </div>
   </div>
-  <button data-slot="dialog-close" type="button" class="absolute top-2 right-2 z-20 flex size-11 items-center justify-center rounded-md border border-border bg-background text-foreground" aria-label="Close dialog" onclick="this.dataset.tapped='yes'">×</button>
+  <div id="modal-long-content" style="height:800px" aria-hidden="true"></div>
+  <button data-slot="dialog-close" type="button" class="fixed top-2 right-2 z-20 flex size-11 items-center justify-center rounded-md border border-border bg-background text-foreground" aria-label="Close dialog" onclick="this.dataset.tapped='yes'">×</button>
  </section>
  <div style="height:700px">Long business workflow content</div>
  <button class="brand-button" type="button" id="final-day-action" style="min-height:48px;width:100%">Final workflow action</button>
@@ -202,6 +203,14 @@ try{
   const dialogClose=page.getByRole('button',{name:'Close dialog'});
   const closeGeometry=await dialogClose.evaluate(e=>{const r=e.getBoundingClientRect();return{w:r.width,h:r.height,left:r.left,right:r.right,top:r.top};});
   check(closeGeometry.w>=44&&closeGeometry.h>=44&&closeGeometry.left>=0&&closeGeometry.right<=width+1&&closeGeometry.top>=0,label+' modal X is visible and touch-sized '+JSON.stringify(closeGeometry));
+  await page.locator('.new-estimate-dialog').evaluate(e=>{e.scrollTop=e.scrollHeight;});
+  const scrolledClose=await dialogClose.evaluate(e=>{
+    const r=e.getBoundingClientRect(),frame=e.closest('.new-estimate-dialog').getBoundingClientRect(),
+      hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+    return{top:r.top,frameTop:frame.top,right:r.right,visible:r.top>=frame.top&&r.right<=frame.right+1,
+      tappable:hit===e||e.contains(hit)};
+  });
+  check(scrolledClose.visible&&scrolledClose.tappable,label+' scrolled long dialog keeps X visible and reachable '+JSON.stringify(scrolledClose));
   await dialogClose.tap();
   check(await dialogClose.getAttribute('data-tapped')==='yes',label+' modal X accepts tap');
   await page.locator('.new-estimate-dialog').evaluate(e=>{e.style.display='none';});
