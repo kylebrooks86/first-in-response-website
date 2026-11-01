@@ -750,6 +750,15 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
   const total=discount.total;
   const deposit=discount.deposit;
   const updateItem=(index:number,patch:Partial<EditableEstimateItem>)=>setItems((current)=>current.map((item,i)=>i===index?editMoneyLine(item,patch):item));
+  // One code path for the service dropdown and the easier-to-tap Custom
+  // Service shortcut. Both retain the saved catalog rate/description and
+  // ordinary user-editable quantity, scope and flat-price behavior.
+  const selectEstimateService=(index:number,value:string)=>{
+    const svc=services.find((entry)=>entry.id===value);
+    if(!svc)return;
+    updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,flatPriceCents:undefined,quantity:["job","quantity","each"].includes(svc.unit)?1:0});
+    setError("");
+  };
   const addService=()=>setItems((current)=>[...current,blankServiceLine()]);
   const moveService=(index:number,direction:-1|1)=>{
     if(saving||uncertainSave)return;
@@ -874,7 +883,23 @@ function NewEstimate({ onSaved, customer,disabledReason,propertySelection,onClos
             {index>0&&<button type="button" className="min-h-11 rounded-md border px-3 text-sm font-semibold" disabled={saving||uncertainSave} onClick={()=>moveService(index,-1)} aria-label={"Move service "+(index+1)+" up"}>↑ Move up</button>}
             {index<items.length-1&&<button type="button" className="min-h-11 rounded-md border px-3 text-sm font-semibold" disabled={saving||uncertainSave} onClick={()=>moveService(index,1)} aria-label={"Move service "+(index+1)+" down"}>↓ Move down</button>}
           </div>}
-          <div><Label>Service</Label><Select disabled={!pricing.rates||pricing.loading||Boolean(pricing.error)||saving} value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,flatPriceCents:undefined,quantity:["job","quantity","each"].includes(svc.unit)?1:0});setError("");}}><SelectTrigger><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent>{services.map((svc)=><SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}</SelectContent></Select></div>
+          <div className="estimate-service-picker">
+            <div className="estimate-service-picker-label">
+              <Label>Service</Label>
+              <button type="button" className="estimate-custom-service-shortcut"
+                aria-label={`Use Custom Service for service ${index+1}`}
+                disabled={!pricing.rates||pricing.loading||Boolean(pricing.error)||saving||uncertainSave}
+                onClick={()=>selectEstimateService(index,"custom")}>Custom Service</button>
+            </div>
+            <Select disabled={!pricing.rates||pricing.loading||Boolean(pricing.error)||saving||uncertainSave}
+              value={item.serviceId} onValueChange={(value)=>selectEstimateService(index,value)}>
+              <SelectTrigger className="estimate-service-picker-trigger" aria-label={`Choose service for line ${index+1}`}><SelectValue placeholder="Choose a service"/></SelectTrigger>
+              <SelectContent position="popper" sideOffset={6} className="estimate-service-picker-menu">
+                {services.filter((svc)=>svc.id==="custom").map((svc)=><SelectItem className="estimate-service-picker-option" key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}
+                {services.filter((svc)=>svc.id!=="custom").map((svc)=><SelectItem className="estimate-service-picker-option" key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div><Label htmlFor={`estimate-service-name-${index}`}>Service name</Label><Input id={`estimate-service-name-${index}`} value={item.name} onChange={event=>setItems(current=>current.map((line,i)=>i===index?{...line,name:event.target.value}:line))}/></div><div><Label>Service description and expectations</Label><Textarea rows={3} className="estimate-service-description" value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/><p className="service-description-help">Shown on the estimate and invoice.</p></div>
           <div className="edit-quantity-row"><div><Label htmlFor={`estimate-quantity-${index}`}>Quantity</Label><Input id={`estimate-quantity-${index}`} inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit||"unit"}</span></div>
           <EstimateLinePricing label={`estimate-service-${index}`} item={item} standardUnit={services.find(svc=>svc.id===item.serviceId)?.unit} standardRate={pricing.rates&&!pricing.loading&&!pricing.error?services.find(svc=>svc.id===item.serviceId)?.rate:undefined} onChange={patch=>updateItem(index,patch)}/><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>

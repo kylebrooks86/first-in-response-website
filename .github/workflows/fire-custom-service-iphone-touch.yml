@@ -1,0 +1,38 @@
+name: FIRE Custom Service iPhone Tap Target (focused)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/app/globals.css'
+      - 'business-app-parity/shared/scripts/test-estimate-custom-service-touch.mjs'
+      - '.github/workflows/fire-custom-service-iphone-touch.yml'
+  push:
+    branches:
+      - 'work/fire-custom-service-iphone-touch-*'
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/app/globals.css'
+      - 'business-app-parity/shared/scripts/test-estimate-custom-service-touch.mjs'
+      - '.github/workflows/fire-custom-service-iphone-touch.yml'
+permissions:
+  contents: read
+jobs:
+  focused-custom-touch:
+    name: Custom Service direct tap, menu reach and original pricing
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install pinned source dependencies
+        working-directory: business-app-parity/shared
+        run: pnpm install --frozen-lockfile
+      - name: Verify Custom Service shortcut, safe-area and pricing contract
+        working-directory: business-app-parity/shared
+        run: node scripts/test-estimate-custom-service-touch.mjs
