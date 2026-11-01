@@ -56,6 +56,16 @@ exact_replace(
     'return Boolean(user&&user.email.toLowerCase()===OWNER_EMAIL);',
     'return Boolean(OWNER_EMAIL&&user&&user.email.toLowerCase()===OWNER_EMAIL);',
 )
+exact_replace(
+    "app/api/quote-packages/route.ts",
+    "const OWNER='kylebrooks8605@gmail.com';",
+    "const OWNER=(env as typeof env & { FIRE_ACCESS_OWNER_EMAIL?: string }).FIRE_ACCESS_OWNER_EMAIL?.toLowerCase();",
+)
+exact_replace(
+    "app/api/quote-packages/route.ts",
+    "async function authorized(){return (await getChatGPTUser())?.email.toLowerCase()===OWNER;}",
+    "async function authorized(){return Boolean(OWNER && (await getChatGPTUser())?.email.toLowerCase()===OWNER);}",
+)
 required = [
     ("app/chatgpt-auth.ts", "verifyFireAccessJWT"),
     ("app/local-customer-deployment.ts", "'staging' as const"),
@@ -72,9 +82,14 @@ if (destination / "dist").exists():
 
 # Do not silently carry other legacy personal-email checks into the TEST build.
 legacy_email = "kylebrooks8605@gmail.com"
-for p in (destination / "app").rglob("*"):
-    if p.is_file() and p.suffix in (".ts", ".tsx", ".js", ".mjs") and legacy_email in p.read_text(encoding="utf-8"):
-        raise SystemExit("STOP: unresolved legacy LIVE owner email in TEST app code: " + str(p.relative_to(destination)))
+remaining = [
+    str(p.relative_to(destination))
+    for p in (destination / "app").rglob("*")
+    if p.is_file() and p.suffix in (".ts", ".tsx", ".js", ".mjs")
+    and legacy_email in p.read_text(encoding="utf-8")
+]
+if remaining:
+    raise SystemExit("STOP: unresolved legacy LIVE owner checks: " + ", ".join(remaining))
 
 print("PASS: SOURCE ONLY isolated Stripe TEST candidate; Access owner identity + staging mode.")
 print("STOP: generated D1 UUID is a FAKE PLACEHOLDER. Never deploy this directory.")
