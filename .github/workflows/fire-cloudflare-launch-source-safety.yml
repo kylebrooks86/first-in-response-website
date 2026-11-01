@@ -32,6 +32,8 @@ jobs:
           python-version: '3.12'
       - name: Synthetic Access JWT and resource isolation tests
         run: node --test business-app-parity/cloudflare-launch/launch-source.test.mjs
+      - name: Customer-facing Access path exceptions and owner-only boundaries
+        run: node --test business-app-parity/cloudflare-launch/public-access.test.mjs
       - name: Staging and production materializers are source only and private
         shell: bash
         run: |
