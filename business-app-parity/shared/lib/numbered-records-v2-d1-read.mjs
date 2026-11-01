@@ -23,7 +23,9 @@ export const FIRE_NUMBERED_V2_READ_TABLES=Object.freeze([
 ]);
 const SEQUENCE_SQL="SELECT name, seq FROM sqlite_sequence WHERE name IN ('fire_customer_numbers','fire_job_numbers') ORDER BY name";
 const INVENTORY_SQL="SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name";
-const EXTRA_PROVIDER_TABLES=new Set(['d1_migrations','_cf_KV']);
+// Cloudflare's real local workerd D1 creates _cf_METADATA; preserve this
+// strict, explicit provider-only inventory exemption. Unknown app tables FAIL.
+const EXTRA_PROVIDER_TABLES=new Set(['d1_migrations','_cf_KV','_cf_METADATA']);
 function requireCompleteTableInventory(rows){
  const required=new Set(FIRE_NUMBERED_V2_READ_TABLES),seen=new Set();
  for(const row of rows){
