@@ -65,6 +65,15 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
  <article class="photo-card"><a aria-label="Synthetic photo A" href="#photo-a"><div style="width:100%;height:90px;background:#ccc"></div></a><div><p>Long siding caption for narrow photo A</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
  <article class="photo-card"><a aria-label="Synthetic photo B" href="#photo-b"><div style="width:100%;height:90px;background:#ddd"></div></a><div><p>Long gutter caption for narrow photo B</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
  </div></section></div></section></section>
+ <section class="new-estimate-dialog" aria-label="Synthetic estimate footer" style="width:min(620px,calc(100% - 24px));margin:12px auto">
+  <div class="estimate-new-services-step space-y-5 px-6 py-6">
+    <button type="button" data-slot="select-trigger" class="h-9" aria-label="Choose service">Choose service</button>
+    <div class="estimate-new-save-actions flex gap-3">
+      <button type="button" class="h-9 whitespace-nowrap" onclick="this.dataset.tapped='yes'">Back</button>
+      <button type="button" class="brand-button flex-1 h-9 whitespace-nowrap" onclick="this.dataset.tapped='yes'">Save $123,456.78 estimate</button>
+    </div>
+  </div>
+ </section>
  <div style="height:700px">Long business workflow content</div>
  <button class="brand-button" type="button" id="final-day-action" style="min-height:48px;width:100%">Final workflow action</button>
 </div>
@@ -136,6 +145,29 @@ try{
   check(photoHit.reachable&&photoHit.withinViewport,label+' last photo delete target is on-screen and unobstructed '+JSON.stringify(photoHit));
   await photoButton.tap();
   check(await photoButton.getAttribute('data-tapped')==='yes',label+' actual synthetic touch activates last photo card button');
+  // Real compiled CSS against the actual new-estimate mobile class hierarchy.
+  // Verify a long price cannot push Back/Save outside the dialog on narrow phones.
+  const selectHeight=await page.locator('.new-estimate-dialog [data-slot="select-trigger"]').evaluate(e=>e.getBoundingClientRect().height);
+  check(selectHeight>=44,label+' service selector has at least 44px tap height');
+  const estimateActions=await page.locator('.new-estimate-dialog .estimate-new-save-actions').evaluate(e=>{
+    const box=e.getBoundingClientRect();
+    const buttons=[...e.querySelectorAll('button')].map(button=>{
+      const r=button.getBoundingClientRect();
+      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,
+        text:button.textContent.trim()};
+    });
+    return {box:{left:box.left,right:box.right,top:box.top,bottom:box.bottom},buttons};
+  });
+  check(estimateActions.buttons.length===2&&estimateActions.buttons.every(b=>b.width>=44&&b.height>=48),
+    label+' final Back and long-price Save have usable size '+JSON.stringify(estimateActions));
+  check(estimateActions.buttons.every(b=>b.left>=estimateActions.box.left-1&&b.right<=estimateActions.box.right+1&&b.right<=width+1),
+    label+' long Save price never clips off the right edge '+JSON.stringify(estimateActions));
+  const saveButton=page.locator('.new-estimate-dialog .estimate-new-save-actions button').last();
+  await saveButton.scrollIntoViewIfNeeded();
+  const saveHit=await saveButton.evaluate(e=>{const r=e.getBoundingClientRect(),at=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return {hit:at===e||e.contains(at),right:r.right,bottom:r.bottom};});
+  check(saveHit.hit&&saveHit.right<=width+1,label+' estimate Save button is not obstructed '+JSON.stringify(saveHit));
+  await saveButton.tap();
+  check(await saveButton.getAttribute('data-tapped')==='yes',label+' actual synthetic tap activates estimate Save');
   await page.locator('#final-day-action').scrollIntoViewIfNeeded();
   const hit=await page.locator('#final-day-action').evaluate(e=>{
    const r=e.getBoundingClientRect(),at=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
