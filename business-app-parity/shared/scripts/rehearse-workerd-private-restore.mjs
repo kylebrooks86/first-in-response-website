@@ -111,8 +111,16 @@ async function buildBatch(db,archive){
  ]){
   // The source's sequence can be higher than max currently present because
   // deleted Customer/Job # values can NEVER be reused.
-  if(seq>0)statements.push(db.prepare(
-   'INSERT OR REPLACE INTO sqlite_sequence(name,seq) VALUES(?,?)').bind(name,seq));
+  if(seq>0){
+   // sqlite_sequence.name is NOT constrained UNIQUE. REPLACE would create
+   // two allocator rows; choose UPDATE after restored identity inserts.
+   const count=name==='fire_customer_numbers'
+    ?id.fire_customer_numbers.length:id.fire_job_numbers.length;
+   if(count)statements.push(db.prepare(
+    'UPDATE sqlite_sequence SET seq=? WHERE name=?').bind(seq,name));
+   else statements.push(db.prepare(
+    'INSERT INTO sqlite_sequence(name,seq) VALUES(?,?)').bind(name,seq));
+  }
  }
  if(statements.length>1000)
   fail('recovery exceeds reviewed small-batch limit; never partially apply');
@@ -141,7 +149,7 @@ async function cleanup(bucket,keys){
  * the placeholder resource IDs. This function is NOT a production restorer.
  */
 export async function rehearseCompleteKitIntoDisposableWorkerd({
- sourceDb,targetDb,targetBucket,kit,passphrase
+ sourceDb,targetDb,targetBucket,kit,passphrase,beforeAtomicBatch
 }={}){
  requireDb(sourceDb);requireDb(targetDb);
  if(sourceDb===targetDb)fail('source and restore destinations must be independent');
@@ -162,6 +170,9 @@ export async function rehearseCompleteKitIntoDisposableWorkerd({
    staged.push(photo.objectKey);
   }
   await verifyR2(targetBucket,photos);
+  // Dedicated local-only fault injection proves D1 batch rollback even after
+  // all R2 bytes were staged. Not exposed in any application route.
+  if(beforeAtomicBatch)await beforeAtomicBatch(targetDb);
   if(statements.length) {
    const result=await targetDb.batch(statements);
    if(!Array.isArray(result)||result.length!==statements.length||
