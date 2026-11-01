@@ -119,7 +119,34 @@ class NumberedV2PhotoPair(unittest.TestCase):
                          hashlib.sha256(records.read_bytes()).hexdigest())
         self.assertEqual(result["validatedInputBytes"]["photoArchive"]["sha256"],
                          hashlib.sha256(archive.read_bytes()).hexdigest())
+        fingerprint_payload={
+            "format":"fire-private-records-photo-pair-fingerprint-v1",
+            "recordsSha256":hashlib.sha256(records.read_bytes()).hexdigest(),
+            "photoZipSha256":hashlib.sha256(archive.read_bytes()).hexdigest(),
+        }
+        expected=hashlib.sha256(json.dumps(
+            fingerprint_payload,sort_keys=True,separators=(",", ":")
+        ).encode("utf-8")).hexdigest()
+        self.assertEqual(result["pairedFileFingerprintSha256"],expected)
+        self.assertFalse(result["pairFingerprintCryptographicallySigned"])
         self.assertTrue(result["privateSnapshotsRemovedOnReturn"])
+
+    def test_new_valid_record_bytes_cause_a_new_pair_fingerprint(self):
+        archive,records=legacy.files(Path(self.dir.name),self.manifest,self.records)
+        before=planner.plan(archive,records)
+        self.records["tables"]["customer_notes"].append({
+            "id":"synthetic-note-002","customer_id":legacy.CID,
+            "body":"Independent note for same record owner"
+        })
+        self.records["rowCounts"]["customer_notes"]=1
+        archive,records=legacy.files(Path(self.dir.name),self.manifest,self.records)
+        after=planner.plan(archive,records)
+        self.assertNotEqual(before["pairedFileFingerprintSha256"],
+                            after["pairedFileFingerprintSha256"])
+        self.assertEqual(before["validatedInputBytes"]["photoArchive"],
+                         after["validatedInputBytes"]["photoArchive"])
+        self.assertFalse(after["pairedBackupSameInstantVerified"])
+        self.assertFalse(after["pairFingerprintCryptographicallySigned"])
 
     def test_permanent_customer_number_missing_or_reassigned_blocks(self):
         for label in ("missing","duplicate","wrong-customer","serial-reuse","changed-created-at"):
