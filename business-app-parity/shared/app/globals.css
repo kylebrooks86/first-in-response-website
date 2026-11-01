@@ -2980,9 +2980,19 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   }
   /* Standard Radix form selects are otherwise only 36px high in some
      customer, task and settings workflows. Keep all phone selects tappable. */
-  .app-shell [data-slot="select-trigger"]{
+  [data-slot="select-trigger"]{
     min-height:44px;
     max-width:100%;
     touch-action:manipulation
+  }
+  /* Radix sheets are mounted in a portal outside the app shell; a long
+     left/right drawer also needs scrolling and home-indicator clearance. */
+  [data-slot="sheet-content"][data-side="left"],
+  [data-slot="sheet-content"][data-side="right"]{
+    max-height:100dvh;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:max(16px,env(safe-area-inset-bottom))
   }
 }
