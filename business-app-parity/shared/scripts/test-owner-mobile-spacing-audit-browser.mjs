@@ -65,7 +65,7 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
  <article class="photo-card"><a aria-label="Synthetic photo A" href="#photo-a"><div style="width:100%;height:90px;background:#ccc"></div></a><div><p>Long siding caption for narrow photo A</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
  <article class="photo-card"><a aria-label="Synthetic photo B" href="#photo-b"><div style="width:100%;height:90px;background:#ddd"></div></a><div><p>Long gutter caption for narrow photo B</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
  </div></section></div></section></section>
- <section class="new-estimate-dialog" aria-label="Synthetic estimate footer" style="width:min(620px,calc(100% - 24px));margin:12px auto">
+ <section class="new-estimate-dialog" aria-label="Synthetic estimate footer" style="display:none;position:fixed;z-index:100;top:50%;left:50%;transform:translate(-50%,-50%);width:min(620px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;background:var(--background);border:1px solid var(--border)">
   <div class="estimate-new-services-step space-y-5 px-6 py-6">
     <button type="button" data-slot="select-trigger" class="h-9" aria-label="Choose service">Choose service</button>
     <div class="estimate-new-save-actions flex gap-3">
@@ -147,6 +147,8 @@ try{
   check(await photoButton.getAttribute('data-tapped')==='yes',label+' actual synthetic touch activates last photo card button');
   // Real compiled CSS against the actual new-estimate mobile class hierarchy.
   // Verify a long price cannot push Back/Save outside the dialog on narrow phones.
+  // Real New Estimate is portalled above bottom tabs, not a normal document card.
+  await page.locator('.new-estimate-dialog').evaluate(e=>{e.style.display="block";});
   const selectHeight=await page.locator('.new-estimate-dialog [data-slot="select-trigger"]').evaluate(e=>e.getBoundingClientRect().height);
   check(selectHeight>=44,label+' service selector has at least 44px tap height');
   const portalHeight=await page.locator('#portalled-select').evaluate(e=>e.getBoundingClientRect().height);
@@ -170,6 +172,7 @@ try{
   check(saveHit.hit&&saveHit.right<=width+1,label+' estimate Save button is not obstructed '+JSON.stringify(saveHit));
   await saveButton.tap();
   check(await saveButton.getAttribute('data-tapped')==='yes',label+' actual synthetic tap activates estimate Save');
+  await page.locator('.new-estimate-dialog').evaluate(e=>{e.style.display='none';});
   await page.locator('#final-day-action').scrollIntoViewIfNeeded();
   const hit=await page.locator('#final-day-action').evaluate(e=>{
    const r=e.getBoundingClientRect(),at=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
