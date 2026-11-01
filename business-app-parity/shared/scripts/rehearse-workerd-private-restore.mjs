@@ -193,16 +193,22 @@ export async function rehearseCompleteKitIntoDisposableWorkerd({
   const fk=await rows(targetDb,'PRAGMA foreign_key_check');
   if(fk.length)fail('recovered local D1 foreign keys are inconsistent');
   stage='integrity-check';
-  const integrity=await rows(targetDb,'PRAGMA integrity_check');
-  // Synthetic-only instrumentation: field shape and status, never SQL or
-  // private customer data. Do NOT waive an actual SQLite integrity defect.
-  console.log('DISPOSABLE_D1_INTEGRITY_DIAGNOSTIC='+JSON.stringify({
-   count:integrity.length,
-   fields:Object.keys(integrity[0]??{}),
-   ok:integrity.length===1&&integrity[0].integrity_check==='ok',
-   firstValueType:typeof Object.values(integrity[0]??{})[0],
-   firstValueLength:String(Object.values(integrity[0]??{})[0]??'').length
-  }));
+  let integrity;
+  try {
+   const raw=await targetDb.prepare('PRAGMA integrity_check').all();
+   console.log('DISPOSABLE_D1_INTEGRITY_API='+JSON.stringify({
+    success:raw?.success,resultsType:typeof raw?.results,
+    resultCount:Array.isArray(raw?.results)?raw.results.length:null,
+    fields:Object.keys(raw?.results?.[0]??{})
+   }));
+   if(raw?.success!==true||!Array.isArray(raw.results))
+    fail('local workerd could not attest physical SQLite integrity');
+   integrity=raw.results;
+  }catch(error){
+   // Synthetic ephemeral test only; no app route ever imports this module.
+   console.log('DISPOSABLE_D1_INTEGRITY_ERROR='+String(error?.message??'unknown').slice(0,180));
+   throw error;
+  }
   if(integrity.length!==1||integrity[0].integrity_check!=='ok')
    fail('recovered local SQLite integrity check failed');
   stage='photo-verify-after-db';
