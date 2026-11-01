@@ -341,7 +341,7 @@ for(const [handler,prop] of [['onDirtyChange','hasUnsavedTemplateChanges'],['onS
  assert.ok(update&&cleanup,handler+' includes a state update and unmount-only cleanup');
  const events=[],scope={[prop]:true,[handler]:value=>events.push(value)};
  const onUpdate=runHandler(update.arguments[0],ast,scope);
- const onUnmount=runHandler(cleanup.arguments[0],ast,scope);
+ const onUnmount=runHandler(cleanup.arguments[0],ast,{...scope});
  eq(onUpdate(),undefined,handler+' dependency update installs no transient false cleanup');
  eq(events,[true],handler+' reports active dirty or saving state');
  scope[prop]=false;
