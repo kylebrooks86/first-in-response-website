@@ -4,6 +4,34 @@
  * New estimates allocate in the SAME atomic D1 batch as the new estimate row.
  * Importing this module never connects to D1 or modifies a database.
  */
+/** Gate only the separately owner-enabled Job # candidate.
+ * A schema existing by name is not sufficient: every historical estimate must
+ * have exactly one original identity link, every Job # its real root link, and
+ * no quote revision may borrow a different customer's permanent number.
+ * Feature-off Workers never query experimental tables.
+ */
+export const JOB_NUMBER_FLAG='owner-approved-schema-v1';
+
+export async function jobNumberingReady(db,environment){
+  if(environment?.FIRE_JOB_NUMBERS_CANDIDATE!==JOB_NUMBER_FLAG)return false;
+  const schema=await db.prepare(
+    "SELECT (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('fire_job_numbers','fire_job_estimate_links')) AS tables, "+
+    "(SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name IN ('fire_job_numbers_no_update','fire_job_numbers_no_delete','fire_job_estimate_links_no_update','fire_job_estimate_links_no_delete')) AS triggers"
+  ).first();
+  if(Number(schema?.tables)!==2||Number(schema?.triggers)!==4)
+    throw new Error('Permanent Job # schema and immutable triggers are not verified.');
+  const coverage=await db.prepare(
+    "SELECT "+
+    "(SELECT COUNT(*) FROM estimates e LEFT JOIN fire_job_estimate_links l ON l.estimate_id=e.id WHERE l.estimate_id IS NULL)+"+
+    "(SELECT COUNT(*) FROM fire_job_numbers j LEFT JOIN fire_job_estimate_links l ON l.estimate_id=j.root_estimate_id AND l.job_number=j.job_number WHERE l.estimate_id IS NULL)+"+
+    "(SELECT COUNT(*) FROM fire_job_estimate_links l LEFT JOIN estimates e ON e.id=l.estimate_id LEFT JOIN fire_job_numbers j ON j.job_number=l.job_number LEFT JOIN estimates root ON root.id=j.root_estimate_id WHERE e.id IS NULL OR j.job_number IS NULL OR root.id IS NULL OR e.customer_id<>root.customer_id OR j.created_at<>root.created_at) "+
+    "AS invalid"
+  ).first();
+  if(!coverage||!Number.isSafeInteger(Number(coverage.invalid))||Number(coverage.invalid)!==0)
+    throw new Error('Historical Job # links, original roots or customer ownership require verified backfill.');
+  return true;
+}
+
 export const JOB_NUMBER_FOR_ESTIMATE_SQL =
   'SELECT job_number AS jobNumber FROM fire_job_estimate_links WHERE estimate_id=?';
 
