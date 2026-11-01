@@ -47,6 +47,10 @@ try{
  check(partial.db.prepare('SELECT COUNT(*) AS n FROM customers').get().n===1 &&
        partial.db.prepare('SELECT COUNT(*) AS n FROM estimates').get().n===0,
        'Incomplete history preserves original customer row and creates no estimate');
+ const existingResponse=await partial.post(sample(203,{customerId:uuid(401),customer:'Historical Synthetic Customer'}));
+ check(existingResponse.status===503,'Existing customer quote is also blocked while approved Customer # backfill is incomplete');
+ check(partial.db.prepare('SELECT COUNT(*) AS n FROM estimates').get().n===0,
+       'Partially active numbering cannot attach a new quote to an unnumbered existing customer');
 }finally{partial.db.close();}
 
 const rt=stackedRuntime();
