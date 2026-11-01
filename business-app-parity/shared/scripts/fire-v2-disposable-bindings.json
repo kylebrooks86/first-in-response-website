@@ -1,0 +1,35 @@
+{
+  "name": "fire-v2-disposable-local-proxy-only",
+  "compatibility_date": "2026-10-31",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fire-v2-disposable-local-only",
+      "database_id": "00000000-0000-4000-8000-000000000000"
+    },
+    {
+      "binding": "RECOVERY_DB",
+      "database_name": "fire-v2-recovery-local-only",
+      "database_id": "00000000-0000-4000-8000-000000000001"
+    },
+    {
+      "binding": "FAULT_DB",
+      "database_name": "fire-v2-fault-local-only",
+      "database_id": "00000000-0000-4000-8000-000000000002"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "fire-v2-disposable-local-only"
+    },
+    {
+      "binding": "RECOVERY_BUCKET",
+      "bucket_name": "fire-v2-recovery-local-only"
+    },
+    {
+      "binding": "FAULT_BUCKET",
+      "bucket_name": "fire-v2-fault-local-only"
+    }
+  ]
+}
