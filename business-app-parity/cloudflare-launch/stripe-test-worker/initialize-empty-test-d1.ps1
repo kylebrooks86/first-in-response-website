@@ -55,7 +55,7 @@ if ($config.name -cne $expectedWorker -or $config.workers_dev -ne $false -or
     STOP 'Immutable source Wrangler config does not point EXCLUSIVELY to isolated TEST D1.'
 }
 $config.d1_databases[0] | Add-Member -NotePropertyName migrations_dir -NotePropertyValue './migrations' -Force
-$config | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath $configPath -Encoding UTF8
+[System.IO.File]::WriteAllText($configPath, ($config | ConvertTo-Json -Depth 15), (New-Object System.Text.UTF8Encoding($false)))
 $api = "https://api.github.com/repos/kylebrooks86/first-in-response-website/contents/business-app-parity/adapters/doomsday/drizzle?ref=$immutableSource"
 $entries = @(Invoke-RestMethod -Uri $api -Headers @{ 'User-Agent' = 'FIRE-Stripe-Test-Schema-Init' } -ErrorAction Stop)
 $sqlFiles = @($entries | Where-Object { $_.type -eq 'file' -and $_.name -match '^[0-9]{4}_.+\.sql$' } | Sort-Object -Property name)
