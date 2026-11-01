@@ -1,0 +1,68 @@
+name: FIRE iPhone Estimate Picker and Copy (focused)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/app/globals.css'
+      - 'business-app-parity/shared/components/ui/select.tsx'
+      - 'business-app-parity/shared/components/ui/dialog.tsx'
+      - 'business-app-parity/shared/components/ui/sheet.tsx'
+      - 'business-app-parity/shared/components/ui/dropdown-menu.tsx'
+      - 'business-app-parity/shared/components/ui/popover.tsx'
+      - 'business-app-parity/shared/components/ui/alert-dialog.tsx'
+      - 'business-app-parity/shared/lib/estimate-service-picker-options.ts'
+      - 'business-app-parity/shared/scripts/test-iphone-estimate-service-picker.mjs'
+      - 'business-app-parity/shared/scripts/test-iphone-popup-tap-browser.mjs'
+      - '.github/workflows/fire-iphone-estimate-picker.yml'
+  push:
+    branches:
+      - 'work/fire-iphone-estimate-service-picker-*'
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/app/globals.css'
+      - 'business-app-parity/shared/components/ui/select.tsx'
+      - 'business-app-parity/shared/components/ui/dialog.tsx'
+      - 'business-app-parity/shared/components/ui/sheet.tsx'
+      - 'business-app-parity/shared/components/ui/dropdown-menu.tsx'
+      - 'business-app-parity/shared/components/ui/popover.tsx'
+      - 'business-app-parity/shared/components/ui/alert-dialog.tsx'
+      - 'business-app-parity/shared/lib/estimate-service-picker-options.ts'
+      - 'business-app-parity/shared/scripts/test-iphone-estimate-service-picker.mjs'
+      - 'business-app-parity/shared/scripts/test-iphone-popup-tap-browser.mjs'
+      - '.github/workflows/fire-iphone-estimate-picker.yml'
+permissions:
+  contents: read
+jobs:
+  iphone-estimate-taps-and-copy:
+    name: Custom Service iPhone accessibility and plain-language checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install pinned app dependencies
+        working-directory: business-app-parity/shared
+        run: pnpm install --frozen-lockfile
+      - name: Focused picker ordering and touch-clearance checks
+        working-directory: business-app-parity/shared
+        run: node scripts/test-iphone-estimate-service-picker.mjs
+
+      - name: Install isolated pinned browser driver (no app dependency changes)
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Use existing runner Chrome only
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Tap Custom and last service in real Radix menus at phone sizes (localhost only)
+        working-directory: business-app-parity/shared
+        run: node scripts/test-iphone-popup-tap-browser.mjs
