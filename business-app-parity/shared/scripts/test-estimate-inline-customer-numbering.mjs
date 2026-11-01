@@ -53,6 +53,43 @@ try{
        'Partially active numbering cannot attach a new quote to an unnumbered existing customer');
 }finally{partial.db.close();}
 
+// The mere presence of both Job # tables and all four immutability triggers
+// cannot authorize a partial / cross-customer historic backfill.
+const missingJob=stackedRuntime();
+try{
+ missingJob.env.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+ const response=await missingJob.post(sample(7));
+ check(response.status===503,'Enabled Job # without tables/triggers refuses a quote');
+ check(missingJob.db.prepare('SELECT COUNT(*) AS n FROM estimates').get().n===0,
+       'Missing Job # schema leaves quote records untouched');
+}finally{missingJob.db.close();}
+
+const jobPartial=stackedRuntime();
+try{
+ jobPartial.db.exec(readFileSync('../job-numbering/job_numbers_v1.sql','utf8'));
+ jobPartial.env.FIRE_JOB_NUMBERS_CANDIDATE='owner-approved-schema-v1';
+ const a=uuid(801),b=uuid(802),root=uuid(901),other=uuid(902);
+ const stamp='2026-10-01T12:00:00Z';
+ for(const [id,name] of [[a,'Historical synthetic A'],[b,'Historical synthetic B']])
+   jobPartial.db.prepare('INSERT INTO customers(id,name,created_at) VALUES(?,?,?)').run(id,name,stamp);
+ for(const [id,customer] of [[root,a],[other,b]])
+   jobPartial.db.prepare("INSERT INTO estimates(id,customer_id,status,subtotal_cents,total_cents,deposit_cents,share_token,created_at) VALUES (?,?,'draft',2500,2500,1250,?,?)")
+     .run(id,customer,'local-test-'+id,stamp);
+ const before=jobPartial.db.prepare('SELECT COUNT(*) AS n FROM estimates').get().n;
+ const incomplete=await jobPartial.post(sample(8,{customerId:a,customer:'Historical synthetic A'}));
+ check(incomplete.status===503,'Job # table/triggers alone do not authorize an incomplete historical backfill');
+ check(jobPartial.db.prepare('SELECT COUNT(*) AS n FROM estimates').get().n===before,
+       'Incomplete historical Job # map cannot save another estimate');
+ jobPartial.db.prepare('INSERT INTO fire_job_numbers(root_estimate_id,created_at) VALUES(?,?)').run(root,stamp);
+ const number=jobPartial.db.prepare('SELECT job_number AS n FROM fire_job_numbers WHERE root_estimate_id=?').get(root).n;
+ jobPartial.db.prepare('INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES(?,?)').run(root,number);
+ jobPartial.db.prepare('INSERT INTO fire_job_estimate_links(estimate_id,job_number) VALUES(?,?)').run(other,number);
+ const wrongCustomer=await jobPartial.post(sample(9,{customerId:a,customer:'Historical synthetic A'}));
+ check(wrongCustomer.status===503,'Cross-customer Job # mapping is rejected despite all estimates being linked');
+ check(jobPartial.db.prepare('SELECT COUNT(*) AS n FROM estimates').get().n===before,
+       'Cross-customer Job # contamination produces no new quote or serial');
+}finally{jobPartial.db.close();}
+
 const rt=stackedRuntime();
 try{
  rt.db.exec(readFileSync('../customer-numbering/customer_numbers_v1.sql','utf8'));
