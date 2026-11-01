@@ -1425,9 +1425,19 @@ function OwnerJobTools({estimate,onSaved}:{estimate:EstimateRow;onSaved:(complet
 function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(complete:boolean)=>void;snapshots?:OwnerJobSnapshotAccess}){
   const [open,setOpen]=useState(false);const [checks,setChecks]=useState<string[]>([]);const [notes,setNotes]=useState("");const [before,setBefore]=useState("");const [after,setAfter]=useState("");const [saved,setSaved]=useState(false);const [saving,setSaving]=useState(false);const [loading,setLoading]=useState(false);const [error,setError]=useState("");
   const saveLock=useRef(false);const loadRequest=useRef(0);const [retry,setRetry]=useState(0);const [loadError,setLoadError]=useState("");
+  const savedReportDraft=useRef("");
+  const reportFingerprint=(marked:string[],text:string,first:string,last:string)=>JSON.stringify([reportChecks.filter(item=>marked.includes(item)),text,first,last]);
   const [snapshotAt,setSnapshotAt]=useState<string|null>(null);const [checkedEpoch,setCheckedEpoch]=useState<number|null>(null);const readOnly=Boolean(snapshotAt)||snapshots?.online===false||Boolean(snapshots&&checkedEpoch!==snapshots.networkEpoch);
   const [loadedReportKey,setLoadedReportKey]=useState<string|null>(null);const reportKey=JSON.stringify([estimate.id,estimate.customerId]);
-  const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;if(!value)loadRequest.current++;setOpen(value);};
+  const reportChanged=Boolean(savedReportDraft.current&&loadedReportKey===reportKey&&savedReportDraft.current!==reportFingerprint(checks,notes,before,after));
+  const setOpenSafe=(value:boolean)=>{
+    if(saveLock.current||saving)return;
+    if(!value&&reportChanged&&!window.confirm(error
+      ?"The report save was not confirmed. Closing loses these local edits; verify saved job reports before saving again. Close?"
+      :"Discard unsaved job report notes and checklist changes?"))return;
+    if(!value)loadRequest.current++;
+    setOpen(value);
+  };
   useEffect(()=>{if(!open)return;const request=++loadRequest.current;setLoading(true);setSaved(false);setError("");setLoadError("");setSnapshotAt(null);let transportFailed=false;void (async()=>{try{
     let response:Response;try{if(snapshots?.online===false)throw new TypeError("Offline");response=await fetch(`/api/job-reports?estimateId=${encodeURIComponent(estimate.id)}`,{cache:"no-store"});}catch(error){transportFailed=error instanceof TypeError;throw error;}
     if(response.status===401||response.status===403)snapshots?.records.revoke();
@@ -1441,12 +1451,14 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
       checklist=JSON.parse(report.checklist||"{}");
       if(!checklist||typeof checklist!=="object"||Array.isArray(checklist)||Object.values(checklist).some(value=>typeof value!=="boolean"))throw new Error("Invalid saved checklist.");
     }else if(result.reports.length)throw new Error("Invalid saved report.");
-    setChecks(reportChecks.filter(item=>checklist[item]));setNotes(report?.notes||"");setBefore(report?.airflowBefore||"");setAfter(report?.airflowAfter||"");
+    const savedChecks=reportChecks.filter(item=>checklist[item]);const savedNotes=report?.notes||"";const savedBefore=report?.airflowBefore||"";const savedAfter=report?.airflowAfter||"";
+    setChecks(savedChecks);setNotes(savedNotes);setBefore(savedBefore);setAfter(savedAfter);
+    savedReportDraft.current=reportFingerprint(savedChecks,savedNotes,savedBefore,savedAfter);
     setLoadedReportKey(reportKey);setCheckedEpoch(snapshots?.networkEpoch??null);
     snapshots?.records.remember('report',estimate.id,estimate.customerId,report??null);
   }catch{if(request===loadRequest.current){
     const cached=transportFailed?snapshots?.records.read<JobReportRow|null>('report',estimate.id,estimate.customerId):null;
-    if(cached){const report=cached.value,checklist=report?JSON.parse(report.checklist||"{}"):{};setChecks(reportChecks.filter(item=>checklist[item]));setNotes(report?.notes||"");setBefore(report?.airflowBefore||"");setAfter(report?.airflowAfter||"");setSnapshotAt(cached.checkedAt);setLoadedReportKey(reportKey);}
+    if(cached){const report=cached.value,checklist=report?JSON.parse(report.checklist||"{}"):{};const savedChecks=reportChecks.filter(item=>checklist[item]);const savedNotes=report?.notes||"";const savedBefore=report?.airflowBefore||"";const savedAfter=report?.airflowAfter||"";setChecks(savedChecks);setNotes(savedNotes);setBefore(savedBefore);setAfter(savedAfter);savedReportDraft.current=reportFingerprint(savedChecks,savedNotes,savedBefore,savedAfter);setSnapshotAt(cached.checkedAt);setLoadedReportKey(reportKey);}
     else{if(!transportFailed)snapshots?.records.forget('report',estimate.id,estimate.customerId);setLoadError(transportFailed?"No verified report is available in this app session. Reconnect and load it before editing or saving.":"The saved report could not be loaded. Retry before editing or saving.");}
   }}finally{if(request===loadRequest.current)setLoading(false);}})();return()=>{loadRequest.current++;};},[open,estimate.id,estimate.customerId,retry]);
   const toggle=(item:string)=>{setSaved(false);setChecks((current)=>current.includes(item)?current.filter((value)=>value!==item):[...current,item]);};
@@ -1465,6 +1477,7 @@ function JobReport({estimate,onSaved,snapshots}:{estimate:EstimateRow;onSaved?:(
       let confirmed:Record<string,boolean>;
       try{confirmed=JSON.parse(report.checklist);}catch{throw new Error(unconfirmed);}
       if(!confirmed||typeof confirmed!=="object"||Array.isArray(confirmed)||Object.keys(confirmed).length!==reportChecks.length||reportChecks.some(item=>confirmed[item]!==checklist[item]))throw new Error(unconfirmed);
+      savedReportDraft.current=reportFingerprint(checks,notes,before,after);
       setSaved(true);onSaved?.(complete);
     }catch(saveError){setError(saveError instanceof Error?saveError.message:"The report could not be saved.");}
     finally{saveLock.current=false;setSaving(false);}
