@@ -35,7 +35,7 @@ assert.ok(dashboard.includes('onRegisterBack={registerCustomerBack}'), 'Customer
 assert.ok(dashboard.includes('aria-label="Close notifications"'), 'Notifications include an explicit X');
 assert.ok(dashboard.includes('aria-label="Back to customer details"'), 'New estimate has a top Back button');
 const dialog=readFileSync('components/ui/dialog.tsx','utf8');
-assert.ok(dialog.includes('aria-label="Close"')&&dialog.includes('fixed top-2 right-2 z-20 flex size-11'), 'Every shared dialog has a 44px labeled X');
+assert.ok(dialog.includes('aria-label="Close"')&&dialog.includes('absolute top-2 right-2 z-20 flex size-11'), 'Every shared dialog has a 44px labeled X');
 const css=(await postcss([tailwind({base:root})]).process(cssSource,{from:resolve('app/globals.css')})).css;
 const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body>
 <main class="app-shell" data-app-ready="true"><section class="main-area">
@@ -73,7 +73,7 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
  <article class="photo-card"><a aria-label="Synthetic photo A" href="#photo-a"><div style="width:100%;height:90px;background:#ccc"></div></a><div><p>Long siding caption for narrow photo A</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
  <article class="photo-card"><a aria-label="Synthetic photo B" href="#photo-b"><div style="width:100%;height:90px;background:#ddd"></div></a><div><p>Long gutter caption for narrow photo B</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
  </div></section></div></section></section>
- <section class="new-estimate-dialog" aria-label="Synthetic estimate footer" style="display:none;position:fixed;z-index:100;top:50%;left:50%;transform:translate(-50%,-50%);width:min(620px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;background:var(--background);border:1px solid var(--border)">
+ <section data-slot="dialog-content" class="new-estimate-dialog" aria-label="Synthetic estimate footer" style="display:none;position:fixed;z-index:100;top:50%;left:50%;transform:translate(-50%,-50%);width:min(620px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;background:var(--background);border:1px solid var(--border)">
   <div class="estimate-head"><button type="button" class="estimate-header-back" aria-label="Back to customer details" onclick="this.dataset.tapped='yes'">‹ Customer details</button></div>
   <div class="estimate-new-services-step space-y-5 px-6 py-6">
     <button type="button" data-slot="select-trigger" class="h-9" aria-label="Choose service">Choose service</button>
@@ -83,7 +83,7 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
     </div>
   </div>
   <div id="modal-long-content" style="height:800px" aria-hidden="true"></div>
-  <button data-slot="dialog-close" type="button" class="fixed top-2 right-2 z-20 flex size-11 items-center justify-center rounded-md border border-border bg-background text-foreground" aria-label="Close" onclick="this.dataset.tapped='yes'">×</button>
+  <button data-slot="dialog-close" type="button" class="absolute top-2 right-2 z-20 flex size-11 items-center justify-center rounded-md border border-border bg-background text-foreground" aria-label="Close" onclick="this.dataset.tapped='yes'">×</button>
  </section>
  <div style="height:700px">Long business workflow content</div>
  <button class="brand-button" type="button" id="final-day-action" style="min-height:48px;width:100%">Final workflow action</button>
@@ -171,7 +171,7 @@ try{
   // Real compiled CSS against the actual new-estimate mobile class hierarchy.
   // Verify a long price cannot push Back/Save outside the dialog on narrow phones.
   // Real New Estimate is portalled above bottom tabs, not a normal document card.
-  await page.locator('.new-estimate-dialog').evaluate(e=>{e.style.display="block";});
+  await page.locator('.new-estimate-dialog').evaluate(e=>{e.style.display="grid";});
   const estimateTopBack=page.getByRole('button',{name:'Back to customer details'});
   const estimateBackHeight=await estimateTopBack.evaluate(e=>e.getBoundingClientRect().height);
   check(estimateBackHeight>=44,label+' estimate header Back is thumb-sized');
