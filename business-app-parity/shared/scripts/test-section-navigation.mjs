@@ -298,4 +298,25 @@ for(const [dirty,saving,approve,expected,reason] of [
 }
 assert.match(source,/<BusinessView onWorkStatusChange=\{setBusinessWorkState\}/,'Parent receives Business source status');checks++;
 
+
+// Customer Back must not hide a record while a note or review-check write is
+// still being confirmed. Both visible back controls share this exact handler.
+const customerCloseDeclaration=variable(customerScreen,'closeCustomerRecord');
+assert.ok(ts.isCallExpression(customerCloseDeclaration),'Customer Back is a stable callback');
+const customerCloseAction=customerCloseDeclaration.arguments[0];
+for(const [noteBusy,reviewBusy,blocked] of [[false,false,false],[true,false,true],[false,true,true],[true,true,true]]){
+ const calls=[];
+ const scope={noteSaveLock:{current:noteBusy},reviewCheckSnoozeLock:{current:reviewBusy},
+  window:{alert:message=>calls.push('alert:'+message)},
+  setSelectedId:()=>calls.push('close customer'),setActiveEstimate:()=>calls.push('close estimate'),
+  setSection:()=>calls.push('reset section')};
+ runHandler(customerCloseAction,ast,scope)();
+ eq(calls.some(x=>x==='close customer'),!blocked,'Customer Back honors pending note/review saves');
+ eq(calls.some(x=>x.startsWith('alert:')),blocked,'Active customer write receives a visible warning');
+ if(blocked)eq(calls.length,1,'Blocked Back does not change any customer-focused state');
+}
+eq((source.match(/onClick=\{closeCustomerRecord\}/g)||[]).length,2,'Both direct customer Back links use guarded action');
+assert.match(source,/onRegisterBack\?\.\(selectedId\?closeCustomerRecord:null\)/,'Mobile topbar Back uses guarded customer handler');checks++;
+assert.match(source,/if\(!focusCustomerId\|\|loading\|\|error\|\|offlinePhotoOnly\|\|savingNote\|\|reviewCheckSnoozing\)return;/,'Deep links wait until pending customer saves finish');checks++;
+
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
