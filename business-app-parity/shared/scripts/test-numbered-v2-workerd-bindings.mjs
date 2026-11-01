@@ -19,6 +19,8 @@ import {captureFinanciallyVerifiedNumberedRecordsV2FromD1}
  from '../lib/numbered-records-v2-d1-read.mjs';
 import {FIRE_NUMBERED_RECORDS_TABLES}
  from '../lib/numbered-records-v2.mjs';
+import {rehearseCompleteKitIntoDisposableWorkerd}
+ from './rehearse-workerd-private-restore.mjs';
 
 const base=resolve(fileURLToPath(new URL('.',import.meta.url)),'../../');
 const config=resolve(base,'shared/scripts/fire-v2-disposable-bindings.json');
@@ -141,13 +143,78 @@ try{
  const afterPhoto=await bucket.head(key);
  eq(afterPhoto.etag,original.etag,'Readonly export did not mutate original R2 photo');
 
+ // New MAJOR milestone: prove ACTUAL reverse recovery into an independent
+ // empty Cloudflare LOCAL D1 and R2 namespace; not merely an in-memory SQLite.
+ const restored=await rehearseCompleteKitIntoDisposableWorkerd({
+  sourceDb:db,targetDb:recoveryDb,targetBucket:recoveryBucket,
+  kit:first.kit,passphrase:dummyPass
+ });
+ eq(restored.reviewedRecordTables,21,'Real workerd replay covers all application record families');
+ eq(restored.reviewedNumberedTables,3,'Real workerd replay covers immutable number and revision maps');
+ eq(restored.photosRestored,1,'Real workerd replay restores original R2 file bytes');
+ eq(restored.verifiedOriginalDatabaseChecksum,true,
+  'Fresh local D1 capture matches exact original encrypted records checksum');
+ eq(restored.verifiedOriginalPhotoBytes,true,
+  'Recovered local R2 image content byte-for-byte matches original');
+ eq(restored.independentD1R2AtomicCommitGuaranteed,false,
+  'Local rehearsal never claims cross-provider transactional restore');
+ eq(restored.realHostedRestorePerformed,false,
+  'No hosted source or target was used');
+ const newRefund=await recoveryDb.prepare("SELECT amount_cents FROM payment_refunds WHERE id='synthetic-r1'").first();
+ eq(newRefund.amount_cents,5000,'Recovered real D1 refund maintains exact original cents');
+ const newCash=await recoveryDb.prepare("SELECT amount_cents FROM payments WHERE id='synthetic-p1'").first();
+ eq(newCash.amount_cents,25000,'Recovered original paid cash ledger preserved');
+ const newNumber=await recoveryDb.prepare("SELECT customer_number FROM fire_customer_numbers WHERE customer_id='synthetic-c1'").first();
+ eq(newNumber.customer_number,3,'Original permanent Customer number maintained on new D1');
+ const newJob=await recoveryDb.prepare("SELECT job_number FROM fire_job_numbers WHERE root_estimate_id='synthetic-e1'").first();
+ eq(newJob.job_number,9,'Original Job root mapping maintained on new D1');
+ const newSeq=await recoveryDb.prepare("SELECT seq FROM sqlite_sequence WHERE name='fire_job_numbers'").first();
+ eq(newSeq.seq,15,'Recovered real D1 keeps never-reuse Job number allocator high water');
+ const newPhoto=await recoveryBucket.get(key);
+ eq(new Uint8Array(await newPhoto.arrayBuffer()),bytes,
+  'Original customer image bytes are present in DIFFERENT local R2 bucket');
+ await assert.rejects(()=>rehearseCompleteKitIntoDisposableWorkerd({
+  sourceDb:db,targetDb:recoveryDb,targetBucket:recoveryBucket,
+  kit:first.kit,passphrase:dummyPass
+ }),/FIRE LOCAL WORKERD RESTORE REFUSED/,
+ 'Refuse any replay over existing recovered customer/financial data');checks++;
+ await assert.rejects(()=>rehearseCompleteKitIntoDisposableWorkerd({
+  sourceDb:db,targetDb:faultDb,targetBucket:faultBucket,
+  kit:first.kit,passphrase:'wrong synthetic private kit passphrase testing'
+ }),/FIRE PRIVATE RECOVERY KIT REFUSED/,
+ 'Wrong owner passphrase cannot write new database or photo files');checks++;
+ eq((await faultDb.prepare("SELECT COUNT(*) AS n FROM customers").first()).n,0,
+  'Wrong private key leaves fault target D1 unchanged');
+ eq((await faultBucket.list({limit:1})).objects.length,0,
+  'Wrong private key leaves fault target R2 unchanged');
+ await assert.rejects(()=>rehearseCompleteKitIntoDisposableWorkerd({
+  sourceDb:db,targetDb:faultDb,targetBucket:faultBucket,
+  kit:first.kit,passphrase:dummyPass,
+  beforeAtomicBatch:async scratch=>{
+   // Deliberately abort refund INSERT after prior customer/estimate/payment
+   // inserts; all D1 writes must ROLLBACK. Independent local R2 is cleaned.
+   await scratch.prepare("CREATE TRIGGER fire_disposable_fault_refund BEFORE INSERT ON payment_refunds BEGIN SELECT RAISE(ABORT,'synthetic fault'); END").run();
+  }
+ }),/FIRE LOCAL WORKERD RESTORE REFUSED/,
+ 'Real local workerd D1 transactional rollback refuses midway refund failure');checks++;
+ eq((await faultDb.prepare("SELECT COUNT(*) AS n FROM customers").first()).n,0,
+  'Real local D1 batch failure removes earlier inserted customer');
+ eq((await faultDb.prepare("SELECT COUNT(*) AS n FROM payments").first()).n,0,
+  'Real local D1 batch failure removes earlier inserted payment');
+ eq((await faultDb.prepare("SELECT COUNT(*) AS n FROM payment_refunds").first()).n,0,
+  'Real local D1 batch failure leaves no refund');
+ eq((await faultDb.prepare("SELECT COUNT(*) AS n FROM fire_customer_numbers").first()).n,0,
+  'Real local D1 batch failure leaves no assigned Customer number');
+ eq((await faultBucket.list({limit:1})).objects.length,0,
+  'In throwaway R2, staged photo is cleaned after failed D1 batch');
+
  // Meaningful new negative control, ONLY on a throwaway bucket:
  // same photo metadata in D1 but R2 object gone means NO partial backup.
  await bucket.delete(key);
  await refuse(()=>captureEncryptedNumberedV2PrivateKitFromProviders({
   db,bucket,passphrase:dummyPass,now:()=>epoch
  }),'Actual local R2 missing object refuses complete backup');
- console.log('PASS '+checks+'/'+checks+' NEW REAL workerd-local D1+R2 bindings, 25 migrations, sealed full records/photo roundtrip and missing-object refusal. NO remote resources.');
+ console.log('PASS '+checks+'/'+checks+' NEW REAL workerd-local export AND RESTORE into independent D1/R2, 25 migrations, atomic D1 rollback and photo cleanup. NO remote resources.');
 }finally{
  await proxy.dispose();
 }
