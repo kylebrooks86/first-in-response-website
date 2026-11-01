@@ -38,6 +38,16 @@ jobs:
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/test-private-stub.mjs
       - name: Exact Stripe TEST signed callback review, no Access policy changes
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/webhook-path.test.mjs
+      - name: Guard one-time TEST D1 hosted initializer (NO Cloudflare access)
+        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1.test.mjs
+      - name: Validate Windows PowerShell initializer syntax without executing
+        shell: bash
+        run: |
+          if command -v pwsh >/dev/null 2>&1; then
+            pwsh -NoProfile -Command '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile("business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1.ps1",[ref]$tokens,[ref]$errors) | Out-Null; if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }'
+          else
+            echo 'PowerShell unavailable; static contract checked, execution must remain owner Acer only.'
+          fi
       - name: Rehearse all 25 schema migrations in NEW empty local database only
         run: python3 business-app-parity/cloudflare-launch/stripe-test-worker/rehearse-new-db-migrations.py
       - name: Staging and production materializers are source only and private
