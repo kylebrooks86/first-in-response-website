@@ -10,7 +10,7 @@ const source=readFileSync('lib/customer-contact-links.ts','utf8');
 const js=ts.transpileModule(source,{
  compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}
 }).outputText;
-const {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness}
+const {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation}
  =await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(js));
 let checks=0;
 const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);checks++};
@@ -48,6 +48,14 @@ eq(ready('text','918-555-0111','Prepared').reason,'',
 eq(ready('email','owner+contact@example.com','Prepared').reason,'',
  'Complete Email does not claim sending occurred');
 
+eq(definitiveUnwrittenMessagePreparation(400),true,'API input rejection occurs before insert and is safe to fix');
+eq(definitiveUnwrittenMessagePreparation(404),true,'Deleted customer rejection occurs before insert and is safe to fix');
+eq(definitiveUnwrittenMessagePreparation(409),false,'Conflict may refer to saved immutable draft; retain original operation ID');
+eq(definitiveUnwrittenMessagePreparation(500),false,'Server error cannot prove whether draft was committed');
+eq(definitiveUnwrittenMessagePreparation(503),false,'Gateway outage must not cause duplicate sends or new preparation');
+eq(definitiveUnwrittenMessagePreparation(0),false,'Network error cannot prove noncommit');
+
+
 const dashboard=readFileSync('app/dashboard.tsx','utf8');
 const ast=ts.createSourceFile('dashboard.tsx',dashboard,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const composer=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==='MessageComposer');
@@ -61,6 +69,8 @@ eq(actual.includes('role="status"'),true,
  'Composer exposes guidance in accessible status text');
 eq(actual.includes('GoogleVoiceTextShortcutAction phone={customer.phone}'),true,
  'Prepared Text still routes through owner-approved Google Voice Shortcut');
+eq(actual.includes('if(definitiveUnwrittenMessagePreparation(response.status)){'),true,
+ 'Actual composer releases uncertain draft lock only on proven pre-write rejections');
 eq(actual.includes('ownerConfirmedSent:true'),true,
  'Explicit owner send confirmation remains mandatory');
 eq(actual.includes('mailto:'),true,
