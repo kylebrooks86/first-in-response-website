@@ -2901,3 +2901,39 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
     padding-bottom:max(16px,env(safe-area-inset-bottom))
   }
 }
+
+
+/* The app also uses nested action menus, confirmation dialogs and native
+   iPhone choice controls. Keep their last actions visible and tappable. */
+@media(max-width:760px){
+  [data-slot="dropdown-menu-sub-content"]{
+    max-height:min(56dvh,var(--radix-dropdown-menu-content-available-height,56dvh));
+    max-width:calc(100vw - 36px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    padding-bottom:max(12px,env(safe-area-inset-bottom))
+  }
+  [data-slot="alert-dialog-content"]{
+    max-height:calc(100dvh - 32px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch
+  }
+  [data-slot="alert-dialog-action"],
+  [data-slot="alert-dialog-cancel"],
+  [data-slot="dropdown-menu-sub-trigger"],
+  [data-slot="sheet-close"]{
+    min-height:44px;
+    touch-action:manipulation
+  }
+  .app-shell select{
+    min-height:44px;
+    max-width:100%;
+    font-size:16px
+  }
+  .global-search-panel{
+    max-height:min(56dvh,calc(100dvh - 100px))!important;
+    overflow-y:auto;
+    overscroll-behavior:contain
+  }
+}
