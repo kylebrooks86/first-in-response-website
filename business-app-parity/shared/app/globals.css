@@ -2955,3 +2955,34 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 .estimate-edit-service .estimate-service-description:focus{
   height:min(30dvh,180px)
 }
+
+
+/* FIRE November 1 owner workflow pass: keep estimate Save and Back usable
+   at 320–430px without shrinking text, clipping the final price, or
+   pushing either action into the home-indicator area. No pricing changes. */
+@media(max-width:760px){
+  .new-estimate-dialog .estimate-new-save-actions{
+    display:grid;
+    grid-template-columns:minmax(72px,auto) minmax(0,1fr);
+    align-items:stretch;
+    gap:8px
+  }
+  .new-estimate-dialog .estimate-new-save-actions>button{
+    width:100%;
+    min-width:0;
+    height:auto;
+    min-height:48px;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    line-height:1.3;
+    padding-block:10px;
+    touch-action:manipulation
+  }
+  /* Standard Radix form selects are otherwise only 36px high in some
+     customer, task and settings workflows. Keep all phone selects tappable. */
+  .app-shell [data-slot="select-trigger"]{
+    min-height:44px;
+    max-width:100%;
+    touch-action:manipulation
+  }
+}
