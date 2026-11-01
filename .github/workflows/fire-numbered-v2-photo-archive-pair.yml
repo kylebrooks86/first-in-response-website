@@ -5,6 +5,7 @@ on:
       - 'business-app-parity/shared/scripts/plan-complete-photo-recovery.py'
       - 'business-app-parity/shared/scripts/validate-numbered-core-records-v2.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-photo-pair.py'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-signed-digests.mjs'
       - 'business-app-parity/shared/scripts/test-plan-complete-photo-recovery.py'
       - 'business-app-parity/shared/scripts/validate-photo-storage-archive.py'
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
@@ -16,6 +17,7 @@ on:
       - 'business-app-parity/shared/scripts/plan-complete-photo-recovery.py'
       - 'business-app-parity/shared/scripts/validate-numbered-core-records-v2.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-v2-photo-pair.py'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-signed-digests.mjs'
       - 'business-app-parity/shared/scripts/test-plan-complete-photo-recovery.py'
       - 'business-app-parity/shared/scripts/validate-photo-storage-archive.py'
       - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
@@ -49,3 +51,5 @@ jobs:
         run: python3 scripts/test-plan-complete-photo-recovery.py
       - name: Validate numbered v2 core records, signed agreement checksums and complete photo byte coverage
         run: python3 scripts/test-numbered-v2-photo-pair.py
+      - name: Reject independently modified signed deposit terms and service scope
+        run: node scripts/test-numbered-v2-signed-digests.mjs
