@@ -52,7 +52,10 @@ try{
  await page.route('**/*',r=>new URL(r.request().url()).origin===origin?r.continue():r.abort());
  for(const width of [320,375,390,430])for(const theme of ['light','dark']){
   await page.setViewportSize({width,height:844});await page.goto(origin);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
-  await page.getByRole('button',{name:'Message',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Message',exact:true});
+  const entry=page.getByRole('button',{name:'Message',exact:true});
+  try{await entry.waitFor({state:'visible',timeout:5000});}
+  catch(error){throw Error('Synthetic composer did not mount: '+errors.join('; ')+' DOM: '+(await page.locator('#app').innerHTML()).slice(0,800),{cause:error});}
+  await entry.click();const dialog=page.getByRole('dialog',{name:'Message',exact:true});
   await dialog.getByLabel('Message text').fill('  Exact synthetic message\nSecond line  ');
   const before=requests.length;await dialog.getByRole('button',{name:'Text',exact:true}).click();
   const voice=dialog.getByRole('region',{name:'Google Voice text handoff'});await voice.waitFor();
