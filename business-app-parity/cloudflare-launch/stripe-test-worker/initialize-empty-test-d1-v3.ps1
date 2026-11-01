@@ -68,7 +68,7 @@ foreach ($item in $rawDirectory) {
         [void]$entries.Add($item)
     }
 }
-$sqlFiles = @($entries.ToArray() | Where-Object { $_.type -eq 'file' -and $_.name -match '^[0-9]{4}_.+\.sql
+$sqlFiles = @($entries.ToArray() | Where-Object { $_.type -eq 'file' -and $_.name -match '^[0-9]{4}_.+\.sql$' } | Sort-Object -Property name)
 if ($sqlFiles.Count -ne 25) { STOP ('Expected 25 pinned SQL migrations; found ' + $sqlFiles.Count) }
 foreach ($n in 0..24) {
     $prefix = '{0:D4}_' -f $n
