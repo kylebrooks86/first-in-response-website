@@ -169,4 +169,16 @@ check(css.includes('.estimate-edit-service .estimate-service-description:focus')
  css.includes('height:min(30dvh,180px)'),
  'Focused service descriptions expand for editing without consuming the entire mobile screen');
 
+const editEstimateStart=dashboard.indexOf('function EditEstimateDialog(');
+const editInvoiceStart=dashboard.indexOf('function EditInvoiceDialog(');
+check(editEstimateStart>=0&&editInvoiceStart>editEstimateStart,
+ 'Both actual estimate and invoice editors remain present');
+const actualEditEstimate=dashboard.slice(editEstimateStart,editInvoiceStart);
+check(actualEditEstimate.includes('<strong>Service {index+1}</strong>{items.length>1&&<button'),
+ 'Edit Estimate never lets an owner remove its final service and leave an unsavable empty quote');
+check(css.includes('.estimate-edit-service>header>button{display:grid;min-height:44px;min-width:44px;height:44px;width:44px;'),
+ 'Edit estimate and invoice delete controls are at least 44x44 touch targets');
+check(css.includes('touch-action:manipulation;'),
+ 'Service action taps do not rely on tiny default icon hit areas');
+
 console.log('PASS '+checks+'/'+checks+' NEW whole-app menu edge safety, Custom-first estimate choice, 44px tap targets and reduced wording checks.');
