@@ -356,4 +356,44 @@ for(const [handler,prop] of [['onDirtyChange','hasUnsavedTemplateChanges'],['onS
  eq(events,[true,false,true,false],handler+' clears parent status only on actual unmount');
 }
 
+// New customer can be entered from the Customers tab or a Door Knocking
+// address. Closing it must never silently abandon an in-flight POST, and
+// choosing Cancel must retain the current entered customer details.
+const addCustomerScreen=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='AddCustomer');
+assert.ok(addCustomerScreen,'Add Customer form exists');
+const customerOpenGuard=variable(addCustomerScreen,'setOpenSafe');
+for(const scenario of [
+ {name:'clean',allow:false,expected:['setOpen:false']},
+ {name:'dirty-cancel',nameValue:'New Lead',allow:false,expected:['confirm','keep']},
+ {name:'dirty-discard',nameValue:'New Lead',allow:true,expected:['confirm','clear name','clear email','clear phone','clear address','clear source','clear error','setOpen:false']},
+ {name:'saving',saving:true,allow:true,expected:['alert','keep']},
+ {name:'pending-cancel',pending:true,allow:false,expected:['confirm','keep']},
+ {name:'pending-exit',pending:true,allow:true,expected:['confirm','setOpen:false']},
+]){
+ const events=[],requestId={current:null},scope={requestId,saveLock:{current:false},
+  saving:scenario.saving||false,pending:scenario.pending||false,name:scenario.nameValue||'',email:'',phone:'',address:'',leadSource:'Unknown',
+  setName:()=>events.push('clear name'),setEmail:()=>events.push('clear email'),
+  setPhone:()=>events.push('clear phone'),setAddress:()=>events.push('clear address'),
+  setLeadSource:()=>events.push('clear source'),setError:()=>events.push('clear error'),
+  setOpen:value=>events.push('setOpen:'+value),
+  window:{alert:()=>events.push('alert'),confirm:()=>{events.push('confirm');return scenario.allow}},
+  storage:()=>null,loadCustomerCreateRequest:()=>null,loadCustomerEstimateHandoff:()=>false,
+  startEstimateAfterSave:{current:false},setPending:()=>{}
+ };
+ runHandler(customerOpenGuard,ast,scope)(false);
+ if(!scenario.allow&&['dirty-cancel','saving','pending-cancel'].includes(scenario.name))events.push('keep');
+ eq(events,scenario.expected,'Add Customer safely closes: '+scenario.name);
+}
+for(const mode of ['fresh','recovery']){
+ const events=[],requestId={current:null};
+ runHandler(customerOpenGuard,ast,{
+  requestId,saveLock:{current:false},saving:false,pending:false,name:'',email:'',phone:'',address:'',leadSource:'Unknown',
+  setOpen:value=>events.push('open:'+value),setPending:value=>events.push('pending:'+value),setError:()=>events.push('recovery message'),
+  storage:()=>null,loadCustomerCreateRequest:()=>mode==='recovery'?'synthetic-id':null,
+  loadCustomerEstimateHandoff:()=>false,startEstimateAfterSave:{current:false}
+ })(true);
+ eq(events.includes('open:true'),true,'Add Customer '+mode+' opens normally');
+ eq(events.includes('pending:true'),mode==='recovery','Only saved unresolved request opens recovery flow');
+}
+
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
