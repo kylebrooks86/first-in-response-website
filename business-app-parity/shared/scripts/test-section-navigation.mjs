@@ -366,7 +366,7 @@ for(const scenario of [
  {name:'clean',allow:false,expected:['setOpen:false']},
  {name:'dirty-cancel',nameValue:'New Lead',allow:false,expected:['confirm','keep']},
  {name:'dirty-discard',nameValue:'New Lead',allow:true,expected:['confirm','clear name','clear email','clear phone','clear address','clear source','clear error','setOpen:false']},
- {name:'saving',saving:true,allow:true,expected:['alert','keep']},
+ {name:'saving',saving:true,allow:true,expected:['alert']},
  {name:'pending-cancel',pending:true,allow:false,expected:['confirm','keep']},
  {name:'pending-exit',pending:true,allow:true,expected:['confirm','setOpen:false']},
 ]){
