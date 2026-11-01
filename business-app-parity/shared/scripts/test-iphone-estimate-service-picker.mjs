@@ -137,8 +137,8 @@ check(!dashboard.includes('Shown on the estimate and invoice.'),
  'Repeated per-service guidance removed from every quote line');
 check(dashboard.includes('Descriptions appear on estimates and invoices.'),
  'Description visibility remains discoverable in single collapsed guide');
-check(dashboard.split(' Add service</Button>').length-1===3,
- 'New estimate/edit estimate/edit invoice have one concise Add service control each');
+check(dashboard.split(' Add another service</Button>').length-1===3,
+ 'All three estimate/invoice editors retain their established tested Add another service action');
 check(!dashboard.includes('Stacks with the promotion above.'),
  'No redundant stacking paragraph under each bundle discount input');
 check(dashboard.includes('Bundle discounts are separate and can stack.'),
