@@ -90,6 +90,15 @@ try{
  assert.ok(original&&typeof original.etag==='string');
  await db.prepare("INSERT INTO customer_photos(id,customer_id,category,caption,filename,content_type,size_bytes,object_key,created_at) VALUES(?,?,?,?,?,?,?,?,?)")
   .bind('photo1','synthetic-c1','before',null,'photo1.jpg','image/jpeg',bytes.byteLength,key,epoch).run();
+ const tableNames=(await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all()).results.map(row=>row.name);
+ const expectedTables=new Set(['d1_migrations','_cf_KV',
+  'customers','estimates','invoices','payments','payment_refunds','fire_customer_numbers',
+  'fire_job_numbers','fire_job_estimate_links','auth_rate_limits',
+  'customer_notes','invoice_items','invoice_revisions','payment_checkout_sessions',
+  'deposit_policy_events','deposit_agreement_snapshots','estimate_items','customer_photos',
+  'customer_messages','notifications','message_templates','estimate_change_requests',
+  'tasks','expenses','job_reports']);
+ console.log('LOCAL_CLOUDFLARE_EXTRA_TABLE_NAMES='+JSON.stringify(tableNames.filter(name=>!expectedTables.has(name))));
  const before=await db.prepare('SELECT COUNT(*) AS count FROM payment_refunds').first();
  const first=await captureEncryptedNumberedV2PrivateKitFromProviders({
   db,bucket,passphrase:dummyPass,now:()=>epoch
