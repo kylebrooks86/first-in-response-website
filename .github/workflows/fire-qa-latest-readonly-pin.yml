@@ -1,0 +1,54 @@
+name: FIRE QA latest active version read-only guard
+
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/owner_windows_qa_update_review.ps1'
+      - 'business-app-parity/owner_windows_qa_current_readonly.ps1'
+      - 'business-app-parity/owner_windows_qa_update_publish.ps1'
+      - 'business-app-parity/test_owner_windows_qa_update_review.py'
+      - 'business-app-parity/test_owner_windows_qa_update_publish.py'
+      - 'business-app-parity/test_owner_windows_qa_current_readonly.ps1'
+      - 'business-app-parity/verify_qa_worker_version_bindings.ps1'
+      - 'business-app-parity/test_verify_qa_worker_version_bindings.ps1'
+      - '.github/workflows/fire-qa-latest-readonly-pin.yml'
+  push:
+    branches:
+      - 'work/fire-mobile-contact-consolidation-2026-10-31'
+    paths:
+      - 'business-app-parity/owner_windows_qa_update_review.ps1'
+      - 'business-app-parity/owner_windows_qa_current_readonly.ps1'
+      - 'business-app-parity/owner_windows_qa_update_publish.ps1'
+      - 'business-app-parity/test_owner_windows_qa_update_review.py'
+      - 'business-app-parity/test_owner_windows_qa_update_publish.py'
+      - 'business-app-parity/test_owner_windows_qa_current_readonly.ps1'
+      - '.github/workflows/fire-qa-latest-readonly-pin.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-windows-qa-identity:
+    name: Offline Windows QA version and publisher lock safety
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout reviewed source without reusable Git credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Check exact read-only reviewer and guarded publisher contracts
+        working-directory: business-app-parity
+        run: |
+          python test_owner_windows_qa_update_review.py
+          python test_owner_windows_qa_update_publish.py
+      - name: Simulate QA Worker identity, D1 binding, and stale-version rejection without network
+        shell: pwsh
+        working-directory: business-app-parity
+        run: |
+          ./test_verify_qa_worker_version_bindings.ps1
+          ./test_owner_windows_qa_current_readonly.ps1

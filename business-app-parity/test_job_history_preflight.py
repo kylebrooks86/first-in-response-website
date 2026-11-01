@@ -123,7 +123,19 @@ class HistoryPreflightTests(unittest.TestCase):
         with self.assertRaisesRegex(Blocked,'predates'):self.report()
     def test_unsafe_or_missing_dates_fail_closed(self):
         self.estimate('a',at='2026-10-29')
-        with self.assertRaisesRegex(Blocked,'timezone'):self.report()
+        with self.assertRaisesRegex(Blocked,'canonical UTC'):self.report()
+    def test_noncanonical_utc_offset_blocks_permanent_job_identity(self):
+        self.estimate('offset',at='2026-10-29T13:00:00+01:00')
+        with self.assertRaisesRegex(Blocked,'canonical UTC'):self.report()
+    def test_mixed_timestamp_precision_blocks_unstable_backfill_order(self):
+        self.estimate('first',at='2026-10-28T12:00:00Z')
+        self.estimate('second',at='2026-10-29T12:00:00.000Z')
+        with self.assertRaisesRegex(Blocked,'precision'):self.report()
+    def test_uniform_millisecond_utc_is_accepted(self):
+        self.estimate('first',at='2026-10-28T12:00:00.000Z')
+        self.estimate('second',at='2026-10-29T12:00:00.000Z')
+        self.assertEqual(self.report()['distinctJobs'],2)
+
     def test_existing_legacy_mapping_cannot_be_overwritten(self):
         self.estimate('a')
         self.db.execute('CREATE TABLE fire_job_numbers(job_number INTEGER)')

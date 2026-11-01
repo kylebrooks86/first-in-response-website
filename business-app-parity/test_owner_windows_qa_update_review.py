@@ -40,7 +40,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "99fa8c27-df83-48d3-b953-9a84eb295334",
+                         "86f3d186-2770-438e-9f5c-32319bf6fe1d",
                          "deployments status --name $workerName --json",
                          "d1 list --json", "databaseInfo.qaUuid -ceq $qaId",
                          "$activeVersions.Count -eq 1",
@@ -124,18 +124,19 @@ class ExistingQAUpdateSafety(unittest.TestCase):
                           "r2 bucket create", "r2 object put", "r2 object delete"):
             self.assertNotIn(forbidden,S)
 
-    def test_owner_verified_readonly_version_and_stale_publisher_deliberate_block(self):
-        # Safe QA-only candidate review may advance after owner metadata PASS,
-        # but the distinct -Publish command MUST NOT become actionable until
-        # private current-25 recovery and an exact target approval exist.
+    def test_owner_verified_readonly_pin_and_publisher_stays_locked(self):
+        # Read-only review must match the latest owner-attested QA version.
+        # The distinct -Publish script MUST remain pinned to the old version
+        # until private 25-schema recovery is attested and owner approves update.
         publisher = (Path(__file__).parent / "owner_windows_qa_update_publish.ps1").read_text(encoding="utf-8")
         readonly = (Path(__file__).parent / "owner_windows_qa_current_readonly.ps1").read_text(encoding="utf-8")
         readonly_pins = re.findall(r"^\$expectedVersion = '([^']+)'$", readonly, re.M)
         review_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", S, re.M)
         publish_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", publisher, re.M)
-        self.assertEqual(readonly_pins, ["99fa8c27-df83-48d3-b953-9a84eb295334"])
+        self.assertEqual(readonly_pins, ["86f3d186-2770-438e-9f5c-32319bf6fe1d"])
         self.assertEqual(review_pins, readonly_pins)
-        self.assertEqual(publish_pins, readonly_pins)
+        self.assertEqual(publish_pins, ["99fa8c27-df83-48d3-b953-9a84eb295334"])
+        self.assertNotEqual(publish_pins, readonly_pins)
         self.assertIn("[switch]$Publish", publisher)
         self.assertIn("Require ($typed -ceq $approval)", publisher)
         self.assertIn("Require ($OwnerConfirmedPhotoZipBackup.IsPresent -xor $OwnerConfirmedNoLocalPhotos.IsPresent)", publisher)

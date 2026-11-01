@@ -49,6 +49,20 @@ export async function listOfflinePhotos(customerId?:string):Promise<OfflinePhoto
   return rows.sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
  }finally{db.close();}
 }
+/** Read-only per-customer badge count. IndexedDB index.count() does not
+ * copy customer photo blobs into memory merely to draw a navigation badge.
+ * Never substitute the older hosted photo count for this local-only number. */
+export async function countOfflinePhotos(customerId:string):Promise<number>{
+ if(!customerId||!/^[a-zA-Z0-9_-]{1,120}$/.test(customerId))throw Error('Choose a valid saved customer before counting photos.');
+ const db=await openVault();
+ try{
+  const tx=db.transaction(STORE,'readonly'),done=transactionDone(tx);
+  const count=await requestDone(tx.objectStore(STORE).index('customerId').count(customerId));
+  await done;
+  return count;
+ }finally{db.close();}
+}
+
 export async function addOfflinePhoto(customerId:string,category:OfflinePhoto['category'],caption:string,file:File):Promise<OfflinePhoto>{
  if(!customerId||!/^[a-zA-Z0-9_-]{1,120}$/.test(customerId))throw Error('Choose a valid saved customer before adding photos.');
  if(!['before','after','property'].includes(category))throw Error('Choose a valid photo category.');

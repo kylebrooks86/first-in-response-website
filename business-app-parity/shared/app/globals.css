@@ -75,7 +75,7 @@
 @media(max-width:760px){.theme-toggle{height:38px;width:38px;justify-content:center;padding:0}.theme-toggle span{display:none}}
 
 /* Customer photos and personalized communications */
-.profile-head-actions{display:flex;align-items:center;gap:9px}.message-builder{display:grid;gap:17px}.message-builder>div:not(.message-actions){display:grid;gap:7px}.message-builder textarea{min-height:150px;resize:vertical}.message-builder small{color:#748296;font-size:11px;line-height:1.45}.message-actions{display:flex;justify-content:flex-end;gap:9px}.photo-panel{padding:16px}.photo-toolbar{display:grid;grid-template-columns:160px minmax(190px,1fr) auto;align-items:end;gap:11px}.photo-toolbar>div:not(.photo-buttons){display:grid;gap:7px}.photo-buttons{display:flex;gap:8px}.photo-input{display:none}.photo-groups{display:grid;gap:22px;margin-top:20px}.photo-groups>section>header{display:flex;align-items:center;gap:7px;margin-bottom:10px}.photo-groups>section>header strong{font-size:14px}.photo-groups>section>header span{display:grid;min-width:23px;height:23px;place-items:center;border-radius:99px;background:#eef2f6;color:#65748a;font-size:10px;font-weight:800}.photo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.photo-card{position:relative;overflow:hidden;border:1px solid #dfe5ed;border-radius:12px;background:#fff}.photo-card>a{display:block;aspect-ratio:4/3;background:#eef2f6}.photo-card img{width:100%;height:100%;object-fit:cover}.photo-card>div{padding:9px 38px 10px 10px}.photo-card p{overflow:hidden;margin:0;color:#26384f;font-size:12px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}.photo-card small{color:#8190a3;font-size:10px}.photo-card>button{position:absolute;right:7px;bottom:8px;display:grid;width:28px;height:28px;place-items:center;border:0;border-radius:8px;background:#fff0f1;color:#c9252f;cursor:pointer}.photo-card>button svg{width:14px}.message-history{display:flex;gap:12px;padding:15px 17px}.message-history+.message-history{border-top:1px solid #edf1f5}.message-channel{display:grid;width:36px;height:36px;flex:0 0 auto;place-items:center;border-radius:10px;background:#eef4ff;color:#2d6ab2}.message-channel.text{background:#eaf8f0;color:#187b4c}.message-channel svg{width:17px}.message-history>div{min-width:0}.message-history strong{font-size:13px}.message-history p{margin:4px 0 5px;color:#43546a;font-size:12px;line-height:1.5;white-space:pre-wrap}.message-history small{color:#8995a5;font-size:10px}
+.profile-head-actions{display:flex;align-items:center;gap:9px}.message-builder{display:grid;gap:17px}.message-builder>div:not(.message-actions){display:grid;gap:7px}.message-builder textarea{min-height:150px;resize:vertical}.message-builder small{color:#748296;font-size:11px;line-height:1.45}.message-actions{display:flex;justify-content:flex-end;gap:9px}.photo-panel{padding:16px}.photo-toolbar{display:grid;grid-template-columns:160px minmax(190px,1fr) auto;align-items:end;gap:11px}.photo-toolbar>div:not(.photo-buttons){display:grid;gap:7px}.photo-buttons{display:flex;gap:8px}.photo-input{display:none}.photo-groups{display:grid;gap:22px;margin-top:20px}.photo-groups>section>header{display:flex;align-items:center;gap:7px;margin-bottom:10px}.photo-groups>section>header strong{font-size:14px}.photo-groups>section>header span{display:grid;min-width:23px;height:23px;place-items:center;border-radius:99px;background:#eef2f6;color:#65748a;font-size:10px;font-weight:800}.photo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.photo-card{position:relative;overflow:hidden;border:1px solid #dfe5ed;border-radius:12px;background:#fff}.photo-card>a{display:block;aspect-ratio:4/3;background:#eef2f6}.photo-card img{width:100%;height:100%;object-fit:cover}.photo-card>div{min-height:60px;padding:9px 58px 10px 10px}.photo-card p{overflow:hidden;margin:0;color:#26384f;font-size:12px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}.photo-card small{color:#8190a3;font-size:10px}.photo-card>button{position:absolute;right:8px;bottom:8px;display:grid;width:44px;min-width:44px;height:44px;min-height:44px;place-items:center;border:0;border-radius:9px;background:#fff0f1;color:#c9252f;cursor:pointer;touch-action:manipulation}.photo-card>button svg{width:14px}.message-history{display:flex;gap:12px;padding:15px 17px}.message-history+.message-history{border-top:1px solid #edf1f5}.message-channel{display:grid;width:36px;height:36px;flex:0 0 auto;place-items:center;border-radius:10px;background:#eef4ff;color:#2d6ab2}.message-channel.text{background:#eaf8f0;color:#187b4c}.message-channel svg{width:17px}.message-history>div{min-width:0}.message-history strong{font-size:13px}.message-history p{margin:4px 0 5px;color:#43546a;font-size:12px;line-height:1.5;white-space:pre-wrap}.message-history small{color:#8995a5;font-size:10px}
 [data-theme="dark"] .photo-card{border-color:#2a3d54;background:#111f31}[data-theme="dark"] .photo-card>a{background:#182a40}[data-theme="dark"] .photo-card p,[data-theme="dark"] .message-history p{color:#dce7f3}[data-theme="dark"] .message-history+.message-history{border-color:#2a3d54}[data-theme="dark"] .photo-groups>section>header span{background:#182a40;color:#c9d6e5}
 @media(max-width:760px){.profile-head-actions{width:100%;align-items:stretch;flex-direction:column}.profile-head-actions>button{width:100%}.photo-toolbar{grid-template-columns:1fr}.photo-buttons{display:grid;grid-template-columns:1fr 1fr}.photo-buttons button{width:100%}.photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.message-actions{display:grid;grid-template-columns:1fr}.message-actions button{width:100%}}
 
@@ -510,7 +510,7 @@ html,body{max-width:100%;overflow-x:clip}
 }
 
 /* Live v49 estimate editor parity */
-.estimate-edit-dialog{max-height:92vh;overflow-y:auto}.estimate-edit-items{display:grid;gap:16px}.estimate-edit-service{position:relative;display:grid;gap:14px;border:1px solid #344962;border-radius:14px;background:#14243a;padding:18px}.estimate-edit-service>header{display:flex;align-items:center;justify-content:space-between}.estimate-edit-service>header>button{display:grid;height:38px;width:38px;place-items:center;border:1px solid #38506d;border-radius:10px;background:#1a304a;color:#ff7b82}.estimate-edit-service>header svg{width:18px}.estimate-edit-service label{display:block;margin-bottom:7px}.edit-quantity-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px}.edit-quantity-row>span{padding-bottom:10px;color:#8e9db1;font-size:13px}.edit-line-total{display:block;text-align:right;font-size:18px}.edit-discount-card{display:grid;gap:12px;border:1px solid #344962;border-radius:14px;background:#14243a;padding:18px}.discount-input{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px}.discount-input>span{font-size:18px;font-weight:800}.edit-totals{display:grid;gap:8px}.edit-totals span{display:flex;align-items:center;justify-content:space-between;color:#8493a7}.edit-totals strong{color:#e9eef5}.estimate-edit-dialog .brand-button{min-height:50px}
+.estimate-edit-dialog{max-height:92vh;overflow-y:auto}.estimate-edit-items{display:grid;gap:16px}.estimate-edit-service{position:relative;display:grid;gap:14px;border:1px solid #344962;border-radius:14px;background:#14243a;padding:18px}.estimate-edit-service>header{display:flex;align-items:center;justify-content:space-between}.estimate-edit-service>header>button{display:grid;min-height:44px;min-width:44px;height:44px;width:44px;touch-action:manipulation;place-items:center;border:1px solid #38506d;border-radius:10px;background:#1a304a;color:#ff7b82}.estimate-edit-service>header svg{width:18px}.estimate-edit-service label{display:block;margin-bottom:7px}.edit-quantity-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px}.edit-quantity-row>span{padding-bottom:10px;color:#8e9db1;font-size:13px}.edit-line-total{display:block;text-align:right;font-size:18px}.edit-discount-card{display:grid;gap:12px;border:1px solid #344962;border-radius:14px;background:#14243a;padding:18px}.discount-input{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px}.discount-input>span{font-size:18px;font-weight:800}.edit-totals{display:grid;gap:8px}.edit-totals span{display:flex;align-items:center;justify-content:space-between;color:#8493a7}.edit-totals strong{color:#e9eef5}.estimate-edit-dialog .brand-button{min-height:50px}
 @media(max-width:760px){.estimate-edit-dialog{width:calc(100vw - 28px)!important;max-width:none!important;max-height:92vh!important;padding:18px!important}.estimate-edit-dialog>button[data-slot="dialog-close"]{height:48px;width:48px;border:1px solid #e54951!important;border-radius:8px!important}.estimate-edit-service{padding:16px}.estimate-edit-service textarea{min-height:210px}.estimate-edit-dialog .select-trigger{min-height:48px}}
 .discount-mode-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.discount-mode-row button{width:100%}.edit-discount-card{display:grid;gap:10px}.edit-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.edit-totals span{border:1px solid #dce3eb;border-radius:10px;padding:10px}.edit-totals span strong{display:block;margin-top:3px}.discount-input{display:flex;align-items:center;gap:8px}.discount-input>span{font-weight:800;color:#6b798c}
 .invoice-revision-list{display:grid;gap:8px;margin-top:10px}.invoice-revision-list>div{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #e3e8ef;border-radius:10px;background:#f8fafc;padding:10px 12px}.invoice-revision-list span{display:grid;gap:2px}.invoice-revision-list strong{font-size:13px}.invoice-revision-list small{color:#748196;font-size:11px}.dark .invoice-revision-list>div{border-color:#2a3c56;background:#12233a}
@@ -1243,7 +1243,7 @@ html,body{max-width:100%;overflow-x:clip}
 .customer-flag-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:start}
 .customer-flag-actions button{min-height:44px}
 .customer-sign-form{padding:8px 11px;border:1px solid var(--border);border-radius:9px;min-width:min(100%,240px)}
-.customer-sign-form summary{min-height:30px;font-weight:800;cursor:pointer}
+.customer-sign-form summary{min-height:44px;font-weight:800;cursor:pointer}
 .customer-sign-form label{display:grid;gap:5px;margin:9px 0;font-size:12px;font-weight:700}
 .customer-sign-form input{min-height:44px;width:100%;min-width:0;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:14px}
 .customer-sign-overview{margin:0 0 12px;padding:12px;border:1px solid #be925c;border-radius:12px;background:#fff4e4;color:#704312}
@@ -1390,7 +1390,7 @@ html,body{max-width:100%;overflow-x:clip}
 .notification-attention>header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .notification-attention>header strong{display:inline-flex;align-items:center;gap:6px;font-size:13px}
 .notification-attention>header svg{width:15px;height:15px}
-.notification-attention>header button{display:inline-flex;align-items:center;gap:4px;min-height:36px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:11px;cursor:pointer}
+.notification-attention>header button{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:11px;cursor:pointer}
 .notification-attention>p,.notification-attention>small{margin:0;font-size:11px;line-height:1.5;color:var(--muted-foreground)}
 .notification-attention>p[role="alert"]{color:#a95f12}
 .notification-attention-list{display:grid;gap:6px;max-height:260px;overflow:auto}
@@ -1404,7 +1404,7 @@ html,body{max-width:100%;overflow-x:clip}
 .notification-activity-title{padding:10px 14px 6px;font-size:12px;font-weight:850;border-bottom:1px solid var(--border)}
 [data-theme="dark"] .notification-attention>p[role="alert"]{color:#ffcb84}
 
-.notification-attention-more{min-height:40px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:11px;font-weight:750;cursor:pointer}
+.notification-attention-more{min-height:44px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:11px;font-weight:750;cursor:pointer}
 .notification-attention-more:hover{background:var(--muted)}
 
 /* Reminder attention is independent of unread customer activity. */
@@ -1416,7 +1416,7 @@ html,body{max-width:100%;overflow-x:clip}
 
 /* Compact owner reminder filters: accessible pressed state, no extra iPhone rows. */
 .notification-attention-filters{display:flex;gap:6px;min-width:0}
-.notification-attention-filters>button{min-height:36px;padding:7px 10px;font-size:11px;font-weight:750;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);cursor:pointer}
+.notification-attention-filters>button{min-height:44px;padding:7px 10px;font-size:11px;font-weight:750;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);cursor:pointer}
 .notification-attention-filters>button[aria-pressed="true"]{border-color:var(--ring);box-shadow:inset 0 0 0 1px var(--ring);background:var(--muted)}
 .notification-attention-filters>button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
 
@@ -1700,7 +1700,7 @@ html,body{max-width:100%;overflow-x:clip}
 .customer-journey-disclosure>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:800;color:var(--foreground)}
 .customer-journey-disclosure>section{margin-top:12px}
 .customer-flag-panel>details.customer-sign-form{width:100%;min-width:0}
-.customer-flag-panel>details.customer-sign-form>summary{min-height:40px;display:flex;align-items:center}
+.customer-flag-panel>details.customer-sign-form>summary{min-height:44px;display:flex;align-items:center}
 @media(max-width:760px){
   .customers-view .record-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;overflow:visible;border-bottom:0}
   .customers-view .record-tabs button{width:100%;min-width:0;max-width:100%;min-height:44px;padding:10px 5px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:12px;line-height:1.3;text-align:center;white-space:normal;overflow-wrap:anywhere}
@@ -2789,3 +2789,169 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
 
 /* Follow-ups actions and explicit retries retain comfortable touch targets. */
 .followups-view button{min-height:44px}
+
+
+/* FIRE owner QA — iPhone estimate/service picker accessibility.
+   Owner observed last Custom Service option difficult to tap at screen edge.
+   Only the new-estimate, edit-estimate and edit-invoice SERVICE picker is
+   affected; all other Radix dropdowns and the selected pricing are unchanged.
+   Portal content is outside dialog DOM, hence explicit scoped picker class. */
+.estimate-service-picker-trigger{width:100%;min-height:48px;touch-action:manipulation}
+.estimate-service-picker{
+  max-height:min(68dvh,var(--radix-select-content-available-height,68dvh));
+  max-width:calc(100vw - 32px);
+  overscroll-behavior:contain
+}
+.estimate-service-picker [data-slot="select-viewport"]{
+  width:100%;
+  height:auto!important;
+  max-height:min(65dvh,var(--radix-select-content-available-height,65dvh));
+  min-width:min(250px,calc(100vw - 42px));
+  padding:6px 6px max(20px,env(safe-area-inset-bottom))!important;
+  scroll-padding-bottom:max(20px,env(safe-area-inset-bottom));
+  overscroll-behavior:contain
+}
+.estimate-service-picker-item{
+  min-height:48px;
+  padding:11px 34px 11px 12px;
+  white-space:normal;
+  line-height:1.4;
+  touch-action:manipulation
+}
+.estimate-service-picker-item:focus-visible{
+  outline:2px solid var(--ring);
+  outline-offset:-2px
+}
+@media(max-width:760px){
+  /* Give final estimate actions clearance above the iPhone home indicator. */
+  .estimate-new-services-step{
+    padding-bottom:max(34px,calc(env(safe-area-inset-bottom) + 18px))
+  }
+  .estimate-edit-modal-footer{
+    padding-bottom:max(12px,env(safe-area-inset-bottom))
+  }
+}
+
+
+/* FIRE full-app source audit: shared mobile menus, drawers and dialogs.
+   Prevent ANY item from being trapped at the bottom/top edge of iPhone.
+   Dialogs and dropdowns remain the same design, but have real scroll room. */
+@media(max-width:760px){
+  [data-slot="select-content"]{
+    max-height:min(56dvh,var(--radix-select-content-available-height,56dvh));
+    max-width:calc(100vw - 36px);
+    overscroll-behavior:contain
+  }
+  [data-slot="select-viewport"]{
+    height:auto!important;
+    max-height:min(52dvh,var(--radix-select-content-available-height,52dvh));
+    overflow-y:auto;
+    padding-bottom:max(18px,env(safe-area-inset-bottom));
+    scroll-padding-bottom:max(18px,env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain
+  }
+  /* Long service list is deliberately SHORTER than other dropdowns.
+     Custom is first; the remaining options can scroll, never hit the edge. */
+  .estimate-service-picker[data-slot="select-content"]{
+    max-height:min(50dvh,var(--radix-select-content-available-height,50dvh))
+  }
+  .estimate-service-picker [data-slot="select-viewport"]{
+    max-height:min(46dvh,var(--radix-select-content-available-height,46dvh))
+  }
+  [data-slot="dropdown-menu-content"]{
+    max-height:min(56dvh,var(--radix-dropdown-menu-content-available-height,56dvh));
+    max-width:calc(100vw - 36px);
+    padding-bottom:max(12px,env(safe-area-inset-bottom));
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch
+  }
+  [data-slot="popover-content"]{
+    max-height:min(70dvh,var(--radix-popover-content-available-height,70dvh));
+    max-width:calc(100vw - 36px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch
+  }
+  [data-slot="dialog-content"]:not(.estimate-edit-dialog){
+    max-height:calc(100dvh - 32px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch
+  }
+  [data-slot="dialog-close"],[data-slot="sheet-close"]{
+    min-width:44px;
+    min-height:44px;
+    display:inline-flex;
+    justify-content:center;
+    align-items:center;
+    touch-action:manipulation
+  }
+  [data-slot="sheet-content"]{
+    max-height:100dvh;
+    padding-bottom:max(12px,env(safe-area-inset-bottom))
+  }
+  [data-slot="sheet-content"][data-side="bottom"]{
+    max-height:calc(100dvh - 24px);
+    overflow-y:auto;
+    overscroll-behavior:contain
+  }
+  [data-slot="sheet-content"] [data-slot="sheet-footer"]{
+    padding-bottom:max(16px,env(safe-area-inset-bottom))
+  }
+}
+
+
+/* The app also uses nested action menus, confirmation dialogs and native
+   iPhone choice controls. Keep their last actions visible and tappable. */
+@media(max-width:760px){
+  [data-slot="dropdown-menu-sub-content"]{
+    max-height:min(56dvh,var(--radix-dropdown-menu-content-available-height,56dvh));
+    max-width:calc(100vw - 36px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    padding-bottom:max(12px,env(safe-area-inset-bottom))
+  }
+  [data-slot="alert-dialog-content"]{
+    max-height:calc(100dvh - 32px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch
+  }
+  [data-slot="alert-dialog-action"],
+  [data-slot="alert-dialog-cancel"],
+  [data-slot="dropdown-menu-sub-trigger"],
+  [data-slot="sheet-close"]{
+    min-height:44px;
+    touch-action:manipulation
+  }
+  .app-shell select{
+    min-height:44px;
+    max-width:100%;
+    font-size:16px
+  }
+  .global-search-panel{
+    max-height:min(56dvh,calc(100dvh - 100px))!important;
+    overflow-y:auto;
+    overscroll-behavior:contain
+  }
+}
+
+
+/* Compact but fully editable service scope, all three estimate/invoice forms.
+   The shared textarea uses field-sizing:content, which otherwise defeats
+   rows=3 for longer FIRE service descriptions and crowds the Save controls. */
+.estimate-edit-service .estimate-service-description{
+  field-sizing:fixed;
+  height:96px;
+  min-height:96px;
+  max-height:min(42dvh,320px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  resize:vertical
+}
+.estimate-edit-service .estimate-service-description:focus{
+  height:min(30dvh,180px)
+}

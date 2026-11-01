@@ -55,17 +55,19 @@ try{
   const file=new File([new TextEncoder().encode('photo-one-binary')],'fixture-before.png',{type:'image/png'});
   const photo=await v.addOfflinePhoto('synthetic-customer','before','north siding',file);
   const list=await v.listOfflinePhotos('synthetic-customer');
-  return {photoId:photo.id,length:list.length,size:list[0]?.blob.size,category:list[0]?.category,caption:list[0]?.caption};
+  return {photoId:photo.id,length:list.length,onDeviceCount:await v.countOfflinePhotos('synthetic-customer'),otherCount:await v.countOfflinePhotos('other-customer'),size:list[0]?.blob.size,category:list[0]?.category,caption:list[0]?.caption};
  });
  check(created.length===1&&created.size===16,'Actual browser IndexedDB saves complete binary photo and lists it by customer');
  check(created.category==='before'&&created.caption==='north siding','Actual browser persists photo label and caption');
+ check(created.onDeviceCount===1&&created.otherCount===0,'Local photo badge count uses only its customer IndexedDB index; no hosted records');
  await page.reload();await inject();
  const remembered=await page.evaluate(async()=>{
   const rows=await window.FIRE_LOCAL_PHOTOS.listOfflinePhotos('synthetic-customer');
-  return {count:rows.length,photoId:rows[0]?.id,bytes:rows[0]?await rows[0].blob.text():null};
+  return {count:rows.length,badgeCount:await window.FIRE_LOCAL_PHOTOS.countOfflinePhotos('synthetic-customer'),photoId:rows[0]?.id,bytes:rows[0]?await rows[0].blob.text():null};
  });
  check(remembered.count===1&&remembered.photoId===created.photoId,'Photo persists across complete browser page restart');
  check(remembered.bytes==='photo-one-binary','Real IndexedDB blob bytes persist unchanged across restart');
+ check(remembered.badgeCount===1,'Read-only photo count survives reload and matches actual photo records');
  const customerDir=await page.evaluate(async()=>{
   const d=window.FIRE_OFFLINE_PHOTO_CUSTOMERS;
   await d.saveOfflinePhotoCustomerDirectory([{id:'synthetic-customer',name:'Synthetic Customer'},{id:'other-customer',name:'Other Customer'}]);
@@ -347,6 +349,7 @@ try{
  check(corruptedSave.denied,'New photo save rejects same-length changed bytes instead of claiming verified success');
  check(corruptedSave.count===1&&corruptedSave.retained&&corruptedSave.bytes==='WRONG','Uncertain save preserves the committed row for inspection and never retries or deletes it');
  const dashboard=readFileSync(new URL('../app/dashboard.tsx',import.meta.url),'utf8');
+ check(dashboard.includes('countOfflinePhotos(selectedId)')&&dashboard.includes('onDevicePhotoCount!==null')&&dashboard.includes('legacyCloudPhotoCount={customerPhotos.length}'),'Customer Photos badge counts on-device IndexedDB only, keeps legacy hosted photo disclaimer separate');
  check(dashboard.includes('saveOfflinePhotoCustomerDirectory(nextCustomers.map(')&&dashboard.includes('if(offlinePhotoOnly){'),'Actual FIRE Customers screen supplies photo-only offline fallback from authenticated identity cache');
  check(dashboard.includes('mustClearOfflinePhotoDirectory(response.status)')&&dashboard.includes('setOfflinePhotoOnly(false);setOfflinePhotoCustomers([]);')&&dashboard.includes('await clearOfflinePhotoCustomerDirectory().catch'),'Actual FIRE owner authorization denial revokes cached customer listing before any offline fallback');
  await context.close();

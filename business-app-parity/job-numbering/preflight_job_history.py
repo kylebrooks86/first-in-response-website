@@ -7,6 +7,7 @@ temporary in-memory SQLite DB and validated; it is never modified on disk.
 import argparse
 from datetime import datetime
 import json
+import re
 from pathlib import Path
 import sqlite3
 import sys
@@ -21,6 +22,10 @@ def require(ok,reason):
 
 def parse_date(value):
     require(isinstance(value,str) and value.strip(),'Missing creation date')
+    # Saved timestamp text must sort like canonical UTC chronology before
+    # assigning any permanent Job #, including old quote revisions.
+    require(re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z',value) is not None,
+            'Job timestamps must use canonical UTC Z before permanent numbering')
     try:
         date=datetime.fromisoformat(value.replace('Z','+00:00'))
         require(date.tzinfo is not None,'Creation date has no timezone')
@@ -41,11 +46,17 @@ def analyze(db):
     rows=db.execute('SELECT id,customer_id,created_at,status FROM estimates').fetchall()
     require(len(rows)<=200000,'Unexpected number of estimates')
     estimates={}
+    timestamp_precisions=set()
     for identity,customer,when,status in rows:
         require(isinstance(identity,str) and identity.strip() and identity not in estimates,'Duplicate or empty estimate ID')
         require(isinstance(customer,str) and customer.strip(),'Estimate without customer')
         require(isinstance(status,str) and status.strip(),'Estimate without status')
-        estimates[identity]=(customer,parse_date(when),status)
+        moment=parse_date(when)
+        fraction=re.search(r'\.(\d+)Z$',when)
+        timestamp_precisions.add(len(fraction.group(1)) if fraction else 0)
+        require(len(timestamp_precisions)<=1,
+                'Mixed saved UTC timestamp precision could change historical Job # order')
+        estimates[identity]=(customer,moment,status)
     parents={};children={}
     for key,body in db.execute("SELECT key,body FROM message_templates WHERE substr(key,1,?)=?", (len(PREFIX),PREFIX)):
         require(isinstance(key,str) and isinstance(body,str) and len(body)<200000,

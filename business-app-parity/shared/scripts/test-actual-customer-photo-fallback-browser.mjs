@@ -20,7 +20,7 @@ for(const helper of ['completedCustomerJobHistory','customerNumberLabel','matche
 const imports=[
 "import {summarizeCustomerBalances} from './lib/customer-balance-summary';",
 "import {deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility} from './lib/customer-activity-flags';",
-"import React,{useState,useRef,useEffect} from 'react';",
+"import React,{useState,useRef,useEffect,useCallback} from 'react';",
 "import {createRoot} from 'react-dom/client';",
 "import {ChevronRight} from 'lucide-react';",
 "import {OfflineCustomerPhotos} from './components/offline-customer-photos';",
@@ -28,7 +28,7 @@ const imports=[
 "import {clearOfflinePhotoCustomerDirectory} from './lib/offline-photo-customer-directory';",
 "import {mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory} from './lib/offline-photo-availability';",
 "import {usableCustomerPhone,usableCustomerEmail} from './lib/customer-contact-links';",
-"import {listOfflinePhotos} from './lib/local-photo-vault';",
+"import {listOfflinePhotos,countOfflinePhotos,OFFLINE_PHOTO_CHANGES_CHANNEL} from './lib/local-photo-vault';",
  "import {customerNumberLabel,matchesCustomerNumberQuery,completedCustomerJobHistory} from './lib/customer-numbering.mjs';",
 "const Button=({children,onClick,disabled})=>React.createElement('button',{type:'button',onClick,disabled},children);",
 "const messageHistoryEntries=()=>[];const billingBalanceCents=()=>0;",

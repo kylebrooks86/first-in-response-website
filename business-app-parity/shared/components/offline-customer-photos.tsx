@@ -11,7 +11,7 @@ import type {OfflinePhoto} from '../lib/offline-photo-backup';
 import {inspectSavedOfflinePhotoZip} from '../lib/offline-photo-inspection';
 
 type Preview={photo:OfflinePhoto;url:string};
-export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,legacyCloudPhotoCount=0}:{customerId:string;customerName:string;knownCustomerIds:string[];legacyCloudPhotoCount?:number}){
+export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,legacyCloudPhotoCount=0,onPhotoCountChange}:{customerId:string;customerName:string;knownCustomerIds:string[];legacyCloudPhotoCount?:number;onPhotoCountChange?:(customerId:string,count:number)=>void}){
  const [items,setItems]=useState<Preview[]>([]);
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [error,setError]=useState(''),[message,setMessage]=useState('');
@@ -27,13 +27,14 @@ export function OfflineCustomerPhotos({customerId,customerName,knownCustomerIds,
  const refresh=async()=>{
   const rows=await listOfflinePhotos(customerId);
   const next=rows.map(photo=>({photo,url:URL.createObjectURL(photo.blob)}));
-  setItems(next);return next.length;
+  setItems(next);onPhotoCountChange?.(customerId,next.length);return next.length;
  };
  useEffect(()=>{
   let cancelled=false;setLoading(true);setError('');setItems([]);
   listOfflinePhotos(customerId).then(rows=>{
    if(cancelled)return;
    setItems(rows.map(photo=>({photo,url:URL.createObjectURL(photo.blob)})));
+   onPhotoCountChange?.(customerId,rows.length);
   }).catch(err=>{if(!cancelled)setError(err instanceof Error?err.message:'Could not open this device’s photo vault.');})
   .finally(()=>{if(!cancelled)setLoading(false);});
   return()=>{cancelled=true;};

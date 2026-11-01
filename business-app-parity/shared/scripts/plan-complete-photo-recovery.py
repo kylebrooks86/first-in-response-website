@@ -58,28 +58,42 @@ def validated_complete_archive(zip_path):
 def validated_records_backup(path):
     fail_if(not path.is_file() or path.stat().st_size > MAX_RECORDS_BYTES,
             "Records backup missing or over the 5 MB limit")
-    # Reuse the real existing app records/refund/property validator. It operates
-    # exclusively on a LOCAL JSON file and does not connect to a database.
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    fail_if(not isinstance(payload, dict), "Unsupported records backup format")
+    numbered_v2 = (payload.get("format") == "fire-numbered-core-records-snapshot"
+                   and type(payload.get("version")) is int
+                   and payload["version"] == 2)
+    # Legacy v1 and source-only numbered v2 need DIFFERENT validators. Never
+    # quietly reinterpret a numbered v2 archive as old unnumbered JSON.
+    validator = ("validate-numbered-core-records-v2.mjs" if numbered_v2
+                 else "validate-records-backup.mjs")
     process = subprocess.run(
-        ["node", str(ROOT / "validate-records-backup.mjs"), str(path)],
+        ["node", str(ROOT / validator), str(path)],
         cwd=ROOT.parent, capture_output=True, timeout=40, check=False,
     )
     fail_if(process.returncode != 0, "Records backup integrity validation failed")
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if payload.get("format") == "fire-app-records-backup" and payload.get("version") == 1:
+    if numbered_v2:
+        # The dedicated checker independently validates immutable serial roots,
+        # 23-table coverage, high-water, financial/refund relationships and the
+        # signed agreement document digests. It does not produce a DB restore.
+        tables = payload["tables"]
+        archive_kind = "numbered-v2-core"
+    elif payload.get("format") == "fire-app-records-backup" and payload.get("version") == 1:
         tables = payload.get("tables")
+        archive_kind = "legacy-app-v1"
     elif (payload.get("backup_format") == "FIRE App live database snapshot"
           and payload.get("format_version") == 1
           and payload.get("verification", {}).get("all_tables_complete") is True
           and payload.get("verification", {}).get("truncated") is False):
         tables = {key: item["rows"] for key, item in payload["tables"].items()}
+        archive_kind = "legacy-live-v1"
     else:
         raise UnsafePair("Unsupported records backup format")
     fail_if(not isinstance(tables, dict)
             or not isinstance(tables.get("customers"), list)
             or not isinstance(tables.get("customer_photos"), list),
             "Records backup lacks complete customer/photo inventory")
-    return tables
+    return tables, archive_kind
 
 
 def reconcile(manifest, tables):
@@ -178,9 +192,28 @@ def plan(archive_path, records_path):
             "recordsBackup": private_snapshot(records_path, records_copy, MAX_RECORDS_BYTES),
         }
         manifest = validated_complete_archive(archive_copy)
-        tables = validated_records_backup(records_copy)
+        tables, archive_kind = validated_records_backup(records_copy)
         result = reconcile(manifest, tables)
+        result["recordsBackupKind"] = archive_kind
+        result["permanentNumberMappingsVerified"] = archive_kind == "numbered-v2-core"
+        result["numberedCoreArchiveSourceOnly"] = archive_kind == "numbered-v2-core"
+        result["onDeviceIndexedDbPhotoZipVerified"] = False
+        result["allOptionalFeatureTablesVerified"] = False
+        result["combinedRecordsAndPhotoBytesRestored"] = False
         result["validatedInputBytes"] = identities
+        # Domain-separated pair fingerprint binds EXACT bytes of the records
+        # source and photo ZIP in a stable order, without exposing either file.
+        # This is not a digital signature, a time-atomic capture or an
+        # independent proof of the source D1 / R2 environment.
+        pair_payload = {
+            "format": "fire-private-records-photo-pair-fingerprint-v1",
+            "recordsSha256": identities["recordsBackup"]["sha256"],
+            "photoZipSha256": identities["photoArchive"]["sha256"],
+        }
+        result["pairedFileFingerprintSha256"] = hashlib.sha256(
+            json.dumps(pair_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        result["pairFingerprintCryptographicallySigned"] = False
         result["privateSnapshotsRemovedOnReturn"] = True
         return result
 

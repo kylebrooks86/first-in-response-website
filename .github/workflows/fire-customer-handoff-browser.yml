@@ -1,0 +1,49 @@
+name: FIRE Customer Text Email Real Browser Handoff
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/lib/customer-contact-links.ts'
+      - 'business-app-parity/shared/components/google-voice-text-action.tsx'
+      - 'business-app-parity/shared/scripts/test-message-composer-handoff-browser.mjs'
+      - '.github/workflows/fire-customer-handoff-browser.yml'
+  push:
+    branches:
+      - 'work/fire-mobile-contact-consolidation-2026-10-31'
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/lib/customer-contact-links.ts'
+      - 'business-app-parity/shared/scripts/test-message-composer-handoff-browser.mjs'
+      - '.github/workflows/fire-customer-handoff-browser.yml'
+permissions:
+  contents: read
+jobs:
+  customer-profile-real-browser:
+    name: Synthetic Text and Email profile buttons in React/Radix Chrome
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install pinned app dependencies
+        working-directory: business-app-parity/shared
+        run: pnpm install --frozen-lockfile
+      - name: Install isolated pinned browser driver
+        run: |
+          mkdir -p "$RUNNER_TEMP/fire-browser-harness"
+          npm --prefix "$RUNNER_TEMP/fire-browser-harness" install --no-save --no-audit --no-fund playwright@1.56.1
+          echo "FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE=$RUNNER_TEMP/fire-browser-harness/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Use runner Chrome without browser downloads
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME" || exit 1
+          echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Click actual Text and Email and check no sends, owner confirmation and 401 safety
+        working-directory: business-app-parity/shared
+        run: node scripts/test-message-composer-handoff-browser.mjs

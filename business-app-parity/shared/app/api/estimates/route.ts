@@ -5,7 +5,8 @@ import {ESTIMATE_PROMOTION_ATTRIBUTION_PREFIX,buildPromotionAttribution,promotio
 import {serviceLocationsEnabled,serviceAddressColumns,serviceAddressSql} from "../../../lib/service-location";
 import {customerPropertiesEnabled,propertyAssociationColumns,propertyEstimatesTestEnabled,selectEstimateProperty,PropertySelectionError} from '../../../lib/customer-properties';
 import { env } from "cloudflare:workers";
-import {attachedJobNumbers,newJobStatements,replacementJobStatement,JOB_NUMBER_FOR_ESTIMATE_SQL,jobNumberLabel} from "../../../lib/job-numbering.mjs";
+import {attachedJobNumbers,newJobStatements,replacementJobStatement,JOB_NUMBER_FOR_ESTIMATE_SQL,jobNumberLabel,jobNumberingReady,JOB_NUMBER_FLAG} from "../../../lib/job-numbering.mjs";
+import {customerNumberingReady,newCustomerNumberStatement,CUSTOMER_NUMBER_FLAG} from "../../../lib/customer-numbering.mjs";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import {customerIdentityPredicate,duplicateCustomer} from '../../../lib/customer-identity';
 import {ESTIMATE_CREATE_PROOF_PREFIX,validEstimateCreateRequestId,fingerprintEstimateCreateRequest,readEstimateCreateProof,type EstimateCreateProof} from '../../../lib/estimate-create-idempotency';
@@ -137,11 +138,34 @@ export async function POST(request: Request) {
     }const shareToken=crypto.randomUUID().replaceAll("-","");const now=new Date().toISOString();
     // A feature flag cannot bypass hosted schema and immutability checks.
     // Existing QA/staging/LIVE remain on their unchanged estimate workflow.
-    const jobNumberFlag=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE==='owner-approved-schema-v1';
+    const jobNumberFlag=(env as typeof env & {FIRE_JOB_NUMBERS_CANDIDATE?:string}).FIRE_JOB_NUMBERS_CANDIDATE===JOB_NUMBER_FLAG;
+    // New Estimate can create a *new customer* without visiting Add Customer.
+    // When Customer # is approved, this must allocate the customer's number
+    // in the SAME atomic batch as customer+estimate+Job #, not leave a gap.
+    // Feature-off QA/LIVE preserves the original customer/estimate workflow.
+    const customerNumberFlag=(env as typeof env & {FIRE_CUSTOMER_NUMBERS_CANDIDATE?:string}).FIRE_CUSTOMER_NUMBERS_CANDIDATE===CUSTOMER_NUMBER_FLAG;
+    const allocateCustomerNumber=customerNumberFlag&&!existingCustomerId;
+    // Existing-customer estimates must also fail closed if historical
+    // Customer # coverage or immutability is incomplete; do not write new
+    // quote rows against a partially activated numbering system.
+    if(customerNumberFlag){
+      try{
+        if(!await customerNumberingReady(env.DB,env))
+          return Response.json({error:'Customer numbering has not been approved. No customer or estimate was created.'},{status:503});
+      }catch{
+        return Response.json({error:'Permanent Customer # schema/backfill was not verified. No customer or estimate was created.'},{status:503});
+      }
+    }
     if(jobNumberFlag){
-      const jobSchema=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('fire_job_numbers','fire_job_estimate_links')) AS tableCount,(SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name IN ('fire_job_numbers_no_update','fire_job_numbers_no_delete','fire_job_estimate_links_no_update','fire_job_estimate_links_no_delete')) AS triggerCount").first<{tableCount:number;triggerCount:number}>();
-      if(Number(jobSchema?.tableCount)!==2||Number(jobSchema?.triggerCount)!==4)
-        return Response.json({error:'Job numbering schema is not fully installed. No estimate was created.'},{status:503});
+      // A six-object schema can still be missing historical job links.
+      // Refuse *both* new and repeat-customer estimates until the entire
+      // immutable Job # history and original customer ownership are proven.
+      try{
+        if(!await jobNumberingReady(env.DB,env))
+          return Response.json({error:'Job numbering has not been approved. No estimate was created.'},{status:503});
+      }catch{
+        return Response.json({error:'Permanent Job # schema or historical links were not verified. No estimate was created.'},{status:503});
+      }
       if(revisionSource){
         const sourceNumber=await env.DB.prepare(JOB_NUMBER_FOR_ESTIMATE_SQL).bind(revisionSource.id).first<{jobNumber:number}>();
         if(!jobNumberLabel(sourceNumber?.jobNumber))
@@ -168,6 +192,7 @@ export async function POST(request: Request) {
       // Recheck within the same atomic batch. A concurrent duplicate causes
       // the dependent estimate FK to abort the batch, never an orphan/history split.
       statements.push(env.DB.prepare(`INSERT INTO customers (id,name,email,phone,address,created_at) SELECT ?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM customers WHERE ${match.sql})`).bind(customerId,customer,email||null,phone||null,address||null,now,...match.values));
+      if(allocateCustomerNumber)statements.push(newCustomerNumberStatement(env.DB,customerId,now));
     }
     if(selection)serviceAddress=selection.property.address+(selection.property.designation?' · '+selection.property.designation:'');
     const estimateValues=[estimateId,customerId,subtotal,appliedDiscount,appreciationDiscount,additionalDiscountType,additionalDiscountValue,total,deposit,shareToken,now];

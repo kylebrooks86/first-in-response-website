@@ -15,7 +15,7 @@ if(!process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE||!process.env.FIRE_BROWSER_T
 const {chromium}=require(process.env.FIRE_BROWSER_TEST_PLAYWRIGHT_MODULE);
 const root=resolve(new URL('..',import.meta.url).pathname);
 const bundle=await esbuild.build({stdin:{
- contents:"import React from 'react';import{createRoot}from'react-dom/client';import{OfflineCustomerPhotos}from'./components/offline-customer-photos';const root=createRoot(document.querySelector('#app'));root.render(React.createElement(OfflineCustomerPhotos,{customerId:'synthetic-customer-photo',customerName:'Synthetic Photo Customer',knownCustomerIds:['synthetic-customer-photo']}));",
+ contents:"import React from 'react';import{createRoot}from'react-dom/client';import{OfflineCustomerPhotos}from'./components/offline-customer-photos';const root=createRoot(document.querySelector('#app'));root.render(React.createElement(OfflineCustomerPhotos,{customerId:'synthetic-customer-photo',customerName:'Synthetic Photo Customer',knownCustomerIds:['synthetic-customer-photo'],onPhotoCountChange:(id,count)=>{if(id==='synthetic-customer-photo')window.FIRE_LOCAL_BADGE_COUNT=count;}}));",
  resolveDir:root,sourcefile:'photo-ui-browser-fixture.tsx',loader:'tsx'
  },bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',loader:{'.css':'empty'},define:{'process.env.NODE_ENV':'"production"'}});
 const photoStyles=readFileSync(join(root,'app/globals.css'),'utf8').replace(/^@import[^;]+;\\s*/gm,'');
@@ -136,6 +136,7 @@ try{
  await library.setInputFiles(take('synthetic-before.png'));
  await page.getByText('Photos verified on this device.').waitFor({timeout:20000}).catch(async()=>page.getByText(/Photos verified on this device/).waitFor());
  check(await page.locator('.photo-card').count()===1,'Owner photo-library control creates a real IndexedDB photo and renders it');
+ check(await page.evaluate(()=>window.FIRE_LOCAL_BADGE_COUNT)===1,'Real React photo gallery reports one verified local photo to customer tab badge');
  check((await page.locator('.photo-card').first().innerText()).includes('Before north siding'),'Owner-entered photo caption is displayed');
  await page.getByLabel('Photo type').selectOption('after');
  await page.getByPlaceholder('North siding, water damage…').fill('After north siding');
@@ -143,6 +144,7 @@ try{
  await page.getByText(/Photos verified on this device/).waitFor();
  await page.locator('.photo-card').nth(1).waitFor();
  check(await page.locator('.photo-card').count()===2,'Owner can create separate before and after local photographs');
+ check(await page.evaluate(()=>window.FIRE_LOCAL_BADGE_COUNT)===2,'Real React gallery reports exact two-photo count without hosted estimates');
  check(await page.getByText('Before & after comparison').count()===1,'Real gallery reveals the optional before/after comparison tool');
  const comparisonMore=page.locator('details.photo-comparison-more');
  check(!await comparisonMore.evaluate(node=>node.open),'Photo upload stays focused: comparison editor starts collapsed');

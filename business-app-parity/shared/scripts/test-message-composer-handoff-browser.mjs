@@ -17,10 +17,11 @@ import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./compon
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
 import{MessageSquareText,Copy,ExternalLink,Mail,Send}from'lucide-react';
 import{GoogleVoiceTextShortcutAction,PersonalPhoneBackupAction,GOOGLE_VOICE_URL}from'./components/google-voice-text-action';
-import{usableCustomerEmail}from'./lib/customer-contact-links';import{FIRE_TEMPLATES,fillTemplate}from'./lib/fire-templates';
+import{usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation}from'./lib/customer-contact-links';import{FIRE_TEMPLATES,fillTemplate}from'./lib/fire-templates';
 const money=n=>'$'+(n/100).toFixed(2),dateTime=v=>v,reviewLink='https://example.invalid/review',resolvedBillingTotalCents=e=>e.totalCents,billingBalanceCents=e=>e.totalCents;
 ${composer.getText(ast)}
-createRoot(document.getElementById('app')).render(<MessageComposer initialTemplate="custom" customer={{id:'synthetic',name:'FIRE Synthetic Customer',email:'fixture+qa@example.invalid',phone:'9185550102',address:''}}/>);`;
+const customer={id:'synthetic',name:'FIRE Synthetic Customer',email:'fixture+qa@example.invalid',phone:'9185550102',address:''};
+createRoot(document.getElementById('app')).render(<main><MessageComposer initialTemplate="custom" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Text" customer={customer}/><MessageComposer initialTemplate="custom" triggerLabel="Email" customer={customer}/></main>);`;
 const bundle=await esbuild.build({stdin:{contents:fixture,resolveDir:root,loader:'tsx',sourcefile:'composer-test.tsx'},bundle:true,write:false,format:'esm',platform:'browser',jsx:'automatic',tsconfig:resolve('tsconfig.json'),define:{'process.env.NODE_ENV':'"production"'}});
 const styles=await postcss([tailwind({base:root})]).process(readFileSync('app/globals.css','utf8'),{from:resolve('app/globals.css')});
 let requests=[],denyHistory=false,denyPreparation=false,denyConfirmation=false;const server=createServer(async(req,res)=>{
@@ -51,7 +52,10 @@ try{
  await page.route('**/*',r=>new URL(r.request().url()).origin===origin?r.continue():r.abort());
  for(const width of [320,375,390,430])for(const theme of ['light','dark']){
   await page.setViewportSize({width,height:844});await page.goto(origin);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
-  await page.getByRole('button',{name:'Message',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Message',exact:true});
+  const entry=page.getByRole('button',{name:'Message',exact:true});
+  try{await entry.waitFor({state:'visible',timeout:5000});}
+  catch(error){throw Error('Synthetic composer did not mount: '+errors.join('; ')+' DOM: '+(await page.locator('#app').innerHTML()).slice(0,800),{cause:error});}
+  await entry.click();const dialog=page.getByRole('dialog',{name:'Message',exact:true});
   await dialog.getByLabel('Message text').fill('  Exact synthetic message\nSecond line  ');
   const before=requests.length;await dialog.getByRole('button',{name:'Text',exact:true}).click();
   const voice=dialog.getByRole('region',{name:'Google Voice text handoff'});await voice.waitFor();
@@ -67,6 +71,30 @@ try{
   check(box.x>=0&&box.x+box.width<=width+1&&box.height>=44,'Email handoff fits 44px mobile touch target');
   check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Composer has no horizontal page overflow');
   check(await dialog.getByRole('button',{name:'Copy email message',exact:true}).isVisible(),'Manual email fallback remains available');
+ }
+ // Direct customer-profile Text/Email buttons must open a usable editor, not
+ // appear dead when the default Custom message is blank. No OS handoff occurs
+ // until the owner chooses the prepared action separately.
+ for (const mode of ['Text','Email']) {
+  await page.setViewportSize({width:390,height:844});await page.goto(origin);
+  await page.getByRole('button',{name:mode,exact:true}).click();
+  const quick=page.getByRole('dialog',{name:'Message',exact:true});
+  const prep=quick.getByRole('button',{name:mode,exact:true});
+  const before=requests.length;
+  check(await prep.isDisabled(),mode+' profile quick action blocks blank Custom message preparation');
+  const status=await quick.getByRole('status').allTextContents();
+  check(status.some(x=>x.includes(mode==='Text'?'Write your text first':'Write your email first')),
+   mode+' profile quick action explains exactly how to enable preparation');
+  const message='Prepared via '+mode+' profile action';
+  await quick.getByLabel('Message text').fill(message);
+  check(await prep.isEnabled(),mode+' profile quick action becomes available after writing message');
+  await prep.click();
+  if(mode==='Text')await quick.getByRole('region',{name:'Google Voice text handoff'}).waitFor();
+  else await quick.getByRole('link',{name:'Open email app',exact:true}).waitFor();
+  check(requests.length===before+1&&requests.at(-1).body===message&&requests.at(-1).channel===(mode==='Text'?'text_prepared':'email_prepared'),
+   mode+' profile action prepares one exact saved draft, not an actual send');
+  check(await quick.getByRole('button',{name:'I sent the prepared message',exact:true}).isVisible(),
+   mode+' profile handoff never marks sent automatically');
  }
  // Auth can expire while a message modal is open. The explicit 401 comes
  // before any DB write, so it must not strand an immutable pending-operation

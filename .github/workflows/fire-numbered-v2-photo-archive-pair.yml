@@ -1,0 +1,55 @@
+name: FIRE Numbered v2 Records and Complete Photo Pair (No Restore)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/scripts/plan-complete-photo-recovery.py'
+      - 'business-app-parity/shared/scripts/validate-numbered-core-records-v2.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-photo-pair.py'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-signed-digests.mjs'
+      - 'business-app-parity/shared/scripts/test-plan-complete-photo-recovery.py'
+      - 'business-app-parity/shared/scripts/validate-photo-storage-archive.py'
+      - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
+      - 'business-app-parity/shared/lib/deposit-agreement-backup.mjs'
+      - '.github/workflows/fire-numbered-v2-photo-archive-pair.yml'
+  push:
+    branches: [work/fire-mobile-contact-consolidation-2026-10-31]
+    paths:
+      - 'business-app-parity/shared/scripts/plan-complete-photo-recovery.py'
+      - 'business-app-parity/shared/scripts/validate-numbered-core-records-v2.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-photo-pair.py'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-signed-digests.mjs'
+      - 'business-app-parity/shared/scripts/test-plan-complete-photo-recovery.py'
+      - 'business-app-parity/shared/scripts/validate-photo-storage-archive.py'
+      - 'business-app-parity/shared/lib/numbered-records-v2-preflight.mjs'
+      - 'business-app-parity/shared/lib/deposit-agreement-backup.mjs'
+      - '.github/workflows/fire-numbered-v2-photo-archive-pair.yml'
+permissions:
+  contents: read
+jobs:
+  private-pair-preflight-only:
+    name: Independent local v2 numbered records and R2 photo ZIP checksum pairing
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate existing legacy records and complete photo pairing
+        run: python3 scripts/test-plan-complete-photo-recovery.py
+      - name: Validate numbered v2 core records, signed agreement checksums and complete photo byte coverage
+        run: python3 scripts/test-numbered-v2-photo-pair.py
+      - name: Reject independently modified signed deposit terms and service scope
+        run: node scripts/test-numbered-v2-signed-digests.mjs

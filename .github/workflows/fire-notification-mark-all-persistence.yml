@@ -1,0 +1,46 @@
+name: FIRE Notification Mark All Persistence and Owner Safety
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/notifications/route.ts'
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-notification-read-recovery.mjs'
+      - 'business-app-parity/shared/scripts/test-notification-mark-all-sqlite.mjs'
+      - '.github/workflows/fire-notification-mark-all-persistence.yml'
+  push:
+    branches: [work/fire-mobile-contact-consolidation-2026-10-31]
+    paths:
+      - 'business-app-parity/shared/app/api/notifications/route.ts'
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/scripts/test-notification-read-recovery.mjs'
+      - 'business-app-parity/shared/scripts/test-notification-mark-all-sqlite.mjs'
+      - '.github/workflows/fire-notification-mark-all-persistence.yml'
+permissions:
+  contents: read
+jobs:
+  notification-persistence:
+    name: Actual SQLite notifications and Bell read confirmations (no providers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Confirm backend Mark All writes, persistence, auth, idempotency and failures
+        run: node --experimental-sqlite scripts/test-notification-mark-all-sqlite.mjs
+      - name: Confirm actual Bell source UI protects unread state on failed requests
+        run: node scripts/test-notification-read-recovery.mjs
