@@ -8,13 +8,14 @@ const functions=['CustomersView','EditCustomer','EstimatesView','InsightsView'].
 function visit(n){if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)){const tag=n.tagName.getText(ast);if(/^[A-Z]/.test(tag))tags.add(tag);}ts.forEachChild(n,visit);}functions.forEach(visit);
 const actual=['InsightsView','EstimatesView','EditCustomer','Button','Label','Input','Textarea','Dialog','DialogTrigger','DialogContent','DialogHeader','DialogTitle','Select','SelectTrigger','SelectValue','SelectContent','SelectItem'];
 const stubs=[...tags].filter(t=>!actual.includes(t)).map(t=>`const ${t}=()=>null;`).join('\n');
-const fixture=`import React,{useState,useRef,useEffect,useMemo}from'react';import{createRoot}from'react-dom/client';
+const fixture=`import React,{useState,useRef,useEffect,useMemo,useCallback}from'react';import{createRoot}from'react-dom/client';
 import{Textarea}from'./components/ui/textarea';import{Button}from'./components/ui/button';import{Label}from'./components/ui/label';import{Input}from'./components/ui/input';
 import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./components/ui/dialog';
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
 import{summarizeCustomerBalances}from'./lib/customer-balance-summary';import{messageHistoryEntries}from'./lib/message-history';
 import{deriveCustomerManualFlags,REVIEW_RECEIVED_NOTE,LEAD_NO_ANSWER_NOTE,LEAD_CONTACTED_NOTE,LEAD_CALLBACK_HANDLED_NOTE,leadCallbackNote,SIGN_PICKED_UP_NOTE,signPlacedNote,reviewFollowupEligibility}from'./lib/customer-activity-flags';
 import{mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory}from'./lib/offline-photo-availability';
+import{countOfflinePhotos,OFFLINE_PHOTO_CHANGES_CHANNEL}from'./lib/local-photo-vault';
 import{usableCustomerPhone,usableCustomerEmail}from'./lib/customer-contact-links';
 import{jobNumberLabel}from'./lib/job-numbering.mjs';
 import{customerNumberLabel,matchesCustomerNumberQuery,completedCustomerJobHistory}from'./lib/customer-numbering.mjs';
