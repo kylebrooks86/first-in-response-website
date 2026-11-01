@@ -34,6 +34,11 @@ assert.ok(dashboard.includes('tab==="customers"&&customerBackHandler.current'), 
 assert.ok(dashboard.includes('onRegisterBack={registerCustomerBack}'), 'Customer page registers nested Back');
 assert.ok(dashboard.includes('aria-label="Close notifications"'), 'Notifications include an explicit X');
 assert.ok(dashboard.includes('aria-label="Back to customer details"'), 'New estimate has a top Back button');
+assert.ok(dashboard.includes('currentTab.current==="settings"&&settingsDirtyRef.current'), 'Unsaved Settings edits guard all app tab transitions');
+assert.ok(dashboard.includes('window.confirm("Discard unsaved message-template edits and leave Settings?'), 'Leaving Settings asks before losing edits');
+assert.ok(dashboard.includes('onDirtyChange={setSettingsDirty}')&&dashboard.includes('onDirtyChange?.(hasUnsavedTemplateChanges)'), 'Template editor reports unsaved state to shell');
+assert.ok(dashboard.includes('Back to tasks')&&dashboard.includes('setContextTaskId(null)'), 'Expanded task detail can return to list');
+assert.ok(dashboard.includes('Discard edits')&&dashboard.includes('setDraft(savedTemplate)'), 'Template editor can discard without changing saved template');
 const dialog=readFileSync('components/ui/dialog.tsx','utf8');
 assert.ok(dialog.includes('aria-label="Close"')&&dialog.includes('absolute top-2 right-2 z-20 flex size-11'), 'Every shared dialog has a 44px labeled X');
 const css=(await postcss([tailwind({base:root})]).process(cssSource,{from:resolve('app/globals.css')})).css;
@@ -85,6 +90,11 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
   <div id="modal-long-content" style="height:800px" aria-hidden="true"></div>
   <button data-slot="dialog-close" type="button" class="absolute top-2 right-2 z-20 flex size-11 items-center justify-center rounded-md border border-border bg-background text-foreground" aria-label="Close" onclick="this.dataset.tapped='yes'">×</button>
  </section>
+ <section class="settings-view" id="synthetic-settings" style="display:none"><div class="template-layout"><div class="template-editor">
+   <p class="template-unsaved-state" role="status">Unsaved edits — save or discard before leaving.</p>
+   <footer><button type="button" onclick="this.dataset.tapped='yes'">Discard edits</button><button type="button">Restore default</button><button type="button" class="brand-button" onclick="this.dataset.tapped='yes'">Save template</button></footer>
+ </div></div></section>
+ <section class="business-task-context" id="synthetic-task" style="display:none"><p>Saved task details</p><button type="button" class="business-task-context-close" onclick="this.dataset.tapped='yes'">‹ Back to tasks</button></section>
  <div style="height:700px">Long business workflow content</div>
  <button class="brand-button" type="button" id="final-day-action" style="min-height:48px;width:100%">Final workflow action</button>
 </div>
@@ -222,6 +232,23 @@ try{
   await closeNotifications.tap();
   check(await closeNotifications.getAttribute('data-tapped')==='yes',label+' notifications X accepts tap');
   await notifications.evaluate(e=>{e.style.display='none';});
+  await page.locator('#synthetic-settings').evaluate(e=>{e.style.display='block';});
+  const settingsButtons=await page.locator('#synthetic-settings footer button').evaluateAll(rows=>rows.map(e=>{
+    const r=e.getBoundingClientRect();return {width:r.width,height:r.height,left:r.left,right:r.right};
+  }));
+  check(settingsButtons.length===3&&settingsButtons.every(b=>b.width>=44&&b.height>=44&&b.left>=-1&&b.right<=width+1),
+    label+' template Save/Restore/Discard controls fit narrow settings editor '+JSON.stringify(settingsButtons));
+  const discard=page.getByRole('button',{name:'Discard edits'});
+  await discard.scrollIntoViewIfNeeded();await discard.tap();
+  check(await discard.getAttribute('data-tapped')==='yes',label+' template discard remains touch-accessible');
+  await page.locator('#synthetic-settings').evaluate(e=>{e.style.display='none';});
+  await page.locator('#synthetic-task').evaluate(e=>{e.style.display='grid';});
+  const taskBack=page.getByRole('button',{name:/Back to tasks/});
+  await taskBack.scrollIntoViewIfNeeded();
+  const taskGeo=await taskBack.evaluate(e=>{const r=e.getBoundingClientRect();return {height:r.height,left:r.left,right:r.right};});
+  check(taskGeo.height>=44&&taskGeo.left>=0&&taskGeo.right<=width+1,label+' expanded task bottom Back is thumb-sized and within viewport '+JSON.stringify(taskGeo));
+  await taskBack.tap();check(await taskBack.getAttribute('data-tapped')==='yes',label+' expanded task Back works by touch');
+  await page.locator('#synthetic-task').evaluate(e=>{e.style.display='none';});
   await page.locator('#final-day-action').scrollIntoViewIfNeeded();
   const hit=await page.locator('#final-day-action').evaluate(e=>{
    const r=e.getBoundingClientRect(),at=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
