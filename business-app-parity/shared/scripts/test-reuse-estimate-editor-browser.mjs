@@ -111,8 +111,9 @@ await page.getByRole('option',{name:'Gutter Cleaning + Flush',exact:true}).click
 await manualLines.nth(1).getByLabel('Quantity',{exact:true}).fill('50');
 check(await manualLines.nth(1).getByText('Line total $75',{exact:true}).count()===1,
  'Gutter cleanout keeps 50 linear feet at $1.50 per foot');
-check(await page.getByText('Separate bundle discount ($)',{exact:true}).count()===1,
- 'Stackable bundle discount stays available without packages');
+check(await page.locator('#estimate-bundle-discount').isVisible()&&
+ await page.getByText('Bundle discount ($)',{exact:true}).count()===1,
+ 'Stackable dollar bundle input remains available with clear short label');
 check(packageWrites===beforePackageWrites,'Ordinary estimate edits never write legacy package data');
 await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent?.includes('Save $295 estimate')&&!b.disabled));
 await page.getByRole('button',{name:'Save $295 estimate'}).click();
