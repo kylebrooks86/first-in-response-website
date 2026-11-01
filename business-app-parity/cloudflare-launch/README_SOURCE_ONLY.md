@@ -1,6 +1,14 @@
 # FIRE independent Cloudflare launch — SOURCE ONLY / NOT DEPLOYABLE
 
-Owner-approved scope (November 1, 2026): **prepare GitHub source, staging/production configuration templates, and secure authentication groundwork only**. No new Cloudflare Workers, D1/R2, Access apps, routes, domains, secrets, Stripe webhooks, migrations, exports, deploys or charges are authorized.
+Owner approvals are scoped and additive:
+
+- Original launch scope: source-only templates and authentication groundwork; **no existing LIVE, QA, staging, DR, Stripe or DNS changes**.
+- Later November 1 approval: create **new, empty, isolated test-only** Cloudflare D1 and Worker identities; confirmed D1 `fire-stripe-test-db-20261101` UUID `dba421ba-fc66-4cf8-9c31-51616f8249ba` was created and confirmed to contain **0 application tables** by the owner via authenticated Wrangler.
+- Latest explicit owner approval: protect a new dedicated test Worker with **owner-only Cloudflare Access**, then deploy a **minimal deny-all stub Worker** with `DB` bound only to that verified new empty D1. This approval does **not** authorize deploying the FIRE Business App, enabling any public/preview route before Access protection, adding Stripe keys/webhooks, migrations, tests/charges/refunds, DNS updates, production cutover, or modifying any existing Worker/D1.
+- The `stripe-test-worker/` folder is the isolated, fail-closed first-deployment stub. It returns 403 for all paths, never accesses D1, has `workers_dev=false`, `preview_urls=false`, `routes=[]`, and contains no secrets or Stripe code. **Deploying it while no public route exists is permitted under the latest approval; do not enable `workers.dev` until owner-only Access is verified.** Access must be restricted to the exact owner identity rather than all email addresses in an organizational domain.
+- This new test Worker is **not** production/staging FIRE App and does **not** satisfy Gate 9 by itself. Its deployment identity and exact D1 binding must be verified after publication, with separate subsequent authorizations for schema initialization, payment tests, and Stripe endpoints.
+
+
 
 ## Why this route
 
