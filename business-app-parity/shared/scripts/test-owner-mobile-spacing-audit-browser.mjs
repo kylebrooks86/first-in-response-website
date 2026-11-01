@@ -39,6 +39,11 @@ assert.ok(dashboard.includes('window.confirm("Discard unsaved message-template e
 assert.ok(dashboard.includes('onDirtyChange={setSettingsDirty}')&&dashboard.includes('onDirtyChange?.(hasUnsavedTemplateChanges)'), 'Template editor reports unsaved state to shell');
 assert.ok(dashboard.includes('Back to tasks')&&dashboard.includes('setContextTaskId(null)'), 'Expanded task detail can return to list');
 assert.ok(dashboard.includes('Discard edits')&&dashboard.includes('setDraft(savedTemplate)'), 'Template editor can discard without changing saved template');
+assert.ok(dashboard.includes('onNoteDraftStatusChange={setCustomerNoteState}'), 'Customers reports pending note state to shell');
+assert.ok(dashboard.includes('customerNoteStateRef.current.saving')&&dashboard.includes('customerNoteStateRef.current.dirty'), 'Topbar and tabs guard pending or unsaved customer notes');
+assert.ok(dashboard.includes('Leave Customers and discard unfinished customer notes?'), 'Dirty note navigation requires explicit confirmation');
+assert.ok(dashboard.includes('if(!setTab(destination))return;'), 'Canceled global-search navigation does not clear search or redirect');
+assert.ok(dashboard.includes('if(target!==currentTab.current&&setTab(target))'), 'Back history is consumed only after navigation is approved');
 const dialog=readFileSync('components/ui/dialog.tsx','utf8');
 assert.ok(dialog.includes('aria-label="Close"')&&dialog.includes('absolute top-2 right-2 z-20 flex size-11'), 'Every shared dialog has a 44px labeled X');
 const css=(await postcss([tailwind({base:root})]).process(cssSource,{from:resolve('app/globals.css')})).css;
