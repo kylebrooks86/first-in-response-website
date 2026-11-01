@@ -3075,3 +3075,50 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   align-self:start;
   margin-bottom:-44px
 }
+
+
+/* Owner daily-flow polish: explicit unsaved-template state, reachable save
+   controls and a return affordance at the end of long task details. */
+.template-unsaved-state{
+  margin:0;
+  padding:8px 11px;
+  border:1px solid var(--border);
+  border-left:3px solid var(--primary);
+  border-radius:8px;
+  background:var(--card);
+  color:var(--foreground);
+  font-size:12px;
+  font-weight:700;
+  line-height:1.5
+}
+.template-editor>footer{min-width:0;gap:8px}
+.template-editor>footer>button{min-width:0;min-height:44px;overflow-wrap:anywhere}
+.business-task-context-close{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  justify-self:start;
+  gap:8px;
+  min-height:44px;
+  max-width:100%;
+  margin-top:5px;
+  padding:9px 12px;
+  border:1px solid var(--border);
+  border-radius:9px;
+  background:var(--card);
+  color:var(--foreground);
+  font-weight:700;
+  font-size:12px;
+  cursor:pointer;
+  touch-action:manipulation
+}
+.business-task-context-close svg{width:17px;height:17px;flex:none}
+.business-task-context-close:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+@media(max-width:760px){
+  .settings-view .template-editor>footer:has(>button:nth-child(3))>button:last-child{
+    grid-column:1/-1;
+    width:100%
+  }
+  .settings-view .template-editor>footer>button{min-height:48px}
+  .business-task-context-close{width:100%;justify-self:stretch}
+}
