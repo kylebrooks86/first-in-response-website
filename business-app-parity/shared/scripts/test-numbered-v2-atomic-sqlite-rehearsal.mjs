@@ -11,6 +11,7 @@ import {
  NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES,
  validateNumberedCoreRecordsV2,planNumberedCoreRecordsV2Restore
 } from '../lib/numbered-records-v2-preflight.mjs';
+import {restoreNumberedCoreV2ToDisposableMemory} from '../lib/disposable-numbered-v2-restore.mjs';
 let checks=0;
 const eq=(a,b,msg)=>{assert.deepEqual(a,b,msg);checks++;};
 const ok=(value,msg)=>{assert.ok(value,msg);checks++;};
@@ -79,35 +80,24 @@ try{
  eq(plan.customerHighWater,11,'Restore preserves consumed customer numbers from SQLite');
  eq(plan.jobHighWater,15,'Restore preserves consumed job numbers from SQLite');
 
- const order=['customers','estimates','estimate_items','customer_notes','invoices',
-  'invoice_items','invoice_revisions','payment_checkout_sessions','payments','payment_refunds',
-  'deposit_policy_events','deposit_agreement_snapshots','customer_photos','customer_messages',
-  'notifications','message_templates','estimate_change_requests','tasks','expenses','job_reports',
-  'fire_customer_numbers','fire_job_numbers','fire_job_estimate_links'];
- eq(new Set(order).size,NUMBERED_CORE_TABLES.length+NUMBERED_IDENTITY_TABLES.length,
-  'Rehearsal includes all 23 durable core/identity tables once each');
- const known=Object.fromEntries(order.map(table=>[table,new Set(blank.prepare('PRAGMA table_info("'+table+'")').all().map(x=>x.name))]));
- function insert(db,archive,{interruptAfter}={}){
-  let inserted=0;
-  db.exec('BEGIN IMMEDIATE');
-  try{
-   for(const table of order){
-    for(const row of archive.tables[table]){
-     const cols=Object.keys(row);
-     if(cols.length===0||cols.some(c=>!known[table].has(c)))
-       throw Error('Unsupported synthetic column, refuse unsafe insert');
-     const statement='INSERT INTO "'+table+'" ('+cols.map(c=>'"'+c+'"').join(',')+') VALUES ('+
-       cols.map(()=>'?').join(',')+')';
-     db.prepare(statement).run(...cols.map(c=>row[c]));
-     inserted++;
-     if(interruptAfter&&inserted===interruptAfter)throw Error('Synthetic crash before SQLite COMMIT');
-    }
-   }
-   db.prepare("UPDATE sqlite_sequence SET seq=? WHERE name='fire_customer_numbers'").run(archive.highWater.customer);
-   db.prepare("UPDATE sqlite_sequence SET seq=? WHERE name='fire_job_numbers'").run(archive.highWater.job);
-   db.exec('COMMIT');
-  }catch(error){db.exec('ROLLBACK');throw error;}
- }
+ const expectedTables=new Set([...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES]);
+ eq(expectedTables.size,23,'All 23 permanent and core recovery tables are covered by runtime');
+ const insert=(target,source,{interruptAfter}={})=>
+  restoreNumberedCoreV2ToDisposableMemory(target,source,
+   interruptAfter?{testInterruptAfterRows:interruptAfter}:{});
+ const safetyDB=makeDB();
+ try{
+  safetyDB.exec("ATTACH DATABASE ':memory:' AS unsafe_extra");
+  assert.throws(()=>insert(safetyDB,original),/only one unattached in-memory/);checks++;
+  safetyDB.exec('DETACH DATABASE unsafe_extra');
+  safetyDB.exec('CREATE TABLE unreviewed_feature(id TEXT)');
+  assert.throws(()=>insert(safetyDB,original),/reviewed exact QA baseline/);checks++;
+ }finally{safetyDB.close();}
+ const missingTrigger=makeDB();
+ try{
+  missingTrigger.exec('DROP TRIGGER fire_job_numbers_no_update');
+  assert.throws(()=>insert(missingTrigger,original),/immutability triggers missing/);checks++;
+ }finally{missingTrigger.close();}
  assert.throws(()=>insert(blank,original,{interruptAfter:4}),/Synthetic crash/);checks++;
  const emptyAgain=makeRows(blank);
  eq(emptyAgain.rowCounts,originalBlank.rowCounts,'Interrupted restore leaves all 23 tables empty');
@@ -119,7 +109,7 @@ try{
  eq(planNumberedCoreRecordsV2Restore(original,restored).insertCoreRecords.payments,0,
   'Re-running preflight on a restored archive is idempotent');
  const sealed=JSON.stringify(restored);
- assert.throws(()=>insert(blank,original),/UNIQUE constraint/);checks++;
+ assert.throws(()=>insert(blank,original),/not empty/);checks++;
  eq(JSON.stringify(makeRows(blank)),sealed,'Duplicate insert failure rolls back without changing any existing rows');
  item(blank,'INSERT INTO customers(id,name,created_at) VALUES(?,?,?)',['synthetic-c3','Synthetic Future',now]);
  item(blank,'INSERT INTO fire_customer_numbers(customer_id,created_at) VALUES(?,?)',['synthetic-c3',now]);
