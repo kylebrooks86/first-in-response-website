@@ -1822,7 +1822,22 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
       finishConfirmed(confirmed);
     }
   };
-  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="outline" disabled={!retryPending&&(!collectible||balance<=0&&normalized.status!=="completed")}><CircleDollarSign className="h-4 w-4"/>{paymentEntryLabel}</Button></DialogTrigger><DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>{balance<=0&&normalized.status==="completed"?"Record tip":"Record payment"}</DialogTitle></DialogHeader><div className="payment-form">
+  // A manual payment may commit even when the reply is lost. Never let Escape,
+  // outside-tap, or the X silently hide a live save or an unresolved receipt.
+  const setOpenSafe=(value:boolean)=>{
+    if(value){setOpen(true);return;}
+    if(paymentLock.current||saving){
+      window.alert("Payment save or status verification is in progress. Keep this window open until it finishes.");
+      return;
+    }
+    if(retryPending){
+      if(!window.confirm("This payment has not been confirmed. Closing does not cancel an earlier attempt. Reopen Record Payment and check the SAME saved request before collecting or recording another payment. Close this window?"))return;
+    }else if(amount!==(balance>0?(balance/100).toFixed(2):"")||tip.trim()||fee.trim()||reference.trim()||method!=="Wave"){
+      if(!window.confirm("Discard these unsaved payment details? Closing does not record a payment."))return;
+    }
+    setOpen(false);
+  };
+  return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><Button variant="outline" disabled={!retryPending&&(!collectible||balance<=0&&normalized.status!=="completed")}><CircleDollarSign className="h-4 w-4"/>{paymentEntryLabel}</Button></DialogTrigger><DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>{balance<=0&&normalized.status==="completed"?"Record tip":"Record payment"}</DialogTitle></DialogHeader><div className="payment-form">
     <p className="payment-estimate-summary"><strong>{estimate.customer}</strong> · {estimate.service}<br/><span>{money(totalRemaining)} remaining</span></p>{retryPending&&<section className="pending-payment-review" role="status"><strong>Payment pending confirmation</strong><span>Request {activeManual.current?.requestId}</span><p>This attempt is not proof of payment. Displayed balances are the last loaded amounts until the ledger confirms the result. Checking status never records a payment.</p></section>}
     <div className="payment-due-options"><span><small>Deposit due</small><strong>{money(depositRemaining)}</strong></span><span><small>Full balance</small><strong>{money(totalRemaining)}</strong></span></div>
     <div><Label htmlFor={"payment-amount-"+estimate.id}>Amount applied to invoice</Label><Input id={"payment-amount-"+estimate.id} disabled={saving||retryPending} value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<section className="final-tip-selector" aria-label="Optional tip choices"><Label>Tip received (optional)</Label><p className="payment-handle-note">Tip percentages use the invoice total. No tip is preselected.</p><div className="final-tip-options">{([0,5,10,15] as const).map((percent)=><button key={percent} type="button" disabled={saving||retryPending} aria-pressed={tipChoice===String(percent)} onClick={()=>{setTipChoice(String(percent) as "0"|"5"|"10"|"15");setTip(percent===0?"":(Math.round(billingTotal*percent/100)/100).toFixed(2));}}><strong>{percent===0?"No tip":`${percent}%`}</strong><span>{money(Math.round(billingTotal*percent/100))}</span></button>)}<button type="button" disabled={saving||retryPending} aria-pressed={tipChoice==="custom"} onClick={()=>{setTipChoice("custom");setTip("");}}><strong>Custom</strong><span>Enter amount</span></button></div>{tipChoice==="custom"&&<div><Label htmlFor={"payment-tip-"+estimate.id}>Custom tip amount</Label><Input id={"payment-tip-"+estimate.id} aria-label="Custom tip amount" disabled={saving||retryPending} value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" type="number" min="0" step="0.01" placeholder="0.00"/></div>}<small className="payment-handle-note">Tips do not reduce the invoice balance.</small></section>}
