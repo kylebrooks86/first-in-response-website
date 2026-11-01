@@ -67,8 +67,12 @@ export function restoreNumberedCoreV2ToDisposableMemory(db,archive,options={}){
  if(interruption!==undefined&&(!Number.isSafeInteger(interruption)||interruption<1))
   blocked('invalid synthetic interruption');
  const drives=db.prepare('PRAGMA database_list').all();
- if(drives.length!==1||drives[0].name!=='main'||drives[0].file!=='')
-  blocked('only one unattached in-memory SQLite database is permitted');
+ // SQLite may internally materialize its own transient "temp" schema
+ // after a PRAGMA or a completed transaction. It is not an attached DB.
+ // Permit ONLY main+temp with blank paths, never arbitrary ATTACH names/files.
+ if(drives.filter(d=>d.name==='main'&&d.file==='').length!==1||
+    drives.some(d=>d.file!==''||!['main','temp'].includes(d.name)))
+  blocked('only an unattached in-memory SQLite database is permitted');
  // Validate all data before the first insertion or BEGIN. Do not trust a
  // self-declared manifest alone; actual record relationships are checked.
  const summary=validateNumberedCoreRecordsV2(archive);
