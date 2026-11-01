@@ -49,6 +49,11 @@ assert.ok(dashboard.includes('const changedSinceOpen=')&&dashboard.includes('Dis
 assert.ok(dashboard.includes('const invoiceHasUnsavedChanges=')&&dashboard.includes('Discard unsaved invoice changes?'), 'Edit Invoice protects service, due date and final totals');
 assert.ok(dashboard.includes('className="estimate-edit-modal-footer fire-edit-actions"'), 'Estimate editor has Save and Cancel in stationary footer');
 assert.ok(dashboard.includes('className="fire-edit-actions"')&&dashboard.includes('Save invoice changes'), 'Customer and invoice editors expose Cancel and Save');
+assert.ok(dashboard.includes('savedReportDraft.current=reportFingerprint(')&&dashboard.includes('Discard unsaved job report notes and checklist changes?'), 'Job report close checks saved checklist and notes without changing actual report save');
+assert.ok(dashboard.includes('const hasUnfinishedCost=Boolean(description.trim()||amount.trim())')&&dashboard.includes('Discard the unfinished job cost entry?'), 'Job costs protect partially filled entries');
+assert.ok(dashboard.includes('settingsSavingRef.current')&&dashboard.includes('onSavingChange={setSettingsSaving}'), 'In-flight template saves block tab navigation');
+assert.ok(dashboard.includes('<summary>Pricing help</summary>')&&dashboard.includes('<summary>Promotion rules</summary>'), 'Secondary price explanations are optional disclosures');
+assert.ok(dashboard.includes('message==="Template saved."||message==="Default restored."'), 'Settings shows failed template saves as errors, not success');
 const dialog=readFileSync('components/ui/dialog.tsx','utf8');
 assert.ok(dialog.includes('aria-label="Close"')&&dialog.includes('absolute top-2 right-2 z-20 flex size-11'), 'Every shared dialog has a 44px labeled X');
 const css=(await postcss([tailwind({base:root})]).process(cssSource,{from:resolve('app/globals.css')})).css;
