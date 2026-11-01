@@ -39,12 +39,12 @@ jobs:
       - name: Exact Stripe TEST signed callback review, no Access policy changes
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/webhook-path.test.mjs
       - name: Guard one-time TEST D1 hosted initializer (NO Cloudflare access)
-        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1.test.mjs business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1-v2.test.mjs
+        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1.test.mjs business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1-v2.test.mjs business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1-v3.test.mjs
       - name: Validate Windows PowerShell initializer syntax without executing
         shell: bash
         run: |
           if command -v pwsh >/dev/null 2>&1; then
-            pwsh -NoProfile -Command '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile("business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1-v2.ps1",[ref]$tokens,[ref]$errors) | Out-Null; if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }'
+            pwsh -NoProfile -Command '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile("business-app-parity/cloudflare-launch/stripe-test-worker/initialize-empty-test-d1-v3.ps1",[ref]$tokens,[ref]$errors) | Out-Null; if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }'
           else
             echo 'PowerShell unavailable; static contract checked, execution must remain owner Acer only.'
           fi
