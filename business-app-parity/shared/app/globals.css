@@ -2831,3 +2831,73 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
     padding-bottom:max(12px,env(safe-area-inset-bottom))
   }
 }
+
+
+/* FIRE full-app source audit: shared mobile menus, drawers and dialogs.
+   Prevent ANY item from being trapped at the bottom/top edge of iPhone.
+   Dialogs and dropdowns remain the same design, but have real scroll room. */
+@media(max-width:760px){
+  [data-slot="select-content"]{
+    max-height:min(56dvh,var(--radix-select-content-available-height,56dvh));
+    max-width:calc(100vw - 36px);
+    overscroll-behavior:contain
+  }
+  [data-slot="select-viewport"]{
+    height:auto!important;
+    max-height:min(52dvh,var(--radix-select-content-available-height,52dvh));
+    overflow-y:auto;
+    padding-bottom:max(18px,env(safe-area-inset-bottom));
+    scroll-padding-bottom:max(18px,env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain
+  }
+  /* Long service list is deliberately SHORTER than other dropdowns.
+     Custom is first; the remaining options can scroll, never hit the edge. */
+  .estimate-service-picker[data-slot="select-content"]{
+    max-height:min(50dvh,var(--radix-select-content-available-height,50dvh))
+  }
+  .estimate-service-picker [data-slot="select-viewport"]{
+    max-height:min(46dvh,var(--radix-select-content-available-height,46dvh))
+  }
+  [data-slot="dropdown-menu-content"]{
+    max-height:min(56dvh,var(--radix-dropdown-menu-content-available-height,56dvh));
+    max-width:calc(100vw - 36px);
+    padding-bottom:max(12px,env(safe-area-inset-bottom));
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch
+  }
+  [data-slot="popover-content"]{
+    max-height:min(70dvh,var(--radix-popover-content-available-height,70dvh));
+    max-width:calc(100vw - 36px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch
+  }
+  [data-slot="dialog-content"]:not(.estimate-edit-dialog){
+    max-height:calc(100dvh - 32px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch
+  }
+  [data-slot="dialog-close"],[data-slot="sheet-close"]{
+    min-width:44px;
+    min-height:44px;
+    display:inline-flex;
+    justify-content:center;
+    align-items:center;
+    touch-action:manipulation
+  }
+  [data-slot="sheet-content"]{
+    max-height:100dvh;
+    padding-bottom:max(12px,env(safe-area-inset-bottom))
+  }
+  [data-slot="sheet-content"][data-side="bottom"]{
+    max-height:calc(100dvh - 24px);
+    overflow-y:auto;
+    overscroll-behavior:contain
+  }
+  [data-slot="sheet-content"] [data-slot="sheet-footer"]{
+    padding-bottom:max(16px,env(safe-area-inset-bottom))
+  }
+}
