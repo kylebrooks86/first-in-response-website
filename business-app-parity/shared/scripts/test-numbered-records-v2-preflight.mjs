@@ -16,6 +16,8 @@ const eq=(a,b,reason)=>{assert.deepEqual(a,b,reason);checks++;};
 const blocked=(fn,reason)=>{assert.throws(fn,/FIRE numbered records v2 blocked/,reason);checks++;};
 const tables=()=>Object.fromEntries([...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES].map(t=>[t,[]]));
 const copy=structuredClone;
+const countManifest=t=>Object.fromEntries(Object.entries(t).map(([name,rows])=>[name,rows.length]));
+const refreshCounts=snapshot=>{snapshot.rowCounts=countManifest(snapshot.tables);return snapshot;};
 function archive(){
  const rows=tables();
  rows.customers=[
@@ -39,9 +41,9 @@ function archive(){
  rows.payment_refunds=[
   {id:'refund-1',payment_id:'p1',estimate_id:'e2',amount_cents:1000,mode:'manual',status:'succeeded',provider_refund_id:null}];
  return {format:NUMBERED_RECORDS_V2_FORMAT,version:NUMBERED_RECORDS_V2_VERSION,
-  allTablesComplete:true,truncated:false,tables:rows,highWater:{customer:7,job:11}};
+  allTablesComplete:true,truncated:false,tables:rows,rowCounts:countManifest(rows),highWater:{customer:7,job:11}};
 }
-const empty=()=>({...archive(),tables:tables(),highWater:{customer:0,job:0}});
+const empty=()=>{const x={...archive(),tables:tables(),highWater:{customer:0,job:0}};return refreshCounts(x);};
 const sample=archive();
 const validated=validateNumberedCoreRecordsV2(sample);
 eq(validated.customerNumbers,2,'Both real Customer # mappings retained');
@@ -84,6 +86,9 @@ for(const [name,alter] of [
  ['incomplete Customer # mapping',x=>x.tables.fire_customer_numbers.pop()],
  ['cross-customer Job # revision',x=>x.tables.fire_job_estimate_links[1].job_number=6],
  ['missing high-water proof',x=>delete x.highWater],
+ ['missing per-table count manifest',x=>delete x.rowCounts],
+ ['inconsistent declared payment count',x=>x.rowCounts.payments=1],
+ ['unexpected count manifest key',x=>x.rowCounts.unreviewed_table=0],
  ['serial consumption lost',x=>x.highWater.job=3],
  ['non-json undefined',x=>x.tables.customer_notes[0].body=undefined],
  ['non-json infinite',x=>x.tables.payments[0].amount_cents=Infinity]
@@ -101,8 +106,10 @@ blocked(()=>planNumberedCoreRecordsV2Restore(sample,consumed),'Consumed destinat
 const stripeSource=copy(sample),stripeTarget=copy(sample);
 stripeSource.tables.payments.push({id:'p-source-stripe',estimate_id:'e2',type:'Balance',status:'paid',amount_cents:100,
  provider_id:'cs_synthetic_dup'});
+refreshCounts(stripeSource);
 stripeTarget.tables.payments.push({id:'p-target-stripe',estimate_id:'e2',type:'Balance',status:'paid',amount_cents:100,
  provider_id:'cs_synthetic_dup'});
+refreshCounts(stripeTarget);
 ok(validateNumberedCoreRecordsV2(stripeSource).coreRows>0,'Source with distinct Stripe receipt is internally valid');
 ok(validateNumberedCoreRecordsV2(stripeTarget).coreRows>0,'Destination with distinct Stripe receipt is internally valid');
 blocked(()=>planNumberedCoreRecordsV2Restore(stripeSource,stripeTarget),
@@ -114,6 +121,7 @@ otherRefund.tables.payment_refunds=[{id:'refund-2',payment_id:'p1',estimate_id:'
 otherRefund.tables.payments=otherRefund.tables.payments.filter(x=>x.id!=='p2');
 otherRefund.tables.payments.push({id:'p3',estimate_id:'e2',type:'Refund',
  status:'paid',amount_cents:-2500,provider_id:'refund:p1:refund-2'});
+refreshCounts(otherRefund);
 ok(validateNumberedCoreRecordsV2(otherRefund).coreRows>0,
  'Different 2500-cent refund is internally valid when isolated');
 blocked(()=>planNumberedCoreRecordsV2Restore(sample,otherRefund),
@@ -122,6 +130,7 @@ blocked(()=>planNumberedCoreRecordsV2Restore(sample,otherRefund),
 const safeNewNotes=copy(sample);
 safeNewNotes.tables.customer_notes.push({id:'note-2',customer_id:'c2',
  body:'Independent verified note',created_at:'2026-10-20T00:00:00Z'});
+refreshCounts(safeNewNotes);
 const safeUnion=planNumberedCoreRecordsV2Restore(safeNewNotes,sample);
 eq(safeUnion.insertCoreRecords.customer_notes,1,
  'Compatible independent customer note may be included without changing original records');
