@@ -150,4 +150,44 @@ for(const [permit,args,destination] of [
  else eq(calls.filter(x=>x.startsWith('navigate:')).length,1,'Accepted notification changes section once, avoiding duplicate prompts');
 }
 
+
+// Release blocker regression: every cross-section owner shortcut must ask the
+// shared unsaved-editor guard BEFORE mutating customer, quote, task, or search focus.
+const expectedQuickActions = {
+ DashboardView:['onOpenEstimate','onOpenCustomer','onOpenCustomerActivity','onOpenTask','onOpenDoorHouse'],
+ CustomersView:['onPreparePickupTask','onPrepareReviewTask','onOpenTerritory'],
+ FollowUpsView:['onOpenEstimate','onOpenCustomer'],
+ ScheduleView:['onNavigate','onOpenCustomer'],
+ DoorKnocking:['onCreateCustomer','onOpenCustomer'],
+ BusinessView:['onOpenCustomer','onOpenCustomerActivity'],
+ PaymentsView:['onOpenEstimate','onOpenCustomerReview'],
+};
+const quickActionNodes=[];
+function findQuickActions(node){
+ if(ts.isJsxSelfClosingElement(node)){
+  const kind=node.tagName.getText(ast);
+  for(const prop of expectedQuickActions[kind]||[]){
+   const attribute=node.attributes.properties.find(a=>ts.isJsxAttribute(a)&&a.name.text===prop);
+   assert.ok(attribute&&ts.isJsxExpression(attribute.initializer)&&attribute.initializer.expression,kind+'.'+prop+' must remain a handler');
+   quickActionNodes.push({kind,prop,node:attribute.initializer.expression});
+  }
+ }
+ ts.forEachChild(node,findQuickActions);
+}
+findQuickActions(dashboard);
+eq(quickActionNodes.length,18,'All 18 original owner cross-section quick-action handlers are covered');
+for(const {kind,prop,node} of quickActionNodes){
+ const hits=[],scope={customerActivityRequest:{current:3},setTab:destination=>{hits.push('authorize:'+destination);return false;}};
+ const setters=['setSearchQuery','setGlobalQuery','setFocusEstimateId','setEstimateRefreshKey','setFocusCustomerId','setFocusCustomerSection','setCustomerActivityFocus','setFocusBusinessTaskHint','setFocusBusinessTaskId','setPickupTaskDraft','setReviewTaskDraft','setFocusDoorHouseId','setFocusFollowupEstimateId','setTerritoryCustomerAddress','setFocusTerritoryAddress'];
+ for(const key of setters)scope[key]=()=>hits.push('mutate:'+key);
+ runHandler(node,ast,scope)('synthetic-id','review');
+ eq(hits.length,1,kind+'.'+prop+' does not change drafts, focus, search or task when navigation is refused');
+ eq(hits[0].startsWith('authorize:'),true,kind+'.'+prop+' checks the navigation guard before mutations');
+ eq(scope.customerActivityRequest.current,3,kind+'.'+prop+' cannot consume an activity request ID after cancellation');
+}
+// Sidebar and Home also must preserve the currently open navigation surface if
+// the user selects Cancel on an unsaved Settings/customer note warning.
+assert.match(source,/onClick=\{\(\)=>\{if\(setTab\(id\)\)setMobileMenu\(false\);\}\}/,'Sidebar menu only closes after accepted navigation');checks++;
+assert.match(source,/const goHome = \(\) => \{ if\(setTab\("dashboard"\)\)setMobileMenu\(false\); \};/,'Home retains menu context when navigation is rejected');checks++;
+
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
