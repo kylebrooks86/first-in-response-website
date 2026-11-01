@@ -2937,3 +2937,21 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
     overscroll-behavior:contain
   }
 }
+
+
+/* Compact but fully editable service scope, all three estimate/invoice forms.
+   The shared textarea uses field-sizing:content, which otherwise defeats
+   rows=3 for longer FIRE service descriptions and crowds the Save controls. */
+.estimate-edit-service .estimate-service-description{
+  field-sizing:fixed;
+  height:96px;
+  min-height:96px;
+  max-height:min(42dvh,320px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  resize:vertical
+}
+.estimate-edit-service .estimate-service-description:focus{
+  height:min(30dvh,180px)
+}
