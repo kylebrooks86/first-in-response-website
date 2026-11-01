@@ -88,7 +88,7 @@ for(const mode of ['write-denied','access-denied']){const r=run(variable(stride,
 // Regression: Cancel on an unsaved customer note or settings template must not
 // clear search context, change record focus or consume a notification shortcut.
 function runHandler(initializer,tree,scope){
- const compiled=ts.transpileModule('const __handler='+initializer.getText(tree)+';\\n__handler',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const compiled=ts.transpileModule('const __handler='+initializer.getText(tree)+';\n__handler',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
  return vm.runInNewContext(compiled,scope);
 }
 const searchSource=readFileSync('components/global-search.tsx','utf8');
