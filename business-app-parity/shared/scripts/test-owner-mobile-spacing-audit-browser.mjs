@@ -67,6 +67,7 @@ try{
  for(const [width,height] of [[320,568],[375,667],[390,844],[430,932],[667,375]])for(const theme of ['light','dark']){
   await page.setViewportSize({width,height});await page.goto(url);
   if(theme==='dark')await page.evaluate(()=>document.documentElement.dataset.theme='dark');
+  const label=width+'x'+height+' '+theme;
   const signHeight=await page.locator('.customer-flag-panel>details.customer-sign-form>summary').evaluate(e=>e.getBoundingClientRect().height);
   check(signHeight>=44,label+' customer sign disclosure is touch-sized');
   const all=await page.evaluate(()=>{
@@ -76,7 +77,6 @@ try{
    const critical=[...document.querySelectorAll('.notification-attention>header button,.notification-attention-filters>button,.notification-attention-more')].map(e=>({name:e.textContent.trim(),rect:rect(e)}));
    return {header,critical,screen:innerWidth,docWidth:document.documentElement.scrollWidth};
   });
-  const label=width+'x'+height+' '+theme;
   check(all.critical.every(x=>x.rect.height>=44),label+' notification controls are at least 44px tall');
   check(all.critical.every(x=>x.rect.x>=-1&&x.rect.right<=width+1),label+' reminder buttons stay inside viewport');
   check(all.header.every(x=>x.rect.x>=-1&&x.rect.right<=width+1),label+' header actions stay inside viewport '+JSON.stringify(all.header));
