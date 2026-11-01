@@ -9,7 +9,7 @@ import {EstimatePromotionHistory} from "../components/estimate-promotion-history
 import {businessReceiptStorage,readBusinessReceipt,reserveBusinessReceipt,releaseBusinessReceipt,type BusinessCreateKind} from "../lib/business-create-receipt";
 import {taskDueBucket} from "../lib/task-due";
 import {tightScheduleTurnarounds} from "../lib/schedule-turnarounds";
-import {usableCustomerPhone,usableCustomerEmail} from "../lib/customer-contact-links";
+import {usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation} from "../lib/customer-contact-links";
 import {estimateAttentionItems,type AttentionEstimate,type AttentionEstimateItem} from "../lib/attention-estimates";
 import {flagHasMatchingDueTask} from "../lib/attention-flag-dedupe";
 import {businessTaskContext,taskLinkedFlag} from "../lib/business-task-context";
@@ -416,7 +416,16 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       const saved=result.message;
       if(scope!==messageScope.current)return false;
       if(!response.ok||!saved){
-        setMessageStatus(result.error||"Message preparation is unconfirmed. Retry the unchanged draft using the same request.");
+        if(definitiveUnwrittenMessagePreparation(response.status)){
+          // These explicit API rejections occur before customer-message
+          // writes. The draft is definitively NOT saved, so allow editing
+          // and a new operation ID. Never apply this to 409, 5xx or timeout:
+          // those may involve an existing immutable message or unknown write.
+          uncertainPreparation.current=null;
+          setMessageStatus(result.error||"This draft was rejected before saving. Correct it and try again.");
+        }else{
+          setMessageStatus(result.error||"Message preparation is unconfirmed. Retry the unchanged draft using the same request.");
+        }
         return false;
       }
       if(saved.id!=="owner-message-prep:"+operation.requestId||saved.customerId!==customer.id||
@@ -437,8 +446,18 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     }finally{clearTimeout(timeout);preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
   };
   const copyVoiceField=async(text:string,success:string,failure:string)=>{try{await navigator.clipboard.writeText(text);setMessageStatus(success);}catch{setMessageStatus(failure);}};
-  const sendText=async()=>{if(!await log("text_prepared"))return;setMessageStatus("Prepared for Google Voice. Tap Text below to approve in your Shortcut, or use the manual options. Sending remains unconfirmed.");};
-  const sendEmail=async()=>{if(!await log("email_prepared"))return;setMessageStatus("Email prepared. Tap Open email app below, then send from your business account. Sending remains unconfirmed.");};
+  const sendText=async()=>{
+    const ready=customerMessageHandoffReadiness("text",customer.phone,body);
+    if(!ready.ready){setMessageStatus(ready.reason);return;}
+    if(!await log("text_prepared"))return;
+    setMessageStatus("Prepared for Google Voice. Tap Text in the handoff section to approve in your Shortcut. Sending remains unconfirmed.");
+  };
+  const sendEmail=async()=>{
+    const ready=customerMessageHandoffReadiness("email",customer.email,body);
+    if(!ready.ready){setMessageStatus(ready.reason);return;}
+    if(!await log("email_prepared"))return;
+    setMessageStatus("Email prepared. Tap Open email app below, then send from your business account. Sending remains unconfirmed.");
+  };
   const confirmSent=async()=>{
     if(!preparedMessage||preparationLock.current)return;
     const draft=preparedMessage,scope=messageScope.current;
@@ -508,8 +527,9 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
         {preparedMessage?.channel==="email_prepared"&&<section className="rounded-lg border p-3" aria-label="Prepared email handoff"><strong>Send email</strong>{usableCustomerEmail(customer.email)?<a className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2" href={`mailto:${encodeURIComponent(usableCustomerEmail(customer.email)!)}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(preparedMessage.body)}`}><Mail className="h-4 w-4"/> Open email app</a>:<p role="alert">Add a valid customer email before sending.</p>}<small>Choose your business sender in the email app. If no app opens, copy the message into your business email.</small><Button type="button" variant="outline" onClick={()=>void copyVoiceField(preparedMessage.body,"Prepared email copied. Sending remains unconfirmed.","Copy failed. Select the saved message below to copy it.")}>Copy email message</Button></section>}
          {preparedMessage&&<div className="message-confirm-actions"><p>Confirm here only after you send the prepared {preparedMessage.channel=== "text_prepared"?"text":"email"}. Opening another app does not confirm sending.</p><Button variant="outline" onClick={()=>void confirmSent()} disabled={working}>I sent the prepared message</Button><Button variant="outline" disabled={working} onClick={()=>{draftEdited.current=true;setBody(preparedMessage.body);setTemplate(preparedMessage.template);setPreparedMessage(null);setMessageStatus("Sending remains unconfirmed. You can keep editing.");}}>Not sent — keep editing</Button><Button variant="outline" disabled={working} onClick={()=>void cancelPrepared()}>Discard unsent draft</Button></div>}
         <div><Label htmlFor={`message-template-${customer.id}-${estimate?.id??"general"}`}>Template</Label><Select value={preparedMessage?.template??template} onValueChange={chooseTemplate} disabled={working||Boolean(preparedMessage)}><SelectTrigger id={`message-template-${customer.id}-${estimate?.id??"general"}`}><SelectValue/></SelectTrigger><SelectContent>{composerTemplates.map((item)=><SelectItem key={item.key} value={item.key}>{item.name}</SelectItem>)}</SelectContent></Select></div>
-        <div><Label htmlFor="customerMessage">Message text</Label><Textarea id="customerMessage" disabled={working} readOnly={Boolean(preparedMessage)} value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={8}/></div>
-        <div className="message-actions"><Button variant="outline" onClick={()=>void copy()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Copy className="h-4 w-4"/> Copy</Button>{customer.email&&activeTemplate?.channel!=="sms"&&<Button variant="outline" onClick={()=>void sendEmail()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Mail className="h-4 w-4"/> Email</Button>}{customer.phone&&activeTemplate?.channel!=="email"&&<Button className="brand-button" onClick={()=>void sendText()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Send className="h-4 w-4"/> Text</Button>}</div>
+        <div><Label htmlFor="customerMessage">Message text</Label><Textarea id="customerMessage" disabled={working} readOnly={Boolean(preparedMessage)} placeholder="Write a message to this customer…" value={preparedMessage?.body??body} onChange={(event)=>{draftEdited.current=true;setBody(event.target.value);}} rows={8}/>
+        {!preparedMessage&&(triggerLabel==="Text"||triggerLabel==="Email")&&<p className="mt-2 text-sm text-muted-foreground" role="status">{customerMessageHandoffReadiness(triggerLabel==="Text"?"text":"email",triggerLabel==="Text"?customer.phone:customer.email,body).reason||"Ready to prepare. Sending still requires a separate approval in Google Voice or your email app."}</p>}</div>
+        <div className="message-actions"><Button variant="outline" onClick={()=>void copy()} disabled={working||Boolean(preparedMessage)||!body.trim()}><Copy className="h-4 w-4"/> Copy</Button>{usableCustomerEmail(customer.email)&&activeTemplate?.channel!=="sms"&&<Button variant="outline" onClick={()=>void sendEmail()} disabled={working||Boolean(preparedMessage)||!customerMessageHandoffReadiness("email",customer.email,body).ready}><Mail className="h-4 w-4"/> Email</Button>}{usableCustomerPhone(customer.phone)&&activeTemplate?.channel!=="email"&&<Button className="brand-button" onClick={()=>void sendText()} disabled={working||Boolean(preparedMessage)||!customerMessageHandoffReadiness("text",customer.phone,body).ready}><Send className="h-4 w-4"/> Text</Button>}</div>
       </div>
     </DialogContent>
   </Dialog>;
