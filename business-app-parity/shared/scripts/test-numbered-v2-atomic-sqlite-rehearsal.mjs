@@ -88,7 +88,7 @@ try{
  const safetyDB=makeDB();
  try{
   safetyDB.exec("ATTACH DATABASE ':memory:' AS unsafe_extra");
-  assert.throws(()=>insert(safetyDB,original),/only one unattached in-memory/);checks++;
+  assert.throws(()=>insert(safetyDB,original),/only an unattached in-memory SQLite/);checks++;
   safetyDB.exec('DETACH DATABASE unsafe_extra');
   safetyDB.exec('CREATE TABLE unreviewed_feature(id TEXT)');
   assert.throws(()=>insert(safetyDB,original),/reviewed exact QA baseline/);checks++;
