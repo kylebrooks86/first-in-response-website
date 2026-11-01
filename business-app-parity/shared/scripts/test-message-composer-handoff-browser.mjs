@@ -17,7 +17,7 @@ import{Dialog,DialogTrigger,DialogContent,DialogHeader,DialogTitle}from'./compon
 import{Select,SelectTrigger,SelectValue,SelectContent,SelectItem}from'./components/ui/select';
 import{MessageSquareText,Copy,ExternalLink,Mail,Send}from'lucide-react';
 import{GoogleVoiceTextShortcutAction,PersonalPhoneBackupAction,GOOGLE_VOICE_URL}from'./components/google-voice-text-action';
-import{usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation}from'./lib/customer-contact-links';import{FIRE_TEMPLATES,fillTemplate}from'./lib/fire-templates';
+import{usableCustomerPhone,usableCustomerEmail,customerMessageHandoffReadiness,definitiveUnwrittenMessagePreparation}from'./lib/customer-contact-links';import{FIRE_TEMPLATES,fillTemplate}from'./lib/fire-templates';
 const money=n=>'$'+(n/100).toFixed(2),dateTime=v=>v,reviewLink='https://example.invalid/review',resolvedBillingTotalCents=e=>e.totalCents,billingBalanceCents=e=>e.totalCents;
 ${composer.getText(ast)}
 const customer={id:'synthetic',name:'FIRE Synthetic Customer',email:'fixture+qa@example.invalid',phone:'9185550102',address:''};
