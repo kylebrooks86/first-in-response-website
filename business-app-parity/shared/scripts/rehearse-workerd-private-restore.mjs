@@ -194,6 +194,15 @@ export async function rehearseCompleteKitIntoDisposableWorkerd({
   if(fk.length)fail('recovered local D1 foreign keys are inconsistent');
   stage='integrity-check';
   const integrity=await rows(targetDb,'PRAGMA integrity_check');
+  // Synthetic-only instrumentation: field shape and status, never SQL or
+  // private customer data. Do NOT waive an actual SQLite integrity defect.
+  console.log('DISPOSABLE_D1_INTEGRITY_DIAGNOSTIC='+JSON.stringify({
+   count:integrity.length,
+   fields:Object.keys(integrity[0]??{}),
+   ok:integrity.length===1&&integrity[0].integrity_check==='ok',
+   firstValueType:typeof Object.values(integrity[0]??{})[0],
+   firstValueLength:String(Object.values(integrity[0]??{})[0]??'').length
+  }));
   if(integrity.length!==1||integrity[0].integrity_check!=='ok')
    fail('recovered local SQLite integrity check failed');
   stage='photo-verify-after-db';
