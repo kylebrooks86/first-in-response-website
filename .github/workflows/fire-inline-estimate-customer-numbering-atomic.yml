@@ -1,0 +1,46 @@
+name: FIRE Inline Estimate Customer and Job Numbering Atomicity
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/api/estimates/route.ts'
+      - 'business-app-parity/shared/lib/customer-numbering.mjs'
+      - 'business-app-parity/shared/lib/job-numbering.mjs'
+      - 'business-app-parity/shared/scripts/test-estimate-inline-customer-numbering.mjs'
+      - '.github/workflows/fire-inline-estimate-customer-numbering-atomic.yml'
+  push:
+    branches:
+      - work/fire-mobile-contact-consolidation-2026-10-31
+    paths:
+      - 'business-app-parity/shared/app/api/estimates/route.ts'
+      - 'business-app-parity/shared/lib/customer-numbering.mjs'
+      - 'business-app-parity/shared/lib/job-numbering.mjs'
+      - 'business-app-parity/shared/scripts/test-estimate-inline-customer-numbering.mjs'
+      - '.github/workflows/fire-inline-estimate-customer-numbering-atomic.yml'
+permissions:
+  contents: read
+jobs:
+  immutable-combined-create:
+    name: Real Estimate API D1-style transaction, Customer # and Job #, replay and rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        working-directory: business-app-parity/shared
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned local dependencies without provider access
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Exercise actual owner POST, immutable Customer and Job allocations, retries and rollback
+        run: node --experimental-sqlite scripts/test-estimate-inline-customer-numbering.mjs
