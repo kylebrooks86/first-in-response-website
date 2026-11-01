@@ -30,6 +30,7 @@ import {CustomerProperties} from '../components/customer-properties';
 import {OwnerJobSnapshotsProvider,useOwnerJobSnapshots,type OwnerJobSnapshotAccess} from '../components/owner-job-snapshots';
 import { OwnerAccountView } from "./owner-account";
 import {OfflineCustomerPhotos} from "../components/offline-customer-photos";
+import {countOfflinePhotos,OFFLINE_PHOTO_CHANGES_CHANNEL} from "../lib/local-photo-vault";
 import { GoogleVoiceTextAction, GoogleVoiceTextShortcutAction, GoogleVoiceCallAction, PersonalPhoneBackupAction, GOOGLE_VOICE_URL } from "../components/google-voice-text-action";
 import {saveOfflinePhotoCustomerDirectory,loadOfflinePhotoCustomerDirectory,clearOfflinePhotoCustomerDirectory,type OfflinePhotoCustomer} from "../lib/offline-photo-customer-directory";
 import {mayUseOfflinePhotoDirectory,mustClearOfflinePhotoDirectory} from "../lib/offline-photo-availability";
@@ -2317,6 +2318,43 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [propertyListRefresh,setPropertyListRefresh]=useState(0);
   const [payments,setPayments]=useState<PaymentRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Photo badge shows ONLY IndexedDB on-device photos. Historical hosted
+  // photo records are separately disclosed inside the gallery; never mix them.
+  const [onDevicePhotoCount,setOnDevicePhotoCount]=useState<number|null>(null);
+  const photoCountEpoch=useRef(0),selectedPhotoCustomer=useRef<string|null>(selectedId);
+  selectedPhotoCustomer.current=selectedId;
+  const acceptPhotoCount=useCallback((customerId:string,count:number)=>{
+    if(customerId!==selectedPhotoCustomer.current||!Number.isSafeInteger(count)||count<0)return;
+    photoCountEpoch.current++;
+    setOnDevicePhotoCount(count);
+  },[]);
+  useEffect(()=>{
+    let cancelled=false;
+    setOnDevicePhotoCount(null);
+    if(!selectedId)return;
+    const refreshCount=()=>{
+      const epoch=++photoCountEpoch.current;
+      void countOfflinePhotos(selectedId).then(count=>{
+        if(!cancelled&&epoch===photoCountEpoch.current)setOnDevicePhotoCount(count);
+      }).catch(()=>{if(!cancelled&&epoch===photoCountEpoch.current)setOnDevicePhotoCount(null);});
+    };
+    refreshCount();
+    const channel=typeof BroadcastChannel!=="undefined"?new BroadcastChannel(OFFLINE_PHOTO_CHANGES_CHANNEL):null;
+    const onVaultChange=(event:MessageEvent)=>{
+      if(event.data?.type==="changed"&&typeof event.data.source==="string")refreshCount();
+    };
+    channel?.addEventListener("message",onVaultChange);
+    const onFocus=()=>refreshCount();
+    const onVisibility=()=>{if(document.visibilityState==="visible")refreshCount();};
+    window.addEventListener("focus",onFocus);
+    document.addEventListener("visibilitychange",onVisibility);
+    return()=>{
+      cancelled=true;photoCountEpoch.current++;
+      channel?.removeEventListener("message",onVaultChange);channel?.close();
+      window.removeEventListener("focus",onFocus);
+      document.removeEventListener("visibilitychange",onVisibility);
+    };
+  },[selectedId]);
   const [showUnansweredLeadsOnly,setShowUnansweredLeadsOnly]=useState(false);
   const [showDueCallbacksOnly,setShowDueCallbacksOnly]=useState(false);
   const [directorySearch,setDirectorySearch]=useState("");
@@ -2711,7 +2749,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       <button aria-current={section === "estimates"?"page":undefined} className={section === "estimates" ? "active" : ""} onClick={() => setSection("estimates")}>Estimates <b>{customerEstimates.length}</b></button>
       <button aria-current={section === "payments"?"page":undefined} className={section === "payments" ? "active" : ""} onClick={() => setSection("payments")}>Payments</button>
       <button aria-current={section === "invoices"?"page":undefined} className={section === "invoices" ? "active" : ""} onClick={() => setSection("invoices")}>Invoices</button>
-      <button aria-current={section === "photos"?"page":undefined} className={section === "photos" ? "active" : ""} onClick={() => setSection("photos")}>Photos</button>
+      <button aria-current={section === "photos"?"page":undefined} className={section === "photos" ? "active" : ""} onClick={() => setSection("photos")}>Photos {onDevicePhotoCount!==null&&<b aria-label={onDevicePhotoCount+" on-device photos"} title="Photos on this device only">{onDevicePhotoCount}</b>}</button>
       <button aria-current={section === "messages"?"page":undefined} className={section === "messages" ? "active" : ""} onClick={() => setSection("messages")}>Messages <b>{historyEntries.length}</b></button>
       <button aria-current={section === "notes"?"page":undefined} className={section === "notes" ? "active" : ""} onClick={() => setSection("notes")}>Notes <b>{customerNotes.length}</b></button>
     </nav>
@@ -2721,7 +2759,7 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
       {section === "estimates" && (matchingEstimates.length ? matchingEstimates.map((estimate) => <button className="customer-record record-button" id={"customer-estimate-"+estimate.id} key={estimate.id} onClick={()=>setActiveEstimate({...estimate,customer:selected.name,customerNumber:selected.customerNumber,email:selected.email,phone:selected.phone,address:estimate.address??undefined})}><div><strong>{estimate.service}</strong>{customerNumberLabel(selected.customerNumber)&&<small>{customerNumberLabel(selected.customerNumber)}</small>}{jobNumberLabel(estimate.jobNumber)&&<small>{jobNumberLabel(estimate.jobNumber)}</small>}<small>{new Date(estimate.createdAt).toLocaleDateString()} · {statusLabel(estimate.status)}{estimate.scheduledAt ? ` · ${dateTime(estimate.scheduledAt)}` : ""}{estimate.signedAt?" · Signed agreement":estimate.acceptedAt?" · Accepted, unsigned":Number(estimate.pendingChangeCount)>0?" · Changes requested":""}</small></div><strong>{money(resolvedBillingTotalCents(estimate))}</strong><ChevronRight /></button>) : <div className="record-empty"><ClipboardList /><strong>{customerEstimates.length?customerQuoteView==="agreements"?"No agreements found":"No estimates found":"No estimates yet"}</strong>{customerEstimates.length>0&&<p>{customerQuoteView==="agreements"?"Choose All estimates or clear search.":"Clear search to see estimates."}</p>}</div>)}
       {section === "payments" && (matchingPayments.length ? matchingPayments.map((payment) => <article className="customer-record customer-payment-record" key={payment.id} id={"customer-payment-"+payment.id} tabIndex={-1}><div><strong>{payment.type==="Tip"?"Tip":payment.type==="Tip Refund"?"Tip refund":`${paymentTypeLabel(payment.type)} payment`}</strong><small>{dateTime(payment.createdAt)}{payment.reference&&<span className="inline-flex max-w-full flex-wrap items-center gap-1"><span className="font-mono" title={payment.reference}> · Ref …{payment.reference.slice(-12)}</span><button type="button" aria-label="Copy full payment reference" className="rounded border px-2 py-0.5 text-xs" onClick={()=>void navigator.clipboard.writeText(payment.reference||"").catch(()=>{})}>Copy</button></span>}</small><ProcessingDetails payment={payment}/></div><strong className="customer-payment-amount">{money(payment.amountCents)}</strong><RefundPayment payment={payment} onRefunded={()=>void load()}/></article>) : <div className="record-empty"><CreditCard /><strong>{customerPayments.length?"No matching payments":"No payments recorded"}</strong><p>{customerPayments.length?"Clear search to see payments.":"Record received money from an estimate."}</p></div>)}
       {section === "invoices" && (matchingInvoices.length ? matchingInvoices.map((invoice)=><a className="customer-record record-button" id={"customer-invoice-"+invoice.id} tabIndex={-1} key={invoice.id} href={invoice.shareToken?`/invoice/${encodeURIComponent(invoice.shareToken)}?ownerPreview=1&from=customer`:undefined}><div><strong>Invoice #{invoice.id.slice(0,6).toUpperCase()}</strong>{customerNumberLabel(selected.customerNumber)&&<small>{customerNumberLabel(selected.customerNumber)}</small>}{jobNumberLabel(invoice.jobNumber)&&<small>{jobNumberLabel(invoice.jobNumber)}</small>}<small>{(invoice.paymentReviewPending||Number(invoice.paymentOverageOpen)>0)?"Payment review in progress":invoice.status==="paid"?"Paid in full":`${statusLabel(invoice.status)} · Due ${invoice.dueAt?new Date(invoice.dueAt).toLocaleDateString():"on receipt"}`}</small></div><strong>{money(invoice.totalCents)}</strong><ExternalLink/></a>) : <div className="record-empty"><Receipt /><strong>{customerInvoices.length?"No matching invoices":"No invoices yet"}</strong><p>{customerInvoices.length?"Clear search to see invoices.":"Create one from an estimate."}</p></div>)}
-      {section === "photos"&&<OfflineCustomerPhotos key={selected.id} customerId={selected.id} customerName={selected.name} knownCustomerIds={customers.map(item=>item.id)} legacyCloudPhotoCount={customerPhotos.length}/>}
+      {section === "photos"&&<OfflineCustomerPhotos key={selected.id} customerId={selected.id} customerName={selected.name} knownCustomerIds={customers.map(item=>item.id)} legacyCloudPhotoCount={customerPhotos.length} onPhotoCountChange={acceptPhotoCount}/>}
       {section === "messages"&&<section className="customer-messages-panel" aria-label="Customer messages"><div className="customer-messages-actions"><MessageComposer key={selected.id} customer={selected} estimate={customerEstimates[0]} initialTemplate="estimate" triggerLabel="+ Compose Message" triggerClassName="brand-button" onLogged={(message)=>setMessages((current)=>[message,...current.filter(entry=>entry.id!==message.id)])}/></div>{matchingMessages.length?matchingMessages.map(({message,prepared})=><article className="message-history" id={"customer-message-"+message.id} tabIndex={-1} key={message.id}><span className={`message-channel ${message.channel}`}><MessageSquareText/></span><div><strong>{message.template==="followupContact"?"Customer contact recorded":message.template==="followupSnooze"?"Estimate follow-up snoozed":message.template==="reviewCheckSnooze"?"Review status check deferred":message.template==="reviewSnooze"?"Review request deferred":messageLabels[message.template]||"Customer message"}</strong><p>{message.body}</p><small>{message.channel==="contact_recorded"?"Contacted · owner recorded":message.channel==="followup_snoozed"?"Follow-up snoozed until "+dateTime(message.body):message.channel==="review_snoozed"?"Owner deferred request until "+dateTime(message.body)+" · no message sent":message.channel==="review_check_snoozed"?"Owner deferred check until "+dateTime(message.body)+" · no message sent":message.channel.endsWith("_prepared")?"Prepared · sending unconfirmed":message.channel.endsWith("_confirmed")?"Sent · owner confirmed; delivery unknown":message.channel==="copy"?"Copied · sending unconfirmed":"Legacy interaction · sending unconfirmed"} · {dateTime(message.createdAt)}{prepared&&<> · Prepared {dateTime(prepared.createdAt)} · 2 audit events retained</>}</small></div></article>):<div className="record-empty"><MessageSquareText/><strong>{historyEntries.length?"No matching messages":"No messages prepared yet"}</strong><p>{historyEntries.length?"Clear the history search to see all saved messages.":"Compose a personalized text or email above. Prepared drafts and your send confirmations appear here."}</p></div>}</section>}
       {section === "notes" && <div className="notes-panel"><div className="note-compose"><Label className="sr-only" htmlFor={`customer-note-draft-${selected.id}`}>Customer note</Label><Textarea rows={4} maxLength={5000} id={`customer-note-draft-${selected.id}`} value={noteText} disabled={savingNote&&noteSavingCustomer.current===selected.id} onChange={(event)=>{const value=event.target.value;noteDrafts.current[selected.id]=value;setNoteText(value);setNoteFeedback(null);}} placeholder="Gate code, pets, property details…" /><Button className="brand-button" onClick={()=>void saveNote()} disabled={savingNote || !noteText.trim() || noteText.trim().length>5000}><Plus className="h-4 w-4" /> {savingNote?"Saving note…":"Add note"}</Button></div><p className="note-draft-help">{noteText.length.toLocaleString()} / 5,000 · Tap Add note to save.</p>{noteFeedback?.customerId===selected.id&&<p className={noteFeedback.kind==="error"?"save-error":"save-success"} role={noteFeedback.kind==="error"?"alert":"status"}>{noteFeedback.text}</p>}{noteFeedback?.customerId===selected.id&&noteFeedback.kind==="error"&&<Button variant="outline" className="min-h-11" onClick={()=>void load()} disabled={savingNote}>Refresh saved notes</Button>}{matchingNotes.length ? matchingNotes.map((note)=><article className="note-row" key={note.id} id={"customer-note-"+note.id} tabIndex={-1}><StickyNote /><div><p>{note.body}</p><small>{dateTime(note.createdAt)}</small></div></article>) : <div className="record-empty"><StickyNote /><strong>{customerNotes.length?"No matching notes":"No notes yet"}</strong><p>{customerNotes.length?"Clear the history search to see all saved notes.":"Save access details and job-specific reminders here."}</p></div>}</div>}
     </section>
