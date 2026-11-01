@@ -14,13 +14,15 @@ $qaDatabase = 'fire-fullapp-qa-db-20261016'
 $qaId = '8ccfb1f8-1657-4074-b1b2-47de78f95003'
 # Cloud photo R2 is intentionally not provisioned. The device-local photo vault and
 # independently saved ZIP backups must remain usable without billing.
-# Pin current QA-only Worker from the owner's Oct 31 authenticated read-only PASS.
-# This script is READ ONLY; the separate publisher remains deliberately locked
-# to an older version until owner-held 25-schema recovery is authenticated.
+# Last owner-attested 100%-serving QA version (Oct 31). Recheck its exact
+# current identity and physical D1 binding with authenticated Wrangler; old
+# screenshots are not fresh provider proof. This reviewer is READ ONLY.
+# The separate QA publisher remains intentionally pinned to an older version
+# pending independent private backup/recovery attestation and explicit approval.
 # Fresh authenticated Wrangler review must independently confirm the same sole 100% active version.
 # Reject a different active version, split traffic, or changed D1 identity.
 # Reject older, split, changed or ambiguous versions before any upload.
-$expectedActiveVersion = '99fa8c27-df83-48d3-b953-9a84eb295334'
+$expectedActiveVersion = '86f3d186-2770-438e-9f5c-32319bf6fe1d'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Require([bool]$ok, [string]$reason) {
     if (-not $ok) { throw ('FIRE QA UPDATE STOP: ' + $reason) }
