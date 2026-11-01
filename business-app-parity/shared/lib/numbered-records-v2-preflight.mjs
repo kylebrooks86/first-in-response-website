@@ -9,7 +9,7 @@
 import {validateNumberedIdentityArchive,planNumberedIdentityRestore,
   NUMBERED_IDENTITY_ARCHIVE_FORMAT,NUMBERED_IDENTITY_ARCHIVE_VERSION
 } from './numbered-identity-archive.mjs';
-import {assertBackupIntegrity} from './records-backup-integrity.mjs';
+import {assertBackupIntegrity} from '../scripts/records-backup-integrity.mjs';
 
 export const NUMBERED_RECORDS_V2_FORMAT='fire-numbered-core-records-snapshot';
 export const NUMBERED_RECORDS_V2_VERSION=2;
