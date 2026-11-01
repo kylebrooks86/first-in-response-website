@@ -52,7 +52,7 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
   <button class="notification-attention-more">Show next 8 reminders · 4 remaining</button>
  </section>
  <section class="customer-flag-panel"><details class="customer-sign-form"><summary>Yard sign details</summary><p>Saved activity</p></details></section>
- <section class="customer-profile">
+ <section class="customer-profile customers-view">
  <nav class="record-tabs" aria-label="Customer record sections" tabindex="-1">
   <button type="button" aria-current="page" class="active" onclick="this.dataset.tapped='yes'">Estimates <b>4</b></button>
   <button type="button" onclick="this.dataset.tapped='yes'">Payments</button>
