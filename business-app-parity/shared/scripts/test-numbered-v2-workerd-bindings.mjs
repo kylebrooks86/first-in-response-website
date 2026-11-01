@@ -160,6 +160,10 @@ try{
   'Local rehearsal never claims cross-provider transactional restore');
  eq(restored.realHostedRestorePerformed,false,
   'No hosted source or target was used');
+ eq(restored.physicalSqliteIntegrityCheckPassed,false,
+  'Do not falsely claim unsupported Cloudflare D1 physical integrity PRAGMA passed');
+ eq(restored.providerD1SqliteIntegrityPragmaUnsupported,true,
+  'D1 SQLITE_AUTH physical-integrity limitation remains explicit release evidence');
  const newRefund=await recoveryDb.prepare("SELECT amount_cents FROM payment_refunds WHERE id='synthetic-r1'").first();
  eq(newRefund.amount_cents,5000,'Recovered real D1 refund maintains exact original cents');
  const newCash=await recoveryDb.prepare("SELECT amount_cents FROM payments WHERE id='synthetic-p1'").first();
