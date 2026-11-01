@@ -5,7 +5,9 @@
  */
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {readFileSync,readdirSync} from 'node:fs';
+import {readFileSync,readdirSync,mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {
  NUMBERED_RECORDS_V2_FORMAT,NUMBERED_RECORDS_V2_VERSION,
  NUMBERED_CORE_TABLES,NUMBERED_IDENTITY_TABLES,
@@ -21,8 +23,8 @@ eq(migrationFiles.length,25,'Exact 25 owner-reviewed QA schema source migrations
 const sourceSchema=migrationFiles.map(file=>readFileSync(sqlDir+'/'+file,'utf8')).join('\n');
 const numberSchema=readFileSync('../customer-numbering/customer_numbers_v1.sql','utf8')+'\n'+
  readFileSync('../job-numbering/job_numbers_v1.sql','utf8');
-const makeDB=()=>{
- const db=new DatabaseSync(':memory:');
+const makeDB=(filename=':memory:')=>{
+ const db=new DatabaseSync(filename);
  db.exec(sourceSchema);
  db.exec(numberSchema);
  db.exec('PRAGMA foreign_keys=ON');
@@ -93,6 +95,18 @@ try{
   safetyDB.exec('CREATE TABLE unreviewed_feature(id TEXT)');
   assert.throws(()=>insert(safetyDB,original),/reviewed exact QA baseline/);checks++;
  }finally{safetyDB.close();}
+ // Explicitly prove the reusable code refuses a physical SQLite file even
+ // if it has the exact correct schema and zero records.
+ const diskDir=mkdtempSync(join(tmpdir(),'fire-v2-restore-denied-'));
+ const diskDb=makeDB(join(diskDir,'synthetic-only.sqlite'));
+ try{
+  assert.throws(()=>insert(diskDb,original),/only an unattached in-memory SQLite/);checks++;
+  eq(diskDb.prepare('SELECT COUNT(*) AS n FROM customers').get().n,0,
+   'Physical SQLite restore is refused before touching synthetic customer data');
+ }finally{
+  diskDb.close();
+  rmSync(diskDir,{recursive:true,force:true});
+ }
  const missingTrigger=makeDB();
  try{
   missingTrigger.exec('DROP TRIGGER fire_job_numbers_no_update');
