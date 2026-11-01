@@ -1,0 +1,42 @@
+name: FIRE iPhone Estimate Picker and Copy (focused)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/app/globals.css'
+      - 'business-app-parity/shared/components/ui/select.tsx'
+      - 'business-app-parity/shared/lib/estimate-service-picker-options.ts'
+      - 'business-app-parity/shared/scripts/test-iphone-estimate-service-picker.mjs'
+      - '.github/workflows/fire-iphone-estimate-picker.yml'
+  push:
+    branches:
+      - 'work/fire-iphone-estimate-service-picker-*'
+    paths:
+      - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/app/globals.css'
+      - 'business-app-parity/shared/components/ui/select.tsx'
+      - 'business-app-parity/shared/lib/estimate-service-picker-options.ts'
+      - 'business-app-parity/shared/scripts/test-iphone-estimate-service-picker.mjs'
+      - '.github/workflows/fire-iphone-estimate-picker.yml'
+permissions:
+  contents: read
+jobs:
+  iphone-estimate-taps-and-copy:
+    name: Custom Service iPhone accessibility and plain-language checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install pinned app dependencies
+        working-directory: business-app-parity/shared
+        run: pnpm install --frozen-lockfile
+      - name: Focused picker ordering and touch-clearance checks
+        working-directory: business-app-parity/shared
+        run: node scripts/test-iphone-estimate-service-picker.mjs
