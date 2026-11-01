@@ -1,0 +1,66 @@
+name: FIRE Independent Cloudflare Launch — Source Only
+
+on:
+  push:
+    branches:
+      - work/fire-cloudflare-launch-isolation-2026-11-01
+    paths:
+      - 'business-app-parity/cloudflare-launch/**'
+      - '.github/workflows/fire-cloudflare-launch-source-safety.yml'
+  pull_request:
+    paths:
+      - 'business-app-parity/cloudflare-launch/**'
+      - '.github/workflows/fire-cloudflare-launch-source-safety.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fail-closed-source:
+    name: Access JWT / independent D1 mapping / local materialization only
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic Access JWT and resource isolation tests
+        run: node --test business-app-parity/cloudflare-launch/launch-source.test.mjs
+      - name: Staging and production materializers are source only and private
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d)"
+          trap 'rm -rf "$root"' EXIT
+          python3 business-app-parity/cloudflare-launch/materialize-cloudflare.py staging "$root/staging"
+          python3 business-app-parity/cloudflare-launch/materialize-cloudflare.py production "$root/production"
+          python3 - "$root" <<'PY'
+          import pathlib,sys
+          root=pathlib.Path(sys.argv[1])
+          for environment in ('staging','production'):
+              p=root/environment
+              assert (p/'app/chatgpt-auth.ts').exists()
+              text=(p/'app/chatgpt-auth.ts').read_text()
+              assert 'verifyFireAccessJWT' in text
+              assert 'oai-authenticated-user-email' not in text
+              assert (p/'app/access-jwt.mjs').exists()
+              assert (p/'app/access-required/page.tsx').exists()
+              assert not (p/'app/owner-auth.ts').exists()
+              assert not (p/'app/api/auth/login/route.ts').exists()
+              assert (p/'vite.config.ts').exists()
+              assert '00000000-0000-4000-8000-000000000000' in (p/'vite.config.ts').read_text()
+              assert not (p/'dist').exists()
+          assert 'environment="STAGING"' in (root/'staging/app/page.tsx').read_text()
+          assert 'environment="STAGING"' not in (root/'production/app/page.tsx').read_text()
+          print('PASS: Both private local candidates use signed Access auth; built manifests absent, local D1 placeholder retained.')
+          PY
+          if python3 business-app-parity/cloudflare-launch/materialize-cloudflare.py staging "$root/staging"; then
+            echo 'FAIL: materializer overwrote an existing directory' >&2; exit 1
+          fi
+          echo 'PASS: No hosted writes, Stripe, secrets, D1 creation, routes, or deployments.'
