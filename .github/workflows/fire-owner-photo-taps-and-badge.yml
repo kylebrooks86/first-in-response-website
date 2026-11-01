@@ -8,6 +8,7 @@ on:
       - 'business-app-parity/shared/lib/local-photo-vault.ts'
       - 'business-app-parity/shared/scripts/test-owner-mobile-spacing-audit-browser.mjs'
       - 'business-app-parity/shared/scripts/test-offline-photo-indexeddb-browser.mjs'
+      - 'business-app-parity/shared/scripts/test-offline-photo-ui-browser.mjs'
       - '.github/workflows/fire-owner-photo-taps-and-badge.yml'
   push:
     branches:
@@ -19,6 +20,7 @@ on:
       - 'business-app-parity/shared/lib/local-photo-vault.ts'
       - 'business-app-parity/shared/scripts/test-owner-mobile-spacing-audit-browser.mjs'
       - 'business-app-parity/shared/scripts/test-offline-photo-indexeddb-browser.mjs'
+      - 'business-app-parity/shared/scripts/test-offline-photo-ui-browser.mjs'
       - '.github/workflows/fire-owner-photo-taps-and-badge.yml'
 permissions:
   contents: read
@@ -55,3 +57,5 @@ jobs:
         run: node scripts/test-offline-photo-indexeddb-browser.mjs
       - name: Test mobile Photos delete button tap and navigation footer (synthetic)
         run: node scripts/test-owner-mobile-spacing-audit-browser.mjs
+      - name: Test actual customer React photo gallery, verified badge callback, recovery and offline storage
+        run: node scripts/test-offline-photo-ui-browser.mjs
