@@ -98,7 +98,8 @@ try{
   'deposit_policy_events','deposit_agreement_snapshots','estimate_items','customer_photos',
   'customer_messages','notifications','message_templates','estimate_change_requests',
   'tasks','expenses','job_reports']);
- console.log('LOCAL_CLOUDFLARE_EXTRA_TABLE_NAMES='+JSON.stringify(tableNames.filter(name=>!expectedTables.has(name))));
+ eq(tableNames.filter(name=>!expectedTables.has(name)),['_cf_METADATA'],
+  'Cloudflare local workerd introduces exactly the reviewed provider metadata table');
  const before=await db.prepare('SELECT COUNT(*) AS count FROM payment_refunds').first();
  const first=await captureEncryptedNumberedV2PrivateKitFromProviders({
   db,bucket,passphrase:dummyPass,now:()=>epoch
