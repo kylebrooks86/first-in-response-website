@@ -19,7 +19,7 @@ function commit(tab){vm.runInNewContext(js,{tab,currentTab,tabHistory,backDestin
 const backCall=variable(dashboard,'goBack').getText(ast);
 assert.ok(backCall,'Actual top Back handler is present');
 const backJs=ts.transpileModule('('+backCall+')()', {compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
-function pressBack(){vm.runInNewContext(backJs,{currentTab,tabHistory,backDestination,tab:currentTab.current,mobileMenu:false,customerBackHandler:{current:null},setTab:target=>{commit(target);return true;},setMobileMenu:()=>{}});}
+function pressBack(){let destination=null;vm.runInNewContext(backJs,{currentTab,tabHistory,backDestination,tab:currentTab.current,mobileMenu:false,customerBackHandler:{current:null},setTab:target=>{destination=target;return true;},setMobileMenu:()=>{}});if(destination!==null)commit(destination);}
 commit('dashboard');eq(scrolls.length,0,'Mount must not override browser/restored position');
 const sections=['customers','estimates','invoices','payments','schedule','contracts','followups','insights','business','settings','owner-account','dashboard'];
 for(const tab of sections){
