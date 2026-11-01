@@ -201,6 +201,19 @@ def plan(archive_path, records_path):
         result["allOptionalFeatureTablesVerified"] = False
         result["combinedRecordsAndPhotoBytesRestored"] = False
         result["validatedInputBytes"] = identities
+        # Domain-separated pair fingerprint binds EXACT bytes of the records
+        # source and photo ZIP in a stable order, without exposing either file.
+        # This is not a digital signature, a time-atomic capture or an
+        # independent proof of the source D1 / R2 environment.
+        pair_payload = {
+            "format": "fire-private-records-photo-pair-fingerprint-v1",
+            "recordsSha256": identities["recordsBackup"]["sha256"],
+            "photoZipSha256": identities["photoArchive"]["sha256"],
+        }
+        result["pairedFileFingerprintSha256"] = hashlib.sha256(
+            json.dumps(pair_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        result["pairFingerprintCryptographicallySigned"] = False
         result["privateSnapshotsRemovedOnReturn"] = True
         return result
 
