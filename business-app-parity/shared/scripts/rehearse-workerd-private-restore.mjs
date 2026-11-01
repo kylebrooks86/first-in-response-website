@@ -159,7 +159,7 @@ export async function rehearseCompleteKitIntoDisposableWorkerd({
  const {archive,photos}=await openNumberedV2PrivateRecoveryKit({kit,passphrase});
  const {statements,orderedTables}=await buildBatch(targetDb,archive);
  const staged=[];
- let committed=false;
+ let committed=false,stage='photo-staging';
  try{
   for(const photo of photos){
    if(await targetBucket.head(photo.objectKey))
@@ -169,10 +169,12 @@ export async function rehearseCompleteKitIntoDisposableWorkerd({
    });
    staged.push(photo.objectKey);
   }
+  stage='photo-verify-before-db';
   await verifyR2(targetBucket,photos);
   // Dedicated local-only fault injection proves D1 batch rollback even after
   // all R2 bytes were staged. Not exposed in any application route.
   if(beforeAtomicBatch)await beforeAtomicBatch(targetDb);
+  stage='d1-atomic-batch';
   if(statements.length) {
    const result=await targetDb.batch(statements);
    if(!Array.isArray(result)||result.length!==statements.length||
@@ -180,16 +182,21 @@ export async function rehearseCompleteKitIntoDisposableWorkerd({
     fail('atomic recovery D1 batch was incomplete');
   }
   committed=true;
+  stage='recapture-source-contract';
   const recovered=await captureFinanciallyVerifiedNumberedRecordsV2FromD1({
    db:targetDb,now:()=>archive.records.exportedAt
   });
+  stage='archive-checksum';
   if(recovered.archive.checksum.hex!==archive.checksum.hex)
    fail('database restore is not an exact original 21-table/numbering replay');
+  stage='foreign-key-check';
   const fk=await rows(targetDb,'PRAGMA foreign_key_check');
   if(fk.length)fail('recovered local D1 foreign keys are inconsistent');
+  stage='integrity-check';
   const integrity=await rows(targetDb,'PRAGMA integrity_check');
   if(integrity.length!==1||integrity[0].integrity_check!=='ok')
    fail('recovered local SQLite integrity check failed');
+  stage='photo-verify-after-db';
   await verifyR2(targetBucket,photos);
   return Object.freeze({
    reviewedRecordTables:orderedTables,reviewedNumberedTables:3,
@@ -203,7 +210,7 @@ export async function rehearseCompleteKitIntoDisposableWorkerd({
   // Best-effort cleanup is allowed only here, in throwaway local R2.
   const cleaned=await cleanup(targetBucket,staged);
   if(!cleaned)fail('cleanup incomplete; discard entire disposable recovery environment');
-  fail(committed?'postcommit verification failed; throw away disposable recovery target':
-    'transaction or original photo staging failed; discard disposable recovery target');
+  fail(committed?'postcommit '+stage+' verification failed; throw away disposable recovery target':
+    'transaction stopped during '+stage+'; discard disposable recovery target');
  }
 }
