@@ -145,7 +145,10 @@ export async function POST(request: Request) {
     // Feature-off QA/LIVE preserves the original customer/estimate workflow.
     const customerNumberFlag=(env as typeof env & {FIRE_CUSTOMER_NUMBERS_CANDIDATE?:string}).FIRE_CUSTOMER_NUMBERS_CANDIDATE===CUSTOMER_NUMBER_FLAG;
     const allocateCustomerNumber=customerNumberFlag&&!existingCustomerId;
-    if(allocateCustomerNumber){
+    // Existing-customer estimates must also fail closed if historical
+    // Customer # coverage or immutability is incomplete; do not write new
+    // quote rows against a partially activated numbering system.
+    if(customerNumberFlag){
       try{
         if(!await customerNumberingReady(env.DB,env))
           return Response.json({error:'Customer numbering has not been approved. No customer or estimate was created.'},{status:503});
