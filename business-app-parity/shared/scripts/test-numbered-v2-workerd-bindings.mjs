@@ -15,11 +15,22 @@ import {captureEncryptedNumberedV2PrivateKitFromProviders}
  from '../lib/numbered-records-v2-source-export.mjs';
 import {openNumberedV2PrivateRecoveryKit}
  from '../lib/numbered-records-v2-private-kit.mjs';
+import {captureFinanciallyVerifiedNumberedRecordsV2FromD1}
+ from '../lib/numbered-records-v2-d1-read.mjs';
+import {FIRE_NUMBERED_RECORDS_TABLES}
+ from '../lib/numbered-records-v2.mjs';
 
 const base=resolve(fileURLToPath(new URL('.',import.meta.url)),'../../');
 const config=resolve(base,'shared/scripts/fire-v2-disposable-bindings.json');
 const raw=JSON.parse(readFileSync(config,'utf8'));
-assert.equal(raw.d1_databases.length,1);
+assert.equal(raw.d1_databases.length,3);
+assert.deepEqual(raw.d1_databases.map(x=>x.binding),['DB','RECOVERY_DB','FAULT_DB']);
+assert.deepEqual(raw.r2_buckets.map(x=>x.binding),['BUCKET','RECOVERY_BUCKET','FAULT_BUCKET']);
+assert.deepEqual(raw.d1_databases.map(x=>x.database_id),[
+ '00000000-0000-4000-8000-000000000000',
+ '00000000-0000-4000-8000-000000000001',
+ '00000000-0000-4000-8000-000000000002'
+]);
 assert.equal(raw.d1_databases[0].database_id,'00000000-0000-4000-8000-000000000000');
 assert.equal(raw.r2_buckets[0].bucket_name,'fire-v2-disposable-local-only');
 assert.equal(raw.name,'fire-v2-disposable-local-proxy-only');
@@ -39,26 +50,34 @@ assert.equal(migrations.length,25,'Only previously reviewed 25 QA D1 migrations 
 assert.equal(migrations.at(-1),'0024_deposit_agreement_snapshots.sql');
 try{
  const db=proxy.env.DB,bucket=proxy.env.BUCKET;
- assert.ok(db&&bucket,'Both real local bindings available');
+ const recoveryDb=proxy.env.RECOVERY_DB,recoveryBucket=proxy.env.RECOVERY_BUCKET;
+ const faultDb=proxy.env.FAULT_DB,faultBucket=proxy.env.FAULT_BUCKET;
+ assert.ok(db&&bucket&&recoveryDb&&recoveryBucket&&faultDb&&faultBucket,
+  'All six independent disposable local D1/R2 bindings are available');
  // All writes here seed ONLY the disposable local D1 and R2. Export itself
  // must NEVER PUT, DELETE or UPDATE provider bindings.
  // D1 .exec() is line-oriented and does NOT accept a whole migration
  // containing multiline CREATE TABLE/TRIGGER plus multiple SQL statements.
  // Apply checked-in Drizzle marker-separated statements individually.
- const runStatements=async(sql,drizzle)=>{
+ const runStatements=async(targetDb,sql,drizzle)=>{
   const parts=drizzle
    ?sql.split(/--> statement-breakpoint/g)
    :sql.split(/(?=^CREATE (?:TABLE|TRIGGER|INDEX)\b)/m);
   for(const part of parts){
    const stmt=part.trim();
    if(!stmt||/^--[^\n]*(?:\n--[^\n]*)*\s*$/.test(stmt))continue;
-   await db.prepare(stmt).run();
+   await targetDb.prepare(stmt).run();
   }
  };
- for(const name of migrations)
-  await runStatements(readFileSync(resolve(src,name),'utf8'),true);
- await runStatements(readFileSync(numbers,'utf8'),false);
- await runStatements(readFileSync(jobs,'utf8'),false);
+ const materialize=async targetDb=>{
+  for(const name of migrations)
+   await runStatements(targetDb,readFileSync(resolve(src,name),'utf8'),true);
+  await runStatements(targetDb,readFileSync(numbers,'utf8'),false);
+  await runStatements(targetDb,readFileSync(jobs,'utf8'),false);
+ };
+ await materialize(db);
+ await materialize(recoveryDb);
+ await materialize(faultDb);
  const epoch='2026-10-31T21:00:00Z';
  await db.prepare("INSERT INTO customers(id,name,created_at) VALUES(?,?,?)")
   .bind('synthetic-c1','Cloudflare Local Synthetic Customer',epoch).run();
