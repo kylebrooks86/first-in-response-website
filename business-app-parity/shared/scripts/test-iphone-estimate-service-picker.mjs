@@ -198,9 +198,9 @@ check(css.includes('.new-estimate-dialog .estimate-new-save-actions{')&&
 check(css.includes('.new-estimate-dialog .estimate-new-save-actions>button{')&&
  css.includes('min-height:48px;')&&css.includes('white-space:normal;'),
  'Final-price Save text can wrap rather than clip and retains 48px tap target');
-check(css.includes('.app-shell [data-slot="select-trigger"]{')&&
+check(css.includes('[data-slot="select-trigger"]{')&&
  css.includes('min-height:44px;'),
- 'All standard app form selects meet the minimum mobile tap target');
+ 'All standard app and portalled dialog selects meet the minimum mobile tap target');
 check(dashboard.includes('<span>{expanded?"Hide":"Details"}</span>')&&
  dashboard.includes('aria-label={`Review details for ${task.title}`}'),
  'Repeated task buttons have concise visible text and specific accessible names');
