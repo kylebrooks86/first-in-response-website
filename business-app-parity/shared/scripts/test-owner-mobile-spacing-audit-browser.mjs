@@ -16,7 +16,9 @@ const dashboard=readFileSync('app/dashboard.tsx','utf8');
 const expected=[
  ['Notification refresh', '.notification-attention>header button', 'min-height:44px'],
  ['Notification filters', '.notification-attention-filters>button', 'min-height:44px'],
- ['Notification load more', '.notification-attention-more', 'min-height:44px']
+ ['Notification load more', '.notification-attention-more', 'min-height:44px'],
+ ['Customer sign disclosure', '.customer-sign-form summary', 'min-height:44px'],
+ ['Customer flag disclosure', '.customer-flag-panel>details.customer-sign-form>summary', 'min-height:44px']
 ];
 for(const [label,selector,minimum] of expected){
  const escaped=selector.replace(/[.*+?^\$\{\}()|[\]\\]/g,'\\$&');
@@ -48,6 +50,7 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
   <div class="notification-attention-list"><button>Review first saved reminder</button><button>Review last saved reminder</button></div>
   <button class="notification-attention-more">Show next 8 reminders · 4 remaining</button>
  </section>
+ <section class="customer-flag-panel"><details class="customer-sign-form"><summary>Yard sign details</summary><p>Saved activity</p></details></section>
  <div style="height:700px">Long business workflow content</div>
  <button class="brand-button" type="button" id="final-day-action" style="min-height:48px;width:100%">Final workflow action</button>
 </div>
@@ -64,6 +67,8 @@ try{
  for(const [width,height] of [[320,568],[375,667],[390,844],[430,932],[667,375]])for(const theme of ['light','dark']){
   await page.setViewportSize({width,height});await page.goto(url);
   if(theme==='dark')await page.evaluate(()=>document.documentElement.dataset.theme='dark');
+  const signHeight=await page.locator('.customer-flag-panel>details.customer-sign-form>summary').evaluate(e=>e.getBoundingClientRect().height);
+  check(signHeight>=44,label+' customer sign disclosure is touch-sized');
   const all=await page.evaluate(()=>{
    const visible=e=>{const s=getComputedStyle(e);return s.display!=='none'&&s.visibility!=='hidden'&&e.getBoundingClientRect().width>0;};
    const rect=e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};
