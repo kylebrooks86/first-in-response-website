@@ -319,4 +319,41 @@ eq((source.match(/onClick=\{closeCustomerRecord\}/g)||[]).length,2,'Both direct 
 assert.match(source,/onRegisterBack\?\.\(selectedId\?closeCustomerRecord:null\)/,'Mobile topbar Back uses guarded customer handler');checks++;
 assert.match(source,/if\(!focusCustomerId\|\|loading\|\|error\|\|offlinePhotoOnly\|\|savingNote\|\|reviewCheckSnoozing\)return;/,'Deep links wait until pending customer saves finish');checks++;
 
+// Settings must report the current dirty/save state without clearing the parent
+// guard on each keystroke. Only the separate unmount effect resets the shell.
+const settingsScreen=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='SettingsView');
+assert.ok(settingsScreen,'Settings template editor source exists');
+const settingsStatusEffects=[];
+function findSettingsStatusEffect(node){
+ if(ts.isCallExpression(node)&&node.expression.getText(ast)==='useEffect'){
+  const cb=node.arguments[0]?.getText(ast)||'';
+  if(cb.includes('onDirtyChange?.(')||cb.includes('onSavingChange?.('))settingsStatusEffects.push(node);
+ }
+ ts.forEachChild(node,findSettingsStatusEffect);
+}
+findSettingsStatusEffect(settingsScreen);
+eq(settingsStatusEffects.length,4,'Each Settings guard has a separate update and unmount-only effect');
+for(const [handler,prop] of [['onDirtyChange','hasUnsavedTemplateChanges'],['onSavingChange','saving']]){
+ const matching=settingsStatusEffects.filter(node=>node.arguments[0].getText(ast).includes(handler+'?.('));
+ eq(matching.length,2,handler+' has exactly two scoped effects');
+ const update=matching.find(node=>node.arguments[1].getText(ast).includes(prop));
+ const cleanup=matching.find(node=>node.arguments[1].getText(ast)==='['+handler+']');
+ assert.ok(update&&cleanup,handler+' includes a state update and unmount-only cleanup');
+ const events=[],scope={[prop]:true,[handler]:value=>events.push(value)};
+ const onUpdate=runHandler(update.arguments[0],ast,scope);
+ const onUnmount=runHandler(cleanup.arguments[0],ast,scope);
+ eq(onUpdate(),undefined,handler+' dependency update installs no transient false cleanup');
+ eq(events,[true],handler+' reports active dirty or saving state');
+ scope[prop]=false;
+ onUpdate();
+ eq(events,[true,false],handler+' reports state transitions without intermediate false on prior cleanup');
+ scope[prop]=true;
+ onUpdate();
+ eq(events,[true,false,true],handler+' can become guarded again');
+ const destructor=onUnmount();
+ eq(typeof destructor,'function',handler+' has a real unmount release');
+ destructor();
+ eq(events,[true,false,true,false],handler+' clears parent status only on actual unmount');
+}
+
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
