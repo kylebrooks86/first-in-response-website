@@ -154,7 +154,7 @@ check('Manual payment close guard blocks live writes and preserves unresolved/ed
  const exercise=({busy=false,pending=false,edited=false,approve=false,open=false}={})=>{
   const events=[];
   const scope={exports:{},saving:busy,paymentLock:{current:busy},retryPending:pending,
-   amount:edited?'25.00':'75.00',balance:7500,tip:'',fee:'',reference:'',method:'Wave',
+   amount:edited?'25.00':'75.00',balance:3500,initialPaymentAmount:{current:'75.00'},tip:'',fee:'',reference:'',method:'Wave',
    setOpen:value=>events.push('set:'+value),
    window:{alert:()=>events.push('alert'),confirm:()=>{events.push('confirm');return approve;}}};
   vm.runInNewContext(compiled,scope);scope.exports.guard(open);return events;
@@ -166,6 +166,38 @@ check('Manual payment close guard blocks live writes and preserves unresolved/ed
  assert.deepEqual(exercise({edited:true,approve:false}),['confirm'],'Cancel retains unsaved financial entry');
  assert.deepEqual(exercise({edited:true,approve:true}),['confirm','set:false'],'Owner can discard unsaved payment details');
  assert.deepEqual(exercise(),['set:false'],'Untouched prefilled payment can close without needless confirmation');
+});
+
+check('Manual payment prefill survives open-editor balance refresh and clears prior reference on reopening',()=>{
+ const form=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='RecordPayment');
+ assert.ok(form);
+ const effects=[];function visit(node){if(ts.isCallExpression(node)&&node.expression.getText(ast)==='useEffect'&&node.arguments[0]?.getText(ast).includes('loadManualPaymentRetry')&&node.arguments[0]?.getText(ast).includes('setAmount('))effects.push(node);ts.forEachChild(node,visit);}
+ visit(form);
+ assert.equal(effects.length,1,'One real payment-entry initializer');
+ const init=effects[0];
+ assert.equal(init.arguments[1].getText(ast),'[open,estimate.id]','Parent balance changes must not rerun and erase an open edit');
+ const source=ts.transpileModule('exports.initialize='+init.arguments[0].getText(ast)+';',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const events=[];
+ const scope={exports:{},open:true,balance:7500,estimate:{id:'synthetic-job'},initialPaymentAmount:{current:''},
+  manualRequestId:{current:null},activeManual:{current:null},storage:()=>null,loadManualPaymentRetry:()=>null};
+ for(const key of ['setRetryPending','setAmount','setTip','setTipChoice','setFee','setFeeMode','setFeeEstimate','setMethod','setReference','setError','setReviewedMissing','setRetryConfirmed'])
+  scope[key]=value=>events.push([key,value]);
+ vm.runInNewContext(source,scope);
+ scope.exports.initialize();
+ assert.equal(scope.initialPaymentAmount.current,'75.00');
+ assert.ok(events.some(([key,value])=>key==='setAmount'&&value==='75.00'));
+ assert.ok(events.some(([key,value])=>key==='setMethod'&&value==='Wave'),'New payment never inherits method');
+ assert.ok(events.some(([key,value])=>key==='setReference'&&value===''),'New payment never inherits an old reference');
+ assert.ok(events.some(([key,value])=>key==='setFeeMode'&&value==='fee'),'Prior net/fee mode resets');
+ events.length=0;scope.balance=2500;
+ assert.equal(events.length,0,'A parent data refresh cannot clear the open payment input');
+ scope.exports.initialize();
+ assert.ok(events.some(([key,value])=>key==='setAmount'&&value==='25.00'),'Reopening captures the latest confirmed balance');
+ assert.equal(scope.initialPaymentAmount.current,'25.00');
+ const receipt={requestId:'synthetic-unchanged',amountCents:1850,tipCents:0,method:'Cash App',reference:'receipt-1',processingFeeCents:50};
+ events.length=0;scope.activeManual.current=receipt;scope.exports.initialize();
+ assert.ok(events.some(([key,value])=>key==='setAmount'&&value==='18.50'),'Unresolved payment preserves original receipt amount');
+ assert.ok(events.some(([key,value])=>key==='setReference'&&value==='receipt-1'),'Unresolved payment retains original reference');
 });
 
 console.log(`PASS: ${cases}/${cases} component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.`);
