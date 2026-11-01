@@ -416,7 +416,16 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
       const saved=result.message;
       if(scope!==messageScope.current)return false;
       if(!response.ok||!saved){
-        setMessageStatus(result.error||"Message preparation is unconfirmed. Retry the unchanged draft using the same request.");
+        if(response.status===400||response.status===404){
+          // These explicit API rejections occur before customer-message
+          // writes. The draft is definitively NOT saved, so allow editing
+          // and a new operation ID. Never apply this to 409, 5xx or timeout:
+          // those may involve an existing immutable message or unknown write.
+          uncertainPreparation.current=null;
+          setMessageStatus(result.error||"This draft was rejected before saving. Correct it and try again.");
+        }else{
+          setMessageStatus(result.error||"Message preparation is unconfirmed. Retry the unchanged draft using the same request.");
+        }
         return false;
       }
       if(saved.id!=="owner-message-prep:"+operation.requestId||saved.customerId!==customer.id||
