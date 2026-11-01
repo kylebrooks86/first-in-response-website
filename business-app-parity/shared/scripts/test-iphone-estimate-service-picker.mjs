@@ -39,8 +39,8 @@ same(ordered[0].id,'custom','Custom Service now first on every estimate picker')
 same(ordered.filter(x=>x.id==='custom').length,1,'Custom is shown exactly once');
 same(ordered.slice(1).map(x=>x.id),catalog.filter(x=>x.id!=='custom').map(x=>x.id),
  'Every other standard service retains its original relative catalog order');
-same(catalog.map(x=>x.original),fireSource.match(/dummy-impossible-pattern/)?[]:catalog.map(x=>x.original),
- 'Priced service source remains unmodified (display helper never updates catalog objects)');
+same(ordered.map(x=>x.original).sort(),catalog.map(x=>x.original).sort(),
+ 'Every original catalog service and its rate/description metadata is retained');
 same(estimateServicePickerOptions([{id:'roof'},{id:'driveway'}]).map(x=>x.id),
  ['roof','driveway'],'Picker works when optional custom entry is absent');
 same(estimateServicePickerOptions([]),[],'Empty catalog stays empty');
