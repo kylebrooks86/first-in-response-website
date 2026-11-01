@@ -1243,7 +1243,7 @@ html,body{max-width:100%;overflow-x:clip}
 .customer-flag-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:start}
 .customer-flag-actions button{min-height:44px}
 .customer-sign-form{padding:8px 11px;border:1px solid var(--border);border-radius:9px;min-width:min(100%,240px)}
-.customer-sign-form summary{min-height:30px;font-weight:800;cursor:pointer}
+.customer-sign-form summary{min-height:44px;font-weight:800;cursor:pointer}
 .customer-sign-form label{display:grid;gap:5px;margin:9px 0;font-size:12px;font-weight:700}
 .customer-sign-form input{min-height:44px;width:100%;min-width:0;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font-size:14px}
 .customer-sign-overview{margin:0 0 12px;padding:12px;border:1px solid #be925c;border-radius:12px;background:#fff4e4;color:#704312}
@@ -1700,7 +1700,7 @@ html,body{max-width:100%;overflow-x:clip}
 .customer-journey-disclosure>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:800;color:var(--foreground)}
 .customer-journey-disclosure>section{margin-top:12px}
 .customer-flag-panel>details.customer-sign-form{width:100%;min-width:0}
-.customer-flag-panel>details.customer-sign-form>summary{min-height:40px;display:flex;align-items:center}
+.customer-flag-panel>details.customer-sign-form>summary{min-height:44px;display:flex;align-items:center}
 @media(max-width:760px){
   .customers-view .record-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;overflow:visible;border-bottom:0}
   .customers-view .record-tabs button{width:100%;min-width:0;max-width:100%;min-height:44px;padding:10px 5px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--foreground);font-size:12px;line-height:1.3;text-align:center;white-space:normal;overflow-wrap:anywhere}
