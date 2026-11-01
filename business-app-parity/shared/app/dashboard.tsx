@@ -1528,7 +1528,16 @@ function JobCost({estimate,snapshots}:{estimate:EstimateRow;snapshots?:OwnerJobS
   const billingTotal=resolvedBillingTotalCents(estimate);
   const loadRequest=useRef(0);const currentJob=useRef<string|null>(null);const saveLock=useRef(false);const [loading,setLoading]=useState(false);const [loadError,setLoadError]=useState("");const [loadedJob,setLoadedJob]=useState<string|null>(null);
   const [snapshotAt,setSnapshotAt]=useState<string|null>(null);const [checkedEpoch,setCheckedEpoch]=useState<number|null>(null);const readOnly=Boolean(snapshotAt)||snapshots?.online===false||Boolean(snapshots&&checkedEpoch!==snapshots.networkEpoch);
-  const setOpenSafe=(value:boolean)=>{if(saveLock.current)return;if(!value){currentJob.current=null;loadRequest.current++;}else{setLoading(true);setLoadError("");}setOpen(value);};
+  const hasUnfinishedCost=Boolean(description.trim()||amount.trim());
+  const setOpenSafe=(value:boolean)=>{
+    if(saveLock.current||saving)return;
+    if(!value&&hasUnfinishedCost&&!window.confirm(saveError
+      ?"This cost entry was not confirmed. Check saved costs before submitting it again. Discard the local fields and close?"
+      :"Discard the unfinished job cost entry?"))return;
+    if(!value){currentJob.current=null;loadRequest.current++;setDescription("");setAmount("");setSaveError("");}
+    else{setLoading(true);setLoadError("");}
+    setOpen(value);
+  };
   const load=async()=>{
     if(currentJob.current!==estimate.id)return;
     const request=++loadRequest.current;setLoading(true);setLoadError("");setSnapshotAt(null);let transportFailed=false;
