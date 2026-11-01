@@ -42,10 +42,23 @@ try{
  assert.ok(db&&bucket,'Both real local bindings available');
  // All writes here seed ONLY the disposable local D1 and R2. Export itself
  // must NEVER PUT, DELETE or UPDATE provider bindings.
+ // D1 .exec() is line-oriented and does NOT accept a whole migration
+ // containing multiline CREATE TABLE/TRIGGER plus multiple SQL statements.
+ // Apply checked-in Drizzle marker-separated statements individually.
+ const runStatements=async(sql,drizzle)=>{
+  const parts=drizzle
+   ?sql.split(/--> statement-breakpoint/g)
+   :sql.split(/(?=^CREATE (?:TABLE|TRIGGER|INDEX)\b)/m);
+  for(const part of parts){
+   const stmt=part.trim();
+   if(!stmt||/^--[^\n]*(?:\n--[^\n]*)*\s*$/.test(stmt))continue;
+   await db.prepare(stmt).run();
+  }
+ };
  for(const name of migrations)
-  await db.exec(readFileSync(resolve(src,name),'utf8'));
- await db.exec(readFileSync(numbers,'utf8'));
- await db.exec(readFileSync(jobs,'utf8'));
+  await runStatements(readFileSync(resolve(src,name),'utf8'),true);
+ await runStatements(readFileSync(numbers,'utf8'),false);
+ await runStatements(readFileSync(jobs,'utf8'),false);
  const epoch='2026-10-31T21:00:00Z';
  await db.prepare("INSERT INTO customers(id,name,created_at) VALUES(?,?,?)")
   .bind('synthetic-c1','Cloudflare Local Synthetic Customer',epoch).run();
