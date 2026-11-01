@@ -76,6 +76,8 @@ test("no shared, QA, Doomsday, rogue route, live Stripe or weak auth mappings",(
     x=>x.env.production.d1_databases[0].database_id=x.env.staging.d1_databases[0].database_id,
     x=>x.env.staging.d1_databases[0].database_id="8ccfb1f8-1657-4074-b1b2-47de78f95003",
     x=>x.env.production.d1_databases[0].database_id="afb2c05a-d794-4a9a-b580-924ce01c26ad",
+    x=>x.env.staging.d1_databases[0].database_id="00000000-0000-4000-8000-000000000000", // known local Vite placeholder
+    x=>x.env.production.d1_databases[0].database_id="00000000-0000-0000-0000-000000000000", // nil UUID
     x=>x.env.production.vars.FIRE_ACCESS_REQUIRED="",
     x=>x.env.production.vars.FIRE_STRIPE_MODE="live",
     x=>x.env.production.vars.FIRE_QA_SYNTHETIC_ONLY="enabled",
