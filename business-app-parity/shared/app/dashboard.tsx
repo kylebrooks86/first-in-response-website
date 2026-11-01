@@ -506,7 +506,28 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     finally{preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
   };
   const copy=async()=>{try{await navigator.clipboard.writeText(body);await log("copy");}catch{setMessageStatus("Copy failed. No sending is confirmed.");}};
-  return <Dialog open={open} onOpenChange={(value)=>{if(working&&!value)return;setOpen(value);if(value){setSiteOrigin(window.location.origin);}}}>
+  const changeComposerOpen=(value:boolean)=>{
+    if(!value){
+      if(working||preparationLock.current){
+        window.alert("FIRE is checking this message. Keep the editor open until preparation or confirmation finishes.");
+        return;
+      }
+      if(uncertainPreparation.current){
+        if(!window.confirm("Message preparation may already be saved, but sending is NOT confirmed. Closing will not cancel that request. Reopen this customer and review the SAME prepared message before trying again. Close?"))return;
+      }else if(preparedMessage){
+        if(!window.confirm("This prepared message is not confirmed sent. Closing does not mark it sent; reopen this customer to confirm or mark it not sent. Close?"))return;
+      }else if(draftEdited.current){
+        if(!window.confirm("Discard your unfinished message edits? No text or email has been sent by FIRE."))return;
+        draftEdited.current=false;
+        setBody("");
+      }
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    setSiteOrigin(window.location.origin);
+  };
+  return <Dialog open={open} onOpenChange={changeComposerOpen}>
     <DialogTrigger asChild><Button variant="outline" className={triggerClassName} aria-label={triggerAriaLabel}>{triggerLabel==="Email"?<Mail className="h-4 w-4"/>:<MessageSquareText className="h-4 w-4" />} {triggerLabel}</Button></DialogTrigger>
     <DialogContent className="message-dialog sm:max-w-[620px]">
       <DialogHeader className="message-dialog-header"><DialogTitle>Message</DialogTitle><p className="message-dialog-recipient">To: {customer.name}</p></DialogHeader>
