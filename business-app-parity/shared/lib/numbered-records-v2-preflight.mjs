@@ -41,14 +41,24 @@ export function validateNumberedCoreRecordsV2(snapshot){
  if(!isRecord(snapshot)||snapshot.format!==NUMBERED_RECORDS_V2_FORMAT||
    snapshot.version!==NUMBERED_RECORDS_V2_VERSION||
    snapshot.allTablesComplete!==true||snapshot.truncated!==false||
-   !isRecord(snapshot.tables)||!isRecord(snapshot.highWater))
-    fail('format, completeness, tables or high-water evidence missing');
+   !isRecord(snapshot.tables)||!isRecord(snapshot.highWater)||
+   !isRecord(snapshot.rowCounts))
+    fail('format, completeness, per-table counts or high-water evidence missing');
  const expected=new Set([...NUMBERED_CORE_TABLES,...NUMBERED_IDENTITY_TABLES]);
  for(const name of Object.keys(snapshot.tables))
    if(!expected.has(name))fail('unexpected/unverified table '+name);
  for(const name of expected)
    if(!isOwn(snapshot.tables,name)||!Array.isArray(snapshot.tables[name]))
      fail('required table '+name+' is absent or partial');
+ if(Object.keys(snapshot.rowCounts).length!==expected.size||
+    Object.keys(snapshot.rowCounts).some(name=>!expected.has(name)))
+   fail('row-count manifest does not cover exactly the archived schema');
+ for(const name of expected){
+   const declared=snapshot.rowCounts[name];
+   if(!Number.isSafeInteger(declared)||declared<0||
+      declared!==snapshot.tables[name].length)
+      fail('independently recorded row count differs for '+name);
+ }
  for(const [table,list] of Object.entries(snapshot.tables)){
    const seen=new Set();
    const key=NUMBERED_IDENTITY_TABLES.includes(table)?identityKeyOf(table):keyOf(table);
