@@ -1715,6 +1715,7 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
   const [tipChoice,setTipChoice]=useState<"0"|"5"|"10"|"15"|"custom">("0");
   const [fee,setFee]=useState("");const [feeMode,setFeeMode]=useState<"fee"|"net">("fee");const [feeEstimate,setFeeEstimate]=useState<number|null>(null);const [open,setOpen]=useState(false);const [amount,setAmount]=useState("");const [tip,setTip]=useState("");const [method,setMethod]=useState("Wave");const [reference,setReference]=useState("");const [saving,setSaving]=useState(false);const [error,setError]=useState("");
   const manualRequestId=useRef<string|null>(null);
+  const initialPaymentAmount=useRef("");
   const paymentLock=useRef(false);
   const activeManual=useRef<ManualPaymentAttempt|null>(null);
   const [retryPending,setRetryPending]=useState(false);
@@ -1735,18 +1736,23 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
     if(previous){
       activeManual.current=previous;manualRequestId.current=previous.requestId;
       setRetryPending(true);
-      setAmount((previous.amountCents/100).toFixed(2));
+      initialPaymentAmount.current=(previous.amountCents/100).toFixed(2);
+      setAmount(initialPaymentAmount.current);
       setTip(previous.tipCents>0?(previous.tipCents/100).toFixed(2):"");
       setTipChoice(previous.tipCents>0?"custom":"0");
       setMethod(previous.method);setReference(previous.reference);
       setFeeMode("fee");setFee(previous.processingFeeCents===null?"":(previous.processingFeeCents/100).toFixed(2));
       setError("An earlier payment attempt needs confirmation. Check its saved status before retrying the same request. Keep its original details unchanged.");
     }else{
-      setRetryPending(false);setAmount(balance>0?(balance/100).toFixed(2):"");
-      setTip("");setTipChoice("0");setFee("");setFeeEstimate(null);setError("");
+      // Prefill once per opening, not every time a parent balance refreshes.
+      // A later payment entry must never inherit an older reference or method.
+      initialPaymentAmount.current=balance>0?(balance/100).toFixed(2):"";
+      setRetryPending(false);setAmount(initialPaymentAmount.current);
+      setTip("");setTipChoice("0");setFee("");setFeeMode("fee");setFeeEstimate(null);
+      setMethod("Wave");setReference("");setError("");
     }
     setReviewedMissing(false);setRetryConfirmed(false);
-  },[open,balance,estimate.id]);
+  },[open,estimate.id]);
   const feeMethod=method==="Cash App"||method==="Venmo";
   const grossCents=Math.round(Number(amount||0)*100)+Math.round(Number(tip||0)*100);
   const enteredFeeCents=fee===""?null:Math.round(Number(fee)*100);
@@ -1832,7 +1838,7 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
     }
     if(retryPending){
       if(!window.confirm("This payment has not been confirmed. Closing does not cancel an earlier attempt. Reopen Record Payment and check the SAME saved request before collecting or recording another payment. Close this window?"))return;
-    }else if(amount!==(balance>0?(balance/100).toFixed(2):"")||tip.trim()||fee.trim()||reference.trim()||method!=="Wave"){
+    }else if(amount!==initialPaymentAmount.current||tip.trim()||fee.trim()||reference.trim()||method!=="Wave"){
       if(!window.confirm("Discard these unsaved payment details? Closing does not record a payment."))return;
     }
     setOpen(false);
@@ -4541,8 +4547,12 @@ function SettingsView({onDirtyChange,onSavingChange}:{onDirtyChange?:(dirty:bool
   const savedTemplate=templates.find((item)=>item.key===draft.key);
   const hasUnsavedTemplateChanges=Boolean(savedTemplate&&(savedTemplate.subject!==draft.subject||savedTemplate.body!==draft.body));
   // The shell guards in-app tab changes; beforeunload below covers leaving the site.
-  useEffect(()=>{onDirtyChange?.(hasUnsavedTemplateChanges);return()=>onDirtyChange?.(false);},[hasUnsavedTemplateChanges,onDirtyChange]);
-  useEffect(()=>{onSavingChange?.(saving);return()=>onSavingChange?.(false);},[saving,onSavingChange]);
+  // Editing must not unregister the shell guard between keystrokes or save-state changes.
+  // Only the actual Settings unmount should clear these flags.
+  useEffect(()=>{onDirtyChange?.(hasUnsavedTemplateChanges);},[hasUnsavedTemplateChanges,onDirtyChange]);
+  useEffect(()=>()=>onDirtyChange?.(false),[onDirtyChange]);
+  useEffect(()=>{onSavingChange?.(saving);},[saving,onSavingChange]);
+  useEffect(()=>()=>onSavingChange?.(false),[onSavingChange]);
   const choose=(item:FireTemplate)=>{if(templateSaveLock.current||templatesLoading||templatesError)return;if(hasUnsavedTemplateChanges&&!window.confirm("Discard your unsaved template changes?"))return;setSelectedKey(item.key);setDraft(item);setMessage("");};
   useEffect(()=>{const warn=(event:BeforeUnloadEvent)=>{if(!hasUnsavedTemplateChanges)return;event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn);},[hasUnsavedTemplateChanges]);
   const save=async(reset=false)=>{if(templateSaveLock.current||templatesLoading||templatesError)return;if(reset&&!window.confirm("Restore the original FIRE template and replace your current edits?"))return;templateSaveLock.current=true;setSaving(true);setMessage("");try{const response=await fetch("/api/message-templates",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(reset?{key:draft.key,reset:true}:{key:draft.key,subject:draft.subject,body:draft.body})});const result=await response.json() as {template?:FireTemplate;error?:string};if(!response.ok||!validTemplate(result.template)||result.template.key!==draft.key)throw new Error(result.error||"Template save could not be confirmed. Your edits are retained.");setTemplates((current)=>current.map((item)=>item.key===draft.key?result.template!:item));setDraft(result.template);setMessage(reset?"Default restored.":"Template saved.");}catch(error){setMessage(error instanceof Error?error.message:"Template could not be saved.");}finally{templateSaveLock.current=false;setSaving(false);}};
