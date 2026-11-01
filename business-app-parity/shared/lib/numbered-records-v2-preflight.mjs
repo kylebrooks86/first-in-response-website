@@ -106,18 +106,30 @@ export function planNumberedCoreRecordsV2Restore(source,destination){
  try{identityPlan=planNumberedIdentityRestore(sourceIdentity,destIdentity);}
  catch{fail('immutable numbering or serial collision in destination');}
  const additions={};
+ const merged={};
  for(const table of NUMBERED_CORE_TABLES){
    const key=keyOf(table),existing=new Map(destination.tables[table].map(row=>[row[key],row]));
+   merged[table]=destination.tables[table].slice();
    let count=0;
    for(const row of source.tables[table]){
      const prior=existing.get(row[key]);
      if(prior){
        if(asSortedJson(prior)!==asSortedJson(row))
          fail('conflicting existing core record in '+table);
-     }else{count++;}
+     }else{
+       merged[table].push(row);
+       count++;
+     }
    }
    additions[table]=count;
  }
+ // Two snapshots can each pass on their own but become unsafe if combined:
+ // duplicate Stripe provider IDs, two different refund reservations against
+ // one payment, or relationships that only clash after a proposed union.
+ // Validate the WHOLE resulting financial/relationship ledger, never merely
+ // the two input archives in isolation.
+ try{assertBackupIntegrity(merged);}
+ catch{fail('merged refund, payment, audit or customer relationship conflict');}
  return Object.freeze({
    sourceCoreRows:a.coreRows,destinationCoreRows:b.coreRows,
    insertCoreRecords:Object.freeze(additions),
