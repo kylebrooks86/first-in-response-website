@@ -73,7 +73,7 @@ export async function exerciseCustomerProfileControls({page,context,origin,reque
  await emailDialog.getByRole('textbox',{name:'Message text'}).fill('Synthetic draft email, not sent');
  check(await emailDialog.getByRole('button',{name:'Email',exact:true}).isVisible(),'Prepared-email handoff stays available');
  await emailDialog.getByRole('button',{name:'Close',exact:true}).click();await emailDialog.waitFor({state:'hidden'});
- await page.getByRole('button',{name:'Photos',exact:true}).click();
+ await page.getByRole('button',{name:/^Photos\b/}).click();
  const photos=page.getByRole('region',{name:'On-device customer photos'});await photos.getByText('No on-device photos for this customer').waitFor();
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==','base64');
  await photos.locator('input[type=file][multiple]').setInputFiles({name:'synthetic-responsive-photo.png',mimeType:'image/png',buffer:png});await photos.getByText(/Photos verified on this device/).waitFor();
