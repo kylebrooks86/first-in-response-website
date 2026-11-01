@@ -52,7 +52,16 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
   <button class="notification-attention-more">Show next 8 reminders · 4 remaining</button>
  </section>
  <section class="customer-flag-panel"><details class="customer-sign-form"><summary>Yard sign details</summary><p>Saved activity</p></details></section>
- <section class="customer-profile"><section class="photo-panel"><div class="photo-groups"><section><header><strong>Before</strong></header><div class="photo-grid">
+ <section class="customer-profile">
+ <nav class="record-tabs" aria-label="Customer record sections" tabindex="-1">
+  <button type="button" aria-current="page" class="active" onclick="this.dataset.tapped='yes'">Estimates <b>4</b></button>
+  <button type="button" onclick="this.dataset.tapped='yes'">Payments</button>
+  <button type="button" onclick="this.dataset.tapped='yes'">Invoices</button>
+  <button type="button" onclick="this.dataset.tapped='yes'">Photos <b aria-label="12 on-device photos" title="Photos on this device only">12</b></button>
+  <button type="button" onclick="this.dataset.tapped='yes'">Messages <b>7</b></button>
+  <button type="button" onclick="this.dataset.tapped='yes'">Notes <b>3</b></button>
+ </nav>
+ <section class="photo-panel"><div class="photo-groups"><section><header><strong>Before</strong></header><div class="photo-grid">
  <article class="photo-card"><a aria-label="Synthetic photo A" href="#photo-a"><div style="width:100%;height:90px;background:#ccc"></div></a><div><p>Long siding caption for narrow photo A</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
  <article class="photo-card"><a aria-label="Synthetic photo B" href="#photo-b"><div style="width:100%;height:90px;background:#ddd"></div></a><div><p>Long gutter caption for narrow photo B</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
  </div></section></div></section></section>
@@ -86,6 +95,33 @@ try{
   check(all.critical.every(x=>x.rect.x>=-1&&x.rect.right<=width+1),label+' reminder buttons stay inside viewport');
   check(all.header.every(x=>x.rect.x>=-1&&x.rect.right<=width+1),label+' header actions stay inside viewport '+JSON.stringify(all.header));
   check(all.header.every((x,i)=>all.header.slice(i+1).every(y=>x.rect.right<=y.rect.x+1||y.rect.right<=x.rect.x+1||x.rect.bottom<=y.rect.y+1||y.rect.bottom<=x.rect.y+1)),label+' header actions do not overlap '+JSON.stringify(all.header));
+  // Customer record sections carry six essential operations, including
+  // local-only Photos and its numeric badge. Narrow-phone grid/scroll CSS must
+  // keep ALL six reachable, including the final Notes action.
+  const tabs=await page.locator('.record-tabs button').evaluateAll(buttons=>buttons.map(button=>{
+   const r=button.getBoundingClientRect(),label=button.textContent.trim();
+   const nav=button.closest('.record-tabs').getBoundingClientRect();
+   const css=getComputedStyle(button);
+   return {label,left:r.left,right:r.right,top:r.top,bottom:r.bottom,height:r.height,
+     navLeft:nav.left,navRight:nav.right,minTouch:css.minHeight};
+  }));
+  check(tabs.length===6,label+' all six customer record sections are rendered');
+  check(tabs.every(x=>x.height>=44),label+' record tabs have finger-sized vertical tap area '+JSON.stringify(tabs));
+  check(tabs.every(x=>x.left>=-1&&x.right<=width+1),label+' customer record tabs have no clipped left/right edge '+JSON.stringify(tabs));
+  const recordsNav=page.locator('.record-tabs');
+  const photosBadge=recordsNav.getByRole('button',{name:/Photos/}).locator('b');
+  check(await photosBadge.getAttribute('aria-label')==='12 on-device photos',label+' photo badge explicitly identifies on-device-only count');
+  for(const name of ['Photos','Notes']){
+   const tab=recordsNav.getByRole('button',{name:new RegExp(name)});
+   await tab.scrollIntoViewIfNeeded();
+   const reachable=await tab.evaluate(e=>{
+    const r=e.getBoundingClientRect(),at=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+    return {hit:at===e||e.contains(at),inScreen:r.x>=0&&r.right<=innerWidth+1&&r.y>=0&&r.bottom<=innerHeight+1};
+   });
+   check(reachable.hit&&reachable.inScreen,label+' '+name+' customer record tap is unobstructed '+JSON.stringify(reachable));
+   await tab.tap();
+   check(await tab.getAttribute('data-tapped')==='yes',label+' actual touch activates '+name+' record tab');
+  }
   const photoControls=await page.locator('.photo-card').evaluateAll(cards=>cards.map(card=>{
    const action=card.querySelector('button'),footer=card.querySelector(':scope>div'),caption=footer?.querySelector('p');
    const rect=x=>{const r=x.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
