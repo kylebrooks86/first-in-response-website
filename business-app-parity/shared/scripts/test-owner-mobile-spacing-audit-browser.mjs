@@ -18,7 +18,8 @@ const expected=[
  ['Notification filters', '.notification-attention-filters>button', 'min-height:44px'],
  ['Notification load more', '.notification-attention-more', 'min-height:44px'],
  ['Customer sign disclosure', '.customer-sign-form summary', 'min-height:44px'],
- ['Customer flag disclosure', '.customer-flag-panel>details.customer-sign-form>summary', 'min-height:44px']
+ ['Customer flag disclosure', '.customer-flag-panel>details.customer-sign-form>summary', 'min-height:44px'],
+ ['Customer photo delete', '.photo-card>button', 'min-height:44px']
 ];
 for(const [label,selector,minimum] of expected){
  const escaped=selector.replace(/[.*+?^\$\{\}()|[\]\\]/g,'\\$&');
@@ -51,6 +52,10 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
   <button class="notification-attention-more">Show next 8 reminders · 4 remaining</button>
  </section>
  <section class="customer-flag-panel"><details class="customer-sign-form"><summary>Yard sign details</summary><p>Saved activity</p></details></section>
+ <section class="customer-profile"><section class="photo-panel"><div class="photo-groups"><section><header><strong>Before</strong></header><div class="photo-grid">
+ <article class="photo-card"><a aria-label="Synthetic photo A" href="#photo-a"><div style="width:100%;height:90px;background:#ccc"></div></a><div><p>Long siding caption for narrow photo A</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
+ <article class="photo-card"><a aria-label="Synthetic photo B" href="#photo-b"><div style="width:100%;height:90px;background:#ddd"></div></a><div><p>Long gutter caption for narrow photo B</p><small>October 31</small></div><button type="button" aria-label="Delete on-device photo" onclick="this.dataset.tapped='yes'">×</button></article>
+ </div></section></div></section></section>
  <div style="height:700px">Long business workflow content</div>
  <button class="brand-button" type="button" id="final-day-action" style="min-height:48px;width:100%">Final workflow action</button>
 </div>
@@ -81,6 +86,20 @@ try{
   check(all.critical.every(x=>x.rect.x>=-1&&x.rect.right<=width+1),label+' reminder buttons stay inside viewport');
   check(all.header.every(x=>x.rect.x>=-1&&x.rect.right<=width+1),label+' header actions stay inside viewport '+JSON.stringify(all.header));
   check(all.header.every((x,i)=>all.header.slice(i+1).every(y=>x.rect.right<=y.rect.x+1||y.rect.right<=x.rect.x+1||x.rect.bottom<=y.rect.y+1||y.rect.bottom<=x.rect.y+1)),label+' header actions do not overlap '+JSON.stringify(all.header));
+  const photoControls=await page.locator('.photo-card').evaluateAll(cards=>cards.map(card=>{
+   const action=card.querySelector('button'),footer=card.querySelector(':scope>div'),caption=footer?.querySelector('p');
+   const rect=x=>{const r=x.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
+   const b=rect(action),c=rect(caption),f=rect(footer),a=rect(card);
+   return {button:b,caption:c,footer:f,article:a,clear:b.left>=c.right-1||b.top>=c.bottom-1||b.bottom<=c.top+1};
+  }));
+  check(photoControls.every(x=>x.button.width>=44&&x.button.height>=44&&x.button.right<=x.article.right+1&&x.button.bottom<=x.article.bottom+1),label+' photo delete buttons are >=44px and inside card '+JSON.stringify(photoControls));
+  check(photoControls.every(x=>x.clear),label+' caption/metadata does not cover photo delete controls '+JSON.stringify(photoControls));
+  const photoButton=page.locator('.photo-card>button').last();
+  await photoButton.scrollIntoViewIfNeeded();
+  const photoHit=await photoButton.evaluate(e=>{const r=e.getBoundingClientRect(),at=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return {reachable:at===e||e.contains(at),withinViewport:r.x>=0&&r.right<=innerWidth+1&&r.y>=0&&r.bottom<=innerHeight+1};});
+  check(photoHit.reachable&&photoHit.withinViewport,label+' last photo delete target is on-screen and unobstructed '+JSON.stringify(photoHit));
+  await photoButton.tap();
+  check(await photoButton.getAttribute('data-tapped')==='yes',label+' actual synthetic touch activates last photo card button');
   await page.locator('#final-day-action').scrollIntoViewIfNeeded();
   const hit=await page.locator('#final-day-action').evaluate(e=>{
    const r=e.getBoundingClientRect(),at=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
