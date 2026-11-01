@@ -17,6 +17,8 @@ on:
       - 'business-app-parity/shared/lib/numbered-records-v2-d1-read.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2-integrity.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-workerd-bindings.mjs'
+      - 'business-app-parity/shared/scripts/fire-v2-disposable-bindings.json'
       - 'business-app-parity/restore-lab/restore_numbered_mappings_memory.mjs'
       - 'business-app-parity/restore-lab/restore_complete_numbered_records_memory.mjs'
       - 'business-app-parity/restore-lab/test_restore_numbered_mappings_memory.mjs'
@@ -40,6 +42,8 @@ on:
       - 'business-app-parity/shared/lib/numbered-records-v2-d1-read.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2.mjs'
       - 'business-app-parity/shared/scripts/test-numbered-records-v2-integrity.mjs'
+      - 'business-app-parity/shared/scripts/test-numbered-v2-workerd-bindings.mjs'
+      - 'business-app-parity/shared/scripts/fire-v2-disposable-bindings.json'
       - 'business-app-parity/restore-lab/restore_numbered_mappings_memory.mjs'
       - 'business-app-parity/restore-lab/restore_complete_numbered_records_memory.mjs'
       - 'business-app-parity/restore-lab/test_restore_numbered_mappings_memory.mjs'
@@ -67,3 +71,35 @@ jobs:
         run: node --experimental-sqlite business-app-parity/restore-lab/test_actual_qa25_numbered_restore.mjs
       - name: Test disposable SQLite full-record parity and atomic numbering rollback
         run: node --experimental-sqlite business-app-parity/restore-lab/test_restore_numbered_mappings_memory.mjs
+
+
+  workerd-local-d1-r2:
+    name: Real local workerd D1 plus R2 export integration (no remote)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+      WRANGLER_WRITE_LOGS: 'false'
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+    steps:
+      - name: Checkout source with no persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 22 (workerd emulator, no remote bindings)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Install pinned local Worker runtime dependencies
+        working-directory: business-app-parity/shared
+        run: pnpm install --frozen-lockfile
+      - name: Real local workerd D1/R2 complete encrypted kit and refusal gate
+        working-directory: business-app-parity/shared
+        run: node scripts/test-numbered-v2-workerd-bindings.mjs
