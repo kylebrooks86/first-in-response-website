@@ -5,12 +5,13 @@
 [CmdletBinding()]
 param(
   [switch]$Stage,
-  [Parameter(Mandatory=$true)][string]$ExpectedCommit
+  [Parameter(Mandatory=$true)][string]$ExpectedCommit,
+  [string]$CandidateBranch = 'work/fire-permanent-customer-numbers-history-2026-10-31'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $repoUrl = 'https://github.com/kylebrooks86/first-in-response-website.git'
-$branch = 'work/fire-permanent-customer-numbers-history-2026-10-31'
+$branch = $CandidateBranch
 $destination = Join-Path $env:USERPROFILE 'FIREQA'
 function Require([bool]$condition,[string]$reason){
   if(-not $condition){throw ('FIRE QA SOURCE STAGE STOP: '+$reason)}
@@ -21,6 +22,7 @@ function Check-Git([string]$stage){
 Require ($env:OS -eq 'Windows_NT' -and
   -not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) 'Use the owner Acer Windows profile.'
 Require ($ExpectedCommit -cmatch '^[0-9a-f]{40}$') 'An exact reviewed lowercase 40-character SHA is required.'
+Require ($branch -cmatch '^work/fire-[a-z0-9][a-z0-9-]{1,110}$') 'Only a specifically named FIRE work branch can be staged.'
 Require (-not (Test-Path -LiteralPath $destination)) 'FIREQA already exists. Never overwrite or delete a working checkout.'
 $git = Get-Command 'git.exe' -ErrorAction SilentlyContinue
 Require ($null -ne $git) 'Git for Windows is required; no installer is downloaded or run.'

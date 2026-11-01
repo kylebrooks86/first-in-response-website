@@ -506,7 +506,28 @@ function MessageComposer({ customer, estimate, initialTemplate="estimate", trigg
     finally{preparationLock.current=false;if(scope===messageScope.current)setWorking(false);}
   };
   const copy=async()=>{try{await navigator.clipboard.writeText(body);await log("copy");}catch{setMessageStatus("Copy failed. No sending is confirmed.");}};
-  return <Dialog open={open} onOpenChange={(value)=>{if(working&&!value)return;setOpen(value);if(value){setSiteOrigin(window.location.origin);}}}>
+  const changeComposerOpen=(value:boolean)=>{
+    if(!value){
+      if(working||preparationLock.current){
+        window.alert("FIRE is checking this message. Keep the editor open until preparation or confirmation finishes.");
+        return;
+      }
+      if(uncertainPreparation.current){
+        if(!window.confirm("Message preparation may already be saved, but sending is NOT confirmed. Closing will not cancel that request. Reopen this customer and review the SAME prepared message before trying again. Close?"))return;
+      }else if(preparedMessage){
+        if(!window.confirm("This prepared message is not confirmed sent. Closing does not mark it sent; reopen this customer to confirm or mark it not sent. Close?"))return;
+      }else if(draftEdited.current){
+        if(!window.confirm("Discard your unfinished message edits? No text or email has been sent by FIRE."))return;
+        draftEdited.current=false;
+        setBody("");
+      }
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    setSiteOrigin(window.location.origin);
+  };
+  return <Dialog open={open} onOpenChange={changeComposerOpen}>
     <DialogTrigger asChild><Button variant="outline" className={triggerClassName} aria-label={triggerAriaLabel}>{triggerLabel==="Email"?<Mail className="h-4 w-4"/>:<MessageSquareText className="h-4 w-4" />} {triggerLabel}</Button></DialogTrigger>
     <DialogContent className="message-dialog sm:max-w-[620px]">
       <DialogHeader className="message-dialog-header"><DialogTitle>Message</DialogTitle><p className="message-dialog-recipient">To: {customer.name}</p></DialogHeader>
@@ -1242,9 +1263,23 @@ function AddCustomer({ onAdded,initialAddress,onAddressUsed }: { onAdded: (custo
   const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
   useEffect(()=>{mounted.current=true;const id=loadCustomerCreateRequest(storage());if(id){requestId.current=id;startEstimateAfterSave.current=loadCustomerEstimateHandoff(storage(),id);setPending(true);}return()=>{mounted.current=false;};},[]);
   const setOpenSafe=(value:boolean)=>{
-    if(!value&&saveLock.current)return;
-    if(value){const id=requestId.current??loadCustomerCreateRequest(storage());if(id){requestId.current=id;startEstimateAfterSave.current=loadCustomerEstimateHandoff(storage(),id);setPending(true);setError("An earlier customer save needs confirmation. Check it before creating another customer.");}}
-    setOpen(value);
+    if(!value){
+      if(saveLock.current||saving){
+        window.alert("A customer save is being checked. Keep this form open until the result is known.");
+        return;
+      }
+      if(pending||requestId.current){
+        if(!window.confirm("This customer save is not confirmed. Closing will not cancel the original request. Reopen Add customer and check the SAME request before entering another record. Close?"))return;
+      }else if(name.trim()||email.trim()||phone.trim()||address.trim()||leadSource!=="Unknown"){
+        if(!window.confirm("Discard unsaved customer details? No customer will be created."))return;
+        setName("");setEmail("");setPhone("");setAddress("");setLeadSource("Unknown");setError("");
+      }
+      setOpen(false);
+      return;
+    }
+    const id=requestId.current??loadCustomerCreateRequest(storage());
+    if(id){requestId.current=id;startEstimateAfterSave.current=loadCustomerEstimateHandoff(storage(),id);setPending(true);setError("An earlier customer save needs confirmation. Check it before creating another customer.");}
+    setOpen(true);
   };
   useEffect(()=>{if(!initialAddress)return;if(!requestId.current){setAddress(initialAddress);setLeadSource("Door knocking");}setOpenSafe(true);onAddressUsed?.();},[initialAddress]);
   const finish=(customer:CreatedCustomer)=>{
@@ -1642,7 +1677,22 @@ function RefundPayment({payment,onRefunded}:{payment:PaymentRow;onRefunded?:()=>
   // least across dialog closing in memory, even when persistence is disabled.
   const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
   const openChange=(value:boolean)=>{
-    setOpen(value);
+    if(!value){
+      // Stripe can accept a refund before FIRE receives its final response.
+      // Never hide an in-flight request without its confirmation/retry context.
+      if(refundLock.current||saving){
+        window.alert("Refund submission is still being checked. Keep this window open until the request finishes.");
+        return;
+      }
+      if(submitted&&activeRefund.current){
+        if(!window.confirm("This refund is not confirmed complete. Closing will not cancel Stripe or the original refund request. Reopen Check refund to review the SAME request ID before doing anything else. Close?"))return;
+      }else if(!submitted&&(note.trim()||confirmed||amount!==(refundable/100).toFixed(2))){
+        if(!window.confirm("Discard these unsaved refund details? No refund will be sent or recorded."))return;
+      }
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
     if(value){
       const pending=payment.pendingRefundId&&Number.isSafeInteger(Number(payment.pendingRefundAmountCents))&&Number(payment.pendingRefundAmountCents)>0
         ?{requestId:payment.pendingRefundId,amountCents:Number(payment.pendingRefundAmountCents)}:null;
@@ -1715,6 +1765,7 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
   const [tipChoice,setTipChoice]=useState<"0"|"5"|"10"|"15"|"custom">("0");
   const [fee,setFee]=useState("");const [feeMode,setFeeMode]=useState<"fee"|"net">("fee");const [feeEstimate,setFeeEstimate]=useState<number|null>(null);const [open,setOpen]=useState(false);const [amount,setAmount]=useState("");const [tip,setTip]=useState("");const [method,setMethod]=useState("Wave");const [reference,setReference]=useState("");const [saving,setSaving]=useState(false);const [error,setError]=useState("");
   const manualRequestId=useRef<string|null>(null);
+  const initialPaymentAmount=useRef("");
   const paymentLock=useRef(false);
   const activeManual=useRef<ManualPaymentAttempt|null>(null);
   const [retryPending,setRetryPending]=useState(false);
@@ -1735,18 +1786,23 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
     if(previous){
       activeManual.current=previous;manualRequestId.current=previous.requestId;
       setRetryPending(true);
-      setAmount((previous.amountCents/100).toFixed(2));
+      initialPaymentAmount.current=(previous.amountCents/100).toFixed(2);
+      setAmount(initialPaymentAmount.current);
       setTip(previous.tipCents>0?(previous.tipCents/100).toFixed(2):"");
       setTipChoice(previous.tipCents>0?"custom":"0");
       setMethod(previous.method);setReference(previous.reference);
       setFeeMode("fee");setFee(previous.processingFeeCents===null?"":(previous.processingFeeCents/100).toFixed(2));
       setError("An earlier payment attempt needs confirmation. Check its saved status before retrying the same request. Keep its original details unchanged.");
     }else{
-      setRetryPending(false);setAmount(balance>0?(balance/100).toFixed(2):"");
-      setTip("");setTipChoice("0");setFee("");setFeeEstimate(null);setError("");
+      // Prefill once per opening, not every time a parent balance refreshes.
+      // A later payment entry must never inherit an older reference or method.
+      initialPaymentAmount.current=balance>0?(balance/100).toFixed(2):"";
+      setRetryPending(false);setAmount(initialPaymentAmount.current);
+      setTip("");setTipChoice("0");setFee("");setFeeMode("fee");setFeeEstimate(null);
+      setMethod("Wave");setReference("");setError("");
     }
     setReviewedMissing(false);setRetryConfirmed(false);
-  },[open,balance,estimate.id]);
+  },[open,estimate.id]);
   const feeMethod=method==="Cash App"||method==="Venmo";
   const grossCents=Math.round(Number(amount||0)*100)+Math.round(Number(tip||0)*100);
   const enteredFeeCents=fee===""?null:Math.round(Number(fee)*100);
@@ -1822,13 +1878,28 @@ function RecordPayment({estimate,onRecorded}:{estimate:Pick<EstimateRow,"id"|"cu
       finishConfirmed(confirmed);
     }
   };
-  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="outline" disabled={!retryPending&&(!collectible||balance<=0&&normalized.status!=="completed")}><CircleDollarSign className="h-4 w-4"/>{paymentEntryLabel}</Button></DialogTrigger><DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>{balance<=0&&normalized.status==="completed"?"Record tip":"Record payment"}</DialogTitle></DialogHeader><div className="payment-form">
+  // A manual payment may commit even when the reply is lost. Never let Escape,
+  // outside-tap, or the X silently hide a live save or an unresolved receipt.
+  const setOpenSafe=(value:boolean)=>{
+    if(value){setOpen(true);return;}
+    if(paymentLock.current||saving){
+      window.alert("Payment save or status verification is in progress. Keep this window open until it finishes.");
+      return;
+    }
+    if(retryPending){
+      if(!window.confirm("This payment has not been confirmed. Closing does not cancel an earlier attempt. Reopen Record Payment and check the SAME saved request before collecting or recording another payment. Close this window?"))return;
+    }else if(amount!==initialPaymentAmount.current||tip.trim()||fee.trim()||reference.trim()||method!=="Wave"){
+      if(!window.confirm("Discard these unsaved payment details? Closing does not record a payment."))return;
+    }
+    setOpen(false);
+  };
+  return <Dialog open={open} onOpenChange={setOpenSafe}><DialogTrigger asChild><Button variant="outline" disabled={!retryPending&&(!collectible||balance<=0&&normalized.status!=="completed")}><CircleDollarSign className="h-4 w-4"/>{paymentEntryLabel}</Button></DialogTrigger><DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>{balance<=0&&normalized.status==="completed"?"Record tip":"Record payment"}</DialogTitle></DialogHeader><div className="payment-form">
     <p className="payment-estimate-summary"><strong>{estimate.customer}</strong> · {estimate.service}<br/><span>{money(totalRemaining)} remaining</span></p>{retryPending&&<section className="pending-payment-review" role="status"><strong>Payment pending confirmation</strong><span>Request {activeManual.current?.requestId}</span><p>This attempt is not proof of payment. Displayed balances are the last loaded amounts until the ledger confirms the result. Checking status never records a payment.</p></section>}
     <div className="payment-due-options"><span><small>Deposit due</small><strong>{money(depositRemaining)}</strong></span><span><small>Full balance</small><strong>{money(totalRemaining)}</strong></span></div>
-    <div><Label htmlFor={"payment-amount-"+estimate.id}>Amount applied to invoice</Label><Input id={"payment-amount-"+estimate.id} disabled={saving||retryPending} value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<section className="final-tip-selector" aria-label="Optional tip choices"><Label>Tip received (optional)</Label><p className="payment-handle-note">Tip percentages use the invoice total. No tip is preselected.</p><div className="final-tip-options">{([0,5,10,15] as const).map((percent)=><button key={percent} type="button" disabled={saving||retryPending} aria-pressed={tipChoice===String(percent)} onClick={()=>{setTipChoice(String(percent) as "0"|"5"|"10"|"15");setTip(percent===0?"":(Math.round(billingTotal*percent/100)/100).toFixed(2));}}><strong>{percent===0?"No tip":`${percent}%`}</strong><span>{money(Math.round(billingTotal*percent/100))}</span></button>)}<button type="button" disabled={saving||retryPending} aria-pressed={tipChoice==="custom"} onClick={()=>{setTipChoice("custom");setTip("");}}><strong>Custom</strong><span>Enter amount</span></button></div>{tipChoice==="custom"&&<div><Label>Custom tip amount</Label><Input aria-label="Custom tip amount" disabled={saving||retryPending} value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" type="number" min="0" step="0.01" placeholder="0.00"/></div>}<small className="payment-handle-note">Tips do not reduce the invoice balance.</small></section>}
+    <div><Label htmlFor={"payment-amount-"+estimate.id}>Amount applied to invoice</Label><Input id={"payment-amount-"+estimate.id} disabled={saving||retryPending} value={amount} onChange={(event)=>setAmount(event.target.value)} inputMode="decimal" placeholder="0.00"/></div>{normalized.status==="completed"&&<section className="final-tip-selector" aria-label="Optional tip choices"><Label>Tip received (optional)</Label><p className="payment-handle-note">Tip percentages use the invoice total. No tip is preselected.</p><div className="final-tip-options">{([0,5,10,15] as const).map((percent)=><button key={percent} type="button" disabled={saving||retryPending} aria-pressed={tipChoice===String(percent)} onClick={()=>{setTipChoice(String(percent) as "0"|"5"|"10"|"15");setTip(percent===0?"":(Math.round(billingTotal*percent/100)/100).toFixed(2));}}><strong>{percent===0?"No tip":`${percent}%`}</strong><span>{money(Math.round(billingTotal*percent/100))}</span></button>)}<button type="button" disabled={saving||retryPending} aria-pressed={tipChoice==="custom"} onClick={()=>{setTipChoice("custom");setTip("");}}><strong>Custom</strong><span>Enter amount</span></button></div>{tipChoice==="custom"&&<div><Label htmlFor={"payment-tip-"+estimate.id}>Custom tip amount</Label><Input id={"payment-tip-"+estimate.id} aria-label="Custom tip amount" disabled={saving||retryPending} value={tip} onChange={(event)=>setTip(event.target.value)} inputMode="decimal" type="number" min="0" step="0.01" placeholder="0.00"/></div>}<small className="payment-handle-note">Tips do not reduce the invoice balance.</small></section>}
     <div><Label>Payment method</Label><Select disabled={saving||retryPending} value={method} onValueChange={(value)=>{setMethod(value);setFee("");setFeeEstimate(null);}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Wave","Cash App","Venmo","Cash","Check","Card","ACH / bank","Other"].map((item)=><SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select><small className="payment-handle-note">Cash App {DEFAULT_CASH_APP_HANDLE} · Venmo {DEFAULT_VENMO_HANDLE}</small></div>
-    {feeMethod&&<details className="payment-entry-fees"><summary>Fees (optional)</summary><div className="payment-form"><div><Label>Customer paid (invoice + tip)</Label><Input readOnly value={(grossCents/100).toFixed(2)}/></div><div><Label>Processing fee</Label><Input disabled={saving||retryPending} inputMode="decimal" value={feeMode==="fee"?fee:processingFeeCents==null?"":(processingFeeCents/100).toFixed(2)} placeholder="Not recorded" onChange={event=>{setFeeMode("fee");setFee(event.target.value);}}/></div><div><Label>Net deposited</Label><Input disabled={saving||retryPending} inputMode="decimal" value={feeMode==="net"?fee:processingFeeCents==null?"":((grossCents-processingFeeCents)/100).toFixed(2)} placeholder={(grossCents/100).toFixed(2)} onChange={event=>{setFeeMode("net");setFee(event.target.value);}}/></div><small>Use the actual fee or net deposit. Invoice credit remains {money(Math.round(Number(amount||0)*100))}.</small>{method==="Venmo"&&<><Button type="button" variant="outline" disabled={saving||retryPending} onClick={()=>setFeeEstimate(Math.round(grossCents*0.019)+10)}>Estimate fee</Button>{feeEstimate!=null&&<div><small>Venmo Business direct-payment estimate: 1.9% + $0.10 = {money(feeEstimate)}. Check the actual transaction; Tap to Pay and rates may differ.</small><Button type="button" variant="outline" disabled={saving||retryPending} onClick={()=>{setFeeMode("fee");setFee((feeEstimate/100).toFixed(2));setFeeEstimate(null);}}>Use this fee</Button></div>}</>}</div></details>}
-    <div><Label>Reference or note</Label><Input disabled={saving||retryPending} value={reference} onChange={(event)=>setReference(event.target.value)} placeholder="Wave transaction, check number, or note"/></div>
+    {feeMethod&&<details className="payment-entry-fees"><summary>Fees (optional)</summary><div className="payment-form"><div><Label htmlFor={"payment-gross-"+estimate.id}>Customer paid (invoice + tip)</Label><Input id={"payment-gross-"+estimate.id} readOnly value={(grossCents/100).toFixed(2)}/></div><div><Label htmlFor={"payment-fee-"+estimate.id}>Processing fee</Label><Input id={"payment-fee-"+estimate.id} disabled={saving||retryPending} inputMode="decimal" value={feeMode==="fee"?fee:processingFeeCents==null?"":(processingFeeCents/100).toFixed(2)} placeholder="Not recorded" onChange={event=>{setFeeMode("fee");setFee(event.target.value);}}/></div><div><Label htmlFor={"payment-net-"+estimate.id}>Net deposited</Label><Input id={"payment-net-"+estimate.id} disabled={saving||retryPending} inputMode="decimal" value={feeMode==="net"?fee:processingFeeCents==null?"":((grossCents-processingFeeCents)/100).toFixed(2)} placeholder={(grossCents/100).toFixed(2)} onChange={event=>{setFeeMode("net");setFee(event.target.value);}}/></div><small>Use the actual fee or net deposit. Invoice credit remains {money(Math.round(Number(amount||0)*100))}.</small>{method==="Venmo"&&<><Button type="button" variant="outline" disabled={saving||retryPending} onClick={()=>setFeeEstimate(Math.round(grossCents*0.019)+10)}>Estimate fee</Button>{feeEstimate!=null&&<div><small>Venmo Business direct-payment estimate: 1.9% + $0.10 = {money(feeEstimate)}. Check the actual transaction; Tap to Pay and rates may differ.</small><Button type="button" variant="outline" disabled={saving||retryPending} onClick={()=>{setFeeMode("fee");setFee((feeEstimate/100).toFixed(2));setFeeEstimate(null);}}>Use this fee</Button></div>}</>}</div></details>}
+    <div><Label htmlFor={"payment-reference-"+estimate.id}>Reference or note</Label><Input id={"payment-reference-"+estimate.id} disabled={saving||retryPending} value={reference} onChange={(event)=>setReference(event.target.value)} placeholder="Wave transaction, check number, or note"/></div>
     {error&&<p className="save-error" role="alert">{error}</p>}{retryPending?<><Button variant="outline" onClick={()=>void reviewPending()} disabled={saving}>{saving?"Checking payment…":"Check saved payment only"}</Button>{reviewedMissing&&<section className="pending-payment-review"><label><input type="checkbox" checked={retryConfirmed} disabled={saving} onChange={event=>setRetryConfirmed(event.target.checked)}/><span>I confirm retrying the original payment request with the same details and request ID.</span></label><Button className="brand-button" onClick={()=>void save()} disabled={saving||!retryConfirmed}>Retry original payment request</Button></section>}</>:<Button className="brand-button" onClick={()=>void save()} disabled={saving}>{saving?"Checking payment…":Number(amount||0)<=0&&Number(tip||0)>0?"Save tip":"Save payment"}</Button>}
   </div></DialogContent></Dialog>;
 }
@@ -1890,7 +1961,7 @@ function EditEstimateDialog({estimate,onSaved}:{estimate:EstimateRow;onSaved:(es
     <div className="estimate-edit-scroll-area" role="region" aria-label="Estimate services and pricing" tabIndex={0}>
     {bundle.error&&<div role="alert"><p>{bundle.error}</p><Button variant="outline" onClick={()=>void bundle.reload()}>Retry saved discounts</Button></div>}{!bundle.ready&&!bundle.error&&<p role="status">Verifying saved discount components…</p>}
     <fieldset disabled={saving||!bundle.ready} className="contents"><details className="ui-help estimate-editor-help"><summary>Pricing help</summary><p className="service-description-help">Saved line totals stay unchanged while you edit. Choose Per unit or Reset to standard to recalculate.</p></details>
-    {pricing.loading&&<p role="status">Loading standard prices…</p>}{pricing.error&&<div role="alert"><p>{pricing.error}</p><Button variant="outline" onClick={()=>void pricing.reload()}>Retry standard prices</Button></div>}<div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.id||index}><header><strong>Service {index+1}</strong>{items.length>1&&<button type="button" onClick={()=>setItems((current)=>current.filter((_,i)=>i!==index))} aria-label={`Remove service ${index+1}`}><Trash2/></button>}</header><div><Label>Service</Label><Select disabled={!pricing.rates||pricing.loading||Boolean(pricing.error)||saving} value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,flatPriceCents:undefined,quantity:["job","quantity","each"].includes(svc.unit)?1:0});}}><SelectTrigger className="estimate-service-picker-trigger" aria-label="Choose service"><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent className="estimate-service-picker" position="popper" sideOffset={6} collisionPadding={16}>{estimateServicePickerOptions(services).map((svc)=><SelectItem className="estimate-service-picker-item" key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}</SelectContent></Select></div><div><Label htmlFor={`estimate-service-name-${index}`}>Service name</Label><Input id={`estimate-service-name-${index}`} value={item.name} onChange={event=>setItems(current=>current.map((line,i)=>i===index?{...line,name:event.target.value}:line))}/></div><div><Label>Scope &amp; description</Label><Textarea rows={3} className="estimate-service-description" value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/></div><div className="edit-quantity-row"><div><Label>Quantity</Label><Input inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit}</span></div><EstimateLinePricing label={`estimate-service-${index}`} item={item} standardUnit={services.find(svc=>svc.id===item.serviceId)?.unit} standardRate={pricing.rates&&!pricing.loading&&!pricing.error?services.find(svc=>svc.id===item.serviceId)?.rate:undefined} onChange={patch=>updateItem(index,patch)}/><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>{item.preservedLineTotalCents!==undefined&&item.preservedLineTotalCents!==Math.round(item.quantity*item.unitRateCents)&&<p className="service-description-help">This saved line total is preserved exactly. Changing its service, quantity, or price will recalculate it.</p>}</section>)}</div>
+    {pricing.loading&&<p role="status">Loading standard prices…</p>}{pricing.error&&<div role="alert"><p>{pricing.error}</p><Button variant="outline" onClick={()=>void pricing.reload()}>Retry standard prices</Button></div>}<div className="estimate-edit-items">{items.map((item,index)=><section className="estimate-edit-service" key={item.id||index}><header><strong>Service {index+1}</strong>{items.length>1&&<button type="button" onClick={()=>setItems((current)=>current.filter((_,i)=>i!==index))} aria-label={`Remove service ${index+1}`}><Trash2/></button>}</header><div><Label htmlFor={`edit-estimate-service-${index}`}>Service</Label><Select disabled={!pricing.rates||pricing.loading||Boolean(pricing.error)||saving} value={item.serviceId} onValueChange={(value)=>{const svc=services.find((entry)=>entry.id===value);if(!svc)return;updateItem(index,{serviceId:value,name:svc.name,description:svc.description,unit:svc.unit,unitRateCents:svc.rate||0,flatPriceCents:undefined,quantity:["job","quantity","each"].includes(svc.unit)?1:0});}}><SelectTrigger id={`edit-estimate-service-${index}`} className="estimate-service-picker-trigger" aria-label="Choose service"><SelectValue placeholder="Choose a service"/></SelectTrigger><SelectContent className="estimate-service-picker" position="popper" sideOffset={6} collisionPadding={16}>{estimateServicePickerOptions(services).map((svc)=><SelectItem className="estimate-service-picker-item" key={svc.id} value={svc.id}>{svc.name}</SelectItem>)}</SelectContent></Select></div><div><Label htmlFor={`estimate-service-name-${index}`}>Service name</Label><Input id={`estimate-service-name-${index}`} value={item.name} onChange={event=>setItems(current=>current.map((line,i)=>i===index?{...line,name:event.target.value}:line))}/></div><div><Label htmlFor={`edit-estimate-description-${index}`}>Scope &amp; description</Label><Textarea id={`edit-estimate-description-${index}`} rows={3} className="estimate-service-description" value={item.description} onChange={(event)=>updateItem(index,{description:event.target.value})}/></div><div className="edit-quantity-row"><div><Label htmlFor={`edit-estimate-quantity-${index}`}>Quantity</Label><Input id={`edit-estimate-quantity-${index}`} inputMode="decimal" value={item.quantity||""} onChange={(event)=>updateItem(index,{quantity:Number(event.target.value)})}/></div><span>{item.unit}</span></div><EstimateLinePricing label={`estimate-service-${index}`} item={item} standardUnit={services.find(svc=>svc.id===item.serviceId)?.unit} standardRate={pricing.rates&&!pricing.loading&&!pricing.error?services.find(svc=>svc.id===item.serviceId)?.rate:undefined} onChange={patch=>updateItem(index,patch)}/><strong className="edit-line-total">Line total {money(editableLineTotalCents(item))}</strong>{item.preservedLineTotalCents!==undefined&&item.preservedLineTotalCents!==Math.round(item.quantity*item.unitRateCents)&&<p className="service-description-help">This saved line total is preserved exactly. Changing its service, quantity, or price will recalculate it.</p>}</section>)}</div>
     <Button variant="outline" className="w-full" onClick={addService}><Plus className="h-4 w-4"/> Add another service</Button>
     <button type="button" onClick={()=>setAppreciationDiscount((value)=>!value)} className={`discount-row ${appreciationDiscount?"selected":""}`}><span><strong>5% First Responder & Military</strong><small>Year-round appreciation discount</small></span><span className="check-box">{appreciationDiscount&&<Check className="h-4 w-4"/>}</span></button>
     <section className="edit-discount-card"><Label>Promotion or other discount</Label><div className="discount-mode-row"><Button type="button" variant={discountMode==="percent"?"default":"outline"} onClick={()=>{setDiscountMode("percent");setDiscountValue("");}}>% Percentage</Button><Button type="button" variant={discountMode==="dollar"?"default":"outline"} onClick={()=>{setDiscountMode("dollar");setDiscountValue("");}}>$ Dollar amount</Button></div><div className="discount-input"><span>{discountMode==="percent"?"%":"$"}</span><Input inputMode="decimal" value={discountValue} aria-invalid={discountInvalid} onChange={(event)=>setDiscountValue(event.target.value)} placeholder="0"/>{discountInvalid&&<p role="alert" className="service-description-help">Enter a nonnegative discount with at most two decimals. Percentages are limited to {appreciationDiscount?45:50}%, and dollar discounts cannot exceed the subtotal.</p>}</div><p className="service-description-help">Choose % or $ savings. Bundle discounts are separate and can stack. Combined percentage discounts are capped at 50%.</p></section>
@@ -2371,9 +2442,8 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [propertyListRefresh,setPropertyListRefresh]=useState(0);
   const [payments,setPayments]=useState<PaymentRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // The topbar Back button returns from a customer record to the directory
-  // before leaving Customers. The registered action never writes or saves.
-  useEffect(()=>{onRegisterBack?.(selectedId?()=>{setSelectedId(null);setActiveEstimate(null);setSection("estimates");}:null);return()=>onRegisterBack?.(null);},[selectedId,onRegisterBack]);
+  // Topbar Back returns to the directory before leaving Customers.
+  // Register it after the save guards so an active write can't be hidden.
   // Photo badge shows ONLY IndexedDB on-device photos. Historical hosted
   // photo records are separately disclosed inside the gallery; never mix them.
   const [onDevicePhotoCount,setOnDevicePhotoCount]=useState<number|null>(null);
@@ -2441,17 +2511,29 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
   const [recordFocusError,setRecordFocusError]=useState("");
   useEffect(()=>{setRecordFocusError("");},[selectedId]);
   const [savingNote, setSavingNote] = useState(false);
-  // Drafts persist between customers in this screen, but not after leaving it.
+  const [reviewCheckSnoozing,setReviewCheckSnoozing]=useState(false);
+  // Keep the parent informed of both note writes and review-check deferrals.
+  // Only clear this guard when Customers really unmounts, not on every edit.
   useEffect(()=>{
     const dirty=Boolean(noteText.trim())||Object.values(noteDrafts.current).some(value=>Boolean(value.trim()));
-    onNoteDraftStatusChange?.({dirty,saving:savingNote});
-    return()=>onNoteDraftStatusChange?.({dirty:false,saving:false});
-  },[noteText,selectedId,savingNote,onNoteDraftStatusChange]);
-  const [reviewCheckSnoozing,setReviewCheckSnoozing]=useState(false);
+    onNoteDraftStatusChange?.({dirty,saving:savingNote||reviewCheckSnoozing});
+  },[noteText,selectedId,savingNote,reviewCheckSnoozing,onNoteDraftStatusChange]);
+  useEffect(()=>()=>onNoteDraftStatusChange?.({dirty:false,saving:false}),[onNoteDraftStatusChange]);
   const [reviewCheckSnoozeError,setReviewCheckSnoozeError]=useState("");
   const reviewCheckSnoozeAttempt=useRef<{customerId:string;requestedAt:string;operationId:string}|null>(null);
   const reviewCheckSnoozeLock=useRef(false);
   const noteSaveLock=useRef(false),noteSavingCustomer=useRef<string|null>(null);
+  const closeCustomerRecord=useCallback(()=>{
+    if(noteSaveLock.current||reviewCheckSnoozeLock.current){
+      window.alert("A customer update is saving. Wait for confirmation before closing this record.");
+      return;
+    }
+    setSelectedId(null);setActiveEstimate(null);setSection("estimates");
+  },[]);
+  useEffect(()=>{
+    onRegisterBack?.(selectedId?closeCustomerRecord:null);
+    return()=>onRegisterBack?.(null);
+  },[selectedId,onRegisterBack,closeCustomerRecord]);
   const noteAttempts=useRef(new Map<string,string>());
   const noteSelection=useRef(selectedId);noteSelection.current=selectedId;
   const noteMounted=useRef(true),noteAccessEpoch=useRef(0);
@@ -2547,12 +2629,12 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     return()=>window.removeEventListener("fire:attention-saved",refresh);
   },[recordRequestKey]);
   useEffect(()=>{
-    if(!focusCustomerId||loading||error||offlinePhotoOnly)return;
+    if(!focusCustomerId||loading||error||offlinePhotoOnly||savingNote||reviewCheckSnoozing)return;
     const customer=customers.find(row=>row.id===focusCustomerId);
     if(customer){setSelectedId(customer.id);setSection(focusSection);}
     else setError("The selected customer is unavailable. Refresh the customer list or check your connection.");
     onFocusHandled?.(focusCustomerId);
-  },[focusCustomerId,loading,error,offlinePhotoOnly,customers,focusSection]);
+  },[focusCustomerId,loading,error,offlinePhotoOnly,customers,focusSection,savingNote,reviewCheckSnoozing]);
   // A reminder targets the flag inside its actual customer, not just the Customers tab.
   // Wait until that saved profile has rendered, then move visual and keyboard focus.
   useEffect(()=>{
@@ -2783,12 +2865,12 @@ function CustomersView({ onEstimateSaved, searchQuery, focusCustomerId,focusSect
     </div>;
   }
   if(loading||error)return <div className="customers-view">
-    {selected&&<button type="button" className="back-link" aria-label="Back to all customers" onClick={()=>{setSelectedId(null);setActiveEstimate(null);setSection("estimates");}}><ArrowLeft aria-hidden="true"/> All customers</button>}
+    {selected&&<button type="button" className="back-link" aria-label="Back to all customers" onClick={closeCustomerRecord}><ArrowLeft aria-hidden="true"/> All customers</button>}
     {loading?<div className="customers-state" role="status">Loading customers…</div>:<div className="customers-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>void load()}>Try again</Button></div>}
   </div>;
   if (selected) return <div className="customers-view">
     <EstimateDetail estimate={activeEstimate} onClose={()=>setActiveEstimate(null)} onChanged={()=>{ setActiveEstimate(null); void load(); }} />
-    <button type="button" className="back-link" aria-label="Back to all customers" onClick={() => { setSelectedId(null); setActiveEstimate(null); setSection("estimates"); }}><ArrowLeft aria-hidden="true"/> All customers</button>
+    <button type="button" className="back-link" aria-label="Back to all customers" onClick={closeCustomerRecord}><ArrowLeft aria-hidden="true"/> All customers</button>
     {refreshIssue&&<div className="customer-flag-next" role="alert"><AlertTriangle aria-hidden="true"/><span><strong>Customer activity needs refreshing</strong><small>A saved change could not be rechecked. Review current records before acting on these statuses.</small></span><Button variant="outline" onClick={()=>void load()}>Refresh customer history</Button></div>}
     <section className="customer-profile">
       {recordFocusError&&<p role="alert">{recordFocusError}</p>}
@@ -4087,7 +4169,7 @@ function PaymentsView({searchQuery,onOpenCustomerReview,onOpenEstimate}:{searchQ
 </section>}</div>;
 }
 
-function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDraft,onReviewDraftConsumed,focusTaskId,focusTaskCustomerId,focusTaskActivity,onFocusTaskHandled,onOpenCustomer,onOpenCustomerActivity}:{initialPickupDraft?:YardSignPickupDraft|null;onPickupDraftConsumed?:()=>void;initialReviewDraft?:ReviewCheckDraft|null;onReviewDraftConsumed?:()=>void;focusTaskId?:string|null;focusTaskCustomerId?:string|null;focusTaskActivity?:"sign"|"review"|null;onFocusTaskHandled?:()=>void;onOpenCustomer?:(customerId:string)=>void;onOpenCustomerActivity?:(customerId:string,kind:"sign"|"review")=>void}={}){
+function BusinessView({onWorkStatusChange,initialPickupDraft,onPickupDraftConsumed,initialReviewDraft,onReviewDraftConsumed,focusTaskId,focusTaskCustomerId,focusTaskActivity,onFocusTaskHandled,onOpenCustomer,onOpenCustomerActivity }:{onWorkStatusChange?:(state:{dirty:boolean;saving:boolean})=>void;initialPickupDraft?:YardSignPickupDraft|null;onPickupDraftConsumed?:()=>void;initialReviewDraft?:ReviewCheckDraft|null;onReviewDraftConsumed?:()=>void;focusTaskId?:string|null;focusTaskCustomerId?:string|null;focusTaskActivity?:"sign"|"review"|null;onFocusTaskHandled?:()=>void;onOpenCustomer?:(customerId:string)=>void;onOpenCustomerActivity?:(customerId:string,kind:"sign"|"review")=>void}={}){
   const [tasks,setTasks]=useState<TaskRow[]>([]);const [expenses,setExpenses]=useState<ExpenseRow[]>([]);const [customers,setCustomers]=useState<CustomerRow[]>([]);const [estimates,setEstimates]=useState<CustomerEstimate[]>([]);
   // Only prefill. The existing guarded Add task flow remains the sole writer.
   const [pickupTarget]=useState(initialPickupDraft??null);
@@ -4120,6 +4202,14 @@ function BusinessView({initialPickupDraft,onPickupDraftConsumed,initialReviewDra
   const [receiptError,setReceiptError]=useState(""),[discardReceipt,setDiscardReceipt]=useState<BusinessCreateKind|null>(null);
   const [pendingBackup,setPendingBackup]=useState<Record<string,unknown>|null>(null);const [restoreMessage,setRestoreMessage]=useState("");const [restoreBusy,setRestoreBusy]=useState(false);const restoreInput=useRef<HTMLInputElement>(null);
   const [loading,setLoading]=useState(true);const [loadError,setLoadError]=useState("");const loadRequest=useRef(0);
+  // Keep unsaved Business drafts and in-flight writes from being stranded by a section jump.
+  const businessDraftDirty=Boolean(title.trim()||dueAt||taskNotes.trim()||taskCustomer!=="none"||
+    description.trim()||amount.trim()||expenseDate||category!=="Supplies"||expenseEstimate!=="none"||
+    rescheduleEditingId||rescheduleDateInput||taskRecoveryId||expenseRecoveryId||pendingBackup);
+  const businessWriteSaving=taskSaving||expenseSaving||Boolean(taskToggling)||rescheduleSaving||restoreBusy;
+  useEffect(()=>{onWorkStatusChange?.({dirty:businessDraftDirty,saving:businessWriteSaving});},
+    [businessDraftDirty,businessWriteSaving,onWorkStatusChange]);
+  useEffect(()=>()=>onWorkStatusChange?.({dirty:false,saving:false}),[onWorkStatusChange]);
   // A Dashboard shortcut may select a saved task, but never toggles completion.
   // Wait for authoritative task records before scrolling, and do this once.
   useEffect(()=>{
@@ -4507,8 +4597,12 @@ function SettingsView({onDirtyChange,onSavingChange}:{onDirtyChange?:(dirty:bool
   const savedTemplate=templates.find((item)=>item.key===draft.key);
   const hasUnsavedTemplateChanges=Boolean(savedTemplate&&(savedTemplate.subject!==draft.subject||savedTemplate.body!==draft.body));
   // The shell guards in-app tab changes; beforeunload below covers leaving the site.
-  useEffect(()=>{onDirtyChange?.(hasUnsavedTemplateChanges);return()=>onDirtyChange?.(false);},[hasUnsavedTemplateChanges,onDirtyChange]);
-  useEffect(()=>{onSavingChange?.(saving);return()=>onSavingChange?.(false);},[saving,onSavingChange]);
+  // Editing must not unregister the shell guard between keystrokes or save-state changes.
+  // Only the actual Settings unmount should clear these flags.
+  useEffect(()=>{onDirtyChange?.(hasUnsavedTemplateChanges);},[hasUnsavedTemplateChanges,onDirtyChange]);
+  useEffect(()=>()=>onDirtyChange?.(false),[onDirtyChange]);
+  useEffect(()=>{onSavingChange?.(saving);},[saving,onSavingChange]);
+  useEffect(()=>()=>onSavingChange?.(false),[onSavingChange]);
   const choose=(item:FireTemplate)=>{if(templateSaveLock.current||templatesLoading||templatesError)return;if(hasUnsavedTemplateChanges&&!window.confirm("Discard your unsaved template changes?"))return;setSelectedKey(item.key);setDraft(item);setMessage("");};
   useEffect(()=>{const warn=(event:BeforeUnloadEvent)=>{if(!hasUnsavedTemplateChanges)return;event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn);},[hasUnsavedTemplateChanges]);
   const save=async(reset=false)=>{if(templateSaveLock.current||templatesLoading||templatesError)return;if(reset&&!window.confirm("Restore the original FIRE template and replace your current edits?"))return;templateSaveLock.current=true;setSaving(true);setMessage("");try{const response=await fetch("/api/message-templates",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(reset?{key:draft.key,reset:true}:{key:draft.key,subject:draft.subject,body:draft.body})});const result=await response.json() as {template?:FireTemplate;error?:string};if(!response.ok||!validTemplate(result.template)||result.template.key!==draft.key)throw new Error(result.error||"Template save could not be confirmed. Your edits are retained.");setTemplates((current)=>current.map((item)=>item.key===draft.key?result.template!:item));setDraft(result.template);setMessage(reset?"Default restored.":"Template saved.");}catch(error){setMessage(error instanceof Error?error.message:"Template could not be saved.");}finally{templateSaveLock.current=false;setSaving(false);}};
@@ -4751,16 +4845,25 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   const settingsDirtyRef = useRef(false);
   const settingsSavingRef = useRef(false);
   const customerNoteStateRef = useRef({dirty:false,saving:false});
+  const businessWorkStateRef = useRef({dirty:false,saving:false});
   // Route internal section changes through a single unsaved-editor guard.
   // A canceled transition keeps Settings mounted and its draft intact.
   const setTab = useCallback((destination:string)=>{
     if(destination!==currentTab.current&&currentTab.current==="customers"&&customerNoteStateRef.current.saving){
-      window.alert("A customer note or activity update is saving. Wait for confirmation before leaving Customers.");
+      window.alert("A customer update is saving. Wait for confirmation before leaving Customers.");
       return false;
     }
     if(destination!==currentTab.current&&currentTab.current==="customers"&&customerNoteStateRef.current.dirty){
       if(!window.confirm("Leave Customers and discard unfinished customer notes? Choose Cancel to keep editing."))return false;
       customerNoteStateRef.current={dirty:false,saving:false};
+    }
+    if(destination!==currentTab.current&&currentTab.current==="business"&&businessWorkStateRef.current.saving){
+      window.alert("A business update is saving. Wait for confirmation before leaving Business.");
+      return false;
+    }
+    if(destination!==currentTab.current&&currentTab.current==="business"&&businessWorkStateRef.current.dirty){
+      if(!window.confirm("Leave Business and discard unfinished task, expense, or recovery edits? Saved records are not deleted."))return false;
+      businessWorkStateRef.current={dirty:false,saving:false};
     }
     if(destination!==currentTab.current&&currentTab.current==="settings"&&settingsSavingRef.current){
       window.alert("Template save is still being confirmed. Stay in Settings until it finishes.");
@@ -4776,6 +4879,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   const setSettingsDirty = useCallback((dirty:boolean)=>{settingsDirtyRef.current=dirty;},[]);
   const setSettingsSaving = useCallback((saving:boolean)=>{settingsSavingRef.current=saving;},[]);
   const setCustomerNoteState = useCallback((state:{dirty:boolean;saving:boolean})=>{customerNoteStateRef.current=state;},[]);
+  const setBusinessWorkState = useCallback((state:{dirty:boolean;saving:boolean})=>{businessWorkStateRef.current=state;},[]);
   const [interactive, setInteractive] = useState(false);
   useEffect(() => { setInteractive(true); }, []);
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -4822,7 +4926,7 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
     // Reset only on committed section changes; never on modal/edit updates.
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, [tab]);
-  const goHome = () => { setTab("dashboard"); setMobileMenu(false); };
+  const goHome = () => { if(setTab("dashboard"))setMobileMenu(false); };
   const goBack = () => {
     if(mobileMenu){setMobileMenu(false);return;}
     if(tab==="customers"&&customerBackHandler.current){customerBackHandler.current();return;}
@@ -4895,13 +4999,14 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
   },[]);
   const openSearchResult=(row:SearchResult)=>{
     const destination=row.kind==="payment"||row.kind==="note"||row.kind==="property"||row.kind==="customer"?"customers":row.kind==="invoice"?"invoices":"estimates";
-    if(!setTab(destination))return;
+    if(!setTab(destination))return false;
     setSearchQuery("");setGlobalQuery("");setMobileMenu(false);
     setFocusCustomerRecord(null);
     if((row.kind==="payment"||row.kind==="note"||row.kind==="property")&&row.customerId){setFocusCustomerRecord({id:row.id,customerId:row.customerId,kind:row.kind});setCustomerRecordRequestKey(value=>value+1);setFocusCustomerSection(row.kind==="payment"?"payments":row.kind==="note"?"notes":"estimates");setFocusCustomerId(row.customerId);}
     else if(row.kind==="customer"){setFocusCustomerSection("estimates");setFocusCustomerId(row.id);}
     else if(row.kind==="invoice"){setFocusInvoiceId(row.id);}
     else{setFocusEstimateId(row.id);setEstimateRefreshKey(value=>value+1);}
+    return true;
   };
   const handleSaved = (estimate: EstimateRow) => {
     if(typeof window!=="undefined"&&typeof window.dispatchEvent==="function"&&typeof Event==="function")window.dispatchEvent(new Event("fire:attention-saved"));
@@ -4915,22 +5020,45 @@ export function Dashboard({userName,metrics,estimates,environment="LIVE",localCu
         <div className="mobile-menu-search"><GlobalSearch query={globalQuery} onQuery={setGlobalQuery} onSelect={openSearchResult} disabled={!interactive} active={mobileMenu} menu/></div>
         <nav aria-label="All business sections">
           <p className="sidebar-nav-heading">Everyday</p>
-          {nav.slice(0,7).map(([id,label,Icon])=><button key={id} disabled={!interactive} className={tab===id?"active":""} onClick={()=>{setTab(id);setMobileMenu(false);}}><Icon/><span>{label}</span>{id==="estimates"&&liveMetrics.estimates>0&&<b>{liveMetrics.estimates}</b>}</button>)}
+          {nav.slice(0,7).map(([id,label,Icon])=><button key={id} disabled={!interactive} className={tab===id?"active":""} onClick={()=>{if(setTab(id))setMobileMenu(false);}}><Icon/><span>{label}</span>{id==="estimates"&&liveMetrics.estimates>0&&<b>{liveMetrics.estimates}</b>}</button>)}
           <details className="sidebar-more-nav" open={moreNavOpen} onToggle={event=>setMoreNavOpen(event.currentTarget.open)}>
             <summary aria-label="More business tools">More tools <ChevronDown aria-hidden="true"/></summary>
             <div className="sidebar-more-items">
-              {nav.slice(7).map(([id,label,Icon])=><button key={id} disabled={!interactive} className={tab===id?"active":""} onClick={()=>{setTab(id);setMobileMenu(false);}}><Icon/><span>{label}</span></button>)}
+              {nav.slice(7).map(([id,label,Icon])=><button key={id} disabled={!interactive} className={tab===id?"active":""} onClick={()=>{if(setTab(id))setMobileMenu(false);}}><Icon/><span>{label}</span></button>)}
             </div>
           </details>
         </nav>
-        <button type="button" disabled={!interactive} className="sidebar-foot" onClick={() => { setTab("owner-account"); setMobileMenu(false); }} aria-label="Open owner account"><div className="owner-avatar">FIRE</div><div><strong>First In Response Exteriors</strong><small>Owner · Account</small></div><ChevronRight /></button>
+        <button type="button" disabled={!interactive} className="sidebar-foot" onClick={() => { if(setTab("owner-account"))setMobileMenu(false); }} aria-label="Open owner account"><div className="owner-avatar">FIRE</div><div><strong>First In Response Exteriors</strong><small>Owner · Account</small></div><ChevronRight /></button>
       </aside>
       <section className="main-area">
-        <header className={`topbar `}><div className="mobile-brand"><FireMark small /><strong>FIRE</strong></div><div className="mobile-primary-actions"><button disabled={!interactive} className="mobile-back-button" onClick={goBack} aria-label="Back" title="Back"><ArrowLeft /></button><button disabled={!interactive} className={`mobile-home-button ${tab==="dashboard"?"active":""}`} onClick={goHome} aria-label="Home" title="Home"><House /></button><button disabled={!interactive} className="mobile-theme-button" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}</button><button disabled={!interactive} className="menu-button" onClick={() => setMobileMenu(true)} aria-label="Open menu" title="Menu"><Menu /></button></div><GlobalSearch query={globalQuery} onQuery={setGlobalQuery} onSelect={openSearchResult} active={!mobileMenu} disabled={!interactive}/><div className="top-actions"><button disabled={!interactive} type="button" className="payments-quick-action" onClick={()=>setTab("payments")} aria-label="Record payments" title="Record payments"><span aria-hidden="true">$</span></button>{tab==="dashboard"&&<StrideButton top/>}<NotificationBell onNavigate={(next,estimateId,invoiceId,customerId,taskId,customerActivity)=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus(customerId&&customerActivity?{customerId,kind:customerActivity,request:++customerActivityRequest.current}:null);if(taskId){setPickupTaskDraft(null);setReviewTaskDraft(null);setFocusBusinessTaskHint({customerId:customerId??null,activity:customerActivity??null});setFocusBusinessTaskId(taskId);setTab("business");}else if(next==="payments"){setTab("payments");}else if(invoiceId){setFocusInvoiceId(invoiceId);setTab("invoices");}else if(next==="followups"&&estimateId){setFocusFollowupEstimateId(estimateId);setTab("followups");}else if(estimateId){setFocusEstimateId(estimateId);setEstimateRefreshKey(value=>value+1);setTab("estimates");}else if(customerId){setFocusCustomerSection("estimates");setFocusCustomerId(customerId);setTab("customers");}else{if(next==="estimates")setEstimateRefreshKey(value=>value+1);setTab(next);}}}/><button disabled={!interactive} className="theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}<span>{theme==="dark"?"Light":"Dark"}</span></button><button disabled={!interactive} className="avatar-button" onClick={() => setTab("owner-account")} aria-label="Open owner account">FIRE</button></div></header>
+        <header className={`topbar `}><div className="mobile-brand"><FireMark small /><strong>FIRE</strong></div><div className="mobile-primary-actions"><button disabled={!interactive} className="mobile-back-button" onClick={goBack} aria-label="Back" title="Back"><ArrowLeft /></button><button disabled={!interactive} className={`mobile-home-button ${tab==="dashboard"?"active":""}`} onClick={goHome} aria-label="Home" title="Home"><House /></button><button disabled={!interactive} className="mobile-theme-button" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}</button><button disabled={!interactive} className="menu-button" onClick={() => setMobileMenu(true)} aria-label="Open menu" title="Menu"><Menu /></button></div><GlobalSearch query={globalQuery} onQuery={setGlobalQuery} onSelect={openSearchResult} active={!mobileMenu} disabled={!interactive}/><div className="top-actions"><button disabled={!interactive} type="button" className="payments-quick-action" onClick={()=>setTab("payments")} aria-label="Record payments" title="Record payments"><span aria-hidden="true">$</span></button>{tab==="dashboard"&&<StrideButton top/>}<NotificationBell onNavigate={(next,estimateId,invoiceId,customerId,taskId,customerActivity)=>{
+  // Do not change record focus, search or task drafts until leaving the current editor is accepted.
+  const destination=taskId?"business":next==="payments"?"payments":invoiceId?"invoices":next==="followups"&&estimateId?"followups":estimateId?"estimates":customerId?"customers":next;
+  if(!setTab(destination))return;
+  setSearchQuery("");setGlobalQuery("");
+  setCustomerActivityFocus(customerId&&customerActivity?{customerId,kind:customerActivity,request:++customerActivityRequest.current}:null);
+  if(taskId){
+    setPickupTaskDraft(null);setReviewTaskDraft(null);
+    setFocusBusinessTaskHint({customerId:customerId??null,activity:customerActivity??null});
+    setFocusBusinessTaskId(taskId);
+  }else if(next==="payments"){
+    // Payments already selected above; never replace it with a linked estimate.
+  }else if(invoiceId){
+    setFocusInvoiceId(invoiceId);
+  }else if(next==="followups"&&estimateId){
+    setFocusFollowupEstimateId(estimateId);
+  }else if(estimateId){
+    setFocusEstimateId(estimateId);setEstimateRefreshKey(value=>value+1);
+  }else if(customerId){
+    setFocusCustomerSection("estimates");setFocusCustomerId(customerId);
+  }else if(next==="estimates"){
+    setEstimateRefreshKey(value=>value+1);
+  }
+}}/><button disabled={!interactive} className="theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme==="dark"?"light":"dark"} mode`} title={`Switch to ${theme==="dark"?"light":"dark"} mode`}>{theme==="dark"?<Sun/>:<Moon/>}<span>{theme==="dark"?"Light":"Dark"}</span></button><button disabled={!interactive} className="avatar-button" onClick={() => setTab("owner-account")} aria-label="Open owner account">FIRE</button></div></header>
         {process.env.NODE_ENV === "development" && localCustomersCandidate && <CandidateLayoutTrace/>}
         {!interactive && <p role="status" className="app-loading-status">Loading app…</p>}
         {tab === "customers" && localCustomersCandidate && <a className="brand-button" href="/development/local-customers">Offline Customers · synthetic development</a>}
-        {tab === "dashboard" ? <DashboardView userName={userName} metrics={liveMetrics} estimates={estimateRows} summaryVerified={summaryVerified} onSaved={handleSaved} onNavigate={setTab} onOpenEstimate={id=>{setSearchQuery("");setGlobalQuery("");setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}} onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}} onOpenCustomerActivity={(id,kind)=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind,request:++customerActivityRequest.current});setFocusCustomerSection("estimates");setFocusCustomerId(id);setTab("customers");}} onOpenTask={id=>{setPickupTaskDraft(null);setReviewTaskDraft(null);setFocusBusinessTaskHint({customerId:null,activity:null});setFocusBusinessTaskId(id);setTab("business");}} onOpenDoorHouse={id=>{setSearchQuery("");setGlobalQuery("");setFocusDoorHouseId(id);setTab("door-knocking");}} /> : tab === "contracts" ? <EstimatesView initialSection="agreements" onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "customers" ? <CustomersView onRegisterBack={registerCustomerBack} onNoteDraftStatusChange={setCustomerNoteState} createAtAddress={territoryCustomerAddress} onCreateStarted={()=>setTerritoryCustomerAddress(undefined)} onEstimateSaved={handleSaved} searchQuery={searchQuery} focusCustomerId={focusCustomerId} focusSection={focusCustomerSection} focusRecord={focusCustomerRecord} recordRequestKey={customerRecordRequestKey} activityFocus={customerActivityFocus} onActivityFocusHandled={request=>setCustomerActivityFocus(current=>current?.request===request?null:current)} onRecordFocusHandled={id=>setFocusCustomerRecord(current=>current?.id===id?null:current)} onPreparePickupTask={draft=>{setReviewTaskDraft(null);setPickupTaskDraft(draft);setTab("business");}} onPrepareReviewTask={draft=>{setPickupTaskDraft(null);setReviewTaskDraft(draft);setTab("business");}} onFocusHandled={id=>setFocusCustomerId(current=>current===id?null:current)} onOpenTerritory={address=>{setSearchQuery("");setGlobalQuery("");setFocusTerritoryAddress(address);setTab("door-knocking");}}/> : tab === "estimates" ? <EstimatesView key={estimateRefreshKey} onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "followups" ? <FollowUpsView searchQuery={searchQuery} focusEstimateId={focusFollowupEstimateId} onFocusHandled={id=>setFocusFollowupEstimateId(current=>current===id?null:current)} onOpenEstimate={id=>{setFocusFollowupEstimateId(null);setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}} onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/> : tab === "schedule" ? <ScheduleView searchQuery={searchQuery} onNavigate={next=>{setSearchQuery("");setTab(next);}} onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/> : tab === "invoices" ? <InvoicesView searchQuery={searchQuery} focusInvoiceId={focusInvoiceId} onFocusHandled={id=>setFocusInvoiceId(current=>current===id?null:current)}/> : tab === "insights" ? <InsightsView/> : tab === "door-knocking" ? <DoorKnocking focusHouseId={focusDoorHouseId} focusAddress={focusTerritoryAddress} onTerritoryFocusHandled={address=>setFocusTerritoryAddress(current=>current===address?null:current)} onCreateCustomer={address=>{setTerritoryCustomerAddress(address);setFocusCustomerId(null);setSearchQuery("");setGlobalQuery("");setTab("customers");}} mapFirst onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}} onFocusHandled={id=>setFocusDoorHouseId(current=>current===id?null:current)}/> : tab === "business" ? <BusinessView initialPickupDraft={pickupTaskDraft} onPickupDraftConsumed={()=>setPickupTaskDraft(null)} initialReviewDraft={reviewTaskDraft} onReviewDraftConsumed={()=>setReviewTaskDraft(null)} focusTaskId={focusBusinessTaskId} focusTaskCustomerId={focusBusinessTaskHint.customerId} focusTaskActivity={focusBusinessTaskHint.activity} onFocusTaskHandled={()=>setFocusBusinessTaskId(null)} onOpenCustomer={id=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus(null);setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}} onOpenCustomerActivity={(id,kind)=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind,request:++customerActivityRequest.current});setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/> : tab === "payments" ? <PaymentsView searchQuery={searchQuery} onOpenEstimate={id=>{setSearchQuery("");setGlobalQuery("");setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);setTab("estimates");}} onOpenCustomerReview={id=>{setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind:"review",request:++customerActivityRequest.current});setFocusCustomerId(id);setFocusCustomerSection("estimates");setTab("customers");}}/> : tab === "settings" ? <SettingsView onDirtyChange={setSettingsDirty} onSavingChange={setSettingsSaving}/> : tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/> : <EmptyView tab={tab} onSaved={handleSaved} />}
+        {tab === "dashboard" ? <DashboardView userName={userName} metrics={liveMetrics} estimates={estimateRows} summaryVerified={summaryVerified} onSaved={handleSaved} onNavigate={setTab} onOpenEstimate={id=>{if(!setTab("estimates"))return;setSearchQuery("");setGlobalQuery("");setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);}} onOpenCustomer={id=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");}} onOpenCustomerActivity={(id,kind)=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind,request:++customerActivityRequest.current});setFocusCustomerSection("estimates");setFocusCustomerId(id);}} onOpenTask={id=>{if(!setTab("business"))return;setPickupTaskDraft(null);setReviewTaskDraft(null);setFocusBusinessTaskHint({customerId:null,activity:null});setFocusBusinessTaskId(id);}} onOpenDoorHouse={id=>{if(!setTab("door-knocking"))return;setSearchQuery("");setGlobalQuery("");setFocusDoorHouseId(id);}} /> : tab === "contracts" ? <EstimatesView initialSection="agreements" onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "customers" ? <CustomersView onRegisterBack={registerCustomerBack} onNoteDraftStatusChange={setCustomerNoteState} createAtAddress={territoryCustomerAddress} onCreateStarted={()=>setTerritoryCustomerAddress(undefined)} onEstimateSaved={handleSaved} searchQuery={searchQuery} focusCustomerId={focusCustomerId} focusSection={focusCustomerSection} focusRecord={focusCustomerRecord} recordRequestKey={customerRecordRequestKey} activityFocus={customerActivityFocus} onActivityFocusHandled={request=>setCustomerActivityFocus(current=>current?.request===request?null:current)} onRecordFocusHandled={id=>setFocusCustomerRecord(current=>current?.id===id?null:current)} onPreparePickupTask={draft=>{if(!setTab("business"))return;setReviewTaskDraft(null);setPickupTaskDraft(draft);}} onPrepareReviewTask={draft=>{if(!setTab("business"))return;setPickupTaskDraft(null);setReviewTaskDraft(draft);}} onFocusHandled={id=>setFocusCustomerId(current=>current===id?null:current)} onOpenTerritory={address=>{if(!setTab("door-knocking"))return;setSearchQuery("");setGlobalQuery("");setFocusTerritoryAddress(address);}}/> : tab === "estimates" ? <EstimatesView key={estimateRefreshKey} onSaved={handleSaved} searchQuery={searchQuery} focusEstimateId={focusEstimateId} onFocusHandled={id=>setFocusEstimateId(current=>current===id?null:current)}/> : tab === "followups" ? <FollowUpsView searchQuery={searchQuery} focusEstimateId={focusFollowupEstimateId} onFocusHandled={id=>setFocusFollowupEstimateId(current=>current===id?null:current)} onOpenEstimate={id=>{if(!setTab("estimates"))return;setFocusFollowupEstimateId(null);setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);}} onOpenCustomer={id=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");}}/> : tab === "schedule" ? <ScheduleView searchQuery={searchQuery} onNavigate={next=>{if(!setTab(next))return;setSearchQuery("");}} onOpenCustomer={id=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");}}/> : tab === "invoices" ? <InvoicesView searchQuery={searchQuery} focusInvoiceId={focusInvoiceId} onFocusHandled={id=>setFocusInvoiceId(current=>current===id?null:current)}/> : tab === "insights" ? <InsightsView/> : tab === "door-knocking" ? <DoorKnocking focusHouseId={focusDoorHouseId} focusAddress={focusTerritoryAddress} onTerritoryFocusHandled={address=>setFocusTerritoryAddress(current=>current===address?null:current)} onCreateCustomer={address=>{if(!setTab("customers"))return;setTerritoryCustomerAddress(address);setFocusCustomerId(null);setSearchQuery("");setGlobalQuery("");}} mapFirst onOpenCustomer={id=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setFocusCustomerId(id);setFocusCustomerSection("estimates");}} onFocusHandled={id=>setFocusDoorHouseId(current=>current===id?null:current)}/> : tab === "business" ? <BusinessView onWorkStatusChange={setBusinessWorkState} initialPickupDraft={pickupTaskDraft} onPickupDraftConsumed={()=>setPickupTaskDraft(null)} initialReviewDraft={reviewTaskDraft} onReviewDraftConsumed={()=>setReviewTaskDraft(null)} focusTaskId={focusBusinessTaskId} focusTaskCustomerId={focusBusinessTaskHint.customerId} focusTaskActivity={focusBusinessTaskHint.activity} onFocusTaskHandled={()=>setFocusBusinessTaskId(null)} onOpenCustomer={id=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus(null);setFocusCustomerId(id);setFocusCustomerSection("estimates");}} onOpenCustomerActivity={(id,kind)=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind,request:++customerActivityRequest.current});setFocusCustomerId(id);setFocusCustomerSection("estimates");}}/> : tab === "payments" ? <PaymentsView searchQuery={searchQuery} onOpenEstimate={id=>{if(!setTab("estimates"))return;setSearchQuery("");setGlobalQuery("");setFocusEstimateId(id);setEstimateRefreshKey(value=>value+1);}} onOpenCustomerReview={id=>{if(!setTab("customers"))return;setSearchQuery("");setGlobalQuery("");setCustomerActivityFocus({customerId:id,kind:"review",request:++customerActivityRequest.current});setFocusCustomerId(id);setFocusCustomerSection("estimates");}}/> : tab === "settings" ? <SettingsView onDirtyChange={setSettingsDirty} onSavingChange={setSettingsSaving}/> : tab === "owner-account" ? <OwnerAccountView environment={environment} theme={theme} onToggleTheme={toggleTheme}/> : <EmptyView tab={tab} onSaved={handleSaved} />}
       </section>
       {mobileMenu && <button aria-label="Close menu overlay" className="menu-scrim" onClick={() => setMobileMenu(false)} />}
       <nav className="bottom-nav">{nav.filter(([id])=>["dashboard","customers","estimates","schedule","followups"].includes(id)).map(([id, label, Icon]) => <button key={id} disabled={!interactive} className={tab === id ? "active" : ""} onClick={() => setTab(id)}><Icon /><span>{id==="dashboard"?"Home":label}</span></button>)}</nav>

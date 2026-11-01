@@ -68,12 +68,24 @@ try{
   await trigger.click();
   const last=popup.getByRole('option').last();
   await last.scrollIntoViewIfNeeded();
-  const hit=await last.evaluate(n=>{
+  const measureLast=()=>last.evaluate(n=>{
    const r=n.getBoundingClientRect(),e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
-   return{ok:r.width>=44&&r.height>=44&&(e===n||n.contains(e)),top:r.top,bottom:r.bottom};
+   const viewport=n.closest('[data-slot="select-viewport"]');
+   return{ok:r.width>=44&&r.height>=44&&(e===n||n.contains(e)),top:r.top,bottom:r.bottom,
+    viewportScrollTop:viewport?.scrollTop,viewportScrollHeight:viewport?.scrollHeight,viewportHeight:viewport?.clientHeight};
   });
+  let hit=await measureLast();
+  if(!hit.ok||hit.top<0||hit.bottom>height+1){
+   // Playwright's scrollIntoView can scroll the page instead of Radix's
+   // nested Select viewport on short landscape Chrome. Exercise actual user
+   // wheel scrolling of that viewport; do not silently waive a hidden item.
+   const viewport=popup.locator('[data-slot="select-viewport"]');
+   await viewport.hover();
+   await page.mouse.wheel(0,4800);
+   hit=await measureLast();
+  }
   check(hit.ok&&hit.top>=-1&&hit.bottom<=height+1,
-   'Last service after scrolling has unobstructed target '+width+'/'+height+'/'+theme+JSON.stringify(hit));
+   'Last service must be reachable through a real scrollable dropdown '+width+'/'+height+'/'+theme+JSON.stringify(hit));
   await last.click();
   const selected=await page.locator('output[aria-label="Selected service ID"]').innerText();
   check(selected.length>0&&selected!=='custom','Last original service can be selected');

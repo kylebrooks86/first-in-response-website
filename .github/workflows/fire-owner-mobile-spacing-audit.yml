@@ -3,6 +3,10 @@ on:
   pull_request:
     paths:
       - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/components/global-search.tsx'
+      - 'business-app-parity/shared/components/ui/alert-dialog.tsx'
+      - 'business-app-parity/shared/scripts/test-section-navigation.mjs'
+      - 'business-app-parity/shared/scripts/test-payment-mobile-ui.mjs'
       - 'business-app-parity/shared/app/globals.css'
       - 'business-app-parity/shared/scripts/test-owner-mobile-spacing-audit-browser.mjs'
       - '.github/workflows/fire-owner-mobile-spacing-audit.yml'
@@ -43,6 +47,12 @@ jobs:
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
           test -n "$CHROME" || exit 1
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
+      - name: Verify guarded Back, search and notification jumps before mobile visual audit
+        working-directory: business-app-parity/shared
+        run: node scripts/test-section-navigation.mjs
+      - name: Guard manual payment close, uncertain receipts and mobile payment layout
+        working-directory: business-app-parity/shared
+        run: node scripts/test-payment-mobile-ui.mjs
       - name: Verify 320-667px phone/landscape hit areas from compiled app CSS
         working-directory: business-app-parity/shared
         run: node scripts/test-owner-mobile-spacing-audit-browser.mjs

@@ -9,6 +9,7 @@ Require (Test-Path -LiteralPath $script -PathType Leaf) 'Expected owner staging 
 $source=Get-Content -LiteralPath $script -Raw
 $must=@(
   '[switch]$Stage','[Parameter(Mandatory=$true)][string]$ExpectedCommit',
+  '[string]$CandidateBranch', "Only a specifically named FIRE work branch can be staged.",
   'if(-not $Stage)','DRY RUN ONLY. No network',
   "^[0-9a-f]{40}$","'FIREQA'",'git.exe',
   "core.autocrlf=false clone --depth 1 --single-branch --branch",
@@ -29,7 +30,17 @@ Require ($source.IndexOf('Require ($actual -ceq $ExpectedCommit') -gt $source.In
 $sha=('a'*40)
 $existing=Test-Path -LiteralPath (Join-Path $env:USERPROFILE 'FIREQA')
 Require (-not $existing) 'CI synthetic test requires a clean, nonexistent FIREQA directory; never interfere with an existing checkout.'
-$out=(& $script -ExpectedCommit $sha 6>&1 2>&1 | Out-String)
+$candidateBranch='work/fire-qa-device-review-candidate-2026-11-01'
+$out=(& $script -ExpectedCommit $sha -CandidateBranch $candidateBranch 6>&1 2>&1 | Out-String)
+Require ($out.Contains(('BRANCH='+$candidateBranch))) 'Explicit reviewed work branch must be displayed without changing the old default.'
+Require ($source.Contains("^work/fire-[a-z0-9][a-z0-9-]{1,110}$")) 'Git branch input must be constrained to valid FIRE work branches.'
+$invalidOutput = ''
+try {
+  $invalidOutput = (& $script -ExpectedCommit $sha -CandidateBranch '--evil-untrusted-flag' 6>&1 2>&1 | Out-String)
+  throw 'FIRE QA SOURCE TEST STOP: Invalid branch unexpectedly passed.'
+} catch {
+  Require ($_.Exception.Message.Contains('Only a specifically named FIRE work branch')) 'Untrusted branch must stop before clone.'
+}
 Require ($out.Contains('DRY RUN ONLY. No network')) 'Default script did not report no-network dry run.'
 Require ($out.Contains('STAGED=NO; DEPLOYED=NO; CLOUD_WRITES=NONE; CUSTOMER_RECORDS_READ=NONE')) 'Dry run must deny stage/deploy/customer reads.'
 Require (-not (Test-Path -LiteralPath (Join-Path $env:USERPROFILE 'FIREQA'))) 'Dry run created a checkout.'

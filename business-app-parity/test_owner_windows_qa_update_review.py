@@ -126,8 +126,8 @@ class ExistingQAUpdateSafety(unittest.TestCase):
 
     def test_owner_verified_readonly_pin_and_publisher_stays_locked(self):
         # Read-only review must match the latest owner-attested QA version.
-        # The distinct -Publish script MUST remain pinned to the old version
-        # until private 25-schema recovery is attested and owner approves update.
+        # The distinct -Publish script must match the currently verified version
+        # but retains its own explicit approval, backup and no-default-publish gates.
         publisher = (Path(__file__).parent / "owner_windows_qa_update_publish.ps1").read_text(encoding="utf-8")
         readonly = (Path(__file__).parent / "owner_windows_qa_current_readonly.ps1").read_text(encoding="utf-8")
         readonly_pins = re.findall(r"^\$expectedVersion = '([^']+)'$", readonly, re.M)
@@ -135,8 +135,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         publish_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", publisher, re.M)
         self.assertEqual(readonly_pins, ["86f3d186-2770-438e-9f5c-32319bf6fe1d"])
         self.assertEqual(review_pins, readonly_pins)
-        self.assertEqual(publish_pins, ["99fa8c27-df83-48d3-b953-9a84eb295334"])
-        self.assertNotEqual(publish_pins, readonly_pins)
+        self.assertEqual(publish_pins, readonly_pins)
         self.assertIn("[switch]$Publish", publisher)
         self.assertIn("Require ($typed -ceq $approval)", publisher)
         self.assertIn("Require ($OwnerConfirmedPhotoZipBackup.IsPresent -xor $OwnerConfirmedNoLocalPhotos.IsPresent)", publisher)

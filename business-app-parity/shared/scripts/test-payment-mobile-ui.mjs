@@ -141,4 +141,89 @@ check('Owner payment history and checkout alerts cannot be served from stale bro
  const route=readFileSync('app/api/payments/route.ts','utf8');
  assert.ok(route.includes('return Response.json({payments:result.results,checkoutIssues:checkoutIssues.results},{headers:{"Cache-Control":"no-store, private"}});'));
 });
+check('Manual payment close guard blocks live writes and preserves unresolved/edited forms',()=>{
+ const form=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='RecordPayment');
+ assert.ok(form,'Record Payment is an actual saved-record editor');
+ const closeSource=form.getText(ast);
+ assert.match(closeSource,/<Dialog open=\{open\} onOpenChange=\{setOpenSafe\}/,'Payment dialog must use its guarded close callback');
+ let callback;
+ function find(node){if(ts.isVariableDeclaration(node)&&node.name.getText(ast)==='setOpenSafe')callback=node.initializer;ts.forEachChild(node,find);}
+ find(form);
+ assert.ok(callback,'Real guarded close handler must exist');
+ const compiled=ts.transpileModule('exports.guard='+callback.getText(ast)+';',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const exercise=({busy=false,pending=false,edited=false,approve=false,open=false}={})=>{
+  const events=[];
+  const scope={exports:{},saving:busy,paymentLock:{current:busy},retryPending:pending,
+   amount:edited?'25.00':'75.00',balance:3500,initialPaymentAmount:{current:'75.00'},tip:'',fee:'',reference:'',method:'Wave',
+   setOpen:value=>events.push('set:'+value),
+   window:{alert:()=>events.push('alert'),confirm:()=>{events.push('confirm');return approve;}}};
+  vm.runInNewContext(compiled,scope);scope.exports.guard(open);return events;
+ };
+ assert.deepEqual(exercise({open:true}),['set:true'],'Opening is still immediate');
+ assert.deepEqual(exercise({busy:true,approve:true}),['alert'],'Saving cannot be dismissed by any Radix close route');
+ assert.deepEqual(exercise({pending:true,approve:false}),['confirm'],'Cancel retains uncertain receipt review');
+ assert.deepEqual(exercise({pending:true,approve:true}),['confirm','set:false'],'Owner can intentionally leave persisted pending receipt');
+ assert.deepEqual(exercise({edited:true,approve:false}),['confirm'],'Cancel retains unsaved financial entry');
+ assert.deepEqual(exercise({edited:true,approve:true}),['confirm','set:false'],'Owner can discard unsaved payment details');
+ assert.deepEqual(exercise(),['set:false'],'Untouched prefilled payment can close without needless confirmation');
+});
+
+check('Manual payment prefill survives open-editor balance refresh and clears prior reference on reopening',()=>{
+ const form=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='RecordPayment');
+ assert.ok(form);
+ const effects=[];function visit(node){if(ts.isCallExpression(node)&&node.expression.getText(ast)==='useEffect'&&node.arguments[0]?.getText(ast).includes('loadManualPaymentRetry')&&node.arguments[0]?.getText(ast).includes('setAmount('))effects.push(node);ts.forEachChild(node,visit);}
+ visit(form);
+ assert.equal(effects.length,1,'One real payment-entry initializer');
+ const init=effects[0];
+ assert.equal(init.arguments[1].getText(ast),'[open,estimate.id]','Parent balance changes must not rerun and erase an open edit');
+ const source=ts.transpileModule('exports.initialize='+init.arguments[0].getText(ast)+';',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const events=[];
+ const scope={exports:{},open:true,balance:7500,estimate:{id:'synthetic-job'},initialPaymentAmount:{current:''},
+  manualRequestId:{current:null},activeManual:{current:null},storage:()=>null,loadManualPaymentRetry:()=>null};
+ for(const key of ['setRetryPending','setAmount','setTip','setTipChoice','setFee','setFeeMode','setFeeEstimate','setMethod','setReference','setError','setReviewedMissing','setRetryConfirmed'])
+  scope[key]=value=>events.push([key,value]);
+ vm.runInNewContext(source,scope);
+ scope.exports.initialize();
+ assert.equal(scope.initialPaymentAmount.current,'75.00');
+ assert.ok(events.some(([key,value])=>key==='setAmount'&&value==='75.00'));
+ assert.ok(events.some(([key,value])=>key==='setMethod'&&value==='Wave'),'New payment never inherits method');
+ assert.ok(events.some(([key,value])=>key==='setReference'&&value===''),'New payment never inherits an old reference');
+ assert.ok(events.some(([key,value])=>key==='setFeeMode'&&value==='fee'),'Prior net/fee mode resets');
+ events.length=0;scope.balance=2500;
+ assert.equal(events.length,0,'A parent data refresh cannot clear the open payment input');
+ scope.exports.initialize();
+ assert.ok(events.some(([key,value])=>key==='setAmount'&&value==='25.00'),'Reopening captures the latest confirmed balance');
+ assert.equal(scope.initialPaymentAmount.current,'25.00');
+ const receipt={requestId:'synthetic-unchanged',amountCents:1850,tipCents:0,method:'Cash App',reference:'receipt-1',processingFeeCents:50};
+ events.length=0;scope.activeManual.current=receipt;scope.exports.initialize();
+ assert.ok(events.some(([key,value])=>key==='setAmount'&&value==='18.50'),'Unresolved payment preserves original receipt amount');
+ assert.ok(events.some(([key,value])=>key==='setReference'&&value==='receipt-1'),'Unresolved payment retains original reference');
+});
+
+check('Refund close preserves active Stripe/manual request and unsaved refund details',()=>{
+ const refundFn=functions.find(n=>n.name?.text==='RefundPayment');
+ assert.ok(refundFn,'Actual RefundPayment component');
+ let initializer;
+ function visit(n){if(ts.isVariableDeclaration(n)&&n.name.getText(ast)==='openChange')initializer=n.initializer;ts.forEachChild(n,visit);}
+ visit(refundFn);
+ assert.ok(initializer,'Actual RefundPayment close handler');
+ const compiled=ts.transpileModule('exports.close='+initializer.getText(ast)+';',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const exercise=({busy=false,pending=false,dirty=false,approve=false}={})=>{
+  const calls=[];
+  const scope={exports:{},refundLock:{current:busy},saving:busy,submitted:pending,
+   activeRefund:{current:pending?{requestId:'synthetic-refund-id',amountCents:7500}:null},
+   amount:dirty?'25.00':'75.00',refundable:7500,note:'',confirmed:false,
+   setOpen:v=>calls.push('open:'+v),
+   window:{alert:()=>calls.push('alert'),confirm:()=>{calls.push('confirm');return approve;}}};
+  vm.runInNewContext(compiled,scope);scope.exports.close(false);
+  return calls;
+ };
+ assert.deepEqual(exercise({busy:true,approve:true}),['alert'],'A pending write cannot hide even with consent');
+ assert.deepEqual(exercise({pending:true}),['confirm'],'Cancel retains pending refund context');
+ assert.deepEqual(exercise({pending:true,approve:true}),['confirm','open:false'],'Closing pending refund requires explicit owner acknowledgement');
+ assert.deepEqual(exercise({dirty:true}),['confirm'],'Cancel retains edited refund amount');
+ assert.deepEqual(exercise({dirty:true,approve:true}),['confirm','open:false'],'Unsaved refund details discarded only with confirmation');
+ assert.deepEqual(exercise(),['open:false'],'Untouched refund modal closes without unnecessary friction');
+});
+
 console.log(`PASS: ${cases}/${cases} component/handler/CSS checks. Local structural tests only; no browser/iPhone or Stripe network verification.`);
