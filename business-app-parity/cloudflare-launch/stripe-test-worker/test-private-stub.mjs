@@ -25,3 +25,19 @@ test('stub always fails closed, never responds with customer data',async()=>{
     assert.match(await reply.text(),/test Worker disabled/);
   }
 });
+
+test('Acer deployment script pins immutable source, exact new D1 and fail-closed private routes',()=>{
+  const ps=readFileSync(new URL('./deploy-private-stub.ps1',import.meta.url),'utf8');
+  assert.match(ps,/f577d62d2e8a864cc780384064ce8398f27592b7/);
+  assert.match(ps,/dba421ba-fc66-4cf8-9c31-51616f8249ba/);
+  assert.match(ps,/fire-stripe-test-20261101/);
+  assert.match(ps,/FIRE-Stripe-Test-Worker-20261101/);
+  assert.match(ps,/if \(Test-Path -LiteralPath \$dir\)/);
+  assert.match(ps,/\$config\.workers_dev -ne \$false/);
+  assert.match(ps,/\$config\.preview_urls -ne \$false/);
+  assert.match(ps,/@\(\$config\.routes\)\.Count -ne 0/);
+  assert.match(ps,/\$config\.d1_databases\[0\]\.database_id -cne \$dbId/);
+  assert.match(ps,/\$rawWorker -notmatch 'status: 403'/);
+  assert.match(ps,/deploy --config \$configFile/);
+  assert.doesNotMatch(ps,/\bd1 (?:execute|migrations|delete|import|export)\b|\bstripe (?:refund|checkout)\b/i);
+});
