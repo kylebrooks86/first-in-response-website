@@ -1337,6 +1337,16 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
   const matchesSaved=(row:CustomerRow|undefined|null,payload:NonNullable<typeof attempted.current>)=>
     Boolean(row&&Object.entries(payload).every(([key,value])=>row[key as keyof CustomerRow]===value));
   const reset=()=>{setName(customer.name??"");setEmail(customer.email??"");setPhone(customer.phone??"");setAddress(customer.address??"");setLeadSource(customer.leadSource||"Unknown");setError("");setUncertain(false);attempted.current=null;};
+  const customerDirty=name!==(customer.name??"")||email!==(customer.email??"")||phone!==(customer.phone??"")||address!==(customer.address??"")||leadSource!==(customer.leadSource||"Unknown");
+  const changeOpen=(value:boolean)=>{
+    if(saveLock.current||saving||checking||currentCustomer.current!==customer.id)return;
+    if(!value&&(customerDirty||uncertain)&&!window.confirm(uncertain
+      ?"Save confirmation is uncertain. Closing keeps the possible server change; reopen this customer and check the saved record before another edit. Close?"
+      :"Discard unsaved customer changes?"))return;
+    setOpen(value);
+    if(value&&!uncertain)reset();
+    else if(!value)setError("");
+  };
   const finish=(row:CustomerRow,id:string)=>{
     if(currentCustomer.current!==id)return;
     setUncertain(false);attempted.current=null;onUpdated({...customer,...row});setOpen(false);
@@ -1388,7 +1398,7 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
       }
     }finally{clearTimeout(timer);saveLock.current=false;if(currentCustomer.current===id)setSaving(false);}
   };
-  return <Dialog open={open} onOpenChange={(value)=>{if(saveLock.current||currentCustomer.current!==customer.id)return;setOpen(value);if(value&&!uncertain)reset();else if(!value)setError("");}}>
+  return <Dialog open={open} onOpenChange={changeOpen}>
     <DialogTrigger asChild><Button variant="outline"><PenLine className="h-4 w-4"/> Edit customer</Button></DialogTrigger>
     <DialogContent className="customer-edit-dialog sm:max-w-[520px] max-h-[90dvh] overflow-y-auto">
       <DialogHeader><DialogTitle>Edit customer</DialogTitle></DialogHeader>
@@ -1399,7 +1409,7 @@ function EditCustomer({ customer, onUpdated }: { customer: CustomerRow; onUpdate
         <div><Label htmlFor={"edit-customer-"+customer.id+"-address"}>Service address</Label><Input id={"edit-customer-"+customer.id+"-address"} placeholder="Tulsa-area address" value={address} onChange={(event)=>setAddress(event.target.value)}/></div>
         <div><Label htmlFor={"edit-customer-"+customer.id+"-source"}>How they found FIRE</Label><Select value={leadSource} onValueChange={setLeadSource}><SelectTrigger id={"edit-customer-"+customer.id+"-source"}><SelectValue/></SelectTrigger><SelectContent>{["Referral","Google","Facebook","Website","Repeat customer","Door knocking","Other","Unknown"].map((source)=><SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent></Select></div>
         {error&&<p className="save-error" role="alert">{error}</p>}
-        <Button className="brand-button" onClick={()=>void save()} disabled={saving||checking||uncertain}>{saving?"Saving…":"Save changes"}</Button>
+        <div className="fire-edit-actions"><Button type="button" variant="outline" onClick={()=>changeOpen(false)} disabled={saving||checking}>Cancel</Button><Button className="brand-button" onClick={()=>void save()} disabled={saving||checking||uncertain||!customerDirty}>{saving?"Saving…":"Save changes"}</Button></div>
       </fieldset>
       {uncertain&&<Button variant="outline" type="button" onClick={()=>void checkSaved()} disabled={saving||checking}>{checking?"Checking…":"Check saved details"}</Button>}
       </div>
