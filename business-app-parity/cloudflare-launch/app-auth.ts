@@ -1,0 +1,52 @@
+// Intended ONLY for independently hosted Cloudflare staging/production builds.
+// Cloudflare Access must also protect every route and asset at the edge.
+// This does NOT enable a 4-digit PIN or issue persistent sessions by itself.
+import {env} from "cloudflare:workers";
+import {headers} from "next/headers";
+import {redirect} from "next/navigation";
+import {verifyFireAccessJWT} from "./access-jwt.mjs";
+
+export type ChatGPTUser={
+  userId:string;
+  displayName:string;
+  email:string;
+  fullName:string|null;
+};
+type AccessEnv={
+  FIRE_ENV?:string;
+  FIRE_ACCESS_REQUIRED?:string;
+  FIRE_ACCESS_TEAM_DOMAIN?:string;
+  FIRE_ACCESS_AUD?:string;
+  FIRE_ACCESS_OWNER_EMAIL?:string;
+  SITE_ORIGIN?:string;
+  FIRE_QA_SYNTHETIC_ONLY?:string;
+};
+function accessSettings(){
+  const c=env as typeof env & AccessEnv;
+  if(!["cloudflare-staging","cloudflare-production"].includes(c.FIRE_ENV||"")
+    ||c.FIRE_ACCESS_REQUIRED!=="enabled"
+    ||c.FIRE_QA_SYNTHETIC_ONLY==="enabled")return null;
+  const origin=c.SITE_ORIGIN;
+  try{
+    if(!origin||new URL(origin).protocol!=="https:"||new URL(origin).origin!==origin
+      ||new URL(origin).hostname.endsWith(".chatgpt.site"))return null;
+  }catch{return null;}
+  return {teamDomain:c.FIRE_ACCESS_TEAM_DOMAIN||"",audience:c.FIRE_ACCESS_AUD||"",
+    ownerEmail:c.FIRE_ACCESS_OWNER_EMAIL||"",origin};
+}
+export async function getChatGPTUser():Promise<ChatGPTUser|null>{
+  const cfg=accessSettings();
+  if(!cfg)return null;
+  const h=await headers();
+  // Ignore untrusted email/login headers and raw CF_Authorization cookies.
+  // The Access-provided JWT signature, issuer, audience, expiry AND email are checked.
+  const asserted=h.get("cf-access-jwt-assertion");
+  return await verifyFireAccessJWT(asserted,cfg);
+}
+export async function requireChatGPTUser(_returnTo:string):Promise<ChatGPTUser>{
+  const user=await getChatGPTUser();
+  if(user)return user;
+  redirect("/access-required");
+}
+export function chatGPTSignInPath(_returnTo:string){return "/access-required";}
+export function chatGPTSignOutPath(_returnTo="/"){return "/cdn-cgi/access/logout";}
