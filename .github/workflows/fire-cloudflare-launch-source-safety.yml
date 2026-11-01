@@ -48,6 +48,9 @@ jobs:
           else
             echo 'PowerShell unavailable; static contract checked, execution must remain owner Acer only.'
           fi
+      - name: Execute V3 PowerShell GitHub REST list normalization with 25 synthetic entries (NO cloud)
+        shell: pwsh
+        run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test-rest-migration-array-v3.ps1
       - name: Rehearse all 25 schema migrations in NEW empty local database only
         run: python3 business-app-parity/cloudflare-launch/stripe-test-worker/rehearse-new-db-migrations.py
       - name: Staging and production materializers are source only and private
