@@ -251,4 +251,51 @@ for(const key of ['payment-gross-','payment-fee-','payment-net-','payment-refere
  checks+=2;
 }
 
+
+// Business records are high-value: drafts and uncertain task/expense writes must
+// survive a canceled section change. Exercise the real component expressions.
+const businessScreen=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='BusinessView');
+assert.ok(businessScreen,'Business screen source exists');
+const businessDefaults={title:'',dueAt:'',taskNotes:'',taskCustomer:'none',description:'',amount:'',expenseDate:'',category:'Supplies',
+ expenseEstimate:'none',rescheduleEditingId:null,rescheduleDateInput:'',taskRecoveryId:null,expenseRecoveryId:null,pendingBackup:null,
+ taskSaving:false,expenseSaving:false,taskToggling:null,rescheduleSaving:false,restoreBusy:false};
+const evalBusiness=(variableName,overrides={})=>{
+ const value=variable(businessScreen,variableName).getText(ast);
+ const js=ts.transpileModule('('+value+')',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ return vm.runInNewContext(js,{...businessDefaults,...overrides});
+};
+eq(evalBusiness('businessDraftDirty'),false,'Empty Business form is not an unsaved edit');
+for(const state of [{title:'Yard sign pickup'},{description:'Fuel'},{amount:'12.50'},{taskNotes:'Call after shift'},
+ {dueAt:'2026-11-01T10:00'},{expenseEstimate:'synthetic-estimate'},{taskRecoveryId:'synthetic-uncertain'},
+ {pendingBackup:{format:'synthetic'}},{rescheduleEditingId:'synthetic-task'}]){
+ eq(evalBusiness('businessDraftDirty',state),true,'Business does not lose prepared work on navigation');
+}
+eq(evalBusiness('businessWriteSaving'),false,'Idle Business screen is free to navigate');
+for(const state of [{taskSaving:true},{expenseSaving:true},{taskToggling:'synthetic-task'},
+ {rescheduleSaving:true},{restoreBusy:true}]){
+ eq(evalBusiness('businessWriteSaving',state),true,'In-flight Business writes block section exit');
+}
+const tabInitializer=variable(dashboard,'setTab');
+assert.ok(ts.isCallExpression(tabInitializer),'Dashboard shared navigation guard uses a callback');
+const sharedTabGuard=tabInitializer.arguments[0];
+for(const [dirty,saving,approve,expected,reason] of [
+ [false,false,true,true,'clean Business section can leave'],
+ [true,false,false,false,'Cancel keeps task/expense draft'],
+ [true,false,true,true,'Confirm can deliberately discard a draft'],
+ [false,true,true,false,'Saving blocks exit regardless of confirmation']
+]){
+ const events=[],work={dirty,saving};
+ const scope={currentTab:{current:'business'},businessWorkStateRef:{current:work},
+  customerNoteStateRef:{current:{dirty:false,saving:false}},
+  settingsDirtyRef:{current:false},settingsSavingRef:{current:false},
+  setTabState:dest=>events.push('commit:'+dest),
+  window:{alert:()=>events.push('alert'),confirm:()=>{events.push('confirm');return approve;}}};
+ const accepted=runHandler(sharedTabGuard,ast,scope)('customers');
+ eq(accepted,expected,'Business navigation outcome: '+reason);
+ eq(events.some(v=>v.startsWith('commit:')),expected,'No accidental screen change: '+reason);
+ if(saving)eq(events.filter(x=>x==='alert').length,1,'Pending write displays one explanatory warning');
+ if(dirty&&!saving&&!approve)eq(work.dirty,true,'Cancel retains the original dirty state');
+}
+assert.match(source,/<BusinessView onWorkStatusChange=\{setBusinessWorkState\}/,'Parent receives Business source status');checks++;
+
 console.log(`PASS ${checks}/${checks}: actual committed section effect resets once across navigation, preserves same-section updates and Back history; simulated window only, not Safari rendering.`);
