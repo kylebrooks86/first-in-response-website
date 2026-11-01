@@ -3059,3 +3059,19 @@ button[data-personal-backup],.customer-contact>button[data-personal-backup],.det
   .notification-header-actions{grid-column:1;justify-content:space-between;min-width:0}
   .notification-popover>header .notification-header-actions>button:first-child{flex:0 1 auto}
 }
+
+
+/* Keep Close visible when scrolling long, grid-based modal forms. Radix
+   renders Close last; explicit first-grid-row placement lets sticky pin
+   the X beside the title without moving the form. The separately designed
+   Edit Estimate/Invoice and Job dialogs already have stationary headers. */
+[data-slot="dialog-content"]:not(.estimate-edit-dialog):not(.fire-job-dialog)>[data-slot="dialog-close"]{
+  position:sticky;
+  top:8px;
+  right:8px;
+  grid-row:1;
+  grid-column:1;
+  justify-self:end;
+  align-self:start;
+  margin-bottom:-44px
+}
