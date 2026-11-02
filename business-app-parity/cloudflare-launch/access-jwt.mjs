@@ -41,31 +41,37 @@ function safePinnedKeys(snapshot,domain) {
   const kidSet=new Set(snapshot.keys.map(k=>k.kid));
   return kidSet.size===snapshot.keys.length?snapshot.keys:[];
 }
-async function signingKey(teamDomain,kid,fetcher,snapshot) {
+async function signingKey(teamDomain,kid,fetcher,snapshot,{allowPinned=true,forceRefresh=false}={}) {
   const origin="https://"+teamDomain;
   const cached=keysCache.get(origin);
-  if(cached&&cached.expires>Date.now()&&cached.keys.some(k=>k.kid===kid))
+  if(!forceRefresh&&cached&&cached.expires>Date.now()&&(allowPinned||cached.source==='live')&&cached.keys.some(k=>k.kid===kid))
     return cached.keys.find(k=>k.kid===kid);
   let keys;
+  let source='live';
   try {
-    const response=await fetcher(origin+"/cdn-cgi/access/certs",{
-      redirect:"error",headers:{accept:"application/json"}});
+    const expectedUrl=origin+'/cdn-cgi/access/certs';
+    const response=await fetcher(expectedUrl,{
+      redirect:'follow',headers:{accept:'application/json'}});
+    // Do not accept content from redirected third-party hosts.
+    if(response.url&&new URL(response.url).origin!==origin)throw Error('Unexpected Access JWKS origin');
     if(!response.ok)throw Error("Access JWKS unavailable");
     const doc=await response.json();
     if(!Array.isArray(doc?.keys)||doc.keys.length<1||doc.keys.length>10
        ||!doc.keys.every(validJwk))throw Error("Invalid Access JWKS");
     keys=doc.keys;
   } catch {
+    if(!allowPinned)return null;
+    source='pinned';
     // Never trust an unsigned identity. This is a locally bundled copy of
     // the public keys fetched over HTTPS from the exact, fixed team hostname
     // by the operator during the build. Every JWT still gets RS256 verified.
     keys=safePinnedKeys(snapshot,teamDomain);
   }
   if(!keys?.length)return null;
-  keysCache.set(origin,{keys,expires:Date.now()+KEY_TTL_MS});
+  keysCache.set(origin,{keys,source,expires:Date.now()+KEY_TTL_MS});
   return keys.find(k=>k.kid===kid)||null;
 }
-export async function verifyFireAccessJWT(token,config,{fetcher=fetch,subtle=crypto.subtle,now=Math.floor(Date.now()/1000),pinnedSnapshot=pinnedAccessPublicKeys}={}){
+export async function verifyFireAccessJWT(token,config,{fetcher=fetch,subtle=crypto.subtle,now=Math.floor(Date.now()/1000),pinnedSnapshot=pinnedAccessPublicKeys,allowPinned=true,forceRefresh=false}={}){
   if(!configOK(config)||typeof token!=="string"||token.length>8192||token.length<60)return null;
   try{
     const segments=token.split(".");
@@ -81,7 +87,7 @@ export async function verifyFireAccessJWT(token,config,{fetcher=fetch,subtle=cry
       ||claims.exp>now+31*86400
       ||(claims.iat!==undefined&&(!Number.isSafeInteger(claims.iat)||claims.iat>now+60))
       ||(claims.nbf!==undefined&&(!Number.isSafeInteger(claims.nbf)||claims.nbf>now+60)))return null;
-    const key=await signingKey(config.teamDomain,header.kid,fetcher,pinnedSnapshot);
+    const key=await signingKey(config.teamDomain,header.kid,fetcher,pinnedSnapshot,{allowPinned,forceRefresh});
     if(!key)return null;
     const imported=await subtle.importKey("jwk",key,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["verify"]);
     const signature=b64url(segments[2]);
