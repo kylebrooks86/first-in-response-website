@@ -2225,7 +2225,7 @@ function EstimateDetail({ estimate, onClose, onChanged, initialScheduleDay }: { 
       </div>}
       {estimate.status==='approved'&&estimate.acceptedAt&&estimate.signedAt&&estimate.paidCents===0&&!estimate.invoiceId&&<details className="ui-help"><summary>Revise approved quote</summary><p>Saving replaces the original quote immediately and disables its old payment link. The original scope and signature stay in history; the replacement needs a new signature. Available before any payment, checkout or invoice.</p><NewEstimate customer={messageCustomer} revisionSource={estimate} onSaved={next=>window.location.assign('/?openEstimate='+encodeURIComponent(next.id))}/></details>}
       <div className="detail-actions">
-        {estimate.shareToken&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`}><ExternalLink/> Customer view</a>}
+        {estimate.shareToken&&!["superseded","declined"].includes(estimate.status)&&<a href={`/estimate/${encodeURIComponent(estimate.shareToken)}?ownerPreview=1`}><ExternalLink/> Customer view</a>}
         {!travelingToJob&&estimate.address&&<a href={`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`} target="_blank" rel="noreferrer"><Navigation/> Google Maps</a>}
         {!estimating&&estimate.address&&<a href={`https://earth.google.com/web/search/${encodedAddress}`} target="_blank" rel="noreferrer"><Globe2/> Google Earth</a>}
         {!estimating&&estimate.address&&<a href={`https://www.zillow.com/homes/${zillowAddress}_rb/`} target="_blank" rel="noreferrer"><House/> Zillow</a>}
