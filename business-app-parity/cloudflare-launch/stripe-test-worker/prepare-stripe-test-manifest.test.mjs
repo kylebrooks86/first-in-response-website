@@ -30,6 +30,7 @@ test('compiles exact isolated test manifest locally with no billable storage and
  assert.equal(result.topLevelName,'fire-stripe-test-20261101');
  assert.equal(result.d1_databases[0].database_id,'dba421ba-fc66-4cf8-9c31-51616f8249ba');
  assert.equal(result.workers_dev,true);
+ assert.deepEqual(result.compatibility_flags,['nodejs_compat','global_fetch_strictly_public']);
  assert.equal(result.preview_urls,false);
  assert.deepEqual(result.routes,[]);
  assert.equal(Object.hasOwn(result,'r2_buckets'),false);
@@ -86,6 +87,8 @@ test('incorrect inherited identity, flags, routes, paid resources and keys fail 
   x=>x.main='../QA/worker.js',
   x=>x.main='/absolute/worker.js',
   x=>x.triggers={crons:['* * * * *']},
+  x=>x.compatibility_flags.push('unsafe_eval'),
+  x=>x.compatibility_flags.push('nodejs_compat'),
   x=>x.vars.STRIPE_SECRET_KEY='sk_live_dummy'
  ];
  for(const mutate of changes){
