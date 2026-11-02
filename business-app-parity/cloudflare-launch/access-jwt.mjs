@@ -1,6 +1,9 @@
-// Cloudflare Access identity verifier for a FUTURE independently hosted FIRE app.
-// No provision/deploy/credentials; callers must reject null and protect every route.
+// Cloudflare Access signed-token verification, fail-closed for independent FIRE Workers.
+// Public-key snapshot fallback is TEMPORARY (14-day max). Real production needs
+// confirmed durable live JWKS fetch or periodic rotation handling.
+import {pinnedAccessPublicKeys} from "./access-public-keys.mjs";
 const KEY_TTL_MS=10*60*1000;
+const PINNED_MAX_AGE_MS=14*24*60*60*1000;
 const keysCache=new Map();
 function b64url(input) {
   if(typeof input!=="string"||!/^[A-Za-z0-9_-]+$/.test(input)||input.length>10000)throw Error("Invalid token encoding");
@@ -17,22 +20,50 @@ function configOK(c){
     &&typeof c.ownerEmail==="string"&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.ownerEmail)
     &&c.ownerEmail===c.ownerEmail.trim().toLowerCase();
 }
-async function signingKey(teamDomain,kid,fetcher){
+function validJwk(k) {
+  const permitted=["kid","kty","alg","use","e","n"];
+  return k&&typeof k==="object"&&!Array.isArray(k)
+    &&Object.keys(k).every(x=>permitted.includes(x))
+    &&k.kty==="RSA"&&(k.alg===undefined||k.alg==="RS256")
+    &&(k.use===undefined||k.use==="sig")
+    &&typeof k.kid==="string"&&k.kid.length>=8&&k.kid.length<160
+    &&typeof k.n==="string"&&/^[A-Za-z0-9_-]{256,1024}$/.test(k.n)
+    &&typeof k.e==="string"&&/^[A-Za-z0-9_-]{2,12}$/.test(k.e);
+}
+function safePinnedKeys(snapshot,domain) {
+  if(!snapshot||snapshot.teamDomain!==domain||!Number.isSafeInteger(snapshot.fetchedAt)
+    ||snapshot.fetchedAt>Date.now()+60000
+    ||Date.now()-snapshot.fetchedAt>PINNED_MAX_AGE_MS
+    ||!Array.isArray(snapshot.keys)||snapshot.keys.length<1||snapshot.keys.length>5
+    ||!snapshot.keys.every(validJwk))return [];
+  const kidSet=new Set(snapshot.keys.map(k=>k.kid));
+  return kidSet.size===snapshot.keys.length?snapshot.keys:[];
+}
+async function signingKey(teamDomain,kid,fetcher,snapshot) {
   const origin="https://"+teamDomain;
   const cached=keysCache.get(origin);
-  if(cached&&cached.expires>Date.now()&&cached.keys.some(k=>k.kid===kid))return cached.keys.find(k=>k.kid===kid);
-  const response=await fetcher(origin+"/cdn-cgi/access/certs",{redirect:"error",headers:{accept:"application/json"}});
-  if(!response.ok)throw Error("Unable to obtain Access signing key");
-  const doc=await response.json();
-  if(!Array.isArray(doc?.keys)||doc.keys.length>10)throw Error("Untrusted signing keys");
-  const keys=doc.keys.filter(k=>k&&k.kty==="RSA"&&typeof k.kid==="string"&&k.kid.length<160
-    &&typeof k.n==="string"&&/^[A-Za-z0-9_-]+$/.test(k.n)
-    &&typeof k.e==="string"&&/^[A-Za-z0-9_-]+$/.test(k.e)
-    &&(!k.alg||k.alg==="RS256")&&(!k.use||k.use==="sig"));
+  if(cached&&cached.expires>Date.now()&&cached.keys.some(k=>k.kid===kid))
+    return cached.keys.find(k=>k.kid===kid);
+  let keys;
+  try {
+    const response=await fetcher(origin+"/cdn-cgi/access/certs",{
+      redirect:"error",headers:{accept:"application/json"}});
+    if(!response.ok)throw Error("Access JWKS unavailable");
+    const doc=await response.json();
+    if(!Array.isArray(doc?.keys)||doc.keys.length<1||doc.keys.length>10
+       ||!doc.keys.every(validJwk))throw Error("Invalid Access JWKS");
+    keys=doc.keys;
+  } catch {
+    // Never trust an unsigned identity. This is a locally bundled copy of
+    // the public keys fetched over HTTPS from the exact, fixed team hostname
+    // by the operator during the build. Every JWT still gets RS256 verified.
+    keys=safePinnedKeys(snapshot,teamDomain);
+  }
+  if(!keys?.length)return null;
   keysCache.set(origin,{keys,expires:Date.now()+KEY_TTL_MS});
-  return keys.find(k=>k.kid===kid);
+  return keys.find(k=>k.kid===kid)||null;
 }
-export async function verifyFireAccessJWT(token,config,{fetcher=fetch,subtle=crypto.subtle,now=Math.floor(Date.now()/1000)}={}){
+export async function verifyFireAccessJWT(token,config,{fetcher=fetch,subtle=crypto.subtle,now=Math.floor(Date.now()/1000),pinnedSnapshot=pinnedAccessPublicKeys}={}){
   if(!configOK(config)||typeof token!=="string"||token.length>8192||token.length<60)return null;
   try{
     const segments=token.split(".");
@@ -48,7 +79,7 @@ export async function verifyFireAccessJWT(token,config,{fetcher=fetch,subtle=cry
       ||claims.exp>now+31*86400
       ||(claims.iat!==undefined&&(!Number.isSafeInteger(claims.iat)||claims.iat>now+60))
       ||(claims.nbf!==undefined&&(!Number.isSafeInteger(claims.nbf)||claims.nbf>now+60)))return null;
-    const key=await signingKey(config.teamDomain,header.kid,fetcher);
+    const key=await signingKey(config.teamDomain,header.kid,fetcher,pinnedSnapshot);
     if(!key)return null;
     const imported=await subtle.importKey("jwk",key,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["verify"]);
     const signature=b64url(segments[2]);
