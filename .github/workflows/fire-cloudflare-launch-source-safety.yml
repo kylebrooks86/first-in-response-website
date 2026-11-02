@@ -60,7 +60,7 @@ jobs:
           foreach($must in @('fire-stripe-test-20261101','dba421ba-fc66-4cf8-9c31-51616f8249ba','ExpectedPreviousVersion','capture-access-public-jwks.ps1','PINNED_MAX_AGE_MS=14*24*60*60*1000','safePinnedKeys(snapshot,teamDomain)','FIRE_STRIPE_MODE','$lastVersions[0].version_id -eq $PriorVersion','[int]$lastVersions[0].percentage -eq 100')) {
             if(-not $s.Contains($must)) {throw ('Missing proposed fallback deployment guard: '+$must)}
           }
-          if(($s.Split([string[]]@("Pnpm @('exec','wrangler','deploy','--config',\`$review,'--strict')"),[System.StringSplitOptions]::None)).Count -ne 2) { throw 'Expected one hosted deploy command only' }
+          if(($s.Split([string[]]@("Pnpm @('exec','wrangler','deploy','--config',`$review,'--strict')"),[System.StringSplitOptions]::None)).Count -ne 2) { throw 'Expected one hosted deploy command only' }
           Write-Host 'PASS: public-JWKS fallback deployment script parsed and safety checked. NOT EXECUTED.'
       - name: Customer-facing Access path exceptions and owner-only boundaries
         run: node --test business-app-parity/cloudflare-launch/public-access.test.mjs
