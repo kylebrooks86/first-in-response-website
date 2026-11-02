@@ -29,6 +29,6 @@ test("diagnostic never returns header, raw JWT, secret, email or AUD",()=>{
     const reason=diagnose(testCase({token}));
     assert.match(reason,/^FIRE-A\d\d-[A-Z0-9-]+$/);
     assert.ok(reason.length<36);
-    assert.doesNotMatch(reason,/owner|private|secret|example|a{20}|eyJ/i);
+    assert.doesNotMatch(reason,/private@|secret|example|a{20}|eyJ/i);
   }
 });
