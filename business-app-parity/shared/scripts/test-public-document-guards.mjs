@@ -38,12 +38,18 @@ const declarations=new Map();
 function walk(node){if(ts.isVariableDeclaration(node)&&names.includes(node.name.getText(ast)))declarations.set(node.name.getText(ast),node.initializer.getText(ast));ts.forEachChild(node,walk);}
 walk(ast);assert.equal(declarations.size,names.length);
 function guard(overrides={},paidCents=0,items=[{name:'Test',quantity:1,totalCents:10000}]){
- const scope={row:{subtotalCents:10000,discountCents:0,totalCents:10000,invoiceTotalCents:null,depositCents:5000,status:'approved',acceptedAt:'now',paymentOverageOpen:0,pendingRefundCount:0,...overrides},paidCents,items};
+ const scope={row:{subtotalCents:10000,discountCents:0,totalCents:10000,invoiceTotalCents:null,depositCents:5000,status:'approved',acceptedAt:'now',signedAt:'now',paymentOverageOpen:0,pendingRefundCount:0,...overrides},paidCents,items};
  for(const name of names)scope[name]=evaluate(`(${declarations.get(name)})`,scope);
  return scope;
 }
 assert.equal(guard().canPayDeposit,true);
+assert.equal(guard({acceptedAt:null}).canPayDeposit,false);
+assert.equal(guard({signedAt:null}).canPayDeposit,false);
+assert.equal(guard({status:'declined'}).canPayDeposit,false);
+assert.equal(guard({status:'superseded'}).canPayDeposit,false);
 assert.equal(guard({status:'completed'},5000).canPayBalance,true);
+assert.equal(guard({status:'completed',signedAt:null},5000).canPayBalance,false);
+assert.equal(guard({status:'completed',acceptedAt:null},5000).canPayBalance,false);
 for(const overrides of [{pendingRefundCount:1},{paymentOverageOpen:1}]){const s=guard(overrides);assert.equal(s.canPayDeposit,false);assert.equal(s.paymentReviewPending,true);assert.equal(guard({...overrides,status:'completed'}).canPayBalance,false);}
 for(const overrides of [{subtotalCents:9999},{depositCents:10001},{totalCents:-1},{invoiceTotalCents:NaN},{discountCents:10001}])assert.equal(guard(overrides).billingStateSafe,false);
 assert.equal(guard({},0,[]).billingStateSafe,false);
