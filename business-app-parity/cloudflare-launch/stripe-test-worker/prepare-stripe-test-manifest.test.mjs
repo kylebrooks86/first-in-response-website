@@ -5,6 +5,7 @@ const PLACEHOLDER='00000000-0000-4000-8000-000000000000';
 function local(){
  return {
    name:'site-creator-vinext-starter',
+   topLevelName:'site-creator-vinext-starter',
    main:'./index.js',
    compatibility_date:'2026-05-15',
    compatibility_flags:['nodejs_compat'],
@@ -26,6 +27,7 @@ test('compiles exact isolated test manifest locally with no billable storage and
  const result=prepareStripeTestManifest(generated);
  assert.equal(generated.d1_databases[0].database_id,PLACEHOLDER,'input is not mutated');
  assert.equal(result.name,'fire-stripe-test-20261101');
+ assert.equal(result.topLevelName,'fire-stripe-test-20261101');
  assert.equal(result.d1_databases[0].database_id,'dba421ba-fc66-4cf8-9c31-51616f8249ba');
  assert.equal(result.workers_dev,true);
  assert.equal(result.preview_urls,false);
