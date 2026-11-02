@@ -64,6 +64,20 @@ jobs:
           Write-Host 'PASS: public-JWKS fallback deployment script parsed and safety checked. NOT EXECUTED.'
       - name: Live-only Access JWKS proof cannot reuse pinned cache and rejects cross-host redirects
         run: node --test business-app-parity/cloudflare-launch/access-live-jwks.test.mjs
+      - name: Parse review-only TEST live JWT key retrieval probe deployment script (NEVER execute)
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/deploy-live-jwks-test-review-only.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $text=Get-Content -LiteralPath $path -Raw
+          foreach($needle in @('fire-stripe-test-20261101','dba421ba-fc66-4cf8-9c31-51616f8249ba','ExpectedPreviousVersion','FIRE_STRIPE_MODE','FIRE_ACCESS_REQUIRED','getFireLiveJwksProof()','allowPinned:false,forceRefresh:true','global_fetch_strictly_public','$activeVersions[0].version_id -eq $PriorVersion','$lastVersions[0].version_id -eq $PriorVersion','[int]$lastVersions[0].percentage -eq 100','--dry-run')){
+             if(-not $text.Contains($needle)){throw ('Missing review-only TEST live JWKS guard: '+$needle)}
+          }
+          $pattern="Pnpm @('exec','wrangler','deploy','--config',"+'$review'+",'--strict')"
+          if(($text.Split([string[]]@($pattern),[System.StringSplitOptions]::None)).Count -ne 2){throw 'Exactly one hosted deployment command required'}
+          Write-Host 'PASS: live-JWKS TEST review script parses; NO deploy or hosted actions executed.'
       - name: Customer-facing Access path exceptions and owner-only boundaries
         run: node --test business-app-parity/cloudflare-launch/public-access.test.mjs
       - name: Assert isolated Stripe test Worker has NO public route or data access
