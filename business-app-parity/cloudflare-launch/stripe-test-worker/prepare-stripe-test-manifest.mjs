@@ -20,13 +20,13 @@ const EMPTY_BINDING_ARRAYS=[
 ];
 const EMPTY_BINDING_OBJECTS={
  cloudchamber:[],define:[],durable_objects:['bindings'],
- logfwdr:['bindings'],python_modules:['exclude'],queues:['consumers','producers']
+ logfwdr:['bindings'],queues:['consumers','producers']
 };
 const BUILT_KEYS=[
  'name','topLevelName','main','compatibility_date','compatibility_flags',
  'd1_databases','r2_buckets','vars','assets','workers_dev','preview_urls',
  'routes','observability','rules','triggers','upload_source_maps',
- 'legacy_env','no_bundle','jsx_factory','jsx_fragment','build','dev'
+ 'legacy_env','no_bundle','jsx_factory','jsx_fragment','build','dev','python_modules'
 ];
 const ALLOWED_KEYS=new Set([...BUILT_KEYS,...EMPTY_BINDING_ARRAYS,...Object.keys(EMPTY_BINDING_OBJECTS)]);
 function insist(ok,msg){if(!ok)throw Error('FIRE TEST BUILD BLOCKED: '+msg);}
@@ -58,6 +58,15 @@ export function prepareStripeTestManifest(generated){
     insist(isObject(val)&&Object.keys(val).sort().join(',')===fields.slice().sort().join(',')&&
       fields.every(field=>Array.isArray(val[field])&&val[field].length===0),
       'Unapproved inherited nonempty object binding: '+key);
+  }
+  // Vite's default Python source exclusion globs are build metadata, not
+  // Worker module bindings. Discard only this narrowly shaped field.
+  if(Object.hasOwn(generated,'python_modules')){
+    const x=generated.python_modules;
+    insist(isObject(x)&&Object.keys(x).join(',')==='exclude'&&
+      Array.isArray(x.exclude)&&x.exclude.length<=64&&
+      x.exclude.every(v=>typeof v==='string'&&v.length<=256),
+      'Unexpected Python module build exclusion');
   }
   insist(!Object.hasOwn(generated,'legacy_env')||generated.legacy_env===true,
     'Unexpected Wrangler legacy environment handling');
@@ -97,7 +106,8 @@ export function prepareStripeTestManifest(generated){
   insist(!generated.routes||Array.isArray(generated.routes)&&generated.routes.length===0,
     'Existing public routes in compiled config');
   insist(!generated.triggers||isObject(generated.triggers)&&
-    Object.keys(generated.triggers).length===0,'Unexpected cron/event trigger');
+    (Object.keys(generated.triggers).length===0||Object.keys(generated.triggers).join(',')==='crons'&&
+      Array.isArray(generated.triggers.crons)&&generated.triggers.crons.length===0),'Unexpected cron/event trigger');
   insist(!generated.observability||isObject(generated.observability),
     'Unexpected observability configuration');
   insist(noHiddenTokens(generated),'Secrets must not be embedded in Wrangler config');
@@ -115,9 +125,10 @@ export function prepareStripeTestManifest(generated){
     vars:{...PROPOSED_TEST_MAPPING.vars}
   };
   delete result.r2_buckets;
-  for(const key of [...EMPTY_BINDING_ARRAYS,...Object.keys(EMPTY_BINDING_OBJECTS),'dev','build']){
+  for(const key of [...EMPTY_BINDING_ARRAYS,...Object.keys(EMPTY_BINDING_OBJECTS),'dev','build','python_modules']){
     delete result[key];
   }
+  delete result.triggers;
   insist(!Object.hasOwn(result,'r2_buckets')&&!Object.hasOwn(result,'kv_namespaces')&&
     !Object.hasOwn(result,'durable_objects'),'No R2/KV/DO in TEST candidate');
   insist(result.vars.FIRE_STRIPE_MODE==='disabled'&&
