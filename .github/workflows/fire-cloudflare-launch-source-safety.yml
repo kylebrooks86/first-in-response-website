@@ -34,6 +34,8 @@ jobs:
         run: node --test business-app-parity/cloudflare-launch/launch-source.test.mjs
       - name: Redacted Access failure-code security regression tests
         run: node --test business-app-parity/cloudflare-launch/access-diagnostic.test.mjs
+      - name: Access certificate phase diagnostic tests (no provider and no authorization changes)
+        run: node --test business-app-parity/cloudflare-launch/access-key-probe.test.mjs
       - name: Customer-facing Access path exceptions and owner-only boundaries
         run: node --test business-app-parity/cloudflare-launch/public-access.test.mjs
       - name: Assert isolated Stripe test Worker has NO public route or data access
