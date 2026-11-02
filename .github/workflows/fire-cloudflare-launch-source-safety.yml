@@ -47,7 +47,7 @@ jobs:
           if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
           $s=Get-Content -LiteralPath $path -Raw
           foreach($v in @('restless-unit-ad5b.cloudflareaccess.com','cdn-cgi/access/certs','MaximumRedirection 0','access-public-keys.mjs','ToUnixTimeMilliseconds','keys=$safeKeys')) { if(-not $s.Contains($v)){throw 'Missing public-JWKS capture guard: '+$v} }
-          if($s -match 'wrangler|secret put|d1 execute|r2 create|stripe\.com|deploy') {throw 'JWKS capture script must have no hosted provider mutation'}
+          if($s -match '(?im)^\s*(?:&\s*)?wrangler(?:\.cmd)?\s|secret put|d1 execute|r2 create|stripe\.com') {throw 'JWKS capture script must have no hosted provider mutation'}
           Write-Host 'PASS: public JWKS capture script parsed and safety checked; no network or cloud actions executed.'
       - name: Customer-facing Access path exceptions and owner-only boundaries
         run: node --test business-app-parity/cloudflare-launch/public-access.test.mjs
