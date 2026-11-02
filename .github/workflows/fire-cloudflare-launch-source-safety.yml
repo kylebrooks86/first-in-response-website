@@ -13,6 +13,8 @@ on:
       - 'business-app-parity/shared/app/estimate/[[]token[]]/page.tsx'
       - 'business-app-parity/shared/app/api/estimates/**'
       - 'business-app-parity/shared/app/dashboard.tsx'
+      - 'business-app-parity/shared/lib/customer-write-request-guard.mjs'
+      - 'business-app-parity/shared/app/api/public/estimates/**'
       - '.github/workflows/fire-cloudflare-launch-source-safety.yml'
 
 permissions:
@@ -113,6 +115,10 @@ jobs:
           Write-Host 'PASS: Final live-only TEST rollout is one-pass, target-locked, no mutation tests invoked.'
       - name: Customer-facing Access path exceptions and owner-only boundaries
         run: node --test business-app-parity/cloudflare-launch/public-access.test.mjs
+      - name: Gate 6 bounded same-origin customer signature and change-request security
+        run: node --test business-app-parity/cloudflare-launch/customer-write-guard.test.mjs
+      - name: Production release gate-lock is NO-GO until source and provider proof
+        run: node --test business-app-parity/cloudflare-launch/release-gate-lock.test.mjs
       - name: Estimate void and signed-only customer payment guidance regression (source-only)
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/estimate-void-contract.test.mjs
       - name: Assert isolated Stripe test Worker has NO public route or data access

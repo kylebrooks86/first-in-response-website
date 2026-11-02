@@ -6,11 +6,15 @@ on:
     paths:
       - 'business-app-parity/shared/app/dashboard.tsx'
       - 'business-app-parity/shared/scripts/test-reuse-estimate-editor-browser.mjs'
+      - 'business-app-parity/cloudflare-launch/FIRE_PRODUCTION_GATE_LOCK_20261102.json'
+      - 'business-app-parity/cloudflare-launch/release-gate-lock.test.mjs'
       - '.github/workflows/fire-new-estimate-mobile-checks.yml'
   pull_request:
     paths:
       - 'business-app-parity/shared/app/dashboard.tsx'
       - 'business-app-parity/shared/scripts/test-reuse-estimate-editor-browser.mjs'
+      - 'business-app-parity/cloudflare-launch/FIRE_PRODUCTION_GATE_LOCK_20261102.json'
+      - 'business-app-parity/cloudflare-launch/release-gate-lock.test.mjs'
       - '.github/workflows/fire-new-estimate-mobile-checks.yml'
 permissions:
   contents: read
@@ -51,3 +55,9 @@ jobs:
         run: node scripts/test-reuse-estimate-editor-browser.mjs
       - name: Verify owner-only Void and signed-customer payment instructions (source contract)
         run: node ../cloudflare-launch/stripe-test-worker/estimate-void-contract.test.mjs
+      - name: Rehearse exact Void SQL in isolated in-memory SQLite, no provider writes
+        run: python3 ../cloudflare-launch/stripe-test-worker/estimate-void-sql-rehearsal.py
+      - name: Verify public quote approval and change-request POST guard together
+        run: node ../cloudflare-launch/customer-write-guard.test.mjs
+      - name: Release gate lock — production remains NO-GO without provider proof
+        run: node ../cloudflare-launch/release-gate-lock.test.mjs
