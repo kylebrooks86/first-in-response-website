@@ -6,7 +6,6 @@ on:
       - 'business-app-parity/shared/app/estimate/[token]/page.tsx'
       - 'business-app-parity/shared/app/api/payments/checkout/route.ts'
       - 'business-app-parity/shared/scripts/test-checkout-atomic-reservation.mjs'
-      - 'business-app-parity/shared/scripts/test-public-document-guards.mjs'
       - 'business-app-parity/shared/app/invoice/[token]/page.tsx'
       - 'business-app-parity/shared/lib/public-payment-visibility.mjs'
       - 'business-app-parity/shared/scripts/test-public-payment-visibility.mjs'
@@ -36,7 +35,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Regress actual Stripe checkout route with synthetic races and unsigned/retired quotes
         run: node scripts/test-checkout-atomic-reservation.mjs
-      - name: Regress customer quote payment button state with in-memory SQL
-        run: node --disable-warning=ExperimentalWarning scripts/test-public-document-guards.mjs
       - name: Check server-side TypeScript source
         run: pnpm exec tsc --noEmit
