@@ -42,6 +42,32 @@ test('compiles exact isolated test manifest locally with no billable storage and
  assert.deepEqual(result.assets,generated.assets);
  assert.doesNotMatch(JSON.stringify(result),/FIRE_ACCESS_AUD|FIRE_ACCESS_OWNER_EMAIL|FIRE_ACCESS_TEAM_DOMAIN|sk_test_|rk_test_|whsec_/);
 });
+test('Cloudflare Vite empty generated provider defaults are stripped without enabling new resources',()=>{
+ const x=local();
+ for(const key of [
+  'ai_search','ai_search_namespaces','analytics_engine_datasets','artifacts',
+  'dispatch_namespaces','flagship','hyperdrive','kv_namespaces','migrations',
+  'mtls_certificates','pipelines','ratelimits','secrets_store_secrets',
+  'send_email','services','unsafe_hello_world','vectorize','vpc_networks',
+  'vpc_services','worker_loaders','workflows'
+ ]) x[key]=[];
+ x.build={watch_dir:'.'};
+ x.dev={enable_containers:false,generate_types:false,ip:'127.0.0.1',
+   local_protocol:'http',upstream_protocol:'https'};
+ x.cloudchamber={};x.define={};
+ x.durable_objects={bindings:[]};x.logfwdr={bindings:[]};
+ x.python_modules={exclude:[]};x.queues={consumers:[],producers:[]};
+ x.legacy_env=true;x.no_bundle=true;
+ x.jsx_factory='React.createElement';x.jsx_fragment='React.Fragment';
+ const result=prepareStripeTestManifest(x);
+ for(const key of ['kv_namespaces','durable_objects','queues','dev','build',
+   'ai_search','python_modules','send_email']){
+  assert.equal(Object.hasOwn(result,key),false,key);
+ }
+ assert.equal(result.topLevelName,'fire-stripe-test-20261101');
+ x.durable_objects.bindings=[{name:'UNAUTHORIZED',class_name:'Thing'}];
+ assert.throws(()=>prepareStripeTestManifest(x),/FIRE TEST BUILD BLOCKED/);
+});
 test('incorrect inherited identity, flags, routes, paid resources and keys fail closed',()=>{
  const changes=[
   x=>x.d1_databases[0].database_id='8ccfb1f8-1657-4074-b1b2-47de78f95003',
