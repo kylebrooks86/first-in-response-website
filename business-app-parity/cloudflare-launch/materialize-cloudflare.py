@@ -37,7 +37,8 @@ for source,target in [
     ('access-diagnostic.d.mts','app/access-diagnostic.d.mts'),
     ('access-key-probe.mjs','app/access-key-probe.mjs'),
     ('access-key-probe.d.mts','app/access-key-probe.d.mts'),
-    ('access-required-page.tsx','app/access-required/page.tsx')
+    ('access-required-page.tsx','app/access-required/page.tsx'),
+    ('access-live-proof-route.ts','app/api/access-live-proof/route.ts')
 ]:
     to=destination/target
     to.parent.mkdir(parents=True,exist_ok=True)
