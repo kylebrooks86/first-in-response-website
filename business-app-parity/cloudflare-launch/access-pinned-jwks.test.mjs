@@ -21,7 +21,7 @@ test("fresh exact-team public JWKS works offline ONLY after valid RSA owner sign
  const jwt=await signed(c);
  const ok=await verifyFireAccessJWT(jwt,c,{fetcher:offline,subtle,now,pinnedSnapshot:snapshot(c)});
  assert.equal(ok?.email,c.ownerEmail);
- const tampered=jwt.slice(0,-1)+(jwt.endsWith("a")?"b":"a");
+ const parts=jwt.split(".");const tampered=parts[0]+"."+parts[1]+"."+(parts[2][0]==="a"?"b":"a")+parts[2].slice(1);
  assert.equal(await verifyFireAccessJWT(tampered,c,{fetcher:offline,subtle,now,pinnedSnapshot:snapshot(c)}),null);
 });
 test("missing/expired/wrong team snapshots ALWAYS fail closed",async()=>{
