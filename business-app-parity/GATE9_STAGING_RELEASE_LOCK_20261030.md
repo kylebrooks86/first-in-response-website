@@ -33,6 +33,44 @@ The positive test fixture is **entirely synthetic** and proves only that the che
 
 CLI status codes: **0** = metadata checklist structurally passes, **1** = metadata checklist blocked by listed mismatches, **2** = invalid/unsafe evidence. **Even exit 0 always reports** `gate9Accepted:false`, `productionReady:false`, `providerAuthenticatedByThisTool:false`, and `paymentOrRemoteWriteAuthorized:false`. Owner-provided checkboxes or JSON never authenticate providers and **never unlock production**.
 
+## Nov 2, 2026 — existing DR identity collision is a HARD NO-GO for refund staging
+
+**Critical release-boundary finding, not a new deployment:** The existing
+`business-app-parity/check_independent_staging_runtime_config.mjs` explicitly
+targets Worker `fire-app-independent-staging` at
+`https://fire-app-independent-staging.kyle-bfc.workers.dev` and physical
+D1 `afb2c05a-d794-4a9a-b580-924ce01c26ad`. Earlier owner-provided
+Doomsday/disaster-recovery evidence identifies **those same resources** as the
+existing independent/DR target. Their *current* serving identity is not
+independently authenticated by this source read, but historical overlap is
+already sufficient to prohibit treating them as a NEW, isolated refund
+staging target. **Never deploy a payment-test candidate to that existing
+Worker or run its migration/ledger writes as a supposed separate sandbox.**
+
+The offline Gate 9 preflight now independently rejects either historical
+protected Worker URL or D1 UUID even if the supplied `otherTargetOrigins`/
+`otherTargetD1Uuids` incorrectly omit them. It also continues to reject
+QA, LIVE and Sites origins and all unverified Stripe, auth, D1 and backup
+evidence. These exclusion pins **do not** prove the resources currently
+exist, their stored customer records, or their present routing.
+
+**Fresh first-party Stripe TEST GET, November 2:** Account
+`acct_1ULRIG7ND12rd1wI` still has one enabled webhook pointing to
+the legacy LIVE Sites URL with only three Checkout subscriptions; the two
+required refund subscriptions remain absent. No independent refund-staging
+webhook is configured in that account. This is provider read-only evidence,
+not permission to alter the old endpoint, create another, or issue payments.
+
+**Decision required before actual Gate 9 execution:** Choose/verify a
+genuinely DIFFERENT, owner-controlled synthetic-only Worker and D1 with
+separate names, immutable active-version/physical UUID proof, complete
+schema and journal, credentials and private rollback. Confirm there is
+no charge or subscription requirement before any resources are created.
+Only then request **distinct explicit owner approval** for the specific
+staging creation/deployment and the **separate** test-mode Stripe webhook
+and bounded synthetic transaction/refund tests. Keep deployed QA, LIVE,
+Doomsday/DR, old webhook, backups and customer records unchanged.
+
 ## Remaining actual Gate 9 acceptance
 
 1. **Provider-authenticated read-only inspection** of a *separate* staging Worker: active source/version at 100%, canonical `SITE_ORIGIN`, exact D1 UUID and complete schema/journal/indexes, distinct from QA, LIVE and DR; verify synthetic-only records, owner/nonowner access, private backups and rollback.
