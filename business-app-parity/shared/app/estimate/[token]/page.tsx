@@ -213,7 +213,7 @@ export default async function CustomerEstimatePage({params,searchParams}:{params
     {paymentsReady&&!estimateApproved&&<p className="pay-note">Approve and sign the estimate first. After approval, the 50% deposit reserves your place on the schedule.</p>}
     {!["superseded","declined"].includes(row.status)&&paymentsReady&&estimateApproved&&!canPayDeposit&&!canPayBalance&&balance>0&&<p className="pay-note">Your reservation deposit is recorded. The remaining balance becomes due when the work is completed.</p>}
     {!["superseded","declined"].includes(row.status)&&!paymentsReady&&<p className="pay-note">After approval, First In Response Exteriors will contact you to schedule the job and arrange the 50% deposit.</p>}
-    {!["superseded","declined"].includes(row.status)&&billingStateSafe&&!paymentReviewPending&&<p className="pay-note"><strong>Manual payment options:</strong> Cash App: {handles.cashApp} · Venmo: {handles.venmo}. Please include your name in the payment note.</p>}
+    {!["superseded","declined"].includes(row.status)&&estimateApproved&&Boolean(row.acceptedAt)&&Boolean(row.signedAt)&&billingStateSafe&&!paymentReviewPending&&balance>0&&<p className="pay-note"><strong>Manual payment options:</strong> Cash App: {handles.cashApp} · Venmo: {handles.venmo}. Please include your name in the payment note.</p>}
     <p className="document-footer">{footer?.body||templateByKey("estimateFooter").body}</p>
     <div className="secure-note"><ShieldCheck/> Your private estimate link is unique to you.</div>
   </section></main>;
