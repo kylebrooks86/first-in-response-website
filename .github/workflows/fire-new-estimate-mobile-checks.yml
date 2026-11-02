@@ -51,3 +51,5 @@ jobs:
         run: node scripts/test-reuse-estimate-editor-browser.mjs
       - name: Verify owner-only Void and signed-customer payment instructions (source contract)
         run: node ../cloudflare-launch/stripe-test-worker/estimate-void-contract.test.mjs
+      - name: Verify public quote approval and change-request POST guard together
+        run: node ../cloudflare-launch/customer-write-guard.test.mjs
