@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {webcrypto} from "node:crypto";
 import {readFileSync} from "node:fs";
 import {verifyFireAccessJWT} from "./access-jwt.mjs";
+import {getFireAccessToken} from "./access-token.mjs";
 import {validateLaunchMapping} from "./validate-launch-config.mjs";
 const {subtle}=webcrypto;
 const tdomain="fire-test.cloudflareaccess.com";
@@ -24,6 +25,43 @@ const fetcher=async url=>{
 test("signed owner Access JWT accepted without a stored PIN or client secret",async()=>{
   const identity=await verifyFireAccessJWT(await sign(base),config,{fetcher,subtle,now});
   assert.equal(identity?.email,config.ownerEmail);
+});
+test("browser Cloudflare JWT cookie fallback passes IDENTICAL RS256 owner validation",async()=>{
+ const good=await sign(base);
+ const fromCookie=getFireAccessToken(new Headers({"cookie":"x=other; CF_Authorization="+good+"; y=other"}));
+ assert.equal(fromCookie,good);
+ const identity=await verifyFireAccessJWT(fromCookie,config,{fetcher,subtle,now});
+ assert.equal(identity?.email,config.ownerEmail);
+ const encoded=getFireAccessToken(new Headers({"cookie":"CF_Authorization="+encodeURIComponent(good)}));
+ assert.equal(encoded,good);
+});
+test("signed Access assertion always takes precedence; cannot fall back after header validation failure",async()=>{
+ const good=await sign(base);
+ const bad=await sign({...base,email:"intruder@example.test"});
+ const headers=new Headers({"cf-access-jwt-assertion":bad,"cookie":"CF_Authorization="+good});
+ assert.equal(getFireAccessToken(headers),bad);
+ assert.equal(await verifyFireAccessJWT(getFireAccessToken(headers),config,{fetcher,subtle,now}),null);
+});
+test("cookie-only must never grant access without valid signed owner JWT",async()=>{
+ const good=await sign(base);
+ const invalid=[
+  "",
+  "CF_Authorization=",
+  "Cf-Access-Authenticated-User-Email=owner@example.test",
+  "CF_Authorization=a.b.c",
+  "CF_Authorization="+good+"; CF_Authorization="+good,
+  "CF_Authorization="+good.slice(0,-3)+"abc",
+  "CF_Authorization="+await sign({...base,aud:["other-audience"]}),
+  "CF_Authorization="+await sign({...base,iss:"https://attacker.cloudflareaccess.com"}),
+  "CF_Authorization="+await sign({...base,email:"attacker@example.test"}),
+ ];
+ for(const cookie of invalid){
+  const token=getFireAccessToken(new Headers({cookie}));
+  assert.equal(await verifyFireAccessJWT(token,config,{fetcher,subtle,now}),null,cookie.slice(0,70));
+ }
+ assert.equal(getFireAccessToken(new Headers({cookie:"CF_Authorization="+good,
+  "cf-access-jwt-assertion":""})), "");
+ assert.equal(getFireAccessToken(new Headers({"cf-access-authenticated-user-email":"owner@example.test"})),null);
 });
 test("invalid forged or cross-environment tokens fail closed",async()=>{
   const good=await sign(base);
