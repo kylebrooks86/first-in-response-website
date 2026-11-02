@@ -49,3 +49,5 @@ jobs:
           echo "FIRE_BROWSER_TEST_EXECUTABLE=$CHROME" >> "$GITHUB_ENV"
       - name: Regress real New Estimate manual services, 50 QuoteIQ rates, mobile CSS, and no duplicate saves
         run: node scripts/test-reuse-estimate-editor-browser.mjs
+      - name: Verify owner-only Void and signed-customer payment instructions (source contract)
+        run: node ../cloudflare-launch/stripe-test-worker/estimate-void-contract.test.mjs
