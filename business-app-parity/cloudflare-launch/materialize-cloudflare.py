@@ -32,6 +32,8 @@ for source,target in [
     ('access-jwt.d.mts','app/access-jwt.d.mts'),
     ('access-token.mjs','app/access-token.mjs'),
     ('access-token.d.mts','app/access-token.d.mts'),
+    ('access-diagnostic.mjs','app/access-diagnostic.mjs'),
+    ('access-diagnostic.d.mts','app/access-diagnostic.d.mts'),
     ('access-required-page.tsx','app/access-required/page.tsx')
 ]:
     to=destination/target
