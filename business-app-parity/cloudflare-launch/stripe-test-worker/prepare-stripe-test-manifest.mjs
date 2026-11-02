@@ -8,17 +8,27 @@ import {pathToFileURL} from 'node:url';
 import {validateTestAppIdentity,PROPOSED_TEST_MAPPING} from './test-app-identity-contract.mjs';
 
 const PLACEHOLDER='00000000-0000-4000-8000-000000000000';
-const ALLOWED_KEYS=new Set([
- 'name','topLevelName','main','compatibility_date','compatibility_flags','d1_databases','r2_buckets',
- 'vars','assets','workers_dev','preview_urls','routes','observability',
- 'rules','triggers','upload_source_maps'
-]);
-const DANGEROUS_KEYS=[
- 'account_id','zone_id','route','env','kv_namespaces','services','queues',
- 'durable_objects','unsafe','migrations','hyperdrive','vectorize','ai',
- 'browser','images','send_email','dispatch_namespaces','workflows','pipelines',
- 'containers','secrets_store_secrets','logpush'
+// Cloudflare's Vite output includes empty config defaults for nearly every
+// Worker binding. Explicitly reject nonempty versions and remove them from
+// the review config: an empty default is NOT permission to add that resource.
+const EMPTY_BINDING_ARRAYS=[
+ 'ai_search','ai_search_namespaces','analytics_engine_datasets','artifacts',
+ 'dispatch_namespaces','flagship','hyperdrive','kv_namespaces','migrations',
+ 'mtls_certificates','pipelines','ratelimits','secrets_store_secrets',
+ 'send_email','services','unsafe_hello_world','vectorize','vpc_networks',
+ 'vpc_services','worker_loaders','workflows'
 ];
+const EMPTY_BINDING_OBJECTS={
+ cloudchamber:[],define:[],durable_objects:['bindings'],
+ logfwdr:['bindings'],python_modules:['exclude'],queues:['consumers','producers']
+};
+const BUILT_KEYS=[
+ 'name','topLevelName','main','compatibility_date','compatibility_flags',
+ 'd1_databases','r2_buckets','vars','assets','workers_dev','preview_urls',
+ 'routes','observability','rules','triggers','upload_source_maps',
+ 'legacy_env','no_bundle','jsx_factory','jsx_fragment','build','dev'
+];
+const ALLOWED_KEYS=new Set([...BUILT_KEYS,...EMPTY_BINDING_ARRAYS,...Object.keys(EMPTY_BINDING_OBJECTS)]);
 function insist(ok,msg){if(!ok)throw Error('FIRE TEST BUILD BLOCKED: '+msg);}
 function isObject(x){return x&&typeof x==='object'&&!Array.isArray(x);}
 function noHiddenTokens(x){return !/(?:sk|rk|rkcs)_(?:live|test)_|whsec_|cf_access_token|CLOUDFLARE_API_TOKEN/i.test(JSON.stringify(x));}
@@ -34,7 +44,32 @@ export function prepareStripeTestManifest(generated){
     typeof value==='boolean'?'boolean('+value+')':typeof value;
   insist(unknownKeys.length===0,'Unexpected Vite config keys/shapes: '+unknownKeys.sort()
     .map(k=>k+'='+typeSummary(generated[k])).join(','));
-  for(const key of DANGEROUS_KEYS) insist(!Object.hasOwn(generated,key),'Forbidden inherited resource: '+key);
+  for(const key of ['account_id','zone_id','route','env','unsafe','browser','images','ai','containers','logpush']){
+    insist(!Object.hasOwn(generated,key),'Forbidden inherited provider control: '+key);
+  }
+  for(const key of EMPTY_BINDING_ARRAYS){
+    if(Object.hasOwn(generated,key))
+      insist(Array.isArray(generated[key])&&generated[key].length===0,
+        'Unapproved inherited nonempty binding: '+key);
+  }
+  for(const [key,fields] of Object.entries(EMPTY_BINDING_OBJECTS)){
+    if(!Object.hasOwn(generated,key))continue;
+    const val=generated[key];
+    insist(isObject(val)&&Object.keys(val).sort().join(',')===fields.slice().sort().join(',')&&
+      fields.every(field=>Array.isArray(val[field])&&val[field].length===0),
+      'Unapproved inherited nonempty object binding: '+key);
+  }
+  insist(!Object.hasOwn(generated,'legacy_env')||generated.legacy_env===true,
+    'Unexpected Wrangler legacy environment handling');
+  insist(!Object.hasOwn(generated,'no_bundle')||generated.no_bundle===true,
+    'Generated Vite bundling flag changed');
+  insist(!Object.hasOwn(generated,'build')||isObject(generated.build)&&
+    Object.keys(generated.build).join(',')==='watch_dir',
+    'Unexpected provider build step');
+  insist(!Object.hasOwn(generated,'dev')||isObject(generated.dev)&&
+    Object.keys(generated.dev).sort().join(',')===
+      'enable_containers,generate_types,ip,local_protocol,upstream_protocol',
+    'Unexpected development configuration');
   insist(typeof generated.main==='string'&&generated.main.length>0&&
     !generated.main.includes('..')&&!generated.main.startsWith('/'),'Compiled Worker main must be relative');
   insist(typeof generated.compatibility_date==='string','Missing compatibility date');
@@ -80,7 +115,11 @@ export function prepareStripeTestManifest(generated){
     vars:{...PROPOSED_TEST_MAPPING.vars}
   };
   delete result.r2_buckets;
-  insist(!Object.hasOwn(result,'r2_buckets'),'No R2 in TEST candidate');
+  for(const key of [...EMPTY_BINDING_ARRAYS,...Object.keys(EMPTY_BINDING_OBJECTS),'dev','build']){
+    delete result[key];
+  }
+  insist(!Object.hasOwn(result,'r2_buckets')&&!Object.hasOwn(result,'kv_namespaces')&&
+    !Object.hasOwn(result,'durable_objects'),'No R2/KV/DO in TEST candidate');
   insist(result.vars.FIRE_STRIPE_MODE==='disabled'&&
     !Object.keys(result.vars).some(k=>/STRIPE_(SECRET|RESTRICTED|WEBHOOK)|PASSWORD|TOKEN|SECRET|AUD|OWNER_EMAIL|TEAM_DOMAIN/.test(k)),
     'Forbidden payment keys or identity secrets in plaintext');
