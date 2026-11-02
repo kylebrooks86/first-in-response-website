@@ -18,6 +18,13 @@ from uuid import UUID
 FORMAT = "fire-gate9-staging-readonly-v1"
 ACCOUNT = "acct_1ULRIG7ND12rd1wI"
 QA_D1 = "8ccfb1f8-1657-4074-b1b2-47de78f95003"
+# Historically provider-observed Doomsday/DR identity. The repository's
+# "independent-staging" adapter targets these same resources; they must never
+# be treated as a NEW isolated Stripe refund-staging Worker or database,
+# even if an owner-supplied metadata packet mislabels protected identities.
+# These are exclusion locks, NOT current provider-attested serving identity.
+PROTECTED_DR_ORIGIN = "https://fire-app-independent-staging.kyle-bfc.workers.dev"
+PROTECTED_DR_D1 = "afb2c05a-d794-4a9a-b580-924ce01c26ad"
 STRIPE_API_VERSION = "2026-08-26.dahlia"
 REQUIRED_EVENTS = frozenset({
     "checkout.session.completed",
@@ -129,9 +136,11 @@ def evaluate(evidence, candidate_sha, expected_origin, now):
     stop(origin is not None and not origin.endswith(".chatgpt.site")
          and origin != "https://fire-fullapp-qa-20261016.kyle-bfc.workers.dev",
          "QA_OR_SITES_ORIGIN_FORBIDDEN")
+    stop(origin != PROTECTED_DR_ORIGIN, "HISTORICAL_DR_WORKER_FORBIDDEN_FOR_REFUND_STAGING")
 
     db = canonical_uuid(stage["boundD1Uuid"])
     stop(db is not None, "STAGING_D1_UUID_MISSING")
+    stop(db != PROTECTED_DR_D1, "HISTORICAL_DR_D1_FORBIDDEN_FOR_REFUND_STAGING")
     other_db = {key: canonical_uuid(ids[key]) for key in TARGETS}
     stop(all(other_db.values()) and len(set(other_db.values())) == 3,
          "PROTECTED_D1_IDENTITIES_INCOMPLETE")
