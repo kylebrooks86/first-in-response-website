@@ -114,6 +114,11 @@ export function prepareStripeTestManifest(generated){
   const result={...generated,
     name:PROPOSED_TEST_MAPPING.worker,
     topLevelName:PROPOSED_TEST_MAPPING.worker,
+    // Explicit Cloudflare-supported Worker-to-Worker *public* fetch semantics,
+    // TEST ONLY. Required for attempting provider public cert retrieval when
+    // the Worker runtime's global fetch is blocked by a Cloudflare Worker hop.
+    // Never bypass Cloudflare Access, authorize a user, or add a binding.
+    compatibility_flags:[...new Set([...(generated.compatibility_flags||[]),'global_fetch_strictly_public'])],
     workers_dev:true, // EXACT previously Access-protected workers.dev host
     preview_urls:false,
     routes:[],
