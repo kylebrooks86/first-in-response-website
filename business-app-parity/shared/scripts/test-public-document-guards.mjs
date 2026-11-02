@@ -21,9 +21,9 @@ for(const path of ['app/estimate/[token]/page.tsx','app/invoice/[token]/page.tsx
   }
   ts.forEachChild(node,walk);
  }
- walk(ast);assert.equal(statements.length,1,path);
+ walk(ast);assert.equal(statements.length,path.includes('app/estimate/')?2:1,path);
  const scope={crypto:{randomUUID},row:{id:'e',estimateId:'e',customerId:'c',customer:'Synthetic'},estimate:{id:'e',customerId:'c',customer:'Synthetic',service:'Test'},serviceSummary:'Test',now:'now'};
- const statement=statements[0],query=statement.expression.expression.arguments[0].text;
+ const statement=statements.at(-1),query=statement.expression.expression.arguments[0].text;
  for(let i=0;i<3;i++){
   const args=statement.arguments.map(arg=>evaluate(`(${arg.getText(ast)})`,scope));
   db.prepare(query).run(...args);
