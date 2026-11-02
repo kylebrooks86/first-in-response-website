@@ -78,6 +78,36 @@ jobs:
           $pattern="Pnpm @('exec','wrangler','deploy','--config',"+'$review'+",'--strict')"
           if(($text.Split([string[]]@($pattern),[System.StringSplitOptions]::None)).Count -ne 2){throw 'Exactly one hosted deployment command required'}
           Write-Host 'PASS: live-JWKS TEST review script parses; NO deploy or hosted actions executed.'
+      - name: Permanent JWT source MUST exclude temporary build-time signing keys
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const root="business-app-parity/cloudflare-launch/";
+            const jwt=fs.readFileSync(root+"access-jwt.mjs","utf8");
+            const auth=fs.readFileSync(root+"app-auth.ts","utf8");
+            const mat=fs.readFileSync(root+"materialize-cloudflare.py","utf8");
+            for(const forbidden of ["pinnedAccessPublicKeys","PINNED_MAX_AGE_MS","safePinnedKeys","pinnedSnapshot","allowPinned"]) {
+              if(jwt.includes(forbidden)||auth.includes(forbidden))throw Error("Obsolete temporary auth fallback remains: "+forbidden);
+            }
+            if(mat.includes("app/access-public-keys.mjs"))throw Error("Generated app still bundles pinned public keys");
+            if(!jwt.includes("subtle.verify(")||!jwt.includes("cdn-cgi/access/certs"))throw Error("Live RSA signature verification missing");
+            console.log("PASS: JWT authentication uses live Cloudflare RSA keys only. No bundled key fallback.");
+          '
+      - name: Parse permanent TEST JWKS-only deployment candidate (NEVER execute)
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/deploy-permanent-jwks-test-review-only.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $s=Get-Content -LiteralPath $path -Raw
+          foreach($v in @('fire-stripe-test-20261101','dba421ba-fc66-4cf8-9c31-51616f8249ba','ExpectedPreviousVersion','FIRE_STRIPE_MODE','FIRE_ACCESS_REQUIRED','--dry-run','NO 14-day fallback','global_fetch_strictly_public','$activeVersions[0].version_id -eq $PriorVersion','$lastVersions[0].version_id -eq $PriorVersion','[int]$lastVersions[0].percentage -eq 100')) {
+            if(-not $s.Contains($v)){throw ('Missing fail-closed TEST rollout preflight: '+$v)}
+          }
+          $needle="Pnpm @('exec','wrangler','deploy','--config',"+'$review'+",'--strict')"
+          if(($s.Split([string[]]@($needle),[System.StringSplitOptions]::None)).Count -ne 2){throw 'Exactly one hosted deploy command is allowed'}
+          if($s -match 'wrangler (?:d1|r2) (?:create|delete|migrations apply|execute.*(?:INSERT|UPDATE|DELETE))|secret put|secret bulk') {throw 'Forbidden database, paid storage or secret mutation'}
+          Write-Host 'PASS: Final live-only TEST rollout is one-pass, target-locked, no mutation tests invoked.'
       - name: Customer-facing Access path exceptions and owner-only boundaries
         run: node --test business-app-parity/cloudflare-launch/public-access.test.mjs
       - name: Assert isolated Stripe test Worker has NO public route or data access
