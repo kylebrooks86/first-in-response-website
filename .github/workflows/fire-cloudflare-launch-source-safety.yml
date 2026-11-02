@@ -52,6 +52,19 @@ jobs:
           else
             echo 'PowerShell unavailable; static contract checked, execution must remain owner Acer only.'
           fi
+      - name: Parse exact-sha TEST auth-fix deploy PowerShell safely (NEVER execute)
+        shell: pwsh
+        run: |
+          $path='business-app-parity/cloudflare-launch/stripe-test-worker/deploy-approved-access-cookie-fix.ps1'
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
+          if($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $script=Get-Content -LiteralPath $path -Raw
+          foreach($must in @('fire-stripe-test-20261101','120f6239-1566-423f-a77c-d8c8e0691317','dba421ba-fc66-4cf8-9c31-51616f8249ba','FIRE_ACCESS_REQUIRED','FIRE_STRIPE_MODE','--dry-run','Assert ($actual -eq $ExpectedCommit.ToLowerInvariant())')) {
+            if(-not $script.Contains($must)) { throw ('Missing exact target/read-only guard: '+$must) }
+          }
+          if($script -match 'wrangler (?:d1|r2) (?:create|delete|migrations apply|execute.*(?:INSERT|UPDATE|DELETE))|secret put|secret bulk') { throw 'Forbidden resource mutation in TEST auth-fix deployment script' }
+          Write-Host 'PASS: Acer TEST-only access fix script parses; exact target, SHA, secret, Access and no-billing guards found. NOT EXECUTED.'
       - name: Execute V3 PowerShell GitHub REST list normalization with 25 synthetic entries (NO cloud)
         shell: pwsh
         run: ./business-app-parity/cloudflare-launch/stripe-test-worker/test-rest-migration-array-v3.ps1
