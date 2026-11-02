@@ -99,7 +99,7 @@ try{
     $verifier.Contains('safePinnedKeys(snapshot,teamDomain)')) 'Signed-only 14-day public key fallback missing'
   Assert ($adapter.Contains('await probeFireAccessCrypto(token,cfg)')) 'Precise, non-authorizing Access probe missing'
   Assert ($adapter.Contains('getFireLiveJwksProof()') -and $adapter.Contains('allowPinned:false,forceRefresh:true')) 'Live-only proof missing or accepts temporary pinned snapshot'
-  Assert ($verifier.Contains('cached.source===\'live\'') -and $verifier.Contains('if(!allowPinned)return null')) 'Live-only verifier must never use pinned cache'
+  Assert ($verifier.Contains("cached.source==='live'") -and $verifier.Contains('if(!allowPinned)return null')) 'Live-only verifier must never use pinned cache'
   $healthRoute=Get-Content -LiteralPath (Join-Path $Source 'business-app-parity\cloudflare-launch\access-live-proof-route.ts') -Raw
   Assert ($healthRoute.Contains('getFireLiveJwksProof()') -and -not $healthRoute.Contains('headers()')) 'Redacted auth-health endpoint missing'
 
