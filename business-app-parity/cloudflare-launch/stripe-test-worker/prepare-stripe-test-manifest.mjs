@@ -28,9 +28,9 @@ export function prepareStripeTestManifest(generated){
   insist(mapping.status==='SOURCE_MAPPING_OK_NOT_DEPLOYED','Source mapping must stay review-only');
   insist(isObject(generated),'Generated Vite manifest must be an object');
   const unknownKeys=Object.keys(generated).filter(key=>!ALLOWED_KEYS.has(key));
-  const typeSummary=(value)=>Array.isArray(value)?'array('+value.length+')':\
-    value===null?'null':typeof value==='object'?\
-    'object('+Object.keys(value).sort().join('|')+')':\
+  const typeSummary=(value)=>Array.isArray(value)?'array('+value.length+')':
+    value===null?'null':typeof value==='object'?
+    'object('+Object.keys(value).sort().join('|')+')':
     typeof value==='boolean'?'boolean('+value+')':typeof value;
   insist(unknownKeys.length===0,'Unexpected Vite config keys/shapes: '+unknownKeys.sort()
     .map(k=>k+'='+typeSummary(generated[k])).join(','));
