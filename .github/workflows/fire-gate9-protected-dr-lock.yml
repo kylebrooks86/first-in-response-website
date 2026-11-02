@@ -1,0 +1,36 @@
+name: FIRE Gate 9 Protected DR Staging Exclusion (focused)
+on:
+  pull_request:
+    paths:
+      - 'business-app-parity/gate9_staging_preflight.py'
+      - 'business-app-parity/test_gate9_staging_preflight.py'
+      - 'business-app-parity/GATE9_STAGING_RELEASE_LOCK_20261030.md'
+      - '.github/workflows/fire-gate9-protected-dr-lock.yml'
+permissions:
+  contents: read
+jobs:
+  protected-dr-lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate real Gate 9 metadata fail-closed logic with synthetic fixtures
+        run: python3 business-app-parity/test_gate9_staging_preflight.py
+      - name: Verify historical DR exclusions are pinned to existing adapter identity
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import importlib.util
+          module=Path("business-app-parity/gate9_staging_preflight.py")
+          spec=importlib.util.spec_from_file_location("fire_gate9",module)
+          gate=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(gate)
+          config=Path("business-app-parity/check_independent_staging_runtime_config.mjs").read_text()
+          assert gate.PROTECTED_DR_ORIGIN in config, "Known DR Worker origin changed: review new physical identity manually"
+          assert gate.PROTECTED_DR_D1 in config, "Known DR D1 pin changed: review new physical identity manually"
+          assert "HISTORICAL_DR_WORKER_FORBIDDEN_FOR_REFUND_STAGING" in module.read_text()
+          assert "HISTORICAL_DR_D1_FORBIDDEN_FOR_REFUND_STAGING" in module.read_text()
+          print("PASS: Legacy Worker and D1 excluded; no provider writes or deploy")
+          PY
