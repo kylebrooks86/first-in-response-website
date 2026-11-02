@@ -69,6 +69,18 @@ export async function getFireAccessDiagnostic():Promise<string>{
   // validation failed, run a NON-AUTHORIZING, redacted phase probe.
   return code==="FIRE-A10-CRYPTO-OR-KEY" ? await probeFireAccessCrypto(token,cfg) : code;
 }
+// One-time owner-only TEST diagnostic: verifies the *current* provider JWKS
+// with a forced fresh fetch and NO embedded/pinned-key fallback. It does not
+// grant access, return headers/tokens/claims, or write any business records.
+export async function getFireLiveJwksProof():Promise<string>{
+  const cfg=accessSettings();
+  if(!cfg)return "FIRE-LIVE-CONFIG";
+  const jwt=getFireAccessToken(await headers());
+  const session=await verifyFireAccessJWT(jwt,cfg);
+  if(!session)return "FIRE-LIVE-UNAUTHENTICATED";
+  const live=await verifyFireAccessJWT(jwt,cfg,{allowPinned:false,forceRefresh:true});
+  return live?"FIRE-LIVE-JWKS-VERIFIED":"FIRE-LIVE-JWKS-UNAVAILABLE";
+}
 export async function requireChatGPTUser(_returnTo:string):Promise<ChatGPTUser>{
   const user=await getChatGPTUser();
   if(user)return user;
