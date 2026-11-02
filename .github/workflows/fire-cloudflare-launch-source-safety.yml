@@ -157,6 +157,9 @@ jobs:
                   || candidate.preview_urls!==false) throw Error("STOP: Unsafe generated TEST manifest");
               console.log("PASS: Actual Vite compiled TEST app manifest is isolated, Access-ready and R2/Stripe disabled. NOT DEPLOYED.");
             '
+            echo 'FIRE TEST Wrangler deployment DRY RUN only — no Cloudflare login, API call or publication.'
+            pnpm exec wrangler deploy --config dist/server/wrangler.FIRE_TEST_REVIEW_ONLY.json --dry-run --outdir "$RUNNER_TEMP/fire-test-dry-run"
+            echo 'PASS: Exact owner-protected Stripe TEST manifest accepted by Wrangler locally; no Worker deployed.'
             rm -f dist/server/wrangler.FIRE_TEST_REVIEW_ONLY.json
           fi
           echo 'PASS: Source compiles locally. Bundle contains fake D1 and MUST NEVER DEPLOY.'
