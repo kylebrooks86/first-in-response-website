@@ -1,12 +1,15 @@
 import {env} from 'cloudflare:workers';
+import {readCustomerWriteJson} from '../../../../../../lib/customer-write-request-guard.mjs';
 type Receipt={id:string;estimateId:string;customerId:string;message:string;status:string;createdAt:string};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const reply=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store'}});
 const confirmed=(row:Receipt)=>reply({ok:true,request:{id:row.id,message:row.message,status:row.status,createdAt:row.createdAt}});
 export async function POST(request:Request,{params}:{params:Promise<{token:string}>}){
  try{
+  const parsed=await readCustomerWriteJson(request,["message","requestId"],8192);
+  if(parsed.response)return parsed.response;
   const {token}=await params;
-  const body=await request.json() as {message?:unknown;requestId?:unknown};
+  const body=parsed.value as {message?:unknown;requestId?:unknown};
   if(typeof body.message!=='string')return reply({error:'Please describe what you would like changed.'},400);
   const message=body.message.trim();
   if(message.length<5||message.length>4000)return reply({error:'Describe the requested change using 5 to 4,000 characters.'},400);
