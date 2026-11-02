@@ -27,7 +27,8 @@ export function prepareStripeTestManifest(generated){
   const mapping=validateTestAppIdentity(PROPOSED_TEST_MAPPING);
   insist(mapping.status==='SOURCE_MAPPING_OK_NOT_DEPLOYED','Source mapping must stay review-only');
   insist(isObject(generated),'Generated Vite manifest must be an object');
-  for(const key of Object.keys(generated)) insist(ALLOWED_KEYS.has(key),'Unexpected Vite config key: '+key);
+  const unknownKeys=Object.keys(generated).filter(key=>!ALLOWED_KEYS.has(key));
+  insist(unknownKeys.length===0,'Unexpected Vite config keys: '+unknownKeys.sort().join(','));
   for(const key of DANGEROUS_KEYS) insist(!Object.hasOwn(generated,key),'Forbidden inherited resource: '+key);
   insist(typeof generated.main==='string'&&generated.main.length>0&&
     !generated.main.includes('..')&&!generated.main.startsWith('/'),'Compiled Worker main must be relative');
