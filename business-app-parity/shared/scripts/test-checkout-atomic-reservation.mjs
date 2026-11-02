@@ -18,11 +18,11 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
    return {bind(...params){
      return {
        async first(){
-         if(sql.includes('WHERE e.share_token=? LIMIT 1'))return {id:'estimate-1',totalCents:10000,depositCents:5000,status:'approved',acceptedAt:'2026-01-01',customer:'Fixture',service:'House wash'};
+         if(sql.includes('WHERE e.share_token=? LIMIT 1'))return {id:'estimate-1',totalCents:10000,depositCents:5000,status:'approved',acceptedAt:'2026-01-01',signedAt:'2026-01-01',customer:'Fixture',service:'House wash'};
          if(sql.includes('FROM payment_refunds WHERE estimate_id=?'))return null;
          if(sql.includes("FROM notifications WHERE estimate_id=? AND type='payment_overage'"))return null;
          if(sql.includes('AS amount FROM payments WHERE estimate_id=?'))return {amount:0};
-         if(sql.includes('SELECT e.status,e.deposit_cents AS depositCents'))return {status:'approved',depositCents:5000,totalCents:10000,paidCents:0,paymentOverageOpen:0};
+         if(sql.includes('SELECT e.status,e.deposit_cents AS depositCents'))return {status:'approved',acceptedAt:'2026-01-01',signedAt:'2026-01-01',depositCents:5000,totalCents:10000,paidCents:0,paymentOverageOpen:0};
          throw Error('Unexpected first SQL: '+sql);
        },
        async all(){
