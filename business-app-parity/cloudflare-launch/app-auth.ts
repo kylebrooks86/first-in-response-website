@@ -5,6 +5,7 @@ import {env} from "cloudflare:workers";
 import {headers} from "next/headers";
 import {redirect} from "next/navigation";
 import {verifyFireAccessJWT} from "./access-jwt.mjs";
+import {getFireAccessToken} from "./access-token.mjs";
 
 export type ChatGPTUser={
   userId:string;
@@ -38,9 +39,11 @@ export async function getChatGPTUser():Promise<ChatGPTUser|null>{
   const cfg=accessSettings();
   if(!cfg)return null;
   const h=await headers();
-  // Ignore untrusted email/login headers and raw CF_Authorization cookies.
-  // The Access-provided JWT signature, issuer, audience, expiry AND email are checked.
-  const asserted=h.get("cf-access-jwt-assertion");
+  // Cloudflare Access's signed assertion header is preferred. Where the Vite
+  // static-assets router omits it, browsers may supply the same signed JWT in
+  // CF_Authorization. It is NEVER trusted without cryptographic verification.
+  // Ignore untrusted email/login headers and reject all unsigned identities.
+  const asserted=getFireAccessToken(h);
   return await verifyFireAccessJWT(asserted,cfg);
 }
 export async function requireChatGPTUser(_returnTo:string):Promise<ChatGPTUser>{
