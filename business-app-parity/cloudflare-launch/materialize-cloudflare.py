@@ -34,6 +34,8 @@ for source,target in [
     ('access-token.d.mts','app/access-token.d.mts'),
     ('access-diagnostic.mjs','app/access-diagnostic.mjs'),
     ('access-diagnostic.d.mts','app/access-diagnostic.d.mts'),
+    ('access-key-probe.mjs','app/access-key-probe.mjs'),
+    ('access-key-probe.d.mts','app/access-key-probe.d.mts'),
     ('access-required-page.tsx','app/access-required/page.tsx')
 ]:
     to=destination/target
