@@ -34,7 +34,9 @@ function WranglerJson([string[]]$params){
   catch{throw "STOP: Cannot parse Wrangler response. No deploy."}
 }
 function Pnpm([string[]]$argsToRun){
-  & $script:PkgCommand @script:PkgPrefix @argsToRun
+  $tool=$script:PkgCommand
+  $prefix=$script:PkgPrefix
+  & $tool @prefix @argsToRun
   ExitCheck ('pnpm '+($argsToRun -join ' '))
 }
 try{
