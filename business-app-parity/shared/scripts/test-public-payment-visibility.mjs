@@ -8,6 +8,7 @@ const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const pay=readFileSync(resolve(root,"app/pay/[id]/page.tsx"),"utf8");
 const invoice=readFileSync(resolve(root,"app/invoice/[token]/page.tsx"),"utf8");
 const estimate=readFileSync(resolve(root,"app/estimate/[token]/page.tsx"),"utf8");
+const owner=readFileSync(resolve(root,"app/dashboard.tsx"),"utf8");
 const valid={status:"approved",acceptedAt:"2026-11-02T12:00:00Z",signedAt:"2026-11-02T12:01:00Z",billingVerified:true,balanceCents:5000,reviewPending:false};
 let checks=0;
 const check=(actual,expected,label)=>{assert.equal(actual,expected,label);checks++;};
@@ -30,4 +31,5 @@ check(pay.includes("Payment link no longer available"),true,"neutral unavailable
 check(!pay.includes("After approval, the 50% deposit"),true,"no hardcoded deposit in public payment page");
 check(invoice.includes("{manualPaymentEligible&&row.estimateStatus"),true,"invoice card action also signed-only");
 check(estimate.includes('if(row.status==="declined")'),true,"quote share page still hides voided quote");
+check(owner.includes('estimate.shareToken&&!["superseded","declined"].includes(estimate.status)'),true,"owner shortcut hides unavailable public link");
 console.log(`PASS ${checks}/${checks}: public estimate, pay and invoice signed-only payment visibility; voided link privacy; billing review; no hardcoded 50% message. Source tests only, no hosted transactions.`);
