@@ -17,12 +17,11 @@ async function token(c,claims={}){
 }
 const pinned=c=>({teamDomain:c.teamDomain,fetchedAt:Date.now(),keys:[key]});
 const offline=async()=>{throw Error("Worker cannot fetch Access certs")};
-test("live-only mode never trusts a fresh pinned snapshot or previously cached pinned key",async()=>{
+test("permanent verifier rejects offline JWKS even when formerly pinned keys were cached",async()=>{
  const c=config("offline-cached");
  const t=await token(c);
- assert.equal((await verifyFireAccessJWT(t,c,{fetcher:offline,subtle,now,pinnedSnapshot:pinned(c)}))?.email,c.ownerEmail);
- assert.equal(await verifyFireAccessJWT(t,c,{fetcher:offline,subtle,now,pinnedSnapshot:pinned(c),allowPinned:false}),null);
- assert.equal(await verifyFireAccessJWT(t,c,{fetcher:offline,subtle,now,pinnedSnapshot:pinned(c),allowPinned:false,forceRefresh:true}),null);
+ assert.equal(await verifyFireAccessJWT(t,c,{fetcher:offline,subtle,now}),null);
+ assert.equal(await verifyFireAccessJWT(t,c,{fetcher:offline,subtle,now,allowPinned:true,forceRefresh:true}),null);
 });
 test("live-only mode accepts only real provider JWKS RSA signature and owner claims",async()=>{
  const c=config("online-unique");
@@ -33,15 +32,15 @@ test("live-only mode accepts only real provider JWKS RSA signature and owner cla
    assert.equal(opts.redirect,"follow");
    return {ok:true,url,json:async()=>({keys:[key]})};
  };
- assert.equal((await verifyFireAccessJWT(t,c,{fetcher,subtle,now,allowPinned:false,forceRefresh:true}))?.email,c.ownerEmail);
- assert.equal(await verifyFireAccessJWT(await token(c,{email:"intruder@example.test"}),c,{fetcher,subtle,now,allowPinned:false,forceRefresh:true}),null);
- assert.equal(await verifyFireAccessJWT(await token(c,{aud:"wrong"}),c,{fetcher,subtle,now,allowPinned:false,forceRefresh:true}),null);
+ assert.equal((await verifyFireAccessJWT(t,c,{fetcher,subtle,now,forceRefresh:true}))?.email,c.ownerEmail);
+ assert.equal(await verifyFireAccessJWT(await token(c,{email:"intruder@example.test"}),c,{fetcher,subtle,now,forceRefresh:true}),null);
+ assert.equal(await verifyFireAccessJWT(await token(c,{aud:"wrong"}),c,{fetcher,subtle,now,forceRefresh:true}),null);
 });
 test("redirect to a different host and failed certificate endpoint are never trusted",async()=>{
  const c=config("redirect-denied");
  const t=await token(c);
  const evil=async()=>({ok:true,url:"https://attacker.example/certs",json:async()=>({keys:[key]})});
- assert.equal(await verifyFireAccessJWT(t,c,{fetcher:evil,subtle,now,allowPinned:false,forceRefresh:true,pinnedSnapshot:pinned(c)}),null);
+ assert.equal(await verifyFireAccessJWT(t,c,{fetcher:evil,subtle,now,forceRefresh:true}),null);
  const failure=async()=>({ok:false,status:530,url:"https://"+c.teamDomain+"/cdn-cgi/access/certs"});
- assert.equal(await verifyFireAccessJWT(t,c,{fetcher:failure,subtle,now,allowPinned:false,forceRefresh:true,pinnedSnapshot:pinned(c)}),null);
+ assert.equal(await verifyFireAccessJWT(t,c,{fetcher:failure,subtle,now,forceRefresh:true}),null);
 });
