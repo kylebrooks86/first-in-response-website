@@ -9,6 +9,7 @@ const pay=readFileSync(resolve(root,"app/pay/[id]/page.tsx"),"utf8");
 const invoice=readFileSync(resolve(root,"app/invoice/[token]/page.tsx"),"utf8");
 const estimate=readFileSync(resolve(root,"app/estimate/[token]/page.tsx"),"utf8");
 const owner=readFileSync(resolve(root,"app/dashboard.tsx"),"utf8");
+const checkout=readFileSync(resolve(root,"app/api/payments/checkout/route.ts"),"utf8");
 const valid={status:"approved",acceptedAt:"2026-11-02T12:00:00Z",signedAt:"2026-11-02T12:01:00Z",billingVerified:true,balanceCents:5000,reviewPending:false};
 let checks=0;
 const check=(actual,expected,label)=>{assert.equal(actual,expected,label);checks++;};
@@ -25,6 +26,14 @@ for(const [source,name] of [[pay,"pay"],[invoice,"invoice"]]){
   check(source.includes("signed_at AS "+(name==="pay"?"signedAt":"estimateSignedAt")),true,name+" checks persisted signature");
   check(source.includes("manualPaymentEligible&&"),true,name+" hides instructions when invalid");
 }
+check(checkout.includes("e.signed_at AS signedAt"),true,"checkout reads persisted signature");
+check(checkout.includes('!row.acceptedAt || !row.signedAt || !["approved","scheduled","completed"].includes(row.status)'),true,"checkout POST refuses unsigned or ineligible status");
+check(checkout.includes("AND accepted_at IS NOT NULL AND signed_at IS NOT NULL"),true,"atomic checkout reservation rechecks signature");
+check(checkout.includes("!current.acceptedAt||!current.signedAt"),true,"checkout confirmation rechecks signature before returning customer link");
+check(!checkout.includes("50% deposit"),true,"Stripe product label uses real reservation deposit rather than assuming 50 percent");
+check(estimate.includes('const estimateApproved=Boolean(row.acceptedAt&&row.signedAt)'),true,"customer quote buttons require saved signature");
+check(estimate.includes("<small>Reservation deposit</small>"),true,"customer estimate labels actual deposit");
+check(!estimate.includes("After approval, the 50% deposit"),true,"customer instructions do not invent a fixed deposit");
 check(pay.includes("isWithdrawnPublicEstimate(row.status)"),true,"withdrawn pay link checked");
 check(pay.indexOf("isWithdrawnPublicEstimate(row.status)")<pay.indexOf("const itemResult"),true,"withdrawn pay link hides item details before loading");
 check(pay.includes("Payment link no longer available"),true,"neutral unavailable text");
