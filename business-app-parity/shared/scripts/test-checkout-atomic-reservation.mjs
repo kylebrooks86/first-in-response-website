@@ -22,7 +22,7 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
          if(sql.includes('FROM payment_refunds WHERE estimate_id=?'))return null;
          if(sql.includes("FROM notifications WHERE estimate_id=? AND type='payment_overage'"))return null;
          if(sql.includes('AS amount FROM payments WHERE estimate_id=?'))return {amount:0};
-         if(sql.includes('SELECT e.status,e.deposit_cents AS depositCents'))return {status:quoteStatus,acceptedAt:quoteAcceptedAt,signedAt:quoteSignedAt,depositCents:5000,totalCents:10000,paidCents:0,paymentOverageOpen:0};
+         if(sql.includes('SELECT e.status,e.accepted_at AS acceptedAt,e.signed_at AS signedAt,e.deposit_cents AS depositCents'))return {status:quoteStatus,acceptedAt:quoteAcceptedAt,signedAt:quoteSignedAt,depositCents:5000,totalCents:10000,paidCents:0,paymentOverageOpen:0};
          throw Error('Unexpected first SQL: '+sql);
        },
        async all(){
