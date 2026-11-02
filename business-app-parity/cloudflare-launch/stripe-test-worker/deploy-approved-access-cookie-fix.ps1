@@ -12,7 +12,7 @@ $Worker='fire-stripe-test-20261101'
 $Database='fire-stripe-test-db-20261101'
 $DatabaseId='dba421ba-fc66-4cf8-9c31-51616f8249ba'
 $Origin='https://fire-stripe-test-20261101.kyle-bfc.workers.dev'
-$PriorVersion='120f6239-1566-423f-a77c-d8c8e0691317'
+$PriorVersion='120f6239-1560-423f-a77c-d8c8e0691317'
 $ExpectedSecrets='FIRE_ACCESS_AUD,FIRE_ACCESS_OWNER_EMAIL,FIRE_ACCESS_TEAM_DOMAIN'
 $GitRepo='https://github.com/kylebrooks86/first-in-response-website.git'
 $Scratch=Join-Path $env:TEMP ('FIRE-Access-Fix-'+[Guid]::NewGuid().ToString('N'))
@@ -59,7 +59,10 @@ try{
   Assert ($matches.Count -eq 1) 'Wrong physical database UUID or Cloudflare account'
   $status=(& $Wrangler deployments status --name $Worker --json | Out-String).Trim()
   ExitCheck 'Existing Worker version status'
-  Assert ($status.Contains($PriorVersion)) 'Existing TEST Worker changed from approved predecessor; do not overwrite'
+  $deployment=ConvertFrom-Json -InputObject $status
+  $activeVersions=@($deployment.versions)
+  Assert ($activeVersions.Count -eq 1) 'TEST Worker must have exactly one active version'
+  Assert ($activeVersions[0].version_id -eq $PriorVersion -and [int]$activeVersions[0].percentage -eq 100) 'Existing TEST Worker version or traffic changed from approved predecessor; do not overwrite'
   $h=(& curl.exe --silent --show-error --max-time 20 --dump-header - --output NUL $Origin | Out-String)
   ExitCheck 'Unauthenticated Access probe'
   Assert ($h -match '(?im)^location:\s*https://restless-unit-ad5b\.cloudflareaccess\.com/') 'Owner-only Cloudflare Access redirect not verified'
