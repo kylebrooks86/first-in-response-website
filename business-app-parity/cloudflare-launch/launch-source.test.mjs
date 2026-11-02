@@ -20,7 +20,7 @@ const now=2100000000;
 const base={iss:"https://"+tdomain,aud:[config.audience],email:config.ownerEmail,iat:now,exp:now+1800};
 const fetcher=async url=>{
   assert.equal(url,"https://"+tdomain+"/cdn-cgi/access/certs");
-  return {ok:true,json:async()=>({keys:[jwk]})};
+  return {ok:true,url,json:async()=>({keys:[jwk]})};
 };
 test("signed owner Access JWT accepted without a stored PIN or client secret",async()=>{
   const identity=await verifyFireAccessJWT(await sign(base),config,{fetcher,subtle,now});
