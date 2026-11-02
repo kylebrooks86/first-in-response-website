@@ -40,7 +40,7 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         for expected in ("fire-fullapp-qa-20261016",
                          "fire-fullapp-qa-db-20261016",
                          "8ccfb1f8-1657-4074-b1b2-47de78f95003",
-                         "86f3d186-2770-438e-9f5c-32319bf6fe1d",
+                         "92708a01-34d6-4c07-b236-ff418b0cabad",
                          "deployments status --name $workerName --json",
                          "d1 list --json", "databaseInfo.qaUuid -ceq $qaId",
                          "$activeVersions.Count -eq 1",
@@ -134,8 +134,9 @@ class ExistingQAUpdateSafety(unittest.TestCase):
         review_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", S, re.M)
         publish_pins = re.findall(r"^\$expectedActiveVersion = '([^']+)'$", publisher, re.M)
         self.assertEqual(readonly_pins, ["86f3d186-2770-438e-9f5c-32319bf6fe1d"])
-        self.assertEqual(review_pins, readonly_pins)
-        self.assertEqual(publish_pins, readonly_pins)
+        self.assertEqual(review_pins, ["92708a01-34d6-4c07-b236-ff418b0cabad"])
+        self.assertEqual(publish_pins, review_pins)
+        self.assertNotEqual(review_pins, readonly_pins)  # old audit snapshot is preserved as historic evidence
         self.assertIn("[switch]$Publish", publisher)
         self.assertIn("Require ($typed -ceq $approval)", publisher)
         self.assertIn("Require ($OwnerConfirmedPhotoZipBackup.IsPresent -xor $OwnerConfirmedNoLocalPhotos.IsPresent)", publisher)
