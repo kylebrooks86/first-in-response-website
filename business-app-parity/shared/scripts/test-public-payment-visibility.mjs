@@ -34,6 +34,9 @@ check(!checkout.includes("50% deposit"),true,"Stripe product label uses real res
 check(estimate.includes('const estimateApproved=Boolean(row.acceptedAt&&row.signedAt)'),true,"customer quote buttons require saved signature");
 check(estimate.includes("<small>Reservation deposit</small>"),true,"customer estimate labels actual deposit");
 check(!estimate.includes("After approval, the 50% deposit"),true,"customer instructions do not invent a fixed deposit");
+check(pay.includes("const canPay = paymentsReady&&billingNumbersSafe"),true,"no Stripe card button when the gateway is disconnected");
+check(pay.includes("Online card payments are unavailable"),true,"disconnected gateway gives a clear customer explanation");
+check(pay.includes("{paymentsReady&&<div className=\"secure-note\""),true,"Stripe security label shown only when connected");
 check(pay.includes("isWithdrawnPublicEstimate(row.status)"),true,"withdrawn pay link checked");
 check(pay.indexOf("isWithdrawnPublicEstimate(row.status)")<pay.indexOf("const itemResult"),true,"withdrawn pay link hides item details before loading");
 check(pay.includes("Payment link no longer available"),true,"neutral unavailable text");
