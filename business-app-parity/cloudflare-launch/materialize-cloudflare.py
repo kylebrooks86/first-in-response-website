@@ -30,7 +30,6 @@ for source,target in [
     ('app-auth.ts','app/chatgpt-auth.ts'),
     ('access-jwt.mjs','app/access-jwt.mjs'),
     ('access-jwt.d.mts','app/access-jwt.d.mts'),
-    ('access-public-keys.mjs','app/access-public-keys.mjs'),
     ('access-token.mjs','app/access-token.mjs'),
     ('access-token.d.mts','app/access-token.d.mts'),
     ('access-diagnostic.mjs','app/access-diagnostic.mjs'),
