@@ -38,6 +38,8 @@ jobs:
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/test-private-stub.mjs
       - name: Source-only TEST app resource identity, owner auth, no-billing preflight
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/test-app-identity.test.mjs
+      - name: TEST app generated-manifest conversion fails closed against paid/photo/Stripe and foreign D1
+        run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.test.mjs
       - name: Exact Stripe TEST signed callback review, no Access policy changes
         run: node --test business-app-parity/cloudflare-launch/stripe-test-worker/webhook-path.test.mjs
       - name: Guard one-time TEST D1 hosted initializer (NO Cloudflare access)
@@ -133,6 +135,24 @@ jobs:
           pnpm run build
           test -e dist/server/wrangler.json
           grep -q '00000000-0000-4000-8000-000000000000' dist/server/wrangler.json
+          if [ "${{ matrix.target }}" = "stripe-test" ]; then
+            node "$GITHUB_WORKSPACE/business-app-parity/cloudflare-launch/stripe-test-worker/prepare-stripe-test-manifest.mjs" \
+              "$PWD/dist/server/wrangler.json" "$PWD/dist/server/wrangler.FIRE_TEST_REVIEW_ONLY.json"
+            node --input-type=module -e '
+              import fs from "node:fs";
+              const dir="dist/server/";
+              const original=JSON.parse(fs.readFileSync(dir+"wrangler.json","utf8"));
+              const candidate=JSON.parse(fs.readFileSync(dir+"wrangler.FIRE_TEST_REVIEW_ONLY.json","utf8"));
+              if (original.d1_databases[0].database_id!=="00000000-0000-4000-8000-000000000000"
+                  || candidate.d1_databases[0].database_id!=="dba421ba-fc66-4cf8-9c31-51616f8249ba"
+                  || candidate.name!=="fire-stripe-test-20261101"
+                  || "r2_buckets" in candidate || "kv_namespaces" in candidate
+                  || candidate.vars.FIRE_STRIPE_MODE!=="disabled"
+                  || candidate.preview_urls!==false) throw Error("STOP: Unsafe generated TEST manifest");
+              console.log("PASS: Actual Vite compiled TEST app manifest is isolated, Access-ready and R2/Stripe disabled. NOT DEPLOYED.");
+            '
+            rm -f dist/server/wrangler.FIRE_TEST_REVIEW_ONLY.json
+          fi
           echo 'PASS: Source compiles locally. Bundle contains fake D1 and MUST NEVER DEPLOY.'
       - name: Delete nondeployable compiled output
         if: always()
