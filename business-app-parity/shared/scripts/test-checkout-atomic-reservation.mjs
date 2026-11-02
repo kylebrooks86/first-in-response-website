@@ -10,7 +10,7 @@ const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.
 let checks=0;
 const check=(condition,description)=>{assert.ok(condition,description);checks++;console.log('PASS: '+description);};
 const body=JSON.stringify({shareToken:'synthetic-share-token',paymentType:'deposit'});
-function harness({twoReaders=false,stripeResponse='success',saveFailure=false,priorStatus=null,priorPaymentStatus='unpaid',priorMatches=true,priorMode=true}={}){
+function harness({twoReaders=false,stripeResponse='success',saveFailure=false,priorStatus=null,priorPaymentStatus='unpaid',priorMatches=true,priorMode=true,quoteStatus='approved',quoteAcceptedAt='2026-01-01',quoteSignedAt='2026-01-01'}={}){
  const state={open:priorStatus?{id:'cs_test_previoussynthetic',estimateId:'estimate-1',type:'deposit',charge:5000,status:'open'}:null,creates:0,expirations:0,locks:0,inspections:0};
  let readers=0,openReaders;
  const bothReaders=new Promise(resolve=>{openReaders=resolve;});
@@ -18,11 +18,11 @@ function harness({twoReaders=false,stripeResponse='success',saveFailure=false,pr
    return {bind(...params){
      return {
        async first(){
-         if(sql.includes('WHERE e.share_token=? LIMIT 1'))return {id:'estimate-1',totalCents:10000,depositCents:5000,status:'approved',acceptedAt:'2026-01-01',signedAt:'2026-01-01',customer:'Fixture',service:'House wash'};
+         if(sql.includes('WHERE e.share_token=? LIMIT 1'))return {id:'estimate-1',totalCents:10000,depositCents:5000,status:quoteStatus,acceptedAt:quoteAcceptedAt,signedAt:quoteSignedAt,customer:'Fixture',service:'House wash'};
          if(sql.includes('FROM payment_refunds WHERE estimate_id=?'))return null;
          if(sql.includes("FROM notifications WHERE estimate_id=? AND type='payment_overage'"))return null;
          if(sql.includes('AS amount FROM payments WHERE estimate_id=?'))return {amount:0};
-         if(sql.includes('SELECT e.status,e.deposit_cents AS depositCents'))return {status:'approved',acceptedAt:'2026-01-01',signedAt:'2026-01-01',depositCents:5000,totalCents:10000,paidCents:0,paymentOverageOpen:0};
+         if(sql.includes('SELECT e.status,e.deposit_cents AS depositCents'))return {status:quoteStatus,acceptedAt:quoteAcceptedAt,signedAt:quoteSignedAt,depositCents:5000,totalCents:10000,paidCents:0,paymentOverageOpen:0};
          throw Error('Unexpected first SQL: '+sql);
        },
        async all(){
@@ -141,4 +141,19 @@ for(const flag of ['priorMatches','priorMode']){
  const response=await h.post();
  check(response.status===409&&h.state.creates===0&&h.state.expirations===0,'Stripe expired session with mismatched '+flag+' cannot release old lock');
 }
-console.log('PASS '+checks+' synthetic checkout race and recovery assertions against the actual FIRE route.');
+// Reject direct POST calls that bypass the public payment UI. Even a valid
+// share-token and test Stripe key must never authorize unsigned or retired work.
+for(const [label,fixture] of [
+  ['declined quote', {quoteStatus:'declined'}],
+  ['superseded quote', {quoteStatus:'superseded'}],
+  ['unsigned approval', {quoteSignedAt:null}],
+  ['missing acceptance', {quoteAcceptedAt:null}],
+  ['sent quote', {quoteStatus:'sent'}],
+  ['draft quote', {quoteStatus:'draft'}]
+]){
+  const h=harness(fixture);
+  const response=await h.post();
+  check(response.status===409,label+' cannot create card checkout from direct API POST');
+  check(h.state.creates===0&&h.state.locks===0,label+' never reserves or sends a Stripe request');
+}
+console.log('PASS '+checks+' synthetic checkout race, retired/unsigned rejection and recovery assertions against the actual FIRE route.');
