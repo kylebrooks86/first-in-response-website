@@ -17,5 +17,7 @@ export function verifyFireAccessJWT(
     fetcher?:typeof fetch;
     subtle?:SubtleCrypto;
     now?:number;
+    allowPinned?:boolean;
+    forceRefresh?:boolean;
   }
 ):Promise<AccessIdentity|null>;
