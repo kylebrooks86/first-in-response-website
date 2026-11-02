@@ -131,7 +131,7 @@ class OnlyApprovedQAUpdate(unittest.TestCase):
         self.assertIn("source-to-binary attestation remains OPEN", S)
         self.assertNotIn("git reset", S)
         self.assertNotIn("d1 migrations apply", S)
-        self.assertEqual(len(re.findall(r"&\\s*\\$wrangler\\.Source\\s+deploy --config",S)),1)
+        self.assertEqual(len(re.findall(r"&\s*\$wrangler\.Source\s+deploy --config",S)),1)
 
 
 if __name__=="__main__":unittest.main(verbosity=2)
